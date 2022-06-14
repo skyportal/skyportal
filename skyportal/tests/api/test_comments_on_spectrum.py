@@ -2,7 +2,7 @@ import uuid
 import datetime
 import base64
 
-from skyportal.tests import api, check_success, check_failure
+from skyportal.tests import api, assert_api, assert_api_fail
 
 
 def test_add_and_retrieve_comment_group_id(
@@ -226,7 +226,7 @@ def test_delete_comment(comment_token, upload_data_token, public_source, lris):
         },
         token=upload_data_token,
     )
-    check_success(status, data)
+    assert_api(status, data)
     spectrum_id = data["data"]["id"]
 
     status, data = api(
@@ -238,20 +238,20 @@ def test_delete_comment(comment_token, upload_data_token, public_source, lris):
         },
         token=comment_token,
     )
-    check_success(status, data)
+    assert_api(status, data)
     comment_id = data['data']['comment_id']
 
     status, data = api(
         'GET', f'spectra/{spectrum_id}/comments/{comment_id}', token=comment_token
     )
-    check_success(status, data)
+    assert_api(status, data)
     assert data['data']['text'] == 'Comment text'
 
     # try to delete using the wrong spectrum ID
     status, data = api(
         'DELETE', f'spectra/{spectrum_id+1}/comments/{comment_id}', token=comment_token
     )
-    check_failure(
+    assert_api_fail(
         status,
         data,
         400,
@@ -261,12 +261,12 @@ def test_delete_comment(comment_token, upload_data_token, public_source, lris):
     status, data = api(
         'DELETE', f'spectra/{spectrum_id}/comments/{comment_id}', token=comment_token
     )
-    check_success(status, data)
+    assert_api(status, data)
 
     status, data = api(
         'GET', f'spectra/{spectrum_id}/comments/{comment_id}', token=comment_token
     )
-    check_failure(status, data, 403)
+    assert_api_fail(status, data, 403)
 
 
 def test_post_comment_attachment(super_admin_token, public_source, lris, public_group):

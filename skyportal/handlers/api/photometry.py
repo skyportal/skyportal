@@ -952,9 +952,7 @@ class PhotometryHandler(BaseHandler):
     def get(self, photometry_id):
         # The full docstring/API spec is below as an f-string
 
-        phot = Photometry.get_if_accessible_by(
-            photometry_id, self.current_user, raise_if_none=False
-        )
+        phot = Photometry.get_if_accessible_by(photometry_id, self.current_user)
 
         if phot is None:
             return self.error(f'Cannot find photometry point with ID: {photometry_id}.')
@@ -1090,7 +1088,7 @@ class PhotometryHandler(BaseHandler):
                 schema: Error
         """
         photometry = Photometry.get_if_accessible_by(
-            photometry_id, self.current_user, mode="delete", raise_if_none=False
+            photometry_id, self.current_user, mode="delete"
         )
 
         if photometry is None:

@@ -3,7 +3,7 @@ from copy import copy
 import re
 import json
 import uuid
-
+import string
 import arrow
 import numpy as np
 
@@ -532,7 +532,11 @@ class CandidateHandler(BaseHandler):
                 if g.filters is not None
             ]
             if group_ids is not None:
-                if isinstance(group_ids, str) and "," in group_ids:
+                if (
+                    isinstance(group_ids, str)
+                    and "," in group_ids
+                    and set(group_ids) in set(string.digits + ',')
+                ):
                     group_ids = [int(g_id) for g_id in group_ids.split(",")]
                 elif isinstance(group_ids, str) and group_ids.isdigit():
                     group_ids = [int(group_ids)]
@@ -547,7 +551,7 @@ class CandidateHandler(BaseHandler):
                 ).all()
                 filter_ids = [f.id for f in filters]
             elif filter_ids is not None:
-                if "," in filter_ids:
+                if "," in filter_ids and set(filter_ids) in set(string.digits + ','):
                     filter_ids = [int(f_id) for f_id in filter_ids.split(",")]
                 elif filter_ids.isdigit():
                     filter_ids = [int(filter_ids)]

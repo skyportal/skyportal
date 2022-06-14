@@ -103,7 +103,7 @@ class ClassificationHandler(BaseHandler):
 
         if classification_id is not None:
             classification = Classification.get_if_accessible_by(
-                classification_id, self.current_user, raise_if_none=False
+                classification_id, self.current_user
             )
             if classification is None:
                 return self.error(
@@ -206,9 +206,7 @@ class ClassificationHandler(BaseHandler):
 
         # check the taxonomy
         taxonomy_id = data["taxonomy_id"]
-        taxonomy = Taxonomy.get_if_accessible_by(
-            taxonomy_id, self.current_user, raise_if_none=False
-        )
+        taxonomy = Taxonomy.get_if_accessible_by(taxonomy_id, self.current_user)
         if taxonomy is None:
             return self.error(f'Cannot find a taxonomy with ID: {taxonomy_id}.')
 
@@ -307,7 +305,7 @@ class ClassificationHandler(BaseHandler):
                 schema: Error
         """
         c = Classification.get_if_accessible_by(
-            classification_id, self.current_user, mode="update", raise_if_none=False
+            classification_id, self.current_user, mode="update"
         )
         if c is None:
             return self.error(
@@ -327,9 +325,7 @@ class ClassificationHandler(BaseHandler):
             )
 
         if group_ids is not None:
-            groups = Group.get_if_accessible_by(
-                group_ids, self.current_user, raise_if_none=False
-            )
+            groups = Group.get_if_accessible_by(group_ids, self.current_user)
             if groups is None:
                 return self.error(
                     f'Cannot find one or more groups with IDs: {group_ids}.'
@@ -368,7 +364,7 @@ class ClassificationHandler(BaseHandler):
                 schema: Success
         """
         c = Classification.get_if_accessible_by(
-            classification_id, self.current_user, mode="delete", raise_if_none=False
+            classification_id, self.current_user, mode="delete"
         )
         if c is None:
             return self.error(

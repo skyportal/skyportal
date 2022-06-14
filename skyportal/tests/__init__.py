@@ -65,7 +65,7 @@ def api(
         return response.status_code, data
 
 
-def check_success(status, data):
+def assert_api(status, data):
     """
     Check that the API call succeeded.
     If it fails, prints out the error message,
@@ -86,7 +86,7 @@ def check_success(status, data):
             raise Exception(f'Expected success, got {status}')
 
 
-def check_failure(status, data, expected_status=None, expected_error_partial=None):
+def assert_api_fail(status, data, expected_status=None, expected_error_partial=None):
     """
     Check that the API call failed.
     If it succeeds, raise an exception.

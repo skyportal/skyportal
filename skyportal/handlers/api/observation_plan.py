@@ -92,7 +92,6 @@ class ObservationPlanRequestHandler(BaseHandler):
             allocation = Allocation.get_if_accessible_by(
                 data['allocation_id'],
                 self.current_user,
-                raise_if_none=False,
             )
             if allocation is None:
                 return self.error(
@@ -110,9 +109,7 @@ class ObservationPlanRequestHandler(BaseHandler):
 
             target_groups = []
             for group_id in data.pop('target_group_ids', []):
-                g = Group.get_if_accessible_by(
-                    group_id, self.current_user, raise_if_none=False
-                )
+                g = Group.get_if_accessible_by(group_id, self.current_user)
                 if g is None:
                     return self.error(f"Missing group with ID: {group_id}")
                 target_groups.append(g)

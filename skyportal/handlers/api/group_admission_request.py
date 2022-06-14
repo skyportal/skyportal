@@ -65,7 +65,6 @@ class GroupAdmissionRequestHandler(BaseHandler):
             admission_request = GroupAdmissionRequest.get_if_accessible_by(
                 admission_request_id,
                 self.current_user,
-                raise_if_none=False,
                 mode="read",
             )
             if admission_request is None:

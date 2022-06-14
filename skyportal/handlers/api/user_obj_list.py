@@ -135,9 +135,7 @@ class UserObjListHandler(BaseHandler):
             return self.error(f'Invalid/missing parameters: {e.normalized_messages()}')
 
         obj_id = data.get('obj_id')
-        obj_check = Obj.get_if_accessible_by(
-            obj_id, self.current_user, raise_if_none=False
-        )
+        obj_check = Obj.get_if_accessible_by(obj_id, self.current_user)
         if obj_check is None:
             return self.error(f'Cannot find Obj with ID: {obj_id}')
 
