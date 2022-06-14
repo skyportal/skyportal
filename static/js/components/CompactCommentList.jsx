@@ -4,8 +4,8 @@ import { useSelector } from "react-redux";
 
 import PropTypes from "prop-types";
 
-import Tooltip from "@material-ui/core/Tooltip";
-import InfoOutlinedIcon from "@material-ui/icons/InfoOutlined";
+import Tooltip from "@mui/material/Tooltip";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";

@@ -3,8 +3,8 @@ import { useDispatch } from "react-redux";
 
 import PropTypes from "prop-types";
 
-import { Button } from "@material-ui/core";
-import CloseIcon from "@material-ui/icons/Close";
+import { Button } from "@mui/material";
+import CloseIcon from "@mui/icons-material/Close";
 
 import * as sourceActions from "../ducks/source";
 import * as gcnEventActions from "../ducks/gcnEvent";

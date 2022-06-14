@@ -64,7 +64,7 @@ def test_shift(
 
     driver.click_xpath('//*[@id="root_group_id"]')
     driver.click_xpath('//li[contains(text(), "Sitewide Group")]')
-
+    driver.wait_for_xpath('//*[@id="root_required_users_number"]').send_keys('5')
     submit_button_xpath = '//button[@type="submit"]'
     driver.wait_for_xpath(submit_button_xpath)
     driver.click_xpath(submit_button_xpath)
@@ -189,6 +189,12 @@ def test_shift(
 
     driver.get("/shifts")
 
+    # check the option to show all shifts
+    driver.wait_for_xpath(
+        '//*[contains(., "Show All Shifts")]/../span[contains(@class, "MuiSwitch-root")]',
+        timeout=30,
+    ).click()
+
     shift_on_calendar = f'//*/span/strong[contains(.,"{form_name}")]'
     # check for API shift
     driver.wait_for_xpath(
@@ -233,6 +239,11 @@ def test_shift(
     )
     driver.wait_for_xpath(notification_xpath)
     driver.click_xpath(notification_xpath, timeout=10)
+
+    driver.wait_for_xpath(
+        '//*[contains(., "Show All Shifts")]/../span[contains(@class, "MuiSwitch-root")]',
+        timeout=30,
+    ).click()
 
     # check for API shift
     driver.wait_for_xpath(

@@ -1,16 +1,18 @@
 import React, { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Link } from "react-router-dom";
-import Typography from "@material-ui/core/Typography";
-import Paper from "@material-ui/core/Paper";
+import Typography from "@mui/material/Typography";
+import Paper from "@mui/material/Paper";
 import {
-  makeStyles,
   createTheme,
-  MuiThemeProvider,
+  ThemeProvider,
+  StyledEngineProvider,
   useTheme,
-} from "@material-ui/core/styles";
-import Chip from "@material-ui/core/Chip";
-import Button from "@material-ui/core/Button";
+  adaptV4Theme,
+} from "@mui/material/styles";
+import makeStyles from "@mui/styles/makeStyles";
+import Chip from "@mui/material/Chip";
+import Button from "@mui/material/Button";
 
 import MUIDataTable from "mui-datatables";
 
@@ -32,7 +34,7 @@ const useStyles = makeStyles((theme) => ({
   },
   gcnEventLink: {
     color:
-      theme.palette.type === "dark"
+      theme.palette.mode === "dark"
         ? theme.palette.secondary.main
         : theme.palette.primary.main,
   },
@@ -40,34 +42,36 @@ const useStyles = makeStyles((theme) => ({
 
 // Tweak responsive styling
 const getMuiTheme = (theme) =>
-  createTheme({
-    palette: theme.palette,
-    overrides: {
-      MUIDataTablePagination: {
-        toolbar: {
-          flexFlow: "row wrap",
-          justifyContent: "flex-end",
-          padding: "0.5rem 1rem 0",
-          [theme.breakpoints.up("sm")]: {
-            // Cancel out small screen styling and replace
-            padding: "0px",
-            paddingRight: "2px",
-            flexFlow: "row nowrap",
+  createTheme(
+    adaptV4Theme({
+      palette: theme.palette,
+      overrides: {
+        MUIDataTablePagination: {
+          toolbar: {
+            flexFlow: "row wrap",
+            justifyContent: "flex-end",
+            padding: "0.5rem 1rem 0",
+            [theme.breakpoints.up("sm")]: {
+              // Cancel out small screen styling and replace
+              padding: "0px",
+              paddingRight: "2px",
+              flexFlow: "row nowrap",
+            },
           },
-        },
-        tableCellContainer: {
-          padding: "1rem",
-        },
-        selectRoot: {
-          marginRight: "0.5rem",
-          [theme.breakpoints.up("sm")]: {
-            marginLeft: "0",
-            marginRight: "2rem",
+          tableCellContainer: {
+            padding: "1rem",
+          },
+          selectRoot: {
+            marginRight: "0.5rem",
+            [theme.breakpoints.up("sm")]: {
+              marginLeft: "0",
+              marginRight: "2rem",
+            },
           },
         },
       },
-    },
-  });
+    })
+  );
 
 const GcnEvents = () => {
   const classes = useStyles();
@@ -162,13 +166,15 @@ const GcnEvents = () => {
       <Typography variant="h5">GCN Events</Typography>
       {gcnEvents ? (
         <Paper className={classes.container}>
-          <MuiThemeProvider theme={getMuiTheme(theme)}>
-            <MUIDataTable
-              data={gcnEvents}
-              options={options}
-              columns={columns}
-            />
-          </MuiThemeProvider>
+          <StyledEngineProvider injectFirst>
+            <ThemeProvider theme={getMuiTheme(theme)}>
+              <MUIDataTable
+                data={gcnEvents}
+                options={options}
+                columns={columns}
+              />
+            </ThemeProvider>
+          </StyledEngineProvider>
         </Paper>
       ) : (
         <Spinner />
