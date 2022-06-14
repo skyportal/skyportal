@@ -507,7 +507,7 @@ def test_hr_diagram(
         f'sources/{source_id}/annotations',
         data={
             'obj_id': source_id,
-            'origin': 'gaiaedr3.gaia_source',
+            'origin': 'gaiadr3.gaia_source',
             'data': {'Mag_G': 11.3, 'Mag_Bp': 11.8, 'Mag_Rp': 11.0, 'Plx': 20},
         },
         token=annotation_token,
