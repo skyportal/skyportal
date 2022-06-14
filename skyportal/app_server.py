@@ -62,6 +62,7 @@ from skyportal.handlers.api import (
     ObservationTreasureMapHandler,
     ObservationASCIIFileHandler,
     ObservationExternalAPIHandler,
+    ObservationSimSurveyHandler,
     PhotometryRangeHandler,
     PhotometryRequestHandler,
     PhotometryOriginHandler,
@@ -163,20 +164,23 @@ skyportal_handlers = [
     (r'/api/followup_request(/.*)?', FollowupRequestHandler),
     (r'/api/photometry_request(/.*)', PhotometryRequestHandler),
     (r'/api/galaxy_catalog(/[0-9]+)?', GalaxyCatalogHandler),
-    (r'/api/(sources|spectra|gcn_event)/([0-9A-Za-z-_\.\+]+)/comments', CommentHandler),
     (
-        r'/api/(sources|spectra|gcn_event)/([0-9A-Za-z-_\.\+]+)/comments(/[0-9]+)?',
+        r'/api/(sources|spectra|gcn_event|shift)/([0-9A-Za-z-_\.\+]+)/comments',
         CommentHandler,
     ),
     (
-        r'/api/(sources|spectra|gcn_event)(/[0-9A-Za-z-_\.\+]+)/comments(/[0-9]+)/attachment',
+        r'/api/(sources|spectra|gcn_event|shift)/([0-9A-Za-z-_\.\+]+)/comments(/[0-9]+)?',
+        CommentHandler,
+    ),
+    (
+        r'/api/(sources|spectra|gcn_event|shift)(/[0-9A-Za-z-_\.\+]+)/comments(/[0-9]+)/attachment',
         CommentAttachmentHandler,
     ),
     # Allow the '.pdf' suffix for the attachment route, as the
     # react-file-previewer package expects URLs ending with '.pdf' to
     # load PDF files.
     (
-        r'/api/(sources|spectra|gcn_event)/([0-9A-Za-z-_\.\+]+)/comments(/[0-9]+)/attachment.pdf',
+        r'/api/(sources|spectra|gcn_event|shift)/([0-9A-Za-z-_\.\+]+)/comments(/[0-9]+)/attachment.pdf',
         CommentAttachmentHandler,
     ),
     (r'/api/gcn_event(/.*)?', GcnEventHandler),
@@ -201,6 +205,7 @@ skyportal_handlers = [
     (r'/api/observation(/[0-9]+)?', ObservationHandler),
     (r'/api/observation/ascii(/[0-9]+)?', ObservationASCIIFileHandler),
     (r'/api/observation/gcn(/[0-9]+)', ObservationGCNHandler),
+    (r'/api/observation/simsurvey(/[0-9]+)', ObservationSimSurveyHandler),
     (r'/api/observation/treasuremap(/[0-9]+)', ObservationTreasureMapHandler),
     (r'/api/observation/external_api(/[0-9]+)?', ObservationExternalAPIHandler),
     (r'/api/observing_run(/[0-9]+)?', ObservingRunHandler),

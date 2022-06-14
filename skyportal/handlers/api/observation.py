@@ -2,6 +2,7 @@ from baselayer.app.access import permissions, auth_or_token
 from baselayer.log import make_log
 import arrow
 import astropy
+import functools
 import healpix_alchemy as ha
 import humanize
 from marshmallow.exceptions import ValidationError
@@ -15,6 +16,7 @@ from sqlalchemy.orm import sessionmaker, scoped_session
 from tornado.ioloop import IOLoop
 import urllib
 from astropy.time import Time
+import io
 from io import StringIO
 
 from baselayer.app.flow import Flow
@@ -36,6 +38,7 @@ from ...models import (
 
 from ...models.schema import ObservationExternalAPIHandlerPost
 from .instrument import add_tiles
+from .observation_plan import observation_simsurvey
 
 env, cfg = load_env()
 TREASUREMAP_URL = cfg['app.treasuremap_endpoint']
@@ -456,9 +459,13 @@ def get_observations(
 
     total_matches = obs_query.count()
     if n_per_page is not None:
-        obs_query = obs_query.limit(n_per_page).offset((page_number - 1) * n_per_page)
-    observations = obs_query.all()
+        obs_query = (
+            obs_query.distinct()
+            .limit(n_per_page)
+            .offset((page_number - 1) * n_per_page)
+        )
 
+    observations = obs_query.all()
     data = {
         "observations": [o.to_dict() for o in observations],
         "totalMatches": int(total_matches),
@@ -1486,3 +1493,229 @@ class ObservationTreasureMapHandler(BaseHandler):
             return self.error(f'TreasureMap delete failed: {request_text}')
         self.push_notification(f'TreasureMap delete succeeded: {request_text}.')
         return self.success()
+
+
+class ObservationSimSurveyHandler(BaseHandler):
+    @auth_or_token
+    async def get(self, instrument_id):
+        """
+        ---
+        description: Retrieve all observations
+        tags:
+          - observations
+        parameters:
+          - in: path
+            name: instrument_id
+            required: true
+            schema:
+              type: string
+            description: |
+              ID for the instrument to submit
+          - in: query
+            name: startDate
+            required: true
+            schema:
+              type: string
+            description: Filter by start date
+          - in: query
+            name: endDate
+            required: true
+            schema:
+              type: string
+            description: Filter by end date
+          - in: query
+            name: localizationDateobs
+            schema:
+              type: string
+            description: |
+              Event time in ISO 8601 format (`YYYY-MM-DDTHH:MM:SS.sss`).
+              Each localization is associated with a specific GCNEvent by
+              the date the event happened, and this date is used as a unique
+              identifier. It can be therefore found as Localization.dateobs,
+              queried from the /api/localization endpoint or dateobs in the
+              GcnEvent page table.
+          - in: query
+            name: localizationName
+            schema:
+              type: string
+            description: |
+              Name of localization / skymap to use.
+              Can be found in Localization.localization_name queried from
+              /api/localization endpoint or skymap name in GcnEvent page
+              table.
+          - in: query
+            name: localizationCumprob
+            schema:
+              type: number
+            description: |
+              Cumulative probability up to which to include fields.
+              Defaults to 0.95.
+          - in: query
+            name: numberInjections
+            nullable: true
+            schema:
+              type: number
+            description: |
+              Number of simulations to evaluate efficiency with. Defaults to 1000.
+          - in: query
+            name: numberDetections
+            nullable: true
+            schema:
+              type: number
+            description: |
+              Number of detections required for detection. Defaults to 1.
+          - in: query
+            name: detectionThreshold
+            nullable: true
+            schema:
+              type: number
+            description: |
+              Threshold (in sigmas) required for detection. Defaults to 5.
+          - in: query
+            name: minimumPhase
+            nullable: true
+            schema:
+              type: number
+            description: |
+              Minimum phase (in days) post event time to consider detections. Defaults to 0.
+          - in: query
+            name: maximumPhase
+            nullable: true
+            schema:
+              type: number
+            description: |
+              Maximum phase (in days) post event time to consider detections. Defaults to 3.
+          - in: query
+            name: injectionFilename
+            nullable: true
+            schema:
+              type: string
+            description: |
+              Path to file for injestion as a simsurvey.models.AngularTimeSeriesSource.
+              Defaults to nsns_nph1.0e+06_mejdyn0.020_mejwind0.130_phi30.txt
+              from https://github.com/mbulla/kilonova_models.
+        responses:
+          200:
+            content:
+              application/json:
+                schema: SingleObservationPlanRequest
+        """
+
+        start_date = self.get_query_argument('startDate')
+        end_date = self.get_query_argument('endDate')
+        localization_dateobs = self.get_query_argument('localizationDateobs', None)
+        localization_name = self.get_query_argument('localizationName', None)
+        localization_cumprob = self.get_query_argument("localizationCumprob", 0.95)
+
+        number_of_injections = self.get_query_argument("numberInjections", 1000)
+        number_of_detections = self.get_query_argument("numberDetections", 1)
+        detection_threshold = self.get_query_argument("detectionThreshold", 5)
+        minimum_phase = self.get_query_argument("minimumPhase", 0)
+        maximum_phase = self.get_query_argument("maximumPhase", 3)
+        injection_filename = self.get_query_argument(
+            "injectionFilename",
+            'data/nsns_nph1.0e+06_mejdyn0.020_mejwind0.130_phi30.txt',
+        )
+
+        if start_date is None:
+            return self.error(message="Missing start_date")
+
+        if end_date is None:
+            return self.error(message="Missing end_date")
+
+        if localization_dateobs is None:
+            return self.error(message="Missing required localizationDateobs")
+
+        start_date = arrow.get(start_date.strip()).datetime
+        end_date = arrow.get(end_date.strip()).datetime
+
+        instrument = (
+            Instrument.query_records_accessible_by(
+                self.current_user,
+                options=[
+                    joinedload(Instrument.telescope),
+                ],
+            )
+            .filter(
+                Instrument.id == instrument_id,
+            )
+            .first()
+        )
+        if instrument is None:
+            return self.error(message=f"Invalid instrument ID {instrument_id}")
+
+        if instrument.sensitivity_data is None:
+            return self.error('Need sensitivity_data to evaluate efficiency')
+
+        if localization_name is None:
+            localization = (
+                Localization.query_records_accessible_by(
+                    self.current_user,
+                )
+                .filter(Localization.dateobs == localization_dateobs)
+                .order_by(Localization.created_at.desc())
+                .first()
+            )
+        else:
+            localization = (
+                Localization.query_records_accessible_by(
+                    self.current_user,
+                )
+                .filter(Localization.dateobs == localization_dateobs)
+                .filter(Localization.localization_name == localization_name)
+                .first()
+            )
+
+        data = get_observations(
+            self.current_user,
+            start_date,
+            end_date,
+            telescope_name=instrument.telescope.name,
+            instrument_name=instrument.name,
+            localization_dateobs=localization_dateobs,
+            localization_name=localization_name,
+            localization_cumprob=localization_cumprob,
+            return_statistics=True,
+        )
+
+        observations = data["observations"]
+        if len(observations) == 0:
+            return self.error('Need at least one observation to send to Treasure Map')
+
+        unique_filters = list({observation["filt"] for observation in observations})
+
+        if not set(unique_filters).issubset(set(instrument.sensitivity_data.keys())):
+            return self.error('Need sensitivity_data for all filters present')
+
+        for filt in unique_filters:
+            if not {'exposure_time', 'limiting_magnitude', 'zeropoint'}.issubset(
+                set(list(instrument.sensitivity_data[filt].keys()))
+            ):
+                return self.error(
+                    f'Sensitivity_data dictionary missing keys for filter {filt}'
+                )
+
+        output_format = 'pdf'
+        simsurvey_analysis = functools.partial(
+            observation_simsurvey,
+            observations,
+            localization,
+            instrument,
+            output_format=output_format,
+            number_of_injections=number_of_injections,
+            number_of_detections=number_of_detections,
+            detection_threshold=detection_threshold,
+            minimum_phase=minimum_phase,
+            maximum_phase=maximum_phase,
+            injection_filename=injection_filename,
+        )
+
+        self.push_notification(
+            'Simsurvey analysis in progress. Download will start soon.'
+        )
+        rez = await IOLoop.current().run_in_executor(None, simsurvey_analysis)
+
+        filename = rez["name"]
+        data = io.BytesIO(rez["data"])
+
+        await self.send_file(data, filename, output_type=output_format)

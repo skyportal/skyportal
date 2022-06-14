@@ -48,7 +48,7 @@ PS1_CUTOUT_TIMEOUT = 10
 class GaiaQuery:
 
     alt_tap = 'https://gaia.aip.de/tap'
-    alt_main_db = 'gaiaedr3'
+    alt_main_db = 'gaiadr3'
 
     # conversion for units in VO tables to astropy units
     unit_conversion = {
@@ -66,7 +66,7 @@ class GaiaQuery:
         'Angle[rad], Angle[rad]': u.deg,  # this is the `pos` in degrees, incorrectly reported as radians
     }
 
-    def __init__(self, main_db="gaiaedr3"):
+    def __init__(self, main_db="gaiadr3"):
         self.main_db = main_db
         self.db_connected = self._connect()
         log(
@@ -80,7 +80,7 @@ class GaiaQuery:
         """
         try:
             g = Gaia
-            q = f"SELECT TOP 1  * from {self.main_db}.gaia_source"
+            q = f"SELECT TOP 1 ra, dec from {self.main_db}.gaia_source"
             job = g.launch_job(q)
             _ = job.get_results()
             self.is_backup = False
@@ -98,7 +98,7 @@ class GaiaQuery:
             try:
                 self.main_db = GaiaQuery.alt_main_db
                 g = vo.dal.TAPService(GaiaQuery.alt_tap)
-                q = f"SELECT TOP 1 * from {self.alt_main_db}.gaia_source"
+                q = f"SELECT TOP 1 ra, dec from {self.alt_main_db}.gaia_source"
                 _ = g.search(q)
                 self.connection = g
                 return True
@@ -1292,7 +1292,7 @@ def get_finding_chart(
     colors = sns.color_palette("colorblind", ncolors)
 
     start_text = [-0.45, 0.99]
-    origin = "GaiaEDR3" if not used_ztfref else "ZTFref"
+    origin = "GaiaDR3" if not used_ztfref else "ZTFref"
     starlist_str = (
         f"# Note: {origin} used for offset star positions\n"
         "# Note: spacing in starlist many not copy/paste correctly in PDF\n"

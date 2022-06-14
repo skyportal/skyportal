@@ -562,7 +562,7 @@ def observation_animations(
         "ztfr": "#DC3545",
         "ztfi": "#F3DC11",
         "AllWISE": "#2F5492",
-        "Gaia_EDR3": "#FF7F0E",
+        "Gaia_DR3": "#FF7F0E",
         "PS1_DR1": "#3BBED5",
         "GALEX": "#6607C2",
         "TNS": "#ED6CF6",
@@ -1273,18 +1273,24 @@ def observation_simsurvey(
     for obs in observations:
         nmag = -2.5 * np.log10(
             np.sqrt(
-                instrument.sensitivity_data[obs.filt]['exposure_time']
-                / obs.exposure_time
+                instrument.sensitivity_data[obs["filt"]]['exposure_time']
+                / obs["exposure_time"]
             )
         )
-        limMag = instrument.sensitivity_data[obs.filt]['limiting_magnitude'] + nmag
-        zp = instrument.sensitivity_data[obs.filt]['zeropoint'] + nmag
 
-        pointings["ra"].append(obs.field.ra)
-        pointings["dec"].append(obs.field.dec)
-        pointings["filter"].append(obs.filt)
-        pointings["jd"].append(Time(obs.obstime, format='datetime').jd)
-        pointings["field_id"].append(obs.field.field_id)
+        if "limmag" in obs:
+            limMag = obs["limmag"]
+        else:
+            limMag = (
+                instrument.sensitivity_data[obs["filt"]]['limiting_magnitude'] + nmag
+            )
+        zp = instrument.sensitivity_data[obs["filt"]]['zeropoint'] + nmag
+
+        pointings["ra"].append(obs["field"].ra)
+        pointings["dec"].append(obs["field"].dec)
+        pointings["filter"].append(obs["filt"])
+        pointings["jd"].append(Time(obs["obstime"], format='datetime').jd)
+        pointings["field_id"].append(obs["field"].field_id)
 
         pointings["limMag"].append(limMag)
         pointings["skynoise"].append(10 ** (-0.4 * (limMag - zp)) / 5.0)
@@ -1545,10 +1551,12 @@ class ObservationPlanSimSurveyHandler(BaseHandler):
                     f'Sensitivity_data dictionary missing keys for filter {filt}'
                 )
 
+        observations = [observation.to_dict() for observation in planned_observations]
+
         output_format = 'pdf'
         simsurvey_analysis = functools.partial(
             observation_simsurvey,
-            planned_observations,
+            observations,
             localization,
             instrument,
             output_format=output_format,

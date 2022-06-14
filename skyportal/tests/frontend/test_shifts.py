@@ -64,7 +64,7 @@ def test_shift(
 
     driver.click_xpath('//*[@id="root_group_id"]')
     driver.click_xpath('//li[contains(text(), "Sitewide Group")]')
-
+    driver.wait_for_xpath('//*[@id="root_required_users_number"]').send_keys('5')
     submit_button_xpath = '//button[@type="submit"]'
     driver.wait_for_xpath(submit_button_xpath)
     driver.click_xpath(submit_button_xpath)
@@ -73,6 +73,26 @@ def test_shift(
     event_shift_xpath = f'//*/strong[contains(.,"{form_name}")]'
     driver.wait_for_xpath(event_shift_xpath)
     driver.click_xpath(event_shift_xpath)
+
+    # add a comment to the shift
+    driver.wait_for_xpath('//*[@id="root_comment"]').send_keys('This is a comment')
+    driver.click_xpath('//button[@type="submitComment"]')
+
+    # check for comment in shift page
+    assert (
+        len(driver.find_elements_by_xpath('//*[contains(text(), "This is a comment")]'))
+        == 1
+    )
+
+    # delete the comment from the shift
+    driver.scroll_to_element_and_click(driver.wait_for_xpath('//*[@id="comment"]'))
+    driver.click_xpath('//*[contains(@name, "deleteCommentButton")]')
+
+    # check if comment has been successfully deleted
+    assert (
+        len(driver.find_elements_by_xpath('//*[contains(text(), "This is a comment")]'))
+        == 0
+    )
 
     # check for deactivated button to add users
     deactivated_add_user_button = '//*[@id="deactivated-add-users-button"]'
@@ -169,6 +189,12 @@ def test_shift(
 
     driver.get("/shifts")
 
+    # check the option to show all shifts
+    driver.wait_for_xpath(
+        '//*[contains(., "Show All Shifts")]/../span[contains(@class, "MuiSwitch-root")]',
+        timeout=30,
+    ).click()
+
     shift_on_calendar = f'//*/span/strong[contains(.,"{form_name}")]'
     # check for API shift
     driver.wait_for_xpath(
@@ -213,6 +239,11 @@ def test_shift(
     )
     driver.wait_for_xpath(notification_xpath)
     driver.click_xpath(notification_xpath, timeout=10)
+
+    driver.wait_for_xpath(
+        '//*[contains(., "Show All Shifts")]/../span[contains(@class, "MuiSwitch-root")]',
+        timeout=30,
+    ).click()
 
     # check for API shift
     driver.wait_for_xpath(

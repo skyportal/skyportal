@@ -200,7 +200,7 @@ const FindingChart = () => {
                             className={classes.items}
                           >
                             <MenuItem value="ztfref">ZTF Ref</MenuItem>
-                            <MenuItem value="gaia">Gaia EDR3</MenuItem>
+                            <MenuItem value="gaia">Gaia DR3</MenuItem>
                           </Controller>
                         </FormControl>
                       </Grid>

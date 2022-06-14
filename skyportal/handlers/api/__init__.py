@@ -45,6 +45,7 @@ from .observation import (
     ObservationGCNHandler,
     ObservationTreasureMapHandler,
     ObservationExternalAPIHandler,
+    ObservationSimSurveyHandler,
 )
 from .observingrun import ObservingRunHandler
 from .observation_plan import (
@@ -98,6 +99,11 @@ from .taxonomy import TaxonomyHandler
 from .telescope import TelescopeHandler
 from .tns import ObjTNSHandler, SpectrumTNSHandler, TNSRobotHandler
 from .thumbnail import ThumbnailHandler
-from .user import UserHandler
+from .user import (
+    UserHandler,
+    set_default_acls,
+    set_default_group,
+    set_default_role,
+)
 from .unsourced_finder import UnsourcedFinderHandler
 from .weather import WeatherHandler
