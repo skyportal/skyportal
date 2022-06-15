@@ -1,5 +1,6 @@
 from .acls import ACLHandler, UserACLHandler
 from .allocation import AllocationHandler
+from .analysis import AnalysisServiceHandler
 from .candidate import CandidateHandler
 from .classification import ClassificationHandler, ObjClassificationHandler
 from .comment import CommentHandler, CommentAttachmentHandler
@@ -49,6 +50,7 @@ from .observation import (
 )
 from .observingrun import ObservingRunHandler
 from .observation_plan import (
+    DefaultObservationPlanRequestHandler,
     ObservationPlanRequestHandler,
     ObservationPlanTreasureMapHandler,
     ObservationPlanGCNHandler,
