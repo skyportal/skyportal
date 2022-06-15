@@ -707,7 +707,6 @@ class AnalysisHandler(BaseHandler):
                               description: New analysis ID
         """
         data = self.get_json()
-        log(f"data={data}")
         try:
             analysis_service = AnalysisService.get_if_accessible_by(
                 analysis_service_id, self.current_user, mode="read", raise_if_none=True
@@ -719,11 +718,6 @@ class AnalysisHandler(BaseHandler):
             )
 
         analysis_parameters = data.get('analysis_parameters', {})
-
-        log(f"analysis_parameters: {analysis_parameters} {type(analysis_parameters)}")
-        log(
-            f"analysis_service.optional_analysis_parameters: {analysis_service.optional_analysis_parameters}"
-        )
 
         if not set(analysis_parameters.keys()).issubset(
             set(json.loads(analysis_service.optional_analysis_parameters).keys())
@@ -819,7 +813,6 @@ class AnalysisHandler(BaseHandler):
 
         # Now call the analysis service to start the analysis, using the `input` data
         # that we assembled above.
-        log(inputs["analysis_parameters"])
         external_analysis_service = functools.partial(
             self.call_external_analysis_service,
             analysis.id,

@@ -1,19 +1,25 @@
 import functools
-import time
+import tempfile
+import io
 
+import numpy as np
 import matplotlib
-
+import arviz as az
 from quart import Quart
 from quart import request
 from astropy.table import Table
 import sncosmo
+
 from baselayer.log import make_log
 from baselayer.app.env import load_env
 
 _, cfg = load_env()
 log = make_log('sn_analysis_service')
 
+# we need to set the backend here to insure we
+# can render the plot headlessly
 matplotlib.use('Agg')
+rng = np.random.default_rng()
 
 app = Quart(__name__)
 app.debug = False
@@ -22,8 +28,18 @@ default_analysis_parameters = {"source_name": "nugent-sn2p", "fix_z": False}
 
 
 async def run_sn_model(dd):
+    """
+    Use `sncosmo` to fit data to a model with name `source_name`.
 
-    log('entered run_sn_model()')
+    We expect the `inputs` dictionary to have the following keys:
+       - source_name: the name of the model to fit to the data
+       - fix_z: whether to fix the redshift
+       - photometry: the photometry to fit to the model (in csv format)
+       - redshift: the known redshift of the object
+
+    TODO in the next PR: send the results back to the webhook
+
+    """
     data_dict = await dd
 
     analysis_parameters = data_dict["inputs"].get("analysis_parameters", {})
@@ -31,7 +47,6 @@ async def run_sn_model(dd):
 
     source_name = analysis_parameters.get("source_name")
     fix_z = analysis_parameters.get("fix_z") in [True, "True", "t", "true"]
-    log(f"source_name={source_name} fix_z={fix_z}")
 
     data = Table.read(data_dict["inputs"]["photometry"], format='ascii.csv')
     data.rename_column('mjd', 'time')
@@ -45,10 +60,8 @@ async def run_sn_model(dd):
     redshift = Table.read(data_dict["inputs"]["redshift"], format='ascii.csv')
     z = redshift['redshift'][0]
 
-    time.sleep(5)
     model = sncosmo.Model(source=source_name)
 
-    log(f'{z=}')
     if fix_z and z is not None:
         model.set(z=z)
         bounds = {'z': (z, z)}
@@ -70,21 +83,47 @@ async def run_sn_model(dd):
     log(f"The result contains the following attributes:\n {result.keys()}")
     log(f'{result["success"]=}')
 
-    _ = sncosmo.plot_lc(
-        data,
-        model=fitted_model,
-        errors=result.errors,
-        model_label=source_name,
-        zp=23.9,
-        figtext=data_dict["resource_id"],
-        fname='/tmp/lc.png',
-    )
-    log('made lightcurve plot')
+    if result["success"]:
+
+        with tempfile.NamedTemporaryFile(
+            suffix=".png", prefix="snplot_", dir="/tmp/"
+        ) as f:
+            _ = sncosmo.plot_lc(
+                data,
+                model=fitted_model,
+                errors=result.errors,
+                model_label=source_name,
+                zp=23.9,
+                figtext=data_dict["resource_id"],
+                fname=f.name,
+            )
+            f.seek(0)
+            plot_data = io.BytesIO(f.read())
+            log('made lightcurve plot')
+
+        # make some draws from the posterior (simulating what we'd expect
+        # with an MCMC analysis)
+        post = rng.multivariate_normal(result.parameters, result.covariance, 10000)
+        post = post[np.newaxis, :]
+        # create an inference dataset
+        dataset = az.convert_to_inference_data(
+            {x: post[:, :, i] for i, x in enumerate(result.param_names)}
+        )
+
+        # TODO in the next PR #3:
+        # return the dataset and the plot data
+        # by calling the webhook
+        return (dataset, plot_data)
 
 
 @app.route('/analysis/demo_analysis', methods=['POST'])
 async def demo_analysis():
-    log('entered demo_analysis()')
+    """
+    Analysis endpoint which sends the `data_dict` off for
+    processing, returning immediately. The idea here is that
+    the analysis model may take awhile to run so we
+    need async behavior.
+    """
     log(f'{request.method} {request.url}')
     data_dict = request.get_json(silent=True)
 
