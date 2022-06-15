@@ -889,6 +889,7 @@ class AnalysisHandler(BaseHandler):
 
         # Now call the analysis service to start the analysis, using the `input` data
         # that we assembled above.
+        log(inputs["analysis_parameters"])
         external_analysis_service = functools.partial(
             call_external_analysis_service,
             analysis_service.url,
