@@ -21,6 +21,7 @@ from skyportal.handlers.api import (
     IRSAQueryWISEHandler,
     VizierQueryHandler,
     DatalabQueryHandler,
+    DefaultObservationPlanRequestHandler,
     FilterHandler,
     FollowupRequestHandler,
     FollowupRequestSchedulerHandler,
@@ -152,6 +153,10 @@ skyportal_handlers = [
     (r'/api/candidates(/.*)?', CandidateHandler),
     (r'/api/classification(/[0-9]+)?', ClassificationHandler),
     (r'/api/enum_types(/.*)?', EnumTypesHandler),
+    (
+        r'/api/default_observation_plan(/[0-9A-Za-z-_\.\+]+)?',
+        DefaultObservationPlanRequestHandler,
+    ),
     (r'/api/facility', FacilityMessageHandler),
     (r'/api/filters(/.*)?', FilterHandler),
     (r'/api/followup_request/schedule(/[0-9]+)', FollowupRequestSchedulerHandler),

@@ -5,6 +5,7 @@ import * as sysInfoActions from "./ducks/sysInfo";
 import * as dbInfoActions from "./ducks/dbInfo";
 import * as configActions from "./ducks/config";
 import * as logInfoActions from "./ducks/logInfo";
+import * as defaultObservationPlansActions from "./ducks/default_observation_plans";
 import * as newsFeedActions from "./ducks/newsFeed";
 import * as topSourcesActions from "./ducks/topSources";
 import * as recentSourcesActions from "./ducks/recentSources";
@@ -42,5 +43,6 @@ export default function hydrate() {
     dispatch(shiftsActions.fetchShifts());
     dispatch(tnsrobotsActions.fetchTNSRobots());
     dispatch(enumTypesActions.fetchEnumTypes());
+    dispatch(defaultObservationPlansActions.fetchDefaultObservationPlans());
   };
 }
