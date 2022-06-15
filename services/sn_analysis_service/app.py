@@ -27,12 +27,13 @@ async def run_sn_model(dd):
     log('entered run_sn_model()')
     data_dict = await dd
 
-    url_parameters = data_dict["inputs"].get(
-        "url_parameters", {"source_name": default_source_name, "fix_z": default_fix_z}
+    analysis_parameters = data_dict["inputs"].get(
+        "analysis_parameters",
+        {"source_name": default_source_name, "fix_z": default_fix_z},
     )
 
-    source_name = url_parameters.get("source_name")
-    fix_z = url_parameters.get("fix_z") in [True, "True", "t", "true"]
+    source_name = analysis_parameters.get("source_name")
+    fix_z = analysis_parameters.get("fix_z") in [True, "True", "t", "true"]
     log(f"source_name={source_name} fix_z={fix_z}")
 
     data = Table.read(data_dict["inputs"]["photometry"], format='ascii.csv')

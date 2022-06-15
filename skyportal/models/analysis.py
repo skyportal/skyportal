@@ -105,7 +105,7 @@ class AnalysisService(Base):
         ),
     )
 
-    optional_url_parameters = sa.Column(
+    optional_analysis_parameters = sa.Column(
         JSONType,
         nullable=True,
         default=dict,
@@ -293,7 +293,7 @@ class AnalysisMixin:
         doc="Whether to render the corner plots of this analysis",
     )
 
-    url_parameters = sa.Column(
+    analysis_parameters = sa.Column(
         JSONType,
         nullable=True,
         doc=('Optional parameters that are passed to the analysis service'),

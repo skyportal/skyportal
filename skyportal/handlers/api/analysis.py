@@ -97,7 +97,7 @@ class AnalysisServiceHandler(BaseHandler):
                     description: |
                         URL to running service accessible to this SkyPortal instance.
                         For example, http://localhost:5000/analysis/<service_name>.
-                  optional_url_parameters:
+                  optional_analysis_parameters:
                     type: object
                     additionalProperties:
                       type: array
@@ -175,10 +175,10 @@ class AnalysisServiceHandler(BaseHandler):
                     'a valid `url` is required to add an Analysis Service.'
                 )
         try:
-            _ = json.loads(data.get('optional_url_parameters', '{}'))
+            _ = json.loads(data.get('optional_analysis_parameters', '{}'))
         except json.decoder.JSONDecodeError:
             return self.error(
-                'Could not parse `optional_url_parameters` as JSON.', status=400
+                'Could not parse `optional_analysis_parameters` as JSON.', status=400
             )
 
         authentication_type = data.get('authentication_type', None)
@@ -348,7 +348,7 @@ class AnalysisServiceHandler(BaseHandler):
                     description: |
                         URL to running service accessible to this SkyPortal instance.
                         For example, http://localhost:5000/analysis/<service_name>.
-                  optional_url_parameters:
+                  optional_analysis_parameters:
                     type: object
                     additionalProperties:
                       type: array
@@ -476,7 +476,7 @@ class AnalysisHandler(BaseHandler):
         url,
         callback_url,
         inputs={},
-        url_parameters={},
+        analysis_parameters={},
         authentication_type='none',
         authinfo=None,
         callback_method="POST",
@@ -498,7 +498,7 @@ class AnalysisHandler(BaseHandler):
             "invalid_after": str(invalid_after),
             "analysis_resource_type": analysis_resource_type,
             "resource_id": resource_id,
-            "url_parameters": url_parameters,
+            "analysis_parameters": analysis_parameters,
         }
 
         if authentication_type == 'api_key':
@@ -677,7 +677,7 @@ class AnalysisHandler(BaseHandler):
                   show_corner:
                     type: boolean
                     description: Whether to render the corner plots of this analysis
-                  url_parameters:
+                  analysis_parameters:
                     type: object
                     description: Dictionary of parameters to be passed thru to the analysis
                     additionalProperties:
@@ -718,17 +718,19 @@ class AnalysisHandler(BaseHandler):
                 f'Could not access Analysis Service {analysis_service_id}.', status=403
             )
 
-        url_parameters = data.get('url_parameters', {})
+        analysis_parameters = data.get('analysis_parameters', {})
 
-        log(f"url_parameters: {url_parameters} {type(url_parameters)}")
+        log(f"analysis_parameters: {analysis_parameters} {type(analysis_parameters)}")
         log(
-            f"analysis_service.optional_url_parameters: {analysis_service.optional_url_parameters}"
+            f"analysis_service.optional_analysis_parameters: {analysis_service.optional_analysis_parameters}"
         )
 
-        if not set(url_parameters.keys()).issubset(
-            set(json.loads(analysis_service.optional_url_parameters).keys())
+        if not set(analysis_parameters.keys()).issubset(
+            set(json.loads(analysis_service.optional_analysis_parameters).keys())
         ):
-            return self.error(f'Invalid url_parameters: {url_parameters}.', status=400)
+            return self.error(
+                f'Invalid analysis_parameters: {analysis_parameters}.', status=400
+            )
 
         group_ids = data.pop('group_ids', None)
         if not group_ids:
@@ -745,7 +747,7 @@ class AnalysisHandler(BaseHandler):
         author = self.associated_user_object
         data["author"] = author
 
-        inputs = {"url_parameters": url_parameters}
+        inputs = {"analysis_parameters": analysis_parameters}
 
         if analysis_resource_type.lower() == 'obj':
             obj_id = resource_id
@@ -797,7 +799,7 @@ class AnalysisHandler(BaseHandler):
                 show_parameters=data.get('show_parameters', False),
                 show_plots=data.get('show_plots', False),
                 show_corner=data.get('show_corner', False),
-                url_parameters=url_parameters,
+                analysis_parameters=analysis_parameters,
                 status='queued',
                 handled_by_url="/webhook/obj_analysis",
                 invalid_after=invalid_after,
