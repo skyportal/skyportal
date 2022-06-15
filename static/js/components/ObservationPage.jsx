@@ -11,6 +11,7 @@ import QueuedObservationsTable from "./QueuedObservationsTable";
 import NewObservation from "./NewObservation";
 import NewAPIObservation from "./NewAPIObservation";
 import NewAPIQueuedObservation from "./NewAPIQueuedObservation";
+import QueueAPIDisplay from "./QueueAPIDisplay";
 
 import * as observationsActions from "../ducks/observations";
 import * as queuedObservationsActions from "../ducks/queued_observations";
@@ -210,6 +211,12 @@ const ObservationPage = () => {
             <div className={classes.paperContent}>
               <Typography variant="h6">Add API Queued Observations</Typography>
               <NewAPIQueuedObservation />
+            </div>
+          </Paper>
+          <Paper>
+            <div className={classes.paperContent}>
+              <Typography variant="h6">Queue Interaction</Typography>
+              <QueueAPIDisplay />
             </div>
           </Paper>
         </Grid>
