@@ -18,8 +18,7 @@ matplotlib.use('Agg')
 app = Quart(__name__)
 app.debug = False
 
-default_source_name = "nugent-sn2p"
-default_fix_z = False
+default_analysis_parameters = {"source_name": "nugent-sn2p", "fix_z": False}
 
 
 async def run_sn_model(dd):
@@ -27,10 +26,8 @@ async def run_sn_model(dd):
     log('entered run_sn_model()')
     data_dict = await dd
 
-    analysis_parameters = data_dict["inputs"].get(
-        "analysis_parameters",
-        {"source_name": default_source_name, "fix_z": default_fix_z},
-    )
+    analysis_parameters = data_dict["inputs"].get("analysis_parameters", {})
+    analysis_parameters = {**default_analysis_parameters, **analysis_parameters}
 
     source_name = analysis_parameters.get("source_name")
     fix_z = analysis_parameters.get("fix_z") in [True, "True", "t", "true"]
