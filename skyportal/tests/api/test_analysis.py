@@ -157,7 +157,7 @@ def test_get_two_analysis_services(analysis_service_token, public_group):
 
     as_ids = [a['id'] for a in data['data']]
 
-    assert set(analysis_service_id, analysis_service_id_1) == set(as_ids)
+    assert set([analysis_service_id, analysis_service_id_1]) == set(as_ids)
 
     for as_id in [analysis_service_id, analysis_service_id_1]:
         status, data = api(
