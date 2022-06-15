@@ -923,6 +923,7 @@ analysis_service:
     _authinfo: '{"header_token": {"Authorization": "Bearer MY_TOKEN"}}'
     analysis_type: "lightcurve_fitting"
     input_data_types: ["photometry", "redshift", "spectra", "annotations", "classifications", "comments"]
+    optional_url_parameters: '{"source_name": ["nugent-sn2p", "salt3", "v19-1998bw", "mlcs2k2", "nugent-sn2n"], "fix_z": ["True", "False"]}'
     group_ids:
       - =program_A
       - =program_B

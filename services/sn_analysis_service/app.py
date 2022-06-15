@@ -18,11 +18,22 @@ matplotlib.use('Agg')
 app = Quart(__name__)
 app.debug = False
 
+default_source_name = "nugent-sn2p"
+default_fix_z = False
 
-async def run_sn_model(dd, set_z=False, source_name="nugent-sn2p"):
+
+async def run_sn_model(dd):
 
     log('entered run_sn_model()')
     data_dict = await dd
+
+    url_parameters = data_dict["inputs"].get(
+        "url_parameters", {"source_name": default_source_name, "fix_z": default_fix_z}
+    )
+
+    source_name = url_parameters.get("source_name")
+    fix_z = url_parameters.get("fix_z") in [True, "True", "t", "true"]
+    log(f"source_name={source_name} fix_z={fix_z}")
 
     data = Table.read(data_dict["inputs"]["photometry"], format='ascii.csv')
     data.rename_column('mjd', 'time')
@@ -40,14 +51,18 @@ async def run_sn_model(dd, set_z=False, source_name="nugent-sn2p"):
     model = sncosmo.Model(source=source_name)
 
     log(f'{z=}')
-    if set_z and z is not None:
+    if fix_z and z is not None:
         model.set(z=z)
+        bounds = {'z': (z, z)}
+    else:
+        bounds = {'z': (0.01, 1.0)}
 
     # run the fit
     result, fitted_model = sncosmo.fit_lc(
         data,
         model,
-        ['t0', 'amplitude'],
+        model.param_names,
+        bounds=bounds,
     )
     log(f"Number of χ² function calls: {result.ncall}")
     log(f"Number of degrees of freedom in fit: {result.ndof}")
@@ -75,7 +90,7 @@ async def demo_analysis():
     log(f'{request.method} {request.url}')
     data_dict = request.get_json(silent=True)
 
-    runner = functools.partial(run_sn_model, data_dict, set_z=True)
+    runner = functools.partial(run_sn_model, data_dict)
 
     app.add_background_task(runner)
 

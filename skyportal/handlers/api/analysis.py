@@ -174,6 +174,12 @@ class AnalysisServiceHandler(BaseHandler):
                 return self.error(
                     'a valid `url` is required to add an Analysis Service.'
                 )
+        try:
+            _ = json.loads(data.get('optional_url_parameters', '{}'))
+        except json.decoder.JSONDecodeError:
+            return self.error(
+                'Could not parse `optional_url_parameters` as JSON.', status=400
+            )
 
         authentication_type = data.get('authentication_type', None)
         if not authentication_type:
@@ -470,6 +476,7 @@ class AnalysisHandler(BaseHandler):
         url,
         callback_url,
         inputs={},
+        url_parameters={},
         authentication_type='none',
         authinfo=None,
         callback_method="POST",
@@ -491,6 +498,7 @@ class AnalysisHandler(BaseHandler):
             "invalid_after": str(invalid_after),
             "analysis_resource_type": analysis_resource_type,
             "resource_id": resource_id,
+            "url_parameters": url_parameters,
         }
 
         if authentication_type == 'api_key':
@@ -654,14 +662,6 @@ class AnalysisHandler(BaseHandler):
             schema:
               type: string
             description: the analysis service id to be used
-          - in: query
-            name: optional_url_parameters
-            nullable: true
-            schema:
-              type:
-                object
-              additionalProperties:
-                type: string
         requestBody:
           content:
             application/json:
@@ -677,6 +677,11 @@ class AnalysisHandler(BaseHandler):
                   show_corner:
                     type: boolean
                     description: Whether to render the corner plots of this analysis
+                  url_parameters:
+                    type: object
+                    description: Dictionary of parameters to be passed thru to the analysis
+                    additionalProperties:
+                        type: string
                   group_ids:
                     type: array
                     items:
@@ -701,8 +706,6 @@ class AnalysisHandler(BaseHandler):
                               type: integer
                               description: New analysis ID
         """
-        optional_url_parameters = self.get_query_argument('optional_url_parameters', {})
-        log(f"optional_url_parameters: {optional_url_parameters}")
         data = self.get_json()
         log(f"data={data}")
         try:
@@ -714,6 +717,18 @@ class AnalysisHandler(BaseHandler):
             return self.error(
                 f'Could not access Analysis Service {analysis_service_id}.', status=403
             )
+
+        url_parameters = data.get('url_parameters', {})
+
+        log(f"url_parameters: {url_parameters} {type(url_parameters)}")
+        log(
+            f"analysis_service.optional_url_parameters: {analysis_service.optional_url_parameters}"
+        )
+
+        if not set(url_parameters.keys()).issubset(
+            set(json.loads(analysis_service.optional_url_parameters).keys())
+        ):
+            return self.error(f'Invalid url_parameters: {url_parameters}.', status=400)
 
         group_ids = data.pop('group_ids', None)
         if not group_ids:
@@ -730,7 +745,8 @@ class AnalysisHandler(BaseHandler):
         author = self.associated_user_object
         data["author"] = author
 
-        inputs = {}
+        inputs = {"url_parameters": url_parameters}
+
         if analysis_resource_type.lower() == 'obj':
             obj_id = resource_id
             source = Obj.get_if_accessible_by(obj_id, self.current_user)
@@ -781,6 +797,7 @@ class AnalysisHandler(BaseHandler):
                 show_parameters=data.get('show_parameters', False),
                 show_plots=data.get('show_plots', False),
                 show_corner=data.get('show_corner', False),
+                url_parameters=url_parameters,
                 status='queued',
                 handled_by_url="/webhook/obj_analysis",
                 invalid_after=invalid_after,
@@ -795,6 +812,8 @@ class AnalysisHandler(BaseHandler):
             self.verify_and_commit()
         except IntegrityError as e:
             return self.error(f'Analysis already exists: {str(e)}')
+        except Exception as e:
+            return self.error(f'Unexpected error creating analysis: {str(e)}')
 
         # Now call the analysis service to start the analysis, using the `input` data
         # that we assembled above.

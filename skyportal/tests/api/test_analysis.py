@@ -6,6 +6,9 @@ from skyportal.tests import api
 
 def test_post_new_analysis_service(analysis_service_token, public_group):
     name = str(uuid.uuid4())
+
+    optional_url_parameters = {"test_parameters": ["test_value_1", "test_value_2"]}
+
     post_data = {
         'name': name,
         'display_name': "test analysis service name",
@@ -14,6 +17,7 @@ def test_post_new_analysis_service(analysis_service_token, public_group):
         'contact_name': "Vera Rubin",
         'contact_email': "vr@ls.st",
         'url': f"http://localhost:5000/analysis/{name}",
+        'optional_url_parameters': json.dumps(optional_url_parameters),
         'authentication_type': "none",
         'analysis_type': 'lightcurve_fitting',
         'input_data_types': ['photometry', 'redshift'],
@@ -285,7 +289,6 @@ def test_authentication_credentials(analysis_service_token, public_group):
     name = str(uuid.uuid4())
 
     authinfo = {'header_token': {"Authorization": "Bearer MY_TOKEN"}}
-
     post_data = {
         'name': name,
         'display_name': "test analysis service name",
