@@ -543,6 +543,7 @@ class AnalysisHandler(BaseHandler):
         url,
         callback_url,
         inputs={},
+        url_parameters={},
         authentication_type='none',
         authinfo=None,
         callback_method="POST",
@@ -564,6 +565,7 @@ class AnalysisHandler(BaseHandler):
             "invalid_after": str(invalid_after),
             "analysis_resource_type": analysis_resource_type,
             "resource_id": resource_id,
+            "url_parameters": url_parameters,
         }
 
         if authentication_type == 'api_key':
@@ -727,14 +729,6 @@ class AnalysisHandler(BaseHandler):
             schema:
               type: string
             description: the analysis service id to be used
-          - in: query
-            name: optional_url_parameters
-            nullable: true
-            schema:
-              type:
-                object
-              additionalProperties:
-                type: string
         requestBody:
           content:
             application/json:
@@ -779,8 +773,6 @@ class AnalysisHandler(BaseHandler):
                               type: integer
                               description: New analysis ID
         """
-        optional_url_parameters = self.get_query_argument('optional_url_parameters', {})
-        log(f"optional_url_parameters: {optional_url_parameters}")
         data = self.get_json()
         try:
             analysis_service = AnalysisService.get_if_accessible_by(
