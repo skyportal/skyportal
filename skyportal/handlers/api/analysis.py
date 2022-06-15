@@ -543,7 +543,7 @@ class AnalysisHandler(BaseHandler):
         url,
         callback_url,
         inputs={},
-        url_parameters={},
+        analysis_parameters={},
         authentication_type='none',
         authinfo=None,
         callback_method="POST",
@@ -565,7 +565,7 @@ class AnalysisHandler(BaseHandler):
             "invalid_after": str(invalid_after),
             "analysis_resource_type": analysis_resource_type,
             "resource_id": resource_id,
-            "url_parameters": url_parameters,
+            "analysis_parameters": analysis_parameters,
         }
 
         if authentication_type == 'api_key':
