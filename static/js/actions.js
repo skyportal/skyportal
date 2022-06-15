@@ -4,6 +4,7 @@ import * as profileActions from "./ducks/profile";
 import * as sysInfoActions from "./ducks/sysInfo";
 import * as dbInfoActions from "./ducks/dbInfo";
 import * as configActions from "./ducks/config";
+import * as logInfoActions from "./ducks/logInfo";
 import * as newsFeedActions from "./ducks/newsFeed";
 import * as topSourcesActions from "./ducks/topSources";
 import * as recentSourcesActions from "./ducks/recentSources";
@@ -20,6 +21,7 @@ import * as enumTypesActions from "./ducks/enum_types";
 
 export default function hydrate() {
   return (dispatch) => {
+    dispatch(logInfoActions.fetchLogInfo());
     dispatch(sysInfoActions.fetchSystemInfo());
     dispatch(dbInfoActions.fetchDBInfo());
     dispatch(configActions.fetchConfig());
