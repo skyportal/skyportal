@@ -1,7 +1,7 @@
 """Default observation plans migration
 
 Revision ID: 438a795cbd15
-Revises: a1868013bebb
+Revises: b771f52a286a
 Create Date: 2022-06-09 14:13:05.315502
 
 """
@@ -11,7 +11,7 @@ from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision = '438a795cbd15'
-down_revision = 'a1868013bebb'
+down_revision = 'b771f52a286a'
 branch_labels = None
 depends_on = None
 
