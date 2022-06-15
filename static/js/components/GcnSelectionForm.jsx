@@ -66,6 +66,7 @@ const GcnSelectionForm = ({ gcnEvent, setSelectedLocalizationName }) => {
   const displayOptionsDefault = Object.fromEntries(
     displayOptions.map((x) => [x, false])
   );
+  const [selectedFields, setSelectedFields] = useState([]);
 
   const [selectedInstrumentId, setSelectedInstrumentId] = useState(null);
   const [selectedLocalizationId, setSelectedLocalizationId] = useState(null);
@@ -195,11 +196,6 @@ const GcnSelectionForm = ({ gcnEvent, setSelectedLocalizationName }) => {
     setFormDataState(formData);
     setIsSubmitting(false);
   };
-
-  // const handleSendToObservationPlan = (instrument) => {
-  // const selectedFields = instrument?.fields.filter((f) => f?.selected);
-  // const selectedIds = selectedFields.map((f) => f?.field_id);
-  // };
 
   if (telescopeList.length === 0) {
     return <p>No robotic followup requests found...</p>;
@@ -333,6 +329,8 @@ const GcnSelectionForm = ({ gcnEvent, setSelectedLocalizationName }) => {
             instrument={instLookUp[selectedInstrumentId]}
             observations={gcnEventObservations}
             options={checkedDisplayState}
+            selectedFields={selectedFields}
+            setSelectedFields={setSelectedFields}
           />
         </div>
       ) : (
@@ -344,18 +342,12 @@ const GcnSelectionForm = ({ gcnEvent, setSelectedLocalizationName }) => {
             instrument={instLookUp[selectedInstrumentId]}
             observations={gcnEventObservations}
             options={checkedDisplayState}
+            selectedFields={selectedFields}
+            setSelectedFields={setSelectedFields}
           />
         </div>
       )}
       <div>
-        <Button
-          variant="outlined"
-          // onClick={() =>
-          //   handleSendToObservationPlan(instLookUp[selectedInstrumentId])
-          // }
-        >
-          Send selected to observation plan
-        </Button>
         <InputLabel id="localizationSelectLabel">Localization</InputLabel>
         <Select
           inputProps={{ MenuProps: { disableScrollLock: true } }}

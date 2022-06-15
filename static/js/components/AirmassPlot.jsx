@@ -1,13 +1,8 @@
-import React, { useEffect, useState } from "react";
-import { useDispatch } from "react-redux";
+import React from "react";
 import PropTypes from "prop-types";
 import embed from "vega-embed";
 import dayjs from "dayjs";
 import { useTheme } from "@mui/material/styles";
-
-import CircularProgress from "@mui/material/CircularProgress";
-
-import * as ephemerisActions from "../ducks/ephemeris";
 
 const airmassSpec = (url, ephemeris, titleFontSize, labelFontSize) => ({
   $schema: "https://vega.github.io/schema/vega-lite/v5.2.0.json",
@@ -173,37 +168,6 @@ const AirmassPlot = React.memo((props) => {
   );
 });
 
-export const AirMassPlotWithEphemURL = ({ dataUrl, ephemerisUrl }) => {
-  const dispatch = useDispatch();
-  const [ephemeris, setEphemeris] = useState(null);
-  useEffect(() => {
-    const getEphem = async () => {
-      const result = await dispatch(
-        ephemerisActions.fetchEphemeris(ephemerisUrl)
-      );
-      if (result.status === "success") {
-        setEphemeris(result.data);
-      }
-    };
-    getEphem();
-  }, [dispatch, ephemerisUrl]);
-
-  if (ephemeris) {
-    return <AirmassPlot dataUrl={dataUrl} ephemeris={ephemeris} />;
-  }
-
-  return (
-    <div>
-      <CircularProgress color="secondary" />
-    </div>
-  );
-};
-
-AirMassPlotWithEphemURL.propTypes = {
-  dataUrl: PropTypes.string.isRequired,
-  ephemerisUrl: PropTypes.string.isRequired,
-};
-
 AirmassPlot.propTypes = {
   dataUrl: PropTypes.string.isRequired,
   ephemeris: PropTypes.shape({
@@ -216,7 +180,6 @@ AirmassPlot.propTypes = {
   }).isRequired,
 };
 
-AirMassPlotWithEphemURL.dispayName = "AirmassPlotWithEphemURL";
 AirmassPlot.displayName = "AirmassPlot";
 
 export default AirmassPlot;

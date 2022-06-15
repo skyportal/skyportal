@@ -7,6 +7,7 @@ from baselayer.log import make_log
 from skyportal.handlers import BecomeUserHandler, LogoutHandler
 from skyportal.handlers.api import (
     ACLHandler,
+    AnalysisServiceHandler,
     UserACLHandler,
     AllocationHandler,
     AssignmentHandler,
@@ -145,6 +146,7 @@ skyportal_handlers = [
     # API endpoints
     (r'/api/acls', ACLHandler),
     (r'/api/allocation(/.*)?', AllocationHandler),
+    (r'/api/analysis_service(/.*)?', AnalysisServiceHandler),
     (r'/api/assignment(/.*)?', AssignmentHandler),
     (r'/api/candidates(/[0-9A-Za-z-_]+)/([0-9]+)', CandidateHandler),
     (r'/api/candidates(/.*)?', CandidateHandler),
@@ -334,7 +336,7 @@ skyportal_handlers = [
         r'/api/internal/plot/airmass/hours_below/(.*)/([0-9]+)',
         PlotHoursBelowAirmassHandler,
     ),
-    (r'/api/internal/ephemeris/([0-9]+)', EphemerisHandler),
+    (r'/api/internal/ephemeris(/[0-9]+)?', EphemerisHandler),
     (r'/api/internal/log', LogHandler),
     (r'/api/internal/recent_sources(/.*)?', RecentSourcesHandler),
     (r'/api/internal/annotations_info', AnnotationsInfoHandler),
