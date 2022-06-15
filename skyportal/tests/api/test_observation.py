@@ -54,11 +54,20 @@ def test_observation(super_admin_token, view_only_token):
             'telescope_id': telescope_id,
             'field_data': pd.read_csv(fielddatafile)[:5].to_dict(orient='list'),
             'field_region': Regions.read(regionsdatafile).serialize(format='ds9'),
+            'sensitivity_data': {
+                'ztfr': {
+                    'limiting_magnitude': 20.3,
+                    'magsys': 'ab',
+                    'exposure_time': 30,
+                    'zeropoint': 26.3,
+                }
+            },
         },
         token=super_admin_token,
     )
     assert status == 200
     assert data['status'] == 'success'
+    instrument_id = data['data']['id']
 
     # wait for the fields to populate
     time.sleep(15)
@@ -108,6 +117,21 @@ def test_observation(super_admin_token, view_only_token):
         if d['observation_id'] == 84434604:
             observation_id = d['id']
             break
+
+    data = {
+        'startDate': "2019-04-25 08:18:05",
+        'endDate': "2019-04-28 08:18:05",
+        'localizationDateobs': "2019-04-25T08:18:05",
+        'localizationName': "bayestar.fits.gz",
+        'localizationCumprob': 1.01,
+    }
+    status, data = api(
+        'GET',
+        f'observation/simsurvey/{instrument_id}',
+        params=data,
+        token=super_admin_token,
+    )
+    assert status == 200
 
     status, data = api(
         'DELETE', f'observation/{observation_id}', token=super_admin_token

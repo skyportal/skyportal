@@ -22,7 +22,7 @@ app:
     default_filters: ['ztfg', 'ztfr', 'ztfi']
 
   # this endpoint does not actually do anything -- it is just for testing
-  sedm_endpoint: http://pharos.caltech.edu/add_fritz
+  sedm_endpoint: http://minar.caltech.edu/add_fritz
   sedmv2_endpoint:
 
   lt_host: 161.72.57.3
@@ -533,6 +533,11 @@ cross_match:
 #    wavelength: [5580, 5582, 8249, 8250]
 #    transmission: [0, 1, 1, 0]
 #    description: "basic ATLAS O filter - tophat transmission"
+
+user:
+  default_role: 'Full user'
+  default_groups: []
+  default_acls: []
 
 ports:
   facility_queue: 64510

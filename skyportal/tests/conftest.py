@@ -1,6 +1,7 @@
 """Test fixture configuration."""
 
 import os
+import shutil
 import uuid
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -55,6 +56,14 @@ from skyportal.tests.fixtures import (
 )
 from skyportal.tests.fixtures import TMP_DIR  # noqa: F401
 from skyportal.models import Obj
+
+
+if shutil.which('geckodriver') is None:
+    raise RuntimeError(
+        'Geckodriver needs to be installed for browser automation.\n'
+        'See https://github.com/mozilla/geckodriver/releases'
+    )
+
 
 # Add a "test factory" User so that all factory-generated comments have a
 # proper author, if it doesn't already exist (the user may already be in
@@ -1596,3 +1605,25 @@ def shift_user(public_group, public_stream):
     user_id = user.id
     yield user
     UserFactory.teardown(user_id)
+
+
+@pytest.fixture()
+def analysis_service_token(user):
+    token_id = create_token(
+        ACLs=["Manage Analysis Services"],
+        user_id=user.id,
+        name=str(uuid.uuid4()),
+    )
+    yield token_id
+    delete_token(token_id)
+
+
+@pytest.fixture()
+def analysis_service_token_two_groups(user_two_groups):
+    token_id = create_token(
+        ACLs=["Manage Analysis Services"],
+        user_id=user_two_groups.id,
+        name=str(uuid.uuid4()),
+    )
+    yield token_id
+    delete_token(token_id)

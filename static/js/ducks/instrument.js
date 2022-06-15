@@ -12,6 +12,8 @@ const SUBMIT_INSTRUMENT = "skyportal/SUBMIT_INSTRUMENT";
 
 const MODIFY_INSTRUMENT = "skyportal/MODIFY_INSTRUMENT";
 
+const FETCH_INSTRUMENT_SKYMAP = "skyportal/FETCH_INSTRUMENT_SKYMAP";
+
 export const fetchInstrument = (id) =>
   API.GET(`/api/instrument/${id}`, FETCH_INSTRUMENT);
 
@@ -20,6 +22,13 @@ export const submitInstrument = (run) =>
 
 export const modifyInstrument = (id, params) =>
   API.PUT(`/api/instrument/${id}`, MODIFY_INSTRUMENT, params);
+
+export function fetchInstrumentSkymap(id, localization) {
+  return API.GET(
+    `/api/instrument/${id}?includeGeoJSONSummary=True&localizationDateobs=${localization.dateobs}&localizationName=${localization.localization_name}`,
+    FETCH_INSTRUMENT_SKYMAP
+  );
+}
 
 // Websocket message handler
 messageHandler.add((actionType, payload, dispatch, getState) => {

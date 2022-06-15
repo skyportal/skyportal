@@ -26,6 +26,10 @@ const LocalizationPlot = ({
   options,
   height,
   width,
+  rotation,
+  setRotation,
+  selectedFields,
+  setSelectedFields,
 }) => {
   const cachedLocalization = useSelector((state) => state.localization);
   const dispatch = useDispatch();
@@ -58,6 +62,10 @@ const LocalizationPlot = ({
         options={options}
         height={height}
         width={width}
+        rotation={rotation}
+        setRotation={setRotation}
+        selectedFields={selectedFields}
+        setSelectedFields={setSelectedFields}
       />
     </>
   );
@@ -180,6 +188,10 @@ LocalizationPlot.propTypes = {
   }),
   height: PropTypes.number,
   width: PropTypes.number,
+  rotation: PropTypes.arrayOf(PropTypes.number),
+  setRotation: PropTypes.func,
+  selectedFields: PropTypes.arrayOf(PropTypes.number),
+  setSelectedFields: PropTypes.func,
 };
 
 LocalizationPlot.defaultProps = {
@@ -197,6 +209,10 @@ LocalizationPlot.defaultProps = {
   },
   height: 600,
   width: 600,
+  rotation: null,
+  setRotation: () => {},
+  selectedFields: [],
+  setSelectedFields: () => {},
 };
 
 const useD3 = (renderer, height, width, data) => {
@@ -220,11 +236,18 @@ const GeoJSONGlobePlot = ({
   options,
   height,
   width,
+  rotation,
+  setRotation,
+  selectedFields,
+  setSelectedFields,
 }) => {
   const classes = useStyles();
   function renderMap(svg, svgheight, svgwidth, data) {
     const center = [svgwidth / 2, svgheight / 2];
-    const projection = d3.geoOrthographic().translate(center).scale(100);
+    const projection = d3.geoOrthographic().translate(center).scale(300);
+    if (rotation) {
+      projection.rotate(rotation);
+    }
     const geoGenerator = d3.geoPath().projection(projection);
     const graticule = d3.geoGraticule();
     // Draw text labels
@@ -331,24 +354,28 @@ const GeoJSONGlobePlot = ({
         data.instrument.fields.forEach((f) => {
           const { field_id } = f.contour_summary.properties;
           const { features } = f.contour_summary;
+          const selected = selectedFields.includes(Number(f.id));
           svg
             .data(features)
             .append("path")
             .attr("class", field_id)
             .classed(classes.fieldStyle, true)
-            .style("fill", f.selected ? filterColor : "white")
+            .style("fill", selected ? filterColor : "white")
             .attr("d", geoGenerator)
             .on("click", () => {
-              if (f.selected) {
-                f.selected = false;
+              if (!selected) {
+                setSelectedFields([...selectedFields, Number(f.id)]);
               } else {
-                f.selected = true;
+                setSelectedFields(
+                  selectedFields.filter((id) => id !== Number(f.id))
+                );
               }
               refresh();
+              setRotation(projection.rotate());
             })
             .append("title")
             .text(
-              `ra: ${f.ra} \ndec: ${
+              `field ID: ${field_id} \nra: ${f.ra} \ndec: ${
                 f.dec
               } \nfilters: ${data.instrument.filters.join(", ")}`
             );
@@ -481,6 +508,10 @@ GeoJSONGlobePlot.propTypes = {
   }),
   height: PropTypes.number,
   width: PropTypes.number,
+  rotation: PropTypes.arrayOf(PropTypes.number),
+  setRotation: PropTypes.func,
+  selectedFields: PropTypes.arrayOf(PropTypes.number),
+  setSelectedFields: PropTypes.func,
 };
 
 GeoJSONGlobePlot.defaultProps = {
@@ -498,6 +529,10 @@ GeoJSONGlobePlot.defaultProps = {
   },
   height: 600,
   width: 600,
+  rotation: null,
+  setRotation: () => {},
+  selectedFields: [],
+  setSelectedFields: () => {},
 };
 
 export default LocalizationPlot;

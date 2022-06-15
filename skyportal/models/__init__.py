@@ -3,6 +3,7 @@ from baselayer.app.models import *
 
 # SkyPortal models
 from .allocation import *
+from .analysis import *
 from .annotation import *
 from .assignment import *
 from .candidate import *

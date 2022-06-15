@@ -354,6 +354,8 @@ def test_submit_annotations_filtering(
     driver.execute_script(scroll_element_to_top, element)
     element.click()
 
+    driver.click_xpath("//div[@id='root_origin']")
+    driver.click_xpath("//button[text()='RESET']", scroll_parent=True)
     # Filter by numeric_field < 1.5
     driver.click_xpath("//div[@id='root_origin']")
     driver.click_xpath(f'//li[@data-value="{origin}"]', scroll_parent=True)
@@ -367,7 +369,7 @@ def test_submit_annotations_filtering(
     max_box = driver.wait_for_xpath("//*[@id='root_max']")
     max_text = "1.5"
     max_box.send_keys(max_text)
-    driver.click_xpath("//button[text()='Submit']")
+    driver.click_xpath("//button[text()='Submit']", scroll_parent=True)
 
     # Check that results come back as expected
     # The first candidate should exist

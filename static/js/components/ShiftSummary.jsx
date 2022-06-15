@@ -1,14 +1,23 @@
 import React, { useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
-import { makeStyles } from "@material-ui/core/styles";
+import makeStyles from "@mui/styles/makeStyles";
 import dayjs from "dayjs";
 // eslint-disable-next-line import/no-unresolved
 import Form from "@rjsf/material-ui/v5";
-import { Paper, Collapse, Divider, Tooltip } from "@material-ui/core";
+import {
+  Paper,
+  Collapse,
+  Divider,
+  Tooltip,
+  List,
+  ListItem,
+} from "@mui/material";
 import { showNotification } from "baselayer/components/Notifications";
-import List from "@material-ui/core/List";
-import ListItem from "@material-ui/core/ListItem";
-import { ExpandMore, ExpandLess, HelpOutline } from "@material-ui/icons";
+import {
+  HelpOutlineOutlined,
+  ExpandMore,
+  ExpandLess,
+} from "@mui/icons-material";
 import * as shiftActions from "../ducks/shift";
 import SourceTable from "./SourceTable";
 import * as sourcesActions from "../ducks/sources";
@@ -295,7 +304,7 @@ const ShiftSummary = () => {
             placement="right"
             classes={{ tooltip: classes.tooltip }}
           >
-            <HelpOutline />
+            <HelpOutlineOutlined />
           </Tooltip>
         </div>
         <Form

@@ -1,14 +1,14 @@
 import React, { useState } from "react";
+import PropTypes from "prop-types";
+import makeStyles from "@mui/styles/makeStyles";
 import {
   FormControl,
   InputLabel,
-  makeStyles,
   Select,
   MenuItem,
   useTheme,
   Chip,
-} from "@material-ui/core";
-import PropTypes from "prop-types";
+} from "@mui/material";
 
 const useStyles = makeStyles((theme) => ({
   chips: {
@@ -34,6 +34,26 @@ const SelectWithChips = (props) => {
   const theme = useTheme();
   const [opts, setOpts] = useState([]);
   const { label, id, initValue, onChange, options } = props;
+
+  const max_chars = 90;
+  // find the max number of chips we want to display. To do that, find the index of the selected element after which we are over the max number of chars
+  let char_count = 0;
+  let max_chip_nb = -1;
+  for (let i = 0; i < initValue.length; i += 1) {
+    if (!initValue[i]) {
+      break;
+    } else {
+      char_count += initValue[i].length;
+    }
+    if (char_count > max_chars) {
+      max_chip_nb = i;
+      break;
+    }
+  }
+
+  if (max_chip_nb === -1 && char_count > 0 && char_count <= max_chars) {
+    max_chip_nb = initValue.length;
+  }
 
   const MenuProps = {
     PaperProps: {
@@ -61,9 +81,18 @@ const SelectWithChips = (props) => {
           }}
           renderValue={(selected) => (
             <div className={classes.chips}>
-              {selected.map((value) => (
-                <Chip key={value} label={value} />
-              ))}
+              {selected.map((value) =>
+                selected.indexOf(value) < max_chip_nb ? (
+                  <Chip key={value} label={value} />
+                ) : (
+                  selected.indexOf(value) === max_chip_nb && (
+                    <Chip
+                      key={value}
+                      label={`+${selected?.length - max_chip_nb}`}
+                    />
+                  )
+                )
+              )}
             </div>
           )}
           MenuProps={MenuProps}

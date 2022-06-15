@@ -133,6 +133,21 @@ class Shift(Base):
         doc='Elements of a join table mapping Users to Shifts.',
     )
 
+    comments = relationship(
+        'CommentOnShift',
+        back_populates='shift',
+        cascade='save-update, merge, refresh-expire, expunge, delete',
+        passive_deletes=True,
+        order_by="CommentOnShift.created_at",
+        doc="Comments posted about this Shift.",
+    )
+
+    required_users_number = sa.Column(
+        sa.Integer,
+        nullable=True,
+        doc='The number of users required to join this shift for it to be considered full',
+    )
+
 
 ShiftUser = join_model('shift_users', Shift, User)
 ShiftUser.__doc__ = "Join table mapping `Shift`s to `User`s."

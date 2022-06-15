@@ -18,6 +18,7 @@ def test_shift(public_group, super_admin_token, view_only_token, super_admin_use
         'end_date': end_date,
         'description': 'the Night Shift',
         'shift_admins': [super_admin_user.id],
+        'required_users_number': 2,
     }
     status, data = api('POST', 'shifts', data=request_data, token=view_only_token)
     assert status == 401
@@ -34,6 +35,12 @@ def test_shift(public_group, super_admin_token, view_only_token, super_admin_use
     assert any([request_data['name'] == s['name'] for s in data["data"]])
     assert any([request_data['start_date'] == s['start_date'] for s in data["data"]])
     assert any([request_data['end_date'] == s['end_date'] for s in data["data"]])
+    assert any(
+        [
+            request_data['required_users_number'] == s['required_users_number']
+            for s in data["data"]
+        ]
+    )
 
     assert any(
         [

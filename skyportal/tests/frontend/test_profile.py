@@ -166,9 +166,7 @@ def test_delete_classification_shortcut(driver, user, public_group, taxonomy_tok
     shortcut_name = test_add_classification_shortcut(
         driver, user, public_group, taxonomy_token
     )
-    delete_icon = driver.wait_for_xpath(
-        '//*[@class="MuiSvgIcon-root MuiChip-deleteIcon"]'
-    )
+    delete_icon = driver.wait_for_xpath('//*[contains(@class,"MuiChip-deleteIcon")]')
     driver.scroll_to_element_and_click(delete_icon)
     driver.wait_for_xpath_to_disappear(f'//span[contains(text(), "{shortcut_name}")]')
 

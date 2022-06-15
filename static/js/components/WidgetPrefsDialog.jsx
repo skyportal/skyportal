@@ -21,6 +21,7 @@ const useStyles = makeStyles(() => ({
   },
   inputSectionDiv: {
     marginBottom: "1rem",
+    marginTop: "0.5rem",
   },
 }));
 
