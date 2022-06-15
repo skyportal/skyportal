@@ -46,7 +46,7 @@ PS1_CUTOUT_TIMEOUT = 10
 def delete_obj_if_all_data_owned(cls, user_or_token):
     from .source import Source
 
-    allow_nonadmins = cfg["misc.allow_nonadmins_delete_objs"] or False
+    allow_nonadmins = cfg["misc.allow_nonadmins_delete_objs"]
 
     deletable_photometry = Photometry.query_records_accessible_by(
         user_or_token, mode="delete"

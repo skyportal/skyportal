@@ -43,9 +43,7 @@ def force_render_enum_markdown(values):
     return ', '.join(list(map(lambda v: f'`{v}`', values)))
 
 
-ALLOWED_SPECTRUM_TYPES = tuple(
-    cfg.get('spectrum_types.types', ['source', 'host', 'host_center'])
-)
+ALLOWED_SPECTRUM_TYPES = tuple(cfg['spectrum_types.types'])
 ALLOWED_MAGSYSTEMS = tuple(val['name'] for val in _MAGSYSTEMS.get_loaders_metadata())
 # though in the registry, the additional bandpass names are not in the _BANDPASSES list
 ALLOWED_BANDPASSES = tuple(existing_bandpasses_names + additional_bandpasses_names)
@@ -100,7 +98,7 @@ allowed_external_authentication_types = sa.Enum(
 allowed_spectrum_types = sa.Enum(
     *ALLOWED_SPECTRUM_TYPES, name='spectrumtypes', validate_strings=True
 )
-default_spectrum_type = cfg.get('spectrum_types.default', "source")
+default_spectrum_type = cfg['spectrum_types.default']
 
 allowed_magsystems = sa.Enum(
     *ALLOWED_MAGSYSTEMS, name="magsystems", validate_strings=True
