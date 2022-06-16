@@ -1129,7 +1129,7 @@ class ObservationExternalAPIHandler(BaseHandler):
 
         if not instrument.api_class_obsplan.implements()['retrieve']:
             return self.error(
-                'Cannot submit executed observation plan requests to this Instrument.'
+                'Submitting executed observation plan requests to this Instrument is not available.'
             )
 
         try:
@@ -1219,7 +1219,7 @@ class ObservationExternalAPIHandler(BaseHandler):
 
         if not instrument.api_class_obsplan.implements()['queued']:
             return self.error(
-                'Cannot submit executed observation plan requests to this Instrument.'
+                'Submitting executed observation plan requests to this Instrument is not available.'
             )
 
         try:
