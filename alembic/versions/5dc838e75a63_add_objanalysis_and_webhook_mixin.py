@@ -119,15 +119,10 @@ def upgrade():
         ),
     )
     # ### end Alembic commands ###
-    op.execute(
-        """alter type "public"."analysisinputtypes" rename to "analysisinputtypes__old_version_to_be_dropped" """
-    )
-    op.execute(
-        """create type "public"."analysisinputtypes" as enum ('photometry', 'spectra', 'redshift', 'annotations', 'comments', 'classifications')"""
-    )
-    op.execute(
-        """drop type "public"."analysisinputtypes__old_version_to_be_dropped" """
-    )
+    with op.get_context().autocommit_block():
+        op.execute(
+            "ALTER TYPE analysisinputtypes ADD VALUE IF NOT EXISTS 'classifications' AFTER 'comments'"
+        )
 
 
 def downgrade():
