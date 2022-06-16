@@ -84,6 +84,7 @@ from skyportal.handlers.api import (
     SpectrumRangeHandler,
     SyntheticPhotometryHandler,
     ObjSpectraHandler,
+    ReminderHandler,
     SpectrumTNSHandler,
     ShiftHandler,
     ShiftUserHandler,
@@ -286,6 +287,14 @@ skyportal_handlers = [
     (
         r'/api/(sources|spectra)(/[0-9A-Za-z-_\.\+]+)/annotations(/[0-9]+)?',
         AnnotationHandler,
+    ),
+    (
+        r'/api/(sources|spectra|gcn_event|shift)/([0-9A-Za-z-_\.\+]+)/reminders',
+        ReminderHandler,
+    ),
+    (
+        r'/api/(sources|spectra|gcn_event|shift)/([0-9A-Za-z-_\.\+]+)/reminders(/[0-9]+)?',
+        ReminderHandler,
     ),
     (r'/api/sources(/.*)?', SourceHandler),
     (r'/api/source_exists(/.*)?', SourceExistsHandler),

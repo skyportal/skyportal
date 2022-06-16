@@ -108,6 +108,13 @@ User.comments = relationship(
     cascade="delete",
     passive_deletes=True,
 )
+User.reminders = relationship(
+    "Reminder",
+    back_populates="user",
+    foreign_keys="Reminder.user_id",
+    cascade="delete",
+    passive_deletes=True,
+)
 User.annotations = relationship(
     "Annotation",
     back_populates="author",
@@ -132,6 +139,13 @@ User.comments_on_spectra = relationship(
     cascade="delete",
     passive_deletes=True,
 )
+User.reminders_on_spectra = relationship(
+    "ReminderOnSpectrum",
+    back_populates="user",
+    foreign_keys="ReminderOnSpectrum.user_id",
+    cascade="delete",
+    passive_deletes=True,
+)
 User.annotations_on_spectra = relationship(
     "AnnotationOnSpectrum",
     back_populates="author",
@@ -146,6 +160,13 @@ User.comments_on_gcns = relationship(
     cascade="delete",
     passive_deletes=True,
 )
+User.reminders_on_gcns = relationship(
+    "ReminderOnGCN",
+    back_populates="user",
+    foreign_keys="ReminderOnGCN.user_id",
+    cascade="delete",
+    passive_deletes=True,
+)
 User.default_observationplan_requests = relationship(
     'DefaultObservationPlanRequest',
     back_populates='requester',
@@ -157,6 +178,13 @@ User.comments_on_shifts = relationship(
     "CommentOnShift",
     back_populates="author",
     foreign_keys="CommentOnShift.author_id",
+    cascade="delete",
+    passive_deletes=True,
+)
+User.reminders_on_shifts = relationship(
+    "ReminderOnShift",
+    back_populates="user",
+    foreign_keys="ReminderOnShift.user_id",
     cascade="delete",
     passive_deletes=True,
 )

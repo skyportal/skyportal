@@ -142,6 +142,15 @@ class Shift(Base):
         doc="Comments posted about this Shift.",
     )
 
+    reminders = relationship(
+        'ReminderOnShift',
+        back_populates='shift',
+        cascade='save-update, merge, refresh-expire, expunge, delete',
+        passive_deletes=True,
+        order_by="ReminderOnShift.created_at",
+        doc="Reminders about this Shift.",
+    )
+
     required_users_number = sa.Column(
         sa.Integer,
         nullable=True,
