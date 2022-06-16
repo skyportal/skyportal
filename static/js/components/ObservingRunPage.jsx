@@ -144,7 +144,8 @@ const ObservingRunList = ({ observingRuns, deletePermission }) => {
   const { telescopeList } = useSelector((state) => state.telescopes);
   const groups = useSelector((state) => state.groups.all);
 
-  const nowDate = dayjs().utc().format("YYYY-MM-DDTHH:mm:ssZ");
+  const nowDate = dayjs().utc().format("YYYY-MM-DDTHH:mm:ssZ")
+    .subtract(1, "day");
   const dt_month = dayjs.duration(1, "month");
 
   const [displayAll, setDisplayAll] = useState(false);
