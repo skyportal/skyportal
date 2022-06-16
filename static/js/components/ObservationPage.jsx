@@ -38,8 +38,12 @@ const useStyles = makeStyles((theme) => ({
     padding: "1rem",
     marginBottom: "1rem",
   },
-  divider: {
+  dividerHeader: {
     background: theme.palette.primary.main,
+    height: "2px",
+  },
+  divider: {
+    background: theme.palette.secondary.main,
   },
 }));
 
@@ -188,7 +192,7 @@ const ObservationPage = () => {
       <Grid item md={6} sm={12}>
         <Paper elevation={1}>
           <div className={classes.paperContent}>
-            <Typography variant="h6">List of Executed Observations</Typography>
+            <Typography variant="h5">List of Executed Observations</Typography>
             <ExecutedObservationList
               observations={observations.observations}
               fetchParams={fetchExecutedParams}
@@ -198,7 +202,7 @@ const ObservationPage = () => {
         </Paper>
         <Paper elevation={1}>
           <div className={classes.paperContent}>
-            <Typography variant="h6">List of Queued Observations</Typography>
+            <Typography variant="h5">List of Queued Observations</Typography>
             <QueuedObservationList
               observations={queued_observations.queued_observations}
               fetchParams={fetchQueuedParams}
@@ -214,39 +218,44 @@ const ObservationPage = () => {
             onClick={() => setOpen(!open)}
           >
             <div className={classes.header}>
-              <Typography variant="h6"> Add New Observations </Typography>
+              <Typography variant="h5"> Add New Observations </Typography>
               {open ? <ExpandLess /> : <ExpandMore />}
             </div>
+            {open && (
+              <>
+                <br style={{ marginBottom: "1rem" }} />
+                <Divider variant="middle" className={classes.dividerHeader} />
+                <br />
+                <div className={classes.content}>
+                  <Typography variant="h6">
+                    Add Observations from File
+                  </Typography>
+                  <NewObservation />
+                </div>
+                <br />
+                <Divider variant="middle" className={classes.divider} />
+                <br />
+                <div className={classes.content}>
+                  <Typography variant="h6">
+                    Add API Executed Observations
+                  </Typography>
+                  <NewAPIObservation />
+                </div>
+                <br />
+                <Divider variant="middle" className={classes.divider} />
+                <br />
+                <div className={classes.content}>
+                  <Typography variant="h6">
+                    Add API Queued Observations
+                  </Typography>
+                  <NewAPIQueuedObservation />
+                </div>
+              </>
+            )}
           </Paper>
-          {open && (
-            <Paper className={classes.paperContent}>
-              <div className={classes.content}>
-                <Typography variant="h6">Add Observations from File</Typography>
-                <NewObservation />
-              </div>
-              <br />
-              <Divider variant="middle" className={classes.divider} />
-              <br />
-              <div className={classes.content}>
-                <Typography variant="h6">
-                  Add API Executed Observations
-                </Typography>
-                <NewAPIObservation />
-              </div>
-              <br />
-              <Divider variant="middle" className={classes.divider} />
-              <br />
-              <div className={classes.content}>
-                <Typography variant="h6">
-                  Add API Queued Observations
-                </Typography>
-                <NewAPIQueuedObservation />
-              </div>
-            </Paper>
-          )}
           <Paper>
             <div className={classes.paperContent}>
-              <Typography variant="h6">Queue Interaction</Typography>
+              <Typography variant="h5">Queue Interaction</Typography>
               <QueueAPIDisplay />
             </div>
           </Paper>
