@@ -146,8 +146,8 @@ const ObservingRunList = ({ observingRuns, deletePermission }) => {
 
   const nowDate = dayjs()
     .utc()
-    .subtract(1, "day")
-    .format("YYYY-MM-DDTHH:mm:ssZ");
+    .format("YYYY-MM-DDTHH:mm:ssZ")
+    .subtract(1, "day");
   const dt_month = dayjs.duration(1, "month");
 
   const [displayAll, setDisplayAll] = useState(false);
