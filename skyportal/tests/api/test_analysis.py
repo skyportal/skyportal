@@ -424,3 +424,53 @@ def test_add_and_retrieve_analysis_service_group_access(
         token=analysis_service_token_two_groups,
     )
     assert status == 200
+
+
+def test_run_analysis(
+    analysis_service_token, analysis_token, public_group, public_source
+):
+    name = str(uuid.uuid4())
+
+    optional_analysis_parameters = {"test_parameters": ["test_value_1", "test_value_2"]}
+
+    post_data = {
+        'name': name,
+        'display_name': "test analysis service name",
+        'description': "A test analysis service description",
+        'version': "1.0",
+        'contact_name': "Vera Rubin",
+        'contact_email': "vr@ls.st",
+        'url': "http://localhost:6802/analysis/demo_analysis",
+        'optional_analysis_parameters': json.dumps(optional_analysis_parameters),
+        'authentication_type': "none",
+        'analysis_type': 'lightcurve_fitting',
+        'input_data_types': ['photometry', 'redshift'],
+        'timeout': 60,
+        'group_ids': [public_group.id],
+    }
+
+    status, data = api(
+        'POST', 'analysis_service', data=post_data, token=analysis_service_token
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    analysis_service_id = data['data']['id']
+
+    status, data = api(
+        'POST',
+        f'analysis/obj/{public_source.id}/{analysis_service_id}',
+        token=analysis_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    assert data['data'].get('id') is not None
+
+    # try with the wrong token access
+    status, data = api(
+        'POST',
+        f'analysis/obj/{public_source.id}/{analysis_service_id}',
+        token=analysis_service_token,
+    )
+    assert status == 401

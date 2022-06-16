@@ -55,7 +55,11 @@ testing: true
 services:
   paths:
     - ./baselayer/services
-    - ./skyportal/services
+    - ./services
+  disable:
+    - gcnserver
+    - slack
+    - external_logging
 
 test_server:
   port: 64502
@@ -100,3 +104,6 @@ app:
     host: localhost
     port: 64502
   ps1_endpoint: http://localhost:64502
+
+sn_analysis_service:
+  port: 6802
