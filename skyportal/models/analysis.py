@@ -36,7 +36,6 @@ from ..enum_types import (
     AUTHENTICATION_TYPES,
 )
 
-
 from .webhook import WebhookMixin
 from .group import accessible_by_groups_members
 
