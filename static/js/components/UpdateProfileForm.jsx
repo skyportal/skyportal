@@ -71,9 +71,6 @@ const UpdateProfileForm = () => {
       contact_email: initialValues.email,
       contact_phone: initialValues.phone,
     };
-    if (basicinfo.username === profile.username) {
-      delete basicinfo.username;
-    }
     const result = await dispatch(
       ProfileActions.updateBasicUserInfo(basicinfo)
     );
