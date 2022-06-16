@@ -602,25 +602,28 @@ def insert_new_photometry_data(
             ('photometr_id', 'stream_id', 'created_at', 'modified'),
         )
 
-    # # add a phot stats for each photometry
-    # for phot in params:
-    #     obj_id = phot['obj_id']
-    #     phot_stat = session.scalars(
-    #         sa.select(PhotStat).where(PhotStat.obj_id == obj_id)
-    #     ).first()
-    #     if phot_stat is None or len(params) > 1:
-    #         all_phot = session.scalars(
-    #             sa.select(Photometry).where(Photometry.obj_id == obj_id)
-    #         ).all()
-    #         phot_stat = PhotStat(obj_id=obj_id)
-    #         phot_stat.full_update(all_phot)
-    #         session.add(phot_stat)
-    #
-    #     else:
-    #         phot_stat.add_photometry_point(phot)
-    #         session.add(phot_stat)
+    # add a phot stats for each photometry
+    obj_id = phot['obj_id']
+    phot_stat = session.scalars(
+        sa.select(PhotStat).where(PhotStat.obj_id == obj_id)
+    ).first()
+    # if there are a lot of new points, should just
+    # pull up all the photometry and recalculate
+    # instead of adding them one-by-one
+    if phot_stat is None or len(params) > 50:
+        all_phot = session.scalars(
+            sa.select(Photometry).where(Photometry.obj_id == obj_id)
+        ).all()
+        phot_stat = PhotStat(obj_id=obj_id)
+        phot_stat.full_update(all_phot)
+        session.add(phot_stat)
 
-    session.commit()
+    else:
+        for phot in params:
+            phot_stat.add_photometry_point(phot)
+            session.add(phot_stat)
+
+    session.commit()  # add the updated phot_stats
     return ids, upload_id
 
 
