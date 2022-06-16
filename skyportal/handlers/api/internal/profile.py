@@ -166,13 +166,11 @@ class ProfileHandler(BaseHandler):
         if data.get("last_name") is not None:
             user.last_name = data.pop("last_name")
 
-        affiliations = data.pop("affiliations", [None])
-        if not isinstance(affiliations, list):
-            return self.error(
-                "Invalid affiliations. Affiliations must be a list of strings."
-            )
-        else:
-            user.affiliations = affiliations
+        if data.get("affiliations") is not None:
+            if isinstance(data.get("affiliations"), list):
+                user.affiliations = data.pop("affiliations")
+            else:
+                return self.error("Invalid affiliations. Should be a list.")
 
         if data.get("contact_phone") is not None:
             phone = data.pop("contact_phone")
