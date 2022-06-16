@@ -2,6 +2,8 @@
 from baselayer.app.models import *
 
 # SkyPortal models
+from .webhook import *
+
 from .allocation import *
 from .analysis import *
 from .annotation import *
@@ -39,7 +41,6 @@ from .thumbnail import *
 from .user_notification import *
 from .user_token import *
 from .weather import *
-from .webhook import *
 
 # Cosmology
 from .cosmo import cosmo
