@@ -49,10 +49,12 @@ app:
   atlas:
     protocol: https
     host: fallingstar-data.com
+    port: ~
 
   kait:
     protocol: http
     host: herculesii.astro.berkeley.edu
+    port: ~
 
   treasuremap_endpoint: http://treasuremap.space
 
@@ -346,6 +348,8 @@ app:
         md: [0, 0, 8, 3]
         sm: [0, 0, 4.5, 3]
         xs: [0, 1, 4, 3]
+
+cookie_secret: 'abc1234'
 
 database:
   database: skyportal
