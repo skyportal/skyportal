@@ -142,12 +142,3 @@ def downgrade():
     )
     op.drop_table('obj_analyses')
     # ### end Alembic commands ###
-    op.execute(
-        'alter type "public"."analysisinputtypes" rename to "analysisinputtypes__old_version_to_be_dropped"'
-    )
-    op.execute(
-        """create type "public"."analysisinputtypes" as enum ('photometry', 'spectra', 'redshift', 'annotations', 'comments')"""
-    )
-    op.execute(
-        """drop type "public"."analysisinputtypes__old_version_to_be_dropped" """
-    )
