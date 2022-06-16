@@ -638,7 +638,7 @@ class AnalysisHandler(BaseHandler):
         ---
         description: Begin an analysis run
         tags:
-          - analysis_services
+          - analysis
         parameters:
           - in: path
             name: analysis_resource_type
