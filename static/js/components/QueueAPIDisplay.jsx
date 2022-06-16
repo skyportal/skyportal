@@ -22,13 +22,14 @@ const useStyles = makeStyles(() => ({
   },
   select: {
     width: "100%",
+    marginBottom: "1rem",
   },
   SelectItem: {
     whiteSpace: "break-spaces",
   },
   container: {
+    marginTop: "1rem",
     width: "99%",
-    marginBottom: "1rem",
   },
 }));
 
@@ -80,6 +81,24 @@ const QueueAPIDisplay = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dispatch]);
 
+  useEffect(() => {
+    const getQueues = async () => {
+      if (selectedAllocationId && allocationList?.length > 0) {
+        const response = await dispatch(
+          queuedObservationActions.requestAPIQueues(selectedAllocationId)
+        );
+        if (response?.data?.queue_names?.length > 0) {
+          setQueueList(response.data.queue_names);
+          setSelectedQueueName(response.data.queue_names[0]);
+        } else {
+          setQueueList(["None"]);
+          setSelectedQueueName("None");
+        }
+      }
+    };
+    getQueues();
+  }, [selectedAllocationId]);
+
   if (
     !allGroups ||
     allGroups.length === 0 ||
@@ -127,13 +146,6 @@ const QueueAPIDisplay = () => {
 
   const handleSelectedAllocationChange = async (e) => {
     setSelectedAllocationId(e.target.value);
-    const response = await dispatch(
-      queuedObservationActions.requestAPIQueues(e.target.value)
-    );
-    setQueueList(response.data.queue_names);
-    if (response.data.queue_names.length > 0) {
-      setSelectedQueueName(response.data.queue_names[0]);
-    }
   };
 
   const handleSelectedQueueNameChange = async (e) => {

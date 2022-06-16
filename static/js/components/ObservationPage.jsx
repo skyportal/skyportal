@@ -3,6 +3,8 @@ import { useSelector, useDispatch } from "react-redux";
 import Typography from "@mui/material/Typography";
 import Paper from "@mui/material/Paper";
 import Grid from "@mui/material/Grid";
+import Divider from "@mui/material/Divider";
+import { ExpandMore, ExpandLess } from "@mui/icons-material";
 import makeStyles from "@mui/styles/makeStyles";
 import PropTypes from "prop-types";
 
@@ -23,8 +25,21 @@ const useStyles = makeStyles((theme) => ({
     backgroundColor: theme.palette.background.paper,
     whiteSpace: "pre-line",
   },
+  header: {
+    display: "flex",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  content: {
+    margin: "1rem",
+  },
   paperContent: {
     padding: "1rem",
+    marginBottom: "1rem",
+  },
+  divider: {
+    background: theme.palette.primary.main,
   },
 }));
 
@@ -94,6 +109,7 @@ const ObservationPage = () => {
   const observations = useSelector((state) => state.observations);
   const queued_observations = useSelector((state) => state.queued_observations);
   const currentUser = useSelector((state) => state.profile);
+  const [open, setOpen] = useState(false);
   const dispatch = useDispatch();
   const classes = useStyles();
 
@@ -193,26 +209,41 @@ const ObservationPage = () => {
       </Grid>
       {currentUser.permissions?.includes("System admin") && (
         <Grid item md={6} sm={12}>
-          <Paper>
-            <div className={classes.paperContent}>
-              <Typography variant="h6">Add New Observations</Typography>
-              <NewObservation />
+          <Paper
+            className={classes.paperContent}
+            onClick={() => setOpen(!open)}
+          >
+            <div className={classes.header}>
+              <Typography variant="h6"> Add New Observations </Typography>
+              {open ? <ExpandLess /> : <ExpandMore />}
             </div>
           </Paper>
-          <Paper>
-            <div className={classes.paperContent}>
-              <Typography variant="h6">
-                Add API Executed Observations
-              </Typography>
-              <NewAPIObservation />
-            </div>
-          </Paper>
-          <Paper>
-            <div className={classes.paperContent}>
-              <Typography variant="h6">Add API Queued Observations</Typography>
-              <NewAPIQueuedObservation />
-            </div>
-          </Paper>
+          {open && (
+            <Paper className={classes.paperContent}>
+              <div className={classes.content}>
+                <Typography variant="h6">Add Observations from File</Typography>
+                <NewObservation />
+              </div>
+              <br />
+              <Divider variant="middle" className={classes.divider} />
+              <br />
+              <div className={classes.content}>
+                <Typography variant="h6">
+                  Add API Executed Observations
+                </Typography>
+                <NewAPIObservation />
+              </div>
+              <br />
+              <Divider variant="middle" className={classes.divider} />
+              <br />
+              <div className={classes.content}>
+                <Typography variant="h6">
+                  Add API Queued Observations
+                </Typography>
+                <NewAPIQueuedObservation />
+              </div>
+            </Paper>
+          )}
           <Paper>
             <div className={classes.paperContent}>
               <Typography variant="h6">Queue Interaction</Typography>
