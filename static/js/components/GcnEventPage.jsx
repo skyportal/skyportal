@@ -257,6 +257,7 @@ const GcnEventPage = ({ route }) => {
     fetchGcnEvent(route.dateobs);
   }, [route, dispatch]);
 
+  // Uncomment when the Photometry statistics PR is merged
   // useEffect(() => {
   // const fetchGcnEventSources = async (dateobs) => {
   //    await dispatch(sourcesActions.fetchGcnEventSources(dateobs));

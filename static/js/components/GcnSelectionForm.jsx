@@ -184,6 +184,7 @@ const GcnSelectionForm = ({ gcnEvent, setSelectedLocalizationName }) => {
     formData.endDate = formData.endDate
       .replace("+00:00", "")
       .replace(".000Z", "");
+    // Uncomment when the Photometry statistics PR is merged
     // dispatch(sourcesActions.fetchGcnEventSources(gcnEvent.dateobs, formData));
     formData.includeGeoJSON = true;
     await dispatch(
