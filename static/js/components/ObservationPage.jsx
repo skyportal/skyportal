@@ -38,7 +38,6 @@ const useStyles = makeStyles((theme) => ({
     margin: "1rem",
   },
   paperContent: {
-    padding: "1rem",
     marginBottom: "1rem",
   },
   dividerHeader: {
@@ -201,9 +200,9 @@ const ObservationPage = () => {
   return (
     <Grid container spacing={3}>
       <Grid item md={6} sm={12}>
-        <Paper elevation={1}>
+        <Paper>
           <div className={classes.paperContent}>
-            <Accordion defaultExpanded>
+            <Accordion defaultExpanded elevation={0}>
               <AccordionSummary
                 expandIcon={<ExpandMoreIcon />}
                 aria-controls="executed-observations-content"
@@ -225,9 +224,9 @@ const ObservationPage = () => {
             </Accordion>
           </div>
         </Paper>
-        <Paper elevation={1}>
+        <Paper>
           <div className={classes.paperContent}>
-            <Accordion defaultExpanded>
+            <Accordion defaultExpanded elevation={0}>
               <AccordionSummary
                 expandIcon={<ExpandMoreIcon />}
                 aria-controls="queued-observations-content"
@@ -254,7 +253,7 @@ const ObservationPage = () => {
         <Grid item md={6} sm={12}>
           <Paper className={classes.paperContent}>
             <div>
-              <Accordion defaultExpanded>
+              <Accordion defaultExpanded elevation={0}>
                 <AccordionSummary
                   expandIcon={<ExpandMoreIcon />}
                   aria-controls="add-new-observations-content"
@@ -303,7 +302,7 @@ const ObservationPage = () => {
           </Paper>
           <Paper>
             <div className={classes.paperContent}>
-              <Accordion defaultExpanded>
+              <Accordion defaultExpanded elevation={0}>
                 <AccordionSummary
                   expandIcon={<ExpandMoreIcon />}
                   aria-controls="queue-interaction-content"
