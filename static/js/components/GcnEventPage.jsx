@@ -287,6 +287,14 @@ const GcnEventPage = ({ route }) => {
   }, [route, dispatch]);
 
   if (
+    // in general, i agree we shouldnt display stuff if we dont have the gcnEvent yet, but for the rest, we can
+    // display the page for sure, and just not display the indivual components that need the rest, or just show
+    // a loading indicator or message for those.
+    // ex: "Fetching galaxies..." on the galaxy list component rather than just not loading the page...
+    // For the GCN Selection Form, we should display the skymap as soon as we have a localization, but we should
+    // display additionnal indicators saying what we are still fetching.
+    // I just believed all this can be async, but just needs to be clearly said on the frontend when we are
+    // waiting for stuff to load !
     !gcnEvent ||
     // !gcnEventSources ||
     !gcnEventObservations ||
@@ -494,14 +502,14 @@ const GcnEventPage = ({ route }) => {
               </Typography>
             </AccordionSummary>
             <AccordionDetails>
-              {gcnEventObservations?.observations.length === 0 ? (
-                <Typography variant="h5">None</Typography>
-              ) : (
+              {gcnEventObservations?.observations?.length > 0 ? (
                 <div className={styles.gcnEventContainer}>
                   <ExecutedObservationsTable
                     observations={gcnEventObservations.observations}
                   />
                 </div>
+              ) : (
+                <Typography variant="h5">None</Typography>
               )}
             </AccordionDetails>
           </Accordion>
