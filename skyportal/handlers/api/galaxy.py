@@ -171,8 +171,17 @@ class GalaxyCatalogHandler(BaseHandler):
         localization_cumprob = self.get_query_argument("localizationCumprob", 0.95)
         includeGeoJSON = self.get_query_argument("includeGeoJSON", False)
 
-        page_number = int(self.get_query_argument("pageNumber", 1))
-        n_per_page = int(self.get_query_argument("numPerPage", 100))
+        page_number = self.get_query_argument("pageNumber", 1)
+        try:
+            page_number = int(page_number)
+        except ValueError as e:
+            return self.error(f'pageNumber fails: {e}')
+
+        n_per_page = self.get_query_argument("numPerPage", 100)
+        try:
+            n_per_page = int(n_per_page)
+        except ValueError as e:
+            return self.error(f'numPerPage fails: {e}')
 
         query = Galaxy.query_records_accessible_by(self.current_user, mode="read")
         if catalog_name is not None:
