@@ -454,7 +454,7 @@ const UserManagement = () => {
       <div>
         <IconButton
           aria-label="add-affiliation"
-          data-testid={`addUserACLsButton${user.id}`}
+          data-testid={`addUserAffiliationsButton${user.id}`}
           onClick={() => {
             setClickedUser(user);
             setAddUserAffiliationsDialogOpen(true);
