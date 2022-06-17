@@ -155,7 +155,6 @@ class TelescopeHandler(BaseHandler):
                     morning = False
                     evening = False
                     is_night_astronomical = False
-                    continue
             temp['is_night_astronomical'] = is_night_astronomical
             temp['next_twilight_morning_astronomical'] = morning
             temp['next_twilight_evening_astronomical'] = evening
