@@ -86,7 +86,7 @@ const timespans = [
 ];
 
 const defaultPrefs = {
-  maxNumSources: "",
+  maxNumSources: "10",
   sinceDaysAgo: "7",
 };
 
@@ -249,9 +249,15 @@ const TopSources = ({ classes }) => {
   const sourceListStyles = useSourceListStyles({ invertThumbnails });
 
   const { sourceViews } = useSelector((state) => state.topSources);
-  const topSourcesPrefs =
-    useSelector((state) => state.profile.preferences.topSources) ||
-    defaultPrefs;
+
+  const userPrefs = useSelector(
+    (state) => state.profile.preferences.topSources
+  );
+  const topSourcesPrefs = userPrefs || defaultPrefs;
+
+  if (!Object.keys(topSourcesPrefs).includes("maxNumSources")) {
+    topSourcesPrefs.maxNumSources = defaultPrefs.maxNumSources;
+  }
 
   const [currentTimespan, setCurrentTimespan] = useState(
     timespans.find(
@@ -276,7 +282,7 @@ const TopSources = ({ classes }) => {
   return (
     <Paper elevation={1} className={classes.widgetPaperFillSpace}>
       <div className={classes.widgetPaperDiv}>
-        <div className={styles.header}>
+        <div>
           <Typography variant="h6" display="inline">
             Top Sources
           </Typography>
