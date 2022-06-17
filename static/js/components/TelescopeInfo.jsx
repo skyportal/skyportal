@@ -97,13 +97,9 @@ const TelescopeInfo = () => {
               {!telescope.is_night_astronomical && telescope.fixed_location && (
                 <span className={classes.cannotObserveFixed} />
               )}
-              {telescope.is_night_astronomical && !telescope.fixed_location && (
+              {!telescope.fixed_location && (
                 <span className={classes.cannotObserveNonFixed} />
               )}
-              {!telescope.is_night_astronomical &&
-                !telescope.fixed_location && (
-                  <span className={classes.cannotObserveNonFixed} />
-                )}
               <h2 className={classes.h2}>
                 {telescope.name} ({telescope.nickname})
               </h2>
