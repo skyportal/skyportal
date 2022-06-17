@@ -135,23 +135,32 @@ class TelescopeHandler(BaseHandler):
         telescopes = []
         for telescope in data:
             temp = telescope.to_dict()
-            if telescope.next_twilight_morning_astronomical() is not None:
-                temp['is_night_astronomical'] = bool(
-                    telescope.next_twilight_morning_astronomical().jd
-                    < telescope.next_twilight_evening_astronomical().jd
-                )
-                temp[
-                    'next_twilight_morning_astronomical'
-                ] = telescope.next_twilight_morning_astronomical().iso
-                temp[
-                    'next_twilight_evening_astronomical'
-                ] = telescope.next_twilight_evening_astronomical().iso
-            else:
-                temp['is_night_astronomical'] = False
-                temp['next_twilight_morning_astronomical'] = False
-                temp['next_twilight_evening_astronomical'] = False
-
+            morning = False
+            evening = False
+            is_night_astronomical = False
+            if (
+                telescope.fixed_location
+                and telescope.lon
+                and telescope.lat
+                and telescope.elevation
+            ):
+                try:
+                    morning = telescope.next_twilight_morning_astronomical()
+                    evening = telescope.next_twilight_evening_astronomical()
+                    if morning is not None and evening is not None:
+                        is_night_astronomical = bool(morning.jd < evening.jd)
+                        morning = morning.iso
+                        evening = evening.iso
+                except Exception:
+                    morning = False
+                    evening = False
+                    is_night_astronomical = False
+                    continue
+            temp['is_night_astronomical'] = is_night_astronomical
+            temp['next_twilight_morning_astronomical'] = morning
+            temp['next_twilight_evening_astronomical'] = evening
             telescopes.append(temp)
+
         self.verify_and_commit()
         return self.success(data=telescopes)
 
