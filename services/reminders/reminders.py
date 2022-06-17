@@ -5,7 +5,6 @@
 
 from astropy.time import Time
 from datetime import datetime, timedelta
-import time
 
 import asyncio
 from tornado.ioloop import IOLoop
@@ -13,7 +12,6 @@ import requests
 
 from baselayer.app.models import init_db
 from baselayer.app.env import load_env
-from baselayer.app.flow import Flow
 from skyportal.models import (
     DBSession,
     Reminder,
@@ -103,20 +101,15 @@ class ReminderQueue(asyncio.Queue):
                         )
                     )
 
-                    flow = Flow()
-                    flow.push('*', "skyportal/FETCH_NOTIFICATIONS", {})
-
                     reminder.number_of_reminders = reminder.number_of_reminders - 1
                     if reminder.number_of_reminders > 0:
-                        reminder.next_reminder = datetime.now() + timedelta(
+                        reminder.next_reminder = reminder.next_reminder + timedelta(
                             days=reminder.reminder_delay
                         )
                         await self.put([reminder.id, reminder.__class__])
 
                     session.add(reminder)
                     session.commit()
-
-                    time.sleep(10)
 
 
 queue = ReminderQueue()
