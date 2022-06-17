@@ -59,7 +59,38 @@ class ReminderQueue(asyncio.Queue):
                 await self.put([reminder.id, reminder.__class__])
 
     async def service(self):
+        last_update = datetime.now()
+
         while True:
+
+            with DBSession() as session:
+                reminders = (
+                    (
+                        session.query(Reminder)
+                        .where(Reminder.created_at > last_update)
+                        .all()
+                    )
+                    + (
+                        session.query(ReminderOnSpectrum)
+                        .where(ReminderOnSpectrum.created_at > last_update)
+                        .all()
+                    )
+                    + (
+                        session.query(ReminderOnGCN)
+                        .where(ReminderOnGCN.created_at > last_update)
+                        .all()
+                        + (
+                            session.query(ReminderOnShift)
+                            .where(ReminderOnShift.created_at > last_update)
+                            .all()
+                        )
+                    )
+                )
+
+                for reminder in reminders:
+                    await self.put([reminder.id, reminder.__class__])
+
+            last_update = datetime.now()
 
             reminder_id, reminder_type = await queue.get()
 

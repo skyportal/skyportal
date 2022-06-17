@@ -392,7 +392,7 @@ class ReminderHandler(BaseHandler):
 
         reminder_text = data.get("text")
         next_reminder = data.get("next_reminder")
-        next_reminder = arrow.get(next_reminder).datetime
+        next_reminder = arrow.get(next_reminder.strip()).datetime
         reminder_delay = data.get("reminder_delay", 0)
         number_of_reminders = data.get("number_of_reminders", 1)
 
