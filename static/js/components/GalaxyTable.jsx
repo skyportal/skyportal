@@ -61,7 +61,14 @@ const getMuiTheme = (theme) =>
     })
   );
 
-const GalaxyTable = ({ galaxies, hideTitle = false }) => {
+const GalaxyTable = ({
+  galaxies,
+  totalMatches,
+  handleTableChange = false,
+  pageNumber = 1,
+  numPerPage = 10,
+  hideTitle = false,
+}) => {
   const classes = useStyles();
   const theme = useTheme();
 
@@ -234,7 +241,17 @@ const GalaxyTable = ({ galaxies, hideTitle = false }) => {
     search: true,
     selectableRows: "none",
     elevation: 0,
+    page: pageNumber - 1,
+    rowsPerPage: numPerPage,
+    rowsPerPageOptions: [2, 10, 25, 50, 100],
+    jumpToPage: true,
+    serverSide: true,
+    pagination: true,
+    count: totalMatches,
   };
+  if (typeof handleTableChange === "function") {
+    options.onTableChange = handleTableChange;
+  }
 
   return (
     <div>
@@ -280,11 +297,18 @@ GalaxyTable.propTypes = {
       btc: PropTypes.number,
     })
   ),
+  handleTableChange: PropTypes.func.isRequired,
+  pageNumber: PropTypes.number,
+  totalMatches: PropTypes.number,
+  numPerPage: PropTypes.number,
   hideTitle: PropTypes.bool,
 };
 
 GalaxyTable.defaultProps = {
   galaxies: null,
+  pageNumber: 1,
+  totalMatches: 0,
+  numPerPage: 10,
   hideTitle: false,
 };
 
