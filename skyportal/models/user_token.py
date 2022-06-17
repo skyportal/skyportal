@@ -17,7 +17,7 @@ from baselayer.app.models import (
 
 from .group import Group, GroupUser
 from .followup_request import FollowupRequest
-from .observation_plan import ObservationPlanRequest
+from .observation_plan import DefaultObservationPlanRequest, ObservationPlanRequest
 from .stream import Stream
 from .invitation import Invitation
 
@@ -153,6 +153,20 @@ User.comments_on_gcns = relationship(
     cascade="delete",
     passive_deletes=True,
 )
+User.default_observationplan_requests = relationship(
+    'DefaultObservationPlanRequest',
+    back_populates='requester',
+    passive_deletes=True,
+    doc="The default observation plan requests this User has made.",
+    foreign_keys=[DefaultObservationPlanRequest.requester_id],
+)
+User.comments_on_shifts = relationship(
+    "CommentOnShift",
+    back_populates="author",
+    foreign_keys="CommentOnShift.author_id",
+    cascade="delete",
+    passive_deletes=True,
+)
 User.followup_requests = relationship(
     'FollowupRequest',
     back_populates='requester',
@@ -172,6 +186,12 @@ User.transactions = relationship(
     back_populates='initiator',
     doc="The FacilityTransactions initiated by this User.",
     foreign_keys="FacilityTransaction.initiator_id",
+)
+User.transaction_requests = relationship(
+    'FacilityTransactionRequest',
+    back_populates='initiator',
+    doc="The FacilityTransactionRequests initiated by this User.",
+    foreign_keys="FacilityTransactionRequest.initiator_id",
 )
 User.assignments = relationship(
     'ClassicalAssignment',

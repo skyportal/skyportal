@@ -123,6 +123,13 @@ class FollowupRequest(Base):
         order_by="FacilityTransaction.created_at.desc()",
     )
 
+    transaction_requests = relationship(
+        'FacilityTransactionRequest',
+        back_populates='followup_request',
+        passive_deletes=True,
+        order_by="FacilityTransactionRequest.created_at.desc()",
+    )
+
     target_groups = relationship(
         'Group',
         secondary='request_groups',

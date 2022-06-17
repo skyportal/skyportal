@@ -10,7 +10,14 @@ import ReactDOM from "react-dom";
 import { BrowserRouter, Routes, Route, useLocation, useParams } from "react-router-dom";
 
 import { MuiPickersUtilsProvider } from "@material-ui/pickers";
-import { makeStyles } from "@material-ui/core/styles";
+import {
+  createTheme,
+  ThemeProvider,
+  StyledEngineProvider,
+  useTheme,
+  adaptV4Theme,
+} from "@mui/material/styles";
+import makeStyles from "@mui/styles/makeStyles";
 import { isMobile } from "react-device-detect";
 
 import DayJSUtils from "@date-io/dayjs";
@@ -41,7 +48,6 @@ import ErrorBoundary from "./ErrorBoundary";
 
 messageHandler.init(store.dispatch, store.getState);
 
-
 const useStyles = makeStyles((theme) => ({
   content: {
     flexGrow: 1,
@@ -71,9 +77,21 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 const MainContent = ({ root }) => {
+
+  const theme = useTheme();
+  return (
+    <ThemeProvider theme={theme}>
+      <MainContentInternal root={root} />
+    </ThemeProvider>
+  )
+
+};
+
+const MainContentInternal = ({ root }) => {
   const { open } = useSelector((state) => state.sidebar);
 
   const classes = useStyles();
+  const theme = useTheme();
 
   useEffect(() => {
     store.dispatch(hydrate());
@@ -86,9 +104,10 @@ const MainContent = ({ root }) => {
   }, [location]);
 
   return (
-    <Theme {% if testing %} disableTransitions {% endif %}>
+   <StyledEngineProvider injectFirst>
+     <Theme {% if testing %} disableTransitions {% endif %}>
 
-      <div className={classes.websocket}>
+      <div>
         <WebSocket
           url={`${window.location.protocol === "https:" ? "wss" :
           "ws"}://${root}websocket`}
@@ -117,7 +136,7 @@ const MainContent = ({ root }) => {
             <Route path="{{ route.path }}" element={{ "{<" }}{{ route.component }}{{ "/>}" }} />
             {%- endfor %}
 
-            <Route component={<NoMatchingRoute/>} />
+            <Route path="*" element={<NoMatchingRoute/>} />
 
           </Routes>
 
@@ -125,6 +144,7 @@ const MainContent = ({ root }) => {
 
       </MuiPickersUtilsProvider>
     </Theme>
+  </StyledEngineProvider>
   );
 };
 

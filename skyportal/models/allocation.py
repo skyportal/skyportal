@@ -35,10 +35,19 @@ class Allocation(Base):
     hours_allocated = sa.Column(
         sa.Float, nullable=False, doc='The number of hours allocated.'
     )
+    default_share_group_ids = sa.Column(
+        sa.ARRAY(sa.Integer), comment='List of default group IDs to share data with'
+    )
     requests = relationship(
         'FollowupRequest',
         back_populates='allocation',
         doc='The requests made against this allocation.',
+        passive_deletes=True,
+    )
+    default_observation_plans = relationship(
+        'DefaultObservationPlanRequest',
+        back_populates='allocation',
+        doc='The default observing plan requests for this allocation.',
         passive_deletes=True,
     )
     observation_plans = relationship(

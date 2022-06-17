@@ -32,77 +32,60 @@ def get_color_mag(annotations, **kwargs):
 
     for an in annotations:
 
-        if not isinstance(an.data, dict):
-            continue
-
         abs_mag = None
         color = None
         absorption = None
-        origin = an.origin
-
-        # go over all items in the data (e.g., different catalog matches)
-        for key, xmatch in an.data.items():
-
-            if not isinstance(xmatch, dict):
-                continue
-
+        if normalize_key(catalog) in normalize_key(an.origin):
             # found the right catalog, but does it have the right keys?
-            if normalize_key(key) == normalize_key(catalog):
 
-                # get the absolute magnitude
-                if abs_mag_key is not None:  # get the absolute magnitude directly
-                    for k in xmatch.keys():
-                        if normalize_key(abs_mag_key) == normalize_key(k):
-                            abs_mag = xmatch[k]  # found it!
-                            break  # no need to scan the rest of the cross match
-                else:  # we need to look for the apparent magnitude and parallax
-                    mag = None
-                    plx = None
-                    for k in xmatch.keys():
-                        if normalize_key(mag_key) == normalize_key(k):
-                            mag = xmatch[k]
-                        if normalize_key(parallax_key) == normalize_key(k):
-                            plx = xmatch[k]
-                        if mag is not None and plx is not None:
-                            if plx > 0:
-                                abs_mag = mag + 5 * np.log10(plx / 100)
-                            else:
-                                abs_mag = np.NaN
-                            break  # no need to scan the rest of the cross match
+            # get the absolute magnitude
+            if abs_mag_key is not None:  # get the absolute magnitude directly
+                for k in an.data.keys():
+                    if normalize_key(abs_mag_key) == normalize_key(k):
+                        abs_mag = an.data[k]  # found it!
+            else:  # we need to look for the apparent magnitude and parallax
+                mag = None
+                plx = None
+                for k in an.data.keys():
+                    if normalize_key(mag_key) == normalize_key(k):
+                        mag = an.data[k]
+                    if normalize_key(parallax_key) == normalize_key(k):
+                        plx = an.data[k]
+                    if mag is not None and plx is not None:
+                        if plx > 0:
+                            abs_mag = mag + 5 * np.log10(plx / 100)
+                        else:
+                            abs_mag = np.nan
 
-                # get the color data
-                if color_key is not None:  # get the color value directly
-                    for k in xmatch.keys():
-                        if normalize_key(color_key) == normalize_key(k):
-                            color = float(xmatch[k])  # found it!
-                            break  # no need to scan the rest of the cross match
-                else:
-                    blue = None
-                    red = None
-                    for k in xmatch.keys():
-                        if normalize_key(blue_mag_key) == normalize_key(k):
-                            blue = xmatch[k]
-                        if normalize_key(red_mag_key) == normalize_key(k):
-                            red = xmatch[k]
-                        if blue is not None and red is not None:
-                            # calculate the color between these two magnitudes
-                            color = float(blue) - float(red)
-                            break  # no need to scan the rest of the cross match
+            # get the color data
+            if color_key is not None:  # get the color value directly
+                for k in an.data.keys():
+                    if normalize_key(color_key) == normalize_key(k):
+                        color = float(an.data[k])  # found it!
+            else:
+                blue = None
+                red = None
+                for k in an.data.keys():
+                    if normalize_key(blue_mag_key) == normalize_key(k):
+                        blue = an.data[k]
+                    if normalize_key(red_mag_key) == normalize_key(k):
+                        red = an.data[k]
+                    if blue is not None and red is not None:
+                        # calculate the color between these two magnitudes
+                        color = float(blue) - float(red)
 
-                # only check this if given an absorption term
-                if absorption_key is not None:
-                    for k in xmatch.keys():
-                        if normalize_key(absorption_key) == normalize_key(k):
-                            absorption = xmatch[k]
-                            break  # no need to scan the rest of the cross match
+            # only check this if given an absorption term
+            if absorption_key is not None:
+                for k in an.data.keys():
+                    if normalize_key(absorption_key) == normalize_key(k):
+                        absorption = an.data[k]
 
-            if abs_mag is not None and color is not None:
+        if abs_mag is not None and color is not None:
 
-                if absorption is not None and not np.isnan(absorption):
-                    abs_mag = abs_mag + absorption  # apply the absorption term
+            if absorption is not None and not np.isnan(absorption):
+                abs_mag = abs_mag + absorption  # apply the absorption term
 
-                output.append({'origin': origin, 'abs_mag': abs_mag, 'color': color})
-                break  # found all the data we need for this annotation/origin
+            output.append({'origin': an.origin, 'abs_mag': abs_mag, 'color': color})
 
     return output
 
@@ -126,7 +109,8 @@ class ObjColorMagHandler(BaseHandler):
         schema:
           type: string
         description: |
-          The name of the data key, associated with a catalog cross match,
+          Partial match to the origin,
+          associated with a catalog cross match,
           from which the color-mag data should be retrieved.
           Default is GAIA. Ignores case and underscores.
       - in: query

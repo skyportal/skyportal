@@ -23,6 +23,7 @@ from ...models import (
     Localization,
     LocalizationTile,
     ObservationPlanRequest,
+    User,
 )
 from ...utils.gcn import get_dateobs, get_tags, get_skymap, get_contour
 
@@ -30,6 +31,98 @@ log = make_log('api/gcn_event')
 
 
 Session = scoped_session(sessionmaker(bind=DBSession.session_factory.kw["bind"]))
+
+
+def post_gcnevent(payload, user_id, session):
+    """Post GcnEvent to database.
+    payload: str
+        VOEvent readable string
+    user_id : int
+        SkyPortal ID of User posting the GcnEvent
+    session: sqlalchemy.Session
+        Database session for this transaction
+    """
+
+    user = session.query(User).get(user_id)
+
+    schema = f'{os.path.dirname(__file__)}/../../utils/schema/VOEvent-v2.0.xsd'
+    voevent_schema = xmlschema.XMLSchema(schema)
+    if voevent_schema.is_valid(payload):
+        # check if is string
+        try:
+            payload = payload.encode('ascii')
+        except AttributeError:
+            pass
+        root = lxml.etree.fromstring(payload)
+    else:
+        raise ValueError("xml file is not valid VOEvent")
+
+    dateobs = get_dateobs(root)
+
+    try:
+        event = GcnEvent.query.filter_by(dateobs=dateobs).one()
+
+        if not event.is_accessible_by(user, mode="update"):
+            raise ValueError(
+                "Insufficient permissions: GCN event can only be updated by original poster"
+            )
+
+    except NoResultFound:
+        event = GcnEvent(dateobs=dateobs, sent_by_id=user.id)
+        session.add(event)
+
+    tags = [
+        GcnTag(
+            dateobs=event.dateobs,
+            text=text,
+            sent_by_id=user.id,
+        )
+        for text in get_tags(root)
+    ]
+
+    gcn_notice = GcnNotice(
+        content=payload,
+        ivorn=root.attrib['ivorn'],
+        notice_type=gcn.get_notice_type(root),
+        stream=urlparse(root.attrib['ivorn']).path.lstrip('/'),
+        date=root.find('./Who/Date').text,
+        dateobs=event.dateobs,
+        sent_by_id=user.id,
+    )
+
+    for tag in tags:
+        session.add(tag)
+    session.add(gcn_notice)
+
+    skymap = get_skymap(root, gcn_notice)
+    if skymap is None:
+        return event.id
+
+    skymap["dateobs"] = event.dateobs
+    skymap["sent_by_id"] = user.id
+
+    try:
+        localization = (
+            Localization.query_records_accessible_by(
+                user,
+            )
+            .filter_by(
+                dateobs=dateobs,
+                localization_name=skymap["localization_name"],
+            )
+            .one()
+        )
+    except NoResultFound:
+        localization = Localization(**skymap)
+        session.add(localization)
+        session.commit()
+
+        log(f"Generating tiles/contours for localization {localization.id}")
+
+        IOLoop.current().run_in_executor(None, lambda: add_tiles(localization.id))
+        IOLoop.current().run_in_executor(None, lambda: add_contour(localization.id))
+
+    return event.id
 
 
 class GcnEventHandler(BaseHandler):
@@ -69,82 +162,10 @@ class GcnEventHandler(BaseHandler):
             return self.error("xml must be present in data to parse GcnEvent")
 
         payload = data['xml']
+        with DBSession() as session:
+            event_id = post_gcnevent(payload, self.associated_user_object.id, session)
 
-        schema = f'{os.path.dirname(__file__)}/../../utils/schema/VOEvent-v2.0.xsd'
-        voevent_schema = xmlschema.XMLSchema(schema)
-        if voevent_schema.is_valid(payload):
-            root = lxml.etree.fromstring(payload.encode('ascii'))
-        else:
-            self.error("xml file is not valid VOEvent")
-
-        dateobs = get_dateobs(root)
-
-        try:
-            event = GcnEvent.query.filter_by(dateobs=dateobs).one()
-
-            if not event.is_accessible_by(self.current_user, mode="update"):
-                return self.error(
-                    "Insufficient permissions: GCN event can only be updated by original poster"
-                )
-
-        except NoResultFound:
-            event = GcnEvent(dateobs=dateobs, sent_by_id=self.associated_user_object.id)
-            DBSession().add(event)
-
-        tags = [
-            GcnTag(
-                dateobs=event.dateobs,
-                text=text,
-                sent_by_id=self.associated_user_object.id,
-            )
-            for text in get_tags(root)
-        ]
-
-        gcn_notice = GcnNotice(
-            content=payload.encode('ascii'),
-            ivorn=root.attrib['ivorn'],
-            notice_type=gcn.get_notice_type(root),
-            stream=urlparse(root.attrib['ivorn']).path.lstrip('/'),
-            date=root.find('./Who/Date').text,
-            dateobs=event.dateobs,
-            sent_by_id=self.associated_user_object.id,
-        )
-
-        for tag in tags:
-            DBSession().add(tag)
-        DBSession().add(gcn_notice)
-
-        skymap = get_skymap(root, gcn_notice)
-        if skymap is None:
-            return self.success(
-                f"Event {event.dateobs} does not have skymap. Returning."
-            )
-
-        skymap["dateobs"] = event.dateobs
-        skymap["sent_by_id"] = self.associated_user_object.id
-
-        try:
-            localization = (
-                Localization.query_records_accessible_by(
-                    self.current_user,
-                )
-                .filter_by(
-                    dateobs=dateobs,
-                    localization_name=skymap["localization_name"],
-                )
-                .one()
-            )
-        except NoResultFound:
-            localization = Localization(**skymap)
-            DBSession().add(localization)
-            DBSession().commit()
-
-            log(f"Generating tiles/contours for localization {localization.id}")
-
-            IOLoop.current().run_in_executor(None, lambda: add_tiles(localization.id))
-            IOLoop.current().run_in_executor(None, lambda: add_contour(localization.id))
-
-        return self.success(data={'gcnevent_id': event.id})
+        return self.success(data={'gcnevent_id': event_id})
 
     @auth_or_token
     def get(self, dateobs=None):
@@ -163,6 +184,19 @@ class GcnEventHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+
+        page_number = self.get_query_argument("pageNumber", 1)
+        try:
+            page_number = int(page_number)
+        except ValueError as e:
+            return self.error(f'pageNumber fails: {e}')
+
+        n_per_page = self.get_query_argument("numPerPage", 100)
+        try:
+            n_per_page = int(n_per_page)
+        except ValueError as e:
+            return self.error(f'numPerPage fails: {e}')
+
         if dateobs is not None:
             event = (
                 GcnEvent.query_records_accessible_by(
@@ -193,7 +227,7 @@ class GcnEventHandler(BaseHandler):
 
             data = {
                 **event.to_dict(),
-                "tags": event.tags,
+                "tags": list(set(event.tags)),
                 "lightcurve": event.lightcurve,
                 "comments": sorted(
                     (
@@ -234,7 +268,7 @@ class GcnEventHandler(BaseHandler):
             data['observationplan_requests'] = request_data
             return self.success(data=data)
 
-        q = GcnEvent.query_records_accessible_by(
+        query = GcnEvent.query_records_accessible_by(
             self.current_user,
             options=[
                 joinedload(GcnEvent.localizations),
@@ -243,11 +277,21 @@ class GcnEventHandler(BaseHandler):
             ],
         )
 
-        events = []
-        for event in q.all():
-            events.append({**event.to_dict(), "tags": event.tags})
+        total_matches = query.count()
+        if n_per_page is not None:
+            query = (
+                query.distinct()
+                .limit(n_per_page)
+                .offset((page_number - 1) * n_per_page)
+            )
 
-        return self.success(data=events)
+        events = []
+        for event in query.all():
+            events.append({**event.to_dict(), "tags": list(set(event.tags))})
+
+        query_results = {"events": events, "totalMatches": int(total_matches)}
+
+        return self.success(data=query_results)
 
     @auth_or_token
     def delete(self, dateobs):

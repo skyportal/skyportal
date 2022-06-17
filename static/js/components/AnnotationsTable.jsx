@@ -2,11 +2,12 @@ import React from "react";
 import PropTypes from "prop-types";
 
 import {
-  makeStyles,
   createTheme,
-  MuiThemeProvider,
+  ThemeProvider,
+  StyledEngineProvider,
   useTheme,
-} from "@material-ui/core/styles";
+} from "@mui/material/styles";
+import makeStyles from "@mui/styles/makeStyles";
 import MUIDataTable from "mui-datatables";
 
 import dayjs from "dayjs";
@@ -32,9 +33,9 @@ const getMuiTheme = (theme) =>
     overrides: {
       MUIDataTableBodyCell: {
         root: {
-          padding: `${theme.spacing(0.5)}px 0 ${theme.spacing(
+          padding: `${theme.spacing(0.5)} 0 ${theme.spacing(
             0.5
-          )}px ${theme.spacing(0.5)}px`,
+          )} ${theme.spacing(0.5)}`,
         },
       },
       MuiIconButton: {
@@ -152,9 +153,11 @@ const AnnotationsTable = ({ annotations, spectrumAnnotations = [] }) => {
 
   return (
     <div className={classes.container}>
-      <MuiThemeProvider theme={getMuiTheme(theme)}>
-        <MUIDataTable columns={columns} data={tableData} options={options} />
-      </MuiThemeProvider>
+      <StyledEngineProvider injectFirst>
+        <ThemeProvider theme={getMuiTheme(theme)}>
+          <MUIDataTable columns={columns} data={tableData} options={options} />
+        </ThemeProvider>
+      </StyledEngineProvider>
     </div>
   );
 };

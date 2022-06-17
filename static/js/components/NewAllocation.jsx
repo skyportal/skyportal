@@ -1,11 +1,13 @@
-import React from "react";
+import React, { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import Form from "@rjsf/material-ui";
+// eslint-disable-next-line import/no-unresolved
+import Form from "@rjsf/material-ui/v5";
 import { showNotification } from "baselayer/components/Notifications";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
+import GroupShareSelect from "./GroupShareSelect";
 import { submitAllocation } from "../ducks/allocation";
 import { fetchAllocations } from "../ducks/allocations";
 
@@ -15,6 +17,7 @@ const NewAllocation = () => {
   const { instrumentList } = useSelector((state) => state.instruments);
   const { telescopeList } = useSelector((state) => state.telescopes);
   const groups = useSelector((state) => state.groups.userAccessible);
+  const [selectedGroupIds, setSelectedGroupIds] = useState([]);
   const dispatch = useDispatch();
 
   const nowDate = dayjs().utc().format("YYYY-MM-DDTHH:mm:ssZ");
@@ -31,6 +34,9 @@ const NewAllocation = () => {
     formData.end_date = formData.end_date
       .replace("+00:00", "")
       .replace(".000Z", "");
+    if (selectedGroupIds.length > 0) {
+      formData.default_share_group_ids = selectedGroupIds;
+    }
     const result = await dispatch(submitAllocation(formData));
     if (result.status === "success") {
       dispatch(showNotification("Allocation saved"));
@@ -112,13 +118,20 @@ const NewAllocation = () => {
   };
 
   return (
-    <Form
-      schema={allocationFormSchema}
-      onSubmit={handleSubmit}
-      // eslint-disable-next-line react/jsx-no-bind
-      validate={validate}
-      liveValidate
-    />
+    <div>
+      <Form
+        schema={allocationFormSchema}
+        onSubmit={handleSubmit}
+        // eslint-disable-next-line react/jsx-no-bind
+        validate={validate}
+        liveValidate
+      />
+      <GroupShareSelect
+        groupList={groups}
+        setGroupIDs={setSelectedGroupIds}
+        groupIDs={selectedGroupIds}
+      />
+    </div>
   );
 };
 

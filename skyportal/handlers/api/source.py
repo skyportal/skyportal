@@ -75,6 +75,102 @@ _, cfg = load_env()
 log = make_log('api/source')
 
 
+def post_source(data, user_id, session):
+    """Post source to database.
+    data: dict
+        Source dictionary
+    user_id : int
+        SkyPortal ID of User posting the GcnEvent
+    session: sqlalchemy.Session
+        Database session for this transaction
+    """
+
+    user = session.query(User).get(user_id)
+
+    obj_already_exists = Obj.get_if_accessible_by(data["id"], user) is not None
+    schema = Obj.__schema__()
+
+    ra = data.get('ra', None)
+    dec = data.get('dec', None)
+
+    if ra is None and not obj_already_exists:
+        raise AttributeError("RA must not be null for a new Obj")
+
+    if dec is None and not obj_already_exists:
+        raise AttributeError("Dec must not be null for a new Obj")
+
+    user_group_ids = [g.id for g in user.groups]
+    user_accessible_group_ids = [g.id for g in user.accessible_groups]
+    if not user_group_ids:
+        raise AttributeError(
+            "You must belong to one or more groups before " "you can add sources."
+        )
+    try:
+        group_ids = [
+            int(id)
+            for id in data.pop('group_ids')
+            if int(id) in user_accessible_group_ids
+        ]
+    except KeyError:
+        group_ids = user_group_ids
+    if not group_ids:
+        raise AttributeError(
+            "Invalid group_ids field. Please specify at least "
+            "one valid group ID that you belong to."
+        )
+
+    try:
+        obj = schema.load(data)
+    except ValidationError as e:
+        raise ValidationError(
+            'Invalid/missing parameters: ' f'{e.normalized_messages()}'
+        )
+
+    if (ra is not None) and (dec is not None):
+        # This adds a healpix index for a new object being created
+        obj.healpix = ha.constants.HPX.lonlat_to_healpix(ra * u.deg, dec * u.deg)
+
+    groups = (
+        Group.query_records_accessible_by(user).filter(Group.id.in_(group_ids)).all()
+    )
+    if not groups:
+        raise AttributeError(
+            "Invalid group_ids field. Please specify at least "
+            "one valid group ID that you belong to."
+        )
+
+    update_redshift_history_if_relevant(data, obj, user)
+
+    session.add(obj)
+    for group in groups:
+        source = (
+            Source.query_records_accessible_by(user)
+            .filter(Source.obj_id == obj.id)
+            .filter(Source.group_id == group.id)
+            .first()
+        )
+        if source is not None:
+            source.active = True
+            source.saved_by = user
+        else:
+            session.add(Source(obj=obj, group=group, saved_by_id=user.id))
+    session.commit()
+
+    if not obj_already_exists:
+        IOLoop.current().run_in_executor(
+            None,
+            lambda: add_linked_thumbnails_and_push_ws_msg(obj.id, user_id),
+        )
+    else:
+        flow = Flow()
+        flow.push(
+            '*', "skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}
+        )
+        flow.push('*', "skyportal/REFRESH_CANDIDATE", payload={"id": obj.internal_key})
+
+    return obj.id
+
+
 def apply_active_or_requested_filtering(query, include_requested, requested_only):
     if include_requested:
         query = query.filter(or_(Source.requested.is_(True), Source.active.is_(True)))
@@ -1398,6 +1494,8 @@ class SourceHandler(BaseHandler):
                 localization = (
                     Localization.query_records_accessible_by(self.current_user)
                     .filter(Localization.dateobs == localization_dateobs)
+                    # order by descending date to find the most recent localization
+                    .order_by(Localization.modified.desc())
                     .first()
                 )
             if localization is None:
@@ -1927,99 +2025,10 @@ class SourceHandler(BaseHandler):
         # existence).
 
         data = self.get_json()
-        obj_already_exists = (
-            Obj.get_if_accessible_by(data["id"], self.current_user) is not None
-        )
-        schema = Obj.__schema__()
 
-        ra = data.get('ra', None)
-        dec = data.get('dec', None)
-
-        if ra is None and not obj_already_exists:
-            return self.error("RA must not be null for a new Obj")
-
-        if dec is None and not obj_already_exists:
-            return self.error("Dec must not be null for a new Obj")
-
-        user_group_ids = [g.id for g in self.current_user.groups]
-        user_accessible_group_ids = [g.id for g in self.current_user.accessible_groups]
-        if not user_group_ids:
-            return self.error(
-                "You must belong to one or more groups before " "you can add sources."
-            )
-        try:
-            group_ids = [
-                int(id)
-                for id in data.pop('group_ids')
-                if int(id) in user_accessible_group_ids
-            ]
-        except KeyError:
-            group_ids = user_group_ids
-        if not group_ids:
-            return self.error(
-                "Invalid group_ids field. Please specify at least "
-                "one valid group ID that you belong to."
-            )
-
-        try:
-            obj = schema.load(data)
-        except ValidationError as e:
-            return self.error(
-                'Invalid/missing parameters: ' f'{e.normalized_messages()}'
-            )
-
-        if (ra is not None) and (dec is not None):
-            # This adds a healpix index for a new object being created
-            obj.healpix = ha.constants.HPX.lonlat_to_healpix(ra * u.deg, dec * u.deg)
-
-        groups = (
-            Group.query_records_accessible_by(self.current_user)
-            .filter(Group.id.in_(group_ids))
-            .all()
-        )
-        if not groups:
-            return self.error(
-                "Invalid group_ids field. Please specify at least "
-                "one valid group ID that you belong to."
-            )
-
-        update_redshift_history_if_relevant(data, obj, self.associated_user_object)
-
-        DBSession().add(obj)
-        for group in groups:
-            source = (
-                Source.query_records_accessible_by(self.current_user)
-                .filter(Source.obj_id == obj.id)
-                .filter(Source.group_id == group.id)
-                .first()
-            )
-            if source is not None:
-                source.active = True
-                source.saved_by = self.associated_user_object
-            else:
-                DBSession().add(
-                    Source(
-                        obj=obj, group=group, saved_by_id=self.associated_user_object.id
-                    )
-                )
-        self.verify_and_commit()
-
-        if not obj_already_exists:
-            IOLoop.current().run_in_executor(
-                None,
-                lambda: add_linked_thumbnails_and_push_ws_msg(
-                    obj.id, self.associated_user_object.id
-                ),
-            )
-        else:
-            self.push_all(
-                action="skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}
-            )
-            self.push_all(
-                action="skyportal/REFRESH_CANDIDATE", payload={"id": obj.internal_key}
-            )
-
-        return self.success(data={"id": obj.id})
+        with DBSession() as session:
+            obj_id = post_source(data, self.associated_user_object.id, session)
+            return self.success(data={"id": obj_id})
 
     @permissions(['Upload data'])
     def patch(self, obj_id):
@@ -2150,7 +2159,7 @@ class SourceOffsetsHandler(BaseHandler):
           schema:
             type: boolean
           description: |
-            Use ZTFref catalog for offset star positions, otherwise Gaia DR2
+            Use ZTFref catalog for offset star positions, otherwise Gaia DR3
         responses:
           200:
             content:
@@ -2362,7 +2371,7 @@ class SourceFinderHandler(BaseHandler):
           schema:
             type: boolean
           description: |
-            Use ZTFref catalog for offset star positions, otherwise DR2
+            Use ZTFref catalog for offset star positions, otherwise DR3
         - in: query
           name: obstime
           nullable: True

@@ -1,4 +1,5 @@
 __all__ = [
+    'DefaultObservationPlanRequest',
     'ObservationPlanRequest',
     'ObservationPlanRequestTargetGroup',
     'EventObservationPlan',
@@ -58,6 +59,63 @@ def updatable_by_token_with_listener_acl(cls, user_or_token):
         .join(Instrument)
         .filter(Instrument.id.in_(accessible_instrument_ids))
     )
+
+
+class DefaultObservationPlanRequest(Base):
+    """A default request for an EventObservationPlan."""
+
+    # TODO: Make read-accessible via target groups
+    create = read = AccessibleIfRelatedRowsAreAccessible(allocation="read")
+    update = delete = (
+        (
+            AccessibleIfUserMatches('allocation.group.users')
+            | AccessibleIfUserMatches('requester')
+        )
+        & read
+    ) | CustomUserAccessControl(updatable_by_token_with_listener_acl)
+
+    requester_id = sa.Column(
+        sa.ForeignKey('users.id', ondelete='SET NULL'),
+        nullable=True,
+        index=True,
+        doc="ID of the User who requested the default observation plan request.",
+    )
+
+    requester = relationship(
+        User,
+        back_populates='default_observationplan_requests',
+        doc="The User who requested the default requests.",
+        foreign_keys=[requester_id],
+    )
+
+    payload = sa.Column(
+        psql.JSONB,
+        nullable=False,
+        doc="Content of the default observation plan request.",
+    )
+
+    allocation_id = sa.Column(
+        sa.ForeignKey('allocations.id', ondelete='CASCADE'), nullable=False, index=True
+    )
+    allocation = relationship('Allocation', back_populates='default_observation_plans')
+
+    target_groups = relationship(
+        'Group',
+        secondary='default_observationplan_groups',
+        passive_deletes=True,
+        doc='Groups to share the resulting data from this default request with.',
+    )
+
+
+DefaultObservationPlanRequestTargetGroup = join_model(
+    'default_observationplan_groups', DefaultObservationPlanRequest, Group
+)
+DefaultObservationPlanRequestTargetGroup.create = (
+    DefaultObservationPlanRequestTargetGroup.update
+) = DefaultObservationPlanRequestTargetGroup.delete = (
+    AccessibleIfUserMatches('defaultobservationplanrequest.requester')
+    & DefaultObservationPlanRequestTargetGroup.read
+)
 
 
 class ObservationPlanRequest(Base):
@@ -162,6 +220,13 @@ class ObservationPlanRequest(Base):
         order_by="FacilityTransaction.created_at.desc()",
     )
 
+    transaction_requests = relationship(
+        'FacilityTransactionRequest',
+        back_populates='observation_plan_request',
+        passive_deletes=True,
+        order_by="FacilityTransactionRequest.created_at.desc()",
+    )
+
     @property
     def instrument(self):
         return self.allocation.instrument
@@ -173,7 +238,7 @@ ObservationPlanRequestTargetGroup = join_model(
 ObservationPlanRequestTargetGroup.create = (
     ObservationPlanRequestTargetGroup.update
 ) = ObservationPlanRequestTargetGroup.delete = (
-    AccessibleIfUserMatches('followuprequest.requester')
+    AccessibleIfUserMatches('observationplanrequest.requester')
     & ObservationPlanRequestTargetGroup.read
 )
 

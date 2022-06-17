@@ -1,47 +1,88 @@
-import yaml
-
 import gcn
+from datetime import datetime, timedelta
 
 from baselayer.log import make_log
+from baselayer.app.models import init_db
+from baselayer.app.env import load_env
 
-from skyportal.tests import api
-
-
-def get_token():
-    try:
-        token = yaml.load(open('.tokens.yaml'), Loader=yaml.Loader)['INITIAL_ADMIN']
-        print('Token loaded from `.tokens.yaml`')
-        return token
-    except (FileNotFoundError, TypeError, KeyError):
-        print('Error: no token specified, and no suitable token found in .tokens.yaml')
-        return None
-
-
-admin_token = get_token()
-
-
-@gcn.include_notice_types(
-    gcn.NoticeType.FERMI_GBM_FLT_POS,
-    gcn.NoticeType.FERMI_GBM_GND_POS,
-    gcn.NoticeType.FERMI_GBM_FIN_POS,
-    gcn.NoticeType.FERMI_GBM_SUBTHRESH,
-    gcn.NoticeType.LVC_PRELIMINARY,
-    gcn.NoticeType.LVC_INITIAL,
-    gcn.NoticeType.LVC_UPDATE,
-    gcn.NoticeType.LVC_RETRACTION,
-    # gcn.NoticeType.LVC_TEST,
-    gcn.NoticeType.AMON_ICECUBE_COINC,
-    gcn.NoticeType.AMON_ICECUBE_HESE,
-    gcn.NoticeType.ICECUBE_ASTROTRACK_GOLD,
-    gcn.NoticeType.ICECUBE_ASTROTRACK_BRONZE,
+from skyportal.handlers.api.gcn import post_gcnevent
+from skyportal.handlers.api.observation_plan import post_observation_plan
+from skyportal.models import (
+    DBSession,
+    Allocation,
+    DefaultObservationPlanRequest,
+    GcnEvent,
 )
+
+env, cfg = load_env()
+
+init_db(**cfg['database'])
+
+notice_types = [
+    getattr(gcn.notice_types, notice_type) for notice_type in cfg["gcn_notice_types"]
+]
+
+config_gcn_observation_plans = [
+    observation_plan for observation_plan in cfg["gcn_observation_plans"]
+]
+
+log = make_log('gcnserver')
+
+
 def handle(payload, root):
-    response_status, data = api(
-        'POST', 'gcn_event', data={'xml': payload}, token=admin_token
-    )
+    notice_type = gcn.get_notice_type(root)
+    if notice_type in notice_types:
+        user_id = 1
+        with DBSession() as session:
+
+            default_observation_plans = session.query(
+                DefaultObservationPlanRequest
+            ).all()
+            gcn_observation_plans = []
+            for plan in default_observation_plans:
+                allocation = (
+                    session.query(Allocation)
+                    .filter(Allocation.id == plan.allocation_id)
+                    .first()
+                )
+
+                gcn_observation_plan = {}
+                gcn_observation_plan['allocation-proposal_id'] = allocation.proposal_id
+                gcn_observation_plan['payload'] = plan.payload
+                gcn_observation_plans.append(gcn_observation_plan)
+            gcn_observation_plans = gcn_observation_plans + config_gcn_observation_plans
+
+            event_id = post_gcnevent(payload, user_id, session)
+            event = session.query(GcnEvent).get(event_id)
+
+            start_date = str(datetime.utcnow()).replace("T", "")
+            end_date = str(datetime.utcnow() + timedelta(days=1)).replace("T", "")
+            for ii, gcn_observation_plan in enumerate(gcn_observation_plans):
+                proposal_id = gcn_observation_plan['allocation-proposal_id']
+                allocation = (
+                    session.query(Allocation)
+                    .filter(Allocation.proposal_id == proposal_id)
+                    .first()
+                )
+
+                if allocation is not None:
+                    payload = {
+                        **gcn_observation_plan['payload'],
+                        'start_date': start_date,
+                        'end_date': end_date,
+                        'queue_name': f'{allocation.instrument.name}-{start_date}-{ii}',
+                    }
+                    plan = {
+                        'payload': payload,
+                        'allocation_id': allocation.id,
+                        'gcnevent_id': event.id,
+                        'localization_id': event.localizations[-1].id,
+                    }
+
+                    post_observation_plan(plan, user_id, session)
+                else:
+                    log(f'No allocation with proposal_id {proposal_id}')
 
 
 if __name__ == "__main__":
-    log = make_log("gcnserver")
-
     gcn.listen(handler=handle)

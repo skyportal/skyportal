@@ -717,7 +717,7 @@ class ZTFMMAAPI(MMAAPI):
         DBSession().add(transaction)
 
     @staticmethod
-    def queued(allocation, start_date, end_date):
+    def queued(allocation, start_date=None, end_date=None, queues_only=False):
 
         """Retrieve queued observations by ZTF.
 
@@ -729,6 +729,8 @@ class ZTFMMAAPI(MMAAPI):
             Minimum time for observation request
         end_date : datetime.datetime
             Maximum time for observation request
+        queues_only : bool
+            Return only queues (do not commit observations to database)
         """
 
         altdata = allocation.altdata
@@ -745,18 +747,51 @@ class ZTFMMAAPI(MMAAPI):
 
         if r.status_code == 200:
             df = pd.DataFrame(r.json()['data'])
-            queue_names = set(df['queue_name'])
-            fetch_obs = functools.partial(
-                fetch_queued_observations,
-                allocation.instrument.id,
-                df,
-                start_date,
-                end_date,
-            )
-            IOLoop.current().run_in_executor(None, fetch_obs)
+            queue_names = sorted(list(set(df['queue_name'])))
+
+            if not queues_only:
+                fetch_obs = functools.partial(
+                    fetch_queued_observations,
+                    allocation.instrument.id,
+                    df,
+                    start_date,
+                    end_date,
+                )
+                IOLoop.current().run_in_executor(None, fetch_obs)
             return queue_names
         else:
             return ValueError(f'Error querying for queued observations: {r.text}')
+
+    @staticmethod
+    def remove_queue(allocation, queue_name, username):
+
+        """Remove a queue from ZTF.
+
+        Parameters
+        ----------
+        allocation : skyportal.models.Allocation
+            The allocation with queue information.
+        queue_name : str
+            Remove a queue from ZTF
+        username: str
+            Username for the removal
+        """
+
+        altdata = allocation.altdata
+        if not altdata:
+            raise ValueError('Missing allocation information.')
+
+        headers = {"Authorization": f"Bearer {altdata['access_token']}"}
+        payload = {'queue_name': queue_name, 'user': username}
+
+        url = urllib.parse.urljoin(ZTF_URL, 'api/triggers/ztf')
+        s = Session()
+        ztfreq = Request('DELETE', url, json=payload, headers=headers)
+        prepped = ztfreq.prepare()
+
+        r = s.send(prepped)
+        if not r.status_code == 200:
+            return ValueError(f'Error deleting queue: {r.text}')
 
     @staticmethod
     def retrieve(allocation, start_date, end_date):

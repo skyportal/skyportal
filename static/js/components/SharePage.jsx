@@ -1,9 +1,9 @@
 import React, { useState } from "react";
 
-import Dialog from "@material-ui/core/Dialog";
-import IconButton from "@material-ui/core/IconButton";
-import MobileScreenShareIcon from "@material-ui/icons/MobileScreenShare";
-import { makeStyles } from "@material-ui/core/styles";
+import Dialog from "@mui/material/Dialog";
+import IconButton from "@mui/material/IconButton";
+import MobileScreenShareIcon from "@mui/icons-material/MobileScreenShare";
+import makeStyles from "@mui/styles/makeStyles";
 
 import QRCode from "qrcode.react";
 
@@ -37,6 +37,7 @@ const SharePage = () => {
         onClick={handleOpen}
         edge="start"
         disableRipple
+        size="large"
       >
         <MobileScreenShareIcon color="action" />
       </IconButton>

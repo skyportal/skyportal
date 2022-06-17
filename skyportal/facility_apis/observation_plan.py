@@ -18,7 +18,9 @@ log = make_log('api/observation_plan')
 
 env, cfg = load_env()
 
-default_filters = cfg.get('app.observation_plan.default_filters', ['g', 'r', 'i'])
+default_filters = cfg['app.observation_plan.default_filters']
+if default_filters is None:
+    default_filters = ['g', 'r', 'i']
 
 
 def generate_plan(observation_plan_id, request_id, user_id):
@@ -53,11 +55,20 @@ def generate_plan(observation_plan_id, request_id, user_id):
         start_time = Time(request.payload["start_date"], format='iso', scale='utc')
         end_time = Time(request.payload["end_date"], format='iso', scale='utc')
 
+        if "field_ids" in request.payload and len(request.payload["field_ids"]) > 0:
+            fields = [
+                f
+                for f in request.instrument.fields
+                if f.field_id in request.payload["field_ids"]
+            ]
+        else:
+            fields = request.instrument.fields
+
         params = {
             'config': {
                 request.instrument.name: {
                     # field list from skyportal
-                    'tesselation': request.instrument.fields,
+                    'tesselation': fields,
                     # telescope longitude [deg]
                     'longitude': request.instrument.telescope.lon,
                     # telescope latitude [deg]
@@ -111,7 +122,7 @@ def generate_plan(observation_plan_id, request_id, user_id):
             'airmass': request.payload["maximum_airmass"],
             # array of exposure times (same length as filter array)
             'exposuretimes': np.array(
-                [int(request.payload["exposure_time"])]
+                [request.payload["exposure_time"]]
                 * len(request.payload["filters"].split(","))
             ),
         }
@@ -347,8 +358,9 @@ class MMAAPI(FollowUpAPI):
             )
 
             log(f"Generating schedule for observation plan {plan.id}")
+            requester_id = request.requester.id
             IOLoop.current().run_in_executor(
-                None, lambda: generate_plan(plan.id, request.id, request.requester.id)
+                None, lambda: generate_plan(plan.id, request.id, requester_id)
             )
         else:
             raise ValueError(
@@ -383,8 +395,9 @@ class MMAAPI(FollowUpAPI):
                 'Should only be one observation plan associated to this request'
             )
 
-        observation_plan = req.observation_plans[0]
-        DBSession().delete(observation_plan)
+        if len(req.observation_plans) > 0:
+            observation_plan = req.observation_plans[0]
+            DBSession().delete(observation_plan)
 
         DBSession().delete(req)
         DBSession().commit()
@@ -428,7 +441,12 @@ class MMAAPI(FollowUpAPI):
                     "enum": galaxies,
                     "default": galaxies[0] if len(galaxies) > 0 else "",
                 },
-                "exposure_time": {"type": "string", "default": "300"},
+                "exposure_time": {
+                    "title": "Exposure Time [s]",
+                    "type": "number",
+                    "default": 300,
+                    "minimum": 1,
+                },
                 "filters": {"type": "string", "default": ",".join(default_filters)},
                 "maximum_airmass": {
                     "title": "Maximum Airmass (1-3)",
