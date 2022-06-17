@@ -17,7 +17,7 @@ import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
 
 import { filterOutEmptyValues } from "../API";
-import * as sourcesActions from "../ducks/sources";
+// import * as sourcesActions from "../ducks/sources";
 import * as observationsActions from "../ducks/observations";
 import * as galaxiesActions from "../ducks/galaxies";
 import * as instrumentsActions from "../ducks/instruments";
@@ -184,13 +184,15 @@ const GcnSelectionForm = ({ gcnEvent, setSelectedLocalizationName }) => {
     formData.endDate = formData.endDate
       .replace("+00:00", "")
       .replace(".000Z", "");
-    dispatch(sourcesActions.fetchGcnEventSources(gcnEvent.dateobs, formData));
+    // dispatch(sourcesActions.fetchGcnEventSources(gcnEvent.dateobs, formData));
     formData.includeGeoJSON = true;
-    dispatch(
+    await dispatch(
       observationsActions.fetchGcnEventObservations(gcnEvent.dateobs, formData)
     );
-    dispatch(galaxiesActions.fetchGcnEventGalaxies(gcnEvent.dateobs, formData));
-    dispatch(
+    await dispatch(
+      galaxiesActions.fetchGcnEventGalaxies(gcnEvent.dateobs, formData)
+    );
+    await dispatch(
       instrumentsActions.fetchGcnEventInstruments(gcnEvent.dateobs, formData)
     );
     setFormDataState(formData);

@@ -251,23 +251,39 @@ const GcnEventPage = ({ route }) => {
   );
 
   useEffect(() => {
-    dispatch(gcnEventActions.fetchGcnEvent(route.dateobs));
+    const fetchGcnEvent = async (dateobs) => {
+      await dispatch(gcnEventActions.fetchGcnEvent(dateobs));
+    };
+    fetchGcnEvent(route.dateobs);
   }, [route, dispatch]);
 
   // useEffect(() => {
+  // const fetchGcnEventSources = async (dateobs) => {
+  //    await dispatch(sourcesActions.fetchGcnEventSources(dateobs));
+  // }
+  //  fetchGcnEventSources(route.dateobs);
   //  dispatch(sourcesActions.fetchGcnEventSources(route.dateobs));
   // }, [route, dispatch]);
 
   useEffect(() => {
-    dispatch(observationsActions.fetchGcnEventObservations(route.dateobs));
+    const fetchGcnEventObservations = async (dateobs) => {
+      await dispatch(observationsActions.fetchGcnEventObservations(dateobs));
+    };
+    fetchGcnEventObservations(route.dateobs);
   }, [route, dispatch]);
 
   useEffect(() => {
-    dispatch(galaxiesActions.fetchGcnEventGalaxies(route.dateobs));
+    const fetchGcnEventGalaxies = async (dateobs) => {
+      await dispatch(galaxiesActions.fetchGcnEventGalaxies(dateobs));
+    };
+    fetchGcnEventGalaxies(route.dateobs);
   }, [route, dispatch]);
 
   useEffect(() => {
-    dispatch(instrumentsActions.fetchGcnEventInstruments(route.dateobs));
+    const fetchGcnEventInstruments = async (dateobs) => {
+      await dispatch(instrumentsActions.fetchGcnEventInstruments(dateobs));
+    };
+    fetchGcnEventInstruments(route.dateobs);
   }, [route, dispatch]);
 
   if (

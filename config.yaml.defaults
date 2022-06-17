@@ -33,9 +33,9 @@ app:
   lco_port: 443
 
   ztf:
-    protocol: http
-    host: skipper.caltech.edu
-    port: 4000
+    protocol: https
+    host: kowalski.caltech.edu
+    port: 443
 
   ztf_forced_endpoint: https://ztfweb.ipac.caltech.edu
 

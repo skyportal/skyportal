@@ -11,7 +11,9 @@ class Galaxy(Base, ca.Point):
     """A record of a galaxy and its metadata, such as position,
     distance, name, and magnitude."""
 
-    catalog_name = sa.Column(sa.String, nullable=False, doc="Name of the catalog.")
+    catalog_name = sa.Column(
+        sa.String, nullable=False, doc="Name of the catalog.", index=True
+    )
 
     name = sa.Column(sa.String, nullable=False, doc="Name of the object.")
     alt_name = sa.Column(
