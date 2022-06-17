@@ -184,6 +184,10 @@ class GcnEventHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+
+        page_number = int(self.get_query_argument("pageNumber", 1))
+        n_per_page = int(self.get_query_argument("numPerPage", 100))
+
         if dateobs is not None:
             event = (
                 GcnEvent.query_records_accessible_by(
@@ -255,7 +259,7 @@ class GcnEventHandler(BaseHandler):
             data['observationplan_requests'] = request_data
             return self.success(data=data)
 
-        q = GcnEvent.query_records_accessible_by(
+        query = GcnEvent.query_records_accessible_by(
             self.current_user,
             options=[
                 joinedload(GcnEvent.localizations),
@@ -264,11 +268,21 @@ class GcnEventHandler(BaseHandler):
             ],
         )
 
+        total_matches = query.count()
+        if n_per_page is not None:
+            query = (
+                query.distinct()
+                .limit(n_per_page)
+                .offset((page_number - 1) * n_per_page)
+            )
+
         events = []
-        for event in q.all():
+        for event in query.all():
             events.append({**event.to_dict(), "tags": event.tags})
 
-        return self.success(data=events)
+        query_results = {"events": events, "totalMatches": int(total_matches)}
+
+        return self.success(data=query_results)
 
     @auth_or_token
     def delete(self, dateobs):
