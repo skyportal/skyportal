@@ -218,7 +218,7 @@ class GcnEventHandler(BaseHandler):
 
             data = {
                 **event.to_dict(),
-                "tags": event.tags,
+                "tags": list(set(event.tags)),
                 "lightcurve": event.lightcurve,
                 "comments": sorted(
                     (
@@ -278,7 +278,7 @@ class GcnEventHandler(BaseHandler):
 
         events = []
         for event in query.all():
-            events.append({**event.to_dict(), "tags": event.tags})
+            events.append({**event.to_dict(), "tags": list(set(event.tags))})
 
         query_results = {"events": events, "totalMatches": int(total_matches)}
 

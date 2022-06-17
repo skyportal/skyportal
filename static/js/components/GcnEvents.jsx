@@ -113,8 +113,8 @@ const GcnEvents = () => {
     }
   };
 
-  const renderTags = (tags) =>
-    tags?.map((tag) => (
+  const renderTags = (dataIndex) =>
+    events[dataIndex]?.tags?.map((tag) => (
       <Chip size="small" key={tag} label={tag} className={classes.eventTags} />
     ));
 
@@ -166,7 +166,7 @@ const GcnEvents = () => {
       name: "tags",
       label: "Tags",
       options: {
-        customBodyRender: renderTags,
+        customBodyRenderLite: renderTags,
       },
     },
     {
