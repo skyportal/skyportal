@@ -176,13 +176,13 @@ const ObservationPage = () => {
   };
 
   const handleExecutedTableChange = (action, tableState) => {
-    if (action === "changePage") {
+    if (action === "changePage" || action === "changeRowsPerPage") {
       handleExecutedPageChange(tableState.page, tableState.rowsPerPage);
     }
   };
 
   const handleQueuedTableChange = (action, tableState) => {
-    if (action === "changePage") {
+    if (action === "changePage" || action === "changeRowsPerPage") {
       handleQueuedPageChange(tableState.page, tableState.rowsPerPage);
     }
   };

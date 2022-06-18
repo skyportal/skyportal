@@ -290,7 +290,7 @@ def test_observation_plan_galaxy(
                 'GET', 'galaxy_catalog', token=view_only_token, params=params
             )
             assert status == 200
-            data = data["data"]["sources"]
+            data = data["data"]["galaxies"]
             assert len(data) == 10
             assert any(
                 [

@@ -98,6 +98,8 @@ app:
       component: AllocationPage
     - path: "/observations"
       component: ObservationPage
+    - path: "/galaxies"
+      component: GalaxyPage
     - path: "/followup_requests"
       component: FollowupRequestPage
     - path: "/group_sources/:id"
@@ -186,6 +188,10 @@ app:
         - name: Observations
           icon: ZoomInOutlined
           url: /observations
+
+        - name: Galaxies
+          icon: TornadoOutlined
+          url: /galaxies
 
     - name: Admin
       permissions: ["Manage users", "System admin"]
