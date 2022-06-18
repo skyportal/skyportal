@@ -1,13 +1,11 @@
 import os
 import uuid
 import time
-import pytest
 from astropy.table import Table
 
 from skyportal.tests import api
 
 
-@pytest.mark.flaky(reruns=2)
 def test_galaxy(super_admin_token, view_only_token):
 
     catalog_name = str(uuid.uuid4())

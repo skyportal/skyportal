@@ -1,7 +1,7 @@
 """Galaxy page migration
 
 Revision ID: a936f994d65c
-Revises: 438a795cbd15
+Revises: d175da67db16
 Create Date: 2022-06-17 15:04:48.298481
 
 """
@@ -10,7 +10,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = 'a936f994d65c'
-down_revision = '438a795cbd15'
+down_revision = 'd175da67db16'
 branch_labels = None
 depends_on = None
 
