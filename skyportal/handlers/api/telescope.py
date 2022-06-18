@@ -134,8 +134,8 @@ class TelescopeHandler(BaseHandler):
         data = query.all()
         telescopes = []
         for telescope in data:
-              if telescope is None:
-                   continue
+            if telescope is None:
+                continue
             temp = telescope.to_dict()
             morning = False
             evening = False
