@@ -134,15 +134,17 @@ class TelescopeHandler(BaseHandler):
         data = query.all()
         telescopes = []
         for telescope in data:
+              if telescope is None:
+                   continue
             temp = telescope.to_dict()
             morning = False
             evening = False
             is_night_astronomical = False
             if (
                 telescope.fixed_location
-                and telescope.lon
-                and telescope.lat
-                and telescope.elevation
+                and telescope.lon is not None
+                and telescope.lat is not None
+                and telescope.elevation is not None
             ):
                 try:
                     morning = telescope.next_twilight_morning_astronomical()
