@@ -17,7 +17,7 @@ import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
 
 import { filterOutEmptyValues } from "../API";
-// import * as sourcesActions from "../ducks/sources";
+import * as sourcesActions from "../ducks/sources";
 import * as observationsActions from "../ducks/observations";
 import * as galaxiesActions from "../ducks/galaxies";
 import * as instrumentsActions from "../ducks/instruments";
@@ -184,8 +184,9 @@ const GcnSelectionForm = ({ gcnEvent, setSelectedLocalizationName }) => {
     formData.endDate = formData.endDate
       .replace("+00:00", "")
       .replace(".000Z", "");
-    // Uncomment when the Photometry statistics PR is merged
-    // dispatch(sourcesActions.fetchGcnEventSources(gcnEvent.dateobs, formData));
+    await dispatch(
+      sourcesActions.fetchGcnEventSources(gcnEvent.dateobs, formData)
+    );
     formData.includeGeoJSON = true;
     await dispatch(
       observationsActions.fetchGcnEventObservations(gcnEvent.dateobs, formData)
@@ -206,7 +207,7 @@ const GcnSelectionForm = ({ gcnEvent, setSelectedLocalizationName }) => {
 
   if (
     !gcnEvent ||
-    // !gcnEventSources ||
+    !gcnEventSources ||
     !gcnEventObservations ||
     !gcnEventGalaxies ||
     !gcnEventInstruments

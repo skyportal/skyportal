@@ -1,3 +1,4 @@
+from astropy.time import Time
 import datetime
 from json.decoder import JSONDecodeError
 from dateutil.tz import UTC
@@ -49,6 +50,7 @@ from ...models import (
     Localization,
     LocalizationTile,
     Listing,
+    PhotStat,
     Spectrum,
     SourceView,
 )
@@ -403,7 +405,7 @@ class SourceHandler(BaseHandler):
               type: string
             description: |
               Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
-              last_detected_at >= startDate
+              PhotStat.first_detected_mjd >= startDate
           - in: query
             name: endDate
             nullable: true
@@ -411,7 +413,7 @@ class SourceHandler(BaseHandler):
               type: string
             description: |
               Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
-              last_detected_at <= endDate
+              PhotStat.last_detected_mjd <= endDate
           - in: query
             name: listName
             nullable: true
@@ -1176,14 +1178,24 @@ class SourceHandler(BaseHandler):
             obj_query = obj_query.filter(Obj.within(other, radius))
 
         if start_date:
-            start_date = str(arrow.get(start_date.strip()).datetime)
-            obj_query = obj_query.filter(
-                Obj.last_detected_at(self.current_user) >= start_date
+            start_date = arrow.get(start_date.strip()).datetime
+            photstat_subquery = (
+                PhotStat.query_records_accessible_by(self.current_user)
+                .filter(PhotStat.first_detected_mjd >= Time(start_date).mjd)
+                .subquery()
+            )
+            obj_query = obj_query.join(
+                photstat_subquery, Obj.id == photstat_subquery.c.obj_id
             )
         if end_date:
-            end_date = str(arrow.get(end_date.strip()).datetime)
-            obj_query = obj_query.filter(
-                Obj.last_detected_at(self.current_user) <= end_date
+            end_date = arrow.get(end_date.strip()).datetime
+            photstat_subquery = (
+                PhotStat.query_records_accessible_by(self.current_user)
+                .filter(PhotStat.last_detected_mjd <= Time(end_date).mjd)
+                .subquery()
+            )
+            obj_query = obj_query.join(
+                photstat_subquery, Obj.id == photstat_subquery.c.obj_id
             )
         if has_spectrum_after:
             try:

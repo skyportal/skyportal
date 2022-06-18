@@ -26,7 +26,6 @@ import * as gcnEventActions from "../ducks/gcnEvent";
 import * as sourcesActions from "../ducks/sources";
 import * as observationsActions from "../ducks/observations";
 import * as galaxiesActions from "../ducks/galaxies";
-import * as instrumentsActions from "../ducks/instruments";
 
 import SourceTable from "./SourceTable";
 import GalaxyTable from "./GalaxyTable";
@@ -246,10 +245,6 @@ const GcnEventPage = ({ route }) => {
     (state) => state?.observations?.gcnEventObservations
   );
 
-  const gcnEventInstruments = useSelector(
-    (state) => state?.instruments?.gcnEventInstruments
-  );
-
   useEffect(() => {
     const fetchGcnEvent = async (dateobs) => {
       await dispatch(gcnEventActions.fetchGcnEvent(dateobs));
@@ -257,14 +252,13 @@ const GcnEventPage = ({ route }) => {
     fetchGcnEvent(route.dateobs);
   }, [route, dispatch]);
 
-  // Uncomment when the Photometry statistics PR is merged
-  // useEffect(() => {
-  // const fetchGcnEventSources = async (dateobs) => {
-  //    await dispatch(sourcesActions.fetchGcnEventSources(dateobs));
-  // }
-  //  fetchGcnEventSources(route.dateobs);
-  //  dispatch(sourcesActions.fetchGcnEventSources(route.dateobs));
-  // }, [route, dispatch]);
+  useEffect(() => {
+    const fetchGcnEventSources = async (dateobs) => {
+      await dispatch(sourcesActions.fetchGcnEventSources(dateobs));
+    };
+    fetchGcnEventSources(route.dateobs);
+    dispatch(sourcesActions.fetchGcnEventSources(route.dateobs));
+  }, [route, dispatch]);
 
   useEffect(() => {
     const fetchGcnEventObservations = async (dateobs) => {
@@ -280,28 +274,7 @@ const GcnEventPage = ({ route }) => {
     fetchGcnEventGalaxies(route.dateobs);
   }, [route, dispatch]);
 
-  useEffect(() => {
-    const fetchGcnEventInstruments = async (dateobs) => {
-      await dispatch(instrumentsActions.fetchGcnEventInstruments(dateobs));
-    };
-    fetchGcnEventInstruments(route.dateobs);
-  }, [route, dispatch]);
-
-  if (
-    // in general, i agree we shouldnt display stuff if we dont have the gcnEvent yet, but for the rest, we can
-    // display the page for sure, and just not display the indivual components that need the rest, or just show
-    // a loading indicator or message for those.
-    // ex: "Fetching galaxies..." on the galaxy list component rather than just not loading the page...
-    // For the GCN Selection Form, we should display the skymap as soon as we have a localization, but we should
-    // display additionnal indicators saying what we are still fetching.
-    // I just believed all this can be async, but just needs to be clearly said on the frontend when we are
-    // waiting for stuff to load !
-    !gcnEvent ||
-    // !gcnEventSources ||
-    !gcnEventObservations ||
-    !gcnEventGalaxies ||
-    !gcnEventInstruments
-  ) {
+  if (!gcnEvent) {
     return <Spinner />;
   }
 
@@ -475,18 +448,24 @@ const GcnEventPage = ({ route }) => {
               </Typography>
             </AccordionSummary>
             <AccordionDetails>
-              {gcnEventSources?.sources.length === 0 ? (
-                <Typography variant="h5">None</Typography>
-              ) : (
-                <div className={styles.gcnEventContainer}>
-                  {selectedLocalizationName && (
-                    <GcnEventSourcesPage
-                      route={route}
-                      sources={gcnEventSources}
-                      localizationName={selectedLocalizationName}
-                    />
+              {gcnEventSources?.sources ? (
+                <div>
+                  {gcnEventSources?.sources.length === 0 ? (
+                    <Typography variant="h5">None</Typography>
+                  ) : (
+                    <div className={styles.gcnEventContainer}>
+                      {selectedLocalizationName && (
+                        <GcnEventSourcesPage
+                          route={route}
+                          sources={gcnEventSources}
+                          localizationName={selectedLocalizationName}
+                        />
+                      )}
+                    </div>
                   )}
                 </div>
+              ) : (
+                <Typography variant="h5">Fetching sources...</Typography>
               )}
             </AccordionDetails>
           </Accordion>
@@ -503,14 +482,20 @@ const GcnEventPage = ({ route }) => {
               </Typography>
             </AccordionSummary>
             <AccordionDetails>
-              {gcnEventObservations?.observations?.length > 0 ? (
-                <div className={styles.gcnEventContainer}>
-                  <ExecutedObservationsTable
-                    observations={gcnEventObservations.observations}
-                  />
+              {gcnEventObservations?.observations ? (
+                <div>
+                  {gcnEventObservations?.observations.length === 0 ? (
+                    <Typography variant="h5">None</Typography>
+                  ) : (
+                    <div className={styles.gcnEventContainer}>
+                      <ExecutedObservationsTable
+                        observations={gcnEventObservations.observations}
+                      />
+                    </div>
+                  )}
                 </div>
               ) : (
-                <Typography variant="h5">None</Typography>
+                <Typography variant="h5">Fetching observations...</Typography>
               )}
             </AccordionDetails>
           </Accordion>
@@ -527,12 +512,21 @@ const GcnEventPage = ({ route }) => {
               </Typography>
             </AccordionSummary>
             <AccordionDetails>
-              {gcnEventGalaxies?.galaxies.length === 0 ? (
-                <Typography variant="h5">None</Typography>
-              ) : (
-                <div className={styles.gcnEventContainer}>
-                  <GalaxyTable galaxies={gcnEventGalaxies.galaxies} hideTitle />
+              {gcnEventGalaxies?.galaxies ? (
+                <div>
+                  {gcnEventGalaxies?.galaxies.length === 0 ? (
+                    <Typography variant="h5">None</Typography>
+                  ) : (
+                    <div className={styles.gcnEventContainer}>
+                      <GalaxyTable
+                        galaxies={gcnEventGalaxies.galaxies}
+                        hideTitle
+                      />
+                    </div>
+                  )}
                 </div>
+              ) : (
+                <Typography variant="h5">Fetching galaxies...</Typography>
               )}
             </AccordionDetails>
           </Accordion>
