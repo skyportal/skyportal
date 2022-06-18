@@ -154,6 +154,14 @@ class GalaxyCatalogHandler(BaseHandler):
               schema:
                 type: integer
               description: Page number for paginated query results. Defaults to 1
+            - in: query
+              name: catalogNamesOnly
+              nullable: true
+              schema:
+                type: boolean
+              description: |
+                Boolean indicating whether to just return catalog names. Defaults to
+                false.
           responses:
             200:
               content:
@@ -170,6 +178,7 @@ class GalaxyCatalogHandler(BaseHandler):
         localization_name = self.get_query_argument("localizationName", None)
         localization_cumprob = self.get_query_argument("localizationCumprob", 0.95)
         includeGeoJSON = self.get_query_argument("includeGeoJSON", False)
+        catalog_names_only = self.get_query_argument("catalogNamesOnly", False)
 
         page_number = self.get_query_argument("pageNumber", 1)
         try:
@@ -182,6 +191,27 @@ class GalaxyCatalogHandler(BaseHandler):
             n_per_page = int(n_per_page)
         except ValueError as e:
             return self.error(f'numPerPage fails: {e}')
+
+        if catalog_names_only:
+            with DBSession() as session:
+                catalogs = session.execute(
+                    sa.select(Galaxy.catalog_name).distinct()
+                ).all()
+                query_result = []
+                for (catalog_name,) in catalogs:
+                    query = Galaxy.query_records_accessible_by(
+                        self.current_user, mode="read"
+                    )
+                    query = query.filter(Galaxy.catalog_name == catalog_name)
+                    total_matches = query.count()
+                    query_result.append(
+                        {
+                            'catalog_name': catalog_name,
+                            'catalog_count': int(total_matches),
+                        }
+                    )
+
+                return self.success(data=query_result)
 
         query = Galaxy.query_records_accessible_by(self.current_user, mode="read")
         if catalog_name is not None:
@@ -284,6 +314,37 @@ class GalaxyCatalogHandler(BaseHandler):
 
         self.verify_and_commit()
         return self.success(data=query_results)
+
+    @permissions(['System admin'])
+    def delete(self, catalog_name):
+        """
+        ---
+        description: Delete a galaxy catalog
+        tags:
+          - instruments
+        parameters:
+          - in: path
+            name: catalog_name
+            required: true
+            schema:
+              type: str
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+
+        with DBSession() as session:
+            session.execute(
+                sa.delete(Galaxy).where(Galaxy.catalog_name == catalog_name)
+            )
+            self.verify_and_commit()
+            return self.success()
 
 
 def add_galaxies(catalog_name, catalog_data):
