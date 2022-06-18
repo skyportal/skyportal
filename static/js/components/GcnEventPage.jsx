@@ -527,11 +527,11 @@ const GcnEventPage = ({ route }) => {
               </Typography>
             </AccordionSummary>
             <AccordionDetails>
-              {gcnEventGalaxies?.sources.length === 0 ? (
+              {gcnEventGalaxies?.galaxies.length === 0 ? (
                 <Typography variant="h5">None</Typography>
               ) : (
                 <div className={styles.gcnEventContainer}>
-                  <GalaxyTable galaxies={gcnEventGalaxies.sources} hideTitle />
+                  <GalaxyTable galaxies={gcnEventGalaxies.galaxies} hideTitle />
                 </div>
               )}
             </AccordionDetails>

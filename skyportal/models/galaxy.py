@@ -15,7 +15,7 @@ class Galaxy(Base, ca.Point):
         sa.String, nullable=False, doc="Name of the catalog.", index=True
     )
 
-    name = sa.Column(sa.String, nullable=False, doc="Name of the object.")
+    name = sa.Column(sa.String, nullable=False, doc="Name of the object.", unique=True)
     alt_name = sa.Column(
         sa.String, nullable=True, doc="Alternative Name of the object."
     )
