@@ -1,7 +1,7 @@
 """Observation and galaxy index migration
 
 Revision ID: a75237f48f29
-Revises: 438a795cbd15
+Revises: a936f994d65c
 Create Date: 2022-06-17 07:49:47.289551
 
 """
@@ -10,7 +10,7 @@ from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision = 'a75237f48f29'
-down_revision = '438a795cbd15'
+down_revision = 'a936f994d65c'
 branch_labels = None
 depends_on = None
 
