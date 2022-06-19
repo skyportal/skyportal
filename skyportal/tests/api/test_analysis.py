@@ -669,3 +669,51 @@ def test_run_analysis_with_down_and_wrong_analysis_service(
         time.sleep(1)
 
     assert analysis_status == 'failure'
+
+
+def test_delete_analysis(
+    analysis_service_token, analysis_token, public_group, public_source
+):
+    name = str(uuid.uuid4())
+
+    post_data = {
+        'name': name,
+        'display_name': "test analysis service name",
+        'description': "A test analysis service description",
+        'version': "1.0",
+        'contact_name': "Vera Rubin",
+        'contact_email': "vr@ls.st",
+        'url': "http://localhost:6802/analysis/demo_analysis",
+        'authentication_type': "none",
+        'analysis_type': 'lightcurve_fitting',
+        'input_data_types': ['photometry', 'redshift'],
+        'timeout': 60,
+        'group_ids': [public_group.id],
+    }
+
+    status, data = api(
+        'POST', 'analysis_service', data=post_data, token=analysis_service_token
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    analysis_service_id = data['data']['id']
+
+    status, data = api(
+        'POST',
+        f'analysis/obj/{public_source.id}/{analysis_service_id}',
+        token=analysis_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    analysis_id = data['data'].get('id')
+    assert analysis_id is not None
+
+    status, data = api(
+        'DELETE',
+        f'analysis/obj/{analysis_id}',
+        token=analysis_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'

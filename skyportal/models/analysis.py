@@ -362,7 +362,7 @@ class ObjAnalysis(Base, AnalysisMixin, WebhookMixin):
     read = accessible_by_groups_members & AccessibleIfRelatedRowsAreAccessible(
         obj='read'
     )
-    update = delete = AccessibleIfUserMatches('creator')
+    update = delete = AccessibleIfUserMatches('author')
 
     @declared_attr
     def obj_id(cls):

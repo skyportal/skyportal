@@ -703,8 +703,15 @@ class AnalysisHandler(BaseHandler):
 
         analysis_parameters = data.get('analysis_parameters', {})
 
+        if isinstance(analysis_service.optional_analysis_parameters, str):
+            optional_analysis_parameters = json.loads(
+                analysis_service.optional_analysis_parameters
+            )
+        else:
+            optional_analysis_parameters = analysis_service.optional_analysis_parameters
+
         if not set(analysis_parameters.keys()).issubset(
-            set(json.loads(analysis_service.optional_analysis_parameters).keys())
+            set(optional_analysis_parameters.keys())
         ):
             return self.error(
                 f'Invalid analysis_parameters: {analysis_parameters}.', status=400
@@ -934,3 +941,36 @@ class AnalysisHandler(BaseHandler):
             )
 
         return self.success(data=ret_array)
+
+    @permissions(["Run Analyses"])
+    def delete(self, analysis_resource_type, analysis_id):
+        """
+        ---
+        description: Delete an Analysis.
+        tags:
+          - analysis
+        parameters:
+          - in: path
+            name: analysis_id
+            required: true
+            schema:
+              type: integer
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+        """
+        if analysis_resource_type.lower() == 'obj':
+            analysis = ObjAnalysis.get_if_accessible_by(
+                analysis_id, self.current_user, mode="delete", raise_if_none=True
+            )
+            DBSession().delete(analysis)
+            self.verify_and_commit()
+
+            return self.success()
+        else:
+            return self.error(
+                f'analysis_resource_type must be one of {", ".join(["obj"])}',
+                status=404,
+            )
