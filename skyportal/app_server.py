@@ -10,6 +10,7 @@ from skyportal.handlers.api import (
     AnalysisServiceHandler,
     UserACLHandler,
     AllocationHandler,
+    AllocationAnalysisHandler,
     AssignmentHandler,
     CandidateHandler,
     ClassificationHandler,
@@ -147,6 +148,7 @@ class CustomApplication(tornado.web.Application):
 skyportal_handlers = [
     # API endpoints
     (r'/api/acls', ACLHandler),
+    (r'/api/allocation/analysis(/[0-9]+)', AllocationAnalysisHandler),
     (r'/api/allocation(/.*)?', AllocationHandler),
     (r'/api/analysis_service(/.*)?', AnalysisServiceHandler),
     (r'/api/assignment(/.*)?', AssignmentHandler),

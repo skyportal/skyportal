@@ -1,8 +1,13 @@
-from ..base import BaseHandler
-from ...models import DBSession, Group, Allocation, Instrument
-from baselayer.app.access import auth_or_token, permissions
 from marshmallow.exceptions import ValidationError
 import sqlalchemy as sa
+import io
+import matplotlib
+import matplotlib.pyplot as plt
+
+from baselayer.app.access import auth_or_token, permissions
+
+from ..base import BaseHandler
+from ...models import DBSession, Group, Allocation, Instrument
 
 
 class AllocationHandler(BaseHandler):
@@ -222,3 +227,103 @@ class AllocationHandler(BaseHandler):
         self.verify_and_commit()
         self.push_all(action='skyportal/REFRESH_ALLOCATIONS')
         return self.success()
+
+
+class AllocationAnalysisHandler(BaseHandler):
+    @auth_or_token
+    async def get(self, instrument_id):
+        """
+        ---
+        tags:
+          - allocations
+        description: Produce a report on allocations for an instrument
+        parameters:
+          - in: path
+            name: instrument_id
+            required: true
+            schema:
+              type: integer
+          - in: query
+            name: output_format
+            nullable: true
+            schema:
+              type: string
+            description: |
+              Output format for analysis. Can be png or pdf
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+
+        output_format = self.get_query_argument('output_format', 'pdf')
+        if output_format not in ["pdf", "png"]:
+            return self.error('output_format must be png or pdf')
+
+        # get owned allocations
+        allocations = Allocation.query_records_accessible_by(self.current_user)
+        allocations = allocations.filter(
+            Allocation.instrument_id == instrument_id
+        ).all()
+
+        if len(allocations) == 0:
+            return self.error('Need at least one allocation for analysis')
+
+        instrument = allocations[0].instrument
+
+        labels = [a.proposal_id for a in allocations]
+        values = [a.hours_allocated for a in allocations]
+
+        def make_autopct_hours(values):
+            def my_autopct(pct):
+                total = sum(values)
+                val = int(round(pct * total / 100.0))
+                return f'{pct:.0f}%  ({val:d} Hours)'
+
+            return my_autopct
+
+        def make_autopct_requests(values):
+            def my_autopct(pct):
+                total = sum(values)
+                val = int(round(pct * total / 100.0))
+                return f'{pct:.0f}%  ({val:d} Requests)'
+
+            return my_autopct
+
+        matplotlib.use("Agg")
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 6))
+        ax1.pie(
+            values,
+            labels=labels,
+            shadow=True,
+            startangle=90,
+            autopct=make_autopct_hours(values),
+        )
+        ax1.axis('equal')
+        ax1.set_title('Time Allocated')
+
+        values = [len(a.requests) for a in allocations]
+        ax2.pie(
+            values,
+            labels=labels,
+            shadow=True,
+            startangle=90,
+            autopct=make_autopct_requests(values),
+        )
+        ax2.axis('equal')
+        ax2.set_title('Requests Made')
+
+        buf = io.BytesIO()
+        fig.savefig(buf, format=output_format)
+        plt.close(fig)
+        buf.seek(0)
+
+        data = io.BytesIO(buf.read())
+        filename = f"allocations_{instrument.name}.{output_format}"
+
+        await self.send_file(data, filename, output_type=output_format)
