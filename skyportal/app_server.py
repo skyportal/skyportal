@@ -153,6 +153,7 @@ skyportal_handlers = [
     (r'/api/allocation(/.*)?', AllocationHandler),
     (r'/api/analysis_service(/.*)?', AnalysisServiceHandler),
     (r'/api/analysis/(obj)/([0-9A-Za-z-_]+)/([0-9]+)?', AnalysisHandler),
+    (r'/api/analysis/(obj)(/[0-9]+)?', AnalysisHandler),
     (r'/api/assignment(/.*)?', AssignmentHandler),
     (r'/api/candidates(/[0-9A-Za-z-_]+)/([0-9]+)', CandidateHandler),
     (r'/api/candidates(/.*)?', CandidateHandler),

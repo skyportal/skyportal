@@ -472,7 +472,6 @@ class AnalysisServiceHandler(BaseHandler):
 class AnalysisHandler(BaseHandler):
     def call_external_analysis_service(
         self,
-        analysis_id,
         url,
         callback_url,
         inputs={},
@@ -529,27 +528,12 @@ class AnalysisHandler(BaseHandler):
                 auth=auth,
                 timeout=request_timeout,
             )
-        except requests.exceptions.Timeout as e:
-            log(e)
+        except requests.exceptions.Timeout:
             raise ValueError(f"Request to {url} timed out.")
+        except Exception as e:
+            raise Exception(f"Request to {url} had exception {e}.")
 
-        if analysis_resource_type.lower() == 'obj':
-            try:
-                session = Session()
-                analysis = session.query(ObjAnalysis).get(analysis_id)
-            except AccessError:
-                log(f'Could not access Analysis {analysis_id}.')
-                raise AccessError
-        else:
-            raise ValueError(
-                f"Invalid analysis_resource_type: {analysis_resource_type}"
-            )
-
-        analysis.status = 'pending' if result.status_code == 200 else 'failure'
-        analysis.status_message = result.text
-        analysis.last_activity = datetime.datetime.utcnow()
-        session.commit()
-        return log(f"Completed analysis {analysis_id}")
+        return result
 
     def generic_serialize(self, row, columns):
         return {c: getattr(row, c) for c in columns}
@@ -798,9 +782,11 @@ class AnalysisHandler(BaseHandler):
                 handled_by_url="/webhook/obj_analysis",
                 invalid_after=invalid_after,
             )
+        # Add more analysis_resource_types here one day (eg. GCN)
         else:
             return self.error(
-                f'associated_resource_type must be one of {", ".join(["obj"])}'
+                f'analysis_resource_type must be one of {", ".join(["obj"])}',
+                status=404,
             )
 
         DBSession().add(analysis)
@@ -815,7 +801,6 @@ class AnalysisHandler(BaseHandler):
         # that we assembled above.
         external_analysis_service = functools.partial(
             self.call_external_analysis_service,
-            analysis.id,
             analysis_service.url,
             f'{get_app_base_url()}/{analysis.handled_by_url}/{analysis.token}',
             inputs=inputs,
@@ -830,5 +815,122 @@ class AnalysisHandler(BaseHandler):
         self.push_notification(
             'Sending data to analysis service to start the analysis.',
         )
-        _ = IOLoop.current().run_in_executor(None, external_analysis_service)
+
+        def analysis_done_callback(
+            future,
+            logger=log,
+            analysis_id=analysis.id,
+            analysis_service_id=analysis_service.id,
+            analysis_resource_type=analysis_resource_type,
+        ):
+            """
+            Callback function for when the analysis service is done.
+            Updates the Analysis object with the results/errors.
+            """
+            # grab the analysis (only Obj for now)
+            if analysis_resource_type.lower() == 'obj':
+                try:
+                    session = Session()
+                    analysis = session.query(ObjAnalysis).get(analysis_id)
+                except Exception as e:
+                    log(f'Could not access Analysis {analysis_id} {e}.')
+                    return
+            else:
+                log(f"Invalid analysis_resource_type: {analysis_resource_type}")
+                return
+
+            analysis.last_activity = datetime.datetime.utcnow()
+            try:
+                result = future.result()
+                analysis.status = 'pending' if result.status_code == 200 else 'failure'
+                # truncate the return just so we dont have a huge string in the database
+                analysis.status_message = result.text[:1024]
+            except Exception:
+                analysis.status = 'failure'
+                analysis.status_message = str(future.exception())[:1024]
+            finally:
+                logger(
+                    f"[id={analysis_id} service={analysis_service_id}] status='{analysis.status}' message='{analysis.status_message}'"
+                )
+                session.commit()
+
+        # Start the analysis service in a separate thread and log any exceptions
+        x = IOLoop.current().run_in_executor(None, external_analysis_service)
+        x.add_done_callback(analysis_done_callback)
+
         return self.success(data={"id": analysis.id})
+
+    @auth_or_token
+    def get(self, analysis_resource_type, analysis_id=None):
+        """
+        ---
+        single:
+          description: Retrieve an Analysis by id
+          tags:
+            - analysis
+          parameters:
+            - in: path
+              name: analysis_resource_type
+              required: true
+              schema:
+                type: string
+              description: |
+                What underlying data the annotation is on:
+                must be one of either "obj" (more to be added in the future)
+            - in: path
+              name: analysis_id
+              required: true
+              schema:
+                type: integer
+          responses:
+            200:
+              content:
+                application/json:
+                  schema: SingleAnalysis
+            400:
+              content:
+                application/json:
+                  schema: Error
+        multiple:
+          description: Retrieve all Analyses
+          tags:
+            - analysis
+          responses:
+            200:
+              content:
+                application/json:
+                  schema: ArrayOfAnalyses
+            400:
+              content:
+                application/json:
+                  schema: Error
+        """
+        if analysis_resource_type.lower() == 'obj':
+            if analysis_id is not None:
+                try:
+                    s = ObjAnalysis.get_if_accessible_by(
+                        analysis_id, self.current_user, raise_if_none=True
+                    )
+                except AccessError:
+                    return self.error('Cannot access this Analysis.', status=403)
+
+                analysis_dict = recursive_to_dict(s)
+                analysis_dict["groups"] = s.groups
+                return self.success(data=analysis_dict)
+
+            # retrieve multiple services
+            analyses = ObjAnalysis.get_records_accessible_by(self.current_user)
+            self.verify_and_commit()
+
+            ret_array = []
+            for a in analyses:
+                analysis_dict = recursive_to_dict(a)
+                analysis_dict["groups"] = a.groups
+                ret_array.append(analysis_dict)
+        else:
+            return self.error(
+                f'analysis_resource_type must be one of {", ".join(["obj"])}',
+                status=404,
+            )
+
+        return self.success(data=ret_array)

@@ -131,7 +131,7 @@ async def demo_analysis():
 
     app.add_background_task(runner)
 
-    return "True"
+    return "sn_analysis_service: analysis started"
 
 
 if __name__ == "__main__":

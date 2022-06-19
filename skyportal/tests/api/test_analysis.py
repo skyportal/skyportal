@@ -1,5 +1,7 @@
 import uuid
 import json
+import socketserver
+import time
 
 from skyportal.tests import api
 
@@ -426,7 +428,7 @@ def test_add_and_retrieve_analysis_service_group_access(
     assert status == 200
 
 
-def test_run_analysis(
+def test_run_analysis_with_correct_and_incorrect_token(
     analysis_service_token, analysis_token, public_group, public_source
 ):
     name = str(uuid.uuid4())
@@ -465,12 +467,205 @@ def test_run_analysis(
     assert status == 200
     assert data['status'] == 'success'
 
-    assert data['data'].get('id') is not None
+    analysis_id = data['data'].get('id')
+    assert analysis_id is not None
 
-    # try with the wrong token access
+    max_attempts = 10
+    analysis_status = 'queued'
+
+    while max_attempts > 0:
+        if analysis_status != "queued":
+            break
+        status, data = api('GET', f'analysis/obj/{analysis_id}', token=analysis_token)
+        assert status == 200
+        assert data["data"]["analysis_service_id"] == analysis_service_id
+        analysis_status = data["data"]["status"]
+
+        max_attempts -= 1
+        time.sleep(1)
+    else:
+        assert (
+            False
+        ), f"analysis was not started properly ({data['data']['status_message']})"
+
+    # try to start an analysis with the wrong token access
     status, data = api(
         'POST',
         f'analysis/obj/{public_source.id}/{analysis_service_id}',
         token=analysis_service_token,
     )
     assert status == 401
+
+
+def test_run_analysis_with_bad_inputs(
+    analysis_service_token, analysis_token, public_group, public_source
+):
+    name = str(uuid.uuid4())
+
+    optional_analysis_parameters = {"test_parameters": ["test_value_1", "test_value_2"]}
+
+    post_data = {
+        'name': name,
+        'display_name': "test analysis service name",
+        'description': "A test analysis service description",
+        'version': "1.0",
+        'contact_name': "Vera Rubin",
+        'contact_email': "vr@ls.st",
+        'url': "http://localhost:6802/analysis/demo_analysis",
+        'optional_analysis_parameters': json.dumps(optional_analysis_parameters),
+        'authentication_type': "none",
+        'analysis_type': 'lightcurve_fitting',
+        'input_data_types': ['photometry', 'redshift'],
+        'timeout': 60,
+        'group_ids': [public_group.id],
+    }
+
+    status, data = api(
+        'POST', 'analysis_service', data=post_data, token=analysis_service_token
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    analysis_service_id = data['data']['id']
+
+    # bad analysis service id
+    status, data = api(
+        'POST',
+        f'analysis/obj/{public_source.id}/999999999',
+        token=analysis_token,
+    )
+    assert status == 403
+    assert data['message'].find('Could not access Analysis Service') != -1
+
+    # bad obj id
+    status, data = api(
+        'POST',
+        f'analysis/obj/badObjectName1/{analysis_service_id}',
+        token=analysis_token,
+    )
+    assert status == 404
+    assert data['message'].find('not found') != -1
+
+    # bad resource type. This route does not exist.
+    status, data = api(
+        'POST',
+        f'analysis/candidate/{public_source.id}/{analysis_service_id}',
+        token=analysis_token,
+    )
+    assert status == 405
+
+
+def test_run_analysis_with_down_and_wrong_analysis_service(
+    analysis_service_token, analysis_token, public_group, public_source
+):
+    name = str(uuid.uuid4())
+
+    optional_analysis_parameters = {"test_parameters": ["test_value_1", "test_value_2"]}
+
+    # get an unused port on localhost
+    with socketserver.TCPServer(("localhost", 0), None) as s:
+        unused_port = s.server_address[1]
+
+    post_data = {
+        'name': name,
+        'display_name': "test analysis service name",
+        'description': "A test analysis service description",
+        'version': "1.0",
+        'contact_name': "Vera Rubin",
+        'contact_email': "vr@ls.st",
+        'url': f"http://localhost:{unused_port}/analysis/demo_analysis",
+        'optional_analysis_parameters': json.dumps(optional_analysis_parameters),
+        'authentication_type': "none",
+        'analysis_type': 'lightcurve_fitting',
+        'input_data_types': ['photometry', 'redshift'],
+        'timeout': 60,
+        'group_ids': [public_group.id],
+    }
+
+    status, data = api(
+        'POST', 'analysis_service', data=post_data, token=analysis_service_token
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    analysis_service_id = data['data']['id']
+
+    status, data = api(
+        'POST',
+        f'analysis/obj/{public_source.id}/{analysis_service_id}',
+        token=analysis_token,
+    )
+    # this should still go through but the analysis
+    # itself should not work
+    assert status == 200
+    assert data['status'] == 'success'
+
+    analysis_id = data['data'].get('id')
+    assert analysis_id is not None
+
+    max_attempts = 5
+    analysis_status = 'queued'
+
+    while max_attempts > 0:
+        if analysis_status != "queued":
+            break
+        status, data = api('GET', f'analysis/obj/{analysis_id}', token=analysis_token)
+        assert status == 200
+        analysis_status = data["data"]["status"]
+
+        max_attempts -= 1
+        time.sleep(1)
+
+    assert analysis_status == 'failure'
+
+    # now try a bad endpoint
+    name_bad_endpoint = str(uuid.uuid4())
+
+    post_data = {
+        'name': name_bad_endpoint,
+        'display_name': "a bad endpoint test analysis service name",
+        'description': "A test analysis service description",
+        'version': "1.0",
+        'contact_name': "Vera Rubin",
+        'contact_email': "vr@ls.st",
+        'url': "http://localhost:6802/analysis/bad_endpoint_analysis",
+        'optional_analysis_parameters': json.dumps(optional_analysis_parameters),
+        'authentication_type': "none",
+        'analysis_type': 'lightcurve_fitting',
+        'input_data_types': ['photometry', 'redshift'],
+        'timeout': 60,
+        'group_ids': [public_group.id],
+    }
+
+    status, data = api(
+        'POST', 'analysis_service', data=post_data, token=analysis_service_token
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    analysis_service_id = data['data']['id']
+
+    status, data = api(
+        'POST',
+        f'analysis/obj/{public_source.id}/{analysis_service_id}',
+        token=analysis_token,
+    )
+    # this should still go through but the analysis
+    # itself should not work
+    assert status == 200
+    assert data['status'] == 'success'
+
+    max_attempts = 5
+    analysis_status = 'queued'
+
+    while max_attempts > 0:
+        if analysis_status != "queued":
+            break
+        status, data = api('GET', f'analysis/obj/{analysis_id}', token=analysis_token)
+        assert status == 200
+        analysis_status = data["data"]["status"]
+
+        max_attempts -= 1
+        time.sleep(1)
+
+    assert analysis_status == 'failure'

@@ -56,7 +56,7 @@ services:
   paths:
     - ./baselayer/services
     - ./services
-  disable:
+  disabled:
     - gcnserver
     - slack
     - external_logging
