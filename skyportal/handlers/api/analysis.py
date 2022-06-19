@@ -539,7 +539,6 @@ class AnalysisServiceHandler(BaseHandler):
 class AnalysisHandler(BaseHandler):
     def call_external_analysis_service(
         self,
-        analysis_id,
         url,
         callback_url,
         inputs={},
@@ -596,27 +595,12 @@ class AnalysisHandler(BaseHandler):
                 auth=auth,
                 timeout=request_timeout,
             )
-        except requests.exceptions.Timeout as e:
-            log(e)
+        except requests.exceptions.Timeout:
             raise ValueError(f"Request to {url} timed out.")
+        except Exception as e:
+            raise Exception(f"Request to {url} had exception {e}.")
 
-        if analysis_resource_type.lower() == 'obj':
-            try:
-                session = Session()
-                analysis = session.query(ObjAnalysis).get(analysis_id)
-            except AccessError:
-                log(f'Could not access Analysis {analysis_id}.')
-                raise AccessError
-        else:
-            raise ValueError(
-                f"Invalid analysis_resource_type: {analysis_resource_type}"
-            )
-
-        analysis.status = 'pending' if result.status_code == 200 else 'failure'
-        analysis.status_message = result.text
-        analysis.last_activity = datetime.datetime.utcnow()
-        session.commit()
-        return log(f"Completed analysis {analysis_id}")
+        return result
 
     def generic_serialize(self, row, columns):
         return {c: getattr(row, c) for c in columns}
