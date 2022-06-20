@@ -162,6 +162,13 @@ class ObservationPlanRequest(Base):
         order_by="FacilityTransaction.created_at.desc()",
     )
 
+    transaction_requests = relationship(
+        'FacilityTransactionRequest',
+        back_populates='observation_plan_request',
+        passive_deletes=True,
+        order_by="FacilityTransactionRequest.created_at.desc()",
+    )
+
     @property
     def instrument(self):
         return self.allocation.instrument

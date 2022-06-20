@@ -6,7 +6,6 @@ import numpy as np
 import pandas as pd
 from io import StringIO
 from sqlalchemy.orm import sessionmaker, scoped_session
-from tornado.ioloop import IOLoop
 
 from . import FollowUpAPI
 from baselayer.app.env import load_env
@@ -225,8 +224,6 @@ class ATLASAPI(FollowUpAPI):
         from ..models import (
             FollowupRequest,
             FacilityTransaction,
-            Allocation,
-            Instrument,
         )
 
         req = (
@@ -235,59 +232,31 @@ class ATLASAPI(FollowUpAPI):
             .one()
         )
 
-        instrument = (
-            Instrument.query_records_accessible_by(req.requester)
-            .join(Allocation)
-            .join(FollowupRequest)
-            .filter(FollowupRequest.id == request.id)
-            .first()
-        )
-
         altdata = request.allocation.altdata
 
         if not altdata:
             raise ValueError('Missing allocation information.')
 
-        content = req.transactions[0].response["content"]
+        content = req.transactions[-1].response["content"]
         content = json.loads(content)
 
-        r = requests.get(
-            content["url"],
-            headers={
+        request_body = {
+            'method': 'GET',
+            'endpoint': content["url"],
+            'headers': {
                 'Authorization': f"Token {altdata['api_token']}",
                 'Accept': 'application/json',
             },
+            'followup_request_id': req.id,
+            'initiator_id': req.last_modified_by_id,
+        }
+
+        facility_microservice_url = (
+            f'http://127.0.0.1:{cfg.get("ports.facility_queue", 64510)}'
         )
 
-        if r.status_code == 200:
-            try:
-                json_response = r.json()
-            except Exception:
-                raise ('No JSON data returned in request')
-
-            if json_response['finishtimestamp']:
-                IOLoop.current().run_in_executor(
-                    None,
-                    lambda: commit_photometry(
-                        json_response,
-                        altdata,
-                        req.id,
-                        instrument.id,
-                        request.requester.id,
-                    ),
-                )
-                req.status = "Committing photometry to database"
-
-            elif json_response['starttimestamp']:
-                req.status = (
-                    f"Task is running (started at {json_response['starttimestamp']})"
-                )
-            else:
-                req.status = (
-                    f"Waiting for job to start (queued at {json_response['timestamp']})"
-                )
-        else:
-            req.status = f'error: {r.content}'
+        r = requests.post(facility_microservice_url, json=request_body)
+        log(f'Response for request {request.id}: {r.text}')
 
         transaction = FacilityTransaction(
             request=http.serialize_requests_request(r.request),

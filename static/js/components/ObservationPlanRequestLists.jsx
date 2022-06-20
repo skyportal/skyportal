@@ -28,6 +28,7 @@ const useStyles = makeStyles(() => ({
   actionButtons: {
     display: "flex",
     flexFlow: "row wrap",
+    gap: "0.2rem",
   },
   accordion: {
     width: "99%",
@@ -449,6 +450,19 @@ const ObservationPlanRequestLists = ({ gcnEvent }) => {
                 data-testid={`movieRequest_${observationplanRequest.id}`}
               >
                 GIF
+              </Button>
+            </div>
+            <div>
+              <Button
+                href={`/api/observation_plan/${observationplanRequest.id}/simsurvey`}
+                download={`observation-plan-simsurvey-${observationplanRequest.id}`}
+                size="small"
+                color="primary"
+                type="submit"
+                variant="outlined"
+                data-testid={`simsurveyRequest_${observationplanRequest.id}`}
+              >
+                SimSurvey
               </Button>
             </div>
           </div>

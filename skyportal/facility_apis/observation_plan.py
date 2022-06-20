@@ -18,7 +18,9 @@ log = make_log('api/observation_plan')
 
 env, cfg = load_env()
 
-default_filters = cfg.get('app.observation_plan.default_filters', ['g', 'r', 'i'])
+default_filters = cfg['app.observation_plan.default_filters']
+if default_filters is None:
+    default_filters = ['g', 'r', 'i']
 
 
 def generate_plan(observation_plan_id, request_id, user_id):
@@ -111,7 +113,7 @@ def generate_plan(observation_plan_id, request_id, user_id):
             'airmass': request.payload["maximum_airmass"],
             # array of exposure times (same length as filter array)
             'exposuretimes': np.array(
-                [int(request.payload["exposure_time"])]
+                [request.payload["exposure_time"]]
                 * len(request.payload["filters"].split(","))
             ),
         }
@@ -347,8 +349,9 @@ class MMAAPI(FollowUpAPI):
             )
 
             log(f"Generating schedule for observation plan {plan.id}")
+            requester_id = request.requester.id
             IOLoop.current().run_in_executor(
-                None, lambda: generate_plan(plan.id, request.id, request.requester.id)
+                None, lambda: generate_plan(plan.id, request.id, requester_id)
             )
         else:
             raise ValueError(
@@ -428,7 +431,12 @@ class MMAAPI(FollowUpAPI):
                     "enum": galaxies,
                     "default": galaxies[0] if len(galaxies) > 0 else "",
                 },
-                "exposure_time": {"type": "string", "default": "300"},
+                "exposure_time": {
+                    "title": "Exposure Time [s]",
+                    "type": "number",
+                    "default": 300,
+                    "minimum": 1,
+                },
                 "filters": {"type": "string", "default": ",".join(default_filters)},
                 "maximum_airmass": {
                     "title": "Maximum Airmass (1-3)",
