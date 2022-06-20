@@ -21,7 +21,7 @@ from .followup_request import (
     AssignmentHandler,
 )
 from .facility_listener import FacilityMessageHandler
-from .galaxy import GalaxyCatalogHandler
+from .galaxy import GalaxyCatalogHandler, GalaxyASCIIFileHandler
 from .gcn import (
     GcnEventHandler,
     LocalizationHandler,
@@ -69,6 +69,7 @@ from .photometry import (
     PhotometryRangeHandler,
     PhotometryOriginHandler,
 )
+from .phot_stat import PhotStatHandler
 from .color_mag import ObjColorMagHandler
 from .photometry_request import PhotometryRequestHandler
 from .public_group import PublicGroupHandler

@@ -91,7 +91,7 @@ const FollowupRequestPage = () => {
   };
 
   const handleTableChange = (action, tableState) => {
-    if (action === "changePage") {
+    if (action === "changePage" || action === "changeRowsPerPage") {
       handlePageChange(tableState.page, tableState.rowsPerPage);
     }
   };

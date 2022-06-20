@@ -21,6 +21,10 @@ const REFRESH_QUEUED_OBSERVATIONS = "skyportal/REFRESH_QUEUED_OBSERVATIONS";
 const REQUEST_API_QUEUED_OBSERVATIONS =
   "skyportal/REQUEST_API_QUEUED_OBSERVATIONS";
 
+const REQUEST_API_QUEUES = "skyportal/REQUEST_API_QUEUES";
+
+const DELETE_API_QUEUE = "skyportal/DELETE_API_QUEUE";
+
 export function fetchQueuedObservations(filterParams = {}) {
   if (!Object.keys(filterParams).includes("startDate")) {
     filterParams.startDate = dayjs().utc().format("YYYY-MM-DDTHH:mm:ssZ");
@@ -42,6 +46,22 @@ export function requestAPIQueuedObservations(id, data = {}) {
   return API.GET(
     `/api/observation/external_api/${id}`,
     REQUEST_API_QUEUED_OBSERVATIONS,
+    data
+  );
+}
+
+export function requestAPIQueues(id, data = { queuesOnly: true }) {
+  return API.GET(
+    `/api/observation/external_api/${id}`,
+    REQUEST_API_QUEUES,
+    data
+  );
+}
+
+export function deleteAPIQueue(id, data = {}) {
+  return API.DELETE(
+    `/api/observation/external_api/${id}`,
+    DELETE_API_QUEUE,
     data
   );
 }
