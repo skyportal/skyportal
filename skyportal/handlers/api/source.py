@@ -532,7 +532,7 @@ def get_sources(
             )
         max_peak_magnitude_subquery = (
             PhotStat.query_records_accessible_by(user)
-            .where(PhotStat.peak_mag_global <= min_peak_magnitude)
+            .where(PhotStat.peak_mag_global <= max_peak_magnitude)
             .subquery()
         )
         obj_query = obj_query.join(
