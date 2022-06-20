@@ -471,7 +471,7 @@ def test_run_analysis_with_correct_and_incorrect_token(
     analysis_id = data['data'].get('id')
     assert analysis_id is not None
 
-    max_attempts = 10
+    max_attempts = 20
     analysis_status = 'queued'
 
     while max_attempts > 0:
@@ -483,7 +483,7 @@ def test_run_analysis_with_correct_and_incorrect_token(
         analysis_status = data["data"]["status"]
 
         max_attempts -= 1
-        time.sleep(1)
+        time.sleep(5)
     else:
         assert (
             False
@@ -597,14 +597,15 @@ def test_run_analysis_with_down_and_wrong_analysis_service(
         token=analysis_token,
     )
     # this should still go through but the analysis
-    # itself should not work
+    # itself should not work because we're sending this off
+    # to a service that does not exist
     assert status == 200
     assert data['status'] == 'success'
 
     analysis_id = data['data'].get('id')
     assert analysis_id is not None
 
-    max_attempts = 5
+    max_attempts = 20
     analysis_status = 'queued'
 
     while max_attempts > 0:
@@ -615,7 +616,7 @@ def test_run_analysis_with_down_and_wrong_analysis_service(
         analysis_status = data["data"]["status"]
 
         max_attempts -= 1
-        time.sleep(1)
+        time.sleep(5)
 
     assert analysis_status == 'failure'
 
