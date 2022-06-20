@@ -256,7 +256,7 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
   const [skymapInstrument, setSkymapInstrument] = useState(null);
   const [selectedFields, setSelectedFields] = useState([]);
 
-  const defaultAirmassTime = Date(
+  const defaultAirmassTime = new Date(
     dayjs(gcnevent?.dateobs).format("YYYY-MM-DDTHH:mm:ssZ")
   );
   const [airmassTime, setAirmassTime] = useState(defaultAirmassTime);
@@ -297,7 +297,7 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
         instrumentActions.fetchInstrumentSkymap(
           instLookUp[allocationLookUp[selectedAllocationId]?.instrument_id]?.id,
           loc,
-          airmassTime.toISOString().replace("Z", "")
+          airmassTime.toJSON()
         )
       );
       setSkymapInstrument(response.data);
@@ -426,7 +426,7 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
   };
 
   const handleChange = (newValue) => {
-    setAirmassTime(newValue);
+    setAirmassTime(new Date(newValue));
   };
 
   return (
