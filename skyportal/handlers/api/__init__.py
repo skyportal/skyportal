@@ -3,6 +3,7 @@ from .allocation import AllocationHandler, AllocationReportHandler
 from .analysis import (
     AnalysisServiceHandler,
     AnalysisHandler,
+    call_external_analysis_service,
 )
 from .candidate import CandidateHandler
 from .classification import ClassificationHandler, ObjClassificationHandler
