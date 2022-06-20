@@ -27,10 +27,6 @@ def test_api_rate_limiting(view_only_token):
     # Based on baselayer's default nginx settings of max 5r/s + bursts of 10 (no delay)
     # See https://www.nginx.com/blog/rate-limiting-nginx/#bursts
     assert 11 <= n_successful_requests <= 16
-    r = requests.get(
-        f'http://{localhost_external_ip}:{cfg["ports.app"]}/api/sysinfo',
-        headers={'Authorization': f'token {view_only_token}'},
-    )
     assert r.status_code == 429
 
     # Wait until no previous requests count against rate limit
