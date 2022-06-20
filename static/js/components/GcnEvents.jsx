@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Link } from "react-router-dom";
 import Typography from "@mui/material/Typography";
@@ -73,24 +73,54 @@ const getMuiTheme = (theme) =>
     })
   );
 
+const defaultNumPerPage = 10;
+
 const GcnEvents = () => {
   const classes = useStyles();
   const theme = useTheme();
   const dispatch = useDispatch();
   const gcnEvents = useSelector((state) => state.gcnEvents);
 
+  const [fetchParams, setFetchParams] = useState({
+    pageNumber: 1,
+    numPerPage: defaultNumPerPage,
+  });
+
   useEffect(() => {
     dispatch(gcnEventsActions.fetchGcnEvents());
   }, [dispatch]);
 
-  const renderTags = (tags) =>
-    tags?.map((tag) => (
+  if (!gcnEvents) {
+    return <p>No gcnEvents available...</p>;
+  }
+
+  const { events, totalMatches } = gcnEvents;
+
+  const handlePageChange = async (page, numPerPage) => {
+    const params = {
+      ...fetchParams,
+      numPerPage,
+      pageNumber: page + 1,
+    };
+    // Save state for future
+    setFetchParams(params);
+    await dispatch(gcnEventsActions.fetchGcnEvents(params));
+  };
+
+  const handleTableChange = (action, tableState) => {
+    if (action === "changePage" || action === "changeRowsPerPage") {
+      handlePageChange(tableState.page, tableState.rowsPerPage);
+    }
+  };
+
+  const renderTags = (dataIndex) =>
+    events[dataIndex]?.tags?.map((tag) => (
       <Chip size="small" key={tag} label={tag} className={classes.eventTags} />
     ));
 
   const renderGcnNotices = (dataIndex) => (
     <ul>
-      {gcnEvents[dataIndex]?.gcn_notices?.map((gcnNotice) => (
+      {events[dataIndex]?.gcn_notices?.map((gcnNotice) => (
         <li key={gcnNotice.id}>
           {["date", "ivorn", "dateobs", "stream"].map((attr) => (
             <p key={attr}>
@@ -104,7 +134,7 @@ const GcnEvents = () => {
 
   const renderLocalizations = (dataIndex) => (
     <ul>
-      {gcnEvents[dataIndex]?.localizations?.map((loc) => (
+      {events[dataIndex]?.localizations?.map((loc) => (
         <li key={loc.id}>
           {["localization_name", "dateobs"].map((attr) => (
             <p key={attr}>
@@ -117,9 +147,9 @@ const GcnEvents = () => {
   );
 
   const renderDateObs = (dataIndex) => (
-    <Link to={`/gcn_events/${gcnEvents[dataIndex]?.dateobs}`}>
+    <Link to={`/gcn_events/${events[dataIndex]?.dateobs}`}>
       <Button className={classes.gcnEventLink}>
-        {gcnEvents[dataIndex]?.dateobs}
+        {events[dataIndex]?.dateobs}
       </Button>
     </Link>
   );
@@ -136,7 +166,7 @@ const GcnEvents = () => {
       name: "tags",
       label: "Tags",
       options: {
-        customBodyRender: renderTags,
+        customBodyRenderLite: renderTags,
       },
     },
     {
@@ -159,7 +189,17 @@ const GcnEvents = () => {
     search: true,
     selectableRows: "none",
     elevation: 0,
+    page: fetchParams.pageNumber - 1,
+    rowsPerPage: fetchParams.numPerPage,
+    rowsPerPageOptions: [10, 25, 50, 100],
+    jumpToPage: true,
+    serverSide: true,
+    pagination: true,
+    count: totalMatches,
   };
+  if (typeof handleTableChange === "function") {
+    options.onTableChange = handleTableChange;
+  }
 
   return (
     <div>
@@ -169,7 +209,7 @@ const GcnEvents = () => {
           <StyledEngineProvider injectFirst>
             <ThemeProvider theme={getMuiTheme(theme)}>
               <MUIDataTable
-                data={gcnEvents}
+                data={gcnEvents.events}
                 options={options}
                 columns={columns}
               />

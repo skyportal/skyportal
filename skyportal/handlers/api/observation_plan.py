@@ -1,5 +1,6 @@
 import astropy
 from astropy import units as u
+from datetime import datetime, timedelta
 import healpy as hp
 import humanize
 import jsonschema
@@ -36,6 +37,7 @@ from baselayer.app.flow import Flow
 from ..base import BaseHandler
 from ...models import (
     Allocation,
+    DefaultObservationPlanRequest,
     DBSession,
     EventObservationPlan,
     GcnEvent,
@@ -1575,3 +1577,195 @@ class ObservationPlanSimSurveyHandler(BaseHandler):
         data = io.BytesIO(rez["data"])
 
         await self.send_file(data, filename, output_type=output_format)
+
+
+class DefaultObservationPlanRequestHandler(BaseHandler):
+    @auth_or_token
+    def post(self):
+        """
+        ---
+        description: Create default observation plan requests.
+        tags:
+          - default_observation_plan
+        requestBody:
+          content:
+            application/json:
+              schema: DefaultObservationPlanPost
+        responses:
+          200:
+            content:
+              application/json:
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              description: New default observation plan request ID
+        """
+        data = self.get_json()
+
+        target_groups = []
+        for group_id in data.pop('target_group_ids', []):
+            g = Group.get_if_accessible_by(
+                group_id, self.current_user, raise_if_none=False
+            )
+            if g is None:
+                raise AttributeError(f"Missing group with ID: {group_id}")
+            target_groups.append(g)
+
+        allocation = Allocation.get_if_accessible_by(
+            data['allocation_id'],
+            self.current_user,
+            raise_if_none=False,
+        )
+        if allocation is None:
+            raise AttributeError(f"Missing allocation with ID: {data['allocation_id']}")
+
+        instrument = allocation.instrument
+        if instrument.api_classname_obsplan is None:
+            raise AttributeError('Instrument has no remote API.')
+
+        try:
+            formSchema = instrument.api_class_obsplan.custom_json_schema(
+                instrument, self.current_user
+            )
+        except AttributeError:
+            formSchema = instrument.api_class_obsplan.form_json_schema
+
+        payload = data['payload']
+        if "start_date" in payload:
+            return self.error('Cannot have start_date in the payload')
+        else:
+            payload['start_date'] = str(datetime.utcnow())
+
+        if "end_date" in payload:
+            return self.error('Cannot have end_date in the payload')
+        else:
+            payload['end_date'] = str(datetime.utcnow() + timedelta(days=1))
+
+        if "queue_name" in payload:
+            return self.error('Cannot have queue_name in the payload')
+        else:
+            payload['queue_name'] = "ToO_{str(datetime.utcnow()).replace(' ','T')}"
+
+        # validate the payload
+        try:
+            jsonschema.validate(payload, formSchema)
+        except jsonschema.exceptions.ValidationError as e:
+            raise jsonschema.exceptions.ValidationError(
+                f'Payload failed to validate: {e}'
+            )
+
+        default_observation_plan_request = (
+            DefaultObservationPlanRequest.__schema__().load(data)
+        )
+        default_observation_plan_request.target_groups = target_groups
+
+        with DBSession() as session:
+            session.add(default_observation_plan_request)
+            session.commit()
+
+            self.push_all(action="skyportal/REFRESH_DEFAULT_OBSERVATION_PLANS")
+            return self.success(data={"id": default_observation_plan_request.id})
+
+    @auth_or_token
+    def get(self, default_observation_plan_id=None):
+        """
+        ---
+        single:
+          description: Retrieve a single default observation plan
+          tags:
+            - default_observation_plans
+          parameters:
+            - in: path
+              name: default_observation_plan_id
+              required: true
+              schema:
+                type: integer
+          responses:
+            200:
+              content:
+                application/json:
+                  schema: SingleDefaultObservationPlanRequest
+            400:
+              content:
+                application/json:
+                  schema: Error
+        multiple:
+          description: Retrieve all default observation plans
+          tags:
+            - filters
+          responses:
+            200:
+              content:
+                application/json:
+                  schema: ArrayOfDefaultObservationPlanRequests
+            400:
+              content:
+                application/json:
+                  schema: Error
+        """
+
+        if default_observation_plan_id is not None:
+            default_observation_plan_request = (
+                DefaultObservationPlanRequest.get_if_accessible_by(
+                    default_observation_plan_id,
+                    self.current_user,
+                    raise_if_none=True,
+                    options=[joinedload(DefaultObservationPlanRequest.allocation)],
+                )
+            )
+            self.verify_and_commit()
+            return self.success(data=default_observation_plan_request)
+
+        default_observation_plan_requests = (
+            DefaultObservationPlanRequest.get_records_accessible_by(
+                self.current_user,
+                options=[joinedload(DefaultObservationPlanRequest.allocation)],
+            )
+        )
+        self.verify_and_commit()
+        return self.success(data=default_observation_plan_requests)
+
+    @auth_or_token
+    def delete(self, default_observation_plan_id):
+        """
+        ---
+        description: Delete a default observation plan
+        tags:
+          - filters
+        parameters:
+          - in: path
+            name: default_observation_plan_id
+            required: true
+            schema:
+              type: integer
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+        """
+        default_observation_plan_request = (
+            DefaultObservationPlanRequest.get_if_accessible_by(
+                default_observation_plan_id,
+                self.current_user,
+                mode="delete",
+                raise_if_none=False,
+            )
+        )
+        if default_observation_plan_request is None:
+            return self.error(
+                'Default observation plan with ID {default_observation_plan_id} is not available.'
+            )
+
+        with DBSession() as session:
+            session.delete(default_observation_plan_request)
+            session.commit()
+            self.push_all(action="skyportal/REFRESH_DEFAULT_OBSERVATION_PLANS")
+            return self.success()

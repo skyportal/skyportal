@@ -36,11 +36,11 @@ const ObservabilityPreferences = () => {
   telescopeNameList.unshift("Clear selections");
 
   return (
-    <div>
+    <div style={{ marginBottom: "1rem" }}>
       <UserPreferencesHeader
         title="Observability Preferences"
         popupText={
-          "The telescopes to display observability plots for on sources' observability pages. Leave blank to show all telescopes."
+          "The telescopes to display observability plots for on sources' observability pages. You can see 16 telescopes at a time, and change page to see more."
         }
       />
       <SelectWithChips

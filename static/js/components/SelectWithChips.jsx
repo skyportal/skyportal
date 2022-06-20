@@ -1,4 +1,6 @@
 import React, { useState } from "react";
+import PropTypes from "prop-types";
+import makeStyles from "@mui/styles/makeStyles";
 import {
   FormControl,
   InputLabel,
@@ -7,8 +9,6 @@ import {
   useTheme,
   Chip,
 } from "@mui/material";
-import { makeStyles } from "@mui/styles";
-import PropTypes from "prop-types";
 
 const useStyles = makeStyles((theme) => ({
   chips: {
@@ -34,6 +34,17 @@ const SelectWithChips = (props) => {
   const theme = useTheme();
   const [opts, setOpts] = useState([]);
   const { label, id, initValue, onChange, options } = props;
+  const MAX_CHAR = 90;
+  const cumSum = [];
+
+  initValue?.forEach((item, index) => {
+    cumSum.push(item?.length + (index > 0 ? cumSum[index - 1] : 0));
+  });
+
+  const max_chips_nb =
+    initValue?.length > 0 && !initValue.some((word) => word === undefined)
+      ? cumSum.filter((sum) => sum <= MAX_CHAR).length
+      : -1;
 
   const MenuProps = {
     PaperProps: {
@@ -61,9 +72,18 @@ const SelectWithChips = (props) => {
           }}
           renderValue={(selected) => (
             <div className={classes.chips}>
-              {selected.map((value) => (
-                <Chip key={value} label={value} />
-              ))}
+              {selected.map((value) =>
+                selected.indexOf(value) < max_chips_nb ? (
+                  <Chip key={value} label={value} />
+                ) : (
+                  selected.indexOf(value) === max_chips_nb && (
+                    <Chip
+                      key={value}
+                      label={`+${selected?.length - max_chips_nb}`}
+                    />
+                  )
+                )
+              )}
             </div>
           )}
           MenuProps={MenuProps}

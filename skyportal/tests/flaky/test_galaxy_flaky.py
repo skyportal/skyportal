@@ -29,7 +29,7 @@ def test_galaxy(super_admin_token, view_only_token):
                 'GET', 'galaxy_catalog', token=view_only_token, params=params
             )
             assert status == 200
-            data = data["data"]["sources"]
+            data = data["data"]["galaxies"]
             assert len(data) == 10
             assert any(
                 [
@@ -66,7 +66,7 @@ def test_galaxy(super_admin_token, view_only_token):
     assert status == 200
 
     geojson = data["data"]["geojson"]
-    data = data["data"]["sources"]
+    data = data["data"]["galaxies"]
 
     # now we have restricted to only 2/10 being in localization
     assert len(data) == 2

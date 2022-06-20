@@ -149,7 +149,7 @@ class InstrumentHandler(BaseHandler):
         return self.success(data={"id": instrument.id})
 
     @auth_or_token
-    def get(self, instrument_id=None):
+    async def get(self, instrument_id=None):
         """
         ---
         single:
