@@ -168,7 +168,7 @@ class GcnEventHandler(BaseHandler):
         return self.success(data={'gcnevent_id': event_id})
 
     @auth_or_token
-    def get(self, dateobs=None):
+    async def get(self, dateobs=None):
         """
         ---
         description: Retrieve GCN events

@@ -630,7 +630,7 @@ class ObservationHandler(BaseHandler):
         return self.success()
 
     @auth_or_token
-    def get(self):
+    async def get(self):
         """
         ---
           description: Retrieve all observations
@@ -943,7 +943,7 @@ class ObservationASCIIFileHandler(BaseHandler):
 
 class ObservationGCNHandler(BaseHandler):
     @auth_or_token
-    def get(self, instrument_id):
+    async def get(self, instrument_id):
         """
         ---
           description: Get a GCN-izable summary of the observations.

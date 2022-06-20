@@ -102,7 +102,7 @@ class GalaxyCatalogHandler(BaseHandler):
         return self.success()
 
     @auth_or_token
-    def get(self, catalog_name=None):
+    async def get(self, catalog_name=None):
         """
         ---
           description: Retrieve all galaxies

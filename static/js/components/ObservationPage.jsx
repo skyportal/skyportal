@@ -1,10 +1,13 @@
 import React, { useEffect, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
+import Accordion from "@mui/material/Accordion";
+import AccordionSummary from "@mui/material/AccordionSummary";
+import AccordionDetails from "@mui/material/AccordionDetails";
 import Typography from "@mui/material/Typography";
 import Paper from "@mui/material/Paper";
 import Grid from "@mui/material/Grid";
 import Divider from "@mui/material/Divider";
-import { ExpandMore, ExpandLess } from "@mui/icons-material";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import makeStyles from "@mui/styles/makeStyles";
 import PropTypes from "prop-types";
 
@@ -35,7 +38,6 @@ const useStyles = makeStyles((theme) => ({
     margin: "1rem",
   },
   paperContent: {
-    padding: "1rem",
     marginBottom: "1rem",
   },
   dividerHeader: {
@@ -44,6 +46,15 @@ const useStyles = makeStyles((theme) => ({
   },
   divider: {
     background: theme.palette.secondary.main,
+  },
+  accordionHeading: {
+    fontSize: "1.25rem",
+    fontWeight: theme.typography.fontWeightRegular,
+  },
+  Container: {
+    display: "flex",
+    overflow: "hidden",
+    flexDirection: "column",
   },
 }));
 
@@ -113,7 +124,6 @@ const ObservationPage = () => {
   const observations = useSelector((state) => state.observations);
   const queued_observations = useSelector((state) => state.queued_observations);
   const currentUser = useSelector((state) => state.profile);
-  const [open, setOpen] = useState(false);
   const dispatch = useDispatch();
   const classes = useStyles();
 
@@ -190,73 +200,124 @@ const ObservationPage = () => {
   return (
     <Grid container spacing={3}>
       <Grid item md={6} sm={12}>
-        <Paper elevation={1}>
+        <Paper>
           <div className={classes.paperContent}>
-            <Typography variant="h5">List of Executed Observations</Typography>
-            <ExecutedObservationList
-              observations={observations.observations}
-              fetchParams={fetchExecutedParams}
-              handleTableChange={handleExecutedTableChange}
-            />
+            <Accordion defaultExpanded elevation={0}>
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon />}
+                aria-controls="executed-observations-content"
+                id="executed-observations-header"
+              >
+                <Typography className={classes.accordionHeading}>
+                  List of Executed Observations
+                </Typography>
+              </AccordionSummary>
+              <AccordionDetails>
+                <div className={classes.Container}>
+                  <ExecutedObservationList
+                    observations={observations.observations}
+                    fetchParams={fetchExecutedParams}
+                    handleTableChange={handleExecutedTableChange}
+                  />
+                </div>
+              </AccordionDetails>
+            </Accordion>
           </div>
         </Paper>
-        <Paper elevation={1}>
+        <Paper>
           <div className={classes.paperContent}>
-            <Typography variant="h5">List of Queued Observations</Typography>
-            <QueuedObservationList
-              observations={queued_observations.queued_observations}
-              fetchParams={fetchQueuedParams}
-              handleTableChange={handleQueuedTableChange}
-            />
+            <Accordion defaultExpanded elevation={0}>
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon />}
+                aria-controls="queued-observations-content"
+                id="queued-observations-header"
+              >
+                <Typography className={classes.accordionHeading}>
+                  List of Queued Observations
+                </Typography>
+              </AccordionSummary>
+              <AccordionDetails>
+                <div className={classes.Container}>
+                  <QueuedObservationList
+                    observations={queued_observations.queued_observations}
+                    fetchParams={fetchQueuedParams}
+                    handleTableChange={handleQueuedTableChange}
+                  />
+                </div>
+              </AccordionDetails>
+            </Accordion>
           </div>
         </Paper>
       </Grid>
       {currentUser.permissions?.includes("System admin") && (
         <Grid item md={6} sm={12}>
-          <Paper
-            className={classes.paperContent}
-            onClick={() => setOpen(!open)}
-          >
-            <div className={classes.header}>
-              <Typography variant="h5"> Add New Observations </Typography>
-              {open ? <ExpandLess /> : <ExpandMore />}
+          <Paper className={classes.paperContent}>
+            <div>
+              <Accordion defaultExpanded elevation={0}>
+                <AccordionSummary
+                  expandIcon={<ExpandMoreIcon />}
+                  aria-controls="add-new-observations-content"
+                  id="add-new-observations-header"
+                >
+                  <Typography className={classes.accordionHeading}>
+                    Add New Observations
+                  </Typography>
+                </AccordionSummary>
+                <AccordionDetails>
+                  <div>
+                    <br style={{ marginBottom: "1rem" }} />
+                    <Divider
+                      variant="middle"
+                      className={classes.dividerHeader}
+                    />
+                    <br />
+                    <div className={classes.content}>
+                      <Typography variant="h6">
+                        Add Observations from File
+                      </Typography>
+                      <NewObservation />
+                    </div>
+                    <br />
+                    <Divider variant="middle" className={classes.divider} />
+                    <br />
+                    <div className={classes.content}>
+                      <Typography variant="h6">
+                        Add API Executed Observations
+                      </Typography>
+                      <NewAPIObservation />
+                    </div>
+                    <br />
+                    <Divider variant="middle" className={classes.divider} />
+                    <br />
+                    <div className={classes.content}>
+                      <Typography variant="h6">
+                        Add API Queued Observations
+                      </Typography>
+                      <NewAPIQueuedObservation />
+                    </div>
+                  </div>
+                </AccordionDetails>
+              </Accordion>
             </div>
-            {open && (
-              <>
-                <br style={{ marginBottom: "1rem" }} />
-                <Divider variant="middle" className={classes.dividerHeader} />
-                <br />
-                <div className={classes.content}>
-                  <Typography variant="h6">
-                    Add Observations from File
-                  </Typography>
-                  <NewObservation />
-                </div>
-                <br />
-                <Divider variant="middle" className={classes.divider} />
-                <br />
-                <div className={classes.content}>
-                  <Typography variant="h6">
-                    Add API Executed Observations
-                  </Typography>
-                  <NewAPIObservation />
-                </div>
-                <br />
-                <Divider variant="middle" className={classes.divider} />
-                <br />
-                <div className={classes.content}>
-                  <Typography variant="h6">
-                    Add API Queued Observations
-                  </Typography>
-                  <NewAPIQueuedObservation />
-                </div>
-              </>
-            )}
           </Paper>
           <Paper>
             <div className={classes.paperContent}>
-              <Typography variant="h5">Queue Interaction</Typography>
-              <QueueAPIDisplay />
+              <Accordion defaultExpanded elevation={0}>
+                <AccordionSummary
+                  expandIcon={<ExpandMoreIcon />}
+                  aria-controls="queue-interaction-content"
+                  id="queue-interaction-header"
+                >
+                  <Typography className={classes.accordionHeading}>
+                    Queue Interaction
+                  </Typography>
+                </AccordionSummary>
+                <AccordionDetails>
+                  <div className={classes.Container}>
+                    <QueueAPIDisplay />
+                  </div>
+                </AccordionDetails>
+              </Accordion>
             </div>
           </Paper>
         </Grid>
