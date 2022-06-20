@@ -442,6 +442,7 @@ def test_run_analysis_with_correct_and_incorrect_token(
         'version': "1.0",
         'contact_name': "Vera Rubin",
         'contact_email': "vr@ls.st",
+        # this is the URL/port of the SN analysis service that will be running during testing
         'url': "http://localhost:6802/analysis/demo_analysis",
         'optional_analysis_parameters': json.dumps(optional_analysis_parameters),
         'authentication_type': "none",

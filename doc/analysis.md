@@ -57,7 +57,7 @@ This will assemble data on that source and send it to the 3rd party application 
 
 ### Supernova Fitter Example
 
-SkyPortal ships with an example 3rd party analysis app to fit lightcurves with supernova models in `sncosmo` (see `services/sn_analysis_service/`). To use it, load the demo data to create an `analysisservice` that points to the SN fitter microservice:
+SkyPortal ships with an example 3rd party analysis app to fit lightcurves with supernova models in `sncosmo` (see `services/sn_analysis_service/`). To use it, load the demo data to create an analysis service entry that establishes the SN fitter microservice:
 
 ```
 make load_demo_data
@@ -70,7 +70,6 @@ import requests
 
 header =  {'Authorization': 'token <token>'}
 url = "http://localhost:5000/api/analysis/obj/ZTF21aaqjmps/1"
-params = {"url_parameters": {"source_name":
-                            "nugent-sn2p"}}
+params = {"url_parameters": {"source": "nugent-sn2p"}}
 r = requests.post(url, headers=header, json=params)
 ```

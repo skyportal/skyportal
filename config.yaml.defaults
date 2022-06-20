@@ -520,7 +520,7 @@ cross_match:
     limmag: 20.5
     number: 1
 
-analysis_folder: "analysis_data"
+analysis_folder: analysis_data
 
 
 # define the additional passbands that are not in SNCosmo
