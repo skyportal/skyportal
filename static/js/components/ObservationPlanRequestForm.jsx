@@ -50,7 +50,7 @@ const useStyles = makeStyles(() => ({
     width: "100%",
   },
   fieldsToUseSelect: {
-    width: "80%",
+    width: "75%",
   },
   SelectItem: {
     whiteSpace: "break-spaces",
@@ -68,6 +68,12 @@ const FieldSelect = ({
 }) => {
   const classes = useStyles();
 
+  const fields = [];
+  skymapInstrument?.fields?.forEach((field) => {
+    fields.push(Number(field.id));
+  });
+  fields.sort((a, b) => a - b);
+
   const handleSelectedFieldChange = (e) => {
     setSelectedFields(e.target.value);
   };
@@ -76,11 +82,9 @@ const FieldSelect = ({
     setSelectedFields([]);
   };
 
-  const fields = [];
-  skymapInstrument?.fields?.forEach((field) => {
-    fields.push(Number(field.id));
-  });
-  fields.sort((a, b) => a - b);
+  const selectAllFields = () => {
+    setSelectedFields(fields);
+  };
 
   return (
     <div>
@@ -106,7 +110,15 @@ const FieldSelect = ({
         color="secondary"
         onClick={() => clearSelectedFields()}
       >
-        Clear Fields
+        Clear all
+      </Button>
+      <Button
+        id="all-fieldsToUseSelect"
+        size="small"
+        color="secondary"
+        onClick={() => selectAllFields()}
+      >
+        Select all
       </Button>
     </div>
   );
@@ -260,6 +272,8 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
     dayjs(gcnevent?.dateobs).format("YYYY-MM-DDTHH:mm:ssZ")
   );
   const [airmassTime, setAirmassTime] = useState(defaultAirmassTime);
+  const [temporaryAirmassTime, setTemporaryAirmassTime] =
+    useState(defaultAirmassTime);
 
   const { instrumentList, instrumentFormParams } = useSelector(
     (state) => state.instruments
@@ -426,7 +440,14 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
   };
 
   const handleChange = (newValue) => {
-    setAirmassTime(new Date(newValue));
+    setTemporaryAirmassTime(new Date(newValue));
+  };
+
+  const setAirmass = () => {
+    setAirmassTime(temporaryAirmassTime);
+    dispatch(
+      showNotification("Updating airmass tiles... patience please.", "info")
+    );
   };
 
   return (
@@ -443,7 +464,7 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
         <InputLabel id="airmassTimeSelectLabel">Airmass Time</InputLabel>
         <LocalizationProvider dateAdapter={AdapterDateFns}>
           <DateTimePicker
-            value={airmassTime}
+            value={temporaryAirmassTime}
             onChange={(newValue) => handleChange(newValue)}
             label="Time to compute airmass (UTC)"
             showTodayButton={false}
@@ -453,6 +474,14 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
             )}
           />
         </LocalizationProvider>
+        <Button
+          id="setAirmassSelect"
+          size="small"
+          color="secondary"
+          onClick={() => setAirmass()}
+        >
+          Update airmass calculation
+        </Button>
       </div>
       <InputLabel id="allocationSelectLabel">Allocation</InputLabel>
       <Select
