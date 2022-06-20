@@ -3,15 +3,15 @@ import PropTypes from "prop-types";
 
 import { useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
-import Button from "@material-ui/core/Button";
-import DeleteIcon from "@material-ui/icons/Delete";
-import IconButton from "@material-ui/core/IconButton";
-import Tooltip from "@material-ui/core/Tooltip";
-import Dialog from "@material-ui/core/Dialog";
-import DialogContent from "@material-ui/core/DialogContent";
-import DialogTitle from "@material-ui/core/DialogTitle";
-import DialogContentText from "@material-ui/core/DialogContentText";
-import DialogActions from "@material-ui/core/DialogActions";
+import Button from "@mui/material/Button";
+import DeleteIcon from "@mui/icons-material/Delete";
+import IconButton from "@mui/material/IconButton";
+import Tooltip from "@mui/material/Tooltip";
+import Dialog from "@mui/material/Dialog";
+import DialogContent from "@mui/material/DialogContent";
+import DialogTitle from "@mui/material/DialogTitle";
+import DialogContentText from "@mui/material/DialogContentText";
+import DialogActions from "@mui/material/DialogActions";
 
 import { showNotification } from "baselayer/components/Notifications";
 
@@ -125,6 +125,7 @@ const ManageUserButtons = ({ group, loadedId, user, isAdmin, currentUser }) => {
             data-testid={`delete-${user.username}`}
             onClick={() => setConfirmDeleteOpen(true)}
             disabled={isAdmin(user) && numAdmins === 1}
+            size="large"
           >
             <DeleteIcon />
           </IconButton>

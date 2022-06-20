@@ -2,17 +2,20 @@ import React from "react";
 import { useSelector } from "react-redux";
 import PropTypes from "prop-types";
 
-import { createTheme, ThemeProvider } from "@material-ui/core/styles";
-import CssBaseline from "@material-ui/core/CssBaseline";
-import grey from "@material-ui/core/colors/grey";
+import {
+  createTheme,
+  ThemeProvider,
+  StyledEngineProvider,
+} from "@mui/material/styles";
+import CssBaseline from "@mui/material/CssBaseline";
+import { grey } from "@mui/material/colors";
 
 const Theme = ({ disableTransitions, children }) => {
   const theme = useSelector((state) => state.profile.preferences.theme);
   const dark = theme === "dark";
   const materialTheme = createTheme({
-    // Color palette inspired from: https://coolors.co/e63946-f1faee-a8dadc-457b9d-1d3557
     palette: {
-      type: theme || "light",
+      mode: theme || "light",
       primary: {
         main: "#457b9d",
         light: "#457b9d",
@@ -40,49 +43,55 @@ const Theme = ({ disableTransitions, children }) => {
       titleFontSize: 15,
       labelFontSize: 15,
     },
-    overrides: {
+    components: {
       MuiTypography: {
-        body1: {
-          color: dark ? grey[50] : null,
+        styleOverrides: {
+          body1: {
+            color: dark ? grey[50] : null,
+          },
         },
       },
       MuiButton: {
-        textPrimary: {
-          color: dark ? "#b1dae9" : null,
-        },
-        outlinedPrimary: {
-          color: dark ? "#b1dae9" : null,
+        styleOverrides: {
+          textPrimary: {
+            color: dark ? "#b1dae9" : null,
+          },
+          outlinedPrimary: {
+            color: dark ? "#b1dae9" : null,
+          },
         },
       },
       MuiCssBaseline: {
-        "@global": {
-          html: {
-            fontFamily: "Roboto, Helvetica, Arial, sans-serif",
+        styleOverrides: {
+          "@global": {
+            html: {
+              fontFamily: "Roboto, Helvetica, Arial, sans-serif",
 
-            /* Scrollbar styling */
+              /* Scrollbar styling */
 
-            /* Works on Firefox */
-            scrollbarWidth: "thin",
-            scrollbarColor: dark
-              ? `${grey[700]} ${grey[800]}`
-              : `${grey[400]} ${grey[100]}`,
-            overflowY: "auto",
+              /* Works on Firefox */
+              scrollbarWidth: "thin",
+              scrollbarColor: dark
+                ? `${grey[700]} ${grey[800]}`
+                : `${grey[400]} ${grey[100]}`,
+              overflowY: "auto",
 
-            /* Works on Chrome, Edge, and Safari */
-            "& *::-webkit-scrollbar": {
-              width: "12px",
-            },
+              /* Works on Chrome, Edge, and Safari */
+              "& *::-webkit-scrollbar": {
+                width: "12px",
+              },
 
-            "& *::-webkit-scrollbar-track": {
-              background: dark ? grey[800] : grey[100],
-            },
+              "& *::-webkit-scrollbar-track": {
+                background: dark ? grey[800] : grey[100],
+              },
 
-            "& *::-webkit-scrollbar-thumb": {
-              backgroundColor: dark ? grey[700] : grey[400],
-              borderRadius: "20px",
-              border: dark
-                ? `3px solid ${grey[800]}`
-                : `3px solid ${grey[100]}`,
+              "& *::-webkit-scrollbar-thumb": {
+                backgroundColor: dark ? grey[700] : grey[400],
+                borderRadius: "20px",
+                border: dark
+                  ? `3px solid ${grey[800]}`
+                  : `3px solid ${grey[100]}`,
+              },
             },
           },
         },
@@ -92,17 +101,19 @@ const Theme = ({ disableTransitions, children }) => {
     // Only added during testing; removes animations, transitions, and
     // rippple effects
     ...(disableTransitions && {
-      props: {
-        MuiButtonBase: {
-          disableRipple: true,
+      components: {
+        defaultProps: {
+          MuiButtonBase: {
+            disableRipple: true,
+          },
         },
-      },
-      overrides: {
         MuiCssBaseline: {
-          "@global": {
-            "*, *::before, *::after": {
-              transition: "none !important",
-              animation: "none !important",
+          styleOverrides: {
+            "@global": {
+              "*, *::before, *::after": {
+                transition: "none !important",
+                animation: "none !important",
+              },
             },
           },
         },
@@ -111,10 +122,12 @@ const Theme = ({ disableTransitions, children }) => {
   });
 
   return (
-    <ThemeProvider theme={materialTheme}>
-      <CssBaseline />
-      {children}
-    </ThemeProvider>
+    <StyledEngineProvider injectFirst>
+      <ThemeProvider theme={materialTheme}>
+        <CssBaseline />
+        {children}
+      </ThemeProvider>
+    </StyledEngineProvider>
   );
 };
 

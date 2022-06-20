@@ -1,18 +1,20 @@
 import React from "react";
 import { useSelector, useDispatch } from "react-redux";
-import List from "@material-ui/core/List";
-import ListItem from "@material-ui/core/ListItem";
-import ListItemText from "@material-ui/core/ListItemText";
-import Typography from "@material-ui/core/Typography";
-import Paper from "@material-ui/core/Paper";
-import Grid from "@material-ui/core/Grid";
-import { makeStyles } from "@material-ui/core/styles";
+import List from "@mui/material/List";
+import ListItem from "@mui/material/ListItem";
+import ListItemText from "@mui/material/ListItemText";
+import Typography from "@mui/material/Typography";
+import Paper from "@mui/material/Paper";
+import Grid from "@mui/material/Grid";
+import makeStyles from "@mui/styles/makeStyles";
 import PropTypes from "prop-types";
 import { showNotification } from "baselayer/components/Notifications";
-import { Button } from "@material-ui/core";
-import CircularProgress from "@material-ui/core/CircularProgress";
+import { Button } from "@mui/material";
+import CircularProgress from "@mui/material/CircularProgress";
 import NewAllocation from "./NewAllocation";
+import NewDefaultObservationPlan from "./NewDefaultObservationPlan";
 
+import * as defaultObservationPlansActions from "../ducks/default_observation_plans";
 import * as allocationActions from "../ducks/allocation";
 
 const useStyles = makeStyles((theme) => ({
@@ -34,6 +36,17 @@ const useStyles = makeStyles((theme) => ({
     top: 0,
   },
   allocationDeleteDisabled: {
+    opacity: 0,
+  },
+  defaultObservationPlanDelete: {
+    cursor: "pointer",
+    fontSize: "2em",
+    position: "absolute",
+    padding: 0,
+    right: 0,
+    top: 0,
+  },
+  defaultObservationPlanDeleteDisabled: {
     opacity: 0,
   },
 }));
@@ -109,6 +122,19 @@ export function allocationInfo(allocation, groups) {
   return result;
 }
 
+export function defaultObservationPlanInfo(default_observation_plan) {
+  let result = "";
+  if (default_observation_plan?.payload) {
+    result += `Payload: ${JSON.stringify(
+      default_observation_plan?.payload,
+      null,
+      " "
+    )}`;
+  }
+
+  return result;
+}
+
 const AllocationList = ({ allocations, deletePermission }) => {
   const dispatch = useDispatch();
   const classes = useStyles();
@@ -160,8 +186,72 @@ const AllocationList = ({ allocations, deletePermission }) => {
   );
 };
 
+const DefaultObservationPlanList = ({
+  default_observation_plans,
+  deletePermission,
+}) => {
+  const dispatch = useDispatch();
+  const classes = useStyles();
+  const textClasses = textStyles();
+  const { instrumentList } = useSelector((state) => state.instruments);
+  const { telescopeList } = useSelector((state) => state.telescopes);
+  const groups = useSelector((state) => state.groups.all);
+
+  const deleteDefaultObservationPlan = (default_observation_plan) => {
+    dispatch(
+      defaultObservationPlansActions.deleteDefaultObservationPlan(
+        default_observation_plan.id
+      )
+    ).then((result) => {
+      if (result.status === "success") {
+        dispatch(showNotification("Default observation plan deleted"));
+      }
+    });
+  };
+
+  return (
+    <div className={classes.root}>
+      <List component="nav">
+        {default_observation_plans?.map((default_observation_plan) => (
+          <ListItem button key={default_observation_plan.id}>
+            <ListItemText
+              primary={allocationTitle(
+                default_observation_plan.allocation,
+                instrumentList,
+                telescopeList
+              )}
+              secondary={defaultObservationPlanInfo(
+                default_observation_plan,
+                groups
+              )}
+              classes={textClasses}
+            />
+            <Button
+              key={default_observation_plan.id}
+              id="delete_button"
+              classes={{
+                root: classes.defaultObservationPlanDelete,
+                disabled: classes.defaultObservationPlanDeleteDisabled,
+              }}
+              onClick={() =>
+                deleteDefaultObservationPlan(default_observation_plan)
+              }
+              disabled={!deletePermission}
+            >
+              &times;
+            </Button>
+          </ListItem>
+        ))}
+      </List>
+    </div>
+  );
+};
+
 const AllocationPage = () => {
   const { allocationList } = useSelector((state) => state.allocations);
+  const { defaultObservationPlanList } = useSelector(
+    (state) => state.default_observation_plans
+  );
   const currentUser = useSelector((state) => state.profile);
   const classes = useStyles();
 
@@ -181,16 +271,37 @@ const AllocationPage = () => {
             />
           </div>
         </Paper>
+        <Paper elevation={1}>
+          <div className={classes.paperContent}>
+            <Typography variant="h6">
+              List of Default Observation Plans
+            </Typography>
+            <DefaultObservationPlanList
+              default_observation_plans={defaultObservationPlanList}
+              deletePermission={permission}
+            />
+          </div>
+        </Paper>
       </Grid>
       {permission && (
-        <Grid item md={6} sm={12}>
-          <Paper>
-            <div className={classes.paperContent}>
-              <Typography variant="h6">Add a New Allocation</Typography>
-              <NewAllocation />
-            </div>
-          </Paper>
-        </Grid>
+        <>
+          <Grid item md={6} sm={12}>
+            <Paper>
+              <div className={classes.paperContent}>
+                <Typography variant="h6">Add a New Allocation</Typography>
+                <NewAllocation />
+              </div>
+            </Paper>
+            <Paper>
+              <div className={classes.paperContent}>
+                <Typography variant="h6">
+                  Add a New Default Observation Plan
+                </Typography>
+                <NewDefaultObservationPlan />
+              </div>
+            </Paper>
+          </Grid>
+        </>
       )}
     </Grid>
   );
@@ -199,6 +310,12 @@ const AllocationPage = () => {
 AllocationList.propTypes = {
   // eslint-disable-next-line react/forbid-prop-types
   allocations: PropTypes.arrayOf(PropTypes.any).isRequired,
+  deletePermission: PropTypes.bool.isRequired,
+};
+
+DefaultObservationPlanList.propTypes = {
+  // eslint-disable-next-line react/forbid-prop-types
+  default_observation_plans: PropTypes.arrayOf(PropTypes.any).isRequired,
   deletePermission: PropTypes.bool.isRequired,
 };
 

@@ -1,16 +1,17 @@
 import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { PropTypes } from "prop-types";
-import Button from "@material-ui/core/Button";
-import Form from "@rjsf/material-ui";
-import Select from "@material-ui/core/Select";
-import InputLabel from "@material-ui/core/InputLabel";
-import MenuItem from "@material-ui/core/MenuItem";
-import FormGroup from "@material-ui/core/FormGroup";
-import FormControlLabel from "@material-ui/core/FormControlLabel";
-import Checkbox from "@material-ui/core/Checkbox";
-import CircularProgress from "@material-ui/core/CircularProgress";
-import { makeStyles } from "@material-ui/core/styles";
+import Button from "@mui/material/Button";
+// eslint-disable-next-line import/no-unresolved
+import Form from "@rjsf/material-ui/v5";
+import Select from "@mui/material/Select";
+import InputLabel from "@mui/material/InputLabel";
+import MenuItem from "@mui/material/MenuItem";
+import FormGroup from "@mui/material/FormGroup";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import Checkbox from "@mui/material/Checkbox";
+import CircularProgress from "@mui/material/CircularProgress";
+import makeStyles from "@mui/styles/makeStyles";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
@@ -65,6 +66,10 @@ const GcnSelectionForm = ({ gcnEvent, setSelectedLocalizationName }) => {
   const displayOptionsDefault = Object.fromEntries(
     displayOptions.map((x) => [x, false])
   );
+  const displayOptionsAvailable = Object.fromEntries(
+    displayOptions.map((x) => [x, true])
+  );
+  const [selectedFields, setSelectedFields] = useState([]);
 
   const [selectedInstrumentId, setSelectedInstrumentId] = useState(null);
   const [selectedLocalizationId, setSelectedLocalizationId] = useState(null);
@@ -126,19 +131,6 @@ const GcnSelectionForm = ({ gcnEvent, setSelectedLocalizationName }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dispatch, setSelectedInstrumentId, setSelectedLocalizationId, gcnEvent]);
 
-  // need to check both of these conditions as selectedInstrumentId is
-  // initialized to be null and useEffect is not called on the first
-  // render to update it, so it can be null even if allocationList is not
-  // empty.
-  if (
-    gcnEventInstruments.length === 0 ||
-    !selectedInstrumentId ||
-    gcnEvent.localizations.length === 0 ||
-    !selectedLocalizationId
-  ) {
-    return <h3>Fetching skymap...</h3>;
-  }
-
   const handleOnChange = (position) => {
     const checkedDisplayStateCopy = JSON.parse(
       JSON.stringify(checkedDisplayState)
@@ -182,40 +174,45 @@ const GcnSelectionForm = ({ gcnEvent, setSelectedLocalizationName }) => {
     formData.endDate = formData.endDate
       .replace("+00:00", "")
       .replace(".000Z", "");
-    dispatch(sourcesActions.fetchGcnEventSources(gcnEvent.dateobs, formData));
+    await dispatch(
+      sourcesActions.fetchGcnEventSources(gcnEvent.dateobs, formData)
+    );
     formData.includeGeoJSON = true;
-    dispatch(
+    await dispatch(
       observationsActions.fetchGcnEventObservations(gcnEvent.dateobs, formData)
     );
-    dispatch(galaxiesActions.fetchGcnEventGalaxies(gcnEvent.dateobs, formData));
-    dispatch(
+    await dispatch(
+      galaxiesActions.fetchGcnEventGalaxies(gcnEvent.dateobs, formData)
+    );
+    await dispatch(
       instrumentsActions.fetchGcnEventInstruments(gcnEvent.dateobs, formData)
     );
     setFormDataState(formData);
     setIsSubmitting(false);
   };
 
-  // const handleSendToObservationPlan = (instrument) => {
-  // const selectedFields = instrument?.fields.filter((f) => f?.selected);
-  // const selectedIds = selectedFields.map((f) => f?.field_id);
-  // };
-
-  if (telescopeList.length === 0) {
-    return <p>No robotic followup requests found...</p>;
-  }
-
-  if (
-    !gcnEvent ||
-    !gcnEventSources ||
-    !gcnEventObservations ||
-    !gcnEventGalaxies ||
-    !gcnEventInstruments
-  ) {
+  if (!gcnEvent) {
     return <CircularProgress />;
   }
 
+  if (!gcnEventInstruments) {
+    displayOptionsAvailable.instruments = false;
+  }
+
+  if (!gcnEventSources) {
+    displayOptionsAvailable.sources = false;
+  }
+
+  if (!gcnEventObservations) {
+    displayOptionsAvailable.observations = false;
+  }
+
+  if (!gcnEventGalaxies) {
+    displayOptionsAvailable.galaxies = false;
+  }
+
   if (!gcnEvent.localizations || gcnEvent.localizations.length === 0) {
-    return <p>No skymaps available to display...</p>;
+    displayOptionsAvailable.localization = false;
   }
 
   const instLookUp = {};
@@ -250,12 +247,25 @@ const GcnSelectionForm = ({ gcnEvent, setSelectedLocalizationName }) => {
     setSelectedLocalizationName(locLookUp[e.target.value].localization_name);
   };
 
-  function createUrl(instrumentId, queryParams) {
+  function createGcnUrl(instrumentId, queryParams) {
     let url = `/api/observation/gcn/${instrumentId}`;
     if (queryParams) {
       const filteredQueryParams = filterOutEmptyValues(queryParams);
       const queryString = new URLSearchParams(filteredQueryParams).toString();
       url += `?${queryString}`;
+    }
+    return url;
+  }
+
+  function createSimSurveyUrl(instrumentId, queryParams, localization) {
+    let url = `/api/observation/simsurvey/${instrumentId}`;
+    if (queryParams) {
+      const filteredQueryParams = filterOutEmptyValues(queryParams);
+      const queryString = new URLSearchParams(filteredQueryParams).toString();
+      url += `?${queryString}`;
+    }
+    if (localization) {
+      url += `&localizationDateobs=${localization.dateobs}&localizationName=${localization.localization_name}`;
     }
     return url;
   }
@@ -277,7 +287,13 @@ const GcnSelectionForm = ({ gcnEvent, setSelectedLocalizationName }) => {
     return errors;
   }
 
-  const url = createUrl(selectedInstrumentId, formDataState);
+  const gcnUrl = createGcnUrl(selectedInstrumentId, formDataState);
+  const simSurveyUrl = createSimSurveyUrl(
+    selectedInstrumentId,
+    formDataState,
+    locLookUp[selectedLocalizationId]
+  );
+
   const GcnSourceSelectionFormSchema = {
     type: "object",
     properties: {
@@ -313,6 +329,8 @@ const GcnSelectionForm = ({ gcnEvent, setSelectedLocalizationName }) => {
             instrument={instLookUp[selectedInstrumentId]}
             observations={gcnEventObservations}
             options={checkedDisplayState}
+            selectedFields={selectedFields}
+            setSelectedFields={setSelectedFields}
           />
         </div>
       ) : (
@@ -324,18 +342,12 @@ const GcnSelectionForm = ({ gcnEvent, setSelectedLocalizationName }) => {
             instrument={instLookUp[selectedInstrumentId]}
             observations={gcnEventObservations}
             options={checkedDisplayState}
+            selectedFields={selectedFields}
+            setSelectedFields={setSelectedFields}
           />
         </div>
       )}
       <div>
-        <Button
-          variant="outlined"
-          // onClick={() =>
-          //   handleSendToObservationPlan(instLookUp[selectedInstrumentId])
-          // }
-        >
-          Send selected to observation plan
-        </Button>
         <InputLabel id="localizationSelectLabel">Localization</InputLabel>
         <Select
           inputProps={{ MenuProps: { disableScrollLock: true } }}
@@ -386,6 +398,7 @@ const GcnSelectionForm = ({ gcnEvent, setSelectedLocalizationName }) => {
               control={<Checkbox onChange={() => handleOnChange(index)} />}
               label={option}
               key={option}
+              disabled={!displayOptionsAvailable[option]}
             />
           ))}
         </FormGroup>
@@ -406,7 +419,7 @@ const GcnSelectionForm = ({ gcnEvent, setSelectedLocalizationName }) => {
         )}
       </div>
       <Button
-        href={`${url}`}
+        href={`${gcnUrl}`}
         download={`observationGcn-${selectedInstrumentId}`}
         size="small"
         color="primary"
@@ -415,6 +428,17 @@ const GcnSelectionForm = ({ gcnEvent, setSelectedLocalizationName }) => {
         data-testid={`observationGcn_${selectedInstrumentId}`}
       >
         GCN
+      </Button>
+      <Button
+        href={`${simSurveyUrl}`}
+        download={`observationGcn-${selectedInstrumentId}`}
+        size="small"
+        color="primary"
+        type="submit"
+        variant="outlined"
+        data-testid={`observationGcn_${selectedInstrumentId}`}
+      >
+        SimSurvey
       </Button>
       {isSubmittingTreasureMap === selectedInstrumentId ? (
         <div>

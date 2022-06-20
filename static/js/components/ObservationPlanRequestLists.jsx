@@ -1,19 +1,21 @@
 import React, { useState, useEffect } from "react";
 import PropTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
-import Button from "@material-ui/core/Button";
-import CircularProgress from "@material-ui/core/CircularProgress";
-import Accordion from "@material-ui/core/Accordion";
-import AccordionSummary from "@material-ui/core/AccordionSummary";
-import AccordionDetails from "@material-ui/core/AccordionDetails";
-import Typography from "@material-ui/core/Typography";
-import ExpandMoreIcon from "@material-ui/icons/ExpandMore";
+import Button from "@mui/material/Button";
+import CircularProgress from "@mui/material/CircularProgress";
+import Accordion from "@mui/material/Accordion";
+import AccordionSummary from "@mui/material/AccordionSummary";
+import AccordionDetails from "@mui/material/AccordionDetails";
+import Typography from "@mui/material/Typography";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import {
-  makeStyles,
   createTheme,
-  MuiThemeProvider,
+  ThemeProvider,
+  StyledEngineProvider,
   useTheme,
-} from "@material-ui/core/styles";
+  adaptV4Theme,
+} from "@mui/material/styles";
+import makeStyles from "@mui/styles/makeStyles";
 import MUIDataTable from "mui-datatables";
 
 import * as Actions from "../ducks/gcnEvent";
@@ -40,47 +42,49 @@ const useStyles = makeStyles(() => ({
 
 // Tweak responsive styling
 const getMuiTheme = (theme) =>
-  createTheme({
-    palette: theme.palette,
-    overrides: {
-      MUIDataTable: {
-        paper: {
-          width: "100%",
+  createTheme(
+    adaptV4Theme({
+      palette: theme.palette,
+      overrides: {
+        MUIDataTable: {
+          paper: {
+            width: "100%",
+          },
         },
-      },
-      MUIDataTableBodyCell: {
-        stackedCommon: {
-          overflow: "hidden",
-          "&:last-child": {
-            paddingLeft: "0.25rem",
+        MUIDataTableBodyCell: {
+          stackedCommon: {
+            overflow: "hidden",
+            "&:last-child": {
+              paddingLeft: "0.25rem",
+            },
+          },
+        },
+        MUIDataTablePagination: {
+          toolbar: {
+            flexFlow: "row wrap",
+            justifyContent: "flex-end",
+            padding: "0.5rem 1rem 0",
+            [theme.breakpoints.up("sm")]: {
+              // Cancel out small screen styling and replace
+              padding: "0px",
+              paddingRight: "2px",
+              flexFlow: "row nowrap",
+            },
+          },
+          tableCellContainer: {
+            padding: "1rem",
+          },
+          selectRoot: {
+            marginRight: "0.5rem",
+            [theme.breakpoints.up("sm")]: {
+              marginLeft: "0",
+              marginRight: "2rem",
+            },
           },
         },
       },
-      MUIDataTablePagination: {
-        toolbar: {
-          flexFlow: "row wrap",
-          justifyContent: "flex-end",
-          padding: "0.5rem 1rem 0",
-          [theme.breakpoints.up("sm")]: {
-            // Cancel out small screen styling and replace
-            padding: "0px",
-            paddingRight: "2px",
-            flexFlow: "row nowrap",
-          },
-        },
-        tableCellContainer: {
-          padding: "1rem",
-        },
-        selectRoot: {
-          marginRight: "0.5rem",
-          [theme.breakpoints.up("sm")]: {
-            marginLeft: "0",
-            marginRight: "2rem",
-          },
-        },
-      },
-    },
-  });
+    })
+  );
 
 const ObservationPlanGlobe = ({ observationplanRequest, loc }) => {
   const dispatch = useDispatch();
@@ -201,6 +205,13 @@ const ObservationPlanRequestLists = ({ gcnEvent }) => {
     setIsDeletingTreasureMap(id);
     await dispatch(Actions.deleteObservationPlanRequestTreasureMap(id));
     setIsDeletingTreasureMap(null);
+  };
+
+  const [isCreatingObservingRun, setIsCreatingObservingRun] = useState(null);
+  const handleCreateObservingRun = async (id) => {
+    setIsCreatingObservingRun(id);
+    await dispatch(Actions.createObservationPlanRequestObservingRun(id));
+    setIsCreatingObservingRun(null);
   };
 
   const [isSending, setIsSending] = useState(null);
@@ -465,6 +476,28 @@ const ObservationPlanRequestLists = ({ gcnEvent }) => {
                 SimSurvey
               </Button>
             </div>
+            <div>
+              {isCreatingObservingRun === observationplanRequest.id ? (
+                <div>
+                  <CircularProgress />
+                </div>
+              ) : (
+                <div>
+                  <Button
+                    onClick={() => {
+                      handleCreateObservingRun(observationplanRequest.id);
+                    }}
+                    size="small"
+                    color="primary"
+                    type="submit"
+                    variant="outlined"
+                    data-testid={`observingRunRequest_${observationplanRequest.id}`}
+                  >
+                    Create Observing Run
+                  </Button>
+                </div>
+              )}
+            </div>
           </div>
         );
       };
@@ -687,13 +720,15 @@ const ObservationPlanRequestLists = ({ gcnEvent }) => {
             <AccordionDetails
               data-testid={`${instLookUp[instrument_id].name}_observationplanRequestsTable`}
             >
-              <MuiThemeProvider theme={getMuiTheme(theme)}>
-                <MUIDataTable
-                  data={requestsGroupedByInstId[instrument_id]}
-                  options={options}
-                  columns={getDataTableColumns(keys, instrument_id)}
-                />
-              </MuiThemeProvider>
+              <StyledEngineProvider injectFirst>
+                <ThemeProvider theme={getMuiTheme(theme)}>
+                  <MUIDataTable
+                    data={requestsGroupedByInstId[instrument_id]}
+                    options={options}
+                    columns={getDataTableColumns(keys, instrument_id)}
+                  />
+                </ThemeProvider>
+              </StyledEngineProvider>
             </AccordionDetails>
           </Accordion>
         );

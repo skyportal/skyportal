@@ -55,11 +55,20 @@ def generate_plan(observation_plan_id, request_id, user_id):
         start_time = Time(request.payload["start_date"], format='iso', scale='utc')
         end_time = Time(request.payload["end_date"], format='iso', scale='utc')
 
+        if "field_ids" in request.payload and len(request.payload["field_ids"]) > 0:
+            fields = [
+                f
+                for f in request.instrument.fields
+                if f.field_id in request.payload["field_ids"]
+            ]
+        else:
+            fields = request.instrument.fields
+
         params = {
             'config': {
                 request.instrument.name: {
                     # field list from skyportal
-                    'tesselation': request.instrument.fields,
+                    'tesselation': fields,
                     # telescope longitude [deg]
                     'longitude': request.instrument.telescope.lon,
                     # telescope latitude [deg]
@@ -386,8 +395,9 @@ class MMAAPI(FollowUpAPI):
                 'Should only be one observation plan associated to this request'
             )
 
-        observation_plan = req.observation_plans[0]
-        DBSession().delete(observation_plan)
+        if len(req.observation_plans) > 0:
+            observation_plan = req.observation_plans[0]
+            DBSession().delete(observation_plan)
 
         DBSession().delete(req)
         DBSession().commit()

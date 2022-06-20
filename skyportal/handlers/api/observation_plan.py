@@ -1,5 +1,6 @@
 import astropy
 from astropy import units as u
+from datetime import datetime, timedelta
 import healpy as hp
 import humanize
 import jsonschema
@@ -36,6 +37,7 @@ from baselayer.app.flow import Flow
 from ..base import BaseHandler
 from ...models import (
     Allocation,
+    DefaultObservationPlanRequest,
     DBSession,
     EventObservationPlan,
     GcnEvent,
@@ -49,6 +51,10 @@ from ...models import (
 )
 
 from ...models.schema import ObservationPlanPost
+
+from skyportal.handlers.api.source import post_source
+from skyportal.handlers.api.followup_request import post_assignment
+from skyportal.handlers.api.observingrun import post_observing_run
 
 env, cfg = load_env()
 TREASUREMAP_URL = cfg['app.treasuremap_endpoint']
@@ -556,7 +562,7 @@ def observation_animations(
         "ztfr": "#DC3545",
         "ztfi": "#F3DC11",
         "AllWISE": "#2F5492",
-        "Gaia_EDR3": "#FF7F0E",
+        "Gaia_DR3": "#FF7F0E",
         "PS1_DR1": "#3BBED5",
         "GALEX": "#6607C2",
         "TNS": "#ED6CF6",
@@ -1099,6 +1105,111 @@ class ObservationPlanAirmassChartHandler(BaseHandler):
         await self.send_file(data, filename, output_type=output_format)
 
 
+class ObservationPlanCreateObservingRunHandler(BaseHandler):
+    @auth_or_token
+    def post(self, observation_plan_request_id):
+        """
+        ---
+        description: Submit the fields in the observation plan
+           to an observing run
+        tags:
+          - observation_plan_requests
+        parameters:
+          - in: path
+            name: observation_plan_id
+            required: true
+            schema:
+              type: string
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+
+        options = [
+            joinedload(ObservationPlanRequest.observation_plans)
+            .joinedload(EventObservationPlan.planned_observations)
+            .joinedload(PlannedObservation.field)
+        ]
+
+        observation_plan_request = ObservationPlanRequest.get_if_accessible_by(
+            observation_plan_request_id,
+            self.current_user,
+            mode="read",
+            raise_if_none=True,
+            options=options,
+        )
+        self.verify_and_commit()
+
+        allocation = Allocation.get_if_accessible_by(
+            observation_plan_request.allocation_id,
+            self.current_user,
+            raise_if_none=True,
+        )
+
+        instrument = allocation.instrument
+
+        observation_plan = observation_plan_request.observation_plans[0]
+        planned_observations = observation_plan.planned_observations
+
+        if len(planned_observations) == 0:
+            return self.error('Cannot create observing run with no observations.')
+
+        with DBSession() as session:
+
+            observing_run = {
+                'instrument_id': instrument.id,
+                'group_id': allocation.group_id,
+                'calendar_date': str(observation_plan.validity_window_end.date()),
+            }
+            run_id = post_observing_run(
+                observing_run, self.associated_user_object.id, session
+            )
+
+            min_priority = 1
+            max_priority = 5
+            priorities = []
+            for obs in planned_observations:
+                priorities.append(obs.weight)
+
+            for obs in planned_observations:
+                source = {
+                    'id': f'{obs.field.ra}-{obs.field.dec}',
+                    'ra': obs.field.ra,
+                    'dec': obs.field.dec,
+                }
+                obj_id = post_source(source, self.associated_user_object.id, session)
+                if np.max(priorities) - np.min(priorities) == 0.0:
+                    # assign equal weights if all the same
+                    normalized_priority = 0.5
+                else:
+                    normalized_priority = (obs.weight - np.min(priorities)) / (
+                        np.max(priorities) - np.min(priorities)
+                    )
+
+                priority = np.ceil(
+                    (max_priority - min_priority) * normalized_priority + min_priority
+                )
+                assignment = {
+                    'run_id': run_id,
+                    'obj_id': obj_id,
+                    'priority': str(int(priority)),
+                }
+                try:
+                    post_assignment(assignment, self.associated_user_object.id, session)
+                except ValueError:
+                    # No need to assign multiple times to same run
+                    pass
+
+            self.push_notification('Observing run post succeeded')
+            return self.success()
+
+
 def observation_simsurvey(
     observations,
     localization,
@@ -1114,7 +1225,6 @@ def observation_simsurvey(
 ):
 
     """Create a plot to display the simsurvey analyis for a given skymap
-
         Parameters
         ----------
         observations : skyportal.models.observation_plan.PlannedObservation
@@ -1163,18 +1273,24 @@ def observation_simsurvey(
     for obs in observations:
         nmag = -2.5 * np.log10(
             np.sqrt(
-                instrument.sensitivity_data[obs.filt]['exposure_time']
-                / obs.exposure_time
+                instrument.sensitivity_data[obs["filt"]]['exposure_time']
+                / obs["exposure_time"]
             )
         )
-        limMag = instrument.sensitivity_data[obs.filt]['limiting_magnitude'] + nmag
-        zp = instrument.sensitivity_data[obs.filt]['zeropoint'] + nmag
 
-        pointings["ra"].append(obs.field.ra)
-        pointings["dec"].append(obs.field.dec)
-        pointings["filter"].append(obs.filt)
-        pointings["jd"].append(Time(obs.obstime, format='datetime').jd)
-        pointings["field_id"].append(obs.field.field_id)
+        if "limmag" in obs:
+            limMag = obs["limmag"]
+        else:
+            limMag = (
+                instrument.sensitivity_data[obs["filt"]]['limiting_magnitude'] + nmag
+            )
+        zp = instrument.sensitivity_data[obs["filt"]]['zeropoint'] + nmag
+
+        pointings["ra"].append(obs["field"].ra)
+        pointings["dec"].append(obs["field"].dec)
+        pointings["filter"].append(obs["filt"])
+        pointings["jd"].append(Time(obs["obstime"], format='datetime').jd)
+        pointings["field_id"].append(obs["field"].field_id)
 
         pointings["limMag"].append(limMag)
         pointings["skynoise"].append(10 ** (-0.4 * (limMag - zp)) / 5.0)
@@ -1435,10 +1551,12 @@ class ObservationPlanSimSurveyHandler(BaseHandler):
                     f'Sensitivity_data dictionary missing keys for filter {filt}'
                 )
 
+        observations = [observation.to_dict() for observation in planned_observations]
+
         output_format = 'pdf'
         simsurvey_analysis = functools.partial(
             observation_simsurvey,
-            planned_observations,
+            observations,
             localization,
             instrument,
             output_format=output_format,
@@ -1459,3 +1577,195 @@ class ObservationPlanSimSurveyHandler(BaseHandler):
         data = io.BytesIO(rez["data"])
 
         await self.send_file(data, filename, output_type=output_format)
+
+
+class DefaultObservationPlanRequestHandler(BaseHandler):
+    @auth_or_token
+    def post(self):
+        """
+        ---
+        description: Create default observation plan requests.
+        tags:
+          - default_observation_plan
+        requestBody:
+          content:
+            application/json:
+              schema: DefaultObservationPlanPost
+        responses:
+          200:
+            content:
+              application/json:
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              description: New default observation plan request ID
+        """
+        data = self.get_json()
+
+        target_groups = []
+        for group_id in data.pop('target_group_ids', []):
+            g = Group.get_if_accessible_by(
+                group_id, self.current_user, raise_if_none=False
+            )
+            if g is None:
+                raise AttributeError(f"Missing group with ID: {group_id}")
+            target_groups.append(g)
+
+        allocation = Allocation.get_if_accessible_by(
+            data['allocation_id'],
+            self.current_user,
+            raise_if_none=False,
+        )
+        if allocation is None:
+            raise AttributeError(f"Missing allocation with ID: {data['allocation_id']}")
+
+        instrument = allocation.instrument
+        if instrument.api_classname_obsplan is None:
+            raise AttributeError('Instrument has no remote API.')
+
+        try:
+            formSchema = instrument.api_class_obsplan.custom_json_schema(
+                instrument, self.current_user
+            )
+        except AttributeError:
+            formSchema = instrument.api_class_obsplan.form_json_schema
+
+        payload = data['payload']
+        if "start_date" in payload:
+            return self.error('Cannot have start_date in the payload')
+        else:
+            payload['start_date'] = str(datetime.utcnow())
+
+        if "end_date" in payload:
+            return self.error('Cannot have end_date in the payload')
+        else:
+            payload['end_date'] = str(datetime.utcnow() + timedelta(days=1))
+
+        if "queue_name" in payload:
+            return self.error('Cannot have queue_name in the payload')
+        else:
+            payload['queue_name'] = "ToO_{str(datetime.utcnow()).replace(' ','T')}"
+
+        # validate the payload
+        try:
+            jsonschema.validate(payload, formSchema)
+        except jsonschema.exceptions.ValidationError as e:
+            raise jsonschema.exceptions.ValidationError(
+                f'Payload failed to validate: {e}'
+            )
+
+        default_observation_plan_request = (
+            DefaultObservationPlanRequest.__schema__().load(data)
+        )
+        default_observation_plan_request.target_groups = target_groups
+
+        with DBSession() as session:
+            session.add(default_observation_plan_request)
+            session.commit()
+
+            self.push_all(action="skyportal/REFRESH_DEFAULT_OBSERVATION_PLANS")
+            return self.success(data={"id": default_observation_plan_request.id})
+
+    @auth_or_token
+    def get(self, default_observation_plan_id=None):
+        """
+        ---
+        single:
+          description: Retrieve a single default observation plan
+          tags:
+            - default_observation_plans
+          parameters:
+            - in: path
+              name: default_observation_plan_id
+              required: true
+              schema:
+                type: integer
+          responses:
+            200:
+              content:
+                application/json:
+                  schema: SingleDefaultObservationPlanRequest
+            400:
+              content:
+                application/json:
+                  schema: Error
+        multiple:
+          description: Retrieve all default observation plans
+          tags:
+            - filters
+          responses:
+            200:
+              content:
+                application/json:
+                  schema: ArrayOfDefaultObservationPlanRequests
+            400:
+              content:
+                application/json:
+                  schema: Error
+        """
+
+        if default_observation_plan_id is not None:
+            default_observation_plan_request = (
+                DefaultObservationPlanRequest.get_if_accessible_by(
+                    default_observation_plan_id,
+                    self.current_user,
+                    raise_if_none=True,
+                    options=[joinedload(DefaultObservationPlanRequest.allocation)],
+                )
+            )
+            self.verify_and_commit()
+            return self.success(data=default_observation_plan_request)
+
+        default_observation_plan_requests = (
+            DefaultObservationPlanRequest.get_records_accessible_by(
+                self.current_user,
+                options=[joinedload(DefaultObservationPlanRequest.allocation)],
+            )
+        )
+        self.verify_and_commit()
+        return self.success(data=default_observation_plan_requests)
+
+    @auth_or_token
+    def delete(self, default_observation_plan_id):
+        """
+        ---
+        description: Delete a default observation plan
+        tags:
+          - filters
+        parameters:
+          - in: path
+            name: default_observation_plan_id
+            required: true
+            schema:
+              type: integer
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+        """
+        default_observation_plan_request = (
+            DefaultObservationPlanRequest.get_if_accessible_by(
+                default_observation_plan_id,
+                self.current_user,
+                mode="delete",
+                raise_if_none=False,
+            )
+        )
+        if default_observation_plan_request is None:
+            return self.error(
+                'Default observation plan with ID {default_observation_plan_id} is not available.'
+            )
+
+        with DBSession() as session:
+            session.delete(default_observation_plan_request)
+            session.commit()
+            self.push_all(action="skyportal/REFRESH_DEFAULT_OBSERVATION_PLANS")
+            return self.success()

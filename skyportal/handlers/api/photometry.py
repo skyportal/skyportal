@@ -2,6 +2,7 @@ import uuid
 import datetime
 import json
 from io import StringIO
+import traceback
 
 from astropy.time import Time
 from astropy.table import Table
@@ -33,6 +34,7 @@ from ...models import (
     PHOT_ZP,
     GroupPhotometry,
     StreamPhotometry,
+    PhotStat,
 )
 
 from ...models.schema import (
@@ -104,6 +106,7 @@ def serialize(phot, outsys, format):
         'dec': phot.dec,
         'filter': phot.filter,
         'mjd': phot.mjd,
+        'snr': phot.snr,
         'instrument_id': phot.instrument_id,
         'instrument_name': phot.instrument.name,
         'ra_unc': phot.ra_unc,
@@ -599,7 +602,28 @@ def insert_new_photometry_data(
             ('photometr_id', 'stream_id', 'created_at', 'modified'),
         )
 
-    session.commit()
+    # add a phot stats for each photometry
+    obj_id = phot['obj_id']
+    phot_stat = session.scalars(
+        sa.select(PhotStat).where(PhotStat.obj_id == obj_id)
+    ).first()
+    # if there are a lot of new points, should just
+    # pull up all the photometry and recalculate
+    # instead of adding them one-by-one
+    if phot_stat is None or len(params) > 50:
+        all_phot = session.scalars(
+            sa.select(Photometry).where(Photometry.obj_id == obj_id)
+        ).all()
+        phot_stat = PhotStat(obj_id=obj_id)
+        phot_stat.full_update(all_phot)
+        session.add(phot_stat)
+
+    else:
+        for phot in params:
+            phot_stat.add_photometry_point(phot)
+            session.add(phot_stat)
+
+    session.commit()  # add the updated phot_stats
     return ids, upload_id
 
 
@@ -680,7 +704,8 @@ def add_external_photometry(json, user):
 
     if len(df.index) > MAX_NUMBER_ROWS:
         raise ValueError(
-            f'Maximum number of photometry rows to post exceeded: {len(df.index)} > {MAX_NUMBER_ROWS}. Please break up the data into smaller sets and try again'
+            f'Maximum number of photometry rows to post exceeded: {len(df.index)} > {MAX_NUMBER_ROWS}. '
+            'Please break up the data into smaller sets and try again'
         )
 
     username = user.username
@@ -764,7 +789,8 @@ class PhotometryHandler(BaseHandler):
 
         if len(df.index) > MAX_NUMBER_ROWS:
             return self.error(
-                f'Maximum number of photometry rows to post exceeded: {len(df.index)} > {MAX_NUMBER_ROWS}. Please break up the data into smaller sets and try again'
+                f'Maximum number of photometry rows to post exceeded: {len(df.index)} > {MAX_NUMBER_ROWS}. '
+                'Please break up the data into smaller sets and try again'
             )
 
         username = self.associated_user_object.username
@@ -789,9 +815,9 @@ class PhotometryHandler(BaseHandler):
                     self.associated_user_object,
                     session,
                 )
-            except Exception as e:
+            except Exception:
                 session.rollback()
-                return self.error(e.args[0])
+                return self.error(traceback.format_exc())
 
         log(
             f'Request from {username} with {len(df.index)} rows complete with upload_id {upload_id}'
@@ -939,9 +965,9 @@ class PhotometryHandler(BaseHandler):
                 # release the lock
                 self.verify_and_commit()
 
-            except Exception as e:
+            except Exception:
                 session.rollback()
-                return self.error(e.args[0])
+                return self.error(traceback.format_exc())
 
         # get ids in the correct order
         ids = [id_map[pdidx] for pdidx, _ in df.iterrows()]
@@ -1062,6 +1088,24 @@ class PhotometryHandler(BaseHandler):
                     )
 
         self.verify_and_commit()
+
+        phot_stat = (
+            DBSession()
+            .scalars(sa.select(PhotStat).where(PhotStat.obj_id == photometry.obj_id))
+            .first()
+        )
+        if phot_stat is not None:
+            all_phot = (
+                DBSession()
+                .scalars(
+                    sa.select(Photometry).where(Photometry.obj_id == photometry.obj_id)
+                )
+                .all()
+            )
+            phot_stat.full_update(all_phot)
+
+        DBSession().commit()  # this happens above a user level permission
+
         return self.success()
 
     @permissions(['Upload data'])
@@ -1092,7 +1136,25 @@ class PhotometryHandler(BaseHandler):
         )
 
         DBSession().delete(photometry)
+
         self.verify_and_commit()
+
+        phot_stat = (
+            DBSession()
+            .scalars(sa.select(PhotStat).where(PhotStat.obj_id == photometry.obj_id))
+            .first()
+        )
+        if phot_stat is not None:
+            all_phot = (
+                DBSession()
+                .scalars(
+                    sa.select(Photometry).where(Photometry.obj_id == photometry.obj_id)
+                )
+                .all()
+            )
+            phot_stat.full_update(all_phot)
+
+        DBSession().commit()  # this happens above a user level permission
 
         return self.success()
 
@@ -1229,6 +1291,28 @@ class PhotometryRangeHandler(BaseHandler):
         output = [serialize(p, magsys, format) for p in query]
         self.verify_and_commit()
         return self.success(data=output)
+
+
+class PhotometryOriginHandler(BaseHandler):
+    @auth_or_token
+    def get(self):
+        """
+        ---
+        description: Get all photometry origins
+        tags:
+          - photometry
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        origins = DBSession().query(Photometry.origin).distinct().all()
+        return self.success(data=[origin[0] for origin in origins])
 
 
 PhotometryHandler.get.__doc__ = f"""

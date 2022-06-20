@@ -1,20 +1,24 @@
 import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import Button from "@material-ui/core/Button";
-import Chip from "@material-ui/core/Chip";
+import Button from "@mui/material/Button";
+import Chip from "@mui/material/Chip";
 import PropTypes from "prop-types";
-import Select from "@material-ui/core/Select";
-import InputLabel from "@material-ui/core/InputLabel";
-import MenuItem from "@material-ui/core/MenuItem";
-import Form from "@rjsf/material-ui";
-import CircularProgress from "@material-ui/core/CircularProgress";
-import { makeStyles } from "@material-ui/core/styles";
+import Select from "@mui/material/Select";
+import InputLabel from "@mui/material/InputLabel";
+import MenuItem from "@mui/material/MenuItem";
+// eslint-disable-next-line import/no-unresolved
+import Form from "@rjsf/material-ui/v5";
+import CircularProgress from "@mui/material/CircularProgress";
+import makeStyles from "@mui/styles/makeStyles";
 import { showNotification } from "baselayer/components/Notifications";
+import GeoPropTypes from "geojson-prop-types";
 
 import * as gcnEventActions from "../ducks/gcnEvent";
 import * as allocationActions from "../ducks/allocations";
-import * as instrumentActions from "../ducks/instruments";
+import * as instrumentsActions from "../ducks/instruments";
+import * as instrumentActions from "../ducks/instrument";
 import GroupShareSelect from "./GroupShareSelect";
+import LocalizationPlot from "./LocalizationPlot";
 
 import "react-datepicker/dist/react-datepicker-cssmodules.css";
 
@@ -35,10 +39,10 @@ const useStyles = makeStyles(() => ({
   localizationSelect: {
     width: "100%",
   },
-  allocationSelectItem: {
-    whiteSpace: "break-spaces",
+  fieldsToUseSelect: {
+    width: "80%",
   },
-  localizationSelectItem: {
+  SelectItem: {
     whiteSpace: "break-spaces",
   },
   container: {
@@ -46,6 +50,185 @@ const useStyles = makeStyles(() => ({
     marginBottom: "1rem",
   },
 }));
+
+const FieldSelect = ({
+  skymapInstrument,
+  selectedFields,
+  setSelectedFields,
+}) => {
+  const classes = useStyles();
+
+  const handleSelectedFieldChange = (e) => {
+    setSelectedFields(e.target.value);
+  };
+
+  const clearSelectedFields = () => {
+    setSelectedFields([]);
+  };
+
+  const fields = [];
+  skymapInstrument?.fields?.forEach((field) => {
+    fields.push(Number(field.id));
+  });
+  fields.sort((a, b) => a - b);
+
+  return (
+    <div>
+      <InputLabel id="fieldsToUseSelectLabel">Fields to use</InputLabel>
+      <Select
+        inputProps={{ MenuProps: { disableScrollLock: true } }}
+        labelId="fieldsToSelectLabel"
+        name="fieldsToUseSelect"
+        className={classes.fieldsToUseSelect}
+        multiple
+        value={selectedFields || []}
+        onChange={handleSelectedFieldChange}
+      >
+        {fields?.map((field) => (
+          <MenuItem value={field} key={field} className={classes.SelectItem}>
+            {field}
+          </MenuItem>
+        ))}
+      </Select>
+      <Button
+        id="clear-fieldsToUseSelect"
+        size="small"
+        color="secondary"
+        onClick={() => clearSelectedFields()}
+      >
+        Clear Fields
+      </Button>
+    </div>
+  );
+};
+
+FieldSelect.propTypes = {
+  skymapInstrument: PropTypes.shape({
+    id: PropTypes.number,
+    name: PropTypes.string,
+    type: PropTypes.string,
+    band: PropTypes.string,
+    fields: PropTypes.arrayOf(
+      PropTypes.shape({
+        ra: PropTypes.number,
+        dec: PropTypes.number,
+        id: PropTypes.number,
+        contour: PropTypes.oneOfType([
+          GeoPropTypes.FeatureCollection,
+          PropTypes.shape({
+            type: PropTypes.string,
+            features: PropTypes.array, // eslint-disable-line react/forbid-prop-types
+          }),
+        ]),
+        contour_summary: PropTypes.oneOfType([
+          GeoPropTypes.FeatureCollection,
+          PropTypes.shape({
+            type: PropTypes.string,
+            features: PropTypes.array, // eslint-disable-line react/forbid-prop-types
+          }),
+        ]),
+      })
+    ),
+  }),
+  selectedFields: PropTypes.arrayOf(PropTypes.number).isRequired,
+  setSelectedFields: PropTypes.func.isRequired,
+};
+
+FieldSelect.defaultProps = {
+  skymapInstrument: null,
+};
+
+const ObservationPlanGlobe = ({
+  loc,
+  skymapInstrument,
+  selectedFields,
+  setSelectedFields,
+}) => {
+  const [rotation, setRotation] = useState([0, 0]);
+
+  const displayOptions = [
+    "localization",
+    "sources",
+    "galaxies",
+    "instrument",
+    "observations",
+  ];
+  const displayOptionsDefault = Object.fromEntries(
+    displayOptions.map((x) => [x, false])
+  );
+  displayOptionsDefault.localization = true;
+  displayOptionsDefault.instrument = true;
+
+  return (
+    <div>
+      <div>
+        {!loc ? (
+          <div>
+            <CircularProgress />
+          </div>
+        ) : (
+          <div>
+            <LocalizationPlot
+              loc={loc}
+              instrument={skymapInstrument}
+              options={displayOptionsDefault}
+              rotation={rotation}
+              setRotation={setRotation}
+              selectedFields={selectedFields}
+              setSelectedFields={setSelectedFields}
+            />
+          </div>
+        )}
+      </div>
+      <FieldSelect
+        selectedFields={selectedFields}
+        setSelectedFields={setSelectedFields}
+        skymapInstrument={skymapInstrument}
+      />
+    </div>
+  );
+};
+
+ObservationPlanGlobe.propTypes = {
+  loc: PropTypes.shape({
+    id: PropTypes.number,
+    dateobs: PropTypes.string,
+    localization_name: PropTypes.string,
+  }).isRequired,
+  skymapInstrument: PropTypes.shape({
+    id: PropTypes.number,
+    name: PropTypes.string,
+    type: PropTypes.string,
+    band: PropTypes.string,
+    fields: PropTypes.arrayOf(
+      PropTypes.shape({
+        ra: PropTypes.number,
+        dec: PropTypes.number,
+        id: PropTypes.number,
+        contour: PropTypes.oneOfType([
+          GeoPropTypes.FeatureCollection,
+          PropTypes.shape({
+            type: PropTypes.string,
+            features: PropTypes.array, // eslint-disable-line react/forbid-prop-types
+          }),
+        ]),
+        contour_summary: PropTypes.oneOfType([
+          GeoPropTypes.FeatureCollection,
+          PropTypes.shape({
+            type: PropTypes.string,
+            features: PropTypes.array, // eslint-disable-line react/forbid-prop-types
+          }),
+        ]),
+      })
+    ),
+  }),
+  selectedFields: PropTypes.arrayOf(PropTypes.number).isRequired,
+  setSelectedFields: PropTypes.func.isRequired,
+};
+
+ObservationPlanGlobe.defaultProps = {
+  skymapInstrument: null,
+};
 
 const ObservationPlanRequestForm = ({ gcnevent }) => {
   const classes = useStyles();
@@ -60,10 +243,56 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
   const [selectedLocalizationId, setSelectedLocalizationId] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [planQueues, setPlanQueues] = useState([]);
+  const [skymapInstrument, setSkymapInstrument] = useState(null);
+  const [selectedFields, setSelectedFields] = useState([]);
 
   const { instrumentList, instrumentFormParams } = useSelector(
     (state) => state.instruments
   );
+
+  const groupLookUp = {};
+  // eslint-disable-next-line no-unused-expressions
+  allGroups?.forEach((group) => {
+    groupLookUp[group.id] = group;
+  });
+
+  const telLookUp = {};
+  // eslint-disable-next-line no-unused-expressions
+  telescopeList?.forEach((tel) => {
+    telLookUp[tel.id] = tel;
+  });
+
+  const allocationLookUp = {};
+  // eslint-disable-next-line no-unused-expressions
+  allocationList?.forEach((allocation) => {
+    allocationLookUp[allocation.id] = allocation;
+  });
+
+  const instLookUp = {};
+  // eslint-disable-next-line no-unused-expressions
+  instrumentList?.forEach((instrumentObj) => {
+    instLookUp[instrumentObj.id] = instrumentObj;
+  });
+
+  const loc = gcnevent?.localizations[0];
+
+  useEffect(() => {
+    const fetchSkymapInstrument = async () => {
+      const response = await dispatch(
+        instrumentActions.fetchInstrumentSkymap(
+          instLookUp[allocationLookUp[selectedAllocationId]?.instrument_id]?.id,
+          loc
+        )
+      );
+      setSkymapInstrument(response.data);
+    };
+    if (
+      instLookUp[allocationLookUp[selectedAllocationId]?.instrument_id]?.id &&
+      gcnevent
+    ) {
+      fetchSkymapInstrument();
+    }
+  }, [dispatch, setSkymapInstrument, loc, selectedAllocationId]);
 
   useEffect(() => {
     const getAllocations = async () => {
@@ -86,7 +315,7 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
     getAllocations();
 
     dispatch(
-      instrumentActions.fetchInstrumentForms({
+      instrumentsActions.fetchInstrumentForms({
         apiType: "api_classname_obsplan",
       })
     );
@@ -131,30 +360,6 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
     );
   }
 
-  const groupLookUp = {};
-  // eslint-disable-next-line no-unused-expressions
-  allGroups?.forEach((group) => {
-    groupLookUp[group.id] = group;
-  });
-
-  const telLookUp = {};
-  // eslint-disable-next-line no-unused-expressions
-  telescopeList?.forEach((tel) => {
-    telLookUp[tel.id] = tel;
-  });
-
-  const allocationLookUp = {};
-  // eslint-disable-next-line no-unused-expressions
-  allocationList?.forEach((allocation) => {
-    allocationLookUp[allocation.id] = allocation;
-  });
-
-  const instLookUp = {};
-  // eslint-disable-next-line no-unused-expressions
-  instrumentList?.forEach((instrumentObj) => {
-    instLookUp[instrumentObj.id] = instrumentObj;
-  });
-
   const handleSelectedAllocationChange = (e) => {
     setSelectedAllocationId(e.target.value);
   };
@@ -164,6 +369,9 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
   };
 
   const handleQueueSubmit = async ({ formData }) => {
+    if (selectedFields.length > 0) {
+      formData.field_ids = selectedFields;
+    }
     const json = {
       gcnevent_id: gcnevent.id,
       allocation_id: selectedAllocationId,
@@ -202,6 +410,14 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
 
   return (
     <div className={classes.container}>
+      <div>
+        <ObservationPlanGlobe
+          loc={gcnevent.localizations[0]}
+          skymapInstrument={skymapInstrument}
+          selectedFields={selectedFields}
+          setSelectedFields={setSelectedFields}
+        />
+      </div>
       <InputLabel id="allocationSelectLabel">Allocation</InputLabel>
       <Select
         inputProps={{ MenuProps: { disableScrollLock: true } }}
@@ -215,7 +431,7 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
           <MenuItem
             value={allocation.id}
             key={allocation.id}
-            className={classes.allocationSelectItem}
+            className={classes.SelectItem}
           >
             {`${
               telLookUp[instLookUp[allocation.instrument_id].telescope_id].name
@@ -238,7 +454,7 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
           <MenuItem
             value={localization.id}
             key={localization.id}
-            className={classes.localizationSelectItem}
+            className={classes.SelectItem}
           >
             {`${localization.localization_name}`}
           </MenuItem>
@@ -254,14 +470,18 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
         <div>
           <Form
             schema={
-              instrumentFormParams[
-                allocationLookUp[selectedAllocationId].instrument_id
-              ].formSchema
+              instrumentFormParams
+                ? instrumentFormParams[
+                    allocationLookUp[selectedAllocationId].instrument_id
+                  ]?.formSchema
+                : {}
             }
             uiSchema={
-              instrumentFormParams[
-                allocationLookUp[selectedAllocationId].instrument_id
-              ].uiSchema
+              instrumentFormParams
+                ? instrumentFormParams[
+                    allocationLookUp[selectedAllocationId].instrument_id
+                  ]?.uiSchema
+                : {}
             }
             liveValidate
             validate={validate}

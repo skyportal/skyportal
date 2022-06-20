@@ -1,11 +1,12 @@
 import React, { useState } from "react";
 import { useDispatch } from "react-redux";
 import PropTypes from "prop-types";
-import Dialog from "@material-ui/core/Dialog";
-import DialogContent from "@material-ui/core/DialogContent";
-import Button from "@material-ui/core/Button";
-import { makeStyles } from "@material-ui/core/styles";
-import Form from "@rjsf/material-ui";
+import Dialog from "@mui/material/Dialog";
+import DialogContent from "@mui/material/DialogContent";
+import Button from "@mui/material/Button";
+import makeStyles from "@mui/styles/makeStyles";
+// eslint-disable-next-line import/no-unresolved
+import Form from "@rjsf/material-ui/v5";
 import * as Actions from "../ducks/source";
 
 const useStyles = makeStyles(() => ({
@@ -42,9 +43,8 @@ const EditFollowupRequestDialog = ({
 
   // Since we are editing exsiting follow-up requests,
   // it makes more sense to set default form values to current request data
-  const { formSchema } = instrumentFormParams[
-    followupRequest.allocation.instrument.id
-  ];
+  const { formSchema } =
+    instrumentFormParams[followupRequest.allocation.instrument.id];
   Object.keys(formSchema.properties).forEach((key) => {
     // Set the form value for "key" to the value in the existing request's
     // payload, which is the form data sent to the external follow-up API
@@ -112,12 +112,12 @@ EditFollowupRequestDialog.propTypes = {
     status: PropTypes.string,
     obj_id: PropTypes.string,
     id: PropTypes.number,
-    payload: PropTypes.objectOf(PropTypes.any),
+    payload: PropTypes.objectOf(PropTypes.any), // eslint-disable-line react/forbid-prop-types
   }).isRequired,
   instrumentFormParams: PropTypes.shape({
-    formSchema: PropTypes.objectOf(PropTypes.any),
-    uiSchema: PropTypes.objectOf(PropTypes.any),
-    implementedMethods: PropTypes.objectOf(PropTypes.any),
+    formSchema: PropTypes.objectOf(PropTypes.any), // eslint-disable-line react/forbid-prop-types
+    uiSchema: PropTypes.objectOf(PropTypes.any), // eslint-disable-line react/forbid-prop-types
+    implementedMethods: PropTypes.objectOf(PropTypes.any), // eslint-disable-line react/forbid-prop-types
   }).isRequired,
 };
 

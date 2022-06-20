@@ -74,6 +74,29 @@ LISTENER_CLASSNAMES = [
 
 LISTENER_CLASSES = [getattr(facility_apis, c) for c in LISTENER_CLASSNAMES]
 
+ANALYSIS_TYPES = ('lightcurve_fitting', 'spectrum_fitting', 'meta_analysis')
+ANALYSIS_INPUT_TYPES = ('photometry', 'spectra', 'redshift', 'annotations', 'comments')
+AUTHENTICATION_TYPES = (
+    'none',
+    'header_token',
+    'api_key',
+    'HTTPBasicAuth',
+    'HTTPDigestAuth',
+    'OAuth1',
+)
+
+allowed_analysis_types = sa.Enum(
+    *ANALYSIS_TYPES, name='analysistypes', validate_strings=True
+)
+
+allowed_analysis_input_types = sa.Enum(
+    *ANALYSIS_INPUT_TYPES, name='analysisinputtypes', validate_strings=True
+)
+
+allowed_external_authentication_types = sa.Enum(
+    *AUTHENTICATION_TYPES, name='authenticationtypes', validate_strings=True
+)
+
 allowed_spectrum_types = sa.Enum(
     *ALLOWED_SPECTRUM_TYPES, name='spectrumtypes', validate_strings=True
 )
@@ -121,6 +144,12 @@ py_allowed_magsystems = Enum('magsystems', ALLOWED_MAGSYSTEMS)
 py_allowed_bandpasses = Enum('bandpasses', ALLOWED_BANDPASSES)
 py_thumbnail_types = Enum('thumbnail_types', THUMBNAIL_TYPES)
 py_followup_priorities = Enum('priority', FOLLOWUP_PRIORITIES)
+py_allowed_analysis_types = Enum('analysistypes', ANALYSIS_TYPES)
+py_allowed_analysis_input_types = Enum('analysisinputtypes', ANALYSIS_INPUT_TYPES)
+py_allowed_external_authentication_types = Enum(
+    'authenticationtypes', AUTHENTICATION_TYPES
+)
+
 
 sqla_enum_types = [
     allowed_spectrum_types,
@@ -130,4 +159,7 @@ sqla_enum_types = [
     followup_priorities,
     api_classnames,
     listener_classnames,
+    allowed_analysis_types,
+    allowed_analysis_input_types,
+    allowed_external_authentication_types,
 ]

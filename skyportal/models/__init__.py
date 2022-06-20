@@ -3,6 +3,7 @@ from baselayer.app.models import *
 
 # SkyPortal models
 from .allocation import *
+from .analysis import *
 from .annotation import *
 from .assignment import *
 from .candidate import *
@@ -24,6 +25,7 @@ from .observation import *
 from .observation_plan import *
 from .observing_run import *
 from .photometry import *
+from .phot_stat import *
 from .shift import *
 from .source import *
 from .source_view import *

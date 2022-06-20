@@ -147,7 +147,7 @@ class InstrumentHandler(BaseHandler):
         return self.success(data={"id": instrument.id})
 
     @auth_or_token
-    def get(self, instrument_id=None):
+    async def get(self, instrument_id=None):
         """
         ---
         single:
@@ -915,10 +915,10 @@ def add_tiles(instrument_id, instrument_name, regions, field_data, session=Sessi
                         },
                     ],
                 }
+                if field_id == -1:
+                    del contour_summary['properties']['field_id']
             else:
                 contour_summary = contour
-            if field_id == -1:
-                del contour_summary['properties']['field_id']
 
             if field_id == -1:
                 field = InstrumentField(

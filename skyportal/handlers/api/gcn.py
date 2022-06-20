@@ -170,7 +170,7 @@ class GcnEventHandler(BaseHandler):
         return self.success(data={'gcnevent_id': event_id})
 
     @auth_or_token
-    def get(self, dateobs=None):
+    async def get(self, dateobs=None):
         """
         ---
         description: Retrieve GCN events
@@ -186,6 +186,19 @@ class GcnEventHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+
+        page_number = self.get_query_argument("pageNumber", 1)
+        try:
+            page_number = int(page_number)
+        except ValueError as e:
+            return self.error(f'pageNumber fails: {e}')
+
+        n_per_page = self.get_query_argument("numPerPage", 100)
+        try:
+            n_per_page = int(n_per_page)
+        except ValueError as e:
+            return self.error(f'numPerPage fails: {e}')
+
         if dateobs is not None:
             event = (
                 GcnEvent.query_records_accessible_by(
@@ -216,7 +229,7 @@ class GcnEventHandler(BaseHandler):
 
             data = {
                 **event.to_dict(),
-                "tags": event.tags,
+                "tags": list(set(event.tags)),
                 "lightcurve": event.lightcurve,
                 "comments": sorted(
                     (
@@ -257,7 +270,7 @@ class GcnEventHandler(BaseHandler):
             data['observationplan_requests'] = request_data
             return self.success(data=data)
 
-        q = GcnEvent.query_records_accessible_by(
+        query = GcnEvent.query_records_accessible_by(
             self.current_user,
             options=[
                 joinedload(GcnEvent.localizations),
@@ -266,11 +279,21 @@ class GcnEventHandler(BaseHandler):
             ],
         )
 
-        events = []
-        for event in q.all():
-            events.append({**event.to_dict(), "tags": event.tags})
+        total_matches = query.count()
+        if n_per_page is not None:
+            query = (
+                query.distinct()
+                .limit(n_per_page)
+                .offset((page_number - 1) * n_per_page)
+            )
 
-        return self.success(data=events)
+        events = []
+        for event in query.all():
+            events.append({**event.to_dict(), "tags": list(set(event.tags))})
+
+        query_results = {"events": events, "totalMatches": int(total_matches)}
+
+        return self.success(data=query_results)
 
     @auth_or_token
     def delete(self, dateobs):

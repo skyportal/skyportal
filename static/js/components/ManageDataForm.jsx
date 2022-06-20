@@ -3,23 +3,24 @@ import PropTypes from "prop-types";
 import { Link } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
 import MUIDataTable from "mui-datatables";
-import { makeStyles, useTheme } from "@material-ui/core/styles";
-import Typography from "@material-ui/core/Typography";
+import { useTheme } from "@mui/material/styles";
+import makeStyles from "@mui/styles/makeStyles";
+import Typography from "@mui/material/Typography";
 import { useForm, Controller } from "react-hook-form";
-import Autocomplete from "@material-ui/lab/Autocomplete";
-import Button from "@material-ui/core/Button";
-import TextField from "@material-ui/core/TextField";
-import IconButton from "@material-ui/core/IconButton";
-import DeleteForeverIcon from "@material-ui/icons/DeleteForever";
-import GetAppIcon from "@material-ui/icons/GetApp";
-import Dialog from "@material-ui/core/Dialog";
-import Grid from "@material-ui/core/Grid";
-import DialogContent from "@material-ui/core/DialogContent";
-import TableRow from "@material-ui/core/TableRow";
-import TableCell from "@material-ui/core/TableCell";
+import Autocomplete from "@mui/material/Autocomplete";
+import Button from "@mui/material/Button";
+import TextField from "@mui/material/TextField";
+import IconButton from "@mui/material/IconButton";
+import DeleteForeverIcon from "@mui/icons-material/DeleteForever";
+import GetAppIcon from "@mui/icons-material/GetApp";
+import Dialog from "@mui/material/Dialog";
+import Grid from "@mui/material/Grid";
+import DialogContent from "@mui/material/DialogContent";
+import TableRow from "@mui/material/TableRow";
+import TableCell from "@mui/material/TableCell";
 import Papa from "papaparse";
 import ReactJson from "react-json-view";
-import CircularProgress from "@material-ui/core/CircularProgress";
+import CircularProgress from "@mui/material/CircularProgress";
 
 import { showNotification } from "baselayer/components/Notifications";
 
@@ -223,7 +224,7 @@ SpectrumRow.propTypes = {
 const ManageDataForm = ({ route }) => {
   const classes = useStyles();
   const theme = useTheme();
-  const darkTheme = theme.palette.type === "dark";
+  const darkTheme = theme.palette.mode === "dark";
 
   const dispatch = useDispatch();
   const [selectedPhotRows, setSelectedPhotRows] = useState([]);
@@ -417,6 +418,7 @@ const ManageDataForm = ({ route }) => {
             setOpen(true);
           }}
           data-testid={`delete-spectrum-button-${specid}`}
+          size="large"
         >
           <DeleteForeverIcon />
         </IconButton>
@@ -438,7 +440,11 @@ const ManageDataForm = ({ route }) => {
     const blob = new Blob([data], { type: "text/plain" });
 
     return (
-      <IconButton href={URL.createObjectURL(blob)} download={filename}>
+      <IconButton
+        href={URL.createObjectURL(blob)}
+        download={filename}
+        size="large"
+      >
         <GetAppIcon />
       </IconButton>
     );
