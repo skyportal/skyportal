@@ -1,7 +1,7 @@
 """add objanalysis and webhook mixin
 
 Revision ID: 5dc838e75a63
-Revises: a936f994d65c
+Revises: a75237f48f29
 Create Date: 2022-06-15 15:41:44.351732
 
 """
@@ -12,7 +12,7 @@ import sqlalchemy_utils
 
 # revision identifiers, used by Alembic.
 revision = '5dc838e75a63'
-down_revision = 'a936f994d65c'
+down_revision = 'a75237f48f29'
 branch_labels = None
 depends_on = None
 
