@@ -3,11 +3,12 @@ import sqlalchemy as sa
 import io
 import matplotlib
 import matplotlib.pyplot as plt
+import numpy as np
 
 from baselayer.app.access import auth_or_token, permissions
 
 from ..base import BaseHandler
-from ...models import DBSession, Group, Allocation, Instrument
+from ...models import DBSession, FollowupRequest, Group, Allocation, Instrument
 
 
 class AllocationHandler(BaseHandler):
@@ -282,7 +283,10 @@ class AllocationAnalysisHandler(BaseHandler):
         def make_autopct_hours(values):
             def my_autopct(pct):
                 total = sum(values)
-                val = int(round(pct * total / 100.0))
+                if np.isnan(pct):
+                    val = 0
+                else:
+                    val = int(round(pct * total / 100.0))
                 return f'{pct:.0f}%  ({val:d} Hours)'
 
             return my_autopct
@@ -290,13 +294,27 @@ class AllocationAnalysisHandler(BaseHandler):
         def make_autopct_requests(values):
             def my_autopct(pct):
                 total = sum(values)
-                val = int(round(pct * total / 100.0))
+                if np.isnan(pct):
+                    val = 0
+                else:
+                    val = int(round(pct * total / 100.0))
                 return f'{pct:.0f}%  ({val:d} Requests)'
 
             return my_autopct
 
+        def make_autopct_observations(values):
+            def my_autopct(pct):
+                total = sum(values)
+                if np.isnan(pct):
+                    val = 0
+                else:
+                    val = int(round(pct * total / 100.0))
+                return f'{pct:.0f}%  ({val:d} Observations)'
+
+            return my_autopct
+
         matplotlib.use("Agg")
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 6))
+        fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(12, 6))
         ax1.pie(
             values,
             labels=labels,
@@ -317,6 +335,25 @@ class AllocationAnalysisHandler(BaseHandler):
         )
         ax2.axis('equal')
         ax2.set_title('Requests Made')
+
+        values = []
+        for a in allocations:
+            followup_requests = (
+                FollowupRequest.query_records_accessible_by(self.current_user)
+                .where(FollowupRequest.allocation_id == a.id)
+                .where(FollowupRequest.status.contains('Complete'))
+            )
+            values.append(len(followup_requests.all()))
+
+        ax3.pie(
+            values,
+            labels=labels,
+            shadow=True,
+            startangle=90,
+            autopct=make_autopct_observations(values),
+        )
+        ax3.axis('equal')
+        ax3.set_title('Requests Completed')
 
         buf = io.BytesIO()
         fig.savefig(buf, format=output_format)
