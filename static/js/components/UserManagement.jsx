@@ -297,16 +297,14 @@ const UserManagement = () => {
   };
 
   const handleClickDeleteUserAffiliations = async (user, affiliation) => {
-    console.log(affiliation);
     const data = {
       affiliations: user.affiliations.filter((value) => value !== affiliation),
     };
-    console.log(data);
     const result = await dispatch(
       ProfileActions.updateBasicUserInfo(data, user.id)
     );
     if (result.status === "success") {
-      dispatch(showNotification("Successfully delete user's affiliation."));
+      dispatch(showNotification("Successfully deleted user's affiliation."));
       dispatch(usersActions.fetchUsers(fetchParams));
     }
   };
@@ -470,7 +468,7 @@ const UserManagement = () => {
               handleClickDeleteUserAffiliations(user, affiliation);
             }}
             key={affiliation}
-            data-testid={`deleteUserAffiliationButton_${user.id}_${affiliation}`}
+            data-testid={`deleteUserAffiliationsButton_${user.id}_${affiliation}`}
           />
         ))}
       </div>

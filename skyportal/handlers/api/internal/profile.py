@@ -100,7 +100,7 @@ class ProfileHandler(BaseHandler):
         return self.success(data=user_info)
 
     @auth_or_token
-    def patch(self):
+    def patch(self, user_id=None):
         """
         ---
         description: Update user preferences
@@ -148,9 +148,12 @@ class ProfileHandler(BaseHandler):
                 schema: Error
         """
         data = self.get_json()
-        user = User.get_if_accessible_by(
-            self.associated_user_object.id, self.current_user, mode="update"
-        )
+        if user_id is None:
+            user = User.get_if_accessible_by(
+                self.associated_user_object.id, self.current_user, mode="update"
+            )
+        else:
+            user = User.get_if_accessible_by(user_id, self.current_user, mode="update")
 
         if data.get("username") is not None:
             username = data.pop("username").strip()
