@@ -55,7 +55,13 @@ testing: true
 services:
   paths:
     - ./baselayer/services
-    - ./skyportal/services/test_server
+    - ./skyportal/services
+  disabled:
+    - external_logging
+    - cron
+    - gcnserver
+    - slack
+    - dask
 
 test_server:
   port: 64502
