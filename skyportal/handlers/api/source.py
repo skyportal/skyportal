@@ -1159,7 +1159,9 @@ class SourceHandler(BaseHandler):
         source_query = Source.query_records_accessible_by(self.current_user)
 
         if sourceID:
-            obj_query = obj_query.filter(Obj.id.contains(sourceID.strip()))
+            obj_query = obj_query.filter(
+                func.lower(Obj.id).contains(func.lower(sourceID.strip()))
+            )
         if any([ra, dec, radius]):
             if not all([ra, dec, radius]):
                 return self.error(
