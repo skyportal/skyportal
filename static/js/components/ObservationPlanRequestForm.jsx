@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import Button from "@mui/material/Button";
+import Checkbox from "@mui/material/Checkbox";
 import Chip from "@mui/material/Chip";
+import FormControlLabel from "@mui/material/FormControlLabel";
 import PropTypes from "prop-types";
 import Select from "@mui/material/Select";
 import InputLabel from "@mui/material/InputLabel";
@@ -245,6 +247,7 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
   const [planQueues, setPlanQueues] = useState([]);
   const [skymapInstrument, setSkymapInstrument] = useState(null);
   const [selectedFields, setSelectedFields] = useState([]);
+  const [multiPlansChecked, setMultiPlansChecked] = useState(false);
 
   const { instrumentList, instrumentFormParams } = useSelector(
     (state) => state.instruments
@@ -389,6 +392,7 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
     } else {
       const json = {
         observation_plans: planQueues,
+        combine_plans: multiPlansChecked,
       };
       await dispatch(gcnEventActions.submitObservationPlanRequest(json));
       setPlanQueues([]);
@@ -407,6 +411,8 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
 
     return errors;
   };
+
+  console.log("multiPlansChecked", multiPlansChecked);
 
   return (
     <div className={classes.container}>
@@ -518,15 +524,29 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
       </div>
       <div>
         {planQueues.length !== 0 && (
-          <Button
-            size="small"
-            color="primary"
-            type="submit"
-            variant="outlined"
-            onClick={handleSubmit}
-          >
-            Generate Observation Plans
-          </Button>
+          <>
+            <Button
+              size="small"
+              color="primary"
+              type="submit"
+              variant="outlined"
+              onClick={handleSubmit}
+            >
+              Generate Observation Plans
+            </Button>
+            <FormControlLabel
+              label="Combine plans"
+              control={
+                <Checkbox
+                  onChange={(event) =>
+                    setMultiPlansChecked(event.target.checked)
+                  }
+                  checked={multiPlansChecked}
+                  data-testid="combinedPlansCheckBox"
+                />
+              }
+            />
+          </>
         )}
         {isSubmitting && (
           <div className={classes.marginTop}>

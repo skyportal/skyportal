@@ -88,6 +88,7 @@ export function deleteCommentOnGcnEvent(gcnEventID, commentID) {
 
 export const submitObservationPlanRequest = (params) => {
   const { instrument_name, ...paramsToSubmit } = params;
+  console.log("paramsToSubmit", paramsToSubmit);
   return API.POST(
     "/api/observation_plan",
     SUBMIT_OBSERVATION_PLAN_REQUEST,
