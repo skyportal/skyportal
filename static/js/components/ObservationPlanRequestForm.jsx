@@ -58,6 +58,10 @@ const useStyles = makeStyles(() => ({
   container: {
     width: "99%",
     marginBottom: "1rem",
+    "& > *": {
+      marginTop: "1rem",
+      marginBottom: "1rem",
+    },
   },
 }));
 
@@ -87,39 +91,35 @@ const FieldSelect = ({
   };
 
   return (
-    <div>
+    <div style={{ display: "flex", flexDirection: "column" }}>
       <InputLabel id="fieldsToUseSelectLabel">Fields to use</InputLabel>
-      <Select
-        inputProps={{ MenuProps: { disableScrollLock: true } }}
-        labelId="fieldsToSelectLabel"
-        name="fieldsToUseSelect"
-        className={classes.fieldsToUseSelect}
-        multiple
-        value={selectedFields || []}
-        onChange={handleSelectedFieldChange}
-      >
-        {fields?.map((field) => (
-          <MenuItem value={field} key={field} className={classes.SelectItem}>
-            {field}
-          </MenuItem>
-        ))}
-      </Select>
-      <Button
-        id="clear-fieldsToUseSelect"
-        size="small"
-        color="secondary"
-        onClick={() => clearSelectedFields()}
-      >
-        Clear all
-      </Button>
-      <Button
-        id="all-fieldsToUseSelect"
-        size="small"
-        color="secondary"
-        onClick={() => selectAllFields()}
-      >
-        Select all
-      </Button>
+      <div style={{ display: "flex", flexDirection: "row" }}>
+        <Select
+          inputProps={{ MenuProps: { disableScrollLock: true } }}
+          labelId="fieldsToSelectLabel"
+          name="fieldsToUseSelect"
+          className={classes.fieldsToUseSelect}
+          multiple
+          value={selectedFields || []}
+          onChange={handleSelectedFieldChange}
+        >
+          {fields?.map((field) => (
+            <MenuItem value={field} key={field} className={classes.SelectItem}>
+              {field}
+            </MenuItem>
+          ))}
+        </Select>
+        <Button
+          id="clear-fieldsToUseSelect"
+          onClick={() => clearSelectedFields()}
+          style={{ marginLeft: "1rem" }}
+        >
+          Clear all
+        </Button>
+        <Button id="all-fieldsToUseSelect" onClick={() => selectAllFields()}>
+          Select all
+        </Button>
+      </div>
     </div>
   );
 };
@@ -460,72 +460,77 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
           setSelectedFields={setSelectedFields}
         />
       </div>
-      <div>
+      <div style={{ display: "flex", flexDirection: "column" }}>
         <InputLabel id="airmassTimeSelectLabel">Airmass Time</InputLabel>
-        <LocalizationProvider dateAdapter={AdapterDateFns}>
-          <DateTimePicker
-            value={temporaryAirmassTime}
-            onChange={(newValue) => handleChange(newValue)}
-            label="Time to compute airmass (UTC)"
-            showTodayButton={false}
-            renderInput={(params) => (
-              /* eslint-disable-next-line react/jsx-props-no-spreading */
-              <TextField id="airmassTimePicker" {...params} />
-            )}
-          />
-        </LocalizationProvider>
-        <Button
-          id="setAirmassSelect"
-          size="small"
-          color="secondary"
-          onClick={() => setAirmass()}
-        >
-          Update airmass calculation
-        </Button>
+        <div style={{ display: "flex", flexDirection: "row" }}>
+          <LocalizationProvider dateAdapter={AdapterDateFns}>
+            <DateTimePicker
+              value={temporaryAirmassTime}
+              onChange={(newValue) => handleChange(newValue)}
+              label="Time to compute airmass (UTC)"
+              showTodayButton={false}
+              renderInput={(params) => (
+                /* eslint-disable-next-line react/jsx-props-no-spreading */
+                <TextField id="airmassTimePicker" {...params} />
+              )}
+            />
+          </LocalizationProvider>
+          <Button
+            id="setAirmassSelect"
+            onClick={() => setAirmass()}
+            style={{ marginLeft: "1rem" }}
+          >
+            Update airmass calculation
+          </Button>
+        </div>
       </div>
-      <InputLabel id="allocationSelectLabel">Allocation</InputLabel>
-      <Select
-        inputProps={{ MenuProps: { disableScrollLock: true } }}
-        labelId="allocationSelectLabel"
-        value={selectedAllocationId}
-        onChange={handleSelectedAllocationChange}
-        name="followupRequestAllocationSelect"
-        className={classes.allocationSelect}
-      >
-        {allocationList?.map((allocation) => (
-          <MenuItem
-            value={allocation.id}
-            key={allocation.id}
-            className={classes.SelectItem}
-          >
-            {`${
-              telLookUp[instLookUp[allocation.instrument_id].telescope_id].name
-            } / ${instLookUp[allocation.instrument_id].name} - ${
-              groupLookUp[allocation.group_id].name
-            } (PI ${allocation.pi})`}
-          </MenuItem>
-        ))}
-      </Select>
-      <InputLabel id="allocationSelectLabel">Localization</InputLabel>
-      <Select
-        inputProps={{ MenuProps: { disableScrollLock: true } }}
-        labelId="localizationSelectLabel"
-        value={selectedLocalizationId || ""}
-        onChange={handleSelectedLocalizationChange}
-        name="observationPlanRequestLocalizationSelect"
-        className={classes.localizationSelect}
-      >
-        {gcnevent.localizations?.map((localization) => (
-          <MenuItem
-            value={localization.id}
-            key={localization.id}
-            className={classes.SelectItem}
-          >
-            {`${localization.localization_name}`}
-          </MenuItem>
-        ))}
-      </Select>
-      <br />
+      <div>
+        <InputLabel id="allocationSelectLabel">Allocation</InputLabel>
+        <Select
+          inputProps={{ MenuProps: { disableScrollLock: true } }}
+          labelId="allocationSelectLabel"
+          value={selectedAllocationId}
+          onChange={handleSelectedAllocationChange}
+          name="followupRequestAllocationSelect"
+          className={classes.allocationSelect}
+        >
+          {allocationList?.map((allocation) => (
+            <MenuItem
+              value={allocation.id}
+              key={allocation.id}
+              className={classes.SelectItem}
+            >
+              {`${
+                telLookUp[instLookUp[allocation.instrument_id].telescope_id]
+                  .name
+              } / ${instLookUp[allocation.instrument_id].name} - ${
+                groupLookUp[allocation.group_id].name
+              } (PI ${allocation.pi})`}
+            </MenuItem>
+          ))}
+        </Select>
+      </div>
+      <div>
+        <InputLabel id="allocationSelectLabel">Localization</InputLabel>
+        <Select
+          inputProps={{ MenuProps: { disableScrollLock: true } }}
+          labelId="localizationSelectLabel"
+          value={selectedLocalizationId || ""}
+          onChange={handleSelectedLocalizationChange}
+          name="observationPlanRequestLocalizationSelect"
+          className={classes.localizationSelect}
+        >
+          {gcnevent.localizations?.map((localization) => (
+            <MenuItem
+              value={localization.id}
+              key={localization.id}
+              className={classes.SelectItem}
+            >
+              {`${localization.localization_name}`}
+            </MenuItem>
+          ))}
+        </Select>
+      </div>
       <GroupShareSelect
         groupList={allGroups}
         setGroupIDs={setSelectedGroupIds}
