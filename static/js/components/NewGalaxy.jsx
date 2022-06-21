@@ -17,7 +17,7 @@ const NewGalaxy = () => {
     };
     const result = await dispatch(uploadGalaxies(payload));
     if (result.status === "success") {
-      dispatch(showNotification("Observation saved"));
+      dispatch(showNotification("Galaxy saved"));
       dispatch(fetchGalaxies());
     }
   };

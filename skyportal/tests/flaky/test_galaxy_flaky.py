@@ -89,3 +89,16 @@ def test_galaxy(super_admin_token, view_only_token):
             for d in geojson['features']
         ]
     )
+
+    status, data = api(
+        'DELETE', f'galaxy_catalog/{catalog_name}', token=super_admin_token
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    params = {'catalog_name': catalog_name}
+
+    status, data = api('GET', 'galaxy_catalog', token=view_only_token, params=params)
+    assert status == 200
+    data = data["data"]["galaxies"]
+    assert len(data) == 0
