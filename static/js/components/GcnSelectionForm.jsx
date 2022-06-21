@@ -320,7 +320,7 @@ const GcnSelectionForm = ({ gcnEvent, setSelectedLocalizationName }) => {
 
   return (
     <div>
-      {!Object.keys(locLookUp).includes(selectedLocalizationId.toString()) ? (
+      {!Object.keys(locLookUp).includes(selectedLocalizationId?.toString()) ? (
         <div>
           <LocalizationPlot
             loc={gcnEvent.localizations[0]}
