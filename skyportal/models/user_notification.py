@@ -461,7 +461,7 @@ def add_user_notifications(mapper, connection, target):
                                 session.add(
                                     UserNotification(
                                         user=user,
-                                        text=f"New Spectrum on favorite source *{target.obj_id}*",
+                                        text=f"New spectrum on favorite source *{target.obj_id}*",
                                         notification_type="favorite_sources_new_spectra",
                                         url=f"/source/{target.obj_id}",
                                     )
