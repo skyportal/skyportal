@@ -135,8 +135,8 @@ const FollowupRequestSelectionForm = () => {
     return url;
   }
 
-  function createAllocationAnalysisUrl(instrumentId) {
-    const url = `/api/allocation/analysis/${instrumentId}`;
+  function createAllocationReportUrl(instrumentId) {
+    const url = `/api/allocation/report/${instrumentId}`;
     return url;
   }
 
@@ -192,7 +192,7 @@ const FollowupRequestSelectionForm = () => {
     selectedFormat,
     formDataState
   );
-  const analysisUrl = createAllocationAnalysisUrl(selectedInstrumentId);
+  const reportUrl = createAllocationReportUrl(selectedInstrumentId);
   return (
     <div>
       <div data-testid="gcnsource-selection-form">
@@ -263,13 +263,13 @@ const FollowupRequestSelectionForm = () => {
           Download
         </Button>
         <Button
-          href={`${analysisUrl}`}
-          download={`analysisRequest-${selectedInstrumentId}`}
+          href={`${reportUrl}`}
+          download={`reportRequest-${selectedInstrumentId}`}
           size="small"
           color="primary"
           type="submit"
           variant="outlined"
-          data-testid={`analysisRequest_${selectedInstrumentId}`}
+          data-testid={`reportRequest_${selectedInstrumentId}`}
         >
           Instrument Allocation Analysis
         </Button>

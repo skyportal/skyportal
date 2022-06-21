@@ -1,5 +1,5 @@
 from .acls import ACLHandler, UserACLHandler
-from .allocation import AllocationHandler, AllocationAnalysisHandler
+from .allocation import AllocationHandler, AllocationReportHandler
 from .analysis import AnalysisServiceHandler
 from .candidate import CandidateHandler
 from .classification import ClassificationHandler, ObjClassificationHandler

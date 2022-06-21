@@ -230,7 +230,7 @@ class AllocationHandler(BaseHandler):
         return self.success()
 
 
-class AllocationAnalysisHandler(BaseHandler):
+class AllocationReportHandler(BaseHandler):
     @auth_or_token
     async def get(self, instrument_id):
         """
@@ -280,36 +280,14 @@ class AllocationAnalysisHandler(BaseHandler):
         labels = [a.proposal_id for a in allocations]
         values = [a.hours_allocated for a in allocations]
 
-        def make_autopct_hours(values):
+        def make_autopct(values, label="Hours"):
             def my_autopct(pct):
                 total = sum(values)
                 if np.isnan(pct):
                     val = 0
                 else:
                     val = int(round(pct * total / 100.0))
-                return f'{pct:.0f}%  ({val:d} Hours)'
-
-            return my_autopct
-
-        def make_autopct_requests(values):
-            def my_autopct(pct):
-                total = sum(values)
-                if np.isnan(pct):
-                    val = 0
-                else:
-                    val = int(round(pct * total / 100.0))
-                return f'{pct:.0f}%  ({val:d} Requests)'
-
-            return my_autopct
-
-        def make_autopct_observations(values):
-            def my_autopct(pct):
-                total = sum(values)
-                if np.isnan(pct):
-                    val = 0
-                else:
-                    val = int(round(pct * total / 100.0))
-                return f'{pct:.0f}%  ({val:d} Observations)'
+                return f'{pct:.0f}%  ({val:d} {label})'
 
             return my_autopct
 
@@ -320,21 +298,24 @@ class AllocationAnalysisHandler(BaseHandler):
             labels=labels,
             shadow=True,
             startangle=90,
-            autopct=make_autopct_hours(values),
+            autopct=make_autopct(values, label="Hours"),
         )
         ax1.axis('equal')
         ax1.set_title('Time Allocated')
 
         values = [len(a.requests) for a in allocations]
-        ax2.pie(
-            values,
-            labels=labels,
-            shadow=True,
-            startangle=90,
-            autopct=make_autopct_requests(values),
-        )
-        ax2.axis('equal')
-        ax2.set_title('Requests Made')
+        if sum(values) > 0:
+            ax2.pie(
+                values,
+                labels=labels,
+                shadow=True,
+                startangle=90,
+                autopct=make_autopct(values, label="Requests"),
+            )
+            ax2.axis('equal')
+            ax2.set_title('Requests Made')
+        else:
+            ax2.remove()
 
         values = []
         for a in allocations:
@@ -345,15 +326,18 @@ class AllocationAnalysisHandler(BaseHandler):
             )
             values.append(len(followup_requests.all()))
 
-        ax3.pie(
-            values,
-            labels=labels,
-            shadow=True,
-            startangle=90,
-            autopct=make_autopct_observations(values),
-        )
-        ax3.axis('equal')
-        ax3.set_title('Requests Completed')
+        if sum(values) > 0:
+            ax3.pie(
+                values,
+                labels=labels,
+                shadow=True,
+                startangle=90,
+                autopct=make_autopct(values, label="Observations"),
+            )
+            ax3.axis('equal')
+            ax3.set_title('Requests Completed')
+        else:
+            ax3.remove()
 
         buf = io.BytesIO()
         fig.savefig(buf, format=output_format)
