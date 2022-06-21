@@ -1607,6 +1607,12 @@ class GalaxyHandlerPost(_Schema):
     )
 
 
+class GalaxyASCIIFileHandlerPost(_Schema):
+    catalogName = fields.String(metadata={"description": 'Galaxy catalog name.'})
+
+    catalogData = fields.Field(metadata={'description': 'Catalog data Ascii string'})
+
+
 def register_components(spec):
     print('Registering schemas with APISpec')
 

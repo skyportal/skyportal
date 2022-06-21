@@ -151,7 +151,7 @@ class Obj(Base, conesearch_alchemy.Point):
     delete = restricted | CustomUserAccessControl(delete_obj_if_all_data_owned)
 
     id = sa.Column(sa.String, primary_key=True, doc="Name of the object.")
-    # TODO should this column type be decimal? fixed-precison numeric
+    # TODO should this column type be decimal? fixed-precision numeric
 
     ra_dis = sa.Column(sa.Float, doc="J2000 Right Ascension at discovery time [deg].")
     dec_dis = sa.Column(sa.Float, doc="J2000 Declination at discovery time [deg].")
@@ -290,6 +290,15 @@ class Obj(Base, conesearch_alchemy.Point):
         passive_deletes=True,
         order_by="Photometry.mjd",
         doc="Photometry of the object.",
+    )
+
+    photstats = relationship(
+        'PhotStat',
+        back_populates='obj',
+        cascade='save-update, merge, refresh-expire, expunge, delete',
+        single_parent=True,
+        passive_deletes=True,
+        doc="Photometry statistics associated with the object.",
     )
 
     detect_photometry_count = sa.Column(

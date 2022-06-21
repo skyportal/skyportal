@@ -26,6 +26,7 @@ import NotificationPreferences from "./NotificationPreferences";
 import FavoriteSourcesNotificationPreferences from "./FavoriteSourcesNotificationPreferences";
 import SlackPreferences from "./SlackPreferences";
 import ObservabilityPreferences from "./ObservabilityPreferences";
+import FollowupRequestPreferences from "./FollowupRequestPreferences";
 import PhotometryPlottingPreferences from "./PhotometryPlottingPreferences";
 import ClassificationsShortcutForm from "./ClassificationsShortcutForm";
 
@@ -257,6 +258,9 @@ const UpdateProfileForm = () => {
         </CardContent>
         <CardContent>
           <ObservabilityPreferences />
+        </CardContent>
+        <CardContent>
+          <FollowupRequestPreferences />
         </CardContent>
         <CardContent className={classes.spacing}>
           <ClassificationsShortcutForm />

@@ -33,9 +33,9 @@ app:
   lco_port: 443
 
   ztf:
-    protocol: http
-    host: skipper.caltech.edu
-    port: 4000
+    protocol: https
+    host: kowalski.caltech.edu
+    port: 443
 
   ztf_forced_endpoint: https://ztfweb.ipac.caltech.edu
 
@@ -100,6 +100,8 @@ app:
       component: AllocationPage
     - path: "/observations"
       component: ObservationPage
+    - path: "/galaxies"
+      component: GalaxyPage
     - path: "/followup_requests"
       component: FollowupRequestPage
     - path: "/group_sources/:id"
@@ -188,6 +190,10 @@ app:
         - name: Observations
           icon: ZoomInOutlined
           url: /observations
+
+        - name: Galaxies
+          icon: TornadoOutlined
+          url: /galaxies
 
     - name: Admin
       permissions: ["Manage users", "System admin"]
