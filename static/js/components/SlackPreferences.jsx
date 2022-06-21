@@ -80,63 +80,22 @@ const SlackPreferences = () => {
         />
       </FormGroup>
       {profile.slack_integration?.active && (
-        <>
-          <div>
-            <TextField
-              name="url"
-              label="Integration URL"
-              className={classes.textField}
-              fullWidth
-              placeholder="Unique URL connecting to your Slack channel"
-              defaultValue={profile.slack_integration?.url}
-              onChange={handleChange}
-              onBlur={handleBlur}
-              margin="normal"
-              data-testid="slack_url"
-              helperText={slackurlerror ? "Must be a Slack URL" : ""}
-              error={slackurlerror}
-            />
-          </div>
-          <div>
-            <FormGroup row>
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={profile.slack_integration?.mentions === true}
-                    name="mentions"
-                    onChange={prefToggled}
-                    data-testid="slack_mentions"
-                  />
-                }
-                label="@ mentions"
-              />
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={profile.slack_integration?.gcnnotices === true}
-                    name="gcnnotices"
-                    onChange={prefToggled}
-                    data-testid="slack_gcnnotices"
-                  />
-                }
-                label="GCN Notices"
-              />
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={
-                      profile.slack_integration?.facilitytransactions === true
-                    }
-                    name="facilitytransactions"
-                    onChange={prefToggled}
-                    data-testid="slack_facilitytransactions"
-                  />
-                }
-                label="Facility Transactions"
-              />
-            </FormGroup>
-          </div>
-        </>
+        <div>
+          <TextField
+            name="url"
+            label="Integration URL"
+            className={classes.textField}
+            fullWidth
+            placeholder="Unique URL connecting to your Slack channel"
+            defaultValue={profile.slack_integration?.url}
+            onChange={handleChange}
+            onBlur={handleBlur}
+            margin="normal"
+            data-testid="slack_url"
+            helperText={slackurlerror ? "Must be a Slack URL" : ""}
+            error={slackurlerror}
+          />
+        </div>
       )}
     </div>
   );

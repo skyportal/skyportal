@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { useForm } from "react-hook-form";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "@mui/styles";
 import Button from "@mui/material/Button";
 import { showNotification } from "baselayer/components/Notifications";
 
@@ -9,11 +9,10 @@ import FormGroup from "@mui/material/FormGroup";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Switch from "@mui/material/Switch";
 
-import * as profileActions from "../ducks/profile";
 import UserPreferencesHeader from "./UserPreferencesHeader";
 import ClassificationSelect from "./ClassificationSelect";
 import GcnNoticeTypesSelect from "./GcnNoticeTypesSelect";
-import NotificationTypeSelect from "./NotificationSettingSelect";
+import NotificationSettingSelect from "./NotificationSettingSelect";
 import * as profileActions from "../ducks/profile";
 
 const useStyles = makeStyles((theme) => ({
@@ -25,18 +24,19 @@ const useStyles = makeStyles((theme) => ({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    width: "30rem",
-    height: "5rem",
+    width: "40vw",
+    marginBottom: theme.spacing(2),
   },
   form: {
     display: "flex",
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    width: "20rem",
+    width: "30vw",
   },
   button: {
     height: "3rem",
+    marginRight: theme.spacing(1),
   },
 }));
 
@@ -46,36 +46,69 @@ const NotificationPreferences = () => {
   const dispatch = useDispatch();
   const { handleSubmit } = useForm();
   const [selectedClassifications, setSelectedClassifications] = useState(
-    profile?.followed_ressources?.sources_classifications || []
+    profile?.notifications?.sources?.classifications || []
   );
 
   const [selectedGcnNoticeTypes, setSelectedGcnNoticeTypes] = useState(
-    profile?.followed_ressources?.gcn_notice_types || []
+    profile?.notications?.gcn_events?.gcn_notice_types || []
   );
 
   useEffect(() => {
     setSelectedClassifications(
-      profile?.followed_ressources?.sources_classifications || []
+      profile?.notifications?.sources?.classifications || []
     );
     setSelectedGcnNoticeTypes(
-      profile?.followed_ressources?.gcn_notice_types || []
+      profile?.notifications?.gcn_events?.gcn_notice_types || []
     );
   }, [profile]);
 
   const prefToggled = (event) => {
     const prefs = {
-      followed_ressources: {
-        [event.target.name]: event.target.checked,
-      },
+      notifications: {},
     };
+    if (event.target.name === "sources") {
+      prefs.notifications.sources = {
+        active: event.target.checked,
+      };
+    } else if (event.target.name === "gcn_events") {
+      prefs.notifications.gcn_events = {
+        active: event.target.checked,
+      };
+    } else if (event.target.name === "facility_transactions") {
+      prefs.notifications.facility_transactions = {
+        active: event.target.checked,
+      };
+    } else if (event.target.name === "mention") {
+      prefs.notifications.mention = {
+        active: event.target.checked,
+      };
+    } else if (event.target.name === "favorite_sources") {
+      prefs.notifications.favorite_sources = {
+        active: event.target.checked,
+      };
+    } else if (event.target.name === "favorite_sources_new_comments") {
+      prefs.notifications.favorite_sources = {
+        new_comments: event.target.checked,
+      };
+    } else if (event.target.name === "favorite_sources_new_classifications") {
+      prefs.notifications.favorite_sources = {
+        new_classifications: event.target.checked,
+      };
+    } else if (event.target.name === "favorite_sources_new_spectra") {
+      prefs.notifications.favorite_sources = {
+        new_spectra: event.target.checked,
+      };
+    }
 
     dispatch(profileActions.updateUserPreferences(prefs));
   };
 
   const onSubmitSources = () => {
     const prefs = {
-      followed_ressources: {
-        sources_classifications: [...new Set(selectedClassifications)],
+      notifications: {
+        sources: {
+          classifications: [...new Set(selectedClassifications)],
+        },
       },
     };
     dispatch(profileActions.updateUserPreferences(prefs));
@@ -85,8 +118,10 @@ const NotificationPreferences = () => {
 
   const onSubmitGcns = () => {
     const prefs = {
-      followed_ressources: {
-        gcn_notice_types: [...new Set(selectedGcnNoticeTypes)],
+      notifications: {
+        gcn_events: {
+          gcn_notice_types: [...new Set(selectedGcnNoticeTypes)],
+        },
       },
     };
     dispatch(profileActions.updateUserPreferences(prefs));
@@ -98,22 +133,22 @@ const NotificationPreferences = () => {
     <div>
       <UserPreferencesHeader
         title="Notifications Preferences"
-        popupText="Enable these to receive notifications on: all sources, favorite sources, gcn events. For each of them, click on the bell to configure the notification settings: by email, sms and/or slack"
+        popupText="Enable these to receive notifications on: all sources, favorite sources, gcn events, facility transactions. For each of them, click on the bell to configure the notification settings: email, sms and/or slack"
       />
       <div className={classes.pref}>
         <FormGroup row>
           <FormControlLabel
             control={
               <Switch
-                checked={profile.followed_ressources?.sources === true}
+                checked={profile?.notifications?.sources?.active === true}
                 name="sources"
                 onChange={prefToggled}
               />
             }
-            label="All Sources"
+            label="Sources"
           />
         </FormGroup>
-        {profile.followed_ressources?.sources === true && (
+        {profile?.notifications?.sources?.active === true && (
           <>
             <form onSubmit={handleSubmit(onSubmitSources)}>
               <div className={classes.form}>
@@ -131,7 +166,7 @@ const NotificationPreferences = () => {
                 </Button>
               </div>
             </form>
-            <NotificationTypeSelect notificationRessourceType="sources" />
+            <NotificationSettingSelect notificationRessourceType="sources" />
           </>
         )}
       </div>
@@ -140,15 +175,15 @@ const NotificationPreferences = () => {
           <FormControlLabel
             control={
               <Switch
-                checked={profile.followed_ressources?.gcn_events === true}
+                checked={profile?.notifications?.gcn_events?.active === true}
                 name="gcn_events"
                 onChange={prefToggled}
               />
             }
-            label="All GCN Events"
+            label="GCN Events"
           />
         </FormGroup>
-        {profile.followed_ressources?.gcn_events === true && (
+        {profile?.notifications?.gcn_events?.active === true && (
           <>
             <form onSubmit={handleSubmit(onSubmitGcns)}>
               <div className={classes.form}>
@@ -166,7 +201,7 @@ const NotificationPreferences = () => {
                 </Button>
               </div>
             </form>
-            <NotificationTypeSelect notificationRessourceType="gcn_events" />
+            <NotificationSettingSelect notificationRessourceType="gcn_events" />
           </>
         )}
       </div>
@@ -175,7 +210,28 @@ const NotificationPreferences = () => {
           <FormControlLabel
             control={
               <Switch
-                checked={profile.followed_ressources?.favorite_sources === true}
+                checked={
+                  profile?.notifications?.facility_transactions?.active === true
+                }
+                name="facility_transactions"
+                onChange={prefToggled}
+              />
+            }
+            label="Facility Transactions"
+          />
+        </FormGroup>
+        {profile?.notifications?.facility_transactions?.active === true && (
+          <NotificationSettingSelect notificationRessourceType="facility_transactions" />
+        )}
+      </div>
+      <div className={classes.pref}>
+        <FormGroup row>
+          <FormControlLabel
+            control={
+              <Switch
+                checked={
+                  profile?.notifications?.favorite_sources?.active === true
+                }
                 name="favorite_sources"
                 onChange={prefToggled}
               />
@@ -183,7 +239,7 @@ const NotificationPreferences = () => {
             label="Favorite Sources"
           />
         </FormGroup>
-        {profile.followed_ressources?.favorite_sources === true && (
+        {profile?.notifications?.favorite_sources?.active === true && (
           <>
             <div className={classes.pref}>
               <FormGroup row>
@@ -191,8 +247,8 @@ const NotificationPreferences = () => {
                   control={
                     <Switch
                       checked={
-                        profile.followed_ressources
-                          ?.favorite_sources_new_comments === true
+                        profile?.notifications?.favorite_sources
+                          ?.new_comments === true
                       }
                       name="favorite_sources_new_comments"
                       onChange={prefToggled}
@@ -204,8 +260,8 @@ const NotificationPreferences = () => {
                   control={
                     <Switch
                       checked={
-                        profile.followed_ressources
-                          ?.favorite_sources_new_spectra === true
+                        profile?.notifications?.favorite_sources
+                          ?.new_spectra === true
                       }
                       name="favorite_sources_new_spectra"
                       onChange={prefToggled}
@@ -217,8 +273,8 @@ const NotificationPreferences = () => {
                   control={
                     <Switch
                       checked={
-                        profile.followed_ressources
-                          ?.favorite_sources_new_classifications === true
+                        profile?.notifications?.favorite_sources
+                          ?.new_classifications === true
                       }
                       name="favorite_sources_new_classifications"
                       onChange={prefToggled}
@@ -228,8 +284,25 @@ const NotificationPreferences = () => {
                 />
               </FormGroup>
             </div>
-            <NotificationTypeSelect notificationRessourceType="favorite_sources" />
+            <NotificationSettingSelect notificationRessourceType="favorite_sources" />
           </>
+        )}
+      </div>
+      <div className={classes.pref}>
+        <FormGroup row>
+          <FormControlLabel
+            control={
+              <Switch
+                checked={profile?.notifications?.mention?.active === true}
+                name="mention"
+                onChange={prefToggled}
+              />
+            }
+            label="@ Mentions"
+          />
+        </FormGroup>
+        {profile?.notifications?.mention?.active === true && (
+          <NotificationSettingSelect notificationRessourceType="mention" />
         )}
       </div>
     </div>

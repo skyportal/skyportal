@@ -1,19 +1,19 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
-import FormGroup from "@material-ui/core/FormGroup";
-import FormControlLabel from "@material-ui/core/FormControlLabel";
-import Switch from "@material-ui/core/Switch";
-import { withStyles, makeStyles } from "@material-ui/core/styles";
+import FormGroup from "@mui/material/FormGroup";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import Switch from "@mui/material/Switch";
+import { withStyles, makeStyles } from "@mui/styles";
 import PropTypes from "prop-types";
-import Dialog from "@material-ui/core/Dialog";
-import DialogContent from "@material-ui/core/DialogContent";
-import MuiDialogTitle from "@material-ui/core/DialogTitle";
-import IconButton from "@material-ui/core/IconButton";
-import CloseIcon from "@material-ui/icons/Close";
-import Typography from "@material-ui/core/Typography";
-import grey from "@material-ui/core/colors/grey";
-import { NotificationsActiveOutlined } from "@material-ui/icons";
-import { Box, Slider, Checkbox, Button } from "@material-ui/core";
+import Dialog from "@mui/material/Dialog";
+import DialogContent from "@mui/material/DialogContent";
+import MuiDialogTitle from "@mui/material/DialogTitle";
+import IconButton from "@mui/material/IconButton";
+import Close from "@mui/icons-material/Close";
+import Typography from "@mui/material/Typography";
+import grey from "@mui/material/colors/grey";
+import NotificationsActiveOutlined from "@mui/icons-material/NotificationsActiveOutlined";
+import { Box, Slider, Checkbox, Button } from "@mui/material";
 import * as profileActions from "../ducks/profile";
 
 const useStyles = makeStyles((theme) => ({
@@ -72,7 +72,7 @@ const DialogTitle = withStyles(dialogTitleStyles)(
           className={classes.closeButton}
           onClick={onClose}
         >
-          <CloseIcon />
+          <Close />
         </IconButton>
       ) : null}
     </MuiDialogTitle>
@@ -84,8 +84,22 @@ const NotificationSettingSelect = ({ notificationRessourceType }) => {
   const [open, setOpen] = useState(false);
   const profile = useSelector((state) => state.profile.preferences);
   const dispatch = useDispatch();
-  const [value, setValue] = React.useState([8, 20]);
+  const [value, setValue] = React.useState();
   const [inverted, setInverted] = React.useState(false);
+
+  useEffect(() => {
+    if (!value) {
+      const val =
+        profile?.notifications[notificationRessourceType]?.sms?.time_slot;
+      console.log(val);
+      if (val?.length > 0) {
+        setValue(val);
+        if (val[0] > val[1]) {
+          setInverted(true);
+        }
+      }
+    }
+  }, [profile]);
 
   const handleClose = () => {
     setOpen(false);
@@ -95,138 +109,121 @@ const NotificationSettingSelect = ({ notificationRessourceType }) => {
     if (
       notificationRessourceType === "gcn_events" ||
       notificationRessourceType === "sources" ||
-      notificationRessourceType === "favorite_sources"
+      notificationRessourceType === "favorite_sources" ||
+      notificationRessourceType === "facility_transactions" ||
+      notificationRessourceType === "mention"
     ) {
       const prefs = {
-        followed_ressources: {
-          [event.target.name]: event.target.checked,
+        notifications: {
+          [notificationRessourceType]: {},
         },
       };
+      if (event.target.name === "on_shift") {
+        prefs.notifications[notificationRessourceType].sms = {};
+        prefs.notifications[notificationRessourceType].sms[event.target.name] =
+          event.target.checked;
+      } else if (event.target.name === "time_slot") {
+        prefs.notifications[notificationRessourceType].sms = {};
+        if (event.target.checked) {
+          prefs.notifications[notificationRessourceType].sms[
+            event.target.name
+          ] = [8, 20];
+          setValue([8, 20]);
+        } else {
+          prefs.notifications[notificationRessourceType].sms[
+            event.target.name
+          ] = [];
+          setValue([]);
+        }
+      } else {
+        prefs.notifications[notificationRessourceType][event.target.name] = {
+          active: event.target.checked,
+        };
+      }
 
       dispatch(profileActions.updateUserPreferences(prefs));
     }
   };
 
+  const onChangeInverted = () => {
+    if (
+      notificationRessourceType === "gcn_events" ||
+      notificationRessourceType === "sources" ||
+      notificationRessourceType === "favorite_sources" ||
+      notificationRessourceType === "facility_transactions" ||
+      notificationRessourceType === "mention"
+    ) {
+      const prefs = {
+        notifications: {
+          [notificationRessourceType]: {
+            sms: {
+              time_slot: value.reverse(),
+            },
+          },
+        },
+      };
+
+      dispatch(profileActions.updateUserPreferences(prefs));
+    }
+    setValue(value.reverse());
+    setInverted(!inverted);
+  };
+
   const handleChecked = (type) => {
     let checked = false;
-    if (notificationRessourceType === "sources" && type === "email") {
-      checked = profile.followed_ressources?.sources_by_email === true;
-    } else if (notificationRessourceType === "gcn_events" && type === "email") {
-      checked = profile.followed_ressources?.gcn_events_by_email === true;
-    } else if (
-      notificationRessourceType === "favorite_sources" &&
-      type === "email"
-    ) {
-      checked = profile.followed_ressources?.favorite_sources_by_email === true;
-    } else if (notificationRessourceType === "sources" && type === "sms") {
-      checked = profile.followed_ressources?.sources_by_sms === true;
-    } else if (notificationRessourceType === "gcn_events" && type === "sms") {
-      checked = profile.followed_ressources?.gcn_events_by_sms === true;
-    } else if (
-      notificationRessourceType === "favorite_sources" &&
-      type === "sms"
-    ) {
-      checked = profile.followed_ressources?.favorite_sources_by_sms === true;
-    } else if (
-      notificationRessourceType === "sources" &&
-      type === "sms_on_shift"
-    ) {
-      checked = profile.followed_ressources?.sources_by_sms_on_shift === true;
-    } else if (
-      notificationRessourceType === "gcn_events" &&
-      type === "sms_on_shift"
-    ) {
+    if (type === "on_shift") {
       checked =
-        profile.followed_ressources?.gcn_events_by_sms_on_shift === true;
-    } else if (
-      notificationRessourceType === "favorite_sources" &&
-      type === "sms_on_shift"
-    ) {
+        profile?.notifications[notificationRessourceType]?.sms?.on_shift;
+    } else if (type === "time_slot") {
       checked =
-        profile.followed_ressources?.favorite_sources_by_sms_on_shift === true;
+        profile?.notifications[notificationRessourceType]?.sms?.time_slot
+          ?.length > 0;
+    } else {
+      checked = profile?.notifications[notificationRessourceType][type]?.active;
     }
-
     return checked;
   };
 
-  const handleLabel = (type) => {
-    let label = "";
-    if (notificationRessourceType === "sources" && type === "email") {
-      label = "Email when a new classification is added to a source";
-    } else if (notificationRessourceType === "gcn_events" && type === "email") {
-      label =
-        "Email when a new GCN event with the selected Notice Type is added";
-    } else if (
-      notificationRessourceType === "favorite_sources" &&
-      type === "email"
-    ) {
-      label = "Email when something new is done on a favorite source";
-    } else if (notificationRessourceType === "sources" && type === "sms") {
-      label = "SMS when a new classification is added to a source";
-    } else if (notificationRessourceType === "gcn_events" && type === "sms") {
-      label = "SMS when a new GCN event with the selected Notice Type is added";
-    } else if (
-      notificationRessourceType === "favorite_sources" &&
-      type === "sms"
-    ) {
-      label = "SMS when something new is done on a favorite source";
-    } else if (
-      notificationRessourceType === "sources" &&
-      type === "sms_on_shift"
-    ) {
-      label = "on Shift";
-    } else if (
-      notificationRessourceType === "gcn_events" &&
-      type === "sms_on_shift"
-    ) {
-      label = "on Shift";
-    } else if (
-      notificationRessourceType === "favorite_sources" &&
-      type === "sms_on_shift"
-    ) {
-      label = "on Shift";
-    }
-    return label;
-  };
-
-  const handleName = (type) => {
-    let name = "";
-    if (notificationRessourceType === "sources" && type === "email") {
-      name = "sources_by_email";
-    } else if (notificationRessourceType === "gcn_events" && type === "email") {
-      name = "gcn_events_by_email";
-    } else if (
-      notificationRessourceType === "favorite_sources" &&
-      type === "email"
-    ) {
-      name = "favorite_sources_by_email";
-    } else if (notificationRessourceType === "sources" && type === "sms") {
-      name = "sources_by_sms";
-    } else if (notificationRessourceType === "gcn_events" && type === "sms") {
-      name = "gcn_events_by_sms";
-    } else if (
-      notificationRessourceType === "favorite_sources" &&
-      type === "sms"
-    ) {
-      name = "favorite_sources_by_sms";
-    } else if (
-      notificationRessourceType === "sources" &&
-      type === "sms_on_shift"
-    ) {
-      name = "sources_by_sms_on_shift";
-    } else if (
-      notificationRessourceType === "gcn_events" &&
-      type === "sms_on_shift"
-    ) {
-      name = "gcn_events_by_sms_on_shift";
-    } else if (
-      notificationRessourceType === "favorite_sources" &&
-      type === "sms_on_shift"
-    ) {
-      name = "favorite_sources_by_sms_on_shift";
-    }
-    return name;
-  };
+  // const handleLabel = (type) => {
+  // this function could be used to generate more precise labels for the options. It can be shortened by a lot, this was just for testing.
+  //   let label = "";
+  //   if (notificationRessourceType === "sources" && type === "email") {
+  //     label = "Email when a new classification is added to a source";
+  //   } else if (notificationRessourceType === "gcn_events" && type === "email") {
+  //     label =
+  //       "Email when a new GCN event with the selected Notice Type is added";
+  //   } else if (
+  //     notificationRessourceType === "favorite_sources" &&
+  //     type === "email"
+  //   ) {
+  //     label = "Email when something new is done on a favorite source";
+  //   } else if (notificationRessourceType === "sources" && type === "sms") {
+  //     label = "SMS when a new classification is added to a source";
+  //   } else if (notificationRessourceType === "gcn_events" && type === "sms") {
+  //     label = "SMS when a new GCN event with the selected Notice Type is added";
+  //   } else if (
+  //     notificationRessourceType === "favorite_sources" &&
+  //     type === "sms"
+  //   ) {
+  //     label = "SMS when something new is done on a favorite source";
+  //   } else if (
+  //     notificationRessourceType === "sources" &&
+  //     type === "on_shift"
+  //   ) {
+  //     label = "on Shift";
+  //   } else if (
+  //     notificationRessourceType === "gcn_events" &&
+  //     type === "on_shift"
+  //   ) {
+  //     label = "on Shift";
+  //   } else if (
+  //     notificationRessourceType === "favorite_sources" &&
+  //     type === "on_shift"
+  //   ) {
+  //     label = "on Shift";
+  //   }
+  //   return label;
+  // };
 
   const valuetext = (val) => `${val}H`;
   const handleChange = (event, newValue) => {
@@ -236,11 +233,18 @@ const NotificationSettingSelect = ({ notificationRessourceType }) => {
   const handleChangeCommitted = () => {
     if (
       notificationRessourceType === "gcn_events" ||
-      notificationRessourceType === "sources"
+      notificationRessourceType === "sources" ||
+      notificationRessourceType === "favorite_sources" ||
+      notificationRessourceType === "facility_transactions" ||
+      notificationRessourceType === "mention"
     ) {
       const prefs = {
-        followed_ressources: {
-          [`${notificationRessourceType}_by_sms_time_slot`]: value,
+        notifications: {
+          [notificationRessourceType]: {
+            sms: {
+              [`time_slot`]: value,
+            },
+          },
         },
       };
 
@@ -275,11 +279,25 @@ const NotificationSettingSelect = ({ notificationRessourceType }) => {
                     control={
                       <Switch
                         checked={handleChecked("email")}
-                        name={handleName("email")}
+                        name="email"
                         onChange={prefToggled}
                       />
                     }
-                    label={handleLabel("email")}
+                    label="By Email"
+                  />
+                </FormGroup>
+              </div>
+              <div className={classes.pref}>
+                <FormGroup row>
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={handleChecked("slack")}
+                        name="slack"
+                        onChange={prefToggled}
+                      />
+                    }
+                    label="Message on Slack"
                   />
                 </FormGroup>
               </div>
@@ -289,31 +307,43 @@ const NotificationSettingSelect = ({ notificationRessourceType }) => {
                     control={
                       <Switch
                         checked={handleChecked("sms")}
-                        name={handleName("sms")}
+                        name="sms"
                         onChange={prefToggled}
                       />
                     }
-                    label={handleLabel("sms")}
+                    label=" By SMS"
                   />
                 </FormGroup>
               </div>
-              <div className={classes.options}>
-                {profile?.followed_ressources?.[
-                  `${notificationRessourceType}_by_sms`
-                ] && (
-                  <>
-                    <FormGroup row>
-                      <FormControlLabel
-                        control={
-                          <Switch
-                            checked={handleChecked("sms_on_shift")}
-                            name={handleName("sms_on_shift")}
-                            onChange={prefToggled}
-                          />
-                        }
-                        label={handleLabel("sms_on_shift")}
-                      />
-                    </FormGroup>
+              {profile?.notifications?.[notificationRessourceType]?.sms
+                ?.active && (
+                <div className={classes.options}>
+                  <FormGroup row>
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          checked={handleChecked("on_shift")}
+                          name="on_shift"
+                          onChange={prefToggled}
+                        />
+                      }
+                      label="On Shift"
+                    />
+                  </FormGroup>
+                  <FormGroup row>
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          checked={handleChecked("time_slot")}
+                          name="time_slot"
+                          onChange={prefToggled}
+                        />
+                      }
+                      label="Time Slot"
+                    />
+                  </FormGroup>
+                  {profile?.notifications?.[notificationRessourceType]?.sms
+                    ?.time_slot?.length > 0 && (
                     <Box
                       sx={{ width: 300 }}
                       display="flex"
@@ -335,13 +365,13 @@ const NotificationSettingSelect = ({ notificationRessourceType }) => {
                       />
                       <Checkbox
                         checked={inverted === true}
-                        onChange={() => setInverted(!inverted)}
+                        onChange={() => onChangeInverted()}
                         label="Invert"
                       />
                     </Box>
-                  </>
-                )}
-              </div>
+                  )}
+                </div>
+              )}
             </div>
           </DialogContent>
         </Dialog>

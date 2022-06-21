@@ -33,7 +33,13 @@ _, cfg = load_env()
 account_sid = cfg["twilio.sms_account_sid"]
 auth_token = cfg["twilio.sms_auth_token"]
 from_number = cfg["twilio.from_number"]
-client = TwilioClient(account_sid, auth_token)
+client = None
+if account_sid and auth_token and from_number:
+    client = TwilioClient(account_sid, auth_token)
+
+email = False
+if cfg["email_service"] == "sendgrid" or cfg["email_service"] == "smtp":
+    email = True
 
 
 class UserNotification(Base):
@@ -85,37 +91,39 @@ def send_slack_notification(mapper, connection, target):
     if not target.user.preferences:
         return
 
-    prefs = target.user.preferences.get('slack_integration')
-
-    if not prefs:
+    notifications_prefs = target.user.preferences.get('notifications')
+    if not notifications_prefs:
         return
 
-    if prefs.get("active", False):
-        integration_url = prefs.get("url", "")
+    slack_prefs = target.user.preferences.get('slack_integration')
+    print('slack prefs', slack_prefs)
+
+    if not slack_prefs:
+        return
+
+    if slack_prefs.get("active", False):
+        integration_url = slack_prefs.get("url", "")
     else:
         return
 
     if not integration_url.startswith(cfg.get("slack.expected_url_preamble", "https")):
+        print("Slack integration URL does not start with expected preamble")
         return
 
     slack_microservice_url = (
         f'http://127.0.0.1:{cfg.get("slack.microservice_port", 64100)}'
     )
+    ressource_type = None
+    if "favorite_sources" not in target.notification_type:
+        ressource_type = target.notification_type
+    elif "favorite_sources" in target.notification_type:
+        ressource_type = "favorite_sources"
 
-    if target.notification_type == "mention":
-        if not target.user.preferences['slack_integration'].get("mentions", False):
-            return
-    elif target.notification_type == "gcnNotice":
-        if not target.user.preferences['slack_integration'].get("gcnnotices", False):
-            return
-    elif target.notification_type == "facilityTransaction":
-        if not target.user.preferences['slack_integration'].get(
-            "facilitytransactions", False
-        ):
-            return
-    elif not target.user.preferences['slack_integration'].get(
-        "favorite_sources", False
-    ):
+    if not notifications_prefs.get(ressource_type, False):
+        return
+    if not notifications_prefs[ressource_type].get("slack", False):
+        return
+    if not notifications_prefs[ressource_type]['slack'].get("active", False):
         return
 
     app_url = get_app_base_url()
@@ -129,66 +137,71 @@ def send_slack_notification(mapper, connection, target):
 
 @event.listens_for(UserNotification, 'after_insert')
 def send_email_notification(mapper, connection, target):
+    print("trying to send email")
+
+    if not email:
+        print("email not enabled")
+        return
 
     if not target.user:
+        print("no user")
+        return
+
+    if not target.user.contact_email:
+        print("no contact email")
         return
 
     if not target.user.preferences:
+        print("no preferences")
         return
 
-    prefs = target.user.preferences.get('followed_ressources')
+    prefs = target.user.preferences.get('notifications')
 
     if not prefs:
+        print("no prefs notification")
+        return
+
+    ressource_type = None
+    if "favorite_sources" not in target.notification_type:
+        ressource_type = target.notification_type
+    elif "favorite_sources" in target.notification_type:
+        ressource_type = "favorite_sources"
+
+    if not prefs.get(ressource_type, False):
+        return
+    if not prefs[ressource_type].get("email", False):
+        return
+    if not prefs[ressource_type]['email'].get("active", False):
         return
 
     subject = None
     body = None
 
-    if target.notification_type == "sources":
-        if not target.user.preferences['followed_ressources'].get("sources", False):
-            if not target.user.preferences['followed_ressources'].get(
-                "sources_by_email", False
-            ):
-                return
-        subject = "New followed classification on a source"
+    if ressource_type == "sources":
+        subject = f"{cfg['app.title']} - New followed classification on a source"
         body = f'{target.text} ({get_app_base_url()}{target.url})'
-    elif target.notification_type == "gcn_events":
-        if not target.user.preferences['followed_ressources'].get("gcn_events", False):
-            if not target.user.preferences['followed_ressources'].get(
-                "gcn_events_by_email", False
-            ):
-                return
-        subject = "New GCN Event with followed notice type"
+
+    elif ressource_type == "gcn_events":
+        subject = f"{cfg['app.title']} - New GCN Event with followed notice type"
         body = f'{target.text} ({get_app_base_url()}{target.url})'
-    elif target.notification_type == "favorite_sources_new_classification":
-        if not target.user.preferences['followed_ressources'].get(
-            "favorite_sources", False
-        ):
-            if not target.user.preferences['followed_ressources'].get(
-                "favorite_sources_by_email", False
-            ):
-                return
-        subject = "New classification on a favorite source"
+
+    elif ressource_type == "facilityTransaction":
+        subject = f"{cfg['app.title']} - New facility transaction"
         body = f'{target.text} ({get_app_base_url()}{target.url})'
-    elif target.notification_type == "favorite_sources_new_comment":
-        if not target.user.preferences['followed_ressources'].get(
-            "favorite_sources", False
-        ):
-            if not target.user.preferences['followed_ressources'].get(
-                "favorite_sources_by_email", False
-            ):
-                return
-        subject = "New comment on a favorite source"
-        body = f'{target.text} ({get_app_base_url()}{target.url})'
-    elif target.notification_type == "favorite_sources_new_spectrum":
-        if not target.user.preferences['followed_ressources'].get(
-            "favorite_sources", False
-        ):
-            if not target.user.preferences['followed_ressources'].get(
-                "favorite_sources_by_email", False
-            ):
-                return
-        subject = "New spectrum on a favorite source"
+
+    elif ressource_type == "favorite_sources":
+        if target.notification_type == "favorite_sources_new_classification":
+            subject = f"{cfg['app.title']} - New classification on a favorite source"
+            body = f'{target.text} ({get_app_base_url()}{target.url})'
+        elif target.notification_type == "favorite_sources_new_spectrum":
+            subject = f"{cfg['app.title']} - New spectrum on a favorite source"
+            body = f'{target.text} ({get_app_base_url()}{target.url})'
+        elif target.notification_type == "favorite_sources_new_comment":
+            subject = f"{cfg['app.title']} - New comment on a favorite source"
+            body = f'{target.text} ({get_app_base_url()}{target.url})'
+
+    elif ressource_type == "mention":
+        subject = f"{cfg['app.title']} - User mentioned you in a comment"
         body = f'{target.text} ({get_app_base_url()}{target.url})'
 
     if subject and body and target.user.contact_email:
@@ -202,76 +215,76 @@ def send_email_notification(mapper, connection, target):
 
 @event.listens_for(UserNotification, 'after_insert')
 def send_sms_notification(mapper, connection, target):
+    if client is None:
+        return
 
     if not target.user:
+        return
+
+    if not target.user.contact_phone:
         return
 
     if not target.user.preferences:
         return
 
-    prefs = target.user.preferences.get('followed_ressources')
+    prefs = target.user.preferences.get('notifications')
 
     if not prefs:
         return
 
-    if target.notification_type == "sources":
-        if not target.user.preferences['followed_ressources'].get("sources", False):
-            if not target.user.preferences['followed_ressources'].get(
-                "sources_by_sms", False
-            ):
-                if not target.user.preferences['followed_ressources'].get(
-                    "sources_by_sms_on_shift", False
-                ):
-                    return
-    elif target.notification_type == "gcn_events":
-        if not target.user.preferences['followed_ressources'].get("gcn_events", False):
-            if not target.user.preferences['followed_ressources'].get(
-                "gcn_events_by_sms", False
-            ):
-                return
-    elif target.notification_type == "favorite_sources_new_classification":
-        if not target.user.preferences['followed_ressources'].get(
-            "favorite_sources", False
-        ) and not target.user.preferences['followed_ressources'].get(
-            "favorite_sources_new_classification", False
-        ):
-            if not target.user.preferences['followed_ressources'].get(
-                "favorite_sources_by_sms", False
-            ):
-                return
-    elif target.notification_type == "favorite_sources_new_comment":
-        if not target.user.preferences['followed_ressources'].get(
-            "favorite_sources", False
-        ) and not target.user.preferences['followed_ressources'].get(
-            "favorite_sources_new_comment", False
-        ):
-            if not target.user.preferences['followed_ressources'].get(
-                "favorite_sources_by_sms", False
-            ):
-                return
-    elif target.notification_type == "favorite_sources_new_spectrum":
-        if not target.user.preferences['followed_ressources'].get(
-            "favorite_sources", False
-        ) and not target.user.preferences['followed_ressources'].get(
-            "favorite_sources_new_spectrum", False
-        ):
-            if not target.user.preferences['followed_ressources'].get(
-                "favorite_sources_by_sms", False
-            ):
-                return
+    ressource_type = None
+    if "favorite_sources" not in target.notification_type:
+        ressource_type = target.notification_type
+    elif "favorite_sources" in target.notification_type:
+        ressource_type = "favorite_sources"
 
-    current_shift = (
-        Shift.query.join(ShiftUser)
-        .filter(ShiftUser.user_id == target.user.id)
-        .filter(Shift.start_date <= arrow.utcnow().datetime)
-        .filter(Shift.end_date >= arrow.utcnow().datetime)
-        .first()
-    )
-    if current_shift is not None:
-        print('user is on shift')
-        client.messages.create(
-            body=target.text, from_=from_number, to=target.user.contact_phone.e164
+    if not prefs.get(ressource_type, False):
+        return
+    if not prefs[ressource_type].get("sms", False):
+        return
+    if not prefs[ressource_type]['sms'].get("active", False):
+        return
+
+    sending = False
+    if prefs[ressource_type]['sms'].get("on_shift", False):
+        print("user wants to receive sms on shift")
+        current_shift = (
+            Shift.query.join(ShiftUser)
+            .filter(ShiftUser.user_id == target.user.id)
+            .filter(Shift.start_date <= arrow.utcnow().datetime)
+            .filter(Shift.end_date >= arrow.utcnow().datetime)
+            .first()
         )
+        if current_shift is not None:
+            print("currently on shift")
+            sending = True
+    else:
+        timeslot = prefs[ressource_type]['sms'].get("time_slot", [])
+        print("timeslot", timeslot)
+        if len(timeslot) > 0:
+            current_time = arrow.utcnow().datetime
+            print("time slot start", timeslot[0])
+            print("time slot end", timeslot[1])
+            print("current time", current_time.hour)
+
+            if timeslot[0] < timeslot[1]:
+                if (
+                    current_time.hour >= timeslot[0]
+                    and current_time.hour <= timeslot[1]
+                ):
+                    print("sending sms 1")
+                    sending = True
+            else:
+                if current_time.hour <= timeslot[0] or current_time.hour >= timeslot[1]:
+                    print("sending sms 2")
+                    sending = True
+    if sending:
+        client.messages.create(
+            body=f"{cfg['app.title']} - {target.text}",
+            from_=from_number,
+            to=target.user.contact_phone.e164,
+        )
+        print("sending sms !!!")
 
 
 @event.listens_for(Classification, 'after_insert')
@@ -283,45 +296,51 @@ def add_user_notifications(mapper, connection, target):
     # Add front-end user notifications
     @event.listens_for(DBSession(), "after_flush", once=True)
     def receive_after_flush(session, context):
+        print("add_user_notifications")
         is_facility_transaction = "initiator_id" in target.to_dict()
-        is_gcnevent = target.__tablename__ == "GcnNotice"
+        is_gcnevent = target.__class__.__name__ == "GcnNotice"
         is_classification = target.__class__.__name__ == "Classification"
         is_spectra = target.__class__.__name__ == "Spectrum"
         is_comment = target.__class__.__name__ == "Comment"
 
         if is_gcnevent:
+            print("it is a gcn")
             users = User.query.filter(
-                User.preferences["followed_ressources"]["gcn_events"]
+                User.preferences["notifications"]["gcn_events"]["active"]
                 .astext.cast(sa.Boolean)
                 .is_(True)
             ).all()
         elif is_facility_transaction:
+            print("it is a facility transaction")
             users = User.query.filter(
-                User.preferences["slack_integration"]["facilitytransactions"]
+                User.preferences["notifications"]["facilitytransactions"]["active"]
                 .astext.cast(sa.Boolean)
                 .is_(True)
             ).all()
         else:
             if is_classification:
+                print("it is a classification")
                 users = User.query.filter(
                     or_(
-                        User.preferences["followed_ressources"]["sources"]
+                        User.preferences["notifications"]["sources"]["active"]
                         .astext.cast(sa.Boolean)
                         .is_(True),
-                        User.preferences["followed_ressources"]["favorite_sources"]
+                        User.preferences["notifications"]["favorite_sources"]["active"]
                         .astext.cast(sa.Boolean)
                         .is_(True),
                     )
                 ).all()
             elif is_spectra:
+                print("it is a spectrum")
                 users = User.query.filter(
-                    User.preferences["followed_ressources"]["sources"]
+                    User.preferences["notifications"]["favorite_sources"]["active"]
                     .astext.cast(sa.Boolean)
                     .is_(True)
                 ).all()
             elif is_comment:
+                print("it is a comment")
                 users = User.query.filter(
-                    User.preferences["followed_ressources"]["sources"]
+                    User.preferences["notifications"]["favorite_sources"]["active"]
                     .astext.cast(sa.Boolean)
                     .is_(True)
                 ).all()
@@ -333,19 +352,20 @@ def add_user_notifications(mapper, connection, target):
             # Only notify users who have read access to the new record in question
             if (
                 target.__class__.get_if_accessible_by(target.id, user) is not None
-                and "followed_ressources" in user.preferences
+                and "notifications" in user.preferences
             ):
                 if is_gcnevent:
                     if (
                         "gcn_notice_types"
-                        in user.preferences['followed_ressources'].keys()
+                        in user.preferences['notifications']["gcn_events"].keys()
                     ):
                         if (
                             gcn.NoticeType(target.notice_type).name
-                            in user.preferences['followed_ressources'][
+                            in user.preferences['notifications']['gcn_events'][
                                 'gcn_notice_types'
                             ]
                         ):
+                            print("sending gcn notification to", user.id)
                             session.add(
                                 UserNotification(
                                     user=user,
@@ -395,44 +415,44 @@ def add_user_notifications(mapper, connection, target):
                         if (
                             len(favorite_sources) > 0
                             and "favorite_sources"
-                            in user.preferences['followed_ressources'].keys()
-                        ):
-                            if any(
+                            in user.preferences['notifications'].keys()
+                            and any(
                                 target.obj_id == source.obj_id
                                 for source in favorite_sources
-                            ):
-                                session.add(
-                                    UserNotification(
-                                        user=user,
-                                        text=f"New Classification on favorite source *{target.obj_id}*",
-                                        notification_type="favorite_sources_new_classification",
-                                        url=f"/source/{target.obj_id}",
-                                    )
-                                )
-                        elif (
-                            "sources" in user.preferences['followed_ressources'].keys()
-                            and "sources_classifications"
-                            in user.preferences['followed_ressources'].keys()
+                            )
                         ):
-                            if (
-                                target.classification
-                                in user.preferences['followed_ressources'][
-                                    'sources_classifications'
-                                ]
-                            ):
-                                session.add(
-                                    UserNotification(
-                                        user=user,
-                                        text=f"New Classification *{target.classification}* for source *{target.obj_id}*",
-                                        notification_type="sources",
-                                        url=f"/sources/{target.obj_id}",
-                                    )
+                            session.add(
+                                UserNotification(
+                                    user=user,
+                                    text=f"New Classification on favorite source *{target.obj_id}*",
+                                    notification_type="favorite_sources_new_classification",
+                                    url=f"/source/{target.obj_id}",
                                 )
+                            )
+                        elif "sources" in user.preferences['notifications'].keys():
+                            if (
+                                "classifications"
+                                in user.preferences['notifications']['sources'].keys()
+                            ):
+                                if (
+                                    target.classification
+                                    in user.preferences['notifications']['sources'][
+                                        'classifications'
+                                    ]
+                                ):
+                                    session.add(
+                                        UserNotification(
+                                            user=user,
+                                            text=f"New Classification *{target.classification}* for source *{target.obj_id}*",
+                                            notification_type="sources",
+                                            url=f"/sources/{target.obj_id}",
+                                        )
+                                    )
                     elif is_spectra:
                         if (
                             len(favorite_sources) > 0
                             and "favorite_sources"
-                            in user.preferences["followed_ressources"].keys()
+                            in user.preferences["notifications"].keys()
                         ):
                             if any(
                                 target.obj_id == source.obj_id
@@ -450,7 +470,7 @@ def add_user_notifications(mapper, connection, target):
                         if (
                             len(favorite_sources) > 0
                             and "favorite_sources"
-                            in user.preferences["followed_ressources"].keys()
+                            in user.preferences["notifications"].keys()
                         ):
                             if any(
                                 target.obj_id == source.obj_id
