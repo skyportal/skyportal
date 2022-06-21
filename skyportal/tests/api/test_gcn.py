@@ -98,3 +98,23 @@ def test_gcn_Fermi(super_admin_token, view_only_token):
         token=super_admin_token,
     )
     assert status == 200
+
+
+def test_gcn_IPN(super_admin_token, view_only_token):
+
+    skymap = f'{os.path.dirname(__file__)}/../data/GRB220617A_IPN_map_hpx.fits.gz'
+    dateobs = '2022-06-17T18:31:12'
+    tags = ['IPN', 'GRB']
+
+    data = {'dateobs': dateobs, 'skymap': skymap, 'tags': tags}
+
+    status, data = api('POST', 'gcn_event', data=data, token=super_admin_token)
+    assert status == 200
+    assert data['status'] == 'success'
+
+    dateobs = "2022-06-17 18:31:12"
+    status, data = api('GET', f'gcn_event/{dateobs}', token=super_admin_token)
+    assert status == 200
+    data = data["data"]
+    assert data["dateobs"] == "2022-06-17T18:31:12"
+    assert 'IPN' in data["tags"]
