@@ -5,6 +5,7 @@ import numpy as np
 import arrow
 from tdtax import taxonomy, __version__
 import astropy.units as u
+from astropy.time import Time
 
 from skyportal.tests import api
 from skyportal.models import cosmo
@@ -771,10 +772,9 @@ def test_object_last_detected(
     )
     assert status == 200
     assert data["status"] == "success"
-    assert (
-        data["data"]["last_detected_at"]
-        == arrow.get((90000.0 - 40_587) * 86400.0).isoformat()
-    )
+    assert arrow.get(
+        Time(data["data"]["photstats"][-1]["last_detected_mjd"], format="mjd").datetime
+    ) == arrow.get((90000.0 - 40_587) * 86400.0)
 
 
 def test_source_photometry_summary_info(
@@ -806,9 +806,7 @@ def test_source_photometry_summary_info(
     assert len(data["data"]["ids"]) == 2
 
     mag1_ab = -2.5 * np.log10(pt1["flux"]) + 25.0
-    iso1 = arrow.get((pt1["mjd"] - 40_587) * 86400.0).isoformat()
     mag2_ab = -2.5 * np.log10(pt2["flux"]) + 25.0
-    iso2 = arrow.get((pt2["mjd"] - 40_587) * 86400.0).isoformat()
 
     status, data = api(
         "GET",
@@ -818,10 +816,11 @@ def test_source_photometry_summary_info(
     )
     assert status == 200
     assert data["status"] == "success"
-    assert data["data"]["last_detected_at"] == iso2
-    assert data["data"]["last_detected_mag"] == mag2_ab
-    assert data["data"]["peak_detected_at"] == iso1
-    assert data["data"]["peak_detected_mag"] == mag1_ab
+
+    assert data["data"]["photstats"][-1]["first_detected_mjd"] == pt1["mjd"]
+    assert data["data"]["photstats"][-1]["first_detected_mag"] == mag1_ab
+    assert data["data"]["photstats"][-1]["peak_mjd_global"] == pt2["mjd"]
+    assert data["data"]["photstats"][-1]["peak_mag_global"] == mag2_ab
 
 
 def test_sources_include_detection_stats(
@@ -963,29 +962,35 @@ def test_sources_include_detection_stats(
 
     assert any(
         [
-            s["last_detected_at"] == arrow.get((90000.0 - 40_587) * 86400.0).isoformat()
+            arrow.get(
+                Time(s["photstats"][-1]["last_detected_mjd"], format="mjd").datetime
+            )
+            == arrow.get((90000.0 - 40_587) * 86400.0)
             for s in data["data"]["sources"]
         ]
     )
     assert any(
         [
-            s["peak_detected_at"] == arrow.get((90000.0 - 40_587) * 86400.0).isoformat()
+            arrow.get(
+                Time(s["photstats"][-1]["peak_mjd_global"], format="mjd").datetime
+            )
+            == arrow.get((90000.0 - 40_587) * 86400.0)
             for s in data["data"]["sources"]
         ]
     )
 
     assert any(
         [
-            np.isclose(s["last_detected_mag"], 22.280546455476145)
-            if s["last_detected_mag"] is not None
+            np.isclose(s["photstats"][-1]["last_detected_mag"], 22.280546455476145)
+            if s["photstats"][-1]["last_detected_mag"] is not None
             else False
             for s in data["data"]["sources"]
         ]
     )
     assert any(
         [
-            np.isclose(s["peak_detected_mag"], 22.280546455476145)
-            if s["last_detected_mag"] is not None
+            np.isclose(s["photstats"][-1]["peak_mag_global"], 22.280546455476145)
+            if s["photstats"][-1]["peak_mag_global"] is not None
             else False
             for s in data["data"]["sources"]
         ]
@@ -1598,7 +1603,7 @@ def test_sources_filter_by_peak_mag(
     )
     assert status == 200
     assert len(data["data"]["sources"]) == 1
-    assert data["data"]["sources"][0]["id"] == obj_id1
+    assert data["data"]["sources"][0]["id"] == obj_id2
 
     # Filter for obj 2 only
     status, data = api(
@@ -1609,7 +1614,7 @@ def test_sources_filter_by_peak_mag(
     )
     assert status == 200
     assert len(data["data"]["sources"]) == 1
-    assert data["data"]["sources"][0]["id"] == obj_id2
+    assert data["data"]["sources"][0]["id"] == obj_id1
 
 
 def test_sources_filter_by_latest_mag(
@@ -1689,7 +1694,7 @@ def test_sources_filter_by_latest_mag(
     status, data = api(
         "GET",
         "sources",
-        params={"minLatestMagnitude": 23, "group_ids": f"{public_group.id}"},
+        params={"maxLatestMagnitude": 23, "group_ids": f"{public_group.id}"},
         token=view_only_token,
     )
     assert status == 200
@@ -1700,7 +1705,7 @@ def test_sources_filter_by_latest_mag(
     status, data = api(
         "GET",
         "sources",
-        params={"maxLatestMagnitude": 23, "group_ids": f"{public_group.id}"},
+        params={"minLatestMagnitude": 23, "group_ids": f"{public_group.id}"},
         token=view_only_token,
     )
     assert status == 200
