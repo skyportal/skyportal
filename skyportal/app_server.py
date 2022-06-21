@@ -10,6 +10,7 @@ from skyportal.handlers.api import (
     AnalysisServiceHandler,
     UserACLHandler,
     AllocationHandler,
+    AllocationReportHandler,
     AssignmentHandler,
     CandidateHandler,
     ClassificationHandler,
@@ -147,6 +148,7 @@ class CustomApplication(tornado.web.Application):
 skyportal_handlers = [
     # API endpoints
     (r'/api/acls', ACLHandler),
+    (r'/api/allocation/report(/[0-9]+)', AllocationReportHandler),
     (r'/api/allocation(/.*)?', AllocationHandler),
     (r'/api/analysis_service(/.*)?', AnalysisServiceHandler),
     (r'/api/assignment(/.*)?', AssignmentHandler),
@@ -168,7 +170,7 @@ skyportal_handlers = [
     (r'/api/followup_request(/.*)?', FollowupRequestHandler),
     (r'/api/photometry_request(/.*)', PhotometryRequestHandler),
     (r'/api/galaxy_catalog/ascii', GalaxyASCIIFileHandler),
-    (r'/api/galaxy_catalog(/[0-9]+)?', GalaxyCatalogHandler),
+    (r'/api/galaxy_catalog(/[0-9A-Za-z-_\.\+]+)?', GalaxyCatalogHandler),
     (
         r'/api/(sources|spectra|gcn_event|shift)/([0-9A-Za-z-_\.\+]+)/comments',
         CommentHandler,
