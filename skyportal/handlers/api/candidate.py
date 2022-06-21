@@ -3,6 +3,7 @@ from copy import copy
 import re
 import json
 import uuid
+from astropy.time import Time
 
 import arrow
 import numpy as np
@@ -397,7 +398,7 @@ class CandidateHandler(BaseHandler):
         include_comments = self.get_query_argument("includeComments", False)
 
         if obj_id is not None:
-            query_options = [joinedload(Obj.thumbnails)]
+            query_options = [joinedload(Obj.thumbnails), joinedload(Obj.photstats)]
 
             c = Obj.get_if_accessible_by(
                 obj_id,
@@ -485,7 +486,12 @@ class CandidateHandler(BaseHandler):
                     .filter(Classification.obj_id == obj_id)
                     .all()
                 )
-            candidate_info["last_detected_at"] = c.last_detected_at(self.current_user)
+            if len(c.photstats) > 0:
+                candidate_info["last_detected_at"] = Time(
+                    c.photstats[-1].last_detected_mjd, format='mjd'
+                ).datetime
+            else:
+                candidate_info["last_detected_at"] = None
             candidate_info["gal_lon"] = c.gal_lon_deg
             candidate_info["gal_lat"] = c.gal_lat_deg
             candidate_info["luminosity_distance"] = c.luminosity_distance
@@ -823,6 +829,7 @@ class CandidateHandler(BaseHandler):
                 order_by=order_by,
                 query_id=query_id,
                 use_cache=True,
+                include_detection_stats=True,
             )
         except ValueError as e:
             if "Page number out of range" in str(e):
@@ -918,9 +925,12 @@ class CandidateHandler(BaseHandler):
                 candidate_list[-1]["annotations"] = (
                     selected_groups_annotations + other_annotations
                 )
-                candidate_list[-1]["last_detected_at"] = obj.last_detected_at(
-                    self.current_user
-                )
+                if len(obj.photstats) > 0:
+                    candidate_list[-1]["last_detected_at"] = Time(
+                        obj.photstats[-1].last_detected_mjd, format='mjd'
+                    ).datetime
+                else:
+                    candidate_list[-1]["last_detected_at"] = None
                 candidate_list[-1]["gal_lat"] = obj.gal_lat_deg
                 candidate_list[-1]["gal_lon"] = obj.gal_lon_deg
                 candidate_list[-1]["luminosity_distance"] = obj.luminosity_distance
