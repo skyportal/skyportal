@@ -99,7 +99,7 @@ GroupCommentOnSpectrum.delete = GroupCommentOnSpectrum.update = (
 GroupReminderOnSpectrum = join_model(
     "group_reminders_on_spectra", Group, ReminderOnSpectrum
 )
-GroupReminderOnSpectrum.__doc__ = "Join table mapping Groups to CommentOnSpectrum."
+GroupReminderOnSpectrum.__doc__ = "Join table mapping Groups to ReminderOnSpectrum."
 GroupReminderOnSpectrum.delete = GroupCommentOnSpectrum.update = (
     accessible_by_group_admins & GroupReminderOnSpectrum.read
 )
