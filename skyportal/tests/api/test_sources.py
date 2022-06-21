@@ -6,6 +6,7 @@ import arrow
 from tdtax import taxonomy, __version__
 import astropy.units as u
 from astropy.time import Time
+import time
 
 from skyportal.tests import api
 from skyportal.models import cosmo
@@ -923,6 +924,9 @@ def test_sources_include_detection_stats(
     assert status == 200
     assert data['status'] == 'success'
 
+    # let the phot_stats table update
+    time.sleep(10)
+
     # A high mjd, but lower than the first point
     # Since this is a detection, it should be returned as "last_detected"
     status, data = api(
@@ -940,6 +944,14 @@ def test_sources_include_detection_stats(
             'group_ids': [public_group.id],
         },
         token=upload_data_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    status, data = api(
+        'PUT',
+        f'sources/{obj_id}/phot_stat',
+        token=super_admin_token,
     )
     assert status == 200
     assert data['status'] == 'success'
