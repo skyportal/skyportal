@@ -2,6 +2,7 @@ import pytest
 import uuid
 from tdtax import taxonomy, __version__
 from selenium.webdriver.common.keys import Keys
+from datetime import datetime, timezone
 
 from skyportal.tests import api
 from skyportal.tests.frontend.sources_and_followup_etc.test_sources import (
@@ -197,3 +198,48 @@ def test_classification_on_favorite_source_triggers_notification(
     driver.wait_for_xpath(
         '//*[contains(text(), "New classification on favorite source")]'
     )
+
+
+def test_spectra_on_favorite_source_triggers_notification(
+    driver, user, public_source, lris, upload_data_token, public_group
+):
+    driver.get(f'/become_user/{user.id}')
+    driver.get("/profile")
+
+    # Enable browser notifications for favorite source comments
+    favorite_sources = driver.wait_for_xpath('//*[@name="favorite_sources"]')
+    driver.scroll_to_element_and_click(favorite_sources)
+
+    favorite_sources_new_comments = driver.wait_for_xpath(
+        '//*[@name="favorite_sources_new_spectra"]'
+    )
+    driver.scroll_to_element_and_click(favorite_sources_new_comments)
+
+    # Make public_source a favorite
+    driver.get(f"/source/{public_source.id}")
+    driver.click_xpath(f'//*[@data-testid="favorites-exclude_{public_source.id}"]')
+    driver.wait_for_xpath(f'//*[@data-testid="favorites-include_{public_source.id}"]')
+
+    # Add spectrum to public_source
+    status, data = api(
+        'POST',
+        'spectrum',
+        data={
+            'obj_id': public_source.id,
+            'observed_at': str(datetime.now(timezone.utc)),
+            'instrument_id': lris.id,
+            'wavelengths': [664, 665, 666],
+            'fluxes': [234.2, 232.1, 235.3],
+            'group_ids': [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    # Check that notification was created
+    driver.get(f'/become_user/{user.id}')
+    driver.get("/")
+    driver.wait_for_xpath("//span[text()='1']")
+    driver.click_xpath('//*[@data-testid="notificationsButton"]')
+    driver.wait_for_xpath('//*[contains(text(), "New spectrum on favorite source")]')
