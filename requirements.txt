@@ -58,7 +58,6 @@ gwemopt==0.0.76
 humanize==4.0.0
 xarray>=21.1
 simsurvey==0.7.3
-xarray>=21.1
 noaodatalab==2.20.0
 black==22.3.0
 click==8.1.3

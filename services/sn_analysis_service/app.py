@@ -1,11 +1,13 @@
 import os
 import functools
 import tempfile
-import io
+import base64
 
+import joblib
 import numpy as np
 import matplotlib
 import arviz as az
+import requests
 from quart import Quart
 from quart import request
 from astropy.table import Table
@@ -28,19 +30,33 @@ app.debug = False
 default_analysis_parameters = {"source": "nugent-sn2p", "fix_z": False}
 
 
-def upload_analysis_results(results, data_dict):
+def upload_analysis_results(results, data_dict, request_timeout=60):
     """
     Upload the results to the webhook.
-
-    TO BE COMPLETED
     """
-    log("upload results to webhook")
-    assert isinstance(results, dict)
-    assert isinstance(data_dict, dict)
-    pass
+
+    log("Uploading results to webhook")
+    if data_dict["callback_method"] != "POST":
+        log("Callback URL is not a POST URL. Skipping.")
+        return
+    url = data_dict["callback_url"]
+    try:
+        result = requests.post(
+            url,
+            json=results,
+            timeout=request_timeout,
+        )
+    except requests.exceptions.Timeout:
+        log("Callback URL timedout.")
+        raise ValueError(f"Request to {url} timed out.")
+    except Exception as e:
+        log(f"Callback exception {e}.")
+        raise Exception(f"Request to {url} had exception {e}.")
+
+    return result
 
 
-async def run_sn_model(dd):
+async def run_sn_model(data_dict):
     """
     Use `sncosmo` to fit data to a model with name `source_name`.
 
@@ -53,7 +69,6 @@ async def run_sn_model(dd):
     TODO in the next PR: send the results back to the webhook
 
     """
-    data_dict = await dd
 
     analysis_parameters = data_dict["inputs"].get("analysis_parameters", {})
     analysis_parameters = {**default_analysis_parameters, **analysis_parameters}
@@ -71,7 +86,7 @@ async def run_sn_model(dd):
     # the following code transforms these inputs from SkyPortal
     # to the format expected by sncosmo.
     #
-    results = {"status": "success", "message": "", "data": {}}
+    rez = {"status": "success", "message": "", "analysis": {}}
     try:
         data = Table.read(data_dict["inputs"]["photometry"], format='ascii.csv')
         data.rename_column('mjd', 'time')
@@ -85,13 +100,13 @@ async def run_sn_model(dd):
         redshift = Table.read(data_dict["inputs"]["redshift"], format='ascii.csv')
         z = redshift['redshift'][0]
     except Exception as e:
-        results.update(
+        rez.update(
             {
                 "status": "failure",
                 "message": f"input data is not in the expected format {e}",
             }
         )
-        upload_analysis_results(results, data_dict)
+        upload_analysis_results(rez, data_dict)
 
     try:
         model = sncosmo.Model(source=source)
@@ -118,49 +133,73 @@ async def run_sn_model(dd):
         log(f"model parameters: {result.param_names}")
         log(f"best-fit values: {result.parameters}")
         log(f"The result contains the following attributes:\n {result.keys()}")
-        log(f'{result["success"]=}')
+        log(f'{result["success"]=} type={type(result["success"])}')
 
         if result["success"]:
-
-            with tempfile.NamedTemporaryFile(
-                suffix=".png", prefix="snplot_", dir="/tmp/"
-            ) as f:
-                _ = sncosmo.plot_lc(
-                    data,
-                    model=fitted_model,
-                    errors=result.errors,
-                    model_label=source,
-                    zp=23.9,
-                    figtext=data_dict["resource_id"],
-                    fname=f.name,
-                )
-                f.seek(0)
-                plot_data = io.BytesIO(f.read())
-                f.close()
-                os.remove(f.name)
-                log('made lightcurve plot')
+            f = tempfile.NamedTemporaryFile(
+                suffix=".png", prefix="snplot_", dir="/tmp/", delete=False
+            )
+            f.close()
+            log(f"{f.name}")
+            _ = sncosmo.plot_lc(
+                data,
+                model=fitted_model,
+                errors=result.errors,
+                model_label=source,
+                zp=23.9,
+                figtext=data_dict["resource_id"],
+                fname=f.name,
+            )
+            plot_data = base64.b64encode(open(f.name, "rb").read())
+            os.remove(f.name)
 
             # make some draws from the posterior (simulating what we'd expect
             # with an MCMC analysis)
             post = rng.multivariate_normal(result.parameters, result.covariance, 10000)
             post = post[np.newaxis, :]
             # create an inference dataset
-            dataset = az.convert_to_inference_data(
+            inference = az.convert_to_inference_data(
                 {x: post[:, :, i] for i, x in enumerate(result.param_names)}
             )
-            results.update({"data": {"posterior": dataset, "plot": plot_data}})
+            f = tempfile.NamedTemporaryFile(
+                suffix=".nc", prefix="inferencedata_", dir="/tmp/"
+            )
+            f.close()
+            inference.to_netcdf(f.name)
+            inference_data = base64.b64encode(open(f.name, 'rb').read())
+            os.remove(f.name)
+
+            result.update({"source": source, "fix_z": fix_z})
+
+            f = tempfile.NamedTemporaryFile(
+                suffix=".joblib", prefix="results_", dir="/tmp/"
+            )
+            f.close()
+            joblib.dump(result, f.name, compress=3)
+            result_data = base64.b64encode(open(f.name, "rb").read())
+            os.remove(f.name)
+
+            analysis_results = {
+                "inference_data": {"format": "netcdf4", "data": inference_data},
+                "plots": [{"format": "png", "data": plot_data}],
+                "results": {"format": "joblib", "data": result_data},
+            }
+
+            rez.update({"analysis": analysis_results})
+            rez.update(
+                {
+                    "status": "success",
+                    "message": f"Good results with chi^2/dof={result.chisq/result.ndof}",
+                }
+            )
         else:
-            results.update({"status": "failure", "message": "model failed to converge"})
+            rez.update({"status": "failure", "message": "model failed to converge"})
 
     except Exception as e:
-        results.update(
-            {"status": "failure", "message": f"problem running the model {e}"}
-        )
+        log(f"Exception! {e}")
+        rez.update({"status": "failure", "message": f"problem running the model {e}"})
 
-    # TODO in the next PR #3:
-    # return the dataset and the plot data
-    # by calling the webhook
-    upload_analysis_results(results, data_dict)
+    upload_analysis_results(rez, data_dict)
 
 
 @app.route('/analysis/demo_analysis', methods=['POST'])
@@ -172,13 +211,18 @@ async def demo_analysis():
     need async behavior.
     """
     log(f'{request.method} {request.url}')
-    data_dict = request.get_json(silent=True)
+    data_dict = await request.get_json(silent=True)
+
+    required_keys = ["inputs", "callback_url", "callback_method"]
+    for key in required_keys:
+        if key not in data_dict:
+            return f"missing required key {key} in data_dict", 400
 
     runner = functools.partial(run_sn_model, data_dict)
 
     app.add_background_task(runner)
 
-    return "sn_analysis_service: analysis started"
+    return "sn_analysis_service: analysis started", 200
 
 
 if __name__ == "__main__":

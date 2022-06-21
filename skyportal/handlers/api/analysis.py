@@ -632,7 +632,7 @@ class AnalysisHandler(BaseHandler):
             schema:
               type: string
             description: |
-               What underlying data the annotation is on:
+               What underlying data the analysis is on:
                must be one of either "obj" (more to be added in the future)
           - in: path
             name: resource_id
@@ -788,7 +788,7 @@ class AnalysisHandler(BaseHandler):
                 show_corner=data.get('show_corner', False),
                 analysis_parameters=analysis_parameters,
                 status='queued',
-                handled_by_url="/api/webhook/obj_analysis",
+                handled_by_url="api/webhook/obj_analysis",
                 invalid_after=invalid_after,
             )
         # Add more analysis_resource_types here one day (eg. GCN)
@@ -808,6 +808,7 @@ class AnalysisHandler(BaseHandler):
 
         # Now call the analysis service to start the analysis, using the `input` data
         # that we assembled above.
+        log(f'{get_app_base_url()}/{analysis.handled_by_url}/{analysis.token}')
         external_analysis_service = functools.partial(
             call_external_analysis_service,
             analysis_service.url,
@@ -884,7 +885,7 @@ class AnalysisHandler(BaseHandler):
               schema:
                 type: string
               description: |
-                What underlying data the annotation is on:
+                What underlying data the analysis is on:
                 must be one of either "obj" (more to be added in the future)
             - in: path
               name: analysis_id

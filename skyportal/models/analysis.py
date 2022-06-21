@@ -2,11 +2,10 @@ __all__ = ['AnalysisService', 'ObjAnalysis']
 
 import os
 import json
-import hashlib
 import re
 import uuid
 
-import xarray as xr
+import joblib
 
 import sqlalchemy as sa
 from sqlalchemy.orm import relationship
@@ -191,15 +190,25 @@ class AnalysisService(Base):
 
 class AnalysisMixin:
     def calc_hash(self):
-        md5_hash = hashlib.md5()
-        md5_hash.update(self._data.to_netcdf())
-        self.hash = md5_hash.hexdigest()
+        self.hash = joblib.hash(self.filename)
+
+    @hybrid_property
+    def has_inference_data(self):
+        return self.data.get('inference_data', None) is not None
+
+    @hybrid_property
+    def has_plot_data(self):
+        return self.data.get('plots', None) is not None
+
+    @hybrid_property
+    def has_results_data_url(self):
+        return self.data.get('results', None) is not None
 
     def load_data(self):
         """
         Load the associated analysis data from disk.
         """
-        self._data = xr.load_dataset(self.filename)
+        self._data = joblib.load(self.filename)
 
     def save_data(self):
         """
@@ -215,7 +224,7 @@ class AnalysisMixin:
         # make sure to replace windows style slashes
         subfolder = self._unique_id.replace("\\", "/")
 
-        filename = f'analysis_{self.id}.nc'
+        filename = f'analysis_{self.id}.joblib'
 
         path = os.path.join(root_folder, subfolder)
         if not os.path.exists(path):
@@ -228,8 +237,9 @@ class AnalysisMixin:
                 f'Full path to file {full_name} is longer than {MAX_FILEPATH_LENGTH} characters.'
             )
 
-        self._data.to_netcdf(full_name)
+        joblib.dump(self._data, full_name, compress=3)
         self.filename = full_name
+        self.calc_hash()
 
     def delete_data(self):
         """
@@ -267,8 +277,8 @@ class AnalysisMixin:
     hash = sa.Column(
         sa.String,
         nullable=True,
-        unique=True,
-        doc='MD5sum hash of the data to be saved to file. Prevents duplications.',
+        unique=False,
+        doc='MD5sum hash of the data to be saved to file. Helps identify duplicate results.',
     )
 
     show_parameters = sa.Column(

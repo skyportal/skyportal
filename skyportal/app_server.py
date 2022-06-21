@@ -105,6 +105,7 @@ from skyportal.handlers.api import (
     UserHandler,
     UnsourcedFinderHandler,
     WeatherHandler,
+    WebhookHandler,
     PS1ThumbnailHandler,
 )
 from skyportal.handlers.api.internal import (
@@ -328,6 +329,11 @@ skyportal_handlers = [
     (r'/api/user(/[0-9]+)/roles(/.*)?', UserRoleHandler),
     (r'/api/user(/.*)?', UserHandler),
     (r'/api/weather(/.*)?', WeatherHandler),
+    # strictly require uuid4 token for this unauthenticated endpoint
+    (
+        r'/api/webhook/(obj)_analysis/([0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})?',
+        WebhookHandler,
+    ),
     (r'/api/internal/tokens(/.*)?', TokenHandler),
     (r'/api/internal/profile', ProfileHandler),
     (r'/api/internal/dbinfo', DBInfoHandler),
