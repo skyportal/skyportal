@@ -66,24 +66,14 @@ const NotificationPreferences = () => {
     const prefs = {
       notifications: {},
     };
-    if (event.target.name === "sources") {
-      prefs.notifications.sources = {
-        active: event.target.checked,
-      };
-    } else if (event.target.name === "gcn_events") {
-      prefs.notifications.gcn_events = {
-        active: event.target.checked,
-      };
-    } else if (event.target.name === "facility_transactions") {
-      prefs.notifications.facility_transactions = {
-        active: event.target.checked,
-      };
-    } else if (event.target.name === "mention") {
-      prefs.notifications.mention = {
-        active: event.target.checked,
-      };
-    } else if (event.target.name === "favorite_sources") {
-      prefs.notifications.favorite_sources = {
+    if (
+      event.target.name === "sources" ||
+      event.target.name === "gcn_events" ||
+      event.target.name === "mention" ||
+      event.target.name === "favorite_sources" ||
+      event.target.name === "facility_transactions"
+    ) {
+      prefs.notifications[event.target.name] = {
         active: event.target.checked,
       };
     } else if (event.target.name === "favorite_sources_new_comments") {

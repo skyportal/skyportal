@@ -185,7 +185,7 @@ def send_email_notification(mapper, connection, target):
         subject = f"{cfg['app.title']} - New GCN Event with followed notice type"
         body = f'{target.text} ({get_app_base_url()}{target.url})'
 
-    elif ressource_type == "facilityTransaction":
+    elif ressource_type == "facility_transactions":
         subject = f"{cfg['app.title']} - New facility transaction"
         body = f'{target.text} ({get_app_base_url()}{target.url})'
 
@@ -297,7 +297,7 @@ def add_user_notifications(mapper, connection, target):
     @event.listens_for(DBSession(), "after_flush", once=True)
     def receive_after_flush(session, context):
         print("add_user_notifications")
-        is_facility_transaction = "initiator_id" in target.to_dict()
+        is_facility_transaction = target.__class__.__name__ == "FacilityTransaction"
         is_gcnevent = target.__class__.__name__ == "GcnNotice"
         is_classification = target.__class__.__name__ == "Classification"
         is_spectra = target.__class__.__name__ == "Spectrum"
@@ -313,7 +313,7 @@ def add_user_notifications(mapper, connection, target):
         elif is_facility_transaction:
             print("it is a facility transaction")
             users = User.query.filter(
-                User.preferences["notifications"]["facilitytransactions"]["active"]
+                User.preferences["notifications"]["facility_transactions"]["active"]
                 .astext.cast(sa.Boolean)
                 .is_(True)
             ).all()
@@ -387,7 +387,7 @@ def add_user_notifications(mapper, connection, target):
                             UserNotification(
                                 user=user,
                                 text=f"New Observation Plan submission for GcnEvent *{localization.dateobs}* by *{instrument.name}*",
-                                notification_type="facilityTransaction",
+                                notification_type="facility_transactions",
                                 url=f"/gcn_events/{str(localization.dateobs).replace(' ','T')}",
                             )
                         )
@@ -399,7 +399,7 @@ def add_user_notifications(mapper, connection, target):
                             UserNotification(
                                 user=user,
                                 text=f"New Follow-up submission for object *{target.followup_request.obj_id}* by *{instrument.name}*",
-                                notification_type="facilityTransaction",
+                                notification_type="facility_transactions",
                                 url=f"/source/{target.followup_request.obj_id}",
                             )
                         )
