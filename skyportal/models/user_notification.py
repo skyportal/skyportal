@@ -424,7 +424,7 @@ def add_user_notifications(mapper, connection, target):
                             session.add(
                                 UserNotification(
                                     user=user,
-                                    text=f"New Classification on favorite source *{target.obj_id}*",
+                                    text=f"New classification on favorite source *{target.obj_id}*",
                                     notification_type="favorite_sources_new_classification",
                                     url=f"/source/{target.obj_id}",
                                 )
@@ -443,7 +443,7 @@ def add_user_notifications(mapper, connection, target):
                                     session.add(
                                         UserNotification(
                                             user=user,
-                                            text=f"New Classification *{target.classification}* for source *{target.obj_id}*",
+                                            text=f"New classification *{target.classification}* for source *{target.obj_id}*",
                                             notification_type="sources",
                                             url=f"/sources/{target.obj_id}",
                                         )
@@ -479,7 +479,7 @@ def add_user_notifications(mapper, connection, target):
                                 session.add(
                                     UserNotification(
                                         user=user,
-                                        text=f"New Comment on favorite source *{target.obj_id}*",
+                                        text=f"New comment on favorite source *{target.obj_id}*",
                                         notification_type="favorite_sources_new_comment",
                                         url=f"/source/{target.obj_id}",
                                     )
