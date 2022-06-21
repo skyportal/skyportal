@@ -5,7 +5,7 @@ from baselayer.log import make_log
 from baselayer.app.models import init_db
 from baselayer.app.env import load_env
 
-from skyportal.handlers.api.gcn import post_gcnevent
+from skyportal.handlers.api.gcn import post_gcnevent_from_xml
 from skyportal.handlers.api.observation_plan import post_observation_plan
 from skyportal.models import (
     DBSession,
@@ -52,7 +52,7 @@ def handle(payload, root):
                 gcn_observation_plans.append(gcn_observation_plan)
             gcn_observation_plans = gcn_observation_plans + config_gcn_observation_plans
 
-            event_id = post_gcnevent(payload, user_id, session)
+            event_id = post_gcnevent_from_xml(payload, user_id, session)
             event = session.query(GcnEvent).get(event_id)
 
             start_date = str(datetime.utcnow()).replace("T", "")

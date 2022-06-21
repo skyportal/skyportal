@@ -168,7 +168,7 @@ skyportal_handlers = [
     (r'/api/followup_request(/.*)?', FollowupRequestHandler),
     (r'/api/photometry_request(/.*)', PhotometryRequestHandler),
     (r'/api/galaxy_catalog/ascii', GalaxyASCIIFileHandler),
-    (r'/api/galaxy_catalog(/[0-9]+)?', GalaxyCatalogHandler),
+    (r'/api/galaxy_catalog(/[0-9A-Za-z-_\.\+]+)?', GalaxyCatalogHandler),
     (
         r'/api/(sources|spectra|gcn_event|shift)/([0-9A-Za-z-_\.\+]+)/comments',
         CommentHandler,

@@ -1983,6 +1983,210 @@ class SourceHandler(BaseHandler):
         created_or_modified_after = self.get_query_argument(
             "createdOrModifiedAfter", None
         )
+        source_query = Source.query_records_accessible_by(self.current_user)
+
+        if sourceID:
+            obj_query = obj_query.filter(
+                func.lower(Obj.id).contains(func.lower(sourceID.strip()))
+            )
+        if any([ra, dec, radius]):
+            if not all([ra, dec, radius]):
+                return self.error(
+                    "If any of 'ra', 'dec' or 'radius' are "
+                    "provided, all three are required."
+                )
+            try:
+                ra = float(ra)
+                dec = float(dec)
+                radius = float(radius)
+            except ValueError:
+                return self.error(
+                    "Invalid values for ra, dec or radius - could not convert to float"
+                )
+            other = ca.Point(ra=ra, dec=dec)
+            obj_query = obj_query.filter(Obj.within(other, radius))
+
+        if start_date:
+            start_date = arrow.get(start_date.strip()).datetime
+            photstat_subquery = (
+                PhotStat.query_records_accessible_by(self.current_user)
+                .filter(PhotStat.first_detected_mjd >= Time(start_date).mjd)
+                .subquery()
+            )
+            obj_query = obj_query.join(
+                photstat_subquery, Obj.id == photstat_subquery.c.obj_id
+            )
+        if end_date:
+            end_date = arrow.get(end_date.strip()).datetime
+            photstat_subquery = (
+                PhotStat.query_records_accessible_by(self.current_user)
+                .filter(PhotStat.last_detected_mjd <= Time(end_date).mjd)
+                .subquery()
+            )
+            obj_query = obj_query.join(
+                photstat_subquery, Obj.id == photstat_subquery.c.obj_id
+            )
+        if has_spectrum_after:
+            try:
+                has_spectrum_after = str(arrow.get(has_spectrum_after.strip()).datetime)
+            except arrow.ParserError:
+                return self.error(
+                    f"Invalid input for parameter hasSpectrumAfter:{has_spectrum_after}"
+                )
+            spectrum_subquery = (
+                Spectrum.query_records_accessible_by(self.current_user)
+                .filter(Spectrum.observed_at >= has_spectrum_after)
+                .subquery()
+            )
+            obj_query = obj_query.join(
+                spectrum_subquery, Obj.id == spectrum_subquery.c.obj_id
+            )
+        if has_spectrum_before:
+            try:
+                has_spectrum_before = str(
+                    arrow.get(has_spectrum_before.strip()).datetime
+                )
+            except arrow.ParserError:
+                return self.error(
+                    f"Invalid input for parameter hasSpectrumBefore:{has_spectrum_before}"
+                )
+            spectrum_subquery = (
+                Spectrum.query_records_accessible_by(self.current_user)
+                .filter(Spectrum.observed_at <= has_spectrum_before)
+                .subquery()
+            )
+            obj_query = obj_query.join(
+                spectrum_subquery, Obj.id == spectrum_subquery.c.obj_id
+            )
+        if saved_before:
+            source_query = source_query.filter(Source.saved_at <= saved_before)
+        if saved_after:
+            source_query = source_query.filter(Source.saved_at >= saved_after)
+        if created_or_modified_after:
+            try:
+                created_or_modified_date = str(
+                    arrow.get(created_or_modified_after.strip()).datetime
+                )
+            except arrow.ParserError:
+                return self.error("Invalid value provided for createdOrModifiedAfter")
+            obj_query = obj_query.filter(
+                or_(
+                    Obj.created_at > created_or_modified_date,
+                    Obj.modified > created_or_modified_date,
+                )
+            )
+        if list_name:
+            listing_subquery = (
+                Listing.query_records_accessible_by(self.current_user)
+                .filter(Listing.list_name == list_name)
+                .filter(Listing.user_id == self.associated_user_object.id)
+                .subquery()
+            )
+            obj_query = obj_query.join(
+                listing_subquery, Obj.id == listing_subquery.c.obj_id
+            )
+        if simbad_class:
+            obj_query = obj_query.filter(
+                func.lower(Obj.altdata['simbad']['class'].astext)
+                == simbad_class.lower()
+            )
+        if alias is not None:
+            obj_query = obj_query.filter(Obj.alias.any(alias.strip()))
+        if origin is not None:
+            obj_query = obj_query.filter(Obj.origin.contains(origin.strip()))
+        if has_tns_name:
+            obj_query = obj_query.filter(Obj.altdata['tns']['name'].isnot(None))
+        if has_spectrum:
+            spectrum_subquery = Spectrum.query_records_accessible_by(
+                self.current_user
+            ).subquery()
+            obj_query = obj_query.join(
+                spectrum_subquery, Obj.id == spectrum_subquery.c.obj_id
+            )
+        if min_redshift is not None:
+            try:
+                min_redshift = float(min_redshift)
+            except ValueError:
+                return self.error(
+                    "Invalid values for minRedshift - could not convert to float"
+                )
+            obj_query = obj_query.filter(Obj.redshift >= min_redshift)
+        if max_redshift is not None:
+            try:
+                max_redshift = float(max_redshift)
+            except ValueError:
+                return self.error(
+                    "Invalid values for maxRedshift - could not convert to float"
+                )
+            obj_query = obj_query.filter(Obj.redshift <= max_redshift)
+        if min_peak_magnitude is not None:
+            try:
+                min_peak_magnitude = float(min_peak_magnitude)
+            except ValueError:
+                return self.error(
+                    "Invalid values for minPeakMagnitude - could not convert to float"
+                )
+            obj_query = obj_query.filter(
+                Obj.peak_detected_mag(self.current_user) >= min_peak_magnitude
+            )
+        if max_peak_magnitude is not None:
+            try:
+                max_peak_magnitude = float(max_peak_magnitude)
+            except ValueError:
+                return self.error(
+                    "Invalid values for maxPeakMagnitude - could not convert to float"
+                )
+            obj_query = obj_query.filter(
+                Obj.peak_detected_mag(self.current_user) <= max_peak_magnitude
+            )
+        if min_latest_magnitude is not None:
+            try:
+                min_latest_magnitude = float(min_latest_magnitude)
+            except ValueError:
+                return self.error(
+                    "Invalid values for minLatestMagnitude - could not convert to float"
+                )
+            obj_query = obj_query.filter(
+                Obj.last_detected_mag(self.current_user) >= min_latest_magnitude
+            )
+        if max_latest_magnitude is not None:
+            try:
+                max_latest_magnitude = float(max_latest_magnitude)
+            except ValueError:
+                return self.error(
+                    "Invalid values for maxLatestMagnitude - could not convert to float"
+                )
+            obj_query = obj_query.filter(
+                Obj.last_detected_mag(self.current_user) <= max_latest_magnitude
+            )
+        if classifications is not None or sort_by == "classification":
+            if classifications is not None:
+                if isinstance(classifications, str) and "," in classifications:
+                    classifications = [c.strip() for c in classifications.split(",")]
+                elif isinstance(classifications, str):
+                    classifications = [classifications]
+                else:
+                    return self.error(
+                        "Invalid classifications value -- must provide at least one string value"
+                    )
+                taxonomy_names, classifications = list(
+                    zip(
+                        *list(
+                            map(
+                                lambda c: (
+                                    c.split(":")[0].strip(),
+                                    c.split(":")[1].strip(),
+                                ),
+                                classifications,
+                            )
+                        )
+                    )
+                )
+                classification_accessible_query = (
+                    Classification.query_records_accessible_by(
+                        self.current_user
+                    ).subquery()
+                )
 
         localization_dateobs = self.get_query_argument("localizationDateobs", None)
         localization_name = self.get_query_argument("localizationName", None)
