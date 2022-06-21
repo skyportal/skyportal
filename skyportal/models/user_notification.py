@@ -11,6 +11,7 @@ import requests
 from baselayer.app.models import DBSession, Base, User, AccessibleIfUserMatches
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
+from baselayer.log import make_log
 
 from ..app_utils import get_app_base_url
 from .allocation import Allocation
@@ -29,6 +30,8 @@ from sqlalchemy import or_
 from skyportal.models import Shift, ShiftUser
 
 _, cfg = load_env()
+
+log = make_log('notifications')
 
 account_sid = cfg["twilio.sms_account_sid"]
 auth_token = cfg["twilio.sms_auth_token"]
@@ -96,7 +99,6 @@ def send_slack_notification(mapper, connection, target):
         return
 
     slack_prefs = target.user.preferences.get('slack_integration')
-    print('slack prefs', slack_prefs)
 
     if not slack_prefs:
         return
@@ -107,7 +109,6 @@ def send_slack_notification(mapper, connection, target):
         return
 
     if not integration_url.startswith(cfg.get("slack.expected_url_preamble", "https")):
-        print("Slack integration URL does not start with expected preamble")
         return
 
     slack_microservice_url = (
@@ -130,35 +131,34 @@ def send_slack_notification(mapper, connection, target):
     data = json.dumps(
         {"url": integration_url, "text": f'{target.text} ({app_url}{target.url})'}
     )
-    requests.post(
-        slack_microservice_url, data=data, headers={'Content-Type': 'application/json'}
-    )
+    try:
+        requests.post(
+            slack_microservice_url,
+            data=data,
+            headers={'Content-Type': 'application/json'},
+        )
+    except Exception as e:
+        log(f"Error sending slack notification: {e}")
 
 
 @event.listens_for(UserNotification, 'after_insert')
 def send_email_notification(mapper, connection, target):
-    print("trying to send email")
 
     if not email:
-        print("email not enabled")
         return
 
     if not target.user:
-        print("no user")
         return
 
     if not target.user.contact_email:
-        print("no contact email")
         return
 
     if not target.user.preferences:
-        print("no preferences")
         return
 
     prefs = target.user.preferences.get('notifications')
 
     if not prefs:
-        print("no prefs notification")
         return
 
     ressource_type = None
@@ -205,12 +205,14 @@ def send_email_notification(mapper, connection, target):
         body = f'{target.text} ({get_app_base_url()}{target.url})'
 
     if subject and body and target.user.contact_email:
-        print("sending email to ", target.user.contact_email)
-        send_email(
-            recipients=[target.user.contact_email],
-            subject=subject,
-            body=body,
-        )
+        try:
+            send_email(
+                recipients=[target.user.contact_email],
+                subject=subject,
+                body=body,
+            )
+        except Exception as e:
+            log(f"Error sending email notification: {e}")
 
 
 @event.listens_for(UserNotification, 'after_insert')
@@ -247,7 +249,6 @@ def send_sms_notification(mapper, connection, target):
 
     sending = False
     if prefs[ressource_type]['sms'].get("on_shift", False):
-        print("user wants to receive sms on shift")
         current_shift = (
             Shift.query.join(ShiftUser)
             .filter(ShiftUser.user_id == target.user.id)
@@ -256,35 +257,29 @@ def send_sms_notification(mapper, connection, target):
             .first()
         )
         if current_shift is not None:
-            print("currently on shift")
             sending = True
     else:
         timeslot = prefs[ressource_type]['sms'].get("time_slot", [])
-        print("timeslot", timeslot)
         if len(timeslot) > 0:
             current_time = arrow.utcnow().datetime
-            print("time slot start", timeslot[0])
-            print("time slot end", timeslot[1])
-            print("current time", current_time.hour)
-
             if timeslot[0] < timeslot[1]:
                 if (
                     current_time.hour >= timeslot[0]
                     and current_time.hour <= timeslot[1]
                 ):
-                    print("sending sms 1")
                     sending = True
             else:
                 if current_time.hour <= timeslot[0] or current_time.hour >= timeslot[1]:
-                    print("sending sms 2")
                     sending = True
     if sending:
-        client.messages.create(
-            body=f"{cfg['app.title']} - {target.text}",
-            from_=from_number,
-            to=target.user.contact_phone.e164,
-        )
-        print("sending sms !!!")
+        try:
+            client.messages.create(
+                body=f"{cfg['app.title']} - {target.text}",
+                from_=from_number,
+                to=target.user.contact_phone.e164,
+            )
+        except Exception as e:
+            log(f"Error sending sms notification: {e}")
 
 
 @event.listens_for(Classification, 'after_insert')
@@ -296,7 +291,6 @@ def add_user_notifications(mapper, connection, target):
     # Add front-end user notifications
     @event.listens_for(DBSession(), "after_flush", once=True)
     def receive_after_flush(session, context):
-        print("add_user_notifications")
         is_facility_transaction = target.__class__.__name__ == "FacilityTransaction"
         is_gcnevent = target.__class__.__name__ == "GcnNotice"
         is_classification = target.__class__.__name__ == "Classification"
@@ -304,14 +298,12 @@ def add_user_notifications(mapper, connection, target):
         is_comment = target.__class__.__name__ == "Comment"
 
         if is_gcnevent:
-            print("it is a gcn")
             users = User.query.filter(
                 User.preferences["notifications"]["gcn_events"]["active"]
                 .astext.cast(sa.Boolean)
                 .is_(True)
             ).all()
         elif is_facility_transaction:
-            print("it is a facility transaction")
             users = User.query.filter(
                 User.preferences["notifications"]["facility_transactions"]["active"]
                 .astext.cast(sa.Boolean)
@@ -319,7 +311,6 @@ def add_user_notifications(mapper, connection, target):
             ).all()
         else:
             if is_classification:
-                print("it is a classification")
                 users = User.query.filter(
                     or_(
                         User.preferences["notifications"]["sources"]["active"]
@@ -331,14 +322,12 @@ def add_user_notifications(mapper, connection, target):
                     )
                 ).all()
             elif is_spectra:
-                print("it is a spectrum")
                 users = User.query.filter(
                     User.preferences["notifications"]["favorite_sources"]["active"]
                     .astext.cast(sa.Boolean)
                     .is_(True)
                 ).all()
             elif is_comment:
-                print("it is a comment")
                 users = User.query.filter(
                     User.preferences["notifications"]["favorite_sources"]["active"]
                     .astext.cast(sa.Boolean)
@@ -365,7 +354,6 @@ def add_user_notifications(mapper, connection, target):
                                 'gcn_notice_types'
                             ]
                         ):
-                            print("sending gcn notification to", user.id)
                             session.add(
                                 UserNotification(
                                     user=user,

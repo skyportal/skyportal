@@ -12,7 +12,7 @@ import Switch from "@mui/material/Switch";
 import UserPreferencesHeader from "./UserPreferencesHeader";
 import ClassificationSelect from "./ClassificationSelect";
 import GcnNoticeTypesSelect from "./GcnNoticeTypesSelect";
-import NotificationSettingSelect from "./NotificationSettingSelect";
+import NotificationSettingsSelect from "./NotificationSettingsSelect";
 import * as profileActions from "../ducks/profile";
 
 const useStyles = makeStyles((theme) => ({
@@ -156,7 +156,7 @@ const NotificationPreferences = () => {
                 </Button>
               </div>
             </form>
-            <NotificationSettingSelect notificationRessourceType="sources" />
+            <NotificationSettingsSelect notificationRessourceType="sources" />
           </>
         )}
       </div>
@@ -191,7 +191,7 @@ const NotificationPreferences = () => {
                 </Button>
               </div>
             </form>
-            <NotificationSettingSelect notificationRessourceType="gcn_events" />
+            <NotificationSettingsSelect notificationRessourceType="gcn_events" />
           </>
         )}
       </div>
@@ -211,7 +211,7 @@ const NotificationPreferences = () => {
           />
         </FormGroup>
         {profile?.notifications?.facility_transactions?.active === true && (
-          <NotificationSettingSelect notificationRessourceType="facility_transactions" />
+          <NotificationSettingsSelect notificationRessourceType="facility_transactions" />
         )}
       </div>
       <div className={classes.pref}>
@@ -274,7 +274,7 @@ const NotificationPreferences = () => {
                 />
               </FormGroup>
             </div>
-            <NotificationSettingSelect notificationRessourceType="favorite_sources" />
+            <NotificationSettingsSelect notificationRessourceType="favorite_sources" />
           </>
         )}
       </div>
@@ -292,7 +292,7 @@ const NotificationPreferences = () => {
           />
         </FormGroup>
         {profile?.notifications?.mention?.active === true && (
-          <NotificationSettingSelect notificationRessourceType="mention" />
+          <NotificationSettingsSelect notificationRessourceType="mention" />
         )}
       </div>
     </div>

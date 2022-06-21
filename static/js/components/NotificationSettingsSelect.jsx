@@ -79,7 +79,7 @@ const DialogTitle = withStyles(dialogTitleStyles)(
   )
 );
 
-const NotificationSettingSelect = ({ notificationRessourceType }) => {
+const NotificationSettingsSelect = ({ notificationRessourceType }) => {
   const classes = useStyles();
   const [open, setOpen] = useState(false);
   const profile = useSelector((state) => state.profile.preferences);
@@ -91,7 +91,6 @@ const NotificationSettingSelect = ({ notificationRessourceType }) => {
     if (!value) {
       const val =
         profile?.notifications[notificationRessourceType]?.sms?.time_slot;
-      console.log(val);
       if (val?.length > 0) {
         setValue(val);
         if (val[0] > val[1]) {
@@ -183,47 +182,6 @@ const NotificationSettingSelect = ({ notificationRessourceType }) => {
     }
     return checked;
   };
-
-  // const handleLabel = (type) => {
-  // this function could be used to generate more precise labels for the options. It can be shortened by a lot, this was just for testing.
-  //   let label = "";
-  //   if (notificationRessourceType === "sources" && type === "email") {
-  //     label = "Email when a new classification is added to a source";
-  //   } else if (notificationRessourceType === "gcn_events" && type === "email") {
-  //     label =
-  //       "Email when a new GCN event with the selected Notice Type is added";
-  //   } else if (
-  //     notificationRessourceType === "favorite_sources" &&
-  //     type === "email"
-  //   ) {
-  //     label = "Email when something new is done on a favorite source";
-  //   } else if (notificationRessourceType === "sources" && type === "sms") {
-  //     label = "SMS when a new classification is added to a source";
-  //   } else if (notificationRessourceType === "gcn_events" && type === "sms") {
-  //     label = "SMS when a new GCN event with the selected Notice Type is added";
-  //   } else if (
-  //     notificationRessourceType === "favorite_sources" &&
-  //     type === "sms"
-  //   ) {
-  //     label = "SMS when something new is done on a favorite source";
-  //   } else if (
-  //     notificationRessourceType === "sources" &&
-  //     type === "on_shift"
-  //   ) {
-  //     label = "on Shift";
-  //   } else if (
-  //     notificationRessourceType === "gcn_events" &&
-  //     type === "on_shift"
-  //   ) {
-  //     label = "on Shift";
-  //   } else if (
-  //     notificationRessourceType === "favorite_sources" &&
-  //     type === "on_shift"
-  //   ) {
-  //     label = "on Shift";
-  //   }
-  //   return label;
-  // };
 
   const valuetext = (val) => `${val}H`;
   const handleChange = (event, newValue) => {
@@ -380,12 +338,12 @@ const NotificationSettingSelect = ({ notificationRessourceType }) => {
   );
 };
 
-NotificationSettingSelect.propTypes = {
+NotificationSettingsSelect.propTypes = {
   notificationRessourceType: PropTypes.string,
 };
 
-NotificationSettingSelect.defaultProps = {
+NotificationSettingsSelect.defaultProps = {
   notificationRessourceType: "",
 };
 
-export default NotificationSettingSelect;
+export default NotificationSettingsSelect;
