@@ -85,7 +85,18 @@ class UserNotification(Base):
     )
 
 
-def user_preferences(target, notification_setting):
+def notification_resource_type(target):
+    if not target.notification_type:
+        return None
+    if "favorite_sources" not in target.notification_type:
+        return target.notification_type
+    elif "favorite_sources" in target.notification_type:
+        return "favorite_sources"
+
+
+def user_preferences(target, notification_setting, resource_type):
+    if not resource_type:
+        return
     if not target.user:
         return
 
@@ -118,13 +129,27 @@ def user_preferences(target, notification_setting):
     if not prefs:
         return
     else:
+        if resource_type in [
+            'sources',
+            'favorite_sources',
+            'gcn_events',
+            'facility_transactions',
+            'mention',
+        ]:
+            if not prefs.get(resource_type, False):
+                return
+            if not prefs[resource_type].get(notification_setting, False):
+                return
+            if not prefs[resource_type][notification_setting].get("active", False):
+                return
         return prefs
 
 
 @event.listens_for(UserNotification, 'after_insert')
 def send_slack_notification(mapper, connection, target):
 
-    notifications_prefs = user_preferences(target, "slack")
+    resource_type = notification_resource_type(target)
+    notifications_prefs = user_preferences(target, "slack", resource_type)
     if not notifications_prefs:
         return
     integration_url = target.user.preferences['slack_integration'].get('url')
@@ -132,18 +157,6 @@ def send_slack_notification(mapper, connection, target):
     slack_microservice_url = (
         f'http://127.0.0.1:{cfg.get("slack.microservice_port", 64100)}'
     )
-    resource_type = None
-    if "favorite_sources" not in target.notification_type:
-        resource_type = target.notification_type
-    elif "favorite_sources" in target.notification_type:
-        resource_type = "favorite_sources"
-
-    if not notifications_prefs.get(resource_type, False):
-        return
-    if not notifications_prefs[resource_type].get("slack", False):
-        return
-    if not notifications_prefs[resource_type]['slack'].get("active", False):
-        return
 
     app_url = get_app_base_url()
     data = json.dumps(
@@ -161,22 +174,9 @@ def send_slack_notification(mapper, connection, target):
 
 @event.listens_for(UserNotification, 'after_insert')
 def send_email_notification(mapper, connection, target):
-
-    prefs = user_preferences(target, "email")
+    resource_type = notification_resource_type(target)
+    prefs = user_preferences(target, "email", resource_type)
     if not prefs:
-        return
-
-    resource_type = None
-    if "favorite_sources" not in target.notification_type:
-        resource_type = target.notification_type
-    elif "favorite_sources" in target.notification_type:
-        resource_type = "favorite_sources"
-
-    if not prefs.get(resource_type, False):
-        return
-    if not prefs[resource_type].get("email", False):
-        return
-    if not prefs[resource_type]['email'].get("active", False):
         return
 
     subject = None
@@ -222,22 +222,9 @@ def send_email_notification(mapper, connection, target):
 
 @event.listens_for(UserNotification, 'after_insert')
 def send_sms_notification(mapper, connection, target):
-
-    prefs = user_preferences(target, "sms")
+    resource_type = notification_resource_type(target)
+    prefs = user_preferences(target, "sms", resource_type)
     if not prefs:
-        return
-
-    resource_type = None
-    if "favorite_sources" not in target.notification_type:
-        resource_type = target.notification_type
-    elif "favorite_sources" in target.notification_type:
-        resource_type = "favorite_sources"
-
-    if not prefs.get(resource_type, False):
-        return
-    if not prefs[resource_type].get("sms", False):
-        return
-    if not prefs[resource_type]['sms'].get("active", False):
         return
 
     sending = False
