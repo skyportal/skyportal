@@ -9,7 +9,7 @@ _, cfg = load_env()
 
 
 def establish_cosmology(cfg=cfg):
-    user_cosmo = cfg['misc.cosmology']
+    user_cosmo = cfg['misc']['cosmology']
 
     if user_cosmo in cosmology.realizations.available:
         cosmo = cosmology.default_cosmology.get_cosmology_from_string(user_cosmo)
