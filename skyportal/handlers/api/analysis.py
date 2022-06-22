@@ -839,7 +839,7 @@ class AnalysisHandler(BaseHandler):
             # grab the analysis (only Obj for now)
             if analysis_resource_type.lower() == 'obj':
                 try:
-                    session = Session()
+                    session = DBSession()
                     analysis = session.query(ObjAnalysis).get(analysis_id)
                 except Exception as e:
                     log(f'Could not access Analysis {analysis_id} {e}.')
