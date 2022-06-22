@@ -564,7 +564,10 @@ class PhotStat(Base):
                 else:
                     fluxerr = phot['fluxerr']
                     fivesigma = 5 * fluxerr
-                    lims[i] = -2.5 * np.log10(fivesigma) + PHOT_ZP
+                    if fivesigma > 0:
+                        lims[i] = -2.5 * np.log10(fivesigma) + PHOT_ZP
+                    else:
+                        lims[i] = None
 
         # reset all scalar properties
         self.num_obs_global = 0
