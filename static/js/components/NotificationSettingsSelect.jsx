@@ -79,7 +79,7 @@ const DialogTitle = withStyles(dialogTitleStyles)(
   )
 );
 
-const NotificationSettingsSelect = ({ notificationRessourceType }) => {
+const NotificationSettingsSelect = ({ notificationResourceType }) => {
   const classes = useStyles();
   const [open, setOpen] = useState(false);
   const profile = useSelector((state) => state.profile.preferences);
@@ -90,7 +90,7 @@ const NotificationSettingsSelect = ({ notificationRessourceType }) => {
   useEffect(() => {
     if (!value) {
       const val =
-        profile?.notifications[notificationRessourceType]?.sms?.time_slot;
+        profile?.notifications[notificationResourceType]?.sms?.time_slot;
       if (val?.length > 0) {
         setValue(val);
         if (val[0] > val[1]) {
@@ -106,36 +106,34 @@ const NotificationSettingsSelect = ({ notificationRessourceType }) => {
 
   const prefToggled = (event) => {
     if (
-      notificationRessourceType === "gcn_events" ||
-      notificationRessourceType === "sources" ||
-      notificationRessourceType === "favorite_sources" ||
-      notificationRessourceType === "facility_transactions" ||
-      notificationRessourceType === "mention"
+      notificationResourceType === "gcn_events" ||
+      notificationResourceType === "sources" ||
+      notificationResourceType === "favorite_sources" ||
+      notificationResourceType === "facility_transactions" ||
+      notificationResourceType === "mention"
     ) {
       const prefs = {
         notifications: {
-          [notificationRessourceType]: {},
+          [notificationResourceType]: {},
         },
       };
       if (event.target.name === "on_shift") {
-        prefs.notifications[notificationRessourceType].sms = {};
-        prefs.notifications[notificationRessourceType].sms[event.target.name] =
+        prefs.notifications[notificationResourceType].sms = {};
+        prefs.notifications[notificationResourceType].sms[event.target.name] =
           event.target.checked;
       } else if (event.target.name === "time_slot") {
-        prefs.notifications[notificationRessourceType].sms = {};
+        prefs.notifications[notificationResourceType].sms = {};
         if (event.target.checked) {
-          prefs.notifications[notificationRessourceType].sms[
-            event.target.name
-          ] = [8, 20];
+          prefs.notifications[notificationResourceType].sms[event.target.name] =
+            [8, 20];
           setValue([8, 20]);
         } else {
-          prefs.notifications[notificationRessourceType].sms[
-            event.target.name
-          ] = [];
+          prefs.notifications[notificationResourceType].sms[event.target.name] =
+            [];
           setValue([]);
         }
       } else {
-        prefs.notifications[notificationRessourceType][event.target.name] = {
+        prefs.notifications[notificationResourceType][event.target.name] = {
           active: event.target.checked,
         };
       }
@@ -146,15 +144,15 @@ const NotificationSettingsSelect = ({ notificationRessourceType }) => {
 
   const onChangeInverted = () => {
     if (
-      notificationRessourceType === "gcn_events" ||
-      notificationRessourceType === "sources" ||
-      notificationRessourceType === "favorite_sources" ||
-      notificationRessourceType === "facility_transactions" ||
-      notificationRessourceType === "mention"
+      notificationResourceType === "gcn_events" ||
+      notificationResourceType === "sources" ||
+      notificationResourceType === "favorite_sources" ||
+      notificationResourceType === "facility_transactions" ||
+      notificationResourceType === "mention"
     ) {
       const prefs = {
         notifications: {
-          [notificationRessourceType]: {
+          [notificationResourceType]: {
             sms: {
               time_slot: value.reverse(),
             },
@@ -171,14 +169,13 @@ const NotificationSettingsSelect = ({ notificationRessourceType }) => {
   const handleChecked = (type) => {
     let checked = false;
     if (type === "on_shift") {
-      checked =
-        profile?.notifications[notificationRessourceType]?.sms?.on_shift;
+      checked = profile?.notifications[notificationResourceType]?.sms?.on_shift;
     } else if (type === "time_slot") {
       checked =
-        profile?.notifications[notificationRessourceType]?.sms?.time_slot
+        profile?.notifications[notificationResourceType]?.sms?.time_slot
           ?.length > 0;
     } else {
-      checked = profile?.notifications[notificationRessourceType][type]?.active;
+      checked = profile?.notifications[notificationResourceType][type]?.active;
     }
     return checked;
   };
@@ -190,15 +187,15 @@ const NotificationSettingsSelect = ({ notificationRessourceType }) => {
 
   const handleChangeCommitted = () => {
     if (
-      notificationRessourceType === "gcn_events" ||
-      notificationRessourceType === "sources" ||
-      notificationRessourceType === "favorite_sources" ||
-      notificationRessourceType === "facility_transactions" ||
-      notificationRessourceType === "mention"
+      notificationResourceType === "gcn_events" ||
+      notificationResourceType === "sources" ||
+      notificationResourceType === "favorite_sources" ||
+      notificationResourceType === "facility_transactions" ||
+      notificationResourceType === "mention"
     ) {
       const prefs = {
         notifications: {
-          [notificationRessourceType]: {
+          [notificationResourceType]: {
             sms: {
               [`time_slot`]: value,
             },
@@ -214,7 +211,7 @@ const NotificationSettingsSelect = ({ notificationRessourceType }) => {
     <div>
       <Button
         variant="contained"
-        name={`notification_settings_button_${notificationRessourceType}`}
+        name={`notification_settings_button_${notificationResourceType}`}
         className={classes.button}
         onClick={() => {
           setOpen(true);
@@ -274,7 +271,7 @@ const NotificationSettingsSelect = ({ notificationRessourceType }) => {
                   />
                 </FormGroup>
               </div>
-              {profile?.notifications?.[notificationRessourceType]?.sms
+              {profile?.notifications?.[notificationResourceType]?.sms
                 ?.active && (
                 <div className={classes.options}>
                   <FormGroup row>
@@ -301,7 +298,7 @@ const NotificationSettingsSelect = ({ notificationRessourceType }) => {
                       label="Time Slot"
                     />
                   </FormGroup>
-                  {profile?.notifications?.[notificationRessourceType]?.sms
+                  {profile?.notifications?.[notificationResourceType]?.sms
                     ?.time_slot?.length > 0 && (
                     <Box
                       sx={{ width: 300 }}
@@ -340,11 +337,11 @@ const NotificationSettingsSelect = ({ notificationRessourceType }) => {
 };
 
 NotificationSettingsSelect.propTypes = {
-  notificationRessourceType: PropTypes.string,
+  notificationResourceType: PropTypes.string,
 };
 
 NotificationSettingsSelect.defaultProps = {
-  notificationRessourceType: "",
+  notificationResourceType: "",
 };
 
 export default NotificationSettingsSelect;

@@ -114,17 +114,17 @@ def send_slack_notification(mapper, connection, target):
     slack_microservice_url = (
         f'http://127.0.0.1:{cfg.get("slack.microservice_port", 64100)}'
     )
-    ressource_type = None
+    resource_type = None
     if "favorite_sources" not in target.notification_type:
-        ressource_type = target.notification_type
+        resource_type = target.notification_type
     elif "favorite_sources" in target.notification_type:
-        ressource_type = "favorite_sources"
+        resource_type = "favorite_sources"
 
-    if not notifications_prefs.get(ressource_type, False):
+    if not notifications_prefs.get(resource_type, False):
         return
-    if not notifications_prefs[ressource_type].get("slack", False):
+    if not notifications_prefs[resource_type].get("slack", False):
         return
-    if not notifications_prefs[ressource_type]['slack'].get("active", False):
+    if not notifications_prefs[resource_type]['slack'].get("active", False):
         return
 
     app_url = get_app_base_url()
@@ -161,35 +161,35 @@ def send_email_notification(mapper, connection, target):
     if not prefs:
         return
 
-    ressource_type = None
+    resource_type = None
     if "favorite_sources" not in target.notification_type:
-        ressource_type = target.notification_type
+        resource_type = target.notification_type
     elif "favorite_sources" in target.notification_type:
-        ressource_type = "favorite_sources"
+        resource_type = "favorite_sources"
 
-    if not prefs.get(ressource_type, False):
+    if not prefs.get(resource_type, False):
         return
-    if not prefs[ressource_type].get("email", False):
+    if not prefs[resource_type].get("email", False):
         return
-    if not prefs[ressource_type]['email'].get("active", False):
+    if not prefs[resource_type]['email'].get("active", False):
         return
 
     subject = None
     body = None
 
-    if ressource_type == "sources":
+    if resource_type == "sources":
         subject = f"{cfg['app.title']} - New followed classification on a source"
         body = f'{target.text} ({get_app_base_url()}{target.url})'
 
-    elif ressource_type == "gcn_events":
+    elif resource_type == "gcn_events":
         subject = f"{cfg['app.title']} - New GCN Event with followed notice type"
         body = f'{target.text} ({get_app_base_url()}{target.url})'
 
-    elif ressource_type == "facility_transactions":
+    elif resource_type == "facility_transactions":
         subject = f"{cfg['app.title']} - New facility transaction"
         body = f'{target.text} ({get_app_base_url()}{target.url})'
 
-    elif ressource_type == "favorite_sources":
+    elif resource_type == "favorite_sources":
         if target.notification_type == "favorite_sources_new_classification":
             subject = f"{cfg['app.title']} - New classification on a favorite source"
             body = f'{target.text} ({get_app_base_url()}{target.url})'
@@ -200,7 +200,7 @@ def send_email_notification(mapper, connection, target):
             subject = f"{cfg['app.title']} - New comment on a favorite source"
             body = f'{target.text} ({get_app_base_url()}{target.url})'
 
-    elif ressource_type == "mention":
+    elif resource_type == "mention":
         subject = f"{cfg['app.title']} - User mentioned you in a comment"
         body = f'{target.text} ({get_app_base_url()}{target.url})'
 
@@ -234,21 +234,21 @@ def send_sms_notification(mapper, connection, target):
     if not prefs:
         return
 
-    ressource_type = None
+    resource_type = None
     if "favorite_sources" not in target.notification_type:
-        ressource_type = target.notification_type
+        resource_type = target.notification_type
     elif "favorite_sources" in target.notification_type:
-        ressource_type = "favorite_sources"
+        resource_type = "favorite_sources"
 
-    if not prefs.get(ressource_type, False):
+    if not prefs.get(resource_type, False):
         return
-    if not prefs[ressource_type].get("sms", False):
+    if not prefs[resource_type].get("sms", False):
         return
-    if not prefs[ressource_type]['sms'].get("active", False):
+    if not prefs[resource_type]['sms'].get("active", False):
         return
 
     sending = False
-    if prefs[ressource_type]['sms'].get("on_shift", False):
+    if prefs[resource_type]['sms'].get("on_shift", False):
         current_shift = (
             Shift.query.join(ShiftUser)
             .filter(ShiftUser.user_id == target.user.id)
@@ -259,7 +259,7 @@ def send_sms_notification(mapper, connection, target):
         if current_shift is not None:
             sending = True
     else:
-        timeslot = prefs[ressource_type]['sms'].get("time_slot", [])
+        timeslot = prefs[resource_type]['sms'].get("time_slot", [])
         if len(timeslot) > 0:
             current_time = arrow.utcnow().datetime
             if timeslot[0] < timeslot[1]:

@@ -156,7 +156,7 @@ const NotificationPreferences = () => {
                 </Button>
               </div>
             </form>
-            <NotificationSettingsSelect notificationRessourceType="sources" />
+            <NotificationSettingsSelect notificationResourceType="sources" />
           </>
         )}
       </div>
@@ -191,7 +191,7 @@ const NotificationPreferences = () => {
                 </Button>
               </div>
             </form>
-            <NotificationSettingsSelect notificationRessourceType="gcn_events" />
+            <NotificationSettingsSelect notificationResourceType="gcn_events" />
           </>
         )}
       </div>
@@ -211,7 +211,7 @@ const NotificationPreferences = () => {
           />
         </FormGroup>
         {profile?.notifications?.facility_transactions?.active === true && (
-          <NotificationSettingsSelect notificationRessourceType="facility_transactions" />
+          <NotificationSettingsSelect notificationResourceType="facility_transactions" />
         )}
       </div>
       <div className={classes.pref}>
@@ -274,7 +274,7 @@ const NotificationPreferences = () => {
                 />
               </FormGroup>
             </div>
-            <NotificationSettingsSelect notificationRessourceType="favorite_sources" />
+            <NotificationSettingsSelect notificationResourceType="favorite_sources" />
           </>
         )}
       </div>
@@ -292,7 +292,7 @@ const NotificationPreferences = () => {
           />
         </FormGroup>
         {profile?.notifications?.mention?.active === true && (
-          <NotificationSettingsSelect notificationRessourceType="mention" />
+          <NotificationSettingsSelect notificationResourceType="mention" />
         )}
       </div>
     </div>
