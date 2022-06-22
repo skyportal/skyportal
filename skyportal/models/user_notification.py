@@ -85,31 +85,49 @@ class UserNotification(Base):
     )
 
 
-@event.listens_for(UserNotification, 'after_insert')
-def send_slack_notification(mapper, connection, target):
-
+def user_preferences(target, notification_setting):
     if not target.user:
         return
 
     if not target.user.preferences:
         return
 
-    notifications_prefs = target.user.preferences.get('notifications')
+    if notification_setting == "email":
+        if not email:
+            return
+        if not target.user.contact_email:
+            return
+    elif notification_setting == "sms":
+        if client is None:
+            return
+        if not target.user.contact_phone:
+            return
+    elif notification_setting == "slack":
+        if not target.user.preferences.get('slack_integration'):
+            return
+        if not target.user.preferences['slack_integration'].get("active"):
+            return
+        if (
+            not target.user.preferences['slack_integration']
+            .get("url", "")
+            .startswith(cfg.get("slack.expected_url_preamble", "https"))
+        ):
+            return
+
+    prefs = target.user.preferences.get('notifications')
+    if not prefs:
+        return
+    else:
+        return prefs
+
+
+@event.listens_for(UserNotification, 'after_insert')
+def send_slack_notification(mapper, connection, target):
+
+    notifications_prefs = user_preferences(target, "slack")
     if not notifications_prefs:
         return
-
-    slack_prefs = target.user.preferences.get('slack_integration')
-
-    if not slack_prefs:
-        return
-
-    if slack_prefs.get("active", False):
-        integration_url = slack_prefs.get("url", "")
-    else:
-        return
-
-    if not integration_url.startswith(cfg.get("slack.expected_url_preamble", "https")):
-        return
+    integration_url = target.user.preferences['slack_integration'].get('url')
 
     slack_microservice_url = (
         f'http://127.0.0.1:{cfg.get("slack.microservice_port", 64100)}'
@@ -144,20 +162,7 @@ def send_slack_notification(mapper, connection, target):
 @event.listens_for(UserNotification, 'after_insert')
 def send_email_notification(mapper, connection, target):
 
-    if not email:
-        return
-
-    if not target.user:
-        return
-
-    if not target.user.contact_email:
-        return
-
-    if not target.user.preferences:
-        return
-
-    prefs = target.user.preferences.get('notifications')
-
+    prefs = user_preferences(target, "email")
     if not prefs:
         return
 
@@ -217,20 +222,8 @@ def send_email_notification(mapper, connection, target):
 
 @event.listens_for(UserNotification, 'after_insert')
 def send_sms_notification(mapper, connection, target):
-    if client is None:
-        return
 
-    if not target.user:
-        return
-
-    if not target.user.contact_phone:
-        return
-
-    if not target.user.preferences:
-        return
-
-    prefs = target.user.preferences.get('notifications')
-
+    prefs = user_preferences(target, "sms")
     if not prefs:
         return
 
