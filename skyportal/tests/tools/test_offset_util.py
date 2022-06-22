@@ -76,7 +76,7 @@ def test_calculate_position_with_evil_inputs(
     assert data['status'] == 'success'
     assert len(data['data']['ids']) == n_phot
 
-    removed_kwargs = ["instrument_name", "groups", "magsys", "zp"]
+    removed_kwargs = ["instrument_name", "groups", "magsys", "zp", "snr"]
     phot_list = []
     for photometry_id in data['data']['ids']:
         status, data = api(
@@ -152,7 +152,7 @@ def test_calculate_best_position_with_photometry(
     assert data['status'] == 'success'
     assert len(data['data']['ids']) == n_phot
 
-    removed_kwargs = ["instrument_name", "groups", "magsys", "zp"]
+    removed_kwargs = ["instrument_name", "groups", "magsys", "zp", "snr"]
     phot_list = []
     for photometry_id in data['data']['ids']:
         status, data = api(
