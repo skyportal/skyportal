@@ -738,11 +738,11 @@ class AnalysisHandler(BaseHandler):
 
         if analysis_resource_type.lower() == 'obj':
             obj_id = resource_id
-            source = Obj.get_if_accessible_by(obj_id, self.current_user)
-            if source is None:
-                return self.error(f'Source {obj_id} not found', status=404)
+            obj = Obj.get_if_accessible_by(obj_id, self.current_user)
+            if obj is None:
+                return self.error(f'Obj {obj_id} not found', status=404)
             data["obj_id"] = obj_id
-            data["obj"] = source
+            data["obj"] = obj
 
             # Let's assemble the input data for this Obj
             for input_type in input_data_types:
@@ -779,7 +779,7 @@ class AnalysisHandler(BaseHandler):
             )
 
             analysis = ObjAnalysis(
-                obj=source,
+                obj=obj,
                 author=author,
                 groups=groups,
                 analysis_service=analysis_service,
