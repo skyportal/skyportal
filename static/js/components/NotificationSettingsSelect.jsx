@@ -295,7 +295,7 @@ const NotificationSettingsSelect = ({ notificationResourceType }) => {
                           onChange={prefToggled}
                         />
                       }
-                      label="Time Slot"
+                      label="Time Slot (UTC)"
                     />
                   </FormGroup>
                   {profile?.notifications?.[notificationResourceType]?.sms
@@ -307,7 +307,7 @@ const NotificationSettingsSelect = ({ notificationResourceType }) => {
                       alignItems="center"
                     >
                       <Slider
-                        getAriaLabel={() => "Time Slot (UTC)"}
+                        getAriaLabel={() => "time_slot_slider"}
                         value={value}
                         onChange={handleChange}
                         onChangeCommitted={handleChangeCommitted}
