@@ -96,9 +96,12 @@ async def run_sn_model(dd):
     try:
         model = sncosmo.Model(source=source)
 
-        if fix_z and z is not None:
-            model.set(z=z)
-            bounds = {'z': (z, z)}
+        if fix_z:
+            if z is not None:
+                model.set(z=z)
+                bounds = {'z': (z, z)}
+            else:
+                raise ValueError("No redshift provided but `fix_z` requested.")
         else:
             bounds = {'z': (0.01, 1.0)}
 
