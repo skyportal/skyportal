@@ -1,7 +1,7 @@
 import pytest
 import uuid
+import os
 from tdtax import taxonomy, __version__
-from selenium.webdriver.common.keys import Keys
 from datetime import datetime, timezone
 
 from skyportal.tests import api
@@ -26,6 +26,17 @@ def filter_for_value(driver, value, last=False):
 def test_mention_generates_notification_then_mark_read_and_delete(
     driver, user, public_source
 ):
+    driver.get(f'/become_user/{user.id}')
+    driver.get("/profile")
+
+    # Enable notifications for mentions
+    mention = driver.wait_for_xpath('//*[@name="mention"]')
+    driver.scroll_to_element_and_click(mention)
+
+    driver.wait_for_xpath(
+        '//*[@name="mention"]/../../span[contains(@class,"Mui-checked")]'
+    )
+
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_source.id}")
     driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
@@ -99,10 +110,18 @@ def test_comment_on_favorite_source_triggers_notification(
     favorite_sources = driver.wait_for_xpath('//*[@name="favorite_sources"]')
     driver.scroll_to_element_and_click(favorite_sources)
 
+    driver.wait_for_xpath(
+        '//*[@name="favorite_sources"]/../../span[contains(@class,"Mui-checked")]'
+    )
+
     favorite_sources_new_comments = driver.wait_for_xpath(
         '//*[@name="favorite_sources_new_comments"]'
     )
     driver.scroll_to_element_and_click(favorite_sources_new_comments)
+
+    driver.wait_for_xpath(
+        '//*[@name="favorite_sources_new_comments"]/../../span[contains(@class,"Mui-checked")]'
+    )
 
     # Make public_source a favorite
     driver.get(f"/source/{public_source.id}")
@@ -123,7 +142,7 @@ def test_comment_on_favorite_source_triggers_notification(
 
 
 def test_classification_on_favorite_source_triggers_notification(
-    driver, user, user2, public_source, public_group, taxonomy_token
+    driver, user, public_source, public_group, taxonomy_token, classification_token
 ):
     status, data = api(
         'POST',
@@ -139,6 +158,7 @@ def test_classification_on_favorite_source_triggers_notification(
         token=taxonomy_token,
     )
     assert status == 200
+    taxonomy_id = data['data']['taxonomy_id']
 
     driver.get(f'/become_user/{user.id}')
     driver.get("/profile")
@@ -147,48 +167,37 @@ def test_classification_on_favorite_source_triggers_notification(
     favorite_sources = driver.wait_for_xpath('//*[@name="favorite_sources"]')
     driver.scroll_to_element_and_click(favorite_sources)
 
+    driver.wait_for_xpath(
+        '//*[@name="favorite_sources"]/../../span[contains(@class,"Mui-checked")]'
+    )
+
     favorite_sources_new_classifications = driver.wait_for_xpath(
         '//*[@name="favorite_sources_new_classifications"]'
     )
     driver.scroll_to_element_and_click(favorite_sources_new_classifications)
+
+    driver.wait_for_xpath(
+        '//*[@name="favorite_sources_new_classifications"]/../../span[contains(@class,"Mui-checked")]'
+    )
 
     # Make public_source a favorite
     driver.get(f"/source/{public_source.id}")
     driver.click_xpath(f'//*[@data-testid="favorites-exclude_{public_source.id}"]')
     driver.wait_for_xpath(f'//*[@data-testid="favorites-include_{public_source.id}"]')
 
-    # Become user2 and submit comment on source
-    driver.get(f'/become_user/{user2.id}')
-    driver.get(f"/source/{public_source.id}")
-
-    # add a classification
-    groupSelect = driver.wait_for_xpath('//*[@id="groupSelect"]')
-    driver.scroll_to_element_and_click(groupSelect)
-
-    driver.click_xpath(
-        f'//li[contains(text(), "{public_group.name}")]',
-        scroll_parent=True,
+    status, data = api(
+        'POST',
+        'classification',
+        data={
+            'obj_id': public_source.id,
+            'classification': 'AGN',
+            'taxonomy_id': taxonomy_id,
+            'probability': 1.0,
+            'group_ids': [public_group.id],
+        },
+        token=classification_token,
     )
-
-    root_taxonomy = driver.wait_for_xpath('//*[@id="root_taxonomy"]')
-    driver.scroll_to_element_and_click(root_taxonomy)
-
-    driver.click_xpath(
-        '//li[contains(text(), "test taxonomy")]',
-        scroll_parent=True,
-    )
-
-    classification = driver.wait_for_xpath('//*[@id="classification"]')
-    driver.scroll_to_element_and_click(classification)
-    driver.click_xpath(
-        '//li[@data-value="DM annihilation <> Nonstellar"]',
-        scroll_parent=True,
-    )
-
-    probability = driver.wait_for_xpath('//*[@id="probability"]')
-    driver.scroll_to_element_and_click(probability)
-    probability.send_keys("0.5")
-    probability.send_keys(Keys.ENTER)
+    assert status == 200
 
     # Check that notification was created
     driver.get(f'/become_user/{user.id}')
@@ -210,10 +219,18 @@ def test_spectra_on_favorite_source_triggers_notification(
     favorite_sources = driver.wait_for_xpath('//*[@name="favorite_sources"]')
     driver.scroll_to_element_and_click(favorite_sources)
 
+    driver.wait_for_xpath(
+        '//*[@name="favorite_sources"]/../../span[contains(@class,"Mui-checked")]'
+    )
+
     favorite_sources_new_comments = driver.wait_for_xpath(
         '//*[@name="favorite_sources_new_spectra"]'
     )
     driver.scroll_to_element_and_click(favorite_sources_new_comments)
+
+    driver.wait_for_xpath(
+        '//*[@name="favorite_sources_new_spectra"]/../../span[contains(@class,"Mui-checked")]'
+    )
 
     # Make public_source a favorite
     driver.get(f"/source/{public_source.id}")
@@ -243,3 +260,158 @@ def test_spectra_on_favorite_source_triggers_notification(
     driver.wait_for_xpath("//span[text()='1']")
     driver.click_xpath('//*[@data-testid="notificationsButton"]')
     driver.wait_for_xpath('//*[contains(text(), "New spectrum on favorite source")]')
+
+
+def test_new_classification_on_source_triggers_notification(
+    driver, user, public_source, public_group, taxonomy_token, classification_token
+):
+    status, data = api(
+        'POST',
+        'taxonomy',
+        data={
+            'name': "test taxonomy" + str(uuid.uuid4()),
+            'hierarchy': taxonomy,
+            'group_ids': [public_group.id],
+            'provenance': f"tdtax_{__version__}",
+            'version': __version__,
+            'isLatest': True,
+        },
+        token=taxonomy_token,
+    )
+    assert status == 200
+    taxonomy_id = data['data']['taxonomy_id']
+
+    driver.get(f'/become_user/{user.id}')
+    driver.get("/profile")
+
+    # Enable notifications for sources when a specific classification is added
+    sources = driver.wait_for_xpath('//*[@name="sources"]')
+    driver.scroll_to_element_and_click(sources)
+
+    driver.wait_for_xpath(
+        '//*[@name="sources"]/../../span[contains(@class,"Mui-checked")]'
+    )
+
+    sources_new_classification = driver.wait_for_xpath(
+        "//*[@id='classifications-select']"
+    )
+    driver.scroll_to_element_and_click(sources_new_classification)
+    driver.click_xpath(
+        '//li[@data-value="AGN"]',
+        scroll_parent=True,
+    )
+
+    driver.click_xpath(
+        '//*[@data-testid="addShortcutButton" and contains(., "Update")]'
+    )
+
+    driver.wait_for_xpath('//*[contains(text(), "Sources classifications updated")]')
+
+    status, data = api(
+        'POST',
+        'classification',
+        data={
+            'obj_id': public_source.id,
+            'classification': 'AGN',
+            'taxonomy_id': taxonomy_id,
+            'probability': 1.0,
+            'group_ids': [public_group.id],
+        },
+        token=classification_token,
+    )
+    assert status == 200
+
+    # Check that notification was created
+    driver.get(f'/become_user/{user.id}')
+    driver.get("/")
+    driver.wait_for_xpath("//span[text()='1']")
+    driver.click_xpath('//*[@data-testid="notificationsButton"]')
+    driver.wait_for_xpath('//*[contains(text(), "New classification")]')
+
+
+def test_new_gcn_event_triggers_notification(driver, user, super_admin_token):
+
+    driver.get(f'/become_user/{user.id}')
+    driver.get("/profile")
+
+    # Enable notifications for sources when a specific classification is added
+    gcn_events = driver.wait_for_xpath('//*[@name="gcn_events"]')
+    driver.scroll_to_element_and_click(gcn_events)
+
+    driver.wait_for_xpath(
+        '//*[@name="gcn_events"]/../../span[contains(@class,"Mui-checked")]'
+    )
+
+    gcn_events_notice_types = driver.wait_for_xpath(
+        '//*[@aria-labelledby="selectGcns"]'
+    )
+    driver.scroll_to_element_and_click(gcn_events_notice_types)
+
+    driver.click_xpath(
+        '//li[@data-value="FERMI_GBM_GND_POS"]',
+        scroll_parent=True,
+    )
+
+    driver.click_xpath(
+        '//*[@data-testid="addShortcutButton" and contains(., "Update")]'
+    )
+
+    driver.wait_for_xpath('//*[contains(text(), "Gcn notice types updated")]')
+
+    datafile = f'{os.path.dirname(__file__)}/../data/GRB180116A_Fermi_GBM_Gnd_Pos.xml'
+    with open(datafile, 'rb') as fid:
+        payload = fid.read()
+    data = {'xml': payload}
+
+    status, data = api('POST', 'gcn_event', data=data, token=super_admin_token)
+    assert status == 200
+    assert data['status'] == 'success'
+
+    # Check that notification was created
+    driver.get(f'/become_user/{user.id}')
+    driver.get("/")
+    driver.wait_for_xpath("//span[text()='1']")
+    driver.click_xpath('//*[@data-testid="notificationsButton"]')
+    driver.wait_for_xpath('//*[contains(text(), "New GcnEvent")]')
+
+
+def test_new_facility_request_triggers_notification(
+    driver, user, public_group_sedm_allocation, public_source, upload_data_token
+):
+
+    driver.get(f'/become_user/{user.id}')
+    driver.get("/profile")
+
+    # Enable notifications for new facility transactions
+    facility_transactions = driver.wait_for_xpath('//*[@name="facility_transactions"]')
+    driver.scroll_to_element_and_click(facility_transactions)
+
+    driver.wait_for_xpath(
+        '//*[@name="facility_transactions"]/../../span[contains(@class,"Mui-checked")]'
+    )
+
+    request_data = {
+        'allocation_id': public_group_sedm_allocation.id,
+        'obj_id': public_source.id,
+        'payload': {
+            'priority': 5,
+            'start_date': '3020-09-01',
+            'end_date': '3022-09-01',
+            'observation_type': 'IFU',
+        },
+    }
+
+    status, data = api(
+        'POST', 'followup_request', data=request_data, token=upload_data_token
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    # Check that notification was created
+    driver.get(f'/become_user/{user.id}')
+    driver.get("/")
+    driver.wait_for_xpath("//span[text()='1']")
+    driver.click_xpath('//*[@data-testid="notificationsButton"]')
+    driver.wait_for_xpath(
+        '//*[contains(text(), "New Follow-up submission for object")]'
+    )
