@@ -527,9 +527,18 @@ class AnalysisServiceHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        analysis_service = AnalysisService.get_if_accessible_by(
-            analysis_service_id, self.current_user, mode="delete", raise_if_none=True
-        )
+        try:
+            analysis_service = AnalysisService.get_if_accessible_by(
+                analysis_service_id,
+                self.current_user,
+                mode="delete",
+                raise_if_none=True,
+            )
+        except AccessError:
+            return self.error('Cannot delete this Analysis Service.', status=403)
+        except Exception as e:
+            return self.error(f'Error deleting Analysis Service: {e}')
+
         DBSession().delete(analysis_service)
         self.verify_and_commit()
 
@@ -842,6 +851,9 @@ class AnalysisHandler(BaseHandler):
                 try:
                     session = DBSession()
                     analysis = session.query(ObjAnalysis).get(analysis_id)
+                    if not analysis:
+                        logger.error(f'Analysis {analysis_id} not found')
+                        return
                 except Exception as e:
                     log(f'Could not access Analysis {analysis_id} {e}.')
                     return
@@ -892,6 +904,24 @@ class AnalysisHandler(BaseHandler):
               required: true
               schema:
                 type: integer
+            - in: query
+              name: includeAnalysisData
+              nullable: true
+              schema:
+                type: boolean
+              description: |
+                Boolean indicating whether to include the data associated
+                with the analysis in the response. Could be a large
+                amount of data. Only works for single analysis requests.
+                Defaults to false.
+            - in: query
+              name: includeFilename
+              nullable: true
+              schema:
+                type: boolean
+              description: |
+                Boolean indicating whether to include the filename of the
+                data associated with the analysis in the response. Defaults to false.
           responses:
             200:
               content:
@@ -916,6 +946,18 @@ class AnalysisHandler(BaseHandler):
                   schema: Error
         """
         if analysis_resource_type.lower() == 'obj':
+            include_analysis_data = self.get_query_argument(
+                "includeAnalysisData", False
+            ) in ["True", "t", "true", "1", True, 1]
+            include_filename = self.get_query_argument("includeFilename", False) in [
+                "True",
+                "t",
+                "true",
+                "1",
+                True,
+                1,
+            ]
+
             if analysis_id is not None:
                 try:
                     s = ObjAnalysis.get_if_accessible_by(
@@ -925,10 +967,15 @@ class AnalysisHandler(BaseHandler):
                     return self.error('Cannot access this Analysis.', status=403)
 
                 analysis_dict = recursive_to_dict(s)
+                if include_filename:
+                    analysis_dict["filename"] = s._full_name
                 analysis_dict["groups"] = s.groups
+                if include_analysis_data:
+                    analysis_dict["data"] = s.data
+
                 return self.success(data=analysis_dict)
 
-            # retrieve multiple services
+            # retrieve multiple analyses
             analyses = ObjAnalysis.get_records_accessible_by(self.current_user)
             self.verify_and_commit()
 
@@ -936,6 +983,8 @@ class AnalysisHandler(BaseHandler):
             for a in analyses:
                 analysis_dict = recursive_to_dict(a)
                 analysis_dict["groups"] = a.groups
+                if include_filename:
+                    analysis_dict["filename"] = a._full_name
                 ret_array.append(analysis_dict)
         else:
             return self.error(
@@ -965,11 +1014,15 @@ class AnalysisHandler(BaseHandler):
                 schema: Success
         """
         if analysis_resource_type.lower() == 'obj':
-            analysis = ObjAnalysis.get_if_accessible_by(
-                analysis_id, self.current_user, mode="delete", raise_if_none=True
-            )
-            DBSession().delete(analysis)
-            self.verify_and_commit()
+            try:
+                analysis = ObjAnalysis.get_if_accessible_by(
+                    analysis_id, self.current_user, mode="delete", raise_if_none=True
+                )
+                # analysis.delete_data()
+                DBSession().delete(analysis)
+                self.verify_and_commit()
+            except AccessError:
+                return self.error('Cannot access this Analysis.', status=403)
 
             return self.success()
         else:

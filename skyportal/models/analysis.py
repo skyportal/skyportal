@@ -4,11 +4,13 @@ import os
 import json
 import re
 import uuid
+from pathlib import Path
 
 import joblib
 
 import sqlalchemy as sa
 from sqlalchemy.orm import relationship
+from sqlalchemy import event
 from sqlalchemy_utils.types import JSONType
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.dialects.postgresql import ARRAY
@@ -26,6 +28,7 @@ from baselayer.app.models import (
     AccessibleIfUserMatches,
 )
 from baselayer.app.env import load_env
+from baselayer.log import make_log
 
 from ..enum_types import (
     allowed_analysis_types,
@@ -40,6 +43,8 @@ from .group import accessible_by_groups_members
 
 _, cfg = load_env()
 
+log = make_log('models/analysis')
+log("start models/analysis.py")
 
 RE_SLASHES = re.compile(r'^[\w_\-\+\/\\]*$')
 RE_NO_SLASHES = re.compile(r'^[\w_\-\+]*$')
@@ -172,6 +177,7 @@ class AnalysisService(Base):
     obj_analyses = relationship(
         'ObjAnalysis',
         back_populates='analysis_service',
+        cascade='save-update, merge, refresh-expire, expunge, delete-orphan, delete',
         passive_deletes=True,
         doc="Instances of analysis applied to specific objects",
     )
@@ -193,22 +199,29 @@ class AnalysisMixin:
         self.hash = joblib.hash(self.filename)
 
     @hybrid_property
+    def analyses(self):
+        return self.data.get('analysis', {})
+
+    @hybrid_property
     def has_inference_data(self):
-        return self.data.get('inference_data', None) is not None
+        return self.analyses.get('inference_data', None) is not None
 
     @hybrid_property
     def has_plot_data(self):
-        return self.data.get('plots', None) is not None
+        return self.analyses.get('plots', None) is not None
 
     @hybrid_property
-    def has_results_data_url(self):
-        return self.data.get('results', None) is not None
+    def has_results_data(self):
+        return self.analyses.get('results', None) is not None
 
     def load_data(self):
         """
         Load the associated analysis data from disk.
         """
-        self._data = joblib.load(self.filename)
+        if self._full_name and os.path.exists(self._full_name):
+            self._data = joblib.load(self._full_name)
+        else:
+            self._data = {}
 
     def save_data(self):
         """
@@ -239,15 +252,27 @@ class AnalysisMixin:
 
         joblib.dump(self._data, full_name, compress=3)
         self.filename = full_name
+
+        # persist the filename
+        self._full_name = full_name
         self.calc_hash()
 
     def delete_data(self):
         """
         Delete the associated data from disk
         """
+        if self._full_name:
+            if os.path.exists(self._full_name):
+                os.remove(self._full_name)
+            parent_dir = Path(self._full_name).parent
+            try:
+                if parent_dir.is_dir():
+                    parent_dir.rmdir()
+            except OSError:
+                pass
 
-        if os.path.exists(self.filename):
-            os.remove(self.filename)
+        # reset the filename
+        self._full_name = None
 
     @staticmethod
     def check_path_string(string, allow_slashes=False):
@@ -262,7 +287,7 @@ class AnalysisMixin:
     @hybrid_property
     def data(self):
         """Lazy load the data dictionary"""
-        if self._data is None:
+        if not hasattr(self, "_data") or self._data is None:
             self.load_data()
         return self._data
 
@@ -279,6 +304,12 @@ class AnalysisMixin:
         nullable=True,
         unique=False,
         doc='MD5sum hash of the data to be saved to file. Helps identify duplicate results.',
+    )
+
+    _full_name = sa.Column(
+        sa.String,
+        nullable=True,
+        doc='full name of the file path where the data is saved.',
     )
 
     show_parameters = sa.Column(
@@ -356,12 +387,6 @@ class AnalysisMixin:
             doc="Groups that can see the analysis.",
         )
 
-    def construct_creator_info_dict(self):
-        return {
-            field: getattr(self.author, field)
-            for field in ('username', 'first_name', 'last_name', 'gravatar_url')
-        }
-
 
 class ObjAnalysis(Base, AnalysisMixin, WebhookMixin):
     """Analysis on an Obj with a set of results as JSON"""
@@ -390,3 +415,17 @@ class ObjAnalysis(Base, AnalysisMixin, WebhookMixin):
             back_populates=cls.backref_name(),
             doc="The ObjAnalysis's Obj.",
         )
+
+
+@event.listens_for(ObjAnalysis, 'after_delete')
+def delete_analysis_data_from_disk(mapper, connection, target):
+    log(f'Deleting analysis data for analysis {target.id}')
+    target.delete_data()
+
+
+@event.listens_for(AnalysisService, 'before_delete')
+def delete_assoc_analysis_data_from_disk(mapper, connection, target):
+    log(f'Deleting analysis data for analysis_service {target.id}')
+    for analysis in target.obj_analyses:
+        log(f'Deleting analysis data for id {analysis.id}')
+        analysis.delete_data()

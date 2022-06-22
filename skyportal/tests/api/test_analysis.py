@@ -2,6 +2,7 @@ import uuid
 import json
 import socketserver
 import time
+import os
 
 from skyportal.tests import api
 
@@ -489,6 +490,8 @@ def test_run_analysis_with_correct_and_incorrect_token(
             False
         ), f"analysis was not started properly ({data['data']['status_message']})"
 
+    assert set(data["data"]["data"].keys()) == {"inference_data", "plots", "results"}
+
     # try to start an analysis with the wrong token access
     status, data = api(
         'POST',
@@ -760,14 +763,31 @@ def test_delete_analysis_service_cascades_to_delete_associated_analysis(
     analysis_id = data['data'].get('id')
     assert analysis_id is not None
 
+    # wait until the analysis is done
+    max_attempts = 20
+    analysis_status = 'queued'
+    while max_attempts > 0:
+        if analysis_status != "queued":
+            break
+        status, data = api('GET', f'analysis/obj/{analysis_id}', token=analysis_token)
+        assert status == 200
+        analysis_status = data["data"]["status"]
+
+        max_attempts -= 1
+        time.sleep(5)
+
     # get the analysis associated with the
     # analysis service
+    params = {"includeFilename": True}
     status, data = api(
         'GET',
         f'obj/analysis/{analysis_id}',
         token=analysis_token,
     )
     assert status == 200
+    filename = data['data']['filename']
+    print(data["data"])
+    assert os.path.exists(filename)
 
     # delete the analysis service...
     status, data = api(
@@ -787,3 +807,4 @@ def test_delete_analysis_service_cascades_to_delete_associated_analysis(
     )
     assert status == 403
     assert data['status'] == 'error'
+    assert not os.path.exists(filename)

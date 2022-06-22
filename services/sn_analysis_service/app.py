@@ -2,6 +2,7 @@ import os
 import functools
 import tempfile
 import base64
+import traceback
 
 import joblib
 import numpy as np
@@ -47,28 +48,33 @@ def upload_analysis_results(results, data_dict, request_timeout=60):
             timeout=request_timeout,
         )
     except requests.exceptions.Timeout:
-        log("Callback URL timedout.")
-        raise ValueError(f"Request to {url} timed out.")
+        log("Callback URL timedout. Skipping.")
     except Exception as e:
         log(f"Callback exception {e}.")
-        raise Exception(f"Request to {url} had exception {e}.")
 
     return result
 
 
-async def run_sn_model(data_dict):
+async def run_sn_model(dd):
     """
     Use `sncosmo` to fit data to a model with name `source_name`.
 
-    We expect the `inputs` dictionary to have the following keys:
+    For this analysis, we expect the `inputs` dictionary to have the following keys:
        - source: the name of the model to fit to the data
        - fix_z: whether to fix the redshift
        - photometry: the photometry to fit to the model (in csv format)
        - redshift: the known redshift of the object
 
-    TODO in the next PR: send the results back to the webhook
-
+    Other analysis services may require additional keys in the `inputs` dictionary.
     """
+
+    data_dict = await dd
+
+    required_keys = ["inputs", "callback_url", "callback_method"]
+    for key in required_keys:
+        if key not in data_dict:
+            log(f"missing required key {key} in data_dict")
+            return
 
     analysis_parameters = data_dict["inputs"].get("analysis_parameters", {})
     analysis_parameters = {**default_analysis_parameters, **analysis_parameters}
@@ -108,6 +114,11 @@ async def run_sn_model(data_dict):
         )
         upload_analysis_results(rez, data_dict)
 
+    # we will need to write to temp files
+    # locally and then write their contents
+    # to the results dictionary for uploading
+    local_temp_files = []
+
     try:
         model = sncosmo.Model(source=source)
 
@@ -127,20 +138,12 @@ async def run_sn_model(data_dict):
             model.param_names,
             bounds=bounds,
         )
-        log(f"Number of χ² function calls: {result.ncall}")
-        log(f"Number of degrees of freedom in fit: {result.ndof}")
-        log(f"χ² value at minimum: {result.chisq}")
-        log(f"model parameters: {result.param_names}")
-        log(f"best-fit values: {result.parameters}")
-        log(f"The result contains the following attributes:\n {result.keys()}")
-        log(f'{result["success"]=} type={type(result["success"])}')
 
-        if result["success"]:
+        if result.success:
             f = tempfile.NamedTemporaryFile(
                 suffix=".png", prefix="snplot_", dir="/tmp/", delete=False
             )
             f.close()
-            log(f"{f.name}")
             _ = sncosmo.plot_lc(
                 data,
                 model=fitted_model,
@@ -151,7 +154,7 @@ async def run_sn_model(data_dict):
                 fname=f.name,
             )
             plot_data = base64.b64encode(open(f.name, "rb").read())
-            os.remove(f.name)
+            local_temp_files.append(f.name)
 
             # make some draws from the posterior (simulating what we'd expect
             # with an MCMC analysis)
@@ -167,7 +170,7 @@ async def run_sn_model(data_dict):
             f.close()
             inference.to_netcdf(f.name)
             inference_data = base64.b64encode(open(f.name, 'rb').read())
-            os.remove(f.name)
+            local_temp_files.append(f.name)
 
             result.update({"source": source, "fix_z": fix_z})
 
@@ -177,7 +180,7 @@ async def run_sn_model(data_dict):
             f.close()
             joblib.dump(result, f.name, compress=3)
             result_data = base64.b64encode(open(f.name, "rb").read())
-            os.remove(f.name)
+            local_temp_files.append(f.name)
 
             analysis_results = {
                 "inference_data": {"format": "netcdf4", "data": inference_data},
@@ -193,11 +196,21 @@ async def run_sn_model(data_dict):
                 }
             )
         else:
+            log("Fit failed.")
             rez.update({"status": "failure", "message": "model failed to converge"})
 
     except Exception as e:
-        log(f"Exception! {e}")
+        log(f"Exception while running the model: {e}")
+        log(f"{traceback.format_exc()}")
+        log(f"Data: {data}")
         rez.update({"status": "failure", "message": f"problem running the model {e}"})
+    finally:
+        # clean up local files
+        for f in local_temp_files:
+            try:
+                os.remove(f)
+            except:  # noqa E722
+                pass
 
     upload_analysis_results(rez, data_dict)
 
@@ -211,17 +224,11 @@ async def demo_analysis():
     need async behavior.
     """
     log(f'{request.method} {request.url}')
-    data_dict = await request.get_json(silent=True)
-
-    required_keys = ["inputs", "callback_url", "callback_method"]
-    for key in required_keys:
-        if key not in data_dict:
-            return f"missing required key {key} in data_dict", 400
+    data_dict = request.get_json(silent=True)
 
     runner = functools.partial(run_sn_model, data_dict)
 
     app.add_background_task(runner)
-
     return "sn_analysis_service: analysis started", 200
 
 
