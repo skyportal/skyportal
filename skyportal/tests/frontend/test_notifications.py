@@ -476,10 +476,10 @@ def test_notification_setting_select(driver, user):
         '//*[@name="time_slot" and contains(@class, "MuiSwitch-input")]/../../span[contains(@class,"Mui-checked")]'
     )
 
-    driver.wait_for_xpath('//*[@aria-label="Time Slot" and @value="8"]')
-    driver.wait_for_xpath('//*[@aria-label="Time Slot" and @value="20"]')
+    driver.wait_for_xpath('//*[@aria-label="Time Slot (UTC)" and @value="8"]')
+    driver.wait_for_xpath('//*[@aria-label="Time Slot (UTC)" and @value="20"]')
     start_time_slot = driver.find_elements_by_xpath(
-        '//*[@aria-label="Time Slot" and @value="8"]'
+        '//*[@aria-label="Time Slot (UTC)" and @value="8"]'
     )
     start_time_slot_move_to = driver.find_elements_by_xpath('//*[@data-index="3"]')
 
@@ -490,7 +490,7 @@ def test_notification_setting_select(driver, user):
         start_time_slot[0], start_time_slot_move_to[0]
     ).perform()
 
-    driver.wait_for_xpath('//*[@aria-label="Time Slot" and @value="3"]')
+    driver.wait_for_xpath('//*[@aria-label="Time Slot (UTC)" and @value="3"]')
 
     # test inverting the timeslot
     time_slot_invert = driver.wait_for_xpath(
@@ -533,8 +533,8 @@ def test_notification_setting_select(driver, user):
         '//*[@name="time_slot" and contains(@class, "MuiSwitch-input")]/../../span[contains(@class,"Mui-checked")]'
     )
 
-    driver.wait_for_xpath('//*[@aria-label="Time Slot" and @value="3"]')
-    driver.wait_for_xpath('//*[@aria-label="Time Slot" and @value="20"]')
+    driver.wait_for_xpath('//*[@aria-label="Time Slot (UTC)" and @value="3"]')
+    driver.wait_for_xpath('//*[@aria-label="Time Slot (UTC)" and @value="20"]')
 
     driver.wait_for_xpath(
         '//*[contains(@class, "MuiSlider-root") and contains(@class, "MuiSlider-trackInverted")]'

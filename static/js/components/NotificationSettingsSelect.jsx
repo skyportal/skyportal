@@ -310,7 +310,7 @@ const NotificationSettingsSelect = ({ notificationRessourceType }) => {
                       alignItems="center"
                     >
                       <Slider
-                        getAriaLabel={() => "Time Slot"}
+                        getAriaLabel={() => "Time Slot (UTC)"}
                         value={value}
                         onChange={handleChange}
                         onChangeCommitted={handleChangeCommitted}
