@@ -214,6 +214,7 @@ const NotificationSettingsSelect = ({ notificationRessourceType }) => {
     <div>
       <Button
         variant="contained"
+        name={`notification_settings_button_${notificationRessourceType}`}
         className={classes.button}
         onClick={() => {
           setOpen(true);

@@ -3,7 +3,7 @@ import uuid
 import os
 from tdtax import taxonomy, __version__
 from datetime import datetime, timezone
-
+from selenium.webdriver.common.action_chains import ActionChains
 from skyportal.tests import api
 from skyportal.tests.frontend.sources_and_followup_etc.test_sources import (
     add_comment_and_wait_for_display,
@@ -414,4 +414,128 @@ def test_new_facility_request_triggers_notification(
     driver.click_xpath('//*[@data-testid="notificationsButton"]')
     driver.wait_for_xpath(
         '//*[contains(text(), "New Follow-up submission for object")]'
+    )
+
+
+def test_notification_setting_select(driver, user):
+    driver.get(f'/become_user/{user.id}')
+    driver.get("/profile")
+
+    # Enable notifications for new mentions
+    mention = driver.wait_for_xpath('//*[@name="mention"]')
+    driver.scroll_to_element_and_click(mention)
+
+    driver.wait_for_xpath(
+        '//*[@name="mention"]/../../span[contains(@class,"Mui-checked")]'
+    )
+
+    mention_settings = driver.wait_for_xpath(
+        '//*[@name="notification_settings_button_mention"]'
+    )
+    driver.scroll_to_element_and_click(mention_settings)
+
+    email_setting = driver.wait_for_xpath(
+        '//*[@name="email" and contains(@class, "MuiSwitch-input")]'
+    )
+    driver.scroll_to_element_and_click(email_setting)
+
+    driver.wait_for_xpath(
+        '//*[@name="email" and contains(@class, "MuiSwitch-input")]/../../span[contains(@class,"Mui-checked")]'
+    )
+
+    # same for slack
+    slack_setting = driver.wait_for_xpath(
+        '//*[@name="slack" and contains(@class, "MuiSwitch-input")]'
+    )
+    driver.scroll_to_element_and_click(slack_setting)
+    driver.wait_for_xpath(
+        '//*[@name="slack" and contains(@class, "MuiSwitch-input")]/../../span[contains(@class,"Mui-checked")]'
+    )
+
+    # same for sms
+    sms_setting = driver.wait_for_xpath('//*[@name="sms"]')
+    driver.scroll_to_element_and_click(sms_setting)
+    driver.wait_for_xpath(
+        '//*[@name="sms" and contains(@class, "MuiSwitch-input")]/../../span[contains(@class,"Mui-checked")]'
+    )
+
+    # sms settings appeared, so we can test them
+    sms_on_shift_setting = driver.wait_for_xpath(
+        '//*[@name="on_shift" and contains(@class, "MuiSwitch-input")]'
+    )
+    driver.scroll_to_element_and_click(sms_on_shift_setting)
+    driver.wait_for_xpath(
+        '//*[@name="on_shift" and contains(@class, "MuiSwitch-input")]/../../span[contains(@class,"Mui-checked")]'
+    )
+
+    sms_time_slot_setting = driver.wait_for_xpath(
+        '//*[@name="time_slot" and contains(@class, "MuiSwitch-input")]'
+    )
+    driver.scroll_to_element_and_click(sms_time_slot_setting)
+    driver.wait_for_xpath(
+        '//*[@name="time_slot" and contains(@class, "MuiSwitch-input")]/../../span[contains(@class,"Mui-checked")]'
+    )
+
+    driver.wait_for_xpath('//*[@aria-label="Time Slot" and @value="8"]')
+    driver.wait_for_xpath('//*[@aria-label="Time Slot" and @value="20"]')
+    start_time_slot = driver.find_elements_by_xpath(
+        '//*[@aria-label="Time Slot" and @value="8"]'
+    )
+    start_time_slot_move_to = driver.find_elements_by_xpath('//*[@data-index="3"]')
+
+    # drag the start of the slider from 8 to 3
+    print('start_time_slot', start_time_slot)
+    print('start_time_slot_move_to', start_time_slot_move_to)
+    ActionChains(driver).drag_and_drop(
+        start_time_slot[0], start_time_slot_move_to[0]
+    ).perform()
+
+    driver.wait_for_xpath('//*[@aria-label="Time Slot" and @value="3"]')
+
+    # test inverting the timeslot
+    time_slot_invert = driver.wait_for_xpath(
+        '//*[@label="Invert" and contains(@class, "MuiCheckbox-root")]'
+    )
+    driver.scroll_to_element_and_click(time_slot_invert)
+
+    driver.wait_for_xpath('//*[@label="Invert" and contains(@class,"Mui-checked")]')
+
+    driver.wait_for_xpath(
+        '//*[contains(@class, "MuiSlider-root") and contains(@class, "MuiSlider-trackInverted")]'
+    )
+
+    # reload profile to see if the settings were saved
+    driver.get(f'/become_user/{user.id}')
+    driver.get("/profile")
+
+    driver.wait_for_xpath(
+        '//*[@name="mention"]/../../span[contains(@class,"Mui-checked")]'
+    )
+
+    mention_settings = driver.wait_for_xpath(
+        '//*[@name="notification_settings_button_mention"]'
+    )
+    driver.scroll_to_element_and_click(mention_settings)
+
+    driver.wait_for_xpath(
+        '//*[@name="email" and contains(@class, "MuiSwitch-input")]/../../span[contains(@class,"Mui-checked")]'
+    )
+    driver.wait_for_xpath(
+        '//*[@name="slack" and contains(@class, "MuiSwitch-input")]/../../span[contains(@class,"Mui-checked")]'
+    )
+    driver.wait_for_xpath(
+        '//*[@name="sms" and contains(@class, "MuiSwitch-input")]/../../span[contains(@class,"Mui-checked")]'
+    )
+    driver.wait_for_xpath(
+        '//*[@name="on_shift" and contains(@class, "MuiSwitch-input")]/../../span[contains(@class,"Mui-checked")]'
+    )
+    driver.wait_for_xpath(
+        '//*[@name="time_slot" and contains(@class, "MuiSwitch-input")]/../../span[contains(@class,"Mui-checked")]'
+    )
+
+    driver.wait_for_xpath('//*[@aria-label="Time Slot" and @value="3"]')
+    driver.wait_for_xpath('//*[@aria-label="Time Slot" and @value="20"]')
+
+    driver.wait_for_xpath(
+        '//*[contains(@class, "MuiSlider-root") and contains(@class, "MuiSlider-trackInverted")]'
     )
