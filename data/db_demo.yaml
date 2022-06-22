@@ -871,10 +871,10 @@ thumbnail:
       file: ./ZTFrlh6cyjh_new.png
 
 gcn_event:
-  - xml:
-      file: ../skyportal/tests/data/GW190425_initial.xml
 #  - xml:
-#      file: ../skyportal/tests/data/GRB180116A_Fermi_GBM_Gnd_Pos.xml
+#      file: ../skyportal/tests/data/GW190425_initial.xml
+  - xml:
+      file: ../skyportal/tests/data/GRB180116A_Fermi_GBM_Gnd_Pos.xml
   - xml:
       file: ./GW190814.xml
 
