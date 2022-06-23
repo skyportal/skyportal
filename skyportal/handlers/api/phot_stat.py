@@ -305,18 +305,24 @@ class PhotStatUpdateHandler(BaseHandler):
         full_update_end_time = self.get_query_argument('fullUpdateEndTime', None)
 
         with DBSession() as session:
-            # start with Objs that have created_at within range
-            stmt = sa.select(Obj).options(joinedload(Obj.photstats))
-            if created_at_start_time:
-                created_at_start_time = str(
-                    arrow.get(created_at_start_time.strip()).datetime
+            try:
+                # start with Objs that have created_at within range
+                stmt = sa.select(Obj).options(joinedload(Obj.photstats))
+                if created_at_start_time:
+                    created_at_start_time = str(
+                        arrow.get(created_at_start_time.strip()).datetime
+                    )
+                    stmt = stmt.where(Obj.created_at >= created_at_start_time)
+                if created_at_end_time:
+                    created_at_end_time = str(
+                        arrow.get(created_at_end_time.strip()).datetime
+                    )
+                    stmt = stmt.where(Obj.created_at <= created_at_end_time)
+            except arrow.parser.ParserError:
+                return self.error(
+                    f'Cannot parse inputs createdAtStartTime ({created_at_start_time}) '
+                    f'or createdAtEndTime ({created_at_end_time}) as arrow parseable strings.'
                 )
-                stmt = stmt.where(Obj.created_at >= created_at_start_time)
-            if created_at_end_time:
-                created_at_end_time = str(
-                    arrow.get(created_at_end_time.strip()).datetime
-                )
-                stmt = stmt.where(Obj.created_at <= created_at_end_time)
 
             # select only objects that don't have a PhotStats object
             stmt_without = stmt.where(~Obj.photstats.any())
@@ -327,39 +333,51 @@ class PhotStatUpdateHandler(BaseHandler):
             # (that have created_at within range,
             # and that have update times within range)
             stmt_with = stmt.where(Obj.photstats.any())
-            if quick_update_start_time:
-                quick_update_start_time = str(
-                    arrow.get(quick_update_start_time.strip()).datetime
-                )
-                stmt_with = stmt_with.where(
-                    Obj.photstats.any(PhotStat.last_update >= quick_update_start_time)
-                )
-            if quick_update_end_time:
-                quick_update_end_time = str(
-                    arrow.get(quick_update_end_time.strip()).datetime
-                )
-                stmt_with = stmt_with.where(
-                    Obj.photstats.any(
-                        PhotStat.last_full_update <= quick_update_end_time
+            try:
+                if quick_update_start_time:
+                    quick_update_start_time = str(
+                        arrow.get(quick_update_start_time.strip()).datetime
                     )
-                )
-            if full_update_start_time:
-                full_update_start_time = str(
-                    arrow.get(full_update_start_time.strip()).datetime
-                )
-                stmt_with = stmt_with.where(
-                    Obj.photstats.any(
-                        PhotStat.last_full_update >= full_update_start_time
+                    stmt_with = stmt_with.where(
+                        Obj.photstats.any(
+                            PhotStat.last_update >= quick_update_start_time
+                        )
                     )
+                if quick_update_end_time:
+                    quick_update_end_time = str(
+                        arrow.get(quick_update_end_time.strip()).datetime
+                    )
+                    stmt_with = stmt_with.where(
+                        Obj.photstats.any(
+                            PhotStat.last_full_update <= quick_update_end_time
+                        )
+                    )
+                if full_update_start_time:
+                    full_update_start_time = str(
+                        arrow.get(full_update_start_time.strip()).datetime
+                    )
+                    stmt_with = stmt_with.where(
+                        Obj.photstats.any(
+                            PhotStat.last_full_update >= full_update_start_time
+                        )
+                    )
+                if full_update_end_time:
+                    full_update_end_time = str(
+                        arrow.get(full_update_end_time.strip()).datetime
+                    )
+                    stmt_with = stmt_with.where(
+                        Obj.photstats.any(
+                            PhotStat.last_full_update <= full_update_end_time
+                        )
+                    )
+            except arrow.parser.ParserError:
+                return self.error(
+                    f'Cannot parse inputs quickUpdateStartTime ({quick_update_start_time}) '
+                    f'or quickUpdateEndTime ({quick_update_end_time}) '
+                    f'or fullUpdateStartTime ({full_update_start_time}) '
+                    f'or fullUpdateEndTime ({full_update_end_time}) '
+                    'as arrow parseable strings.'
                 )
-            if full_update_end_time:
-                full_update_end_time = str(
-                    arrow.get(full_update_end_time.strip()).datetime
-                )
-                stmt_with = stmt_with.where(
-                    Obj.photstats.any(PhotStat.last_full_update <= full_update_end_time)
-                )
-
             count_stmt = sa.select(func.count()).select_from(stmt_with.distinct())
             total_phot_stats = session.execute(count_stmt).scalar()
 
@@ -432,26 +450,39 @@ class PhotStatUpdateHandler(BaseHandler):
                   schema: Error
         """
 
-        page_number = self.get_query_argument('pageNumber', 1)
-        num_per_page = min(
-            int(self.get_query_argument("numPerPage", DEFAULT_SOURCES_PER_PAGE)),
-            MAX_SOURCES_PER_PAGE,
-        )
+        try:
+            page_number = int(self.get_query_argument('pageNumber', 1))
+            num_per_page = min(
+                int(self.get_query_argument("numPerPage", DEFAULT_SOURCES_PER_PAGE)),
+                MAX_SOURCES_PER_PAGE,
+            )
+        except ValueError:
+            return self.error(
+                f'Cannot parse inputs pageNumber ({page_number}) '
+                f'or numPerPage ({num_per_page}) as an integers.'
+            )
+
         created_at_start_time = self.get_query_argument('createdAtStartTime', None)
         created_at_end_time = self.get_query_argument('createdAtEndTime', None)
 
         with DBSession() as session:
             stmt = sa.select(Obj).options(joinedload(Obj.photstats))
-            if created_at_start_time:
-                created_at_start_time = str(
-                    arrow.get(created_at_start_time.strip()).datetime
+            try:
+                if created_at_start_time:
+                    created_at_start_time = str(
+                        arrow.get(created_at_start_time.strip()).datetime
+                    )
+                    stmt = stmt.where(Obj.created_at >= created_at_start_time)
+                if created_at_end_time:
+                    created_at_end_time = str(
+                        arrow.get(created_at_end_time.strip()).datetime
+                    )
+                    stmt = stmt.where(Obj.created_at <= created_at_end_time)
+            except arrow.parser.ParserError:
+                return self.error(
+                    f'Cannot parse inputs createdAtStartTime ({created_at_start_time}) '
+                    f'or createdAtEndTime ({created_at_end_time}) as arrow parseable strings.'
                 )
-                stmt = stmt.where(Obj.created_at >= created_at_start_time)
-            if created_at_end_time:
-                created_at_end_time = str(
-                    arrow.get(created_at_end_time.strip()).datetime
-                )
-                stmt = stmt.where(Obj.created_at <= created_at_end_time)
 
             # select only objects that don't have a PhotStats object
             stmt = stmt.where(~Obj.photstats.any())
@@ -579,11 +610,18 @@ class PhotStatUpdateHandler(BaseHandler):
                   schema: Error
         """
 
-        page_number = self.get_query_argument('pageNumber', 1)
-        num_per_page = min(
-            int(self.get_query_argument("numPerPage", DEFAULT_SOURCES_PER_PAGE)),
-            MAX_SOURCES_PER_PAGE,
-        )
+        try:
+            page_number = int(self.get_query_argument('pageNumber', 1))
+            num_per_page = min(
+                int(self.get_query_argument("numPerPage", DEFAULT_SOURCES_PER_PAGE)),
+                MAX_SOURCES_PER_PAGE,
+            )
+        except ValueError:
+            return self.error(
+                f'Cannot parse inputs pageNumber ({page_number}) '
+                f'or numPerPage ({num_per_page}) as an integers.'
+            )
+
         created_at_start_time = self.get_query_argument('createdAtStartTime', None)
         created_at_end_time = self.get_query_argument('createdAtEndTime', None)
         quick_update_start_time = self.get_query_argument('quickUpdateStartTime', None)
@@ -593,50 +631,69 @@ class PhotStatUpdateHandler(BaseHandler):
 
         with DBSession() as session:
             stmt = sa.select(Obj).options(joinedload(Obj.photstats))
-            if created_at_start_time:
-                created_at_start_time = str(
-                    arrow.get(created_at_start_time.strip()).datetime
+            try:
+                if created_at_start_time:
+                    created_at_start_time = str(
+                        arrow.get(created_at_start_time.strip()).datetime
+                    )
+                    stmt = stmt.where(Obj.created_at >= created_at_start_time)
+                if created_at_end_time:
+                    created_at_end_time = str(
+                        arrow.get(created_at_end_time.strip()).datetime
+                    )
+                    stmt = stmt.where(Obj.created_at <= created_at_end_time)
+            except arrow.parser.ParserError:
+                return self.error(
+                    f'Cannot parse inputs createdAtStartTime ({created_at_start_time}) '
+                    f'or createdAtEndTime ({created_at_end_time}) as arrow parseable strings.'
                 )
-                stmt = stmt.where(Obj.created_at >= created_at_start_time)
-            if created_at_end_time:
-                created_at_end_time = str(
-                    arrow.get(created_at_end_time.strip()).datetime
-                )
-                stmt = stmt.where(Obj.created_at <= created_at_end_time)
 
             # only look at Objs with a PhotStat
             stmt = stmt.where(Obj.photstats.any())
-            if quick_update_start_time:
-                quick_update_start_time = str(
-                    arrow.get(quick_update_start_time.strip()).datetime
-                )
-                stmt = stmt.where(
-                    Obj.photstats.any(PhotStat.last_update >= quick_update_start_time)
-                )
-            if quick_update_end_time:
-                quick_update_end_time = str(
-                    arrow.get(quick_update_end_time.strip()).datetime
-                )
-                stmt = stmt.where(
-                    Obj.photstats.any(
-                        PhotStat.last_full_update <= quick_update_end_time
+            try:
+                if quick_update_start_time:
+                    quick_update_start_time = str(
+                        arrow.get(quick_update_start_time.strip()).datetime
                     )
-                )
-            if full_update_start_time:
-                full_update_start_time = str(
-                    arrow.get(full_update_start_time.strip()).datetime
-                )
-                stmt = stmt.where(
-                    Obj.photstats.any(
-                        PhotStat.last_full_update >= full_update_start_time
+                    stmt = stmt.where(
+                        Obj.photstats.any(
+                            PhotStat.last_update >= quick_update_start_time
+                        )
                     )
-                )
-            if full_update_end_time:
-                full_update_end_time = str(
-                    arrow.get(full_update_end_time.strip()).datetime
-                )
-                stmt = stmt.where(
-                    Obj.photstats.any(PhotStat.last_full_update <= full_update_end_time)
+                if quick_update_end_time:
+                    quick_update_end_time = str(
+                        arrow.get(quick_update_end_time.strip()).datetime
+                    )
+                    stmt = stmt.where(
+                        Obj.photstats.any(
+                            PhotStat.last_full_update <= quick_update_end_time
+                        )
+                    )
+                if full_update_start_time:
+                    full_update_start_time = str(
+                        arrow.get(full_update_start_time.strip()).datetime
+                    )
+                    stmt = stmt.where(
+                        Obj.photstats.any(
+                            PhotStat.last_full_update >= full_update_start_time
+                        )
+                    )
+                if full_update_end_time:
+                    full_update_end_time = str(
+                        arrow.get(full_update_end_time.strip()).datetime
+                    )
+                    stmt = stmt.where(
+                        Obj.photstats.any(
+                            PhotStat.last_full_update <= full_update_end_time
+                        )
+                    )
+            except arrow.parser.ParserError:
+                return self.error(
+                    f'Cannot parse inputs quickUpdateStartTime ({quick_update_start_time}) '
+                    f'or quickUpdateEndTime ({quick_update_end_time}) '
+                    f'or fullUpdateStartTime ({full_update_start_time}) '
+                    f'or fullUpdateEndTime ({full_update_end_time}) '
+                    'as arrow parseable strings.'
                 )
 
             count_stmt = sa.select(func.count()).select_from(stmt.distinct())
