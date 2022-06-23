@@ -252,7 +252,7 @@ const TopSources = ({ classes }) => {
   const topSourcesPrefs =
     useSelector((state) => state.profile.preferences.topSources) ||
     defaultPrefs;
-  
+
   if (!Object.keys(topSourcesPrefs).includes("maxNumSources")) {
     topSourcesPrefs.maxNumSources = defaultPrefs.maxNumSources;
   }
