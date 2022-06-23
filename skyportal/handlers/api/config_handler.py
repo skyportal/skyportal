@@ -55,9 +55,7 @@ class ConfigHandler(BaseHandler):
 
         return self.success(
             data={
-                "slackPreamble": cfg.get(
-                    "slack.expected_url_preamble", "https://hooks.slack.com/"
-                ),
+                "slackPreamble": cfg["slack.expected_url_preamble"],
                 "invitationsEnabled": cfg["invitations.enabled"],
                 "cosmology": str(cosmo),
                 "cosmoref": cosmo.__doc__,
