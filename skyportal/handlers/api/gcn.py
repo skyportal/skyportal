@@ -579,17 +579,3 @@ class LocalizationHandler(BaseHandler):
         self.verify_and_commit()
 
         return self.success()
-
-
-class GcnNoticeTypesHandler(BaseHandler):
-    @auth_or_token
-    def get(self):
-        '''
-        This method return the list of notices from the config file
-        ---
-        description: Returns the list of notices
-        tags:
-          - gcn_notices
-        '''
-        notices = cfg['gcn_notice_types']
-        return self.success(data=notices)

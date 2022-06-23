@@ -1,20 +1,12 @@
-import React, { useEffect } from "react";
-import { useSelector, useDispatch } from "react-redux";
+import React from "react";
+import { useSelector } from "react-redux";
 import PropTypes from "prop-types";
 
 import SelectWithChips from "./SelectWithChips";
-import { fetchGcnNoticeTypes } from "../ducks/gcnNoticeTypes";
 
 const GcnNoticeTypesSelect = (props) => {
   const { selectedGcnNoticeTypes, setSelectedGcnNoticeTypes } = props;
-  const dispatch = useDispatch();
-  const gcn_notice_types = useSelector(
-    (state) => state.gcnNoticeTypes.gcnNoticeTypes
-  );
-
-  useEffect(() => {
-    dispatch(fetchGcnNoticeTypes());
-  }, []);
+  const gcn_notice_types = useSelector((state) => state.config.gcnNoticeTypes);
 
   const handleChange = (event) => setSelectedGcnNoticeTypes(event.target.value);
 

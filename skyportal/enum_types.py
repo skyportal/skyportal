@@ -163,3 +163,5 @@ sqla_enum_types = [
     allowed_analysis_input_types,
     allowed_external_authentication_types,
 ]
+
+GCN_NOTICE_TYPES = tuple(cfg.get('gcn_notice_types', []))

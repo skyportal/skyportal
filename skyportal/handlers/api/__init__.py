@@ -22,7 +22,7 @@ from .followup_request import (
 )
 from .facility_listener import FacilityMessageHandler
 from .galaxy import GalaxyCatalogHandler, GalaxyASCIIFileHandler
-from .gcn import GcnEventHandler, LocalizationHandler, GcnNoticeTypesHandler
+from .gcn import GcnEventHandler, LocalizationHandler
 from .group import (
     GroupHandler,
     GroupUserHandler,

@@ -31,7 +31,6 @@ from skyportal.handlers.api import (
     GalaxyCatalogHandler,
     GalaxyASCIIFileHandler,
     GcnEventHandler,
-    GcnNoticeTypesHandler,
     LocalizationHandler,
     GroupHandler,
     GroupUserHandler,
@@ -192,7 +191,6 @@ skyportal_handlers = [
         CommentAttachmentHandler,
     ),
     (r'/api/gcn_event(/.*)?', GcnEventHandler),
-    (r'/api/gcn_notice_types', GcnNoticeTypesHandler),
     (
         r'/api/localization(/[0-9]+)/airmass(/[0-9]+)?',
         ObservationPlanAirmassChartHandler,
