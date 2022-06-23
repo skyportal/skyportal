@@ -44,7 +44,6 @@ from .group import accessible_by_groups_members
 _, cfg = load_env()
 
 log = make_log('models/analysis')
-log("start models/analysis.py")
 
 RE_SLASHES = re.compile(r'^[\w_\-\+\/\\]*$')
 RE_NO_SLASHES = re.compile(r'^[\w_\-\+]*$')
@@ -419,13 +418,13 @@ class ObjAnalysis(Base, AnalysisMixin, WebhookMixin):
 
 @event.listens_for(ObjAnalysis, 'after_delete')
 def delete_analysis_data_from_disk(mapper, connection, target):
-    log(f'Deleting analysis data for analysis {target.id}')
+    log(f'Deleting analysis data for analysis id={target.id}')
     target.delete_data()
 
 
 @event.listens_for(AnalysisService, 'before_delete')
 def delete_assoc_analysis_data_from_disk(mapper, connection, target):
-    log(f'Deleting analysis data for analysis_service {target.id}')
+    log(f'Deleting associated analysis data for analysis_service={target.id}')
     for analysis in target.obj_analyses:
-        log(f'Deleting analysis data for id {analysis.id}')
+        log(f' ... deleting analysis data for analysis id={analysis.id}')
         analysis.delete_data()
