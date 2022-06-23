@@ -2,60 +2,52 @@ from astropy import cosmology
 from astropy import units as u
 
 from baselayer.log import make_log
+from baselayer.app.env import load_env
 
 log = make_log('cosmology')
+_, cfg = load_env()
 
 
-def establish_cosmology(cfg={}, fallback_cosmology=cosmology.Planck18):
-    def _get_cosmology():
-        if cfg.get('misc'):
-            if cfg["misc"].get('cosmology'):
-                if cfg["misc"]["cosmology"] in cosmology.realizations.available:
-                    cosmo = cosmology.default_cosmology.get_cosmology_from_string(
-                        cfg["misc"]["cosmology"]
-                    )
-                elif isinstance(cfg["misc"]["cosmology"], dict):
-                    par = cfg["misc"]["cosmology"]
-                    try:
-                        if par.get('flat'):
-                            cosmo = cosmology.FlatLambdaCDM(
-                                par['H0'],
-                                par['Om0'],
-                                Tcmb0=par.get('Tcmb0', 2.725),
-                                Neff=par.get('Neff', 3.04),
-                                m_nu=u.Quantity(par.get('m_nu', [0.0, 0.0, 0.0]), u.eV),
-                                name=par.get("name", "user_cosmology"),
-                                Ob0=par.get('Ob0', 0.0455),
-                            )
-                        else:
-                            cosmo = cosmology.LambdaCDM(
-                                par['H0'],
-                                par['Om0'],
-                                par['Ode0'],
-                                Tcmb0=par.get('Tcmb0', 2.725),
-                                Neff=par.get('Neff', 3.04),
-                                m_nu=u.Quantity(par.get('m_nu', [0.0, 0.0, 0.0]), u.eV),
-                                name=par.get("name", "user_cosmology"),
-                                Ob0=par.get('Ob0', 0.0455),
-                            )
-                    except (KeyError, NameError) as e:
-                        log(f'{e}')
-                        log('exception in determining user defined cosmology')
-                        cosmo = fallback_cosmology
-                else:
-                    log(
-                        'cosmology: dont know how to deal with the user supplied cosmology'
-                    )
-                    cosmo = fallback_cosmology
-        else:
-            cosmo = fallback_cosmology
+def establish_cosmology(cfg=cfg):
+    user_cosmo = cfg['misc']['cosmology']
 
-        log(f'using {cosmo.name} for cosmological calculations')
-        log(f'{cosmo}')
-        return cosmo
+    if user_cosmo in cosmology.realizations.available:
+        cosmo = cosmology.default_cosmology.get_cosmology_from_string(user_cosmo)
 
-    try:
-        return _get_cosmology()
-    except Exception:
-        log(f'Error setting cosmology using {fallback_cosmology.name} as a fallback')
-        return fallback_cosmology
+    elif isinstance(user_cosmo, dict):
+        try:
+            if user_cosmo.get('flat'):
+                cosmo = cosmology.FlatLambdaCDM(
+                    user_cosmo['H0'],
+                    user_cosmo['Om0'],
+                    Tcmb0=user_cosmo.get('Tcmb0', 2.725),
+                    Neff=user_cosmo.get('Neff', 3.04),
+                    m_nu=u.Quantity(user_cosmo.get('m_nu', [0.0, 0.0, 0.0]), u.eV),
+                    name=user_cosmo.get("name", "user_cosmology"),
+                    Ob0=user_cosmo.get('Ob0', 0.0455),
+                )
+            else:
+                cosmo = cosmology.LambdaCDM(
+                    user_cosmo['H0'],
+                    user_cosmo['Om0'],
+                    user_cosmo['Ode0'],
+                    Tcmb0=user_cosmo.get('Tcmb0', 2.725),
+                    Neff=user_cosmo.get('Neff', 3.04),
+                    m_nu=u.Quantity(user_cosmo.get('m_nu', [0.0, 0.0, 0.0]), u.eV),
+                    name=user_cosmo.get("name", "user_cosmology"),
+                    Ob0=user_cosmo.get('Ob0', 0.0455),
+                )
+        except (KeyError, NameError) as e:
+            log(f'{e}')
+            log('Exception while processing user-defined cosmology')
+            raise RuntimeError('Error parsing user-defined cosmology')
+
+    else:
+        log(f"Invalid user-defined cosmology [{user_cosmo}]")
+        log(f"Try setting it to one of [{cosmology.realizations.available}]")
+        raise RuntimeError("No valid cosmology specified")
+
+    log(f'Using {cosmo.name} for cosmological calculations')
+    log(f'{cosmo}')
+
+    return cosmo

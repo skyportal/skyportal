@@ -25,8 +25,8 @@ class BaseHandler(BaselayerHandler):
         data,
         filename,
         output_type="pdf",
-        chunk_size=1024 ** 2,
-        max_file_size=20 * 1024 ** 2,
+        chunk_size=1024**2,
+        max_file_size=20 * 1024**2,
     ):
         """
         data : bytesIO

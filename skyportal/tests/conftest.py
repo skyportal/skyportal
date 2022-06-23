@@ -1627,3 +1627,14 @@ def analysis_service_token_two_groups(user_two_groups):
     )
     yield token_id
     delete_token(token_id)
+
+
+@pytest.fixture()
+def analysis_token(user):
+    token_id = create_token(
+        ACLs=["Run Analyses"],
+        user_id=user.id,
+        name=str(uuid.uuid4()),
+    )
+    yield token_id
+    delete_token(token_id)

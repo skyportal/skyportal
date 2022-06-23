@@ -388,6 +388,7 @@ def get_observations(
                     InstrumentFieldTile.instrument_field_id == InstrumentField.id,
                     InstrumentFieldTile.healpix.overlaps(LocalizationTile.healpix),
                 )
+                .distinct()
                 .subquery()
             )
         else:
@@ -399,6 +400,7 @@ def get_observations(
                     InstrumentFieldTile.instrument_field_id == InstrumentField.id,
                     InstrumentFieldTile.healpix.overlaps(LocalizationTile.healpix),
                 )
+                .distinct()
                 .subquery()
             )
 
@@ -420,6 +422,7 @@ def get_observations(
                         Observation.obstime >= start_date,
                         Observation.obstime <= end_date,
                     )
+                    .distinct()
                     .subquery()
                 )
             else:
@@ -433,6 +436,7 @@ def get_observations(
                         Observation.obstime >= start_date,
                         Observation.obstime <= end_date,
                     )
+                    .distinct()
                     .subquery()
                 )
 
@@ -443,10 +447,12 @@ def get_observations(
             )
             query_area = sa.select(area).filter(
                 LocalizationTile.localization_id == localization.id,
+                LocalizationTile.probdensity >= min_probdensity,
                 union.columns.healpix.overlaps(LocalizationTile.healpix),
             )
             query_prob = sa.select(prob).filter(
                 LocalizationTile.localization_id == localization.id,
+                LocalizationTile.probdensity >= min_probdensity,
                 union.columns.healpix.overlaps(LocalizationTile.healpix),
             )
             intprob = DBSession().execute(query_prob).scalar_one()
@@ -630,7 +636,7 @@ class ObservationHandler(BaseHandler):
         return self.success()
 
     @auth_or_token
-    def get(self):
+    async def get(self):
         """
         ---
           description: Retrieve all observations
@@ -943,7 +949,7 @@ class ObservationASCIIFileHandler(BaseHandler):
 
 class ObservationGCNHandler(BaseHandler):
     @auth_or_token
-    def get(self, instrument_id):
+    async def get(self, instrument_id):
         """
         ---
           description: Get a GCN-izable summary of the observations.

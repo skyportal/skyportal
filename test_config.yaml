@@ -56,6 +56,12 @@ services:
   paths:
     - ./baselayer/services
     - ./skyportal/services
+  disabled:
+    - external_logging
+    - cron
+    - gcnserver
+    - slack
+    - dask
 
 test_server:
   port: 64502
@@ -100,3 +106,8 @@ app:
     host: localhost
     port: 64502
   ps1_endpoint: http://localhost:64502
+
+analysis_services:
+  analysis_folder: analysis_data
+  sn_analysis_service:
+    port: 6801

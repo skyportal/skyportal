@@ -4,9 +4,9 @@ from baselayer.app.env import load_env
 _, cfg = load_env()
 
 # Default classification parameters
-thumb_size = cfg["image_grayscale_params.thumb_size"] or 40
-MSE_cutoff = cfg["image_grayscale_params.MSE_cutoff"] or 22
-adjust_color_bias = cfg["image_grayscale_params.adjust_color_bias"] or True
+thumb_size = cfg["image_grayscale_params.thumb_size"]
+MSE_cutoff = cfg["image_grayscale_params.MSE_cutoff"]
+adjust_color_bias = cfg["image_grayscale_params.adjust_color_bias"]
 
 
 def image_is_grayscale(

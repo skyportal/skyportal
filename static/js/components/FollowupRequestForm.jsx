@@ -48,7 +48,11 @@ const FollowupRequestForm = ({
   const { telescopeList } = useSelector((state) => state.telescopes);
   const { allocationList } = useSelector((state) => state.allocations);
   const allGroups = useSelector((state) => state.groups.all);
-  const [selectedAllocationId, setSelectedAllocationId] = useState(null);
+  const defaultAllocationId = useSelector(
+    (state) => state.profile.preferences.followupDefault
+  );
+  const [selectedAllocationId, setSelectedAllocationId] =
+    useState(defaultAllocationId);
   const [selectedGroupIds, setSelectedGroupIds] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -64,7 +68,9 @@ const FollowupRequestForm = ({
       );
 
       const { data } = result;
-      setSelectedAllocationId(data[0]?.id);
+      if (!selectedAllocationId) {
+        setSelectedAllocationId(data[0]?.id);
+      }
       if (data[0]?.default_share_group_ids?.length > 0) {
         setSelectedGroupIds(data[0]?.default_share_group_ids);
       } else {
@@ -93,6 +99,7 @@ const FollowupRequestForm = ({
   if (
     allocationList.length === 0 ||
     !selectedAllocationId ||
+    !allocationList[selectedAllocationId] ||
     Object.keys(instrumentFormParams).length === 0
   ) {
     return <h3>No robotic instruments available...</h3>;
@@ -184,9 +191,10 @@ const FollowupRequestForm = ({
             className={classes.allocationSelectItem}
           >
             {`${
-              telLookUp[instLookUp[allocation.instrument_id].telescope_id].name
-            } / ${instLookUp[allocation.instrument_id].name} - ${
-              groupLookUp[allocation.group_id].name
+              telLookUp[instLookUp[allocation.instrument_id]?.telescope_id]
+                ?.name
+            } / ${instLookUp[allocation.instrument_id]?.name} - ${
+              groupLookUp[allocation.group_id]?.name
             } (PI ${allocation.pi})`}
           </MenuItem>
         ))}
