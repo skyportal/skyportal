@@ -76,7 +76,14 @@ LISTENER_CLASSNAMES = [
 LISTENER_CLASSES = [getattr(facility_apis, c) for c in LISTENER_CLASSNAMES]
 
 ANALYSIS_TYPES = ('lightcurve_fitting', 'spectrum_fitting', 'meta_analysis')
-ANALYSIS_INPUT_TYPES = ('photometry', 'spectra', 'redshift', 'annotations', 'comments')
+ANALYSIS_INPUT_TYPES = (
+    'photometry',
+    'spectra',
+    'redshift',
+    'annotations',
+    'comments',
+    'classifications',
+)
 AUTHENTICATION_TYPES = (
     'none',
     'header_token',
@@ -84,6 +91,17 @@ AUTHENTICATION_TYPES = (
     'HTTPBasicAuth',
     'HTTPDigestAuth',
     'OAuth1',
+)
+WEBHOOK_STATUS_TYPES = (
+    'queued',
+    'pending',
+    'completed',
+    'failure',
+    'cancelled',
+    'timed_out',
+)
+allowed_webbook_status_types = sa.Enum(
+    *WEBHOOK_STATUS_TYPES, name='webhookstatustypes', validate_strings=True
 )
 
 allowed_analysis_types = sa.Enum(
@@ -153,6 +171,7 @@ py_allowed_analysis_input_types = Enum('analysisinputtypes', ANALYSIS_INPUT_TYPE
 py_allowed_external_authentication_types = Enum(
     'authenticationtypes', AUTHENTICATION_TYPES
 )
+py_allowed_webbook_status_types = Enum('webhookstatustypes', WEBHOOK_STATUS_TYPES)
 
 
 sqla_enum_types = [
@@ -166,4 +185,5 @@ sqla_enum_types = [
     allowed_analysis_types,
     allowed_analysis_input_types,
     allowed_external_authentication_types,
+    allowed_webbook_status_types,
 ]

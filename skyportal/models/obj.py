@@ -379,6 +379,14 @@ class Obj(Base, conesearch_alchemy.Point):
         doc="Notifications regarding the object sent out by users",
     )
 
+    obj_analyses = relationship(
+        'ObjAnalysis',
+        back_populates='obj',
+        cascade='save-update, merge, refresh-expire, expunge',
+        passive_deletes=True,
+        doc="Analyses assocated with this obj.",
+    )
+
     @hybrid_method
     def last_detected_at(self, user):
         """UTC ISO date at which the object was last detected above a given S/N (3.0 by default)."""

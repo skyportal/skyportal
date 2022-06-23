@@ -8,6 +8,7 @@ from skyportal.handlers import BecomeUserHandler, LogoutHandler
 from skyportal.handlers.api import (
     ACLHandler,
     AnalysisServiceHandler,
+    AnalysisHandler,
     UserACLHandler,
     AllocationHandler,
     AllocationReportHandler,
@@ -151,6 +152,8 @@ skyportal_handlers = [
     (r'/api/allocation/report(/[0-9]+)', AllocationReportHandler),
     (r'/api/allocation(/.*)?', AllocationHandler),
     (r'/api/analysis_service(/.*)?', AnalysisServiceHandler),
+    (r'/api/(obj)/([0-9A-Za-z-_]+)/analysis/([0-9]+)?', AnalysisHandler),
+    (r'/api/(obj)/analysis(/[0-9]+)?', AnalysisHandler),
     (r'/api/assignment(/.*)?', AssignmentHandler),
     (r'/api/candidates(/[0-9A-Za-z-_]+)/([0-9]+)', CandidateHandler),
     (r'/api/candidates(/.*)?', CandidateHandler),
