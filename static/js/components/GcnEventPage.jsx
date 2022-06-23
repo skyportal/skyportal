@@ -550,6 +550,7 @@ const GcnEventPage = ({ route }) => {
                         numPerPage={fetchGalaxyParams.numPerPage}
                         handleTableChange={handleGalaxyTableChange}
                         totalMatches={gcnEventGalaxies.totalMatches}
+                        serverSide={false}
                         hideTitle
                       />
                     </div>
