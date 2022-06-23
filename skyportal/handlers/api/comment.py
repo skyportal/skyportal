@@ -407,7 +407,7 @@ class CommentHandler(BaseHandler):
 
             if users_mentioned_in_comment:
                 for user_mentioned in users_mentioned_in_comment:
-                    DBSession().add(
+                    session.add(
                         UserNotification(
                             user=user_mentioned,
                             text=text_to_send,
