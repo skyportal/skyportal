@@ -520,9 +520,6 @@ cross_match:
     limmag: 20.5
     number: 1
 
-analysis_folder: analysis_data
-
-
 # define the additional passbands that are not in SNCosmo
 # (https://sncosmo.readthedocs.io/en/stable/bandpass-list.html)
 # the names must be unique. The wavelength array should
@@ -588,5 +585,7 @@ health_monitor:
   # How long do we give apps after restart to become healthy
   startup_grace_seconds: 30
 
-sn_analysis_service:
-  port: 6801
+analysis_services:
+  analysis_folder: analysis_data
+  sn_analysis_service:
+    port: 6801

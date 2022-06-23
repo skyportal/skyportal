@@ -462,7 +462,7 @@ def test_run_analysis_with_correct_and_incorrect_token(
 
     status, data = api(
         'POST',
-        f'analysis/obj/{public_source.id}/{analysis_service_id}',
+        f'obj/{public_source.id}/analysis/{analysis_service_id}',
         token=analysis_token,
     )
     assert status == 200
@@ -477,7 +477,7 @@ def test_run_analysis_with_correct_and_incorrect_token(
     while max_attempts > 0:
         if analysis_status != "queued":
             break
-        status, data = api('GET', f'analysis/obj/{analysis_id}', token=analysis_token)
+        status, data = api('GET', f'obj/analysis/{analysis_id}', token=analysis_token)
         assert status == 200
         assert data["data"]["analysis_service_id"] == analysis_service_id
         analysis_status = data["data"]["status"]
@@ -492,7 +492,7 @@ def test_run_analysis_with_correct_and_incorrect_token(
     # try to start an analysis with the wrong token access
     status, data = api(
         'POST',
-        f'analysis/obj/{public_source.id}/{analysis_service_id}',
+        f'obj/{public_source.id}/analysis/{analysis_service_id}',
         token=analysis_service_token,
     )
     assert status == 401
@@ -532,7 +532,7 @@ def test_run_analysis_with_bad_inputs(
     # bad analysis service id
     status, data = api(
         'POST',
-        f'analysis/obj/{public_source.id}/999999999',
+        f'obj/{public_source.id}/analysis/999999999',
         token=analysis_token,
     )
     assert status == 403
@@ -541,7 +541,7 @@ def test_run_analysis_with_bad_inputs(
     # bad obj id
     status, data = api(
         'POST',
-        f'analysis/obj/badObjectName1/{analysis_service_id}',
+        f'obj/badObjectName1/analysis/{analysis_service_id}',
         token=analysis_token,
     )
     assert status == 404
@@ -550,7 +550,7 @@ def test_run_analysis_with_bad_inputs(
     # bad resource type. This route does not exist.
     status, data = api(
         'POST',
-        f'analysis/candidate/{public_source.id}/{analysis_service_id}',
+        f'candidate/{public_source.id}/analysis/{analysis_service_id}',
         token=analysis_token,
     )
     assert status == 405
@@ -593,7 +593,7 @@ def test_run_analysis_with_down_and_wrong_analysis_service(
 
     status, data = api(
         'POST',
-        f'analysis/obj/{public_source.id}/{analysis_service_id}',
+        f'obj/{public_source.id}/analysis/{analysis_service_id}',
         token=analysis_token,
     )
     # this should still go through but the analysis
@@ -611,7 +611,7 @@ def test_run_analysis_with_down_and_wrong_analysis_service(
     while max_attempts > 0:
         if analysis_status != "queued":
             break
-        status, data = api('GET', f'analysis/obj/{analysis_id}', token=analysis_token)
+        status, data = api('GET', f'obj/analysis/{analysis_id}', token=analysis_token)
         assert status == 200
         analysis_status = data["data"]["status"]
 
@@ -649,7 +649,7 @@ def test_run_analysis_with_down_and_wrong_analysis_service(
 
     status, data = api(
         'POST',
-        f'analysis/obj/{public_source.id}/{analysis_service_id}',
+        f'obj/{public_source.id}/analysis/{analysis_service_id}',
         token=analysis_token,
     )
     # this should still go through but the analysis
@@ -663,7 +663,7 @@ def test_run_analysis_with_down_and_wrong_analysis_service(
     while max_attempts > 0:
         if analysis_status != "queued":
             break
-        status, data = api('GET', f'analysis/obj/{analysis_id}', token=analysis_token)
+        status, data = api('GET', f'obj/analysis/{analysis_id}', token=analysis_token)
         assert status == 200
         analysis_status = data["data"]["status"]
 
@@ -703,7 +703,7 @@ def test_delete_analysis(
 
     status, data = api(
         'POST',
-        f'analysis/obj/{public_source.id}/{analysis_service_id}',
+        f'obj/{public_source.id}/analysis/{analysis_service_id}',
         token=analysis_token,
     )
     assert status == 200
@@ -714,7 +714,7 @@ def test_delete_analysis(
 
     status, data = api(
         'DELETE',
-        f'analysis/obj/{analysis_id}',
+        f'obj/analysis/{analysis_id}',
         token=analysis_token,
     )
     assert status == 200
@@ -751,7 +751,7 @@ def test_delete_analysis_service_cascades_to_delete_associated_analysis(
 
     status, data = api(
         'POST',
-        f'analysis/obj/{public_source.id}/{analysis_service_id}',
+        f'obj/{public_source.id}/analysis/{analysis_service_id}',
         token=analysis_token,
     )
     assert status == 200
@@ -764,7 +764,7 @@ def test_delete_analysis_service_cascades_to_delete_associated_analysis(
     # analysis service
     status, data = api(
         'GET',
-        f'analysis/obj/{analysis_id}',
+        f'obj/analysis/{analysis_id}',
         token=analysis_token,
     )
     assert status == 200
@@ -782,7 +782,7 @@ def test_delete_analysis_service_cascades_to_delete_associated_analysis(
     # deleted analysis service
     status, data = api(
         'GET',
-        f'analysis/obj/{analysis_id}',
+        f'obj/analysis/{analysis_id}',
         token=analysis_token,
     )
     assert status == 403

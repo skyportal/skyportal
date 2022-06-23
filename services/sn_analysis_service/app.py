@@ -182,4 +182,4 @@ async def demo_analysis():
 
 
 if __name__ == "__main__":
-    app.run(port=cfg['sn_analysis_service.port'])
+    app.run(port=cfg['analysis_services.sn_analysis_service.port'])

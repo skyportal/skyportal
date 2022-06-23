@@ -107,5 +107,7 @@ app:
     port: 64502
   ps1_endpoint: http://localhost:64502
 
-sn_analysis_service:
-  port: 6802
+analysis_services:
+  analysis_folder: analysis_data
+  sn_analysis_service:
+    port: 6801

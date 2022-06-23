@@ -174,7 +174,7 @@ class AnalysisService(Base):
         'ObjAnalysis',
         back_populates='analysis_service',
         passive_deletes=True,
-        doc="The Obj Analyses associated with this Service.",
+        doc="Instances of analysis applied to specific objects",
     )
 
     @property
@@ -207,7 +207,7 @@ class AnalysisMixin:
         """
 
         # there's a default value but it is best to provide a full path in the config
-        root_folder = cfg.get('analysis_folder', 'analysis_data')
+        root_folder = cfg.get('analysis_services.analysis_folder', 'analysis_data')
 
         # the filename can have alphanumeric, underscores, + or -
         self.check_path_string(self._unique_id)
