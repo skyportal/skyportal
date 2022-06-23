@@ -138,6 +138,9 @@ class FollowupRequest(Base):
     )
 
     photometry = relationship('Photometry', back_populates='followup_request')
+    photometric_series = relationship(
+        'PhotometricSeries', back_populates='followup_request'
+    )
     spectra = relationship('Spectrum', back_populates='followup_request')
 
     @property

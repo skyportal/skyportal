@@ -1755,9 +1755,13 @@ class DefaultObservationPlanRequestHandler(BaseHandler):
                 default_observation_plan_id,
                 self.current_user,
                 mode="delete",
-                raise_if_none=True,
+                raise_if_none=False,
             )
         )
+        if default_observation_plan_request is None:
+            return self.error(
+                'Default observation plan with ID {default_observation_plan_id} is not available.'
+            )
 
         with DBSession() as session:
             session.delete(default_observation_plan_request)

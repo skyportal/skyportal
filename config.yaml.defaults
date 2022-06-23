@@ -22,7 +22,7 @@ app:
     default_filters: ['ztfg', 'ztfr', 'ztfi']
 
   # this endpoint does not actually do anything -- it is just for testing
-  sedm_endpoint: http://pharos.caltech.edu/add_fritz
+  sedm_endpoint: http://minar.caltech.edu/add_fritz
   sedmv2_endpoint:
 
   lt_host: 161.72.57.3
@@ -33,9 +33,9 @@ app:
   lco_port: 443
 
   ztf:
-    protocol: http
-    host: skipper.caltech.edu
-    port: 4000
+    protocol: https
+    host: kowalski.caltech.edu
+    port: 443
 
   ztf_forced_endpoint: https://ztfweb.ipac.caltech.edu
 
@@ -49,10 +49,12 @@ app:
   atlas:
     protocol: https
     host: fallingstar-data.com
+    port:
 
   kait:
     protocol: http
     host: herculesii.astro.berkeley.edu
+    port:
 
   treasuremap_endpoint: http://treasuremap.space
 
@@ -98,6 +100,8 @@ app:
       component: AllocationPage
     - path: "/observations"
       component: ObservationPage
+    - path: "/galaxies"
+      component: GalaxyPage
     - path: "/followup_requests"
       component: FollowupRequestPage
     - path: "/group_sources/:id"
@@ -186,6 +190,10 @@ app:
         - name: Observations
           icon: ZoomInOutlined
           url: /observations
+
+        - name: Galaxies
+          icon: TornadoOutlined
+          url: /galaxies
 
     - name: Admin
       permissions: ["Manage users", "System admin"]
@@ -412,7 +420,7 @@ misc:
   # If {"flat": True} then use a subclass of the FLRW, called `FlatLambdaCMD`
   # otherwise use `LambdaCDM`. See `utils.cosmology.py` for the way in which
   # the user-supplied cosmology parameter set constructs the site-wide cosmology.
-  cosmology: Planck18_arXiv_v2
+  cosmology: Planck18
   #cosmology: {H0: "65.0", Om0: 0.3, Ode0: 0.7, name: 'skyportal_user_cosmo'}
 
   # The minimum signal-to-noise ratio/ n-sigma for lim mag cacluations to
@@ -578,3 +586,8 @@ health_monitor:
   request_timeout_seconds: 30
   # How long do we give apps after restart to become healthy
   startup_grace_seconds: 30
+
+analysis_services:
+  analysis_folder: analysis_data
+  sn_analysis_service:
+    port: 6801

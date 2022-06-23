@@ -388,6 +388,7 @@ def get_observations(
                     InstrumentFieldTile.instrument_field_id == InstrumentField.id,
                     InstrumentFieldTile.healpix.overlaps(LocalizationTile.healpix),
                 )
+                .distinct()
                 .subquery()
             )
         else:
@@ -399,6 +400,7 @@ def get_observations(
                     InstrumentFieldTile.instrument_field_id == InstrumentField.id,
                     InstrumentFieldTile.healpix.overlaps(LocalizationTile.healpix),
                 )
+                .distinct()
                 .subquery()
             )
 
@@ -420,6 +422,7 @@ def get_observations(
                         Observation.obstime >= start_date,
                         Observation.obstime <= end_date,
                     )
+                    .distinct()
                     .subquery()
                 )
             else:
@@ -433,6 +436,7 @@ def get_observations(
                         Observation.obstime >= start_date,
                         Observation.obstime <= end_date,
                     )
+                    .distinct()
                     .subquery()
                 )
 
@@ -443,10 +447,12 @@ def get_observations(
             )
             query_area = sa.select(area).filter(
                 LocalizationTile.localization_id == localization.id,
+                LocalizationTile.probdensity >= min_probdensity,
                 union.columns.healpix.overlaps(LocalizationTile.healpix),
             )
             query_prob = sa.select(prob).filter(
                 LocalizationTile.localization_id == localization.id,
+                LocalizationTile.probdensity >= min_probdensity,
                 union.columns.healpix.overlaps(LocalizationTile.healpix),
             )
             intprob = DBSession().execute(query_prob).scalar_one()
@@ -630,7 +636,7 @@ class ObservationHandler(BaseHandler):
         return self.success()
 
     @auth_or_token
-    def get(self):
+    async def get(self):
         """
         ---
           description: Retrieve all observations
@@ -943,7 +949,7 @@ class ObservationASCIIFileHandler(BaseHandler):
 
 class ObservationGCNHandler(BaseHandler):
     @auth_or_token
-    def get(self, instrument_id):
+    async def get(self, instrument_id):
         """
         ---
           description: Get a GCN-izable summary of the observations.
@@ -1129,7 +1135,7 @@ class ObservationExternalAPIHandler(BaseHandler):
 
         if not instrument.api_class_obsplan.implements()['retrieve']:
             return self.error(
-                'Cannot submit executed observation plan requests to this Instrument.'
+                'Submitting executed observation plan requests to this Instrument is not available.'
             )
 
         try:
@@ -1153,24 +1159,30 @@ class ObservationExternalAPIHandler(BaseHandler):
           - observations
         parameters:
           - in: path
-            name: instrument_id
+            name: allocation_id
             required: true
             schema:
               type: string
             description: |
-              ID for the instrument to submit
+              ID for the allocation to retrieve
           - in: query
             name: startDate
-            required: true
+            required: false
             schema:
               type: string
             description: Filter by start date
           - in: query
             name: endDate
-            required: true
+            required: false
             schema:
               type: string
             description: Filter by end date
+          - in: query
+            name: queuesOnly
+            required: false
+            schema:
+              type: bool
+            description: Return queue only (do not commit observations)
         responses:
           200:
             content:
@@ -1182,17 +1194,19 @@ class ObservationExternalAPIHandler(BaseHandler):
                 schema: Error
         """
 
-        start_date = self.get_query_argument('startDate')
-        end_date = self.get_query_argument('endDate')
+        start_date = self.get_query_argument('startDate', None)
+        end_date = self.get_query_argument('endDate', None)
+        queues_only = self.get_query_argument('queuesOnly', False)
 
-        if start_date is None:
-            return self.error(message="Missing start_date")
+        if not queues_only:
+            if start_date is None:
+                return self.error(message="Missing start_date")
 
-        if end_date is None:
-            return self.error(message="Missing end_date")
+            if end_date is None:
+                return self.error(message="Missing end_date")
 
-        start_date = arrow.get(start_date.strip()).datetime
-        end_date = arrow.get(end_date.strip()).datetime
+            start_date = arrow.get(start_date.strip()).datetime
+            end_date = arrow.get(end_date.strip()).datetime
 
         data = {}
         data["requester_id"] = self.associated_user_object.id
@@ -1211,19 +1225,85 @@ class ObservationExternalAPIHandler(BaseHandler):
 
         if not instrument.api_class_obsplan.implements()['queued']:
             return self.error(
-                'Cannot submit executed observation plan requests to this Instrument.'
+                'Submitting executed observation plan requests to this Instrument is not available.'
             )
 
         try:
             # we now retrieve and commit to the database the
             # executed observations
             queue_names = instrument.api_class_obsplan.queued(
-                allocation, data['start_date'], data['end_date']
+                allocation,
+                data['start_date'],
+                data['end_date'],
+                queues_only=queues_only,
             )
-            self.push_notification(
-                'Planned observation ingestion in progress. Should be available soon.'
-            )
+            if not queues_only:
+                self.push_notification(
+                    'Planned observation ingestion in progress. Should be available soon.'
+                )
             return self.success(data={'queue_names': queue_names})
+        except Exception as e:
+            return self.error(f"Error in querying instrument API: {e}")
+
+    @permissions(['Upload data'])
+    def delete(self, allocation_id):
+        """
+        ---
+        description: Retrieve queued observations from external API
+        tags:
+          - observations
+        parameters:
+          - in: path
+            name: allocation_id
+            required: true
+            schema:
+              type: string
+            description: |
+              ID for the allocation to delete queue
+          - in: query
+            name: queueName
+            required: true
+            schema:
+              type: string
+            description: Queue name to remove
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+
+        data = self.get_json()
+
+        if 'queueName' not in data:
+            return self.error('queueName is a required argument')
+        queue_name = data['queueName']
+
+        data["requester_id"] = self.associated_user_object.id
+        data["last_modified_by_id"] = self.associated_user_object.id
+        data['allocation_id'] = allocation_id
+
+        allocation = Allocation.get_if_accessible_by(
+            data['allocation_id'], self.current_user, raise_if_none=True
+        )
+        instrument = allocation.instrument
+
+        if instrument.api_classname_obsplan is None:
+            return self.error('Instrument has no remote observation plan API.')
+
+        if not instrument.api_class_obsplan.implements()['remove_queue']:
+            return self.error('Cannot delete queues from this Instrument.')
+
+        try:
+            # we now retrieve and commit to the database the
+            # executed observations
+            instrument.api_class_obsplan.remove_queue(
+                allocation, queue_name, self.associated_user_object.username
+            )
         except Exception as e:
             return self.error(f"Error in querying instrument API: {e}")
 

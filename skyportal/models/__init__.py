@@ -25,6 +25,7 @@ from .observation import *
 from .observation_plan import *
 from .observing_run import *
 from .photometry import *
+from .phot_stat import *
 from .shift import *
 from .source import *
 from .source_view import *
@@ -38,6 +39,7 @@ from .thumbnail import *
 from .user_notification import *
 from .user_token import *
 from .weather import *
+from .webhook import *
 
 # Cosmology
 from .cosmo import cosmo

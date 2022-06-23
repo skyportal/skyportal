@@ -9,10 +9,8 @@ from ..base import BaseHandler
 from ...models import DBSession, Telescope, Weather, User
 
 _, cfg = load_env()
-weather_refresh = cfg["weather"].get("refresh_time") if cfg.get("weather") else None
-openweather_api_key = (
-    cfg["weather"].get("openweather_api_key") if cfg.get("weather") else None
-)
+weather_refresh = cfg.get("weather.refresh_time")
+openweather_api_key = cfg.get("weather.openweather_api_key")
 
 default_prefs = {'telescopeID': 1}
 

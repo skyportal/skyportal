@@ -970,7 +970,7 @@ class SpectrumASCIIFileHandler(BaseHandler, ASCIIHandler):
             if group_ids is None:
                 group_ids = [single_user_group.id]
             elif group_ids == "all":
-                public_name = cfg['misc.public_group_name'] or "Sitewide Group"
+                public_name = cfg['misc.public_group_name']
                 stmt = Group.select(self.current_user).where(Group.name == public_name)
                 public_groups = session.scalars(stmt).all()
                 group_ids = [g.id for g in public_groups]

@@ -4,6 +4,8 @@ import sqlalchemy as sa
 from sqlalchemy.orm import sessionmaker, scoped_session
 import astropy.units as u
 import healpix_alchemy as ha
+import pandas as pd
+from io import StringIO
 
 from baselayer.app.access import permissions, auth_or_token
 from baselayer.log import make_log
@@ -15,6 +17,8 @@ from ...models import DBSession, Galaxy, Localization, LocalizationTile
 log = make_log('api/galaxy')
 
 Session = scoped_session(sessionmaker(bind=DBSession.session_factory.kw["bind"]))
+
+MAX_GALAXIES = 10000
 
 
 class GalaxyCatalogHandler(BaseHandler):
@@ -98,7 +102,7 @@ class GalaxyCatalogHandler(BaseHandler):
         return self.success()
 
     @auth_or_token
-    def get(self, catalog_name=None):
+    async def get(self, catalog_name=None):
         """
         ---
           description: Retrieve all galaxies
@@ -136,6 +140,28 @@ class GalaxyCatalogHandler(BaseHandler):
               description: |
                 Boolean indicating whether to include associated GeoJSON. Defaults to
                 false.
+            - in: query
+              name: numPerPage
+              nullable: true
+              schema:
+                type: integer
+              description: |
+                Number of galaxies to return per paginated request.
+                Defaults to 100. Can be no larger than {MAX_OBSERVATIONS}.
+            - in: query
+              name: pageNumber
+              nullable: true
+              schema:
+                type: integer
+              description: Page number for paginated query results. Defaults to 1
+            - in: query
+              name: catalogNamesOnly
+              nullable: true
+              schema:
+                type: boolean
+              description: |
+                Boolean indicating whether to just return catalog names. Defaults to
+                false.
           responses:
             200:
               content:
@@ -152,6 +178,40 @@ class GalaxyCatalogHandler(BaseHandler):
         localization_name = self.get_query_argument("localizationName", None)
         localization_cumprob = self.get_query_argument("localizationCumprob", 0.95)
         includeGeoJSON = self.get_query_argument("includeGeoJSON", False)
+        catalog_names_only = self.get_query_argument("catalogNamesOnly", False)
+
+        page_number = self.get_query_argument("pageNumber", 1)
+        try:
+            page_number = int(page_number)
+        except ValueError as e:
+            return self.error(f'pageNumber fails: {e}')
+
+        n_per_page = self.get_query_argument("numPerPage", 100)
+        try:
+            n_per_page = int(n_per_page)
+        except ValueError as e:
+            return self.error(f'numPerPage fails: {e}')
+
+        if catalog_names_only:
+            with DBSession() as session:
+                catalogs = session.execute(
+                    sa.select(Galaxy.catalog_name).distinct()
+                ).all()
+                query_result = []
+                for (catalog_name,) in catalogs:
+                    query = Galaxy.query_records_accessible_by(
+                        self.current_user, mode="read"
+                    )
+                    query = query.filter(Galaxy.catalog_name == catalog_name)
+                    total_matches = query.count()
+                    query_result.append(
+                        {
+                            'catalog_name': catalog_name,
+                            'catalog_count': int(total_matches),
+                        }
+                    )
+
+                return self.success(data=query_result)
 
         query = Galaxy.query_records_accessible_by(self.current_user, mode="read")
         if catalog_name is not None:
@@ -219,8 +279,16 @@ class GalaxyCatalogHandler(BaseHandler):
                 Galaxy.id == tiles_subquery.c.id,
             )
 
+        total_matches = query.count()
+        if n_per_page is not None:
+            query = (
+                query.distinct()
+                .limit(n_per_page)
+                .offset((page_number - 1) * n_per_page)
+            )
+
         galaxies = query.all()
-        query_results = {'sources': galaxies}
+        query_results = {"galaxies": galaxies, "totalMatches": int(total_matches)}
 
         if includeGeoJSON:
             # features are JSON representations that the d3 stuff understands.
@@ -228,7 +296,7 @@ class GalaxyCatalogHandler(BaseHandler):
             # locations of the transients.
 
             features = []
-            for source in query_results["sources"]:
+            for source in query_results["galaxies"]:
                 point = Point((source.ra, source.dec))
                 if source.name is not None:
                     source_name = source.name
@@ -246,6 +314,37 @@ class GalaxyCatalogHandler(BaseHandler):
 
         self.verify_and_commit()
         return self.success(data=query_results)
+
+    @permissions(['System admin'])
+    def delete(self, catalog_name):
+        """
+        ---
+        description: Delete a galaxy catalog
+        tags:
+          - instruments
+        parameters:
+          - in: path
+            name: catalog_name
+            required: true
+            schema:
+              type: str
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+
+        with DBSession() as session:
+            session.execute(
+                sa.delete(Galaxy).where(Galaxy.catalog_name == catalog_name)
+            )
+            self.verify_and_commit()
+            return self.success()
 
 
 def add_galaxies(catalog_name, catalog_data):
@@ -300,3 +399,94 @@ def add_galaxies(catalog_name, catalog_data):
         return log(f"Unable to generate galaxy table: {e}")
     finally:
         Session.remove()
+
+
+class GalaxyASCIIFileHandler(BaseHandler):
+    @permissions(['Upload data'])
+    def post(self):
+        """
+        ---
+        description: Upload galaxies from ASCII file
+        tags:
+          - galaxys
+        requestBody:
+          content:
+            application/json:
+              schema: GalaxyASCIIFileHandlerPost
+        responses:
+          200:
+            content:
+              application/json:
+                schema: ArrayOfGalaxys
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+
+        json = self.get_json()
+        catalog_data = json.pop('catalogData', None)
+        catalog_name = json.pop('catalogName', None)
+
+        if catalog_data is None:
+            return self.error(message="Missing catalog_data")
+
+        try:
+            catalog_data = pd.read_table(StringIO(catalog_data), sep=",").to_dict(
+                orient='list'
+            )
+        except Exception as e:
+            return self.error(f"Unable to read in galaxy file: {e}")
+
+        if catalog_name is None:
+            return self.error("catalog_name is a required parameter.")
+        if catalog_data is None:
+            return self.error("catalog_data is a required parameter.")
+
+        if not all(k in catalog_data for k in ['ra', 'dec', 'name']):
+            return self.error("ra, dec, and name required in catalog_data.")
+
+        # fill in any missing optional parameters
+        optional_parameters = [
+            'alt_name',
+            'distmpc',
+            'distmpc_unc',
+            'redshift',
+            'redshift_error',
+            'sfr_fuv',
+            'mstar',
+            'magk',
+            'magb',
+            'a',
+            'b2a',
+            'pa',
+            'btc',
+        ]
+        for key in optional_parameters:
+            if key not in catalog_data:
+                catalog_data[key] = [None] * len(catalog_data['ra'])
+
+        # check for positive definite parameters
+        positive_definite_parameters = [
+            'distmpc',
+            'distmpc_unc',
+            'redshift',
+            'redshift_error',
+        ]
+        for key in positive_definite_parameters:
+            if any([(x is not None) and (x < 0) for x in catalog_data[key]]):
+                return self.error(f"{key} should be positive definite.")
+
+        # check RA bounds
+        if any([(x < 0) or (x >= 360) for x in catalog_data['ra']]):
+            return self.error("ra should span 0=<ra<360.")
+
+        # check Declination bounds
+        if any([(x > 90) or (x < -90) for x in catalog_data['dec']]):
+            return self.error("declination should span -90<dec<90.")
+
+        IOLoop.current().run_in_executor(
+            None, lambda: add_galaxies(catalog_name, catalog_data)
+        )
+
+        return self.success()

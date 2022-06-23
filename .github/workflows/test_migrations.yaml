@@ -158,7 +158,7 @@ jobs:
         run: |
           export NPM_CONFIG_LEGACY_PEER_DEPS="true"
           make run &
-          sleep 10 && make load_demo_data
+          sleep 60 && make load_demo_data
           kill %1
 
       - name: Checkout PR branch
@@ -242,7 +242,7 @@ jobs:
           make db_init
 
           make run &
-          sleep 10 && make load_demo_data
+          sleep 60 && make load_demo_data
           kill %1
           PYTHONPATH=. alembic -x config=config.yaml stamp head
 

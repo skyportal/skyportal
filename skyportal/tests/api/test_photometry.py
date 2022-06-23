@@ -866,6 +866,8 @@ def test_token_user_post_photometry_limits(
         },
         token=upload_data_token,
     )
+    if status != 200:
+        print(data)
     assert status == 200
     assert data['status'] == 'success'
 

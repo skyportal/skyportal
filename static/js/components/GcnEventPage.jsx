@@ -26,7 +26,6 @@ import * as gcnEventActions from "../ducks/gcnEvent";
 import * as sourcesActions from "../ducks/sources";
 import * as observationsActions from "../ducks/observations";
 import * as galaxiesActions from "../ducks/galaxies";
-import * as instrumentsActions from "../ducks/instruments";
 
 import SourceTable from "./SourceTable";
 import GalaxyTable from "./GalaxyTable";
@@ -228,6 +227,8 @@ GcnEventSourcesPage.defaultProps = {
   sources: null,
 };
 
+const defaultNumPerPage = 10;
+
 const GcnEventPage = ({ route }) => {
   const gcnEvent = useSelector((state) => state.gcnEvent);
   const dispatch = useDispatch();
@@ -246,39 +247,62 @@ const GcnEventPage = ({ route }) => {
     (state) => state?.observations?.gcnEventObservations
   );
 
-  const gcnEventInstruments = useSelector(
-    (state) => state?.instruments?.gcnEventInstruments
-  );
+  const [fetchGalaxyParams, setFetchGalaxyParams] = useState({
+    pageNumber: 1,
+    numPerPage: defaultNumPerPage,
+  });
 
   useEffect(() => {
-    dispatch(gcnEventActions.fetchGcnEvent(route.dateobs));
-  }, [route, dispatch]);
-
-  // useEffect(() => {
-  //  dispatch(sourcesActions.fetchGcnEventSources(route.dateobs));
-  // }, [route, dispatch]);
-
-  useEffect(() => {
-    dispatch(observationsActions.fetchGcnEventObservations(route.dateobs));
+    const fetchGcnEvent = async (dateobs) => {
+      await dispatch(gcnEventActions.fetchGcnEvent(dateobs));
+    };
+    fetchGcnEvent(route.dateobs);
   }, [route, dispatch]);
 
   useEffect(() => {
-    dispatch(galaxiesActions.fetchGcnEventGalaxies(route.dateobs));
+    const fetchGcnEventSources = async (dateobs) => {
+      await dispatch(sourcesActions.fetchGcnEventSources(dateobs));
+    };
+    fetchGcnEventSources(route.dateobs);
+    dispatch(sourcesActions.fetchGcnEventSources(route.dateobs));
   }, [route, dispatch]);
 
   useEffect(() => {
-    dispatch(instrumentsActions.fetchGcnEventInstruments(route.dateobs));
+    const fetchGcnEventObservations = async (dateobs) => {
+      await dispatch(observationsActions.fetchGcnEventObservations(dateobs));
+    };
+    fetchGcnEventObservations(route.dateobs);
   }, [route, dispatch]);
 
-  if (
-    !gcnEvent ||
-    // !gcnEventSources ||
-    !gcnEventObservations ||
-    !gcnEventGalaxies ||
-    !gcnEventInstruments
-  ) {
+  useEffect(() => {
+    const fetchGcnEventGalaxies = async (dateobs) => {
+      await dispatch(galaxiesActions.fetchGcnEventGalaxies(dateobs));
+    };
+    fetchGcnEventGalaxies(route.dateobs);
+  }, [route, dispatch]);
+
+  if (!gcnEvent) {
     return <Spinner />;
   }
+
+  const handleGalaxyPageChange = async (page, numPerPage) => {
+    const params = {
+      ...fetchGalaxyParams,
+      numPerPage,
+      pageNumber: page + 1,
+    };
+    // Save state for future
+    setFetchGalaxyParams(params);
+    await dispatch(
+      galaxiesActions.fetchGcnEventGalaxies(route.dateobs, params)
+    );
+  };
+
+  const handleGalaxyTableChange = (action, tableState) => {
+    if (action === "changePage" || action === "changeRowsPerPage") {
+      handleGalaxyPageChange(tableState.page, tableState.rowsPerPage);
+    }
+  };
 
   return (
     <Grid container spacing={2} className={styles.source}>
@@ -450,18 +474,24 @@ const GcnEventPage = ({ route }) => {
               </Typography>
             </AccordionSummary>
             <AccordionDetails>
-              {gcnEventSources?.sources.length === 0 ? (
-                <Typography variant="h5">None</Typography>
-              ) : (
-                <div className={styles.gcnEventContainer}>
-                  {selectedLocalizationName && (
-                    <GcnEventSourcesPage
-                      route={route}
-                      sources={gcnEventSources}
-                      localizationName={selectedLocalizationName}
-                    />
+              {gcnEventSources?.sources ? (
+                <div>
+                  {gcnEventSources?.sources.length === 0 ? (
+                    <Typography variant="h5">None</Typography>
+                  ) : (
+                    <div className={styles.gcnEventContainer}>
+                      {selectedLocalizationName && (
+                        <GcnEventSourcesPage
+                          route={route}
+                          sources={gcnEventSources}
+                          localizationName={selectedLocalizationName}
+                        />
+                      )}
+                    </div>
                   )}
                 </div>
+              ) : (
+                <Typography variant="h5">Fetching sources...</Typography>
               )}
             </AccordionDetails>
           </Accordion>
@@ -478,14 +508,20 @@ const GcnEventPage = ({ route }) => {
               </Typography>
             </AccordionSummary>
             <AccordionDetails>
-              {gcnEventObservations?.observations.length === 0 ? (
-                <Typography variant="h5">None</Typography>
-              ) : (
-                <div className={styles.gcnEventContainer}>
-                  <ExecutedObservationsTable
-                    observations={gcnEventObservations.observations}
-                  />
+              {gcnEventObservations?.observations ? (
+                <div>
+                  {gcnEventObservations?.observations.length === 0 ? (
+                    <Typography variant="h5">None</Typography>
+                  ) : (
+                    <div className={styles.gcnEventContainer}>
+                      <ExecutedObservationsTable
+                        observations={gcnEventObservations.observations}
+                      />
+                    </div>
+                  )}
                 </div>
+              ) : (
+                <Typography variant="h5">Fetching observations...</Typography>
               )}
             </AccordionDetails>
           </Accordion>
@@ -502,12 +538,25 @@ const GcnEventPage = ({ route }) => {
               </Typography>
             </AccordionSummary>
             <AccordionDetails>
-              {gcnEventGalaxies?.sources.length === 0 ? (
-                <Typography variant="h5">None</Typography>
-              ) : (
-                <div className={styles.gcnEventContainer}>
-                  <GalaxyTable galaxies={gcnEventGalaxies.sources} hideTitle />
+              {gcnEventGalaxies?.galaxies ? (
+                <div>
+                  {gcnEventGalaxies?.galaxies.length === 0 ? (
+                    <Typography variant="h5">None</Typography>
+                  ) : (
+                    <div className={styles.gcnEventContainer}>
+                      <GalaxyTable
+                        galaxies={gcnEventGalaxies.galaxies}
+                        pageNumber={fetchGalaxyParams.pageNumber}
+                        numPerPage={fetchGalaxyParams.numPerPage}
+                        handleTableChange={handleGalaxyTableChange}
+                        totalMatches={gcnEventGalaxies.totalMatches}
+                        hideTitle
+                      />
+                    </div>
+                  )}
                 </div>
+              ) : (
+                <Typography variant="h5">Fetching galaxies...</Typography>
               )}
             </AccordionDetails>
           </Accordion>

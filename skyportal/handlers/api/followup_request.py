@@ -1035,7 +1035,6 @@ class FollowupRequestSchedulerHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        return self.error('Closed for renovations. ')
         instrument = (
             Instrument.query_records_accessible_by(
                 self.current_user,

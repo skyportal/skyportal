@@ -6,11 +6,13 @@ from sqlalchemy.orm import sessionmaker, scoped_session
 import sqlalchemy as sa
 from tornado.ioloop import IOLoop
 
+import arrow
 from healpix_alchemy import Tile
 from regions import Regions, CircleSkyRegion, RectangleSkyRegion, PolygonSkyRegion
 from astropy import coordinates
 from astropy.coordinates import SkyCoord
 from astropy import units as u
+from astropy.time import Time
 import numpy as np
 import pandas as pd
 from io import StringIO
@@ -147,7 +149,7 @@ class InstrumentHandler(BaseHandler):
         return self.success(data={"id": instrument.id})
 
     @auth_or_token
-    def get(self, instrument_id=None):
+    async def get(self, instrument_id=None):
         """
         ---
         single:
@@ -283,6 +285,14 @@ class InstrumentHandler(BaseHandler):
               description: |
                 Cumulative probability up to which to include fields.
                 Defaults to 0.95.
+            - in: query
+              name: airmassTime
+              schema:
+                type: string
+              description: |
+                Time to use for airmass calculation in
+                ISO 8601 format (`YYYY-MM-DDTHH:MM:SS.sss`).
+                Defaults to localizationDateobs if not supplied.
           responses:
             200:
               content:
@@ -301,6 +311,14 @@ class InstrumentHandler(BaseHandler):
         includeGeoJSON = self.get_query_argument("includeGeoJSON", False)
         includeGeoJSONSummary = self.get_query_argument("includeGeoJSONSummary", False)
         includeRegion = self.get_query_argument("includeRegion", False)
+
+        airmass_time = self.get_query_argument('airmassTime', None)
+        if airmass_time is None:
+            if localization_dateobs is not None:
+                airmass_time = Time(arrow.get(localization_dateobs).datetime)
+        else:
+            airmass_time = Time(arrow.get(airmass_time).datetime)
+
         if includeGeoJSON:
             options = [joinedload(Instrument.fields).undefer(InstrumentField.contour)]
         elif includeGeoJSONSummary:
@@ -415,7 +433,10 @@ class InstrumentHandler(BaseHandler):
                         .unique()
                         .all()
                     )
-                data['fields'] = [tile.to_dict() for tile, in tiles]
+                data['fields'] = [
+                    {**tile.to_dict(), 'airmass': tile.airmass(time=airmass_time)}
+                    for tile, in tiles
+                ]
 
             return self.success(data=data)
 
@@ -525,7 +546,10 @@ class InstrumentHandler(BaseHandler):
                         .unique()
                         .all()
                     )
-                data[ii]['fields'] = [tile.to_dict() for tile, in tiles]
+                data[ii]['fields'] = [
+                    {**tile.to_dict(), 'airmass': tile.airmass(time=airmass_time)}
+                    for tile, in tiles
+                ]
 
         self.verify_and_commit()
         return self.success(data=data)

@@ -48,7 +48,7 @@ _, cfg = load_env()
 cache_dir = "cache/candidates_queries"
 cache = Cache(
     cache_dir=cache_dir,
-    max_age=cfg["misc"]["minutes_to_keep_candidate_query_cache"] * 60,
+    max_age=cfg["misc.minutes_to_keep_candidate_query_cache"] * 60,
 )
 log = make_log('api/candidate')
 

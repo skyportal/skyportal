@@ -43,12 +43,11 @@ def force_render_enum_markdown(values):
     return ', '.join(list(map(lambda v: f'`{v}`', values)))
 
 
-ALLOWED_SPECTRUM_TYPES = tuple(
-    cfg.get('spectrum_types.types', ['source', 'host', 'host_center'])
-)
+ALLOWED_SPECTRUM_TYPES = tuple(cfg['spectrum_types.types'])
 ALLOWED_MAGSYSTEMS = tuple(val['name'] for val in _MAGSYSTEMS.get_loaders_metadata())
 # though in the registry, the additional bandpass names are not in the _BANDPASSES list
 ALLOWED_BANDPASSES = tuple(existing_bandpasses_names + additional_bandpasses_names)
+TIME_STAMP_ALIGNMENT_TYPES = ('start', 'middle', 'end')
 
 THUMBNAIL_TYPES = (
     'new',
@@ -75,7 +74,14 @@ LISTENER_CLASSNAMES = [
 LISTENER_CLASSES = [getattr(facility_apis, c) for c in LISTENER_CLASSNAMES]
 
 ANALYSIS_TYPES = ('lightcurve_fitting', 'spectrum_fitting', 'meta_analysis')
-ANALYSIS_INPUT_TYPES = ('photometry', 'spectra', 'redshift', 'annotations', 'comments')
+ANALYSIS_INPUT_TYPES = (
+    'photometry',
+    'spectra',
+    'redshift',
+    'annotations',
+    'comments',
+    'classifications',
+)
 AUTHENTICATION_TYPES = (
     'none',
     'header_token',
@@ -83,6 +89,17 @@ AUTHENTICATION_TYPES = (
     'HTTPBasicAuth',
     'HTTPDigestAuth',
     'OAuth1',
+)
+WEBHOOK_STATUS_TYPES = (
+    'queued',
+    'pending',
+    'completed',
+    'failure',
+    'cancelled',
+    'timed_out',
+)
+allowed_webbook_status_types = sa.Enum(
+    *WEBHOOK_STATUS_TYPES, name='webhookstatustypes', validate_strings=True
 )
 
 allowed_analysis_types = sa.Enum(
@@ -100,13 +117,16 @@ allowed_external_authentication_types = sa.Enum(
 allowed_spectrum_types = sa.Enum(
     *ALLOWED_SPECTRUM_TYPES, name='spectrumtypes', validate_strings=True
 )
-default_spectrum_type = cfg.get('spectrum_types.default', "source")
+default_spectrum_type = cfg['spectrum_types.default']
 
 allowed_magsystems = sa.Enum(
     *ALLOWED_MAGSYSTEMS, name="magsystems", validate_strings=True
 )
 allowed_bandpasses = sa.Enum(
     *ALLOWED_BANDPASSES, name="bandpasses", validate_strings=True
+)
+time_stamp_alignment_types = sa.Enum(
+    *TIME_STAMP_ALIGNMENT_TYPES, name='time_stamp_alignments', validate_strings=True
 )
 thumbnail_types = sa.Enum(
     *THUMBNAIL_TYPES, name='thumbnail_types', validate_strings=True
@@ -149,6 +169,7 @@ py_allowed_analysis_input_types = Enum('analysisinputtypes', ANALYSIS_INPUT_TYPE
 py_allowed_external_authentication_types = Enum(
     'authenticationtypes', AUTHENTICATION_TYPES
 )
+py_allowed_webbook_status_types = Enum('webhookstatustypes', WEBHOOK_STATUS_TYPES)
 
 
 sqla_enum_types = [
@@ -162,4 +183,5 @@ sqla_enum_types = [
     allowed_analysis_types,
     allowed_analysis_input_types,
     allowed_external_authentication_types,
+    allowed_webbook_status_types,
 ]
