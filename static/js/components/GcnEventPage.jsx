@@ -227,8 +227,6 @@ GcnEventSourcesPage.defaultProps = {
   sources: null,
 };
 
-const defaultNumPerPage = 10;
-
 const GcnEventPage = ({ route }) => {
   const gcnEvent = useSelector((state) => state.gcnEvent);
   const dispatch = useDispatch();
@@ -246,11 +244,6 @@ const GcnEventPage = ({ route }) => {
   const gcnEventObservations = useSelector(
     (state) => state?.observations?.gcnEventObservations
   );
-
-  const [fetchGalaxyParams, setFetchGalaxyParams] = useState({
-    pageNumber: 1,
-    numPerPage: defaultNumPerPage,
-  });
 
   useEffect(() => {
     const fetchGcnEvent = async (dateobs) => {
@@ -284,25 +277,6 @@ const GcnEventPage = ({ route }) => {
   if (!gcnEvent) {
     return <Spinner />;
   }
-
-  const handleGalaxyPageChange = async (page, numPerPage) => {
-    const params = {
-      ...fetchGalaxyParams,
-      numPerPage,
-      pageNumber: page + 1,
-    };
-    // Save state for future
-    setFetchGalaxyParams(params);
-    await dispatch(
-      galaxiesActions.fetchGcnEventGalaxies(route.dateobs, params)
-    );
-  };
-
-  const handleGalaxyTableChange = (action, tableState) => {
-    if (action === "changePage" || action === "changeRowsPerPage") {
-      handleGalaxyPageChange(tableState.page, tableState.rowsPerPage);
-    }
-  };
 
   return (
     <Grid container spacing={2} className={styles.source}>
@@ -516,6 +490,8 @@ const GcnEventPage = ({ route }) => {
                     <div className={styles.gcnEventContainer}>
                       <ExecutedObservationsTable
                         observations={gcnEventObservations.observations}
+                        totalMatches={gcnEventObservations.totalMatches}
+                        serverSide={false}
                       />
                     </div>
                   )}
@@ -546,9 +522,6 @@ const GcnEventPage = ({ route }) => {
                     <div className={styles.gcnEventContainer}>
                       <GalaxyTable
                         galaxies={gcnEventGalaxies.galaxies}
-                        pageNumber={fetchGalaxyParams.pageNumber}
-                        numPerPage={fetchGalaxyParams.numPerPage}
-                        handleTableChange={handleGalaxyTableChange}
                         totalMatches={gcnEventGalaxies.totalMatches}
                         serverSide={false}
                         hideTitle

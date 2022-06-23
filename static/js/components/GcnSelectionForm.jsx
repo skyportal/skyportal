@@ -384,7 +384,7 @@ const GcnSelectionForm = ({ gcnEvent, setSelectedLocalizationName }) => {
               key={instrument.id}
               className={classes.instrumentSelectItem}
             >
-              {`${telLookUp[instrument.telescope_id].name} / ${
+              {`${telLookUp[instrument.telescope_id]?.name} / ${
                 instrument.name
               }`}
             </MenuItem>
