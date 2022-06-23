@@ -10,7 +10,6 @@ from tornado.ioloop import IOLoop
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm import sessionmaker, scoped_session
-from baselayer.app.env import load_env
 
 from baselayer.app.access import auth_or_token
 from baselayer.log import make_log
@@ -37,7 +36,6 @@ from ...utils.gcn import (
 
 log = make_log('api/gcn_event')
 
-_, cfg = load_env()
 
 Session = scoped_session(sessionmaker(bind=DBSession.session_factory.kw["bind"]))
 
