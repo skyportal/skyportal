@@ -442,6 +442,11 @@ class CommentHandler(BaseHandler):
                     action='skyportal/REFRESH_SOURCE_SPECTRA',
                     payload={'obj_internal_key': comment.obj.internal_key},
                 )
+            elif isinstance(comment, CommentOnShift):
+                self.push_all(
+                    action='skyportal/REFRESH_SHIFTS',
+                    payload={'shift_id': comment.shift_id},
+                )
 
             return self.success(data={'comment_id': comment.id})
 
