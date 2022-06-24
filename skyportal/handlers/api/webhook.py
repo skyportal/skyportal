@@ -19,7 +19,7 @@ _, cfg = load_env()
 Session = scoped_session(sessionmaker(bind=DBSession.session_factory.kw["bind"]))
 
 
-class WebhookHandler(BaseHandler):
+class AnalysisWebhookHandler(BaseHandler):
     def post(self, analysis_resource_type, token):
         """
         ---
@@ -34,7 +34,7 @@ class WebhookHandler(BaseHandler):
               type: string
             description: |
                What underlying data the analysis was performed on:
-               must be one of either "obj" (more to be added in the future)
+               must be "obj" (more to be added in the future)
           - in: path
             name: token
             required: true
@@ -61,7 +61,9 @@ class WebhookHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        log(f"Received webhook request for type={analysis_resource_type} token={token}")
+        log(
+            f"Received webhook request for Analysis type={analysis_resource_type} token={token}"
+        )
 
         # allowable resources now are [obj]. Can be extended in the future.
         if analysis_resource_type.lower() not in ['obj']:
