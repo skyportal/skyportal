@@ -1320,6 +1320,8 @@ def test_candidate_list_not_saved_to_all_selected_groups(
         },
         token=view_only_token_two_groups,
     )
+    if status != 200:
+        print(data['message'])
     assert status == 200
     # Should get obj_id2 and obj_id3 back
     assert len(data["data"]["candidates"]) == 2

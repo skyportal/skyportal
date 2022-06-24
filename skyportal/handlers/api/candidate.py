@@ -535,7 +535,7 @@ class CandidateHandler(BaseHandler):
                 if (
                     isinstance(group_ids, str)
                     and "," in group_ids
-                    and set(group_ids) in set(string.digits + ',')
+                    and set(group_ids).issubset(string.digits + ',')
                 ):
                     group_ids = [int(g_id) for g_id in group_ids.split(",")]
                 elif isinstance(group_ids, str) and group_ids.isdigit():
