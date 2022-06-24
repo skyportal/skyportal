@@ -472,7 +472,7 @@ class PhotStat(Base):
                     self.last_non_detection_mjd is not None
                     and mjd < self.last_non_detection_mjd
                 ):
-                    # keep only the predections that happened before this detection
+                    # keep only the predetections that happened before this detection
                     self.predetection_mjds = [
                         m for m in self.predetection_mjds if m < mjd
                     ]
