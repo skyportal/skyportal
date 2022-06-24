@@ -385,7 +385,7 @@ def make_app(cfg, baselayer_handlers, baselayer_settings, process=None, env=None
         one key, 'debug'---true if launched with `--debug`.
 
     """
-    if cfg['secret_key'] == 'abc01234':
+    if cfg['app.secret_key'] == 'abc01234':
         print('!' * 80)
         print('  Your server is insecure. Please update the secret string ')
         print('  in the configuration file!')
