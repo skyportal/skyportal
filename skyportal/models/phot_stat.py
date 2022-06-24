@@ -161,7 +161,7 @@ class PhotStat(Base):
         sa.ARRAY(sa.Float),
         nullable=True,
         index=False,
-        doc='List of MJDs of times when the object was observed but not detected, '
+        doc='List of MJDs of times when the Obj position was reported to have been observed without detection, '
         'including only the times before the very first detection. ',
     )
 
