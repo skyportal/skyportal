@@ -701,7 +701,11 @@ class AnalysisHandler(BaseHandler):
                               type: integer
                               description: New analysis ID
         """
-        data = self.get_json()
+        try:
+            data = self.get_json()
+        except Exception as e:
+            return self.error(f'Error parsing JSON: {e}')
+
         try:
             analysis_service = AnalysisService.get_if_accessible_by(
                 analysis_service_id, self.current_user, mode="read", raise_if_none=True

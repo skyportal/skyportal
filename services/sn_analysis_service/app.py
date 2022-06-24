@@ -3,14 +3,19 @@ import functools
 import tempfile
 import base64
 import traceback
+import json
+import time
 
 import joblib
 import numpy as np
 import matplotlib
 import arviz as az
 import requests
-from quart import Quart
-from quart import request
+
+from tornado.ioloop import IOLoop
+import tornado.web
+import tornado.escape
+
 from astropy.table import Table
 import sncosmo
 
@@ -24,9 +29,6 @@ log = make_log('sn_analysis_service')
 # can render the plot headlessly
 matplotlib.use('Agg')
 rng = np.random.default_rng()
-
-app = Quart(__name__)
-app.debug = False
 
 default_analysis_parameters = {"source": "nugent-sn2p", "fix_z": False}
 
@@ -42,7 +44,7 @@ def upload_analysis_results(results, data_dict, request_timeout=60):
         return
     url = data_dict["callback_url"]
     try:
-        result = requests.post(
+        _ = requests.post(
             url,
             json=results,
             timeout=request_timeout,
@@ -52,10 +54,8 @@ def upload_analysis_results(results, data_dict, request_timeout=60):
     except Exception as e:
         log(f"Callback exception {e}.")
 
-    return result
 
-
-async def run_sn_model(dd):
+def run_sn_model(dd):
     """
     Use `sncosmo` to fit data to a model with name `source_name`.
 
@@ -67,14 +67,8 @@ async def run_sn_model(dd):
 
     Other analysis services may require additional keys in the `inputs` dictionary.
     """
-
-    data_dict = await dd
-
-    required_keys = ["inputs", "callback_url", "callback_method"]
-    for key in required_keys:
-        if key not in data_dict:
-            log(f"missing required key {key} in data_dict")
-            return
+    time.sleep(10)
+    data_dict = dd
 
     analysis_parameters = data_dict["inputs"].get("analysis_parameters", {})
     analysis_parameters = {**default_analysis_parameters, **analysis_parameters}
@@ -112,7 +106,7 @@ async def run_sn_model(dd):
                 "message": f"input data is not in the expected format {e}",
             }
         )
-        upload_analysis_results(rez, data_dict)
+        return rez
 
     # we will need to write to temp files
     # locally and then write their contents
@@ -187,10 +181,9 @@ async def run_sn_model(dd):
                 "plots": [{"format": "png", "data": plot_data}],
                 "results": {"format": "joblib", "data": result_data},
             }
-
-            rez.update({"analysis": analysis_results})
             rez.update(
                 {
+                    "analysis": analysis_results,
                     "status": "success",
                     "message": f"Good results with chi^2/dof={result.chisq/result.ndof}",
                 }
@@ -211,26 +204,83 @@ async def run_sn_model(dd):
                 os.remove(f)
             except:  # noqa E722
                 pass
+    return rez
 
-    upload_analysis_results(rez, data_dict)
+
+class MainHandler(tornado.web.RequestHandler):
+    def set_default_headers(self):
+        self.set_header('Content-Type', 'application/json')
+
+    def error(self, code, message):
+        self.set_status(code)
+        self.write({'message': message})
+
+    def get(self):
+        self.write({'status': 'active'})
+
+    def post(self):
+        """
+        Analysis endpoint which sends the `data_dict` off for
+        processing, returning immediately. The idea here is that
+        the analysis model may take awhile to run so we
+        need async behavior.
+        """
+        try:
+            data_dict = tornado.escape.json_decode(self.request.body)
+        except json.decoder.JSONDecodeError:
+            err = traceback.format_exc()
+            log(f"JSON decode error: {err}")
+            return self.error(400, "Invalid JSON")
+
+        required_keys = ["inputs", "callback_url", "callback_method"]
+        for key in required_keys:
+            if key not in data_dict:
+                log(f"missing required key {key} in data_dict")
+                return self.error(400, f"missing required key {key} in data_dict")
+
+        def sn_analysis_done_callback(
+            future,
+            logger=log,
+            data_dict=data_dict,
+        ):
+            """
+            Callback function for when the sn analysis service is done.
+            Sends back results/errors via the callback_url.
+            """
+            try:
+                result = future.result()
+            except Exception as e:
+                # catch all the exceptions and log them,
+                # try to write back to SkyPortal something
+                # informative.
+                logger(f"{str(future.exception())[:1024]} {e}")
+                result = {
+                    "status": "failure",
+                    "message": f"str(future.exception())[:1024] {e}",
+                }
+            finally:
+                upload_analysis_results(result, data_dict)
+
+        runner = functools.partial(run_sn_model, data_dict)
+        x = IOLoop.current().run_in_executor(None, runner)
+        x.add_done_callback(sn_analysis_done_callback)
+
+        return self.write(
+            {'status': 'pending', 'message': 'sn_analysis_service: analysis started'}
+        )
 
 
-@app.route('/analysis/demo_analysis', methods=['POST'])
-async def demo_analysis():
-    """
-    Analysis endpoint which sends the `data_dict` off for
-    processing, returning immediately. The idea here is that
-    the analysis model may take awhile to run so we
-    need async behavior.
-    """
-    log(f'{request.method} {request.url}')
-    data_dict = request.get_json(silent=True)
-
-    runner = functools.partial(run_sn_model, data_dict)
-
-    app.add_background_task(runner)
-    return "sn_analysis_service: analysis started", 200
+def make_app():
+    return tornado.web.Application(
+        [
+            (r"/analysis/demo_analysis", MainHandler),
+        ]
+    )
 
 
 if __name__ == "__main__":
-    app.run(port=cfg['analysis_services.sn_analysis_service.port'])
+    sn_analysis = make_app()
+    port = cfg['analysis_services.sn_analysis_service.port']
+    sn_analysis.listen(port)
+    log(f'Listening on port {port}')
+    tornado.ioloop.IOLoop.current().start()
