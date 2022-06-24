@@ -38,6 +38,7 @@ def generate_plan(observation_plan_id, request_id, user_id):
         EventObservationPlan,
         Galaxy,
         InstrumentField,
+        LocalizationTile,
         ObservationPlanRequest,
         PlannedObservation,
         User,
@@ -162,6 +163,44 @@ def generate_plan(observation_plan_id, request_id, user_id):
         if params["tilesType"] == "galaxy":
             query = Galaxy.query_records_accessible_by(user, mode="read")
             query = query.filter(Galaxy.catalog_name == params["galaxy_catalog"])
+
+            cum_prob = (
+                sa.func.sum(
+                    LocalizationTile.probdensity * LocalizationTile.healpix.area
+                )
+                .over(order_by=LocalizationTile.probdensity.desc())
+                .label('cum_prob')
+            )
+            localizationtile_subquery = (
+                sa.select(LocalizationTile.probdensity, cum_prob).filter(
+                    LocalizationTile.localization_id == request.localization.id
+                )
+            ).subquery()
+
+            min_probdensity = (
+                sa.select(
+                    sa.func.min(localizationtile_subquery.columns.probdensity)
+                ).filter(
+                    localizationtile_subquery.columns.cum_prob
+                    <= request.payload["integrated_probability"]
+                )
+            ).scalar_subquery()
+
+            tiles_subquery = (
+                sa.select(Galaxy.id)
+                .filter(
+                    LocalizationTile.localization_id == request.localization.id,
+                    LocalizationTile.healpix.contains(Galaxy.healpix),
+                    LocalizationTile.probdensity >= min_probdensity,
+                )
+                .subquery()
+            )
+
+            query = query.join(
+                tiles_subquery,
+                Galaxy.id == tiles_subquery.c.id,
+            )
+
             galaxies = query.all()
             catalog_struct = {}
             catalog_struct["ra"] = np.array([g.ra for g in galaxies])
