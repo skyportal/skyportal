@@ -824,7 +824,6 @@ class AnalysisHandler(BaseHandler):
         callback_url = urljoin(
             get_app_base_url(), f"{analysis.handled_by_url}/{analysis.token}"
         )
-        log(f'{get_app_base_url()}/{analysis.handled_by_url}/{analysis.token}')
         external_analysis_service = functools.partial(
             call_external_analysis_service,
             analysis_service.url,
