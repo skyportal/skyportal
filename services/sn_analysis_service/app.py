@@ -4,7 +4,6 @@ import tempfile
 import base64
 import traceback
 import json
-import time
 
 import joblib
 import numpy as np
@@ -50,6 +49,10 @@ def upload_analysis_results(results, data_dict, request_timeout=60):
             timeout=request_timeout,
         )
     except requests.exceptions.Timeout:
+        # If we timeout here then it's precisely because
+        # we cannot write back to the SkyPortal instance.
+        # So returning something doesn't make sense in this case.
+        # Just log it and move on...
         log("Callback URL timedout. Skipping.")
     except Exception as e:
         log(f"Callback exception {e}.")
@@ -67,7 +70,6 @@ def run_sn_model(dd):
 
     Other analysis services may require additional keys in the `inputs` dictionary.
     """
-    time.sleep(10)
     data_dict = dd
 
     analysis_parameters = data_dict["inputs"].get("analysis_parameters", {})
@@ -86,7 +88,7 @@ def run_sn_model(dd):
     # the following code transforms these inputs from SkyPortal
     # to the format expected by sncosmo.
     #
-    rez = {"status": "success", "message": "", "analysis": {}}
+    rez = {"status": "failure", "message": "", "analysis": {}}
     try:
         data = Table.read(data_dict["inputs"]["photometry"], format='ascii.csv')
         data.rename_column('mjd', 'time')
@@ -135,7 +137,7 @@ def run_sn_model(dd):
 
         if result.success:
             f = tempfile.NamedTemporaryFile(
-                suffix=".png", prefix="snplot_", dir="/tmp/", delete=False
+                suffix=".png", prefix="snplot_", delete=False
             )
             f.close()
             _ = sncosmo.plot_lc(
@@ -143,7 +145,6 @@ def run_sn_model(dd):
                 model=fitted_model,
                 errors=result.errors,
                 model_label=source,
-                zp=23.9,
                 figtext=data_dict["resource_id"],
                 fname=f.name,
             )
@@ -159,7 +160,7 @@ def run_sn_model(dd):
                 {x: post[:, :, i] for i, x in enumerate(result.param_names)}
             )
             f = tempfile.NamedTemporaryFile(
-                suffix=".nc", prefix="inferencedata_", dir="/tmp/"
+                suffix=".nc", prefix="inferencedata_", delete=False
             )
             f.close()
             inference.to_netcdf(f.name)
@@ -169,7 +170,7 @@ def run_sn_model(dd):
             result.update({"source": source, "fix_z": fix_z})
 
             f = tempfile.NamedTemporaryFile(
-                suffix=".joblib", prefix="results_", dir="/tmp/"
+                suffix=".joblib", prefix="results_", delete=False
             )
             f.close()
             joblib.dump(result, f.name, compress=3)

@@ -1,5 +1,5 @@
 import json
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urljoin
 import datetime
 import functools
 
@@ -642,7 +642,7 @@ class AnalysisHandler(BaseHandler):
               type: string
             description: |
                What underlying data the analysis is on:
-               must be one of either "obj" (more to be added in the future)
+               must be "obj" (more to be added in the future)
           - in: path
             name: resource_id
             required: true
@@ -821,11 +821,14 @@ class AnalysisHandler(BaseHandler):
 
         # Now call the analysis service to start the analysis, using the `input` data
         # that we assembled above.
+        callback_url = urljoin(
+            get_app_base_url(), f"{analysis.handled_by_url}/{analysis.token}"
+        )
         log(f'{get_app_base_url()}/{analysis.handled_by_url}/{analysis.token}')
         external_analysis_service = functools.partial(
             call_external_analysis_service,
             analysis_service.url,
-            f'{get_app_base_url()}/{analysis.handled_by_url}/{analysis.token}',
+            callback_url,
             inputs=inputs,
             authentication_type=analysis_service.authentication_type,
             authinfo=analysis_service.authinfo,
@@ -855,7 +858,7 @@ class AnalysisHandler(BaseHandler):
                 try:
                     session = DBSession()
                     analysis = session.query(ObjAnalysis).get(analysis_id)
-                    if not analysis:
+                    if analysis is None:
                         logger.error(f'Analysis {analysis_id} not found')
                         return
                 except Exception as e:
@@ -949,19 +952,18 @@ class AnalysisHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
+        include_analysis_data = self.get_query_argument(
+            "includeAnalysisData", False
+        ) in ["True", "t", "true", "1", True, 1]
+        include_filename = self.get_query_argument("includeFilename", False) in [
+            "True",
+            "t",
+            "true",
+            "1",
+            True,
+            1,
+        ]
         if analysis_resource_type.lower() == 'obj':
-            include_analysis_data = self.get_query_argument(
-                "includeAnalysisData", False
-            ) in ["True", "t", "true", "1", True, 1]
-            include_filename = self.get_query_argument("includeFilename", False) in [
-                "True",
-                "t",
-                "true",
-                "1",
-                True,
-                1,
-            ]
-
             if analysis_id is not None:
                 try:
                     s = ObjAnalysis.get_if_accessible_by(

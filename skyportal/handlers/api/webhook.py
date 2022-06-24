@@ -84,7 +84,7 @@ class WebhookHandler(BaseHandler):
                 )
             if (
                 analysis.invalid_after
-                and analysis.invalid_after < datetime.datetime.now()
+                and datetime.datetime.now() > analysis.invalid_after
             ):
                 analysis.status = 'timed_out'
                 analysis.status_message = f'Analysis timed out before webhook call at {str(datetime.datetime.utcnow())}'
@@ -96,7 +96,8 @@ class WebhookHandler(BaseHandler):
                 session.close()
                 return self.error("Token has expired", status=400)
 
-            # lock this token and commit immediately to avoid race conditions, so that the results are not written more than once
+            # lock the analysis associated with this token and commit immediately to avoid race conditions,
+            # so that the results are not written more than once
             analysis.status = 'completed'
             analysis.last_activity = datetime.datetime.utcnow()
             analysis.duration = (analysis.last_activity - last_active).total_seconds()
