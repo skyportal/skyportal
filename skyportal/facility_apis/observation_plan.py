@@ -177,12 +177,13 @@ def generate_plan(observation_plan_id, request_id, user_id):
                 )
             ).subquery()
 
+            # convert to 0-1
+            integrated_probability = request.payload["integrated_probability"] * 0.01
             min_probdensity = (
                 sa.select(
                     sa.func.min(localizationtile_subquery.columns.probdensity)
                 ).filter(
-                    localizationtile_subquery.columns.cum_prob
-                    <= request.payload["integrated_probability"]
+                    localizationtile_subquery.columns.cum_prob <= integrated_probability
                 )
             ).scalar_subquery()
 
@@ -205,9 +206,39 @@ def generate_plan(observation_plan_id, request_id, user_id):
             catalog_struct = {}
             catalog_struct["ra"] = np.array([g.ra for g in galaxies])
             catalog_struct["dec"] = np.array([g.dec for g in galaxies])
-            catalog_struct["S"] = np.array([1.0 for g in galaxies])
-            catalog_struct["Sloc"] = np.array([1.0 for g in galaxies])
-            catalog_struct["Smass"] = np.array([1.0 for g in galaxies])
+
+            if "galaxy_sorting" not in request.payload:
+                galaxy_sorting = "equal"
+            else:
+                galaxy_sorting = request.payload["galaxy_sorting"]
+
+            if galaxy_sorting == "equal":
+                values = np.array([1.0 for g in galaxies])
+            elif galaxy_sorting == "sfr_fuv":
+                values = np.array([g.sfr_fuv for g in galaxies])
+            elif galaxy_sorting == "mstar":
+                values = np.array([g.mstar for g in galaxies])
+            elif galaxy_sorting == "magb":
+                values = np.array([g.magb for g in galaxies])
+            elif galaxy_sorting == "magk":
+                values = np.array([g.magk for g in galaxies])
+
+            idx = np.where(values != None)[0]  # noqa: E711
+
+            if len(idx) == 0:
+                raise ValueError('No galaxies available for scheduling.')
+
+            values = values[idx]
+            if galaxy_sorting in ["magb", "magk"]:
+                # weigh brighter more heavily
+                values = -values
+                values = (values - np.min(values)) / (np.max(values) - np.min(values))
+
+            catalog_struct["ra"] = catalog_struct["ra"][idx]
+            catalog_struct["dec"] = catalog_struct["dec"][idx]
+            catalog_struct["S"] = values
+            catalog_struct["Sloc"] = values
+            catalog_struct["Smass"] = values
 
         if params["tilesType"] == "moc":
             moc_structs = gwemopt.skyportal.create_moc_from_skyportal(
@@ -235,6 +266,7 @@ def generate_plan(observation_plan_id, request_id, user_id):
                 'RA': coverage_struct["data"][:, 0],
                 'Dec': coverage_struct["data"][:, 1],
             }
+
             field_data = pd.DataFrame.from_dict(data)
             field_ids = add_tiles(
                 request.instrument.id,
@@ -477,6 +509,11 @@ class MMAAPI(FollowUpAPI):
                     "type": "string",
                     "enum": galaxies,
                     "default": galaxies[0] if len(galaxies) > 0 else "",
+                },
+                "galaxy_sorting": {
+                    "type": "string",
+                    "enum": ["equal", "sfr_fuv", "mstar", "magb", "magk"],
+                    "default": "equal",
                 },
                 "exposure_time": {
                     "title": "Exposure Time [s]",
