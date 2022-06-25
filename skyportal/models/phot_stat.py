@@ -157,6 +157,14 @@ class PhotStat(Base):
         'Will be None if no photometry has been added to this object. ',
     )
 
+    predetection_mjds = sa.Column(
+        sa.ARRAY(sa.Float),
+        nullable=True,
+        index=False,
+        doc='List of MJDs of times when the Obj position was reported to have been observed without detection, '
+        'including only the times before the very first detection. ',
+    )
+
     last_non_detection_mjd = sa.Column(
         sa.Float,
         nullable=True,
@@ -331,7 +339,8 @@ class PhotStat(Base):
 
         if not det:  # get limiting magnitude for non-detection
             if (
-                phot['original_user_data'] is not None
+                'original_user_data' in phot
+                and phot['original_user_data'] is not None
                 and 'limiting_mag' in phot['original_user_data']
             ):
                 user_data = phot['original_user_data']
@@ -373,9 +382,11 @@ class PhotStat(Base):
                 self.faintest_mag_per_filter = {filt: mag}
                 self.rise_rate = None
                 self.decay_rate = None
+                self.predetection_mjds = []
             else:
                 self.deepest_limit_global = lim
                 self.deepest_limit_per_filter = {filt: lim}
+                self.predetection_mjds = [mjd]
                 self.last_non_detection_mjd = mjd
 
         else:  # there are existing points
@@ -456,12 +467,19 @@ class PhotStat(Base):
                     mag, self.faintest_mag_per_filter.get(filt, -np.inf)
                 )
 
-                # check if new point removes "last_non_detection_mjd"
+                # check if new point removes some predetections
                 if (
                     self.last_non_detection_mjd is not None
                     and mjd < self.last_non_detection_mjd
                 ):
-                    self.last_non_detection_mjd = None
+                    # keep only the predetections that happened before this detection
+                    self.predetection_mjds = [
+                        m for m in self.predetection_mjds if m < mjd
+                    ]
+                    if self.predetection_mjds:
+                        self.last_non_detection_mjd = max(self.predetection_mjds)
+                    else:
+                        self.last_non_detection_mjd = None
 
                 # update the rise and decay rates
                 if (
@@ -506,11 +524,13 @@ class PhotStat(Base):
                     lim, self.deepest_limit_per_filter.get(filt, -np.inf)
                 )
 
-                # last non detection that happened before the first detection (if any)
+                # this non detection happened before the first detection (if any)
                 if self.first_detected_mjd is None or self.first_detected_mjd > mjd:
-                    self.last_non_detection_mjd = max(
-                        mjd, self.last_non_detection_mjd or 0
-                    )
+                    if self.predetection_mjds is None:
+                        self.predetection_mjds = [mjd]
+                    else:
+                        self.predetection_mjds = self.predetection_mjds + [mjd]
+                    self.last_non_detection_mjd = max(self.predetection_mjds)
 
             # find the time between first detection and last non-detection
             if (
@@ -564,7 +584,10 @@ class PhotStat(Base):
                 else:
                     fluxerr = phot['fluxerr']
                     fivesigma = 5 * fluxerr
-                    lims[i] = -2.5 * np.log10(fivesigma) + PHOT_ZP
+                    if fivesigma > 0:
+                        lims[i] = -2.5 * np.log10(fivesigma) + PHOT_ZP
+                    else:
+                        lims[i] = None
 
         # reset all scalar properties
         self.num_obs_global = 0
@@ -691,12 +714,14 @@ class PhotStat(Base):
             # find the deepest limit
             self.deepest_limit_global = max(lim_mags)
             if self.first_detected_mjd:
-                mjds_before = lim_mjds[lim_mjds < self.first_detected_mjd]
+                self.predetection_mjds = list(
+                    lim_mjds[lim_mjds < self.first_detected_mjd]
+                )
             else:
-                mjds_before = lim_mjds
+                self.predetection_mjds = list(lim_mjds)
 
-            if len(mjds_before):
-                self.last_non_detection_mjd = max(mjds_before)
+            if self.predetection_mjds:
+                self.last_non_detection_mjd = max(self.predetection_mjds)
                 if self.first_detected_mjd:
                     self.time_to_non_detection = (
                         self.first_detected_mjd - self.last_non_detection_mjd

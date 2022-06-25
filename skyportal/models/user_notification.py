@@ -84,12 +84,10 @@ def send_slack_notification(mapper, connection, target):
     else:
         return
 
-    if not integration_url.startswith(cfg.get("slack.expected_url_preamble", "https")):
+    if not integration_url.startswith(cfg["slack.expected_url_preamble"], "https"):
         return
 
-    slack_microservice_url = (
-        f'http://127.0.0.1:{cfg.get("slack.microservice_port", 64100)}'
-    )
+    slack_microservice_url = f'http://127.0.0.1:{cfg["slack.microservice_port"]}'
 
     if target.notification_type == "mention":
         if not target.user.preferences['slack_integration'].get("mentions", False):

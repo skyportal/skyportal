@@ -49,10 +49,12 @@ app:
   atlas:
     protocol: https
     host: fallingstar-data.com
+    port:
 
   kait:
     protocol: http
     host: herculesii.astro.berkeley.edu
+    port:
 
   treasuremap_endpoint: http://treasuremap.space
 
@@ -418,7 +420,7 @@ misc:
   # If {"flat": True} then use a subclass of the FLRW, called `FlatLambdaCMD`
   # otherwise use `LambdaCDM`. See `utils.cosmology.py` for the way in which
   # the user-supplied cosmology parameter set constructs the site-wide cosmology.
-  cosmology: Planck18_arXiv_v2
+  cosmology: Planck18
   #cosmology: {H0: "65.0", Om0: 0.3, Ode0: 0.7, name: 'skyportal_user_cosmo'}
 
   # The minimum signal-to-noise ratio/ n-sigma for lim mag cacluations to

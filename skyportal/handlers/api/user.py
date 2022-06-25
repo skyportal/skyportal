@@ -32,16 +32,13 @@ def set_default_role(user, session):
     This method does not commit the session, so the session needs to be commited after calling this method.
     If the default role from the config does not exist, an exception is raised, and can be caught by the caller (i.e in a handler).
     '''
-    if (
-        cfg['user.default_role'] is not None
-        and isinstance(cfg['user.default_role'], str)
-        and cfg['user.default_role'] in role_acls
-    ):
-        role = session.query(Role).filter(Role.id == cfg['user.default_role']).first()
+    default_role = cfg['user.default_role']
+    if isinstance(default_role, str) and default_role in role_acls:
+        role = session.query(Role).filter(Role.id == default_role).first()
         if role is None:
             # raise an error:
             raise Exception(
-                f"Invalid default_role configuration value: {cfg['user.default_role']} does not exist"
+                f"Invalid default_role configuration value: {default_role} does not exist"
             )
         else:
             session.add(UserRole(user_id=user.id, role_id=role.id))
@@ -53,14 +50,13 @@ def set_default_acls(user, session):
     This method does not commit the session, so the session needs to be commited after calling this method.
     If the default acl from the config does not exist, an exception is raised, and can be caught by the caller (i.e in a handler).
     '''
-    if cfg['user.default_acls'] is not None:
-        for acl_id in cfg['user.default_acls']:
-            if acl_id not in all_acl_ids:
-                raise Exception(
-                    f"Invalid default_acl configuration value: {acl_id} does not exist"
-                )
-        for acl_id in cfg['user.default_acls']:
-            session.add(UserACL(user_id=user.id, acl_id=acl_id))
+    for acl_id in cfg['user.default_acls']:
+        if acl_id not in all_acl_ids:
+            raise Exception(
+                f"Invalid default_acl configuration value: {acl_id} does not exist"
+            )
+    for acl_id in cfg['user.default_acls']:
+        session.add(UserACL(user_id=user.id, acl_id=acl_id))
 
 
 def set_default_group(user, session):
@@ -72,10 +68,7 @@ def set_default_group(user, session):
     default_groups = []
     if cfg['misc.public_group_name'] is not None:
         default_groups.append(cfg['misc.public_group_name'])
-    if cfg['user.default_groups'] is not None and isinstance(
-        cfg['user.default_groups'], list
-    ):
-        default_groups.extend(cfg['user.default_groups'])
+    default_groups.extend(cfg['user.default_groups'])
     default_groups = list(set(default_groups))
     for default_group_name in default_groups:
         group = session.query(Group).filter(Group.name == default_group_name).first()
@@ -133,13 +126,16 @@ def add_user_and_setup_groups(
                             )
 
                 # Add user to sitewide public group
-                public_group = (
-                    session.query(Group)
-                    .filter(Group.name == cfg["misc.public_group_name"])
-                    .first()
-                )
-                if public_group is not None:
-                    session.add(GroupUser(group_id=public_group.id, user_id=user.id))
+                if cfg["misc.public_group_name"] is not None:
+                    public_group = (
+                        session.query(Group)
+                        .filter(Group.name == cfg["misc.public_group_name"])
+                        .first()
+                    )
+                    if public_group is not None:
+                        session.add(
+                            GroupUser(group_id=public_group.id, user_id=user.id)
+                        )
 
             set_default_acls(user, session)
             session.commit()

@@ -72,7 +72,7 @@ if __name__ == "__main__":
     if user == '' and results.user is not None:
         print("Note: user is not a valid email address")
 
-    with status(f"Connecting to database {cfg['database']['database']}"):
+    with status(f"Connecting to database {cfg['database.database']}"):
         init_db(**cfg['database'])
 
     if not results.nodrop:

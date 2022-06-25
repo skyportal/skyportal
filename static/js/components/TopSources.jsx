@@ -86,7 +86,7 @@ const timespans = [
 ];
 
 const defaultPrefs = {
-  maxNumSources: "",
+  maxNumSources: "10",
   sinceDaysAgo: "7",
 };
 
@@ -252,6 +252,10 @@ const TopSources = ({ classes }) => {
   const topSourcesPrefs =
     useSelector((state) => state.profile.preferences.topSources) ||
     defaultPrefs;
+
+  if (!Object.keys(topSourcesPrefs).includes("maxNumSources")) {
+    topSourcesPrefs.maxNumSources = defaultPrefs.maxNumSources;
+  }
 
   const [currentTimespan, setCurrentTimespan] = useState(
     timespans.find(

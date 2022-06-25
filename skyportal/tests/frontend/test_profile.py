@@ -12,18 +12,15 @@ from selenium.webdriver.common.action_chains import ActionChains
 def test_token_acls_options_rendering1(driver, user):
     driver.get(f"/become_user/{user.id}")
     driver.get("/profile")
-    driver.wait_for_xpath('//*[@data-testid="acls[0]"]')
-    driver.wait_for_xpath('//*[@data-testid="acls[1]"]')
-    driver.wait_for_xpath('//*[@data-testid="acls[2]"]')
-    driver.wait_for_xpath('//*[@data-testid="acls[3]"]')
-    driver.wait_for_xpath('//*[@data-testid="acls[4]"]')
-    driver.wait_for_xpath_to_disappear('//*[@data-testid="acls[5]"]')
+    for i in range(6):
+        driver.wait_for_xpath(f'//*[@data-testid="acls[{i}]"]')
+    driver.wait_for_xpath_to_disappear('//*[@data-testid="acls[6]"]')
 
 
 def test_token_acls_options_rendering2(driver, super_admin_user):
     driver.get(f"/become_user/{super_admin_user.id}")
     driver.get("/profile")
-    for i in range(5):
+    for i in range(6):
         driver.wait_for_xpath(f'//*[@data-testid="acls[{i}]"]')
 
 
