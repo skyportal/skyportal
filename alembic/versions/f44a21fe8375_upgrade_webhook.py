@@ -1,7 +1,7 @@
 """Upgrade analysis webhook
 
 Revision ID: f44a21fe8375
-Revises: 5dc838e75a63
+Revises: c8063723c76e
 Create Date: 2022-06-22 18:02:28.510192
 
 """
@@ -11,7 +11,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = 'f44a21fe8375'
-down_revision = '5dc838e75a63'
+down_revision = 'c8063723c76e'
 branch_labels = None
 depends_on = None
 
