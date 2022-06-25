@@ -73,19 +73,33 @@ export const useSourceStyles = makeStyles((theme) => ({
     fontSize: "1.25rem",
     fontWeight: theme.typography.fontWeightRegular,
   },
-  photometryContainer: {
+  source: {
+    padding: "1rem",
     display: "flex",
-    overflowX: "scroll",
-    flexDirection: "column",
-    padding: "0.5rem",
+    flexDirection: "row",
   },
-  buttonContainer: {
-    "& button": {
-      margin: "0.5rem",
+  column: {
+    display: "flex",
+    flexFlow: "column nowrap",
+    width: "100%",
+    "&>div": {
+      width: "100%",
     },
   },
-  columnItem: {
-    marginBottom: theme.spacing(2),
+  mainColumn: {
+    display: "flex",
+    flexFlow: "column nowrap",
+    verticalAlign: "top",
+    paddingRight: "1em",
+    minWidth: 0,
+    "& > div": {
+      margin: "0.5rem 0",
+    },
+  },
+  topRow: {
+    display: "flex",
+    flexFlow: "row wrap",
+    justifyContent: "space-around",
   },
   name: {
     fontSize: "200%",
@@ -101,36 +115,58 @@ export const useSourceStyles = makeStyles((theme) => ({
     width: "350px",
     overflow: "auto",
   },
-  comments: {
-    width: "100%",
+  photometryContainer: {
+    display: "flex",
+    flexDirection: "column",
+    paddingBottom: "0.5rem",
+    overflowX: "scroll",
   },
-  tns: {
+  plotButtons: {
+    display: "flex",
+    flexFlow: "row wrap",
+    "& button": {
+      margin: "0.5rem",
+    },
+  },
+  comments: {
+    marginLeft: "1rem",
+    padding: "1rem",
     width: "100%",
   },
   classifications: {
     display: "flex",
     flexDirection: "column",
+    margin: "auto",
     width: "100%",
   },
-  hr_diagram: {},
+  tns: {
+    display: "flex",
+    flexDirection: "column",
+    margin: "auto",
+    width: "100%",
+  },
+  thumbnails: {
+    "& > div": {
+      justifyContent: "center",
+    },
+  },
+  centroidPlot: {
+    margin: "auto",
+  },
   alignRight: {
     display: "inline-block",
     verticalAlign: "super",
-    align: "right",
-    justify: "flex-end",
   },
-  alignLeft: {
-    display: "inline-block",
-    verticalAlign: "super",
-  },
-  alignEnd: {
-    display: "flex",
-    justifyContent: "space-between",
-  },
+  HRDiagramContainer: {},
+  followuphrDiagramContainer: {},
   followupContainer: {
     display: "flex",
     overflow: "hidden",
     flexDirection: "column",
+    minWidth: 0,
+  },
+  sendAlert: {
+    margin: "auto",
   },
   position: {
     fontWeight: "bold",
@@ -163,11 +199,6 @@ export const useSourceStyles = makeStyles((theme) => ({
   },
   findingChart: {
     alignItems: "center",
-  },
-  source: {
-    padding: theme.spacing(2),
-    display: "flex",
-    flexDirection: "row",
   },
   tooltipContent: {
     display: "flex",
