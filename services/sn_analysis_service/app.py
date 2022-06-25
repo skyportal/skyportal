@@ -58,7 +58,7 @@ def upload_analysis_results(results, data_dict, request_timeout=60):
         log(f"Callback exception {e}.")
 
 
-def run_sn_model(dd):
+def run_sn_model(data_dict):
     """
     Use `sncosmo` to fit data to a model with name `source_name`.
 
@@ -70,8 +70,6 @@ def run_sn_model(dd):
 
     Other analysis services may require additional keys in the `inputs` dictionary.
     """
-    data_dict = dd
-
     analysis_parameters = data_dict["inputs"].get("analysis_parameters", {})
     analysis_parameters = {**default_analysis_parameters, **analysis_parameters}
 
