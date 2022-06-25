@@ -904,7 +904,7 @@ class AnalysisHandler(BaseHandler):
                 type: string
               description: |
                 What underlying data the analysis is on:
-                must be one of either "obj" (more to be added in the future)
+                must be "obj" (more to be added in the future)
             - in: path
               name: analysis_id
               required: true
@@ -1035,3 +1035,146 @@ class AnalysisHandler(BaseHandler):
                 f'analysis_resource_type must be one of {", ".join(["obj"])}',
                 status=404,
             )
+
+
+def serialize_results_data():
+    pass
+
+
+def generate_plot():
+    pass
+
+
+class AnalysisProductsHandler(BaseHandler):
+    @auth_or_token
+    async def get(
+        self, analysis_resource_type, analysis_id, product_type, plot_number=0
+    ):
+        """
+        ---
+        description: Retrieve primary data associated with an Analysis.
+        tags:
+        - analysis
+        parameters:
+        - in: path
+          name: analysis_resource_type
+          required: true
+          schema:
+            type: string
+          description: |
+            What underlying data the analysis is on:
+            must be "obj" (more to be added in the future)
+        - in: path
+          name: analysis_id
+          required: true
+          schema:
+            type: integer
+        - in: path
+          name: product_type
+          required: true
+          schema:
+            type: string
+          description: |
+            What type of data to retrieve:
+            must be one of "corner", "results", or "plot"
+        - in: path
+          name: plot_number
+          required: true
+          schema:
+            type: integer
+          description: |
+            if product_type == "plot", which
+            plot number should be returned?
+        requestBody:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  plot_kwargs:
+                    type: object
+                    additionalProperties:
+                      type: object
+                    description: |
+                        Extra parameters to pass to the plotting functions
+                        if new plots are to be generated (e.g. with corner plots)
+        responses:
+          200:
+            description: PNG finding chart file
+            content:
+                oneOf:
+                    - image/png:
+                        schema:
+                            type: string
+                            format: binary
+                    - application/json:
+                        schema:
+                            type: object
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        if analysis_resource_type.lower() == 'obj':
+            if analysis_id is not None:
+                try:
+                    analysis = ObjAnalysis.get_if_accessible_by(
+                        analysis_id, self.current_user, raise_if_none=True
+                    )
+                except AccessError:
+                    return self.error('Cannot access this Analysis.', status=403)
+
+                if analysis.data in [None, {}]:
+                    return self.error("No data found for this Analysis.", status=404)
+
+                if product_type.lower() == "corner":
+                    if not analysis.has_inference_data:
+                        return self.error(
+                            "No inference data found for this Analysis.", status=404
+                        )
+
+                    plot_kwargs = self.get_query_argument("plot_kwargs", {})
+                    filename = f"analysis_{analysis.obj_id}_corner.png"
+                    output_type = "png"
+                    output_data = analysis.generate_corner_plot(**plot_kwargs)
+                    if output_data is not None:
+                        await self.send_file(
+                            output_data, filename, output_type=output_type
+                        )
+                elif product_type.lower() == "results":
+                    if not analysis.has_results_data():
+                        return self.error(
+                            "No results data found for this Analysis.", status=404
+                        )
+
+                    return self.success(
+                        data=serialize_results_data(analysis.analyses["results"])
+                    )
+                elif product_type.lower() == "plot":
+                    if not analysis.has_plot_data():
+                        return self.error(
+                            "No plot data found for this Analysis.", status=404
+                        )
+
+                    if plot_number < 0 or plot_number >= len(
+                        analysis.analyses["plots"]
+                    ):
+                        return self.error("Invalid plot number.", status=404)
+
+                    plot_data = analysis.results_data["plots"][plot_number]
+                    filename = f"analysis_{analysis.obj_id}_plot_{plot_number}.png"
+                    output_type = "png"
+                    output_data = generate_plot(plot_data)
+
+                    await self.send_file(output_data, filename, output_type=output_type)
+                else:
+                    return self.error(
+                        f"Invalid product type: {product_type}", status=404
+                    )
+        else:
+            return self.error(
+                f'analysis_resource_type must be one of {", ".join(["obj"])}',
+                status=404,
+            )
+
+        return self.error("No data found for this Analysis.", status=404)
