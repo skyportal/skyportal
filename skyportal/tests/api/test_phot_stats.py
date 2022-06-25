@@ -3,6 +3,7 @@ import traceback
 from skyportal.tests import api
 from baselayer.app.env import load_env
 import uuid
+from datetime import datetime
 
 _, cfg = load_env()
 PHOT_DETECTION_THRESHOLD = cfg["misc.photometry_detection_threshold_nsigma"]
@@ -472,6 +473,275 @@ def test_phot_stat_consistent(
     phot_stat = data['data']
 
     check_phot_stat_is_consistent(phot_stat, mjd, mag, filt, det, lim)
+
+
+def test_phot_stats_update_handler(
+    upload_data_token, super_admin_token, public_group, ztf_camera
+):
+    num_sources = 4
+    num_points = 5
+    source_ids = []
+
+    # keep track of when we started posting
+    t0 = datetime.utcnow()
+
+    for j in range(num_sources):
+        source_ids.append(str(uuid.uuid4()))
+        status, data = api(
+            "POST",
+            "sources",
+            data={
+                "id": source_ids[-1],
+                "ra": np.random.uniform(0, 360),
+                "dec": np.random.uniform(-90, 90),
+                "redshift": np.random.uniform(0, 1),
+                "group_ids": [public_group.id],
+            },
+            token=upload_data_token,
+        )
+        assert status == 200
+        assert data['status'] == 'success'
+
+        # post some photometry for each source
+        mjd = np.random.uniform(55000, 56000, num_points)
+        mjd.sort()
+
+        flux = np.random.normal(300, 10, num_points)
+        flux[0:5] = 10.1
+
+        filt = np.random.choice(['ztfg', 'ztfr', 'ztfi'], num_points)
+
+        for i in range(num_points):
+            status, data = api(
+                'POST',
+                'photometry',
+                data={
+                    'obj_id': source_ids[-1],
+                    'mjd': mjd[i],
+                    'instrument_id': ztf_camera.id,
+                    'flux': flux[i],
+                    'fluxerr': 10.0,
+                    'zp': 25.0,
+                    'magsys': 'ab',
+                    'filter': filt[i],
+                    'group_ids': [public_group.id],
+                    'altdata': {'some_key': str(uuid.uuid4())},
+                },
+                token=upload_data_token,
+            )
+            if status != 200:
+                print(data)
+            assert status == 200
+            assert data['status'] == 'success'
+
+    # get all Objs with or without PhotStats
+    status, data = api(
+        'GET',
+        'phot_stats',
+        token=super_admin_token,
+    )
+    assert status == 200
+    num_sources_total = data['data']['totalWithPhotStats']
+
+    # get only the recent ones posted in this test
+    status, data = api(
+        'GET',
+        'phot_stats',
+        params={
+            'createdAtStartTime': t0.isoformat(),
+        },
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data['data']['totalWithPhotStats'] == num_sources
+    assert data['data']['totalWithoutPhotStats'] == 0
+
+    # get only sources posted before this test
+    status, data = api(
+        'GET',
+        'phot_stats',
+        params={
+            'createdAtEndTime': t0.isoformat(),
+            'fullUpdateEndTime': t0.isoformat(),
+        },
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data['data']['totalWithPhotStats'] == num_sources_total - num_sources
+
+    # delete the phot stats from one object
+    status, data = api(
+        'DELETE',
+        f'sources/{source_ids[0]}/phot_stat',
+        token=super_admin_token,
+    )
+    assert status == 200
+
+    status, data = api(
+        'GET',
+        'phot_stats',
+        token=super_admin_token,
+    )
+
+    assert status == 200
+    assert data['data']['totalWithPhotStats'] == num_sources_total - 1
+
+    # get only the recent ones posted in this test
+    status, data = api(
+        'GET',
+        'phot_stats',
+        params={'createdAtStartTime': t0.isoformat()},
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data['data']['totalWithoutPhotStats'] == 1
+
+    # time before we re-calculate the missing PhotStats
+    t1 = datetime.utcnow()
+
+    # only update sources from this test
+    # that don't have PhotStats (the deleted one)
+    status, data = api(
+        'POST',
+        'phot_stats',
+        params={
+            'createdAtStartTime': t0.isoformat(),
+        },
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data['data']['totalMatches'] == 1
+
+    # the sources in this test should now all have phot stats
+    status, data = api(
+        'GET',
+        'phot_stats',
+        params={'createdAtStartTime': t0.isoformat()},
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data['data']['totalWithPhotStats'] == num_sources
+    assert data['data']['totalWithoutPhotStats'] == 0
+
+    # Only one source has a phot stat updated after t1
+    status, data = api(
+        'GET',
+        'phot_stats',
+        params={
+            'createdAtStartTime': t0.isoformat(),
+            'fullUpdateStartTime': t1.isoformat(),
+        },
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data['data']['totalWithPhotStats'] == 1
+    assert data['data']['totalWithoutPhotStats'] == 0
+
+    t2 = datetime.utcnow()
+
+    # no sources have had a quick update after t2
+    status, data = api(
+        'GET',
+        'phot_stats',
+        params={
+            'createdAtStartTime': t0.isoformat(),
+            'quickUpdateStartTime': t2.isoformat(),
+        },
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data['data']['totalWithPhotStats'] == 0
+    assert data['data']['totalWithoutPhotStats'] == 0
+
+    # all sources from this test have been updated before t2
+    status, data = api(
+        'GET',
+        'phot_stats',
+        params={
+            'createdAtStartTime': t0.isoformat(),
+            'fullUpdateEndTime': t2.isoformat(),
+        },
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data['data']['totalWithPhotStats'] == num_sources
+    assert data['data']['totalWithoutPhotStats'] == 0
+
+    # post another photometry point to trigger quick update:
+    status, data = api(
+        'POST',
+        'photometry',
+        data={
+            'obj_id': source_ids[1],
+            'mjd': np.random.uniform(55000, 56000),
+            'instrument_id': ztf_camera.id,
+            'flux': np.random.normal(300, 10),
+            'fluxerr': 10.0,
+            'zp': 25.0,
+            'magsys': 'ab',
+            'filter': np.random.choice(['ztfg', 'ztfr', 'ztfi']),
+            'group_ids': [public_group.id],
+            'altdata': {'some_key': str(uuid.uuid4())},
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+
+    # check that the quick update has changed the PhotStat on one object
+    status, data = api(
+        'GET',
+        'phot_stats',
+        params={
+            'createdAtStartTime': t0.isoformat(),
+            'quickUpdateStartTime': t2.isoformat(),
+        },
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data['data']['totalWithPhotStats'] == 1
+    assert data['data']['totalWithoutPhotStats'] == 0
+
+    # run a full update on all new sources
+    status, data = api(
+        'PATCH',
+        'phot_stats',
+        params={
+            'createdAtStartTime': t0.isoformat(),
+        },
+        token=super_admin_token,
+    )
+
+    assert status == 200
+    assert data['data']['totalMatches'] == num_sources
+
+    # make sure we recover all the sources with
+    # a full update time after t2
+    status, data = api(
+        'GET',
+        'phot_stats',
+        params={
+            'createdAtStartTime': t0.isoformat(),
+            'fullUpdateStartTime': t2.isoformat(),
+        },
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data['data']['totalWithPhotStats'] == num_sources
+    assert data['data']['totalWithoutPhotStats'] == 0
+
+    # no sources left updated before t2
+    status, data = api(
+        'GET',
+        'phot_stats',
+        params={
+            'createdAtStartTime': t0.isoformat(),
+            'fullUpdateEndTime': t2.isoformat(),
+        },
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data['data']['totalWithPhotStats'] == 0
+    assert data['data']['totalWithoutPhotStats'] == 0
 
 
 def check_phot_stat_is_consistent(phot_stat, mjd, mag, filt, det, lim):
