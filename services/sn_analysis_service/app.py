@@ -247,6 +247,9 @@ class MainHandler(tornado.web.RequestHandler):
             """
             Callback function for when the sn analysis service is done.
             Sends back results/errors via the callback_url.
+
+            This is run synchronously after the future completes
+            so there is no need to await for `future`.
             """
             try:
                 result = future.result()
@@ -257,14 +260,14 @@ class MainHandler(tornado.web.RequestHandler):
                 logger(f"{str(future.exception())[:1024]} {e}")
                 result = {
                     "status": "failure",
-                    "message": f"str(future.exception())[:1024] {e}",
+                    "message": f"{str(future.exception())[:1024]}{e}",
                 }
             finally:
                 upload_analysis_results(result, data_dict)
 
         runner = functools.partial(run_sn_model, data_dict)
-        x = IOLoop.current().run_in_executor(None, runner)
-        x.add_done_callback(sn_analysis_done_callback)
+        future_result = IOLoop.current().run_in_executor(None, runner)
+        future_result.add_done_callback(sn_analysis_done_callback)
 
         return self.write(
             {'status': 'pending', 'message': 'sn_analysis_service: analysis started'}
