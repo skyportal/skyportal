@@ -10,6 +10,7 @@ import base64
 from pathlib import Path
 
 import joblib
+import numpy as np
 import matplotlib.pyplot as plt
 import corner
 import arviz
@@ -198,6 +199,13 @@ class AnalysisService(Base):
         self._authinfo = value
 
 
+class DictNumpyEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        return json.JSONEncoder.default(self, obj)
+
+
 class AnalysisMixin:
     def calc_hash(self):
         self.hash = joblib.hash(self.filename)
@@ -211,11 +219,66 @@ class AnalysisMixin:
         return self.data.get('plots', None) is not None
 
     @hybrid_property
+    def number_of_analysis_plots(self):
+        if not self.has_plot_data:
+            return 0
+        else:
+            return len(self.data.get('plots', []))
+
+    @hybrid_property
     def has_results_data(self):
         return self.data.get('results', None) is not None
 
+    def serialize_results_data(self):
+        """
+        return the results data as a dictonary, even if it
+        contains some numpy arrays
+        """
+        if not self.has_results_data:
+            return {}
+        results = self.data.get('results', {"format": "json", "data": {}})
+        if not isinstance(results, dict):
+            return {}
+
+        if results.get('format', None) == "json":
+            return results.get('data', {})
+        elif results.get('format', None) == "joblib":
+            try:
+                buf = io.BytesIO()
+                buf.write(base64.b64decode(results.get('data', None)))
+                buf.seek(0)
+                data = joblib.load(buf)
+                jsons = json.dumps(data, cls=DictNumpyEncoder)
+            except Exception as e:
+                log(f"Error serializing results data: {e}")
+                jsons = "{}"
+            return json.loads(jsons)
+        else:
+            return {}
+
+    def get_analysis_plot(self, plot_number=0):
+        if not self.has_plot_data:
+            return None
+
+        if plot_number < 0 or plot_number >= self.number_of_analysis_plots:
+            return None
+
+        plot = self.data.get('plots')[plot_number]
+        try:
+            format = plot["format"]
+        except Exception as e:
+            format = "png"
+            log(f"Warning: missing format in plot, assuming png {e}")
+
+        buf = io.BytesIO()
+        buf.write(base64.b64decode(plot['data']))
+        buf.seek(0)
+
+        return {"plot_data": buf, "plot_type": format}
+
     def generate_corner_plot(self, **plot_kwargs):
         """Generate a corner plot of the posterior from the inference data."""
+
         if not self.has_inference_data:
             return None
 
@@ -231,6 +294,8 @@ class AnalysisMixin:
         f_handle = open(f.name, 'wb')
         f_handle.write(base64.b64decode(self.data['inference_data']['data']))
         f_handle.close()
+        # N.B.: arviz/xarray memory maps the file, so we need to
+        # remove the file only after using the data to make the plot
         inference_data = arviz.from_netcdf(f.name)
 
         try:
@@ -257,8 +322,8 @@ class AnalysisMixin:
             log(f"Failed to generate corner plot: {e}")
             return None
         finally:
-            # arviz memory maps the file, so we need to
-            # remove it after using the data to make the plot
+            # now that we have the data in figure we can
+            # remove this file
             os.remove(f.name)
 
         buf = io.BytesIO()

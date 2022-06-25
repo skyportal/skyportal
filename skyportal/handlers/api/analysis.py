@@ -1041,10 +1041,6 @@ def serialize_results_data():
     pass
 
 
-def generate_plot():
-    pass
-
-
 class AnalysisProductsHandler(BaseHandler):
     @auth_or_token
     async def get(
@@ -1142,31 +1138,40 @@ class AnalysisProductsHandler(BaseHandler):
                             output_data, filename, output_type=output_type
                         )
                 elif product_type.lower() == "results":
-                    if not analysis.has_results_data():
+                    if not analysis.has_results_data:
                         return self.error(
                             "No results data found for this Analysis.", status=404
                         )
-
-                    return self.success(
-                        data=serialize_results_data(analysis.analyses["results"])
-                    )
-                elif product_type.lower() == "plot":
-                    if not analysis.has_plot_data():
+                    return self.success(data=analysis.serialize_results_data())
+                elif product_type.lower() == "plots":
+                    if not analysis.has_plot_data:
                         return self.error(
                             "No plot data found for this Analysis.", status=404
                         )
-
-                    if plot_number < 0 or plot_number >= len(
-                        analysis.analyses["plots"]
+                    try:
+                        plot_number = int(plot_number)
+                    except Exception as e:
+                        return self.error(
+                            f"plot_number must be an integer. {e}", status=400
+                        )
+                    if (
+                        plot_number < 0
+                        or plot_number >= analysis.number_of_analysis_plots
                     ):
-                        return self.error("Invalid plot number.", status=404)
+                        return self.error(
+                            "Invalid plot number. "
+                            f"There is/are {analysis.number_of_analysis_plots} plot(s) available for this analysis",
+                            status=404,
+                        )
 
-                    plot_data = analysis.results_data["plots"][plot_number]
-                    filename = f"analysis_{analysis.obj_id}_plot_{plot_number}.png"
-                    output_type = "png"
-                    output_data = generate_plot(plot_data)
-
-                    await self.send_file(output_data, filename, output_type=output_type)
+                    result = analysis.get_analysis_plot(plot_number=plot_number)
+                    if result is not None:
+                        output_data = result["plot_data"]
+                        output_type = result["plot_type"].lower()
+                        filename = f"analysis_{analysis.obj_id}_plot_{plot_number}.{output_type}"
+                        await self.send_file(
+                            output_data, filename, output_type=output_type
+                        )
                 else:
                     return self.error(
                         f"Invalid product type: {product_type}", status=404

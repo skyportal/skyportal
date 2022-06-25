@@ -158,7 +158,7 @@ skyportal_handlers = [
     (r'/api/(obj)/([0-9A-Za-z-_]+)/analysis(/[0-9]+)?', AnalysisHandler),
     (r'/api/(obj)/analysis(/[0-9]+)?', AnalysisHandler),
     (
-        r'/api/(obj)/analysis(/[0-9]+)/(corner|results|plots)/([0-9]+)?',
+        r'/api/(obj)/analysis(/[0-9]+)/(corner|results|plots)(/[0-9]+)?',
         AnalysisProductsHandler,
     ),
     (r'/api/assignment(/.*)?', AssignmentHandler),

@@ -383,11 +383,11 @@ server:
   # to run multiple Python processes to take full advantage of
   # multi-CPU machines. Typically it is best to run one process per
   # CPU.
-  processes: 4
+  processes: 2
 
   # How many of the above processes should be dedicated to
   # frontend only (i.e., no token authorized API requests)
-  dedicated_frontend_processes: 2
+  dedicated_frontend_processes: 0
 
   # Rate limit: number of requests per second (see https://www.nginx.com/blog/rate-limiting-nginx/)
   rate_limit: 5
