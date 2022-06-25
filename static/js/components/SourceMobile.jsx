@@ -16,6 +16,9 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import Typography from "@mui/material/Typography";
 import Paper from "@mui/material/Paper";
 import CircularProgress from "@mui/material/CircularProgress";
+import Popover from "@mui/material/Popover";
+import IconButton from "@mui/material/IconButton";
+import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
 
 import {
   isBrowser,
@@ -60,6 +63,8 @@ const CentroidPlot = React.lazy(() =>
   import(/* webpackChunkName: "CentroidPlot" */ "./CentroidPlot")
 );
 
+const green = "#359d73";
+
 export const useSourceStyles = makeStyles((theme) => ({
   chip: {
     margin: theme.spacing(0.5),
@@ -68,33 +73,19 @@ export const useSourceStyles = makeStyles((theme) => ({
     fontSize: "1.25rem",
     fontWeight: theme.typography.fontWeightRegular,
   },
-  source: {
-    padding: "1rem",
+  photometryContainer: {
     display: "flex",
-    flexDirection: "row",
+    overflowX: "scroll",
+    flexDirection: "column",
+    padding: "0.5rem",
   },
-  column: {
-    display: "flex",
-    flexFlow: "column nowrap",
-    width: "100%",
-    "&>div": {
-      width: "100%",
+  buttonContainer: {
+    "& button": {
+      margin: "0.5rem",
     },
   },
-  mainColumn: {
-    display: "flex",
-    flexFlow: "column nowrap",
-    verticalAlign: "top",
-    paddingRight: "1em",
-    minWidth: 0,
-    "& > div": {
-      margin: "0.5rem 0",
-    },
-  },
-  topRow: {
-    display: "flex",
-    flexFlow: "row wrap",
-    justifyContent: "space-around",
+  columnItem: {
+    marginBottom: theme.spacing(2),
   },
   name: {
     fontSize: "200%",
@@ -110,58 +101,36 @@ export const useSourceStyles = makeStyles((theme) => ({
     width: "350px",
     overflow: "auto",
   },
-  photometryContainer: {
-    display: "flex",
-    flexDirection: "column",
-    paddingBottom: "0.5rem",
-    overflowX: "scroll",
-  },
-  plotButtons: {
-    display: "flex",
-    flexFlow: "row wrap",
-    "& button": {
-      margin: "0.5rem",
-    },
-  },
   comments: {
-    marginLeft: "1rem",
-    padding: "1rem",
+    width: "100%",
+  },
+  tns: {
     width: "100%",
   },
   classifications: {
     display: "flex",
     flexDirection: "column",
-    margin: "auto",
     width: "100%",
   },
-  tns: {
-    display: "flex",
-    flexDirection: "column",
-    margin: "auto",
-    width: "100%",
-  },
-  thumbnails: {
-    "& > div": {
-      justifyContent: "center",
-    },
-  },
-  centroidPlot: {
-    margin: "auto",
-  },
+  hr_diagram: {},
   alignRight: {
     display: "inline-block",
     verticalAlign: "super",
+    align: "right",
+    justify: "flex-end",
   },
-  HRDiagramContainer: {},
-  followuphrDiagramContainer: {},
+  alignLeft: {
+    display: "inline-block",
+    verticalAlign: "super",
+  },
+  alignEnd: {
+    display: "flex",
+    justifyContent: "space-between",
+  },
   followupContainer: {
     display: "flex",
     overflow: "hidden",
     flexDirection: "column",
-    minWidth: 0,
-  },
-  sendAlert: {
-    margin: "auto",
   },
   position: {
     fontWeight: "bold",
@@ -195,6 +164,46 @@ export const useSourceStyles = makeStyles((theme) => ({
   findingChart: {
     alignItems: "center",
   },
+  source: {
+    padding: theme.spacing(2),
+    display: "flex",
+    flexDirection: "row",
+  },
+  tooltipContent: {
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "center",
+    alignItems: "center",
+    width: "100%",
+  },
+  legend: {
+    width: "100%",
+    display: "flex",
+    flexDirection: "row",
+    justifyContent: "left",
+    alignItems: "center",
+    gap: "10px",
+  },
+  circle: {
+    borderRadius: "50%",
+    width: "25px",
+    height: "25px",
+    display: "inline-block",
+  },
+  downTriangle: {
+    width: 0,
+    height: 0,
+    backgroundColor: "transparent",
+    borderStyle: "solid",
+    borderTopWidth: "15px",
+    borderRightWidth: "15px",
+    borderBottomWidth: "0px",
+    borderLeftWidth: "15px",
+    borderTopColor: "#359d73",
+    borderRightColor: "transparent",
+    borderBottomColor: "transparent",
+    borderLeftColor: "transparent",
+  },
 }));
 
 const SourceMobile = WidthProvider(
@@ -207,6 +216,15 @@ const SourceMobile = WidthProvider(
 
     const [showStarList, setShowStarList] = useState(false);
     const [showPhotometry, setShowPhotometry] = useState(false);
+    const [anchorEl, setAnchorEl] = useState(null);
+    const handleClick = (event) => {
+      setAnchorEl(event.currentTarget);
+    };
+    const handleClose = () => {
+      setAnchorEl(null);
+    };
+    const open = Boolean(anchorEl);
+    const id = open ? "simple-popover" : undefined;
 
     const { instrumentList, instrumentFormParams } = useSelector(
       (state) => state.instruments
@@ -510,6 +528,43 @@ const SourceMobile = WidthProvider(
                     >
                       Show Photometry Table
                     </Button>
+                    <IconButton
+                      aria-label="help"
+                      size="small"
+                      onClick={handleClick}
+                    >
+                      <HelpOutlineIcon />
+                    </IconButton>
+                    <Popover
+                      id={id}
+                      open={open}
+                      anchorEl={anchorEl}
+                      onClose={handleClose}
+                      anchorOrigin={{
+                        vertical: "top",
+                        horizontal: "right",
+                      }}
+                      transformOrigin={{
+                        vertical: "top",
+                        horizontal: "left",
+                      }}
+                    >
+                      <div className={classes.tooltipContent}>
+                        <div className={classes.legend}>
+                          <div className={classes.downTriangle} />
+                          <p>Stands for Non Detections</p>
+                        </div>
+                        <div className={classes.legend}>
+                          <div
+                            style={{
+                              background: `${green}`,
+                            }}
+                            className={classes.circle}
+                          />
+                          <p> Stands for Detections</p>
+                        </div>
+                      </div>
+                    </Popover>
                   </div>
                 </Grid>
               </AccordionDetails>
