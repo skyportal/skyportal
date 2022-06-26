@@ -56,6 +56,11 @@ const CompactCommentList = ({
       emoji.getUnicode(name) ? emoji.getUnicode(name) : name
     );
 
+  const commentMessageStyle =
+    associatedResourceType === "shift"
+      ? styles.compactCommentMessageShift
+      : styles.compactCommentMessage;
+
   return (
     <div className={styles.compactContainer}>
       <div className={styles.commentUserAvatar}>
@@ -74,7 +79,7 @@ const CompactCommentList = ({
         <ReactMarkdown
           source={renderCommentText()}
           escapeHtml={false}
-          className={styles.commentMessage}
+          className={commentMessageStyle}
           renderers={{ text: emojiSupport }}
         />
         <div className={styles.compactButtons}>

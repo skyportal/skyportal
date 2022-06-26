@@ -121,7 +121,7 @@ def user_preferences(target, notification_setting, resource_type):
         if (
             not target.user.preferences['slack_integration']
             .get("url", "")
-            .startswith(cfg.get("slack.expected_url_preamble", "https"))
+            .startswith(cfg["slack.expected_url_preamble"], "https")
         ):
             return
 
@@ -147,16 +147,13 @@ def user_preferences(target, notification_setting, resource_type):
 
 @event.listens_for(UserNotification, 'after_insert')
 def send_slack_notification(mapper, connection, target):
-
     resource_type = notification_resource_type(target)
     notifications_prefs = user_preferences(target, "slack", resource_type)
     if not notifications_prefs:
         return
     integration_url = target.user.preferences['slack_integration'].get('url')
 
-    slack_microservice_url = (
-        f'http://127.0.0.1:{cfg.get("slack.microservice_port", 64100)}'
-    )
+    slack_microservice_url = f'http://127.0.0.1:{cfg["slack.microservice_port"]}'
 
     app_url = get_app_base_url()
     data = json.dumps(

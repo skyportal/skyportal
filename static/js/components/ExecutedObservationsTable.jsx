@@ -66,6 +66,8 @@ const ExecutedObservationsTable = ({
   handleTableChange = false,
   pageNumber = 1,
   numPerPage = 10,
+  serverSide = true,
+  hideTitle = false,
 }) => {
   const classes = useStyles();
   const theme = useTheme();
@@ -141,7 +143,7 @@ const ExecutedObservationsTable = ({
     rowsPerPage: numPerPage,
     rowsPerPageOptions: [10, 25, 50, 100],
     jumpToPage: true,
-    serverSide: true,
+    serverSide,
     pagination: true,
     count: totalMatches,
   };
@@ -156,6 +158,7 @@ const ExecutedObservationsTable = ({
           <StyledEngineProvider injectFirst>
             <ThemeProvider theme={getMuiTheme(theme)}>
               <MUIDataTable
+                title={!hideTitle ? "Executed Observations" : ""}
                 data={observations}
                 options={options}
                 columns={columns}
@@ -177,12 +180,16 @@ ExecutedObservationsTable.propTypes = {
   pageNumber: PropTypes.number,
   totalMatches: PropTypes.number,
   numPerPage: PropTypes.number,
+  hideTitle: PropTypes.bool,
+  serverSide: PropTypes.bool,
 };
 
 ExecutedObservationsTable.defaultProps = {
   pageNumber: 1,
   totalMatches: 0,
   numPerPage: 10,
+  hideTitle: false,
+  serverSide: true,
 };
 
 export default ExecutedObservationsTable;

@@ -60,6 +60,11 @@ const RegularCommentList = ({
       emoji.getUnicode(name) ? emoji.getUnicode(name) : name
     );
 
+  const commentMessageStyle =
+    associatedResourceType === "shift"
+      ? styles.commentMessageShift
+      : styles.commentMessage;
+
   return (
     <>
       <div className={styles.commentUserAvatar}>
@@ -105,7 +110,7 @@ const RegularCommentList = ({
           <ReactMarkdown
             source={renderCommentText()}
             escapeHtml={false}
-            className={styles.commentMessage}
+            className={commentMessageStyle}
             renderers={{ text: emojiSupport }}
           />
         </div>

@@ -86,10 +86,32 @@ const useStyles = makeStyles(() => ({
     marginRight: "1em",
   },
   commentMessage: {
-    maxWidth: "25em",
+    maxWidth: "35em",
     "& > p": {
       margin: "0",
     },
+    wordWrap: "break-word",
+  },
+  commentMessageShift: {
+    maxWidth: "47em",
+    "& > p": {
+      margin: "0",
+    },
+    wordWrap: "break-word",
+  },
+  compactCommentMessage: {
+    maxWidth: "34em",
+    "& > p": {
+      margin: "0",
+    },
+    wordWrap: "break-word",
+  },
+  compactCommentMessageShift: {
+    maxWidth: "44em",
+    "& > p": {
+      margin: "0",
+    },
+    wordWrap: "break-word",
   },
   commentUserName: {
     fontWeight: "bold",
@@ -330,7 +352,6 @@ const CommentList = ({
           )
         )}
       </div>
-      <br />
       {permissions.indexOf("Comment") >= 0 &&
         objID &&
         (associatedResourceType === "object" ||

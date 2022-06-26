@@ -26,7 +26,7 @@ from baselayer.app.models import (
 )
 
 from .group import Group
-from .instrument import Instrument, InstrumentFieldTile
+from .instrument import Instrument, InstrumentField, InstrumentFieldTile
 from .allocation import Allocation
 from .localization import LocalizationTile
 
@@ -353,24 +353,53 @@ class EventObservationPlan(Base):
         return overhead + self.total_time
 
     @property
-    def area(self):
+    def area(self, cumulative_probability=1.0):
         """Integrated area in sq. deg within localization."""
 
-        union = (
-            sa.select(ha.func.union(InstrumentFieldTile.healpix).label('healpix'))
+        cum_prob = (
+            sa.func.sum(LocalizationTile.probdensity * LocalizationTile.healpix.area)
+            .over(order_by=LocalizationTile.probdensity.desc())
+            .label('cum_prob')
+        )
+        localizationtile_subquery = (
+            sa.select(LocalizationTile.probdensity, cum_prob)
             .filter(
+                LocalizationTile.localization_id
+                == self.observation_plan_request.localization_id,
+            )
+            .distinct()
+        ).subquery()
+
+        min_probdensity = (
+            sa.select(
+                sa.func.min(localizationtile_subquery.columns.probdensity)
+            ).filter(
+                localizationtile_subquery.columns.cum_prob <= cumulative_probability
+            )
+        ).scalar_subquery()
+
+        tiles_subquery = (
+            sa.select(InstrumentFieldTile.id)
+            .filter(
+                LocalizationTile.localization_id
+                == self.observation_plan_request.localization_id,
+                LocalizationTile.probdensity >= min_probdensity,
+                InstrumentFieldTile.instrument_id == self.instrument_id,
+                InstrumentFieldTile.instrument_field_id == InstrumentField.id,
                 InstrumentFieldTile.instrument_field_id == PlannedObservation.field_id,
                 PlannedObservation.observation_plan_id == self.id,
+                InstrumentFieldTile.healpix.overlaps(LocalizationTile.healpix),
             )
+            .distinct()
             .subquery()
         )
 
-        area = sa.func.sum(union.columns.healpix.area)
-        query_area = sa.select(area).filter(
-            LocalizationTile.localization_id
-            == self.observation_plan_request.localization_id,
-            union.columns.healpix.overlaps(LocalizationTile.healpix),
+        union = sa.select(ha.func.union(InstrumentFieldTile.healpix).label('healpix'))
+        union = union.join(
+            tiles_subquery, tiles_subquery.c.id == InstrumentFieldTile.id
         )
+        area = sa.func.sum(union.columns.healpix.area)
+        query_area = sa.select(area)
         intarea = DBSession().execute(query_area).scalar_one()
 
         if intarea is None:
@@ -378,27 +407,56 @@ class EventObservationPlan(Base):
         return intarea * (180.0 / np.pi) ** 2
 
     @property
-    def probability(self):
+    def probability(self, cumulative_probability=1.0):
         """Integrated probability within a given localization."""
 
-        union = (
-            sa.select(ha.func.union(InstrumentFieldTile.healpix).label('healpix'))
+        cum_prob = (
+            sa.func.sum(LocalizationTile.probdensity * LocalizationTile.healpix.area)
+            .over(order_by=LocalizationTile.probdensity.desc())
+            .label('cum_prob')
+        )
+        localizationtile_subquery = (
+            sa.select(LocalizationTile.probdensity, cum_prob)
             .filter(
+                LocalizationTile.localization_id
+                == self.observation_plan_request.localization_id,
+            )
+            .distinct()
+        ).subquery()
+
+        min_probdensity = (
+            sa.select(
+                sa.func.min(localizationtile_subquery.columns.probdensity)
+            ).filter(
+                localizationtile_subquery.columns.cum_prob <= cumulative_probability
+            )
+        ).scalar_subquery()
+
+        tiles_subquery = (
+            sa.select(InstrumentFieldTile.id)
+            .filter(
+                LocalizationTile.localization_id
+                == self.observation_plan_request.localization_id,
+                LocalizationTile.probdensity >= min_probdensity,
+                InstrumentFieldTile.instrument_id == self.instrument_id,
+                InstrumentFieldTile.instrument_field_id == InstrumentField.id,
                 InstrumentFieldTile.instrument_field_id == PlannedObservation.field_id,
                 PlannedObservation.observation_plan_id == self.id,
+                InstrumentFieldTile.healpix.overlaps(LocalizationTile.healpix),
             )
+            .distinct()
             .subquery()
         )
 
+        union = sa.select(ha.func.union(InstrumentFieldTile.healpix).label('healpix'))
+        union = union.join(
+            tiles_subquery, tiles_subquery.c.id == InstrumentFieldTile.id
+        )
         prob = sa.func.sum(
             LocalizationTile.probdensity
             * (union.columns.healpix * LocalizationTile.healpix).area
         )
-        query_prob = sa.select(prob).filter(
-            LocalizationTile.localization_id
-            == self.observation_plan_request.localization_id,
-            union.columns.healpix.overlaps(LocalizationTile.healpix),
-        )
+        query_prob = sa.select(prob)
         intprob = DBSession().execute(query_prob).scalar_one()
         if intprob is None:
             intprob = 0.0

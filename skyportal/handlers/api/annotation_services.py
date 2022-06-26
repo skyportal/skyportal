@@ -112,12 +112,10 @@ class GaiaQueryHandler(BaseHandler):
 
         author = self.associated_user_object
 
-        catalog = data.pop('catalog', cfg['catalog'] or "gaiadr3.gaia_source")
-        radius_arcsec = data.pop(
-            'crossmatchRadius', cfg['cross_match.gaia.radius'] or 2.0
-        )
+        catalog = data.pop('catalog', "gaiadr3.gaia_source")
+        radius_arcsec = data.pop('crossmatchRadius', cfg['cross_match.gaia.radius'])
         limmag = data.pop('crossmatchLimmag', cfg['cross_match.gaia.limmag'])
-        num_matches = data.pop('crossmatchNumber', cfg['cross_match.gaia.number'] or 1)
+        num_matches = data.pop('crossmatchNumber', cfg['cross_match.gaia.number'])
         candidate_coord = SkyCoord(ra=obj.ra * u.deg, dec=obj.dec * u.deg)
 
         df = (
