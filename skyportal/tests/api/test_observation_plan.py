@@ -182,7 +182,7 @@ def test_observation_plan_tiling(
     assert status == 200
 
 
-# @pytest.mark.flaky(reruns=2)
+@pytest.mark.flaky(reruns=2)
 def test_observation_plan_galaxy(
     user, super_admin_token, upload_data_token, view_only_token, public_group
 ):
