@@ -36,7 +36,6 @@ def test_galaxy(super_admin_token, view_only_token):
         )
         assert status == 200
         data = data["data"]["galaxies"]
-        print(f"{len(data)} galaxies loaded")
         if len(data) == 92 and any(
             [
                 d['name'] == '6dFgs gJ0001313-055904'
@@ -80,7 +79,7 @@ def test_galaxy(super_admin_token, view_only_token):
     for n_times_2 in range(26):
         status, data = api(
             'GET',
-            f'localization/2019-08-14T21:10:39/name/LALInference.v1.fits.gz',
+            'localization/2019-08-14T21:10:39/name/LALInference.v1.fits.gz',
             token=super_admin_token,
             params=params,
         )
@@ -109,11 +108,6 @@ def test_galaxy(super_admin_token, view_only_token):
 
     geojson = data["data"]["geojson"]
     data = data["data"]["galaxies"]
-    # for galaxy in data:
-    #     print(galaxy)
-
-    for element in geojson:
-        print(geojson[element])
 
     # now we have restricted to only 3/92 being in localization
     if not len(data) == 3 or not any(
