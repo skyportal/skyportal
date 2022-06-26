@@ -578,10 +578,7 @@ def get_formatted_standards_list(
     """
     starlist = []
     result = {"starlist_info": starlist, "success": False}
-    standard_stars = cfg.get("standard_stars")
-    if standard_stars is None:
-        log("Warning: No standard stars defined in the config.yaml.")
-        return result
+    standard_stars = cfg["standard_stars"]
 
     standard_file = standard_stars.get(standard_type)
     if standard_file is None:

@@ -871,10 +871,12 @@ thumbnail:
       file: ./ZTFrlh6cyjh_new.png
 
 gcn_event:
-  - xml:
-      file: ../skyportal/tests/data/GW190425_initial.xml
+#  - xml:
+#      file: ../skyportal/tests/data/GW190425_initial.xml
   - xml:
       file: ../skyportal/tests/data/GRB180116A_Fermi_GBM_Gnd_Pos.xml
+  - xml:
+      file: ./GW190814.xml
 
 gcn_event/1/comments:
   - text: "This is a test comment"
@@ -920,7 +922,9 @@ analysis_service:
     authentication_type: "header_token"
     _authinfo: '{"header_token": {"Authorization": "Bearer MY_TOKEN"}}'
     analysis_type: "lightcurve_fitting"
-    input_data_types: ["photometry", "redshift"]
+    input_data_types: ["photometry", "redshift", "spectra", "annotations", "classifications", "comments"]
+    # `source` is the model kw name defined in SNcosmo (https://sncosmo.readthedocs.io/en/stable/source-list.html)
+    optional_analysis_parameters: '{"source": ["nugent-sn2p", "salt3", "v19-1998bw", "mlcs2k2", "nugent-sn2n"], "fix_z": ["True", "False"]}'
     group_ids:
       - =program_A
       - =program_B

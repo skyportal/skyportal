@@ -25,7 +25,14 @@ from ...models import (
     ObservationPlanRequest,
     User,
 )
-from ...utils.gcn import get_dateobs, get_tags, get_skymap, get_contour
+from ...utils.gcn import (
+    get_dateobs,
+    get_tags,
+    get_skymap,
+    get_contour,
+    from_url,
+    from_cone,
+)
 
 log = make_log('api/gcn_event')
 
@@ -33,8 +40,8 @@ log = make_log('api/gcn_event')
 Session = scoped_session(sessionmaker(bind=DBSession.session_factory.kw["bind"]))
 
 
-def post_gcnevent(payload, user_id, session):
-    """Post GcnEvent to database.
+def post_gcnevent_from_xml(payload, user_id, session):
+    """Post GcnEvent to database from voevent xml.
     payload: str
         VOEvent readable string
     user_id : int
@@ -96,7 +103,86 @@ def post_gcnevent(payload, user_id, session):
 
     skymap = get_skymap(root, gcn_notice)
     if skymap is None:
+        session.commit()
         return event.id
+
+    skymap["dateobs"] = event.dateobs
+    skymap["sent_by_id"] = user.id
+
+    try:
+        localization = (
+            Localization.query_records_accessible_by(
+                user,
+            )
+            .filter_by(
+                dateobs=dateobs,
+                localization_name=skymap["localization_name"],
+            )
+            .one()
+        )
+    except NoResultFound:
+        localization = Localization(**skymap)
+        session.add(localization)
+        session.commit()
+
+        log(f"Generating tiles/contours for localization {localization.id}")
+
+        IOLoop.current().run_in_executor(None, lambda: add_tiles(localization.id))
+        IOLoop.current().run_in_executor(None, lambda: add_contour(localization.id))
+
+    return event.id
+
+
+def post_gcnevent_from_dictionary(payload, user_id, session):
+    """Post GcnEvent to database from dictionary.
+    payload: dict
+        Dictionary containing dateobs and skymap
+    user_id : int
+        SkyPortal ID of User posting the GcnEvent
+    session: sqlalchemy.Session
+        Database session for this transaction
+    """
+
+    user = session.query(User).get(user_id)
+
+    dateobs = payload['dateobs']
+
+    try:
+        event = GcnEvent.query.filter_by(dateobs=dateobs).one()
+
+        if not event.is_accessible_by(user, mode="update"):
+            raise ValueError(
+                "Insufficient permissions: GCN event can only be updated by original poster"
+            )
+
+    except NoResultFound:
+        event = GcnEvent(dateobs=dateobs, sent_by_id=user.id)
+        session.add(event)
+
+    tags = [
+        GcnTag(
+            dateobs=event.dateobs,
+            text=text,
+            sent_by_id=user.id,
+        )
+        for text in payload.get('tags', [])
+    ]
+
+    for tag in tags:
+        session.add(tag)
+
+    skymap = payload.get('skymap', None)
+    if skymap is None:
+        session.commit()
+        return event.id
+
+    if type(skymap) is dict:
+        required_keys = {'ra', 'dec', 'error'}
+        if not required_keys.issubset(set(skymap.keys())):
+            raise ValueError("ra, dec, and error must be in skymap to parse")
+        skymap = from_cone(skymap['ra'], skymap['dec'], skymap['error'])
+    else:
+        skymap = from_url(skymap)
 
     skymap["dateobs"] = event.dateobs
     skymap["sent_by_id"] = user.id
@@ -159,16 +245,26 @@ class GcnEventHandler(BaseHandler):
         """
         data = self.get_json()
         if 'xml' not in data:
-            return self.error("xml must be present in data to parse GcnEvent")
+            required_keys = {'dateobs'}
+            if not required_keys.issubset(set(data.keys())):
+                return self.error(
+                    "Either xml or dateobs must be present in data to parse GcnEvent"
+                )
 
-        payload = data['xml']
         with DBSession() as session:
-            event_id = post_gcnevent(payload, self.associated_user_object.id, session)
+            if 'xml' in data:
+                event_id = post_gcnevent_from_xml(
+                    data['xml'], self.associated_user_object.id, session
+                )
+            else:
+                event_id = post_gcnevent_from_dictionary(
+                    data, self.associated_user_object.id, session
+                )
 
         return self.success(data={'gcnevent_id': event_id})
 
     @auth_or_token
-    def get(self, dateobs=None):
+    async def get(self, dateobs=None):
         """
         ---
         description: Retrieve GCN events
@@ -184,6 +280,19 @@ class GcnEventHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+
+        page_number = self.get_query_argument("pageNumber", 1)
+        try:
+            page_number = int(page_number)
+        except ValueError as e:
+            return self.error(f'pageNumber fails: {e}')
+
+        n_per_page = self.get_query_argument("numPerPage", 100)
+        try:
+            n_per_page = int(n_per_page)
+        except ValueError as e:
+            return self.error(f'numPerPage fails: {e}')
+
         if dateobs is not None:
             event = (
                 GcnEvent.query_records_accessible_by(
@@ -214,7 +323,7 @@ class GcnEventHandler(BaseHandler):
 
             data = {
                 **event.to_dict(),
-                "tags": event.tags,
+                "tags": list(set(event.tags)),
                 "lightcurve": event.lightcurve,
                 "comments": sorted(
                     (
@@ -255,7 +364,7 @@ class GcnEventHandler(BaseHandler):
             data['observationplan_requests'] = request_data
             return self.success(data=data)
 
-        q = GcnEvent.query_records_accessible_by(
+        query = GcnEvent.query_records_accessible_by(
             self.current_user,
             options=[
                 joinedload(GcnEvent.localizations),
@@ -264,11 +373,21 @@ class GcnEventHandler(BaseHandler):
             ],
         )
 
-        events = []
-        for event in q.all():
-            events.append({**event.to_dict(), "tags": event.tags})
+        total_matches = query.count()
+        if n_per_page is not None:
+            query = (
+                query.distinct()
+                .limit(n_per_page)
+                .offset((page_number - 1) * n_per_page)
+            )
 
-        return self.success(data=events)
+        events = []
+        for event in query.all():
+            events.append({**event.to_dict(), "tags": list(set(event.tags))})
+
+        query_results = {"events": events, "totalMatches": int(total_matches)}
+
+        return self.success(data=query_results)
 
     @auth_or_token
     def delete(self, dateobs):

@@ -66,6 +66,9 @@ const GcnSelectionForm = ({ gcnEvent, setSelectedLocalizationName }) => {
   const displayOptionsDefault = Object.fromEntries(
     displayOptions.map((x) => [x, false])
   );
+  const displayOptionsAvailable = Object.fromEntries(
+    displayOptions.map((x) => [x, true])
+  );
   const [selectedFields, setSelectedFields] = useState([]);
 
   const [selectedInstrumentId, setSelectedInstrumentId] = useState(null);
@@ -128,19 +131,6 @@ const GcnSelectionForm = ({ gcnEvent, setSelectedLocalizationName }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dispatch, setSelectedInstrumentId, setSelectedLocalizationId, gcnEvent]);
 
-  // need to check both of these conditions as selectedInstrumentId is
-  // initialized to be null and useEffect is not called on the first
-  // render to update it, so it can be null even if allocationList is not
-  // empty.
-  if (
-    gcnEventInstruments.length === 0 ||
-    !selectedInstrumentId ||
-    gcnEvent.localizations.length === 0 ||
-    !selectedLocalizationId
-  ) {
-    return <h3>Fetching skymap...</h3>;
-  }
-
   const handleOnChange = (position) => {
     const checkedDisplayStateCopy = JSON.parse(
       JSON.stringify(checkedDisplayState)
@@ -184,35 +174,45 @@ const GcnSelectionForm = ({ gcnEvent, setSelectedLocalizationName }) => {
     formData.endDate = formData.endDate
       .replace("+00:00", "")
       .replace(".000Z", "");
-    dispatch(sourcesActions.fetchGcnEventSources(gcnEvent.dateobs, formData));
+    await dispatch(
+      sourcesActions.fetchGcnEventSources(gcnEvent.dateobs, formData)
+    );
     formData.includeGeoJSON = true;
-    dispatch(
+    await dispatch(
       observationsActions.fetchGcnEventObservations(gcnEvent.dateobs, formData)
     );
-    dispatch(galaxiesActions.fetchGcnEventGalaxies(gcnEvent.dateobs, formData));
-    dispatch(
+    await dispatch(
+      galaxiesActions.fetchGcnEventGalaxies(gcnEvent.dateobs, formData)
+    );
+    await dispatch(
       instrumentsActions.fetchGcnEventInstruments(gcnEvent.dateobs, formData)
     );
     setFormDataState(formData);
     setIsSubmitting(false);
   };
 
-  if (telescopeList.length === 0) {
-    return <p>No robotic followup requests found...</p>;
-  }
-
-  if (
-    !gcnEvent ||
-    // !gcnEventSources ||
-    !gcnEventObservations ||
-    !gcnEventGalaxies ||
-    !gcnEventInstruments
-  ) {
+  if (!gcnEvent) {
     return <CircularProgress />;
   }
 
+  if (!gcnEventInstruments) {
+    displayOptionsAvailable.instruments = false;
+  }
+
+  if (!gcnEventSources) {
+    displayOptionsAvailable.sources = false;
+  }
+
+  if (!gcnEventObservations) {
+    displayOptionsAvailable.observations = false;
+  }
+
+  if (!gcnEventGalaxies) {
+    displayOptionsAvailable.galaxies = false;
+  }
+
   if (!gcnEvent.localizations || gcnEvent.localizations.length === 0) {
-    return <p>No skymaps available to display...</p>;
+    displayOptionsAvailable.localization = false;
   }
 
   const instLookUp = {};
@@ -320,7 +320,7 @@ const GcnSelectionForm = ({ gcnEvent, setSelectedLocalizationName }) => {
 
   return (
     <div>
-      {!(selectedLocalizationId in Object.entries(locLookUp)) ? (
+      {!Object.keys(locLookUp).includes(selectedLocalizationId?.toString()) ? (
         <div>
           <LocalizationPlot
             loc={gcnEvent.localizations[0]}
@@ -384,7 +384,7 @@ const GcnSelectionForm = ({ gcnEvent, setSelectedLocalizationName }) => {
               key={instrument.id}
               className={classes.instrumentSelectItem}
             >
-              {`${telLookUp[instrument.telescope_id].name} / ${
+              {`${telLookUp[instrument.telescope_id]?.name} / ${
                 instrument.name
               }`}
             </MenuItem>
@@ -398,6 +398,7 @@ const GcnSelectionForm = ({ gcnEvent, setSelectedLocalizationName }) => {
               control={<Checkbox onChange={() => handleOnChange(index)} />}
               label={option}
               key={option}
+              disabled={!displayOptionsAvailable[option]}
             />
           ))}
         </FormGroup>

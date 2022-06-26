@@ -28,7 +28,7 @@ from baselayer.app.models import (
 )
 from baselayer.log import make_log
 
-from .photometry import Photometry
+from .photometry import Photometry, PhotometricSeries
 from .spectrum import Spectrum
 from .candidate import Candidate
 from .thumbnail import Thumbnail
@@ -46,7 +46,7 @@ PS1_CUTOUT_TIMEOUT = 10
 def delete_obj_if_all_data_owned(cls, user_or_token):
     from .source import Source
 
-    allow_nonadmins = cfg["misc.allow_nonadmins_delete_objs"] or False
+    allow_nonadmins = cfg["misc.allow_nonadmins_delete_objs"]
 
     deletable_photometry = Photometry.query_records_accessible_by(
         user_or_token, mode="delete"
@@ -61,6 +61,22 @@ def delete_obj_if_all_data_owned(cls, user_or_token):
         )
         .filter(deletable_photometry.c.id.is_(None))
         .distinct(Photometry.obj_id)
+        .subquery()
+    )
+
+    deletable_photometric_series = PhotometricSeries.query_records_accessible_by(
+        user_or_token, mode="delete"
+    ).subquery()
+    nondeletable_photometric_series = (
+        DBSession()
+        .query(PhotometricSeries.obj_id)
+        .join(
+            deletable_photometric_series,
+            deletable_photometric_series.c.id == PhotometricSeries.id,
+            isouter=True,
+        )
+        .filter(deletable_photometric_series.c.id.is_(None))
+        .distinct(PhotometricSeries.obj_id)
         .subquery()
     )
 
@@ -122,6 +138,12 @@ def delete_obj_if_all_data_owned(cls, user_or_token):
         )
         .filter(nondeletable_photometry.c.obj_id.is_(None))
         .join(
+            nondeletable_photometric_series,
+            nondeletable_photometric_series.c.obj_id == cls.id,
+            isouter=True,
+        )
+        .filter(nondeletable_photometric_series.c.obj_id.is_(None))
+        .join(
             nondeletable_spectra,
             nondeletable_spectra.c.obj_id == cls.id,
             isouter=True,
@@ -151,7 +173,7 @@ class Obj(Base, conesearch_alchemy.Point):
     delete = restricted | CustomUserAccessControl(delete_obj_if_all_data_owned)
 
     id = sa.Column(sa.String, primary_key=True, doc="Name of the object.")
-    # TODO should this column type be decimal? fixed-precison numeric
+    # TODO should this column type be decimal? fixed-precision numeric
 
     ra_dis = sa.Column(sa.Float, doc="J2000 Right Ascension at discovery time [deg].")
     dec_dis = sa.Column(sa.Float, doc="J2000 Declination at discovery time [deg].")
@@ -292,10 +314,29 @@ class Obj(Base, conesearch_alchemy.Point):
         doc="Photometry of the object.",
     )
 
+    photstats = relationship(
+        'PhotStat',
+        back_populates='obj',
+        cascade='save-update, merge, refresh-expire, expunge, delete',
+        single_parent=True,
+        passive_deletes=True,
+        doc="Photometry statistics associated with the object.",
+    )
+
     detect_photometry_count = sa.Column(
         sa.Integer,
         nullable=True,
         doc="How many times the object was detected above :math:`S/N = phot_detection_threshold (3.0 by default)`.",
+    )
+
+    photometric_series = relationship(
+        'PhotometricSeries',
+        back_populates='obj',
+        cascade='save-update, merge, refresh-expire, expunge, delete',
+        single_parent=True,
+        passive_deletes=True,
+        order_by="PhotometricSeries.mjd_first",
+        doc="Photometric series associated with the object.",
     )
 
     spectra = relationship(
@@ -338,6 +379,14 @@ class Obj(Base, conesearch_alchemy.Point):
         doc="Notifications regarding the object sent out by users",
     )
 
+    obj_analyses = relationship(
+        'ObjAnalysis',
+        back_populates='obj',
+        cascade='save-update, merge, refresh-expire, expunge',
+        passive_deletes=True,
+        doc="Analyses assocated with this obj.",
+    )
+
     @hybrid_method
     def last_detected_at(self, user):
         """UTC ISO date at which the object was last detected above a given S/N (3.0 by default)."""
@@ -348,6 +397,14 @@ class Obj(Base, conesearch_alchemy.Point):
             .all()
             if phot.snr is not None and phot.snr > PHOT_DETECTION_THRESHOLD
         ]
+        series_detections = [
+            phot.iso_last_detected
+            for phot in PhotometricSeries.query_records_accessible_by(user)
+            .filter(PhotometricSeries.obj_id == self.id)
+            .all()
+            if phot.detected
+        ]
+        detections += series_detections
         return max(detections) if detections else None
 
     @last_detected_at.expression

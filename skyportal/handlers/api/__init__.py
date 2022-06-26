@@ -1,6 +1,9 @@
 from .acls import ACLHandler, UserACLHandler
-from .allocation import AllocationHandler
-from .analysis import AnalysisServiceHandler
+from .allocation import AllocationHandler, AllocationReportHandler
+from .analysis import (
+    AnalysisServiceHandler,
+    AnalysisHandler,
+)
 from .candidate import CandidateHandler
 from .classification import ClassificationHandler, ObjClassificationHandler
 from .comment import CommentHandler, CommentAttachmentHandler
@@ -21,7 +24,7 @@ from .followup_request import (
     AssignmentHandler,
 )
 from .facility_listener import FacilityMessageHandler
-from .galaxy import GalaxyCatalogHandler
+from .galaxy import GalaxyCatalogHandler, GalaxyASCIIFileHandler
 from .gcn import (
     GcnEventHandler,
     LocalizationHandler,
@@ -69,6 +72,7 @@ from .photometry import (
     PhotometryRangeHandler,
     PhotometryOriginHandler,
 )
+from .phot_stat import PhotStatHandler, PhotStatUpdateHandler
 from .color_mag import ObjColorMagHandler
 from .photometry_request import PhotometryRequestHandler
 from .public_group import PublicGroupHandler
