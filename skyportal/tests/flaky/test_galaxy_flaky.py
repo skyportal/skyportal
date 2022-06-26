@@ -68,7 +68,7 @@ def test_galaxy(super_admin_token, view_only_token):
 
     nretries = 0
     galaxies_loaded = False
-    while nretries < 10:
+    while nretries < 41:
         status, data = api(
             'GET', 'galaxy_catalog', token=view_only_token, params=params
         )
@@ -84,9 +84,9 @@ def test_galaxy(super_admin_token, view_only_token):
             galaxies_loaded = True
             break
         nretries = nretries + 1
-        time.sleep(5)
+        time.sleep(2)
 
-    assert nretries < 10
+    assert nretries < 40
     assert galaxies_loaded
 
     params = {
