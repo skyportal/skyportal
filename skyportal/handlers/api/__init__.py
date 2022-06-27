@@ -112,3 +112,4 @@ from .user import (
 )
 from .unsourced_finder import UnsourcedFinderHandler
 from .weather import WeatherHandler
+from .webhook import AnalysisWebhookHandler

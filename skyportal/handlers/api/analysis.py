@@ -1,5 +1,5 @@
 import json
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urljoin
 import datetime
 import functools
 
@@ -527,9 +527,18 @@ class AnalysisServiceHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        analysis_service = AnalysisService.get_if_accessible_by(
-            analysis_service_id, self.current_user, mode="delete", raise_if_none=True
-        )
+        try:
+            analysis_service = AnalysisService.get_if_accessible_by(
+                analysis_service_id,
+                self.current_user,
+                mode="delete",
+                raise_if_none=True,
+            )
+        except AccessError:
+            return self.error('Cannot delete this Analysis Service.', status=403)
+        except Exception as e:
+            return self.error(f'Error deleting Analysis Service: {e}')
+
         DBSession().delete(analysis_service)
         self.verify_and_commit()
 
@@ -632,8 +641,8 @@ class AnalysisHandler(BaseHandler):
             schema:
               type: string
             description: |
-               What underlying data the annotation is on:
-               must be one of either "obj" (more to be added in the future)
+               What underlying data the analysis is on:
+               must be "obj" (more to be added in the future)
           - in: path
             name: resource_id
             required: true
@@ -692,7 +701,11 @@ class AnalysisHandler(BaseHandler):
                               type: integer
                               description: New analysis ID
         """
-        data = self.get_json()
+        try:
+            data = self.get_json()
+        except Exception as e:
+            return self.error(f'Error parsing JSON: {e}')
+
         try:
             analysis_service = AnalysisService.get_if_accessible_by(
                 analysis_service_id, self.current_user, mode="read", raise_if_none=True
@@ -788,7 +801,7 @@ class AnalysisHandler(BaseHandler):
                 show_corner=data.get('show_corner', False),
                 analysis_parameters=analysis_parameters,
                 status='queued',
-                handled_by_url="/api/webhook/obj_analysis",
+                handled_by_url="api/webhook/obj_analysis",
                 invalid_after=invalid_after,
             )
         # Add more analysis_resource_types here one day (eg. GCN)
@@ -808,10 +821,13 @@ class AnalysisHandler(BaseHandler):
 
         # Now call the analysis service to start the analysis, using the `input` data
         # that we assembled above.
+        callback_url = urljoin(
+            get_app_base_url(), f"{analysis.handled_by_url}/{analysis.token}"
+        )
         external_analysis_service = functools.partial(
             call_external_analysis_service,
             analysis_service.url,
-            f'{get_app_base_url()}/{analysis.handled_by_url}/{analysis.token}',
+            callback_url,
             inputs=inputs,
             authentication_type=analysis_service.authentication_type,
             authinfo=analysis_service.authinfo,
@@ -841,6 +857,9 @@ class AnalysisHandler(BaseHandler):
                 try:
                     session = DBSession()
                     analysis = session.query(ObjAnalysis).get(analysis_id)
+                    if analysis is None:
+                        logger.error(f'Analysis {analysis_id} not found')
+                        return
                 except Exception as e:
                     log(f'Could not access Analysis {analysis_id} {e}.')
                     return
@@ -884,13 +903,31 @@ class AnalysisHandler(BaseHandler):
               schema:
                 type: string
               description: |
-                What underlying data the annotation is on:
+                What underlying data the analysis is on:
                 must be one of either "obj" (more to be added in the future)
             - in: path
               name: analysis_id
               required: true
               schema:
                 type: integer
+            - in: query
+              name: includeAnalysisData
+              nullable: true
+              schema:
+                type: boolean
+              description: |
+                Boolean indicating whether to include the data associated
+                with the analysis in the response. Could be a large
+                amount of data. Only works for single analysis requests.
+                Defaults to false.
+            - in: query
+              name: includeFilename
+              nullable: true
+              schema:
+                type: boolean
+              description: |
+                Boolean indicating whether to include the filename of the
+                data associated with the analysis in the response. Defaults to false.
           responses:
             200:
               content:
@@ -914,6 +951,17 @@ class AnalysisHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
+        include_analysis_data = self.get_query_argument(
+            "includeAnalysisData", False
+        ) in ["True", "t", "true", "1", True, 1]
+        include_filename = self.get_query_argument("includeFilename", False) in [
+            "True",
+            "t",
+            "true",
+            "1",
+            True,
+            1,
+        ]
         if analysis_resource_type.lower() == 'obj':
             if analysis_id is not None:
                 try:
@@ -924,10 +972,15 @@ class AnalysisHandler(BaseHandler):
                     return self.error('Cannot access this Analysis.', status=403)
 
                 analysis_dict = recursive_to_dict(s)
+                if include_filename:
+                    analysis_dict["filename"] = s._full_name
                 analysis_dict["groups"] = s.groups
+                if include_analysis_data:
+                    analysis_dict["data"] = s.data
+
                 return self.success(data=analysis_dict)
 
-            # retrieve multiple services
+            # retrieve multiple analyses
             analyses = ObjAnalysis.get_records_accessible_by(self.current_user)
             self.verify_and_commit()
 
@@ -935,6 +988,8 @@ class AnalysisHandler(BaseHandler):
             for a in analyses:
                 analysis_dict = recursive_to_dict(a)
                 analysis_dict["groups"] = a.groups
+                if include_filename:
+                    analysis_dict["filename"] = a._full_name
                 ret_array.append(analysis_dict)
         else:
             return self.error(
@@ -964,11 +1019,15 @@ class AnalysisHandler(BaseHandler):
                 schema: Success
         """
         if analysis_resource_type.lower() == 'obj':
-            analysis = ObjAnalysis.get_if_accessible_by(
-                analysis_id, self.current_user, mode="delete", raise_if_none=True
-            )
-            DBSession().delete(analysis)
-            self.verify_and_commit()
+            try:
+                analysis = ObjAnalysis.get_if_accessible_by(
+                    analysis_id, self.current_user, mode="delete", raise_if_none=True
+                )
+                # analysis.delete_data()
+                DBSession().delete(analysis)
+                self.verify_and_commit()
+            except AccessError:
+                return self.error('Cannot access this Analysis.', status=403)
 
             return self.success()
         else:

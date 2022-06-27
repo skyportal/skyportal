@@ -1,13 +1,20 @@
 import os
 import functools
 import tempfile
-import io
+import base64
+import traceback
+import json
 
+import joblib
 import numpy as np
 import matplotlib
 import arviz as az
-from quart import Quart
-from quart import request
+import requests
+
+from tornado.ioloop import IOLoop
+import tornado.web
+import tornado.escape
+
 from astropy.table import Table
 import sncosmo
 
@@ -22,39 +29,47 @@ log = make_log('sn_analysis_service')
 matplotlib.use('Agg')
 rng = np.random.default_rng()
 
-app = Quart(__name__)
-app.debug = False
-
 default_analysis_parameters = {"source": "nugent-sn2p", "fix_z": False}
 
 
-def upload_analysis_results(results, data_dict):
+def upload_analysis_results(results, data_dict, request_timeout=60):
     """
     Upload the results to the webhook.
-
-    TO BE COMPLETED
     """
-    log("upload results to webhook")
-    assert isinstance(results, dict)
-    assert isinstance(data_dict, dict)
-    pass
+
+    log("Uploading results to webhook")
+    if data_dict["callback_method"] != "POST":
+        log("Callback URL is not a POST URL. Skipping.")
+        return
+    url = data_dict["callback_url"]
+    try:
+        _ = requests.post(
+            url,
+            json=results,
+            timeout=request_timeout,
+        )
+    except requests.exceptions.Timeout:
+        # If we timeout here then it's precisely because
+        # we cannot write back to the SkyPortal instance.
+        # So returning something doesn't make sense in this case.
+        # Just log it and move on...
+        log("Callback URL timedout. Skipping.")
+    except Exception as e:
+        log(f"Callback exception {e}.")
 
 
-async def run_sn_model(dd):
+def run_sn_model(data_dict):
     """
     Use `sncosmo` to fit data to a model with name `source_name`.
 
-    We expect the `inputs` dictionary to have the following keys:
+    For this analysis, we expect the `inputs` dictionary to have the following keys:
        - source: the name of the model to fit to the data
        - fix_z: whether to fix the redshift
        - photometry: the photometry to fit to the model (in csv format)
        - redshift: the known redshift of the object
 
-    TODO in the next PR: send the results back to the webhook
-
+    Other analysis services may require additional keys in the `inputs` dictionary.
     """
-    data_dict = await dd
-
     analysis_parameters = data_dict["inputs"].get("analysis_parameters", {})
     analysis_parameters = {**default_analysis_parameters, **analysis_parameters}
 
@@ -71,7 +86,7 @@ async def run_sn_model(dd):
     # the following code transforms these inputs from SkyPortal
     # to the format expected by sncosmo.
     #
-    results = {"status": "success", "message": "", "data": {}}
+    rez = {"status": "failure", "message": "", "analysis": {}}
     try:
         data = Table.read(data_dict["inputs"]["photometry"], format='ascii.csv')
         data.rename_column('mjd', 'time')
@@ -85,13 +100,18 @@ async def run_sn_model(dd):
         redshift = Table.read(data_dict["inputs"]["redshift"], format='ascii.csv')
         z = redshift['redshift'][0]
     except Exception as e:
-        results.update(
+        rez.update(
             {
                 "status": "failure",
                 "message": f"input data is not in the expected format {e}",
             }
         )
-        upload_analysis_results(results, data_dict)
+        return rez
+
+    # we will need to write to temp files
+    # locally and then write their contents
+    # to the results dictionary for uploading
+    local_temp_files = []
 
     try:
         model = sncosmo.Model(source=source)
@@ -112,74 +132,157 @@ async def run_sn_model(dd):
             model.param_names,
             bounds=bounds,
         )
-        log(f"Number of χ² function calls: {result.ncall}")
-        log(f"Number of degrees of freedom in fit: {result.ndof}")
-        log(f"χ² value at minimum: {result.chisq}")
-        log(f"model parameters: {result.param_names}")
-        log(f"best-fit values: {result.parameters}")
-        log(f"The result contains the following attributes:\n {result.keys()}")
-        log(f'{result["success"]=}')
 
-        if result["success"]:
-
-            with tempfile.NamedTemporaryFile(
-                suffix=".png", prefix="snplot_", dir="/tmp/"
-            ) as f:
-                _ = sncosmo.plot_lc(
-                    data,
-                    model=fitted_model,
-                    errors=result.errors,
-                    model_label=source,
-                    zp=23.9,
-                    figtext=data_dict["resource_id"],
-                    fname=f.name,
-                )
-                f.seek(0)
-                plot_data = io.BytesIO(f.read())
-                f.close()
-                os.remove(f.name)
-                log('made lightcurve plot')
+        if result.success:
+            f = tempfile.NamedTemporaryFile(
+                suffix=".png", prefix="snplot_", delete=False
+            )
+            f.close()
+            _ = sncosmo.plot_lc(
+                data,
+                model=fitted_model,
+                errors=result.errors,
+                model_label=source,
+                figtext=data_dict["resource_id"],
+                fname=f.name,
+            )
+            plot_data = base64.b64encode(open(f.name, "rb").read())
+            local_temp_files.append(f.name)
 
             # make some draws from the posterior (simulating what we'd expect
             # with an MCMC analysis)
             post = rng.multivariate_normal(result.parameters, result.covariance, 10000)
             post = post[np.newaxis, :]
             # create an inference dataset
-            dataset = az.convert_to_inference_data(
+            inference = az.convert_to_inference_data(
                 {x: post[:, :, i] for i, x in enumerate(result.param_names)}
             )
-            results.update({"data": {"posterior": dataset, "plot": plot_data}})
+            f = tempfile.NamedTemporaryFile(
+                suffix=".nc", prefix="inferencedata_", delete=False
+            )
+            f.close()
+            inference.to_netcdf(f.name)
+            inference_data = base64.b64encode(open(f.name, 'rb').read())
+            local_temp_files.append(f.name)
+
+            result.update({"source": source, "fix_z": fix_z})
+
+            f = tempfile.NamedTemporaryFile(
+                suffix=".joblib", prefix="results_", delete=False
+            )
+            f.close()
+            joblib.dump(result, f.name, compress=3)
+            result_data = base64.b64encode(open(f.name, "rb").read())
+            local_temp_files.append(f.name)
+
+            analysis_results = {
+                "inference_data": {"format": "netcdf4", "data": inference_data},
+                "plots": [{"format": "png", "data": plot_data}],
+                "results": {"format": "joblib", "data": result_data},
+            }
+            rez.update(
+                {
+                    "analysis": analysis_results,
+                    "status": "success",
+                    "message": f"Good results with chi^2/dof={result.chisq/result.ndof}",
+                }
+            )
         else:
-            results.update({"status": "failure", "message": "model failed to converge"})
+            log("Fit failed.")
+            rez.update({"status": "failure", "message": "model failed to converge"})
 
     except Exception as e:
-        results.update(
-            {"status": "failure", "message": f"problem running the model {e}"}
+        log(f"Exception while running the model: {e}")
+        log(f"{traceback.format_exc()}")
+        log(f"Data: {data}")
+        rez.update({"status": "failure", "message": f"problem running the model {e}"})
+    finally:
+        # clean up local files
+        for f in local_temp_files:
+            try:
+                os.remove(f)
+            except:  # noqa E722
+                pass
+    return rez
+
+
+class MainHandler(tornado.web.RequestHandler):
+    def set_default_headers(self):
+        self.set_header('Content-Type', 'application/json')
+
+    def error(self, code, message):
+        self.set_status(code)
+        self.write({'message': message})
+
+    def get(self):
+        self.write({'status': 'active'})
+
+    def post(self):
+        """
+        Analysis endpoint which sends the `data_dict` off for
+        processing, returning immediately. The idea here is that
+        the analysis model may take awhile to run so we
+        need async behavior.
+        """
+        try:
+            data_dict = tornado.escape.json_decode(self.request.body)
+        except json.decoder.JSONDecodeError:
+            err = traceback.format_exc()
+            log(f"JSON decode error: {err}")
+            return self.error(400, "Invalid JSON")
+
+        required_keys = ["inputs", "callback_url", "callback_method"]
+        for key in required_keys:
+            if key not in data_dict:
+                log(f"missing required key {key} in data_dict")
+                return self.error(400, f"missing required key {key} in data_dict")
+
+        def sn_analysis_done_callback(
+            future,
+            logger=log,
+            data_dict=data_dict,
+        ):
+            """
+            Callback function for when the sn analysis service is done.
+            Sends back results/errors via the callback_url.
+
+            This is run synchronously after the future completes
+            so there is no need to await for `future`.
+            """
+            try:
+                result = future.result()
+            except Exception as e:
+                # catch all the exceptions and log them,
+                # try to write back to SkyPortal something
+                # informative.
+                logger(f"{str(future.exception())[:1024]} {e}")
+                result = {
+                    "status": "failure",
+                    "message": f"{str(future.exception())[:1024]}{e}",
+                }
+            finally:
+                upload_analysis_results(result, data_dict)
+
+        runner = functools.partial(run_sn_model, data_dict)
+        future_result = IOLoop.current().run_in_executor(None, runner)
+        future_result.add_done_callback(sn_analysis_done_callback)
+
+        return self.write(
+            {'status': 'pending', 'message': 'sn_analysis_service: analysis started'}
         )
 
-    # TODO in the next PR #3:
-    # return the dataset and the plot data
-    # by calling the webhook
-    upload_analysis_results(results, data_dict)
 
-
-@app.route('/analysis/demo_analysis', methods=['POST'])
-async def demo_analysis():
-    """
-    Analysis endpoint which sends the `data_dict` off for
-    processing, returning immediately. The idea here is that
-    the analysis model may take awhile to run so we
-    need async behavior.
-    """
-    log(f'{request.method} {request.url}')
-    data_dict = request.get_json(silent=True)
-
-    runner = functools.partial(run_sn_model, data_dict)
-
-    app.add_background_task(runner)
-
-    return "sn_analysis_service: analysis started"
+def make_app():
+    return tornado.web.Application(
+        [
+            (r"/analysis/demo_analysis", MainHandler),
+        ]
+    )
 
 
 if __name__ == "__main__":
-    app.run(port=cfg['analysis_services.sn_analysis_service.port'])
+    sn_analysis = make_app()
+    port = cfg['analysis_services.sn_analysis_service.port']
+    sn_analysis.listen(port)
+    log(f'Listening on port {port}')
+    tornado.ioloop.IOLoop.current().start()
