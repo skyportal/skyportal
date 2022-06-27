@@ -8,6 +8,8 @@ import { showNotification } from "baselayer/components/Notifications";
 import FormGroup from "@mui/material/FormGroup";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Switch from "@mui/material/Switch";
+import Tooltip from "@mui/material/Tooltip";
+import HelpOutlineOutlinedIcon from "@mui/icons-material/HelpOutlineOutlined";
 
 import UserPreferencesHeader from "./UserPreferencesHeader";
 import ClassificationSelect from "./ClassificationSelect";
@@ -22,21 +24,27 @@ const useStyles = makeStyles((theme) => ({
   pref: {
     display: "flex",
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-    width: "40vw",
     marginBottom: theme.spacing(2),
   },
   form: {
     display: "flex",
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-    width: "30vw",
   },
   button: {
     height: "3rem",
     marginRight: theme.spacing(1),
+  },
+  form_group: {
+    display: "flex",
+    flexDirection: "row",
+    justifyContent: "left",
+    alignItems: "center",
+    marginRight: theme.spacing(2),
+  },
+  tooltip: {
+    fontSize: "1rem",
   },
 }));
 
@@ -126,7 +134,7 @@ const NotificationPreferences = () => {
         popupText="Enable these to receive notifications on: all sources, favorite sources, gcn events, facility transactions. For each of them, click on the bell to configure the notification settings: email, sms and/or slack"
       />
       <div className={classes.pref}>
-        <FormGroup row>
+        <FormGroup row className={classes.form_group}>
           <FormControlLabel
             control={
               <Switch
@@ -137,6 +145,12 @@ const NotificationPreferences = () => {
             }
             label="Sources"
           />
+          <Tooltip
+            title="This allows you to be notified for all sources, based on a certain criterias. For now, you can select classification(s) to be notified for when added to any source."
+            classes={{ tooltip: classes.tooltip }}
+          >
+            <HelpOutlineOutlinedIcon />
+          </Tooltip>
         </FormGroup>
         {profile?.notifications?.sources?.active === true && (
           <>
@@ -161,7 +175,7 @@ const NotificationPreferences = () => {
         )}
       </div>
       <div className={classes.pref}>
-        <FormGroup row>
+        <FormGroup row className={classes.form_group}>
           <FormControlLabel
             control={
               <Switch
@@ -172,6 +186,12 @@ const NotificationPreferences = () => {
             }
             label="GCN Events"
           />
+          <Tooltip
+            title="This allows you to be notified for gcn events. You can select the specific notice types you want to be notified for."
+            classes={{ tooltip: classes.tooltip }}
+          >
+            <HelpOutlineOutlinedIcon />
+          </Tooltip>
         </FormGroup>
         {profile?.notifications?.gcn_events?.active === true && (
           <>
@@ -196,7 +216,7 @@ const NotificationPreferences = () => {
         )}
       </div>
       <div className={classes.pref}>
-        <FormGroup row>
+        <FormGroup row className={classes.form_group}>
           <FormControlLabel
             control={
               <Switch
@@ -209,13 +229,19 @@ const NotificationPreferences = () => {
             }
             label="Facility Transactions"
           />
+          <Tooltip
+            title="This allows you to be notified for all facility transactions."
+            classes={{ tooltip: classes.tooltip }}
+          >
+            <HelpOutlineOutlinedIcon />
+          </Tooltip>
         </FormGroup>
         {profile?.notifications?.facility_transactions?.active === true && (
           <NotificationSettingsSelect notificationResourceType="facility_transactions" />
         )}
       </div>
       <div className={classes.pref}>
-        <FormGroup row>
+        <FormGroup row className={classes.form_group}>
           <FormControlLabel
             control={
               <Switch
@@ -228,58 +254,64 @@ const NotificationPreferences = () => {
             }
             label="Favorite Sources"
           />
+          <Tooltip
+            title="This allows you to be notified for certain actions on your favorite sources. For now, you can select new comments, new classifications and new spectra."
+            classes={{ tooltip: classes.tooltip }}
+          >
+            <HelpOutlineOutlinedIcon />
+          </Tooltip>
         </FormGroup>
         {profile?.notifications?.favorite_sources?.active === true && (
-          <>
-            <div className={classes.pref}>
-              <FormGroup row>
-                <FormControlLabel
-                  control={
-                    <Switch
-                      checked={
-                        profile?.notifications?.favorite_sources
-                          ?.new_comments === true
-                      }
-                      name="favorite_sources_new_comments"
-                      onChange={prefToggled}
-                    />
-                  }
-                  label="New Comments"
-                />
-                <FormControlLabel
-                  control={
-                    <Switch
-                      checked={
-                        profile?.notifications?.favorite_sources
-                          ?.new_spectra === true
-                      }
-                      name="favorite_sources_new_spectra"
-                      onChange={prefToggled}
-                    />
-                  }
-                  label="New Spectra"
-                />
-                <FormControlLabel
-                  control={
-                    <Switch
-                      checked={
-                        profile?.notifications?.favorite_sources
-                          ?.new_classifications === true
-                      }
-                      name="favorite_sources_new_classifications"
-                      onChange={prefToggled}
-                    />
-                  }
-                  label="New Classifications"
-                />
-              </FormGroup>
-            </div>
-            <NotificationSettingsSelect notificationResourceType="favorite_sources" />
-          </>
+          <div className={classes.form}>
+            <FormGroup row className={classes.form_group}>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={
+                      profile?.notifications?.favorite_sources?.new_comments ===
+                      true
+                    }
+                    name="favorite_sources_new_comments"
+                    onChange={prefToggled}
+                  />
+                }
+                label="New Comments"
+              />
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={
+                      profile?.notifications?.favorite_sources?.new_spectra ===
+                      true
+                    }
+                    name="favorite_sources_new_spectra"
+                    onChange={prefToggled}
+                  />
+                }
+                label="New Spectra"
+              />
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={
+                      profile?.notifications?.favorite_sources
+                        ?.new_classifications === true
+                    }
+                    name="favorite_sources_new_classifications"
+                    onChange={prefToggled}
+                  />
+                }
+                label="New Classifications"
+              />
+            </FormGroup>
+          </div>
+        )}
+        {profile?.notifications?.favorite_sources?.active === true && (
+          <NotificationSettingsSelect notificationResourceType="favorite_sources" />
         )}
       </div>
       <div className={classes.pref}>
-        <FormGroup row>
+        <FormGroup row className={classes.form_group}>
           <FormControlLabel
             control={
               <Switch
@@ -290,6 +322,12 @@ const NotificationPreferences = () => {
             }
             label="@ Mentions"
           />
+          <Tooltip
+            title="On SkyPortal, you will be notified by default when a user mentions you. If you activate this, it will simply allow you to be also notified by email, sms and slack depending on what you select in the settings."
+            classes={{ tooltip: classes.tooltip }}
+          >
+            <HelpOutlineOutlinedIcon />
+          </Tooltip>
         </FormGroup>
         {profile?.notifications?.mention?.active === true && (
           <NotificationSettingsSelect notificationResourceType="mention" />

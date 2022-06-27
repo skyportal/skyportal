@@ -11,8 +11,10 @@ import MuiDialogTitle from "@mui/material/DialogTitle";
 import IconButton from "@mui/material/IconButton";
 import Close from "@mui/icons-material/Close";
 import Typography from "@mui/material/Typography";
+import Tooltip from "@mui/material/Tooltip";
 import grey from "@mui/material/colors/grey";
-import NotificationsActiveOutlined from "@mui/icons-material/NotificationsActiveOutlined";
+import EditNotificationsIcon from "@mui/icons-material/EditNotifications";
+import HelpOutlineOutlinedIcon from "@mui/icons-material/HelpOutlineOutlined";
 import { Box, Slider, Checkbox, Button } from "@mui/material";
 import * as profileActions from "../ducks/profile";
 
@@ -39,8 +41,17 @@ const useStyles = makeStyles((theme) => ({
     width: "60rem",
     height: "4rem",
   },
+  form_group: {
+    display: "flex",
+    flexDirection: "row",
+    justifyContent: "left",
+    alignItems: "center",
+  },
   button: {
     height: "3rem",
+  },
+  tooltip: {
+    fontSize: "1rem",
   },
 }));
 
@@ -209,16 +220,21 @@ const NotificationSettingsSelect = ({ notificationResourceType }) => {
 
   return (
     <div>
-      <Button
-        variant="contained"
-        name={`notification_settings_button_${notificationResourceType}`}
-        className={classes.button}
-        onClick={() => {
-          setOpen(true);
-        }}
+      <Tooltip
+        title="Click here to open the notification settings. There, you can choose if you want to be also notified by email, sms and/or slack for the selected notification type."
+        classes={{ tooltip: classes.tooltip }}
       >
-        <NotificationsActiveOutlined />
-      </Button>
+        <Button
+          variant="contained"
+          name={`notification_settings_button_${notificationResourceType}`}
+          className={classes.button}
+          onClick={() => {
+            setOpen(true);
+          }}
+        >
+          <EditNotificationsIcon />
+        </Button>
+      </Tooltip>
       {open && (
         <Dialog
           open={open}
@@ -226,11 +242,11 @@ const NotificationSettingsSelect = ({ notificationResourceType }) => {
           style={{ position: "fixed" }}
           maxWidth="md"
         >
-          <DialogTitle onClose={handleClose}>Notification Type</DialogTitle>
+          <DialogTitle onClose={handleClose}>Notification Settings</DialogTitle>
           <DialogContent dividers>
             <div className={classes.dialogContent}>
               <div className={classes.pref}>
-                <FormGroup row>
+                <FormGroup row className={classes.form_group}>
                   <FormControlLabel
                     control={
                       <Switch
@@ -241,10 +257,16 @@ const NotificationSettingsSelect = ({ notificationResourceType }) => {
                     }
                     label="By Email"
                   />
+                  <Tooltip
+                    title="Click here to receive notifications by email about the selected notification type. You also need to set your email address in your user profile."
+                    classes={{ tooltip: classes.tooltip }}
+                  >
+                    <HelpOutlineOutlinedIcon />
+                  </Tooltip>
                 </FormGroup>
               </div>
               <div className={classes.pref}>
-                <FormGroup row>
+                <FormGroup row className={classes.form_group}>
                   <FormControlLabel
                     control={
                       <Switch
@@ -255,10 +277,16 @@ const NotificationSettingsSelect = ({ notificationResourceType }) => {
                     }
                     label="Message on Slack"
                   />
+                  <Tooltip
+                    title="Click here to receive notifications on Slack about the selected notification type. You also need to active the Slack integration and set the slack url in your user profile."
+                    classes={{ tooltip: classes.tooltip }}
+                  >
+                    <HelpOutlineOutlinedIcon />
+                  </Tooltip>
                 </FormGroup>
               </div>
               <div className={classes.pref}>
-                <FormGroup row>
+                <FormGroup row className={classes.form_group}>
                   <FormControlLabel
                     control={
                       <Switch
@@ -269,12 +297,18 @@ const NotificationSettingsSelect = ({ notificationResourceType }) => {
                     }
                     label=" By SMS"
                   />
+                  <Tooltip
+                    title="Click here to receive notifications by sms about the selected notification type. You also need to set your phone number in your user profile. 2 options will appear, please select at least one."
+                    classes={{ tooltip: classes.tooltip }}
+                  >
+                    <HelpOutlineOutlinedIcon />
+                  </Tooltip>
                 </FormGroup>
               </div>
               {profile?.notifications?.[notificationResourceType]?.sms
                 ?.active && (
                 <div className={classes.options}>
-                  <FormGroup row>
+                  <FormGroup row className={classes.form_group}>
                     <FormControlLabel
                       control={
                         <Switch
@@ -285,8 +319,14 @@ const NotificationSettingsSelect = ({ notificationResourceType }) => {
                       }
                       label="On Shift"
                     />
+                    <Tooltip
+                      title="Click here to receive notifications by sms when you are on shift. You can also use the time slot option if you need to receive messages when you are not on shift."
+                      classes={{ tooltip: classes.tooltip }}
+                    >
+                      <HelpOutlineOutlinedIcon />
+                    </Tooltip>
                   </FormGroup>
-                  <FormGroup row>
+                  <FormGroup row className={classes.form_group}>
                     <FormControlLabel
                       control={
                         <Switch
@@ -297,6 +337,12 @@ const NotificationSettingsSelect = ({ notificationResourceType }) => {
                       }
                       label="Time Slot (UTC)"
                     />
+                    <Tooltip
+                      title="Click here to receive notifications by sms during a specific time slot. Outside of the time slot, you will not receive any messages on your phone."
+                      classes={{ tooltip: classes.tooltip }}
+                    >
+                      <HelpOutlineOutlinedIcon />
+                    </Tooltip>
                   </FormGroup>
                   {profile?.notifications?.[notificationResourceType]?.sms
                     ?.time_slot?.length > 0 && (
@@ -324,6 +370,12 @@ const NotificationSettingsSelect = ({ notificationResourceType }) => {
                         onChange={() => onChangeInverted()}
                         label="Invert"
                       />
+                      <Tooltip
+                        title="Select a start and end time on the slider. If you want to receive notifications outisde and not inside the time slot, check the Invert option."
+                        classes={{ tooltip: classes.tooltip }}
+                      >
+                        <HelpOutlineOutlinedIcon />
+                      </Tooltip>
                     </Box>
                   )}
                 </div>
