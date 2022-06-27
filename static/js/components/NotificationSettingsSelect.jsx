@@ -302,7 +302,7 @@ const NotificationSettingsSelect = ({ notificationResourceType }) => {
                     label=" By SMS"
                   />
                   <Tooltip
-                    title="Click here to receive notifications by SMS about the selected notification type. You also need to set your phone number in your user profile. 2 options will appear, please select at least one."
+                    title="Click here to receive notifications by SMS about the selected notification type. You also need to set your phone number in your user profile. Two options will appear, please select at least one."
                     placement="right"
                     classes={{ tooltip: classes.tooltip }}
                   >
@@ -325,7 +325,7 @@ const NotificationSettingsSelect = ({ notificationResourceType }) => {
                       label="On Shift"
                     />
                     <Tooltip
-                      title="Click here to receive notifications by SMS when you are on shift. You can also use the time slot option if you need to receive messages when you are not on shift."
+                      title="Click here to receive notifications by SMS when you are on shift. This is in addition to the time slot option. "
                       placement="right"
                       classes={{ tooltip: classes.tooltip }}
                     >
@@ -344,7 +344,7 @@ const NotificationSettingsSelect = ({ notificationResourceType }) => {
                       label="Time Slot (UTC)"
                     />
                     <Tooltip
-                      title="Click here to receive notifications by SMS during a specific time slot. Outside of the time slot, you will not receive any messages on your phone."
+                      title="Click here to receive notifications by SMS during a specific time slot. Outside of the time slot, you will not receive any messages on your phone. This is in addition to notifications during shifts, if configured."
                       placement="right"
                       classes={{ tooltip: classes.tooltip }}
                     >
