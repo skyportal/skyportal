@@ -233,7 +233,7 @@ const NotificationPreferences = () => {
             label="Facility Transactions"
           />
           <Tooltip
-            title="This allows you to be notified for all facility transactions."
+            title="This allows you to be notified for all facility transactions (followup requests, observation plans)."
             placement="right"
             classes={{ tooltip: classes.tooltip }}
           >
