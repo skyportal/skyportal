@@ -63,7 +63,7 @@ const SlackPreferences = () => {
         title="Slack Integration"
         popupText="You'll need to ask your site administrator to give you a unique
           URL that posts to your Slack channel. Activating the Slack integration
-          will allow you to post notifications for which you selected to be notified on Slack."
+          will allow you to get notifications on Slack, depending on your specific notification preferences."
       />
       <FormGroup row>
         <FormControlLabel

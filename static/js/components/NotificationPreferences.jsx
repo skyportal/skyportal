@@ -147,7 +147,7 @@ const NotificationPreferences = () => {
             label="Sources"
           />
           <Tooltip
-            title="This allows you to be notified for all sources, based on a certain criterias. For now, you can select classification(s) to be notified for, when added to any source."
+            title="This allows you to be notified for all sources, based on a certain criteria. For now, you can select classification(s) to be notified for, when added to any source."
             placement="right"
             classes={{ tooltip: classes.tooltip }}
           >
@@ -189,7 +189,7 @@ const NotificationPreferences = () => {
             label="GCN Events"
           />
           <Tooltip
-            title="This allows you to be notified for gcn events. You can select the notice types you want to be notified for."
+            title="This allows you to be notified for GCN events. You can select the notice types you want to be notified for."
             placement="right"
             classes={{ tooltip: classes.tooltip }}
           >
@@ -259,7 +259,7 @@ const NotificationPreferences = () => {
             label="Favorite Sources"
           />
           <Tooltip
-            title="This allows you to be notified when certain actions are performed by users on your favorite sources. For now, you can select new comments, new classifications and new spectra."
+            title="This allows you to be notified when certain actions are performed by users on your favorite sources. You can select to be notified about new comments, new classifications and new spectra added to a favorite source."
             placement="right"
             classes={{ tooltip: classes.tooltip }}
           >
