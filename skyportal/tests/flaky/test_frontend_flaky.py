@@ -619,10 +619,10 @@ def test_observationplan_request(driver, user, super_admin_token, public_group):
     )
     assert status == 200
     assert data["status"] == "success"
-
+    catalog_name = str(uuid.uuid4())
     galaxy_name = str(uuid.uuid4())
     data = {
-        'catalog_name': 'some_galaxy',
+        'catalog_name': catalog_name,
         'catalog_data': {'name': [galaxy_name], 'ra': [228.5], 'dec': [35.5]},
     }
     status, data = api('POST', 'galaxy_catalog', data=data, token=super_admin_token)

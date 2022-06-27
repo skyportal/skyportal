@@ -5,6 +5,7 @@ import time
 from regions import Regions
 from astropy.table import Table
 import pytest
+import numpy as np
 
 from skyportal.tests import api
 
@@ -185,8 +186,14 @@ def test_observation_plan_tiling(
 def test_observation_plan_galaxy(
     user, super_admin_token, upload_data_token, view_only_token, public_group
 ):
+    catalog_name = 'test_galaxy_catalog'
 
-    datafile = f'{os.path.dirname(__file__)}/../data/GW190425_initial.xml'
+    # in case the catalog already exists, delete it.
+    status, data = api(
+        'DELETE', f'galaxy_catalog/{catalog_name}', token=super_admin_token
+    )
+
+    datafile = f'{os.path.dirname(__file__)}/../../../data/GW190814.xml'
     with open(datafile, 'rb') as fid:
         payload = fid.read()
     data = {'xml': payload}
@@ -196,16 +203,36 @@ def test_observation_plan_galaxy(
     assert data['status'] == 'success'
     gcnevent_id = data['data']['gcnevent_id']
 
-    dateobs = "2019-04-25 08:18:05"
-    skymap = "bayestar.fits.gz"
-    status, data = api(
-        'GET',
-        f'localization/{dateobs}/name/{skymap}',
-        token=super_admin_token,
-    )
-    assert status == 200
-    assert data['status'] == 'success'
-    localization_id = data['data']['id']
+    # wait for event to load
+    for n_times in range(26):
+        status, data = api(
+            'GET', "gcn_event/2019-08-14T21:10:39", token=super_admin_token
+        )
+        if data['status'] == 'success':
+            break
+        time.sleep(2)
+    assert n_times < 25
+
+    # wait for the localization to load
+    params = {"include2DMap": True}
+    for n_times_2 in range(26):
+        status, data = api(
+            'GET',
+            'localization/2019-08-14T21:10:39/name/LALInference.v1.fits.gz',
+            token=super_admin_token,
+            params=params,
+        )
+
+        if data['status'] == 'success':
+            data = data["data"]
+            assert data["dateobs"] == "2019-08-14T21:10:39"
+            assert data["localization_name"] == "LALInference.v1.fits.gz"
+            assert np.isclose(np.sum(data["flat_2d"]), 1)
+            break
+        else:
+            time.sleep(2)
+    assert n_times_2 < 25
+    localization_id = data['id']
 
     name = str(uuid.uuid4())
     status, data = api(
@@ -269,7 +296,6 @@ def test_observation_plan_galaxy(
             nretries = nretries + 1
             time.sleep(3)
 
-    catalog_name = str(uuid.uuid4())
     datafile = f'{os.path.dirname(__file__)}/../../../data/CLU_mini.hdf5'
     data = {
         'catalog_name': catalog_name,
@@ -284,25 +310,26 @@ def test_observation_plan_galaxy(
 
     nretries = 0
     galaxies_loaded = False
-    while not galaxies_loaded and nretries < 5:
-        try:
-            status, data = api(
-                'GET', 'galaxy_catalog', token=view_only_token, params=params
-            )
-            assert status == 200
-            data = data["data"]["galaxies"]
-            assert len(data) == 10
-            assert any(
-                [
-                    d['name'] == '6dFgs gJ0001313-055904'
-                    and d['mstar'] == 336.60756522868667
-                    for d in data
-                ]
-            )
+    while nretries < 10:
+        status, data = api(
+            'GET', 'galaxy_catalog', token=view_only_token, params=params
+        )
+        assert status == 200
+        data = data["data"]["galaxies"]
+        if len(data) == 92 and any(
+            [
+                d['name'] == '6dFgs gJ0001313-055904'
+                and d['mstar'] == 336.60756522868667
+                for d in data
+            ]
+        ):
             galaxies_loaded = True
-        except AssertionError:
-            nretries = nretries + 1
-            time.sleep(5)
+            break
+        nretries = nretries + 1
+        time.sleep(5)
+
+    assert nretries < 10
+    assert galaxies_loaded
 
     request_data = {
         'group_id': public_group.id,
@@ -382,7 +409,6 @@ def test_observation_plan_galaxy(
             ].replace(" ", "T")
 
             planned_observations = observation_plan['planned_observations']
-            print(planned_observations)
             assert len(planned_observations) > 0
 
             observation_plan_loaded = True
@@ -391,7 +417,7 @@ def test_observation_plan_galaxy(
             nretries = nretries + 1
             time.sleep(10)
 
-    assert len(planned_observations) == 6
+    assert len(planned_observations) == 29
     assert all(
         [
             obs['filt'] == request_data["payload"]['filters']
