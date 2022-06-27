@@ -37,6 +37,8 @@ class PhotStat(Base):
 
     def __init__(self, obj_id):
         self.obj_id = obj_id
+        self.num_obs_global = 0
+        self.num_obs_per_filter = {}
 
     read = public
 
@@ -333,9 +335,13 @@ class PhotStat(Base):
 
         filt = phot['filter']
         mjd = phot['mjd']
-        mag = -2.5 * np.log10(phot['flux']) + PHOT_ZP
+        if phot['flux'] > 0:
+            mag = -2.5 * np.log10(phot['flux']) + PHOT_ZP
+        else:
+            mag = np.nan
         snr = phot['flux'] / phot['fluxerr']
-        det = not np.isnan(snr) and snr > PHOT_DETECTION_THRESHOLD
+        det = phot['flux'] and phot['fluxerr']  # legal, non zero values
+        det = det and not np.isnan(snr) and snr > PHOT_DETECTION_THRESHOLD
 
         if not det:  # get limiting magnitude for non-detection
             if (
@@ -351,6 +357,10 @@ class PhotStat(Base):
                 fluxerr = phot['fluxerr']
                 fivesigma = 5 * fluxerr
                 lim = -2.5 * np.log10(fivesigma) + PHOT_ZP
+
+        # make sure a non detection has a limiting magnitude
+        if not det and np.isnan(lim):
+            return  # do not update with this point
 
         self.num_obs_global += 1
         if filt in self.num_obs_per_filter:
@@ -568,7 +578,8 @@ class PhotStat(Base):
                 and phot.fluxerr
                 and phot.flux / phot.fluxerr > PHOT_DETECTION_THRESHOLD
                 for phot in phot_list
-            ]
+            ],
+            dtype=bool,
         )
         lims = np.nan * np.ones(len(dets))
 
@@ -588,6 +599,14 @@ class PhotStat(Base):
                         lims[i] = -2.5 * np.log10(fivesigma) + PHOT_ZP
                     else:
                         lims[i] = None
+
+        # make sure all non-detections have a limiting magnitudes
+        bad_idx = ~dets & np.isnan(lims)
+        filters = filters[~bad_idx]
+        mjds = mjds[~bad_idx]
+        mags = mags[~bad_idx]
+        dets = dets[~bad_idx]
+        lims = lims[~bad_idx]
 
         # reset all scalar properties
         self.num_obs_global = 0
@@ -620,7 +639,7 @@ class PhotStat(Base):
         self.mean_color = {}
 
         # total number of points
-        self.num_obs_global = len(phot_list)
+        self.num_obs_global = len(mjds)
 
         # total number of points in each filter
         for filt in filters:
