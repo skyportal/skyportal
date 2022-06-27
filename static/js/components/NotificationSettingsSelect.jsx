@@ -52,6 +52,7 @@ const useStyles = makeStyles((theme) => ({
   },
   tooltip: {
     fontSize: "1rem",
+    maxWidth: "30rem",
   },
 }));
 
@@ -222,6 +223,7 @@ const NotificationSettingsSelect = ({ notificationResourceType }) => {
     <div>
       <Tooltip
         title="Click here to open the notification settings. There, you can choose if you want to be also notified by email, sms and/or slack for the selected notification type."
+        placement="right"
         classes={{ tooltip: classes.tooltip }}
       >
         <Button
@@ -259,6 +261,7 @@ const NotificationSettingsSelect = ({ notificationResourceType }) => {
                   />
                   <Tooltip
                     title="Click here to receive notifications by email about the selected notification type. You also need to set your email address in your user profile."
+                    placement="right"
                     classes={{ tooltip: classes.tooltip }}
                   >
                     <HelpOutlineOutlinedIcon />
@@ -279,6 +282,7 @@ const NotificationSettingsSelect = ({ notificationResourceType }) => {
                   />
                   <Tooltip
                     title="Click here to receive notifications on Slack about the selected notification type. You also need to active the Slack integration and set the slack url in your user profile."
+                    placement="right"
                     classes={{ tooltip: classes.tooltip }}
                   >
                     <HelpOutlineOutlinedIcon />
@@ -298,7 +302,8 @@ const NotificationSettingsSelect = ({ notificationResourceType }) => {
                     label=" By SMS"
                   />
                   <Tooltip
-                    title="Click here to receive notifications by sms about the selected notification type. You also need to set your phone number in your user profile. 2 options will appear, please select at least one."
+                    title="Click here to receive notifications by SMS about the selected notification type. You also need to set your phone number in your user profile. 2 options will appear, please select at least one."
+                    placement="right"
                     classes={{ tooltip: classes.tooltip }}
                   >
                     <HelpOutlineOutlinedIcon />
@@ -320,7 +325,8 @@ const NotificationSettingsSelect = ({ notificationResourceType }) => {
                       label="On Shift"
                     />
                     <Tooltip
-                      title="Click here to receive notifications by sms when you are on shift. You can also use the time slot option if you need to receive messages when you are not on shift."
+                      title="Click here to receive notifications by SMS when you are on shift. You can also use the time slot option if you need to receive messages when you are not on shift."
+                      placement="right"
                       classes={{ tooltip: classes.tooltip }}
                     >
                       <HelpOutlineOutlinedIcon />
@@ -338,7 +344,8 @@ const NotificationSettingsSelect = ({ notificationResourceType }) => {
                       label="Time Slot (UTC)"
                     />
                     <Tooltip
-                      title="Click here to receive notifications by sms during a specific time slot. Outside of the time slot, you will not receive any messages on your phone."
+                      title="Click here to receive notifications by SMS during a specific time slot. Outside of the time slot, you will not receive any messages on your phone."
+                      placement="right"
                       classes={{ tooltip: classes.tooltip }}
                     >
                       <HelpOutlineOutlinedIcon />
@@ -371,7 +378,8 @@ const NotificationSettingsSelect = ({ notificationResourceType }) => {
                         label="Invert"
                       />
                       <Tooltip
-                        title="Select a start and end time on the slider. If you want to receive notifications outisde and not inside the time slot, check the Invert option."
+                        title="Select a start and end time on the slider. If you want to receive notifications outside and not inside the time slot, check the Invert option."
+                        placement="right"
                         classes={{ tooltip: classes.tooltip }}
                       >
                         <HelpOutlineOutlinedIcon />

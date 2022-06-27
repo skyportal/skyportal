@@ -45,6 +45,7 @@ const useStyles = makeStyles((theme) => ({
   },
   tooltip: {
     fontSize: "1rem",
+    maxWidth: "30rem",
   },
 }));
 
@@ -146,7 +147,8 @@ const NotificationPreferences = () => {
             label="Sources"
           />
           <Tooltip
-            title="This allows you to be notified for all sources, based on a certain criterias. For now, you can select classification(s) to be notified for when added to any source."
+            title="This allows you to be notified for all sources, based on a certain criterias. For now, you can select classification(s) to be notified for, when added to any source."
+            placement="right"
             classes={{ tooltip: classes.tooltip }}
           >
             <HelpOutlineOutlinedIcon />
@@ -187,7 +189,8 @@ const NotificationPreferences = () => {
             label="GCN Events"
           />
           <Tooltip
-            title="This allows you to be notified for gcn events. You can select the specific notice types you want to be notified for."
+            title="This allows you to be notified for gcn events. You can select the notice types you want to be notified for."
+            placement="right"
             classes={{ tooltip: classes.tooltip }}
           >
             <HelpOutlineOutlinedIcon />
@@ -231,6 +234,7 @@ const NotificationPreferences = () => {
           />
           <Tooltip
             title="This allows you to be notified for all facility transactions."
+            placement="right"
             classes={{ tooltip: classes.tooltip }}
           >
             <HelpOutlineOutlinedIcon />
@@ -255,7 +259,8 @@ const NotificationPreferences = () => {
             label="Favorite Sources"
           />
           <Tooltip
-            title="This allows you to be notified for certain actions on your favorite sources. For now, you can select new comments, new classifications and new spectra."
+            title="This allows you to be notified when certain actions are performed by users on your favorite sources. For now, you can select new comments, new classifications and new spectra."
+            placement="right"
             classes={{ tooltip: classes.tooltip }}
           >
             <HelpOutlineOutlinedIcon />
@@ -323,7 +328,8 @@ const NotificationPreferences = () => {
             label="@ Mentions"
           />
           <Tooltip
-            title="On SkyPortal, you will be notified by default when a user mentions you. If you activate this, it will simply allow you to be also notified by email, sms and slack depending on what you select in the settings."
+            title="On SkyPortal, you will always be notified when a user mentions you. If you activate this, it will simply allow you to specify in the settings if you want to also be notified by email, sms and/or slack."
+            placement="right"
             classes={{ tooltip: classes.tooltip }}
           >
             <HelpOutlineOutlinedIcon />
