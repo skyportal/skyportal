@@ -25,10 +25,7 @@ from .followup_request import (
 )
 from .facility_listener import FacilityMessageHandler
 from .galaxy import GalaxyCatalogHandler, GalaxyASCIIFileHandler
-from .gcn import (
-    GcnEventHandler,
-    LocalizationHandler,
-)
+from .gcn import GcnEventHandler, LocalizationHandler
 from .group import (
     GroupHandler,
     GroupUserHandler,
@@ -72,7 +69,7 @@ from .photometry import (
     PhotometryRangeHandler,
     PhotometryOriginHandler,
 )
-from .phot_stat import PhotStatHandler
+from .phot_stat import PhotStatHandler, PhotStatUpdateHandler
 from .color_mag import ObjColorMagHandler
 from .photometry_request import PhotometryRequestHandler
 from .public_group import PublicGroupHandler
@@ -112,3 +109,4 @@ from .user import (
 )
 from .unsourced_finder import UnsourcedFinderHandler
 from .weather import WeatherHandler
+from .webhook import AnalysisWebhookHandler

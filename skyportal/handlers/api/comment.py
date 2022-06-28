@@ -4,6 +4,7 @@ from marshmallow.exceptions import ValidationError
 from baselayer.app.custom_exceptions import AccessError
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
+import sqlalchemy as sa
 from ...models import (
     DBSession,
     Comment,
@@ -28,7 +29,12 @@ def users_mentioned(text, session):
         if word.startswith("@"):
             usernames.append(word.replace("@", ""))
     users = session.scalars(
-        User.select(session.user_or_token).where(User.username.in_(usernames))
+        User.select(session.user_or_token).where(
+            User.username.in_(usernames),
+            User.preferences["notifications"]["mention"]["active"]
+            .astext.cast(sa.Boolean)
+            .is_(True),
+        )
     ).all()
 
     return users

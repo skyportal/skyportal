@@ -63,8 +63,7 @@ const SlackPreferences = () => {
         title="Slack Integration"
         popupText="You'll need to ask your site administrator to give you a unique
           URL that posts to your Slack channel. Activating the Slack integration
-          will allow you to see all @ mentions of this account and configure
-          other notifications below."
+          will allow you to get notifications on Slack, depending on your specific notification preferences."
       />
       <FormGroup row>
         <FormControlLabel
@@ -80,63 +79,22 @@ const SlackPreferences = () => {
         />
       </FormGroup>
       {profile.slack_integration?.active && (
-        <>
-          <div>
-            <TextField
-              name="url"
-              label="Integration URL"
-              className={classes.textField}
-              fullWidth
-              placeholder="Unique URL connecting to your Slack channel"
-              defaultValue={profile.slack_integration?.url}
-              onChange={handleChange}
-              onBlur={handleBlur}
-              margin="normal"
-              data-testid="slack_url"
-              helperText={slackurlerror ? "Must be a Slack URL" : ""}
-              error={slackurlerror}
-            />
-          </div>
-          <div>
-            <FormGroup row>
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={profile.slack_integration?.mentions === true}
-                    name="mentions"
-                    onChange={prefToggled}
-                    data-testid="slack_mentions"
-                  />
-                }
-                label="@ mentions"
-              />
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={profile.slack_integration?.gcnnotices === true}
-                    name="gcnnotices"
-                    onChange={prefToggled}
-                    data-testid="slack_gcnnotices"
-                  />
-                }
-                label="GCN Notices"
-              />
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={
-                      profile.slack_integration?.facilitytransactions === true
-                    }
-                    name="facilitytransactions"
-                    onChange={prefToggled}
-                    data-testid="slack_facilitytransactions"
-                  />
-                }
-                label="Facility Transactions"
-              />
-            </FormGroup>
-          </div>
-        </>
+        <div>
+          <TextField
+            name="url"
+            label="Integration URL"
+            className={classes.textField}
+            fullWidth
+            placeholder="Unique URL connecting to your Slack channel"
+            defaultValue={profile.slack_integration?.url}
+            onChange={handleChange}
+            onBlur={handleBlur}
+            margin="normal"
+            data-testid="slack_url"
+            helperText={slackurlerror ? "Must be a Slack URL" : ""}
+            error={slackurlerror}
+          />
+        </div>
       )}
     </div>
   );
