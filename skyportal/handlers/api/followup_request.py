@@ -1197,7 +1197,7 @@ class FollowupRequestPrioritizationHandler(BaseHandler):
         for request_id in request_ids:
             # get owned assignments
             followup_request = FollowupRequest.get_if_accessible_by(
-                request_id, self.current_user, mode="update", raise_if_none=False
+                request_id, self.current_user, mode="update"
             )
             if followup_request is None:
                 return self.error(

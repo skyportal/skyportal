@@ -1,5 +1,5 @@
 import uuid
-from skyportal.tests import api
+from skyportal.tests import api, assert_api, assert_api_fail
 from skyportal.model_util import create_token
 
 
@@ -263,7 +263,7 @@ def test_listings_user_permissions(
         token=upload_data_token,
     )
 
-    assert status == 200
+    assert_api(status, data)
     item1 = data["data"]["id"]  # get the list item ID
 
     # try to transfer ownership to a different user
@@ -278,8 +278,7 @@ def test_listings_user_permissions(
         token=upload_data_token,
     )
 
-    assert status == 400
-    assert 'Insufficient permissions' in data['message']
+    assert_api_fail(status, data, 400, 'Insufficient permissions')
 
     # try to post to a different user
     status, data = api(
@@ -292,8 +291,9 @@ def test_listings_user_permissions(
         },
         token=upload_data_token,
     )
-
-    assert status == 400
+    assert_api_fail(
+        status, data, 400, "Only admins can add listings to other users' accounts"
+    )
 
     # try to add this to a different user, but with super admin privileges
     status, data = api(
@@ -307,14 +307,14 @@ def test_listings_user_permissions(
         token=super_admin_token,
     )
 
-    assert status == 200
+    assert_api(status, data)
 
     # get the list back, should include only one item that matches user2
     status, data = api(
         'GET', f'listing/{user2.id}?listName=favorites', token=super_admin_token
     )
 
-    assert status == 200
+    assert_api(status, data)
     new_list = data["data"]
 
     assert len(new_list) == 1
@@ -330,7 +330,7 @@ def test_listings_user_permissions(
         token=super_admin_token,
     )
 
-    assert status == 200
+    assert_api(status, data)
 
     # change the object id only
     status, data = api(
@@ -340,7 +340,7 @@ def test_listings_user_permissions(
         token=upload_data_token,
     )
 
-    assert status == 200
+    assert_api(status, data)
 
     # change the list name only
     status, data = api(
@@ -350,14 +350,14 @@ def test_listings_user_permissions(
         token=upload_data_token,
     )
 
-    assert status == 200
+    assert_api(status, data)
 
     # get the list back, should include only one item that matches user2
     status, data = api(
         'GET', f'listing/{user.id}?listName=new_listing', token=super_admin_token
     )
 
-    assert status == 200
+    assert_api(status, data)
     new_list = data["data"]
 
     assert len(new_list) == 1

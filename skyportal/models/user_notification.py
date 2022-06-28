@@ -4,11 +4,12 @@ import json
 
 import sqlalchemy as sa
 from sqlalchemy.orm import relationship
-from sqlalchemy import event
+
+from sqlalchemy import event, inspect
 import arrow
 import requests
 
-from baselayer.app.models import DBSession, Base, User, AccessibleIfUserMatches
+from baselayer.app.models import Base, User, AccessibleIfUserMatches
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.log import make_log
@@ -265,9 +266,11 @@ def send_sms_notification(mapper, connection, target):
 @event.listens_for(GcnNotice, 'after_insert')
 @event.listens_for(FacilityTransaction, 'after_insert')
 def add_user_notifications(mapper, connection, target):
+
     # Add front-end user notifications
-    @event.listens_for(DBSession(), "after_flush", once=True)
+    @event.listens_for(inspect(target).session, "after_flush", once=True)
     def receive_after_flush(session, context):
+
         is_facility_transaction = target.__class__.__name__ == "FacilityTransaction"
         is_gcnevent = target.__class__.__name__ == "GcnNotice"
         is_classification = target.__class__.__name__ == "Classification"
@@ -275,50 +278,68 @@ def add_user_notifications(mapper, connection, target):
         is_comment = target.__class__.__name__ == "Comment"
 
         if is_gcnevent:
-            users = User.query.filter(
-                User.preferences["notifications"]["gcn_events"]["active"]
-                .astext.cast(sa.Boolean)
-                .is_(True)
+            users = session.scalars(
+                sa.select(User).where(
+                    User.preferences["notifications"]["gcn_events"]["active"]
+                    .astext.cast(sa.Boolean)
+                    .is_(True)
+                )
             ).all()
         elif is_facility_transaction:
-            users = User.query.filter(
-                User.preferences["notifications"]["facility_transactions"]["active"]
-                .astext.cast(sa.Boolean)
-                .is_(True)
+            users = session.scalars(
+                sa.select(User).where(
+                    User.preferences["notifications"]["facility_transactions"]["active"]
+                    .astext.cast(sa.Boolean)
+                    .is_(True)
+                )
             ).all()
         else:
+
             if is_classification:
-                users = User.query.filter(
-                    or_(
-                        User.preferences["notifications"]["sources"]["active"]
-                        .astext.cast(sa.Boolean)
-                        .is_(True),
-                        User.preferences["notifications"]["favorite_sources"]["active"]
-                        .astext.cast(sa.Boolean)
-                        .is_(True),
+                users = session.scalars(
+                    sa.select(User).where(
+                        or_(
+                            User.preferences["notifications"]["sources"]["active"]
+                            .astext.cast(sa.Boolean)
+                            .is_(True),
+                            User.preferences["notifications"]["favorite_sources"][
+                                "active"
+                            ]
+                            .astext.cast(sa.Boolean)
+                            .is_(True),
+                        )
                     )
                 ).all()
             elif is_spectra:
-                users = User.query.filter(
-                    User.preferences["notifications"]["favorite_sources"]["active"]
-                    .astext.cast(sa.Boolean)
-                    .is_(True)
+                users = session.scalars(
+                    sa.select(User).where(
+                        User.preferences["notifications"]["favorite_sources"]["active"]
+                        .astext.cast(sa.Boolean)
+                        .is_(True)
+                    )
                 ).all()
             elif is_comment:
-                users = User.query.filter(
-                    User.preferences["notifications"]["favorite_sources"]["active"]
-                    .astext.cast(sa.Boolean)
-                    .is_(True)
+                users = session.scalars(
+                    sa.select(User).where(
+                        User.preferences["notifications"]["favorite_sources"]["active"]
+                        .astext.cast(sa.Boolean)
+                        .is_(True)
+                    )
                 ).all()
             else:
                 users = []
 
         ws_flow = Flow()
+
         for user in users:
             # Only notify users who have read access to the new record in question
             if (
-                target.__class__.get_if_accessible_by(target.id, user) is not None
-                and "notifications" in user.preferences
+                session.scalars(
+                    target.__class__.select(user, mode='read').where(
+                        target.__class__.id == target.id
+                    )
+                ).first()
+                is not None
             ):
                 if is_gcnevent:
                     if (
@@ -339,15 +360,22 @@ def add_user_notifications(mapper, connection, target):
                                     url=f"/gcn_events/{str(target.dateobs).replace(' ','T')}",
                                 )
                             )
+
                 elif is_facility_transaction:
                     if "observation_plan_request" in target.to_dict():
                         allocation_id = target.observation_plan_request.allocation_id
-                        allocation = session.query(Allocation).get(allocation_id)
+                        allocation = session.scalars(
+                            sa.select(Allocation).where(Allocation.id == allocation_id)
+                        ).first()
                         instrument = allocation.instrument
                         localization_id = (
                             target.observation_plan_request.localization_id
                         )
-                        localization = session.query(Localization).get(localization_id)
+                        localization = session.scalars(
+                            sa.select(Localization).where(
+                                Localization.id == localization_id
+                            )
+                        ).first()
                         session.add(
                             UserNotification(
                                 user=user,
@@ -358,7 +386,9 @@ def add_user_notifications(mapper, connection, target):
                         )
                     elif "followup_request" in target.to_dict():
                         allocation_id = target.followup_request.allocation_id
-                        allocation = session.query(Allocation).get(allocation_id)
+                        allocation = session.scalars(
+                            sa.select(Allocation).where(Allocation.id == allocation_id)
+                        ).first()
                         instrument = allocation.instrument
                         session.add(
                             UserNotification(
@@ -369,12 +399,12 @@ def add_user_notifications(mapper, connection, target):
                             )
                         )
                 else:
-                    favorite_sources = (
-                        Listing.query.filter(Listing.list_name == "favorites")
-                        .filter(Listing.obj_id == target.obj_id)
+                    favorite_sources = session.scalars(
+                        sa.select(Listing)
+                        .where(Listing.list_name == 'favorites')
+                        .where(Listing.obj_id == target.obj_id)
                         .distinct(Listing.user_id)
-                        .all()
-                    )
+                    ).all()
 
                     if is_classification:
                         if (
@@ -449,4 +479,5 @@ def add_user_notifications(mapper, connection, target):
                                         url=f"/source/{target.obj_id}",
                                     )
                                 )
+                # >>>>>>> upstream/main
                 ws_flow.push(user.id, "skyportal/FETCH_NOTIFICATIONS")

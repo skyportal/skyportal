@@ -16,7 +16,7 @@ from ..utils import http
 
 env, cfg = load_env()
 
-if cfg['app.atlas.port'] is None:
+if cfg.get('app.atlas.port') is None:
     ATLAS_URL = f"{cfg['app.atlas.protocol']}://{cfg['app.atlas.host']}"
 else:
     ATLAS_URL = (
