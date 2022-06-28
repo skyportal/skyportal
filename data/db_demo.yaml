@@ -509,9 +509,9 @@ allocation:
     instrument_id: =LSST
 
 galaxy_catalog:
-  - catalog_name: CLU_mini
+  - catalog_name: GLADE
     catalog_data:
-      file: ../data/CLU_mini.hdf5
+      file: ../data/GLADE.txt
 
 candidates:
   - id: ZTF21aaqjmps
