@@ -490,6 +490,8 @@ const GcnEventPage = ({ route }) => {
                     <div className={styles.gcnEventContainer}>
                       <ExecutedObservationsTable
                         observations={gcnEventObservations.observations}
+                        totalMatches={gcnEventObservations.totalMatches}
+                        serverSide={false}
                       />
                     </div>
                   )}
@@ -520,6 +522,8 @@ const GcnEventPage = ({ route }) => {
                     <div className={styles.gcnEventContainer}>
                       <GalaxyTable
                         galaxies={gcnEventGalaxies.galaxies}
+                        totalMatches={gcnEventGalaxies.totalMatches}
+                        serverSide={false}
                         hideTitle
                       />
                     </div>

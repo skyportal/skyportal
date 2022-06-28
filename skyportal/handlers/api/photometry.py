@@ -644,7 +644,7 @@ def get_group_ids(data, user):
         public_group = (
             DBSession()
             .execute(
-                sa.select(Group).filter(Group.name == cfg["misc"]["public_group_name"])
+                sa.select(Group).filter(Group.name == cfg["misc.public_group_name"])
             )
             .scalars()
             .first()

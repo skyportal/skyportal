@@ -50,9 +50,11 @@ class SpectrumHandler(BaseHandler):
         if group_ids is None:
             groups = None
         elif group_ids == "all":
-            groups = Group.query.filter(
-                Group.name == cfg['misc.public_group_name']
-            ).all()
+            public_group = cfg['misc.public_group_name']
+            if public_group is None:
+                groups = []
+            else:
+                groups = Group.query.filter(Group.name == public_group).all()
         else:
             groups = Group.get_if_accessible_by(
                 group_ids, self.current_user, raise_if_none=True
@@ -943,10 +945,12 @@ class SpectrumASCIIFileHandler(BaseHandler, ASCIIHandler):
         if group_ids is None:
             groups = [single_user_group]
         else:
+            public_group = cfg['misc.public_group_name']
             if group_ids == "all":
-                groups = Group.query.filter(
-                    Group.name == cfg['misc.public_group_name']
-                ).all()
+                if public_group is None:
+                    groups = []
+                else:
+                    groups = Group.query.filter(Group.name == public_group).all()
             else:
                 groups = Group.get_if_accessible_by(
                     group_ids, self.current_user, raise_if_none=True

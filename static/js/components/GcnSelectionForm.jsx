@@ -320,7 +320,7 @@ const GcnSelectionForm = ({ gcnEvent, setSelectedLocalizationName }) => {
 
   return (
     <div>
-      {!Object.keys(locLookUp).includes(selectedLocalizationId.toString()) ? (
+      {!Object.keys(locLookUp).includes(selectedLocalizationId?.toString()) ? (
         <div>
           <LocalizationPlot
             loc={gcnEvent.localizations[0]}
@@ -384,7 +384,7 @@ const GcnSelectionForm = ({ gcnEvent, setSelectedLocalizationName }) => {
               key={instrument.id}
               className={classes.instrumentSelectItem}
             >
-              {`${telLookUp[instrument.telescope_id].name} / ${
+              {`${telLookUp[instrument.telescope_id]?.name} / ${
                 instrument.name
               }`}
             </MenuItem>

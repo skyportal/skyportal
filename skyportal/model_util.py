@@ -15,6 +15,7 @@ all_acl_ids = [
     'Manage observing runs',
     'Manage Analysis Services',
     'Upload data',
+    'Run Analyses',
     'System admin',
     'Post taxonomy',
     'Delete taxonomy',
@@ -31,6 +32,7 @@ role_acls = {
         'Manage sources',
         'Manage Analysis Services',
         'Upload data',
+        'Run Analyses',
         'Post taxonomy',
         'Manage users',
         'Classify',
@@ -41,6 +43,7 @@ role_acls = {
         'Comment',
         'Upload data',
         'Classify',
+        'Run Analyses',
         'Manage observing runs',
     ],
     'View only': [],
@@ -66,10 +69,10 @@ def add_user(username, roles=[], auth=False, first_name=None, last_name=None):
 
     # Add user to sitewide public group
     public_group = Group.query.filter(
-        Group.name == cfg["misc"]["public_group_name"]
+        Group.name == cfg["misc.public_group_name"]
     ).first()
     if public_group is None:
-        public_group = Group(name=cfg["misc"]["public_group_name"])
+        public_group = Group(name=cfg["misc.public_group_name"])
         DBSession().add(public_group)
         DBSession().flush()
 
@@ -119,12 +122,11 @@ def provision_public_group():
     """If public group name is set in the config file, create it."""
     env, cfg = load_env()
     public_group_name = cfg['misc.public_group_name']
-    if public_group_name:
-        pg = Group.query.filter(Group.name == public_group_name).first()
+    pg = Group.query.filter(Group.name == public_group_name).first()
 
-        if pg is None:
-            DBSession().add(Group(name=public_group_name))
-            DBSession().commit()
+    if pg is None:
+        DBSession().add(Group(name=public_group_name))
+        DBSession().commit()
 
 
 def setup_permissions():

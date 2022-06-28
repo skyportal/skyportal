@@ -61,10 +61,10 @@ def test_gcnevents_object(
 
     status, data = api("GET", f"sources/{obj_id}", token=view_only_token)
     assert status == 200
-
+    catalog_name = str(uuid.uuid4())
     galaxy_name = str(uuid.uuid4())
     data = {
-        'catalog_name': 'galaxy_in_Fermi',
+        'catalog_name': catalog_name,
         'catalog_data': {'name': [galaxy_name], 'ra': [228.5], 'dec': [35.5]},
     }
     status, data = api('POST', 'galaxy_catalog', data=data, token=super_admin_token)
