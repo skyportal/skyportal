@@ -399,7 +399,7 @@ def add_user_notifications(mapper, connection, target):
                             )
                         )
                 else:
-                    favorite_sources = (
+                    favorite_sources = session.scalars(
                         sa.select(Listing)
                         .where(Listing.list_name == 'favorites')
                         .where(Listing.obj_id == target.obj_id)
