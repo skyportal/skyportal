@@ -1,7 +1,7 @@
 """Reminders migration
 
 Revision ID: 675d41c71a2b
-Revises: a75237f48f29
+Revises: c8063723c76e
 Create Date: 2022-06-16 14:56:25.862884
 
 """
@@ -11,7 +11,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = '675d41c71a2b'
-down_revision = 'a75237f48f29'
+down_revision = 'c8063723c76e'
 branch_labels = None
 depends_on = None
 
