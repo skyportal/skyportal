@@ -197,7 +197,7 @@ export function fetchSource(id, actionType = FETCH_LOADED_SOURCE) {
 
 export function checkSource(id, params, actionType = CHECK_SOURCE) {
   return API.GET(
-    `/api/source_exists/${id}?ra=${params.ra}&dec=${params.dec}&radius=1`,
+    `/api/source_exists/${id}?ra=${params.ra}&dec=${params.dec}&radius=0.0003`,
     actionType
   );
 }

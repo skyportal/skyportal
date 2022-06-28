@@ -22,9 +22,9 @@ import * as ProfileActions from "../ducks/profile";
 
 import UIPreferences from "./UIPreferences";
 import NotificationPreferences from "./NotificationPreferences";
-import FavoriteSourcesNotificationPreferences from "./FavoriteSourcesNotificationPreferences";
 import SlackPreferences from "./SlackPreferences";
 import ObservabilityPreferences from "./ObservabilityPreferences";
+import FollowupRequestPreferences from "./FollowupRequestPreferences";
 import PhotometryPlottingPreferences from "./PhotometryPlottingPreferences";
 import ClassificationsShortcutForm from "./ClassificationsShortcutForm";
 
@@ -178,13 +178,13 @@ const UpdateProfileForm = () => {
           <SlackPreferences />
         </CardContent>
         <CardContent>
-          <FavoriteSourcesNotificationPreferences />
-        </CardContent>
-        <CardContent>
           <UIPreferences />
         </CardContent>
         <CardContent>
           <ObservabilityPreferences />
+        </CardContent>
+        <CardContent>
+          <FollowupRequestPreferences />
         </CardContent>
         <CardContent className={classes.spacing}>
           <ClassificationsShortcutForm />

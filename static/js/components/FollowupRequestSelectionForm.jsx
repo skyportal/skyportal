@@ -124,7 +124,7 @@ const FollowupRequestSelectionForm = () => {
     setIsSubmittingFilter(false);
   };
 
-  function createUrl(instrumentId, format, queryParams) {
+  function createScheduleUrl(instrumentId, format, queryParams) {
     let url = `/api/followup_request/schedule/${instrumentId}`;
     if (queryParams) {
       const filteredQueryParams = filterOutEmptyValues(queryParams);
@@ -132,6 +132,11 @@ const FollowupRequestSelectionForm = () => {
       url += `?${queryString}`;
     }
     url += `&output_format=${format}`;
+    return url;
+  }
+
+  function createAllocationReportUrl(instrumentId) {
+    const url = `/api/allocation/report/${instrumentId}`;
     return url;
   }
 
@@ -182,7 +187,12 @@ const FollowupRequestSelectionForm = () => {
     },
   };
 
-  const url = createUrl(selectedInstrumentId, selectedFormat, formDataState);
+  const scheduleUrl = createScheduleUrl(
+    selectedInstrumentId,
+    selectedFormat,
+    formDataState
+  );
+  const reportUrl = createAllocationReportUrl(selectedInstrumentId);
   return (
     <div>
       <div data-testid="gcnsource-selection-form">
@@ -242,7 +252,7 @@ const FollowupRequestSelectionForm = () => {
           </MenuItem>
         </Select>
         <Button
-          href={`${url}`}
+          href={`${scheduleUrl}`}
           download={`scheduleRequest-${selectedInstrumentId}`}
           size="small"
           color="primary"
@@ -251,6 +261,17 @@ const FollowupRequestSelectionForm = () => {
           data-testid={`scheduleRequest_${selectedInstrumentId}`}
         >
           Download
+        </Button>
+        <Button
+          href={`${reportUrl}`}
+          download={`reportRequest-${selectedInstrumentId}`}
+          size="small"
+          color="primary"
+          type="submit"
+          variant="outlined"
+          data-testid={`reportRequest_${selectedInstrumentId}`}
+        >
+          Instrument Allocation Analysis
         </Button>
       </div>
     </div>

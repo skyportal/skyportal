@@ -8,8 +8,10 @@ from skyportal.handlers import BecomeUserHandler, LogoutHandler
 from skyportal.handlers.api import (
     ACLHandler,
     AnalysisServiceHandler,
+    AnalysisHandler,
     UserACLHandler,
     AllocationHandler,
+    AllocationReportHandler,
     AssignmentHandler,
     CandidateHandler,
     ClassificationHandler,
@@ -55,6 +57,7 @@ from skyportal.handlers.api import (
     ObservationPlanFieldsHandler,
     PhotometryHandler,
     PhotStatHandler,
+    PhotStatUpdateHandler,
     BulkDeletePhotometryHandler,
     ObjHandler,
     ObjPhotometryHandler,
@@ -103,6 +106,7 @@ from skyportal.handlers.api import (
     UserHandler,
     UnsourcedFinderHandler,
     WeatherHandler,
+    AnalysisWebhookHandler,
     PS1ThumbnailHandler,
 )
 from skyportal.handlers.api.internal import (
@@ -148,8 +152,11 @@ class CustomApplication(tornado.web.Application):
 skyportal_handlers = [
     # API endpoints
     (r'/api/acls', ACLHandler),
+    (r'/api/allocation/report(/[0-9]+)', AllocationReportHandler),
     (r'/api/allocation(/.*)?', AllocationHandler),
     (r'/api/analysis_service(/.*)?', AnalysisServiceHandler),
+    (r'/api/(obj)/([0-9A-Za-z-_]+)/analysis/([0-9]+)?', AnalysisHandler),
+    (r'/api/(obj)/analysis(/[0-9]+)?', AnalysisHandler),
     (r'/api/assignment(/.*)?', AssignmentHandler),
     (r'/api/candidates(/[0-9A-Za-z-_]+)/([0-9]+)', CandidateHandler),
     (r'/api/candidates(/.*)?', CandidateHandler),
@@ -169,7 +176,7 @@ skyportal_handlers = [
     (r'/api/followup_request(/.*)?', FollowupRequestHandler),
     (r'/api/photometry_request(/.*)', PhotometryRequestHandler),
     (r'/api/galaxy_catalog/ascii', GalaxyASCIIFileHandler),
-    (r'/api/galaxy_catalog(/[0-9]+)?', GalaxyCatalogHandler),
+    (r'/api/galaxy_catalog(/[0-9A-Za-z-_\.\+]+)?', GalaxyCatalogHandler),
     (
         r'/api/(sources|spectra|gcn_event|shift)/([0-9A-Za-z-_\.\+]+)/comments',
         CommentHandler,
@@ -195,6 +202,7 @@ skyportal_handlers = [
         ObservationPlanAirmassChartHandler,
     ),
     (r'/api/sources/([0-9A-Za-z-_\.\+]+)/phot_stat', PhotStatHandler),
+    (r'/api/phot_stats', PhotStatUpdateHandler),
     (r'/api/localization(/.*)/name(/.*)?', LocalizationHandler),
     (r'/api/groups/public', PublicGroupHandler),
     (r'/api/groups(/[0-9]+)/streams(/[0-9]+)?', GroupStreamHandler),
@@ -330,6 +338,11 @@ skyportal_handlers = [
     (r'/api/user(/[0-9]+)/roles(/.*)?', UserRoleHandler),
     (r'/api/user(/.*)?', UserHandler),
     (r'/api/weather(/.*)?', WeatherHandler),
+    # strictly require uuid4 token for this unauthenticated endpoint
+    (
+        r'/api/webhook/(obj)_analysis/([0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})?',
+        AnalysisWebhookHandler,
+    ),
     (r'/api/internal/tokens(/.*)?', TokenHandler),
     (r'/api/internal/profile', ProfileHandler),
     (r'/api/internal/dbinfo', DBInfoHandler),
