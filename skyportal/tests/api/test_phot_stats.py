@@ -789,11 +789,15 @@ def test_phot_stats_bad_data(upload_data_token, public_group, ztf_camera):
 
     check_dict_has_no_nans(ps2.__dict__)
 
-    del mjd[1]
-    del mag[1]
-    del filt[1]
-    del det[1]
-    del lim[1]
+    # remove the bad point, as this is what the PhotStat
+    # logic should do internally.
+    idx = np.ones(len(mjd), dtype=bool)
+    idx[1] = False
+    mjd = mjd[idx]
+    mag = mag[idx]
+    filt = filt[idx]
+    det = det[idx]
+    lim = lim[idx]
 
     check_phot_stat_is_consistent(ps.__dict__, mjd, mag, filt, det, lim)
     check_phot_stat_is_consistent(ps2.__dict__, mjd, mag, filt, det, lim)
