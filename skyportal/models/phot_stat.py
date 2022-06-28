@@ -2,6 +2,7 @@ __all__ = ['PhotStat']
 
 import json
 import bisect
+import copy
 import numpy as np
 import sqlalchemy as sa
 from sqlalchemy import event
@@ -537,7 +538,9 @@ class PhotStat(Base):
             # this non detection happened before the first detection (if any)
             if self.first_detected_mjd is None or self.first_detected_mjd > mjd:
                 idx = bisect.bisect_left(self.predetection_mjds, mjd)
-                self.predetection_mjds.insert(idx, mjd)
+                L = copy.deepcopy(self.predetection_mjds)
+                L.insert(idx, mjd)
+                self.predetection_mjds = L
                 self.last_non_detection_mjd = self.predetection_mjds[-1]
 
         # find the time between first detection and last non-detection
