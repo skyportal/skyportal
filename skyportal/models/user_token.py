@@ -181,6 +181,21 @@ User.observationplan_requests = relationship(
     doc="The observation plan requests this User has made.",
     foreign_keys=[ObservationPlanRequest.requester_id],
 )
+User.survey_efficiency_for_observations = relationship(
+    'SurveyEfficiencyForObservations',
+    back_populates='requester',
+    passive_deletes=True,
+    cascade="delete",
+    doc="The survey efficiency analyses on Observations this User has made.",
+    foreign_keys="SurveyEfficiencyForObservations.requester_id",
+)
+User.survey_efficiency_for_observation_plan = relationship(
+    'SurveyEfficiencyForObservationPlan',
+    back_populates='requester',
+    passive_deletes=True,
+    doc="The survey efficiency analyses on ObservationPlans this User has made.",
+    foreign_keys="SurveyEfficiencyForObservationPlan.requester_id",
+)
 User.transactions = relationship(
     'FacilityTransaction',
     back_populates='initiator',

@@ -5,6 +5,7 @@ import astropy
 import functools
 import healpix_alchemy as ha
 import humanize
+import json
 from marshmallow.exceptions import ValidationError
 import numpy as np
 import pandas as pd
@@ -21,11 +22,13 @@ from io import StringIO
 
 from baselayer.app.flow import Flow
 from baselayer.app.env import load_env
+from baselayer.app.custom_exceptions import AccessError
 from ..base import BaseHandler
 from ...models import (
     DBSession,
     Allocation,
     GcnEvent,
+    Group,
     Localization,
     LocalizationTile,
     Telescope,
@@ -34,11 +37,12 @@ from ...models import (
     InstrumentFieldTile,
     ExecutedObservation,
     QueuedObservation,
+    SurveyEfficiencyForObservations,
 )
 
 from ...models.schema import ObservationExternalAPIHandlerPost
 from .instrument import add_tiles
-from .observation_plan import observation_simsurvey
+from .observation_plan import observation_simsurvey, observation_simsurvey_plot
 
 env, cfg = load_env()
 TREASUREMAP_URL = cfg['app.treasuremap_endpoint']
@@ -1580,7 +1584,7 @@ class ObservationSimSurveyHandler(BaseHandler):
     async def get(self, instrument_id):
         """
         ---
-        description: Retrieve all observations
+        description: Perform simsurvey efficiency calculation
         tags:
           - observations
         parameters:
@@ -1605,6 +1609,7 @@ class ObservationSimSurveyHandler(BaseHandler):
             description: Filter by end date
           - in: query
             name: localizationDateobs
+            required: true
             schema:
               type: string
             description: |
@@ -1636,7 +1641,7 @@ class ObservationSimSurveyHandler(BaseHandler):
             schema:
               type: number
             description: |
-              Number of simulations to evaluate efficiency with. Defaults to 1000.
+              Number of simulations to evaluate efficiency with. Defaults to 10000.
           - in: query
             name: numberDetections
             nullable: true
@@ -1674,20 +1679,31 @@ class ObservationSimSurveyHandler(BaseHandler):
               Path to file for injestion as a simsurvey.models.AngularTimeSeriesSource.
               Defaults to nsns_nph1.0e+06_mejdyn0.020_mejwind0.130_phi30.txt
               from https://github.com/mbulla/kilonova_models.
+          - in: query
+            name: group_ids
+            nullable: true
+            schema:
+              type: array
+              items:
+                type: integer
+              description: |
+                List of group IDs corresponding to which groups should be
+                able to view the analyses. Defaults to all of requesting user's
+                groups.
         responses:
           200:
             content:
               application/json:
-                schema: SingleObservationPlanRequest
+                schema: Success
         """
 
         start_date = self.get_query_argument('startDate')
         end_date = self.get_query_argument('endDate')
-        localization_dateobs = self.get_query_argument('localizationDateobs', None)
+        localization_dateobs = self.get_query_argument('localizationDateobs')
         localization_name = self.get_query_argument('localizationName', None)
         localization_cumprob = self.get_query_argument("localizationCumprob", 0.95)
 
-        number_of_injections = self.get_query_argument("numberInjections", 1000)
+        number_of_injections = self.get_query_argument("numberInjections", 10000)
         number_of_detections = self.get_query_argument("numberDetections", 1)
         detection_threshold = self.get_query_argument("detectionThreshold", 5)
         minimum_phase = self.get_query_argument("minimumPhase", 0)
@@ -1696,6 +1712,17 @@ class ObservationSimSurveyHandler(BaseHandler):
             "injectionFilename",
             'data/nsns_nph1.0e+06_mejdyn0.020_mejwind0.130_phi30.txt',
         )
+
+        group_ids = self.get_query_argument('group_ids', None)
+        if not group_ids:
+            groups = self.current_user.accessible_groups
+        else:
+            try:
+                groups = Group.get_if_accessible_by(
+                    group_ids, self.current_user, raise_if_none=True
+                )
+            except AccessError:
+                return self.error('Could not find any accessible groups.', status=403)
 
         if start_date is None:
             return self.error(message="Missing start_date")
@@ -1746,6 +1773,20 @@ class ObservationSimSurveyHandler(BaseHandler):
                 .first()
             )
 
+        event = (
+            GcnEvent.query_records_accessible_by(
+                self.current_user,
+            )
+            .filter(GcnEvent.dateobs == localization_dateobs)
+            .first()
+        )
+        if event is None:
+            return self.error("GCN event not found")
+
+        self.push_notification(
+            'Simsurvey analysis in progress. Should be available soon.'
+        )
+
         data = get_observations(
             self.current_user,
             start_date,
@@ -1775,23 +1816,98 @@ class ObservationSimSurveyHandler(BaseHandler):
                     f'Sensitivity_data dictionary missing keys for filter {filt}'
                 )
 
-        output_format = 'pdf'
+        payload = {
+            'start_date': Time(start_date).isot,
+            'end_date': Time(end_date).isot,
+            'telescope_name': instrument.telescope.name,
+            'instrument_name': instrument.name,
+            'localization_dateobs': localization_dateobs,
+            'localization_name': localization_name,
+            'localization_cumprob': localization_cumprob,
+            'number_of_injections': number_of_injections,
+            'number_of_detections': number_of_detections,
+            'detection_threshold': detection_threshold,
+            'minimum_phase': minimum_phase,
+            'maximum_phase': maximum_phase,
+            'injection_filename': injection_filename,
+        }
+
+        survey_efficiency_analysis = SurveyEfficiencyForObservations(
+            requester_id=self.current_user.id,
+            gcnevent_id=event.id,
+            localization_id=localization.id,
+            groups=groups,
+            payload=payload,
+            status='running',
+        )
+
+        DBSession().add(survey_efficiency_analysis)
+        DBSession().commit()
+
         simsurvey_analysis = functools.partial(
             observation_simsurvey,
             observations,
-            localization,
-            instrument,
+            localization.id,
+            instrument.id,
+            survey_efficiency_analysis,
+            number_of_injections=payload['number_of_injections'],
+            number_of_detections=payload['number_of_detections'],
+            detection_threshold=payload['detection_threshold'],
+            minimum_phase=payload['minimum_phase'],
+            maximum_phase=payload['maximum_phase'],
+            injection_filename=payload['injection_filename'],
+        )
+        IOLoop.current().run_in_executor(None, simsurvey_analysis)
+
+        return self.success(data={"id": survey_efficiency_analysis.id})
+
+
+class ObservationSimSurveyPlotHandler(BaseHandler):
+    @auth_or_token
+    async def get(self, survey_efficiency_analysis_id):
+        """
+        ---
+        description: Create a summary plot for a simsurvey efficiency calculation.
+        tags:
+          - survey_efficiency_for_observations
+        parameters:
+          - in: path
+            name: survey_efficiency_analysis_id
+            required: true
+            schema:
+              type: string
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+        """
+
+        survey_efficiency_analysis = (
+            SurveyEfficiencyForObservations.get_if_accessible_by(
+                survey_efficiency_analysis_id, self.current_user
+            )
+        )
+
+        if survey_efficiency_analysis is None:
+            return self.error(
+                f'Missing survey_efficiency_analysis for id {survey_efficiency_analysis_id}'
+            )
+
+        if survey_efficiency_analysis.lightcurves is None:
+            return self.error(
+                f'survey_efficiency_analysis for id {survey_efficiency_analysis_id} not complete'
+            )
+
+        output_format = 'pdf'
+        simsurvey_analysis = functools.partial(
+            observation_simsurvey_plot,
+            lcs=json.loads(survey_efficiency_analysis.lightcurves),
             output_format=output_format,
-            number_of_injections=number_of_injections,
-            number_of_detections=number_of_detections,
-            detection_threshold=detection_threshold,
-            minimum_phase=minimum_phase,
-            maximum_phase=maximum_phase,
-            injection_filename=injection_filename,
         )
 
         self.push_notification(
-            'Simsurvey analysis in progress. Download will start soon.'
+            'Simsurvey analysis in progress. Should be available soon.'
         )
         rez = await IOLoop.current().run_in_executor(None, simsurvey_analysis)
 
