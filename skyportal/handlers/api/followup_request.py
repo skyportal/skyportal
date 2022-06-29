@@ -223,10 +223,14 @@ class AssignmentHandler(BaseHandler):
                 assignment_id = post_assignment(
                     data, self.associated_user_object.id, session
                 )
-            except Exception as e:
+            except ValidationError as e:
                 return self.error(
                     'Error posting followup request: ' f'"{e.normalized_messages()}"'
                 )
+            except ValueError as e:
+                return self.error('Error posting followup request: ' f'"{e.args[0]}"')
+            except Exception as e:
+                return self.error('Error posting followup request: ' f'"{str(e)}"')
 
             return self.success(data={"id": assignment_id})
 
