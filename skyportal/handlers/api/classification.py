@@ -103,8 +103,13 @@ class ClassificationHandler(BaseHandler):
 
         if classification_id is not None:
             classification = Classification.get_if_accessible_by(
-                classification_id, self.current_user, raise_if_none=True
+                classification_id, self.current_user
             )
+            if classification is None:
+                return self.error(
+                    f'Cannot find classification with ID: {classification_id}.'
+                )
+
             return self.success(data=classification)
 
         # get owned
@@ -194,19 +199,16 @@ class ClassificationHandler(BaseHandler):
         data = self.get_json()
         obj_id = data['obj_id']
 
-        user_group_ids = [g.id for g in self.current_user.groups]
+        user_group_ids = [g.id for g in self.current_user.accessible_groups]
         group_ids = data.pop("group_ids", user_group_ids)
-        groups = Group.get_if_accessible_by(
-            group_ids, self.current_user, raise_if_none=True
-        )
 
         author = self.associated_user_object
 
         # check the taxonomy
         taxonomy_id = data["taxonomy_id"]
-        taxonomy = Taxonomy.get_if_accessible_by(
-            taxonomy_id, self.current_user, raise_if_none=True
-        )
+        taxonomy = Taxonomy.get_if_accessible_by(taxonomy_id, self.current_user)
+        if taxonomy is None:
+            return self.error(f'Cannot find a taxonomy with ID: {taxonomy_id}.')
 
         def allowed_classes(hierarchy):
             if "class" in hierarchy:
@@ -231,30 +233,38 @@ class ClassificationHandler(BaseHandler):
                     "the allowable range (0-1)."
                 )
 
-        classification = Classification(
-            classification=data['classification'],
-            obj_id=obj_id,
-            probability=probability,
-            taxonomy_id=data["taxonomy_id"],
-            author=author,
-            author_name=author.username,
-            groups=groups,
-        )
+        with self.Session() as session:
+            groups = session.scalars(
+                Group.select(self.current_user).where(Group.id.in_(group_ids))
+            ).all()
+            if {g.id for g in groups} != set(group_ids):
+                return self.error(
+                    f'Cannot find one or more groups with IDs: {group_ids}.'
+                )
 
-        DBSession().add(classification)
-        self.verify_and_commit()
+            classification = Classification(
+                classification=data['classification'],
+                obj_id=obj_id,
+                probability=probability,
+                taxonomy_id=data["taxonomy_id"],
+                author=author,
+                author_name=author.username,
+                groups=groups,
+            )
+            session.add(classification)
+            session.commit()
 
-        self.push_all(
-            action='skyportal/REFRESH_SOURCE',
-            payload={'obj_key': classification.obj.internal_key},
-        )
+            self.push_all(
+                action='skyportal/REFRESH_SOURCE',
+                payload={'obj_key': classification.obj.internal_key},
+            )
 
-        self.push_all(
-            action='skyportal/REFRESH_CANDIDATE',
-            payload={'id': classification.obj.internal_key},
-        )
+            self.push_all(
+                action='skyportal/REFRESH_CANDIDATE',
+                payload={'id': classification.obj.internal_key},
+            )
 
-        return self.success(data={'classification_id': classification.id})
+            return self.success(data={'classification_id': classification.id})
 
     @permissions(['Classify'])
     def put(self, classification_id):
@@ -295,8 +305,12 @@ class ClassificationHandler(BaseHandler):
                 schema: Error
         """
         c = Classification.get_if_accessible_by(
-            classification_id, self.current_user, mode="update", raise_if_none=True
+            classification_id, self.current_user, mode="update"
         )
+        if c is None:
+            return self.error(
+                f'Cannot find a classification with ID: {classification_id}.'
+            )
 
         data = self.get_json()
         group_ids = data.pop("group_ids", None)
@@ -311,9 +325,12 @@ class ClassificationHandler(BaseHandler):
             )
 
         if group_ids is not None:
-            groups = Group.get_if_accessible_by(
-                group_ids, self.current_user, raise_if_none=True
-            )
+            groups = Group.get_if_accessible_by(group_ids, self.current_user)
+            if groups is None:
+                return self.error(
+                    f'Cannot find one or more groups with IDs: {group_ids}.'
+                )
+
             c.groups = groups
 
         self.verify_and_commit()
@@ -347,8 +364,13 @@ class ClassificationHandler(BaseHandler):
                 schema: Success
         """
         c = Classification.get_if_accessible_by(
-            classification_id, self.current_user, mode="delete", raise_if_none=True
+            classification_id, self.current_user, mode="delete"
         )
+        if c is None:
+            return self.error(
+                f'Cannot find a classification with ID: {classification_id}.'
+            )
+
         obj_key = c.obj.internal_key
         DBSession().delete(c)
         self.verify_and_commit()

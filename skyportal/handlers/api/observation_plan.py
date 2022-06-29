@@ -281,7 +281,6 @@ class ObservationPlanRequestHandler(BaseHandler):
             observation_plans = [json_data]
         combine_plans = json_data.get('combine_plans', False)
 
-        ids = []
         with DBSession() as session:
             ids = []
             if combine_plans:

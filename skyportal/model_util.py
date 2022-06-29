@@ -1,3 +1,4 @@
+import sqlalchemy as sa
 from social_tornado.models import TornadoStorage
 from skyportal.models import DBSession, ACL, Role, User, Token, Group
 from skyportal.enum_types import LISTENER_CLASSES, sqla_enum_types
@@ -15,6 +16,7 @@ all_acl_ids = [
     'Manage observing runs',
     'Manage Analysis Services',
     'Upload data',
+    'Run Analyses',
     'System admin',
     'Post taxonomy',
     'Delete taxonomy',
@@ -31,6 +33,7 @@ role_acls = {
         'Manage sources',
         'Manage Analysis Services',
         'Upload data',
+        'Run Analyses',
         'Post taxonomy',
         'Manage users',
         'Classify',
@@ -41,6 +44,7 @@ role_acls = {
         'Comment',
         'Upload data',
         'Classify',
+        'Run Analyses',
         'Manage observing runs',
     ],
     'View only': [],
@@ -50,31 +54,38 @@ env, cfg = load_env()
 
 
 def add_user(username, roles=[], auth=False, first_name=None, last_name=None):
-    user = User.query.filter(User.username == username).first()
-    if user is None:
-        user = User(username=username, first_name=first_name, last_name=last_name)
-        if auth:
-            TornadoStorage.user.create_social_auth(user, user.username, 'google-oauth2')
 
-    for rolename in roles:
-        role = Role.query.get(rolename)
-        if role not in user.roles:
-            user.roles.append(role)
+    with DBSession() as session:
+        user = session.scalars(sa.select(User).where(User.username == username)).first()
 
-    DBSession().add(user)
-    DBSession().flush()
+        if user is None:
+            user = User(username=username, first_name=first_name, last_name=last_name)
+            if auth:
+                TornadoStorage.user.create_social_auth(
+                    user, user.username, 'google-oauth2'
+                )
 
-    # Add user to sitewide public group
-    public_group = Group.query.filter(
-        Group.name == cfg["misc"]["public_group_name"]
-    ).first()
-    if public_group is None:
-        public_group = Group(name=cfg["misc"]["public_group_name"])
-        DBSession().add(public_group)
-        DBSession().flush()
+        for rolename in roles:
+            role = session.scalars(sa.select(Role).where(Role.id == rolename)).first()
+            if role not in user.roles:
+                user.roles.append(role)
 
-    user.groups.append(public_group)
-    DBSession().commit()
+        session.add(user)
+        session.flush()
+
+        # Add user to sitewide public group
+        public_group_name = cfg['misc.public_group_name']
+        if public_group_name:
+            public_group = session.scalars(
+                sa.select(Group).where(Group.name == public_group_name)
+            ).first()
+            if public_group is None:
+                public_group = Group(name=public_group_name)
+                session.add(public_group)
+                session.flush()
+
+        user.groups.append(public_group)
+        session.commit()
 
     return User.query.filter(User.username == username).first()
 
@@ -119,12 +130,11 @@ def provision_public_group():
     """If public group name is set in the config file, create it."""
     env, cfg = load_env()
     public_group_name = cfg['misc.public_group_name']
-    if public_group_name:
-        pg = Group.query.filter(Group.name == public_group_name).first()
+    pg = Group.query.filter(Group.name == public_group_name).first()
 
-        if pg is None:
-            DBSession().add(Group(name=public_group_name))
-            DBSession().commit()
+    if pg is None:
+        DBSession().add(Group(name=public_group_name))
+        DBSession().commit()
 
 
 def setup_permissions():

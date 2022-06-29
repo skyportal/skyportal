@@ -4,6 +4,7 @@ __all__ = [
     'GroupAnnotation',
     'GroupClassification',
     'GroupPhotometry',
+    'GroupPhotometricSeries',
     'GroupSpectrum',
     'GroupCommentOnSpectrum',
     'GroupCommentOnGCN',
@@ -13,6 +14,7 @@ __all__ = [
     'GroupSourceNotification',
     'GroupStream',
     'GroupAnalysisService',
+    'GroupObjAnalysis',
 ]
 
 import sqlalchemy as sa
@@ -20,7 +22,7 @@ import sqlalchemy as sa
 from baselayer.app.models import join_model, User, AccessibleIfUserMatches
 
 from baselayer.app.models import DBSession, restricted, CustomUserAccessControl
-from .photometry import Photometry
+from .photometry import Photometry, PhotometricSeries
 from .taxonomy import Taxonomy
 from .comment import Comment
 from .annotation import Annotation
@@ -35,7 +37,13 @@ from .source_notification import SourceNotification
 from .filter import Filter
 from .stream import Stream, StreamUser
 from .group import Group, accessible_by_group_admins, accessible_by_group_members
-from .analysis import AnalysisService
+from .analysis import AnalysisService, ObjAnalysis
+
+GroupObjAnalysis = join_model("group_obj_analyses", Group, ObjAnalysis)
+GroupObjAnalysis.__doc__ = "Join table mapping Groups to ObjAnalysis."
+GroupObjAnalysis.delete = GroupObjAnalysis.update = (
+    accessible_by_group_admins & GroupObjAnalysis.read
+)
 
 GroupAnalysisService = join_model("group_analysisservices", Group, AnalysisService)
 GroupAnalysisService.__doc__ = "Join table mapping Groups to Analysis Services."
@@ -71,6 +79,14 @@ GroupPhotometry = join_model("group_photometry", Group, Photometry)
 GroupPhotometry.__doc__ = "Join table mapping Groups to Photometry."
 GroupPhotometry.delete = GroupPhotometry.update = (
     accessible_by_group_admins & GroupPhotometry.read
+)
+
+GroupPhotometricSeries = join_model(
+    "group_photometric_series", Group, PhotometricSeries
+)
+GroupPhotometricSeries.__doc__ = "Join table mapping Groups to PhotometricSeries."
+GroupPhotometricSeries.delete = GroupPhotometricSeries.update = (
+    accessible_by_group_admins & GroupPhotometricSeries.read
 )
 
 GroupSpectrum = join_model("group_spectra", Group, Spectrum)
