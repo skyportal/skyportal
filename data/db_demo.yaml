@@ -511,7 +511,10 @@ allocation:
 galaxy_catalog:
   - catalog_name: GLADE
     catalog_data:
-      file: ../data/GLADE.txt
+      file: ../data/GLADE.csv
+  - catalog_name: CLU_mini
+    catalog_data:
+      file: ../data/CLU_mini.hdf5
 
 candidates:
   - id: ZTF21aaqjmps
