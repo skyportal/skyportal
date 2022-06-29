@@ -232,90 +232,94 @@ class AnnotationHandler(BaseHandler):
 
         group_ids = data.pop('group_ids', None)
         if not group_ids:
-            groups = self.current_user.accessible_groups
-        else:
-            try:
-                groups = Group.get_if_accessible_by(
-                    group_ids, self.current_user, raise_if_none=True
-                )
-            except AccessError:
-                return self.error('Could not find any accessible groups.', status=403)
+            group_ids = [g.id for g in self.current_user.accessible_groups]
 
         if not isinstance(annotation_data, Mapping):
             return self.error(
                 "Invalid data: the annotation data must be an object with at least one {key: value} pair"
             )
 
-        author = self.associated_user_object
-
-        if associated_resource_type.lower() == "sources":
-            obj_id = resource_id
-            data['obj_id'] = obj_id
-            schema = Annotation.__schema__(exclude=["author_id"])
-            try:
-                schema.load(data)
-            except ValidationError as e:
+        with self.Session() as session:
+            author = self.associated_user_object
+            groups = session.scalars(
+                Group.select(self.current_user).where(Group.id.in_(group_ids))
+            ).all()
+            if {g.id for g in groups} != set(group_ids):
                 return self.error(
-                    f'Invalid/missing parameters: {e.normalized_messages()}'
+                    f'Cannot find one or more groups with IDs: {group_ids}.'
                 )
 
-            annotation = Annotation(
-                data=annotation_data,
-                obj_id=obj_id,
-                origin=origin,
-                author=author,
-                groups=groups,
-            )
-        elif associated_resource_type.lower() == "spectra":
-            spectrum_id = resource_id
-            try:
-                spectrum = Spectrum.get_if_accessible_by(
-                    spectrum_id, self.current_user, raise_if_none=True
+            if associated_resource_type.lower() == "sources":
+                obj_id = resource_id
+                data['obj_id'] = obj_id
+                schema = Annotation.__schema__(exclude=["author_id"])
+                try:
+                    schema.load(data)
+                except ValidationError as e:
+                    return self.error(
+                        f'Invalid/missing parameters: {e.normalized_messages()}'
+                    )
+
+                annotation = Annotation(
+                    data=annotation_data,
+                    obj_id=obj_id,
+                    origin=origin,
+                    author=author,
+                    groups=groups,
                 )
-            except AccessError:
+            elif associated_resource_type.lower() == "spectra":
+                spectrum_id = resource_id
+                try:
+                    spectrum = Spectrum.get_if_accessible_by(
+                        spectrum_id, self.current_user, raise_if_none=True
+                    )
+                except AccessError:
+                    return self.error(
+                        f'Could not access spectrum {spectrum_id}.', status=403
+                    )
+                data['spectrum_id'] = spectrum_id
+                data['obj_id'] = spectrum.obj_id
+                schema = AnnotationOnSpectrum.__schema__(exclude=["author_id"])
+                try:
+                    schema.load(data)
+                except ValidationError as e:
+                    return self.error(
+                        f'Invalid/missing parameters: {e.normalized_messages()}'
+                    )
+
+                annotation = AnnotationOnSpectrum(
+                    data=annotation_data,
+                    spectrum_id=spectrum_id,
+                    obj_id=spectrum.obj_id,
+                    origin=origin,
+                    author=author,
+                    groups=groups,
+                )
+            else:
                 return self.error(
-                    f'Could not access spectrum {spectrum_id}.', status=403
+                    f'Unknown resource type "{associated_resource_type}".'
                 )
-            data['spectrum_id'] = spectrum_id
-            data['obj_id'] = spectrum.obj_id
-            schema = AnnotationOnSpectrum.__schema__(exclude=["author_id"])
+
+            session.add(annotation)
+
             try:
-                schema.load(data)
-            except ValidationError as e:
-                return self.error(
-                    f'Invalid/missing parameters: {e.normalized_messages()}'
+                session.commit()
+            except IntegrityError as e:
+                return self.error(f'Annotation already exists: {str(e)}')
+
+            if isinstance(
+                annotation, (Annotation, AnnotationOnSpectrum)
+            ):  # annotation on object or object related data
+                self.push_all(
+                    action='skyportal/REFRESH_SOURCE',
+                    payload={'obj_key': annotation.obj.internal_key},
                 )
-
-            annotation = AnnotationOnSpectrum(
-                data=annotation_data,
-                spectrum_id=spectrum_id,
-                obj_id=spectrum.obj_id,
-                origin=origin,
-                author=author,
-                groups=groups,
-            )
-        else:
-            return self.error(f'Unknown resource type "{associated_resource_type}".')
-
-        DBSession().add(annotation)
-        try:
-            self.verify_and_commit()
-        except IntegrityError as e:
-            return self.error(f'Annotation already exists: {str(e)}')
-
-        if isinstance(
-            annotation, (Annotation, AnnotationOnSpectrum)
-        ):  # annotation on object or object related data
-            self.push_all(
-                action='skyportal/REFRESH_SOURCE',
-                payload={'obj_key': annotation.obj.internal_key},
-            )
-        if isinstance(annotation, AnnotationOnSpectrum):
-            self.push_all(
-                action='skyportal/REFRESH_SOURCE_SPECTRA',
-                payload={'obj_internal_key': annotation.obj.internal_key},
-            )
-        return self.success(data={'annotation_id': annotation.id})
+            if isinstance(annotation, AnnotationOnSpectrum):
+                self.push_all(
+                    action='skyportal/REFRESH_SOURCE_SPECTRA',
+                    payload={'obj_internal_key': annotation.obj.internal_key},
+                )
+            return self.success(data={'annotation_id': annotation.id})
 
     @permissions(['Annotate'])
     def put(self, associated_resource_type, resource_id, annotation_id):

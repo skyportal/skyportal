@@ -182,6 +182,7 @@ class UserFactory(factory.alchemy.SQLAlchemyModelFactory):
         )
         if user is not None:
             # If it is, delete it
+            DBSession().refresh(user)
             DBSession().delete(user)
             DBSession().commit()
 

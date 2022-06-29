@@ -1918,7 +1918,11 @@ def test_token_user_retrieving_source_with_annotation_filter(
     status, data = api(
         "GET",
         "sources",
-        params={"annotationsFilter": f"{annotation_name}:2.0:le"},
+        params={
+            'annotationsFilter': f'{annotation_name}:2.0:le',
+            'sortBy': 'saved_at',
+            'sortOrder': 'desc',
+        },
         token=super_admin_token,
     )
     assert status == 200
@@ -1929,8 +1933,10 @@ def test_token_user_retrieving_source_with_annotation_filter(
         "GET",
         "sources",
         params={
-            "annotationsFilter": f"{annotation_name}:2.0:le",
-            "annotationsFilterOrigin": "kowalski",
+            'annotationsFilter': f'{annotation_name}:2.0:le',
+            'annotationsFilterOrigin': 'kowalski',
+            'sortBy': 'saved_at',
+            'sortOrder': 'desc',
         },
         token=super_admin_token,
     )
@@ -1941,7 +1947,11 @@ def test_token_user_retrieving_source_with_annotation_filter(
     status, data = api(
         "GET",
         "sources",
-        params={"annotationsFilter": f"{annotation_name}:2.0:ge"},
+        params={
+            'annotationsFilter': f'{annotation_name}:2.0:ge',
+            'sortBy': 'saved_at',
+            'sortOrder': 'desc',
+        },
         token=super_admin_token,
     )
     assert status == 200
@@ -2004,7 +2014,11 @@ def test_token_user_retrieving_source_with_comment_filter(
     status, data = api(
         "GET",
         "sources",
-        params={"commentsFilter": f"{comment_text_less}"},
+        params={
+            'commentsFilter': f'{comment_text_less}',
+            'sortBy': 'saved_at',
+            'sortOrder': 'desc',
+        },
         token=super_admin_token,
     )
     assert status == 200
@@ -2014,7 +2028,11 @@ def test_token_user_retrieving_source_with_comment_filter(
     status, data = api(
         "GET",
         "sources",
-        params={"commentsFilter": f"{comment_text}"},
+        params={
+            'commentsFilter': f'{comment_text}',
+            'sortBy': 'saved_at',
+            'sortOrder': 'desc',
+        },
         token=super_admin_token,
     )
     assert status == 200

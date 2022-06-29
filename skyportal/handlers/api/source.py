@@ -2730,12 +2730,6 @@ class SourceNotificationHandler(BaseHandler):
                 "all list items to integers."
             )
 
-        groups = (
-            Group.query_records_accessible_by(self.current_user)
-            .filter(Group.id.in_(group_ids))
-            .all()
-        )
-
         if data.get("sourceId") is None:
             return self.error("Missing required parameter `sourceId`")
 
@@ -2769,30 +2763,39 @@ class SourceNotificationHandler(BaseHandler):
             )
         level = data["level"]
 
-        new_notification = SourceNotification(
-            source_id=source_id,
-            groups=groups,
-            additional_notes=additional_notes,
-            sent_by=self.associated_user_object,
-            level=level,
-        )
-        DBSession().add(new_notification)
-        try:
-            self.verify_and_commit()
-        except python_http_client.exceptions.UnauthorizedError:
-            return self.error(
-                "Twilio Sendgrid authorization error. Please ensure "
-                "valid Sendgrid API key is set in server environment as "
-                "per their setup docs."
-            )
-        except TwilioException:
-            return self.error(
-                "Twilio Communication SMS API authorization error. Please ensure "
-                "valid Twilio API key is set in server environment as "
-                "per their setup docs."
-            )
+        with self.Session() as session:
+            groups = session.scalars(
+                Group.select(self.current_user).where(Group.id.in_(group_ids))
+            ).all()
+            if {g.id for g in groups} != set(group_ids):
+                return self.error(
+                    f'Cannot find one or more groups with IDs: {group_ids}.'
+                )
 
-        return self.success(data={'id': new_notification.id})
+            new_notification = SourceNotification(
+                source_id=source_id,
+                groups=groups,
+                additional_notes=additional_notes,
+                sent_by=self.associated_user_object,
+                level=level,
+            )
+            session.add(new_notification)
+            try:
+                session.commit()
+            except python_http_client.exceptions.UnauthorizedError:
+                return self.error(
+                    "Twilio Sendgrid authorization error. Please ensure "
+                    "valid Sendgrid API key is set in server environment as "
+                    "per their setup docs."
+                )
+            except TwilioException:
+                return self.error(
+                    "Twilio Communication SMS API authorization error. Please ensure "
+                    "valid Twilio API key is set in server environment as "
+                    "per their setup docs."
+                )
+
+            return self.success(data={'id': new_notification.id})
 
 
 class PS1ThumbnailHandler(BaseHandler):

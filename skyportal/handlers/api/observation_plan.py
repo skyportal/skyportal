@@ -186,7 +186,6 @@ class ObservationPlanRequestHandler(BaseHandler):
         else:
             observation_plans = [json_data]
 
-        ids = []
         with DBSession() as session:
             ids = []
             for plan in observation_plans:

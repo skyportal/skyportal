@@ -4,6 +4,7 @@ import os
 from tdtax import taxonomy, __version__
 from datetime import datetime, timezone
 from selenium.webdriver.common.action_chains import ActionChains
+
 from skyportal.tests import api
 from skyportal.tests.frontend.sources_and_followup_etc.test_sources import (
     add_comment_and_wait_for_display,
@@ -125,18 +126,23 @@ def test_comment_on_favorite_source_triggers_notification(
 
     # Make public_source a favorite
     driver.get(f"/source/{public_source.id}")
-    driver.click_xpath(f'//*[@data-testid="favorites-exclude_{public_source.id}"]')
-    driver.wait_for_xpath(f'//*[@data-testid="favorites-include_{public_source.id}"]')
+    driver.click_xpath(
+        f'//*[@data-testid="favorites-exclude_{public_source.id}"]', timeout=30
+    )
+    driver.wait_for_xpath(
+        f'//*[@data-testid="favorites-include_{public_source.id}"]', timeout=30
+    )
 
     # Become user2 and submit comment on source
     driver.get(f'/become_user/{user2.id}')
     driver.get(f"/source/{public_source.id}")
-    add_comment_and_wait_for_display(driver, "comment text")
+    comment_text = str(uuid.uuid4())
+    add_comment_and_wait_for_display(driver, comment_text)
 
     # Check that notification was created
     driver.get(f'/become_user/{user.id}')
     driver.get("/")
-    driver.wait_for_xpath("//span[text()='1']")
+    driver.wait_for_xpath(f"//p[text()='{comment_text}']")
     driver.click_xpath('//*[@data-testid="notificationsButton"]')
     driver.wait_for_xpath('//*[contains(text(), "New comment on favorite source")]')
 

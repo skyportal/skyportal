@@ -1,3 +1,4 @@
+import pytest
 from skyportal.tests import api
 from selenium.webdriver.common.keys import Keys
 from datetime import date, timedelta
@@ -7,6 +8,7 @@ import os
 import numpy as np
 
 
+@pytest.mark.flaky(reruns=2)
 def test_shift(
     public_group,
     super_admin_token,

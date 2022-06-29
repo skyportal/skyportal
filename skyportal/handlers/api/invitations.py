@@ -102,114 +102,122 @@ class InvitationHandler(BaseHandler):
             return self.error("Invitations are not enabled in current deployment.")
         data = self.get_json()
 
-        role_id = data.get("role", "Full user")
-        if role_id not in ["Full user", "View only"]:
-            return self.error(
-                f"Unsupported value provided for parameter `role`: {role_id}. "
-                "Must be one of either 'Full user' or 'View only'."
-            )
-        role = Role.query.get(role_id)
-        if data.get("userEmail") in [None, "", "None", "null"]:
-            return self.error("Missing required parameter `userEmail`")
-        user_email = data["userEmail"].strip()
+        with self.Session() as session:
+            role_id = data.get("role", "Full user")
+            if role_id not in ["Full user", "View only"]:
+                return self.error(
+                    f"Unsupported value provided for parameter `role`: {role_id}. "
+                    "Must be one of either 'Full user' or 'View only'."
+                )
+            role = session.scalars(
+                Role.select(self.current_user).where(Role.id == role_id)
+            ).first()
 
-        if data.get("groupIDs") is None:
-            return self.error("Missing required parameter `groupIDs`")
-        try:
-            group_ids = [int(gid) for gid in data["groupIDs"]]
-        except ValueError:
-            return self.error(
-                "Invalid value provided for `groupIDs`; unable to parse "
-                "all list items to integers."
-            )
-        groups = Group.get_if_accessible_by(group_ids, self.current_user)
-        if set(group_ids).difference({g.id for g in groups}):
-            return self.error(
-                "The following groupIDs elements are invalid: "
-                f"{set(group_ids).difference({g.id for g in groups})}"
-            )
+            if data.get("userEmail") in [None, "", "None", "null"]:
+                return self.error("Missing required parameter `userEmail`")
+            user_email = data["userEmail"].strip()
 
-        if data.get("streamIDs") not in [None, "", "null", "None"]:
+            if data.get("groupIDs") is None:
+                return self.error("Missing required parameter `groupIDs`")
             try:
-                stream_ids = [int(sid) for sid in data["streamIDs"]]
+                group_ids = [int(gid) for gid in data["groupIDs"]]
             except ValueError:
                 return self.error(
-                    "Invalid value provided for `streamIDs`; unable to parse "
+                    "Invalid value provided for `groupIDs`; unable to parse "
                     "all list items to integers."
                 )
-
-            streams = Stream.get_if_accessible_by(stream_ids, self.current_user)
-            if set(stream_ids).difference({s.id for s in streams}):
+            groups = session.scalars(
+                Group.select(self.current_user).where(Group.id.in_(group_ids))
+            ).all()
+            if set(group_ids).difference({g.id for g in groups}):
                 return self.error(
-                    "The following streamIDs elements are invalid: "
-                    f"{set(stream_ids).difference({s.id for s in streams})}"
+                    "The following groupIDs elements are invalid: "
+                    f"{set(group_ids).difference({g.id for g in groups})}"
                 )
 
-            # Ensure specified groups are covered by specified streams
-            if not all(
-                [stream in streams for group in groups for stream in group.streams]
-            ):
+            if data.get("streamIDs") not in [None, "", "null", "None"]:
+                try:
+                    stream_ids = [int(sid) for sid in data["streamIDs"]]
+                except ValueError:
+                    return self.error(
+                        "Invalid value provided for `streamIDs`; unable to parse "
+                        "all list items to integers."
+                    )
+
+                streams = session.scalars(
+                    Stream.select(self.current_user).where(Stream.id.in_(stream_ids))
+                ).all()
+
+                if set(stream_ids).difference({s.id for s in streams}):
+                    return self.error(
+                        "The following streamIDs elements are invalid: "
+                        f"{set(stream_ids).difference({s.id for s in streams})}"
+                    )
+
+                # Ensure specified groups are covered by specified streams
+                if not all(
+                    [stream in streams for group in groups for stream in group.streams]
+                ):
+                    return self.error(
+                        "You have attempted to invite user to group(s) that "
+                        "access streams that were not specified in provided "
+                        "stream IDs list. Please try again."
+                    )
+            else:
+                streams = session.scalars(
+                    Stream.select(self.current_user)
+                    .join(GroupStream)
+                    .where(GroupStream.group_id.in_(group_ids))
+                ).all()
+            admin_for_groups = data.get("groupAdmin", [False] * len(groups))
+            if not all([isinstance(admin, bool) for admin in admin_for_groups]):
                 return self.error(
-                    "You have attempted to invite user to group(s) that "
-                    "access streams that were not specified in provided "
-                    "stream IDs list. Please try again."
+                    "Invalid value provided for `groupAdmin` parameter: "
+                    "all elements must be booleans"
                 )
-        else:
-            streams = (
-                Stream.query_records_accessible_by(self.current_user, mode="read")
-                .join(GroupStream)
-                .filter(GroupStream.group_id.in_(group_ids))
-                .all()
+            can_save = data.get("canSave", [True] * len(groups))
+            if not all([isinstance(can_save_el, bool) for can_save_el in can_save]):
+                return self.error(
+                    "Invalid value provided for `canSave` parameter: "
+                    "all elements must be booleans"
+                )
+            user_expiration_date = data.get("userExpirationDate")
+            if user_expiration_date is not None:
+                try:
+                    user_expiration_date = arrow.get(user_expiration_date).datetime
+                except arrow.parser.ParserError:
+                    return self.error("Unable to parse `userExpirationDate` parameter.")
+
+            if len(admin_for_groups) != len(groups):
+                return self.error("groupAdmin and groupIDs must be the same length")
+
+            invite_token = str(uuid.uuid4())
+            invitation = Invitation(
+                token=invite_token,
+                groups=groups,
+                admin_for_groups=admin_for_groups,
+                can_save_to_groups=can_save,
+                streams=streams,
+                user_email=user_email,
+                role=role,
+                invited_by=self.associated_user_object,
+                user_expiration_date=user_expiration_date,
             )
-        admin_for_groups = data.get("groupAdmin", [False] * len(groups))
-        if not all([isinstance(admin, bool) for admin in admin_for_groups]):
-            return self.error(
-                "Invalid value provided for `groupAdmin` parameter: "
-                "all elements must be booleans"
-            )
-        can_save = data.get("canSave", [True] * len(groups))
-        if not all([isinstance(can_save_el, bool) for can_save_el in can_save]):
-            return self.error(
-                "Invalid value provided for `canSave` parameter: "
-                "all elements must be booleans"
-            )
-        user_expiration_date = data.get("userExpirationDate")
-        if user_expiration_date is not None:
+            session.add(invitation)
             try:
-                user_expiration_date = arrow.get(user_expiration_date).datetime
-            except arrow.parser.ParserError:
-                return self.error("Unable to parse `userExpirationDate` parameter.")
-
-        if len(admin_for_groups) != len(groups):
-            return self.error("groupAdmin and groupIDs must be the same length")
-
-        invite_token = str(uuid.uuid4())
-        invitation = Invitation(
-            token=invite_token,
-            groups=groups,
-            admin_for_groups=admin_for_groups,
-            can_save_to_groups=can_save,
-            streams=streams,
-            user_email=user_email,
-            role=role,
-            invited_by=self.associated_user_object,
-            user_expiration_date=user_expiration_date,
-        )
-        DBSession().add(invitation)
-        try:
-            self.verify_and_commit()
-        except python_http_client.exceptions.UnauthorizedError:
-            return self.error(
-                "Twilio Sendgrid authorization error. Please ensure "
-                "valid Sendgrid API key is set in server environment as "
-                "per their setup docs."
-            )
-        except smtplib.SMTPAuthenticationError:
-            return self.error(
-                "SMTP authentication failed. Please ensure valid "
-                "credentials are specified in the config file."
-            )
-        return self.success(data={"id": invitation.id})
+                session.commit()
+            except python_http_client.exceptions.UnauthorizedError:
+                return self.error(
+                    "Twilio Sendgrid authorization error. Please ensure "
+                    "valid Sendgrid API key is set in server environment as "
+                    "per their setup docs."
+                )
+            except smtplib.SMTPAuthenticationError:
+                return self.error(
+                    "SMTP authentication failed. Please ensure valid "
+                    "credentials are specified in the config file."
+                )
+            return self.success(data={"id": invitation.id})
 
     @permissions(["Manage users"])
     def get(self):
