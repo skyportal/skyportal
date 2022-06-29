@@ -1833,7 +1833,7 @@ class ObservationSimSurveyHandler(BaseHandler):
         }
 
         survey_efficiency_analysis = SurveyEfficiencyForObservations(
-            requester_id=self.current_user.id,
+            requester_id=self.associated_user_object.id,
             gcnevent_id=event.id,
             localization_id=localization.id,
             groups=groups,

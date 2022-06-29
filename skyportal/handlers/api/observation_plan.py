@@ -1624,7 +1624,7 @@ class ObservationPlanSimSurveyHandler(BaseHandler):
         }
 
         survey_efficiency_analysis = SurveyEfficiencyForObservationPlan(
-            requester_id=self.current_user.id,
+            requester_id=self.associated_user_object.id,
             observation_plan_id=observation_plan.id,
             groups=groups,
             payload=payload,
