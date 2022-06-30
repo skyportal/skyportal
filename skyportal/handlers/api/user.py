@@ -439,7 +439,7 @@ class UserHandler(BaseHandler):
         affiliations = data.get("affiliations")
         # check if the affiliations are a list
         if affiliations is not None and not isinstance(affiliations, list):
-            return self.error("Affiliations must be a list fo strings")
+            return self.error("Affiliations must be a list of strings")
 
         try:
             user_id = add_user_and_setup_groups(
