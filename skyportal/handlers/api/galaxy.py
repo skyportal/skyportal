@@ -21,6 +21,126 @@ Session = scoped_session(sessionmaker(bind=DBSession.session_factory.kw["bind"])
 MAX_GALAXIES = 10000
 
 
+def get_galaxies(
+    user,
+    session,
+    catalog_name=None,
+    localization_dateobs=None,
+    localization_name=None,
+    localization_cumprob=None,
+    includeGeoJSON=False,
+    catalog_names_only=False,
+    page_number=1,
+    num_per_page=MAX_GALAXIES,
+):
+    if catalog_names_only:
+        catalogs = session.execute(sa.select(Galaxy.catalog_name).distinct()).all()
+        query_result = []
+        for (catalog_name,) in catalogs:
+            query = Galaxy.query_records_accessible_by(user, mode="read")
+            query = query.filter(Galaxy.catalog_name == catalog_name)
+            total_matches = query.count()
+            query_result.append(
+                {
+                    'catalog_name': catalog_name,
+                    'catalog_count': int(total_matches),
+                }
+            )
+
+        return query_result
+
+    query = Galaxy.query_records_accessible_by(user, mode="read")
+    if catalog_name is not None:
+        query = query.filter(Galaxy.catalog_name == catalog_name)
+
+    if localization_dateobs is not None:
+
+        if localization_name is not None:
+            localization = (
+                Localization.query_records_accessible_by(user)
+                .filter(Localization.dateobs == localization_dateobs)
+                .filter(Localization.localization_name == localization_name)
+                .first()
+            )
+        else:
+            localization = (
+                Localization.query_records_accessible_by(user)
+                .filter(Localization.dateobs == localization_dateobs)
+                .first()
+            )
+        if localization is None:
+            if localization_name is not None:
+                raise (
+                    f"Localization {localization_dateobs} with name {localization_name} not found",
+                )
+            else:
+                raise (f"Localization {localization_dateobs} not found")
+
+        cum_prob = (
+            sa.func.sum(LocalizationTile.probdensity * LocalizationTile.healpix.area)
+            .over(order_by=LocalizationTile.probdensity.desc())
+            .label('cum_prob')
+        )
+        localizationtile_subquery = (
+            sa.select(LocalizationTile.probdensity, cum_prob).filter(
+                LocalizationTile.localization_id == localization.id
+            )
+        ).subquery()
+
+        min_probdensity = (
+            sa.select(
+                sa.func.min(localizationtile_subquery.columns.probdensity)
+            ).filter(localizationtile_subquery.columns.cum_prob <= localization_cumprob)
+        ).scalar_subquery()
+
+        tiles_subquery = (
+            sa.select(Galaxy.id)
+            .filter(
+                LocalizationTile.localization_id == localization.id,
+                LocalizationTile.healpix.contains(Galaxy.healpix),
+                LocalizationTile.probdensity >= min_probdensity,
+            )
+            .subquery()
+        )
+
+        query = query.join(
+            tiles_subquery,
+            Galaxy.id == tiles_subquery.c.id,
+        )
+
+    total_matches = query.count()
+    if num_per_page is not None:
+        query = (
+            query.distinct()
+            .limit(num_per_page)
+            .offset((page_number - 1) * num_per_page)
+        )
+
+    galaxies = query.all()
+    query_results = {"galaxies": galaxies, "totalMatches": int(total_matches)}
+
+    if includeGeoJSON:
+        # features are JSON representations that the d3 stuff understands.
+        # We use these to render the contours of the sky localization and
+        # locations of the transients.
+
+        features = []
+        for source in query_results["galaxies"]:
+            point = Point((source.ra, source.dec))
+            if source.name is not None:
+                source_name = source.name
+            else:
+                source_name = f'{source.ra},{source.dec}'
+
+            features.append(Feature(geometry=point, properties={"name": source_name}))
+
+        query_results["geojson"] = {
+            'type': 'FeatureCollection',
+            'features': features,
+        }
+    return query_results
+
+
 class GalaxyCatalogHandler(BaseHandler):
     @permissions(['System admin'])
     def post(self):
@@ -186,165 +306,29 @@ class GalaxyCatalogHandler(BaseHandler):
         except ValueError as e:
             return self.error(f'pageNumber fails: {e}')
 
-        n_per_page = self.get_query_argument("numPerPage", 100)
+        num_per_page = self.get_query_argument("numPerPage", 100)
         try:
-            n_per_page = int(n_per_page)
+            num_per_page = int(num_per_page)
         except ValueError as e:
             return self.error(f'numPerPage fails: {e}')
-
-        if catalog_names_only:
-            with DBSession() as session:
-                catalogs = session.execute(
-                    sa.select(Galaxy.catalog_name).distinct()
-                ).all()
-                query_result = []
-                for (catalog_name,) in catalogs:
-                    query = Galaxy.query_records_accessible_by(
-                        self.current_user, mode="read"
-                    )
-                    query = query.filter(Galaxy.catalog_name == catalog_name)
-                    total_matches = query.count()
-                    query_result.append(
-                        {
-                            'catalog_name': catalog_name,
-                            'catalog_count': int(total_matches),
-                        }
-                    )
-
-                return self.success(data=query_result)
-
-        query = Galaxy.query_records_accessible_by(self.current_user, mode="read")
-        if catalog_name is not None:
-            query = query.filter(Galaxy.catalog_name == catalog_name)
-
-        if localization_dateobs is not None:
-
-            if localization_name is not None:
-                localization = (
-                    Localization.query_records_accessible_by(self.current_user)
-                    .filter(Localization.dateobs == localization_dateobs)
-                    .filter(Localization.localization_name == localization_name)
-                    .first()
+        with Session() as session:
+            try:
+                data = get_galaxies(
+                    self.current_user,
+                    session,
+                    catalog_name,
+                    localization_dateobs,
+                    localization_name,
+                    localization_cumprob,
+                    includeGeoJSON,
+                    catalog_names_only,
+                    page_number,
+                    num_per_page,
                 )
-            else:
-                localization = (
-                    Localization.query_records_accessible_by(self.current_user)
-                    .filter(Localization.dateobs == localization_dateobs)
-                    .first()
-                )
-            if localization is None:
-                if localization_name is not None:
-                    return self.error(
-                        f"Localization {localization_dateobs} with name {localization_name} not found",
-                        status=404,
-                    )
-                else:
-                    return self.error(
-                        f"Localization {localization_dateobs} not found", status=404
-                    )
-
-            cum_prob = (
-                sa.func.sum(
-                    LocalizationTile.probdensity * LocalizationTile.healpix.area
-                )
-                .over(order_by=LocalizationTile.probdensity.desc())
-                .label('cum_prob')
-            )
-            localizationtile_subquery = (
-                sa.select(LocalizationTile.probdensity, cum_prob).filter(
-                    LocalizationTile.localization_id == localization.id
-                )
-            ).subquery()
-
-            min_probdensity = (
-                sa.select(
-                    sa.func.min(localizationtile_subquery.columns.probdensity)
-                ).filter(
-                    localizationtile_subquery.columns.cum_prob <= localization_cumprob
-                )
-            ).scalar_subquery()
-
-            tiles_subquery = (
-                sa.select(Galaxy.id)
-                .filter(
-                    LocalizationTile.localization_id == localization.id,
-                    LocalizationTile.healpix.contains(Galaxy.healpix),
-                    LocalizationTile.probdensity >= min_probdensity,
-                )
-                .subquery()
-            )
-
-            query = query.join(
-                tiles_subquery,
-                Galaxy.id == tiles_subquery.c.id,
-            )
-
-        total_matches = query.count()
-        if n_per_page is not None:
-            query = (
-                query.distinct()
-                .limit(n_per_page)
-                .offset((page_number - 1) * n_per_page)
-            )
-
-        galaxies = query.all()
-        query_results = {"galaxies": galaxies, "totalMatches": int(total_matches)}
-
-        if includeGeoJSON:
-            # features are JSON representations that the d3 stuff understands.
-            # We use these to render the contours of the sky localization and
-            # locations of the transients.
-
-            features = []
-            for source in query_results["galaxies"]:
-                point = Point((source.ra, source.dec))
-                if source.name is not None:
-                    source_name = source.name
-                else:
-                    source_name = f'{source.ra},{source.dec}'
-
-                features.append(
-                    Feature(geometry=point, properties={"name": source_name})
-                )
-
-            query_results["geojson"] = {
-                'type': 'FeatureCollection',
-                'features': features,
-            }
-
-        self.verify_and_commit()
-        return self.success(data=query_results)
-
-    @permissions(['System admin'])
-    def delete(self, catalog_name):
-        """
-        ---
-        description: Delete a galaxy catalog
-        tags:
-          - instruments
-        parameters:
-          - in: path
-            name: catalog_name
-            required: true
-            schema:
-              type: str
-        responses:
-          200:
-            content:
-              application/json:
-                schema: Success
-          400:
-            content:
-              application/json:
-                schema: Error
-        """
-
-        with DBSession() as session:
-            session.execute(
-                sa.delete(Galaxy).where(Galaxy.catalog_name == catalog_name)
-            )
-            self.verify_and_commit()
-            return self.success()
+                self.verify_and_commit()
+                return self.success(data)
+            except Exception as e:
+                return self.error(e, status_code=404)
 
 
 def add_galaxies(catalog_name, catalog_data):
