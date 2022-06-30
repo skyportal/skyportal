@@ -17,7 +17,7 @@ import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
 import Tooltip from "@mui/material/Tooltip";
-import { DatePicker } from "@material-ui/pickers";
+import DatePicker from "@mui/lab/DatePicker";
 import {
   createTheme,
   ThemeProvider,
@@ -1004,9 +1004,11 @@ const UserManagement = () => {
                     date ? onChange(dayjs.utc(date)) : onChange(date)
                   }
                   label="Expiration date (UTC)"
-                  format="YYYY/MM/DD"
-                  disablePast
-                  data-testid="expirationDatePicker"
+                  showTodayButton={false}
+                  renderInput={(params) => (
+                    /* eslint-disable-next-line react/jsx-props-no-spreading */
+                    <TextField id="expirationDatePicker" {...params} />
+                  )}
                 />
               )}
               name="date"

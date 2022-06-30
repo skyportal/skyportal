@@ -154,7 +154,6 @@ class GaiaQueryHandler(BaseHandler):
 
         # TODO: convert the above code to the new SQLA 2.0 methods
         with self.Session() as session:
-
             group_ids = data.pop('group_ids', None)
 
             if not group_ids:
@@ -442,7 +441,6 @@ class VizierQueryHandler(BaseHandler):
                     for k in keys
                     if not row.to_dict().get(k, None) == -99
                 }
-
                 origin = f"{catalog}-{row['Name']}"
                 annotation = Annotation(
                     data=annotation_data,
