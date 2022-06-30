@@ -154,7 +154,6 @@ class GaiaQueryHandler(BaseHandler):
 
         # TODO: convert the above code to the new SQLA 2.0 methods
         with self.Session() as session:
-
             group_ids = data.pop('group_ids', None)
 
             if not group_ids:
@@ -194,10 +193,10 @@ class GaiaQueryHandler(BaseHandler):
                 return self.error("No Gaia Photometry available.")
 
             session.add_all(annotations)
-        try:
-            session.commit()
-        except IntegrityError:
-            return self.error("Annotation already posted.")
+            try:
+                session.commit()
+            except IntegrityError:
+                return self.error("Annotation already posted.")
 
         self.push_all(
             action='skyportal/REFRESH_SOURCE',
@@ -442,7 +441,6 @@ class VizierQueryHandler(BaseHandler):
                     for k in keys
                     if not row.to_dict().get(k, None) == -99
                 }
-
                 origin = f"{catalog}-{row['Name']}"
                 annotation = Annotation(
                     data=annotation_data,
