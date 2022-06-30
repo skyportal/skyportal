@@ -476,8 +476,15 @@ def get_observations(
         )
 
     observations = obs_query.all()
+    observations_list = []
+    for o in observations:
+        obs_dict = o.to_dict()
+        obs_dict['field'] = obs_dict['field'].to_dict()
+        obs_dict['instrument'] = obs_dict['instrument'].to_dict()
+        observations_list.append(obs_dict)
+
     data = {
-        "observations": [o.to_dict() for o in observations],
+        "observations": observations_list,
         "totalMatches": int(total_matches),
     }
 
@@ -1641,7 +1648,7 @@ class ObservationSimSurveyHandler(BaseHandler):
             schema:
               type: number
             description: |
-              Number of simulations to evaluate efficiency with. Defaults to 10000.
+              Number of simulations to evaluate efficiency with. Defaults to 1000.
           - in: query
             name: numberDetections
             nullable: true
@@ -1703,11 +1710,11 @@ class ObservationSimSurveyHandler(BaseHandler):
         localization_name = self.get_query_argument('localizationName', None)
         localization_cumprob = self.get_query_argument("localizationCumprob", 0.95)
 
-        number_of_injections = self.get_query_argument("numberInjections", 10000)
-        number_of_detections = self.get_query_argument("numberDetections", 1)
-        detection_threshold = self.get_query_argument("detectionThreshold", 5)
-        minimum_phase = self.get_query_argument("minimumPhase", 0)
-        maximum_phase = self.get_query_argument("maximumPhase", 3)
+        number_of_injections = int(self.get_query_argument("numberInjections", 1000))
+        number_of_detections = int(self.get_query_argument("numberDetections", 1))
+        detection_threshold = float(self.get_query_argument("detectionThreshold", 5))
+        minimum_phase = float(self.get_query_argument("minimumPhase", 0))
+        maximum_phase = float(self.get_query_argument("maximumPhase", 3))
         injection_filename = self.get_query_argument(
             "injectionFilename",
             'data/nsns_nph1.0e+06_mejdyn0.020_mejwind0.130_phi30.txt',
@@ -1801,7 +1808,7 @@ class ObservationSimSurveyHandler(BaseHandler):
 
         observations = data["observations"]
         if len(observations) == 0:
-            return self.error('Need at least one observation to send to Treasure Map')
+            return self.error('Need at least one observation to run SimSurvey')
 
         unique_filters = list({observation["filt"] for observation in observations})
 
@@ -1834,6 +1841,7 @@ class ObservationSimSurveyHandler(BaseHandler):
 
         survey_efficiency_analysis = SurveyEfficiencyForObservations(
             requester_id=self.associated_user_object.id,
+            instrument_id=instrument_id,
             gcnevent_id=event.id,
             localization_id=localization.id,
             groups=groups,

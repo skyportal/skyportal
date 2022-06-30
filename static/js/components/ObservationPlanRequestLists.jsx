@@ -22,6 +22,7 @@ import * as Actions from "../ducks/gcnEvent";
 import { GET } from "../API";
 
 import LocalizationPlot from "./LocalizationPlot";
+import AddSurveyEfficiencyObservationPlanPage from "./AddSurveyEfficiencyObservationPlanPage";
 
 const useStyles = makeStyles(() => ({
   observationplanRequestTable: {
@@ -184,6 +185,23 @@ const ObservationPlanRequestLists = ({ gcnEvent }) => {
   const dispatch = useDispatch();
   const theme = useTheme();
 
+  const [observationPlanRequestList, setObservationPlanRequestList] =
+    useState(null);
+  useEffect(() => {
+    const fetchObservationPlanRequestList = async () => {
+      const response = await dispatch(
+        GET(
+          `/api/gcn_event/${gcnEvent.id}/observation_plan_requests`,
+          "skyportal/FETCH_GCNEVENT_OBSERVATION_PLAN_REQUESTS"
+        )
+      );
+      setObservationPlanRequestList(response.data);
+    };
+    fetchObservationPlanRequestList();
+  }, [dispatch, setObservationPlanRequestList, gcnEvent]);
+
+  console.log("observationPlanRequestList", observationPlanRequestList);
+
   const [selectedLocalizationId, setSelectedLocalizationId] = useState(null);
 
   const [isDeleting, setIsDeleting] = useState(null);
@@ -252,10 +270,7 @@ const ObservationPlanRequestLists = ({ gcnEvent }) => {
     return <CircularProgress />;
   }
 
-  if (
-    !gcnEvent.observationplan_requests ||
-    gcnEvent.observationplan_requests.length === 0
-  ) {
+  if (!observationPlanRequestList || observationPlanRequestList.length === 0) {
     return <p>No observation plan requests for this source...</p>;
   }
 
@@ -274,16 +289,13 @@ const ObservationPlanRequestLists = ({ gcnEvent }) => {
     locLookUp[loc.id] = loc;
   });
 
-  const requestsGroupedByInstId = gcnEvent.observationplan_requests.reduce(
-    (r, a) => {
-      r[a.allocation.instrument.id] = [
-        ...(r[a.allocation.instrument.id] || []),
-        a,
-      ];
-      return r;
-    },
-    {}
-  );
+  const requestsGroupedByInstId = observationPlanRequestList.reduce((r, a) => {
+    r[a.allocation.instrument.id] = [
+      ...(r[a.allocation.instrument.id] || []),
+      a,
+    ];
+    return r;
+  }, {});
 
   Object.values(requestsGroupedByInstId).forEach((value) => {
     value.sort();
@@ -296,7 +308,6 @@ const ObservationPlanRequestLists = ({ gcnEvent }) => {
       instrumentFormParams[instrument_id]?.methodsImplemented.send;
     const implementsRemove =
       instrumentFormParams[instrument_id]?.methodsImplemented.remove;
-    const modifiable = implementsDelete;
     const queuable = implementsSend || implementsRemove;
 
     const columns = [
@@ -398,13 +409,72 @@ const ObservationPlanRequestLists = ({ gcnEvent }) => {
       },
     });
 
-    if (modifiable) {
-      const renderModify = (dataIndex) => {
-        const observationplanRequest =
-          requestsGroupedByInstId[instrument_id][dataIndex];
-        return (
-          <div className={classes.actionButtons}>
-            {implementsDelete && isDeleting === observationplanRequest.id ? (
+    const renderModify = (dataIndex) => {
+      const observationplanRequest =
+        requestsGroupedByInstId[instrument_id][dataIndex];
+      return (
+        <div className={classes.actionButtons}>
+          {implementsDelete && isDeleting === observationplanRequest.id ? (
+            <div>
+              <CircularProgress />
+            </div>
+          ) : (
+            <div>
+              <Button
+                onClick={() => {
+                  handleDelete(observationplanRequest.id);
+                }}
+                size="small"
+                color="primary"
+                type="submit"
+                variant="outlined"
+                data-testid={`deleteRequest_${observationplanRequest.id}`}
+              >
+                Delete
+              </Button>
+            </div>
+          )}
+          <div>
+            <Button
+              href={`/api/observation_plan/${observationplanRequest.id}/gcn`}
+              download={`observation-plan-gcn-${observationplanRequest.id}`}
+              size="small"
+              color="primary"
+              type="submit"
+              variant="outlined"
+              data-testid={`gcnRequest_${observationplanRequest.id}`}
+            >
+              GCN
+            </Button>
+          </div>
+          <div>
+            <Button
+              href={`/api/observation_plan/${observationplanRequest.id}?includePlannedObservations=True`}
+              download={`observation-plan-${observationplanRequest.id}`}
+              size="small"
+              color="primary"
+              type="submit"
+              variant="outlined"
+              data-testid={`downloadRequest_${observationplanRequest.id}`}
+            >
+              Download
+            </Button>
+          </div>
+          <div>
+            <Button
+              href={`/api/observation_plan/${observationplanRequest.id}/movie`}
+              download={`observation-plan-movie-${observationplanRequest.id}`}
+              size="small"
+              color="primary"
+              type="submit"
+              variant="outlined"
+              data-testid={`movieRequest_${observationplanRequest.id}`}
+            >
+              GIF
+            </Button>
+          </div>
+          <div>
+            {isCreatingObservingRun === observationplanRequest.id ? (
               <div>
                 <CircularProgress />
               </div>
@@ -412,103 +482,35 @@ const ObservationPlanRequestLists = ({ gcnEvent }) => {
               <div>
                 <Button
                   onClick={() => {
-                    handleDelete(observationplanRequest.id);
+                    handleCreateObservingRun(observationplanRequest.id);
                   }}
                   size="small"
                   color="primary"
                   type="submit"
                   variant="outlined"
-                  data-testid={`deleteRequest_${observationplanRequest.id}`}
+                  data-testid={`observingRunRequest_${observationplanRequest.id}`}
                 >
-                  Delete
+                  Create Observing Run
                 </Button>
               </div>
             )}
-            <div>
-              <Button
-                href={`/api/observation_plan/${observationplanRequest.id}/gcn`}
-                download={`observation-plan-gcn-${observationplanRequest.id}`}
-                size="small"
-                color="primary"
-                type="submit"
-                variant="outlined"
-                data-testid={`gcnRequest_${observationplanRequest.id}`}
-              >
-                GCN
-              </Button>
-            </div>
-            <div>
-              <Button
-                href={`/api/observation_plan/${observationplanRequest.id}?includePlannedObservations=True`}
-                download={`observation-plan-${observationplanRequest.id}`}
-                size="small"
-                color="primary"
-                type="submit"
-                variant="outlined"
-                data-testid={`downloadRequest_${observationplanRequest.id}`}
-              >
-                Download
-              </Button>
-            </div>
-            <div>
-              <Button
-                href={`/api/observation_plan/${observationplanRequest.id}/movie`}
-                download={`observation-plan-movie-${observationplanRequest.id}`}
-                size="small"
-                color="primary"
-                type="submit"
-                variant="outlined"
-                data-testid={`movieRequest_${observationplanRequest.id}`}
-              >
-                GIF
-              </Button>
-            </div>
-            <div>
-              <Button
-                href={`/api/observation_plan/${observationplanRequest.id}/simsurvey`}
-                download={`observation-plan-simsurvey-${observationplanRequest.id}`}
-                size="small"
-                color="primary"
-                type="submit"
-                variant="outlined"
-                data-testid={`simsurveyRequest_${observationplanRequest.id}`}
-              >
-                SimSurvey
-              </Button>
-            </div>
-            <div>
-              {isCreatingObservingRun === observationplanRequest.id ? (
-                <div>
-                  <CircularProgress />
-                </div>
-              ) : (
-                <div>
-                  <Button
-                    onClick={() => {
-                      handleCreateObservingRun(observationplanRequest.id);
-                    }}
-                    size="small"
-                    color="primary"
-                    type="submit"
-                    variant="outlined"
-                    data-testid={`observingRunRequest_${observationplanRequest.id}`}
-                  >
-                    Create Observing Run
-                  </Button>
-                </div>
-              )}
-            </div>
           </div>
-        );
-      };
-      columns.push({
-        name: "interact",
-        label: "Interact",
-        options: {
-          customBodyRenderLite: renderModify,
-        },
-      });
-    }
+          <div>
+            <AddSurveyEfficiencyObservationPlanPage
+              gcnevent={gcnEvent}
+              observationplanRequest={observationplanRequest}
+            />
+          </div>
+        </div>
+      );
+    };
+    columns.push({
+      name: "interact",
+      label: "Interact",
+      options: {
+        customBodyRenderLite: renderModify,
+      },
+    });
 
     if (queuable) {
       const renderQueue = (dataIndex) => {

@@ -43,13 +43,13 @@ class SurveyEfficiencyAnalysisMixin:
             lcs = json.loads(self.lightcurves)
             all_transients = []
             if lcs['meta_notobserved'] is not None:
-                all_transients.append(len(lcs['meta_notobserved']))
+                all_transients.append(len(lcs['meta_notobserved']['z']))
             if lcs['meta'] is not None:
-                all_transients.append(len(lcs['meta']))
+                all_transients.append(len(lcs['meta']['z']))
             if lcs['meta_rejected'] is not None:
-                all_transients.append(len(lcs['meta_rejected']))
+                all_transients.append(len(lcs['meta_rejected']['z']))
             ntransient = np.sum(all_transients)
-            return ntransient
+            return int(ntransient)
         else:
             return None
 
@@ -61,11 +61,11 @@ class SurveyEfficiencyAnalysisMixin:
 
             n_in_covered = 0
             if lcs['meta'] is not None:
-                n_in_covered = n_in_covered + len(lcs['meta'])
+                n_in_covered = n_in_covered + len(lcs['meta']['z'])
             if lcs['meta_rejected'] is not None:
-                n_in_covered = n_in_covered + len(lcs['meta_rejected'])
+                n_in_covered = n_in_covered + len(lcs['meta_rejected']['z'])
 
-            return n_in_covered
+            return int(n_in_covered)
 
         else:
             return None
@@ -81,7 +81,7 @@ class SurveyEfficiencyAnalysisMixin:
             else:
                 n_detected = 0
 
-            return n_detected
+            return int(n_detected)
 
         else:
             return None
@@ -166,9 +166,21 @@ class SurveyEfficiencyForObservations(Base, SurveyEfficiencyAnalysisMixin):
         doc="ID of the target Localization.",
     )
 
+    instrument_id = sa.Column(
+        sa.ForeignKey('instruments.id', ondelete="CASCADE"),
+        nullable=False,
+        doc='Instrument ID',
+    )
+
+    instrument = relationship(
+        "Instrument",
+        foreign_keys=instrument_id,
+        doc="The Instrument that this efficiency analysis belongs to",
+    )
+
 
 class SurveyEfficiencyForObservationPlan(Base, SurveyEfficiencyAnalysisMixin):
-    """A request for an SurveyEfficiencyAnalysis from a set of observations."""
+    """A request for an SurveyEfficiencyAnalysis from an observation plan."""
 
     __tablename__ = 'survey_efficiency_for_observation_plans'
 
