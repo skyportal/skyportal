@@ -115,6 +115,7 @@ def test_add_delete_user_adds_deletes_single_user_group(
         "GET", "groups?includeSingleUserGroups=true", token=manage_groups_token
     )
     assert data["status"] == "success"
+
     assert not any(
         [
             group["single_user_group"] and group["name"] == username

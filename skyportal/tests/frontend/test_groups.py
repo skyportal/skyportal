@@ -30,6 +30,7 @@ def test_add_new_group(driver, super_admin_user, user, super_admin_token):
     driver.get('/')
     driver.refresh()
     driver.get('/groups')
+    driver.wait_for_xpath('//h3[text()="Create New Group"]', timeout=30)
     driver.wait_for_xpath('//input[@name="name"]').send_keys(test_proj_name)
     driver.wait_for_xpath('//input[@name="description"]').send_keys(group_description)
     driver.click_xpath('//div[@id="groupAdminsSelect"]')

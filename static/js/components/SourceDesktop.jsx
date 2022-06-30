@@ -17,6 +17,7 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import Typography from "@mui/material/Typography";
 import { log10, abs, ceil } from "mathjs";
 import CircularProgress from "@mui/material/CircularProgress";
+import HelpOutlineOutlinedIcon from "@mui/icons-material/HelpOutlineOutlined";
 
 import CommentList from "./CommentList";
 import ClassificationList from "./ClassificationList";
@@ -51,6 +52,8 @@ const Plot = React.lazy(() => import(/* webpackChunkName: "Bokeh" */ "./Plot"));
 const CentroidPlot = React.lazy(() =>
   import(/* webpackChunkName: "CentroidPlot" */ "./CentroidPlot")
 );
+
+const green = "#359d73";
 
 // Export to allow Candidate.jsx to use styles
 export const useSourceStyles = makeStyles((theme) => ({
@@ -157,6 +160,41 @@ export const useSourceStyles = makeStyles((theme) => ({
     display: "flex",
     flexDirection: "row",
   },
+  tooltipContent: {
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "center",
+    alignItems: "center",
+    width: "100%",
+  },
+  legend: {
+    width: "100%",
+    display: "flex",
+    flexDirection: "row",
+    justifyContent: "left",
+    alignItems: "center",
+    gap: "10px",
+  },
+  circle: {
+    borderRadius: "50%",
+    width: "25px",
+    height: "25px",
+    display: "inline-block",
+  },
+  downTriangle: {
+    width: 0,
+    height: 0,
+    backgroundColor: "transparent",
+    borderStyle: "solid",
+    borderTopWidth: "15px",
+    borderRightWidth: "15px",
+    borderBottomWidth: "0px",
+    borderLeftWidth: "15px",
+    borderTopColor: "#359d73",
+    borderRightColor: "transparent",
+    borderBottomColor: "transparent",
+    borderLeftColor: "transparent",
+  },
 }));
 
 const SourceDesktop = ({ source }) => {
@@ -200,6 +238,33 @@ const SourceDesktop = ({ source }) => {
     ? ceil(abs(log10(source.redshift_error)))
     : 4;
 
+  const Title = () => (
+    <div className={classes.tooltipContent}>
+      <div className={classes.legend}>
+        <div className={classes.downTriangle} />
+        <p>Stands for Non Detections</p>
+      </div>
+      <div className={classes.legend}>
+        <div
+          style={{
+            background: `${green}`,
+          }}
+          className={classes.circle}
+        />
+        <p> Stands for Detections</p>
+      </div>
+    </div>
+  );
+  const PhotometryToolTip = () => (
+    <Tooltip
+      title={Title()}
+      placement="top"
+      classes={{ tooltip: classes.tooltip }}
+    >
+      <HelpOutlineOutlinedIcon />
+    </Tooltip>
+  );
+
   return (
     <Grid container spacing={2} className={classes.source}>
       <Grid item xs={rightPaneVisible ? 7 : 12}>
@@ -218,7 +283,7 @@ const SourceDesktop = ({ source }) => {
               onClick={() => setRightPaneVisible(true)}
               data-testid="show-right-pane-button"
             >
-              Show right pane
+              Show right panel
             </Button>
           )}
         </Box>
@@ -399,6 +464,7 @@ const SourceDesktop = ({ source }) => {
               <Typography className={classes.accordionHeading}>
                 Photometry
               </Typography>
+              <PhotometryToolTip />
             </AccordionSummary>
             <AccordionDetails>
               <Grid container id="photometry-container">

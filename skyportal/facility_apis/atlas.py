@@ -16,7 +16,7 @@ from ..utils import http
 
 env, cfg = load_env()
 
-if cfg['app.atlas.port'] is None:
+if cfg.get('app.atlas.port') is None:
     ATLAS_URL = f"{cfg['app.atlas.protocol']}://{cfg['app.atlas.host']}"
 else:
     ATLAS_URL = (
@@ -251,9 +251,7 @@ class ATLASAPI(FollowUpAPI):
             'initiator_id': req.last_modified_by_id,
         }
 
-        facility_microservice_url = (
-            f'http://127.0.0.1:{cfg.get("ports.facility_queue", 64510)}'
-        )
+        facility_microservice_url = f'http://127.0.0.1:{cfg["ports.facility_queue"]}'
 
         r = requests.post(facility_microservice_url, json=request_body)
         log(f'Response for request {request.id}: {r.text}')

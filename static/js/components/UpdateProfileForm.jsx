@@ -23,7 +23,6 @@ import * as ProfileActions from "../ducks/profile";
 
 import UIPreferences from "./UIPreferences";
 import NotificationPreferences from "./NotificationPreferences";
-import FavoriteSourcesNotificationPreferences from "./FavoriteSourcesNotificationPreferences";
 import SlackPreferences from "./SlackPreferences";
 import ObservabilityPreferences from "./ObservabilityPreferences";
 import FollowupRequestPreferences from "./FollowupRequestPreferences";
@@ -249,9 +248,6 @@ const UpdateProfileForm = () => {
         </CardContent>
         <CardContent>
           <SlackPreferences />
-        </CardContent>
-        <CardContent>
-          <FavoriteSourcesNotificationPreferences />
         </CardContent>
         <CardContent>
           <UIPreferences />
