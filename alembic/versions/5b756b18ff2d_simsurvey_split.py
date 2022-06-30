@@ -31,11 +31,15 @@ def upgrade():
         sa.Column('gcnevent_id', sa.Integer(), nullable=False),
         sa.Column('localization_id', sa.Integer(), nullable=False),
         sa.Column('requester_id', sa.Integer(), nullable=False),
+        sa.Column('instrument_id', sa.Integer(), nullable=False),
         sa.ForeignKeyConstraint(['gcnevent_id'], ['gcnevents.id'], ondelete='CASCADE'),
         sa.ForeignKeyConstraint(
             ['localization_id'], ['localizations.id'], ondelete='CASCADE'
         ),
         sa.ForeignKeyConstraint(['requester_id'], ['users.id'], ondelete='CASCADE'),
+        sa.ForeignKeyConstraint(
+            ['instrumnt_id'], ['instruments.id'], ondelete='CASCADE'
+        ),
         sa.PrimaryKeyConstraint('id'),
     )
     op.create_index(

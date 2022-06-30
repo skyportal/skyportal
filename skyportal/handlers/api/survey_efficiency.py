@@ -126,7 +126,7 @@ class SurveyEfficiencyForObservationsHandler(BaseHandler):
             200:
               content:
                 application/json:
-                  schema: ArrayOfSurveyEfficiencyForObservations
+                  schema: ArrayOfSurveyEfficiencyForObservationss
             400:
               content:
                 application/json:
