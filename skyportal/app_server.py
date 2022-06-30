@@ -105,6 +105,7 @@ from skyportal.handlers.api import (
     UserHandler,
     UnsourcedFinderHandler,
     WeatherHandler,
+    AnalysisWebhookHandler,
     PS1ThumbnailHandler,
 )
 from skyportal.handlers.api.internal import (
@@ -328,6 +329,11 @@ skyportal_handlers = [
     (r'/api/user(/[0-9]+)/roles(/.*)?', UserRoleHandler),
     (r'/api/user(/.*)?', UserHandler),
     (r'/api/weather(/.*)?', WeatherHandler),
+    # strictly require uuid4 token for this unauthenticated endpoint
+    (
+        r'/api/webhook/(obj)_analysis/([0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})?',
+        AnalysisWebhookHandler,
+    ),
     (r'/api/internal/tokens(/.*)?', TokenHandler),
     (r'/api/internal/profile', ProfileHandler),
     (r'/api/internal/dbinfo', DBInfoHandler),
@@ -387,7 +393,7 @@ def make_app(cfg, baselayer_handlers, baselayer_settings, process=None, env=None
         one key, 'debug'---true if launched with `--debug`.
 
     """
-    if cfg['cookie_secret'] == 'abc01234':
+    if cfg['app.secret_key'] == 'abc01234':
         print('!' * 80)
         print('  Your server is insecure. Please update the secret string ')
         print('  in the configuration file!')

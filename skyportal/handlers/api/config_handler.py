@@ -2,7 +2,11 @@ from baselayer.app.env import load_env
 from baselayer.app.access import auth_or_token
 from ..base import BaseHandler
 
-from ...enum_types import default_spectrum_type, ALLOWED_SPECTRUM_TYPES
+from ...enum_types import (
+    default_spectrum_type,
+    ALLOWED_SPECTRUM_TYPES,
+    GCN_NOTICE_TYPES,
+)
 
 from skyportal.models import cosmo
 
@@ -61,5 +65,6 @@ class ConfigHandler(BaseHandler):
                 "cosmoref": cosmo.__doc__,
                 "allowedSpectrumTypes": ALLOWED_SPECTRUM_TYPES,
                 "defaultSpectrumType": default_spectrum_type,
+                "gcnNoticeTypes": GCN_NOTICE_TYPES,
             }
         )

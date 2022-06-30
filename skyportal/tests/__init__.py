@@ -63,3 +63,57 @@ def api(
         except requests.exceptions.JSONDecodeError:
             data = None
         return response.status_code, data
+
+
+def assert_api(status, data):
+    """
+    Check that the API call succeeded.
+    If it fails, prints out the error message,
+    before raising an exception.
+
+    Parameters
+    ----------
+    status: int
+        The status code of the response.
+    data: dict
+        The response data.
+
+    """
+    if status != 200 or data['status'] != 'success':
+        if data:
+            raise Exception(f'Expected success, got {status}: {data["message"]}')
+        else:
+            raise Exception(f'Expected success, got {status}')
+
+
+def assert_api_fail(status, data, expected_status=None, expected_error_partial=None):
+    """
+    Check that the API call failed.
+    If it succeeds, raise an exception.
+    Optionally, check that the status code and error message
+    are as expected.
+
+    Parameters
+    ----------
+    status: int
+        The status code of the response.
+    data: dict
+        The response data.
+    expected_status: int (optional)
+        The expected status code.
+    expected_error_partial: str (optional)
+        The expected error message.
+        If this message is not found in the error message,
+        will raise an exception.
+
+    """
+    if status == 200:
+        raise Exception(f'Expected failure, got status==200')
+    if expected_error_partial is not None:
+        if not data or expected_error_partial not in data['message']:
+            raise Exception(
+                f'Expected error message to contain {expected_error_partial}, got {data["message"]}'
+            )
+    if expected_status is not None:
+        if status != expected_status:
+            raise Exception(f'Expected status {expected_status}, got {status}')

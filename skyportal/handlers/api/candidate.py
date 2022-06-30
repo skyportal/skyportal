@@ -3,7 +3,7 @@ from copy import copy
 import re
 import json
 import uuid
-
+import string
 import arrow
 import numpy as np
 
@@ -521,43 +521,50 @@ class CandidateHandler(BaseHandler):
         list_name = self.get_query_argument('listName', None)
         list_name_reject = self.get_query_argument('listNameReject', None)
 
-        user_accessible_group_ids = [g.id for g in self.current_user.accessible_groups]
-        user_accessible_filter_ids = [
-            filtr.id
-            for g in self.current_user.accessible_groups
-            for filtr in g.filters
-            if g.filters is not None
-        ]
-        if group_ids is not None:
-            if isinstance(group_ids, str) and "," in group_ids:
-                group_ids = [int(g_id) for g_id in group_ids.split(",")]
-            elif isinstance(group_ids, str) and group_ids.isdigit():
-                group_ids = [int(group_ids)]
-            else:
-                return self.error("Invalid groupIDs value -- select at least one group")
-            filter_ids = [
-                f.id
-                for f in Filter.query_records_accessible_by(self.current_user).filter(
-                    Filter.group_id.in_(group_ids)
-                )
+        with self.Session() as session:
+            user_accessible_group_ids = [
+                g.id for g in self.current_user.accessible_groups
             ]
-        elif filter_ids is not None:
-            if "," in filter_ids:
-                filter_ids = [int(f_id) for f_id in filter_ids.split(",")]
-            elif filter_ids.isdigit():
-                filter_ids = [int(filter_ids)]
-            else:
-                return self.error("Invalid filterIDs paramter value.")
-            group_ids = [
-                f.group_id
-                for f in Filter.query_records_accessible_by(self.current_user).filter(
-                    Filter.id.in_(filter_ids)
-                )
+            user_accessible_filter_ids = [
+                filtr.id
+                for g in self.current_user.accessible_groups
+                for filtr in g.filters
+                if g.filters is not None
             ]
-        else:
-            # If 'groupIDs' & 'filterIDs' params not present in request, use all user groups
-            group_ids = user_accessible_group_ids
-            filter_ids = user_accessible_filter_ids
+            if group_ids is not None:
+                if (
+                    isinstance(group_ids, str)
+                    and "," in group_ids
+                    and set(group_ids).issubset(string.digits + ',')
+                ):
+                    group_ids = [int(g_id) for g_id in group_ids.split(",")]
+                elif isinstance(group_ids, str) and group_ids.isdigit():
+                    group_ids = [int(group_ids)]
+                else:
+                    return self.error(
+                        "Invalid groupIDs value -- select at least one group"
+                    )
+                filters = session.scalars(
+                    Filter.select(self.current_user).where(
+                        Filter.group_id.in_(group_ids)
+                    )
+                ).all()
+                filter_ids = [f.id for f in filters]
+            elif filter_ids is not None:
+                if "," in filter_ids and set(filter_ids) in set(string.digits + ','):
+                    filter_ids = [int(f_id) for f_id in filter_ids.split(",")]
+                elif filter_ids.isdigit():
+                    filter_ids = [int(filter_ids)]
+                else:
+                    return self.error("Invalid filterIDs paramter value.")
+                filters = session.scalars(
+                    Filter.select(self.current_user).where(Filter.id.in_(filter_ids))
+                ).all()
+                group_ids = [f.group_id for f in filters]
+            else:
+                # If 'groupIDs' & 'filterIDs' params not present in request, use all user groups
+                group_ids = user_accessible_group_ids
+                filter_ids = user_accessible_filter_ids
 
         try:
             page = int(page_number)

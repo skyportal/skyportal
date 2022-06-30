@@ -139,7 +139,7 @@ jobs:
           fi
           sudo tar -xzf ${CACHED_DOWNLOAD_DIR}/geckodriver-v${GECKO_VER}-linux64.tar.gz -C /usr/local/bin
           geckodriver --version
-          pip install --upgrade selenium
+          pip install selenium==4.2.0
           python -c "import selenium; print(f'Selenium {selenium.__version__}')"
 
       - name: Test loading demo data

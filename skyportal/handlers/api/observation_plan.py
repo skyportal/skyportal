@@ -60,6 +60,100 @@ env, cfg = load_env()
 TREASUREMAP_URL = cfg['app.treasuremap_endpoint']
 
 
+def post_observation_plans(plans, user_id, session):
+    """Post combined ObservationPlans to database.
+
+    Parameters
+    ----------
+    plan: dict
+        Observation plan dictionary
+    user_id : int
+        SkyPortal ID of User posting the GcnEvent
+    session: sqlalchemy.Session
+        Database session for this transaction
+    """
+
+    user = session.query(User).get(user_id)
+
+    observation_plan_requests = []
+    for plan in plans:
+
+        try:
+            data = ObservationPlanPost.load(plan)
+        except ValidationError as e:
+            raise ValidationError(
+                f'Invalid / missing parameters: {e.normalized_messages()}'
+            )
+
+        data["requester_id"] = user.id
+        data["last_modified_by_id"] = user.id
+        data['allocation_id'] = int(data['allocation_id'])
+        data['localization_id'] = int(data['localization_id'])
+
+        allocation = Allocation.get_if_accessible_by(
+            data['allocation_id'],
+            user,
+            raise_if_none=False,
+        )
+        if allocation is None:
+            raise AttributeError(f"Missing allocation with ID: {data['allocation_id']}")
+
+        instrument = allocation.instrument
+        if instrument.api_classname_obsplan is None:
+            raise AttributeError('Instrument has no remote API.')
+
+        if not instrument.api_class_obsplan.implements()['submit']:
+            raise AttributeError(
+                'Cannot submit observation plan requests for this Instrument.'
+            )
+
+        target_groups = []
+        for group_id in data.pop('target_group_ids', []):
+            g = Group.get_if_accessible_by(group_id, user, raise_if_none=False)
+            if g is None:
+                raise AttributeError(f"Missing group with ID: {group_id}")
+            target_groups.append(g)
+
+        try:
+            formSchema = instrument.api_class_obsplan.custom_json_schema(
+                instrument, user
+            )
+        except AttributeError:
+            formSchema = instrument.api_class_obsplan.form_json_schema
+
+        # validate the payload
+        try:
+            jsonschema.validate(data['payload'], formSchema)
+        except jsonschema.exceptions.ValidationError as e:
+            raise jsonschema.exceptions.ValidationError(
+                f'Payload failed to validate: {e}'
+            )
+
+        observation_plan_request = ObservationPlanRequest.__schema__().load(data)
+        observation_plan_request.target_groups = target_groups
+        session.add(observation_plan_request)
+        session.commit()
+
+        observation_plan_requests.append(observation_plan_request)
+
+    try:
+        instrument.api_class_obsplan.submit_multiple(observation_plan_requests)
+    except Exception as e:
+        for observation_plan_request in observation_plan_requests:
+            observation_plan_request.status = 'failed to submit'
+        raise AttributeError(f'Error submitting observation plan: {e.args[0]}')
+    finally:
+        session.commit()
+
+    flow = Flow()
+    for observation_plan_request in observation_plan_requests:
+        flow.push(
+            '*',
+            "skyportal/REFRESH_GCNEVENT",
+            payload={"gcnEvent_dateobs": observation_plan_request.gcnevent.dateobs},
+        )
+
+
 def post_observation_plan(plan, user_id, session):
     """Post ObservationPlan to database.
 
@@ -185,15 +279,20 @@ class ObservationPlanRequestHandler(BaseHandler):
             observation_plans = json_data['observation_plans']
         else:
             observation_plans = [json_data]
+        combine_plans = json_data.get('combine_plans', False)
 
-        ids = []
         with DBSession() as session:
             ids = []
-            for plan in observation_plans:
-                observation_plan_request_id = post_observation_plan(
-                    plan, self.associated_user_object.id, session
+            if combine_plans:
+                ids = post_observation_plans(
+                    observation_plans, self.associated_user_object.id, session
                 )
-                ids = [observation_plan_request_id]
+            else:
+                for plan in observation_plans:
+                    observation_plan_request_id = post_observation_plan(
+                        plan, self.associated_user_object.id, session
+                    )
+                    ids = [observation_plan_request_id]
 
             return self.success(data={"ids": ids})
 

@@ -25,10 +25,7 @@ from .followup_request import (
 )
 from .facility_listener import FacilityMessageHandler
 from .galaxy import GalaxyCatalogHandler, GalaxyASCIIFileHandler
-from .gcn import (
-    GcnEventHandler,
-    LocalizationHandler,
-)
+from .gcn import GcnEventHandler, LocalizationHandler
 from .group import (
     GroupHandler,
     GroupUserHandler,
@@ -112,3 +109,4 @@ from .user import (
 )
 from .unsourced_finder import UnsourcedFinderHandler
 from .weather import WeatherHandler
+from .webhook import AnalysisWebhookHandler

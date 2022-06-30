@@ -4,6 +4,7 @@ from marshmallow.exceptions import ValidationError
 from baselayer.app.custom_exceptions import AccessError
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
+import sqlalchemy as sa
 from ...models import (
     DBSession,
     Comment,
@@ -20,14 +21,22 @@ from ...models import (
 )
 
 
-def users_mentioned(text):
+def users_mentioned(text, session):
     punctuation = string.punctuation.replace("-", "").replace("@", "")
     usernames = []
     for word in text.replace(",", " ").split():
         word = word.strip(punctuation)
         if word.startswith("@"):
             usernames.append(word.replace("@", ""))
-    users = User.query.filter(User.username.in_(usernames)).all()
+    users = session.scalars(
+        User.select(session.user_or_token).where(
+            User.username.in_(usernames),
+            User.preferences["notifications"]["mention"]["active"]
+            .astext.cast(sa.Boolean)
+            .is_(True),
+        )
+    ).all()
+
     return users
 
 
@@ -283,17 +292,6 @@ class CommentHandler(BaseHandler):
 
         comment_text = data.get("text")
 
-        group_ids = data.pop('group_ids', None)
-        if not group_ids:
-            groups = self.current_user.accessible_groups
-        else:
-            try:
-                groups = Group.get_if_accessible_by(
-                    group_ids, self.current_user, raise_if_none=True
-                )
-            except AccessError:
-                return self.error('Could not find any accessible groups.', status=403)
-
         if 'attachment' in data:
             if (
                 isinstance(data['attachment'], dict)
@@ -312,132 +310,151 @@ class CommentHandler(BaseHandler):
         author = self.associated_user_object
         is_bot_request = isinstance(self.current_user, Token)
 
-        if associated_resource_type.lower() == "sources":
-            obj_id = resource_id
-            comment = Comment(
-                text=comment_text,
-                obj_id=obj_id,
-                attachment_bytes=attachment_bytes,
-                attachment_name=attachment_name,
-                author=author,
-                groups=groups,
-                bot=is_bot_request,
-            )
-        elif associated_resource_type.lower() == "spectra":
-            spectrum_id = resource_id
-            try:
-                spectrum = Spectrum.get_if_accessible_by(
-                    spectrum_id, self.current_user, raise_if_none=True
-                )
-            except AccessError:
+        with self.Session() as session:
+            group_ids = data.pop('group_ids', None)
+            if not group_ids:
+                group_ids = [g.id for g in self.current_user.accessible_groups]
+            groups = session.scalars(
+                Group.select(self.current_user).where(Group.id.in_(group_ids))
+            ).all()
+            if {g.id for g in groups} != set(group_ids):
                 return self.error(
-                    f'Could not access spectrum {spectrum_id}.', status=403
+                    f'Cannot find one or more groups with IDs: {group_ids}.'
                 )
-            comment = CommentOnSpectrum(
-                text=comment_text,
-                spectrum_id=spectrum_id,
-                attachment_bytes=attachment_bytes,
-                attachment_name=attachment_name,
-                author=author,
-                groups=groups,
-                bot=is_bot_request,
-                obj_id=spectrum.obj_id,
-            )
-        elif associated_resource_type.lower() == "gcn_event":
-            gcnevent_id = resource_id
-            try:
-                gcn_event = GcnEvent.get_if_accessible_by(
-                    gcnevent_id, self.current_user, raise_if_none=True
-                )
-            except AccessError:
-                return self.error(
-                    f'Could not access GcnEvent {gcn_event.id}.', status=403
-                )
-            comment = CommentOnGCN(
-                text=comment_text,
-                gcn_id=gcn_event.id,
-                attachment_bytes=attachment_bytes,
-                attachment_name=attachment_name,
-                author=author,
-                groups=groups,
-                bot=is_bot_request,
-            )
-        elif associated_resource_type.lower() == "shift":
-            shift_id = resource_id
-            try:
-                shift = Shift.get_if_accessible_by(
-                    shift_id, self.current_user, raise_if_none=True
-                )
-            except AccessError:
-                return self.error(f'Could not access Shift {shift.id}.', status=403)
-            comment = CommentOnShift(
-                text=comment_text,
-                shift_id=shift.id,
-                attachment_bytes=attachment_bytes,
-                attachment_name=attachment_name,
-                author=author,
-                groups=groups,
-                bot=is_bot_request,
-            )
-        else:
-            return self.error(f'Unknown resource type "{associated_resource_type}".')
 
-        users_mentioned_in_comment = users_mentioned(comment_text)
-        if associated_resource_type.lower() == "sources":
-            text_to_send = f"*@{self.associated_user_object.username}* mentioned you in a comment on *{obj_id}*"
-            url_endpoint = f"/source/{obj_id}"
-        elif associated_resource_type.lower() == "spectra":
-            text_to_send = f"*@{self.associated_user_object.username}* mentioned you in a comment on *{spectrum_id}*"
-            url_endpoint = f"/source/{spectrum_id}"
-        elif associated_resource_type.lower() == "gcn_event":
-            text_to_send = f"*@{self.associated_user_object.username}* mentioned you in a comment on *{gcnevent_id}*"
-            url_endpoint = f"/gcn_events/{gcnevent_id}"
-        elif associated_resource_type.lower() == "shift":
-            text_to_send = f"*@{self.associated_user_object.username}* mentioned you in a comment on *shift {shift_id}*"
-            url_endpoint = "/shifts"
-        else:
-            return self.error(f'Unknown resource type "{associated_resource_type}".')
-
-        if users_mentioned_in_comment:
-            for user_mentioned in users_mentioned_in_comment:
-                DBSession().add(
-                    UserNotification(
-                        user=user_mentioned,
-                        text=text_to_send,
-                        notification_type="mention",
-                        url=url_endpoint,
+            if associated_resource_type.lower() == "sources":
+                obj_id = resource_id
+                comment = Comment(
+                    text=comment_text,
+                    obj_id=obj_id,
+                    attachment_bytes=attachment_bytes,
+                    attachment_name=attachment_name,
+                    author=author,
+                    groups=groups,
+                    bot=is_bot_request,
+                )
+            elif associated_resource_type.lower() == "spectra":
+                spectrum_id = resource_id
+                spectrum = session.scalars(
+                    Spectrum.select(self.current_user).where(Spectrum.id == spectrum_id)
+                ).first()
+                if spectrum is None:
+                    return self.error(
+                        f'Could not find any accessible spectra with ID {spectrum_id}.'
                     )
+                comment = CommentOnSpectrum(
+                    text=comment_text,
+                    spectrum_id=spectrum_id,
+                    attachment_bytes=attachment_bytes,
+                    attachment_name=attachment_name,
+                    author=author,
+                    groups=groups,
+                    bot=is_bot_request,
+                    obj_id=spectrum.obj_id,
                 )
 
-        DBSession().add(comment)
-        self.verify_and_commit()
-        if users_mentioned_in_comment:
-            for user_mentioned in users_mentioned_in_comment:
-                self.flow.push(user_mentioned.id, "skyportal/FETCH_NOTIFICATIONS", {})
+            elif associated_resource_type.lower() == "gcn_event":
+                gcnevent_id = resource_id
+                gcn_event = session.scalars(
+                    GcnEvent.select(self.current_user).where(GcnEvent.id == gcnevent_id)
+                ).first()
+                if gcn_event is None:
+                    return self.error(
+                        f'Could not find any accessible gcn events with ID {gcnevent_id}.'
+                    )
+                comment = CommentOnGCN(
+                    text=comment_text,
+                    gcn_id=gcn_event.id,
+                    attachment_bytes=attachment_bytes,
+                    attachment_name=attachment_name,
+                    author=author,
+                    groups=groups,
+                    bot=is_bot_request,
+                )
+            elif associated_resource_type.lower() == "shift":
+                shift_id = resource_id
+                try:
+                    shift = Shift.get_if_accessible_by(
+                        shift_id, self.current_user, raise_if_none=True
+                    )
+                except AccessError:
+                    return self.error(f'Could not access Shift {shift.id}.', status=403)
+                comment = CommentOnShift(
+                    text=comment_text,
+                    shift_id=shift.id,
+                    attachment_bytes=attachment_bytes,
+                    attachment_name=attachment_name,
+                    author=author,
+                    groups=groups,
+                    bot=is_bot_request,
+                )
+            else:
+                return self.error(
+                    f'Unknown resource type "{associated_resource_type}".'
+                )
 
-        if hasattr(comment, 'obj'):  # comment on object, or object related resources
-            self.push_all(
-                action='skyportal/REFRESH_SOURCE',
-                payload={'obj_key': comment.obj.internal_key},
-            )
+            users_mentioned_in_comment = users_mentioned(comment_text, session)
+            if associated_resource_type.lower() == "sources":
+                text_to_send = f"*@{self.associated_user_object.username}* mentioned you in a comment on *{obj_id}*"
+                url_endpoint = f"/source/{obj_id}"
+            elif associated_resource_type.lower() == "spectra":
+                text_to_send = f"*@{self.associated_user_object.username}* mentioned you in a comment on *{spectrum_id}*"
+                url_endpoint = f"/source/{spectrum_id}"
+            elif associated_resource_type.lower() == "gcn_event":
+                text_to_send = f"*@{self.associated_user_object.username}* mentioned you in a comment on *{gcnevent_id}*"
+                url_endpoint = f"/gcn_events/{gcnevent_id}"
+            elif associated_resource_type.lower() == "shift":
+                text_to_send = f"*@{self.associated_user_object.username}* mentioned you in a comment on *shift {shift_id}*"
+                url_endpoint = "/shifts"
+            else:
+                return self.error(
+                    f'Unknown resource type "{associated_resource_type}".'
+                )
 
-        if isinstance(comment, CommentOnGCN):
-            self.push_all(
-                action='skyportal/REFRESH_GCNEVENT',
-                payload={'gcnEvent_dateobs': comment.gcn.dateobs},
-            )
-        elif isinstance(comment, CommentOnSpectrum):
-            self.push_all(
-                action='skyportal/REFRESH_SOURCE_SPECTRA',
-                payload={'obj_internal_key': comment.obj.internal_key},
-            )
-        elif isinstance(comment, CommentOnShift):
-            self.push_all(
-                action='skyportal/REFRESH_SHIFTS',
-                payload={'shift_id': comment.shift_id},
-            )
+            if users_mentioned_in_comment:
+                for user_mentioned in users_mentioned_in_comment:
+                    session.add(
+                        UserNotification(
+                            user=user_mentioned,
+                            text=text_to_send,
+                            notification_type="mention",
+                            url=url_endpoint,
+                        )
+                    )
 
-        return self.success(data={'comment_id': comment.id})
+            session.add(comment)
+            session.commit()
+            if users_mentioned_in_comment:
+                for user_mentioned in users_mentioned_in_comment:
+                    self.flow.push(
+                        user_mentioned.id, "skyportal/FETCH_NOTIFICATIONS", {}
+                    )
+
+            if hasattr(
+                comment, 'obj'
+            ):  # comment on object, or object related resources
+                self.push_all(
+                    action='skyportal/REFRESH_SOURCE',
+                    payload={'obj_key': comment.obj.internal_key},
+                )
+
+            if isinstance(comment, CommentOnGCN):
+                self.push_all(
+                    action='skyportal/REFRESH_GCNEVENT',
+                    payload={'gcnEvent_dateobs': comment.gcn.dateobs},
+                )
+            elif isinstance(comment, CommentOnSpectrum):
+                self.push_all(
+                    action='skyportal/REFRESH_SOURCE_SPECTRA',
+                    payload={'obj_internal_key': comment.obj.internal_key},
+                )
+            elif isinstance(comment, CommentOnShift):
+                self.push_all(
+                    action='skyportal/REFRESH_SHIFTS',
+                    payload={'shift_id': comment.shift_id},
+                )
+
+            return self.success(data={'comment_id': comment.id})
 
     @permissions(['Comment'])
     def put(self, associated_resource_type, resource_id, comment_id):
