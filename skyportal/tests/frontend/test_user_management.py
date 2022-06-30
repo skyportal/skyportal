@@ -1,3 +1,5 @@
+from datetime import datetime
+
 import pytest
 
 
@@ -141,10 +143,9 @@ def test_user_expiration(
 
     # Set expiration date to today
     driver.click_xpath(f"//*[@data-testid='editUserExpirationDate{user.id}']")
-    driver.click_xpath("//*[@data-testid='expirationDatePicker']")
-    driver.click_xpath("//span[text()='OK']")
-    driver.click_xpath("//button[@data-testid='submitExpirationDateButton']")
-
+    date = datetime.now().strftime("%m/%d/%Y")
+    driver.wait_for_xpath("//input[@id='expirationDatePicker']").send_keys(date)
+    driver.click_xpath('//*[text()="Submit"]')
     driver.wait_for_xpath("//*[text()='User expiration date successfully updated.']")
 
     # Check that user deactivated
