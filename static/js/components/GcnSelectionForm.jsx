@@ -23,6 +23,7 @@ import * as galaxiesActions from "../ducks/galaxies";
 import * as instrumentsActions from "../ducks/instruments";
 
 import LocalizationPlot from "./LocalizationPlot";
+import AddSurveyEfficiencyObservationsPage from "./AddSurveyEfficiencyObservationsPage";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
@@ -257,19 +258,6 @@ const GcnSelectionForm = ({ gcnEvent, setSelectedLocalizationName }) => {
     return url;
   }
 
-  function createSimSurveyUrl(instrumentId, queryParams, localization) {
-    let url = `/api/observation/simsurvey/${instrumentId}`;
-    if (queryParams) {
-      const filteredQueryParams = filterOutEmptyValues(queryParams);
-      const queryString = new URLSearchParams(filteredQueryParams).toString();
-      url += `?${queryString}`;
-    }
-    if (localization) {
-      url += `&localizationDateobs=${localization.dateobs}&localizationName=${localization.localization_name}`;
-    }
-    return url;
-  }
-
   function validate(formData, errors) {
     if (formData.start_date > formData.end_date) {
       errors.start_date.addError(
@@ -288,11 +276,6 @@ const GcnSelectionForm = ({ gcnEvent, setSelectedLocalizationName }) => {
   }
 
   const gcnUrl = createGcnUrl(selectedInstrumentId, formDataState);
-  const simSurveyUrl = createSimSurveyUrl(
-    selectedInstrumentId,
-    formDataState,
-    locLookUp[selectedLocalizationId]
-  );
 
   const GcnSourceSelectionFormSchema = {
     type: "object",
@@ -418,6 +401,9 @@ const GcnSelectionForm = ({ gcnEvent, setSelectedLocalizationName }) => {
           </div>
         )}
       </div>
+      <div>
+        <AddSurveyEfficiencyObservationsPage gcnevent={gcnEvent} />
+      </div>
       <Button
         href={`${gcnUrl}`}
         download={`observationGcn-${selectedInstrumentId}`}
@@ -428,17 +414,6 @@ const GcnSelectionForm = ({ gcnEvent, setSelectedLocalizationName }) => {
         data-testid={`observationGcn_${selectedInstrumentId}`}
       >
         GCN
-      </Button>
-      <Button
-        href={`${simSurveyUrl}`}
-        download={`observationGcn-${selectedInstrumentId}`}
-        size="small"
-        color="primary"
-        type="submit"
-        variant="outlined"
-        data-testid={`observationGcn_${selectedInstrumentId}`}
-      >
-        SimSurvey
       </Button>
       {isSubmittingTreasureMap === selectedInstrumentId ? (
         <div>

@@ -135,7 +135,7 @@ const NewAPIObservation = () => {
           title: `${
             telLookUp[instLookUp[allocation.instrument_id].telescope_id].name
           } / ${instLookUp[allocation.instrument_id].name} - ${
-            groupLookUp[allocation.group_id].name
+            groupLookUp[allocation.group_id]?.name
           } (PI ${allocation.pi})`,
         })),
         title: "Allocation",

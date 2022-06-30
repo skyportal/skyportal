@@ -3,10 +3,13 @@ from astropy import units as u
 from datetime import datetime, timedelta
 import healpy as hp
 import humanize
+import json
 import jsonschema
 import requests
 from marshmallow.exceptions import ValidationError
+import sqlalchemy as sa
 from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import sessionmaker, scoped_session
 import urllib
 from astropy.time import Time
 import numpy as np
@@ -34,6 +37,8 @@ import sncosmo
 from baselayer.app.access import auth_or_token
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
+from baselayer.log import make_log
+from baselayer.app.custom_exceptions import AccessError
 from ..base import BaseHandler
 from ...models import (
     Allocation,
@@ -42,10 +47,12 @@ from ...models import (
     EventObservationPlan,
     GcnEvent,
     Group,
+    Instrument,
     InstrumentField,
     Localization,
     ObservationPlanRequest,
     PlannedObservation,
+    SurveyEfficiencyForObservationPlan,
     Telescope,
     User,
 )
@@ -58,6 +65,10 @@ from skyportal.handlers.api.observingrun import post_observing_run
 
 env, cfg = load_env()
 TREASUREMAP_URL = cfg['app.treasuremap_endpoint']
+
+Session = scoped_session(sessionmaker(bind=DBSession.session_factory.kw["bind"]))
+
+log = make_log('api/observation_plan')
 
 
 def post_observation_plans(plans, user_id, session):
@@ -356,7 +367,7 @@ class ObservationPlanRequestHandler(BaseHandler):
             options = [
                 joinedload(ObservationPlanRequest.observation_plans)
                 .joinedload(EventObservationPlan.planned_observations)
-                .joinedload(PlannedObservation.field)
+                .joinedload(PlannedObservation.field),
             ]
         else:
             options = [joinedload(ObservationPlanRequest.observation_plans)]
@@ -375,6 +386,7 @@ class ObservationPlanRequestHandler(BaseHandler):
             self.current_user, mode="read", options=options
         )
         observation_plan_requests = query.all()
+
         self.verify_and_commit()
         return self.success(data=observation_plan_requests)
 
@@ -986,6 +998,65 @@ class ObservationPlanTreasureMapHandler(BaseHandler):
         return self.success()
 
 
+class ObservationPlanSurveyEfficiencyHandler(BaseHandler):
+    @auth_or_token
+    def get(self, observation_plan_request_id):
+        """
+        ---
+        description: Get survey efficiency analyses of the observation plan.
+        tags:
+          - observation_plan_requests
+        parameters:
+          - in: path
+            name: observation_plan_id
+            required: true
+            schema:
+              type: string
+        responses:
+          200:
+            content:
+              application/json:
+                schema: ArrayOfSurveyEfficiencyForObservationPlans
+        """
+
+        options = [
+            joinedload(ObservationPlanRequest.observation_plans).joinedload(
+                EventObservationPlan.survey_efficiency_analyses
+            )
+        ]
+
+        observation_plan_request = ObservationPlanRequest.get_if_accessible_by(
+            observation_plan_request_id,
+            self.current_user,
+            mode="read",
+            options=options,
+        )
+        if observation_plan_request is None:
+            return self.error(
+                f'No observation plan with ID: {observation_plan_request_id}'
+            )
+        self.verify_and_commit()
+
+        if len(observation_plan_request.observation_plans) > 0:
+            observation_plan = observation_plan_request.observation_plans[0]
+
+            analysis_data = []
+            for analysis in observation_plan.survey_efficiency_analyses:
+                analysis_data.append(
+                    {
+                        **analysis.to_dict(),
+                        'number_of_transients': analysis.number_of_transients,
+                        'number_in_covered': analysis.number_in_covered,
+                        'number_detected': analysis.number_detected,
+                        'efficiency': analysis.efficiency,
+                    }
+                )
+
+            return self.success(data=analysis_data)
+        else:
+            return self.error('Observation plan not yet available.')
+
+
 class ObservationPlanGeoJSONHandler(BaseHandler):
     @auth_or_token
     def get(self, observation_plan_request_id):
@@ -1311,10 +1382,9 @@ class ObservationPlanCreateObservingRunHandler(BaseHandler):
 
 def observation_simsurvey(
     observations,
-    localization,
-    instrument,
-    output_format='pdf',
-    figsize=(10, 8),
+    localization_id,
+    instrument_id,
+    survey_efficiency_analysis,
     number_of_injections=1000,
     number_of_detections=2,
     detection_threshold=5,
@@ -1323,21 +1393,17 @@ def observation_simsurvey(
     injection_filename='data/nsns_nph1.0e+06_mejdyn0.020_mejwind0.130_phi30.txt',
 ):
 
-    """Create a plot to display the simsurvey analyis for a given skymap
+    """Perform the simsurvey analyis for a given skymap
         Parameters
         ----------
         observations : skyportal.models.observation_plan.PlannedObservation
             The planned observations associated with the request
-        localization : skyportal.models.localization.Localization
-            The skymap that the request is made based on
-        instrument : skyportal.models.instrument.Instrument
-            The instrument that the request is made based on
-        event : skyportal.models.gcn.GcnEvent
-            The instrument that the request is made based on
-        output_format : str, optional
-            "gif" or "mp4" -- determines the format of the returned movie
-        figsize : tuple, optional
-            Matplotlib figsize of the movie created
+        localization_id : int
+            The id of the skyportal.models.localization.Localization that the request is made based on
+        instrument_id : int
+            The id of the skyportal.models.instrument.Instrument that the request is made based on
+        survey_efficiency_analysis : skyportal.models.survey_efficiency.SurveyEfficiencyForObservations or skyportal.models.survey_efficiency.SurveyEfficiencyForObservationPlan
+            The survey efficiency analysis for the request
         number_of_injections: int
             Number of simulations to evaluate efficiency with. Defaults to 1000.
         number_of_detections: int
@@ -1351,126 +1417,198 @@ def observation_simsurvey(
         injection_filename: str
             Path to file for injestion as a simsurvey.models.AngularTimeSeriesSource
     . Defaults to nsns_nph1.0e+06_mejdyn0.020_mejwind0.130_phi30.txt from https://github.com/mbulla/kilonova_models.
-        Returns
-        -------
-        dict
-            success : bool
-                Whether the request was successful or not, returning
-                a sensible error in 'reason'
-            name : str
-                suggested filename based on `source_name` and `output_format`
-            data : str
-                binary encoded data for the plot (to be streamed)
-            reason : str
-                If not successful, a reason is returned.
     """
 
-    trigger_time = astropy.time.Time(localization.dateobs, format='datetime')
+    session = Session()
 
-    keys = ['ra', 'dec', 'field_id', 'limMag', 'jd', 'filter', 'skynoise']
-    pointings = {k: [] for k in keys}
-    for obs in observations:
-        nmag = -2.5 * np.log10(
-            np.sqrt(
-                instrument.sensitivity_data[obs["filt"]]['exposure_time']
-                / obs["exposure_time"]
-            )
-        )
+    try:
 
-        if "limmag" in obs:
-            limMag = obs["limmag"]
+        localization = session.scalars(
+            sa.select(Localization).where(Localization.id == localization_id)
+        ).first()
+        if localization is None:
+            raise ValueError(f'No localization with ID {localization_id}')
+
+        instrument = session.execute(
+            sa.select(Instrument).where(Instrument.id == instrument_id)
+        ).first()
+        if instrument is not None:
+            (instrument,) = instrument
         else:
-            limMag = (
-                instrument.sensitivity_data[obs["filt"]]['limiting_magnitude'] + nmag
+            raise ValueError(f'No instrument with ID {instrument_id}')
+
+        trigger_time = astropy.time.Time(localization.dateobs, format='datetime')
+
+        keys = ['ra', 'dec', 'field_id', 'limMag', 'jd', 'filter', 'skynoise']
+        pointings = {k: [] for k in keys}
+        for obs in observations:
+            nmag = -2.5 * np.log10(
+                np.sqrt(
+                    instrument.sensitivity_data[obs["filt"]]['exposure_time']
+                    / obs["exposure_time"]
+                )
             )
-        zp = instrument.sensitivity_data[obs["filt"]]['zeropoint'] + nmag
 
-        pointings["ra"].append(obs["field"].ra)
-        pointings["dec"].append(obs["field"].dec)
-        pointings["filter"].append(obs["filt"])
-        pointings["jd"].append(Time(obs["obstime"], format='datetime').jd)
-        pointings["field_id"].append(obs["field"].field_id)
+            if "limmag" in obs:
+                limMag = obs["limmag"]
+            else:
+                limMag = (
+                    instrument.sensitivity_data[obs["filt"]]['limiting_magnitude']
+                    + nmag
+                )
+            zp = instrument.sensitivity_data[obs["filt"]]['zeropoint'] + nmag
 
-        pointings["limMag"].append(limMag)
-        pointings["skynoise"].append(10 ** (-0.4 * (limMag - zp)) / 5.0)
-        pointings["zp"] = zp
+            pointings["ra"].append(obs["field"]["ra"])
+            pointings["dec"].append(obs["field"]["dec"])
+            pointings["filter"].append(obs["filt"])
+            pointings["jd"].append(Time(obs["obstime"], format='datetime').jd)
+            pointings["field_id"].append(obs["field"]["field_id"])
 
-    df = pd.DataFrame.from_dict(pointings)
-    plan = simsurvey.SurveyPlan(
-        time=df['jd'],
-        band=df['filter'],
-        obs_field=df['field_id'].astype(int),
-        skynoise=df['skynoise'],
-        zp=df['zp'],
-        fields={k: v for k, v in pointings.items() if k in ['ra', 'dec', 'field_id']},
-    )
+            pointings["limMag"].append(limMag)
+            pointings["skynoise"].append(10 ** (-0.4 * (limMag - zp)) / 5.0)
+            pointings["zp"] = zp
 
-    order = hp.nside2order(localization.nside)
-    t = rasterize(localization.table, order)
-    result = t['PROB'], t['DISTMU'], t['DISTSIGMA'], t['DISTNORM']
-    hp_data = hp.reorder(result, 'NESTED', 'RING')
-    map_struct = {}
-    map_struct['prob'] = hp_data[0]
-    map_struct['distmu'] = hp_data[1]
-    map_struct['distsigma'] = hp_data[2]
-
-    distmean, diststd = parameters_to_marginal_moments(
-        map_struct['prob'], map_struct['distmu'], map_struct['distsigma']
-    )
-
-    distance_lower = astropy.coordinates.Distance(
-        np.max([1, (distmean - 5 * diststd)]) * u.Mpc
-    )
-    distance_upper = astropy.coordinates.Distance((distmean + 5 * diststd) * u.Mpc)
-    phase, wave, cos_theta, flux = model_tools.read_possis_file(injection_filename)
-    transientprop = {
-        'lcmodel': sncosmo.Model(
-            AngularTimeSeriesSource(
-                phase=phase, wave=wave, flux=flux, cos_theta=cos_theta
-            )
+        df = pd.DataFrame.from_dict(pointings)
+        plan = simsurvey.SurveyPlan(
+            time=df['jd'],
+            band=df['filter'],
+            obs_field=df['field_id'].astype(int),
+            skynoise=df['skynoise'],
+            zp=df['zp'],
+            fields={
+                k: v for k, v in pointings.items() if k in ['ra', 'dec', 'field_id']
+            },
         )
-    }
-    tr = simsurvey.get_transient_generator(
-        [distance_lower.z, distance_upper.z],
-        transient="generic",
-        template="AngularTimeSeriesSource",
-        ntransient=number_of_injections,
-        ratefunc=lambda z: 5e-7,
-        dec_range=(-90, 90),
-        ra_range=(0, 360),
-        mjd_range=(trigger_time.jd, trigger_time.jd),
-        transientprop=transientprop,
-        skymap=map_struct,
-    )
 
-    survey = simsurvey.SimulSurvey(
-        generator=tr,
-        plan=plan,
-        phase_range=(minimum_phase, maximum_phase),
-        n_det=number_of_detections,
-        threshold=detection_threshold,
-    )
+        order = hp.nside2order(localization.nside)
+        t = rasterize(localization.table, order)
+        result = t['PROB'], t['DISTMU'], t['DISTSIGMA'], t['DISTNORM']
+        hp_data = hp.reorder(result, 'NESTED', 'RING')
+        map_struct = {}
+        map_struct['prob'] = hp_data[0]
+        map_struct['distmu'] = hp_data[1]
+        map_struct['distsigma'] = hp_data[2]
 
-    lcs = survey.get_lightcurves(notebook=True)
+        distmean, diststd = parameters_to_marginal_moments(
+            map_struct['prob'], map_struct['distmu'], map_struct['distsigma']
+        )
+
+        distance_lower = astropy.coordinates.Distance(
+            np.max([1, (distmean - 5 * diststd)]) * u.Mpc
+        )
+        distance_upper = astropy.coordinates.Distance((distmean + 5 * diststd) * u.Mpc)
+        phase, wave, cos_theta, flux = model_tools.read_possis_file(injection_filename)
+        transientprop = {
+            'lcmodel': sncosmo.Model(
+                AngularTimeSeriesSource(
+                    phase=phase, wave=wave, flux=flux, cos_theta=cos_theta
+                )
+            )
+        }
+        tr = simsurvey.get_transient_generator(
+            [distance_lower.z, distance_upper.z],
+            transient="generic",
+            template="AngularTimeSeriesSource",
+            ntransient=number_of_injections,
+            ratefunc=lambda z: 5e-7,
+            dec_range=(-90, 90),
+            ra_range=(0, 360),
+            mjd_range=(trigger_time.jd, trigger_time.jd),
+            transientprop=transientprop,
+            skymap=map_struct,
+        )
+
+        survey = simsurvey.SimulSurvey(
+            generator=tr,
+            plan=plan,
+            phase_range=(minimum_phase, maximum_phase),
+            n_det=number_of_detections,
+            threshold=detection_threshold,
+        )
+
+        lcs = survey.get_lightcurves(notebook=True)
+
+        data = {
+            'lcs': lcs._properties["lcs"],
+            'meta': lcs._properties["meta"],
+            'meta_rejected': lcs._properties["meta_rejected"],
+            'meta_notobserved': lcs._properties["meta_notobserved"],
+            'stats': lcs._derived_properties["stats"],
+            'side': lcs._side_properties,
+        }
+
+        class NumpyEncoder(json.JSONEncoder):
+            def default(self, obj):
+                if isinstance(obj, np.ndarray):
+                    return obj.tolist()
+                return json.JSONEncoder.default(self, obj)
+
+        survey_efficiency_analysis.lightcurves = json.dumps(data, cls=NumpyEncoder)
+        survey_efficiency_analysis.status = 'complete'
+
+        session.merge(survey_efficiency_analysis)
+        session.commit()
+
+        return log(
+            f"Finished survey efficiency analysis for ID {survey_efficiency_analysis.id}"
+        )
+
+    except Exception as e:
+        return log(
+            f"Unable to complete survey efficiency analysis {survey_efficiency_analysis.id}: {e}"
+        )
+    finally:
+        Session.remove()
+
+
+def observation_simsurvey_plot(
+    lcs,
+    output_format='pdf',
+    figsize=(10, 8),
+):
+
+    """Perform the simsurvey analyis for a given skymap
+    Parameters
+    ----------
+    lcs : simsurvey.simulsurvey.LightcurveCollection
+        A collection of light curves for efficiency assessment
+    output_format : str, optional
+        "pdf" or "png" -- determines the format of the returned plot
+    figsize : tuple, optional
+        Matplotlib figsize of the movie created
+
+    Returns
+    -------
+    dict
+        success : bool
+            Whether the request was successful or not, returning
+            a sensible error in 'reason'
+        name : str
+            suggested filename based on `source_name` and `output_format`
+        data : str
+            binary encoded data for the plot (to be streamed)
+        reason : str
+            If not successful, a reason is returned.
+    """
 
     matplotlib.use("Agg")
     fig = plt.figure(figsize=figsize, constrained_layout=False)
     ax = plt.axes([0.05, 0.05, 0.9, 0.9], projection='geo degrees mollweide')
     ax.grid()
-    if lcs.meta_notobserved is not None:
+    if lcs['meta_notobserved'] is not None:
         ax.scatter(
-            lcs.meta_notobserved['ra'],
-            lcs.meta_notobserved['dec'],
+            lcs['meta_notobserved']['ra'],
+            lcs['meta_notobserved']['dec'],
             transform=ax.get_transform('world'),
             marker='*',
             color='grey',
             label='not_observed',
             alpha=0.7,
         )
-    if lcs.meta is not None:
+    if lcs['meta'] is not None:
         ax.scatter(
-            lcs.meta['ra'],
-            lcs.meta['dec'],
+            lcs['meta']['ra'],
+            lcs['meta']['dec'],
             transform=ax.get_transform('world'),
             marker='*',
             color='red',
@@ -1481,29 +1619,6 @@ def observation_simsurvey(
     ax.set_ylabel('Declination [deg]')
     ax.set_xlabel('RA [deg]')
 
-    all_transients = []
-    if lcs.meta_notobserved is not None:
-        all_transients.append(len(lcs.meta_notobserved))
-    if lcs.meta_full is not None:
-        all_transients.append(len(lcs.meta_full))
-    ntransient = np.sum(all_transients)
-
-    if lcs.meta_full is not None:
-        n_in_covered = len(lcs.meta_full['z'])
-    else:
-        n_in_covered = 0
-
-    if lcs.lcs is not None:
-        n_detected = len(lcs.lcs)
-    else:
-        n_detected = 0
-
-    title_string = f"""
-        Number of created kNe: {ntransient}
-        Number of created kNe falling in the covered area: {n_in_covered}
-        Number of detected over all created: {n_detected/ntransient}"""
-    ax.set_title(title_string)
-
     plt.tight_layout()
     buf = io.BytesIO()
     fig.savefig(buf, format=output_format)
@@ -1512,8 +1627,8 @@ def observation_simsurvey(
 
     return {
         "success": True,
-        "name": f"simsurvey_{instrument.name}.{output_format}",
-        "data": buf.read(),
+        "name": f"simsurvey.{output_format}",
+        "dat": buf.read(),
         "reason": "",
     }
 
@@ -1576,22 +1691,44 @@ class ObservationPlanSimSurveyHandler(BaseHandler):
               Path to file for injestion as a simsurvey.models.AngularTimeSeriesSource.
               Defaults to nsns_nph1.0e+06_mejdyn0.020_mejwind0.130_phi30.txt
               from https://github.com/mbulla/kilonova_models.
+          - in: query
+            name: group_ids
+            nullable: true
+            schema:
+              type: array
+              items:
+                type: integer
+              description: |
+                List of group IDs corresponding to which groups should be
+                able to view the analyses. Defaults to all of requesting user's
+                groups.
         responses:
           200:
             content:
               application/json:
-                schema: SingleObservationPlanRequest
+                schema: Success
         """
 
-        number_of_injections = self.get_query_argument("numberInjections", 1000)
-        number_of_detections = self.get_query_argument("numberDetections", 1)
-        detection_threshold = self.get_query_argument("detectionThreshold", 5)
-        minimum_phase = self.get_query_argument("minimumPhase", 0)
-        maximum_phase = self.get_query_argument("maximumPhase", 3)
+        number_of_injections = int(self.get_query_argument("numberInjections", 1000))
+        number_of_detections = int(self.get_query_argument("numberDetections", 1))
+        detection_threshold = float(self.get_query_argument("detectionThreshold", 5))
+        minimum_phase = float(self.get_query_argument("minimumPhase", 0))
+        maximum_phase = float(self.get_query_argument("maximumPhase", 3))
         injection_filename = self.get_query_argument(
             "injectionFilename",
             'data/nsns_nph1.0e+06_mejdyn0.020_mejwind0.130_phi30.txt',
         )
+
+        group_ids = self.get_query_argument('group_ids', None)
+        if not group_ids:
+            groups = self.current_user.accessible_groups
+        else:
+            try:
+                groups = Group.get_if_accessible_by(
+                    group_ids, self.current_user, raise_if_none=True
+                )
+            except AccessError:
+                return self.error('Could not find any accessible groups.', status=403)
 
         options = [
             joinedload(ObservationPlanRequest.observation_plans)
@@ -1650,25 +1787,101 @@ class ObservationPlanSimSurveyHandler(BaseHandler):
                     f'Sensitivity_data dictionary missing keys for filter {filt}'
                 )
 
-        observations = [observation.to_dict() for observation in planned_observations]
+        self.push_notification(
+            'Simsurvey analysis in progress. Should be available soon.'
+        )
 
-        output_format = 'pdf'
+        payload = {
+            'number_of_injections': number_of_injections,
+            'number_of_detections': number_of_detections,
+            'detection_threshold': detection_threshold,
+            'minimum_phase': minimum_phase,
+            'maximum_phase': maximum_phase,
+            'injection_filename': injection_filename,
+        }
+
+        survey_efficiency_analysis = SurveyEfficiencyForObservationPlan(
+            requester_id=self.associated_user_object.id,
+            observation_plan_id=observation_plan.id,
+            groups=groups,
+            payload=payload,
+            status='running',
+        )
+
+        DBSession().add(survey_efficiency_analysis)
+        DBSession().commit()
+
+        observations = []
+        for o in planned_observations:
+            obs_dict = o.to_dict()
+            obs_dict['field'] = obs_dict['field'].to_dict()
+            observations.append(obs_dict)
+
         simsurvey_analysis = functools.partial(
             observation_simsurvey,
             observations,
-            localization,
-            instrument,
+            localization.id,
+            instrument.id,
+            survey_efficiency_analysis,
+            number_of_injections=payload['number_of_injections'],
+            number_of_detections=payload['number_of_detections'],
+            detection_threshold=payload['detection_threshold'],
+            minimum_phase=payload['minimum_phase'],
+            maximum_phase=payload['maximum_phase'],
+            injection_filename=payload['injection_filename'],
+        )
+
+        IOLoop.current().run_in_executor(None, simsurvey_analysis)
+
+        return self.success(data={"id": survey_efficiency_analysis.id})
+
+
+class ObservationPlanSimSurveyPlotHandler(BaseHandler):
+    @auth_or_token
+    async def get(self, survey_efficiency_analysis_id):
+        """
+        ---
+        description: Create a summary plot for a simsurvey efficiency calculation.
+        tags:
+          - survey_efficiency_for_observations
+        parameters:
+          - in: path
+            name: survey_efficiency_analysis_id
+            required: true
+            schema:
+              type: string
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+        """
+
+        survey_efficiency_analysis = (
+            SurveyEfficiencyForObservationPlan.get_if_accessible_by(
+                survey_efficiency_analysis_id, self.current_user
+            )
+        )
+
+        if survey_efficiency_analysis is None:
+            return self.error(
+                f'Missing survey_efficiency_analysis for id {survey_efficiency_analysis_id}'
+            )
+
+        if survey_efficiency_analysis.lightcurves is None:
+            return self.error(
+                f'survey_efficiency_analysis for id {survey_efficiency_analysis_id} not complete'
+            )
+
+        output_format = 'pdf'
+        simsurvey_analysis = functools.partial(
+            observation_simsurvey_plot,
+            lcs=json.loads(survey_efficiency_analysis.lightcurves),
             output_format=output_format,
-            number_of_injections=number_of_injections,
-            number_of_detections=number_of_detections,
-            detection_threshold=detection_threshold,
-            minimum_phase=minimum_phase,
-            maximum_phase=maximum_phase,
-            injection_filename=injection_filename,
         )
 
         self.push_notification(
-            'Simsurvey analysis in progress. Download will start soon.'
+            'Simsurvey analysis in progress. Should be available soon.'
         )
         rez = await IOLoop.current().run_in_executor(None, simsurvey_analysis)
 
