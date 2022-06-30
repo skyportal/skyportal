@@ -194,10 +194,10 @@ class GaiaQueryHandler(BaseHandler):
                 return self.error("No Gaia Photometry available.")
 
             session.add_all(annotations)
-        try:
-            session.commit()
-        except IntegrityError:
-            return self.error("Annotation already posted.")
+            try:
+                session.commit()
+            except IntegrityError:
+                return self.error("Annotation already posted.")
 
         self.push_all(
             action='skyportal/REFRESH_SOURCE',
