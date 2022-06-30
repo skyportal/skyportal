@@ -67,14 +67,18 @@ class Telescope(Base):
         try:
             return self._observer
         except AttributeError:
-            # as this function tries to return self._observer (if the observer already exists), and it there is no self._observer, we need to create it
-            # it should be here that we initialize it to None if it is missing lon, lat, or if its location is not fixed (i.e, a ground based telescope)
-            if self.lon is None or self.lon == "" or np.isnan(self.lon):
-                return None
-            if self.lat is None or self.lat == "" or np.isnan(self.lat):
-                return None
-            if self.fixed_location is False or self.fixed_location is None:
-                return None
+            if (
+                self.lon is None
+                or self.lon == ""
+                or np.isnan(self.lon)
+                or self.lat is None
+                or self.lat == ""
+                or np.isnan(self.lat)
+                or self.fixed_location is False
+                or self.fixed_location is None
+            ):
+                self._observer = None
+                return self._observer
 
         try:
             tf = timezonefinder.TimezoneFinder(in_memory=True)
@@ -99,13 +103,10 @@ class Telescope(Base):
             log(
                 f'Telescope {self.id} ("{self.name}") cannot calculate an observer: {e}'
             )
-            return None
+            self._observer = None
 
         return self._observer
 
-    # in all the methods below that use this self.observer, I checked first if it is None, rather than having an if statement on the "time" value first.
-    # anyway, if the observer is None, we won't need the "time" value, so it seems better to check the observer first.
-    # It will avoid unnecessary calculations if the observer is None.
     def next_sunset(self, time=None):
         """The astropy timestamp of the next sunset after `time` at this site.
         If time=None, uses the current time."""
