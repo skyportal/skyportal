@@ -173,7 +173,7 @@ class ProfileHandler(BaseHandler):
             if isinstance(data.get("affiliations"), list):
                 user.affiliations = data.pop("affiliations")
             else:
-                return self.error("Invalid affiliations. Should be a list.")
+                return self.error("Invalid affiliations. Should be a list of strings.")
 
         if data.get("contact_phone") is not None:
             phone = data.pop("contact_phone")
