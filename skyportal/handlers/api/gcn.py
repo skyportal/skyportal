@@ -229,7 +229,7 @@ class GcnEventSurveyEfficiencyHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: ArrayOfSurveyEfficiencyForObservations
+                schema: ArrayOfSurveyEfficiencyForObservationss
         """
 
         event = (
