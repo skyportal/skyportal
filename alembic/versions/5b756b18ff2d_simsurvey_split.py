@@ -38,7 +38,7 @@ def upgrade():
         ),
         sa.ForeignKeyConstraint(['requester_id'], ['users.id'], ondelete='CASCADE'),
         sa.ForeignKeyConstraint(
-            ['instrumnt_id'], ['instruments.id'], ondelete='CASCADE'
+            ['instrument_id'], ['instruments.id'], ondelete='CASCADE'
         ),
         sa.PrimaryKeyConstraint('id'),
     )
