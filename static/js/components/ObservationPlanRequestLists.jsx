@@ -200,8 +200,6 @@ const ObservationPlanRequestLists = ({ gcnEvent }) => {
     fetchObservationPlanRequestList();
   }, [dispatch, setObservationPlanRequestList, gcnEvent]);
 
-  console.log("observationPlanRequestList", observationPlanRequestList);
-
   const [selectedLocalizationId, setSelectedLocalizationId] = useState(null);
 
   const [isDeleting, setIsDeleting] = useState(null);
