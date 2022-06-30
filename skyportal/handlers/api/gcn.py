@@ -34,6 +34,7 @@ from ...models import (
     ObservationPlanRequest,
     User,
     Instrument,
+    Group,
 )
 from ...utils.gcn import (
     get_dateobs,
@@ -619,6 +620,11 @@ class GcnSummaryHandler(BaseHandler):
               schema:
                 type: list
             - in: query
+              name: group_id
+              required: true
+              schema:
+                type: string
+            - in: query
               name: startDate
               required: true
               schema:
@@ -654,14 +660,6 @@ class GcnSummaryHandler(BaseHandler):
               name: noText
               schema:
                 type: bool
-
-              description: |
-                Event time in ISO 8601 format (`YYYY-MM-DDTHH:MM:SS.sss`).
-                Each localization is associated with a specific GCNEvent by
-                the date the event happened, and this date is used as a unique
-                identifier. It can be therefore found as Localization.dateobs,
-                queried from the /api/localization endpoint or dateobs in the
-                GcnEvent page table.
             - in: query
               name: localizationName
               schema:
@@ -695,8 +693,10 @@ class GcnSummaryHandler(BaseHandler):
         user_ids = self.get_query_argument(
             "userIds", None
         )  # to fix, string instead of list -> TEMPORARY
+        group_id = self.get_query_argument("group_id")
         start_date = self.get_query_argument('startDate')
         end_date = self.get_query_argument('endDate')
+        localization_name = self.get_query_argument('localizationName', None)
         localization_cumprob = self.get_query_argument('localizationCumprob', 0.95)
         show_sources = self.get_query_argument('showSources', False)
         show_galaxies = self.get_query_argument('showGalaxies', False)
@@ -705,23 +705,30 @@ class GcnSummaryHandler(BaseHandler):
         if title is None:
             return self.error("Title is required")
 
-        # verify that number is a valid integer
-        if number is not None:
-            try:
-                number = int(number)
-            except ValueError:
-                return self.error("Number must be an integer")
+        if not no_text:
+            # verify that number is a valid integer
+            if title is None:
+                return self.error("Title is required")
+            if number is not None:
+                try:
+                    number = int(number)
+                except ValueError:
+                    return self.error("Number must be an integer")
 
-        if subject is None:
-            return self.error("Subject is required")
+            if subject is None:
+                return self.error("Subject is required")
 
-        # verify that user_ids is a list of valid integers
-        if user_ids is not None:
-            user_ids = [int(user_id) for user_id in user_ids.split(",")]
-            try:
-                user_ids = [int(user_id) for user_id in user_ids]
-            except ValueError:
-                return self.error("User IDs must be integers")
+            # verify that user_ids is a list of valid integers
+            if user_ids is None:
+                return self.error("UserIds is required")
+            if user_ids is not None:
+                user_ids = [int(user_id) for user_id in user_ids.split(",")]
+                try:
+                    user_ids = [int(user_id) for user_id in user_ids]
+                except ValueError:
+                    return self.error("User IDs must be integers")
+            if group_id is None:
+                return self.error("Group ID is required")
 
         if start_date is None:
             return self.error(message="Missing start_date")
@@ -738,7 +745,14 @@ class GcnSummaryHandler(BaseHandler):
             .filter(GcnEvent.dateobs == dateobs)
             .first()
         )
+
+        if event is None:
+            return self.error("Event not found", status=404)
         if not no_text:
+            group = Group.query.filter_by(id=group_id).first()
+            if group is None:
+                return self.error(f"Group not found with ID {group_id}")
+
             header_text = []
 
             trigger_time = astropy.time.Time(event.dateobs, format='datetime')
@@ -753,6 +767,7 @@ class GcnSummaryHandler(BaseHandler):
             if self.associated_user_object.contact_email is not None:
                 from_str += f""" <{self.associated_user_object.contact_email}>\n"""
             header_text.append(from_str)
+            header_text.append(f"""on behalf of the {group.name}, report:""")
 
             if len(user_ids) > 0:
                 # query user objects for all user_ids
@@ -794,6 +809,7 @@ class GcnSummaryHandler(BaseHandler):
                     first_detected_date=start_date,
                     last_detected_date=end_date,  # TODO: this is fishy
                     localization_dateobs=dateobs,
+                    localization_name=localization_name,
                     localization_cumprob=localization_cumprob,
                     include_photometry=True,
                     page_number=source_page_number,
@@ -882,6 +898,7 @@ class GcnSummaryHandler(BaseHandler):
                     user=self.associated_user_object,
                     session=DBSession(),
                     localization_dateobs=event.dateobs,
+                    localization_name=localization_name,
                     localization_cumprob=localization_cumprob,
                     page_number=galaxies_page_number,
                     num_per_page=galaxies_num_per_page,
@@ -929,6 +946,9 @@ class GcnSummaryHandler(BaseHandler):
                     joinedload(Instrument.telescope),
                 ],
             ).filter()
+            if instruments is None:
+                return self.error("No instruments found")
+
             observations_text.append("\nObservations:") if not no_text else None
             for instrument in instruments:
                 data = get_observations(
@@ -938,6 +958,8 @@ class GcnSummaryHandler(BaseHandler):
                     telescope_name=instrument.telescope.name,
                     instrument_name=instrument.name,
                     localization_dateobs=dateobs,
+                    localization_name=localization_name,
+                    localization_cumprob=localization_cumprob,
                     return_statistics=True,
                 )
 
