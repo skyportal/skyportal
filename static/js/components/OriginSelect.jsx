@@ -7,8 +7,8 @@ import * as photometryActions from "../ducks/photometry";
 
 const OriginSelect = ({ onOriginSelectChange, initValue, parent }) => {
   const dispatch = useDispatch();
-  const fetchOrigins = () => {
-    dispatch(photometryActions.fetchAllOrigins());
+  const fetchOrigins = async () => {
+    await dispatch(photometryActions.fetchAllOrigins());
   };
 
   useEffect(() => {
