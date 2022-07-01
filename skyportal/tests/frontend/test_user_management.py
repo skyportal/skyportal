@@ -150,4 +150,4 @@ def test_user_expiration(
     # Check that user deactivated
     driver.get(f'/become_user/{user.id}')
     driver.get("/")
-    driver.wait_for_xpath("//*[contains(text(), 'User account expired')]")
+    driver.wait_for_xpath_to_disappear("//*[contains(text(), 'Top Sources')]")
