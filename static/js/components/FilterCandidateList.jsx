@@ -134,7 +134,7 @@ const FilterCandidateList = ({
     }
   }, [dispatch, availableAnnotationsInfo]);
 
-  const { scanningProfiles, twelveOrTwentyFour } = useSelector(
+  const { scanningProfiles, useAMPM } = useSelector(
     (state) => state.profile.preferences
   );
 
@@ -363,7 +363,7 @@ const FilterCandidateList = ({
                     onChange={(newValue) => onChange(newValue)}
                     label="Start (UTC)"
                     showTodayButton={false}
-                    ampm={twelveOrTwentyFour}
+                    ampm={useAMPM}
                     renderInput={(params) => (
                       /* eslint-disable-next-line react/jsx-props-no-spreading */
                       <TextField id="startDatePicker" {...params} />
@@ -385,7 +385,7 @@ const FilterCandidateList = ({
                     onChange={(newValue) => onChange(newValue)}
                     label="End (UTC)"
                     showTodayButton={false}
-                    ampm={twelveOrTwentyFour}
+                    ampm={useAMPM}
                     renderInput={(props) => (
                       /* eslint-disable-next-line react/jsx-props-no-spreading */
                       <TextField id="endDatePicker" {...props} />

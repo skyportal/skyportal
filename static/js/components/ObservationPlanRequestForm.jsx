@@ -261,9 +261,7 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
   const { telescopeList } = useSelector((state) => state.telescopes);
   const { allocationList } = useSelector((state) => state.allocations);
 
-  const { twelveOrTwentyFour } = useSelector(
-    (state) => state.profile.preferences
-  );
+  const { useAMPM } = useSelector((state) => state.profile.preferences);
 
   const allGroups = useSelector((state) => state.groups.all);
   const [selectedAllocationId, setSelectedAllocationId] = useState(null);
@@ -477,7 +475,7 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
               onChange={(newValue) => handleChange(newValue)}
               label="Time to compute airmass (UTC)"
               showTodayButton={false}
-              ampm={twelveOrTwentyFour}
+              ampm={useAMPM}
               renderInput={(params) => (
                 /* eslint-disable-next-line react/jsx-props-no-spreading */
                 <TextField id="airmassTimePicker" {...params} />

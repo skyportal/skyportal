@@ -13,7 +13,7 @@ const UIPreferences = () => {
   const currentTheme = preferences?.theme;
   const invertThumbnails = preferences?.invertThumbnails || false;
   const compactComments = preferences?.compactComments || false;
-  const twelveOrTwentyFour = preferences?.twelveOrTwentyFour || false;
+  const useAMPM = preferences?.useAMPM || false;
   const dispatch = useDispatch();
 
   const themeToggled = (event) => {
@@ -38,9 +38,9 @@ const UIPreferences = () => {
     dispatch(profileActions.updateUserPreferences(prefs));
   };
 
-  const twelveOrTwentyFourToggled = (event) => {
+  const useAMPMToggled = (event) => {
     const prefs = {
-      twelveOrTwentyFour: event.target.checked,
+      useAMPM: event.target.checked,
     };
     dispatch(profileActions.updateUserPreferences(prefs));
   };
@@ -69,11 +69,11 @@ const UIPreferences = () => {
     />
   );
 
-  const twelveOrTwentyFourSwitch = (
+  const useAMPMSwitch = (
     <Switch
       value="Use 24 hour or AM/PM"
-      checked={twelveOrTwentyFour}
-      onChange={twelveOrTwentyFourToggled}
+      checked={useAMPM}
+      onChange={useAMPMToggled}
     />
   );
 
@@ -97,10 +97,7 @@ const UIPreferences = () => {
           control={commpactCommentsSwitch}
           label="Compact Comments"
         />
-        <FormControlLabel
-          control={twelveOrTwentyFourSwitch}
-          label="24 Hour or AM/PM"
-        />
+        <FormControlLabel control={useAMPMSwitch} label="24 Hour or AM/PM" />
       </FormGroup>
     </div>
   );
