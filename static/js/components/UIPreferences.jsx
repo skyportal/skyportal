@@ -13,6 +13,7 @@ const UIPreferences = () => {
   const currentTheme = preferences?.theme;
   const invertThumbnails = preferences?.invertThumbnails || false;
   const compactComments = preferences?.compactComments || false;
+  const twelveOrTwentyFour = preferences?.twelveOrTwentyFour || false;
   const dispatch = useDispatch();
 
   const themeToggled = (event) => {
@@ -33,6 +34,13 @@ const UIPreferences = () => {
   const commentsToggled = (event) => {
     const prefs = {
       compactComments: event.target.checked,
+    };
+    dispatch(profileActions.updateUserPreferences(prefs));
+  };
+
+  const twelveOrTwentyFourToggled = (event) => {
+    const prefs = {
+      twelveOrTwentyFour: event.target.checked,
     };
     dispatch(profileActions.updateUserPreferences(prefs));
   };
@@ -61,6 +69,14 @@ const UIPreferences = () => {
     />
   );
 
+  const twelveOrTwentyFourSwitch = (
+    <Switch
+      value="Use 24 hour or AM/PM"
+      checked={twelveOrTwentyFour}
+      onChange={twelveOrTwentyFourToggled}
+    />
+  );
+
   /* To get hold of the current theme:
 
   const themeCtx = useTheme();
@@ -80,6 +96,10 @@ const UIPreferences = () => {
         <FormControlLabel
           control={commpactCommentsSwitch}
           label="Compact Comments"
+        />
+        <FormControlLabel
+          control={twelveOrTwentyFourSwitch}
+          label="24 Hour or AM/PM"
         />
       </FormGroup>
     </div>
