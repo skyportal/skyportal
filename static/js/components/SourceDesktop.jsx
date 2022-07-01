@@ -508,6 +508,14 @@ const SourceDesktop = ({ source }) => {
                       <Button variant="contained">Periodogram Analysis</Button>
                     </Link>
                   )}
+                  {photometry && (
+                    <Link
+                      to={`/source/${source.id}/lightcurve_fit`}
+                      role="link"
+                    >
+                      <Button variant="contained">Lightcurve Fit</Button>
+                    </Link>
+                  )}
                 </div>
               </Grid>
             </AccordionDetails>

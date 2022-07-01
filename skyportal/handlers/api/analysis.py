@@ -367,6 +367,9 @@ class AnalysisServiceHandler(BaseHandler):
         for a in analysis_services:
             analysis_dict = recursive_to_dict(a)
             analysis_dict["groups"] = a.groups
+            analysis_dict["optional_analysis_parameters"] = json.loads(
+                a.optional_analysis_parameters
+            )
             ret_array.append(analysis_dict)
 
         return self.success(data=ret_array)
@@ -904,12 +907,15 @@ class AnalysisHandler(BaseHandler):
                 type: string
               description: |
                 What underlying data the analysis is on:
-                must be one of either "obj" (more to be added in the future)
-            - in: path
-              name: analysis_id
-              required: true
+                must be "obj" (more to be added in the future)
+            - in: query
+              name: objID
+              nullable: true
               schema:
-                type: integer
+                type: string
+              description: |
+                Return any analysis on an object with ID that has a (partial) match
+                to this argument (i.e., the given argument is "in" the object's ID).
             - in: query
               name: includeAnalysisData
               nullable: true
@@ -962,6 +968,14 @@ class AnalysisHandler(BaseHandler):
             True,
             1,
         ]
+        obj_id = self.get_query_argument('objID', None)
+
+        if obj_id is not None:
+            try:
+                Obj.get_if_accessible_by(obj_id, self.current_user)
+            except AccessError:
+                return self.error(f'Cannot find object with ID "{obj_id}"')
+
         if analysis_resource_type.lower() == 'obj':
             if analysis_id is not None:
                 try:
@@ -981,7 +995,10 @@ class AnalysisHandler(BaseHandler):
                 return self.success(data=analysis_dict)
 
             # retrieve multiple analyses
-            analyses = ObjAnalysis.get_records_accessible_by(self.current_user)
+            analyses = ObjAnalysis.query_records_accessible_by(self.current_user)
+            if obj_id:
+                analyses = analyses.filter(ObjAnalysis.obj_id.contains(obj_id.strip()))
+            analyses = analyses.all()
             self.verify_and_commit()
 
             ret_array = []
@@ -1035,3 +1052,151 @@ class AnalysisHandler(BaseHandler):
                 f'analysis_resource_type must be one of {", ".join(["obj"])}',
                 status=404,
             )
+
+
+def serialize_results_data():
+    pass
+
+
+class AnalysisProductsHandler(BaseHandler):
+    @auth_or_token
+    async def get(
+        self, analysis_resource_type, analysis_id, product_type, plot_number=0
+    ):
+        """
+        ---
+        description: Retrieve primary data associated with an Analysis.
+        tags:
+        - analysis
+        parameters:
+        - in: path
+          name: analysis_resource_type
+          required: true
+          schema:
+            type: string
+          description: |
+            What underlying data the analysis is on:
+            must be "obj" (more to be added in the future)
+        - in: path
+          name: analysis_id
+          required: true
+          schema:
+            type: integer
+        - in: path
+          name: product_type
+          required: true
+          schema:
+            type: string
+          description: |
+            What type of data to retrieve:
+            must be one of "corner", "results", or "plot"
+        - in: path
+          name: plot_number
+          required: true
+          schema:
+            type: integer
+          description: |
+            if product_type == "plot", which
+            plot number should be returned?
+        requestBody:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  plot_kwargs:
+                    type: object
+                    additionalProperties:
+                      type: object
+                    description: |
+                        Extra parameters to pass to the plotting functions
+                        if new plots are to be generated (e.g. with corner plots)
+        responses:
+          200:
+            description: PNG finding chart file
+            content:
+                oneOf:
+                    - image/png:
+                        schema:
+                            type: string
+                            format: binary
+                    - application/json:
+                        schema:
+                            type: object
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        if analysis_resource_type.lower() == 'obj':
+            if analysis_id is not None:
+                try:
+                    analysis = ObjAnalysis.get_if_accessible_by(
+                        analysis_id, self.current_user, raise_if_none=True
+                    )
+                except AccessError:
+                    return self.error('Cannot access this Analysis.', status=403)
+
+                if analysis.data in [None, {}]:
+                    return self.error("No data found for this Analysis.", status=404)
+
+                if product_type.lower() == "corner":
+                    if not analysis.has_inference_data:
+                        return self.error(
+                            "No inference data found for this Analysis.", status=404
+                        )
+
+                    plot_kwargs = self.get_query_argument("plot_kwargs", {})
+                    filename = f"analysis_{analysis.obj_id}_corner.png"
+                    output_type = "png"
+                    output_data = analysis.generate_corner_plot(**plot_kwargs)
+                    if output_data is not None:
+                        await self.send_file(
+                            output_data, filename, output_type=output_type
+                        )
+                elif product_type.lower() == "results":
+                    if not analysis.has_results_data:
+                        return self.error(
+                            "No results data found for this Analysis.", status=404
+                        )
+                    return self.success(data=analysis.serialize_results_data())
+                elif product_type.lower() == "plots":
+                    if not analysis.has_plot_data:
+                        return self.error(
+                            "No plot data found for this Analysis.", status=404
+                        )
+                    try:
+                        plot_number = int(plot_number)
+                    except Exception as e:
+                        return self.error(
+                            f"plot_number must be an integer. {e}", status=400
+                        )
+                    if (
+                        plot_number < 0
+                        or plot_number >= analysis.number_of_analysis_plots
+                    ):
+                        return self.error(
+                            "Invalid plot number. "
+                            f"There is/are {analysis.number_of_analysis_plots} plot(s) available for this analysis",
+                            status=404,
+                        )
+
+                    result = analysis.get_analysis_plot(plot_number=plot_number)
+                    if result is not None:
+                        output_data = result["plot_data"]
+                        output_type = result["plot_type"].lower()
+                        filename = f"analysis_{analysis.obj_id}_plot_{plot_number}.{output_type}"
+                        await self.send_file(
+                            output_data, filename, output_type=output_type
+                        )
+                else:
+                    return self.error(
+                        f"Invalid product type: {product_type}", status=404
+                    )
+        else:
+            return self.error(
+                f'analysis_resource_type must be one of {", ".join(["obj"])}',
+                status=404,
+            )
+
+        return self.error("No data found for this Analysis.", status=404)
