@@ -146,9 +146,8 @@ def test_user_expiration(
     date = datetime.now().strftime("%m/%d/%Y")
     driver.wait_for_xpath("//input[@id='expirationDatePicker']").send_keys(date)
     driver.click_xpath('//*[text()="Submit"]')
-    driver.wait_for_xpath("//*[text()='User expiration date successfully updated.']")
 
     # Check that user deactivated
     driver.get(f'/become_user/{user.id}')
     driver.get("/")
-    driver.wait_for_xpath("//*[contains(text(), 'User account expired')]")
+    driver.wait_for_xpath_to_disappear("//*[contains(text(), 'Top Sources')]")
