@@ -367,9 +367,18 @@ class AnalysisServiceHandler(BaseHandler):
         for a in analysis_services:
             analysis_dict = recursive_to_dict(a)
             analysis_dict["groups"] = a.groups
-            analysis_dict["optional_analysis_parameters"] = json.loads(
-                a.optional_analysis_parameters
-            )
+            if isinstance(a.optional_analysis_parameters, str):
+                analysis_dict["optional_analysis_parameters"] = json.loads(
+                    a.optional_analysis_parameters
+                )
+            elif isinstance(a.optional_analysis_parameters, dict):
+                analysis_dict[
+                    "optional_analysis_parameters"
+                ] = a.optional_analysis_parameters
+            else:
+                return self.error(
+                    message='optional_analysis_parameters must be dictionary or string'
+                )
             ret_array.append(analysis_dict)
 
         return self.success(data=ret_array)
