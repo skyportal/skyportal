@@ -4,32 +4,35 @@ import tempfile
 import base64
 import traceback
 import json
+import sys
 
 import joblib
 import numpy as np
 import matplotlib
 import arviz as az
 import requests
+import subprocess
 
 from tornado.ioloop import IOLoop
 import tornado.web
 import tornado.escape
 
+from astropy.time import Time
 from astropy.table import Table
-import sncosmo
+import bilby
 
 from baselayer.log import make_log
 from baselayer.app.env import load_env
 
 _, cfg = load_env()
-log = make_log('sn_analysis_service')
+log = make_log('nmma_analysis_service')
 
 # we need to set the backend here to insure we
 # can render the plot headlessly
 matplotlib.use('Agg')
 rng = np.random.default_rng()
 
-default_analysis_parameters = {"source": "nugent-sn2p", "fix_z": False}
+default_analysis_parameters = {"source": "Me2017", "fix_z": False}
 
 
 def upload_analysis_results(results, data_dict, request_timeout=60):
@@ -51,16 +54,16 @@ def upload_analysis_results(results, data_dict, request_timeout=60):
     except requests.exceptions.Timeout:
         # If we timeout here then it's precisely because
         # we cannot write back to the SkyPortal instance.
-        # So returning something doesn't make sense in this case.
+        # So returning something doenmma't make sense in this case.
         # Just log it and move on...
         log("Callback URL timedout. Skipping.")
     except Exception as e:
         log(f"Callback exception {e}.")
 
 
-def run_sn_model(data_dict):
+def run_nmma_model(data_dict):
     """
-    Use `sncosmo` to fit data to a model with name `source_name`.
+    Use `nmma` to fit data to a model with name `source_name`.
 
     For this analysis, we expect the `inputs` dictionary to have the following keys:
        - source: the name of the model to fit to the data
@@ -84,19 +87,11 @@ def run_sn_model(data_dict):
     # - flux: the flux of the observation
     #
     # the following code transforms these inputs from SkyPortal
-    # to the format expected by sncosmo.
+    # to the format expected by nmmacosmo.
     #
     rez = {"status": "failure", "message": "", "analysis": {}}
     try:
         data = Table.read(data_dict["inputs"]["photometry"], format='ascii.csv')
-        data.rename_column('mjd', 'time')
-        data.rename_column('filter', 'band')
-        data.rename_column('magsys', 'zpsys')
-
-        data['flux'].fill_value = 1e-6
-        data = data.filled()
-        data.sort("time")
-
         redshift = Table.read(data_dict["inputs"]["redshift"], format='ascii.csv')
         z = redshift['redshift'][0]
     except Exception as e:
@@ -112,50 +107,111 @@ def run_sn_model(data_dict):
     # locally and then write their contents
     # to the results dictionary for uploading
     local_temp_files = []
+    cand_name = data_dict['resource_id']
+
+    prior_directory = f"{os.path.dirname(os.path.realpath(__file__))}/priors"
+    svdmodel_directory = f"{os.path.dirname(os.path.realpath(__file__))}/svdmodels"
 
     try:
-        model = sncosmo.Model(source=source)
+        ##########################
+        # Setup parameters and fit
+        ##########################
+        plotdir = tempfile.mkdtemp()
 
+        # cpus = 2
+        nlive = 32
+        error_budget = 1.0
+
+        tmin = 0.01
+        tmax = 7
+        dt = 0.1
+        Ebv_max = 0.5724
+
+        t0 = np.min(data['mjd'])
+        interpolation_type = "sklearn_gp"
+        sampler = "pymultinest"
+
+        prior = f"{prior_directory}/{source}.prior"
+        if not os.path.isfile(prior):
+            log(f"Prior file for model {source} does not exist")
+            return
+        priors = bilby.gw.prior.PriorDict(prior)
         if fix_z:
             if z is not None:
-                model.set(z=z)
-                bounds = {'z': (z, z)}
+                from astropy.cosmology import Planck18 as cosmo
+
+                priors['luminosity_distance'] = cosmo.luminosity_distance(z).value
             else:
                 raise ValueError("No redshift provided but `fix_z` requested.")
-        else:
-            bounds = {'z': (0.01, 1.0)}
+        priors.to_file(plotdir, source)
+        prior = os.path.join(plotdir, f'{source}.prior')
+        local_temp_files.append(prior)
 
-        # run the fit
-        result, fitted_model = sncosmo.fit_lc(
-            data,
-            model,
-            model.param_names,
-            bounds=bounds,
+        # output the data
+        # in the format desired by NMMA
+        f = tempfile.NamedTemporaryFile(suffix=".dat", mode="w", delete=False)
+        for row in data:
+            tt = Time(row['mjd'], format='mjd').isot
+            filt = row['filter'][-1]
+            mag = row['mag']
+            magerr = row['magerr']
+            f.write(f"{tt} {filt} {mag} {magerr}\n")
+        f.close()
+        local_temp_files.append(f.name)
+
+        # NMMA lightcurve fitting
+        # triggered with a shell command
+        command = subprocess.run(
+            "light_curve_analysis"
+            + " --model "
+            + source
+            + " --svd-path "
+            + svdmodel_directory
+            + " --outdir "
+            + plotdir
+            + " --label "
+            + cand_name
+            + "_"
+            + source
+            + " --trigger-time "
+            + str(t0)
+            + " --data "
+            + f.name
+            + " --prior "
+            + prior
+            + " --tmin "
+            + str(tmin)
+            + " --tmax "
+            + str(tmax)
+            + " --dt "
+            + str(dt)
+            + " --error-budget "
+            + str(error_budget)
+            + " --nlive "
+            + str(nlive)
+            + " --Ebv-max "
+            + str(Ebv_max)
+            + " --interpolation_type "
+            + interpolation_type
+            + " --sampler "
+            + sampler
+            + " --plot",
+            shell=True,
+            capture_output=True,
         )
+        sys.stdout.buffer.write(command.stdout)
+        sys.stderr.buffer.write(command.stderr)
 
-        if result.success:
-            f = tempfile.NamedTemporaryFile(
-                suffix=".png", prefix="snplot_", delete=False
-            )
-            f.close()
-            _ = sncosmo.plot_lc(
-                data,
-                model=fitted_model,
-                errors=result.errors,
-                model_label=source,
-                figtext=data_dict["resource_id"],
-                fname=f.name,
-            )
-            plot_data = base64.b64encode(open(f.name, "rb").read())
-            local_temp_files.append(f.name)
+        posterior_file = os.path.join(
+            plotdir, cand_name + "_" + source + "_posterior_samples.dat"
+        )
+        json_file = os.path.join(plotdir, cand_name + "_" + source + "_result.json")
 
-            # make some draws from the posterior (simulating what we'd expect
-            # with an MCMC analysis)
-            post = rng.multivariate_normal(result.parameters, result.covariance, 10000)
-            post = post[np.newaxis, :]
-            # create an inference dataset
+        if os.path.isfile(posterior_file):
+
+            tab = Table.read(posterior_file, format='csv', delimiter=' ')
             inference = az.convert_to_inference_data(
-                {x: post[:, :, i] for i, x in enumerate(result.param_names)}
+                tab.to_pandas().to_dict(orient='list')
             )
             f = tempfile.NamedTemporaryFile(
                 suffix=".nc", prefix="inferencedata_", delete=False
@@ -165,7 +221,16 @@ def run_sn_model(data_dict):
             inference_data = base64.b64encode(open(f.name, 'rb').read())
             local_temp_files.append(f.name)
 
-            result.update({"source": source, "fix_z": fix_z})
+            with open(json_file) as f:
+                result = json.load(f)
+
+            f = tempfile.NamedTemporaryFile(
+                suffix=".png", prefix="nmmaplot_", delete=False
+            )
+            f.close()
+            plot_file = os.path.join(plotdir, "lightcurves.png")
+            plot_data = base64.b64encode(open(plot_file, "rb").read())
+            local_temp_files.append(f.name)
 
             f = tempfile.NamedTemporaryFile(
                 suffix=".joblib", prefix="results_", delete=False
@@ -184,7 +249,7 @@ def run_sn_model(data_dict):
                 {
                     "analysis": analysis_results,
                     "status": "success",
-                    "message": f"Good results with chi^2/dof={result.chisq}/{result.ndof}",
+                    "message": f"Good results with log Bayes factor={result['log_bayes_factor']}",
                 }
             )
         else:
@@ -194,7 +259,7 @@ def run_sn_model(data_dict):
     except Exception as e:
         log(f"Exception while running the model: {e}")
         log(f"{traceback.format_exc()}")
-        log(f"Data: {data}")
+        #    log(f"Data: {data}")
         rez.update({"status": "failure", "message": f"problem running the model {e}"})
     finally:
         # clean up local files
@@ -237,18 +302,19 @@ class MainHandler(tornado.web.RequestHandler):
                 log(f"missing required key {key} in data_dict")
                 return self.error(400, f"missing required key {key} in data_dict")
 
-        def sn_analysis_done_callback(
+        def nmma_analysis_done_callback(
             future,
             logger=log,
             data_dict=data_dict,
         ):
             """
-            Callback function for when the sn analysis service is done.
+            Callback function for when the nmma analysis service is done.
             Sends back results/errors via the callback_url.
 
             This is run synchronously after the future completes
             so there is no need to await for `future`.
             """
+
             try:
                 result = future.result()
             except Exception as e:
@@ -263,26 +329,26 @@ class MainHandler(tornado.web.RequestHandler):
             finally:
                 upload_analysis_results(result, data_dict)
 
-        runner = functools.partial(run_sn_model, data_dict)
+        runner = functools.partial(run_nmma_model, data_dict)
         future_result = IOLoop.current().run_in_executor(None, runner)
-        future_result.add_done_callback(sn_analysis_done_callback)
+        future_result.add_done_callback(nmma_analysis_done_callback)
 
         return self.write(
-            {'status': 'pending', 'message': 'sn_analysis_service: analysis started'}
+            {'status': 'pending', 'message': 'nmma_analysis_service: analysis started'}
         )
 
 
 def make_app():
     return tornado.web.Application(
         [
-            (r"/analysis/demo_analysis", MainHandler),
+            (r"/analysis/nmma_analysis", MainHandler),
         ]
     )
 
 
 if __name__ == "__main__":
-    sn_analysis = make_app()
-    port = cfg['analysis_services.sn_analysis_service.port']
-    sn_analysis.listen(port)
+    nmma_analysis = make_app()
+    port = cfg['analysis_services.nmma_analysis_service.port']
+    nmma_analysis.listen(port)
     log(f'Listening on port {port}')
     tornado.ioloop.IOLoop.current().start()

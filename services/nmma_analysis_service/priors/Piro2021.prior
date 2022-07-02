@@ -1,0 +1,5 @@
+luminosity_distance = Uniform(minimum=0.0, maximum=1000., name='luminosity_distance',latex_label='$D_L$')
+KNtimeshift = Uniform(minimum=-2.0, maximum=1.0, name='trigger_time',latex_label='$t_0$')
+log10_Menv  = Uniform(name='log10_Menv', minimum=-5., maximum=0., latex_label='$\\log_{10}M^{\\rm{env}}$')
+log10_Renv = Uniform(name='log10_Renv', minimum=10., maximum=15, latex_label='$\\log_{10}R^{\\rm{env}}$')
+log10_Ee  = Uniform(name='log10_Eext', minimum=47., maximum=52., latex_label='$\\log_{10}E^{\\rm{e}}$')

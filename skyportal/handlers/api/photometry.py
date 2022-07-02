@@ -136,7 +136,7 @@ def serialize(phot, outsys, format):
         # to the new magnitude system
         corrected_db_zp = PHOT_ZP + db_correction
 
-        if format == 'mag':
+        if format in ['mag', 'both']:
             if (
                 phot.original_user_data is not None
                 and 'limiting_mag' in phot.original_user_data
@@ -152,18 +152,35 @@ def serialize(phot, outsys, format):
                 fivesigma = 5 * fluxerr
                 maglimit_out = -2.5 * np.log10(fivesigma) + corrected_db_zp
 
-            return_value.update(
-                {
-                    'mag': phot.mag + db_correction
-                    if nan_to_none(phot.mag) is not None
-                    else None,
-                    'magerr': phot.e_mag
-                    if nan_to_none(phot.e_mag) is not None
-                    else None,
-                    'magsys': outsys.name,
-                    'limiting_mag': maglimit_out,
-                }
-            )
+            if format == "mag":
+                return_value.update(
+                    {
+                        'mag': phot.mag + db_correction
+                        if nan_to_none(phot.mag) is not None
+                        else None,
+                        'magerr': phot.e_mag
+                        if nan_to_none(phot.e_mag) is not None
+                        else None,
+                        'magsys': outsys.name,
+                        'limiting_mag': maglimit_out,
+                    }
+                )
+            else:
+                return_value.update(
+                    {
+                        'mag': phot.mag + db_correction
+                        if nan_to_none(phot.mag) is not None
+                        else None,
+                        'magerr': phot.e_mag
+                        if nan_to_none(phot.e_mag) is not None
+                        else None,
+                        'magsys': outsys.name,
+                        'limiting_mag': maglimit_out,
+                        'flux': nan_to_none(phot.flux),
+                        'fluxerr': phot.fluxerr,
+                        'zp': corrected_db_zp,
+                    }
+                )
         elif format == 'flux':
             return_value.update(
                 {
@@ -176,7 +193,7 @@ def serialize(phot, outsys, format):
         else:
             raise ValueError(
                 'Invalid output format specified. Must be one of '
-                f"['flux', 'mag'], got '{format}'."
+                f"['flux', 'mag', 'both'], got '{format}'."
             )
     except ValueError as e:
         raise ValueError(

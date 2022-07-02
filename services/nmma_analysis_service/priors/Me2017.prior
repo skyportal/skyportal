@@ -1,0 +1,6 @@
+luminosity_distance = Uniform(minimum=0.0, maximum=200., name='luminosity_distance',latex_label='$D_L$')
+beta = Uniform(name='beta', minimum=1., maximum=5., latex_label='$\\beta$')
+log10_kappa_r = Uniform(name='log10_kappa_r', minimum=-1., maximum=2., latex_label='\\log_{10}$\\kappa_r$')
+KNtimeshift = Uniform(minimum=-2.0, maximum=1.0, name='trigger_time',latex_label='$t_0$')
+log10_vej  = Uniform(name='log10_vej', minimum=-2., maximum=-0.5, latex_label='$\\log_{10}v^{\\rm{ej}}$')
+log10_Mej = Uniform(name='log10_Mej', minimum=-3., maximum=-0.5, latex_label='$\\log_{10}M^{\\rm{ej}}$')
