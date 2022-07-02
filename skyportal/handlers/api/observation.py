@@ -12,7 +12,7 @@ import pandas as pd
 from regions import Regions
 import requests
 import sqlalchemy as sa
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, undefer
 from sqlalchemy.orm import sessionmaker, scoped_session
 from tornado.ioloop import IOLoop
 import urllib
@@ -1721,153 +1721,179 @@ class ObservationSimSurveyHandler(BaseHandler):
         )
 
         group_ids = self.get_query_argument('group_ids', None)
-        if not group_ids:
-            groups = self.current_user.accessible_groups
-        else:
-            try:
-                groups = Group.get_if_accessible_by(
-                    group_ids, self.current_user, raise_if_none=True
-                )
-            except AccessError:
-                return self.error('Could not find any accessible groups.', status=403)
 
-        if start_date is None:
-            return self.error(message="Missing start_date")
+        with DBSession() as session:
 
-        if end_date is None:
-            return self.error(message="Missing end_date")
+            if not group_ids:
+                groups = self.current_user.accessible_groups
+            else:
+                try:
+                    groups = Group.get_if_accessible_by(
+                        group_ids, self.current_user, raise_if_none=True
+                    )
+                except AccessError:
+                    return self.error(
+                        'Could not find any accessible groups.', status=403
+                    )
 
-        if localization_dateobs is None:
-            return self.error(message="Missing required localizationDateobs")
+            if start_date is None:
+                return self.error(message="Missing start_date")
 
-        start_date = arrow.get(start_date.strip()).datetime
-        end_date = arrow.get(end_date.strip()).datetime
+            if end_date is None:
+                return self.error(message="Missing end_date")
 
-        instrument = (
-            Instrument.query_records_accessible_by(
-                self.current_user,
-                options=[
-                    joinedload(Instrument.telescope),
-                ],
-            )
-            .filter(
-                Instrument.id == instrument_id,
-            )
-            .first()
-        )
-        if instrument is None:
-            return self.error(message=f"Invalid instrument ID {instrument_id}")
+            if localization_dateobs is None:
+                return self.error(message="Missing required localizationDateobs")
 
-        if instrument.sensitivity_data is None:
-            return self.error('Need sensitivity_data to evaluate efficiency')
+            start_date = arrow.get(start_date.strip()).datetime
+            end_date = arrow.get(end_date.strip()).datetime
 
-        if localization_name is None:
-            localization = (
-                Localization.query_records_accessible_by(
+            instrument = (
+                Instrument.query_records_accessible_by(
                     self.current_user,
+                    options=[
+                        joinedload(Instrument.telescope),
+                    ],
                 )
-                .filter(Localization.dateobs == localization_dateobs)
-                .order_by(Localization.created_at.desc())
+                .filter(
+                    Instrument.id == instrument_id,
+                )
                 .first()
             )
-        else:
-            localization = (
-                Localization.query_records_accessible_by(
+            if instrument is None:
+                return self.error(message=f"Invalid instrument ID {instrument_id}")
+
+            if instrument.sensitivity_data is None:
+                return self.error('Need sensitivity_data to evaluate efficiency')
+
+            if localization_name is None:
+                localization = (
+                    Localization.query_records_accessible_by(
+                        self.current_user,
+                    )
+                    .filter(Localization.dateobs == localization_dateobs)
+                    .order_by(Localization.created_at.desc())
+                    .first()
+                )
+            else:
+                localization = (
+                    Localization.query_records_accessible_by(
+                        self.current_user,
+                    )
+                    .filter(Localization.dateobs == localization_dateobs)
+                    .filter(Localization.localization_name == localization_name)
+                    .first()
+                )
+
+            event = (
+                GcnEvent.query_records_accessible_by(
                     self.current_user,
                 )
-                .filter(Localization.dateobs == localization_dateobs)
-                .filter(Localization.localization_name == localization_name)
+                .filter(GcnEvent.dateobs == localization_dateobs)
                 .first()
             )
+            if event is None:
+                return self.error("GCN event not found")
 
-        event = (
-            GcnEvent.query_records_accessible_by(
-                self.current_user,
+            self.push_notification(
+                'Simsurvey analysis in progress. Should be available soon.'
             )
-            .filter(GcnEvent.dateobs == localization_dateobs)
-            .first()
-        )
-        if event is None:
-            return self.error("GCN event not found")
 
-        self.push_notification(
-            'Simsurvey analysis in progress. Should be available soon.'
-        )
+            data = get_observations(
+                self.current_user,
+                start_date,
+                end_date,
+                telescope_name=instrument.telescope.name,
+                instrument_name=instrument.name,
+                localization_dateobs=localization_dateobs,
+                localization_name=localization_name,
+                localization_cumprob=localization_cumprob,
+                return_statistics=True,
+            )
 
-        data = get_observations(
-            self.current_user,
-            start_date,
-            end_date,
-            telescope_name=instrument.telescope.name,
-            instrument_name=instrument.name,
-            localization_dateobs=localization_dateobs,
-            localization_name=localization_name,
-            localization_cumprob=localization_cumprob,
-            return_statistics=True,
-        )
+            observations = data["observations"]
 
-        observations = data["observations"]
-        if len(observations) == 0:
-            return self.error('Need at least one observation to run SimSurvey')
+            if len(observations) == 0:
+                return self.error('Need at least one observation to run SimSurvey')
 
-        unique_filters = list({observation["filt"] for observation in observations})
+            unique_filters = list({observation["filt"] for observation in observations})
 
-        if not set(unique_filters).issubset(set(instrument.sensitivity_data.keys())):
-            return self.error('Need sensitivity_data for all filters present')
-
-        for filt in unique_filters:
-            if not {'exposure_time', 'limiting_magnitude', 'zeropoint'}.issubset(
-                set(list(instrument.sensitivity_data[filt].keys()))
+            if not set(unique_filters).issubset(
+                set(instrument.sensitivity_data.keys())
             ):
+                return self.error('Need sensitivity_data for all filters present')
+
+            for filt in unique_filters:
+                if not {'exposure_time', 'limiting_magnitude', 'zeropoint'}.issubset(
+                    set(list(instrument.sensitivity_data[filt].keys()))
+                ):
+                    return self.error(
+                        f'Sensitivity_data dictionary missing keys for filter {filt}'
+                    )
+
+            # get height and width
+            stmt = (
+                InstrumentField.select(self.current_user)
+                .where(InstrumentField.id == observations[0]["field"]["id"])
+                .options(undefer(InstrumentField.contour_summary))
+            )
+            field = session.scalars(stmt).first()
+            if field is None:
                 return self.error(
-                    f'Sensitivity_data dictionary missing keys for filter {filt}'
+                    message='Missing field {obs_dict["field"]["id"]} required to estimate field size'
                 )
+            contour_summary = field.to_dict()["contour_summary"]["features"][0]
+            coordinates = np.array(contour_summary["geometry"]["coordinates"])
+            width = np.max(coordinates[:, 0]) - np.min(coordinates[:, 0])
+            height = np.max(coordinates[:, 1]) - np.min(coordinates[:, 1])
 
-        payload = {
-            'start_date': Time(start_date).isot,
-            'end_date': Time(end_date).isot,
-            'telescope_name': instrument.telescope.name,
-            'instrument_name': instrument.name,
-            'localization_dateobs': localization_dateobs,
-            'localization_name': localization_name,
-            'localization_cumprob': localization_cumprob,
-            'number_of_injections': number_of_injections,
-            'number_of_detections': number_of_detections,
-            'detection_threshold': detection_threshold,
-            'minimum_phase': minimum_phase,
-            'maximum_phase': maximum_phase,
-            'injection_filename': injection_filename,
-        }
+            payload = {
+                'start_date': Time(start_date).isot,
+                'end_date': Time(end_date).isot,
+                'telescope_name': instrument.telescope.name,
+                'instrument_name': instrument.name,
+                'localization_dateobs': localization_dateobs,
+                'localization_name': localization_name,
+                'localization_cumprob': localization_cumprob,
+                'number_of_injections': number_of_injections,
+                'number_of_detections': number_of_detections,
+                'detection_threshold': detection_threshold,
+                'minimum_phase': minimum_phase,
+                'maximum_phase': maximum_phase,
+                'injection_filename': injection_filename,
+            }
 
-        survey_efficiency_analysis = SurveyEfficiencyForObservations(
-            requester_id=self.associated_user_object.id,
-            instrument_id=instrument_id,
-            gcnevent_id=event.id,
-            localization_id=localization.id,
-            groups=groups,
-            payload=payload,
-            status='running',
-        )
+            survey_efficiency_analysis = SurveyEfficiencyForObservations(
+                requester_id=self.associated_user_object.id,
+                instrument_id=instrument_id,
+                gcnevent_id=event.id,
+                localization_id=localization.id,
+                groups=groups,
+                payload=payload,
+                status='running',
+            )
 
-        DBSession().add(survey_efficiency_analysis)
-        DBSession().commit()
+            session.add(survey_efficiency_analysis)
+            session.commit()
 
-        simsurvey_analysis = functools.partial(
-            observation_simsurvey,
-            observations,
-            localization.id,
-            instrument.id,
-            survey_efficiency_analysis,
-            number_of_injections=payload['number_of_injections'],
-            number_of_detections=payload['number_of_detections'],
-            detection_threshold=payload['detection_threshold'],
-            minimum_phase=payload['minimum_phase'],
-            maximum_phase=payload['maximum_phase'],
-            injection_filename=payload['injection_filename'],
-        )
-        IOLoop.current().run_in_executor(None, simsurvey_analysis)
+            simsurvey_analysis = functools.partial(
+                observation_simsurvey,
+                observations,
+                localization.id,
+                instrument.id,
+                survey_efficiency_analysis,
+                width=width,
+                height=height,
+                number_of_injections=payload['number_of_injections'],
+                number_of_detections=payload['number_of_detections'],
+                detection_threshold=payload['detection_threshold'],
+                minimum_phase=payload['minimum_phase'],
+                maximum_phase=payload['maximum_phase'],
+                injection_filename=payload['injection_filename'],
+            )
+            IOLoop.current().run_in_executor(None, simsurvey_analysis)
 
-        return self.success(data={"id": survey_efficiency_analysis.id})
+            return self.success(data={"id": survey_efficiency_analysis.id})
 
 
 class ObservationSimSurveyPlotHandler(BaseHandler):

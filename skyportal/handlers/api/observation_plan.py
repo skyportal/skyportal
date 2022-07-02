@@ -8,7 +8,7 @@ import jsonschema
 import requests
 from marshmallow.exceptions import ValidationError
 import sqlalchemy as sa
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, undefer
 from sqlalchemy.orm import sessionmaker, scoped_session
 import urllib
 from astropy.time import Time
@@ -1385,6 +1385,8 @@ def observation_simsurvey(
     localization_id,
     instrument_id,
     survey_efficiency_analysis,
+    width,
+    height,
     number_of_injections=1000,
     number_of_detections=2,
     detection_threshold=5,
@@ -1404,6 +1406,10 @@ def observation_simsurvey(
             The id of the skyportal.models.instrument.Instrument that the request is made based on
         survey_efficiency_analysis : skyportal.models.survey_efficiency.SurveyEfficiencyForObservations or skyportal.models.survey_efficiency.SurveyEfficiencyForObservationPlan
             The survey efficiency analysis for the request
+        width : float
+            Width of the telescope field of view in degrees.
+        height : float
+            Height of the telescope field of view in degrees.
         number_of_injections: int
             Number of simulations to evaluate efficiency with. Defaults to 1000.
         number_of_detections: int
@@ -1475,6 +1481,8 @@ def observation_simsurvey(
             obs_field=df['field_id'].astype(int),
             skynoise=df['skynoise'],
             zp=df['zp'],
+            width=width,
+            height=height,
             fields={
                 k: v for k, v in pointings.items() if k in ['ra', 'dec', 'field_id']
             },
@@ -1628,7 +1636,7 @@ def observation_simsurvey_plot(
     return {
         "success": True,
         "name": f"simsurvey.{output_format}",
-        "dat": buf.read(),
+        "data": buf.read(),
         "reason": "",
     }
 
@@ -1720,120 +1728,147 @@ class ObservationPlanSimSurveyHandler(BaseHandler):
         )
 
         group_ids = self.get_query_argument('group_ids', None)
-        if not group_ids:
-            groups = self.current_user.accessible_groups
-        else:
-            try:
-                groups = Group.get_if_accessible_by(
-                    group_ids, self.current_user, raise_if_none=True
-                )
-            except AccessError:
-                return self.error('Could not find any accessible groups.', status=403)
 
-        options = [
-            joinedload(ObservationPlanRequest.observation_plans)
-            .joinedload(EventObservationPlan.planned_observations)
-            .joinedload(PlannedObservation.field)
-        ]
+        with DBSession() as session:
 
-        observation_plan_request = ObservationPlanRequest.get_if_accessible_by(
-            observation_plan_request_id,
-            self.current_user,
-            mode="read",
-            raise_if_none=True,
-            options=options,
-        )
-        self.verify_and_commit()
+            if not group_ids:
+                groups = self.current_user.accessible_groups
+            else:
+                try:
+                    groups = Group.get_if_accessible_by(
+                        group_ids, self.current_user, raise_if_none=True
+                    )
+                except AccessError:
+                    return self.error(
+                        'Could not find any accessible groups.', status=403
+                    )
 
-        allocation = Allocation.get_if_accessible_by(
-            observation_plan_request.allocation_id,
-            self.current_user,
-            raise_if_none=True,
-        )
+            options = [
+                joinedload(ObservationPlanRequest.observation_plans)
+                .joinedload(EventObservationPlan.planned_observations)
+                .joinedload(PlannedObservation.field)
+            ]
 
-        localization = (
-            Localization.query_records_accessible_by(
+            observation_plan_request = ObservationPlanRequest.get_if_accessible_by(
+                observation_plan_request_id,
                 self.current_user,
+                mode="read",
+                raise_if_none=True,
+                options=options,
             )
-            .filter(Localization.id == observation_plan_request.localization_id)
-            .first()
-        )
+            self.verify_and_commit()
 
-        instrument = allocation.instrument
-
-        if instrument.sensitivity_data is None:
-            return self.error('Need sensitivity_data to evaluate efficiency')
-
-        observation_plan = observation_plan_request.observation_plans[0]
-        planned_observations = observation_plan.planned_observations
-        num_observations = observation_plan.num_observations
-        if num_observations == 0:
-            self.push_notification(
-                'Need at least one observation to evaluate efficiency',
-                notification_type='error',
+            allocation = Allocation.get_if_accessible_by(
+                observation_plan_request.allocation_id,
+                self.current_user,
+                raise_if_none=True,
             )
-            return self.error('Need at least one observation to evaluate efficiency')
 
-        unique_filters = observation_plan.unique_filters
+            localization = (
+                Localization.query_records_accessible_by(
+                    self.current_user,
+                )
+                .filter(Localization.id == observation_plan_request.localization_id)
+                .first()
+            )
 
-        if not set(unique_filters).issubset(set(instrument.sensitivity_data.keys())):
-            return self.error('Need sensitivity_data for all filters present')
+            instrument = allocation.instrument
 
-        for filt in unique_filters:
-            if not {'exposure_time', 'limiting_magnitude', 'zeropoint'}.issubset(
-                set(list(instrument.sensitivity_data[filt].keys()))
-            ):
+            if instrument.sensitivity_data is None:
+                return self.error('Need sensitivity_data to evaluate efficiency')
+
+            observation_plan = observation_plan_request.observation_plans[0]
+            planned_observations = observation_plan.planned_observations
+            num_observations = observation_plan.num_observations
+            if num_observations == 0:
+                self.push_notification(
+                    'Need at least one observation to evaluate efficiency',
+                    notification_type='error',
+                )
                 return self.error(
-                    f'Sensitivity_data dictionary missing keys for filter {filt}'
+                    'Need at least one observation to evaluate efficiency'
                 )
 
-        self.push_notification(
-            'Simsurvey analysis in progress. Should be available soon.'
-        )
+            unique_filters = observation_plan.unique_filters
 
-        payload = {
-            'number_of_injections': number_of_injections,
-            'number_of_detections': number_of_detections,
-            'detection_threshold': detection_threshold,
-            'minimum_phase': minimum_phase,
-            'maximum_phase': maximum_phase,
-            'injection_filename': injection_filename,
-        }
+            if not set(unique_filters).issubset(
+                set(instrument.sensitivity_data.keys())
+            ):
+                return self.error('Need sensitivity_data for all filters present')
 
-        survey_efficiency_analysis = SurveyEfficiencyForObservationPlan(
-            requester_id=self.associated_user_object.id,
-            observation_plan_id=observation_plan.id,
-            groups=groups,
-            payload=payload,
-            status='running',
-        )
+            for filt in unique_filters:
+                if not {'exposure_time', 'limiting_magnitude', 'zeropoint'}.issubset(
+                    set(list(instrument.sensitivity_data[filt].keys()))
+                ):
+                    return self.error(
+                        f'Sensitivity_data dictionary missing keys for filter {filt}'
+                    )
 
-        DBSession().add(survey_efficiency_analysis)
-        DBSession().commit()
+            self.push_notification(
+                'Simsurvey analysis in progress. Should be available soon.'
+            )
 
-        observations = []
-        for o in planned_observations:
-            obs_dict = o.to_dict()
-            obs_dict['field'] = obs_dict['field'].to_dict()
-            observations.append(obs_dict)
+            payload = {
+                'number_of_injections': number_of_injections,
+                'number_of_detections': number_of_detections,
+                'detection_threshold': detection_threshold,
+                'minimum_phase': minimum_phase,
+                'maximum_phase': maximum_phase,
+                'injection_filename': injection_filename,
+            }
 
-        simsurvey_analysis = functools.partial(
-            observation_simsurvey,
-            observations,
-            localization.id,
-            instrument.id,
-            survey_efficiency_analysis,
-            number_of_injections=payload['number_of_injections'],
-            number_of_detections=payload['number_of_detections'],
-            detection_threshold=payload['detection_threshold'],
-            minimum_phase=payload['minimum_phase'],
-            maximum_phase=payload['maximum_phase'],
-            injection_filename=payload['injection_filename'],
-        )
+            survey_efficiency_analysis = SurveyEfficiencyForObservationPlan(
+                requester_id=self.associated_user_object.id,
+                observation_plan_id=observation_plan.id,
+                groups=groups,
+                payload=payload,
+                status='running',
+            )
 
-        IOLoop.current().run_in_executor(None, simsurvey_analysis)
+            session.add(survey_efficiency_analysis)
+            session.commit()
 
-        return self.success(data={"id": survey_efficiency_analysis.id})
+            observations = []
+            for ii, o in enumerate(planned_observations):
+                obs_dict = o.to_dict()
+                obs_dict['field'] = obs_dict['field'].to_dict()
+                observations.append(obs_dict)
+
+                if ii == 0:
+                    stmt = (
+                        InstrumentField.select(self.current_user)
+                        .where(InstrumentField.id == obs_dict["field"]["id"])
+                        .options(undefer(InstrumentField.contour_summary))
+                    )
+                    field = session.scalars(stmt).first()
+                    if field is None:
+                        return self.error(
+                            message='Missing field {obs_dict["field"]["id"]} required to estimate field size'
+                        )
+                    contour_summary = field.to_dict()["contour_summary"]["features"][0]
+                    coordinates = np.array(contour_summary["geometry"]["coordinates"])
+                    width = np.max(coordinates[:, 0]) - np.min(coordinates[:, 0])
+                    height = np.max(coordinates[:, 1]) - np.min(coordinates[:, 1])
+
+            simsurvey_analysis = functools.partial(
+                observation_simsurvey,
+                observations,
+                localization.id,
+                instrument.id,
+                survey_efficiency_analysis,
+                width=width,
+                height=height,
+                number_of_injections=payload['number_of_injections'],
+                number_of_detections=payload['number_of_detections'],
+                detection_threshold=payload['detection_threshold'],
+                minimum_phase=payload['minimum_phase'],
+                maximum_phase=payload['maximum_phase'],
+                injection_filename=payload['injection_filename'],
+            )
+
+            IOLoop.current().run_in_executor(None, simsurvey_analysis)
+
+            return self.success(data={"id": survey_efficiency_analysis.id})
 
 
 class ObservationPlanSimSurveyPlotHandler(BaseHandler):
