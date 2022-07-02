@@ -71,10 +71,23 @@ const FollowupRequestForm = ({
       if (!selectedAllocationId) {
         setSelectedAllocationId(data[0]?.id);
       }
-      if (data[0]?.default_share_group_ids?.length > 0) {
-        setSelectedGroupIds(data[0]?.default_share_group_ids);
+
+      const tempAllocationLookUp = {};
+      data?.forEach((allocation) => {
+        tempAllocationLookUp[allocation.id] = allocation;
+      });
+
+      if (
+        tempAllocationLookUp[selectedAllocationId]?.default_share_group_ids
+          ?.length > 0
+      ) {
+        setSelectedGroupIds(
+          tempAllocationLookUp[selectedAllocationId]?.default_share_group_ids
+        );
       } else {
-        setSelectedGroupIds([data[0]?.group_id]);
+        setSelectedGroupIds([
+          tempAllocationLookUp[selectedAllocationId]?.group_id,
+        ]);
       }
     };
 
