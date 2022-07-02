@@ -68,16 +68,19 @@ const FollowupRequestForm = ({
       );
 
       const { data } = result;
-      if (!selectedAllocationId) {
-        setSelectedAllocationId(data[0]?.id);
-      }
-
       const tempAllocationLookUp = {};
       data?.forEach((allocation) => {
         tempAllocationLookUp[allocation.id] = allocation;
       });
 
-      if (
+      if (!selectedAllocationId) {
+        setSelectedAllocationId(data[0]?.id);
+        if (data[0]?.default_share_group_ids?.length > 0) {
+          setSelectedGroupIds(data[0]?.default_share_group_ids);
+        } else {
+          setSelectedGroupIds([data[0]?.group_id]);
+        }
+      } else if (
         tempAllocationLookUp[selectedAllocationId]?.default_share_group_ids
           ?.length > 0
       ) {
@@ -112,7 +115,7 @@ const FollowupRequestForm = ({
   if (
     allocationList.length === 0 ||
     !selectedAllocationId ||
-    !allocationList[selectedAllocationId] ||
+    !selectedGroupIds ||
     Object.keys(instrumentFormParams).length === 0
   ) {
     return <h3>No robotic instruments available...</h3>;
