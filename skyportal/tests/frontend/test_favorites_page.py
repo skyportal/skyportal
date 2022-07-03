@@ -27,7 +27,11 @@ def test_add_remove_favorites(driver, user, public_source):
     driver.click_xpath("//*[@id='expandable-button']")
 
     # click to un-save the source as favorite
-    driver.click_xpath(f'//*[@data-testid="favorites-text-include_{public_source.id}"]')
+    driver.click_xpath(
+        f'//*[@data-testid="favorites-text-include_{public_source.id}"]',
+        scroll_parent=True,
+        timeout=10,
+    )
 
     driver.wait_for_xpath(
         '//*[contains(text(), "No sources have been saved as favorites.")]'
