@@ -5,9 +5,17 @@ import arrow
 import astroscrappy
 from astropy.io import fits
 from astropy.wcs import WCS
+from astropy.table import vstack
+from astropy.coordinates import SkyCoord
+from astropy.coordinates import search_around_sky
+from astropy.time import Time
+import astropy.units as u
 
 import numpy as np
+from sqlalchemy.orm import sessionmaker, scoped_session
 import tempfile
+from tqdm.auto import tqdm
+from tornado.ioloop import IOLoop
 
 from stdpipe import (
     astrometry,
@@ -17,19 +25,67 @@ from stdpipe import (
     templates,
     plots,
     pipeline,
+    psf,
+    utils,
 )
 
+from .photometry import add_external_photometry
 from ..base import BaseHandler
-from ...models import Instrument
+from ...models import Instrument, User, DBSession
 
 log = make_log('api/image_analysis')
 
 
-def reduce_image(filename, image, header):
+def spherical_match(ra1, dec1, ra2, dec2, sr=1 / 3600):
+    """Positional match on the sphere for two lists of coordinates.
+
+    Aimed to be a direct replacement for :func:`esutil.htm.HTM.match` method with :code:`maxmatch=0`.
+
+    :param ra1: First set of points RA
+    :param dec1: First set of points Dec
+    :param ra2: Second set of points RA
+    :param dec2: Second set of points Dec
+    :param sr: Maximal acceptable pair distance to be considered a match, in degrees
+    :returns: Two parallel sets of indices corresponding to matches from first and second lists, along with the pairwise distances in degrees
+
+    """
+
+    idx1, idx2, dist, _ = search_around_sky(
+        SkyCoord(ra1, dec1, unit='deg'), SkyCoord(ra2, dec2, unit='deg'), sr * u.deg
+    )
+
+    dist = dist.deg  # convert to degrees
+
+    return idx1, idx2, dist
+
+
+def spherical_distance(ra1, dec1, ra2, dec2):
+
+    x = np.sin(np.deg2rad((ra1 - ra2) / 2))
+    x *= x
+    y = np.sin(np.deg2rad((dec1 - dec2) / 2))
+    y *= y
+
+    z = np.cos(np.deg2rad((dec1 + dec2) / 2))
+    z *= z
+
+    return np.rad2deg(2 * np.arcsin(np.sqrt(x * (z - y) + y)))
+
+
+def reduce_image(
+    filename, image, header, obj_id, instrument_id, user_id, detect_cosmics=False
+):
+
+    Session = scoped_session(sessionmaker(bind=DBSession.session_factory.kw["bind"]))
+    session = Session()
+
+    instrument = session.query(Instrument).get(instrument_id)
+    user = session.query(User).get(user_id)
 
     # Parsing its header and print it
-    # time = utils.get_obs_time(header, verbose=False)
-    # fname = header.get('FILTER')
+    time = utils.get_obs_time(header, verbose=False)
+    filt = header.get('FILTER')
+
     wcs = WCS(header)
     gain = 0.25  # otherwise it is a str
 
@@ -37,9 +93,10 @@ def reduce_image(filename, image, header):
     # The mask is a binary frame with the same size as the image where True means that this pixel should not be used for the analysis
     mask = image > 0.9 * np.max(image)
 
-    cmask, cimage = astroscrappy.detect_cosmics(image, mask, verbose=False)
-    log(f'Done masking cosmics: {np.sum(cmask)} pixels masked')
-    mask |= cmask
+    if detect_cosmics:
+        cmask, cimage = astroscrappy.detect_cosmics(image, mask, verbose=False)
+        log(f'Done masking cosmics: {np.sum(cmask)} pixels masked')
+        mask |= cmask
 
     # ## Detect and measure the objects
     # The detection is based on building the noise model through (grid-based) background and background rms estimation, and then extracting the groups of connected pixels above some pre-defined threshold
@@ -110,7 +167,7 @@ def reduce_image(filename, image, header):
     # Then building the photometric model for their instrumental magnitudes
 
     # Photometric calibration using 2 arcsec matching radius, r magnitude, g-r color and second order spatial variations
-    pipeline.calibrate_photometry(
+    m = pipeline.calibrate_photometry(
         obj,
         cat,
         sr=2 / 3600,
@@ -133,21 +190,9 @@ def reduce_image(filename, image, header):
     candidates = pipeline.filter_transient_candidates(
         obj, cat=cat, sr=2 / 3600, verbose=True
     )
-    log('{candidates}')
+    log(f'{candidates}')
 
     # Creating cutouts for these candidates and vizualizing them (6238 ???)
-    def spherical_distance(ra1, dec1, ra2, dec2):
-
-        x = np.sin(np.deg2rad((ra1 - ra2) / 2))
-        x *= x
-        y = np.sin(np.deg2rad((dec1 - dec2) / 2))
-        y *= y
-
-        z = np.cos(np.deg2rad((dec1 + dec2) / 2))
-        z *= z
-
-        return np.rad2deg(2 * np.arcsin(np.sqrt(x * (z - y) + y)))
-
     filtered = []
     for i, cand in enumerate(candidates):
         dist = spherical_distance(
@@ -165,6 +210,104 @@ def reduce_image(filename, image, header):
         )[0]
         # We do not have difference image, so it will only display original one, template and mask
         plots.plot_cutout(cutout, qq=[0.5, 99.9], stretch='linear')
+
+    # compute upper limit
+    ra0, dec0, sr0 = astrometry.get_frame_center(
+        wcs=wcs, width=image.shape[1], height=image.shape[0]
+    )
+    pixscale = astrometry.get_pixscale(wcs=wcs)
+
+    zero_fn = m[
+        'zero_fn'
+    ]  # Function to get the zero point as a function of position on the image
+    obj['mag_calib'] = obj['mag'] + zero_fn(obj['x'], obj['y'])
+
+    # We may roughly estimage the effective gain of the image from background mean and rms as gain = mean/rms**2
+    bg, rms = photometry.get_background(image, mask=mask, get_rms=True)
+
+    log(f'Effective gain is {np.median(bg/rms**2)}')
+
+    psf_model, psf_snapshots = psf.run_psfex(
+        image, mask=mask, checkimages=['SNAPSHOTS'], order=0, verbose=True
+    )
+
+    sims = []
+    for _ in tqdm(range(100)):
+        image1 = image.copy()
+
+        # Simulate 20 random stars
+        sim = pipeline.place_random_stars(
+            image1,
+            psf_model,
+            nstars=20,
+            minflux=10,
+            maxflux=1e6,
+            wcs=wcs,
+            gain=gain,
+            saturation=50000,
+        )
+
+        sim['mag_calib'] = sim['mag'] + zero_fn(sim['x'], sim['y'])
+        sim['detected'] = False
+        sim['mag_measured'] = np.nan
+        sim['magerr_measured'] = np.nan
+        sim['flags_measured'] = np.nan
+
+        mask1 = image1 >= 50000
+
+        obj1 = photometry.get_objects_sextractor(
+            image1,
+            mask=mask | mask1,
+            r0=1,
+            aper=5.0,
+            wcs=wcs,
+            gain=gain,
+            minarea=3,
+            sn=5,
+        )
+        obj1['mag_calib'] = obj1['mag'] + zero_fn(obj1['x'], obj1['y'])
+
+        # Positional match within FWHM/2 radius
+        oidx, sidx, dist = spherical_match(
+            obj1['ra'],
+            obj1['dec'],
+            sim['ra'],
+            sim['dec'],
+            pixscale * np.median(obj1['fwhm']) / 2,
+        )
+        # Mark matched stars
+        sim['detected'][sidx] = True
+        # Also store measured magnitude, its error and flags
+        sim['mag_measured'][sidx] = obj1['mag_calib'][oidx]
+        sim['magerr_measured'][sidx] = obj1['magerr'][oidx]
+        sim['flags_measured'][sidx] = obj1['flags'][oidx]
+
+        sims.append(sim)
+
+    sims = vstack(sims)
+
+    # FIXME
+    df = {
+        'ra': [ra0],
+        'dec': [dec0],
+        'magsys': ['ab'],
+        'mjd': [time.mjd],
+        'mag': [sims['mag_calib'][0]],
+        'magerr': [sims['magerr_measured'][0]],
+        'limiting_mag': [sims['mag_calib'][0]],
+        'filter': [filt],
+    }
+
+    print(df, obj_id, [g.id for g in user.accessible_groups])
+
+    data_out = {
+        'obj_id': obj_id,
+        'instrument_id': instrument.id,
+        'group_ids': [g.id for g in user.accessible_groups],
+        **df,
+    }
+
+    add_external_photometry(data_out, user)
 
 
 class ImageAnalysisHandler(BaseHandler):
@@ -202,9 +345,9 @@ class ImageAnalysisHandler(BaseHandler):
         if image_data is None:
             return self.error(message='Missing image data')
 
-        # filt = data.get("filter")
+        filt = data.get("filter")
         obstime = data.get("obstime")
-        obstime = arrow.get(obstime.strip()).datetime
+        obstime = Time(arrow.get(obstime.strip()).datetime)
 
         with tempfile.NamedTemporaryFile(
             suffix=".fits.fz", mode="w", delete=False
@@ -216,9 +359,20 @@ class ImageAnalysisHandler(BaseHandler):
             filename = './test.fits.fz'
             hdul = fits.open(filename)
             header = hdul[1].header
-            image_data = hdul[1].data
+            image_data = hdul[1].data.astype(np.double)
+            header['FILTER'] = filt
+            header['DATE-OBS'] = obstime.isot
 
-            reduce_image(filename, image_data, header)
+            IOLoop.current().run_in_executor(
+                None,
+                lambda: reduce_image(
+                    filename,
+                    image_data,
+                    header,
+                    obj_id,
+                    instrument.id,
+                    self.associated_user_object.id,
+                ),
+            )
 
-        self.push_all(action="skyportal/REFRESH_INSTRUMENTS")
-        return self.success(data={"id": instrument.id})
+            return self.success()
