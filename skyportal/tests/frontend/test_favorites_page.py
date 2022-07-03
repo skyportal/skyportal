@@ -26,11 +26,15 @@ def test_add_remove_favorites(driver, user, public_source):
     # little triangle you push to expand the table
     driver.click_xpath("//*[@id='expandable-button']")
 
+    driver.wait_for_xpath(
+        f"//*[contains(@data-testid, 'favorites-text-include_{public_source.id}')]",
+        timeout=10,
+    )
+
     # click to un-save the source as favorite
     driver.click_xpath(
         f'//*[@data-testid="favorites-text-include_{public_source.id}"]',
         scroll_parent=True,
-        timeout=10,
     )
 
     driver.wait_for_xpath(
