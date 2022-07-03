@@ -41,6 +41,7 @@ from skyportal.handlers.api import (
     GroupAdmissionRequestHandler,
     PublicGroupHandler,
     GroupStreamHandler,
+    ImageAnalysisHandler,
     InstrumentHandler,
     InvalidEndpointHandler,
     InvitationHandler,
@@ -298,6 +299,7 @@ skyportal_handlers = [
     (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/groups', ObjGroupsHandler),
     (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/color_mag', ObjColorMagHandler),
     (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/tns', ObjTNSHandler),
+    (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/image_analysis', ImageAnalysisHandler),
     (r'/api/(sources|spectra)/([0-9A-Za-z-_\.\+]+)/comments', CommentHandler),
     (r'/api/(sources|spectra)/([0-9A-Za-z-_\.\+]+)/comments(/[0-9]+)?', CommentHandler),
     (

@@ -508,6 +508,9 @@ const SourceDesktop = ({ source }) => {
                       <Button variant="contained">Periodogram Analysis</Button>
                     </Link>
                   )}
+                  <Link to={`/source/${source.id}/image_analysis`} role="link">
+                    <Button variant="contained">Image Analysis</Button>
+                  </Link>
                 </div>
               </Grid>
             </AccordionDetails>
