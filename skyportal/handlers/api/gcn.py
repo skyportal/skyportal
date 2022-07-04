@@ -849,12 +849,11 @@ class GcnSummaryHandler(BaseHandler):
                         return self.error(f"User ID {user_id} not found")
                     users.append(user)
 
-                # create list of users with : Initial first name. Last name (affiliation)
                 users_txt = []
                 for user in users:
                     if user.first_name is not None and user.last_name is not None:
                         users_txt.append(
-                            f"""{user.first_name[0].upper()}. {user.last_name} (Affiliation)"""
+                            f"""{user.first_name[0].upper()}. {user.last_name} (Affiliation)"""  # hardcoded affiliation as it is not implemented yet
                         )
                 # create a string of all users, with 5 users per line
                 users_txt = "\n".join(
@@ -879,7 +878,7 @@ class GcnSummaryHandler(BaseHandler):
                     user_id=self.associated_user_object.id,
                     session=DBSession(),
                     first_detected_date=start_date,
-                    last_detected_date=end_date,  # TODO: this is fishy
+                    last_detected_date=end_date,
                     localization_dateobs=dateobs,
                     localization_name=localization_name,
                     localization_cumprob=localization_cumprob,
@@ -897,12 +896,6 @@ class GcnSummaryHandler(BaseHandler):
                 sources_text.append(
                     f"\nFound {len(sources)} {'sources' if len(sources) > 1 else 'source'} in the event's localization, given the specified date range:\n"
                 ) if not no_text else None
-                # classifications = [
-                #     ", ".join([c['classification'] for c in source["classifications"]])
-                #     if len(source["classifications"]) > 0
-                #     else None
-                #     for source in sources
-                # ]
                 ids, aliases, ras, decs, ra_errs, dec_errs, redshifts = (
                     [],
                     [],
