@@ -757,7 +757,6 @@ class GcnSummaryHandler(BaseHandler):
             if self.associated_user_object.contact_email is not None:
                 from_str += f""" <{self.associated_user_object.contact_email}>\n"""
             header_text.append(from_str)
-            header_text.append(f"""on behalf of the {group.name}, report:""")
 
             if len(user_ids) > 0:
                 # query user objects for all user_ids
@@ -784,6 +783,7 @@ class GcnSummaryHandler(BaseHandler):
                 )
                 header_text.append(f"""\n{users_txt}\n""")
 
+            header_text.append(f"""\non behalf of the {group.name}, report:\n""")
             contents.extend(header_text)
 
         if show_sources:
