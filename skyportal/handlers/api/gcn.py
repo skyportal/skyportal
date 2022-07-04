@@ -903,16 +903,34 @@ class GcnSummaryHandler(BaseHandler):
                 #     else None
                 #     for source in sources
                 # ]
+                ids, aliases, ras, decs, ra_errs, dec_errs, redshifts = (
+                    [],
+                    [],
+                    [],
+                    [],
+                    [],
+                    [],
+                    [],
+                )
+                for source in sources:
+                    ids.append(source['id'] if 'id' in source else None)
+                    aliases.append(source['alias'] if 'alias' in source else None)
+                    ras.append(source['ra'] if 'ra' in source else None)
+                    decs.append(source['dec'] if 'dec' in source else None)
+                    ra_errs.append(source['ra_err'] if 'ra_err' in source else None)
+                    dec_errs.append(source['dec_err'] if 'dec_err' in source else None)
+                    redshifts.append(
+                        source['redshift'] if 'redshift' in source else None
+                    )
                 df = pd.DataFrame(
                     {
-                        "id": [source["id"] for source in sources],
-                        "alias": [source["alias"] for source in sources],
-                        "ra": [source["ra"] for source in sources],
-                        "dec": [source["dec"] for source in sources],
-                        "ra_err": [source["ra_err"] for source in sources],
-                        "dec_err": [source["dec_err"] for source in sources],
-                        "redshift": [source["redshift"] for source in sources],
-                        # "classifications": classifications,
+                        "id": ids,
+                        "alias": aliases,
+                        "ra": ras,
+                        "dec": decs,
+                        "ra_err": ra_errs,
+                        "dec_err": dec_errs,
+                        "redshift": redshifts,
                     }
                 )
                 sources_text.append(
@@ -926,26 +944,48 @@ class GcnSummaryHandler(BaseHandler):
                         sources_text.append(
                             f"""\nPhotometry for source {source['id']}:\n"""
                         ) if not no_text else None
+                        mjds, ras, decs, mags, filters, origins, instruments = (
+                            [],
+                            [],
+                            [],
+                            [],
+                            [],
+                            [],
+                            [],
+                        )
+                        for phot in photometry:
+                            mjds.append(phot['mjd'] if 'mjd' in phot else None)
+                            ras.append(
+                                f"{round(phot['ra'],2)}±{round(phot['ra_unc'],2)}"
+                                if ('ra' in phot and 'ra_unc' in phot)
+                                else None
+                            )
+                            decs.append(
+                                f"{round(phot['dec'],2)}±{round(phot['dec_unc'],2)}"
+                                if ('dec' in phot and 'dec_unc' in phot)
+                                else None
+                            )
+                            mags.append(
+                                f"{round(phot['mag'],2)}±{round(phot['magerr'],2)}"
+                                if ('mag' in phot and 'magerr' in phot)
+                                else None
+                            )
+                            filters.append(phot['filter'] if 'filter' in phot else None)
+                            origins.append(phot['origin'] if 'origin' in phot else None)
+                            instruments.append(
+                                phot['instrument_name']
+                                if 'instrument_name' in phot
+                                else None
+                            )
                         df_phot = pd.DataFrame(
                             {
-                                "mjd": [p['mjd'] for p in photometry],
-                                "ra": [
-                                    f"{round(p['ra'],2)}±{round(p['ra_unc'],2)}"
-                                    for p in photometry
-                                ],
-                                "dec": [
-                                    f"{round(p['dec'],2)}±{round(p['dec_unc'],2)}"
-                                    for p in photometry
-                                ],
-                                "mag±err (ab)": [
-                                    f"{round(p['mag'],2)}±{round(p['magerr'],2)}"
-                                    for p in photometry
-                                ],
-                                "filter": [p['filter'] for p in photometry],
-                                "origin": [p['origin'] for p in photometry],
-                                "instrument": [
-                                    p['instrument_name'] for p in photometry
-                                ],
+                                "mjd": mjds,
+                                "ra": ras,
+                                "dec": decs,
+                                "mag±err (ab)": mags,
+                                "filter": filters,
+                                "origin": origins,
+                                "instrument": instruments,
                             }
                         )
                         if no_text:
@@ -989,14 +1029,27 @@ class GcnSummaryHandler(BaseHandler):
                 galaxies_text.append(
                     f"""\nFound {len(galaxies)} galaxies in the event's localization:\n"""
                 ) if not no_text else None
+                catalogs, names, ras, decs, distmpcs, redshifts = [], [], [], [], [], []
+                for galaxy in galaxies:
+                    galaxy = galaxy.to_dict()
+                    catalogs.append(
+                        galaxy['catalog_name'] if 'catalog_name' in galaxy else None
+                    )
+                    names.append(galaxy['name'] if 'name' in galaxy else None)
+                    ras.append(galaxy['ra'] if 'ra' in galaxy else None)
+                    decs.append(galaxy['dec'] if 'dec' in galaxy else None)
+                    distmpcs.append(galaxy['distmpc'] if 'distmpc' in galaxy else None)
+                    redshifts.append(
+                        galaxy['redshift'] if 'redshift' in galaxy else None
+                    )
                 df = pd.DataFrame(
                     {
-                        "catalog": [g.catalog_name for g in galaxies],
-                        "name": [g.name for g in galaxies],
-                        "ra": [g.ra for g in galaxies],
-                        "dec": [g.dec for g in galaxies],
-                        "distmpc": [g.distmpc for g in galaxies],
-                        "redshift": [g.redshift for g in galaxies],
+                        "catalog": catalogs,
+                        "name": names,
+                        "ra": ras,
+                        "dec": decs,
+                        "distmpc": distmpcs,
+                        "redshift": redshifts,
                     }
                 )
                 galaxies_text.append(
@@ -1049,25 +1102,48 @@ class GcnSummaryHandler(BaseHandler):
                     observations_text.append(
                         f"""\n\n{instrument.telescope.name} - {instrument.name}:\n\nWe observed the localization region of {event.gcn_notices[0].stream} trigger {trigger_time.isot} UTC.  We obtained a total of {num_observations} images covering {",".join(unique_filters)} bands for a total of {total_time} seconds. The observations covered {area:.1f} square degrees beginning at {start_observation.isot} ({humanize.naturaldelta(dt)} {before_after} the burst trigger time) corresponding to ~{int(100 * probability)}% of the probability enclosed in the localization region.\nThe table below shows the photometry for each observation.\n"""
                     ) if not no_text else None
+                    t0s, mjds, ras, decs, filters, exposures, limmags = (
+                        [],
+                        [],
+                        [],
+                        [],
+                        [],
+                        [],
+                        [],
+                    )
+                    for obs in observations:
+                        t0s.append(
+                            round(
+                                (obs["obstime"] - event.dateobs)
+                                / datetime.timedelta(hours=1),
+                                2,
+                            )
+                            if "obstime" in obs
+                            else None
+                        )
+                        mjds.append(
+                            astropy.time.Time(obs["obstime"], format='datetime').mjd
+                            if "mjd" in obs
+                            else None
+                        )
+                        ras.append(obs['field']["ra"] if "ra" in obs['field'] else None)
+                        decs.append(
+                            obs['field']["dec"] if "dec" in obs['field'] else None
+                        )
+                        filters.append(obs["filt"] if "filt" in obs else None)
+                        exposures.append(
+                            obs["exposure_time"] if "exposure_time" in obs else None
+                        )
+                        limmags.append(obs["limmag"] if "limmag" in obs else None)
                     df_obs = pd.DataFrame(
                         {
-                            "T-T0 (hr)": [
-                                round(
-                                    (obs["obstime"] - event.dateobs)
-                                    / datetime.timedelta(hours=1),
-                                    2,
-                                )
-                                for obs in observations
-                            ],
-                            "mjd": [
-                                astropy.time.Time(obs["obstime"], format='datetime').mjd
-                                for obs in observations
-                            ],
-                            "ra": [obs['field'].ra for obs in observations],
-                            "dec": [obs['field'].dec for obs in observations],
-                            "filter": [obs['filt'] for obs in observations],
-                            "exposure": [obs['exposure_time'] for obs in observations],
-                            "limmag (ab)": [obs['limmag'] for obs in observations],
+                            "T-T0 (hr)": t0s,
+                            "mjd": mjds,
+                            "ra": ras,
+                            "dec": decs,
+                            "filter": filters,
+                            "exposure": exposures,
+                            "limmag (ab)": limmags,
                         }
                     )
                     if no_text:
