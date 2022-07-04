@@ -1020,7 +1020,7 @@ class GcnSummaryHandler(BaseHandler):
                     break
             if len(galaxies) > 0:
                 galaxies_text.append(
-                    f"""\nFound {len(galaxies)} {'galaxies' if len(sources) > 1 else 'galaxy'} in the event's localization:\n"""
+                    f"""\nFound {len(galaxies)} {'galaxies' if len(galaxies) > 1 else 'galaxy'} in the event's localization:\n"""
                 ) if not no_text else None
                 catalogs, names, ras, decs, distmpcs, redshifts = [], [], [], [], [], []
                 for galaxy in galaxies:
