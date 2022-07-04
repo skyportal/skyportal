@@ -36,6 +36,10 @@ from .invitation import Invitation
 from .source_notification import SourceNotification
 from .filter import Filter
 from .stream import Stream, StreamUser
+from .survey_efficiency import (
+    SurveyEfficiencyForObservations,
+    SurveyEfficiencyForObservationPlan,
+)
 from .group import Group, accessible_by_group_admins, accessible_by_group_members
 from .analysis import AnalysisService, ObjAnalysis
 
@@ -62,6 +66,28 @@ GroupComment.__doc__ = "Join table mapping Groups to Comments."
 GroupComment.delete = GroupComment.update = (
     accessible_by_group_admins & GroupComment.read
 )
+
+GroupSurveyEfficiencyForObservationPlan = join_model(
+    "group_survey_efficiency_for_observation_plan",
+    Group,
+    SurveyEfficiencyForObservationPlan,
+)
+GroupSurveyEfficiencyForObservationPlan.__doc__ = (
+    "Join table mapping Groups to SurveyEfficiencyForObservationPlans."
+)
+GroupSurveyEfficiencyForObservationPlan.delete = (
+    GroupSurveyEfficiencyForObservationPlan.update
+) = (accessible_by_group_admins & GroupSurveyEfficiencyForObservationPlan.read)
+
+GroupSurveyEfficiencyForObservations = join_model(
+    "group_survey_efficiency_for_observations", Group, SurveyEfficiencyForObservations
+)
+GroupSurveyEfficiencyForObservations.__doc__ = (
+    "Join table mapping Groups to SurveyEfficiencyForObservations."
+)
+GroupSurveyEfficiencyForObservations.delete = (
+    GroupSurveyEfficiencyForObservations.update
+) = (accessible_by_group_admins & GroupSurveyEfficiencyForObservations.read)
 
 GroupAnnotation = join_model("group_annotations", Group, Annotation)
 GroupAnnotation.__doc__ = "Join table mapping Groups to Annotation."

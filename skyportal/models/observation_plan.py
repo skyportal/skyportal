@@ -308,6 +308,13 @@ class EventObservationPlan(Base):
         doc='Planned observations associated with this plan.',
     )
 
+    survey_efficiency_analyses = relationship(
+        'SurveyEfficiencyForObservationPlan',
+        cascade='delete',
+        passive_deletes=True,
+        doc="Survey efficiency analyses of the event.",
+    )
+
     @property
     def start_observation(self):
         """Time of the first planned observation."""

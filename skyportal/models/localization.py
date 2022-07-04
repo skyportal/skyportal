@@ -94,6 +94,14 @@ class Localization(Base):
         doc="Observation plan requests of the localization.",
     )
 
+    survey_efficiency_analyses = relationship(
+        'SurveyEfficiencyForObservations',
+        back_populates='localization',
+        cascade='delete',
+        passive_deletes=True,
+        doc="Survey efficiency analyses of the event.",
+    )
+
     @hybrid_property
     def is_3d(self):
         return (
