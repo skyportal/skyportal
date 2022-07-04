@@ -92,6 +92,7 @@ def get_source(
     include_requested=False,
     requested_only=False,
     include_color_mag=False,
+    photometry_format="flux",
 ):
     """Query source from database.
     obj_id: int
@@ -104,6 +105,11 @@ def get_source(
     """
 
     user = session.query(User).get(user_id)
+
+    if photometry_format not in ["flux", "mag"]:
+        raise ValueError(
+            f"Invalid photometry format: {photometry_format}, must be 'flux' or 'mag'"
+        )
 
     if include_thumbnails:
         s = Obj.get_if_accessible_by(obj_id, user, options=[joinedload(Obj.thumbnails)])
@@ -261,7 +267,7 @@ def get_source(
             .all()
         )
         source_info["photometry"] = [
-            serialize(phot, 'ab', 'flux') for phot in photometry
+            serialize(phot, 'ab', photometry_format) for phot in photometry
         ]
     if include_photometry_exists:
         source_info["photometry_exists"] = (
@@ -377,6 +383,7 @@ def get_sources(
     save_summary=False,
     total_matches=None,
     includeGeoJSON=False,
+    photometry_format="flux",
 ):
     """Query multiple sources from database.
     user_id : int
@@ -387,6 +394,11 @@ def get_sources(
     """
 
     user = session.query(User).get(user_id)
+
+    if photometry_format not in ["flux", "mag"]:
+        raise ValueError(
+            f"Invalid photometry format: {photometry_format}, must be 'flux' or 'mag'"
+        )
 
     # Fetch multiple sources
     obj_query_options = (
@@ -1114,7 +1126,7 @@ def get_sources(
                     Photometry.obj_id == obj.id
                 )
                 obj_list[-1]["photometry"] = [
-                    serialize(phot, 'ab', 'flux') for phot in photometry
+                    serialize(phot, 'ab', photometry_format) for phot in photometry
                 ]
             if include_photometry_exists:
                 obj_list[-1]["photometry_exists"] = (

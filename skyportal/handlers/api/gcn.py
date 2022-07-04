@@ -358,6 +358,7 @@ class GcnEventHandler(BaseHandler):
 
             # go through some pain to get probability and area included
             # as these are properties
+
             request_data = []
             for ii, req in enumerate(data['observationplan_requests']):
                 dat = req.to_dict()
@@ -365,7 +366,7 @@ class GcnEventHandler(BaseHandler):
                 for plan in dat["observation_plans"]:
                     plan_dict = {
                         **plan.to_dict(),
-                        "probability": plan.probability,
+                        # "probability": plan.probability,
                         "area": plan.area,
                         "num_observations": plan.num_observations,
                     }
@@ -803,6 +804,7 @@ class GcnSummaryHandler(BaseHandler):
                     include_photometry=True,
                     page_number=source_page_number,
                     num_per_page=source_num_per_page,
+                    photometry_format='mag',
                 )
                 sources.extend(sources_data['sources'])
                 source_page_number += 1
@@ -813,12 +815,12 @@ class GcnSummaryHandler(BaseHandler):
                 sources_text.append(
                     f"\nFound {len(sources)} sources in the event's localization, given the specified date range:\n"
                 ) if not no_text else None
-                classifications = [
-                    ", ".join([c['classification'] for c in source["classifications"]])
-                    if len(source["classifications"]) > 0
-                    else None
-                    for source in sources
-                ]
+                # classifications = [
+                #     ", ".join([c['classification'] for c in source["classifications"]])
+                #     if len(source["classifications"]) > 0
+                #     else None
+                #     for source in sources
+                # ]
                 df = pd.DataFrame(
                     {
                         "id": [source["id"] for source in sources],
@@ -828,7 +830,7 @@ class GcnSummaryHandler(BaseHandler):
                         "ra_err": [source["ra_err"] for source in sources],
                         "dec_err": [source["dec_err"] for source in sources],
                         "redshift": [source["redshift"] for source in sources],
-                        "classifications": classifications,
+                        # "classifications": classifications,
                     }
                 )
                 sources_text.append(
@@ -845,16 +847,21 @@ class GcnSummaryHandler(BaseHandler):
                         df_phot = pd.DataFrame(
                             {
                                 "mjd": [p['mjd'] for p in photometry],
-                                "ra": [p['ra'] for p in photometry],
-                                "dec": [p['dec'] for p in photometry],
-                                "ra_unc": [p['ra_unc'] for p in photometry],
-                                "dec_unc": [p['dec_unc'] for p in photometry],
-                                "flux": [p['flux'] for p in photometry],
-                                "fluxerr": [p['fluxerr'] for p in photometry],
+                                "ra": [
+                                    f"{round(p['ra'],2)}±{round(p['ra_unc'],2)}"
+                                    for p in photometry
+                                ],
+                                "dec": [
+                                    f"{round(p['dec'],2)}±{round(p['dec_unc'],2)}"
+                                    for p in photometry
+                                ],
+                                "mag±err (ab)": [
+                                    f"{round(p['mag'],2)}±{round(p['magerr'],2)}"
+                                    for p in photometry
+                                ],
                                 "filter": [p['filter'] for p in photometry],
-                                "magsys": [p['magsys'] for p in photometry],
                                 "origin": [p['origin'] for p in photometry],
-                                "instrument_name": [
+                                "instrument": [
                                     p['instrument_name'] for p in photometry
                                 ],
                             }
@@ -908,13 +915,6 @@ class GcnSummaryHandler(BaseHandler):
                         "dec": [g.dec for g in galaxies],
                         "distmpc": [g.distmpc for g in galaxies],
                         "redshift": [g.redshift for g in galaxies],
-                        # "sfr_fuv": [g.sfr_fuv for g in galaxies],
-                        # "mstar": [g.mstar for g in galaxies],
-                        # "magb": [g.magb for g in galaxies],
-                        # "magk": [g.magk for g in galaxies],
-                        # "a": [g.a for g in galaxies],
-                        # "b2a": [g.b2a for g in galaxies],
-                        # "btc": [g.btc for g in galaxies],
                     }
                 )
                 galaxies_text.append(
@@ -983,13 +983,9 @@ class GcnSummaryHandler(BaseHandler):
                             ],
                             "ra": [obs['field'].ra for obs in observations],
                             "dec": [obs['field'].dec for obs in observations],
-                            "filt": [obs['filt'] for obs in observations],
-                            "exposure_time": [
-                                obs['exposure_time'] for obs in observations
-                            ],
-                            "limmag": [obs['limmag'] for obs in observations],
-                            # "seeing": [obs['seeing'] for obs in observations],
-                            # "processed_fraction": [obs['processed_fraction'] for obs in observations],
+                            "filter": [obs['filt'] for obs in observations],
+                            "exposure": [obs['exposure_time'] for obs in observations],
+                            "limmag (ab)": [obs['limmag'] for obs in observations],
                         }
                     )
                     if no_text:

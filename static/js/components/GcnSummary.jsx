@@ -447,7 +447,7 @@ const GcnSummary = ({ dateobs }) => {
                       className={classes.textField}
                       InputProps={{
                         style: {
-                          fontSize: "1rem",
+                          fontSize: "0.9rem",
                           fontFamily: "monospace",
                         },
                       }}

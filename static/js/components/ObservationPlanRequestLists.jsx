@@ -332,7 +332,7 @@ const ObservationPlanRequestLists = ({ gcnEvent }) => {
           {observationplanRequest.observation_plans &&
           observationplanRequest.observation_plans.length > 0 ? (
             <div>
-              {observationplanRequest.observation_plans[0].num_observations}
+              {observationplanRequest?.observation_plans[0]?.num_observations}
             </div>
           ) : (
             <div>N/A</div>
@@ -356,7 +356,7 @@ const ObservationPlanRequestLists = ({ gcnEvent }) => {
           {observationplanRequest.observation_plans &&
           observationplanRequest.observation_plans.length > 0 ? (
             <div>
-              {observationplanRequest.observation_plans[0].area.toFixed(2)}
+              {observationplanRequest?.observation_plans[0]?.area?.toFixed(2)}
             </div>
           ) : (
             <div>N/A</div>
@@ -380,7 +380,7 @@ const ObservationPlanRequestLists = ({ gcnEvent }) => {
           {observationplanRequest.observation_plans &&
           observationplanRequest.observation_plans.length > 0 ? (
             <div>
-              {observationplanRequest.observation_plans[0].probability.toFixed(
+              {observationplanRequest?.observation_plans[0]?.probability?.toFixed(
                 3
               )}
             </div>
