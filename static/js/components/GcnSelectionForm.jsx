@@ -415,9 +415,7 @@ const GcnSelectionForm = ({ gcnEvent, setSelectedLocalizationName }) => {
       <Divider />
       <div className={classes.buttons}>
         <GcnSummary dateobs={gcnEvent.dateobs} />
-        <div>
-          <AddSurveyEfficiencyObservationsPage gcnevent={gcnEvent} />
-        </div>
+        <AddSurveyEfficiencyObservationsPage gcnevent={gcnEvent} />
         <Button
           href={`${gcnUrl}`}
           download={`observationGcn-${selectedInstrumentId}`}
@@ -434,7 +432,6 @@ const GcnSelectionForm = ({ gcnEvent, setSelectedLocalizationName }) => {
             <CircularProgress />
           </div>
         ) : (
-          <div>
           <Button
             onClick={() => {
               handleSubmitTreasureMap(selectedInstrumentId, formDataState);
