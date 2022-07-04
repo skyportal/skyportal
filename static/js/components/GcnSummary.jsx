@@ -18,8 +18,14 @@ import CircularProgress from "@mui/material/CircularProgress";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import LoadingButton from "@mui/lab/LoadingButton";
 import GetApp from "@mui/icons-material/GetApp";
-import { SelectLabelWithChips } from "./SelectWithChips";
+
+import { showNotification } from "baselayer/components/Notifications";
+import {
+  SelectLabelWithChips,
+  SelectSingleLabelWithChips,
+} from "./SelectWithChips";
 import * as usersActions from "../ducks/users";
+import * as groupsActions from "../ducks/groups";
 import { getGcnEventSummary } from "../ducks/gcnEvent";
 
 const useStyles = makeStyles((theme) => ({
@@ -52,6 +58,22 @@ const useStyles = makeStyles((theme) => ({
     height: "80vh",
     width: "100%",
     overflow: "auto",
+  },
+  checkboxes: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gridGap: "1rem",
+    width: "100%",
+    height: "100%",
+  },
+  button: {
+    width: "100%",
+  },
+  buttons: {
+    display: "flex",
+    flexDirection: "row",
+    width: "100%",
+    gap: theme.spacing(2),
   },
 }));
 
@@ -90,24 +112,22 @@ const DialogTitle = withStyles(dialogTitleStyles)(
   )
 );
 
-const GcnSummary = ({ gcnEvent }) => {
+const GcnSummary = ({ dateobs }) => {
   const classes = useStyles();
+  const groups = useSelector((state) => state.groups.userAccessible);
   const { users } = useSelector((state) => state.users);
   const dispatch = useDispatch();
   const [open, setOpen] = useState(false);
   const [dataFetched, setDataFetched] = useState(false);
   const [selectedUsers, setSelectedUsers] = useState([]);
+  const [selectedGroup, setSelectedGroup] = useState(null);
   const { summary } = useSelector((state) => state.gcnEvent);
-
-  const default_start_date = new Date(gcnEvent?.dateobs).toISOString();
-  let default_end_date = new Date(gcnEvent?.dateobs);
-  default_end_date.setDate(default_end_date.getDate() + 7);
-  default_end_date = default_end_date.toISOString();
   const [text, setText] = useState("");
+  const [nb, setNb] = useState("");
   const [title, setTitle] = useState("Gcn Summary");
-  const [subject, setSubject] = useState("Follow-up on GCN Event");
-  const [startDate, setStartDate] = useState(default_start_date.slice(0, 19));
-  const [endDate, setEndDate] = useState(default_end_date.slice(0, 19));
+  const [subject, setSubject] = useState(`Follow-up on GCN Event ...`);
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const [localizationCumprob, setLocalizationCumprob] = useState("0.95");
   const [showSources, setShowSources] = useState(false);
   const [showGalaxies, setShowGalaxies] = useState(false);
@@ -115,6 +135,11 @@ const GcnSummary = ({ gcnEvent }) => {
   const [noText, setNoText] = useState(false);
 
   const [fetching, setFetching] = useState(false);
+
+  const groups_list = groups.map((group) => ({
+    id: group.id,
+    label: group.name,
+  }));
 
   const users_list = users?.map((user) => ({
     id: user.id,
@@ -124,16 +149,29 @@ const GcnSummary = ({ gcnEvent }) => {
   useEffect(() => {
     const fetchData = () => {
       dispatch(usersActions.fetchUsers());
+      dispatch(groupsActions.fetchGroups());
     };
     if (!dataFetched) {
       fetchData();
       setDataFetched(true);
     } else if (summary) {
+      if (summary?.length === 0) {
+        dispatch(
+          showNotification("No data found with these parameters", "warning")
+        );
+      }
       setText(summary.join(""));
       setFetching(false);
     }
+    const default_start_date = new Date(dateobs).toISOString();
+    let default_end_date = new Date(dateobs);
+    default_end_date.setDate(default_end_date.getDate() + 7);
+    default_end_date = default_end_date.toISOString();
+    setStartDate(default_start_date.slice(0, 19));
+    setEndDate(default_end_date.slice(0, 19));
+    setSubject(`Follow-up on GCN Event ${dateobs}`);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [summary, dataFetched, dispatch]);
+  }, [dateobs, summary, dataFetched, dispatch]);
 
   const handleClose = () => {
     setOpen(false);
@@ -158,33 +196,93 @@ const GcnSummary = ({ gcnEvent }) => {
     setSelectedUsers(new_selected_users);
   };
 
-  const handleSubmitGcnSummary = async () => {
-    const dateobs = gcnEvent?.dateobs;
-    const params = {
-      title,
-      subject,
-      userIds: selectedUsers.map((user) => user.id),
-      group_id: 1,
-      startDate,
-      endDate,
-      localizationCumprob,
-      showSources,
-      showGalaxies,
-      showObservations,
-      noText,
-    };
-    setFetching(true);
-    dispatch(getGcnEventSummary({ dateobs, params })).then((response) => {
-      if (response.status !== "success") {
-        setFetching(false);
+  const onGroupSelectChange = (event) => {
+    setSelectedGroup(event.target.value);
+  };
+
+  const validateSubmit = () => {
+    let valid = true;
+
+    if (!noText) {
+      if (title === "") {
+        dispatch(
+          showNotification(
+            "Please enter a title when noText is not checked",
+            "error"
+          )
+        );
+        valid = false;
       }
-    });
+      if (subject === "") {
+        dispatch(
+          showNotification(
+            "Please enter a subject when noText is not checked",
+            "error"
+          )
+        );
+        valid = false;
+      }
+      if (!selectedGroup?.id) {
+        dispatch(
+          showNotification(
+            "Please select a group when noText is not checked",
+            "error"
+          )
+        );
+        valid = false;
+      }
+    }
+    if (!startDate) {
+      dispatch(showNotification("Please select a start date", "error"));
+      valid = false;
+    }
+    if (!endDate) {
+      dispatch(showNotification("Please select an end date", "error"));
+      valid = false;
+    }
+    if (!showSources && !showGalaxies && !showObservations) {
+      dispatch(
+        showNotification(
+          "Please select at least one type to show: sources, galaxies or observations",
+          "error"
+        )
+      );
+      valid = false;
+    }
+    return valid;
+  };
+
+  const handleSubmitGcnSummary = async () => {
+    if (validateSubmit()) {
+      const params = {
+        title,
+        subject,
+        userIds: selectedUsers.map((user) => user.id),
+        groupId: selectedGroup?.id,
+        startDate,
+        endDate,
+        localizationCumprob,
+        showSources,
+        showGalaxies,
+        showObservations,
+        noText,
+      };
+      if (nb !== "") {
+        params.number = nb;
+      }
+      setFetching(true);
+      dispatch(getGcnEventSummary({ dateobs, params })).then((response) => {
+        if (response.status !== "success") {
+          setFetching(false);
+        }
+      });
+    }
   };
 
   return (
-    <div>
+    <>
       <Button
-        variant="contained"
+        variant="outlined"
         name="gcn_summary"
         onClick={() => setOpen(true)}
       >
@@ -197,9 +295,7 @@ const GcnSummary = ({ gcnEvent }) => {
           style={{ position: "fixed" }}
           fullScreen
         >
-          <DialogTitle onClose={handleClose}>
-            Event {gcnEvent?.dateobs}
-          </DialogTitle>
+          <DialogTitle onClose={handleClose}>Event {dateobs}</DialogTitle>
           <DialogContent dividers>
             <Grid container spacing={3}>
               <Grid item md={4} sm={12}>
@@ -216,8 +312,21 @@ const GcnSummary = ({ gcnEvent }) => {
                     value={subject}
                     onChange={(e) => setSubject(e.target.value)}
                   />
+                  <TextField
+                    id="number"
+                    label="Number (Optional)"
+                    value={nb}
+                    onChange={(e) => setNb(e.target.value)}
+                  />
+                  <SelectSingleLabelWithChips
+                    label="Group"
+                    id="group-select"
+                    initValue={selectedGroup}
+                    onChange={onGroupSelectChange}
+                    options={groups_list}
+                  />
                   <SelectLabelWithChips
-                    label="Users"
+                    label="Users (Optional)"
                     id="users-select"
                     initValue={selectedUsers}
                     onChange={onUserSelectChange}
@@ -241,69 +350,93 @@ const GcnSummary = ({ gcnEvent }) => {
                     value={localizationCumprob}
                     onChange={(e) => setLocalizationCumprob(e.target.value)}
                   />
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        label="Show Sources"
-                        checked={showSources}
-                        onChange={(e) => setShowSources(e.target.checked)}
-                      />
-                    }
-                    label="Show Sources"
-                  />
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        label="Show Galaxies"
-                        checked={showGalaxies}
-                        onChange={(e) => setShowGalaxies(e.target.checked)}
-                      />
-                    }
-                    label="Show Galaxies"
-                  />
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        checked={showObservations}
-                        onChange={(e) => setShowObservations(e.target.checked)}
-                      />
-                    }
-                    label="Show Observations"
-                  />
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        label="No Text"
-                        checked={noText}
-                        onChange={(e) => setNoText(e.target.checked)}
-                      />
-                    }
-                    label="No Text"
-                  />
-                  <LoadingButton
-                    onClick={() => handleSubmitGcnSummary()}
-                    loading={fetching}
-                    loadingPosition="end"
-                    variant="contained"
-                  >
-                    Get Summary
-                  </LoadingButton>
-                  <Button
-                    startIcon={<GetApp />}
-                    onClick={() => {
-                      const blob = new Blob([text], { type: "text/plain" });
-                      const url = URL.createObjectURL(blob);
-                      const link = document.createElement("a");
-                      link.href = url;
-                      link.download = `${title}_${gcnEvent?.dateobs}.txt`;
-                      link.click();
-                    }}
-                  />
+                  <div className={classes.checkboxes}>
+                    <FormControlLabel
+                      control={
+                        <Checkbox
+                          label="Show Sources"
+                          checked={showSources}
+                          onChange={(e) => setShowSources(e.target.checked)}
+                        />
+                      }
+                      label="Show Sources"
+                    />
+                    <FormControlLabel
+                      control={
+                        <Checkbox
+                          label="Show Galaxies"
+                          checked={showGalaxies}
+                          onChange={(e) => setShowGalaxies(e.target.checked)}
+                        />
+                      }
+                      label="Show Galaxies"
+                    />
+                    <FormControlLabel
+                      control={
+                        <Checkbox
+                          checked={showObservations}
+                          onChange={(e) =>
+                            setShowObservations(e.target.checked)
+                          }
+                        />
+                      }
+                      label="Show Observations"
+                    />
+                    <FormControlLabel
+                      control={
+                        <Checkbox
+                          label="No Text"
+                          checked={noText}
+                          onChange={(e) => setNoText(e.target.checked)}
+                        />
+                      }
+                      label="No Text"
+                    />
+                  </div>
+                  <div className={classes.buttons}>
+                    <LoadingButton
+                      onClick={() => handleSubmitGcnSummary()}
+                      loading={fetching}
+                      loadingPosition="end"
+                      variant="contained"
+                      className={classes.button}
+                    >
+                      Get Summary
+                    </LoadingButton>
+                    <Button
+                      startIcon={<GetApp />}
+                      disabled={!summary || summary?.length === 0}
+                      onClick={() => {
+                        const blob = new Blob([text], { type: "text/plain" });
+                        const url = URL.createObjectURL(blob);
+                        const link = document.createElement("a");
+                        link.href = url;
+                        link.download = `${title}_${dateobs}.txt`;
+                        link.click();
+                      }}
+                      variant="contained"
+                      className={classes.button}
+                    >
+                      Download
+                    </Button>
+                  </div>
                 </Paper>
               </Grid>
               <Grid item md={8} sm={12}>
                 <Paper elevation={1} className={classes.content}>
-                  {fetching && <CircularProgress />}
+                  {fetching && (
+                    <div
+                      style={{
+                        display: "flex",
+                        width: "100%",
+                        height: "100%",
+                        justifyContent: "center",
+                        alignItems: "center",
+                      }}
+                    >
+                      <CircularProgress />
+                    </div>
+                  )}
                   {!fetching && text && (
                     <TextField
                       id="text"
@@ -320,21 +453,34 @@ const GcnSummary = ({ gcnEvent }) => {
                       }}
                     />
                   )}
+                  {!fetching && !text && (
+                    <div
+                      style={{
+                        textAlign: "center",
+                        display: "flex",
+                        width: "100%",
+                        height: "100%",
+                        justifyContent: "center",
+                        alignItems: "center",
+                      }}
+                    >
+                      <Typography variant="h4">
+                        Use the form on the left to generate a summary.
+                      </Typography>
+                    </div>
+                  )}
                 </Paper>
               </Grid>
             </Grid>
           </DialogContent>
         </Dialog>
       )}
-    </div>
+    </>
   );
 };
 
 GcnSummary.propTypes = {
-  gcnEvent: PropTypes.shape({
-    dateobs: PropTypes.string,
-    id: PropTypes.number,
-  }).isRequired,
+  dateobs: PropTypes.string.isRequired,
 };
 
 export default GcnSummary;

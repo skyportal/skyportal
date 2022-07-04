@@ -11,6 +11,7 @@ import FormGroup from "@mui/material/FormGroup";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Checkbox from "@mui/material/Checkbox";
 import CircularProgress from "@mui/material/CircularProgress";
+import Divider from "@mui/material/Divider";
 import makeStyles from "@mui/styles/makeStyles";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
@@ -23,6 +24,7 @@ import * as galaxiesActions from "../ducks/galaxies";
 import * as instrumentsActions from "../ducks/instruments";
 
 import LocalizationPlot from "./LocalizationPlot";
+import GcnSummary from "./GcnSummary";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
@@ -49,6 +51,15 @@ const useStyles = makeStyles(() => ({
   },
   instrumentSelectItem: {
     whiteSpace: "break-spaces",
+  },
+  form: {
+    marginBottom: "1rem",
+  },
+  buttons: {
+    marginTop: "1rem",
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr",
+    gridGap: "1rem",
   },
 }));
 
@@ -403,7 +414,7 @@ const GcnSelectionForm = ({ gcnEvent, setSelectedLocalizationName }) => {
           ))}
         </FormGroup>
       </div>
-      <div data-testid="gcnsource-selection-form">
+      <div data-testid="gcnsource-selection-form" className={classes.form}>
         <Form
           schema={GcnSourceSelectionFormSchema}
           onSubmit={handleSubmit}
@@ -418,68 +429,66 @@ const GcnSelectionForm = ({ gcnEvent, setSelectedLocalizationName }) => {
           </div>
         )}
       </div>
-      <Button
-        href={`${gcnUrl}`}
-        download={`observationGcn-${selectedInstrumentId}`}
-        size="small"
-        color="primary"
-        type="submit"
-        variant="outlined"
-        data-testid={`observationGcn_${selectedInstrumentId}`}
-      >
-        GCN
-      </Button>
-      <Button
-        href={`${simSurveyUrl}`}
-        download={`observationGcn-${selectedInstrumentId}`}
-        size="small"
-        color="primary"
-        type="submit"
-        variant="outlined"
-        data-testid={`observationGcn_${selectedInstrumentId}`}
-      >
-        SimSurvey
-      </Button>
-      {isSubmittingTreasureMap === selectedInstrumentId ? (
-        <div>
-          <CircularProgress />
-        </div>
-      ) : (
-        <div>
+      <Divider />
+      <div className={classes.buttons}>
+        <GcnSummary dateobs={gcnEvent.dateobs} />
+        <Button
+          href={`${gcnUrl}`}
+          download={`observationGcn-${selectedInstrumentId}`}
+          type="submit"
+          variant="outlined"
+          size="small"
+          data-testid={`observationGcn_${selectedInstrumentId}`}
+        >
+          GCN
+        </Button>
+        <Button
+          href={`${simSurveyUrl}`}
+          download={`observationGcn-${selectedInstrumentId}`}
+          type="submit"
+          variant="outlined"
+          size="small"
+          data-testid={`observationGcn_${selectedInstrumentId}`}
+        >
+          SimSurvey
+        </Button>
+        {isSubmittingTreasureMap === selectedInstrumentId ? (
+          <div>
+            <CircularProgress />
+          </div>
+        ) : (
           <Button
             onClick={() => {
               handleSubmitTreasureMap(selectedInstrumentId, formDataState);
             }}
-            size="small"
             color="primary"
             type="submit"
             variant="outlined"
+            size="small"
             data-testid={`treasuremapRequest_${selectedInstrumentId}`}
           >
             Send to Treasure Map
           </Button>
-        </div>
-      )}
-      {isDeletingTreasureMap === selectedInstrumentId ? (
-        <div>
-          <CircularProgress />
-        </div>
-      ) : (
-        <div>
+        )}
+        {isDeletingTreasureMap === selectedInstrumentId ? (
+          <div>
+            <CircularProgress />
+          </div>
+        ) : (
           <Button
             onClick={() => {
               handleDeleteTreasureMap(selectedInstrumentId, formDataState);
             }}
-            size="small"
             color="primary"
             type="submit"
             variant="outlined"
+            size="small"
             data-testid={`treasuremapDelete_${selectedInstrumentId}`}
           >
             Retract from Treasure Map
           </Button>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 };

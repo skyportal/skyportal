@@ -39,8 +39,6 @@ import ObservationPlanRequestLists from "./ObservationPlanRequestLists";
 import CommentList from "./CommentList";
 import GcnTags from "./GcnTags";
 
-import GcnSummary from "./GcnSummary";
-
 import withRouter from "./withRouter";
 
 dayjs.extend(relativeTime);
@@ -305,7 +303,7 @@ const GcnEventPage = ({ route }) => {
           </Accordion>
         </div>
         <div className={styles.columnItem}>
-          <Accordion defaultClosed>
+          <Accordion>
             <AccordionSummary
               expandIcon={<ExpandMoreIcon />}
               aria-controls="gcnEvent-content"
@@ -536,9 +534,6 @@ const GcnEventPage = ({ route }) => {
               )}
             </AccordionDetails>
           </Accordion>
-        </div>
-        <div className={styles.columnItem}>
-          <GcnSummary gcnEvent={gcnEvent} />
         </div>
       </Grid>
     </Grid>

@@ -601,27 +601,22 @@ class GcnSummaryHandler(BaseHandler):
           parameters:
             - in: query
               name: title
-              required: true
               schema:
                 type: string
             - in: query
               name: number
-              required: false
               schema:
                 type: string
             - in: query
               name: subject
-              required: true
               schema:
                 type: string
             - in: query
               name: userIds
-              required: false
               schema:
                 type: list
             - in: query
-              name: group_id
-              required: true
+              name: groupId
               schema:
                 type: string
             - in: query
@@ -693,7 +688,7 @@ class GcnSummaryHandler(BaseHandler):
         user_ids = self.get_query_argument(
             "userIds", None
         )  # to fix, string instead of list -> TEMPORARY
-        group_id = self.get_query_argument("group_id")
+        group_id = self.get_query_argument("groupId", None)
         start_date = self.get_query_argument('startDate')
         end_date = self.get_query_argument('endDate')
         localization_name = self.get_query_argument('localizationName', None)
@@ -702,11 +697,8 @@ class GcnSummaryHandler(BaseHandler):
         show_galaxies = self.get_query_argument('showGalaxies', False)
         show_observations = self.get_query_argument('showObservations', False)
         no_text = self.get_query_argument('noText', False)
-        if title is None:
-            return self.error("Title is required")
 
         if not no_text:
-            # verify that number is a valid integer
             if title is None:
                 return self.error("Title is required")
             if number is not None:
@@ -714,19 +706,16 @@ class GcnSummaryHandler(BaseHandler):
                     number = int(number)
                 except ValueError:
                     return self.error("Number must be an integer")
-
             if subject is None:
                 return self.error("Subject is required")
-
-            # verify that user_ids is a list of valid integers
-            if user_ids is None:
-                return self.error("UserIds is required")
             if user_ids is not None:
                 user_ids = [int(user_id) for user_id in user_ids.split(",")]
                 try:
                     user_ids = [int(user_id) for user_id in user_ids]
                 except ValueError:
                     return self.error("User IDs must be integers")
+            else:
+                user_ids = []
             if group_id is None:
                 return self.error("Group ID is required")
 
@@ -949,7 +938,6 @@ class GcnSummaryHandler(BaseHandler):
             if instruments is None:
                 return self.error("No instruments found")
 
-            observations_text.append("\nObservations:") if not no_text else None
             for instrument in instruments:
                 data = get_observations(
                     self.current_user,
@@ -1019,6 +1007,8 @@ class GcnSummaryHandler(BaseHandler):
                         )
                         + "\n"
                     )
-            contents.extend(observations_text)
+            if len(observations_text) > 0 and not no_text:
+                observations_text = ["\nObservations:"] + observations_text
+                contents.extend(observations_text)
 
         return self.success(data=contents)
