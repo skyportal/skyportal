@@ -59,8 +59,8 @@ const useStyles = makeStyles(() => ({
   buttons: {
     marginTop: "1rem",
     display: "grid",
-    gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr",
     gridGap: "1rem",
+    gridTemplateColumns: "repeat(auto-fit, minmax(5rem, 1fr))",
   },
 }));
 
