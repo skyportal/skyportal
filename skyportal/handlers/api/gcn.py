@@ -895,7 +895,7 @@ class GcnSummaryHandler(BaseHandler):
                     break
             if len(sources) > 0:
                 sources_text.append(
-                    f"\nFound {len(sources)} sources in the event's localization, given the specified date range:\n"
+                    f"\nFound {len(sources)} {'sources' if len(sources) > 1 else 'source'} in the event's localization, given the specified date range:\n"
                 ) if not no_text else None
                 # classifications = [
                 #     ", ".join([c['classification'] for c in source["classifications"]])
@@ -1027,7 +1027,7 @@ class GcnSummaryHandler(BaseHandler):
                     break
             if len(galaxies) > 0:
                 galaxies_text.append(
-                    f"""\nFound {len(galaxies)} galaxies in the event's localization:\n"""
+                    f"""\nFound {len(galaxies)} {'galaxies' if len(sources) > 1 else 'galaxy'} in the event's localization:\n"""
                 ) if not no_text else None
                 catalogs, names, ras, decs, distmpcs, redshifts = [], [], [], [], [], []
                 for galaxy in galaxies:
