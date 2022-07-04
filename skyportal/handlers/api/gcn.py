@@ -1123,7 +1123,7 @@ class GcnSummaryHandler(BaseHandler):
                         )
                         mjds.append(
                             astropy.time.Time(obs["obstime"], format='datetime').mjd
-                            if "mjd" in obs
+                            if "obstime" in obs
                             else None
                         )
                         ras.append(obs['field']["ra"] if "ra" in obs['field'] else None)
