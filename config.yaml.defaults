@@ -594,5 +594,3 @@ analysis_services:
   analysis_folder: analysis_data
   sn_analysis_service:
     port: 6801
-  nmma_analysis_service:
-    port: 6802
