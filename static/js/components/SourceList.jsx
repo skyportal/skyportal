@@ -5,11 +5,14 @@ import Paper from "@mui/material/Paper";
 import makeStyles from "@mui/styles/makeStyles";
 import Grid from "@mui/material/Grid";
 import Typography from "@mui/material/Typography";
+import Dialog from "@mui/material/Dialog";
+import DialogContent from "@mui/material/DialogContent";
 
 import * as sourcesActions from "../ducks/sources";
 import UninitializedDBMessage from "./UninitializedDBMessage";
 import SourceTable from "./SourceTable";
 import Spinner from "./Spinner";
+import ProgressIndicator from "./ProgressIndicators";
 
 const useStyles = makeStyles((theme) => ({
   paperDiv: {
@@ -54,6 +57,10 @@ const SourceList = () => {
   );
 
   const [rowsPerPage, setRowsPerPage] = useState(100);
+  const [sorting, setSorting] = useState(null);
+  const [filtering, setFiltering] = useState(null);
+  const [downloadProgressCurrent, setDownloadProgressCurrent] = useState(0);
+  const [downloadProgressTotal, setDownloadProgressTotal] = useState(0);
 
   useEffect(() => {
     dispatch(sourcesActions.fetchSources());
@@ -76,6 +83,8 @@ const SourceList = () => {
       data.sortOrder = sortData.direction;
     }
     dispatch(sourcesActions.fetchSources(data));
+    setSorting(sortData);
+    setFiltering(filterData);
   };
 
   const handleSourceTableSorting = (sortData, filterData) => {
@@ -87,6 +96,39 @@ const SourceList = () => {
       sortOrder: sortData.direction,
     };
     dispatch(sourcesActions.fetchSources(data));
+    setSorting(sortData);
+    setFiltering(filterData);
+  };
+
+  const handleSourcesDownload = async () => {
+    const sourceAll = [];
+    setDownloadProgressTotal(sourcesState.totalMatches);
+    for (
+      let i = 1;
+      i <= Math.ceil(sourcesState.totalMatches / sourcesState.numPerPage);
+      i += 1
+    ) {
+      const data = {
+        ...filtering,
+        pageNumber: i,
+        numPerPage: sourcesState.numPerPage,
+      };
+      if (sorting) {
+        data.sortBy = sorting.name;
+        data.sortOrder = sorting.direction;
+      }
+      /* eslint-disable no-await-in-loop */
+      const result = await dispatch(sourcesActions.fetchSources(data));
+      if (result && result.data) {
+        sourceAll.push(...result.data.sources);
+        setDownloadProgressCurrent(sourceAll.length);
+        setDownloadProgressTotal(sourcesState.totalMatches);
+      }
+      // here we need to add some code to handle what happens if the request is not successful
+    }
+    setDownloadProgressCurrent(0);
+    setDownloadProgressTotal(0);
+    return sourceAll;
   };
 
   if (sourceTableEmpty) {
@@ -111,11 +153,46 @@ const SourceList = () => {
               pageNumber={sourcesState.pageNumber}
               numPerPage={sourcesState.numPerPage}
               sortingCallback={handleSourceTableSorting}
+              downloadCallback={handleSourcesDownload}
             />
           </Grid>
         )}
         {!sourcesState.sources && <Spinner />}
       </div>
+      <Dialog
+        open={downloadProgressTotal > 0}
+        style={{ position: "fixed" }}
+        maxWidth="md"
+      >
+        <DialogContent
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "center",
+            alignItems: "center",
+          }}
+        >
+          <Typography variant="h6" display="inline">
+            Downloading {downloadProgressTotal} sources
+          </Typography>
+          <div
+            style={{
+              height: "5rem",
+              width: "5rem",
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "center",
+              alignItems: "center",
+            }}
+          >
+            <ProgressIndicator
+              current={downloadProgressCurrent}
+              total={downloadProgressTotal}
+              percentage={false}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
     </Paper>
   );
 };
