@@ -111,7 +111,6 @@ class AllocationHandler(BaseHandler):
                     )
 
             allocations = session.scalars(allocations).all()
-            self.verify_and_commit()
             return self.success(data=allocations)
 
     @permissions(['Manage allocations'])
