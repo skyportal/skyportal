@@ -9,8 +9,10 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
 import GroupShareSelect from "./GroupShareSelect";
-import { submitAnalysisService } from "../ducks/analysis_service";
-import { fetchAnalysisServices } from "../ducks/analysis_services";
+import {
+  submitAnalysisService,
+  fetchAnalysisServices,
+} from "../ducks/analysis_services";
 
 dayjs.extend(utc);
 

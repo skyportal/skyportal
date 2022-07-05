@@ -13,7 +13,6 @@ import { Button } from "@mui/material";
 import CircularProgress from "@mui/material/CircularProgress";
 import NewAnalysisService from "./NewAnalysisService";
 
-import * as analysisServiceActions from "../ducks/analysis_service";
 import * as analysisServicesActions from "../ducks/analysis_services";
 
 const useStyles = makeStyles((theme) => ({
@@ -93,7 +92,7 @@ const AnalysisServiceList = ({ analysisServices, deletePermission }) => {
 
   const deleteAnalysisService = (analysisService) => {
     dispatch(
-      analysisServiceActions.deleteAnalysisService(analysisService.id)
+      analysisServicesActions.deleteAnalysisService(analysisService.id)
     ).then((result) => {
       if (result.status === "success") {
         dispatch(showNotification("AnalysisService deleted"));
