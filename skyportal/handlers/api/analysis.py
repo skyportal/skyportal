@@ -1024,12 +1024,12 @@ class AnalysisHandler(BaseHandler):
                     return self.success(data=analysis_dict)
 
                 # retrieve multiple analyses
-                analyses = ObjAnalysis.select(self.current_user)
+                stmt = ObjAnalysis.select(self.current_user)
                 if obj_id:
-                    analyses = analyses.where(
+                    stmt = stmt.where(
                         ObjAnalysis.obj_id.contains(obj_id.strip())
                     )
-                analyses = session.scalars(analyses).all()
+                analyses = session.scalars(stmt).all()
 
                 ret_array = []
                 for a in analyses:
