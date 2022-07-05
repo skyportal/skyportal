@@ -84,7 +84,7 @@ class AllocationHandler(BaseHandler):
                 if apitype == "api_classname":
                     instruments_subquery = (
                         sa.select(Instrument.id)
-                        .filter(Instrument.api_classname.isnot(None))
+                        .where(Instrument.api_classname.isnot(None))
                         .distinct()
                         .subquery()
                     )
