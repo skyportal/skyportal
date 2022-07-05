@@ -1892,7 +1892,7 @@ def spectroscopy_plot(
     obj_id,
     user,
     spec_id=None,
-    width=600,
+    width=800,
     device="browser",
     smoothing=False,
     smooth_number=10,
