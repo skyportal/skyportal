@@ -1026,9 +1026,7 @@ class AnalysisHandler(BaseHandler):
                 # retrieve multiple analyses
                 stmt = ObjAnalysis.select(self.current_user)
                 if obj_id:
-                    stmt = stmt.where(
-                        ObjAnalysis.obj_id.contains(obj_id.strip())
-                    )
+                    stmt = stmt.where(ObjAnalysis.obj_id.contains(obj_id.strip()))
                 analyses = session.scalars(stmt).all()
 
                 ret_array = []
