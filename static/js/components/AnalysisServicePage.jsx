@@ -153,10 +153,6 @@ const AnalysisServicePage = () => {
     };
 
     getAnalysisServices();
-
-    // Don't want to reset everytime the component rerenders and
-    // the defaultStartDate is updated, so ignore ESLint here
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dispatch]);
 
   if (!analysisServiceList) {
