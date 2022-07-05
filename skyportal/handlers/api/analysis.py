@@ -308,6 +308,7 @@ class AnalysisServiceHandler(BaseHandler):
         except Exception as e:
             return self.error(f'Unexpected Error adding Analysis Service: {str(e)}')
 
+        self.push_all(action='skyportal/REFRESH_ANALYSIS_SERVICES')
         return self.success(data={"id": analysis_service.id})
 
     @auth_or_token
@@ -554,6 +555,7 @@ class AnalysisServiceHandler(BaseHandler):
         DBSession().delete(analysis_service)
         self.verify_and_commit()
 
+        self.push_all(action='skyportal/REFRESH_ANALYSIS_SERVICES')
         return self.success()
 
 

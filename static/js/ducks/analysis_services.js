@@ -3,8 +3,9 @@ import messageHandler from "baselayer/MessageHandler";
 import * as API from "../API";
 import store from "../store";
 
-const FETCH_ANALYSIS_SERVICES = "skyportal/FETCH_ANALYSIS_SERVICES";
-const FETCH_ANALYSIS_SERVICES_OK = "skyportal/FETCH_ANALYSIS_SERVICES_OK";
+const FETCH_ANALYSIS_SERVICES_LIST = "skyportal/FETCH_ANALYSIS_SERVICES_LIST";
+const FETCH_ANALYSIS_SERVICES_LIST_OK =
+  "skyportal/FETCH_ANALYSIS_SERVICES_LIST_OK";
 
 const REFRESH_ANALYSIS_SERVICES = "skyportal/REFRESH_ANALYSIS_SERVICES";
 
@@ -19,7 +20,7 @@ const DELETE_ANALYSIS_SERVICE = "skyportal/DELETE_ANALYSIS_SERVICE";
 
 // eslint-disable-next-line import/prefer-default-export
 export const fetchAnalysisServices = (params = {}) =>
-  API.GET("/api/analysis_service", FETCH_ANALYSIS_SERVICES, params);
+  API.GET("/api/analysis_service", FETCH_ANALYSIS_SERVICES_LIST, params);
 
 export const fetchAnalysisService = (id) =>
   API.GET(`/api/analysis_service/${id}`, FETCH_ANALYSIS_SERVICE);
@@ -55,7 +56,7 @@ const reducer_service = (state = { assignments: [] }, action) => {
 
 const reducer_services = (state = { analysisServiceList: [] }, action) => {
   switch (action.type) {
-    case FETCH_ANALYSIS_SERVICES_OK: {
+    case FETCH_ANALYSIS_SERVICES_LIST_OK: {
       const analysisServiceList = action.data;
       return {
         ...state,
