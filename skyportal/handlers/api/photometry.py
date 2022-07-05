@@ -152,30 +152,21 @@ def serialize(phot, outsys, format):
                 fivesigma = 5 * fluxerr
                 maglimit_out = -2.5 * np.log10(fivesigma) + corrected_db_zp
 
-            if format == "mag":
+            return_value.update(
+                {
+                    'mag': phot.mag + db_correction
+                    if nan_to_none(phot.mag) is not None
+                    else None,
+                    'magerr': phot.e_mag
+                    if nan_to_none(phot.e_mag) is not None
+                    else None,
+                    'magsys': outsys.name,
+                    'limiting_mag': maglimit_out,
+                }
+            )
+            if format == "both":
                 return_value.update(
                     {
-                        'mag': phot.mag + db_correction
-                        if nan_to_none(phot.mag) is not None
-                        else None,
-                        'magerr': phot.e_mag
-                        if nan_to_none(phot.e_mag) is not None
-                        else None,
-                        'magsys': outsys.name,
-                        'limiting_mag': maglimit_out,
-                    }
-                )
-            else:
-                return_value.update(
-                    {
-                        'mag': phot.mag + db_correction
-                        if nan_to_none(phot.mag) is not None
-                        else None,
-                        'magerr': phot.e_mag
-                        if nan_to_none(phot.e_mag) is not None
-                        else None,
-                        'magsys': outsys.name,
-                        'limiting_mag': maglimit_out,
                         'flux': nan_to_none(phot.flux),
                         'fluxerr': phot.fluxerr,
                         'zp': corrected_db_zp,

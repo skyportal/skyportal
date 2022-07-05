@@ -54,7 +54,7 @@ def upload_analysis_results(results, data_dict, request_timeout=60):
     except requests.exceptions.Timeout:
         # If we timeout here then it's precisely because
         # we cannot write back to the SkyPortal instance.
-        # So returning something doenmma't make sense in this case.
+        # So returning something does't make sense in this case.
         # Just log it and move on...
         log("Callback URL timedout. Skipping.")
     except Exception as e:
@@ -87,7 +87,7 @@ def run_nmma_model(data_dict):
     # - flux: the flux of the observation
     #
     # the following code transforms these inputs from SkyPortal
-    # to the format expected by nmmacosmo.
+    # to the format expected by nmma.
     #
     rez = {"status": "failure", "message": "", "analysis": {}}
     try:
@@ -203,9 +203,9 @@ def run_nmma_model(data_dict):
         sys.stderr.buffer.write(command.stderr)
 
         posterior_file = os.path.join(
-            plotdir, cand_name + "_" + source + "_posterior_samples.dat"
+            plotdir, f"{cand_name}_{source}_posterior_samples.dat"
         )
-        json_file = os.path.join(plotdir, cand_name + "_" + source + "_result.json")
+        json_file = os.path.join(plotdir, f"{cand_name}_{source}_result.json")
 
         if os.path.isfile(posterior_file):
 
@@ -259,7 +259,6 @@ def run_nmma_model(data_dict):
     except Exception as e:
         log(f"Exception while running the model: {e}")
         log(f"{traceback.format_exc()}")
-        #    log(f"Data: {data}")
         rez.update({"status": "failure", "message": f"problem running the model {e}"})
     finally:
         # clean up local files
@@ -350,5 +349,5 @@ if __name__ == "__main__":
     nmma_analysis = make_app()
     port = cfg['analysis_services.nmma_analysis_service.port']
     nmma_analysis.listen(port)
-    log(f'Listening on port {port}')
+    log(f'NMMA Service Listening on port {port}')
     tornado.ioloop.IOLoop.current().start()
