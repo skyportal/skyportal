@@ -62,8 +62,7 @@ class Telescope(Base):
     @property
     def observer(self):
         """Return an `astroplan.Observer` representing an observer at this
-        facility, accounting for the latitude, longitude, elevation, and
-        local time zone of the observatory (if ground based)."""
+        facility, accounting for the latitude, longitude, and elevation."""
         try:
             return self._observer
         except AttributeError:
@@ -81,8 +80,6 @@ class Telescope(Base):
                 return self._observer
 
         try:
-            tf = timezonefinder.TimezoneFinder(in_memory=True)
-            local_tz = tf.timezone_at(lng=(self.lon + 180) % 360 - 180, lat=self.lat)
             elevation = self.elevation
             # if elevation is not specified, assume it is 0
             if (
@@ -96,7 +93,6 @@ class Telescope(Base):
                 longitude=self.lon * u.deg,
                 latitude=self.lat * u.deg,
                 elevation=elevation * u.m,
-                timezone=local_tz,
             )
 
         except Exception as e:
@@ -106,6 +102,54 @@ class Telescope(Base):
             self._observer = None
 
         return self._observer
+
+    @property
+    def observer_timezone(self):
+        """Return an `astroplan.Observer` representing an observer at this
+        facility, accounting for the latitude, longitude, elevation, and
+        local time zone of the observatory (if ground based)."""
+        try:
+            return self._observer_timezone
+        except AttributeError:
+            if (
+                self.lon is None
+                or self.lon == ""
+                or np.isnan(self.lon)
+                or self.lat is None
+                or self.lat == ""
+                or np.isnan(self.lat)
+                or self.fixed_location is False
+                or self.fixed_location is None
+            ):
+                self._observer_timezone = None
+                return self._observer_timezone
+
+        try:
+            tf = timezonefinder.TimezoneFinder(in_memory=True)
+            local_tz = tf.timezone_at(lng=(self.lon + 180) % 360 - 180, lat=self.lat)
+            elevation = self.elevation
+            # if elevation is not specified, assume it is 0
+            if (
+                self.elevation is None
+                or self.elevation == ""
+                or np.isnan(self.elevation)
+            ):
+                elevation = 0
+
+            self._observer_timezone = astroplan.Observer(
+                longitude=self.lon * u.deg,
+                latitude=self.lat * u.deg,
+                elevation=elevation * u.m,
+                timezone=local_tz,
+            )
+
+        except Exception as e:
+            log(
+                f'Telescope {self.id} ("{self.name}") cannot calculate an observer: {e}'
+            )
+            self._observer_timezone = None
+
+        return self._observer_timezone
 
     def next_sunset(self, time=None):
         """The astropy timestamp of the next sunset after `time` at this site.
