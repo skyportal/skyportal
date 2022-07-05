@@ -96,7 +96,7 @@ class AllocationHandler(BaseHandler):
                 elif apitype == "api_classname_obsplan":
                     instruments_subquery = (
                         sa.select(Instrument.id)
-                        .filter(Instrument.api_classname_obsplan.isnot(None))
+                        .where(Instrument.api_classname_obsplan.isnot(None))
                         .distinct()
                         .subquery()
                     )
