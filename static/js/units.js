@@ -42,6 +42,14 @@ const dec_to_dms = (deci, sep = null, signed = true) => {
   return `${sign}${deg_padded}d${min_padded}m${secstr}s`;
 };
 
+function mjd_to_utc(mjd) {
+  // Take a MJD string and return UTC time
+  return dayjs
+    .unix((mjd - 40587) * 86400.0)
+    .utc()
+    .format();
+}
+
 function time_relative_to_local(isostring) {
   // Take an ISO 8601 string and return the offset relative to the local time
   return dayjs(isostring).local().fromNow();
@@ -51,4 +59,10 @@ const flux_to_mag = (flux, zp) =>
   // Take a flux value and return the AB mag. Return null if flux is negative or null
   flux && flux > 0 ? -2.5 * Math.log10(flux) + zp : null;
 
-export { ra_to_hours, dec_to_dms, time_relative_to_local, flux_to_mag };
+export {
+  ra_to_hours,
+  dec_to_dms,
+  time_relative_to_local,
+  mjd_to_utc,
+  flux_to_mag,
+};

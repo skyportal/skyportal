@@ -30,11 +30,12 @@ import ExpandLess from "@mui/icons-material/ExpandLess";
 import ExpandMore from "@mui/icons-material/ExpandMore";
 import Collapse from "@mui/material/Collapse";
 import List from "@mui/material/List";
+import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 
 import { isMobileOnly } from "react-device-detect";
 
-import { ra_to_hours, dec_to_dms } from "../units";
+import { ra_to_hours, dec_to_dms, mjd_to_utc } from "../units";
 import ThumbnailList from "./ThumbnailList";
 import ShowClassification from "./ShowClassification";
 import SourceTableFilterForm from "./SourceTableFilterForm";
@@ -781,27 +782,35 @@ const SourceTable = ({
     );
   };
 
-  // const renderPeakMagnitude = (dataIndex) => {
-  //   const source = sources[dataIndex];
-  //   return source.peak_detected_mag ? (
-  //     <Tooltip title={time_relative_to_local(source.peak_detected_at)}>
-  //       <div>{`${source.peak_detected_mag.toFixed(4)}`}</div>
-  //     </Tooltip>
-  //   ) : (
-  //     <div>No photometry</div>
-  //   );
-  // };
+  const renderPeakMagnitude = (dataIndex) => {
+    const source = sources[dataIndex];
+    const photstats = source.photstats[0];
+    if (!photstats) {
+      return <div>No photometry</div>;
+    }
+    return photstats.peak_mag_global ? (
+      <Tooltip title={mjd_to_utc(photstats.peak_mjd_global)}>
+        <div>{`${photstats.peak_mag_global.toFixed(4)}`}</div>
+      </Tooltip>
+    ) : (
+      <div>No photometry</div>
+    );
+  };
 
-  // const renderLatestMagnitude = (dataIndex) => {
-  //   const source = sources[dataIndex];
-  //   return source.last_detected_mag ? (
-  //     <Tooltip title={time_relative_to_local(source.last_detected_at)}>
-  //       <div>{`${source.last_detected_mag.toFixed(4)}`}</div>
-  //     </Tooltip>
-  //   ) : (
-  //     <div>No photometry</div>
-  //   );
-  // };
+  const renderLatestMagnitude = (dataIndex) => {
+    const source = sources[dataIndex];
+    const photstats = source.photstats[0];
+    if (!photstats) {
+      return <div>No photometry</div>;
+    }
+    return photstats.last_detected_mag ? (
+      <Tooltip title={mjd_to_utc(photstats.last_detected_mjd)}>
+        <div>{`${photstats.last_detected_mag.toFixed(4)}`}</div>
+      </Tooltip>
+    ) : (
+      <div>No photometry</div>
+    );
+  };
 
   const renderTNSName = (dataIndex) => {
     const source = sources[dataIndex];
@@ -1059,25 +1068,24 @@ const SourceTable = ({
         display: displayedColumns.includes("Spectrum?"),
       },
     },
-    // Temporarily disable these two detection stats columns until we improve back-end performance
-    // {
-    //   name: "Peak Magnitude",
-    //   options: {
-    //     filter: false,
-    //     sort: false,
-    //     customBodyRenderLite: renderPeakMagnitude,
-    //     display: displayedColumns.includes("Peak Magnitude"),
-    //   },
-    // },
-    // {
-    //   name: "Latest Magnitude",
-    //   options: {
-    //     filter: false,
-    //     sort: false,
-    //     customBodyRenderLite: renderLatestMagnitude,
-    //     display: displayedColumns.includes("Latest Magnitude"),
-    //   },
-    // },
+    {
+      name: "Peak Magnitude",
+      options: {
+        filter: false,
+        sort: false,
+        customBodyRenderLite: renderPeakMagnitude,
+        display: displayedColumns.includes("Peak Magnitude"),
+      },
+    },
+    {
+      name: "Latest Magnitude",
+      options: {
+        filter: false,
+        sort: false,
+        customBodyRenderLite: renderLatestMagnitude,
+        display: displayedColumns.includes("Latest Magnitude"),
+      },
+    },
 
     {
       name: "TNS Name",
@@ -1303,6 +1311,14 @@ SourceTable.propTypes = {
         PropTypes.shape({
           id: PropTypes.number,
           name: PropTypes.string,
+        })
+      ),
+      photstats: PropTypes.arrayOf(
+        PropTypes.shape({
+          peak_mag_global: PropTypes.number,
+          peak_mjd_global: PropTypes.number,
+          last_detected_mag: PropTypes.number,
+          last_detected_mjd: PropTypes.number,
         })
       ),
     })
