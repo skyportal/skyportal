@@ -43,7 +43,7 @@ const addFilterParamDefaults = (filterParams) => {
   filterParams.includeSpectrumExists = true;
   filterParams.includeColorMagnitude = true;
   filterParams.includeThumbnails = true;
-  filterParams.includeDetectionStats = false;
+  filterParams.includeDetectionStats = true;
 };
 
 export function fetchSources(filterParams = {}) {
