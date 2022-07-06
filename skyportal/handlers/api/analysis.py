@@ -730,7 +730,8 @@ class AnalysisHandler(BaseHandler):
             analysis_service = session.scalars(stmt).first()
             if analysis_service is None:
                 return self.error(
-                    f'Invalid analysis_service ID: {analysis_service_id}.'
+                    message=f'Could not access Analysis Service ID: {analysis_service_id}.',
+                    status=403,
                 )
             input_data_types = analysis_service.input_data_types.copy()
 
