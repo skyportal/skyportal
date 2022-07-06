@@ -829,20 +829,22 @@ class ObservationHandler(BaseHandler):
                 schema: Error
         """
 
-        observation = ExecutedObservation.query.filter_by(id=observation_id).first()
+        with self.Session() as session:
+            observation = session.scalars(
+                ExecutedObservation.select(self.current_user).where(id=observation_id)
+            ).first()
+            if observation is None:
+                return self.error("ExecutedObservation not found", status=404)
 
-        if observation is None:
-            return self.error("ExecutedObservation not found", status=404)
+            if not observation.is_accessible_by(self.current_user, mode="delete"):
+                return self.error(
+                    "Insufficient permissions: ExecutedObservation can only be deleted by original poster"
+                )
 
-        if not observation.is_accessible_by(self.current_user, mode="delete"):
-            return self.error(
-                "Insufficient permissions: ExecutedObservation can only be deleted by original poster"
-            )
+            session.delete(observation)
+            session.commit()
 
-        DBSession().delete(observation)
-        self.verify_and_commit()
-
-        return self.success()
+            return self.success()
 
 
 class ObservationASCIIFileHandler(BaseHandler):
@@ -1722,7 +1724,7 @@ class ObservationSimSurveyHandler(BaseHandler):
 
         group_ids = self.get_query_argument('group_ids', None)
 
-        with DBSession() as session:
+        with self.Session() as session:
 
             if not group_ids:
                 groups = self.current_user.accessible_groups
