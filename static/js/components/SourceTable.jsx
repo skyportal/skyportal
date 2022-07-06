@@ -1145,76 +1145,79 @@ const SourceTable = ({
         source?.altdata && source.altdata.tns ? source.altdata.tns.name : "";
 
       downloadCallback().then((data) => {
-        const result =
-          buildHead([
-            {
-              name: "id",
-              download: true,
-            },
-            {
-              name: "ra [deg]",
-              download: true,
-            },
-            {
-              name: "dec [deg]",
-              download: true,
-            },
-            {
-              name: "redshift",
-              download: true,
-            },
-            {
-              name: "classification",
-              download: true,
-            },
-            {
-              name: "groups",
-              download: true,
-            },
-            {
-              name: "Date saved",
-              download: true,
-            },
-            {
-              name: "Alias",
-              download: true,
-            },
-            {
-              name: "Origin",
-              download: true,
-            },
-            {
-              name: "TNS Name",
-              download: true,
-            },
-          ]) +
-          buildBody(
-            data.map((x) => ({
-              ...x,
-              data: [
-                x.id,
-                x.ra,
-                x.dec,
-                x.redshift,
-                renderDownloadClassification(x),
-                renderDownloadGroups(x),
-                renderDownloadDateSaved(x),
-                renderDownloadAlias(x),
-                x.origin,
-                renderDownloadTNSName(x),
-              ],
-            }))
-          );
-        const blob = new Blob([result], {
-          type: "text/csv;charset=utf-8;",
-        });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.setAttribute("download", "sources.csv");
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+        // if there is no data, cancel download
+        if (data?.length > 0) {
+          const result =
+            buildHead([
+              {
+                name: "id",
+                download: true,
+              },
+              {
+                name: "ra [deg]",
+                download: true,
+              },
+              {
+                name: "dec [deg]",
+                download: true,
+              },
+              {
+                name: "redshift",
+                download: true,
+              },
+              {
+                name: "classification",
+                download: true,
+              },
+              {
+                name: "groups",
+                download: true,
+              },
+              {
+                name: "Date saved",
+                download: true,
+              },
+              {
+                name: "Alias",
+                download: true,
+              },
+              {
+                name: "Origin",
+                download: true,
+              },
+              {
+                name: "TNS Name",
+                download: true,
+              },
+            ]) +
+            buildBody(
+              data.map((x) => ({
+                ...x,
+                data: [
+                  x.id,
+                  x.ra,
+                  x.dec,
+                  x.redshift,
+                  renderDownloadClassification(x),
+                  renderDownloadGroups(x),
+                  renderDownloadDateSaved(x),
+                  renderDownloadAlias(x),
+                  x.origin,
+                  renderDownloadTNSName(x),
+                ],
+              }))
+            );
+          const blob = new Blob([result], {
+            type: "text/csv;charset=utf-8;",
+          });
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.href = url;
+          link.setAttribute("download", "sources.csv");
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        }
       });
       return false;
     },
