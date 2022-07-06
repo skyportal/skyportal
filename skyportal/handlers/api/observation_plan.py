@@ -543,6 +543,82 @@ class ObservationPlanSubmitHandler(BaseHandler):
         return self.success(data=observation_plan_request)
 
 
+class ObservationPlanSummaryStatisticsHandler(BaseHandler):
+    @auth_or_token
+    def get(self, observation_plan_request_id):
+        """
+        ---
+        description: Get summary statistics for the observation plan.
+        tags:
+          - observation_plan_requests
+        parameters:
+          - in: path
+            name: observation_plan_id
+            required: true
+            schema:
+              type: string
+        responses:
+          200:
+            content:
+              application/json:
+                schema: SingleObservationPlanRequest
+        """
+
+        with self.Session() as session:
+
+            stmt = (
+                ObservationPlanRequest.select(session.user_or_token)
+                .where(ObservationPlanRequest.id == observation_plan_request_id)
+                .options(
+                    joinedload(ObservationPlanRequest.observation_plans)
+                    .joinedload(EventObservationPlan.planned_observations)
+                    .joinedload(PlannedObservation.field)
+                )
+            )
+            observation_plan_request = session.scalars(stmt).first()
+
+            if observation_plan_request is None:
+                return self.error(
+                    f'Could not find observation_plan_request with ID {observation_plan_request_id}'
+                )
+
+            event = session.scalars(
+                GcnEvent.select(
+                    session.user_or_token, options=[joinedload(GcnEvent.gcn_notices)]
+                ).where(GcnEvent.id == observation_plan_request.gcnevent_id)
+            ).first()
+            if event is None:
+                return self.error(
+                    message=f"Invalid GcnEvent ID: {observation_plan_request.gcnevent_id}"
+                )
+
+            observation_plan = observation_plan_request.observation_plans[0]
+            num_observations = observation_plan.num_observations
+            if num_observations == 0:
+                return self.error('Need at least one observation to produce a GCN')
+
+            start_observation = astropy.time.Time(
+                observation_plan.start_observation, format='datetime'
+            )
+            unique_filters = observation_plan.unique_filters
+            total_time = observation_plan.total_time
+            probability = observation_plan.probability
+            area = observation_plan.area
+
+            dt = observation_plan.start_observation - event.dateobs
+            data = {
+                'num_observations': num_observations,
+                'start_observation': start_observation.isot,
+                'unique_filters': unique_filters,
+                'total_time': total_time,
+                'probability': probability,
+                'area': area,
+                'dt': humanize.naturaldelta(dt),
+            }
+
+            return self.success(data=data)
+
+
 class ObservationPlanGCNHandler(BaseHandler):
     @auth_or_token
     def get(self, observation_plan_request_id):
@@ -564,62 +640,62 @@ class ObservationPlanGCNHandler(BaseHandler):
                 schema: SingleObservationPlanRequest
         """
 
-        options = [
-            joinedload(ObservationPlanRequest.observation_plans)
-            .joinedload(EventObservationPlan.planned_observations)
-            .joinedload(PlannedObservation.field)
-        ]
+        with self.Session() as session:
 
-        observation_plan_request = ObservationPlanRequest.get_if_accessible_by(
-            observation_plan_request_id,
-            self.current_user,
-            mode="read",
-            raise_if_none=True,
-            options=options,
-        )
-        self.verify_and_commit()
-
-        event = (
-            GcnEvent.query_records_accessible_by(
-                self.current_user,
-                options=[
-                    joinedload(GcnEvent.gcn_notices),
-                ],
+            stmt = (
+                ObservationPlanRequest.select(session.user_or_token)
+                .where(ObservationPlanRequest.id == observation_plan_request_id)
+                .options(
+                    joinedload(ObservationPlanRequest.observation_plans)
+                    .joinedload(EventObservationPlan.planned_observations)
+                    .joinedload(PlannedObservation.field)
+                )
             )
-            .filter(GcnEvent.id == observation_plan_request.gcnevent_id)
-            .first()
-        )
+            observation_plan_request = session.scalars(stmt).first()
 
-        allocation = Allocation.get_if_accessible_by(
-            observation_plan_request.allocation_id,
-            self.current_user,
-            raise_if_none=True,
-        )
+            if observation_plan_request is None:
+                return self.error(
+                    f'Could not find observation_plan_request with ID {observation_plan_request_id}'
+                )
 
-        instrument = allocation.instrument
+            event = session.scalars(
+                GcnEvent.select(
+                    session.user_or_token, options=[joinedload(GcnEvent.gcn_notices)]
+                ).where(GcnEvent.id == observation_plan_request.gcnevent_id)
+            ).first()
+            if event is None:
+                return self.error(
+                    message=f"Invalid GcnEvent ID: {observation_plan_request.gcnevent_id}"
+                )
 
-        observation_plan = observation_plan_request.observation_plans[0]
-        num_observations = observation_plan.num_observations
-        if num_observations == 0:
-            return self.error('Need at least one observation to produce a GCN')
+            stmt = Allocation.select(session.user_or_token).where(
+                Allocation.id == observation_plan_request.allocation_id,
+            )
+            allocation = session.scalars(stmt).first()
+            instrument = allocation.instrument
 
-        start_observation = astropy.time.Time(
-            observation_plan.start_observation, format='datetime'
-        )
-        unique_filters = observation_plan.unique_filters
-        total_time = observation_plan.total_time
-        probability = observation_plan.probability
-        area = observation_plan.area
+            observation_plan = observation_plan_request.observation_plans[0]
+            num_observations = observation_plan.num_observations
+            if num_observations == 0:
+                return self.error('Need at least one observation to produce a GCN')
 
-        trigger_time = astropy.time.Time(event.dateobs, format='datetime')
-        dt = observation_plan.start_observation - event.dateobs
+            start_observation = astropy.time.Time(
+                observation_plan.start_observation, format='datetime'
+            )
+            unique_filters = observation_plan.unique_filters
+            total_time = observation_plan.total_time
+            probability = observation_plan.probability
+            area = observation_plan.area
 
-        content = f"""
+            trigger_time = astropy.time.Time(event.dateobs, format='datetime')
+            dt = observation_plan.start_observation - event.dateobs
+
+            content = f"""
             SUBJECT: Follow-up of {event.gcn_notices[0].stream} trigger {trigger_time.isot} with {instrument.name}.
             We observed the localization region of {event.gcn_notices[0].stream} trigger {trigger_time.isot} UTC with {instrument.name} on the {instrument.telescope.name}. We obtained a total of {num_observations} images covering {",".join(unique_filters)} bands for a total of {total_time} seconds. The observations covered {area:.1f} square degrees beginning at {start_observation.isot} ({humanize.naturaldelta(dt)} after the burst trigger time) corresponding to ~{int(100 * probability)}% of the probability enclosed in the localization region.
             """
 
-        return self.success(data=content)
+            return self.success(data=content)
 
 
 def observation_animations(
@@ -775,55 +851,63 @@ class ObservationPlanMovieHandler(BaseHandler):
                 schema: SingleObservationPlanRequest
         """
 
-        options = [
-            joinedload(ObservationPlanRequest.observation_plans)
-            .joinedload(EventObservationPlan.planned_observations)
-            .joinedload(PlannedObservation.field)
-            .undefer(InstrumentField.contour_summary)
-        ]
+        with self.Session() as session:
 
-        observation_plan_request = ObservationPlanRequest.get_if_accessible_by(
-            observation_plan_request_id,
-            self.current_user,
-            mode="read",
-            raise_if_none=True,
-            options=options,
-        )
-        self.verify_and_commit()
-
-        localization = (
-            Localization.query_records_accessible_by(
-                self.current_user,
+            stmt = (
+                ObservationPlanRequest.select(session.user_or_token)
+                .where(ObservationPlanRequest.id == observation_plan_request_id)
+                .options(
+                    joinedload(ObservationPlanRequest.observation_plans)
+                    .joinedload(EventObservationPlan.planned_observations)
+                    .joinedload(PlannedObservation.field)
+                    .undefer(InstrumentField.contour_summary)
+                )
             )
-            .filter(Localization.id == observation_plan_request.localization_id)
-            .first()
-        )
+            observation_plan_request = session.scalars(stmt).first()
 
-        observations = observation_plan_request.observation_plans[
-            0
-        ].planned_observations
+            if observation_plan_request is None:
+                return self.error(
+                    f'Could not find observation_plan_request with ID {observation_plan_request_id}'
+                )
 
-        output_format = 'gif'
-        anim = functools.partial(
-            observation_animations,
-            observations,
-            localization,
-            output_format=output_format,
-            figsize=(10, 8),
-            decay=4,
-            alpha_default=1,
-            alpha_cutoff=0.1,
-        )
+            localization = session.scalars(
+                Localization.select(
+                    session.user_or_token,
+                ).where(Localization.id == observation_plan_request.localization_id)
+            ).first()
+            if localization is None:
+                return self.error(
+                    message=f"Invalid Localization dateobs: {observation_plan_request.localization_id}"
+                )
 
-        self.push_notification(
-            'Movie generation in progress. Download will start soon.'
-        )
-        rez = await IOLoop.current().run_in_executor(None, anim)
+            observation_plan = observation_plan_request.observation_plans[0]
+            num_observations = observation_plan.num_observations
+            if num_observations == 0:
+                return self.error('Need at least one observation to produce a movie')
 
-        filename = rez["name"]
-        data = io.BytesIO(rez["data"])
+            observations = observation_plan.planned_observations
 
-        await self.send_file(data, filename, output_type=output_format)
+            output_format = 'gif'
+            anim = functools.partial(
+                observation_animations,
+                observations,
+                localization,
+                output_format=output_format,
+                figsize=(10, 8),
+                decay=4,
+                alpha_default=1,
+                alpha_cutoff=0.1,
+            )
+
+            self.push_notification(
+                'Movie generation in progress. Download will start soon.'
+            )
+            rez = await IOLoop.current().run_in_executor(None, anim)
+
+            filename = rez["name"]
+            data = io.BytesIO(rez["data"])
+
+            await self.send_file(data, filename, output_type=output_format)
 
 
 class ObservationPlanTreasureMapHandler(BaseHandler):
@@ -851,76 +935,80 @@ class ObservationPlanTreasureMapHandler(BaseHandler):
                 schema: Error
         """
 
-        options = [
-            joinedload(ObservationPlanRequest.observation_plans)
-            .joinedload(EventObservationPlan.planned_observations)
-            .joinedload(PlannedObservation.field)
-        ]
+        with self.Session() as session:
 
-        observation_plan_request = ObservationPlanRequest.get_if_accessible_by(
-            observation_plan_request_id,
-            self.current_user,
-            mode="read",
-            raise_if_none=True,
-            options=options,
-        )
-        self.verify_and_commit()
-
-        event = (
-            GcnEvent.query_records_accessible_by(
-                self.current_user,
-                options=[
-                    joinedload(GcnEvent.gcn_notices),
-                ],
+            stmt = (
+                ObservationPlanRequest.select(session.user_or_token)
+                .where(ObservationPlanRequest.id == observation_plan_request_id)
+                .options(
+                    joinedload(ObservationPlanRequest.observation_plans)
+                    .joinedload(EventObservationPlan.planned_observations)
+                    .joinedload(PlannedObservation.field)
+                )
             )
-            .filter(GcnEvent.id == observation_plan_request.gcnevent_id)
-            .first()
-        )
+            observation_plan_request = session.scalars(stmt).first()
 
-        allocation = Allocation.get_if_accessible_by(
-            observation_plan_request.allocation_id,
-            self.current_user,
-            raise_if_none=True,
-        )
+            if observation_plan_request is None:
+                return self.error(
+                    f'Could not find observation_plan_request with ID {observation_plan_request_id}'
+                )
 
-        instrument = allocation.instrument
+            event = session.scalars(
+                GcnEvent.select(
+                    session.user_or_token, options=[joinedload(GcnEvent.gcn_notices)]
+                ).where(GcnEvent.id == observation_plan_request.gcnevent_id)
+            ).first()
+            if event is None:
+                return self.error(
+                    message=f"Invalid GcnEvent ID: {observation_plan_request.gcnevent_id}"
+                )
 
-        altdata = allocation.altdata
-        if not altdata:
-            raise self.error('Missing allocation information.')
+            stmt = Allocation.select(session.user_or_token).where(
+                Allocation.id == observation_plan_request.allocation_id,
+            )
+            allocation = session.scalars(stmt).first()
+            instrument = allocation.instrument
 
-        observation_plan = observation_plan_request.observation_plans[0]
-        planned_observations = observation_plan.planned_observations
+            altdata = allocation.altdata
+            if not altdata:
+                raise self.error('Missing allocation information.')
 
-        if len(planned_observations) == 0:
-            return self.error('Cannot submit observing plan with no observations.')
+            observation_plan = observation_plan_request.observation_plans[0]
+            num_observations = observation_plan.num_observations
+            if num_observations == 0:
+                return self.error('Need at least one observation to produce a GCN')
 
-        graceid = event.graceid
-        payload = {"graceid": graceid, "api_token": altdata['TREASUREMAP_API_TOKEN']}
+            planned_observations = observation_plan.planned_observations
 
-        pointings = []
-        for obs in planned_observations:
-            pointing = {}
-            pointing["ra"] = obs.field.ra
-            pointing["dec"] = obs.field.dec
-            pointing["band"] = obs.filt
-            pointing["instrumentid"] = str(instrument.treasuremap_id)
-            pointing["status"] = "planned"
-            pointing["time"] = Time(obs.obstime, format='datetime').isot
-            pointing["depth"] = 0.0
-            pointing["depth_unit"] = "ab_mag"
-            pointings.append(pointing)
-        payload["pointings"] = pointings
+            graceid = event.graceid
+            payload = {
+                "graceid": graceid,
+                "api_token": altdata['TREASUREMAP_API_TOKEN'],
+            }
 
-        url = urllib.parse.urljoin(TREASUREMAP_URL, 'api/v0/pointings')
-        r = requests.post(url=url, json=payload)
-        r.raise_for_status()
-        request_json = r.json()
-        errors = request_json["ERRORS"]
-        if len(errors) > 0:
-            return self.error(f'TreasureMap upload failed: {errors}')
-        self.push_notification('TreasureMap upload succeeded')
-        return self.success()
+            pointings = []
+            for obs in planned_observations:
+                pointing = {}
+                pointing["ra"] = obs.field.ra
+                pointing["dec"] = obs.field.dec
+                pointing["band"] = obs.filt
+                pointing["instrumentid"] = str(instrument.treasuremap_id)
+                pointing["status"] = "planned"
+                pointing["time"] = Time(obs.obstime, format='datetime').isot
+                pointing["depth"] = 0.0
+                pointing["depth_unit"] = "ab_mag"
+                pointings.append(pointing)
+            payload["pointings"] = pointings
+
+            url = urllib.parse.urljoin(TREASUREMAP_URL, 'api/v0/pointings')
+            r = requests.post(url=url, json=payload)
+            r.raise_for_status()
+            request_json = r.json()
+            errors = request_json["ERRORS"]
+            if len(errors) > 0:
+                return self.error(f'TreasureMap upload failed: {errors}')
+            self.push_notification('TreasureMap upload succeeded')
+            return self.success()
 
     @auth_or_token
     def delete(self, observation_plan_request_id):
@@ -942,60 +1030,60 @@ class ObservationPlanTreasureMapHandler(BaseHandler):
                 schema: Success
         """
 
-        options = [
-            joinedload(ObservationPlanRequest.observation_plans)
-            .joinedload(EventObservationPlan.planned_observations)
-            .joinedload(PlannedObservation.field)
-        ]
+        with self.Session() as session:
 
-        observation_plan_request = ObservationPlanRequest.get_if_accessible_by(
-            observation_plan_request_id,
-            self.current_user,
-            mode="read",
-            raise_if_none=True,
-            options=options,
-        )
-        self.verify_and_commit()
-
-        event = (
-            GcnEvent.query_records_accessible_by(
-                self.current_user,
-                options=[
-                    joinedload(GcnEvent.gcn_notices),
-                ],
+            stmt = (
+                ObservationPlanRequest.select(session.user_or_token)
+                .where(ObservationPlanRequest.id == observation_plan_request_id)
+                .options(
+                    joinedload(ObservationPlanRequest.observation_plans)
+                    .joinedload(EventObservationPlan.planned_observations)
+                    .joinedload(PlannedObservation.field)
+                )
             )
-            .filter(GcnEvent.id == observation_plan_request.gcnevent_id)
-            .first()
-        )
+            observation_plan_request = session.scalars(stmt).first()
 
-        allocation = Allocation.get_if_accessible_by(
-            observation_plan_request.allocation_id,
-            self.current_user,
-            raise_if_none=True,
-        )
+            if observation_plan_request is None:
+                return self.error(
+                    f'Could not find observation_plan_request with ID {observation_plan_request_id}'
+                )
 
-        instrument = allocation.instrument
+            event = session.scalars(
+                GcnEvent.select(
+                    session.user_or_token, options=[joinedload(GcnEvent.gcn_notices)]
+                ).where(GcnEvent.id == observation_plan_request.gcnevent_id)
+            ).first()
+            if event is None:
+                return self.error(
+                    message=f"Invalid GcnEvent ID: {observation_plan_request.gcnevent_id}"
+                )
 
-        altdata = allocation.altdata
-        if not altdata:
-            raise self.error('Missing allocation information.')
+            stmt = Allocation.select(session.user_or_token).where(
+                Allocation.id == observation_plan_request.allocation_id,
+            )
+            allocation = session.scalars(stmt).first()
+            instrument = allocation.instrument
 
-        graceid = event.graceid
-        payload = {
-            "graceid": graceid,
-            "api_token": altdata['TREASUREMAP_API_TOKEN'],
-            "instrumentid": instrument.treasuremap_id,
-        }
+            altdata = allocation.altdata
+            if not altdata:
+                raise self.error('Missing allocation information.')
 
-        baseurl = urllib.parse.urljoin(TREASUREMAP_URL, 'api/v0/cancel_all')
-        url = f"{baseurl}?{urllib.parse.urlencode(payload)}"
-        r = requests.post(url=url)
-        r.raise_for_status()
-        request_text = r.text
-        if "successfully" not in request_text:
-            return self.error(f'TreasureMap delete failed: {request_text}')
-        self.push_notification(f'TreasureMap delete succeeded: {request_text}.')
-        return self.success()
+            graceid = event.graceid
+            payload = {
+                "graceid": graceid,
+                "api_token": altdata['TREASUREMAP_API_TOKEN'],
+                "instrumentid": instrument.treasuremap_id,
+            }
+
+            baseurl = urllib.parse.urljoin(TREASUREMAP_URL, 'api/v0/cancel_all')
+            url = f"{baseurl}?{urllib.parse.urlencode(payload)}"
+            r = requests.post(url=url)
+            r.raise_for_status()
+            request_text = r.text
+            if "successfully" not in request_text:
+                return self.error(f'TreasureMap delete failed: {request_text}')
+            self.push_notification(f'TreasureMap delete succeeded: {request_text}.')
+            return self.success()
 
 
 class ObservationPlanSurveyEfficiencyHandler(BaseHandler):
@@ -1019,26 +1107,28 @@ class ObservationPlanSurveyEfficiencyHandler(BaseHandler):
                 schema: ArrayOfSurveyEfficiencyForObservationPlans
         """
 
-        options = [
-            joinedload(ObservationPlanRequest.observation_plans).joinedload(
-                EventObservationPlan.survey_efficiency_analyses
-            )
-        ]
+        with self.Session() as session:
 
-        observation_plan_request = ObservationPlanRequest.get_if_accessible_by(
-            observation_plan_request_id,
-            self.current_user,
-            mode="read",
-            options=options,
-        )
-        if observation_plan_request is None:
-            return self.error(
-                f'No observation plan with ID: {observation_plan_request_id}'
+            stmt = (
+                ObservationPlanRequest.select(session.user_or_token)
+                .where(ObservationPlanRequest.id == observation_plan_request_id)
+                .options(
+                    joinedload(ObservationPlanRequest.observation_plans).joinedload(
+                        EventObservationPlan.survey_efficiency_analyses
+                    )
+                )
             )
-        self.verify_and_commit()
+            observation_plan_request = session.scalars(stmt).first()
 
-        if len(observation_plan_request.observation_plans) > 0:
+            if observation_plan_request is None:
+                return self.error(
+                    f'Could not find observation_plan_request with ID {observation_plan_request_id}'
+                )
+
             observation_plan = observation_plan_request.observation_plans[0]
+            num_observations = observation_plan.num_observations
+            if num_observations == 0:
+                return self.error('Need at least one observation to produce a GCN')
 
             analysis_data = []
             for analysis in observation_plan.survey_efficiency_analyses:
@@ -1053,8 +1143,6 @@ class ObservationPlanSurveyEfficiencyHandler(BaseHandler):
                 )
 
             return self.success(data=analysis_data)
-        else:
-            return self.error('Observation plan not yet available.')
 
 
 class ObservationPlanGeoJSONHandler(BaseHandler):
@@ -1078,26 +1166,25 @@ class ObservationPlanGeoJSONHandler(BaseHandler):
                 schema: SingleObservationPlanRequest
         """
 
-        options = [
-            joinedload(ObservationPlanRequest.observation_plans)
-            .joinedload(EventObservationPlan.planned_observations)
-            .joinedload(PlannedObservation.field)
-            .undefer(InstrumentField.contour_summary)
-        ]
+        with self.Session() as session:
 
-        observation_plan_request = ObservationPlanRequest.get_if_accessible_by(
-            observation_plan_request_id,
-            self.current_user,
-            mode="read",
-            options=options,
-        )
-        if observation_plan_request is None:
-            return self.error(
-                f'No observation plan with ID: {observation_plan_request_id}'
+            stmt = (
+                ObservationPlanRequest.select(session.user_or_token)
+                .where(ObservationPlanRequest.id == observation_plan_request_id)
+                .options(
+                    joinedload(ObservationPlanRequest.observation_plans)
+                    .joinedload(EventObservationPlan.planned_observations)
+                    .joinedload(PlannedObservation.field)
+                    .undefer(InstrumentField.contour_summary)
+                )
             )
-        self.verify_and_commit()
+            observation_plan_request = session.scalars(stmt).first()
 
-        if len(observation_plan_request.observation_plans) > 0:
+            if observation_plan_request is None:
+                return self.error(
+                    f'Could not find observation_plan_request with ID {observation_plan_request_id}'
+                )
+
             observation_plan = observation_plan_request.observation_plans[0]
             # features are JSON representations that the d3 stuff understands.
             # We use these to render the contours of the sky localization and
@@ -1113,8 +1200,6 @@ class ObservationPlanGeoJSONHandler(BaseHandler):
                     continue
 
             return self.success(data={'geojson': geojson})
-        else:
-            return self.error('Observation plan not yet available.')
 
 
 class ObservationPlanFieldsHandler(BaseHandler):
@@ -1154,36 +1239,34 @@ class ObservationPlanFieldsHandler(BaseHandler):
         if field_ids_to_remove is None:
             return self.error('Need to specify field IDs to remove')
 
-        options = [
-            joinedload(ObservationPlanRequest.observation_plans)
-            .joinedload(EventObservationPlan.planned_observations)
-            .joinedload(PlannedObservation.field)
-            .undefer(InstrumentField.contour_summary)
-        ]
+        with self.Session() as session:
 
-        observation_plan_request = ObservationPlanRequest.get_if_accessible_by(
-            observation_plan_request_id,
-            self.current_user,
-            mode="read",
-            options=options,
-        )
-        if observation_plan_request is None:
-            return self.error(
-                f'No observation plan with ID: {observation_plan_request_id}'
+            stmt = (
+                ObservationPlanRequest.select(session.user_or_token)
+                .where(ObservationPlanRequest.id == observation_plan_request_id)
+                .options(
+                    joinedload(ObservationPlanRequest.observation_plans)
+                    .joinedload(EventObservationPlan.planned_observations)
+                    .joinedload(PlannedObservation.field)
+                    .undefer(InstrumentField.contour_summary)
+                )
             )
-        self.verify_and_commit()
+            observation_plan_request = session.scalars(stmt).first()
 
-        if len(observation_plan_request.observation_plans) > 0:
+            if observation_plan_request is None:
+                return self.error(
+                    f'Could not find observation_plan_request with ID {observation_plan_request_id}'
+                )
+
             observation_plan = observation_plan_request.observation_plans[0]
             dateobs = observation_plan_request.gcnevent.dateobs
 
-            with DBSession() as session:
-                for observation in observation_plan.planned_observations:
-                    if observation.field_id in field_ids_to_remove:
-                        session.delete(observation)
-                    else:
-                        continue
-                self.verify_and_commit()
+            for observation in observation_plan.planned_observations:
+                if observation.field_id in field_ids_to_remove:
+                    session.delete(observation)
+                else:
+                    continue
+                session.commit()
 
             self.push_all(
                 action="skyportal/REFRESH_GCNEVENT",
@@ -1191,8 +1274,6 @@ class ObservationPlanFieldsHandler(BaseHandler):
             )
 
             return self.success()
-        else:
-            return self.error('Observation plan not yet available.')
 
 
 class ObservationPlanAirmassChartHandler(BaseHandler):
@@ -1221,58 +1302,56 @@ class ObservationPlanAirmassChartHandler(BaseHandler):
                 schema: Success
         """
 
-        telescope = Telescope.get_if_accessible_by(
-            telescope_id,
-            self.current_user,
-            mode="read",
-            raise_if_none=True,
-        )
-        self.verify_and_commit()
+        with self.Session() as session:
 
-        localization = (
-            Localization.query_records_accessible_by(
-                self.current_user,
+            stmt = Telescope.select(self.current_user).where(
+                Telescope.id == telescope_id
             )
-            .filter(Localization.id == localization_id)
-            .first()
-        )
+            telescope = session.scalars(stmt).first()
 
-        trigger_time = astropy.time.Time(localization.dateobs, format='datetime')
+            stmt = Localization.select(self.current_user).where(
+                Localization.id == localization_id
+            )
+            localization = session.scalars(stmt).first()
 
-        output_format = 'pdf'
-        with tempfile.NamedTemporaryFile(
-            suffix='.fits'
-        ) as fitsfile, tempfile.NamedTemporaryFile(
-            suffix=f'.{output_format}'
-        ) as imgfile, matplotlib.style.context(
-            'default'
-        ):
-            ligo.skymap.io.write_sky_map(fitsfile.name, localization.table_2d, moc=True)
-            plot_airmass(
-                [
-                    '--site-longitude',
-                    str(telescope.lon),
-                    '--site-latitude',
-                    str(telescope.lat),
-                    '--site-height',
-                    str(telescope.elevation),
-                    '--time',
-                    trigger_time.isot,
-                    fitsfile.name,
-                    '-o',
-                    imgfile.name,
-                ]
+            trigger_time = astropy.time.Time(localization.dateobs, format='datetime')
+
+            output_format = 'pdf'
+            with tempfile.NamedTemporaryFile(
+                suffix='.fits'
+            ) as fitsfile, tempfile.NamedTemporaryFile(
+                suffix=f'.{output_format}'
+            ) as imgfile, matplotlib.style.context(
+                'default'
+            ):
+                ligo.skymap.io.write_sky_map(
+                    fitsfile.name, localization.table_2d, moc=True
+                )
+                plot_airmass(
+                    [
+                        '--site-longitude',
+                        str(telescope.lon),
+                        '--site-latitude',
+                        str(telescope.lat),
+                        '--site-height',
+                        str(telescope.elevation),
+                        '--time',
+                        trigger_time.isot,
+                        fitsfile.name,
+                        '-o',
+                        imgfile.name,
+                    ]
+                )
+
+                with open(imgfile.name, mode='rb') as g:
+                    content = g.read()
+
+            data = io.BytesIO(content)
+            filename = (
+                f"{localization.localization_name}-{telescope.nickname}.{output_format}"
             )
 
-            with open(imgfile.name, mode='rb') as g:
-                content = g.read()
-
-        data = io.BytesIO(content)
-        filename = (
-            f"{localization.localization_name}-{telescope.nickname}.{output_format}"
-        )
-
-        await self.send_file(data, filename, output_type=output_format)
+            await self.send_file(data, filename, output_type=output_format)
 
 
 class ObservationPlanCreateObservingRunHandler(BaseHandler):
@@ -1330,7 +1409,7 @@ class ObservationPlanCreateObservingRunHandler(BaseHandler):
         if len(planned_observations) == 0:
             return self.error('Cannot create observing run with no observations.')
 
-        with DBSession() as session:
+        with self.Session() as session:
 
             observing_run = {
                 'instrument_id': instrument.id,
@@ -1729,48 +1808,48 @@ class ObservationPlanSimSurveyHandler(BaseHandler):
 
         group_ids = self.get_query_argument('group_ids', None)
 
-        with DBSession() as session:
+        with self.Session() as session:
 
             if not group_ids:
-                groups = self.current_user.accessible_groups
-            else:
-                try:
-                    groups = Group.get_if_accessible_by(
-                        group_ids, self.current_user, raise_if_none=True
-                    )
-                except AccessError:
-                    return self.error(
-                        'Could not find any accessible groups.', status=403
-                    )
+                group_ids = [
+                    g.id for g in self.associated_user_object.accessible_groups
+                ]
 
-            options = [
-                joinedload(ObservationPlanRequest.observation_plans)
-                .joinedload(EventObservationPlan.planned_observations)
-                .joinedload(PlannedObservation.field)
-            ]
+            try:
+                stmt = Group.select(self.current_user).where(Group.id.in_(group_ids))
+                groups = session.scalars(stmt).all()
+            except AccessError:
+                return self.error('Could not find any accessible groups.', status=403)
 
-            observation_plan_request = ObservationPlanRequest.get_if_accessible_by(
-                observation_plan_request_id,
-                self.current_user,
-                mode="read",
-                raise_if_none=True,
-                options=options,
-            )
-            self.verify_and_commit()
-
-            allocation = Allocation.get_if_accessible_by(
-                observation_plan_request.allocation_id,
-                self.current_user,
-                raise_if_none=True,
-            )
-
-            localization = (
-                Localization.query_records_accessible_by(
-                    self.current_user,
+            stmt = (
+                ObservationPlanRequest.select(session.user_or_token)
+                .where(ObservationPlanRequest.id == observation_plan_request_id)
+                .options(
+                    joinedload(ObservationPlanRequest.observation_plans)
+                    .joinedload(EventObservationPlan.planned_observations)
+                    .joinedload(PlannedObservation.field)
                 )
-                .filter(Localization.id == observation_plan_request.localization_id)
-                .first()
             )
+            observation_plan_request = session.scalars(stmt).first()
+
+            if observation_plan_request is None:
+                return self.error(
+                    f'Could not find observation_plan_request with ID {observation_plan_request_id}'
+                )
+
+            stmt = Allocation.select(session.user_or_token).where(
+                Allocation.id == observation_plan_request.allocation_id,
+            )
+            allocation = session.scalars(stmt).first()
+
+            stmt = Localization.select(self.current_user).where(
+                Localization.id == observation_plan_request.localization_id
+            )
+            localization = session.scalars(stmt).first()
+            if localization is None:
+                return self.error(
+                    f'Localization with ID {observation_plan_request.localization_id} inaccessible.'
+                )
 
             instrument = allocation.instrument
 
@@ -1820,11 +1899,10 @@ class ObservationPlanSimSurveyHandler(BaseHandler):
             survey_efficiency_analysis = SurveyEfficiencyForObservationPlan(
                 requester_id=self.associated_user_object.id,
                 observation_plan_id=observation_plan.id,
-                groups=groups,
                 payload=payload,
+                groups=groups,
                 status='running',
             )
-
             session.add(survey_efficiency_analysis)
             session.commit()
 
@@ -2111,7 +2189,7 @@ class DefaultObservationPlanRequestHandler(BaseHandler):
                 'Default observation plan with ID {default_observation_plan_id} is not available.'
             )
 
-        with DBSession() as session:
+        with self.Session() as session:
             session.delete(default_observation_plan_request)
             session.commit()
             self.push_all(action="skyportal/REFRESH_DEFAULT_OBSERVATION_PLANS")
