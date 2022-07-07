@@ -319,9 +319,6 @@ class GcnEventObservationPlanRequestsHandler(BaseHandler):
             for plan in dat["observation_plans"]:
                 plan_dict = {
                     **plan.to_dict(),
-                    "probability": plan.probability,
-                    "area": plan.area,
-                    "num_observations": plan.num_observations,
                 }
                 plan_data.append(plan_dict)
 
