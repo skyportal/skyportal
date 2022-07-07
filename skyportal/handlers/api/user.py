@@ -363,7 +363,7 @@ class UserHandler(BaseHandler):
                     type: string
                   affiliations:
                     type: array
-                    items: 
+                    items:
                       type: string
                   contact_email:
                     type: string
