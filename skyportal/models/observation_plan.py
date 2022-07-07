@@ -370,7 +370,7 @@ class EventObservationPlan(Base):
         )
         localizationtile_subquery = (
             sa.select(LocalizationTile.probdensity, cum_prob)
-            .filter(
+            .where(
                 LocalizationTile.localization_id
                 == self.observation_plan_request.localization_id,
             )
@@ -378,16 +378,14 @@ class EventObservationPlan(Base):
         ).subquery()
 
         min_probdensity = (
-            sa.select(
-                sa.func.min(localizationtile_subquery.columns.probdensity)
-            ).filter(
+            sa.select(sa.func.min(localizationtile_subquery.columns.probdensity)).where(
                 localizationtile_subquery.columns.cum_prob <= cumulative_probability
             )
         ).scalar_subquery()
 
         tiles_subquery = (
             sa.select(InstrumentFieldTile.id)
-            .filter(
+            .where(
                 LocalizationTile.localization_id
                 == self.observation_plan_request.localization_id,
                 LocalizationTile.probdensity >= min_probdensity,
@@ -424,7 +422,7 @@ class EventObservationPlan(Base):
         )
         localizationtile_subquery = (
             sa.select(LocalizationTile.probdensity, cum_prob)
-            .filter(
+            .where(
                 LocalizationTile.localization_id
                 == self.observation_plan_request.localization_id,
             )
@@ -432,16 +430,30 @@ class EventObservationPlan(Base):
         ).subquery()
 
         min_probdensity = (
-            sa.select(
-                sa.func.min(localizationtile_subquery.columns.probdensity)
-            ).filter(
+            sa.select(sa.func.min(localizationtile_subquery.columns.probdensity)).where(
                 localizationtile_subquery.columns.cum_prob <= cumulative_probability
             )
         ).scalar_subquery()
 
         tiles_subquery = (
             sa.select(InstrumentFieldTile.id)
-            .filter(
+            .where(
+                LocalizationTile.localization_id
+                == self.observation_plan_request.localization_id,
+                LocalizationTile.probdensity >= min_probdensity,
+                InstrumentFieldTile.instrument_id == self.instrument_id,
+                InstrumentFieldTile.instrument_field_id == InstrumentField.id,
+                InstrumentFieldTile.instrument_field_id == PlannedObservation.field_id,
+                PlannedObservation.observation_plan_id == self.id,
+                InstrumentFieldTile.healpix.overlaps(LocalizationTile.healpix),
+            )
+            .distinct()
+            .subquery()
+        )
+
+        tiles_subquery = (
+            sa.select(InstrumentFieldTile.id)
+            .where(
                 LocalizationTile.localization_id
                 == self.observation_plan_request.localization_id,
                 LocalizationTile.probdensity >= min_probdensity,

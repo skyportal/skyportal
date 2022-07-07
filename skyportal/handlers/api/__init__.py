@@ -64,6 +64,7 @@ from .observation_plan import (
     ObservationPlanMovieHandler,
     ObservationPlanSimSurveyHandler,
     ObservationPlanSimSurveyPlotHandler,
+    ObservationPlanSummaryStatisticsHandler,
     ObservationPlanSurveyEfficiencyHandler,
     ObservationPlanGeoJSONHandler,
     ObservationPlanAirmassChartHandler,
