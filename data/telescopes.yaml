@@ -266,6 +266,7 @@
   name: Palomar 1.2m Oschin
   nickname: P48
   skycam_link: http://bianca.palomar.caltech.edu/images/allsky/AllSkyCurrentImage.JPG
+  weather_link: https://www.cleardarksky.com/c/PalomarObkey.html
   =id: P48
   robotic: true
 - diameter: 10.0
@@ -307,6 +308,7 @@
   name: Palomar 1.5m
   nickname: P60
   skycam_link: http://bianca.palomar.caltech.edu/images/allsky/AllSkyCurrentImage.JPG
+  weather_link: https://www.cleardarksky.com/c/PalomarObkey.html
   =id: P60
   robotic: true
 - diameter: 5.0999999
@@ -316,6 +318,7 @@
   name: Palomar 5.1m Hale
   nickname: P200
   skycam_link: http://bianca.palomar.caltech.edu/images/allsky/AllSkyCurrentImage.JPG
+  weather_link: https://www.cleardarksky.com/c/PalomarObkey.html
   =id: P200
 - diameter: 0.5
   elevation: 900.0
@@ -527,3 +530,13 @@
   nickname: ATLAS
   skycam_link: null
   =id: ATLAS
+- diameter: 0.3
+  elevation: 1870.0
+  lat: 33.3633675
+  lon: -116.8361345
+  nickname: Palomar Gattini-IR
+  name: PGIR
+  skycam_link: http://algol.palomar.caltech.edu/instruments/allsky/AllSkyCurrentImage.JPG
+  weather_link: https://www.cleardarksky.com/c/PalomarObkey.html
+  =id: PGIR
+  robotic: true
