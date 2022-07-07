@@ -820,7 +820,9 @@ class ObservationHandler(BaseHandler):
 
         with self.Session() as session:
             observation = session.scalars(
-                ExecutedObservation.select(self.current_user).where(id=observation_id)
+                ExecutedObservation.select(self.current_user).where(
+                    ExecutedObservation.id == observation_id
+                )
             ).first()
             if observation is None:
                 return self.error("ExecutedObservation not found", status=404)
@@ -1698,16 +1700,15 @@ class ObservationSimSurveyHandler(BaseHandler):
         with self.Session() as session:
 
             if not group_ids:
-                groups = self.current_user.accessible_groups
-            else:
-                try:
-                    groups = Group.get_if_accessible_by(
-                        group_ids, self.current_user, raise_if_none=True
-                    )
-                except AccessError:
-                    return self.error(
-                        'Could not find any accessible groups.', status=403
-                    )
+                group_ids = [
+                    g.id for g in self.associated_user_object.accessible_groups
+                ]
+
+            try:
+                stmt = Group.select(self.current_user).where(Group.id.in_(group_ids))
+                groups = session.scalars(stmt).all()
+            except AccessError:
+                return self.error('Could not find any accessible groups.', status=403)
 
             if start_date is None:
                 return self.error(message="Missing start_date")
@@ -1773,7 +1774,7 @@ class ObservationSimSurveyHandler(BaseHandler):
             )
 
             data = get_observations(
-                self.current_user,
+                session,
                 start_date,
                 end_date,
                 telescope_name=instrument.telescope.name,

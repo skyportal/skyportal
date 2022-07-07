@@ -2034,64 +2034,60 @@ class DefaultObservationPlanRequestHandler(BaseHandler):
         """
         data = self.get_json()
 
-        target_groups = []
-        for group_id in data.pop('target_group_ids', []):
-            g = Group.get_if_accessible_by(
-                group_id, self.current_user, raise_if_none=False
+        with self.Session() as session:
+            target_group_ids = data.pop('target_group_ids', [])
+            stmt = Group.select(self.current_user).where(Group.id.in_(target_group_ids))
+            target_groups = session.scalars(stmt).all()
+
+            stmt = Allocation.select(session.user_or_token).where(
+                Allocation.id == data['allocation_id'],
             )
-            if g is None:
-                raise AttributeError(f"Missing group with ID: {group_id}")
-            target_groups.append(g)
+            allocation = session.scalars(stmt).first()
+            if allocation is None:
+                raise AttributeError(
+                    f"Missing allocation with ID: {data['allocation_id']}"
+                )
 
-        allocation = Allocation.get_if_accessible_by(
-            data['allocation_id'],
-            self.current_user,
-            raise_if_none=False,
-        )
-        if allocation is None:
-            raise AttributeError(f"Missing allocation with ID: {data['allocation_id']}")
+            instrument = allocation.instrument
+            if instrument.api_classname_obsplan is None:
+                raise AttributeError('Instrument has no remote API.')
 
-        instrument = allocation.instrument
-        if instrument.api_classname_obsplan is None:
-            raise AttributeError('Instrument has no remote API.')
+            try:
+                formSchema = instrument.api_class_obsplan.custom_json_schema(
+                    instrument, self.current_user
+                )
+            except AttributeError:
+                formSchema = instrument.api_class_obsplan.form_json_schema
 
-        try:
-            formSchema = instrument.api_class_obsplan.custom_json_schema(
-                instrument, self.current_user
+            payload = data['payload']
+            if "start_date" in payload:
+                return self.error('Cannot have start_date in the payload')
+            else:
+                payload['start_date'] = str(datetime.utcnow())
+
+            if "end_date" in payload:
+                return self.error('Cannot have end_date in the payload')
+            else:
+                payload['end_date'] = str(datetime.utcnow() + timedelta(days=1))
+
+            if "queue_name" in payload:
+                return self.error('Cannot have queue_name in the payload')
+            else:
+                payload['queue_name'] = "ToO_{str(datetime.utcnow()).replace(' ','T')}"
+
+            # validate the payload
+            try:
+                jsonschema.validate(payload, formSchema)
+            except jsonschema.exceptions.ValidationError as e:
+                raise jsonschema.exceptions.ValidationError(
+                    f'Payload failed to validate: {e}'
+                )
+
+            default_observation_plan_request = (
+                DefaultObservationPlanRequest.__schema__().load(data)
             )
-        except AttributeError:
-            formSchema = instrument.api_class_obsplan.form_json_schema
+            default_observation_plan_request.target_groups = target_groups
 
-        payload = data['payload']
-        if "start_date" in payload:
-            return self.error('Cannot have start_date in the payload')
-        else:
-            payload['start_date'] = str(datetime.utcnow())
-
-        if "end_date" in payload:
-            return self.error('Cannot have end_date in the payload')
-        else:
-            payload['end_date'] = str(datetime.utcnow() + timedelta(days=1))
-
-        if "queue_name" in payload:
-            return self.error('Cannot have queue_name in the payload')
-        else:
-            payload['queue_name'] = "ToO_{str(datetime.utcnow()).replace(' ','T')}"
-
-        # validate the payload
-        try:
-            jsonschema.validate(payload, formSchema)
-        except jsonschema.exceptions.ValidationError as e:
-            raise jsonschema.exceptions.ValidationError(
-                f'Payload failed to validate: {e}'
-            )
-
-        default_observation_plan_request = (
-            DefaultObservationPlanRequest.__schema__().load(data)
-        )
-        default_observation_plan_request.target_groups = target_groups
-
-        with DBSession() as session:
             session.add(default_observation_plan_request)
             session.commit()
 
@@ -2176,20 +2172,19 @@ class DefaultObservationPlanRequestHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        default_observation_plan_request = (
-            DefaultObservationPlanRequest.get_if_accessible_by(
-                default_observation_plan_id,
-                self.current_user,
-                mode="delete",
-                raise_if_none=False,
-            )
-        )
-        if default_observation_plan_request is None:
-            return self.error(
-                'Default observation plan with ID {default_observation_plan_id} is not available.'
-            )
 
         with self.Session() as session:
+
+            stmt = DefaultObservationPlanRequest.select(session.user_or_token).where(
+                DefaultObservationPlanRequest.id == default_observation_plan_id
+            )
+            default_observation_plan_request = session.scalars(stmt).first()
+
+            if default_observation_plan_request is None:
+                return self.error(
+                    'Default observation plan with ID {default_observation_plan_id} is not available.'
+                )
+
             session.delete(default_observation_plan_request)
             session.commit()
             self.push_all(action="skyportal/REFRESH_DEFAULT_OBSERVATION_PLANS")
