@@ -1,8 +1,8 @@
 """user_affiliations
 
 Revision ID: 336795744e40
-Revises: 438a795cbd15
-Create Date: 2022-06-16 21:05:14.543407
+Revises: 5b756b18ff2d
+Create Date: 2022-07-07 21:05:14.543407
 
 """
 from alembic import op
@@ -11,7 +11,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = '336795744e40'
-down_revision = 'a75237f48f29'
+down_revision = '5b756b18ff2d'
 branch_labels = None
 depends_on = None
 
