@@ -31,6 +31,7 @@ from .source import *
 from .source_view import *
 from .source_notification import *
 from .spectrum import *
+from .survey_efficiency import *
 from .stream import *
 from .taxonomy import *
 from .telescope import *

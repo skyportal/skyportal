@@ -58,50 +58,60 @@ class AllocationHandler(BaseHandler):
         """
 
         # get owned allocations
-        allocations = Allocation.query_records_accessible_by(self.current_user)
 
-        if allocation_id is not None:
-            try:
-                allocation_id = int(allocation_id)
-            except ValueError:
-                return self.error("Allocation ID must be an integer.")
-            allocations = allocations.filter(Allocation.id == allocation_id).all()
-            if len(allocations) == 0:
-                return self.error("Could not retrieve allocation.")
-            return self.success(data=allocations[0])
+        with self.Session() as session:
+            allocations = Allocation.select(self.current_user)
 
-        instrument_id = self.get_query_argument('instrument_id', None)
-        if instrument_id is not None:
-            allocations = allocations.filter(Allocation.instrument_id == instrument_id)
+            if allocation_id is not None:
+                try:
+                    allocation_id = int(allocation_id)
+                except ValueError:
+                    return self.error("Allocation ID must be an integer.")
+                allocations = allocations.where(Allocation.id == allocation_id)
+                allocation = session.scalars(allocations).first()
+                if allocation is None:
+                    return self.error("Could not retrieve allocation.")
+                return self.success(data=allocation)
 
-        apitype = self.get_query_argument('apiType', None)
-        if apitype is not None:
-            if apitype == "api_classname":
-                instruments_subquery = sa.select(Instrument.id).filter(
-                    Instrument.api_classname.isnot(None)
+            instrument_id = self.get_query_argument('instrument_id', None)
+            if instrument_id is not None:
+                allocations = allocations.where(
+                    Allocation.instrument_id == instrument_id
                 )
 
-                allocations = allocations.join(
-                    instruments_subquery,
-                    Allocation.instrument_id == instruments_subquery.c.id,
-                )
-            elif apitype == "api_classname_obsplan":
-                instruments_subquery = sa.select(Instrument.id).filter(
-                    Instrument.api_classname_obsplan.isnot(None)
-                )
+            apitype = self.get_query_argument('apiType', None)
+            if apitype is not None:
+                if apitype == "api_classname":
+                    instruments_subquery = (
+                        sa.select(Instrument.id)
+                        .where(Instrument.api_classname.isnot(None))
+                        .distinct()
+                        .subquery()
+                    )
 
-                allocations = allocations.join(
-                    instruments_subquery,
-                    Allocation.instrument_id == instruments_subquery.c.id,
-                )
-            else:
-                return self.error(
-                    f"apitype can only be api_classname or api_classname_obsplan, not {apitype}"
-                )
+                    allocations = allocations.join(
+                        instruments_subquery,
+                        Allocation.instrument_id == instruments_subquery.c.id,
+                    )
+                elif apitype == "api_classname_obsplan":
+                    instruments_subquery = (
+                        sa.select(Instrument.id)
+                        .where(Instrument.api_classname_obsplan.isnot(None))
+                        .distinct()
+                        .subquery()
+                    )
 
-        allocations = allocations.all()
-        self.verify_and_commit()
-        return self.success(data=allocations)
+                    allocations = allocations.join(
+                        instruments_subquery,
+                        Allocation.instrument_id == instruments_subquery.c.id,
+                    )
+                else:
+                    return self.error(
+                        f"apitype can only be api_classname or api_classname_obsplan, not {apitype}"
+                    )
+
+            allocations = session.scalars(allocations).all()
+            return self.success(data=allocations)
 
     @permissions(['Manage allocations'])
     def post(self):

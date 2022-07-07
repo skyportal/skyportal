@@ -211,6 +211,112 @@ def post_gcnevent_from_dictionary(payload, user_id, session):
     return event.id
 
 
+class GcnEventSurveyEfficiencyHandler(BaseHandler):
+    @auth_or_token
+    async def get(self, gcnevent_id):
+        """
+        ---
+        description: Get survey efficiency analyses of the GcnEvent.
+        tags:
+          - gcnevents
+        parameters:
+          - in: path
+            name: gcnevent_id
+            required: true
+            schema:
+              type: string
+        responses:
+          200:
+            content:
+              application/json:
+                schema: ArrayOfSurveyEfficiencyForObservationss
+        """
+
+        event = (
+            GcnEvent.query_records_accessible_by(
+                self.current_user,
+                options=[joinedload(GcnEvent.survey_efficiency_analyses)],
+            )
+            .filter(GcnEvent.id == gcnevent_id)
+            .first()
+        )
+
+        analysis_data = []
+        for analysis in event.survey_efficiency_analyses:
+            analysis_data.append(
+                {
+                    **analysis.to_dict(),
+                    'number_of_transients': analysis.number_of_transients,
+                    'number_in_covered': analysis.number_in_covered,
+                    'number_detected': analysis.number_detected,
+                    'efficiency': analysis.efficiency,
+                }
+            )
+
+        return self.success(data=analysis_data)
+
+
+class GcnEventObservationPlanRequestsHandler(BaseHandler):
+    @auth_or_token
+    async def get(self, gcnevent_id):
+        """
+        ---
+        description: Get observation plan requests of the GcnEvent.
+        tags:
+          - gcnevents
+        parameters:
+          - in: path
+            name: gcnevent_id
+            required: true
+            schema:
+              type: string
+        responses:
+          200:
+            content:
+              application/json:
+                schema: ArrayOfObservationPlanRequests
+        """
+
+        event = (
+            GcnEvent.query_records_accessible_by(
+                self.current_user,
+                options=[
+                    joinedload(GcnEvent.observationplan_requests)
+                    .joinedload(ObservationPlanRequest.allocation)
+                    .joinedload(Allocation.instrument),
+                    joinedload(GcnEvent.observationplan_requests)
+                    .joinedload(ObservationPlanRequest.allocation)
+                    .joinedload(Allocation.group),
+                    joinedload(GcnEvent.observationplan_requests).joinedload(
+                        ObservationPlanRequest.requester
+                    ),
+                    joinedload(GcnEvent.observationplan_requests).joinedload(
+                        ObservationPlanRequest.observation_plans
+                    ),
+                ],
+            )
+            .filter(GcnEvent.id == gcnevent_id)
+            .first()
+        )
+
+        # go through some pain to get probability and area included
+        # as these are properties
+        request_data = []
+        for ii, req in enumerate(event.observationplan_requests):
+            dat = req.to_dict()
+            plan_data = []
+            for plan in dat["observation_plans"]:
+                plan_dict = {
+                    **plan.to_dict(),
+                }
+                plan_data.append(plan_dict)
+
+            dat["observation_plans"] = plan_data
+            request_data.append(dat)
+
+        return self.success(data=request_data)
+
+
 class GcnEventHandler(BaseHandler):
     @auth_or_token
     def post(self):
@@ -303,15 +409,6 @@ class GcnEventHandler(BaseHandler):
                         joinedload(GcnEvent.observationplan_requests)
                         .joinedload(ObservationPlanRequest.allocation)
                         .joinedload(Allocation.instrument),
-                        joinedload(GcnEvent.observationplan_requests)
-                        .joinedload(ObservationPlanRequest.allocation)
-                        .joinedload(Allocation.group),
-                        joinedload(GcnEvent.observationplan_requests).joinedload(
-                            ObservationPlanRequest.requester
-                        ),
-                        joinedload(GcnEvent.observationplan_requests).joinedload(
-                            ObservationPlanRequest.observation_plans
-                        ),
                         joinedload(GcnEvent.comments),
                     ],
                 )
@@ -345,23 +442,6 @@ class GcnEventHandler(BaseHandler):
                 ),
             }
 
-            # go through some pain to get probability and area included
-            # as these are properties
-            request_data = []
-            for ii, req in enumerate(data['observationplan_requests']):
-                dat = req.to_dict()
-                plan_data = []
-                for plan in dat["observation_plans"]:
-                    plan_dict = {
-                        **plan.to_dict(),
-                        "probability": plan.probability,
-                        "area": plan.area,
-                        "num_observations": plan.num_observations,
-                    }
-                    plan_data.append(plan_dict)
-                dat["observation_plans"] = plan_data
-                request_data.append(dat)
-            data['observationplan_requests'] = request_data
             return self.success(data=data)
 
         query = GcnEvent.query_records_accessible_by(

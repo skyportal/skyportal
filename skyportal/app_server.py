@@ -32,6 +32,8 @@ from skyportal.handlers.api import (
     GalaxyCatalogHandler,
     GalaxyASCIIFileHandler,
     GcnEventHandler,
+    GcnEventObservationPlanRequestsHandler,
+    GcnEventSurveyEfficiencyHandler,
     LocalizationHandler,
     GroupHandler,
     GroupUserHandler,
@@ -51,7 +53,10 @@ from skyportal.handlers.api import (
     ObservationPlanSubmitHandler,
     ObservationPlanMovieHandler,
     ObservationPlanSimSurveyHandler,
+    ObservationPlanSimSurveyPlotHandler,
     ObservationPlanGeoJSONHandler,
+    ObservationPlanSummaryStatisticsHandler,
+    ObservationPlanSurveyEfficiencyHandler,
     ObservationPlanAirmassChartHandler,
     ObservationPlanCreateObservingRunHandler,
     ObservationPlanFieldsHandler,
@@ -69,6 +74,7 @@ from skyportal.handlers.api import (
     ObservationASCIIFileHandler,
     ObservationExternalAPIHandler,
     ObservationSimSurveyHandler,
+    ObservationSimSurveyPlotHandler,
     PhotometryRangeHandler,
     PhotometryRequestHandler,
     PhotometryOriginHandler,
@@ -96,6 +102,8 @@ from skyportal.handlers.api import (
     StatsHandler,
     StreamHandler,
     StreamUserHandler,
+    SurveyEfficiencyForObservationsHandler,
+    SurveyEfficiencyForObservationPlanHandler,
     SysInfoHandler,
     ConfigHandler,
     TaxonomyHandler,
@@ -195,6 +203,14 @@ skyportal_handlers = [
         r'/api/(sources|spectra|gcn_event|shift)/([0-9A-Za-z-_\.\+]+)/comments(/[0-9]+)/attachment.pdf',
         CommentAttachmentHandler,
     ),
+    (
+        r'/api/gcn_event(/[0-9A-Za-z-_\.\+]+)/observation_plan_requests',
+        GcnEventObservationPlanRequestsHandler,
+    ),
+    (
+        r'/api/gcn_event(/[0-9A-Za-z-_\.\+]+)/survey_efficiency',
+        GcnEventSurveyEfficiencyHandler,
+    ),
     (r'/api/gcn_event(/.*)?', GcnEventHandler),
     (
         r'/api/localization(/[0-9]+)/airmass(/[0-9]+)?',
@@ -219,7 +235,8 @@ skyportal_handlers = [
     (r'/api/observation(/[0-9]+)?', ObservationHandler),
     (r'/api/observation/ascii(/[0-9]+)?', ObservationASCIIFileHandler),
     (r'/api/observation/gcn(/[0-9]+)', ObservationGCNHandler),
-    (r'/api/observation/simsurvey(/[0-9]+)', ObservationSimSurveyHandler),
+    (r'/api/observation/simsurvey(/[0-9]+)?', ObservationSimSurveyHandler),
+    (r'/api/observation/simsurvey(/[0-9]+)/plot', ObservationSimSurveyPlotHandler),
     (r'/api/observation/treasuremap(/[0-9]+)', ObservationTreasureMapHandler),
     (r'/api/observation/external_api(/[0-9]+)?', ObservationExternalAPIHandler),
     (r'/api/observing_run(/[0-9]+)?', ObservingRunHandler),
@@ -241,12 +258,24 @@ skyportal_handlers = [
         ObservationPlanMovieHandler,
     ),
     (
+        r'/api/observation_plan(/[0-9A-Za-z-_\.\+]+)/simsurvey/plot',
+        ObservationPlanSimSurveyPlotHandler,
+    ),
+    (
         r'/api/observation_plan(/[0-9A-Za-z-_\.\+]+)/simsurvey',
         ObservationPlanSimSurveyHandler,
     ),
     (
         r'/api/observation_plan(/[0-9A-Za-z-_\.\+]+)/geojson',
         ObservationPlanGeoJSONHandler,
+    ),
+    (
+        r'/api/observation_plan(/[0-9A-Za-z-_\.\+]+)/summary_statistics',
+        ObservationPlanSummaryStatisticsHandler,
+    ),
+    (
+        r'/api/observation_plan(/[0-9A-Za-z-_\.\+]+)/survey_efficiency',
+        ObservationPlanSurveyEfficiencyHandler,
     ),
     (
         r'/api/observation_plan(/[0-9A-Za-z-_\.\+]+)/observing_run',
@@ -317,6 +346,14 @@ skyportal_handlers = [
     # End deprecated
     (r'/api/streams(/[0-9]+)/users(/.*)?', StreamUserHandler),
     (r'/api/streams(/[0-9]+)?', StreamHandler),
+    (
+        r'/api/survey_efficiency/observations(/[0-9]+)?',
+        SurveyEfficiencyForObservationsHandler,
+    ),
+    (
+        r'/api/survey_efficiency/observation_plan(/[0-9]+)?',
+        SurveyEfficiencyForObservationPlanHandler,
+    ),
     (r'/api/db_stats', StatsHandler),
     (r'/api/sysinfo', SysInfoHandler),
     (r'/api/config', ConfigHandler),
