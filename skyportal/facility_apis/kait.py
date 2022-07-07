@@ -9,7 +9,7 @@ from ..utils import http
 env, cfg = load_env()
 
 
-if cfg['app.kait.port'] is None:
+if cfg.get('app.kait.port') is None:
     KAIT_URL = f"{cfg['app.kait.protocol']}://{cfg['app.kait.host']}"
 else:
     KAIT_URL = (

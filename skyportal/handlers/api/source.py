@@ -1,7 +1,6 @@
 from astropy.time import Time
 import datetime
 from json.decoder import JSONDecodeError
-from dateutil.tz import UTC
 import astropy.units as u
 from geojson import Point, Feature
 import python_http_client.exceptions
@@ -105,11 +104,13 @@ def get_source(
 
     user = session.query(User).get(user_id)
 
+    options = []
     if include_thumbnails:
-        s = Obj.get_if_accessible_by(obj_id, user, options=[joinedload(Obj.thumbnails)])
-    else:
-        s = Obj.get_if_accessible_by(obj_id, user)
+        options.append(joinedload(Obj.thumbnails))
+    if include_detection_stats:
+        options.append(joinedload(Obj.photstats))
 
+    s = Obj.get_if_accessible_by(obj_id, user, options=options)
     if s is None:
         raise ValueError("Source not found")
 
@@ -243,11 +244,6 @@ def get_source(
         readable_classifications_json.append(classification_dict)
 
     source_info["classifications"] = readable_classifications_json
-    if include_detection_stats:
-        source_info["last_detected_at"] = s.last_detected_at(user)
-        source_info["last_detected_mag"] = s.last_detected_mag(user)
-        source_info["peak_detected_at"] = s.peak_detected_at(user)
-        source_info["peak_detected_mag"] = s.peak_detected_mag(user)
     source_info["gal_lat"] = s.gal_lat_deg
     source_info["gal_lon"] = s.gal_lon_deg
     source_info["luminosity_distance"] = s.luminosity_distance
@@ -388,10 +384,11 @@ def get_sources(
 
     user = session.query(User).get(user_id)
 
-    # Fetch multiple sources
-    obj_query_options = (
-        [joinedload(Obj.thumbnails)] if include_thumbnails and not remove_nested else []
-    )
+    obj_query_options = []
+    if include_thumbnails and not remove_nested:
+        obj_query_options.append(joinedload(Obj.thumbnails))
+    if include_detection_stats:
+        obj_query_options.append(joinedload(Obj.photstats))
 
     obj_query = Obj.query_records_accessible_by(user, options=obj_query_options)
     source_query = Source.query_records_accessible_by(user)
@@ -535,7 +532,7 @@ def get_sources(
             )
         min_peak_magnitude_subquery = (
             PhotStat.query_records_accessible_by(user)
-            .where(PhotStat.peak_mag_global >= min_peak_magnitude)
+            .where(PhotStat.peak_mag_global <= min_peak_magnitude)
             .subquery()
         )
         obj_query = obj_query.join(
@@ -550,7 +547,7 @@ def get_sources(
             )
         max_peak_magnitude_subquery = (
             PhotStat.query_records_accessible_by(user)
-            .where(PhotStat.peak_mag_global <= max_peak_magnitude)
+            .where(PhotStat.peak_mag_global >= max_peak_magnitude)
             .subquery()
         )
         obj_query = obj_query.join(
@@ -565,7 +562,7 @@ def get_sources(
             )
         min_latest_magnitude_subquery = (
             PhotStat.query_records_accessible_by(user)
-            .where(PhotStat.last_detected_mag >= min_latest_magnitude)
+            .where(PhotStat.last_detected_mag <= min_latest_magnitude)
             .subquery()
         )
         obj_query = obj_query.join(
@@ -582,7 +579,7 @@ def get_sources(
             )
         max_latest_magnitude_subquery = (
             PhotStat.query_records_accessible_by(user)
-            .where(PhotStat.last_detected_mag <= max_latest_magnitude)
+            .where(PhotStat.last_detected_mag >= max_latest_magnitude)
             .subquery()
         )
         obj_query = obj_query.join(
@@ -898,17 +895,7 @@ def get_sources(
         obj_list = []
 
         for result in query_results["sources"]:
-            if include_detection_stats:
-                (
-                    obj,
-                    last_detected_at,
-                    last_detected_mag,
-                    peak_detected_at,
-                    peak_detected_mag,
-                ) = result
-            else:
-                (obj,) = result
-
+            (obj,) = result
             if (
                 (annotations_filter is not None)
                 or (annotations_filter_origin is not None)
@@ -1085,23 +1072,6 @@ def get_sources(
                     ),
                     key=lambda x: x.origin,
                 )
-            if include_detection_stats:
-                obj_list[-1]["last_detected_at"] = (
-                    (last_detected_at - last_detected_at.utcoffset()).replace(
-                        tzinfo=UTC
-                    )
-                    if last_detected_at
-                    else None
-                )
-                obj_list[-1]["last_detected_mag"] = last_detected_mag
-                obj_list[-1]["peak_detected_at"] = (
-                    (peak_detected_at - peak_detected_at.utcoffset()).replace(
-                        tzinfo=UTC
-                    )
-                    if peak_detected_at
-                    else None
-                )
-                obj_list[-1]["peak_detected_mag"] = peak_detected_mag
 
             obj_list[-1]["gal_lon"] = obj.gal_lon_deg
             obj_list[-1]["gal_lat"] = obj.gal_lat_deg
@@ -2760,12 +2730,6 @@ class SourceNotificationHandler(BaseHandler):
                 "all list items to integers."
             )
 
-        groups = (
-            Group.query_records_accessible_by(self.current_user)
-            .filter(Group.id.in_(group_ids))
-            .all()
-        )
-
         if data.get("sourceId") is None:
             return self.error("Missing required parameter `sourceId`")
 
@@ -2799,30 +2763,39 @@ class SourceNotificationHandler(BaseHandler):
             )
         level = data["level"]
 
-        new_notification = SourceNotification(
-            source_id=source_id,
-            groups=groups,
-            additional_notes=additional_notes,
-            sent_by=self.associated_user_object,
-            level=level,
-        )
-        DBSession().add(new_notification)
-        try:
-            self.verify_and_commit()
-        except python_http_client.exceptions.UnauthorizedError:
-            return self.error(
-                "Twilio Sendgrid authorization error. Please ensure "
-                "valid Sendgrid API key is set in server environment as "
-                "per their setup docs."
-            )
-        except TwilioException:
-            return self.error(
-                "Twilio Communication SMS API authorization error. Please ensure "
-                "valid Twilio API key is set in server environment as "
-                "per their setup docs."
-            )
+        with self.Session() as session:
+            groups = session.scalars(
+                Group.select(self.current_user).where(Group.id.in_(group_ids))
+            ).all()
+            if {g.id for g in groups} != set(group_ids):
+                return self.error(
+                    f'Cannot find one or more groups with IDs: {group_ids}.'
+                )
 
-        return self.success(data={'id': new_notification.id})
+            new_notification = SourceNotification(
+                source_id=source_id,
+                groups=groups,
+                additional_notes=additional_notes,
+                sent_by=self.associated_user_object,
+                level=level,
+            )
+            session.add(new_notification)
+            try:
+                session.commit()
+            except python_http_client.exceptions.UnauthorizedError:
+                return self.error(
+                    "Twilio Sendgrid authorization error. Please ensure "
+                    "valid Sendgrid API key is set in server environment as "
+                    "per their setup docs."
+                )
+            except TwilioException:
+                return self.error(
+                    "Twilio Communication SMS API authorization error. Please ensure "
+                    "valid Twilio API key is set in server environment as "
+                    "per their setup docs."
+                )
+
+            return self.success(data={'id': new_notification.id})
 
 
 class PS1ThumbnailHandler(BaseHandler):

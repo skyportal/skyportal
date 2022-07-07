@@ -8,6 +8,9 @@ from ...enum_types import (
     THUMBNAIL_TYPES,
     FOLLOWUP_PRIORITIES,
     ALLOWED_API_CLASSNAMES,
+    ANALYSIS_TYPES,
+    ANALYSIS_INPUT_TYPES,
+    AUTHENTICATION_TYPES,
 )
 
 
@@ -49,6 +52,15 @@ class EnumTypesHandler(BaseHandler):
                             ALLOWED_API_CLASSNAMES:
                               type: array
                               description: list of allowed API classnames
+                            ANALYSIS_TYPES:
+                              type: array
+                              description: list of analysis types
+                            ANALYSIS_INPUT_TYPES:
+                              type: array
+                              description: list of analysis input types
+                            AUTHENTICATION_TYPES:
+                              type: array
+                              description: list of authentication types
         """
         data = {}
         data["ALLOWED_SPECTRUM_TYPES"] = ALLOWED_SPECTRUM_TYPES
@@ -57,4 +69,7 @@ class EnumTypesHandler(BaseHandler):
         data["THUMBNAIL_TYPES"] = THUMBNAIL_TYPES
         data["FOLLOWUP_PRIORITIES"] = FOLLOWUP_PRIORITIES
         data["ALLOWED_API_CLASSNAMES"] = ALLOWED_API_CLASSNAMES
+        data["ANALYSIS_TYPES"] = ANALYSIS_TYPES
+        data["ANALYSIS_INPUT_TYPES"] = ANALYSIS_INPUT_TYPES
+        data["AUTHENTICATION_TYPES"] = AUTHENTICATION_TYPES
         return self.success(data=data)

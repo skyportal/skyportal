@@ -77,7 +77,7 @@ def test_token_user_post_delete_filter(
 
     status, data = api("GET", f"filters/{filter_id}", token=manage_groups_token)
     assert status == 400
-    assert "Invalid Filter id" in data["message"]
+    assert "Cannot find a filter with ID" in data["message"]
 
 
 def test_post_filter_with_unauthorized_stream(

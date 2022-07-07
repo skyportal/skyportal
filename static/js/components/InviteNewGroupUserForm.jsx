@@ -15,7 +15,9 @@ import InputLabel from "@mui/material/InputLabel";
 import IconButton from "@mui/material/IconButton";
 import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
 import Popover from "@mui/material/Popover";
-import { DatePicker } from "@material-ui/pickers";
+import AdapterDateFns from "@mui/lab/AdapterDateFns";
+import LocalizationProvider from "@mui/lab/LocalizationProvider";
+import DatePicker from "@mui/lab/DatePicker";
 import makeStyles from "@mui/styles/makeStyles";
 
 import dayjs from "dayjs";
@@ -149,15 +151,18 @@ const InviteNewGroupUserForm = ({ group_id }) => {
         </Select>
       </div>
       <div className={classes.userExpirationDate}>
-        <DatePicker
-          value={formState.userExpirationDate}
-          onChange={handleExpirationDateChange}
-          label="User expiration date (UTC)"
-          format="YYYY/MM/DD"
-          disablePast
-          clearable
-          data-testid="expirationDatePicker"
-        />
+        <LocalizationProvider dateAdapter={AdapterDateFns}>
+          <DatePicker
+            value={formState.userExpirationDate}
+            onChange={handleExpirationDateChange}
+            label="User expiration date (UTC)"
+            showTodayButton={false}
+            renderInput={(params) => (
+              /* eslint-disable-next-line react/jsx-props-no-spreading */
+              <TextField id="expirationDatePicker" {...params} />
+            )}
+          />
+        </LocalizationProvider>
         <IconButton
           aria-label="help"
           size="small"

@@ -166,6 +166,14 @@ class GcnEvent(Base):
         doc="Observation plan requests of the event.",
     )
 
+    survey_efficiency_analyses = relationship(
+        'SurveyEfficiencyForObservations',
+        back_populates='gcnevent',
+        cascade='delete',
+        passive_deletes=True,
+        doc="Survey efficiency analyses of the event.",
+    )
+
     comments = relationship(
         'CommentOnGCN',
         back_populates='gcn',
