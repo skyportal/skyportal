@@ -3,6 +3,7 @@ import base64
 from marshmallow.exceptions import ValidationError
 from baselayer.app.custom_exceptions import AccessError
 from baselayer.app.access import permissions, auth_or_token
+from baselayer.app.flow import Flow
 from ..base import BaseHandler
 from ...models import (
     DBSession,
@@ -81,7 +82,7 @@ def post_reminder(
                 spectrum_id, user, raise_if_none=True
             )
         except AccessError:
-            raise ValueError(f'Could not access spectrum {spectrum_id}.')
+            raise ValueError(f'Could not access spectrum {resource_id}.')
         for user in users:
             reminders.append(
                 ReminderOnSpectrum(
@@ -103,7 +104,7 @@ def post_reminder(
                 gcnevent_id, user, raise_if_none=True
             )
         except AccessError:
-            raise ValueError(f'Could not access GcnEvent {gcn_event.id}.')
+            raise ValueError(f'Could not access GcnEvent {resource_id}.')
         for user in users:
             reminders.append(
                 ReminderOnGCN(
@@ -122,7 +123,7 @@ def post_reminder(
         try:
             shift = Shift.get_if_accessible_by(shift_id, user, raise_if_none=True)
         except AccessError:
-            raise ValueError(f'Could not access Shift {shift.id}.')
+            raise ValueError(f'Could not access Shift {resource_id}.')
         for user in users:
             reminders.append(
                 ReminderOnShift(
@@ -392,45 +393,45 @@ class ReminderHandler(BaseHandler):
 
         reminder_text = data.get("text")
         next_reminder = data.get("next_reminder")
-        next_reminder = arrow.get(next_reminder.strip()).datetime
+        # error here with strip
+        next_reminder = arrow.get(next_reminder).datetime
         reminder_delay = data.get("reminder_delay", 0)
         number_of_reminders = data.get("number_of_reminders", 1)
-
-        group_ids = data.pop('group_ids', None)
-        if not group_ids:
-            groups = self.current_user.accessible_groups
-        else:
+        with self.Session() as session:
+            group_ids = data.pop('group_ids', None)
+            if not group_ids:
+                group_ids = [g.id for g in self.current_user.accessible_groups]
             try:
-                groups = Group.get_if_accessible_by(
-                    group_ids, self.current_user, raise_if_none=True
-                )
+                groups = session.scalars(
+                    Group.select(self.current_user).where(Group.id.in_(group_ids))
+                ).all()
             except AccessError:
                 return self.error('Could not find any accessible groups.', status=403)
 
-        user_ids = data.pop('user_ids', None)
-        if not user_ids:
-            users = self.current_user
-        else:
-            try:
-                users = User.get_if_accessible_by(
-                    user_ids, self.current_user, raise_if_none=True
-                )
-            except AccessError:
-                return self.error('Could not find any accessible users.', status=403)
+            user_ids = data.pop('user_ids', None)
+            if not user_ids:
+                users = [self.associated_user_object]
+            else:
+                try:
+                    users = session.query(User).filter(User.id.in_(user_ids)).all()
+                except AccessError:
+                    return self.error(
+                        'Could not find any accessible users.', status=403
+                    )
 
-        is_bot_reminder = isinstance(self.current_user, Token)
-        reminders = post_reminder(
-            self.current_user,
-            associated_resource_type,
-            resource_id,
-            reminder_text,
-            groups,
-            users,
-            is_bot_reminder,
-            next_reminder,
-            reminder_delay=reminder_delay,
-            number_of_reminders=number_of_reminders,
-        )
+            is_bot_reminder = isinstance(self.current_user, Token)
+            reminders = post_reminder(
+                self.associated_user_object,
+                associated_resource_type,
+                resource_id,
+                reminder_text,
+                groups,
+                users,
+                is_bot_reminder,
+                next_reminder,
+                reminder_delay=reminder_delay,
+                number_of_reminders=number_of_reminders,
+            )
         DBSession().add_all(reminders)
 
         if associated_resource_type.lower() == "sources":
@@ -448,6 +449,7 @@ class ReminderHandler(BaseHandler):
         else:
             return self.error(f'Unknown resource type "{associated_resource_type}".')
 
+        ws_flow = Flow()
         for user in users:
             DBSession().add(
                 UserNotification(
@@ -457,6 +459,7 @@ class ReminderHandler(BaseHandler):
                     url=url_endpoint,
                 )
             )
+            ws_flow.push(user.id, "skyportal/FETCH_NOTIFICATIONS")
 
         self.verify_and_commit()
 

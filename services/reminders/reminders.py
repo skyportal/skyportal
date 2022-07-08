@@ -5,13 +5,14 @@
 
 from astropy.time import Time
 from datetime import datetime, timedelta
-
 import asyncio
 from tornado.ioloop import IOLoop
 import requests
 
+from baselayer.log import make_log
 from baselayer.app.models import init_db
 from baselayer.app.env import load_env
+from baselayer.app.flow import Flow
 from skyportal.models import (
     DBSession,
     Reminder,
@@ -24,6 +25,8 @@ from skyportal.models import (
 env, cfg = load_env()
 
 init_db(**cfg['database'])
+
+log = make_log('reminders')
 
 request_session = requests.Session()
 request_session.trust_env = (
@@ -59,7 +62,8 @@ class ReminderQueue(asyncio.Queue):
                 await self.put([reminder.id, reminder.__class__])
 
     async def service(self):
-        last_update = datetime.now()
+        last_update = datetime.utcnow()
+        ws_flow = Flow()
 
         while True:
 
@@ -90,7 +94,8 @@ class ReminderQueue(asyncio.Queue):
                 for reminder in reminders:
                     await self.put([reminder.id, reminder.__class__])
 
-            last_update = datetime.now()
+                if len(reminders) > 0:
+                    last_update = datetime.utcnow()
 
             reminder_id, reminder_type = await queue.get()
 
@@ -99,10 +104,10 @@ class ReminderQueue(asyncio.Queue):
                 dt = Time(datetime.utcnow(), format='datetime') - Time(
                     reminder.next_reminder, format='datetime'
                 )
-                if dt.jd > 0:
+                if dt < 0:
                     await self.put([reminder_id, reminder_type])
                 else:
-                    print(f"Sending reminder {reminder.id}")
+                    log(f"Sending reminder {reminder}")
 
                     if reminder_type == Reminder:
                         text_to_send = (
@@ -131,13 +136,20 @@ class ReminderQueue(asyncio.Queue):
                             url=url_endpoint,
                         )
                     )
-
-                    reminder.number_of_reminders = reminder.number_of_reminders - 1
-                    if reminder.number_of_reminders > 0:
-                        reminder.next_reminder = reminder.next_reminder + timedelta(
-                            days=reminder.reminder_delay
-                        )
-                        await self.put([reminder.id, reminder.__class__])
+                    ws_flow.push(reminder.user.id, "skyportal/FETCH_NOTIFICATIONS")
+                    while True:
+                        reminder.number_of_reminders = reminder.number_of_reminders - 1
+                        if reminder.number_of_reminders > 0:
+                            reminder.next_reminder = reminder.next_reminder + timedelta(
+                                days=reminder.reminder_delay
+                            )
+                        else:
+                            break
+                        if reminder.next_reminder > Time(
+                            datetime.utcnow(), format='datetime'
+                        ):
+                            await self.put([reminder.id, reminder.__class__])
+                            break
 
                     session.add(reminder)
                     session.commit()

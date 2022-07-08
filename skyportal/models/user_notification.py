@@ -479,5 +479,4 @@ def add_user_notifications(mapper, connection, target):
                                         url=f"/source/{target.obj_id}",
                                     )
                                 )
-                # >>>>>>> upstream/main
                 ws_flow.push(user.id, "skyportal/FETCH_NOTIFICATIONS")
