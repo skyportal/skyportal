@@ -14,8 +14,8 @@ from sqlalchemy.orm import joinedload
 from sqlalchemy.orm import sessionmaker, scoped_session
 
 from .observation import get_observations
-from .source import get_sources
-from .galaxy import get_galaxies
+from .source import get_sources, MAX_SOURCES_PER_PAGE
+from .galaxy import get_galaxies, MAX_GALAXIES
 import pandas as pd
 from tabulate import tabulate
 import datetime
@@ -826,7 +826,6 @@ class GcnSummaryHandler(BaseHandler):
 
                 header_text = []
 
-                trigger_time = astropy.time.Time(event.dateobs, format='datetime')
                 header_text.append(f"""TITLE: {title.upper()}\n""")
                 if number is not None:
                     header_text.append(f"""NUMBER: {number}\n""")
@@ -869,7 +868,6 @@ class GcnSummaryHandler(BaseHandler):
             if show_sources:
                 sources_text = []
                 source_page_number = 1
-                source_num_per_page = 100
                 sources = []
                 while True:
                     # get the sources in the event
@@ -883,21 +881,19 @@ class GcnSummaryHandler(BaseHandler):
                         localization_cumprob=localization_cumprob,
                         include_photometry=True,
                         page_number=source_page_number,
-                        num_per_page=source_num_per_page,
+                        num_per_page=MAX_SOURCES_PER_PAGE,
                         photometry_format='mag',
                     )
                     sources.extend(sources_data['sources'])
                     source_page_number += 1
 
-                    if len(sources_data['sources']) < source_num_per_page:
+                    if len(sources_data['sources']) < MAX_SOURCES_PER_PAGE:
                         break
                 if len(sources) > 0:
                     sources_text.append(
                         f"\nFound {len(sources)} {'sources' if len(sources) > 1 else 'source'} in the event's localization, given the specified date range:\n"
                     ) if not no_text else None
-                    ids, aliases, ras, decs, ra_errs, dec_errs, redshifts = (
-                        [],
-                        [],
+                    ids, aliases, ras, decs, redshifts = (
                         [],
                         [],
                         [],
@@ -905,25 +901,22 @@ class GcnSummaryHandler(BaseHandler):
                         [],
                     )
                     for source in sources:
+                        print(source.keys())
                         ids.append(source['id'] if 'id' in source else None)
                         aliases.append(source['alias'] if 'alias' in source else None)
                         ras.append(source['ra'] if 'ra' in source else None)
                         decs.append(source['dec'] if 'dec' in source else None)
-                        ra_errs.append(source['ra_err'] if 'ra_err' in source else None)
-                        dec_errs.append(
-                            source['dec_err'] if 'dec_err' in source else None
-                        )
-                        redshifts.append(
-                            source['redshift'] if 'redshift' in source else None
-                        )
+                        redshift = source['redshift'] if 'redshift' in source else None
+                        if 'redshift_error' in source and redshift is not None:
+                            if source['redshift_error'] is not None:
+                                redshift = f"{redshift}±{source['redshift_error']}"  # maybe round to N decimal places?
+                        redshifts.append(redshift)
                     df = pd.DataFrame(
                         {
                             "id": ids,
                             "alias": aliases,
                             "ra": ras,
                             "dec": decs,
-                            "ra_err": ra_errs,
-                            "dec_err": dec_errs,
                             "redshift": redshifts,
                         }
                     )
@@ -1006,7 +999,6 @@ class GcnSummaryHandler(BaseHandler):
             if show_galaxies:
                 galaxies_text = []
                 galaxies_page_number = 1
-                galaxies_num_per_page = 1000
                 galaxies = []
                 # get the galaxies in the event
                 while True:
@@ -1017,11 +1009,11 @@ class GcnSummaryHandler(BaseHandler):
                         localization_name=localization_name,
                         localization_cumprob=localization_cumprob,
                         page_number=galaxies_page_number,
-                        num_per_page=galaxies_num_per_page,
+                        num_per_page=MAX_GALAXIES,
                     )
                     galaxies.extend(galaxies_data['galaxies'])
                     galaxies_page_number += 1
-                    if len(galaxies_data['galaxies']) < galaxies_num_per_page:
+                    if len(galaxies_data['galaxies']) < MAX_GALAXIES:
                         break
                 if len(galaxies) > 0:
                     galaxies_text.append(
@@ -1108,7 +1100,7 @@ class GcnSummaryHandler(BaseHandler):
                         dt = start_observation.datetime - event.dateobs
                         before_after = "after" if dt.total_seconds() > 0 else "before"
                         observations_text.append(
-                            f"""\n\n{instrument.telescope.name} - {instrument.name}:\n\nWe observed the localization region of {event.gcn_notices[0].stream} trigger {trigger_time.isot} UTC.  We obtained a total of {num_observations} images covering {",".join(unique_filters)} bands for a total of {total_time} seconds. The observations covered {area:.1f} square degrees beginning at {start_observation.isot} ({humanize.naturaldelta(dt)} {before_after} the burst trigger time) corresponding to ~{int(100 * probability)}% of the probability enclosed in the localization region.\nThe table below shows the photometry for each observation.\n"""
+                            f"""\n\n{instrument.telescope.name} - {instrument.name}:\n\nWe observed the localization region of {event.gcn_notices[0].stream} trigger {astropy.time.Time(event.dateobs, format='datetime').isot} UTC.  We obtained a total of {num_observations} images covering {",".join(unique_filters)} bands for a total of {total_time} seconds. The observations covered {area:.1f} square degrees beginning at {start_observation.isot} ({humanize.naturaldelta(dt)} {before_after} the burst trigger time) corresponding to ~{int(100 * probability)}% of the probability enclosed in the localization region.\nThe table below shows the photometry for each observation.\n"""
                         ) if not no_text else None
                         t0s, mjds, ras, decs, filters, exposures, limmags = (
                             [],
