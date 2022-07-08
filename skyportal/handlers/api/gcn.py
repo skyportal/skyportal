@@ -805,136 +805,312 @@ class GcnSummaryHandler(BaseHandler):
         if end_date is None:
             return self.error(message="Missing end_date")
 
-        contents = []
+        with self.Session() as session:
 
-        event = (
-            GcnEvent.query_records_accessible_by(
-                self.current_user,
+            contents = []
+
+            event = (
+                GcnEvent.query_records_accessible_by(
+                    self.current_user,
+                )
+                .filter(GcnEvent.dateobs == dateobs)
+                .first()
             )
-            .filter(GcnEvent.dateobs == dateobs)
-            .first()
-        )
 
-        if event is None:
-            return self.error("Event not found", status=404)
-        if not no_text:
-            group = Group.query.filter_by(id=group_id).first()
-            if group is None:
-                return self.error(f"Group not found with ID {group_id}")
+            if event is None:
+                return self.error("Event not found", status=404)
+            if not no_text:
+                group = Group.query.filter_by(id=group_id).first()
+                if group is None:
+                    return self.error(f"Group not found with ID {group_id}")
 
-            header_text = []
+                header_text = []
 
-            trigger_time = astropy.time.Time(event.dateobs, format='datetime')
-            header_text.append(f"""TITLE: {title.upper()}\n""")
-            if number is not None:
-                header_text.append(f"""NUMBER: {number}\n""")
-            header_text.append(f"""SUBJECT: {subject[0].upper()+subject[1:]}\n""")
-            now_date = astropy.time.Time.now()
-            header_text.append(f"""DATE: {now_date}\n""")
-            # add a "FROM full name and affiliation"
-            from_str = f"""FROM:  {self.associated_user_object.first_name} {self.associated_user_object.last_name} at Affiliation"""
-            if self.associated_user_object.contact_email is not None:
-                from_str += f""" <{self.associated_user_object.contact_email}>\n"""
-            header_text.append(from_str)
+                trigger_time = astropy.time.Time(event.dateobs, format='datetime')
+                header_text.append(f"""TITLE: {title.upper()}\n""")
+                if number is not None:
+                    header_text.append(f"""NUMBER: {number}\n""")
+                header_text.append(f"""SUBJECT: {subject[0].upper()+subject[1:]}\n""")
+                now_date = astropy.time.Time.now()
+                header_text.append(f"""DATE: {now_date}\n""")
+                # add a "FROM full name and affiliation"
+                from_str = f"""FROM:  {self.associated_user_object.first_name} {self.associated_user_object.last_name} at Affiliation"""
+                if self.associated_user_object.contact_email is not None:
+                    from_str += f""" <{self.associated_user_object.contact_email}>\n"""
+                header_text.append(from_str)
 
-            if len(user_ids) > 0:
-                # query user objects for all user_ids
-                users = []
-                for user_id in user_ids:
-                    user = User.query.get(user_id)
-                    if user is None:
-                        return self.error(f"User ID {user_id} not found")
-                    users.append(user)
+                if len(user_ids) > 0:
+                    # query user objects for all user_ids
+                    users = []
+                    for user_id in user_ids:
+                        user = User.query.get(user_id)
+                        if user is None:
+                            return self.error(f"User ID {user_id} not found")
+                        users.append(user)
 
-                users_txt = []
-                for user in users:
-                    if user.first_name is not None and user.last_name is not None:
-                        users_txt.append(
-                            f"""{user.first_name[0].upper()}. {user.last_name} (Affiliation)"""  # hardcoded affiliation as it is not implemented yet
-                        )
-                # create a string of all users, with 5 users per line
-                users_txt = "\n".join(
-                    [
-                        ", ".join(users_txt[i : i + 5])
-                        for i in range(0, len(users_txt), 5)
-                    ]
-                )
-                header_text.append(f"""\n{users_txt}\n""")
-
-            header_text.append(f"""\non behalf of the {group.name}, report:\n""")
-            contents.extend(header_text)
-
-        if show_sources:
-            sources_text = []
-            source_page_number = 1
-            source_num_per_page = 100
-            sources = []
-            while True:
-                # get the sources in the event
-                sources_data = get_sources(
-                    user_id=self.associated_user_object.id,
-                    session=DBSession(),
-                    first_detected_date=start_date,
-                    last_detected_date=end_date,
-                    localization_dateobs=dateobs,
-                    localization_name=localization_name,
-                    localization_cumprob=localization_cumprob,
-                    include_photometry=True,
-                    page_number=source_page_number,
-                    num_per_page=source_num_per_page,
-                    photometry_format='mag',
-                )
-                sources.extend(sources_data['sources'])
-                source_page_number += 1
-
-                if len(sources_data['sources']) < source_num_per_page:
-                    break
-            if len(sources) > 0:
-                sources_text.append(
-                    f"\nFound {len(sources)} {'sources' if len(sources) > 1 else 'source'} in the event's localization, given the specified date range:\n"
-                ) if not no_text else None
-                ids, aliases, ras, decs, ra_errs, dec_errs, redshifts = (
-                    [],
-                    [],
-                    [],
-                    [],
-                    [],
-                    [],
-                    [],
-                )
-                for source in sources:
-                    ids.append(source['id'] if 'id' in source else None)
-                    aliases.append(source['alias'] if 'alias' in source else None)
-                    ras.append(source['ra'] if 'ra' in source else None)
-                    decs.append(source['dec'] if 'dec' in source else None)
-                    ra_errs.append(source['ra_err'] if 'ra_err' in source else None)
-                    dec_errs.append(source['dec_err'] if 'dec_err' in source else None)
-                    redshifts.append(
-                        source['redshift'] if 'redshift' in source else None
+                    users_txt = []
+                    for user in users:
+                        if user.first_name is not None and user.last_name is not None:
+                            users_txt.append(
+                                f"""{user.first_name[0].upper()}. {user.last_name} (Affiliation)"""  # hardcoded affiliation as it is not implemented yet
+                            )
+                    # create a string of all users, with 5 users per line
+                    users_txt = "\n".join(
+                        [
+                            ", ".join(users_txt[i : i + 5])
+                            for i in range(0, len(users_txt), 5)
+                        ]
                     )
-                df = pd.DataFrame(
-                    {
-                        "id": ids,
-                        "alias": aliases,
-                        "ra": ras,
-                        "dec": decs,
-                        "ra_err": ra_errs,
-                        "dec_err": dec_errs,
-                        "redshift": redshifts,
-                    }
-                )
-                sources_text.append(
-                    tabulate(df, headers='keys', tablefmt='psql', showindex=False)
-                    + "\n"
-                )
-                # now, create a photometry table per source
-                for source in sources:
-                    photometry = source['photometry']
-                    if len(photometry) > 0:
-                        sources_text.append(
-                            f"""\nPhotometry for source {source['id']}:\n"""
+                    header_text.append(f"""\n{users_txt}\n""")
+
+                header_text.append(f"""\non behalf of the {group.name}, report:\n""")
+                contents.extend(header_text)
+
+            if show_sources:
+                sources_text = []
+                source_page_number = 1
+                source_num_per_page = 100
+                sources = []
+                while True:
+                    # get the sources in the event
+                    sources_data = get_sources(
+                        user_id=self.associated_user_object.id,
+                        session=session,
+                        first_detected_date=start_date,
+                        last_detected_date=end_date,
+                        localization_dateobs=dateobs,
+                        localization_name=localization_name,
+                        localization_cumprob=localization_cumprob,
+                        include_photometry=True,
+                        page_number=source_page_number,
+                        num_per_page=source_num_per_page,
+                        photometry_format='mag',
+                    )
+                    sources.extend(sources_data['sources'])
+                    source_page_number += 1
+
+                    if len(sources_data['sources']) < source_num_per_page:
+                        break
+                if len(sources) > 0:
+                    sources_text.append(
+                        f"\nFound {len(sources)} {'sources' if len(sources) > 1 else 'source'} in the event's localization, given the specified date range:\n"
+                    ) if not no_text else None
+                    ids, aliases, ras, decs, ra_errs, dec_errs, redshifts = (
+                        [],
+                        [],
+                        [],
+                        [],
+                        [],
+                        [],
+                        [],
+                    )
+                    for source in sources:
+                        ids.append(source['id'] if 'id' in source else None)
+                        aliases.append(source['alias'] if 'alias' in source else None)
+                        ras.append(source['ra'] if 'ra' in source else None)
+                        decs.append(source['dec'] if 'dec' in source else None)
+                        ra_errs.append(source['ra_err'] if 'ra_err' in source else None)
+                        dec_errs.append(
+                            source['dec_err'] if 'dec_err' in source else None
+                        )
+                        redshifts.append(
+                            source['redshift'] if 'redshift' in source else None
+                        )
+                    df = pd.DataFrame(
+                        {
+                            "id": ids,
+                            "alias": aliases,
+                            "ra": ras,
+                            "dec": decs,
+                            "ra_err": ra_errs,
+                            "dec_err": dec_errs,
+                            "redshift": redshifts,
+                        }
+                    )
+                    sources_text.append(
+                        tabulate(df, headers='keys', tablefmt='psql', showindex=False)
+                        + "\n"
+                    )
+                    # now, create a photometry table per source
+                    for source in sources:
+                        photometry = source['photometry']
+                        if len(photometry) > 0:
+                            sources_text.append(
+                                f"""\nPhotometry for source {source['id']}:\n"""
+                            ) if not no_text else None
+                            mjds, ras, decs, mags, filters, origins, instruments = (
+                                [],
+                                [],
+                                [],
+                                [],
+                                [],
+                                [],
+                                [],
+                            )
+                            for phot in photometry:
+                                mjds.append(phot['mjd'] if 'mjd' in phot else None)
+                                ras.append(
+                                    f"{round(phot['ra'],2)}±{round(phot['ra_unc'],2)}"
+                                    if ('ra' in phot and 'ra_unc' in phot)
+                                    else None
+                                )
+                                decs.append(
+                                    f"{round(phot['dec'],2)}±{round(phot['dec_unc'],2)}"
+                                    if ('dec' in phot and 'dec_unc' in phot)
+                                    else None
+                                )
+                                mags.append(
+                                    f"{round(phot['mag'],2)}±{round(phot['magerr'],2)}"
+                                    if ('mag' in phot and 'magerr' in phot)
+                                    else None
+                                )
+                                filters.append(
+                                    phot['filter'] if 'filter' in phot else None
+                                )
+                                origins.append(
+                                    phot['origin'] if 'origin' in phot else None
+                                )
+                                instruments.append(
+                                    phot['instrument_name']
+                                    if 'instrument_name' in phot
+                                    else None
+                                )
+                            df_phot = pd.DataFrame(
+                                {
+                                    "mjd": mjds,
+                                    "ra": ras,
+                                    "dec": decs,
+                                    "mag±err (ab)": mags,
+                                    "filter": filters,
+                                    "origin": origins,
+                                    "instrument": instruments,
+                                }
+                            )
+                            if no_text:
+                                df_phot.insert(
+                                    loc=0,
+                                    column='obj_id',
+                                    value=[p["obj_id"] for p in photometry],
+                                )
+                            sources_text.append(
+                                tabulate(
+                                    df_phot,
+                                    headers='keys',
+                                    tablefmt='psql',
+                                    showindex=False,
+                                )
+                                + "\n"
+                            )
+                contents.extend(sources_text)
+
+            if show_galaxies:
+                galaxies_text = []
+                galaxies_page_number = 1
+                galaxies_num_per_page = 1000
+                galaxies = []
+                # get the galaxies in the event
+                while True:
+                    galaxies_data = get_galaxies(
+                        user=self.associated_user_object,
+                        session=session,
+                        localization_dateobs=event.dateobs,
+                        localization_name=localization_name,
+                        localization_cumprob=localization_cumprob,
+                        page_number=galaxies_page_number,
+                        num_per_page=galaxies_num_per_page,
+                    )
+                    galaxies.extend(galaxies_data['galaxies'])
+                    galaxies_page_number += 1
+                    if len(galaxies_data['galaxies']) < galaxies_num_per_page:
+                        break
+                if len(galaxies) > 0:
+                    galaxies_text.append(
+                        f"""\nFound {len(galaxies)} {'galaxies' if len(galaxies) > 1 else 'galaxy'} in the event's localization:\n"""
+                    ) if not no_text else None
+                    catalogs, names, ras, decs, distmpcs, redshifts = (
+                        [],
+                        [],
+                        [],
+                        [],
+                        [],
+                        [],
+                    )
+                    for galaxy in galaxies:
+                        galaxy = galaxy.to_dict()
+                        catalogs.append(
+                            galaxy['catalog_name'] if 'catalog_name' in galaxy else None
+                        )
+                        names.append(galaxy['name'] if 'name' in galaxy else None)
+                        ras.append(galaxy['ra'] if 'ra' in galaxy else None)
+                        decs.append(galaxy['dec'] if 'dec' in galaxy else None)
+                        distmpcs.append(
+                            galaxy['distmpc'] if 'distmpc' in galaxy else None
+                        )
+                        redshifts.append(
+                            galaxy['redshift'] if 'redshift' in galaxy else None
+                        )
+                    df = pd.DataFrame(
+                        {
+                            "catalog": catalogs,
+                            "name": names,
+                            "ra": ras,
+                            "dec": decs,
+                            "distmpc": distmpcs,
+                            "redshift": redshifts,
+                        }
+                    )
+                    galaxies_text.append(
+                        tabulate(df, headers='keys', tablefmt='psql', showindex=False)
+                        + "\n"
+                    )
+                contents.extend(galaxies_text)
+
+            if show_observations:
+                # get the executed obs, by instrument
+                observations_text = []
+                start_date = arrow.get(start_date.strip()).datetime
+                end_date = arrow.get(end_date.strip()).datetime
+
+                instruments = Instrument.query_records_accessible_by(
+                    self.current_user,
+                    options=[
+                        joinedload(Instrument.telescope),
+                    ],
+                ).filter()
+                if instruments is None:
+                    return self.error("No instruments found")
+
+                for instrument in instruments:
+                    data = get_observations(
+                        session,
+                        start_date,
+                        end_date,
+                        telescope_name=instrument.telescope.name,
+                        instrument_name=instrument.name,
+                        localization_dateobs=dateobs,
+                        localization_name=localization_name,
+                        localization_cumprob=localization_cumprob,
+                        return_statistics=True,
+                    )
+
+                    observations = data["observations"]
+                    num_observations = len(observations)
+                    if num_observations > 0:
+                        start_observation = astropy.time.Time(
+                            min(obs["obstime"] for obs in observations),
+                            format='datetime',
+                        )
+                        unique_filters = list({obs["filt"] for obs in observations})
+                        total_time = sum(obs["exposure_time"] for obs in observations)
+                        probability = data["probability"]
+                        area = data["area"]
+
+                        dt = start_observation.datetime - event.dateobs
+                        before_after = "after" if dt.total_seconds() > 0 else "before"
+                        observations_text.append(
+                            f"""\n\n{instrument.telescope.name} - {instrument.name}:\n\nWe observed the localization region of {event.gcn_notices[0].stream} trigger {trigger_time.isot} UTC.  We obtained a total of {num_observations} images covering {",".join(unique_filters)} bands for a total of {total_time} seconds. The observations covered {area:.1f} square degrees beginning at {start_observation.isot} ({humanize.naturaldelta(dt)} {before_after} the burst trigger time) corresponding to ~{int(100 * probability)}% of the probability enclosed in the localization region.\nThe table below shows the photometry for each observation.\n"""
                         ) if not no_text else None
-                        mjds, ras, decs, mags, filters, origins, instruments = (
+                        t0s, mjds, ras, decs, filters, exposures, limmags = (
                             [],
                             [],
                             [],
@@ -943,216 +1119,60 @@ class GcnSummaryHandler(BaseHandler):
                             [],
                             [],
                         )
-                        for phot in photometry:
-                            mjds.append(phot['mjd'] if 'mjd' in phot else None)
-                            ras.append(
-                                f"{round(phot['ra'],2)}±{round(phot['ra_unc'],2)}"
-                                if ('ra' in phot and 'ra_unc' in phot)
+                        for obs in observations:
+                            t0s.append(
+                                round(
+                                    (obs["obstime"] - event.dateobs)
+                                    / datetime.timedelta(hours=1),
+                                    2,
+                                )
+                                if "obstime" in obs
                                 else None
+                            )
+                            mjds.append(
+                                astropy.time.Time(obs["obstime"], format='datetime').mjd
+                                if "obstime" in obs
+                                else None
+                            )
+                            ras.append(
+                                obs['field']["ra"] if "ra" in obs['field'] else None
                             )
                             decs.append(
-                                f"{round(phot['dec'],2)}±{round(phot['dec_unc'],2)}"
-                                if ('dec' in phot and 'dec_unc' in phot)
-                                else None
+                                obs['field']["dec"] if "dec" in obs['field'] else None
                             )
-                            mags.append(
-                                f"{round(phot['mag'],2)}±{round(phot['magerr'],2)}"
-                                if ('mag' in phot and 'magerr' in phot)
-                                else None
+                            filters.append(obs["filt"] if "filt" in obs else None)
+                            exposures.append(
+                                obs["exposure_time"] if "exposure_time" in obs else None
                             )
-                            filters.append(phot['filter'] if 'filter' in phot else None)
-                            origins.append(phot['origin'] if 'origin' in phot else None)
-                            instruments.append(
-                                phot['instrument_name']
-                                if 'instrument_name' in phot
-                                else None
-                            )
-                        df_phot = pd.DataFrame(
+                            limmags.append(obs["limmag"] if "limmag" in obs else None)
+                        df_obs = pd.DataFrame(
                             {
+                                "T-T0 (hr)": t0s,
                                 "mjd": mjds,
                                 "ra": ras,
                                 "dec": decs,
-                                "mag±err (ab)": mags,
                                 "filter": filters,
-                                "origin": origins,
-                                "instrument": instruments,
+                                "exposure": exposures,
+                                "limmag (ab)": limmags,
                             }
                         )
                         if no_text:
-                            df_phot.insert(
+                            df_obs.insert(
                                 loc=0,
-                                column='obj_id',
-                                value=[p["obj_id"] for p in photometry],
+                                column="tel/inst",
+                                value=[
+                                    f"{instrument.telescope.name}/{instrument.name}"
+                                    for obs in observations
+                                ],
                             )
-                        sources_text.append(
+                        observations_text.append(
                             tabulate(
-                                df_phot,
-                                headers='keys',
-                                tablefmt='psql',
-                                showindex=False,
+                                df_obs, headers='keys', tablefmt='psql', showindex=False
                             )
                             + "\n"
                         )
-            contents.extend(sources_text)
-
-        if show_galaxies:
-            galaxies_text = []
-            galaxies_page_number = 1
-            galaxies_num_per_page = 1000
-            galaxies = []
-            # get the galaxies in the event
-            while True:
-                galaxies_data = get_galaxies(
-                    user=self.associated_user_object,
-                    session=DBSession(),
-                    localization_dateobs=event.dateobs,
-                    localization_name=localization_name,
-                    localization_cumprob=localization_cumprob,
-                    page_number=galaxies_page_number,
-                    num_per_page=galaxies_num_per_page,
-                )
-                galaxies.extend(galaxies_data['galaxies'])
-                galaxies_page_number += 1
-                if len(galaxies_data['galaxies']) < galaxies_num_per_page:
-                    break
-            if len(galaxies) > 0:
-                galaxies_text.append(
-                    f"""\nFound {len(galaxies)} {'galaxies' if len(galaxies) > 1 else 'galaxy'} in the event's localization:\n"""
-                ) if not no_text else None
-                catalogs, names, ras, decs, distmpcs, redshifts = [], [], [], [], [], []
-                for galaxy in galaxies:
-                    galaxy = galaxy.to_dict()
-                    catalogs.append(
-                        galaxy['catalog_name'] if 'catalog_name' in galaxy else None
-                    )
-                    names.append(galaxy['name'] if 'name' in galaxy else None)
-                    ras.append(galaxy['ra'] if 'ra' in galaxy else None)
-                    decs.append(galaxy['dec'] if 'dec' in galaxy else None)
-                    distmpcs.append(galaxy['distmpc'] if 'distmpc' in galaxy else None)
-                    redshifts.append(
-                        galaxy['redshift'] if 'redshift' in galaxy else None
-                    )
-                df = pd.DataFrame(
-                    {
-                        "catalog": catalogs,
-                        "name": names,
-                        "ra": ras,
-                        "dec": decs,
-                        "distmpc": distmpcs,
-                        "redshift": redshifts,
-                    }
-                )
-                galaxies_text.append(
-                    tabulate(df, headers='keys', tablefmt='psql', showindex=False)
-                    + "\n"
-                )
-            contents.extend(galaxies_text)
-
-        if show_observations:
-            # get the executed obs, by instrument
-            observations_text = []
-            start_date = arrow.get(start_date.strip()).datetime
-            end_date = arrow.get(end_date.strip()).datetime
-
-            instruments = Instrument.query_records_accessible_by(
-                self.current_user,
-                options=[
-                    joinedload(Instrument.telescope),
-                ],
-            ).filter()
-            if instruments is None:
-                return self.error("No instruments found")
-
-            for instrument in instruments:
-                data = get_observations(
-                    self.current_user,
-                    start_date,
-                    end_date,
-                    telescope_name=instrument.telescope.name,
-                    instrument_name=instrument.name,
-                    localization_dateobs=dateobs,
-                    localization_name=localization_name,
-                    localization_cumprob=localization_cumprob,
-                    return_statistics=True,
-                )
-
-                observations = data["observations"]
-                num_observations = len(observations)
-                if num_observations > 0:
-                    start_observation = astropy.time.Time(
-                        min(obs["obstime"] for obs in observations), format='datetime'
-                    )
-                    unique_filters = list({obs["filt"] for obs in observations})
-                    total_time = sum(obs["exposure_time"] for obs in observations)
-                    probability = data["probability"]
-                    area = data["area"]
-
-                    dt = start_observation.datetime - event.dateobs
-                    before_after = "after" if dt.total_seconds() > 0 else "before"
-                    observations_text.append(
-                        f"""\n\n{instrument.telescope.name} - {instrument.name}:\n\nWe observed the localization region of {event.gcn_notices[0].stream} trigger {trigger_time.isot} UTC.  We obtained a total of {num_observations} images covering {",".join(unique_filters)} bands for a total of {total_time} seconds. The observations covered {area:.1f} square degrees beginning at {start_observation.isot} ({humanize.naturaldelta(dt)} {before_after} the burst trigger time) corresponding to ~{int(100 * probability)}% of the probability enclosed in the localization region.\nThe table below shows the photometry for each observation.\n"""
-                    ) if not no_text else None
-                    t0s, mjds, ras, decs, filters, exposures, limmags = (
-                        [],
-                        [],
-                        [],
-                        [],
-                        [],
-                        [],
-                        [],
-                    )
-                    for obs in observations:
-                        t0s.append(
-                            round(
-                                (obs["obstime"] - event.dateobs)
-                                / datetime.timedelta(hours=1),
-                                2,
-                            )
-                            if "obstime" in obs
-                            else None
-                        )
-                        mjds.append(
-                            astropy.time.Time(obs["obstime"], format='datetime').mjd
-                            if "obstime" in obs
-                            else None
-                        )
-                        ras.append(obs['field']["ra"] if "ra" in obs['field'] else None)
-                        decs.append(
-                            obs['field']["dec"] if "dec" in obs['field'] else None
-                        )
-                        filters.append(obs["filt"] if "filt" in obs else None)
-                        exposures.append(
-                            obs["exposure_time"] if "exposure_time" in obs else None
-                        )
-                        limmags.append(obs["limmag"] if "limmag" in obs else None)
-                    df_obs = pd.DataFrame(
-                        {
-                            "T-T0 (hr)": t0s,
-                            "mjd": mjds,
-                            "ra": ras,
-                            "dec": decs,
-                            "filter": filters,
-                            "exposure": exposures,
-                            "limmag (ab)": limmags,
-                        }
-                    )
-                    if no_text:
-                        df_obs.insert(
-                            loc=0,
-                            column="tel/inst",
-                            value=[
-                                f"{instrument.telescope.name}/{instrument.name}"
-                                for obs in observations
-                            ],
-                        )
-                    observations_text.append(
-                        tabulate(
-                            df_obs, headers='keys', tablefmt='psql', showindex=False
-                        )
-                        + "\n"
-                    )
-            if len(observations_text) > 0 and not no_text:
-                observations_text = ["\nObservations:"] + observations_text
-                contents.extend(observations_text)
+                if len(observations_text) > 0 and not no_text:
+                    observations_text = ["\nObservations:"] + observations_text
+                    contents.extend(observations_text)
 
         return self.success(data=contents)
