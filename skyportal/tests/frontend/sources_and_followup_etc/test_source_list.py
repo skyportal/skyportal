@@ -1,5 +1,6 @@
 import os
 import uuid
+import time
 
 from skyportal.tests import api
 from tdtax import taxonomy, __version__
@@ -588,9 +589,10 @@ def test_download_sources(driver, user, public_group, upload_data_token):
     # check that the download has the right number of lines
     fpath = str(os.path.abspath(pjoin(cfg['paths.downloads_folder'], 'sources.csv')))
     try_count = 1
-    while not os.path.exists(fpath) and try_count <= 3:
+    while not os.path.exists(fpath) and try_count <= 5:
         try_count += 1
-        assert os.path.exists(fpath)
+        time.sleep(1)
+    assert os.path.exists(fpath)
 
     try:
         with open(fpath) as f:
