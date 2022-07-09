@@ -37,10 +37,14 @@ from ...models import (
     InstrumentFieldTile,
     ExecutedObservation,
     QueuedObservation,
+    SurveyEfficiencyForObservationPlan,
     SurveyEfficiencyForObservations,
 )
 
 from ...models.schema import ObservationExternalAPIHandlerPost
+from ...utils.simsurvey import (
+    get_simsurvey_parameters,
+)
 from .instrument import add_tiles
 from .observation_plan import observation_simsurvey, observation_simsurvey_plot
 
@@ -219,7 +223,7 @@ def get_observations(
     n_per_page=100,
     page_number=1,
 ):
-    f"""Query
+    f"""Query for list of observations
     Parameters
     ----------
     session: sqlalchemy.Session
@@ -1561,6 +1565,135 @@ class ObservationTreasureMapHandler(BaseHandler):
         return self.success()
 
 
+def retrieve_observations_and_simsurvey(
+    session,
+    start_date,
+    end_date,
+    localization_id,
+    instrument_id,
+    survey_efficiency_analysis_id,
+    survey_efficiency_analysis_type,
+):
+
+    """Query
+    Parameters
+    ----------
+    session: sqlalchemy.Session
+        Database session for this transaction
+    start_date: datetime
+        Start time of the observations
+    end_date: datetime
+        End time of the observations
+    localization_id : int
+        The id of the skyportal.models.localization.Localization that the request is made based on
+    instrument_id : int
+        The id of the skyportal.models.instrument.Instrument that the request is made based on
+    survey_efficiency_analysis_id : int
+        The id of the survey efficiency analysis for the request (either skyportal.models.survey_efficiency.SurveyEfficiencyForObservations or skyportal.models.survey_efficiency.SurveyEfficiencyForObservationPlan).
+    survey_efficiency_analysis_type : str
+        Either SurveyEfficiencyForObservations or SurveyEfficiencyForObservationPlan.
+    """
+
+    if survey_efficiency_analysis_type == "SurveyEfficiencyForObservations":
+        survey_efficiency_analysis = session.scalars(
+            sa.select(SurveyEfficiencyForObservations).where(
+                SurveyEfficiencyForObservations.id == survey_efficiency_analysis_id
+            )
+        ).first()
+        if survey_efficiency_analysis is None:
+            raise ValueError(
+                f'No SurveyEfficiencyForObservations with ID {survey_efficiency_analysis_id}'
+            )
+    elif survey_efficiency_analysis_type == "SurveyEfficiencyForObservations":
+        survey_efficiency_analysis = session.scalars(
+            sa.select(SurveyEfficiencyForObservationPlan).where(
+                SurveyEfficiencyForObservationPlan.id == survey_efficiency_analysis_id
+            )
+        ).first()
+        if survey_efficiency_analysis is None:
+            raise ValueError(
+                f'No SurveyEfficiencyForObservationPlan with ID {survey_efficiency_analysis_id}'
+            )
+    else:
+        raise ValueError(
+            'survey_efficiency_analysis_type must be SurveyEfficiencyForObservations or SurveyEfficiencyForObservationPlan'
+        )
+
+    payload = survey_efficiency_analysis.payload
+
+    instrument = session.scalars(
+        sa.select(Instrument)
+        .options(joinedload(Instrument.telescope))
+        .where(Instrument.id == instrument_id)
+    ).first()
+
+    localization = session.scalars(
+        sa.select(Localization).where(Localization.id == localization_id)
+    ).first()
+
+    data = get_observations(
+        session,
+        start_date,
+        end_date,
+        telescope_name=instrument.telescope.name,
+        instrument_name=instrument.name,
+        localization_dateobs=localization.dateobs,
+        localization_name=localization.localization_name,
+        localization_cumprob=payload["localization_cumprob"],
+    )
+
+    observations = data["observations"]
+
+    if len(observations) == 0:
+        raise ValueError('Need at least one observation to run SimSurvey')
+
+    unique_filters = list({observation["filt"] for observation in observations})
+
+    if not set(unique_filters).issubset(set(instrument.sensitivity_data.keys())):
+        raise ValueError('Need sensitivity_data for all filters present')
+
+    for filt in unique_filters:
+        if not {'exposure_time', 'limiting_magnitude', 'zeropoint'}.issubset(
+            set(list(instrument.sensitivity_data[filt].keys()))
+        ):
+            raise ValueError(
+                f'Sensitivity_data dictionary missing keys for filter {filt}'
+            )
+
+    # get height and width
+    stmt = (
+        InstrumentField.select(session.user_or_token)
+        .where(InstrumentField.id == observations[0]["field"]["id"])
+        .options(undefer(InstrumentField.contour_summary))
+    )
+    field = session.scalars(stmt).first()
+    if field is None:
+        raise ValueError(
+            'Missing field {obs_dict["field"]["id"]} required to estimate field size'
+        )
+    contour_summary = field.to_dict()["contour_summary"]["features"][0]
+    coordinates = np.array(contour_summary["geometry"]["coordinates"])
+    width = np.max(coordinates[:, 0]) - np.min(coordinates[:, 0])
+    height = np.max(coordinates[:, 1]) - np.min(coordinates[:, 1])
+
+    observation_simsurvey(
+        observations,
+        localization.id,
+        instrument.id,
+        survey_efficiency_analysis_id,
+        survey_efficiency_analysis_type,
+        width=width,
+        height=height,
+        number_of_injections=payload['number_of_injections'],
+        number_of_detections=payload['number_of_detections'],
+        detection_threshold=payload['detection_threshold'],
+        minimum_phase=payload['minimum_phase'],
+        maximum_phase=payload['maximum_phase'],
+        model_name=payload['model_name'],
+        optional_injection_parameters=payload['optional_injection_parameters'],
+    )
+
+
 class ObservationSimSurveyHandler(BaseHandler):
     @auth_or_token
     async def get(self, instrument_id):
@@ -1653,14 +1786,22 @@ class ObservationSimSurveyHandler(BaseHandler):
             description: |
               Maximum phase (in days) post event time to consider detections. Defaults to 3.
           - in: query
-            name: injectionFilename
+            name: model_name
             nullable: true
             schema:
               type: string
             description: |
-              Path to file for injestion as a simsurvey.models.AngularTimeSeriesSource.
-              Defaults to nsns_nph1.0e+06_mejdyn0.020_mejwind0.130_phi30.txt
-              from https://github.com/mbulla/kilonova_models.
+              Model to simulate efficiency for. Must be one of kilonova, afterglow, or linear. Defaults to kilonova.
+          - in: query
+            name: optionalInjectionParameters
+            type: object
+            additionalProperties:
+              type: array
+              items:
+                type: string
+                description: |
+                  Optional parameters to specify the injection type, along
+                  with a list of possible values (to be used in a dropdown UI)
           - in: query
             name: group_ids
             nullable: true
@@ -1690,9 +1831,18 @@ class ObservationSimSurveyHandler(BaseHandler):
         detection_threshold = float(self.get_query_argument("detectionThreshold", 5))
         minimum_phase = float(self.get_query_argument("minimumPhase", 0))
         maximum_phase = float(self.get_query_argument("maximumPhase", 3))
-        injection_filename = self.get_query_argument(
-            "injectionFilename",
-            'data/nsns_nph1.0e+06_mejdyn0.020_mejwind0.130_phi30.txt',
+        model_name = self.get_query_argument("modelName", "kilonova")
+        optional_injection_parameters = json.loads(
+            self.get_query_argument("optionalInjectionParameters", {})
+        )
+
+        if model_name not in ["kilonova", "afterglow", "linear"]:
+            return self.error(
+                f"{model_name} must be one of kilonova, afterglow or linear"
+            )
+
+        optional_injection_parameters = get_simsurvey_parameters(
+            model_name, optional_injection_parameters
         )
 
         group_ids = self.get_query_argument('group_ids', None)
@@ -1722,18 +1872,16 @@ class ObservationSimSurveyHandler(BaseHandler):
             start_date = arrow.get(start_date.strip()).datetime
             end_date = arrow.get(end_date.strip()).datetime
 
-            instrument = (
-                Instrument.query_records_accessible_by(
+            instrument = session.scalars(
+                Instrument.select(
                     self.current_user,
                     options=[
                         joinedload(Instrument.telescope),
                     ],
-                )
-                .filter(
+                ).where(
                     Instrument.id == instrument_id,
                 )
-                .first()
-            )
+            ).first()
             if instrument is None:
                 return self.error(message=f"Invalid instrument ID {instrument_id}")
 
@@ -1741,85 +1889,29 @@ class ObservationSimSurveyHandler(BaseHandler):
                 return self.error('Need sensitivity_data to evaluate efficiency')
 
             if localization_name is None:
-                localization = (
-                    Localization.query_records_accessible_by(
+                localization = session.scalars(
+                    Localization.select(
                         self.current_user,
                     )
-                    .filter(Localization.dateobs == localization_dateobs)
+                    .where(Localization.dateobs == localization_dateobs)
                     .order_by(Localization.created_at.desc())
-                    .first()
-                )
+                ).first()
             else:
-                localization = (
-                    Localization.query_records_accessible_by(
+                localization = session.scalars(
+                    Localization.select(
                         self.current_user,
                     )
-                    .filter(Localization.dateobs == localization_dateobs)
-                    .filter(Localization.localization_name == localization_name)
-                    .first()
-                )
+                    .where(Localization.dateobs == localization_dateobs)
+                    .where(Localization.localization_name == localization_name)
+                ).first()
 
-            event = (
-                GcnEvent.query_records_accessible_by(
+            event = session.scalars(
+                GcnEvent.select(
                     self.current_user,
-                )
-                .filter(GcnEvent.dateobs == localization_dateobs)
-                .first()
-            )
+                ).where(GcnEvent.dateobs == localization_dateobs)
+            ).first()
             if event is None:
                 return self.error("GCN event not found")
-
-            self.push_notification(
-                'Simsurvey analysis in progress. Should be available soon.'
-            )
-
-            data = get_observations(
-                session,
-                start_date,
-                end_date,
-                telescope_name=instrument.telescope.name,
-                instrument_name=instrument.name,
-                localization_dateobs=localization_dateobs,
-                localization_name=localization_name,
-                localization_cumprob=localization_cumprob,
-                return_statistics=True,
-            )
-
-            observations = data["observations"]
-
-            if len(observations) == 0:
-                return self.error('Need at least one observation to run SimSurvey')
-
-            unique_filters = list({observation["filt"] for observation in observations})
-
-            if not set(unique_filters).issubset(
-                set(instrument.sensitivity_data.keys())
-            ):
-                return self.error('Need sensitivity_data for all filters present')
-
-            for filt in unique_filters:
-                if not {'exposure_time', 'limiting_magnitude', 'zeropoint'}.issubset(
-                    set(list(instrument.sensitivity_data[filt].keys()))
-                ):
-                    return self.error(
-                        f'Sensitivity_data dictionary missing keys for filter {filt}'
-                    )
-
-            # get height and width
-            stmt = (
-                InstrumentField.select(self.current_user)
-                .where(InstrumentField.id == observations[0]["field"]["id"])
-                .options(undefer(InstrumentField.contour_summary))
-            )
-            field = session.scalars(stmt).first()
-            if field is None:
-                return self.error(
-                    message='Missing field {obs_dict["field"]["id"]} required to estimate field size'
-                )
-            contour_summary = field.to_dict()["contour_summary"]["features"][0]
-            coordinates = np.array(contour_summary["geometry"]["coordinates"])
-            width = np.max(coordinates[:, 0]) - np.min(coordinates[:, 0])
-            height = np.max(coordinates[:, 1]) - np.min(coordinates[:, 1])
 
             payload = {
                 'start_date': Time(start_date).isot,
@@ -1834,7 +1926,8 @@ class ObservationSimSurveyHandler(BaseHandler):
                 'detection_threshold': detection_threshold,
                 'minimum_phase': minimum_phase,
                 'maximum_phase': maximum_phase,
-                'injection_filename': injection_filename,
+                'model_name': model_name,
+                'optional_injection_parameters': optional_injection_parameters,
             }
 
             survey_efficiency_analysis = SurveyEfficiencyForObservations(
@@ -1850,20 +1943,19 @@ class ObservationSimSurveyHandler(BaseHandler):
             session.add(survey_efficiency_analysis)
             session.commit()
 
+            self.push_notification(
+                'Simsurvey analysis in progress. Should be available soon.'
+            )
+
             simsurvey_analysis = functools.partial(
-                observation_simsurvey,
-                observations,
+                retrieve_observations_and_simsurvey,
+                session,
+                start_date,
+                end_date,
                 localization.id,
                 instrument.id,
-                survey_efficiency_analysis,
-                width=width,
-                height=height,
-                number_of_injections=payload['number_of_injections'],
-                number_of_detections=payload['number_of_detections'],
-                detection_threshold=payload['detection_threshold'],
-                minimum_phase=payload['minimum_phase'],
-                maximum_phase=payload['maximum_phase'],
-                injection_filename=payload['injection_filename'],
+                survey_efficiency_analysis.id,
+                "SurveyEfficiencyForObservations",
             )
             IOLoop.current().run_in_executor(None, simsurvey_analysis)
 
