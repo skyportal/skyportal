@@ -1,7 +1,6 @@
 from datetime import datetime, timedelta
 import json
 import requests
-import sqlalchemy as sa
 
 from baselayer.app.flow import Flow
 from baselayer.app.env import load_env
@@ -64,7 +63,7 @@ class SEDMV2API(FollowUpAPI):
     """SkyPortal interface to the Spectral Energy Distribution machine (SEDMv2)."""
 
     @staticmethod
-    def submit(request):
+    def submit(request, session):
         """Submit a follow-up request to SEDMv2.
 
         Parameters
@@ -73,7 +72,7 @@ class SEDMV2API(FollowUpAPI):
             The request to submit.
         """
 
-        from ..models import FacilityTransaction, DBSession
+        from ..models import FacilityTransaction
 
         validate_request_to_sedmv2(request)
 
@@ -116,7 +115,7 @@ class SEDMV2API(FollowUpAPI):
                 initiator_id=request.last_modified_by_id,
             )
 
-        DBSession().add(transaction)
+        session.add(transaction)
 
         flow = Flow()
         flow.push(
@@ -126,13 +125,15 @@ class SEDMV2API(FollowUpAPI):
         )
 
     @staticmethod
-    def delete(request):
+    def delete(request, session):
         """Delete a follow-up request from SEDMv2 queue.
 
         Parameters
         ----------
         request: skyportal.models.FollowupRequest
             The request to delete from the queue and the SkyPortal database.
+        session: sqlalchemy.Session
+            Database session for this transaction
         """
 
         from ..models import DBSession, FollowupRequest, FacilityTransaction
@@ -180,7 +181,7 @@ class SEDMV2API(FollowUpAPI):
                 initiator_id=request.last_modified_by_id,
             )
 
-        DBSession().add(transaction)
+        session.add(transaction)
 
         flow = Flow()
         flow.push(
@@ -190,71 +191,68 @@ class SEDMV2API(FollowUpAPI):
         )
 
     @staticmethod
-    def update(request):
+    def update(request, session):
         """Update a request in the SEDMv2 queue.
 
         Parameters
         ----------
         request: skyportal.models.FollowupRequest
             The updated request.
+        session: sqlalchemy.Session
+            Database session for this transaction
         """
 
-        from ..models import FacilityTransaction, FollowupRequest, DBSession
+        from ..models import FacilityTransaction
 
-        with DBSession() as session:
-            request_session = session.scalars(
-                sa.select(FollowupRequest).where(FollowupRequest.id == request.id)
-            ).first()
+        validate_request_to_sedmv2(request)
 
-            validate_request_to_sedmv2(request_session)
+        if cfg['app.sedmv2_endpoint'] is not None:
+            altdata = request.allocation.altdata
 
-            if cfg['app.sedmv2_endpoint'] is not None:
-                altdata = request_session.allocation.altdata
+            if not altdata:
+                raise ValueError('Missing allocation information.')
 
-                if not altdata:
-                    raise ValueError('Missing allocation information.')
+            payload = {
+                'obj_id': request.obj_id,
+                'allocation_id': request.allocation.id,
+                'payload': request.payload,
+            }
 
-                payload = {
-                    'obj_id': request_session.obj_id,
-                    'allocation_id': request_session.allocation.id,
-                    'payload': request_session.payload,
-                }
-
-                r = requests.post(
-                    cfg['app.sedmv2_endpoint'],
-                    json=payload,
-                    headers={"Authorization": f"token {altdata['api_token']}"},
-                )
-
-                if r.status_code == 200:
-                    request_session.status = 'submitted'
-                else:
-                    request_session.status = f'rejected: {r.content}'
-
-                transaction = FacilityTransaction(
-                    request=http.serialize_requests_request(r.request),
-                    response=http.serialize_requests_response(r),
-                    followup_request=request_session,
-                    initiator_id=request_session.last_modified_by_id,
-                )
-            else:
-                request_session.status = 'submitted'
-
-                transaction = FacilityTransaction(
-                    request=None,
-                    response=None,
-                    followup_request=request_session,
-                    initiator_id=request_session.last_modified_by_id,
-                )
-
-            session.add(transaction)
-
-            flow = Flow()
-            flow.push(
-                '*',
-                'skyportal/REFRESH_SOURCE',
-                payload={'obj_key': request_session.obj.internal_key},
+            r = requests.post(
+                cfg['app.sedmv2_endpoint'],
+                json=payload,
+                headers={"Authorization": f"token {altdata['api_token']}"},
             )
+
+            if r.status_code == 200:
+                request.status = 'submitted'
+            else:
+                request.status = f'rejected: {r.content}'
+
+            transaction = FacilityTransaction(
+                request=http.serialize_requests_request(r.request),
+                response=http.serialize_requests_response(r),
+                followup_request=request,
+                initiator_id=request.last_modified_by_id,
+            )
+        else:
+            request.status = 'submitted'
+
+            transaction = FacilityTransaction(
+                request=None,
+                response=None,
+                followup_request=request,
+                initiator_id=request.last_modified_by_id,
+            )
+
+        session.add(transaction)
+
+        flow = Flow()
+        flow.push(
+            '*',
+            'skyportal/REFRESH_SOURCE',
+            payload={'obj_key': request.obj.internal_key},
+        )
 
     form_json_schema = {
         "type": "object",
