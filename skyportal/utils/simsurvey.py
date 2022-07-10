@@ -53,7 +53,13 @@ def get_simsurvey_parameters(model_name, optional_injection_parameters):
             "mag": -16.0,
             "dmag": 1.0,
         }
-    optional_injection_parameters = default_parameters | optional_injection_parameters
+    # for when we use python 3.9 by default
+    # optional_injection_parameters = default_parameters | optional_injection_parameters
+    optional_injection_parameters = {
+        **default_parameters,
+        **optional_injection_parameters,
+    }
+
     if model_name == "afterglow":
         optional_injection_parameters["E0"] = (
             10 ** optional_injection_parameters["log10_E0"]
