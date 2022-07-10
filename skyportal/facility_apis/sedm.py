@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 import json
 import requests
+import sqlalchemy as sa
 
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
@@ -238,35 +239,40 @@ class SEDMAPI(FollowUpAPI):
             The updated request.
         """
 
-        from ..models import FacilityTransaction, DBSession
+        from ..models import FacilityTransaction, FollowupRequest, DBSession
 
-        payload = convert_request_to_sedm(request, method_value='edit')
-        content = json.dumps(payload)
-        r = requests.post(
-            cfg['app.sedm_endpoint'],
-            files={'jsonfile': ('jsonfile', content)},
-        )
+        with DBSession() as session:
+            request_session = session.scalars(
+                sa.select(FollowupRequest).where(FollowupRequest.id == request.id)
+            ).first()
 
-        if r.status_code == 200:
-            request.status = 'submitted'
-        else:
-            request.status = f'rejected: {r.content}'
+            payload = convert_request_to_sedm(request_session, method_value='edit')
+            content = json.dumps(payload)
+            r = requests.post(
+                cfg['app.sedm_endpoint'],
+                files={'jsonfile': ('jsonfile', content)},
+            )
 
-        transaction = FacilityTransaction(
-            request=http.serialize_requests_request(r.request),
-            response=http.serialize_requests_response(r),
-            followup_request=request,
-            initiator_id=request.last_modified_by_id,
-        )
+            if r.status_code == 200:
+                request.status = 'submitted'
+            else:
+                request.status = f'rejected: {r.content}'
 
-        DBSession().add(transaction)
+            transaction = FacilityTransaction(
+                request=http.serialize_requests_request(r.request),
+                response=http.serialize_requests_response(r),
+                followup_request=request_session,
+                initiator_id=request.last_modified_by_id,
+            )
 
-        flow = Flow()
-        flow.push(
-            '*',
-            "skyportal/REFRESH_FOLLOWUP_REQUESTS",
-            payload={"obj_key": request.obj.internal_key},
-        )
+            session.add(transaction)
+
+            flow = Flow()
+            flow.push(
+                '*',
+                "skyportal/REFRESH_FOLLOWUP_REQUESTS",
+                payload={"obj_key": request_session.obj.internal_key},
+            )
 
     _observation_types = [
         '3-shot (gri)',

@@ -1141,20 +1141,30 @@ class FollowupRequestPrioritizationHandler(BaseHandler):
         ---
         description: |
           Reprioritize followup requests schedule automatically based on
-          location within skymap.
+          either magnitude or location within skymap.
         tags:
             - followup_requests
         parameters:
-        - in: body
-          name: localizationId
-          schema:
-            type: integer
-          description: Filter by localization ID
         - in: body
           name: requestIds
           schema:
             type: list of integers
           description: List of follow-up request IDs
+        - in: body
+          name: priorityType
+          schema:
+            type: string
+          description: Priority source. Must be either localization or magnitude. Defaults to magnitude.
+        - in: body
+          name: magnitudeOrdering
+          schema:
+            type: string
+          description: Ordering for brightness based prioritization. Must be either ascending (brightest first) or descending (faintest first). Defaults to ascending.
+        - in: body
+          name: localizationId
+          schema:
+            type: integer
+          description: Filter by localization ID
         - in: body
           name: minimumPriority
           schema:
@@ -1177,82 +1187,117 @@ class FollowupRequestPrioritizationHandler(BaseHandler):
         """
 
         data = self.get_json()
+        priority_type = data.get('priorityType', 'magnitude')
+        magnitude_ordering = data.get('magnitudeOrdering', 'ascending')
         localization_id = data.get('localizationId', None)
         request_ids = data.get('requestIds', None)
         minimum_priority = data.get('minimumPriority', 1)
         maximum_priority = data.get('maximumPriority', 5)
 
-        if localization_id is None:
-            return self.error('localizationId is required')
         if request_ids is None:
             return self.error('requestIds is required')
 
-        localization = (
-            Localization.query_records_accessible_by(self.current_user)
-            .filter(
-                Localization.id == localization_id,
+        if priority_type not in ["magnitude", "localization"]:
+            return self.error('priority_type must be either magnitude or localization')
+
+        if magnitude_ordering not in ["ascending", "descending"]:
+            return self.error(
+                'magnitude_ordering must be either ascending or descending'
             )
-            .first()
-        )
-        if localization is None:
-            return self.error(message=f"Missing localization with id {localization_id}")
 
-        followup_requests = []
-        for request_id in request_ids:
-            # get owned assignments
-            followup_request = FollowupRequest.get_if_accessible_by(
-                request_id, self.current_user, mode="update"
-            )
-            if followup_request is None:
-                return self.error(
-                    message=f"Missing FollowUpRequest with id {request_id}"
-                )
-            followup_requests.append(followup_request)
+        with self.Session() as session:
 
-        if len(followup_requests) == 0:
-            return self.error('Need at least one observation to modify.')
-
-        ras = np.array(
-            [followup_request.obj.ra for followup_request in followup_requests]
-        )
-        decs = np.array(
-            [followup_request.obj.dec for followup_request in followup_requests]
-        )
-        dists = np.array(
-            [
-                cosmo.luminosity_distance(followup_request.obj.redshift).value
-                if followup_request.obj.redshift is not None
-                else -1
-                for followup_request in followup_requests
-            ]
-        )
-
-        tab = localization.flat
-        ipix = hp.ang2pix(Localization.nside, ras, decs, lonlat=True)
-        if localization.is_3d:
-            prob, distmu, distsigma, distnorm = tab
-            if not all([dist > 0 for dist in dists]):
-                weights = prob[ipix]
-            else:
-                weights = prob[ipix] * (
-                    distnorm[ipix] * norm(distmu[ipix], distsigma[ipix]).pdf(dists)
-                )
-        else:
-            weights = prob[ipix]
-        weights = weights / np.max(weights)
-        priorities = [
-            int(
-                np.round(
-                    weight * (maximum_priority - minimum_priority) + minimum_priority
-                )
-            )
-            for weight in weights
-        ]
-
-        with DBSession() as session:
-            for request_id, priority in zip(request_ids, priorities):
+            followup_requests = []
+            for request_id in request_ids:
                 # get owned assignments
-                followup_request = session.query(FollowupRequest).get(request_id)
+                followup_request = session.scalars(
+                    FollowupRequest.select(self.current_user, mode="update")
+                    .options(joinedload(FollowupRequest.obj).joinedload(Obj.photstats))
+                    .where(FollowupRequest.id == request_id)
+                ).first()
+                if followup_request is None:
+                    return self.error(
+                        message=f"Missing FollowUpRequest with id {request_id}"
+                    )
+                followup_requests.append(followup_request)
+
+            if len(followup_requests) == 0:
+                return self.error('Need at least one observation to modify.')
+
+            if priority_type == "localization":
+                if localization_id is None:
+                    return self.error(
+                        'localizationId is required if priorityType is localization'
+                    )
+
+                localization = session.scalars(
+                    Localization.select(self.current_user).where(
+                        Localization.id == localization_id,
+                    )
+                ).first()
+                if localization is None:
+                    return self.error(
+                        message=f"Missing localization with id {localization_id}"
+                    )
+
+                ras = np.array(
+                    [followup_request.obj.ra for followup_request in followup_requests]
+                )
+                decs = np.array(
+                    [followup_request.obj.dec for followup_request in followup_requests]
+                )
+                dists = np.array(
+                    [
+                        cosmo.luminosity_distance(followup_request.obj.redshift).value
+                        if followup_request.obj.redshift is not None
+                        else -1
+                        for followup_request in followup_requests
+                    ]
+                )
+
+                tab = localization.flat
+                ipix = hp.ang2pix(Localization.nside, ras, decs, lonlat=True)
+                if localization.is_3d:
+                    prob, distmu, distsigma, distnorm = tab
+                    if not all([dist > 0 for dist in dists]):
+                        weights = prob[ipix]
+                    else:
+                        weights = prob[ipix] * (
+                            distnorm[ipix]
+                            * norm(distmu[ipix], distsigma[ipix]).pdf(dists)
+                        )
+                else:
+                    (prob,) = tab
+                    weights = prob[ipix]
+
+            elif priority_type == "magnitude":
+                mags = np.array(
+                    [
+                        followup_request.obj.photstats[0].peak_mag_global
+                        if followup_request.obj.photstats[0].peak_mag_global is not None
+                        else 99
+                        for followup_request in followup_requests
+                    ]
+                )
+                if magnitude_ordering == "descending":
+                    weights = mags - np.min(mags)
+                else:
+                    weights = -(mags - np.min(mags))
+
+            weights = (weights - np.min(weights)) / (np.max(weights) - np.min(weights))
+            priorities = [
+                int(
+                    np.round(
+                        weight * (maximum_priority - minimum_priority)
+                        + minimum_priority
+                    )
+                )
+                for weight in weights
+            ]
+
+            print(priorities)
+
+            for followup_request, priority in zip(followup_requests, priorities):
                 api = followup_request.instrument.api_class
                 if not api.implements()['update']:
                     return self.error('Cannot update requests on this instrument.')
@@ -1266,10 +1311,10 @@ class FollowupRequestPrioritizationHandler(BaseHandler):
                 followup_request.payload = payload
                 followup_request.instrument.api_class.update(followup_request)
 
-        flow = Flow()
-        flow.push(
-            '*',
-            "skyportal/REFRESH_FOLLOWUP_REQUESTS",
-        )
+            flow = Flow()
+            flow.push(
+                '*',
+                "skyportal/REFRESH_FOLLOWUP_REQUESTS",
+            )
 
-        return self.success()
+            return self.success()

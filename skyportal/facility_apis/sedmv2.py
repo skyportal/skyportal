@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 import json
 import requests
+import sqlalchemy as sa
 
 from baselayer.app.flow import Flow
 from baselayer.app.env import load_env
@@ -198,57 +199,62 @@ class SEDMV2API(FollowUpAPI):
             The updated request.
         """
 
-        from ..models import FacilityTransaction, DBSession
+        from ..models import FacilityTransaction, FollowupRequest, DBSession
 
-        validate_request_to_sedmv2(request)
+        with DBSession() as session:
+            request_session = session.scalars(
+                sa.select(FollowupRequest).where(FollowupRequest.id == request.id)
+            ).first()
 
-        if cfg['app.sedmv2_endpoint'] is not None:
-            altdata = request.allocation.altdata
+            validate_request_to_sedmv2(request_session)
 
-            if not altdata:
-                raise ValueError('Missing allocation information.')
+            if cfg['app.sedmv2_endpoint'] is not None:
+                altdata = request_session.allocation.altdata
 
-            payload = {
-                'obj_id': request.obj_id,
-                'allocation_id': request.allocation.id,
-                'payload': request.payload,
-            }
+                if not altdata:
+                    raise ValueError('Missing allocation information.')
 
-            r = requests.post(
-                cfg['app.sedmv2_endpoint'],
-                json=payload,
-                headers={"Authorization": f"token {altdata['api_token']}"},
-            )
+                payload = {
+                    'obj_id': request_session.obj_id,
+                    'allocation_id': request_session.allocation.id,
+                    'payload': request_session.payload,
+                }
 
-            if r.status_code == 200:
-                request.status = 'submitted'
+                r = requests.post(
+                    cfg['app.sedmv2_endpoint'],
+                    json=payload,
+                    headers={"Authorization": f"token {altdata['api_token']}"},
+                )
+
+                if r.status_code == 200:
+                    request_session.status = 'submitted'
+                else:
+                    request_session.status = f'rejected: {r.content}'
+
+                transaction = FacilityTransaction(
+                    request=http.serialize_requests_request(r.request),
+                    response=http.serialize_requests_response(r),
+                    followup_request=request_session,
+                    initiator_id=request_session.last_modified_by_id,
+                )
             else:
-                request.status = f'rejected: {r.content}'
+                request_session.status = 'submitted'
 
-            transaction = FacilityTransaction(
-                request=http.serialize_requests_request(r.request),
-                response=http.serialize_requests_response(r),
-                followup_request=request,
-                initiator_id=request.last_modified_by_id,
+                transaction = FacilityTransaction(
+                    request=None,
+                    response=None,
+                    followup_request=request_session,
+                    initiator_id=request_session.last_modified_by_id,
+                )
+
+            session.add(transaction)
+
+            flow = Flow()
+            flow.push(
+                '*',
+                'skyportal/REFRESH_SOURCE',
+                payload={'obj_key': request_session.obj.internal_key},
             )
-        else:
-            request.status = 'submitted'
-
-            transaction = FacilityTransaction(
-                request=None,
-                response=None,
-                followup_request=request,
-                initiator_id=request.last_modified_by_id,
-            )
-
-        DBSession().add(transaction)
-
-        flow = Flow()
-        flow.push(
-            '*',
-            'skyportal/REFRESH_SOURCE',
-            payload={'obj_key': request.obj.internal_key},
-        )
 
     form_json_schema = {
         "type": "object",
