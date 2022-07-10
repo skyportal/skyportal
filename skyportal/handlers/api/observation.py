@@ -1833,7 +1833,7 @@ class ObservationSimSurveyHandler(BaseHandler):
         maximum_phase = float(self.get_query_argument("maximumPhase", 3))
         model_name = self.get_query_argument("modelName", "kilonova")
         optional_injection_parameters = json.loads(
-            self.get_query_argument("optionalInjectionParameters", {})
+            self.get_query_argument("optionalInjectionParameters", '{}')
         )
 
         if model_name not in ["kilonova", "afterglow", "linear"]:
