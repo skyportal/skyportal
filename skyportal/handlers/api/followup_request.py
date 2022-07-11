@@ -1304,6 +1304,9 @@ class FollowupRequestPrioritizationHandler(BaseHandler):
                 weights = (weights - np.min(weights)) / (
                     np.max(weights) - np.min(weights)
                 )
+            else:
+                weights = weights / np.max(weights)
+
             priorities = [
                 int(
                     np.round(
