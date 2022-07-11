@@ -8,13 +8,8 @@ import MenuItem from "@mui/material/MenuItem";
 import CircularProgress from "@mui/material/CircularProgress";
 import makeStyles from "@mui/styles/makeStyles";
 
-import dayjs from "dayjs";
-import utc from "dayjs/plugin/utc";
-
 import * as followupRequestActions from "../ducks/followup_requests";
 import * as gcnEventsActions from "../ducks/gcnEvents";
-
-dayjs.extend(utc);
 
 const useStyles = makeStyles(() => ({
   select: {
@@ -42,12 +37,6 @@ const FollowupRequestPrioritizationForm = () => {
     (state) => state.followup_requests
   );
 
-  const defaultStartDate = dayjs().utc().format("YYYY-MM-DDTHH:mm:ssZ");
-  const defaultEndDate = dayjs()
-    .add(1, "day")
-    .utc()
-    .format("YYYY-MM-DDTHH:mm:ssZ");
-
   const [isSubmittingPrioritization, setIsSubmittingPrioritization] =
     useState(false);
   const [selectedGcnEventId, setSelectedGcnEventId] = useState(null);
@@ -61,7 +50,7 @@ const FollowupRequestPrioritizationForm = () => {
 
       const result = await dispatch(gcnEventsActions.fetchGcnEvents());
       const { data } = result;
-      setSelectedGcnEventId(data[0]?.id);
+      setSelectedGcnEventId(data?.events[0]?.id);
     };
     getGcnEvents();
 
@@ -87,9 +76,20 @@ const FollowupRequestPrioritizationForm = () => {
     return <p>No GCN Events...</p>;
   }
 
+  const sortedInstrumentList = [...instrumentList];
+  sortedInstrumentList.sort((i1, i2) => {
+    if (i1.name > i2.name) {
+      return 1;
+    }
+    if (i2.name > i1.name) {
+      return -1;
+    }
+    return 0;
+  });
+
   const gcnEventsLookUp = {};
   // eslint-disable-next-line no-unused-expressions
-  gcnEvents?.forEach((gcnEvent) => {
+  gcnEvents?.events.forEach((gcnEvent) => {
     gcnEventsLookUp[gcnEvent.id] = gcnEvent;
   });
 
@@ -148,9 +148,18 @@ const FollowupRequestPrioritizationForm = () => {
   const FollowupRequestPrioritizationFormSchema = {
     type: "object",
     properties: {
+      priorityType: {
+        type: "string",
+        oneOf: [
+          { enum: ["localization"], title: "Localization" },
+          { enum: ["magnitude"], title: "Magnitude" },
+        ],
+        default: "magnitude",
+        title: "Prioritization",
+      },
       instrumentId: {
         type: "integer",
-        oneOf: instrumentList.map((instrument) => ({
+        oneOf: sortedInstrumentList.map((instrument) => ({
           enum: [instrument.id],
           title: `${instrument.name} / ${
             telLookUp[instrument.telescope_id].name
@@ -158,18 +167,6 @@ const FollowupRequestPrioritizationForm = () => {
         })),
         title: "Instrument",
         default: instrumentList[0]?.id,
-      },
-      observationStartDate: {
-        type: "string",
-        format: "date-time",
-        title: "Observation Start Date (Local Time)",
-        default: defaultStartDate,
-      },
-      observationEndDate: {
-        type: "string",
-        format: "date-time",
-        title: "Observation End Date (Local Time)",
-        default: defaultEndDate,
       },
       minimumPriority: {
         type: "number",
@@ -182,10 +179,50 @@ const FollowupRequestPrioritizationForm = () => {
         title: "Maximum Priority",
       },
     },
+    dependencies: {
+      priorityType: {
+        oneOf: [
+          {
+            properties: {
+              priorityType: {
+                enum: ["magnitude"],
+              },
+              magnitudeOrdering: {
+                type: "string",
+                oneOf: [
+                  { enum: ["ascending"], title: "Ascending (brightest first)" },
+                  {
+                    enum: ["descending"],
+                    title: "Descending (faintest first)",
+                  },
+                ],
+                default: "ascending",
+                title: "Magnitude ordering",
+              },
+            },
+          },
+        ],
+      },
+    },
   };
 
   return (
     <div>
+      <div data-testid="gcnsource-selection-form">
+        <Form
+          schema={FollowupRequestPrioritizationFormSchema}
+          onSubmit={handleSubmitPrioritization}
+          // eslint-disable-next-line react/jsx-no-bind
+          validate={validatePrioritization}
+          disabled={isSubmittingPrioritization}
+          liveValidate
+        />
+        {isSubmittingPrioritization && (
+          <div>
+            <CircularProgress />
+          </div>
+        )}
+      </div>
       <div>
         <InputLabel id="gcnEventSelectLabel">GCN Event</InputLabel>
         <Select
@@ -196,7 +233,7 @@ const FollowupRequestPrioritizationForm = () => {
           name="followupRequestGcnEventSelect"
           className={classes.select}
         >
-          {gcnEvents?.map((gcnEvent) => (
+          {gcnEvents?.events.map((gcnEvent) => (
             <MenuItem
               value={gcnEvent.id}
               key={gcnEvent.id}
@@ -226,21 +263,6 @@ const FollowupRequestPrioritizationForm = () => {
             )
           )}
         </Select>
-      </div>
-      <div data-testid="gcnsource-selection-form">
-        <Form
-          schema={FollowupRequestPrioritizationFormSchema}
-          onSubmit={handleSubmitPrioritization}
-          // eslint-disable-next-line react/jsx-no-bind
-          validate={validatePrioritization}
-          disabled={isSubmittingPrioritization}
-          liveValidate
-        />
-        {isSubmittingPrioritization && (
-          <div>
-            <CircularProgress />
-          </div>
-        )}
       </div>
     </div>
   );
