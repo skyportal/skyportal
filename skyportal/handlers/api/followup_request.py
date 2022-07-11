@@ -684,7 +684,6 @@ class FollowupRequestHandler(BaseHandler):
                     f'Error parsing followup request update: "{e.normalized_messages()}"'
                 )
 
-            print(data)
 
             for k in data:
                 setattr(followup_request, k, data[k])
