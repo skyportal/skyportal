@@ -684,14 +684,11 @@ class FollowupRequestHandler(BaseHandler):
                     f'Error parsing followup request update: "{e.normalized_messages()}"'
                 )
 
-
             for k in data:
                 setattr(followup_request, k, data[k])
 
             followup_request.instrument.api_class.update(followup_request, session)
             session.commit()
-
-            print(followup_request.payload)
 
             self.push_all(
                 action="skyportal/REFRESH_SOURCE",
