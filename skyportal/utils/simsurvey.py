@@ -16,11 +16,11 @@ def get_simsurvey_parameters(model_name, optional_injection_parameters):
 
     if model_name == "kilonova":
         # default taken from https://github.com/mbulla/kilonova_models
-        default_parameters = {
+        parameters = {
             "injection_filename": 'data/nsns_nph1.0e+06_mejdyn0.020_mejwind0.130_phi30.txt'
         }
     elif model_name == "afterglow":
-        default_parameters = {
+        parameters = {
             "ntime": 30,
             "t_i": 0.25,
             "t_f": 15.25,
@@ -43,7 +43,7 @@ def get_simsurvey_parameters(model_name, optional_injection_parameters):
             "z": 0.0,
         }
     elif model_name == "linear":
-        default_parameters = {
+        parameters = {
             "ntime": 30,
             "t_i": 0.25,
             "t_f": 15.25,
@@ -53,28 +53,15 @@ def get_simsurvey_parameters(model_name, optional_injection_parameters):
             "mag": -16.0,
             "dmag": 1.0,
         }
-    # for when we use python 3.9 by default
-    # optional_injection_parameters = default_parameters | optional_injection_parameters
-    optional_injection_parameters = {
-        **default_parameters,
-        **optional_injection_parameters,
-    }
+    parameters.update(optional_injection_parameters)
 
     if model_name == "afterglow":
-        optional_injection_parameters["E0"] = (
-            10 ** optional_injection_parameters["log10_E0"]
-        )
-        optional_injection_parameters["n0"] = (
-            10 ** optional_injection_parameters["log10_n0"]
-        )
-        optional_injection_parameters["epsilon_e"] = (
-            10 ** optional_injection_parameters["log10_epsilon_e"]
-        )
-        optional_injection_parameters["epsilon_B"] = (
-            10 ** optional_injection_parameters["log10_epsilon_B"]
-        )
+        parameters["E0"] = 10 ** parameters["log10_E0"]
+        parameters["n0"] = 10 ** parameters["log10_n0"]
+        parameters["epsilon_e"] = 10 ** parameters["log10_epsilon_e"]
+        parameters["epsilon_B"] = 10 ** parameters["log10_epsilon_B"]
 
-    return optional_injection_parameters
+    return parameters
 
 
 def random_parameters_notheta(redshifts, model, r_v=2.0, ebv_rate=0.11, **kwargs):

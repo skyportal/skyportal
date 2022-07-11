@@ -224,6 +224,7 @@ def get_observations(
     page_number=1,
 ):
     f"""Query for list of observations
+
     Parameters
     ----------
     session: sqlalchemy.Session
@@ -1575,9 +1576,11 @@ def retrieve_observations_and_simsurvey(
     survey_efficiency_analysis_type,
 ):
 
-    """Query
+    """Query for observations and run survey analysis
+
     Parameters
     ----------
+
     session: sqlalchemy.Session
         Database session for this transaction
     start_date: datetime
