@@ -61,4 +61,4 @@ def test_reprioritize_followup_request(
     status, data = api('GET', f'followup_request/{id}', token=upload_data_token)
     assert status == 200
 
-    assert data['data']["payload"]["priority"] == 1
+    assert data['data']["payload"]["priority"] == 5
