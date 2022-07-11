@@ -1657,7 +1657,7 @@ def retrieve_observations_and_simsurvey(
 
     for filt in unique_filters:
         if not {'exposure_time', 'limiting_magnitude', 'zeropoint'}.issubset(
-            set(list(instrument.sensitivity_data[filt].keys()))
+            set(instrument.sensitivity_data[filt].keys())
         ):
             raise ValueError(
                 f'Sensitivity_data dictionary missing keys for filter {filt}'
