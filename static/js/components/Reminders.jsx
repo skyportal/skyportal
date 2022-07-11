@@ -24,9 +24,16 @@ import Typography from "@mui/material/Typography";
 import AddIcon from "@mui/icons-material/Add";
 import grey from "@mui/material/colors/grey";
 
+// eslint-disable-next-line import/no-unresolved
+import Form from "@rjsf/material-ui/v5";
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
+
 import { showNotification } from "baselayer/components/Notifications";
 
 import * as Actions from "../ducks/reminders";
+
+dayjs.extend(utc);
 
 const useStyles = makeStyles((theme) => ({
   container: {
@@ -106,7 +113,7 @@ const dialogTitleStyles = (theme) => ({
 
 const DialogTitle = withStyles(dialogTitleStyles)(
   ({ children, classes, onClose }) => (
-    <MuiDialogTitle disableTypography className={classes.root}>
+    <MuiDialogTitle className={classes.root}>
       <Typography variant="h6" className={classes.title}>
         {children}
       </Typography>
@@ -122,6 +129,92 @@ const DialogTitle = withStyles(dialogTitleStyles)(
     </MuiDialogTitle>
   )
 );
+
+const NewReminder = ({ resourceId, resourceType }) => {
+  const dispatch = useDispatch();
+  const defaultDate = dayjs().utc().format("YYYY-MM-DDTHH:mm:ssZ");
+
+  const handleSubmit = ({ formData }) => {
+    formData.next_reminder = formData.next_reminder
+      .replace("+00:00", "")
+      .replace(".000Z", "");
+    dispatch(Actions.submitReminder(resourceId, resourceType, formData)).then(
+      (response) => {
+        if (response.status === "success") {
+          dispatch(showNotification("Reminder created"));
+        } else {
+          dispatch(showNotification("Error creating reminder", "error"));
+        }
+      }
+    );
+  };
+
+  function validate(formData, errors) {
+    if (formData.text === "") {
+      errors.text = "Reminder text is required";
+    }
+    if (defaultDate > formData.next_reminder) {
+      errors.next_reminder.addError("Next reminder date can't be in the past");
+    }
+    if (formData.number_of_reminders <= 0) {
+      errors.number_of_reminders.addError(
+        "Number of reminders must be greater than 0"
+      );
+    }
+    if (formData.reminder_delay <= 0) {
+      errors.reminder_delay.addError(
+        "Reminder delay must be greater than 0 day"
+      );
+    }
+    return errors;
+  }
+
+  const reminderFormSchema = {
+    type: "object",
+    properties: {
+      text: {
+        type: "string",
+        title: "Text",
+      },
+      next_reminder: {
+        type: "string",
+        format: "date-time",
+        title: "Date",
+        default: defaultDate,
+      },
+      number_of_reminders: {
+        type: "integer",
+        title: "Number of reminders",
+        default: 1,
+      },
+      reminder_delay: {
+        type: "integer",
+        title: "Delay between reminders (in days)",
+        default: 1,
+      },
+    },
+    required: [
+      "text",
+      "next_reminder",
+      "number_of_reminders",
+      "reminder_delay",
+    ],
+  };
+  return (
+    <Form
+      schema={reminderFormSchema}
+      onSubmit={handleSubmit}
+      // eslint-disable-next-line react/jsx-no-bind
+      validate={validate}
+      liveValidate
+    />
+  );
+};
+
+NewReminder.propTypes = {
+  resourceId: PropTypes.string.isRequired,
+  resourceType: PropTypes.string.isRequired,
+};
 
 const RemindersTable = ({ reminders, resourceId, resourceType }) => {
   const dispatch = useDispatch();
@@ -180,7 +273,7 @@ const RemindersTable = ({ reminders, resourceId, resourceType }) => {
     },
     {
       name: "next_reminder",
-      label: "Next Reminder",
+      label: "Next Reminder (UTC)",
       options: {
         filter: false,
         sort: true,
@@ -277,7 +370,10 @@ const RemindersTable = ({ reminders, resourceId, resourceType }) => {
               </DialogTitle>
               <DialogContent dividers>
                 <div className={classes.dialogContent}>
-                  New Reminder Form - Not implemented yet
+                  <NewReminder
+                    resourceId={resourceId}
+                    resourceType={resourceType}
+                  />
                 </div>
               </DialogContent>
             </Dialog>
@@ -293,7 +389,7 @@ const RemindersTable = ({ reminders, resourceId, resourceType }) => {
 RemindersTable.propTypes = {
   reminders: PropTypes.arrayOf(
     PropTypes.shape({
-      id: PropTypes.string.isRequired,
+      id: PropTypes.number.isRequired,
       number_of_reminders: PropTypes.number,
       reminder_delay: PropTypes.number,
       next_reminder: PropTypes.string,
