@@ -49,7 +49,6 @@ const FollowupRequestPrioritizationForm = () => {
       // update
 
       const result = await dispatch(gcnEventsActions.fetchGcnEvents());
-      console.log("result", result);
       const { data } = result;
       setSelectedGcnEventId(data?.events[0]?.id);
     };
