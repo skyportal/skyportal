@@ -212,6 +212,14 @@ skyportal_handlers = [
         r'/api/gcn_event(/[0-9A-Za-z-_\.\+]+)/survey_efficiency',
         GcnEventSurveyEfficiencyHandler,
     ),
+    (
+        r'/api/(source|spectra|gcn_event|shift)/([0-9A-Za-z-_\.\+]+)/reminders',
+        ReminderHandler,
+    ),
+    (
+        r'/api/(source|spectra|gcn_event|shift)/([0-9A-Za-z-_\.\+]+)/reminders(/[0-9]+)?',
+        ReminderHandler,
+    ),
     (r'/api/gcn_event(/.*)?', GcnEventHandler),
     (
         r'/api/localization(/[0-9]+)/airmass(/[0-9]+)?',
@@ -328,14 +336,6 @@ skyportal_handlers = [
     (
         r'/api/(sources|spectra)(/[0-9A-Za-z-_\.\+]+)/annotations(/[0-9]+)?',
         AnnotationHandler,
-    ),
-    (
-        r'/api/(sources|spectra|gcn_event|shift)/([0-9A-Za-z-_\.\+]+)/reminders',
-        ReminderHandler,
-    ),
-    (
-        r'/api/(sources|spectra|gcn_event|shift)/([0-9A-Za-z-_\.\+]+)/reminders(/[0-9]+)?',
-        ReminderHandler,
     ),
     (r'/api/sources(/.*)?', SourceHandler),
     (r'/api/source_exists(/.*)?', SourceExistsHandler),

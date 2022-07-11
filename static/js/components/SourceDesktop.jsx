@@ -42,6 +42,7 @@ import PhotometryTable from "./PhotometryTable";
 import FavoritesButton from "./FavoritesButton";
 import SourceAnnotationButtons from "./SourceAnnotationButtons";
 import TNSATForm from "./TNSATForm";
+import Reminders from "./Reminders";
 
 import * as spectraActions from "../ducks/spectra";
 
@@ -776,6 +777,9 @@ const SourceDesktop = ({ source }) => {
               </AccordionSummary>
               <AccordionDetails>
                 <SourceNotification sourceId={source.id} />
+              </AccordionDetails>
+              <AccordionDetails>
+                <Reminders resourceId={source.id} resourceType="source" />
               </AccordionDetails>
             </Accordion>
           </div>

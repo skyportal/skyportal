@@ -83,19 +83,22 @@ class ReminderQueue(asyncio.Queue):
                         session.query(ReminderOnGCN)
                         .where(ReminderOnGCN.created_at > last_update)
                         .all()
-                        + (
-                            session.query(ReminderOnShift)
-                            .where(ReminderOnShift.created_at > last_update)
-                            .all()
-                        )
+                    )
+                    + (
+                        session.query(ReminderOnShift)
+                        .where(ReminderOnShift.created_at > last_update)
+                        .all()
                     )
                 )
-
                 for reminder in reminders:
                     await self.put([reminder.id, reminder.__class__])
 
                 if len(reminders) > 0:
                     last_update = datetime.utcnow()
+
+            # missing ? what happens if a reminder in the queue has been modified?
+            # should we use: .where(ReminderOnShift.created_at > last_update) instead, and if a reminder is already in the queue,
+            # we update it, if its not in the queue we just add it.
 
             reminder_id, reminder_type = await queue.get()
 
@@ -107,7 +110,7 @@ class ReminderQueue(asyncio.Queue):
                 if dt < 0:
                     await self.put([reminder_id, reminder_type])
                 else:
-                    log(f"Sending reminder {reminder}")
+                    log(f"Sending reminder {reminder.id}")
 
                     if reminder_type == Reminder:
                         text_to_send = (

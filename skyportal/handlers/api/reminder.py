@@ -60,7 +60,7 @@ def post_reminder(
     """
 
     reminders = []
-    if associated_resource_type.lower() == "sources":
+    if associated_resource_type.lower() == "source":
         obj_id = resource_id
         for user in users:
             reminders.append(
@@ -226,7 +226,7 @@ class ReminderHandler(BaseHandler):
                   schema: Error
         """
         if reminder_id is None:
-            if associated_resource_type.lower() == "sources":
+            if associated_resource_type.lower() == "source":
                 reminders = (
                     Reminder.query_records_accessible_by(self.current_user)
                     .filter(Reminder.obj_id == resource_id)
@@ -255,7 +255,13 @@ class ReminderHandler(BaseHandler):
                     f'Unsupported associated resource type "{associated_resource_type}".'
                 )
             self.verify_and_commit()
-            return self.success(data=reminders)
+            return self.success(
+                data={
+                    'resourceId': resource_id,
+                    'resourceType': associated_resource_type.lower(),
+                    'reminders': reminders,
+                }
+            )
 
         try:
             reminder_id = int(reminder_id)
@@ -263,7 +269,7 @@ class ReminderHandler(BaseHandler):
             return self.error("Must provide a valid (scalar integer) reminder ID. ")
 
         # the default is to reminder on an object
-        if associated_resource_type.lower() == "sources":
+        if associated_resource_type.lower() == "source":
             try:
                 reminder = Reminder.get_if_accessible_by(
                     reminder_id, self.current_user, raise_if_none=True
@@ -393,8 +399,7 @@ class ReminderHandler(BaseHandler):
 
         reminder_text = data.get("text")
         next_reminder = data.get("next_reminder")
-        # error here with strip
-        next_reminder = arrow.get(next_reminder).datetime
+        next_reminder = arrow.get(next_reminder).datetime.replace(tzinfo=None)
         reminder_delay = data.get("reminder_delay", 0)
         number_of_reminders = data.get("number_of_reminders", 1)
         with self.Session() as session:
@@ -434,18 +439,30 @@ class ReminderHandler(BaseHandler):
             )
         DBSession().add_all(reminders)
 
-        if associated_resource_type.lower() == "sources":
+        action, payload = None, None
+        if associated_resource_type.lower() == "source":
             text_to_send = f"*@{self.associated_user_object.username}* created a reminder on *{resource_id}*"
             url_endpoint = f"/source/{resource_id}"
+            action = 'skyportal/REFRESH_REMINDER_SOURCE'
+            payload = {'id': resource_id}
         elif associated_resource_type.lower() == "spectra":
             text_to_send = f"*@{self.associated_user_object.username}* created a reminder on *{resource_id}*"
             url_endpoint = f"/source/{resource_id}"
+            action = 'skyportal/REFRESH_REMINDER_SOURCE_SPECTRA'
+            payload = {'id': resource_id}
         elif associated_resource_type.lower() == "gcn_event":
-            text_to_send = f"*@{self.associated_user_object.username}* created a reminder on *{resource_id}*"
-            url_endpoint = f"/gcn_events/{resource_id}"
+            gcn_event = (
+                session.query(GcnEvent).filter(GcnEvent.id == resource_id).first()
+            )
+            text_to_send = f"*@{self.associated_user_object.username}* created a reminder on *{gcn_event.dateobs}*"
+            url_endpoint = f"/gcn_events/{gcn_event.dateobs}"
+            action = 'skyportal/REFRESH_REMINDER_GCNEVENT'
+            payload = {'id': resource_id}
         elif associated_resource_type.lower() == "shift":
             text_to_send = f"*@{self.associated_user_object.username}* created a reminder on *shift {resource_id}*"
             url_endpoint = "/shifts"
+            action = 'skyportal/REFRESH_REMINDER_SHIFT'
+            payload = {'id': resource_id}
         else:
             return self.error(f'Unknown resource type "{associated_resource_type}".')
 
@@ -463,6 +480,7 @@ class ReminderHandler(BaseHandler):
 
         self.verify_and_commit()
 
+        self.push_all(action, payload)
         return self.success(
             data={'reminder_ids': [reminder.id for reminder in reminders]}
         )
@@ -531,7 +549,7 @@ class ReminderHandler(BaseHandler):
         except (TypeError, ValueError):
             return self.error("Must provide a valid (scalar integer) reminder ID. ")
 
-        if associated_resource_type.lower() == "sources":
+        if associated_resource_type.lower() == "source":
             schema = Reminder.__schema__()
             try:
                 c = Reminder.get_if_accessible_by(
@@ -623,25 +641,25 @@ class ReminderHandler(BaseHandler):
 
         self.verify_and_commit()
 
-        if hasattr(c, 'obj'):  # reminder on object, or object related resources
+        if hasattr(c, 'obj'):
             self.push_all(
-                action='skyportal/REFRESH_SOURCE',
-                payload={'obj_key': c.obj.internal_key},
+                action='skyportal/REFRESH_REMINDER_SOURCE',
+                payload={'id': c.obj.internal_key},
             )
-        if isinstance(c, ReminderOnSpectrum):  # also update the spectrum
+        if isinstance(c, ReminderOnSpectrum):
             self.push_all(
-                action='skyportal/REFRESH_SOURCE_SPECTRA',
-                payload={'obj_internal_key': c.obj.internal_key},
+                action='skyportal/REFRESH_REMINDER_SOURCE_SPECTRA',
+                payload={'id': c.obj.internal_key},
             )
-        elif isinstance(c, ReminderOnGCN):  # also update the gcn
+        elif isinstance(c, ReminderOnGCN):
             self.push_all(
-                action='skyportal/REFRESH_SOURCE_GCN',
-                payload={'obj_internal_key': c.obj.internal_key},
+                action='skyportal/REFRESH_REMINDER_GCNEVENT',
+                payload={'id': c.gcn.id},
             )
-        elif isinstance(c, ReminderOnShift):  # also update the shift
+        elif isinstance(c, ReminderOnShift):
             self.push_all(
-                action='skyportal/REFRESH_SHIFT',
-                payload={'obj_internal_key': c.obj.internal_key},
+                action='skyportal/REFRESH_REMINDER_SHIFT',
+                payload={'id': c.shift.shift_id},
             )
 
         return self.success()
@@ -691,7 +709,7 @@ class ReminderHandler(BaseHandler):
         except (TypeError, ValueError):
             return self.error("Must provide a valid (scalar integer) reminder ID.")
 
-        if associated_resource_type.lower() == "sources":
+        if associated_resource_type.lower() == "source":
             try:
                 c = Reminder.get_if_accessible_by(
                     reminder_id, self.current_user, mode="delete", raise_if_none=True
@@ -739,9 +757,11 @@ class ReminderHandler(BaseHandler):
             )
 
         if isinstance(c, ReminderOnGCN):
-            gcnevent_dateobs = c.gcn.dateobs
+            gcn_id = c.gcn.id
         elif not isinstance(c, ReminderOnShift):
-            obj_key = c.obj.internal_key
+            obj_id = c.obj.id
+        elif isinstance(c, ReminderOnShift):
+            shift_id = c.shift.shift_id
 
         if reminder_resource_id_str != resource_id:
             return self.error(
@@ -751,25 +771,26 @@ class ReminderHandler(BaseHandler):
         DBSession().delete(c)
         self.verify_and_commit()
 
-        if hasattr(c, 'obj'):  # reminder on object, or object related resources
+        if hasattr(c, 'obj'):
             self.push_all(
-                action='skyportal/REFRESH_SOURCE',
-                payload={'obj_key': obj_key},
+                action='skyportal/REFRESH_REMINDER_SOURCE',
+                payload={'id': obj_id},
             )
 
-        if isinstance(c, ReminderOnGCN):  # also update the GcnEvent
+        if isinstance(c, ReminderOnGCN):
             self.push_all(
-                action='skyportal/REFRESH_GCNEVENT',
-                payload={'gcnEvent_dateobs': gcnevent_dateobs},
+                action='skyportal/REFRESH_REMINDER_GCNEVENT',
+                payload={'id': gcn_id},
             )
-        elif isinstance(c, ReminderOnSpectrum):  # also update the spectrum
+        elif isinstance(c, ReminderOnSpectrum):
             self.push_all(
-                action='skyportal/REFRESH_SOURCE_SPECTRA',
-                payload={'obj_internal_key': obj_key},
+                action='skyportal/REFRESH_REMINDER_SOURCE_SPECTRA',
+                payload={'id': obj_id},
             )
-        elif isinstance(c, ReminderOnShift):  # also update the shift
+        elif isinstance(c, ReminderOnShift):
             self.push_all(
-                action='skyportal/REFRESH_SHIFTS',
+                action='skyportal/REFRESH_REMINDER_SHIFT',
+                payload={'id': shift_id},
             )
 
         return self.success()
