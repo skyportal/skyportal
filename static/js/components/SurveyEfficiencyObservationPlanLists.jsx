@@ -187,7 +187,7 @@ const SurveyEfficiencyLists = ({ survey_efficiency_analyses }) => {
       return (
         <div>
           <Button
-            href={`/api/observation_plan/simsurvey/${analysis.id}/plot`}
+            href={`/api/observation_plan/${analysis.id}/simsurvey/plot`}
             size="small"
             color="primary"
             type="submit"

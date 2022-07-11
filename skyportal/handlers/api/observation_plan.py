@@ -32,6 +32,7 @@ from ligo.skymap.distance import parameters_to_marginal_moments
 from ligo.skymap.bayestar import rasterize
 from ligo.skymap import plot  # noqa: F401 F811
 import random
+import afterglowpy
 import sncosmo
 
 from baselayer.app.access import auth_or_token
@@ -53,11 +54,15 @@ from ...models import (
     ObservationPlanRequest,
     PlannedObservation,
     SurveyEfficiencyForObservationPlan,
+    SurveyEfficiencyForObservations,
     Telescope,
     User,
 )
-
 from ...models.schema import ObservationPlanPost
+from ...utils.simsurvey import (
+    get_simsurvey_parameters,
+    random_parameters_notheta,
+)
 
 from skyportal.handlers.api.source import post_source
 from skyportal.handlers.api.followup_request import post_assignment
@@ -1463,7 +1468,8 @@ def observation_simsurvey(
     observations,
     localization_id,
     instrument_id,
-    survey_efficiency_analysis,
+    survey_efficiency_analysis_id,
+    survey_efficiency_analysis_type,
     width,
     height,
     number_of_injections=1000,
@@ -1471,37 +1477,41 @@ def observation_simsurvey(
     detection_threshold=5,
     minimum_phase=0,
     maximum_phase=3,
-    injection_filename='data/nsns_nph1.0e+06_mejdyn0.020_mejwind0.130_phi30.txt',
+    model_name='kilonova',
+    optional_injection_parameters={},
 ):
 
     """Perform the simsurvey analyis for a given skymap
-        Parameters
-        ----------
-        observations : skyportal.models.observation_plan.PlannedObservation
-            The planned observations associated with the request
-        localization_id : int
-            The id of the skyportal.models.localization.Localization that the request is made based on
-        instrument_id : int
-            The id of the skyportal.models.instrument.Instrument that the request is made based on
-        survey_efficiency_analysis : skyportal.models.survey_efficiency.SurveyEfficiencyForObservations or skyportal.models.survey_efficiency.SurveyEfficiencyForObservationPlan
-            The survey efficiency analysis for the request
-        width : float
-            Width of the telescope field of view in degrees.
-        height : float
-            Height of the telescope field of view in degrees.
-        number_of_injections: int
-            Number of simulations to evaluate efficiency with. Defaults to 1000.
-        number_of_detections: int
-            Number of detections required for detection. Defaults to 1.
-        detection_threshold: int
-            Threshold (in sigmas) required for detection. Defaults to 5.
-        minimum_phase: int
-            Minimum phase (in days) post event time to consider detections. Defaults to 0.
-        maximum_phase: int
-            Maximum phase (in days) post event time to consider detections. Defaults to 3.
-        injection_filename: str
-            Path to file for injestion as a simsurvey.models.AngularTimeSeriesSource
-    . Defaults to nsns_nph1.0e+06_mejdyn0.020_mejwind0.130_phi30.txt from https://github.com/mbulla/kilonova_models.
+    Parameters
+    ----------
+    observations : skyportal.models.observation_plan.PlannedObservation
+        The planned observations associated with the request
+    localization_id : int
+        The id of the skyportal.models.localization.Localization that the request is made based on
+    instrument_id : int
+        The id of the skyportal.models.instrument.Instrument that the request is made based on
+    survey_efficiency_analysis_id : int
+        The id of the survey efficiency analysis for the request (either skyportal.models.survey_efficiency.SurveyEfficiencyForObservations or skyportal.models.survey_efficiency.SurveyEfficiencyForObservationPlan).
+    survey_efficiency_analysis_type : str
+        Either SurveyEfficiencyForObservations or SurveyEfficiencyForObservationPlan.
+    width : float
+        Width of the telescope field of view in degrees.
+    height : float
+        Height of the telescope field of view in degrees.
+    number_of_injections : int
+        Number of simulations to evaluate efficiency with. Defaults to 1000.
+    number_of_detections : int
+        Number of detections required for detection. Defaults to 1.
+    detection_threshold : int
+        Threshold (in sigmas) required for detection. Defaults to 5.
+    minimum_phase : int
+        Minimum phase (in days) post event time to consider detections. Defaults to 0.
+    maximum_phase : int
+        Maximum phase (in days) post event time to consider detections. Defaults to 3.
+    model_name : str
+        Model to simulate efficiency for. Must be one of kilonova, afterglow, or linear. Defaults to kilonova.
+    optional_injection_parameters: dict
+        Optional parameters to specify the injection type, along with a list of possible values (to be used in a dropdown UI)
     """
 
     session = Session()
@@ -1514,13 +1524,37 @@ def observation_simsurvey(
         if localization is None:
             raise ValueError(f'No localization with ID {localization_id}')
 
-        instrument = session.execute(
+        instrument = session.scalars(
             sa.select(Instrument).where(Instrument.id == instrument_id)
         ).first()
-        if instrument is not None:
-            (instrument,) = instrument
-        else:
+        if instrument is None:
             raise ValueError(f'No instrument with ID {instrument_id}')
+
+        if survey_efficiency_analysis_type == "SurveyEfficiencyForObservations":
+            survey_efficiency_analysis = session.scalars(
+                sa.select(SurveyEfficiencyForObservations).where(
+                    SurveyEfficiencyForObservations.id == survey_efficiency_analysis_id
+                )
+            ).first()
+            if survey_efficiency_analysis is None:
+                raise ValueError(
+                    f'No SurveyEfficiencyForObservations with ID {survey_efficiency_analysis_id}'
+                )
+        elif survey_efficiency_analysis_type == "SurveyEfficiencyForObservationPlan":
+            survey_efficiency_analysis = session.scalars(
+                sa.select(SurveyEfficiencyForObservationPlan).where(
+                    SurveyEfficiencyForObservationPlan.id
+                    == survey_efficiency_analysis_id
+                )
+            ).first()
+            if survey_efficiency_analysis is None:
+                raise ValueError(
+                    f'No SurveyEfficiencyForObservationPlan with ID {survey_efficiency_analysis_id}'
+                )
+        else:
+            raise ValueError(
+                'survey_efficiency_analysis_type must be SurveyEfficiencyForObservations or SurveyEfficiencyForObservationPlan'
+            )
 
         trigger_time = astropy.time.Time(localization.dateobs, format='datetime')
 
@@ -1584,18 +1618,96 @@ def observation_simsurvey(
             np.max([1, (distmean - 5 * diststd)]) * u.Mpc
         )
         distance_upper = astropy.coordinates.Distance((distmean + 5 * diststd) * u.Mpc)
-        phase, wave, cos_theta, flux = model_tools.read_possis_file(injection_filename)
-        transientprop = {
-            'lcmodel': sncosmo.Model(
-                AngularTimeSeriesSource(
-                    phase=phase, wave=wave, flux=flux, cos_theta=cos_theta
-                )
+
+        if model_name == "kilonova":
+            phase, wave, cos_theta, flux = model_tools.read_possis_file(
+                optional_injection_parameters["injection_filename"]
             )
-        }
+            transientprop = {
+                'lcmodel': sncosmo.Model(
+                    AngularTimeSeriesSource(
+                        phase=phase, wave=wave, flux=flux, cos_theta=cos_theta
+                    )
+                )
+            }
+            template = "AngularTimeSeriesSource"
+
+        elif model_name == "afterglow":
+            phases = np.linspace(
+                optional_injection_parameters["t_i"],
+                optional_injection_parameters["t_f"],
+                optional_injection_parameters["ntime"],
+            )
+            wave = np.linspace(
+                optional_injection_parameters["lambda_min"],
+                optional_injection_parameters["lambda_max"],
+                optional_injection_parameters["nlambda"],
+            )
+            nu = 3e8 / (wave * 1e-10)
+
+            grb_param_keys = [
+                "jetType",
+                "specType",
+                "thetaObs",
+                "E0",
+                "thetaCore",
+                "thetaWing",
+                "n0",
+                "p",
+                "epsilon_e",
+                "epsilon_B",
+                "z",
+                "d_L",
+                "xi_N",
+            ]
+            grb_params = {k: optional_injection_parameters[k] for k in grb_param_keys}
+            # explicitly case E0 and d_L as float as they like to be an int
+            grb_params["E0"] = float(grb_params["E0"])
+            grb_params["d_L"] = float(grb_params["d_L"])
+
+            flux = []
+            for phase in phases:
+                t = phase * np.ones(nu.shape)
+                mJys = afterglowpy.fluxDensity(t, nu, **grb_params)
+                Jys = 1e-3 * mJys
+                # convert to erg/s/cm^2/A
+                flux.append(Jys * 2.99792458e-05 / (wave**2))
+            transientprop = {
+                'lcmodel': sncosmo.Model(
+                    sncosmo.TimeSeriesSource(phases, wave, np.array(flux))
+                ),
+                'lcsimul_func': random_parameters_notheta,
+            }
+            template = None
+
+        elif model_name == "linear":
+            phases = np.linspace(
+                optional_injection_parameters["t_i"],
+                optional_injection_parameters["t_f"],
+                optional_injection_parameters["ntime"],
+            )
+            wave = np.linspace(
+                optional_injection_parameters["lambda_min"],
+                optional_injection_parameters["lambda_max"],
+                optional_injection_parameters["nlambda"],
+            )
+            magdiff = (
+                optional_injection_parameters["mag"]
+                + phases * optional_injection_parameters["dmag"]
+            )
+            F_Lxlambda2 = 10 ** (-(magdiff + 2.406) / 2.5)
+            waves, F_Lxlambda2s = np.meshgrid(wave, F_Lxlambda2)
+            flux = F_Lxlambda2s / (waves) ** 2
+            transientprop = {
+                'lcmodel': sncosmo.Model(sncosmo.TimeSeriesSource(phases, wave, flux)),
+                'lcsimul_func': random_parameters_notheta,
+            }
+            template = None
+
         tr = simsurvey.get_transient_generator(
             [distance_lower.z, distance_upper.z],
             transient="generic",
-            template="AngularTimeSeriesSource",
+            template=template,
             ntransient=number_of_injections,
             ratefunc=lambda z: 5e-7,
             dec_range=(-90, 90),
@@ -1770,14 +1882,22 @@ class ObservationPlanSimSurveyHandler(BaseHandler):
             description: |
               Maximum phase (in days) post event time to consider detections. Defaults to 3.
           - in: query
-            name: injectionFilename
+            name: model_name
             nullable: true
             schema:
               type: string
             description: |
-              Path to file for injestion as a simsurvey.models.AngularTimeSeriesSource.
-              Defaults to nsns_nph1.0e+06_mejdyn0.020_mejwind0.130_phi30.txt
-              from https://github.com/mbulla/kilonova_models.
+              Model to simulate efficiency for. Must be one of kilonova, afterglow, or linear. Defaults to kilonova.
+          - in: query
+            name: optionalInjectionParameters
+            type: object
+            additionalProperties:
+              type: array
+              items:
+                type: string
+                description: |
+                  Optional parameters to specify the injection type, along
+                  with a list of possible values (to be used in a dropdown UI)
           - in: query
             name: group_ids
             nullable: true
@@ -1801,13 +1921,21 @@ class ObservationPlanSimSurveyHandler(BaseHandler):
         detection_threshold = float(self.get_query_argument("detectionThreshold", 5))
         minimum_phase = float(self.get_query_argument("minimumPhase", 0))
         maximum_phase = float(self.get_query_argument("maximumPhase", 3))
-        injection_filename = self.get_query_argument(
-            "injectionFilename",
-            'data/nsns_nph1.0e+06_mejdyn0.020_mejwind0.130_phi30.txt',
+        model_name = self.get_query_argument("modelName", "kilonova")
+        optional_injection_parameters = json.loads(
+            self.get_query_argument("optionalInjectionParameters", '{}')
+        )
+
+        if model_name not in ["kilonova", "afterglow", "linear"]:
+            return self.error(
+                f"{model_name} must be one of kilonova, afterglow or linear"
+            )
+
+        optional_injection_parameters = get_simsurvey_parameters(
+            model_name, optional_injection_parameters
         )
 
         group_ids = self.get_query_argument('group_ids', None)
-
         with self.Session() as session:
 
             if not group_ids:
@@ -1883,17 +2011,14 @@ class ObservationPlanSimSurveyHandler(BaseHandler):
                         f'Sensitivity_data dictionary missing keys for filter {filt}'
                     )
 
-            self.push_notification(
-                'Simsurvey analysis in progress. Should be available soon.'
-            )
-
             payload = {
                 'number_of_injections': number_of_injections,
                 'number_of_detections': number_of_detections,
                 'detection_threshold': detection_threshold,
                 'minimum_phase': minimum_phase,
                 'maximum_phase': maximum_phase,
-                'injection_filename': injection_filename,
+                'model_name': model_name,
+                'optional_injection_parameters': optional_injection_parameters,
             }
 
             survey_efficiency_analysis = SurveyEfficiencyForObservationPlan(
@@ -1928,12 +2053,16 @@ class ObservationPlanSimSurveyHandler(BaseHandler):
                     width = np.max(coordinates[:, 0]) - np.min(coordinates[:, 0])
                     height = np.max(coordinates[:, 1]) - np.min(coordinates[:, 1])
 
+            self.push_notification(
+                'Simsurvey analysis in progress. Should be available soon.'
+            )
             simsurvey_analysis = functools.partial(
                 observation_simsurvey,
                 observations,
                 localization.id,
                 instrument.id,
-                survey_efficiency_analysis,
+                survey_efficiency_analysis.id,
+                "SurveyEfficiencyForObservationPlan",
                 width=width,
                 height=height,
                 number_of_injections=payload['number_of_injections'],
@@ -1941,7 +2070,8 @@ class ObservationPlanSimSurveyHandler(BaseHandler):
                 detection_threshold=payload['detection_threshold'],
                 minimum_phase=payload['minimum_phase'],
                 maximum_phase=payload['maximum_phase'],
-                injection_filename=payload['injection_filename'],
+                model_name=payload['model_name'],
+                optional_injection_parameters=payload['optional_injection_parameters'],
             )
 
             IOLoop.current().run_in_executor(None, simsurvey_analysis)
