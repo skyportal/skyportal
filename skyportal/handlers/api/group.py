@@ -602,7 +602,7 @@ class GroupUserHandler(BaseHandler):
         )
 
         if gu is None:
-            raise AccessError("GroupUser does not exist.")
+            return self.error("GroupUser does not exist.", status=403)
 
         DBSession().delete(gu)
         self.verify_and_commit()

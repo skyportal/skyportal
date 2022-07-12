@@ -216,7 +216,7 @@ class ObjTNSHandler(BaseHandler):
 
         altdata = tnsrobot.altdata
         if not altdata:
-            raise ValueError('Missing TNS information.')
+            return self.error('Missing TNS information.')
 
         tns_headers = {
             'User-Agent': f'tns_marker{"tns_id":{tnsrobot.bot_id},"type":"bot", "name":"{tnsrobot.bot_name}"}'
@@ -401,7 +401,7 @@ class SpectrumTNSHandler(BaseHandler):
 
         altdata = tnsrobot.altdata
         if not altdata:
-            raise ValueError('Missing TNS information.')
+            return self.error('Missing TNS information.')
 
         spectrum = Spectrum.get_if_accessible_by(
             spectrum_id,
