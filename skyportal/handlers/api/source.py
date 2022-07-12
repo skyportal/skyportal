@@ -261,12 +261,10 @@ def get_source(
         ]
     if include_photometry_exists:
         source_info["photometry_exists"] = (
-            len(
-                Photometry.query_records_accessible_by(user)
-                .filter(Photometry.obj_id == obj_id)
-                .all()
-            )
-            > 0
+            Photometry.query_records_accessible_by(user)
+            .filter(Photometry.obj_id == obj_id)
+            .first()
+            is not None
         )
     if include_spectrum_exists:
         source_info["spectrum_exists"] = (
@@ -318,7 +316,6 @@ def get_sources(
     session,
     include_thumbnails=False,
     include_comments=False,
-    include_photometry=False,
     include_photometry_exists=False,
     include_spectrum_exists=False,
     include_period_exists=False,
@@ -1079,21 +1076,12 @@ def get_sources(
             obj_list[-1]["dm"] = obj.dm
             obj_list[-1]["angular_diameter_distance"] = obj.angular_diameter_distance
 
-            if include_photometry:
-                photometry = Photometry.query_records_accessible_by(user).filter(
-                    Photometry.obj_id == obj.id
-                )
-                obj_list[-1]["photometry"] = [
-                    serialize(phot, 'ab', 'flux') for phot in photometry
-                ]
             if include_photometry_exists:
                 obj_list[-1]["photometry_exists"] = (
-                    len(
-                        Photometry.query_records_accessible_by(user)
-                        .filter(Photometry.obj_id == obj.id)
-                        .all()
-                    )
-                    > 0
+                    Photometry.query_records_accessible_by(user)
+                    .filter(Photometry.obj_id == obj.id)
+                    .first()
+                    is not None
                 )
             if include_spectrum_exists:
                 obj_list[-1]["spectrum_exists"] = (
@@ -1552,14 +1540,6 @@ class SourceHandler(BaseHandler):
                 type: integer
             description: |
                If provided, filter only sources saved to one of these group IDs.
-          - in: query
-            name: includePhotometry
-            nullable: true
-            schema:
-              type: boolean
-            description: |
-              Boolean indicating whether to include associated photometry. Defaults to
-              false.
           - in: query
             name: includeColorMagnitude
             nullable: true
@@ -2064,7 +2044,6 @@ class SourceHandler(BaseHandler):
                 session,
                 include_thumbnails=include_thumbnails,
                 include_comments=include_comments,
-                include_photometry=include_photometry,
                 include_photometry_exists=include_photometry_exists,
                 include_spectrum_exists=include_spectrum_exists,
                 include_period_exists=include_period_exists,
