@@ -495,7 +495,7 @@ def test_run_analysis_with_correct_and_incorrect_token(
             False
         ), f"analysis was not started properly ({data['data']['status_message']})"
 
-    # Since this is random data, this fit might (usually) or fail (seldom)
+    # Since this is random data, this fit might succeed (usually) or fail (seldom)
     # that's ok because it means we're getting the
     # roundtrip return of the webhhook
     if analysis_status == "success":

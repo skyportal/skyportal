@@ -284,8 +284,8 @@ class AnalysisMixin:
 
         # we could add different formats here in the future
         # but for now we only support netcdf4 formats
-        if self.data['inference_data']["format"] != "netcdf4":
-            return None
+        if self.data['inference_data']["format"] not in ["netcdf4"]:
+            raise ValueError('Inference data format not allowed.')
 
         f = tempfile.NamedTemporaryFile(
             suffix=".nc", prefix="inferencedata_", delete=False
@@ -310,6 +310,9 @@ class AnalysisMixin:
                 for x in inference_data["posterior"]
             ]
             for x in temp_range:
+                # the min and max of this variable is the same:
+                # probably a fixed parameter. Remove it (x[2]) from plotting
+                # because it causes grief for corner
                 if x[0] == x[1]:
                     del inference_data["posterior"][x[2]]
 

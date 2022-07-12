@@ -1039,10 +1039,6 @@ class AnalysisHandler(BaseHandler):
             )
 
 
-def serialize_results_data():
-    pass
-
-
 class AnalysisProductsHandler(BaseHandler):
     @auth_or_token
     async def get(
@@ -1131,10 +1127,18 @@ class AnalysisProductsHandler(BaseHandler):
                             "No inference data found for this Analysis.", status=404
                         )
 
-                    plot_kwargs = self.get_query_argument("plot_kwargs", {})
+                    try:
+                        data = self.get_json()
+                    except Exception as e:
+                        return self.error(f'Error parsing JSON: {e}')
+                    plot_kwargs = data.get("plot_kwargs", {})
                     filename = f"analysis_{analysis.obj_id}_corner.png"
                     output_type = "png"
-                    output_data = analysis.generate_corner_plot(**plot_kwargs)
+                    try:
+                        output_data = analysis.generate_corner_plot(**plot_kwargs)
+                    except Exception as e:
+                        return self.error(f"Problem generating corner plot {e}")
+
                     if output_data is not None:
                         await self.send_file(
                             output_data, filename, output_type=output_type
