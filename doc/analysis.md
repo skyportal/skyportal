@@ -114,7 +114,7 @@ A valid POST will immediately invalidate the unique token so that analysis entry
 
 ### Getting specific analysis products programmatically
 
-SkyPortal has API endpoint that allows programmatic access to GET products (plots, results, and posterior visualization) produced by an analysis service.
+SkyPortal has an API endpoint that allows programmatic access to GET products (plots, results, and posterior visualization) produced by an analysis service.
 The GET endpoints are:
 
 Plots (return an image to display):
