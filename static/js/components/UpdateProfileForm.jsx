@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { useForm, Controller } from "react-hook-form";
 
 import TextField from "@mui/material/TextField";
 import Button from "@mui/material/Button";
@@ -13,10 +14,10 @@ import DialogContentText from "@mui/material/DialogContentText";
 import DialogTitle from "@mui/material/DialogTitle";
 import InputLabel from "@mui/material/InputLabel";
 import Grid from "@mui/material/Grid";
+import Autocomplete, { createFilterOptions } from "@mui/material/Autocomplete";
 import makeStyles from "@mui/styles/makeStyles";
 
 import { showNotification } from "baselayer/components/Notifications";
-import { useForm } from "react-hook-form";
 
 import * as ProfileActions from "../ducks/profile";
 
@@ -40,18 +41,21 @@ const UpdateProfileForm = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const dispatch = useDispatch();
-  const { handleSubmit, register, reset, errors } = useForm();
+  const { handleSubmit, register, reset, errors, control } = useForm();
 
   const isNewUser =
     new URL(window.location).searchParams.get("newUser") === "true";
 
   const [welcomeDialogOpen, setWelcomeDialogOpen] = useState(isNewUser);
 
+  const filter = createFilterOptions();
+
   useEffect(() => {
     reset({
       username: profile.username,
       firstName: profile.first_name,
       lastName: profile.last_name,
+      affiliations: profile.affiliations,
       email: profile.contact_email,
       phone: profile.contact_phone,
     });
@@ -63,6 +67,7 @@ const UpdateProfileForm = () => {
       username: initialValues.username,
       first_name: initialValues.firstName,
       last_name: initialValues.lastName,
+      affiliations: initialValues.affiliations,
       contact_email: initialValues.email,
       contact_phone: initialValues.phone,
     };
@@ -119,6 +124,73 @@ const UpdateProfileForm = () => {
                 />
               </Grid>
             </Grid>
+            <br />
+            {profile?.affiliations && (
+              <Grid
+                container
+                direction="row"
+                justifyContent="flex-start"
+                alignItems="baseline"
+                spacing={2}
+              >
+                <Grid item xs={12} sm={5}>
+                  <InputLabel htmlFor="affiliationsInput">
+                    Affiliations
+                  </InputLabel>
+                  <Controller
+                    name="affiliations"
+                    render={({ onChange, value, ...props }) => (
+                      <Autocomplete
+                        multiple
+                        onChange={(e, data) => onChange(data)}
+                        value={value}
+                        options={profile?.affiliations?.map((aff) => aff)}
+                        filterOptions={(options, params) => {
+                          const filtered = filter(options, params);
+
+                          const { inputValue } = params;
+                          // Suggest the creation of a new value
+                          const isExisting = options.some(
+                            (option) => inputValue === option
+                          );
+                          if (inputValue !== "" && !isExisting) {
+                            filtered.push(inputValue);
+                          }
+
+                          return filtered;
+                        }}
+                        getOptionLabel={(option) => {
+                          // Value selected with enter, right from the input
+                          if (typeof option === "string") {
+                            return option;
+                          }
+                          // Add "xxx" option created dynamically
+                          if (option?.inputValue) {
+                            return option?.inputValue;
+                          }
+                          return option;
+                        }}
+                        freeSolo
+                        renderInput={(params) => (
+                          <TextField
+                            // eslint-disable-next-line react/jsx-props-no-spreading
+                            {...params}
+                            variant="outlined"
+                            name="affiliations"
+                            id="affilations_id"
+                          />
+                        )}
+                        // eslint-disable-next-line react/jsx-props-no-spreading
+                        {...props}
+                      />
+                    )}
+                    control={control}
+                    error={!!errors.affiliations}
+                    defaultValue={profile?.affiliations}
+                  />
+                </Grid>
+              </Grid>
+            )}
             <br />
             <Grid
               container

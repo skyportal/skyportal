@@ -100,7 +100,7 @@ class ProfileHandler(BaseHandler):
         return self.success(data=user_info)
 
     @auth_or_token
-    def patch(self):
+    def patch(self, user_id=None):
         """
         ---
         description: Update user preferences
@@ -122,6 +122,10 @@ class ProfileHandler(BaseHandler):
                     type: string
                     description: |
                        User's preferred last name
+                  affiliations:
+                    type: list
+                    description: |
+                       User's list of affiliations
                   contact_email:
                     type: string
                     description: |
@@ -144,9 +148,12 @@ class ProfileHandler(BaseHandler):
                 schema: Error
         """
         data = self.get_json()
-        user = User.get_if_accessible_by(
-            self.associated_user_object.id, self.current_user, mode="update"
-        )
+        if user_id is None:
+            user = User.get_if_accessible_by(
+                self.associated_user_object.id, self.current_user, mode="update"
+            )
+        else:
+            user = User.get_if_accessible_by(user_id, self.current_user, mode="update")
 
         if data.get("username") is not None:
             username = data.pop("username").strip()
@@ -161,6 +168,12 @@ class ProfileHandler(BaseHandler):
 
         if data.get("last_name") is not None:
             user.last_name = data.pop("last_name")
+
+        if data.get("affiliations") is not None:
+            if isinstance(data.get("affiliations"), list):
+                user.affiliations = data.pop("affiliations")
+            else:
+                return self.error("Invalid affiliations. Should be a list of strings.")
 
         if data.get("contact_phone") is not None:
             phone = data.pop("contact_phone")

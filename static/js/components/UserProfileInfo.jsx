@@ -50,6 +50,10 @@ const getUserRealName = (firstName, lastName) => {
   return `${firstName} ${lastName}`;
 };
 
+const getUserAffiliations = (affiliations) => (
+  <em>{affiliations.join(", ")}</em>
+);
+
 const UserProfileInfo = () => {
   const profile = useSelector((state) => state.profile);
 
@@ -72,17 +76,32 @@ const UserProfileInfo = () => {
             gravatarUrl={profile.gravatar_url}
           />
           &nbsp;&nbsp;
-          <h2
-            id="userRealname"
-            style={{
-              visibility: !(profile.first_name || profile.last_name)
-                ? "hidden"
-                : "visible",
-            }}
-          >
-            {(profile.first_name || profile.last_name) &&
-              getUserRealName(profile.first_name, profile.last_name)}
-          </h2>
+          <div style={{ display: "flex", flexDirection: "column" }}>
+            <h2
+              id="userRealname"
+              style={{
+                visibility: !(profile.first_name || profile.last_name)
+                  ? "hidden"
+                  : "visible",
+                margin: 0,
+              }}
+            >
+              {(profile.first_name || profile.last_name) &&
+                getUserRealName(profile.first_name, profile.last_name)}
+            </h2>
+            <h5
+              id="userAffiliations"
+              style={{
+                visibility: !(profile?.affiliations?.length > 0)
+                  ? "hidden"
+                  : "visible",
+                margin: 0,
+              }}
+            >
+              {profile?.affiliations?.length > 0 &&
+                getUserAffiliations(profile.affiliations)}
+            </h5>
+          </div>
         </div>
         &nbsp;
         <br />
