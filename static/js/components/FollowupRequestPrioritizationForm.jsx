@@ -249,14 +249,14 @@ const FollowupRequestPrioritizationForm = () => {
           value={selectedLocalizationId || ""}
           onChange={handleSelectedLocalizationChange}
           name="observationPlanRequestLocalizationSelect"
-          className={classes.localizationSelect}
+          className={classes.select}
         >
-          {gcnEventsLookUp[selectedGcnEventId].localizations?.map(
+          {gcnEventsLookUp[selectedGcnEventId]?.localizations?.map(
             (localization) => (
               <MenuItem
                 value={localization.id}
                 key={localization.id}
-                className={classes.localizationSelectItem}
+                className={classes.selectItem}
               >
                 {`${localization.localization_name}`}
               </MenuItem>

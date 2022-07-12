@@ -1,7 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import PropTypes from "prop-types";
-import { useSelector } from "react-redux";
-
+import { useDispatch, useSelector } from "react-redux";
 import Paper from "@mui/material/Paper";
 import Button from "@mui/material/Button";
 import ButtonGroup from "@mui/material/ButtonGroup";
@@ -14,10 +13,13 @@ import Typography from "@mui/material/Typography";
 import Input from "@mui/material/Input";
 import Chip from "@mui/material/Chip";
 import Select from "@mui/material/Select";
+import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
 import { useForm, Controller } from "react-hook-form";
 
 import { allowedClasses } from "./ClassificationForm";
+
+import * as gcnEventsActions from "../ducks/gcnEvents";
 
 const useStyles = makeStyles((theme) => ({
   paperDiv: {
@@ -84,6 +86,12 @@ const useStyles = makeStyles((theme) => ({
       marginRight: "1rem",
     },
   },
+  select: {
+    width: "25%",
+  },
+  selectItem: {
+    whiteSpace: "break-spaces",
+  },
 }));
 
 const getMultiselectStyles = (value, selectedValues, theme) => ({
@@ -95,6 +103,7 @@ const getMultiselectStyles = (value, selectedValues, theme) => ({
 
 const SourceTableFilterForm = ({ handleFilterSubmit }) => {
   const classes = useStyles();
+  const dispatch = useDispatch();
   const theme = useTheme();
 
   const ITEM_HEIGHT = 48;
@@ -123,10 +132,45 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
     []
   );
 
+  const gcnEvents = useSelector((state) => state.gcnEvents);
+  const [selectedGcnEventId, setSelectedGcnEventId] = useState(null);
+  const [selectedLocalizationId, setSelectedLocalizationId] = useState(null);
+
+  useEffect(() => {
+    const getGcnEvents = async () => {
+      // Wait for the GCN Events to update before setting
+      // the new default form fields, so that the allocations list can
+      // update
+
+      const result = await dispatch(gcnEventsActions.fetchGcnEvents());
+      const { data } = result;
+      setSelectedGcnEventId(data?.events[0]?.id);
+    };
+    getGcnEvents();
+
+    // Don't want to reset everytime the component rerenders and
+    // the defaultStartDate is updated, so ignore ESLint here
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dispatch, setSelectedGcnEventId]);
+
   const { handleSubmit, register, control, reset } = useForm();
 
   const handleClickReset = () => {
     reset();
+  };
+
+  const gcnEventsLookUp = {};
+  // eslint-disable-next-line no-unused-expressions
+  gcnEvents?.events.forEach((gcnEvent) => {
+    gcnEventsLookUp[gcnEvent.id] = gcnEvent;
+  });
+
+  const handleSelectedGcnEventChange = (e) => {
+    setSelectedGcnEventId(e.target.value);
+  };
+
+  const handleSelectedLocalizationChange = (e) => {
+    setSelectedLocalizationId(e.target.value);
   };
 
   return (
@@ -600,6 +644,47 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
             inputRef={register}
             placeholder="2021-01-01T00:00:00"
           />
+        </div>
+        <div>
+          <InputLabel id="gcnEventSelectLabel">GCN Event</InputLabel>
+          <Select
+            inputProps={{ MenuProps: { disableScrollLock: true } }}
+            labelId="gcnEventSelectLabel"
+            value={selectedGcnEventId}
+            onChange={handleSelectedGcnEventChange}
+            name="followupRequestGcnEventSelect"
+            className={classes.select}
+          >
+            {gcnEvents?.events.map((gcnEvent) => (
+              <MenuItem
+                value={gcnEvent.id}
+                key={gcnEvent.id}
+                className={classes.selectItem}
+              >
+                {`${gcnEvent.dateobs}`}
+              </MenuItem>
+            ))}
+          </Select>
+          <Select
+            inputProps={{ MenuProps: { disableScrollLock: true } }}
+            labelId="localizationSelectLabel"
+            value={selectedLocalizationId || ""}
+            onChange={handleSelectedLocalizationChange}
+            name="observationPlanRequestLocalizationSelect"
+            className={classes.select}
+          >
+            {gcnEventsLookUp[selectedGcnEventId]?.localizations?.map(
+              (localization) => (
+                <MenuItem
+                  value={localization.id}
+                  key={localization.id}
+                  className={classes.selectItem}
+                >
+                  {`${localization.localization_name}`}
+                </MenuItem>
+              )
+            )}
+          </Select>
         </div>
         <div className={classes.formButtons}>
           <ButtonGroup
