@@ -374,6 +374,7 @@ const GcnSummary = ({ dateobs }) => {
                     <FormControlLabel
                       control={
                         <Checkbox
+                          label="Show Observations"
                           checked={showObservations}
                           onChange={(e) =>
                             setShowObservations(e.target.checked)
