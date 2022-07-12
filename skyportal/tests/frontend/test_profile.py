@@ -63,7 +63,7 @@ def test_add_and_see_affiliations_in_user_profile(driver, user):
     affiliations_entry.send_keys(Keys.ENTER)
 
     driver.scroll_to_element_and_click(
-        driver.find_element_by_xpath('//*[@id="updateProfileButton"]')
+        driver.find_element(By.XPATH, '//*[@id="updateProfileButton"]')
     )
 
     # now that we added the affiliations, let's see if they are displayed correctly
