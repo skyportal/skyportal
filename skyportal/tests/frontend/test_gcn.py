@@ -46,7 +46,7 @@ def get_summary(driver, user, group, showSources, showGalaxies, showObservations
         driver.click_xpath(show_observations)
 
     get_summary_button = '//button[contains(.,"Get Summary")]'
-    element = driver.find_element_by_xpath(get_summary_button)
+    element = driver.wait_for_xpath(get_summary_button)
     element.send_keys(Keys.END)
     driver.click_xpath(get_summary_button)
 
