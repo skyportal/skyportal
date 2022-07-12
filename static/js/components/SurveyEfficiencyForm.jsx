@@ -113,9 +113,7 @@ const SurveyEfficiencyForm = ({ gcnevent, observationplanRequest }) => {
       // the new default form fields, so that the instruments list can
       // update
 
-      const result = await dispatch(
-        instrumentsActions.fetchGcnEventInstruments(gcnevent?.dateobs)
-      );
+      const result = await dispatch(instrumentsActions.fetchInstruments());
 
       const { data } = result;
       setSelectedInstrumentId(data[0]?.id);
@@ -156,6 +154,24 @@ const SurveyEfficiencyForm = ({ gcnevent, observationplanRequest }) => {
       .replace(".000Z", "");
     formData.localizationDateobs = locLookUp[selectedLocalizationId].dateobs;
     formData.localizationName = locLookUp[selectedLocalizationId].name;
+
+    const optionalInjectionParameters = {};
+    if (Object.keys(formData).includes("log10_E0")) {
+      optionalInjectionParameters.log10_E0 = formData.log10_E0;
+      delete formData.log10_E0;
+    }
+    if (Object.keys(formData).includes("mag")) {
+      optionalInjectionParameters.mag = formData.mag;
+      delete formData.mag;
+    }
+    if (Object.keys(formData).includes("dmag")) {
+      optionalInjectionParameters.dmag = formData.dmag;
+      delete formData.dmag;
+    }
+
+    formData.optionalInjectionParameters = JSON.stringify(
+      optionalInjectionParameters
+    );
 
     if (!observationplanRequest) {
       await dispatch(
@@ -237,8 +253,53 @@ const SurveyEfficiencyForm = ({ gcnevent, observationplanRequest }) => {
         title: "Maximum Phase [days]",
         default: 3.0,
       },
+      modelName: {
+        type: "string",
+        oneOf: [
+          { enum: ["kilonova"], title: "Kilonova [GW170817-like]" },
+          { enum: ["afterglow"], title: "GRB Afterglow" },
+          { enum: ["linear"], title: "Linear model" },
+        ],
+        default: "kilonova",
+        title: "Model",
+      },
     },
     required: ["startDate", "endDate", "localizationCumprob"],
+    dependencies: {
+      modelName: {
+        oneOf: [
+          {
+            properties: {
+              modelName: {
+                enum: ["afterglow"],
+              },
+              log10_E0: {
+                type: "number",
+                title: "log10(Energy [erg/s])",
+                default: 53.0,
+              },
+            },
+          },
+          {
+            properties: {
+              modelName: {
+                enum: ["linear"],
+              },
+              mag: {
+                type: "number",
+                title: "Peak magnitude",
+                default: -16.0,
+              },
+              dmag: {
+                type: "number",
+                title: "Magnitude decay [1/day]",
+                default: 1.0,
+              },
+            },
+          },
+        ],
+      },
+    },
   };
 
   return (

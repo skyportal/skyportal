@@ -10,7 +10,7 @@ services:
       - thumbnails:/skyportal/static/thumbnails
 
   db:
-    image: postgres:12.2
+    image: postgres:14.4
     environment:
       POSTGRES_USER: skyportal
       POSTGRES_PASSWORD: password

@@ -130,13 +130,7 @@ class PS1API(FollowUpAPI):
             Instrument,
         )
 
-        req = (
-            session.query(FollowupRequest)
-            .filter(FollowupRequest.id == request.id)
-            .one()
-        )
-
-        if req.status == "Photometry committed to database":
+        if request.status == "Photometry committed to database":
             raise ValueError('Photometry already in database')
 
         instrument = (
@@ -147,7 +141,7 @@ class PS1API(FollowUpAPI):
             .first()
         )
 
-        content = req.transactions[0].response["content"]
+        content = request.transactions[0].response["content"]
         tab = astropy.io.ascii.read(content)
         objid = tab['objID'][0]
 
@@ -169,7 +163,7 @@ class PS1API(FollowUpAPI):
         try:
             r = requests.get(url, params=params, timeout=5.0)  # timeout in seconds
         except TimeoutError:
-            req.status = 'error: timeout'
+            request.status = 'error: timeout'
 
         if r.status_code == 200:
             try:
@@ -180,18 +174,18 @@ class PS1API(FollowUpAPI):
             IOLoop.current().run_in_executor(
                 None,
                 lambda: commit_photometry(
-                    text_response, req.id, instrument.id, request.requester.id
+                    text_response, request.id, instrument.id, request.requester.id
                 ),
             )
-            req.status = "Committing photometry to database"
+            request.status = "Committing photometry to database"
         else:
-            req.status = f'error: {r.content}'
+            request.status = f'error: {r.content}'
 
         transaction = FacilityTransaction(
             request=http.serialize_requests_request(r.request),
             response=http.serialize_requests_response(r),
-            followup_request=req,
-            initiator_id=req.last_modified_by_id,
+            followup_request=request,
+            initiator_id=request.last_modified_by_id,
         )
 
         session.add(transaction)
@@ -199,7 +193,7 @@ class PS1API(FollowUpAPI):
 
     # subclasses *must* implement the method below
     @staticmethod
-    def submit(request):
+    def submit(request, session):
 
         """Submit a photometry request to PS1 DR2 API.
 
@@ -207,9 +201,11 @@ class PS1API(FollowUpAPI):
         ----------
         request: skyportal.models.FollowupRequest
             The request to add to the queue and the SkyPortal database.
+        session: sqlalchemy.Session
+            Database session for this transaction
         """
 
-        from ..models import FacilityTransaction, DBSession
+        from ..models import FacilityTransaction
 
         params = {
             'ra': request.obj.ra,
@@ -248,11 +244,10 @@ class PS1API(FollowUpAPI):
             initiator_id=request.last_modified_by_id,
         )
 
-        DBSession().add(transaction)
-        DBSession().commit()
+        session.add(transaction)
 
     @staticmethod
-    def delete(request):
+    def delete(request, session):
 
         """Delete a photometry request from PS1 DR2 API.
 
@@ -260,14 +255,11 @@ class PS1API(FollowUpAPI):
         ----------
         request: skyportal.models.FollowupRequest
             The request to delete from the queue and the SkyPortal database.
+        session: sqlalchemy.Session
+            Database session for this transaction
         """
 
-        from ..models import DBSession, FollowupRequest
-
-        DBSession().query(FollowupRequest).filter(
-            FollowupRequest.id == request.id
-        ).delete()
-        DBSession().commit()
+        session.delete(request)
 
     form_json_schema = {
         "type": "object",

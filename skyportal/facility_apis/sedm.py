@@ -151,16 +151,18 @@ class SEDMAPI(FollowUpAPI):
     """SkyPortal interface to the Spectral Energy Distribution machine (SEDM)."""
 
     @staticmethod
-    def submit(request):
+    def submit(request, session):
         """Submit a follow-up request to SEDM.
 
         Parameters
         ----------
         request: skyportal.models.FollowupRequest
             The request to submit.
+        session: sqlalchemy.Session
+            Database session for this transaction
         """
 
-        from ..models import FacilityTransaction, DBSession
+        from ..models import FacilityTransaction
 
         payload = convert_request_to_sedm(request, method_value='new')
         content = json.dumps(payload)
@@ -181,7 +183,7 @@ class SEDMAPI(FollowUpAPI):
             initiator_id=request.last_modified_by_id,
         )
 
-        DBSession().add(transaction)
+        session.add(transaction)
 
         flow = Flow()
         flow.push(
@@ -191,16 +193,18 @@ class SEDMAPI(FollowUpAPI):
         )
 
     @staticmethod
-    def delete(request):
+    def delete(request, session):
         """Delete a follow-up request from SEDM queue.
 
         Parameters
         ----------
         request: skyportal.models.FollowupRequest
             The request to delete from the queue and the SkyPortal database.
+        session: sqlalchemy.Session
+            Database session for this transaction
         """
 
-        from ..models import FacilityTransaction, DBSession
+        from ..models import FacilityTransaction
 
         payload = convert_request_to_sedm(request, method_value='delete')
         content = json.dumps(payload)
@@ -219,7 +223,7 @@ class SEDMAPI(FollowUpAPI):
             initiator_id=request.last_modified_by_id,
         )
 
-        DBSession().add(transaction)
+        session.add(transaction)
 
         flow = Flow()
         flow.push(
@@ -229,16 +233,18 @@ class SEDMAPI(FollowUpAPI):
         )
 
     @staticmethod
-    def update(request):
+    def update(request, session):
         """Update a request in the SEDM queue.
 
         Parameters
         ----------
         request: skyportal.models.FollowupRequest
             The updated request.
+        session: sqlalchemy.Session
+            Database session for this transaction
         """
 
-        from ..models import FacilityTransaction, DBSession
+        from ..models import FacilityTransaction
 
         payload = convert_request_to_sedm(request, method_value='edit')
         content = json.dumps(payload)
@@ -259,7 +265,7 @@ class SEDMAPI(FollowUpAPI):
             initiator_id=request.last_modified_by_id,
         )
 
-        DBSession().add(transaction)
+        session.add(transaction)
 
         flow = Flow()
         flow.push(

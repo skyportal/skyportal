@@ -374,7 +374,7 @@ skyportal_handlers = [
         AnalysisWebhookHandler,
     ),
     (r'/api/internal/tokens(/.*)?', TokenHandler),
-    (r'/api/internal/profile', ProfileHandler),
+    (r"/api/internal/profile(/[0-9]+)?", ProfileHandler),
     (r'/api/internal/dbinfo', DBInfoHandler),
     (r'/api/internal/source_views(/.*)?', SourceViewsHandler),
     (r'/api/internal/source_counts(/.*)?', SourceCountHandler),

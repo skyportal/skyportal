@@ -22,6 +22,9 @@ const useStyles = makeStyles(() => ({
   select: {
     width: "25%",
   },
+  selectInstrument: {
+    width: "99%",
+  },
   container: {
     width: "99%",
     marginBottom: "1rem",
@@ -90,6 +93,17 @@ const FollowupRequestSelectionForm = () => {
   ) {
     return <p>No robotic followup requests found...</p>;
   }
+
+  const sortedInstrumentList = [...instrumentList];
+  sortedInstrumentList.sort((i1, i2) => {
+    if (i1.name > i2.name) {
+      return 1;
+    }
+    if (i2.name > i1.name) {
+      return -1;
+    }
+    return 0;
+  });
 
   const telLookUp = {};
   // eslint-disable-next-line no-unused-expressions
@@ -218,9 +232,9 @@ const FollowupRequestSelectionForm = () => {
           value={selectedInstrumentId}
           onChange={handleSelectedInstrumentChange}
           name="followupRequestInstrumentSelect"
-          className={classes.select}
+          className={classes.selectInstrument}
         >
-          {instrumentList?.map((instrument) => (
+          {sortedInstrumentList?.map((instrument) => (
             <MenuItem
               value={instrument.id}
               key={instrument.id}
