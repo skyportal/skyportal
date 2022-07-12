@@ -253,7 +253,7 @@ def test_gcn_summary_sources(
     # sources
     assert (
         "Found" in data[6]
-        and "sources in the event's localization, given the specified date range:"
+        and "in the event's localization, given the specified date range:"
         in data[6]
     )
     sources_table = data[7].split('\n')
