@@ -599,4 +599,4 @@ analysis_services:
   sn_analysis_service:
     port: 6801
   nmma_analysis_service:
-    port: 6802
+    port: 6901
