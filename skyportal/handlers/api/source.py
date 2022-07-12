@@ -1,7 +1,6 @@
 from astropy.time import Time
 import datetime
 from json.decoder import JSONDecodeError
-from dateutil.tz import UTC
 import astropy.units as u
 from geojson import Point, Feature
 import python_http_client.exceptions
@@ -105,11 +104,13 @@ def get_source(
 
     user = session.query(User).get(user_id)
 
+    options = []
     if include_thumbnails:
-        s = Obj.get_if_accessible_by(obj_id, user, options=[joinedload(Obj.thumbnails)])
-    else:
-        s = Obj.get_if_accessible_by(obj_id, user)
+        options.append(joinedload(Obj.thumbnails))
+    if include_detection_stats:
+        options.append(joinedload(Obj.photstats))
 
+    s = Obj.get_if_accessible_by(obj_id, user, options=options)
     if s is None:
         raise ValueError("Source not found")
 
@@ -243,11 +244,6 @@ def get_source(
         readable_classifications_json.append(classification_dict)
 
     source_info["classifications"] = readable_classifications_json
-    if include_detection_stats:
-        source_info["last_detected_at"] = s.last_detected_at(user)
-        source_info["last_detected_mag"] = s.last_detected_mag(user)
-        source_info["peak_detected_at"] = s.peak_detected_at(user)
-        source_info["peak_detected_mag"] = s.peak_detected_mag(user)
     source_info["gal_lat"] = s.gal_lat_deg
     source_info["gal_lon"] = s.gal_lon_deg
     source_info["luminosity_distance"] = s.luminosity_distance
@@ -265,12 +261,10 @@ def get_source(
         ]
     if include_photometry_exists:
         source_info["photometry_exists"] = (
-            len(
-                Photometry.query_records_accessible_by(user)
-                .filter(Photometry.obj_id == obj_id)
-                .all()
-            )
-            > 0
+            Photometry.query_records_accessible_by(user)
+            .filter(Photometry.obj_id == obj_id)
+            .first()
+            is not None
         )
     if include_spectrum_exists:
         source_info["spectrum_exists"] = (
@@ -322,7 +316,6 @@ def get_sources(
     session,
     include_thumbnails=False,
     include_comments=False,
-    include_photometry=False,
     include_photometry_exists=False,
     include_spectrum_exists=False,
     include_period_exists=False,
@@ -388,10 +381,11 @@ def get_sources(
 
     user = session.query(User).get(user_id)
 
-    # Fetch multiple sources
-    obj_query_options = (
-        [joinedload(Obj.thumbnails)] if include_thumbnails and not remove_nested else []
-    )
+    obj_query_options = []
+    if include_thumbnails and not remove_nested:
+        obj_query_options.append(joinedload(Obj.thumbnails))
+    if include_detection_stats:
+        obj_query_options.append(joinedload(Obj.photstats))
 
     obj_query = Obj.query_records_accessible_by(user, options=obj_query_options)
     source_query = Source.query_records_accessible_by(user)
@@ -535,7 +529,7 @@ def get_sources(
             )
         min_peak_magnitude_subquery = (
             PhotStat.query_records_accessible_by(user)
-            .where(PhotStat.peak_mag_global >= min_peak_magnitude)
+            .where(PhotStat.peak_mag_global <= min_peak_magnitude)
             .subquery()
         )
         obj_query = obj_query.join(
@@ -550,7 +544,7 @@ def get_sources(
             )
         max_peak_magnitude_subquery = (
             PhotStat.query_records_accessible_by(user)
-            .where(PhotStat.peak_mag_global <= max_peak_magnitude)
+            .where(PhotStat.peak_mag_global >= max_peak_magnitude)
             .subquery()
         )
         obj_query = obj_query.join(
@@ -565,7 +559,7 @@ def get_sources(
             )
         min_latest_magnitude_subquery = (
             PhotStat.query_records_accessible_by(user)
-            .where(PhotStat.last_detected_mag >= min_latest_magnitude)
+            .where(PhotStat.last_detected_mag <= min_latest_magnitude)
             .subquery()
         )
         obj_query = obj_query.join(
@@ -582,7 +576,7 @@ def get_sources(
             )
         max_latest_magnitude_subquery = (
             PhotStat.query_records_accessible_by(user)
-            .where(PhotStat.last_detected_mag <= max_latest_magnitude)
+            .where(PhotStat.last_detected_mag >= max_latest_magnitude)
             .subquery()
         )
         obj_query = obj_query.join(
@@ -898,17 +892,7 @@ def get_sources(
         obj_list = []
 
         for result in query_results["sources"]:
-            if include_detection_stats:
-                (
-                    obj,
-                    last_detected_at,
-                    last_detected_mag,
-                    peak_detected_at,
-                    peak_detected_mag,
-                ) = result
-            else:
-                (obj,) = result
-
+            (obj,) = result
             if (
                 (annotations_filter is not None)
                 or (annotations_filter_origin is not None)
@@ -1085,23 +1069,6 @@ def get_sources(
                     ),
                     key=lambda x: x.origin,
                 )
-            if include_detection_stats:
-                obj_list[-1]["last_detected_at"] = (
-                    (last_detected_at - last_detected_at.utcoffset()).replace(
-                        tzinfo=UTC
-                    )
-                    if last_detected_at
-                    else None
-                )
-                obj_list[-1]["last_detected_mag"] = last_detected_mag
-                obj_list[-1]["peak_detected_at"] = (
-                    (peak_detected_at - peak_detected_at.utcoffset()).replace(
-                        tzinfo=UTC
-                    )
-                    if peak_detected_at
-                    else None
-                )
-                obj_list[-1]["peak_detected_mag"] = peak_detected_mag
 
             obj_list[-1]["gal_lon"] = obj.gal_lon_deg
             obj_list[-1]["gal_lat"] = obj.gal_lat_deg
@@ -1109,21 +1076,12 @@ def get_sources(
             obj_list[-1]["dm"] = obj.dm
             obj_list[-1]["angular_diameter_distance"] = obj.angular_diameter_distance
 
-            if include_photometry:
-                photometry = Photometry.query_records_accessible_by(user).filter(
-                    Photometry.obj_id == obj.id
-                )
-                obj_list[-1]["photometry"] = [
-                    serialize(phot, 'ab', 'flux') for phot in photometry
-                ]
             if include_photometry_exists:
                 obj_list[-1]["photometry_exists"] = (
-                    len(
-                        Photometry.query_records_accessible_by(user)
-                        .filter(Photometry.obj_id == obj.id)
-                        .all()
-                    )
-                    > 0
+                    Photometry.query_records_accessible_by(user)
+                    .filter(Photometry.obj_id == obj.id)
+                    .first()
+                    is not None
                 )
             if include_spectrum_exists:
                 obj_list[-1]["spectrum_exists"] = (
@@ -1582,14 +1540,6 @@ class SourceHandler(BaseHandler):
                 type: integer
             description: |
                If provided, filter only sources saved to one of these group IDs.
-          - in: query
-            name: includePhotometry
-            nullable: true
-            schema:
-              type: boolean
-            description: |
-              Boolean indicating whether to include associated photometry. Defaults to
-              false.
           - in: query
             name: includeColorMagnitude
             nullable: true
@@ -2094,7 +2044,6 @@ class SourceHandler(BaseHandler):
                 session,
                 include_thumbnails=include_thumbnails,
                 include_comments=include_comments,
-                include_photometry=include_photometry,
                 include_photometry_exists=include_photometry_exists,
                 include_spectrum_exists=include_spectrum_exists,
                 include_period_exists=include_period_exists,

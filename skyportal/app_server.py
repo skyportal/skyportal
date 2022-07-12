@@ -55,6 +55,7 @@ from skyportal.handlers.api import (
     ObservationPlanSimSurveyHandler,
     ObservationPlanSimSurveyPlotHandler,
     ObservationPlanGeoJSONHandler,
+    ObservationPlanSummaryStatisticsHandler,
     ObservationPlanSurveyEfficiencyHandler,
     ObservationPlanAirmassChartHandler,
     ObservationPlanCreateObservingRunHandler,
@@ -269,6 +270,10 @@ skyportal_handlers = [
         ObservationPlanGeoJSONHandler,
     ),
     (
+        r'/api/observation_plan(/[0-9A-Za-z-_\.\+]+)/summary_statistics',
+        ObservationPlanSummaryStatisticsHandler,
+    ),
+    (
         r'/api/observation_plan(/[0-9A-Za-z-_\.\+]+)/survey_efficiency',
         ObservationPlanSurveyEfficiencyHandler,
     ),
@@ -367,7 +372,7 @@ skyportal_handlers = [
         AnalysisWebhookHandler,
     ),
     (r'/api/internal/tokens(/.*)?', TokenHandler),
-    (r'/api/internal/profile', ProfileHandler),
+    (r"/api/internal/profile(/[0-9]+)?", ProfileHandler),
     (r'/api/internal/dbinfo', DBInfoHandler),
     (r'/api/internal/source_views(/.*)?', SourceViewsHandler),
     (r'/api/internal/source_counts(/.*)?', SourceCountHandler),

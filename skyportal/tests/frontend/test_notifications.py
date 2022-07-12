@@ -4,6 +4,7 @@ import os
 from tdtax import taxonomy, __version__
 from datetime import datetime, timezone
 from selenium.webdriver.common.action_chains import ActionChains
+from selenium.webdriver.common.by import By
 
 from skyportal.tests import api
 from skyportal.tests.frontend.sources_and_followup_etc.test_sources import (
@@ -484,10 +485,10 @@ def test_notification_setting_select(driver, user):
 
     driver.wait_for_xpath('//*[@aria-label="time_slot_slider" and @value="8"]')
     driver.wait_for_xpath('//*[@aria-label="time_slot_slider" and @value="20"]')
-    start_time_slot = driver.find_elements_by_xpath(
-        '//*[@aria-label="time_slot_slider" and @value="8"]'
+    start_time_slot = driver.find_elements(
+        By.XPATH, '//*[@aria-label="time_slot_slider" and @value="8"]'
     )
-    start_time_slot_move_to = driver.find_elements_by_xpath('//*[@data-index="3"]')
+    start_time_slot_move_to = driver.find_elements(By.XPATH, '//*[@data-index="3"]')
 
     # drag the start of the slider from 8 to 3
     print('start_time_slot', start_time_slot)
