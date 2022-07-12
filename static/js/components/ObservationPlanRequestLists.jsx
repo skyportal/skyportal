@@ -217,11 +217,13 @@ const ObservationPlanSummaryStatistics = ({ observationplanRequest }) => {
             </li>
             <li>
               {" "}
-              Unique filters: {summaryStatistics.unique_filters.join(", ")}{" "}
+              Unique filters: {summaryStatistics.unique_filters?.join(
+                ", "
+              )}{" "}
             </li>
             <li> Total time [s]: {summaryStatistics.total_time} </li>
-            <li> Probability: {summaryStatistics.probability.toFixed(3)} </li>
-            <li> Area [sq. deg.]: {summaryStatistics.area.toFixed(1)} </li>
+            <li> Probability: {summaryStatistics.probability?.toFixed(3)} </li>
+            <li> Area [sq. deg.]: {summaryStatistics.area?.toFixed(1)} </li>
           </ul>
         </div>
       )}
@@ -338,7 +340,7 @@ const ObservationPlanRequestLists = ({ gcnEvent }) => {
   }
 
   if (!observationPlanRequestList || observationPlanRequestList.length === 0) {
-    return <p>No observation plan requests for this source...</p>;
+    return <p>No observation plan requests for this event...</p>;
   }
 
   if (gcnEvent.localizations.length === 0 || !selectedLocalizationId) {

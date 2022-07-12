@@ -1,6 +1,7 @@
 from datetime import datetime
 
 import pytest
+from selenium.webdriver.common.keys import Keys
 
 
 def filter_for_user(driver, username):
@@ -26,6 +27,33 @@ def test_delete_user_role(driver, super_admin_user, user):
     driver.wait_for_xpath("//div[text()='User role successfully removed.']", timeout=10)
     driver.wait_for_xpath_to_disappear(
         f"//*[@data-testid='deleteUserRoleButton_{user.id}_Full user']//*[contains(@class, 'MuiChip-deleteIcon')]"
+    )
+
+
+def test_add_and_delete_user_affiliations(driver, super_admin_user, user):
+    affiliation = "Test affiliation"
+    driver.get(f'/become_user/{super_admin_user.id}')
+    driver.get('/user_management')
+    filter_for_user(driver, user.username)
+    driver.click_xpath(f'//*[@data-testid="addUserAffiliationsButton{user.id}"]')
+    driver.click_xpath('//*[@data-testid="addUserAffiliationsSelect"]')
+
+    affiliations_entry_xpath = (
+        '//*[@data-testid="addUserAffiliationsTextField"]/div/input'
+    )
+    driver.wait_for_xpath(affiliations_entry_xpath).send_keys(affiliation)
+    driver.wait_for_xpath(affiliations_entry_xpath).send_keys(Keys.ENTER)
+
+    driver.click_xpath('//*[text()="Submit"]')
+    driver.wait_for_xpath('''//*[text()="Successfully updated user's affiliations."]''')
+    driver.click_xpath(
+        f"//*[@data-testid='deleteUserAffiliationsButton_{user.id}_{affiliation}']//*[contains(@class, 'MuiChip-deleteIcon')]"
+    )
+    driver.wait_for_xpath(
+        '''//div[text()="Successfully deleted user's affiliation."]'''
+    )
+    driver.wait_for_xpath_to_disappear(
+        f"//*[@data-testid='deleteUserAffiliationsButton_{user.id}_{affiliation}']//*[contains(@class, 'MuiChip-deleteIcon')]"
     )
 
 

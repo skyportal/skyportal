@@ -20,8 +20,12 @@ export function updateUserPreferences(preferences) {
   });
 }
 
-export function updateBasicUserInfo(formData) {
-  return API.PATCH("/api/internal/profile", UPDATE_BASIC_USER_INFO, formData);
+export function updateBasicUserInfo(formData, user_id) {
+  return API.PATCH(
+    `/api/internal/profile${user_id ? `/${user_id}` : ""}`,
+    UPDATE_BASIC_USER_INFO,
+    formData
+  );
 }
 
 export function fetchUserProfile() {

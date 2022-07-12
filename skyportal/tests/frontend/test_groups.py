@@ -1,5 +1,7 @@
 import uuid
 import pytest
+from selenium.webdriver.common.by import By
+
 from baselayer.app.env import load_env
 from skyportal.tests import api
 
@@ -87,8 +89,8 @@ def test_add_new_group_user_admin(
     driver.wait_for_xpath(f'//a[contains(.,"{user_no_groups.username}")]')
     assert (
         len(
-            driver.find_elements_by_xpath(
-                f'//div[@id="{user_no_groups.id}-admin-chip"]'
+            driver.find_elements(
+                By.XPATH, f'//div[@id="{user_no_groups.id}-admin-chip"]'
             )
         )
         == 1
@@ -124,8 +126,8 @@ def test_add_new_group_user_nonadmin(
     driver.wait_for_xpath(f'//a[contains(.,"{user_no_groups.username}")]')
     assert (
         len(
-            driver.find_elements_by_xpath(
-                f'//div[@id="{user_no_groups.id}-admin-chip"]'
+            driver.find_elements(
+                By.XPATH, f'//div[@id="{user_no_groups.id}-admin-chip"]'
             )
         )
         == 0
@@ -163,8 +165,8 @@ def test_add_new_group_user_cant_save(
     driver.wait_for_xpath(f'//a[contains(.,"{user_no_groups.username}")]')
     assert (
         len(
-            driver.find_elements_by_xpath(
-                f'//div[@id="{user_no_groups.id}-admin-chip"]'
+            driver.find_elements(
+                By.XPATH, f'//div[@id="{user_no_groups.id}-admin-chip"]'
             )
         )
         == 0
@@ -276,7 +278,7 @@ def test_add_stream_add_delete_filter_group(
     driver.click_xpath('//button[@data-testid="add-filter-dialog-submit"]')
     driver.wait_for_xpath(f'//span[contains(.,"{filter_name}")]')
     assert (
-        len(driver.find_elements_by_xpath(f'//span[contains(.,"{filter_name}")]')) == 1
+        len(driver.find_elements(By.XPATH, f'//span[contains(.,"{filter_name}")]')) == 1
     )
 
     # delete filter

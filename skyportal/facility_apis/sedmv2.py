@@ -63,7 +63,7 @@ class SEDMV2API(FollowUpAPI):
     """SkyPortal interface to the Spectral Energy Distribution machine (SEDMv2)."""
 
     @staticmethod
-    def submit(request):
+    def submit(request, session):
         """Submit a follow-up request to SEDMv2.
 
         Parameters
@@ -72,7 +72,7 @@ class SEDMV2API(FollowUpAPI):
             The request to submit.
         """
 
-        from ..models import FacilityTransaction, DBSession
+        from ..models import FacilityTransaction
 
         validate_request_to_sedmv2(request)
 
@@ -115,7 +115,7 @@ class SEDMV2API(FollowUpAPI):
                 initiator_id=request.last_modified_by_id,
             )
 
-        DBSession().add(transaction)
+        session.add(transaction)
 
         flow = Flow()
         flow.push(
@@ -125,13 +125,15 @@ class SEDMV2API(FollowUpAPI):
         )
 
     @staticmethod
-    def delete(request):
+    def delete(request, session):
         """Delete a follow-up request from SEDMv2 queue.
 
         Parameters
         ----------
         request: skyportal.models.FollowupRequest
             The request to delete from the queue and the SkyPortal database.
+        session: sqlalchemy.Session
+            Database session for this transaction
         """
 
         from ..models import DBSession, FollowupRequest, FacilityTransaction
@@ -179,7 +181,7 @@ class SEDMV2API(FollowUpAPI):
                 initiator_id=request.last_modified_by_id,
             )
 
-        DBSession().add(transaction)
+        session.add(transaction)
 
         flow = Flow()
         flow.push(
@@ -189,16 +191,18 @@ class SEDMV2API(FollowUpAPI):
         )
 
     @staticmethod
-    def update(request):
+    def update(request, session):
         """Update a request in the SEDMv2 queue.
 
         Parameters
         ----------
         request: skyportal.models.FollowupRequest
             The updated request.
+        session: sqlalchemy.Session
+            Database session for this transaction
         """
 
-        from ..models import FacilityTransaction, DBSession
+        from ..models import FacilityTransaction
 
         validate_request_to_sedmv2(request)
 
@@ -241,7 +245,7 @@ class SEDMV2API(FollowUpAPI):
                 initiator_id=request.last_modified_by_id,
             )
 
-        DBSession().add(transaction)
+        session.add(transaction)
 
         flow = Flow()
         flow.push(
