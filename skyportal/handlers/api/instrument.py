@@ -330,95 +330,71 @@ class InstrumentHandler(BaseHandler):
         if includeRegion:
             options.append(undefer(Instrument.region))
 
-        if instrument_id is not None:
-            instrument = Instrument.get_if_accessible_by(
-                int(instrument_id),
-                self.current_user,
-                raise_if_none=True,
-                mode="read",
-                options=options,
-            )
-            data = instrument.to_dict()
+        with self.Session() as session:
 
-            # optional: slice by GcnEvent localization
-            if localization_dateobs is not None:
-                if localization_name is not None:
-                    localization = (
-                        Localization.query_records_accessible_by(self.current_user)
-                        .filter(
-                            Localization.dateobs == localization_dateobs,
-                            Localization.localization_name == localization_name,
-                        )
-                        .first()
-                    )
-                    if localization is None:
-                        return self.error("Localization not found", status=404)
-                else:
-                    event = (
-                        GcnEvent.query_records_accessible_by(
-                            self.current_user,
-                            options=[
-                                joinedload(GcnEvent.localizations),
-                            ],
-                        )
-                        .filter(GcnEvent.dateobs == localization_dateobs)
-                        .first()
-                    )
-                    if event is None:
-                        return self.error("GCN event not found", status=404)
-                    localization = event.localizations[-1]
+            if instrument_id is not None:
 
-                cum_prob = (
-                    sa.func.sum(
-                        LocalizationTile.probdensity * LocalizationTile.healpix.area
-                    )
-                    .over(order_by=LocalizationTile.probdensity.desc())
-                    .label('cum_prob')
+                stmt = Instrument.select(self.current_user).where(
+                    Instrument.id == int(instrument_id)
                 )
-                localizationtile_subquery = (
-                    sa.select(LocalizationTile.probdensity, cum_prob).filter(
-                        LocalizationTile.localization_id == localization.id
-                    )
-                ).subquery()
+                instrument = session.scalars(stmt).first()
+                data = instrument.to_dict()
 
-                min_probdensity = (
-                    sa.select(
-                        sa.func.min(localizationtile_subquery.columns.probdensity)
-                    ).filter(
-                        localizationtile_subquery.columns.cum_prob
-                        <= localization_cumprob
-                    )
-                ).scalar_subquery()
-
-                if includeGeoJSON or includeGeoJSONSummary:
-                    if includeGeoJSON:
-                        undefer_column = 'contour'
-                    elif includeGeoJSONSummary:
-                        undefer_column = 'contour_summary'
-                    tiles = (
-                        DBSession()
-                        .execute(
-                            sa.select(InstrumentField)
-                            .filter(
-                                LocalizationTile.localization_id == localization.id,
-                                LocalizationTile.probdensity >= min_probdensity,
-                                InstrumentFieldTile.instrument_id == instrument.id,
-                                InstrumentFieldTile.instrument_field_id
-                                == InstrumentField.id,
-                                InstrumentFieldTile.healpix.overlaps(
-                                    LocalizationTile.healpix
-                                ),
+                # optional: slice by GcnEvent localization
+                if localization_dateobs is not None:
+                    if localization_name is not None:
+                        localization = session.scalars(
+                            Localization.select(
+                                self.current_user,
                             )
-                            .options(undefer(undefer_column))
+                            .where(Localization.dateobs == localization_dateobs)
+                            .where(Localization.localization_name == localization_name)
+                        ).first()
+                        if localization is None:
+                            return self.error("Localization not found", status=404)
+                    else:
+                        event = session.scalars(
+                            GcnEvent.select(
+                                self.current_user,
+                            )
+                            .where(GcnEvent.dateobs == localization_dateobs)
+                            .options(joinedload(GcnEvent.localizations))
+                        ).first()
+                        if event is None:
+                            return self.error("GCN event not found", status=404)
+                        localization = event.localizations[-1]
+
+                    cum_prob = (
+                        sa.func.sum(
+                            LocalizationTile.probdensity * LocalizationTile.healpix.area
                         )
-                        .unique()
-                        .all()
+                        .over(order_by=LocalizationTile.probdensity.desc())
+                        .label('cum_prob')
                     )
-                else:
-                    tiles = (
-                        (
-                            DBSession().execute(
-                                sa.select(InstrumentField).filter(
+                    localizationtile_subquery = (
+                        sa.select(LocalizationTile.probdensity, cum_prob).filter(
+                            LocalizationTile.localization_id == localization.id
+                        )
+                    ).subquery()
+
+                    min_probdensity = (
+                        sa.select(
+                            sa.func.min(localizationtile_subquery.columns.probdensity)
+                        ).filter(
+                            localizationtile_subquery.columns.cum_prob
+                            <= localization_cumprob
+                        )
+                    ).scalar_subquery()
+
+                    if includeGeoJSON or includeGeoJSONSummary:
+                        if includeGeoJSON:
+                            undefer_column = 'contour'
+                        elif includeGeoJSONSummary:
+                            undefer_column = 'contour_summary'
+                        tiles = (
+                            session.execute(
+                                sa.select(InstrumentField)
+                                .filter(
                                     LocalizationTile.localization_id == localization.id,
                                     LocalizationTile.probdensity >= min_probdensity,
                                     InstrumentFieldTile.instrument_id == instrument.id,
@@ -428,131 +404,51 @@ class InstrumentHandler(BaseHandler):
                                         LocalizationTile.healpix
                                     ),
                                 )
+                                .options(undefer(undefer_column))
                             )
+                            .unique()
+                            .all()
                         )
-                        .unique()
-                        .all()
-                    )
-                data['fields'] = [
-                    {**tile.to_dict(), 'airmass': tile.airmass(time=airmass_time)}
-                    for tile, in tiles
-                ]
+                    else:
+                        tiles = (
+                            (
+                                session.execute(
+                                    sa.select(InstrumentField).filter(
+                                        LocalizationTile.localization_id
+                                        == localization.id,
+                                        LocalizationTile.probdensity >= min_probdensity,
+                                        InstrumentFieldTile.instrument_id
+                                        == instrument.id,
+                                        InstrumentFieldTile.instrument_field_id
+                                        == InstrumentField.id,
+                                        InstrumentFieldTile.healpix.overlaps(
+                                            LocalizationTile.healpix
+                                        ),
+                                    )
+                                )
+                            )
+                            .unique()
+                            .all()
+                        )
+                    data['fields'] = [
+                        {**tile.to_dict(), 'airmass': tile.airmass(time=airmass_time)}
+                        for tile, in tiles
+                    ]
 
-            return self.success(data=data)
+                return self.success(data=data)
 
-        inst_name = self.get_query_argument("name", None)
-        if includeRegion:
-            options = [undefer(Instrument.region)]
-        else:
-            options = []
-        query = Instrument.query_records_accessible_by(
-            self.current_user, mode="read", options=options
-        )
-        if inst_name is not None:
-            query = query.filter(Instrument.name == inst_name)
-        instruments = query.all()
-        data = [instrument.to_dict() for instrument in instruments]
-
-        # optional: slice by GcnEvent localization
-        if localization_dateobs is not None:
-            if localization_name is not None:
-                localization = (
-                    Localization.query_records_accessible_by(self.current_user)
-                    .filter(
-                        Localization.dateobs == localization_dateobs,
-                        Localization.localization_name == localization_name,
-                    )
-                    .first()
+            inst_name = self.get_query_argument("name", None)
+            if includeRegion:
+                stmt = Instrument.select(self.current_user).options(
+                    undefer(Instrument.region)
                 )
-                if localization is None:
-                    return self.error("Localization not found", status=404)
             else:
-                event = (
-                    GcnEvent.query_records_accessible_by(
-                        self.current_user,
-                        options=[
-                            joinedload(GcnEvent.localizations),
-                        ],
-                    )
-                    .filter(GcnEvent.dateobs == localization_dateobs)
-                    .first()
-                )
-                if event is None:
-                    return self.error("GCN event not found", status=404)
-                localization = event.localizations[-1]
-
-            cum_prob = (
-                sa.func.sum(
-                    LocalizationTile.probdensity * LocalizationTile.healpix.area
-                )
-                .over(order_by=LocalizationTile.probdensity.desc())
-                .label('cum_prob')
-            )
-            localizationtile_subquery = (
-                sa.select(LocalizationTile.probdensity, cum_prob).filter(
-                    LocalizationTile.localization_id == localization.id
-                )
-            ).subquery()
-
-            min_probdensity = (
-                sa.select(
-                    sa.func.min(localizationtile_subquery.columns.probdensity)
-                ).filter(
-                    localizationtile_subquery.columns.cum_prob <= localization_cumprob
-                )
-            ).scalar_subquery()
-
-            for ii, instrument in enumerate(instruments):
-                if includeGeoJSON or includeGeoJSONSummary:
-                    if includeGeoJSON:
-                        undefer_column = 'contour'
-                    elif includeGeoJSONSummary:
-                        undefer_column = 'contour_summary'
-                    tiles = (
-                        DBSession()
-                        .execute(
-                            sa.select(InstrumentField)
-                            .filter(
-                                LocalizationTile.localization_id == localization.id,
-                                LocalizationTile.probdensity >= min_probdensity,
-                                InstrumentFieldTile.instrument_id == instrument.id,
-                                InstrumentFieldTile.instrument_field_id
-                                == InstrumentField.id,
-                                InstrumentFieldTile.healpix.overlaps(
-                                    LocalizationTile.healpix
-                                ),
-                            )
-                            .options(undefer(undefer_column))
-                        )
-                        .unique()
-                        .all()
-                    )
-                else:
-                    tiles = (
-                        (
-                            DBSession().execute(
-                                sa.select(InstrumentField).filter(
-                                    LocalizationTile.localization_id == localization.id,
-                                    LocalizationTile.probdensity >= min_probdensity,
-                                    InstrumentFieldTile.instrument_id == instrument.id,
-                                    InstrumentFieldTile.instrument_field_id
-                                    == InstrumentField.id,
-                                    InstrumentFieldTile.healpix.overlaps(
-                                        LocalizationTile.healpix
-                                    ),
-                                )
-                            )
-                        )
-                        .unique()
-                        .all()
-                    )
-                data[ii]['fields'] = [
-                    {**tile.to_dict(), 'airmass': tile.airmass(time=airmass_time)}
-                    for tile, in tiles
-                ]
-
-        self.verify_and_commit()
-        return self.success(data=data)
+                stmt = Instrument.select(self.current_user)
+            if inst_name is not None:
+                stmt = stmt.filter(Instrument.name == inst_name)
+            instruments = session.scalars(stmt).all()
+            data = [instrument.to_dict() for instrument in instruments]
+            return self.success(data=data)
 
     @permissions(['System admin'])
     def put(self, instrument_id):

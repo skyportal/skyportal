@@ -20,7 +20,7 @@ import { filterOutEmptyValues } from "../API";
 import * as sourcesActions from "../ducks/sources";
 import * as observationsActions from "../ducks/observations";
 import * as galaxiesActions from "../ducks/galaxies";
-import * as instrumentsActions from "../ducks/instruments";
+import * as instrumentActions from "../ducks/instrument";
 
 import LocalizationPlot from "./LocalizationPlot";
 import AddSurveyEfficiencyObservationsPage from "./AddSurveyEfficiencyObservationsPage";
@@ -80,6 +80,7 @@ const GcnSelectionForm = ({ gcnEvent, setSelectedLocalizationName }) => {
   const [checkedDisplayState, setCheckedDisplayState] = useState(
     displayOptionsDefault
   );
+  const [skymapInstrument, setSkymapInstrument] = useState(null);
 
   const defaultStartDate = dayjs(gcnEvent?.dateobs).format(
     "YYYY-MM-DDTHH:mm:ssZ"
@@ -93,6 +94,17 @@ const GcnSelectionForm = ({ gcnEvent, setSelectedLocalizationName }) => {
   });
 
   const { telescopeList } = useSelector((state) => state.telescopes);
+  const { instrumentList } = useSelector((state) => state.instruments);
+  const sortedInstrumentList = [...instrumentList];
+  sortedInstrumentList.sort((i1, i2) => {
+    if (i1.name > i2.name) {
+      return 1;
+    }
+    if (i2.name > i1.name) {
+      return -1;
+    }
+    return 0;
+  });
 
   const gcnEventSources = useSelector(
     (state) => state?.sources?.gcnEventSources
@@ -100,27 +112,13 @@ const GcnSelectionForm = ({ gcnEvent, setSelectedLocalizationName }) => {
   const gcnEventGalaxies = useSelector(
     (state) => state?.galaxies?.gcnEventGalaxies
   );
-
   const gcnEventObservations = useSelector(
     (state) => state?.observations?.gcnEventObservations
   );
 
-  const gcnEventInstruments = useSelector(
-    (state) => state?.instruments?.gcnEventInstruments
-  );
-
   useEffect(() => {
     const getInstruments = async () => {
-      // Wait for the allocations to update before setting
-      // the new default form fields, so that the instruments list can
-      // update
-
-      const result = await dispatch(
-        instrumentsActions.fetchGcnEventInstruments(gcnEvent?.dateobs)
-      );
-
-      const { data } = result;
-      setSelectedInstrumentId(data[0]?.id);
+      setSelectedInstrumentId(instrumentList?.id);
       setSelectedLocalizationId(gcnEvent.localizations[0]?.id);
       setSelectedLocalizationName(gcnEvent.localizations[0]?.localization_name);
     };
@@ -185,18 +183,11 @@ const GcnSelectionForm = ({ gcnEvent, setSelectedLocalizationName }) => {
     await dispatch(
       galaxiesActions.fetchGcnEventGalaxies(gcnEvent.dateobs, formData)
     );
-    await dispatch(
-      instrumentsActions.fetchGcnEventInstruments(gcnEvent.dateobs, formData)
-    );
     setFormDataState(formData);
     setIsSubmitting(false);
   };
 
-  if (!gcnEvent) {
-    return <CircularProgress />;
-  }
-
-  if (!gcnEventInstruments) {
+  if (!sortedInstrumentList) {
     displayOptionsAvailable.instruments = false;
   }
 
@@ -217,14 +208,8 @@ const GcnSelectionForm = ({ gcnEvent, setSelectedLocalizationName }) => {
   }
 
   const instLookUp = {};
-  const instruments_with_contour = [];
-  gcnEventInstruments?.forEach((instrument) => {
-    if (instrument?.fields && instrument?.fields.length > 0) {
-      if (instrument.fields[0].contour_summary) {
-        instruments_with_contour.push(instrument);
-        instLookUp[instrument.id] = instrument;
-      }
-    }
+  sortedInstrumentList?.forEach((instrumentObj) => {
+    instLookUp[instrumentObj.id] = instrumentObj;
   });
 
   const telLookUp = {};
@@ -238,6 +223,29 @@ const GcnSelectionForm = ({ gcnEvent, setSelectedLocalizationName }) => {
   gcnEvent.localizations?.forEach((loc) => {
     locLookUp[loc.id] = loc;
   });
+
+  useEffect(() => {
+    const fetchSkymapInstrument = async () => {
+      const response = await dispatch(
+        instrumentActions.fetchInstrumentSkymap(
+          instLookUp[selectedInstrumentId]?.id,
+          locLookUp[selectedLocalizationId]
+        )
+      );
+      setSkymapInstrument(response.data);
+    };
+    if (
+      instLookUp[selectedInstrumentId] &&
+      Object.keys(locLookUp).includes(selectedLocalizationId?.toString())
+    ) {
+      fetchSkymapInstrument();
+    }
+  }, [
+    dispatch,
+    setSkymapInstrument,
+    selectedLocalizationId,
+    selectedInstrumentId,
+  ]);
 
   const handleSelectedInstrumentChange = (e) => {
     setSelectedInstrumentId(e.target.value);
@@ -301,6 +309,10 @@ const GcnSelectionForm = ({ gcnEvent, setSelectedLocalizationName }) => {
     required: ["startDate", "endDate", "localizationCumprob"],
   };
 
+  if (!gcnEvent) {
+    return <CircularProgress />;
+  }
+
   return (
     <div>
       {!Object.keys(locLookUp).includes(selectedLocalizationId?.toString()) ? (
@@ -309,7 +321,7 @@ const GcnSelectionForm = ({ gcnEvent, setSelectedLocalizationName }) => {
             loc={gcnEvent.localizations[0]}
             sources={gcnEventSources}
             galaxies={gcnEventGalaxies}
-            instrument={instLookUp[selectedInstrumentId]}
+            instrument={skymapInstrument}
             observations={gcnEventObservations}
             options={checkedDisplayState}
             selectedFields={selectedFields}
@@ -322,7 +334,7 @@ const GcnSelectionForm = ({ gcnEvent, setSelectedLocalizationName }) => {
             loc={locLookUp[selectedLocalizationId]}
             sources={gcnEventSources}
             galaxies={gcnEventGalaxies}
-            instrument={instLookUp[selectedInstrumentId]}
+            instrument={skymapInstrument}
             observations={gcnEventObservations}
             options={checkedDisplayState}
             selectedFields={selectedFields}
@@ -361,7 +373,7 @@ const GcnSelectionForm = ({ gcnEvent, setSelectedLocalizationName }) => {
           name="gcnPageInstrumentSelect"
           className={classes.instrumentSelect}
         >
-          {instruments_with_contour?.map((instrument) => (
+          {sortedInstrumentList?.map((instrument) => (
             <MenuItem
               value={instrument.id}
               key={instrument.id}

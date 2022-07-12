@@ -408,11 +408,27 @@ const ObservationPlanRequestLists = ({ gcnEvent }) => {
       const observationplanRequest =
         requestsGroupedByInstId[instrument_id][dataIndex];
 
+      // eslint-disable-next-line react-hooks/rules-of-hooks
+      const [isSubmitting, setIsSubmitting] = useState(false);
+      const handleSubmit = async () => {
+        setIsSubmitting(true);
+      };
+
       return (
         <div>
-          <ObservationPlanSummaryStatistics
-            observationplanRequest={observationplanRequest}
-          />
+          {!isSubmitting ? (
+            <div>
+              <Button onClick={handleSubmit} variant="outlined" size="small">
+                Generate Statistics
+              </Button>
+            </div>
+          ) : (
+            <div>
+              <ObservationPlanSummaryStatistics
+                observationplanRequest={observationplanRequest}
+              />
+            </div>
+          )}
         </div>
       );
     };
