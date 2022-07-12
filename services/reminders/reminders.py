@@ -21,6 +21,8 @@ from skyportal.models import (
     ReminderOnShift,
     UserNotification,
 )
+from skyportal.models.gcn import GcnEvent
+from skyportal.models.shift import Shift
 
 env, cfg = load_env()
 
@@ -127,11 +129,15 @@ class ReminderQueue(asyncio.Queue):
                                 text_to_send = f"Reminder of spectrum *{reminder.spectrum_id}*: {reminder.text}"
                                 url_endpoint = f"/source/{reminder.spectrum_id}"
                             elif reminder_type == ReminderOnGCN:
-                                text_to_send = f"Reminder of GCN event *{reminder.gcn_id}*: {reminder.text}"
+                                gcn_event = session.query(GcnEvent).get(reminder.gcn_id)
+                                text_to_send = f"Reminder of GCN event *{gcn_event.dateobs}*: {reminder.text}"
                                 url_endpoint = f"/gcn_events/{reminder.gcn_id}"
                             elif reminder_type == ReminderOnShift:
-                                text_to_send = f"Reminder of *shift {reminder.shift_id}*: {reminder.text}"
-                                url_endpoint = "/shifts"
+                                shift = session.query(Shift).get(reminder.shift_id)
+                                text_to_send = (
+                                    f"Reminder of shift *{shift.name}*: {reminder.text}"
+                                )
+                                url_endpoint = f"/shifts/{shift.id}"
                             else:
                                 return self.error(
                                     f'Unknown reminder type "{reminder_type}".'

@@ -126,15 +126,15 @@ const ShiftPage = ({ route }) => {
           </Paper>
         )}
         <Paper elevation={1}>
-          {shiftList && !show && currentShift ? (
+          {shiftList && !show && currentShift?.id ? (
             <CurrentShiftMenu currentShift={currentShift} />
           ) : null}
         </Paper>
         <Paper elevation={1}>
-          {shiftList && !show && currentShift ? <CommentOnShift /> : null}
+          {shiftList && !show && currentShift?.id ? <CommentOnShift /> : null}
         </Paper>
         <Paper elevation={1}>
-          {shiftList && !show && currentShift ? (
+          {shiftList && !show && currentShift?.id ? (
             <Reminders
               resourceId={currentShift.id.toString()}
               resourceType="shift"

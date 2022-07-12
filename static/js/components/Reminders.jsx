@@ -130,7 +130,7 @@ const DialogTitle = withStyles(dialogTitleStyles)(
   )
 );
 
-const NewReminder = ({ resourceId, resourceType }) => {
+const NewReminder = ({ resourceId, resourceType, handleClose }) => {
   const dispatch = useDispatch();
   const defaultDate = dayjs().utc().format("YYYY-MM-DDTHH:mm:ssZ");
 
@@ -142,6 +142,7 @@ const NewReminder = ({ resourceId, resourceType }) => {
       (response) => {
         if (response.status === "success") {
           dispatch(showNotification("Reminder created"));
+          handleClose();
         } else {
           dispatch(showNotification("Error creating reminder", "error"));
         }
@@ -203,6 +204,7 @@ const NewReminder = ({ resourceId, resourceType }) => {
   return (
     <Form
       schema={reminderFormSchema}
+      id="reminder-form"
       onSubmit={handleSubmit}
       // eslint-disable-next-line react/jsx-no-bind
       validate={validate}
@@ -214,6 +216,7 @@ const NewReminder = ({ resourceId, resourceType }) => {
 NewReminder.propTypes = {
   resourceId: PropTypes.string.isRequired,
   resourceType: PropTypes.string.isRequired,
+  handleClose: PropTypes.func.isRequired,
 };
 
 const RemindersTable = ({ reminders, resourceId, resourceType }) => {
@@ -373,6 +376,7 @@ const RemindersTable = ({ reminders, resourceId, resourceType }) => {
                   <NewReminder
                     resourceId={resourceId}
                     resourceType={resourceType}
+                    handleClose={handleClose}
                   />
                 </div>
               </DialogContent>
