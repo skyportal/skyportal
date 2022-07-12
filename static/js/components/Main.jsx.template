@@ -9,7 +9,8 @@ import ReactDOM from "react-dom";
 
 import { BrowserRouter, Routes, Route, useLocation, useParams } from "react-router-dom";
 
-import { MuiPickersUtilsProvider } from "@material-ui/pickers";
+import AdapterDateFns from '@mui/lab/AdapterDateFns';
+import LocalizationProvider from '@mui/lab/LocalizationProvider';
 import {
   createTheme,
   ThemeProvider,
@@ -117,8 +118,7 @@ const MainContentInternal = ({ root }) => {
         />
       </div>
 
-      <MuiPickersUtilsProvider utils={DayJSUtils}>
-
+      <LocalizationProvider dateAdapter={AdapterDateFns}>
         <SidebarAndHeader open={open} />
 
         <div
@@ -142,7 +142,7 @@ const MainContentInternal = ({ root }) => {
 
         </div>
 
-      </MuiPickersUtilsProvider>
+      </LocalizationProvider>
     </Theme>
   </StyledEngineProvider>
   );

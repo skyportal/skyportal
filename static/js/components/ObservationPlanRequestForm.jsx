@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import Button from "@mui/material/Button";
+import Checkbox from "@mui/material/Checkbox";
 import Chip from "@mui/material/Chip";
+import FormControlLabel from "@mui/material/FormControlLabel";
 import DateTimePicker from "@mui/lab/DateTimePicker";
 import AdapterDateFns from "@mui/lab/AdapterDateFns";
 import LocalizationProvider from "@mui/lab/LocalizationProvider";
@@ -259,6 +261,8 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
   const { telescopeList } = useSelector((state) => state.telescopes);
   const { allocationList } = useSelector((state) => state.allocations);
 
+  const { useAMPM } = useSelector((state) => state.profile.preferences);
+
   const allGroups = useSelector((state) => state.groups.all);
   const [selectedAllocationId, setSelectedAllocationId] = useState(null);
   const [selectedGroupIds, setSelectedGroupIds] = useState([]);
@@ -267,6 +271,7 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
   const [planQueues, setPlanQueues] = useState([]);
   const [skymapInstrument, setSkymapInstrument] = useState(null);
   const [selectedFields, setSelectedFields] = useState([]);
+  const [multiPlansChecked, setMultiPlansChecked] = useState(false);
 
   const defaultAirmassTime = new Date(
     dayjs(gcnevent?.dateobs).format("YYYY-MM-DDTHH:mm:ssZ")
@@ -420,6 +425,7 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
     } else {
       const json = {
         observation_plans: planQueues,
+        combine_plans: multiPlansChecked,
       };
       await dispatch(gcnEventActions.submitObservationPlanRequest(json));
       setPlanQueues([]);
@@ -469,6 +475,7 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
               onChange={(newValue) => handleChange(newValue)}
               label="Time to compute airmass (UTC)"
               showTodayButton={false}
+              ampm={useAMPM}
               renderInput={(params) => (
                 /* eslint-disable-next-line react/jsx-props-no-spreading */
                 <TextField id="airmassTimePicker" {...params} />
@@ -504,7 +511,7 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
                 telLookUp[instLookUp[allocation.instrument_id].telescope_id]
                   .name
               } / ${instLookUp[allocation.instrument_id].name} - ${
-                groupLookUp[allocation.group_id].name
+                groupLookUp[allocation.group_id]?.name
               } (PI ${allocation.pi})`}
             </MenuItem>
           ))}
@@ -588,15 +595,29 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
       </div>
       <div>
         {planQueues.length !== 0 && (
-          <Button
-            size="small"
-            color="primary"
-            type="submit"
-            variant="outlined"
-            onClick={handleSubmit}
-          >
-            Generate Observation Plans
-          </Button>
+          <>
+            <Button
+              size="small"
+              color="primary"
+              type="submit"
+              variant="outlined"
+              onClick={handleSubmit}
+            >
+              Generate Observation Plans
+            </Button>
+            <FormControlLabel
+              label="Combine plans"
+              control={
+                <Checkbox
+                  onChange={(event) =>
+                    setMultiPlansChecked(event.target.checked)
+                  }
+                  checked={multiPlansChecked}
+                  data-testid="combinedPlansCheckBox"
+                />
+              }
+            />
+          </>
         )}
         {isSubmitting && (
           <div className={classes.marginTop}>

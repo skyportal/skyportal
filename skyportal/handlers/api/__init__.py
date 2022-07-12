@@ -28,6 +28,8 @@ from .facility_listener import FacilityMessageHandler
 from .galaxy import GalaxyCatalogHandler, GalaxyASCIIFileHandler
 from .gcn import (
     GcnEventHandler,
+    GcnEventObservationPlanRequestsHandler,
+    GcnEventSurveyEfficiencyHandler,
     LocalizationHandler,
 )
 from .group import (
@@ -51,6 +53,7 @@ from .observation import (
     ObservationTreasureMapHandler,
     ObservationExternalAPIHandler,
     ObservationSimSurveyHandler,
+    ObservationSimSurveyPlotHandler,
 )
 from .observingrun import ObservingRunHandler
 from .observation_plan import (
@@ -61,6 +64,9 @@ from .observation_plan import (
     ObservationPlanSubmitHandler,
     ObservationPlanMovieHandler,
     ObservationPlanSimSurveyHandler,
+    ObservationPlanSimSurveyPlotHandler,
+    ObservationPlanSummaryStatisticsHandler,
+    ObservationPlanSurveyEfficiencyHandler,
     ObservationPlanGeoJSONHandler,
     ObservationPlanAirmassChartHandler,
     ObservationPlanCreateObservingRunHandler,
@@ -97,6 +103,10 @@ from .spectrum import (
     SpectrumASCIIFileHandler,
     SpectrumRangeHandler,
     SyntheticPhotometryHandler,
+)
+from .survey_efficiency import (
+    SurveyEfficiencyForObservationPlanHandler,
+    SurveyEfficiencyForObservationsHandler,
 )
 from .stream import StreamHandler, StreamUserHandler
 from .sysinfo import SysInfoHandler

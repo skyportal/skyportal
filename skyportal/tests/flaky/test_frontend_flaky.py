@@ -8,6 +8,7 @@ import pytest
 from skyportal.tests import api
 from selenium.webdriver.common.keys import Keys
 from selenium.common.exceptions import TimeoutException
+from selenium.webdriver.common.by import By
 from datetime import date, timedelta
 
 
@@ -56,8 +57,8 @@ def test_telescope_frontend_desktop(super_admin_token, super_admin_user, driver)
     driver.wait_for_xpath('//*[@id="root_lon"]').send_keys('10.0')
     driver.wait_for_xpath('//*[@id="root_elevation"]').send_keys('50.0')
 
-    tab = driver.find_element_by_xpath('//*[@class="MuiFormGroup-root"]')
-    for row in tab.find_elements_by_xpath('//span[text()="Yes"]'):
+    tab = driver.find_element(By.XPATH, '//*[@class="MuiFormGroup-root"]')
+    for row in tab.find_elements(By.XPATH, '//span[text()="Yes"]'):
         row.click()
 
     submit_button_xpath = '//button[@type="submit"]'
@@ -113,8 +114,8 @@ def test_telescope_frontend_mobile(super_admin_token, super_admin_user, driver):
     driver.wait_for_xpath('//*[@id="root_diameter"]').send_keys('2.0')
     driver.wait_for_xpath('//*[@id="root_elevation"]').send_keys('50.0')
 
-    tab = driver.find_element_by_xpath('//*[@class="MuiFormGroup-root"]')
-    for row in tab.find_elements_by_xpath('//span[text()="Yes"]'):
+    tab = driver.find_element(By.XPATH, '//*[@class="MuiFormGroup-root"]')
+    for row in tab.find_elements(By.XPATH, '//span[text()="Yes"]'):
         row.click()
 
     submit_button_xpath = '//button[@type="submit"]'
@@ -619,10 +620,10 @@ def test_observationplan_request(driver, user, super_admin_token, public_group):
     )
     assert status == 200
     assert data["status"] == "success"
-
+    catalog_name = str(uuid.uuid4())
     galaxy_name = str(uuid.uuid4())
     data = {
-        'catalog_name': 'some_galaxy',
+        'catalog_name': catalog_name,
         'catalog_data': {'name': [galaxy_name], 'ra': [228.5], 'dec': [35.5]},
     }
     status, data = api('POST', 'galaxy_catalog', data=data, token=super_admin_token)
@@ -649,8 +650,8 @@ def test_observationplan_request(driver, user, super_admin_token, public_group):
     )
     driver.wait_for_xpath(submit_button_xpath)
 
-    select_box = driver.find_element_by_id(
-        "mui-component-select-followupRequestAllocationSelect"
+    select_box = driver.find_element(
+        By.ID, "mui-component-select-followupRequestAllocationSelect"
     )
     select_box.click()
     driver.click_xpath(

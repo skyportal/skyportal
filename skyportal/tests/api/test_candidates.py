@@ -3,7 +3,7 @@ import datetime
 import uuid
 import numpy.testing as npt
 
-from skyportal.tests import api
+from skyportal.tests import api, assert_api
 
 from tdtax import taxonomy, __version__
 
@@ -280,7 +280,7 @@ def test_candidate_list_sorting_different_origins(
         },
         token=annotation_token,
     )
-    assert status == 200
+    assert_api(status, data)
 
     status, data = api(
         "POST",
@@ -292,6 +292,7 @@ def test_candidate_list_sorting_different_origins(
         },
         token=annotation_token,
     )
+    assert_api(status, data)
     assert status == 200
 
     # If just sorting on numeric_field, public_candidate should be returned first
@@ -306,6 +307,7 @@ def test_candidate_list_sorting_different_origins(
         },
         token=view_only_token,
     )
+    assert_api(status, data)
     assert status == 200
     assert data["data"]["candidates"][0]["id"] == public_candidate2.id
     assert data["data"]["candidates"][1]["id"] == public_candidate.id
@@ -700,7 +702,14 @@ def test_exclude_by_outdated_annotations(
     num_candidates = len(data["data"]["candidates"])
 
     origin = str(uuid.uuid4())
-    t0 = datetime.datetime.now(datetime.timezone.utc)  # recall when it was created
+    t0 = datetime.datetime.utcnow()  # recall when it was created
+    time_offset = (
+        datetime.datetime.utcnow() - datetime.datetime.now()
+    ) / datetime.timedelta(hours=1)
+    t0 += datetime.timedelta(
+        hours=time_offset
+    )  # adjust for time zone of PC running the tests
+    t0 += datetime.timedelta(seconds=60)  # give some extra time
 
     # add an annotation from this origin
     status, data = api(
@@ -729,7 +738,7 @@ def test_exclude_by_outdated_annotations(
         params={
             "groupIDs": f"{public_group.id}",
             "annotationExcludeOrigin": origin,
-            "annotationExcludeOutdatedDate": str(t0 + datetime.timedelta(seconds=60)),
+            "annotationExcludeOutdatedDate": str(t0),
         },
         token=view_only_token,
     )
@@ -1311,6 +1320,8 @@ def test_candidate_list_not_saved_to_all_selected_groups(
         },
         token=view_only_token_two_groups,
     )
+    if status != 200:
+        print(data['message'])
     assert status == 200
     # Should get obj_id2 and obj_id3 back
     assert len(data["data"]["candidates"]) == 2

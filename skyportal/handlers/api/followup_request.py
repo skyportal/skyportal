@@ -223,10 +223,14 @@ class AssignmentHandler(BaseHandler):
                 assignment_id = post_assignment(
                     data, self.associated_user_object.id, session
                 )
-            except Exception as e:
+            except ValidationError as e:
                 return self.error(
                     'Error posting followup request: ' f'"{e.normalized_messages()}"'
                 )
+            except ValueError as e:
+                return self.error('Error posting followup request: ' f'"{e.args[0]}"')
+            except Exception as e:
+                return self.error('Error posting followup request: ' f'"{str(e)}"')
 
             return self.success(data={"id": assignment_id})
 
@@ -548,61 +552,61 @@ class FollowupRequestHandler(BaseHandler):
                 f'Invalid / missing parameters: {e.normalized_messages()}'
             )
 
-        data["requester_id"] = self.associated_user_object.id
-        data["last_modified_by_id"] = self.associated_user_object.id
-        data['allocation_id'] = int(data['allocation_id'])
+        with self.Session() as session:
 
-        allocation = Allocation.get_if_accessible_by(
-            data['allocation_id'], self.current_user, raise_if_none=True
-        )
-        instrument = allocation.instrument
+            data["requester_id"] = self.associated_user_object.id
+            data["last_modified_by_id"] = self.associated_user_object.id
+            data['allocation_id'] = int(data['allocation_id'])
 
-        if instrument.api_classname is None:
-            return self.error('Instrument has no remote API.')
-
-        if not instrument.api_class.implements()['submit']:
-            return self.error('Cannot submit followup requests to this Instrument.')
-
-        target_groups = []
-        for group_id in data.pop('target_group_ids', []):
-            g = Group.get_if_accessible_by(
-                group_id, self.current_user, raise_if_none=True
+            stmt = Allocation.select(session.user_or_token).where(
+                Allocation.id == data['allocation_id'],
             )
-            target_groups.append(g)
+            allocation = session.scalars(stmt).first()
+            instrument = allocation.instrument
 
-        try:
-            formSchema = instrument.api_class.custom_json_schema(
-                instrument, self.current_user
-            )
-        except AttributeError:
-            formSchema = instrument.api_class.form_json_schema
+            if instrument.api_classname is None:
+                return self.error('Instrument has no remote API.')
 
-        # validate the payload
-        jsonschema.validate(data['payload'], formSchema)
+            if not instrument.api_class.implements()['submit']:
+                return self.error('Cannot submit followup requests to this Instrument.')
 
-        followup_request = FollowupRequest.__schema__().load(data)
-        followup_request.target_groups = target_groups
-        DBSession().add(followup_request)
-        self.verify_and_commit()
+            group_ids = data.pop('target_group_ids', [])
+            stmt = Group.select(self.current_user).where(Group.id.in_(group_ids))
+            target_groups = session.scalars(stmt).all()
 
-        self.push_all(
-            action="skyportal/REFRESH_SOURCE",
-            payload={"obj_key": followup_request.obj.internal_key},
-        )
+            try:
+                formSchema = instrument.api_class.custom_json_schema(
+                    instrument, self.current_user
+                )
+            except AttributeError:
+                formSchema = instrument.api_class.form_json_schema
 
-        try:
-            instrument.api_class.submit(followup_request)
-        except Exception:
-            followup_request.status = 'failed to submit'
-            raise
-        finally:
-            self.verify_and_commit()
+            # validate the payload
+            jsonschema.validate(data['payload'], formSchema)
+
+            followup_request = FollowupRequest.__schema__().load(data)
+            followup_request.target_groups = target_groups
+            session.add(followup_request)
+            session.commit()
+
             self.push_all(
                 action="skyportal/REFRESH_SOURCE",
                 payload={"obj_key": followup_request.obj.internal_key},
             )
 
-        return self.success(data={"id": followup_request.id})
+            try:
+                instrument.api_class.submit(followup_request, session)
+            except Exception:
+                followup_request.status = 'failed to submit'
+                raise
+            finally:
+                session.commit()
+                self.push_all(
+                    action="skyportal/REFRESH_SOURCE",
+                    payload={"obj_key": followup_request.obj.internal_key},
+                )
+
+            return self.success(data={"id": followup_request.id})
 
     @permissions(["Upload data"])
     def put(self, request_id):
@@ -637,56 +641,60 @@ class FollowupRequestHandler(BaseHandler):
         except ValueError:
             return self.error('Request id must be an int.')
 
-        followup_request = FollowupRequest.get_if_accessible_by(
-            request_id, self.current_user, mode="update", raise_if_none=True
-        )
+        with self.Session() as session:
 
-        data = self.get_json()
-
-        try:
-            data = FollowupRequestPost.load(data)
-        except ValidationError as e:
-            return self.error(
-                f'Invalid / missing parameters: {e.normalized_messages()}'
-            )
-
-        data['id'] = request_id
-        data["last_modified_by_id"] = self.associated_user_object.id
-
-        api = followup_request.instrument.api_class
-
-        if not api.implements()['update']:
-            return self.error('Cannot update requests on this instrument.')
-
-        target_group_ids = data.pop('target_group_ids', None)
-        if target_group_ids is not None:
-            target_groups = []
-            for group_id in target_group_ids:
-                g = Group.get_if_accessible_by.get(
-                    group_id, self.current_user, raise_if_none=True
+            followup_request = session.scalars(
+                FollowupRequest.select(session.user_or_token, mode="update").where(
+                    FollowupRequest.id == request_id
                 )
-                target_groups.append(g)
-            followup_request.target_groups = target_groups
+            ).first()
+            if followup_request is None:
+                return self.error(
+                    message=f"Missing FollowUpRequest with id {request_id}"
+                )
 
-        # validate posted data
-        try:
-            FollowupRequest.__schema__().load(data, partial=True)
-        except ValidationError as e:
-            return self.error(
-                f'Error parsing followup request update: "{e.normalized_messages()}"'
+            data = self.get_json()
+
+            try:
+                data = FollowupRequestPost.load(data)
+            except ValidationError as e:
+                return self.error(
+                    f'Invalid / missing parameters: {e.normalized_messages()}'
+                )
+
+            data['id'] = request_id
+            data["last_modified_by_id"] = self.associated_user_object.id
+
+            api = followup_request.instrument.api_class
+
+            if not api.implements()['update']:
+                return self.error('Cannot update requests on this instrument.')
+
+            group_ids = data.pop('target_group_ids', None)
+            if group_ids is not None:
+                stmt = Group.select(self.current_user).where(Group.id.in_(group_ids))
+                target_groups = session.scalars(stmt).all()
+                followup_request.target_groups = target_groups
+
+            # validate posted data
+            try:
+                FollowupRequest.__schema__().load(data, partial=True)
+            except ValidationError as e:
+                return self.error(
+                    f'Error parsing followup request update: "{e.normalized_messages()}"'
+                )
+
+            for k in data:
+                setattr(followup_request, k, data[k])
+
+            followup_request.instrument.api_class.update(followup_request, session)
+            session.commit()
+
+            self.push_all(
+                action="skyportal/REFRESH_SOURCE",
+                payload={"obj_key": followup_request.obj.internal_key},
             )
-
-        for k in data:
-            setattr(followup_request, k, data[k])
-
-        followup_request.instrument.api_class.update(followup_request)
-        self.verify_and_commit()
-
-        self.push_all(
-            action="skyportal/REFRESH_SOURCE",
-            payload={"obj_key": followup_request.obj.internal_key},
-        )
-        return self.success()
+            return self.success()
 
     @permissions(["Upload data"])
     def delete(self, request_id):
@@ -707,25 +715,34 @@ class FollowupRequestHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        followup_request = FollowupRequest.get_if_accessible_by(
-            request_id, self.current_user, mode="delete", raise_if_none=True
-        )
 
-        api = followup_request.instrument.api_class
-        if not api.implements()['delete']:
-            return self.error('Cannot delete requests on this instrument.')
+        with self.Session() as session:
 
-        followup_request.last_modified_by_id = self.associated_user_object.id
-        internal_key = followup_request.obj.internal_key
+            followup_request = session.scalars(
+                FollowupRequest.select(session.user_or_token, mode="delete").where(
+                    FollowupRequest.id == request_id
+                )
+            ).first()
+            if followup_request is None:
+                return self.error(
+                    message=f"Missing FollowUpRequest with id {request_id}"
+                )
 
-        api.delete(followup_request)
-        self.verify_and_commit()
+            api = followup_request.instrument.api_class
+            if not api.implements()['delete']:
+                return self.error('Cannot delete requests on this instrument.')
 
-        self.push_all(
-            action="skyportal/REFRESH_SOURCE",
-            payload={"obj_key": internal_key},
-        )
-        return self.success()
+            followup_request.last_modified_by_id = self.associated_user_object.id
+            internal_key = followup_request.obj.internal_key
+
+            api.delete(followup_request, session)
+            session.commit()
+
+            self.push_all(
+                action="skyportal/REFRESH_SOURCE",
+                payload={"obj_key": internal_key},
+            )
+            return self.success()
 
 
 def observation_schedule(
@@ -1137,20 +1154,30 @@ class FollowupRequestPrioritizationHandler(BaseHandler):
         ---
         description: |
           Reprioritize followup requests schedule automatically based on
-          location within skymap.
+          either magnitude or location within skymap.
         tags:
             - followup_requests
         parameters:
-        - in: body
-          name: localizationId
-          schema:
-            type: integer
-          description: Filter by localization ID
         - in: body
           name: requestIds
           schema:
             type: list of integers
           description: List of follow-up request IDs
+        - in: body
+          name: priorityType
+          schema:
+            type: string
+          description: Priority source. Must be either localization or magnitude. Defaults to magnitude.
+        - in: body
+          name: magnitudeOrdering
+          schema:
+            type: string
+          description: Ordering for brightness based prioritization. Must be either ascending (brightest first) or descending (faintest first). Defaults to ascending.
+        - in: body
+          name: localizationId
+          schema:
+            type: integer
+          description: Filter by localization ID
         - in: body
           name: minimumPriority
           schema:
@@ -1173,82 +1200,120 @@ class FollowupRequestPrioritizationHandler(BaseHandler):
         """
 
         data = self.get_json()
+        priority_type = data.get('priorityType', 'magnitude')
+        magnitude_ordering = data.get('magnitudeOrdering', 'ascending')
         localization_id = data.get('localizationId', None)
         request_ids = data.get('requestIds', None)
         minimum_priority = data.get('minimumPriority', 1)
         maximum_priority = data.get('maximumPriority', 5)
 
-        if localization_id is None:
-            return self.error('localizationId is required')
         if request_ids is None:
             return self.error('requestIds is required')
 
-        localization = (
-            Localization.query_records_accessible_by(self.current_user)
-            .filter(
-                Localization.id == localization_id,
+        if priority_type not in ["magnitude", "localization"]:
+            return self.error('priority_type must be either magnitude or localization')
+
+        if magnitude_ordering not in ["ascending", "descending"]:
+            return self.error(
+                'magnitude_ordering must be either ascending or descending'
             )
-            .first()
-        )
-        if localization is None:
-            return self.error(message=f"Missing localization with id {localization_id}")
 
-        followup_requests = []
-        for request_id in request_ids:
-            # get owned assignments
-            followup_request = FollowupRequest.get_if_accessible_by(
-                request_id, self.current_user, mode="update", raise_if_none=False
-            )
-            if followup_request is None:
-                return self.error(
-                    message=f"Missing FollowUpRequest with id {request_id}"
-                )
-            followup_requests.append(followup_request)
+        with self.Session() as session:
 
-        if len(followup_requests) == 0:
-            return self.error('Need at least one observation to modify.')
-
-        ras = np.array(
-            [followup_request.obj.ra for followup_request in followup_requests]
-        )
-        decs = np.array(
-            [followup_request.obj.dec for followup_request in followup_requests]
-        )
-        dists = np.array(
-            [
-                cosmo.luminosity_distance(followup_request.obj.redshift).value
-                if followup_request.obj.redshift is not None
-                else -1
-                for followup_request in followup_requests
-            ]
-        )
-
-        tab = localization.flat
-        ipix = hp.ang2pix(Localization.nside, ras, decs, lonlat=True)
-        if localization.is_3d:
-            prob, distmu, distsigma, distnorm = tab
-            if not all([dist > 0 for dist in dists]):
-                weights = prob[ipix]
-            else:
-                weights = prob[ipix] * (
-                    distnorm[ipix] * norm(distmu[ipix], distsigma[ipix]).pdf(dists)
-                )
-        else:
-            weights = prob[ipix]
-        weights = weights / np.max(weights)
-        priorities = [
-            int(
-                np.round(
-                    weight * (maximum_priority - minimum_priority) + minimum_priority
-                )
-            )
-            for weight in weights
-        ]
-
-        with DBSession() as session:
-            for request_id, priority in zip(request_ids, priorities):
+            followup_requests = []
+            for request_id in request_ids:
                 # get owned assignments
-                followup_request = session.query(FollowupRequest).get(request_id)
+                followup_request = session.scalars(
+                    FollowupRequest.select(self.current_user, mode="update")
+                    .options(joinedload(FollowupRequest.obj).joinedload(Obj.photstats))
+                    .where(FollowupRequest.id == request_id)
+                ).first()
+                if followup_request is None:
+                    return self.error(
+                        message=f"Missing FollowUpRequest with id {request_id}"
+                    )
+                followup_requests.append(followup_request)
+
+            if len(followup_requests) == 0:
+                return self.error('Need at least one observation to modify.')
+
+            if priority_type == "localization":
+                if localization_id is None:
+                    return self.error(
+                        'localizationId is required if priorityType is localization'
+                    )
+
+                localization = session.scalars(
+                    Localization.select(self.current_user).where(
+                        Localization.id == localization_id,
+                    )
+                ).first()
+                if localization is None:
+                    return self.error(
+                        message=f"Missing localization with id {localization_id}"
+                    )
+
+                ras = np.array(
+                    [followup_request.obj.ra for followup_request in followup_requests]
+                )
+                decs = np.array(
+                    [followup_request.obj.dec for followup_request in followup_requests]
+                )
+                dists = np.array(
+                    [
+                        cosmo.luminosity_distance(followup_request.obj.redshift).value
+                        if followup_request.obj.redshift is not None
+                        else -1
+                        for followup_request in followup_requests
+                    ]
+                )
+
+                tab = localization.flat
+                ipix = hp.ang2pix(Localization.nside, ras, decs, lonlat=True)
+                if localization.is_3d:
+                    prob, distmu, distsigma, distnorm = tab
+                    if not all([dist > 0 for dist in dists]):
+                        weights = prob[ipix]
+                    else:
+                        weights = prob[ipix] * (
+                            distnorm[ipix]
+                            * norm(distmu[ipix], distsigma[ipix]).pdf(dists)
+                        )
+                else:
+                    (prob,) = tab
+                    weights = prob[ipix]
+
+            elif priority_type == "magnitude":
+                mags = np.array(
+                    [
+                        followup_request.obj.photstats[0].peak_mag_global
+                        if followup_request.obj.photstats[0].peak_mag_global is not None
+                        else 99
+                        for followup_request in followup_requests
+                    ]
+                )
+                if magnitude_ordering == "descending":
+                    weights = mags - np.min(mags)
+                else:
+                    weights = -(mags - np.min(mags))
+            if len(weights) > 1:
+                weights = (weights - np.min(weights)) / (
+                    np.max(weights) - np.min(weights)
+                )
+            else:
+                weights = weights / np.max(weights)
+
+            priorities = [
+                int(
+                    np.round(
+                        weight * (maximum_priority - minimum_priority)
+                        + minimum_priority
+                    )
+                )
+                for weight in weights
+            ]
+
+            for followup_request, priority in zip(followup_requests, priorities):
                 api = followup_request.instrument.api_class
                 if not api.implements()['update']:
                     return self.error('Cannot update requests on this instrument.')
@@ -1260,12 +1325,12 @@ class FollowupRequestPrioritizationHandler(BaseHandler):
                 session.commit()
 
                 followup_request.payload = payload
-                followup_request.instrument.api_class.update(followup_request)
+                followup_request.instrument.api_class.update(followup_request, session)
 
-        flow = Flow()
-        flow.push(
-            '*',
-            "skyportal/REFRESH_FOLLOWUP_REQUESTS",
-        )
+            flow = Flow()
+            flow.push(
+                '*',
+                "skyportal/REFRESH_FOLLOWUP_REQUESTS",
+            )
 
-        return self.success()
+            return self.success()

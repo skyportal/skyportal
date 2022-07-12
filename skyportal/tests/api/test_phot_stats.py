@@ -5,6 +5,10 @@ from baselayer.app.env import load_env
 import uuid
 from datetime import datetime
 
+from skyportal.models.photometry import Photometry, PHOT_ZP
+from skyportal.models.phot_stat import PhotStat
+
+
 _, cfg = load_env()
 PHOT_DETECTION_THRESHOLD = cfg["misc.photometry_detection_threshold_nsigma"]
 
@@ -744,6 +748,61 @@ def test_phot_stats_update_handler(
     assert data['data']['totalWithoutPhotStats'] == 0
 
 
+def test_phot_stats_bad_data(upload_data_token, public_group, ztf_camera):
+    source_id = str(uuid.uuid4())
+
+    num_points = 5
+    photometry = []
+    for i in range(num_points):
+        new_phot = Photometry()
+        new_phot.flux = np.random.normal(300, 10)
+        new_phot.fluxerr = 10.0
+        new_phot.filter = np.random.choice(['ztfg', 'ztfr', 'ztfi'])
+        new_phot.mjd = np.random.uniform(55000, 56000)
+        new_phot.limiting_mag = -2.5 * np.log10(5 * new_phot.fluxerr) + PHOT_ZP
+        new_phot.original_user_data = {'limiting_mag': np.nan}
+        photometry.append(new_phot)
+
+    ps = PhotStat(source_id)
+    ps.full_update(photometry)
+
+    mag = [p.mag for p in photometry]
+    assert all(isinstance(m, float) and not np.isnan(m) for m in mag)
+    mag = np.array(mag)
+    mjd = np.array([p.mjd for p in photometry])
+    filt = np.array([p.filter for p in photometry])
+    det = np.array([p.snr > PHOT_DETECTION_THRESHOLD for p in photometry])
+    lim = np.array([p.limiting_mag for p in photometry])
+
+    check_phot_stat_is_consistent(ps.__dict__, mjd, mag, filt, det, lim)
+
+    # try to set a bad value for one of the photometry points
+    photometry[1].fluxerr = None
+
+    ps.full_update(photometry)
+    check_dict_has_no_nans(ps.__dict__)
+
+    # try to post each point individually
+    ps2 = PhotStat(source_id)
+    for p in photometry:
+        ps2.add_photometry_point(p)
+
+    check_dict_has_no_nans(ps2.__dict__)
+
+    # remove the bad point, as this is what the PhotStat
+    # logic should do internally.
+    idx = np.ones(len(mjd), dtype=bool)
+    idx[1] = False
+    mjd = mjd[idx]
+    mag = mag[idx]
+    filt = filt[idx]
+    det = det[idx]
+    lim = lim[idx]
+
+    check_phot_stat_is_consistent(ps.__dict__, mjd, mag, filt, det, lim)
+    check_phot_stat_is_consistent(ps2.__dict__, mjd, mag, filt, det, lim)
+
+
 def check_phot_stat_is_consistent(phot_stat, mjd, mag, filt, det, lim):
     filter_set = set(filt)
 
@@ -892,3 +951,12 @@ def check_phot_stat_is_consistent(phot_stat, mjd, mag, filt, det, lim):
         pprint(phot_stat)
         print(traceback.format_exc())
         raise e
+
+
+def check_dict_has_no_nans(some_dict):
+    for k, v in some_dict.items():
+        if v is not None:
+            if isinstance(v, float):
+                assert not np.isnan(v)
+            if isinstance(v, dict):
+                check_dict_has_no_nans(v)

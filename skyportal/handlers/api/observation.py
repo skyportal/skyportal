@@ -5,13 +5,14 @@ import astropy
 import functools
 import healpix_alchemy as ha
 import humanize
+import json
 from marshmallow.exceptions import ValidationError
 import numpy as np
 import pandas as pd
 from regions import Regions
 import requests
 import sqlalchemy as sa
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, undefer
 from sqlalchemy.orm import sessionmaker, scoped_session
 from tornado.ioloop import IOLoop
 import urllib
@@ -21,11 +22,13 @@ from io import StringIO
 
 from baselayer.app.flow import Flow
 from baselayer.app.env import load_env
+from baselayer.app.custom_exceptions import AccessError
 from ..base import BaseHandler
 from ...models import (
     DBSession,
     Allocation,
     GcnEvent,
+    Group,
     Localization,
     LocalizationTile,
     Telescope,
@@ -34,11 +37,16 @@ from ...models import (
     InstrumentFieldTile,
     ExecutedObservation,
     QueuedObservation,
+    SurveyEfficiencyForObservationPlan,
+    SurveyEfficiencyForObservations,
 )
 
 from ...models.schema import ObservationExternalAPIHandlerPost
+from ...utils.simsurvey import (
+    get_simsurvey_parameters,
+)
 from .instrument import add_tiles
-from .observation_plan import observation_simsurvey
+from .observation_plan import observation_simsurvey, observation_simsurvey_plot
 
 env, cfg = load_env()
 TREASUREMAP_URL = cfg['app.treasuremap_endpoint']
@@ -201,7 +209,7 @@ def add_observations(instrument_id, obstable):
 
 
 def get_observations(
-    user,
+    session,
     start_date,
     end_date,
     telescope_name=None,
@@ -215,11 +223,12 @@ def get_observations(
     n_per_page=100,
     page_number=1,
 ):
-    f"""Query
+    f"""Query for list of observations
+
     Parameters
     ----------
-    user : baselayer.app.models.User
-        The user requesting the observations
+    session: sqlalchemy.Session
+        Database session for this transaction
     start_date: datetime
         Start time of the observations
     end_date: datetime
@@ -278,85 +287,73 @@ def get_observations(
         raise ValueError('observation_status should be executed or queued')
 
     if includeGeoJSON:
-        options = (
-            [
-                joinedload(Observation.instrument).joinedload(Instrument.telescope),
-                joinedload(Observation.field).undefer(InstrumentField.contour_summary),
-            ],
+        obs_query = (
+            Observation.select(
+                session.user_or_token,
+                mode="read",
+            )
+            .options(
+                joinedload(Observation.field).undefer(InstrumentField.contour_summary)
+            )
+            .options(
+                joinedload(Observation.instrument).joinedload(Instrument.telescope)
+            )
         )
     else:
-        options = (
-            [
-                joinedload(Observation.instrument).joinedload(Instrument.telescope),
-                joinedload(Observation.field),
-            ],
+
+        obs_query = (
+            Observation.select(
+                session.user_or_token,
+                mode="read",
+            )
+            .options(joinedload(Observation.field))
+            .options(
+                joinedload(Observation.instrument).joinedload(Instrument.telescope)
+            )
         )
 
-    obs_query = Observation.query_records_accessible_by(
-        user,
-        mode="read",
-        options=options,
-    )
-
-    obs_query = obs_query.filter(Observation.obstime >= start_date)
-    obs_query = obs_query.filter(Observation.obstime <= end_date)
+    obs_query = obs_query.where(Observation.obstime >= start_date)
+    obs_query = obs_query.where(Observation.obstime <= end_date)
 
     # optional: slice by Instrument
     if telescope_name is not None and instrument_name is not None:
-        telescope = (
-            Telescope.query_records_accessible_by(
-                user,
+        telescope = session.scalars(
+            Telescope.select(session.user_or_token).where(
+                Telescope.name == telescope_name
             )
-            .filter(
-                Telescope.name == telescope_name,
-            )
-            .first()
-        )
+        ).first()
         if telescope is None:
             raise ValueError(f"Missing telescope {telescope_name}")
 
-        instrument = (
-            Instrument.query_records_accessible_by(
-                user,
-                options=[
-                    joinedload(Instrument.fields),
-                ],
+        instrument = session.scalars(
+            Instrument.select(
+                session.user_or_token, options=[joinedload(Instrument.fields)]
+            ).where(
+                Instrument.telescope == telescope, Instrument.name == instrument_name
             )
-            .filter(
-                Instrument.telescope == telescope,
-                Instrument.name == instrument_name,
-            )
-            .first()
-        )
+        ).first()
         if instrument is None:
             return ValueError(f"Missing instrument {instrument_name}")
 
-        obs_query = obs_query.filter(Observation.instrument_id == instrument.id)
+        obs_query = obs_query.where(Observation.instrument_id == instrument.id)
 
     # optional: slice by GcnEvent localization
     if localization_dateobs is not None:
         if localization_name is not None:
-            localization = (
-                Localization.query_records_accessible_by(user)
-                .filter(
+            localization = session.scalars(
+                Localization.select(session.user_or_token).where(
                     Localization.dateobs == localization_dateobs,
                     Localization.localization_name == localization_name,
                 )
-                .first()
-            )
+            ).first()
             if localization is None:
                 raise ValueError("Localization not found")
         else:
-            event = (
-                GcnEvent.query_records_accessible_by(
-                    user,
-                    options=[
-                        joinedload(GcnEvent.localizations),
-                    ],
-                )
-                .filter(GcnEvent.dateobs == localization_dateobs)
-                .first()
-            )
+            event = session.scalars(
+                GcnEvent.select(
+                    session.user_or_token, options=[joinedload(GcnEvent.localizations)]
+                ).where(GcnEvent.dateobs == localization_dateobs)
+            ).first()
             if event is None:
                 raise ValueError("GCN event not found")
             localization = event.localizations[-1]
@@ -455,15 +452,15 @@ def get_observations(
                 LocalizationTile.probdensity >= min_probdensity,
                 union.columns.healpix.overlaps(LocalizationTile.healpix),
             )
-            intprob = DBSession().execute(query_prob).scalar_one()
-            intarea = DBSession().execute(query_area).scalar_one()
+            intprob = session.execute(query_prob).scalar_one()
+            intarea = session.execute(query_area).scalar_one()
 
             if intprob is None:
                 intprob = 0.0
             if intarea is None:
                 intarea = 0.0
 
-    total_matches = obs_query.count()
+    total_matches = session.scalar(sa.select(sa.func.count()).select_from(obs_query))
     if n_per_page is not None:
         obs_query = (
             obs_query.distinct()
@@ -471,9 +468,16 @@ def get_observations(
             .offset((page_number - 1) * n_per_page)
         )
 
-    observations = obs_query.all()
+    observations = session.scalars(obs_query).all()
+    observations_list = []
+    for o in observations:
+        obs_dict = o.to_dict()
+        obs_dict['field'] = obs_dict['field'].to_dict()
+        obs_dict['instrument'] = obs_dict['instrument'].to_dict()
+        observations_list.append(obs_dict)
+
     data = {
-        "observations": [o.to_dict() for o in observations],
+        "observations": observations_list,
         "totalMatches": int(total_matches),
     }
 
@@ -776,23 +780,24 @@ class ObservationHandler(BaseHandler):
         start_date = arrow.get(start_date.strip()).datetime
         end_date = arrow.get(end_date.strip()).datetime
 
-        data = get_observations(
-            self.current_user,
-            start_date,
-            end_date,
-            telescope_name=telescope_name,
-            instrument_name=instrument_name,
-            localization_dateobs=localization_dateobs,
-            localization_name=localization_name,
-            localization_cumprob=localization_cumprob,
-            return_statistics=return_statistics,
-            includeGeoJSON=includeGeoJSON,
-            observation_status=observation_status,
-            n_per_page=n_per_page,
-            page_number=page_number,
-        )
+        with self.Session() as session:
+            data = get_observations(
+                session,
+                start_date,
+                end_date,
+                telescope_name=telescope_name,
+                instrument_name=instrument_name,
+                localization_dateobs=localization_dateobs,
+                localization_name=localization_name,
+                localization_cumprob=localization_cumprob,
+                return_statistics=return_statistics,
+                includeGeoJSON=includeGeoJSON,
+                observation_status=observation_status,
+                n_per_page=n_per_page,
+                page_number=page_number,
+            )
 
-        return self.success(data=data)
+            return self.success(data=data)
 
     @auth_or_token
     def delete(self, observation_id):
@@ -818,20 +823,24 @@ class ObservationHandler(BaseHandler):
                 schema: Error
         """
 
-        observation = ExecutedObservation.query.filter_by(id=observation_id).first()
+        with self.Session() as session:
+            observation = session.scalars(
+                ExecutedObservation.select(self.current_user).where(
+                    ExecutedObservation.id == observation_id
+                )
+            ).first()
+            if observation is None:
+                return self.error("ExecutedObservation not found", status=404)
 
-        if observation is None:
-            return self.error("ExecutedObservation not found", status=404)
+            if not observation.is_accessible_by(self.current_user, mode="delete"):
+                return self.error(
+                    "Insufficient permissions: ExecutedObservation can only be deleted by original poster"
+                )
 
-        if not observation.is_accessible_by(self.current_user, mode="delete"):
-            return self.error(
-                "Insufficient permissions: ExecutedObservation can only be deleted by original poster"
-            )
+            session.delete(observation)
+            session.commit()
 
-        DBSession().delete(observation)
-        self.verify_and_commit()
-
-        return self.success()
+            return self.success()
 
 
 class ObservationASCIIFileHandler(BaseHandler):
@@ -1028,63 +1037,54 @@ class ObservationGCNHandler(BaseHandler):
         start_date = arrow.get(start_date.strip()).datetime
         end_date = arrow.get(end_date.strip()).datetime
 
-        instrument = (
-            Instrument.query_records_accessible_by(
-                self.current_user,
-                options=[
-                    joinedload(Instrument.telescope),
-                ],
+        with self.Session() as session:
+
+            stmt = Instrument.select(self.current_user).where(
+                Instrument.id == instrument_id
             )
-            .filter(
-                Instrument.id == instrument_id,
+            instrument = session.scalars(stmt).first()
+
+            if instrument is None:
+                return self.error(message=f"Invalid instrument ID {instrument_id}")
+
+            data = get_observations(
+                session,
+                start_date,
+                end_date,
+                telescope_name=instrument.telescope.name,
+                instrument_name=instrument.name,
+                localization_dateobs=localization_dateobs,
+                localization_name=localization_name,
+                localization_cumprob=localization_cumprob,
             )
-            .first()
-        )
-        if instrument is None:
-            return self.error(message=f"Invalid instrument ID {instrument_id}")
 
-        data = get_observations(
-            self.current_user,
-            start_date,
-            end_date,
-            telescope_name=instrument.telescope.name,
-            instrument_name=instrument.name,
-            localization_dateobs=localization_dateobs,
-            localization_name=localization_name,
-            localization_cumprob=localization_cumprob,
-            return_statistics=True,
-        )
+            observations = data["observations"]
+            num_observations = len(observations)
+            if num_observations == 0:
+                return self.error('Need at least one observation to produce a GCN')
 
-        observations = data["observations"]
-        num_observations = len(observations)
-        if num_observations == 0:
-            return self.error('Need at least one observation to produce a GCN')
-
-        start_observation = astropy.time.Time(
-            min(obs["obstime"] for obs in observations), format='datetime'
-        )
-        unique_filters = list({obs["filt"] for obs in observations})
-        total_time = sum(obs["exposure_time"] for obs in observations)
-        probability = data["probability"]
-        area = data["area"]
-
-        event = (
-            GcnEvent.query_records_accessible_by(
-                self.current_user,
+            start_observation = astropy.time.Time(
+                min(obs["obstime"] for obs in observations), format='datetime'
             )
-            .filter(GcnEvent.dateobs == localization_dateobs)
-            .first()
-        )
-        trigger_time = astropy.time.Time(event.dateobs, format='datetime')
-        dt = start_observation.datetime - event.dateobs
+            unique_filters = list({obs["filt"] for obs in observations})
+            total_time = sum(obs["exposure_time"] for obs in observations)
+            probability = data["probability"]
+            area = data["area"]
 
-        content = f"""
-            SUBJECT: Follow-up of {event.gcn_notices[0].stream} trigger {trigger_time.isot} with {instrument.name}.
+            stmt = GcnEvent.select(self.current_user).where(
+                GcnEvent.dateobs == localization_dateobs
+            )
+            event = session.scalars(stmt).first()
+            trigger_time = astropy.time.Time(event.dateobs, format='datetime')
+            dt = start_observation.datetime - event.dateobs
 
-            We observed the localization region of {event.gcn_notices[0].stream} trigger {trigger_time.isot} UTC with {instrument.name} on the {instrument.telescope.name}. We obtained a total of {num_observations} images covering {",".join(unique_filters)} bands for a total of {total_time} seconds. The observations covered {area:.1f} square degrees beginning at {start_observation.isot} ({humanize.naturaldelta(dt)} after the burst trigger time) corresponding to ~{int(100 * probability)}% of the probability enclosed in the localization region.
-            """
+            content = f"""
+                SUBJECT: Follow-up of {event.gcn_notices[0].stream} trigger {trigger_time.isot} with {instrument.name}.
 
-        return self.success(data=content)
+                We observed the localization region of {event.gcn_notices[0].stream} trigger {trigger_time.isot} UTC with {instrument.name} on the {instrument.telescope.name}. We obtained a total of {num_observations} images covering {",".join(unique_filters)} bands for a total of {total_time} seconds. The observations covered {area:.1f} square degrees beginning at {start_observation.isot} ({humanize.naturaldelta(dt)} after the burst trigger time) corresponding to ~{int(100 * probability)}% of the probability enclosed in the localization region.
+                """
+
+            return self.success(data=content)
 
 
 class ObservationExternalAPIHandler(BaseHandler):
@@ -1390,92 +1390,83 @@ class ObservationTreasureMapHandler(BaseHandler):
         start_date = arrow.get(start_date.strip()).datetime
         end_date = arrow.get(end_date.strip()).datetime
 
-        instrument = (
-            Instrument.query_records_accessible_by(
-                self.current_user,
-                options=[
-                    joinedload(Instrument.telescope),
-                ],
-            )
-            .filter(
-                Instrument.id == instrument_id,
-            )
-            .first()
-        )
-        if instrument is None:
-            return self.error(message=f"Invalid instrument ID {instrument_id}")
+        with self.Session() as session:
 
-        data = get_observations(
-            self.current_user,
-            start_date,
-            end_date,
-            telescope_name=instrument.telescope.name,
-            instrument_name=instrument.name,
-            localization_dateobs=localization_dateobs,
-            localization_name=localization_name,
-            localization_cumprob=localization_cumprob,
-            return_statistics=True,
-        )
+            instrument = session.scalars(
+                Instrument.select(
+                    session.user_or_token, options=[joinedload(Instrument.telescope)]
+                ).where(Instrument.id == instrument_id)
+            ).first()
+            if instrument is None:
+                return self.error(message=f"Invalid instrument ID {instrument_id}")
 
-        observations = data["observations"]
-        if len(observations) == 0:
-            return self.error('Need at least one observation to send to Treasure Map')
-
-        event = (
-            GcnEvent.query_records_accessible_by(
-                self.current_user,
-                options=[
-                    joinedload(GcnEvent.gcn_notices),
-                ],
-            )
-            .filter(GcnEvent.dateobs == localization_dateobs)
-            .first()
-        )
-        if event is None:
-            return self.error(
-                message=f"Invalid GcnEvent dateobs: {localization_dateobs}"
+            data = get_observations(
+                session,
+                start_date,
+                end_date,
+                telescope_name=instrument.telescope.name,
+                instrument_name=instrument.name,
+                localization_dateobs=localization_dateobs,
+                localization_name=localization_name,
+                localization_cumprob=localization_cumprob,
+                return_statistics=True,
             )
 
-        allocations = (
-            Allocation.query_records_accessible_by(self.current_user)
-            .filter(Allocation.instrument_id == instrument.id)
-            .all()
-        )
+            observations = data["observations"]
+            if len(observations) == 0:
+                return self.error(
+                    'Need at least one observation to send to Treasure Map'
+                )
 
-        api_token = None
-        for allocation in allocations:
-            altdata = allocation.altdata
-            if altdata and 'TREASUREMAP_API_TOKEN' in altdata:
-                api_token = altdata['TREASUREMAP_API_TOKEN']
-        if not api_token:
-            raise self.error('Missing allocation information.')
+            event = session.scalars(
+                GcnEvent.select(
+                    session.user_or_token, options=[joinedload(GcnEvent.gcn_notices)]
+                ).where(GcnEvent.dateobs == localization_dateobs)
+            ).first()
+            if event is None:
+                return self.error(
+                    message=f"Invalid GcnEvent dateobs: {localization_dateobs}"
+                )
 
-        graceid = event.graceid
-        payload = {"graceid": graceid, "api_token": api_token}
+            stmt = Allocation.select(session.user_or_token).where(
+                Allocation.instrument_id == instrument.id
+            )
+            allocations = session.scalars(stmt).all()
 
-        pointings = []
-        for obs in observations:
-            pointing = {}
-            pointing["ra"] = obs["field"].ra
-            pointing["dec"] = obs["field"].dec
-            pointing["band"] = obs["filt"]
-            pointing["instrumentid"] = 47  # str(instrument.treasuremap_id)
-            pointing["status"] = "completed"
-            pointing["time"] = Time(obs["obstime"], format='datetime').isot
-            pointing["depth"] = obs["limmag"]
-            pointing["depth_unit"] = "ab_mag"
-            pointings.append(pointing)
-        payload["pointings"] = pointings
+            api_token = None
+            for allocation in allocations:
+                altdata = allocation.altdata
+                if altdata and 'TREASUREMAP_API_TOKEN' in altdata:
+                    api_token = altdata['TREASUREMAP_API_TOKEN']
+            if not api_token:
+                raise self.error('Missing allocation information.')
 
-        url = urllib.parse.urljoin(TREASUREMAP_URL, 'api/v0/pointings')
-        r = requests.post(url=url, json=payload)
-        r.raise_for_status()
-        request_json = r.json()
-        errors = request_json["ERRORS"]
-        if len(errors) > 0:
-            return self.error(f'TreasureMap upload failed: {errors}')
-        self.push_notification('TreasureMap upload succeeded')
-        return self.success()
+            graceid = event.graceid
+            payload = {"graceid": graceid, "api_token": api_token}
+
+            pointings = []
+            for obs in observations:
+                pointing = {}
+                pointing["ra"] = obs["field"].ra
+                pointing["dec"] = obs["field"].dec
+                pointing["band"] = obs["filt"]
+                pointing["instrumentid"] = int(instrument.treasuremap_id)
+                pointing["status"] = "completed"
+                pointing["time"] = Time(obs["obstime"], format='datetime').isot
+                pointing["depth"] = obs["limmag"]
+                pointing["depth_unit"] = "ab_mag"
+                pointings.append(pointing)
+            payload["pointings"] = pointings
+
+            url = urllib.parse.urljoin(TREASUREMAP_URL, 'api/v0/pointings')
+            r = requests.post(url=url, json=payload)
+            r.raise_for_status()
+            request_json = r.json()
+            errors = request_json["ERRORS"]
+            if len(errors) > 0:
+                return self.error(f'TreasureMap upload failed: {errors}')
+            self.push_notification('TreasureMap upload succeeded')
+            return self.success()
 
     @auth_or_token
     def delete(self, instrument_id):
@@ -1575,12 +1566,143 @@ class ObservationTreasureMapHandler(BaseHandler):
         return self.success()
 
 
+def retrieve_observations_and_simsurvey(
+    session,
+    start_date,
+    end_date,
+    localization_id,
+    instrument_id,
+    survey_efficiency_analysis_id,
+    survey_efficiency_analysis_type,
+):
+
+    """Query for observations and run survey analysis
+
+    Parameters
+    ----------
+
+    session: sqlalchemy.Session
+        Database session for this transaction
+    start_date: datetime
+        Start time of the observations
+    end_date: datetime
+        End time of the observations
+    localization_id : int
+        The id of the skyportal.models.localization.Localization that the request is made based on
+    instrument_id : int
+        The id of the skyportal.models.instrument.Instrument that the request is made based on
+    survey_efficiency_analysis_id : int
+        The id of the survey efficiency analysis for the request (either skyportal.models.survey_efficiency.SurveyEfficiencyForObservations or skyportal.models.survey_efficiency.SurveyEfficiencyForObservationPlan).
+    survey_efficiency_analysis_type : str
+        Either SurveyEfficiencyForObservations or SurveyEfficiencyForObservationPlan.
+    """
+
+    if survey_efficiency_analysis_type == "SurveyEfficiencyForObservations":
+        survey_efficiency_analysis = session.scalars(
+            sa.select(SurveyEfficiencyForObservations).where(
+                SurveyEfficiencyForObservations.id == survey_efficiency_analysis_id
+            )
+        ).first()
+        if survey_efficiency_analysis is None:
+            raise ValueError(
+                f'No SurveyEfficiencyForObservations with ID {survey_efficiency_analysis_id}'
+            )
+    elif survey_efficiency_analysis_type == "SurveyEfficiencyForObservations":
+        survey_efficiency_analysis = session.scalars(
+            sa.select(SurveyEfficiencyForObservationPlan).where(
+                SurveyEfficiencyForObservationPlan.id == survey_efficiency_analysis_id
+            )
+        ).first()
+        if survey_efficiency_analysis is None:
+            raise ValueError(
+                f'No SurveyEfficiencyForObservationPlan with ID {survey_efficiency_analysis_id}'
+            )
+    else:
+        raise ValueError(
+            'survey_efficiency_analysis_type must be SurveyEfficiencyForObservations or SurveyEfficiencyForObservationPlan'
+        )
+
+    payload = survey_efficiency_analysis.payload
+
+    instrument = session.scalars(
+        sa.select(Instrument)
+        .options(joinedload(Instrument.telescope))
+        .where(Instrument.id == instrument_id)
+    ).first()
+
+    localization = session.scalars(
+        sa.select(Localization).where(Localization.id == localization_id)
+    ).first()
+
+    data = get_observations(
+        session,
+        start_date,
+        end_date,
+        telescope_name=instrument.telescope.name,
+        instrument_name=instrument.name,
+        localization_dateobs=localization.dateobs,
+        localization_name=localization.localization_name,
+        localization_cumprob=payload["localization_cumprob"],
+    )
+
+    observations = data["observations"]
+
+    if len(observations) == 0:
+        raise ValueError('Need at least one observation to run SimSurvey')
+
+    unique_filters = list({observation["filt"] for observation in observations})
+
+    if not set(unique_filters).issubset(set(instrument.sensitivity_data.keys())):
+        raise ValueError('Need sensitivity_data for all filters present')
+
+    for filt in unique_filters:
+        if not {'exposure_time', 'limiting_magnitude', 'zeropoint'}.issubset(
+            set(instrument.sensitivity_data[filt].keys())
+        ):
+            raise ValueError(
+                f'Sensitivity_data dictionary missing keys for filter {filt}'
+            )
+
+    # get height and width
+    stmt = (
+        InstrumentField.select(session.user_or_token)
+        .where(InstrumentField.id == observations[0]["field"]["id"])
+        .options(undefer(InstrumentField.contour_summary))
+    )
+    field = session.scalars(stmt).first()
+    if field is None:
+        raise ValueError(
+            'Missing field {obs_dict["field"]["id"]} required to estimate field size'
+        )
+    contour_summary = field.to_dict()["contour_summary"]["features"][0]
+    coordinates = np.array(contour_summary["geometry"]["coordinates"])
+    width = np.max(coordinates[:, 0]) - np.min(coordinates[:, 0])
+    height = np.max(coordinates[:, 1]) - np.min(coordinates[:, 1])
+
+    observation_simsurvey(
+        observations,
+        localization.id,
+        instrument.id,
+        survey_efficiency_analysis_id,
+        survey_efficiency_analysis_type,
+        width=width,
+        height=height,
+        number_of_injections=payload['number_of_injections'],
+        number_of_detections=payload['number_of_detections'],
+        detection_threshold=payload['detection_threshold'],
+        minimum_phase=payload['minimum_phase'],
+        maximum_phase=payload['maximum_phase'],
+        model_name=payload['model_name'],
+        optional_injection_parameters=payload['optional_injection_parameters'],
+    )
+
+
 class ObservationSimSurveyHandler(BaseHandler):
     @auth_or_token
     async def get(self, instrument_id):
         """
         ---
-        description: Retrieve all observations
+        description: Perform simsurvey efficiency calculation
         tags:
           - observations
         parameters:
@@ -1605,6 +1727,7 @@ class ObservationSimSurveyHandler(BaseHandler):
             description: Filter by end date
           - in: query
             name: localizationDateobs
+            required: true
             schema:
               type: string
             description: |
@@ -1666,132 +1789,228 @@ class ObservationSimSurveyHandler(BaseHandler):
             description: |
               Maximum phase (in days) post event time to consider detections. Defaults to 3.
           - in: query
-            name: injectionFilename
+            name: model_name
             nullable: true
             schema:
               type: string
             description: |
-              Path to file for injestion as a simsurvey.models.AngularTimeSeriesSource.
-              Defaults to nsns_nph1.0e+06_mejdyn0.020_mejwind0.130_phi30.txt
-              from https://github.com/mbulla/kilonova_models.
+              Model to simulate efficiency for. Must be one of kilonova, afterglow, or linear. Defaults to kilonova.
+          - in: query
+            name: optionalInjectionParameters
+            type: object
+            additionalProperties:
+              type: array
+              items:
+                type: string
+                description: |
+                  Optional parameters to specify the injection type, along
+                  with a list of possible values (to be used in a dropdown UI)
+          - in: query
+            name: group_ids
+            nullable: true
+            schema:
+              type: array
+              items:
+                type: integer
+              description: |
+                List of group IDs corresponding to which groups should be
+                able to view the analyses. Defaults to all of requesting user's
+                groups.
         responses:
           200:
             content:
               application/json:
-                schema: SingleObservationPlanRequest
+                schema: Success
         """
 
         start_date = self.get_query_argument('startDate')
         end_date = self.get_query_argument('endDate')
-        localization_dateobs = self.get_query_argument('localizationDateobs', None)
+        localization_dateobs = self.get_query_argument('localizationDateobs')
         localization_name = self.get_query_argument('localizationName', None)
         localization_cumprob = self.get_query_argument("localizationCumprob", 0.95)
 
-        number_of_injections = self.get_query_argument("numberInjections", 1000)
-        number_of_detections = self.get_query_argument("numberDetections", 1)
-        detection_threshold = self.get_query_argument("detectionThreshold", 5)
-        minimum_phase = self.get_query_argument("minimumPhase", 0)
-        maximum_phase = self.get_query_argument("maximumPhase", 3)
-        injection_filename = self.get_query_argument(
-            "injectionFilename",
-            'data/nsns_nph1.0e+06_mejdyn0.020_mejwind0.130_phi30.txt',
+        number_of_injections = int(self.get_query_argument("numberInjections", 1000))
+        number_of_detections = int(self.get_query_argument("numberDetections", 1))
+        detection_threshold = float(self.get_query_argument("detectionThreshold", 5))
+        minimum_phase = float(self.get_query_argument("minimumPhase", 0))
+        maximum_phase = float(self.get_query_argument("maximumPhase", 3))
+        model_name = self.get_query_argument("modelName", "kilonova")
+        optional_injection_parameters = json.loads(
+            self.get_query_argument("optionalInjectionParameters", '{}')
         )
 
-        if start_date is None:
-            return self.error(message="Missing start_date")
-
-        if end_date is None:
-            return self.error(message="Missing end_date")
-
-        if localization_dateobs is None:
-            return self.error(message="Missing required localizationDateobs")
-
-        start_date = arrow.get(start_date.strip()).datetime
-        end_date = arrow.get(end_date.strip()).datetime
-
-        instrument = (
-            Instrument.query_records_accessible_by(
-                self.current_user,
-                options=[
-                    joinedload(Instrument.telescope),
-                ],
+        if model_name not in ["kilonova", "afterglow", "linear"]:
+            return self.error(
+                f"{model_name} must be one of kilonova, afterglow or linear"
             )
-            .filter(
-                Instrument.id == instrument_id,
-            )
-            .first()
+
+        optional_injection_parameters = get_simsurvey_parameters(
+            model_name, optional_injection_parameters
         )
-        if instrument is None:
-            return self.error(message=f"Invalid instrument ID {instrument_id}")
 
-        if instrument.sensitivity_data is None:
-            return self.error('Need sensitivity_data to evaluate efficiency')
+        group_ids = self.get_query_argument('group_ids', None)
 
-        if localization_name is None:
-            localization = (
-                Localization.query_records_accessible_by(
+        with self.Session() as session:
+
+            if not group_ids:
+                group_ids = [
+                    g.id for g in self.associated_user_object.accessible_groups
+                ]
+
+            try:
+                stmt = Group.select(self.current_user).where(Group.id.in_(group_ids))
+                groups = session.scalars(stmt).all()
+            except AccessError:
+                return self.error('Could not find any accessible groups.', status=403)
+
+            if start_date is None:
+                return self.error(message="Missing start_date")
+
+            if end_date is None:
+                return self.error(message="Missing end_date")
+
+            if localization_dateobs is None:
+                return self.error(message="Missing required localizationDateobs")
+
+            start_date = arrow.get(start_date.strip()).datetime
+            end_date = arrow.get(end_date.strip()).datetime
+
+            instrument = session.scalars(
+                Instrument.select(
                     self.current_user,
+                    options=[
+                        joinedload(Instrument.telescope),
+                    ],
+                ).where(
+                    Instrument.id == instrument_id,
                 )
-                .filter(Localization.dateobs == localization_dateobs)
-                .order_by(Localization.created_at.desc())
-                .first()
-            )
-        else:
-            localization = (
-                Localization.query_records_accessible_by(
+            ).first()
+            if instrument is None:
+                return self.error(message=f"Invalid instrument ID {instrument_id}")
+
+            if instrument.sensitivity_data is None:
+                return self.error('Need sensitivity_data to evaluate efficiency')
+
+            if localization_name is None:
+                localization = session.scalars(
+                    Localization.select(
+                        self.current_user,
+                    )
+                    .where(Localization.dateobs == localization_dateobs)
+                    .order_by(Localization.created_at.desc())
+                ).first()
+            else:
+                localization = session.scalars(
+                    Localization.select(
+                        self.current_user,
+                    )
+                    .where(Localization.dateobs == localization_dateobs)
+                    .where(Localization.localization_name == localization_name)
+                ).first()
+
+            event = session.scalars(
+                GcnEvent.select(
                     self.current_user,
-                )
-                .filter(Localization.dateobs == localization_dateobs)
-                .filter(Localization.localization_name == localization_name)
-                .first()
+                ).where(GcnEvent.dateobs == localization_dateobs)
+            ).first()
+            if event is None:
+                return self.error("GCN event not found")
+
+            payload = {
+                'start_date': Time(start_date).isot,
+                'end_date': Time(end_date).isot,
+                'telescope_name': instrument.telescope.name,
+                'instrument_name': instrument.name,
+                'localization_dateobs': localization_dateobs,
+                'localization_name': localization_name,
+                'localization_cumprob': localization_cumprob,
+                'number_of_injections': number_of_injections,
+                'number_of_detections': number_of_detections,
+                'detection_threshold': detection_threshold,
+                'minimum_phase': minimum_phase,
+                'maximum_phase': maximum_phase,
+                'model_name': model_name,
+                'optional_injection_parameters': optional_injection_parameters,
+            }
+
+            survey_efficiency_analysis = SurveyEfficiencyForObservations(
+                requester_id=self.associated_user_object.id,
+                instrument_id=instrument_id,
+                gcnevent_id=event.id,
+                localization_id=localization.id,
+                groups=groups,
+                payload=payload,
+                status='running',
             )
 
-        data = get_observations(
-            self.current_user,
-            start_date,
-            end_date,
-            telescope_name=instrument.telescope.name,
-            instrument_name=instrument.name,
-            localization_dateobs=localization_dateobs,
-            localization_name=localization_name,
-            localization_cumprob=localization_cumprob,
-            return_statistics=True,
+            session.add(survey_efficiency_analysis)
+            session.commit()
+
+            self.push_notification(
+                'Simsurvey analysis in progress. Should be available soon.'
+            )
+
+            simsurvey_analysis = functools.partial(
+                retrieve_observations_and_simsurvey,
+                session,
+                start_date,
+                end_date,
+                localization.id,
+                instrument.id,
+                survey_efficiency_analysis.id,
+                "SurveyEfficiencyForObservations",
+            )
+            IOLoop.current().run_in_executor(None, simsurvey_analysis)
+
+            return self.success(data={"id": survey_efficiency_analysis.id})
+
+
+class ObservationSimSurveyPlotHandler(BaseHandler):
+    @auth_or_token
+    async def get(self, survey_efficiency_analysis_id):
+        """
+        ---
+        description: Create a summary plot for a simsurvey efficiency calculation.
+        tags:
+          - survey_efficiency_for_observations
+        parameters:
+          - in: path
+            name: survey_efficiency_analysis_id
+            required: true
+            schema:
+              type: string
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+        """
+
+        survey_efficiency_analysis = (
+            SurveyEfficiencyForObservations.get_if_accessible_by(
+                survey_efficiency_analysis_id, self.current_user
+            )
         )
 
-        observations = data["observations"]
-        if len(observations) == 0:
-            return self.error('Need at least one observation to send to Treasure Map')
+        if survey_efficiency_analysis is None:
+            return self.error(
+                f'Missing survey_efficiency_analysis for id {survey_efficiency_analysis_id}'
+            )
 
-        unique_filters = list({observation["filt"] for observation in observations})
-
-        if not set(unique_filters).issubset(set(instrument.sensitivity_data.keys())):
-            return self.error('Need sensitivity_data for all filters present')
-
-        for filt in unique_filters:
-            if not {'exposure_time', 'limiting_magnitude', 'zeropoint'}.issubset(
-                set(list(instrument.sensitivity_data[filt].keys()))
-            ):
-                return self.error(
-                    f'Sensitivity_data dictionary missing keys for filter {filt}'
-                )
+        if survey_efficiency_analysis.lightcurves is None:
+            return self.error(
+                f'survey_efficiency_analysis for id {survey_efficiency_analysis_id} not complete'
+            )
 
         output_format = 'pdf'
         simsurvey_analysis = functools.partial(
-            observation_simsurvey,
-            observations,
-            localization,
-            instrument,
+            observation_simsurvey_plot,
+            lcs=json.loads(survey_efficiency_analysis.lightcurves),
             output_format=output_format,
-            number_of_injections=number_of_injections,
-            number_of_detections=number_of_detections,
-            detection_threshold=detection_threshold,
-            minimum_phase=minimum_phase,
-            maximum_phase=maximum_phase,
-            injection_filename=injection_filename,
         )
 
         self.push_notification(
-            'Simsurvey analysis in progress. Download will start soon.'
+            'Simsurvey analysis in progress. Should be available soon.'
         )
         rez = await IOLoop.current().run_in_executor(None, simsurvey_analysis)
 

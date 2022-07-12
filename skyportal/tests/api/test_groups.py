@@ -320,7 +320,7 @@ def test_post_new_filter_delete_group_deletes_filter(
 
     status, data = api("GET", f"filters/{filter_id}", token=super_admin_token)
     assert status == 400
-    assert "Invalid Filter id" in data["message"]
+    assert "Cannot find a filter with ID" in data["message"]
 
 
 def test_post_new_filter_delete_stream_deletes_filter(
@@ -348,7 +348,7 @@ def test_post_new_filter_delete_stream_deletes_filter(
 
     status, data = api("GET", f"filters/{filter_id}", token=super_admin_token)
     assert status == 400
-    assert "Invalid Filter id" in data["message"]
+    assert "Cannot find a filter with ID" in data["message"]
 
 
 def test_cannot_delete_sitewide_public_group(super_admin_token):
@@ -362,7 +362,7 @@ def test_cannot_delete_sitewide_public_group(super_admin_token):
 
     status, data = api("DELETE", f"groups/{group_id}", token=super_admin_token)
     assert data["status"] == "error"
-    assert "Insufficient permissions" in data["message"]
+    assert "Cannot find Group with id" in data["message"]
 
 
 def test_obj_groups(public_source, public_group, super_admin_token):

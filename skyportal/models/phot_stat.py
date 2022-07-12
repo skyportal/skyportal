@@ -1,6 +1,8 @@
 __all__ = ['PhotStat']
 
 import json
+import bisect
+import copy
 import numpy as np
 import sqlalchemy as sa
 from sqlalchemy import event
@@ -37,6 +39,37 @@ class PhotStat(Base):
 
     def __init__(self, obj_id):
         self.obj_id = obj_id
+        self.last_update = None
+        self.last_full_update = None
+        self.num_obs_global = 0
+        self.num_obs_per_filter = {}
+        self.num_det_global = 0
+        self.num_det_per_filter = {}
+        self.first_detected_mjd = None
+        self.first_detected_mag = None
+        self.first_detected_filter = None
+        self.last_detected_mjd = None
+        self.last_detected_mag = None
+        self.last_detected_filter = None
+        self.recent_obs_mjd = None
+        self.predetection_mjds = []
+        self.last_non_detection_mjd = None
+        self.time_to_non_detection = None
+        self.mean_mag_global = None
+        self.mean_mag_per_filter = {}
+        self.mean_color = {}
+        self.peak_mjd_global = None
+        self.peak_mjd_per_filter = {}
+        self.peak_mag_global = None
+        self.peak_mag_per_filter = {}
+        self.faintest_mag_global = None
+        self.faintest_mag_per_filter = {}
+        self.deepest_limit_global = None
+        self.deepest_limit_per_filter = {}
+        self.rise_rate = None
+        self.decay_rate = None
+        self.mag_rms_global = None
+        self.mag_rms_per_filter = {}
 
     read = public
 
@@ -211,14 +244,6 @@ class PhotStat(Base):
         'Will be None if there are no detections in multiple filters. ',
     )
 
-    peak_mag_global = sa.Column(
-        sa.Float,
-        nullable=True,
-        index=True,
-        doc='Brightest recorded apparent magnitude, in any filter. '
-        'Will be None if no points are detections. ',
-    )
-
     peak_mjd_global = sa.Column(
         sa.Float,
         nullable=True,
@@ -227,20 +252,28 @@ class PhotStat(Base):
         'in any filter. ',
     )
 
-    peak_mag_per_filter = sa.Column(
-        MutableDict.as_mutable(JSONB),
-        nullable=True,
-        index=True,
-        doc='Brightest recorded apparent magnitude in each filter. '
-        'Will be None if no points are detections. ',
-    )
-
     peak_mjd_per_filter = sa.Column(
         MutableDict.as_mutable(JSONB),
         nullable=True,
         index=True,
         doc='Modified Julian date of the brightest recorded observation, '
         'in each filter. ',
+    )
+
+    peak_mag_global = sa.Column(
+        sa.Float,
+        nullable=True,
+        index=True,
+        doc='Brightest recorded apparent magnitude, in any filter. '
+        'Will be None if no points are detections. ',
+    )
+
+    peak_mag_per_filter = sa.Column(
+        MutableDict.as_mutable(JSONB),
+        nullable=True,
+        index=True,
+        doc='Brightest recorded apparent magnitude in each filter. '
+        'Will be None if no points are detections. ',
     )
 
     faintest_mag_global = sa.Column(
@@ -333,9 +366,16 @@ class PhotStat(Base):
 
         filt = phot['filter']
         mjd = phot['mjd']
-        mag = -2.5 * np.log10(phot['flux']) + PHOT_ZP
-        snr = phot['flux'] / phot['fluxerr']
-        det = not np.isnan(snr) and snr > PHOT_DETECTION_THRESHOLD
+        if phot['flux'] > 0:
+            mag = -2.5 * np.log10(phot['flux']) + PHOT_ZP
+        else:
+            mag = np.nan
+        if phot['flux'] and phot['fluxerr']:
+            snr = phot['flux'] / phot['fluxerr']
+        else:
+            snr = np.nan
+        det = phot['flux'] and phot['fluxerr']  # legal, non zero values
+        det = det and not np.isnan(snr) and snr > PHOT_DETECTION_THRESHOLD
 
         if not det:  # get limiting magnitude for non-detection
             if (
@@ -352,196 +392,167 @@ class PhotStat(Base):
                 fivesigma = 5 * fluxerr
                 lim = -2.5 * np.log10(fivesigma) + PHOT_ZP
 
+        # make sure a non detection has a limiting magnitude
+        if not det and np.isnan(lim):
+            return  # do not update with this point
+
+        # verification over, add the new data
         self.num_obs_global += 1
         if filt in self.num_obs_per_filter:
             self.num_obs_per_filter[filt] += 1
         else:
             self.num_obs_per_filter[filt] = 1
 
-        if self.num_obs_global == 1:  # this is the first point
-            self.recent_obs_mjd = mjd
-            if det:
-                self.num_det_global = 1
+        self.recent_obs_mjd = max(mjd, self.recent_obs_mjd or 0)
+
+        if det:
+            if self.first_detected_mjd is None or mjd < self.first_detected_mjd:
                 self.first_detected_mjd = mjd
                 self.first_detected_mag = mag
                 self.first_detected_filter = filt
+            if self.last_detected_mjd is None or mjd > self.last_detected_mjd:
                 self.last_detected_mjd = mjd
                 self.last_detected_mag = mag
                 self.last_detected_filter = filt
-                self.time_to_non_detection = None
-                self.mean_mag_global = mag
-                self.mean_mag_per_filter = {filt: mag}
-                self.mean_color = {}
+
+            # update the RMS based on old RMS and mean:
+            if self.mag_rms_global is not None:
+                self.mag_rms_global = self.update_scatter(
+                    self.mag_rms_global,
+                    self.mean_mag_global,
+                    self.num_det_global,
+                    mag,
+                )
+            else:  # no previous detections, set to 0
                 self.mag_rms_global = 0
-                self.mag_rms_per_filter = {filt: 0}
+
+            if filt in self.mag_rms_per_filter:
+                self.mag_rms_per_filter[filt] = self.update_scatter(
+                    self.mag_rms_per_filter[filt],
+                    self.mean_mag_per_filter[filt],
+                    self.num_det_per_filter[filt],
+                    mag,
+                )
+            else:  # no previous detections, set to 0
+                self.mag_rms_per_filter[filt] = 0
+
+            # update the mean magnitudes:
+            if self.mean_mag_global is not None:
+                self.mean_mag_global = self.update_average(
+                    self.mean_mag_global, self.num_det_global, mag
+                )
+            else:
+                self.mean_mag_global = mag
+
+            if filt in self.mean_mag_per_filter:
+                self.mean_mag_per_filter[filt] = self.update_average(
+                    self.mean_mag_per_filter[filt],
+                    self.num_det_per_filter[filt],
+                    mag,
+                )
+            else:
+                self.mean_mag_per_filter[filt] = mag
+
+            # update colors as differences of mean magnitudes
+            mean_mags = self.mean_mag_per_filter  # short hand
+            for k in mean_mags.keys():
+                if k == filt:  # skip this filter
+                    continue
+
+                # save both directions of each magnitude difference
+                self.mean_color[f'{k}-{filt}'] = mean_mags[k] - mean_mags[filt]
+                self.mean_color[f'{filt}-{k}'] = mean_mags[filt] - mean_mags[k]
+
+            # find the brightest magnitude (lowest number)
+            if self.peak_mag_global is None or self.peak_mag_global > mag:
                 self.peak_mag_global = mag
                 self.peak_mjd_global = mjd
-                self.peak_mag_per_filter = {filt: mag}
-                self.peak_mjd_per_filter = {filt: mjd}
-                self.faintest_mag_global = mag
-                self.faintest_mag_per_filter = {filt: mag}
-                self.rise_rate = None
-                self.decay_rate = None
-                self.predetection_mjds = []
-            else:
-                self.deepest_limit_global = lim
-                self.deepest_limit_per_filter = {filt: lim}
-                self.predetection_mjds = [mjd]
-                self.last_non_detection_mjd = mjd
-
-        else:  # there are existing points
-            self.recent_obs_mjd = max(mjd, self.recent_obs_mjd)
-
-            if det:
-                if self.first_detected_mjd is None or mjd < self.first_detected_mjd:
-                    self.first_detected_mjd = mjd
-                    self.first_detected_mag = mag
-                    self.first_detected_filter = filt
-                if self.last_detected_mjd is None or mjd > self.last_detected_mjd:
-                    self.last_detected_mjd = mjd
-                    self.last_detected_mag = mag
-                    self.last_detected_filter = filt
-
-                # update the RMS based on old RMS and mean:
-                if self.mag_rms_global is not None:
-                    self.mag_rms_global = self.update_scatter(
-                        self.mag_rms_global,
-                        self.mean_mag_global,
-                        self.num_det_global,
-                        mag,
-                    )
-                else:
-                    self.mag_rms_global = 0
-
-                if filt in self.mag_rms_per_filter:
-                    self.mag_rms_per_filter[filt] = self.update_scatter(
-                        self.mag_rms_per_filter[filt],
-                        self.mean_mag_per_filter[filt],
-                        self.num_det_per_filter[filt],
-                        mag,
-                    )
-                else:
-                    self.mag_rms_per_filter[filt] = 0
-
-                # update the mean magnitudes:
-                if self.mean_mag_global is not None:
-                    self.mean_mag_global = self.update_average(
-                        self.mean_mag_global, self.num_det_global, mag
-                    )
-                else:
-                    self.mean_mag_global = mag
-
-                if filt in self.mean_mag_per_filter:
-                    self.mean_mag_per_filter[filt] = self.update_average(
-                        self.mean_mag_per_filter[filt],
-                        self.num_det_per_filter[filt],
-                        mag,
-                    )
-                else:
-                    self.mean_mag_per_filter[filt] = mag
-
-                # update colors as differences of mean magnitudes
-                mean_mags = self.mean_mag_per_filter  # short hand
-                for k in mean_mags.keys():
-                    if k == filt:  # skip this filter
-                        continue
-
-                    # save both directions of each magnitude difference
-                    self.mean_color[f'{k}-{filt}'] = mean_mags[k] - mean_mags[filt]
-                    self.mean_color[f'{filt}-{k}'] = mean_mags[filt] - mean_mags[k]
-
-                # find the brightest magnitude (lowest number)
-                if self.peak_mag_global is None or self.peak_mag_global > mag:
-                    self.peak_mag_global = mag
-                    self.peak_mjd_global = mjd
-                if (
-                    filt not in self.peak_mag_per_filter
-                    or self.peak_mag_per_filter[filt] > mag
-                ):
-                    self.peak_mag_per_filter[filt] = mag
-                    self.peak_mjd_per_filter[filt] = mjd
-
-                # find the faintest (detected) magnitude (highest number)
-                self.faintest_mag_global = max(mag, self.faintest_mag_global or -np.inf)
-                self.faintest_mag_per_filter[filt] = max(
-                    mag, self.faintest_mag_per_filter.get(filt, -np.inf)
-                )
-
-                # check if new point removes some predetections
-                if (
-                    self.last_non_detection_mjd is not None
-                    and mjd < self.last_non_detection_mjd
-                ):
-                    # keep only the predetections that happened before this detection
-                    self.predetection_mjds = [
-                        m for m in self.predetection_mjds if m < mjd
-                    ]
-                    if self.predetection_mjds:
-                        self.last_non_detection_mjd = max(self.predetection_mjds)
-                    else:
-                        self.last_non_detection_mjd = None
-
-                # update the rise and decay rates
-                if (
-                    self.first_detected_filter is not None
-                    and self.first_detected_filter in self.peak_mag_per_filter
-                ):
-                    peak_mag = self.peak_mag_per_filter[self.first_detected_filter]
-                    peak_mjd = self.peak_mjd_per_filter[self.first_detected_filter]
-                    if peak_mjd > self.first_detected_mjd:
-                        self.rise_rate = -(peak_mag - self.first_detected_mag) / (
-                            peak_mjd - self.first_detected_mjd
-                        )
-                    else:
-                        self.rise_rate = None
-
-                if (
-                    self.last_detected_filter is not None
-                    and self.last_detected_filter in self.peak_mag_per_filter
-                ):
-                    peak_mag = self.peak_mag_per_filter[self.last_detected_filter]
-                    peak_mjd = self.peak_mjd_per_filter[self.last_detected_filter]
-                    if peak_mjd < self.last_detected_mjd:
-                        self.decay_rate = -(peak_mag - self.last_detected_mag) / (
-                            peak_mjd - self.last_detected_mjd
-                        )
-                    else:
-                        self.decay_rate = None
-
-                # update the number of detections
-                self.num_det_global += 1
-                if filt in self.num_det_per_filter:
-                    self.num_det_per_filter[filt] += 1
-                else:
-                    self.num_det_per_filter[filt] = 1
-
-            else:  # non-detection
-                # the deepest limiting magnitude for this object:
-                self.deepest_limit_global = max(
-                    lim, self.deepest_limit_global or -np.inf
-                )
-                self.deepest_limit_per_filter[filt] = max(
-                    lim, self.deepest_limit_per_filter.get(filt, -np.inf)
-                )
-
-                # this non detection happened before the first detection (if any)
-                if self.first_detected_mjd is None or self.first_detected_mjd > mjd:
-                    if self.predetection_mjds is None:
-                        self.predetection_mjds = [mjd]
-                    else:
-                        self.predetection_mjds = self.predetection_mjds + [mjd]
-                    self.last_non_detection_mjd = max(self.predetection_mjds)
-
-            # find the time between first detection and last non-detection
             if (
-                self.first_detected_mjd is not None
-                and self.last_non_detection_mjd is not None
+                filt not in self.peak_mag_per_filter
+                or self.peak_mag_per_filter[filt] > mag
             ):
-                self.time_to_non_detection = (
-                    self.first_detected_mjd - self.last_non_detection_mjd
-                )
+                self.peak_mag_per_filter[filt] = mag
+                self.peak_mjd_per_filter[filt] = mjd
+
+            # find the faintest (detected) magnitude (highest number)
+            self.faintest_mag_global = max(mag, self.faintest_mag_global or -np.inf)
+            self.faintest_mag_per_filter[filt] = max(
+                mag, self.faintest_mag_per_filter.get(filt, -np.inf)
+            )
+
+            # check if new point removes some predetections
+            if (
+                self.last_non_detection_mjd is not None
+                and mjd < self.last_non_detection_mjd
+            ):
+                # keep only the predetections that happened before this detection
+                idx = bisect.bisect_left(self.predetection_mjds, mjd)
+                self.predetection_mjds = self.predetection_mjds[:idx]
+
+                if self.predetection_mjds:
+                    self.last_non_detection_mjd = self.predetection_mjds[-1]
+                else:
+                    self.last_non_detection_mjd = None
+
+            # update the rise and decay rates
+            if (
+                self.first_detected_filter is not None
+                and self.first_detected_filter in self.peak_mag_per_filter
+            ):
+                peak_mag = self.peak_mag_per_filter[self.first_detected_filter]
+                peak_mjd = self.peak_mjd_per_filter[self.first_detected_filter]
+                if peak_mjd > self.first_detected_mjd:
+                    self.rise_rate = -(peak_mag - self.first_detected_mag) / (
+                        peak_mjd - self.first_detected_mjd
+                    )
+                else:
+                    self.rise_rate = None
+
+            if (
+                self.last_detected_filter is not None
+                and self.last_detected_filter in self.peak_mag_per_filter
+            ):
+                peak_mag = self.peak_mag_per_filter[self.last_detected_filter]
+                peak_mjd = self.peak_mjd_per_filter[self.last_detected_filter]
+                if peak_mjd < self.last_detected_mjd:
+                    self.decay_rate = -(peak_mag - self.last_detected_mag) / (
+                        peak_mjd - self.last_detected_mjd
+                    )
+                else:
+                    self.decay_rate = None
+
+            # update the number of detections
+            self.num_det_global += 1
+            if filt in self.num_det_per_filter:
+                self.num_det_per_filter[filt] += 1
             else:
-                self.time_to_non_detection = None
+                self.num_det_per_filter[filt] = 1
+
+        else:  # non-detection
+            # the deepest limiting magnitude for this object:
+            self.deepest_limit_global = max(lim, self.deepest_limit_global or -np.inf)
+            self.deepest_limit_per_filter[filt] = max(
+                lim, self.deepest_limit_per_filter.get(filt, -np.inf)
+            )
+
+            # this non detection happened before the first detection (if any)
+            if self.first_detected_mjd is None or self.first_detected_mjd > mjd:
+                idx = bisect.bisect_left(self.predetection_mjds, mjd)
+                L = copy.deepcopy(self.predetection_mjds)
+                L.insert(idx, mjd)
+                self.predetection_mjds = L
+                self.last_non_detection_mjd = self.predetection_mjds[-1]
+
+        # find the time between first detection and last non-detection
+        if (
+            self.first_detected_mjd is not None
+            and self.last_non_detection_mjd is not None
+        ):
+            self.time_to_non_detection = (
+                self.first_detected_mjd - self.last_non_detection_mjd
+            )
+        else:
+            self.time_to_non_detection = None
 
         self.last_update = datetime.utcnow()
 
@@ -568,7 +579,8 @@ class PhotStat(Base):
                 and phot.fluxerr
                 and phot.flux / phot.fluxerr > PHOT_DETECTION_THRESHOLD
                 for phot in phot_list
-            ]
+            ],
+            dtype=bool,
         )
         lims = np.nan * np.ones(len(dets))
 
@@ -589,38 +601,17 @@ class PhotStat(Base):
                     else:
                         lims[i] = None
 
-        # reset all scalar properties
-        self.num_obs_global = 0
-        self.num_det_global = 0
-        self.recent_obs_mjd = None
-        self.first_detected_mjd = None
-        self.first_detected_mag = None
-        self.first_detected_filter = None
-        self.last_detected_mjd = None
-        self.last_detected_mag = None
-        self.last_detected_filter = None
-        self.mean_mag_global = None
-        self.mag_rms_global = None
-        self.peak_mag_global = None
-        self.peak_mjd_global = None
-        self.faintest_mag_global = None
-        self.deepest_limit_global = None
-        self.last_non_detection_mjd = None
-        self.time_to_non_detection = None
+        # make sure all non-detections have a limiting magnitudes
+        bad_idx = ~dets & np.isnan(lims)
+        filters = filters[~bad_idx]
+        mjds = mjds[~bad_idx]
+        mags = mags[~bad_idx]
+        dets = dets[~bad_idx]
+        lims = lims[~bad_idx]
 
-        # reset all dictionaries
-        self.num_obs_per_filter = {}
-        self.num_det_per_filter = {}
-        self.mean_mag_per_filter = {}
-        self.mag_rms_per_filter = {}
-        self.peak_mag_per_filter = {}
-        self.peak_mjd_per_filter = {}
-        self.faintest_mag_per_filter = {}
-        self.deepest_limit_per_filter = {}
-        self.mean_color = {}
-
+        # verification over, add the new data
         # total number of points
-        self.num_obs_global = len(phot_list)
+        self.num_obs_global = len(mjds)
 
         # total number of points in each filter
         for filt in filters:
@@ -720,8 +711,9 @@ class PhotStat(Base):
             else:
                 self.predetection_mjds = list(lim_mjds)
 
+            self.predetection_mjds.sort()
             if self.predetection_mjds:
-                self.last_non_detection_mjd = max(self.predetection_mjds)
+                self.last_non_detection_mjd = self.predetection_mjds[-1]
                 if self.first_detected_mjd:
                     self.time_to_non_detection = (
                         self.first_detected_mjd - self.last_non_detection_mjd

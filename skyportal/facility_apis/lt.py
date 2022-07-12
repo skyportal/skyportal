@@ -340,7 +340,7 @@ class LTAPI(FollowUpAPI):
     """An interface to LT operations."""
 
     @staticmethod
-    def delete(request):
+    def delete(request, session):
 
         """Delete a follow-up request from LT queue (all instruments).
 
@@ -348,22 +348,17 @@ class LTAPI(FollowUpAPI):
         ----------
         request: skyportal.models.FollowupRequest
             The request to delete from the queue and the SkyPortal database.
+        session: sqlalchemy.Session
+            Database session for this transaction
         """
 
-        from ..models import DBSession, FollowupRequest, FacilityTransaction
-
-        req = (
-            DBSession()
-            .query(FollowupRequest)
-            .filter(FollowupRequest.id == request.id)
-            .one()
-        )
+        from ..models import FacilityTransaction
 
         altdata = request.allocation.altdata
         if not altdata:
             raise ValueError('Missing allocation information.')
 
-        content = req.transactions[0].response["response"]
+        content = request.transactions[0].response["response"]
         response_rtml = etree.fromstring(content)
         uid = response_rtml.get('uid')
 
@@ -412,7 +407,7 @@ class LTAPI(FollowUpAPI):
                 followup_request=request,
                 initiator_id=request.last_modified_by_id,
             )
-            DBSession().add(transaction)
+            session.add(transaction)
 
 
 class IOOAPI(LTAPI):
@@ -420,7 +415,7 @@ class IOOAPI(LTAPI):
     """An interface to LT IOO operations."""
 
     @staticmethod
-    def submit(request):
+    def submit(request, session):
 
         """Submit a follow-up request to LT's IOO.
 
@@ -428,9 +423,11 @@ class IOOAPI(LTAPI):
         ----------
         request: skyportal.models.FollowupRequest
             The request to add to the queue and the SkyPortal database.
+        session: sqlalchemy.Session
+            Database session for this transaction
         """
 
-        from ..models import DBSession, FacilityTransaction
+        from ..models import FacilityTransaction
 
         altdata = request.allocation.altdata
         if not altdata:
@@ -467,7 +464,7 @@ class IOOAPI(LTAPI):
             initiator_id=request.last_modified_by_id,
         )
 
-        DBSession().add(transaction)
+        session.add(transaction)
 
     form_json_schema = {
         "type": "object",
@@ -556,7 +553,7 @@ class IOIAPI(LTAPI):
     """An interface to LT IOI operations."""
 
     @staticmethod
-    def submit(request):
+    def submit(request, session):
 
         """Submit a follow-up request to LT's IOI.
 
@@ -564,9 +561,11 @@ class IOIAPI(LTAPI):
         ----------
         request: skyportal.models.FollowupRequest
             The request to add to the queue and the SkyPortal database.
+        session: sqlalchemy.Session
+            Database session for this transaction
         """
 
-        from ..models import DBSession, FacilityTransaction
+        from ..models import FacilityTransaction
 
         altdata = request.allocation.altdata
         if not altdata:
@@ -603,7 +602,7 @@ class IOIAPI(LTAPI):
             initiator_id=request.last_modified_by_id,
         )
 
-        DBSession().add(transaction)
+        session.add(transaction)
 
     form_json_schema = {
         "type": "object",
@@ -691,7 +690,7 @@ class SPRATAPI(LTAPI):
     """An interface to LT SPRAT operations."""
 
     @staticmethod
-    def submit(request):
+    def submit(request, session):
 
         """Submit a follow-up request to LT's SPRAT.
 
@@ -699,9 +698,11 @@ class SPRATAPI(LTAPI):
         ----------
         request: skyportal.models.FollowupRequest
             The request to add to the queue and the SkyPortal database.
+        session: sqlalchemy.Session
+            Database session for this transaction
         """
 
-        from ..models import DBSession, FacilityTransaction
+        from ..models import FacilityTransaction
 
         altdata = request.allocation.altdata
         if not altdata:
@@ -739,7 +740,7 @@ class SPRATAPI(LTAPI):
             initiator_id=request.last_modified_by_id,
         )
 
-        DBSession().add(transaction)
+        session.add(transaction)
 
     form_json_schema = {
         "type": "object",
