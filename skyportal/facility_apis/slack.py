@@ -92,16 +92,18 @@ class SLACKAPI(FollowUpAPI):
 
     # subclasses *must* implement the method below
     @staticmethod
-    def submit(request):
+    def submit(request, session):
         """Submit a follow-up request to SLACK.
 
         Parameters
         ----------
         request : skyportal.models.FollowupRequest
             The request to add to the queue and the SkyPortal database.
+        session: sqlalchemy.Session
+            Database session for this transaction
         """
 
-        from ..models import FacilityTransaction, DBSession
+        from ..models import FacilityTransaction
 
         req = SLACKRequest()
         requestgroup, requesttext = req._build_payload(request)
@@ -139,7 +141,7 @@ class SLACKAPI(FollowUpAPI):
             initiator_id=request.last_modified_by_id,
         )
 
-        DBSession().add(transaction)
+        session.add(transaction)
 
     def custom_json_schema(instrument, user):
 

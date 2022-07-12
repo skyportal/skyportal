@@ -87,6 +87,7 @@ def add_user_and_setup_groups(
     username,
     first_name=None,
     last_name=None,
+    affiliations=None,
     contact_phone=None,
     contact_email=None,
     roles=[],
@@ -101,6 +102,7 @@ def add_user_and_setup_groups(
                 role_ids=roles,
                 first_name=first_name,
                 last_name=last_name,
+                affiliations=affiliations,
                 contact_phone=contact_phone,
                 contact_email=contact_email,
                 oauth_uid=oauth_uid,
@@ -359,6 +361,10 @@ class UserHandler(BaseHandler):
                     type: string
                   last_name:
                     type: string
+                  affiliations:
+                    type: array
+                    items:
+                      type: string
                   contact_email:
                     type: string
                   oauth_uid:
@@ -427,11 +433,18 @@ class UserHandler(BaseHandler):
             contact_email = email
         else:
             contact_email = None
+
+        affiliations = data.get("affiliations")
+        # check if the affiliations are a list
+        if affiliations is not None and not isinstance(affiliations, list):
+            return self.error("Affiliations must be a list of strings")
+
         try:
             user_id = add_user_and_setup_groups(
                 username=data["username"],
                 first_name=data.get("first_name"),
                 last_name=data.get("last_name"),
+                affiliations=affiliations,
                 contact_phone=contact_phone,
                 contact_email=contact_email,
                 oauth_uid=data.get("oauth_uid"),

@@ -3,6 +3,7 @@ from copy import copy
 import re
 import json
 import uuid
+from astropy.time import Time
 import string
 import arrow
 import numpy as np
@@ -397,7 +398,7 @@ class CandidateHandler(BaseHandler):
         include_comments = self.get_query_argument("includeComments", False)
 
         if obj_id is not None:
-            query_options = [joinedload(Obj.thumbnails)]
+            query_options = [joinedload(Obj.thumbnails), joinedload(Obj.photstats)]
 
             c = Obj.get_if_accessible_by(
                 obj_id,
@@ -485,7 +486,12 @@ class CandidateHandler(BaseHandler):
                     .filter(Classification.obj_id == obj_id)
                     .all()
                 )
-            candidate_info["last_detected_at"] = c.last_detected_at(self.current_user)
+            if len(c.photstats) > 0:
+                candidate_info["last_detected_at"] = Time(
+                    c.photstats[-1].last_detected_mjd, format='mjd'
+                ).datetime
+            else:
+                candidate_info["last_detected_at"] = None
             candidate_info["gal_lon"] = c.gal_lon_deg
             candidate_info["gal_lat"] = c.gal_lat_deg
             candidate_info["luminosity_distance"] = c.luminosity_distance
@@ -830,6 +836,7 @@ class CandidateHandler(BaseHandler):
                 order_by=order_by,
                 query_id=query_id,
                 use_cache=True,
+                include_detection_stats=True,
             )
         except ValueError as e:
             if "Page number out of range" in str(e):
@@ -925,9 +932,12 @@ class CandidateHandler(BaseHandler):
                 candidate_list[-1]["annotations"] = (
                     selected_groups_annotations + other_annotations
                 )
-                candidate_list[-1]["last_detected_at"] = obj.last_detected_at(
-                    self.current_user
-                )
+                if len(obj.photstats) > 0:
+                    candidate_list[-1]["last_detected_at"] = Time(
+                        obj.photstats[-1].last_detected_mjd, format='mjd'
+                    ).datetime
+                else:
+                    candidate_list[-1]["last_detected_at"] = None
                 candidate_list[-1]["gal_lat"] = obj.gal_lat_deg
                 candidate_list[-1]["gal_lon"] = obj.gal_lon_deg
                 candidate_list[-1]["luminosity_distance"] = obj.luminosity_distance
@@ -1138,9 +1148,9 @@ def grab_query_results(
     items_name,
     order_by=None,
     include_thumbnails=True,
+    include_detection_stats=False,
     query_id=None,
     use_cache=False,
-    include_detection_stats=False,
     current_user=None,
 ):
     """
@@ -1243,15 +1253,11 @@ def grab_query_results(
         ):
             raise ValueError("Page number out of range.")
 
+    options = []
+    if include_thumbnails:
+        options.append(joinedload(Obj.thumbnails))
     if include_detection_stats:
-        # Load in all last_detected_at values at once
-        last_detected_at = Obj.last_detected_at(current_user)
-        # Load in all last_detected_mag values at once
-        last_detected_mag = Obj.last_detected_mag(current_user)
-        # Load in all peak_detected_at values at once
-        peak_detected_at = Obj.peak_detected_at(current_user)
-        # Load in all peak_detected_mag values at once
-        peak_detected_mag = Obj.peak_detected_mag(current_user)
+        options.append(joinedload(Obj.photstats))
 
     items = []
     if len(obj_ids_in_page) > 0:
@@ -1259,62 +1265,17 @@ def grab_query_results(
         # so only filter on the values if they exist
         obj_ids_values = get_obj_id_values(obj_ids_in_page)
 
-        if include_detection_stats:
-            if include_thumbnails:
-                items = (
-                    DBSession()
-                    .execute(
-                        sa.select(Obj)
-                        .options(joinedload(Obj.thumbnails))
-                        .add_columns(last_detected_at)
-                        .add_columns(last_detected_mag)
-                        .add_columns(peak_detected_at)
-                        .add_columns(peak_detected_mag)
-                        .join(obj_ids_values, obj_ids_values.c.id == Obj.id)
-                        .order_by(obj_ids_values.c.ordering)
-                    )
-                    .unique()
-                    .all()
-                )
-            else:
-                items = (
-                    DBSession()
-                    .execute(
-                        sa.select(Obj)
-                        .add_columns(last_detected_at)
-                        .add_columns(last_detected_mag)
-                        .add_columns(peak_detected_at)
-                        .add_columns(peak_detected_mag)
-                        .join(obj_ids_values, obj_ids_values.c.id == Obj.id)
-                        .order_by(obj_ids_values.c.ordering)
-                    )
-                    .unique()
-                    .all()
-                )
-        else:
-            if include_thumbnails:
-                items = (
-                    DBSession()
-                    .execute(
-                        sa.select(Obj)
-                        .options(joinedload(Obj.thumbnails))
-                        .join(obj_ids_values, obj_ids_values.c.id == Obj.id)
-                        .order_by(obj_ids_values.c.ordering)
-                    )
-                    .unique()
-                    .all()
-                )
-            else:
-                items = (
-                    DBSession()
-                    .execute(
-                        sa.select(Obj)
-                        .join(obj_ids_values, obj_ids_values.c.id == Obj.id)
-                        .order_by(obj_ids_values.c.ordering)
-                    )
-                    .unique()
-                    .all()
-                )
+        items = (
+            DBSession()
+            .execute(
+                sa.select(Obj)
+                .options(*options)
+                .join(obj_ids_values, obj_ids_values.c.id == Obj.id)
+                .order_by(obj_ids_values.c.ordering)
+            )
+            .unique()
+            .all()
+        )
 
     info[items_name] = items
     return info

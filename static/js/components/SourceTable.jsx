@@ -30,11 +30,12 @@ import ExpandLess from "@mui/icons-material/ExpandLess";
 import ExpandMore from "@mui/icons-material/ExpandMore";
 import Collapse from "@mui/material/Collapse";
 import List from "@mui/material/List";
+import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 
 import { isMobileOnly } from "react-device-detect";
 
-import { ra_to_hours, dec_to_dms } from "../units";
+import { ra_to_hours, dec_to_dms, mjd_to_utc } from "../units";
 import ThumbnailList from "./ThumbnailList";
 import ShowClassification from "./ShowClassification";
 import SourceTableFilterForm from "./SourceTableFilterForm";
@@ -297,6 +298,7 @@ const SourceTable = ({
   sortingCallback,
   favoritesRemoveButton = false,
   hideTitle = false,
+  downloadCallback,
 }) => {
   // sourceStatus should be one of either "saved" (default) or "requested" to add a button to agree to save the source.
   // If groupID is not given, show all data available to user's accessible groups
@@ -780,27 +782,35 @@ const SourceTable = ({
     );
   };
 
-  // const renderPeakMagnitude = (dataIndex) => {
-  //   const source = sources[dataIndex];
-  //   return source.peak_detected_mag ? (
-  //     <Tooltip title={time_relative_to_local(source.peak_detected_at)}>
-  //       <div>{`${source.peak_detected_mag.toFixed(4)}`}</div>
-  //     </Tooltip>
-  //   ) : (
-  //     <div>No photometry</div>
-  //   );
-  // };
+  const renderPeakMagnitude = (dataIndex) => {
+    const source = sources[dataIndex];
+    const photstats = source.photstats[0];
+    if (!photstats) {
+      return <div>No photometry</div>;
+    }
+    return photstats.peak_mag_global ? (
+      <Tooltip title={mjd_to_utc(photstats.peak_mjd_global)}>
+        <div>{`${photstats.peak_mag_global.toFixed(4)}`}</div>
+      </Tooltip>
+    ) : (
+      <div>No photometry</div>
+    );
+  };
 
-  // const renderLatestMagnitude = (dataIndex) => {
-  //   const source = sources[dataIndex];
-  //   return source.last_detected_mag ? (
-  //     <Tooltip title={time_relative_to_local(source.last_detected_at)}>
-  //       <div>{`${source.last_detected_mag.toFixed(4)}`}</div>
-  //     </Tooltip>
-  //   ) : (
-  //     <div>No photometry</div>
-  //   );
-  // };
+  const renderLatestMagnitude = (dataIndex) => {
+    const source = sources[dataIndex];
+    const photstats = source.photstats[0];
+    if (!photstats) {
+      return <div>No photometry</div>;
+    }
+    return photstats.last_detected_mag ? (
+      <Tooltip title={mjd_to_utc(photstats.last_detected_mjd)}>
+        <div>{`${photstats.last_detected_mag.toFixed(4)}`}</div>
+      </Tooltip>
+    ) : (
+      <div>No photometry</div>
+    );
+  };
 
   const renderTNSName = (dataIndex) => {
     const source = sources[dataIndex];
@@ -1058,25 +1068,24 @@ const SourceTable = ({
         display: displayedColumns.includes("Spectrum?"),
       },
     },
-    // Temporarily disable these two detection stats columns until we improve back-end performance
-    // {
-    //   name: "Peak Magnitude",
-    //   options: {
-    //     filter: false,
-    //     sort: false,
-    //     customBodyRenderLite: renderPeakMagnitude,
-    //     display: displayedColumns.includes("Peak Magnitude"),
-    //   },
-    // },
-    // {
-    //   name: "Latest Magnitude",
-    //   options: {
-    //     filter: false,
-    //     sort: false,
-    //     customBodyRenderLite: renderLatestMagnitude,
-    //     display: displayedColumns.includes("Latest Magnitude"),
-    //   },
-    // },
+    {
+      name: "Peak Magnitude",
+      options: {
+        filter: false,
+        sort: false,
+        customBodyRenderLite: renderPeakMagnitude,
+        display: displayedColumns.includes("Peak Magnitude"),
+      },
+    },
+    {
+      name: "Latest Magnitude",
+      options: {
+        filter: false,
+        sort: false,
+        customBodyRenderLite: renderLatestMagnitude,
+        display: displayedColumns.includes("Latest Magnitude"),
+      },
+    },
 
     {
       name: "TNS Name",
@@ -1113,17 +1122,15 @@ const SourceTable = ({
     onRowExpansionChange: (_, allRowsExpanded) => {
       setOpenedRows(allRowsExpanded.map((i) => i.dataIndex));
     },
-    onDownload: (buildHead, buildBody, columnsDownload, data) => {
-      const renderDownloadClassification = (dataIndex) => {
-        const source = sources[dataIndex];
+    onDownload: (buildHead, buildBody) => {
+      const renderDownloadClassification = (source) => {
         const classifications = [];
         source?.classifications.forEach((x) => {
           classifications.push(x.classification);
         });
         return classifications.join(";");
       };
-      const renderDownloadGroups = (dataIndex) => {
-        const source = sources[dataIndex];
+      const renderDownloadGroups = (source) => {
         const groups = [];
         source?.groups.forEach((x) => {
           groups.push(x.name);
@@ -1131,91 +1138,96 @@ const SourceTable = ({
         return groups.join(";");
       };
 
-      const renderDownloadDateSaved = (dataIndex) => {
-        const source = sources[dataIndex];
-        return getDate(source)?.substring(0, 19);
-      };
+      const renderDownloadDateSaved = (source) =>
+        getDate(source)?.substring(0, 19);
 
-      const renderDownloadAlias = (dataIndex) => {
-        const { alias } = sources[dataIndex];
+      const renderDownloadAlias = (source) => {
+        const alias = source?.alias;
         let alias_str = "";
         if (alias) {
           alias_str = Array.isArray(alias) ? alias.join(";") : alias;
         }
         return alias_str;
       };
-      const renderDownloadOrigin = (dataIndex) => {
-        const { origin } = sources[dataIndex];
-        return origin;
-      };
-      const renderDownloadTNSName = (dataIndex) => {
-        const source = sources[dataIndex];
-        return source.altdata && source.altdata.tns
-          ? source.altdata.tns.name
-          : "";
-      };
+      const renderDownloadTNSName = (source) =>
+        source?.altdata && source.altdata.tns ? source.altdata.tns.name : "";
 
-      return (
-        buildHead([
-          {
-            name: "id",
-            download: true,
-          },
-          {
-            name: "ra [deg]",
-            download: true,
-          },
-          {
-            name: "dec [deg]",
-            download: true,
-          },
-          {
-            name: "redshift",
-            download: true,
-          },
-          {
-            name: "classification",
-            download: true,
-          },
-          {
-            name: "groups",
-            download: true,
-          },
-          {
-            name: "Date saved",
-            download: true,
-          },
-          {
-            name: "Alias",
-            download: true,
-          },
-          {
-            name: "Origin",
-            download: true,
-          },
-          {
-            name: "TNS Name",
-            download: true,
-          },
-        ]) +
-        buildBody(
-          data.map((x) => ({
-            ...x,
-            data: [
-              x.data[0],
-              x.data[4],
-              x.data[5],
-              x.data[8],
-              renderDownloadClassification(x.index),
-              renderDownloadGroups(x.index),
-              renderDownloadDateSaved(x.index),
-              renderDownloadAlias(x.index),
-              renderDownloadOrigin(x.index),
-              renderDownloadTNSName(x.index),
-            ],
-          }))
-        )
-      );
+      downloadCallback().then((data) => {
+        // if there is no data, cancel download
+        if (data?.length > 0) {
+          const result =
+            buildHead([
+              {
+                name: "id",
+                download: true,
+              },
+              {
+                name: "ra [deg]",
+                download: true,
+              },
+              {
+                name: "dec [deg]",
+                download: true,
+              },
+              {
+                name: "redshift",
+                download: true,
+              },
+              {
+                name: "classification",
+                download: true,
+              },
+              {
+                name: "groups",
+                download: true,
+              },
+              {
+                name: "Date saved",
+                download: true,
+              },
+              {
+                name: "Alias",
+                download: true,
+              },
+              {
+                name: "Origin",
+                download: true,
+              },
+              {
+                name: "TNS Name",
+                download: true,
+              },
+            ]) +
+            buildBody(
+              data.map((x) => ({
+                ...x,
+                data: [
+                  x.id,
+                  x.ra,
+                  x.dec,
+                  x.redshift,
+                  renderDownloadClassification(x),
+                  renderDownloadGroups(x),
+                  renderDownloadDateSaved(x),
+                  renderDownloadAlias(x),
+                  x.origin,
+                  renderDownloadTNSName(x),
+                ],
+              }))
+            );
+          const blob = new Blob([result], {
+            type: "text/csv;charset=utf-8;",
+          });
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.href = url;
+          link.setAttribute("download", "sources.csv");
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        }
+      });
+      return false;
     },
   };
 
@@ -1301,6 +1313,14 @@ SourceTable.propTypes = {
           name: PropTypes.string,
         })
       ),
+      photstats: PropTypes.arrayOf(
+        PropTypes.shape({
+          peak_mag_global: PropTypes.number,
+          peak_mjd_global: PropTypes.number,
+          last_detected_mag: PropTypes.number,
+          last_detected_mjd: PropTypes.number,
+        })
+      ),
     })
   ).isRequired,
   sourceStatus: PropTypes.string,
@@ -1313,6 +1333,7 @@ SourceTable.propTypes = {
   sortingCallback: PropTypes.func,
   favoritesRemoveButton: PropTypes.bool,
   hideTitle: PropTypes.bool,
+  downloadCallback: PropTypes.func.isRequired,
 };
 
 SourceTable.defaultProps = {

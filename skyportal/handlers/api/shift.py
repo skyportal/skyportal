@@ -545,8 +545,9 @@ class ShiftUserHandler(BaseHandler):
             .first()
         )
         if su is None:
-            raise AccessError(
-                "ShiftUser does not exist, or you don't have the right to delete him."
+            return self.error(
+                "ShiftUser does not exist, or you don't have the right to delete him.",
+                status=403,
             )
 
         DBSession().delete(su)
