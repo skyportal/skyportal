@@ -334,10 +334,13 @@ class InstrumentHandler(BaseHandler):
 
             if instrument_id is not None:
 
-                stmt = Instrument.select(self.current_user).where(
+                stmt = Instrument.select(self.current_user, options=options).where(
                     Instrument.id == int(instrument_id)
                 )
                 instrument = session.scalars(stmt).first()
+                if instrument is None:
+                    return self.error(f'No instrument with ID: {instrument_id}')
+
                 data = instrument.to_dict()
 
                 # optional: slice by GcnEvent localization
