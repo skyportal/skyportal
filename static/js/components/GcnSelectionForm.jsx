@@ -83,11 +83,9 @@ const GcnSelectionForm = ({ gcnEvent, setSelectedLocalizationName }) => {
 
   const defaultStartDate = dayjs
     .utc(gcnEvent?.dateobs)
-    .utc()
     .format("YYYY-MM-DD HH:mm:ss");
   const defaultEndDate = dayjs
     .utc(gcnEvent?.dateobs)
-    .utc()
     .add(7, "day")
     .format("YYYY-MM-DD HH:mm:ss");
   const [formDataState, setFormDataState] = useState({
