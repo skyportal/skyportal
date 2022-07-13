@@ -92,12 +92,13 @@ const GcnSelectionForm = ({ gcnEvent, setSelectedLocalizationName }) => {
     displayOptionsDefault
   );
 
-  const defaultStartDate = dayjs(gcnEvent?.dateobs).format(
-    "YYYY-MM-DDTHH:mm:ssZ"
-  );
-  const defaultEndDate = dayjs(gcnEvent?.dateobs)
+  const defaultStartDate = dayjs
+    .utc(gcnEvent?.dateobs)
+    .format("YYYY-MM-DD HH:mm:ss");
+  const defaultEndDate = dayjs
+    .utc(gcnEvent?.dateobs)
     .add(7, "day")
-    .format("YYYY-MM-DDTHH:mm:ssZ");
+    .format("YYYY-MM-DD HH:mm:ss");
   const [formDataState, setFormDataState] = useState({
     startDate: defaultStartDate,
     endDate: defaultEndDate,
@@ -293,13 +294,11 @@ const GcnSelectionForm = ({ gcnEvent, setSelectedLocalizationName }) => {
     properties: {
       startDate: {
         type: "string",
-        format: "date-time",
         title: "Start Date",
         default: defaultStartDate,
       },
       endDate: {
         type: "string",
-        format: "date-time",
         title: "End Date",
         default: defaultEndDate,
       },

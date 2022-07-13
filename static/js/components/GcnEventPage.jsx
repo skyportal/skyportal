@@ -20,12 +20,9 @@ import GeoPropTypes from "geojson-prop-types";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
-import relativeTime from "dayjs/plugin/relativeTime";
 
 import * as gcnEventActions from "../ducks/gcnEvent";
 import * as sourcesActions from "../ducks/sources";
-import * as observationsActions from "../ducks/observations";
-import * as galaxiesActions from "../ducks/galaxies";
 
 import SourceTable from "./SourceTable";
 import GalaxyTable from "./GalaxyTable";
@@ -41,7 +38,6 @@ import GcnTags from "./GcnTags";
 
 import withRouter from "./withRouter";
 
-dayjs.extend(relativeTime);
 dayjs.extend(utc);
 
 const useStyles = makeStyles((theme) => ({
@@ -250,28 +246,6 @@ const GcnEventPage = ({ route }) => {
       await dispatch(gcnEventActions.fetchGcnEvent(dateobs));
     };
     fetchGcnEvent(route.dateobs);
-  }, [route, dispatch]);
-
-  useEffect(() => {
-    const fetchGcnEventSources = async (dateobs) => {
-      await dispatch(sourcesActions.fetchGcnEventSources(dateobs));
-    };
-    fetchGcnEventSources(route.dateobs);
-    dispatch(sourcesActions.fetchGcnEventSources(route.dateobs));
-  }, [route, dispatch]);
-
-  useEffect(() => {
-    const fetchGcnEventObservations = async (dateobs) => {
-      await dispatch(observationsActions.fetchGcnEventObservations(dateobs));
-    };
-    fetchGcnEventObservations(route.dateobs);
-  }, [route, dispatch]);
-
-  useEffect(() => {
-    const fetchGcnEventGalaxies = async (dateobs) => {
-      await dispatch(galaxiesActions.fetchGcnEventGalaxies(dateobs));
-    };
-    fetchGcnEventGalaxies(route.dateobs);
   }, [route, dispatch]);
 
   if (!gcnEvent) {
