@@ -396,7 +396,7 @@ server:
   dedicated_frontend_processes: 2
 
   # Rate limit: number of requests per second (see https://www.nginx.com/blog/rate-limiting-nginx/)
-  rate_limit: 5
+  rate_limit: 1
   # Rate limit burst size (https://www.nginx.com/blog/rate-limiting-nginx/#bursts)
   burst: 10
 
