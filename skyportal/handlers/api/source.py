@@ -2038,7 +2038,7 @@ class SourceHandler(BaseHandler):
                         requested_only=requested_only,
                         include_color_mag=include_color_mag,
                     )
-                except (ValueError, arrow.ParserError) as e:
+                except Exception as e:
                     return self.error(f'Cannot retrieve source: {str(e)}')
                 return self.success(data=source_info)
 
@@ -2104,7 +2104,7 @@ class SourceHandler(BaseHandler):
                     total_matches=total_matches,
                     includeGeoJSON=includeGeoJSON,
                 )
-            except (ValueError, arrow.ParserError) as e:
+            except Exception as e:
                 return self.error(f'Cannot retrieve sources: {str(e)}')
 
             return self.success(data=query_results)
