@@ -410,7 +410,7 @@ const ObservationPlanRequestLists = ({ gcnEvent }) => {
 
       // eslint-disable-next-line react-hooks/rules-of-hooks
       const [isSubmitting, setIsSubmitting] = useState(false);
-      const handleSubmit = async () => {
+      const handleSubmit = () => {
         setIsSubmitting(true);
       };
 
