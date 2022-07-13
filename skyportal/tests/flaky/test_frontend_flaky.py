@@ -952,3 +952,37 @@ def test_candidate_date_filtering(
     driver.scroll_to_element_and_click(submit_button)
     for i in range(5):
         driver.wait_for_xpath(f'//a[@data-testid="{candidate_id}_{i}"]', 10)
+
+
+def filter_for_user(driver, username):
+    # Helper function to filter for a specific user on the page
+    driver.click_xpath("//button[@data-testid='Filter Table-iconButton']")
+    username_input_xpath = "//input[@id='root_username']"
+    username_input = driver.wait_for_xpath(username_input_xpath)
+    driver.click_xpath(username_input_xpath)
+    username_input.send_keys(username)
+    driver.click_xpath(
+        "//div[contains(@class, 'MUIDataTableFilter-root')]//button[text()='Submit']",
+        scroll_parent=True,
+    )
+
+
+def test_user_expiration(
+    driver,
+    user,
+    super_admin_user,
+):
+    driver.get(f'/become_user/{super_admin_user.id}')
+    driver.get('/user_management')
+    filter_for_user(driver, user.username)
+
+    # Set expiration date to today
+    driver.click_xpath(f"//*[@data-testid='editUserExpirationDate{user.id}']")
+    date = datetime.now().strftime("%m/%d/%Y")
+    driver.wait_for_xpath("//input[@id='expirationDatePicker']").send_keys(date)
+    driver.click_xpath('//*[text()="Submit"]')
+
+    # Check that user deactivated
+    driver.get(f'/become_user/{user.id}')
+    driver.get("/")
+    driver.wait_for_xpath_to_disappear("//*[contains(text(), 'Top Sources')]")
