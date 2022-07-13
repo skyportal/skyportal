@@ -13,8 +13,10 @@ from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm import sessionmaker, scoped_session
 
+from skyportal.models.photometry import Photometry
+
 from .observation import get_observations
-from .source import get_sources, MAX_SOURCES_PER_PAGE
+from .source import get_sources, serialize, MAX_SOURCES_PER_PAGE
 from .galaxy import get_galaxies, MAX_GALAXIES
 import pandas as pd
 from tabulate import tabulate
@@ -879,10 +881,8 @@ class GcnSummaryHandler(BaseHandler):
                         localization_dateobs=dateobs,
                         localization_name=localization_name,
                         localization_cumprob=localization_cumprob,
-                        include_photometry=True,
                         page_number=source_page_number,
                         num_per_page=MAX_SOURCES_PER_PAGE,
-                        photometry_format='mag',
                     )
                     sources.extend(sources_data['sources'])
                     source_page_number += 1
@@ -901,7 +901,6 @@ class GcnSummaryHandler(BaseHandler):
                         [],
                     )
                     for source in sources:
-                        print(source.keys())
                         ids.append(source['id'] if 'id' in source else None)
                         aliases.append(source['alias'] if 'alias' in source else None)
                         ras.append(source['ra'] if 'ra' in source else None)
@@ -926,7 +925,13 @@ class GcnSummaryHandler(BaseHandler):
                     )
                     # now, create a photometry table per source
                     for source in sources:
-                        photometry = source['photometry']
+                        photometry = (
+                            Photometry.query_records_accessible_by(
+                                self.current_user, mode='read'
+                            )
+                            .filter(Photometry.obj_id == source['id'])
+                            .all()
+                        )
                         if len(photometry) > 0:
                             sources_text.append(
                                 f"""\nPhotometry for source {source['id']}:\n"""
@@ -941,6 +946,7 @@ class GcnSummaryHandler(BaseHandler):
                                 [],
                             )
                             for phot in photometry:
+                                phot = serialize(phot, 'ab', 'mag')
                                 mjds.append(phot['mjd'] if 'mjd' in phot else None)
                                 ras.append(
                                     f"{round(phot['ra'],2)}±{round(phot['ra_unc'],2)}"

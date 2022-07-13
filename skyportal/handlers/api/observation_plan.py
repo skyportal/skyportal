@@ -976,7 +976,7 @@ class ObservationPlanTreasureMapHandler(BaseHandler):
 
             altdata = allocation.altdata
             if not altdata:
-                raise self.error('Missing allocation information.')
+                return self.error('Missing allocation information.')
 
             observation_plan = observation_plan_request.observation_plans[0]
             num_observations = observation_plan.num_observations
@@ -1071,7 +1071,7 @@ class ObservationPlanTreasureMapHandler(BaseHandler):
 
             altdata = allocation.altdata
             if not altdata:
-                raise self.error('Missing allocation information.')
+                return self.error('Missing allocation information.')
 
             graceid = event.graceid
             payload = {
@@ -2174,13 +2174,13 @@ class DefaultObservationPlanRequestHandler(BaseHandler):
             )
             allocation = session.scalars(stmt).first()
             if allocation is None:
-                raise AttributeError(
-                    f"Missing allocation with ID: {data['allocation_id']}"
+                return self.error(
+                    f"Missing allocation with ID: {data['allocation_id']}", status=403
                 )
 
             instrument = allocation.instrument
             if instrument.api_classname_obsplan is None:
-                raise AttributeError('Instrument has no remote API.')
+                return self.error('Instrument has no remote API.', status=403)
 
             try:
                 formSchema = instrument.api_class_obsplan.custom_json_schema(
@@ -2209,9 +2209,7 @@ class DefaultObservationPlanRequestHandler(BaseHandler):
             try:
                 jsonschema.validate(payload, formSchema)
             except jsonschema.exceptions.ValidationError as e:
-                raise jsonschema.exceptions.ValidationError(
-                    f'Payload failed to validate: {e}'
-                )
+                return self.error(f'Payload failed to validate: {e}', status=403)
 
             default_observation_plan_request = (
                 DefaultObservationPlanRequest.__schema__().load(data)
