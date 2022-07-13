@@ -134,24 +134,11 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
 
   const gcnEvents = useSelector((state) => state.gcnEvents);
   const [selectedGcnEventId, setSelectedGcnEventId] = useState(null);
-  const [selectedLocalizationId, setSelectedLocalizationId] = useState(null);
 
   useEffect(() => {
-    const getGcnEvents = async () => {
-      // Wait for the GCN Events to update before setting
-      // the new default form fields, so that the allocations list can
-      // update
-
-      const result = await dispatch(gcnEventsActions.fetchGcnEvents());
-      const { data } = result;
-      setSelectedGcnEventId(data?.events[0]?.id);
-    };
-    getGcnEvents();
-
-    // Don't want to reset everytime the component rerenders and
-    // the defaultStartDate is updated, so ignore ESLint here
+    dispatch(gcnEventsActions.fetchGcnEvents());
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dispatch, setSelectedGcnEventId]);
+  }, []);
 
   const { handleSubmit, register, control, reset } = useForm();
 
@@ -165,12 +152,21 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
     gcnEventsLookUp[gcnEvent.id] = gcnEvent;
   });
 
-  const handleSelectedGcnEventChange = (e) => {
-    setSelectedGcnEventId(e.target.value);
-  };
-
-  const handleSelectedLocalizationChange = (e) => {
-    setSelectedLocalizationId(e.target.value);
+  const handleFilterPreSubmit = (formData) => {
+    if (formData.gcneventid !== "") {
+      formData.localizationDateobs =
+        gcnEventsLookUp[formData.gcneventid]?.dateobs;
+      if (formData.localizationid !== "") {
+        formData.localizationName = gcnEventsLookUp[
+          formData.gcneventid
+        ]?.localizations?.filter(
+          (l) => l.id === formData.localizationid
+        )[0]?.localization_name;
+        formData.localizationid = "";
+      }
+      formData.gcneventid = "";
+    }
+    handleFilterSubmit(formData);
   };
 
   return (
@@ -180,7 +176,7 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
       </div>
       <form
         className={classes.root}
-        onSubmit={handleSubmit(handleFilterSubmit)}
+        onSubmit={handleSubmit(handleFilterPreSubmit)}
       >
         <div className={classes.formItem}>
           <Typography variant="subtitle2" className={classes.title}>
@@ -647,44 +643,63 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
         </div>
         <div>
           <InputLabel id="gcnEventSelectLabel">GCN Event</InputLabel>
-          <Select
-            inputProps={{ MenuProps: { disableScrollLock: true } }}
-            labelId="gcnEventSelectLabel"
-            value={selectedGcnEventId}
-            onChange={handleSelectedGcnEventChange}
-            name="followupRequestGcnEventSelect"
-            className={classes.select}
-          >
-            {gcnEvents?.events.map((gcnEvent) => (
-              <MenuItem
-                value={gcnEvent.id}
-                key={gcnEvent.id}
-                className={classes.selectItem}
+          <Controller
+            render={({ onChange, value }) => (
+              <Select
+                inputProps={{ MenuProps: { disableScrollLock: true } }}
+                labelId="gcnEventSelectLabel"
+                value={value || ""}
+                onChange={(event) => {
+                  setSelectedGcnEventId(event.target.value);
+                  onChange(event.target.value);
+                }}
+                className={classes.select}
               >
-                {`${gcnEvent.dateobs}`}
-              </MenuItem>
-            ))}
-          </Select>
-          <Select
-            inputProps={{ MenuProps: { disableScrollLock: true } }}
-            labelId="localizationSelectLabel"
-            value={selectedLocalizationId || ""}
-            onChange={handleSelectedLocalizationChange}
-            name="observationPlanRequestLocalizationSelect"
-            className={classes.select}
-          >
-            {gcnEventsLookUp[selectedGcnEventId]?.localizations?.map(
-              (localization) => (
-                <MenuItem
-                  value={localization.id}
-                  key={localization.id}
-                  className={classes.selectItem}
-                >
-                  {`${localization.localization_name}`}
-                </MenuItem>
-              )
+                {gcnEvents?.events.map((gcnEvent) => (
+                  <MenuItem
+                    value={gcnEvent.id}
+                    key={gcnEvent.id}
+                    className={classes.selectItem}
+                  >
+                    {`${gcnEvent.dateobs}`}
+                  </MenuItem>
+                ))}
+              </Select>
             )}
-          </Select>
+            name="gcneventid"
+            control={control}
+            defaultValue=""
+          />
+          <Controller
+            render={({ onChange, value }) => (
+              <Select
+                inputProps={{ MenuProps: { disableScrollLock: true } }}
+                labelId="localizationSelectLabel"
+                value={value || ""}
+                onChange={(event) => {
+                  onChange(event.target.value);
+                }}
+                name="observationPlanRequestLocalizationSelect"
+                className={classes.select}
+                disabled={!selectedGcnEventId}
+              >
+                {gcnEventsLookUp[selectedGcnEventId]?.localizations?.map(
+                  (localization) => (
+                    <MenuItem
+                      value={localization.id}
+                      key={localization.id}
+                      className={classes.selectItem}
+                    >
+                      {`${localization.localization_name}`}
+                    </MenuItem>
+                  )
+                )}
+              </Select>
+            )}
+            name="localizationid"
+            control={control}
+            defaultValue=""
+          />
         </div>
         <div className={classes.formButtons}>
           <ButtonGroup
