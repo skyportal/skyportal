@@ -278,6 +278,11 @@ const ModifyInstrument = () => {
         title: "FOV Attributes",
         description: "Rectangle [width,height]; Circle [radius]",
       },
+      sensitivity_data: {
+        type: "string",
+        title:
+          "Sensitivity data (i.e. {'ztfg': {'limiting_magnitude': 20.3, 'magsys': 'ab', 'exposure_time': 30, 'zeropoint': 26.3,}}",
+      },
     },
   };
 
