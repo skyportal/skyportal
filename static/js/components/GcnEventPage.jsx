@@ -303,7 +303,7 @@ const GcnEventPage = ({ route }) => {
           </Accordion>
         </div>
         <div className={styles.columnItem}>
-          <Accordion defaultClosed>
+          <Accordion>
             <AccordionSummary
               expandIcon={<ExpandMoreIcon />}
               aria-controls="gcnEvent-content"

@@ -29,6 +29,7 @@ from .gcn import (
     GcnEventHandler,
     GcnEventObservationPlanRequestsHandler,
     GcnEventSurveyEfficiencyHandler,
+    GcnSummaryHandler,
     LocalizationHandler,
 )
 from .group import (
