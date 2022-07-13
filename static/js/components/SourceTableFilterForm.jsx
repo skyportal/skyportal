@@ -136,7 +136,9 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
   const [selectedGcnEventId, setSelectedGcnEventId] = useState(null);
 
   useEffect(() => {
-    dispatch(gcnEventsActions.fetchGcnEvents());
+    if (gcnEvents?.length > 0 || !gcnEvents) {
+      dispatch(gcnEventsActions.fetchGcnEvents());
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -679,7 +681,6 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
                 onChange={(event) => {
                   onChange(event.target.value);
                 }}
-                name="observationPlanRequestLocalizationSelect"
                 className={classes.select}
                 disabled={!selectedGcnEventId}
               >
