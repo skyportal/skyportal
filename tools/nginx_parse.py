@@ -127,8 +127,6 @@ def create_ip_chart(filenames, outfile='requests.pdf'):
     labels = [x for _, x in sorted(zip(values, labels), key=lambda pair: pair[0])]
     values = sorted(values)
 
-    print(labels)
-
     ax2.pie(
         values,
         labels=labels,
