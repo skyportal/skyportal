@@ -11,6 +11,7 @@ import FormGroup from "@mui/material/FormGroup";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Checkbox from "@mui/material/Checkbox";
 import CircularProgress from "@mui/material/CircularProgress";
+import Divider from "@mui/material/Divider";
 import makeStyles from "@mui/styles/makeStyles";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
@@ -23,6 +24,7 @@ import * as galaxiesActions from "../ducks/galaxies";
 import * as instrumentsActions from "../ducks/instruments";
 
 import LocalizationPlot from "./LocalizationPlot";
+import GcnSummary from "./GcnSummary";
 import AddSurveyEfficiencyObservationsPage from "./AddSurveyEfficiencyObservationsPage";
 
 dayjs.extend(relativeTime);
@@ -50,6 +52,15 @@ const useStyles = makeStyles(() => ({
   },
   instrumentSelectItem: {
     whiteSpace: "break-spaces",
+  },
+  form: {
+    marginBottom: "1rem",
+  },
+  buttons: {
+    marginTop: "1rem",
+    display: "grid",
+    gridGap: "1rem",
+    gridTemplateColumns: "repeat(auto-fit, minmax(5rem, 1fr))",
   },
 }));
 
@@ -81,12 +92,13 @@ const GcnSelectionForm = ({ gcnEvent, setSelectedLocalizationName }) => {
     displayOptionsDefault
   );
 
-  const defaultStartDate = dayjs(gcnEvent?.dateobs).format(
-    "YYYY-MM-DDTHH:mm:ssZ"
-  );
-  const defaultEndDate = dayjs(gcnEvent?.dateobs)
+  const defaultStartDate = dayjs
+    .utc(gcnEvent?.dateobs)
+    .format("YYYY-MM-DD HH:mm:ss");
+  const defaultEndDate = dayjs
+    .utc(gcnEvent?.dateobs)
     .add(7, "day")
-    .format("YYYY-MM-DDTHH:mm:ssZ");
+    .format("YYYY-MM-DD HH:mm:ss");
   const [formDataState, setFormDataState] = useState({
     startDate: defaultStartDate,
     endDate: defaultEndDate,
@@ -282,13 +294,11 @@ const GcnSelectionForm = ({ gcnEvent, setSelectedLocalizationName }) => {
     properties: {
       startDate: {
         type: "string",
-        format: "date-time",
         title: "Start Date",
         default: defaultStartDate,
       },
       endDate: {
         type: "string",
-        format: "date-time",
         title: "End Date",
         default: defaultEndDate,
       },
@@ -386,7 +396,7 @@ const GcnSelectionForm = ({ gcnEvent, setSelectedLocalizationName }) => {
           ))}
         </FormGroup>
       </div>
-      <div data-testid="gcnsource-selection-form">
+      <div data-testid="gcnsource-selection-form" className={classes.form}>
         <Form
           schema={GcnSourceSelectionFormSchema}
           onSubmit={handleSubmit}
@@ -401,60 +411,58 @@ const GcnSelectionForm = ({ gcnEvent, setSelectedLocalizationName }) => {
           </div>
         )}
       </div>
-      <div>
+      <Divider />
+      <div className={classes.buttons}>
+        <GcnSummary dateobs={gcnEvent.dateobs} />
         <AddSurveyEfficiencyObservationsPage gcnevent={gcnEvent} />
-      </div>
-      <Button
-        href={`${gcnUrl}`}
-        download={`observationGcn-${selectedInstrumentId}`}
-        size="small"
-        color="primary"
-        type="submit"
-        variant="outlined"
-        data-testid={`observationGcn_${selectedInstrumentId}`}
-      >
-        GCN
-      </Button>
-      {isSubmittingTreasureMap === selectedInstrumentId ? (
-        <div>
-          <CircularProgress />
-        </div>
-      ) : (
-        <div>
+        <Button
+          href={`${gcnUrl}`}
+          download={`observationGcn-${selectedInstrumentId}`}
+          size="small"
+          color="primary"
+          type="submit"
+          variant="outlined"
+          data-testid={`observationGcn_${selectedInstrumentId}`}
+        >
+          GCN
+        </Button>
+        {isSubmittingTreasureMap === selectedInstrumentId ? (
+          <div>
+            <CircularProgress />
+          </div>
+        ) : (
           <Button
             onClick={() => {
               handleSubmitTreasureMap(selectedInstrumentId, formDataState);
             }}
-            size="small"
             color="primary"
             type="submit"
             variant="outlined"
+            size="small"
             data-testid={`treasuremapRequest_${selectedInstrumentId}`}
           >
             Send to Treasure Map
           </Button>
-        </div>
-      )}
-      {isDeletingTreasureMap === selectedInstrumentId ? (
-        <div>
-          <CircularProgress />
-        </div>
-      ) : (
-        <div>
+        )}
+        {isDeletingTreasureMap === selectedInstrumentId ? (
+          <div>
+            <CircularProgress />
+          </div>
+        ) : (
           <Button
             onClick={() => {
               handleDeleteTreasureMap(selectedInstrumentId, formDataState);
             }}
-            size="small"
             color="primary"
             type="submit"
             variant="outlined"
+            size="small"
             data-testid={`treasuremapDelete_${selectedInstrumentId}`}
           >
             Retract from Treasure Map
           </Button>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 };

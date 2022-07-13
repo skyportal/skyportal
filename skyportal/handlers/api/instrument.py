@@ -7,6 +7,7 @@ import sqlalchemy as sa
 from tornado.ioloop import IOLoop
 
 import arrow
+import ast
 from healpix_alchemy import Tile
 from regions import Regions, CircleSkyRegion, RectangleSkyRegion, PolygonSkyRegion
 from astropy import coordinates
@@ -48,6 +49,9 @@ class InstrumentHandler(BaseHandler):
         )
 
         sensitivity_data = data.get("sensitivity_data", None)
+        if isinstance(sensitivity_data, str):
+            sensitivity_data = ast.literal_eval(sensitivity_data.replace("\'", "\""))
+
         if sensitivity_data:
             filters = data.get("filters", [])
             if not set(sensitivity_data.keys()).issubset(filters):
@@ -593,6 +597,9 @@ class InstrumentHandler(BaseHandler):
 
         filters = instrument.filters
         sensitivity_data = data.get('sensitivity_data', None)
+        if isinstance(sensitivity_data, str):
+            sensitivity_data = ast.literal_eval(sensitivity_data.replace("\'", "\""))
+
         if sensitivity_data:
             if not set(sensitivity_data.keys()).issubset(filters):
                 return self.error(

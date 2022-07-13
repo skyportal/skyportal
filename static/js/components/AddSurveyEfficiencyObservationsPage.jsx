@@ -41,7 +41,7 @@ const AddSurveyEfficiencyObservationsPage = ({ gcnevent }) => {
   return (
     <>
       <Button
-        variant="contained"
+        variant="outlined"
         size="small"
         onClick={openDialog}
         data-testid={`addSimSurveyButton_${gcnevent.id}`}

@@ -1636,23 +1636,6 @@ def test_sources_hidden_photometry_not_leaked(
     assert data['status'] == 'success'
     photometry_id = data['data']['ids'][0]
 
-    # Check the photometry sent back with the source
-    status, data = api(
-        "GET",
-        "sources",
-        params={"group_ids": f"{public_group.id}", "includePhotometry": "true"},
-        token=view_only_token,
-    )
-    assert status == 200
-    assert len(data["data"]["sources"]) == 1
-    assert data["data"]["sources"][0]["id"] == obj_id
-    assert len(public_source.photometry) - 1 == len(
-        data["data"]["sources"][0]["photometry"]
-    )
-    assert photometry_id not in map(
-        lambda x: x["id"], data["data"]["sources"][0]["photometry"]
-    )
-
     # Check for single GET call as well
     status, data = api(
         "GET",

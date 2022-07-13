@@ -933,9 +933,12 @@ class CandidateHandler(BaseHandler):
                     selected_groups_annotations + other_annotations
                 )
                 if len(obj.photstats) > 0:
-                    candidate_list[-1]["last_detected_at"] = Time(
-                        obj.photstats[-1].last_detected_mjd, format='mjd'
-                    ).datetime
+                    if obj.photstats[-1].last_detected_mjd is not None:
+                        candidate_list[-1]["last_detected_at"] = Time(
+                            obj.photstats[-1].last_detected_mjd, format='mjd'
+                        ).datetime
+                    else:
+                        candidate_list[-1]["last_detected_at"] = None
                 else:
                     candidate_list[-1]["last_detected_at"] = None
                 candidate_list[-1]["gal_lat"] = obj.gal_lat_deg

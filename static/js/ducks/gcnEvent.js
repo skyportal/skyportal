@@ -45,6 +45,9 @@ const CREATE_OBSERVATION_PLAN_REQUEST_OBSERVING_RUN =
 const DELETE_OBSERVATION_PLAN_FIELDS =
   "skyportal/DELETE_OBSERVATION_PLAN_FIELDS";
 
+const GET_GCNEVENT_SUMMARY = "skyportal/FETCH_GCNEVENT_SUMMARY";
+const GET_GCNEVENT_SUMMARY_OK = "skyportal/FETCH_GCNEVENT_SUMMARY_OK";
+
 export const fetchGcnEvent = (dateobs) =>
   API.GET(`/api/gcn_event/${dateobs}`, FETCH_GCNEVENT);
 
@@ -155,6 +158,13 @@ export function getCommentOnGcnEventAttachmentPreview(gcnEventID, commentID) {
   );
 }
 
+export function getGcnEventSummary({ dateobs, params }) {
+  return API.GET(
+    `/api/gcn_events/summary/${dateobs}`,
+    GET_GCNEVENT_SUMMARY,
+    params
+  );
+}
 // Websocket message handler
 messageHandler.add((actionType, payload, dispatch, getState) => {
   const { gcnEvent } = getState();
@@ -197,6 +207,12 @@ const reducer = (state = null, action) => {
           attachment,
           attachment_name,
         },
+      };
+    }
+    case GET_GCNEVENT_SUMMARY_OK: {
+      return {
+        ...state,
+        summary: action.data,
       };
     }
     default:
