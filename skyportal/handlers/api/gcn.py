@@ -677,7 +677,7 @@ class GcnSummaryHandler(BaseHandler):
     async def get(self, dateobs):
         """
         ---
-          description: Get a GCN summary.
+          description: Get a summary of a GCN event.
           tags:
             - observations
           parameters:
@@ -696,11 +696,14 @@ class GcnSummaryHandler(BaseHandler):
             - in: query
               name: userIds
               schema:
-                type: list
+                type: string
+              description: User ids to mention in the summary. Comma-separated.
             - in: query
               name: groupId
+              required: true
               schema:
                 type: string
+              description: id of the group that creates the summary.
             - in: query
               name: startDate
               required: true
@@ -714,65 +717,63 @@ class GcnSummaryHandler(BaseHandler):
                 type: string
               description: Filter by end date
             - in: query
+              name: localizationName
+              schema:
+                type: string
+              description: Name of localization / skymap to use.
+            - in: query
+              name: localizationCumprob
+              schema:
+                type: number
+              description: Cumulative probability up to which to include fields. Defaults to 0.95.
+            - in: query
               name: showSources
               required: true
               schema:
                 type: bool
+              description: Show sources in the summary
             - in: query
               name: showGalaxies
               required: true
               schema:
                 type: bool
+              description: Show galaxies in the summary
             - in: query
               name: showObservations
               required: true
               schema:
                 type: bool
-              description: Filter by end date
-            - in: query
-              name: localizationDateobs
-              schema:
-                type: string
+              description: Show observations in the summary
             - in: query
               name: noText
               schema:
                 type: bool
-            - in: query
-              name: localizationName
-              schema:
-                type: string
-              description: |
-                Name of localization / skymap to use.
-                Can be found in Localization.localization_name queried from
-                /api/localization endpoint or skymap name in GcnEvent page
-                table.
-            - in: query
-              name: localizationCumprob
-              schema:
-                type: number
-              description: |
-                Cumulative probability up to which to include fields.
-                Defaults to 0.95.
+              description: Do not include text in the summary, only tables.
           responses:
             200:
               content:
                 application/json:
-                  schema: ArrayOfExecutedObservations
+                  schema:
+                    allOf:
+                      - $ref: '#/components/schemas/Success'
+                      - type: object
+                        properties:
+                          data:
+                            type: string
+                            description: GCN summary
             400:
               content:
                 application/json:
                   schema: Error
         """
 
-        title = self.get_query_argument("title")
+        title = self.get_query_argument("title", None)
         number = self.get_query_argument("number", None)
         subject = self.get_query_argument("subject")
-        user_ids = self.get_query_argument(
-            "userIds", None
-        )  # to fix, string instead of list -> TEMPORARY
+        user_ids = self.get_query_argument("userIds", None)
         group_id = self.get_query_argument("groupId", None)
-        start_date = self.get_query_argument('startDate')
-        end_date = self.get_query_argument('endDate')
+        start_date = self.get_query_argument('startDate', None)
+        end_date = self.get_query_argument('endDate', None)
         localization_name = self.get_query_argument('localizationName', None)
         localization_cumprob = self.get_query_argument('localizationCumprob', 0.95)
         show_sources = self.get_query_argument('showSources', False)
