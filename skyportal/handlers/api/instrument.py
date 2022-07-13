@@ -392,7 +392,7 @@ class InstrumentHandler(BaseHandler):
                         elif includeGeoJSONSummary:
                             undefer_column = 'contour_summary'
                         tiles = (
-                            session.execute(
+                            session.scalars(
                                 sa.select(InstrumentField)
                                 .filter(
                                     LocalizationTile.localization_id == localization.id,
@@ -412,7 +412,7 @@ class InstrumentHandler(BaseHandler):
                     else:
                         tiles = (
                             (
-                                session.execute(
+                                session.scalars(
                                     sa.select(InstrumentField).filter(
                                         LocalizationTile.localization_id
                                         == localization.id,
@@ -432,7 +432,7 @@ class InstrumentHandler(BaseHandler):
                         )
                     data['fields'] = [
                         {**tile.to_dict(), 'airmass': tile.airmass(time=airmass_time)}
-                        for tile, in tiles
+                        for tile in tiles
                     ]
 
                 return self.success(data=data)
