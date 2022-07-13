@@ -7,6 +7,7 @@ from skyportal.tests import api
 from tdtax import taxonomy, __version__
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.action_chains import ActionChains
+from selenium.webdriver.common.by import By
 
 
 def test_token_acls_options_rendering1(driver, user):
@@ -35,7 +36,7 @@ def test_add_and_see_realname_in_user_profile(driver, user):
     last_name_entry.send_keys(last_name)
 
     driver.scroll_to_element_and_click(
-        driver.find_element_by_xpath('//*[@id="updateProfileButton"]')
+        driver.find_element(By.XPATH, '//*[@id="updateProfileButton"]')
     )
 
     # now that we added the name, let's see if it's displayed correctly
@@ -62,7 +63,7 @@ def test_add_and_see_affiliations_in_user_profile(driver, user):
     affiliations_entry.send_keys(Keys.ENTER)
 
     driver.scroll_to_element_and_click(
-        driver.find_element_by_xpath('//*[@id="updateProfileButton"]')
+        driver.find_element(By.XPATH, '//*[@id="updateProfileButton"]')
     )
 
     # now that we added the affiliations, let's see if they are displayed correctly
@@ -104,7 +105,7 @@ def test_add_data_to_user_profile(driver, user):
     phone_entry.send_keys(phone)
 
     driver.scroll_to_element_and_click(
-        driver.find_element_by_xpath('//*[@id="updateProfileButton"]')
+        driver.find_element(By.XPATH, '//*[@id="updateProfileButton"]')
     )
 
 

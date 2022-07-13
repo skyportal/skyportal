@@ -1439,7 +1439,7 @@ class ObservationTreasureMapHandler(BaseHandler):
                 if altdata and 'TREASUREMAP_API_TOKEN' in altdata:
                     api_token = altdata['TREASUREMAP_API_TOKEN']
             if not api_token:
-                raise self.error('Missing allocation information.')
+                return self.error('Missing allocation information.')
 
             graceid = event.graceid
             payload = {"graceid": graceid, "api_token": api_token}
@@ -1546,7 +1546,7 @@ class ObservationTreasureMapHandler(BaseHandler):
             if altdata and 'TREASUREMAP_API_TOKEN' in altdata:
                 api_token = altdata['TREASUREMAP_API_TOKEN']
         if not api_token:
-            raise self.error('Missing allocation information.')
+            return self.error('Missing allocation information.')
 
         graceid = event.graceid
         payload = {
