@@ -809,21 +809,18 @@ class GcnSummaryHandler(BaseHandler):
             return self.error(message="Missing end_date")
 
         with self.Session() as session:
-
             contents = []
-
-            event = (
-                GcnEvent.query_records_accessible_by(
-                    self.current_user,
-                )
-                .filter(GcnEvent.dateobs == dateobs)
-                .first()
+            stmt = GcnEvent.select(session.user_or_token).where(
+                GcnEvent.dateobs == dateobs
             )
+            event = session.scalars(stmt).first()
 
             if event is None:
                 return self.error("Event not found", status=404)
             if not no_text:
-                group = Group.query.filter_by(id=group_id).first()
+
+                stmt = Group.select(session.user_or_token).where(Group.id == group_id)
+                group = session.scalars(stmt).first()
                 if group is None:
                     return self.error(f"Group not found with ID {group_id}")
 
@@ -926,13 +923,10 @@ class GcnSummaryHandler(BaseHandler):
                     )
                     # now, create a photometry table per source
                     for source in sources:
-                        photometry = (
-                            Photometry.query_records_accessible_by(
-                                self.current_user, mode='read'
-                            )
-                            .filter(Photometry.obj_id == source['id'])
-                            .all()
+                        stmt = Photometry.select(session.user_or_token).where(
+                            Photometry.obj_id == source['id']
                         )
+                        photometry = session.scalars(stmt).all()
                         if len(photometry) > 0:
                             sources_text.append(
                                 f"""\nPhotometry for source {source['id']}:\n"""
@@ -1010,8 +1004,7 @@ class GcnSummaryHandler(BaseHandler):
                 # get the galaxies in the event
                 while True:
                     galaxies_data = get_galaxies(
-                        user=self.associated_user_object,
-                        session=session,
+                        session,
                         localization_dateobs=event.dateobs,
                         localization_name=localization_name,
                         localization_cumprob=localization_cumprob,
@@ -1070,12 +1063,10 @@ class GcnSummaryHandler(BaseHandler):
                 start_date = arrow.get(start_date.strip()).datetime
                 end_date = arrow.get(end_date.strip()).datetime
 
-                instruments = Instrument.query_records_accessible_by(
-                    self.current_user,
-                    options=[
-                        joinedload(Instrument.telescope),
-                    ],
-                ).filter()
+                stmt = Instrument.select(session.user_or_token).options(
+                    joinedload(Instrument.telescope)
+                )
+                instruments = session.scalars(stmt).all()
                 if instruments is None:
                     return self.error("No instruments found")
 

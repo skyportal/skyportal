@@ -1,6 +1,7 @@
 from tornado.ioloop import IOLoop
 from geojson import Point, Feature
 import sqlalchemy as sa
+from sqlalchemy import func
 from sqlalchemy.orm import sessionmaker, scoped_session
 import astropy.units as u
 import healpix_alchemy as ha
@@ -22,7 +23,6 @@ MAX_GALAXIES = 10000
 
 
 def get_galaxies(
-    user,
     session,
     catalog_name=None,
     localization_dateobs=None,
@@ -34,12 +34,15 @@ def get_galaxies(
     num_per_page=MAX_GALAXIES,
 ):
     if catalog_names_only:
-        catalogs = session.execute(sa.select(Galaxy.catalog_name).distinct()).all()
+        stmt = Galaxy.select(session.user_or_token).distinct(Galaxy.catalog_name)
+        catalogs = session.scalars(stmt).all()
         query_result = []
         for (catalog_name,) in catalogs:
-            query = Galaxy.query_records_accessible_by(user, mode="read")
-            query = query.filter(Galaxy.catalog_name == catalog_name)
-            total_matches = query.count()
+            stmt = Galaxy.select(session.user_or_token).where(
+                Galaxy.catalog_name == catalog_name
+            )
+            count_stmt = sa.select(func.count()).select_from(stmt)
+            total_matches = session.execute(count_stmt).scalar()
             query_result.append(
                 {
                     'catalog_name': catalog_name,
@@ -49,22 +52,22 @@ def get_galaxies(
 
         return query_result
 
-    query = Galaxy.query_records_accessible_by(user, mode="read")
+    query = Galaxy.select(session.user_or_token)
     if catalog_name is not None:
-        query = query.filter(Galaxy.catalog_name == catalog_name)
+        query = query.where(Galaxy.catalog_name == catalog_name)
 
     if localization_dateobs is not None:
 
         if localization_name is not None:
             localization = (
-                Localization.query_records_accessible_by(user)
+                Localization.query_records_accessible_by(session.user_or_token)
                 .filter(Localization.dateobs == localization_dateobs)
                 .filter(Localization.localization_name == localization_name)
                 .first()
             )
         else:
             localization = (
-                Localization.query_records_accessible_by(user)
+                Localization.query_records_accessible_by(session.user_or_token)
                 .filter(Localization.dateobs == localization_dateobs)
                 .first()
             )
@@ -108,7 +111,8 @@ def get_galaxies(
             Galaxy.id == tiles_subquery.c.id,
         )
 
-    total_matches = query.count()
+    count_stmt = sa.select(func.count()).select_from(query)
+    total_matches = session.execute(count_stmt).scalar()
     if num_per_page is not None:
         query = (
             query.distinct()
@@ -116,7 +120,7 @@ def get_galaxies(
             .offset((page_number - 1) * num_per_page)
         )
 
-    galaxies = query.all()
+    galaxies = session.scalars(query).all()
     query_results = {"galaxies": galaxies, "totalMatches": int(total_matches)}
 
     if includeGeoJSON:
@@ -311,10 +315,9 @@ class GalaxyCatalogHandler(BaseHandler):
             num_per_page = int(num_per_page)
         except ValueError as e:
             return self.error(f'numPerPage fails: {e}')
-        with Session() as session:
+        with self.Session() as session:
             try:
                 data = get_galaxies(
-                    self.current_user,
                     session,
                     catalog_name,
                     localization_dateobs,
@@ -328,7 +331,7 @@ class GalaxyCatalogHandler(BaseHandler):
                 self.verify_and_commit()
                 return self.success(data)
             except Exception as e:
-                return self.error(e, status_code=404)
+                return self.error(f'get_galaxies fails: {e}')
 
 
 def add_galaxies(catalog_name, catalog_data):
