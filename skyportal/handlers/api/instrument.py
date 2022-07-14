@@ -51,6 +51,7 @@ class InstrumentHandler(BaseHandler):
         sensitivity_data = data.get("sensitivity_data", None)
         if isinstance(sensitivity_data, str):
             sensitivity_data = ast.literal_eval(sensitivity_data.replace("\'", "\""))
+            data['sensitivity_data'] = sensitivity_data
 
         if sensitivity_data:
             filters = data.get("filters", [])
@@ -498,6 +499,7 @@ class InstrumentHandler(BaseHandler):
         sensitivity_data = data.get('sensitivity_data', None)
         if isinstance(sensitivity_data, str):
             sensitivity_data = ast.literal_eval(sensitivity_data.replace("\'", "\""))
+            data['sensitivity_data'] = sensitivity_data
 
         if sensitivity_data:
             if not set(sensitivity_data.keys()).issubset(filters):
