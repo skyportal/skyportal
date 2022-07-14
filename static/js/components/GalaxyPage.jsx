@@ -80,6 +80,10 @@ const GalaxyList = ({ catalogs, deletePermission, setCatalogs }) => {
     );
   };
 
+  if (!Array.isArray(catalogs)) {
+    return <p>Waiting for galaxy catalogs to load...</p>;
+  }
+
   return (
     <div className={classes.root}>
       <List component="nav">

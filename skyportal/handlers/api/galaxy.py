@@ -34,10 +34,12 @@ def get_galaxies(
     num_per_page=MAX_GALAXIES,
 ):
     if catalog_names_only:
-        stmt = Galaxy.select(session.user_or_token).distinct(Galaxy.catalog_name)
+        stmt = Galaxy.select(
+            session.user_or_token, columns=[Galaxy.catalog_name]
+        ).distinct(Galaxy.catalog_name)
         catalogs = session.scalars(stmt).all()
         query_result = []
-        for (catalog_name,) in catalogs:
+        for catalog_name in catalogs:
             stmt = Galaxy.select(session.user_or_token).where(
                 Galaxy.catalog_name == catalog_name
             )
@@ -332,6 +334,37 @@ class GalaxyCatalogHandler(BaseHandler):
                 return self.success(data)
             except Exception as e:
                 return self.error(f'get_galaxies fails: {e}')
+
+    @permissions(['System admin'])
+    def delete(self, catalog_name):
+        """
+        ---
+        description: Delete a galaxy catalog
+        tags:
+          - instruments
+        parameters:
+          - in: path
+            name: catalog_name
+            required: true
+            schema:
+              type: str
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+
+        with self.Session() as session:
+            session.execute(
+                sa.delete(Galaxy).where(Galaxy.catalog_name == catalog_name)
+            )
+            session.commit()
+            return self.success()
 
 
 def add_galaxies(catalog_name, catalog_data):
