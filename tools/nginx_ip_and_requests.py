@@ -15,7 +15,7 @@ matplotlib.rc('font', **font)
 matplotlib.use("Agg")
 
 
-def create_ip_chart(filenames, outfile='requests.pdf'):
+def create_ip_chart(filenames, outfile='requests.pdf', verb_to_report='ALL'):
     """Read nginx-access.log(s) and plot the IP addresses as pie chart.
     filenames: str
         Comma delimited list of files
@@ -35,10 +35,15 @@ def create_ip_chart(filenames, outfile='requests.pdf'):
         )
 
         request_parsed = []
+        indices = []
         for index, row in df.iterrows():
             request = row['request'].replace('"', '').replace('HTTP/1.1', '')
             requestSplit = list(filter(None, request.split(" ")))
             verb = requestSplit[0]
+            if verb_to_report != "ALL":
+                if verb != verb_to_report:
+                    continue
+            indices.append(index)
             path = " ".join(requestSplit[1:])
             parsed = urllib.parse.urlparse(path)
             if "/api" in parsed.path:
@@ -48,6 +53,7 @@ def create_ip_chart(filenames, outfile='requests.pdf'):
 
             request_parsed.append(f"{verb} {path}")
 
+        df = df.iloc[indices]
         df['request_parsed'] = request_parsed
 
         if ii == 0:
