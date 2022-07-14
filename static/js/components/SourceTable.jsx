@@ -298,6 +298,7 @@ const SourceTable = ({
   sortingCallback,
   favoritesRemoveButton = false,
   hideTitle = false,
+  downloadCallback,
 }) => {
   // sourceStatus should be one of either "saved" (default) or "requested" to add a button to agree to save the source.
   // If groupID is not given, show all data available to user's accessible groups
@@ -1121,17 +1122,15 @@ const SourceTable = ({
     onRowExpansionChange: (_, allRowsExpanded) => {
       setOpenedRows(allRowsExpanded.map((i) => i.dataIndex));
     },
-    onDownload: (buildHead, buildBody, columnsDownload, data) => {
-      const renderDownloadClassification = (dataIndex) => {
-        const source = sources[dataIndex];
+    onDownload: (buildHead, buildBody) => {
+      const renderDownloadClassification = (source) => {
         const classifications = [];
         source?.classifications.forEach((x) => {
           classifications.push(x.classification);
         });
         return classifications.join(";");
       };
-      const renderDownloadGroups = (dataIndex) => {
-        const source = sources[dataIndex];
+      const renderDownloadGroups = (source) => {
         const groups = [];
         source?.groups.forEach((x) => {
           groups.push(x.name);
@@ -1139,91 +1138,96 @@ const SourceTable = ({
         return groups.join(";");
       };
 
-      const renderDownloadDateSaved = (dataIndex) => {
-        const source = sources[dataIndex];
-        return getDate(source)?.substring(0, 19);
-      };
+      const renderDownloadDateSaved = (source) =>
+        getDate(source)?.substring(0, 19);
 
-      const renderDownloadAlias = (dataIndex) => {
-        const { alias } = sources[dataIndex];
+      const renderDownloadAlias = (source) => {
+        const alias = source?.alias;
         let alias_str = "";
         if (alias) {
           alias_str = Array.isArray(alias) ? alias.join(";") : alias;
         }
         return alias_str;
       };
-      const renderDownloadOrigin = (dataIndex) => {
-        const { origin } = sources[dataIndex];
-        return origin;
-      };
-      const renderDownloadTNSName = (dataIndex) => {
-        const source = sources[dataIndex];
-        return source.altdata && source.altdata.tns
-          ? source.altdata.tns.name
-          : "";
-      };
+      const renderDownloadTNSName = (source) =>
+        source?.altdata && source.altdata.tns ? source.altdata.tns.name : "";
 
-      return (
-        buildHead([
-          {
-            name: "id",
-            download: true,
-          },
-          {
-            name: "ra [deg]",
-            download: true,
-          },
-          {
-            name: "dec [deg]",
-            download: true,
-          },
-          {
-            name: "redshift",
-            download: true,
-          },
-          {
-            name: "classification",
-            download: true,
-          },
-          {
-            name: "groups",
-            download: true,
-          },
-          {
-            name: "Date saved",
-            download: true,
-          },
-          {
-            name: "Alias",
-            download: true,
-          },
-          {
-            name: "Origin",
-            download: true,
-          },
-          {
-            name: "TNS Name",
-            download: true,
-          },
-        ]) +
-        buildBody(
-          data.map((x) => ({
-            ...x,
-            data: [
-              x.data[0],
-              x.data[4],
-              x.data[5],
-              x.data[8],
-              renderDownloadClassification(x.index),
-              renderDownloadGroups(x.index),
-              renderDownloadDateSaved(x.index),
-              renderDownloadAlias(x.index),
-              renderDownloadOrigin(x.index),
-              renderDownloadTNSName(x.index),
-            ],
-          }))
-        )
-      );
+      downloadCallback().then((data) => {
+        // if there is no data, cancel download
+        if (data?.length > 0) {
+          const result =
+            buildHead([
+              {
+                name: "id",
+                download: true,
+              },
+              {
+                name: "ra [deg]",
+                download: true,
+              },
+              {
+                name: "dec [deg]",
+                download: true,
+              },
+              {
+                name: "redshift",
+                download: true,
+              },
+              {
+                name: "classification",
+                download: true,
+              },
+              {
+                name: "groups",
+                download: true,
+              },
+              {
+                name: "Date saved",
+                download: true,
+              },
+              {
+                name: "Alias",
+                download: true,
+              },
+              {
+                name: "Origin",
+                download: true,
+              },
+              {
+                name: "TNS Name",
+                download: true,
+              },
+            ]) +
+            buildBody(
+              data.map((x) => ({
+                ...x,
+                data: [
+                  x.id,
+                  x.ra,
+                  x.dec,
+                  x.redshift,
+                  renderDownloadClassification(x),
+                  renderDownloadGroups(x),
+                  renderDownloadDateSaved(x),
+                  renderDownloadAlias(x),
+                  x.origin,
+                  renderDownloadTNSName(x),
+                ],
+              }))
+            );
+          const blob = new Blob([result], {
+            type: "text/csv;charset=utf-8;",
+          });
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.href = url;
+          link.setAttribute("download", "sources.csv");
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        }
+      });
+      return false;
     },
   };
 
@@ -1329,6 +1333,7 @@ SourceTable.propTypes = {
   sortingCallback: PropTypes.func,
   favoritesRemoveButton: PropTypes.bool,
   hideTitle: PropTypes.bool,
+  downloadCallback: PropTypes.func.isRequired,
 };
 
 SourceTable.defaultProps = {

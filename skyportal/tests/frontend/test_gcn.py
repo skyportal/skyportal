@@ -8,124 +8,58 @@ import pandas as pd
 from regions import Regions
 from astropy.table import Table
 
+from selenium.webdriver.common.keys import Keys
 
-def test_gcn_GW(super_admin_token, view_only_token):
+from baselayer.app.config import load_config
+from os.path import join as pjoin
 
-    datafile = f'{os.path.dirname(__file__)}/../data/GW190425_initial.xml'
-    with open(datafile, 'rb') as fid:
-        payload = fid.read()
-    data = {'xml': payload}
+cfg = load_config()
 
-    status, data = api('POST', 'gcn_event', data=data, token=super_admin_token)
-    assert status == 200
-    assert data['status'] == 'success'
 
-    dateobs = "2019-04-25 08:18:05"
-    params = {"include2DMap": True}
+def get_summary(driver, user, group, showSources, showGalaxies, showObservations):
+    driver.get(f'/become_user/{user.id}')
+    driver.get('/gcn_events/2019-08-14T21:10:39')
 
-    status, data = api('GET', f'gcn_event/{dateobs}', token=super_admin_token)
-    assert status == 200
-    data = data["data"]
-    assert data["dateobs"] == "2019-04-25T08:18:05"
-    assert 'GW' in data["tags"]
-
-    skymap = "bayestar.fits.gz"
-    status, data = api(
-        'GET',
-        f'localization/{dateobs}/name/{skymap}',
-        token=super_admin_token,
-        params=params,
+    summary_button = driver.wait_for_xpath_to_be_clickable(
+        '//button[@name="gcn_summary"]'
     )
+    driver.scroll_to_element_and_click(summary_button)
 
-    data = data["data"]
-    assert data["dateobs"] == "2019-04-25T08:18:05"
-    assert data["localization_name"] == "bayestar.fits.gz"
-    assert np.isclose(np.sum(data["flat_2d"]), 1)
+    group_select = '//*[@aria-labelledby="group-select"]'
+    driver.wait_for_xpath(group_select)
+    driver.click_xpath(group_select)
+    group_select_option = f'//li[contains(., "{group.name}")]'
+    driver.wait_for_xpath(group_select_option)
+    driver.click_xpath(group_select_option)
 
-    status, data = api(
-        'DELETE',
-        f'localization/{dateobs}/name/{skymap}',
-        token=view_only_token,
-    )
-    assert status == 400
+    if showSources is True:
+        show_sources = '//*[@label="Show Sources"]'
+        driver.wait_for_xpath(show_sources)
+        driver.click_xpath(show_sources)
+    if showGalaxies is True:
+        show_galaxies = '//*[@label="Show Galaxies"]'
+        driver.wait_for_xpath(show_galaxies)
+        driver.click_xpath(show_galaxies)
+    if showObservations is True:
+        show_observations = '//*[@label="Show Observations"]'
+        driver.wait_for_xpath(show_observations)
+        driver.click_xpath(show_observations)
 
-    status, data = api(
-        'DELETE',
-        f'localization/{dateobs}/name/{skymap}',
-        token=super_admin_token,
-    )
-    assert status == 200
+    get_summary_button = '//button[contains(.,"Get Summary")]'
+    element = driver.wait_for_xpath(get_summary_button)
+    element.send_keys(Keys.END)
+    driver.click_xpath(get_summary_button)
 
+    text_area = '//textarea[@id="text"]'
+    driver.wait_for_xpath(text_area, timeout=60)
+    driver.wait_for_xpath('//textarea[contains(.,"TITLE: GCN SUMMARY")]', 60)
 
-def test_gcn_Fermi(super_admin_token, view_only_token):
-
-    datafile = f'{os.path.dirname(__file__)}/../data/GRB180116A_Fermi_GBM_Gnd_Pos.xml'
-    with open(datafile, 'rb') as fid:
-        payload = fid.read()
-    data = {'xml': payload}
-
-    status, data = api('POST', 'gcn_event', data=data, token=super_admin_token)
-    assert status == 200
-    assert data['status'] == 'success'
-
-    dateobs = "2018-01-16 00:36:53"
-    params = {"include2DMap": True}
-
-    status, data = api('GET', f'gcn_event/{dateobs}', token=super_admin_token)
-    assert status == 200
-    data = data["data"]
-    assert data["dateobs"] == "2018-01-16T00:36:53"
-    assert 'GRB' in data["tags"]
-
-    skymap = "214.74000_28.14000_11.19000"
-    status, data = api(
-        'GET',
-        f'localization/{dateobs}/name/{skymap}',
-        token=super_admin_token,
-        params=params,
-    )
-
-    data = data["data"]
-    assert data["dateobs"] == "2018-01-16T00:36:53"
-    assert data["localization_name"] == "214.74000_28.14000_11.19000"
-    assert np.isclose(np.sum(data["flat_2d"]), 1)
-
-    status, data = api(
-        'DELETE',
-        f'localization/{dateobs}/name/{skymap}',
-        token=view_only_token,
-    )
-    assert status == 400
-
-    status, data = api(
-        'DELETE',
-        f'localization/{dateobs}/name/{skymap}',
-        token=super_admin_token,
-    )
-    assert status == 200
-
-
-def test_gcn_IPN(super_admin_token, view_only_token):
-
-    skymap = f'{os.path.dirname(__file__)}/../data/GRB220617A_IPN_map_hpx.fits.gz'
-    dateobs = '2022-06-17T18:31:12'
-    tags = ['IPN', 'GRB']
-
-    data = {'dateobs': dateobs, 'skymap': skymap, 'tags': tags}
-
-    status, data = api('POST', 'gcn_event', data=data, token=super_admin_token)
-    assert status == 200
-    assert data['status'] == 'success'
-
-    dateobs = "2022-06-17 18:31:12"
-    status, data = api('GET', f'gcn_event/{dateobs}', token=super_admin_token)
-    assert status == 200
-    data = data["data"]
-    assert data["dateobs"] == "2022-06-17T18:31:12"
-    assert 'IPN' in data["tags"]
+    download_button = '//button[contains(.,"Download")]'
+    driver.click_xpath(download_button)
 
 
 def test_gcn_summary_sources(
+    driver,
     super_admin_user,
     super_admin_token,
     view_only_token,
@@ -227,70 +161,68 @@ def test_gcn_summary_sources(
         "noText": False,
     }
 
-    status, data = api(
-        'GET',
-        'gcn_events/summary/2019-08-14T21:10:39',
-        params=params,
-        token=super_admin_token,
-    )
+    get_summary(driver, super_admin_user, public_group, True, False, False)
 
-    assert status == 200
-    data = data["data"]
-
-    assert "TITLE: GCN SUMMARY" in data[0]
-    assert "SUBJECT: Follow-up" in data[1]
-    assert "DATE" in data[2]
-    assert (
-        f"FROM:  {super_admin_user.first_name} {super_admin_user.last_name} at Affiliation <{super_admin_user.contact_email}>"
-        in data[3]
+    fpath = str(
+        os.path.abspath(
+            pjoin(cfg['paths.downloads_folder'], 'Gcn Summary_2019-08-14T21 10 39.txt')
+        )
     )
-    assert (
-        f"{super_admin_user.first_name.upper()[0]}. {super_admin_user.last_name} (Affiliation)"
-        in data[4]
-    )
-    assert f"on behalf of the {public_group.name}, report:" in data[5]
+    try_count = 1
+    while not os.path.exists(fpath) and try_count <= 5:
+        try_count += 1
+        time.sleep(1)
+    assert os.path.exists(fpath)
 
-    # sources
-    assert (
-        "Found" in data[6]
-        and "in the event's localization, given the specified date range:" in data[6]
-    )
-    sources_table = data[7].split('\n')
-    assert (
-        len(sources_table) >= 6
-    )  # other sources have probably been added in previous tests
-    assert "id" in sources_table[1]
-    assert "alias" in sources_table[1]
-    assert "ra" in sources_table[1]
-    assert "dec" in sources_table[1]
-    assert "redshift" in sources_table[1]
+    try:
+        with open(fpath) as f:
+            lines = f.read()
+        data = lines.split('\n')
+        assert "TITLE: GCN SUMMARY" in data[0]
+        assert "SUBJECT: Follow-up" in data[1]
+        assert "DATE" in data[2]
+        assert (
+            f"FROM:  {super_admin_user.first_name} {super_admin_user.last_name} at Affiliation <{super_admin_user.contact_email}>"
+            in data[3]
+        )
+        assert f"on behalf of the {public_group.name}, report:" in data[5]
 
-    # source phot
-    assert "Photometry for source" in data[8]
-    source_table = data[9].split('\n')
-    assert (
-        len(source_table) >= 6
-    )  # other photometry have probably been added in previous tests
-    assert "mjd" in source_table[1]
-    assert "ra" in source_table[1]
-    assert "dec" in source_table[1]
-    assert "mag±err (ab)" in source_table[1]
-    assert "filter" in source_table[1]
-    assert "origin" in source_table[1]
-    assert "instrument" in source_table[1]
+        assert any(
+            "Found" in line
+            and "in the event's localization, given the specified date range:" in line
+            for line in data
+        )
+        assert any(
+            "id" in line
+            and "alias" in line
+            and "ra" in line
+            and "dec" in line
+            and "redshift" in line
+            for line in data
+        )
+
+        # source phot
+        assert any("Photometry for source" in line for line in data)
+        assert any(
+            "mjd" in line
+            and "ra" in line
+            and "dec" in line
+            and "mag±err (ab)" in line
+            and "filter" in line
+            for line in data
+        )
+    finally:
+        os.remove(fpath)
 
 
 def test_gcn_summary_galaxies(
+    driver,
     super_admin_user,
     super_admin_token,
     view_only_token,
     public_group,
-    ztf_camera,
-    upload_data_token,
 ):
-
     catalog_name = 'test_galaxy_catalog'
-
     # in case the catalog already exists, delete it.
     status, data = api(
         'DELETE', f'galaxy_catalog/{catalog_name}', token=super_admin_token
@@ -379,45 +311,53 @@ def test_gcn_summary_galaxies(
         "startDate": "2019-08-13 08:18:05",
         "endDate": "2019-08-19 08:18:05",
         "localizationCumprob": 0.99,
-        "showSources": False,
-        "showGalaxies": True,
+        "showSources": True,
+        "showGalaxies": False,
         "showObservations": False,
         "noText": False,
     }
 
-    status, data = api(
-        'GET',
-        'gcn_events/summary/2019-08-14T21:10:39',
-        params=params,
-        token=super_admin_token,
-    )
-    assert status == 200
-    data = data["data"]
+    get_summary(driver, super_admin_user, public_group, False, True, False)
 
-    assert "TITLE: GCN SUMMARY" in data[0]
-    assert "SUBJECT: Follow-up" in data[1]
-    assert "DATE" in data[2]
-    assert (
-        f"FROM:  {super_admin_user.first_name} {super_admin_user.last_name} at Affiliation <{super_admin_user.contact_email}>"
-        in data[3]
+    fpath = str(
+        os.path.abspath(
+            pjoin(cfg['paths.downloads_folder'], 'Gcn Summary_2019-08-14T21 10 39.txt')
+        )
     )
-    assert (
-        f"{super_admin_user.first_name.upper()[0]}. {super_admin_user.last_name} (Affiliation)"
-        in data[4]
-    )
-    assert f"on behalf of the {public_group.name}, report:" in data[5]
+    try_count = 1
+    while not os.path.exists(fpath) and try_count <= 5:
+        try_count += 1
+        time.sleep(1)
+    assert os.path.exists(fpath)
 
-    # galaxies
-    assert "Found 82 galaxies in the event's localization:" in data[6]
+    try:
+        with open(fpath) as f:
+            lines = f.read()
+        data = lines.split('\n')
+        assert "TITLE: GCN SUMMARY" in data[0]
+        assert "SUBJECT: Follow-up" in data[1]
+        assert "DATE" in data[2]
+        assert (
+            f"FROM:  {super_admin_user.first_name} {super_admin_user.last_name} at Affiliation <{super_admin_user.contact_email}>"
+            in data[3]
+        )
+        assert f"on behalf of the {public_group.name}, report:" in data[5]
 
-    galaxy_table = data[7].split('\n')
-    assert len(galaxy_table) == 87
-    assert "catalog" in galaxy_table[1]
-    assert "name" in galaxy_table[1]
-    assert "ra" in galaxy_table[1]
-    assert "dec" in galaxy_table[1]
-    assert "distmpc" in galaxy_table[1]
-    assert "redshift" in galaxy_table[1]
+        assert any(
+            "Found 82 galaxies in the event's localization:" in line for line in data
+        )
+        assert any(
+            "catalog" in line
+            and "name" in line
+            and "ra" in line
+            and "dec" in line
+            and "distmpc" in line
+            and "redshift" in line
+            for line in data
+        )
+
+    finally:
+        os.remove(fpath)
 
     status, data = api(
         'DELETE', f'galaxy_catalog/{catalog_name}', token=super_admin_token
@@ -425,14 +365,11 @@ def test_gcn_summary_galaxies(
 
 
 def test_gcn_summary_observations(
+    driver,
     super_admin_user,
     super_admin_token,
-    view_only_token,
     public_group,
-    ztf_camera,
-    upload_data_token,
 ):
-
     datafile = f'{os.path.dirname(__file__)}/../../../data/GW190814.xml'
     with open(datafile, 'rb') as fid:
         payload = fid.read()
@@ -644,46 +581,55 @@ def test_gcn_summary_observations(
         "startDate": "2019-08-13 08:18:05",
         "endDate": "2019-08-19 08:18:05",
         "localizationCumprob": 0.99,
-        "showSources": False,
+        "showSources": True,
         "showGalaxies": False,
-        "showObservations": True,
+        "showObservations": False,
         "noText": False,
     }
 
-    status, data = api(
-        'GET',
-        'gcn_events/summary/2019-08-14T21:10:39',
-        params=params,
-        token=super_admin_token,
+    get_summary(driver, super_admin_user, public_group, False, False, True)
+
+    fpath = str(
+        os.path.abspath(
+            pjoin(cfg['paths.downloads_folder'], 'Gcn Summary_2019-08-14T21 10 39.txt')
+        )
     )
-    assert status == 200
-    data = data["data"]
+    try_count = 1
+    while not os.path.exists(fpath) and try_count <= 5:
+        try_count += 1
+        time.sleep(1)
+    assert os.path.exists(fpath)
 
-    assert "TITLE: GCN SUMMARY" in data[0]
-    assert "SUBJECT: Follow-up" in data[1]
-    assert "DATE" in data[2]
-    assert (
-        f"FROM:  {super_admin_user.first_name} {super_admin_user.last_name} at Affiliation <{super_admin_user.contact_email}>"
-        in data[3]
-    )
-    assert (
-        f"{super_admin_user.first_name.upper()[0]}. {super_admin_user.last_name} (Affiliation)"
-        in data[4]
-    )
-    assert f"on behalf of the {public_group.name}, report:" in data[5]
+    try:
+        with open(fpath) as f:
+            lines = f.read()
+        data = lines.split('\n')
+        print(data)
+        assert "TITLE: GCN SUMMARY" in data[0]
+        assert "SUBJECT: Follow-up" in data[1]
+        assert "DATE" in data[2]
+        assert (
+            f"FROM:  {super_admin_user.first_name} {super_admin_user.last_name} at Affiliation <{super_admin_user.contact_email}>"
+            in data[3]
+        )
+        assert f"on behalf of the {public_group.name}, report:" in data[5]
 
-    # obs
-    assert "Observations:" in data[6]
+        assert any("Observations:" in line for line in data)
+        assert any(
+            'We observed the localization region of LVC trigger 2019-08-14T21:10:39.000 UTC'
+            in line
+            for line in data
+        )
+        assert any(
+            "T-T0 (hr)" in line
+            and "mjd" in line
+            and "ra" in line
+            and "dec" in line
+            and "filter" in line
+            and "exposure" in line
+            and "limmag (ab)" in line
+            for line in data
+        )
 
-    obs_summary_text = 'We observed the localization region of LVC trigger 2019-08-14T21:10:39.000 UTC.  We obtained a total of 9 images covering ztfr bands for a total of 270 seconds. The observations covered 715.2 square degrees beginning at 2019-08-17T01:00:00.288 (2 days after the burst trigger time) corresponding to ~9% of the probability enclosed in the localization region.'
-    assert obs_summary_text in data[7]
-
-    obs_table = data[8].split('\n')
-    assert len(obs_table) >= 14  # other obs have probably been added in previous tests
-    assert "T-T0 (hr)" in obs_table[1]
-    assert "mjd" in obs_table[1]
-    assert "ra" in obs_table[1]
-    assert "dec" in obs_table[1]
-    assert "filter" in obs_table[1]
-    assert "exposure" in obs_table[1]
-    assert "limmag (ab)" in obs_table[1]
+    finally:
+        os.remove(fpath)

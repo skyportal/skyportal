@@ -1075,20 +1075,14 @@ class AnalysisHandler(BaseHandler):
                 analysis = session.scalars(stmt).first()
                 if analysis is None:
                     return self.error('Cannot access this Analysis.', status=403)
-
                 session.delete(analysis)
                 session.commit()
-
                 return self.success()
             else:
                 return self.error(
                     f'analysis_resource_type must be one of {", ".join(["obj"])}',
                     status=404,
                 )
-
-
-def serialize_results_data():
-    pass
 
 
 class AnalysisProductsHandler(BaseHandler):
@@ -1140,6 +1134,8 @@ class AnalysisProductsHandler(BaseHandler):
                 properties:
                   plot_kwargs:
                     type: object
+                    additionalProperties:
+                      type: object
                     description: |
                         Extra parameters to pass to the plotting functions
                         if new plots are to be generated (e.g. with corner plots)
