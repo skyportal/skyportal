@@ -8,6 +8,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import fire
+import urllib
 
 font = {'family': 'normal', 'weight': 'bold', 'size': 24}
 matplotlib.rc('font', **font)
@@ -22,47 +23,6 @@ def create_ip_chart(filenames, outfile='requests.pdf'):
         Path to the output file
     """
 
-    verbs = ['GET', 'PUT', 'POST', 'PATCH', 'PUT', 'HEAD', 'DELETE']
-    endpoints = [
-        '/index',
-        '/baselayer',
-        '/static',
-        '/source',
-        '/complete',
-        '/owa',
-        '/api/allocation',
-        '/api/listing',
-        '/api/candidates',
-        '/api/groups',
-        '/api/sources',
-        '/api/source',
-        '/api/filters',
-        '/api/instrument',
-        '/api/allocations',
-        '/api/internal',
-        '/api/telescope',
-        '/api/tns_robot',
-        '/api/tns_info',
-        '/api/archive',
-        '/api/alerts_aux',
-        '/api/spectrum',
-        '/api/newsfeed',
-        '/api/alerts_cutouts',
-        '/api/streams',
-        '/api/observing_run',
-        '/api/shifts',
-        '/api/default_observation_plan',
-        '/api/photometry',
-        '/api/observation',
-        '/api/followup_request',
-        '/api/galaxy_catalog',
-        '/api/user',
-        '/api/gcn_event',
-        '/api/spectra',
-        '/api/alerts',
-        '/api/roles',
-    ]
-
     for ii, fn in enumerate(filenames.split(",")):
         df = pd.read_csv(
             fn,
@@ -74,11 +34,21 @@ def create_ip_chart(filenames, outfile='requests.pdf'):
             header=None,
         )
 
-        for verb in verbs:
-            for endpoint in endpoints:
-                df['request'][
-                    df['request'].str.contains(f"{verb} {endpoint}", case=False)
-                ] = f"{verb} {endpoint}"
+        request_parsed = []
+        for index, row in df.iterrows():
+            request = row['request'].replace('"', '').replace('HTTP/1.1', '')
+            requestSplit = list(filter(None, request.split(" ")))
+            verb = requestSplit[0]
+            path = " ".join(requestSplit[1:])
+            parsed = urllib.parse.urlparse(path)
+            if "/api" in parsed.path:
+                path = "/".join(parsed.path.split("/")[:3])
+            else:
+                path = "/".join(parsed.path.split("/")[:2])
+
+            request_parsed.append(f"{verb} {path}")
+
+        df['request_parsed'] = request_parsed
 
         if ii == 0:
             df_all = df
@@ -117,12 +87,12 @@ def create_ip_chart(filenames, outfile='requests.pdf'):
     ax1.axis('equal')
     ax1.set_title('IP Addresses')
 
-    df_group = df_all.groupby(['request'])
+    df_group = df_all.groupby(['request_parsed'])
     labels = []
     values = []
     for name, group in df_group:
         labels.append(name)
-        values.append(group.count()['request'])
+        values.append(group.count()['request_parsed'])
 
     labels = [x for _, x in sorted(zip(values, labels), key=lambda pair: pair[0])]
     values = sorted(values)
