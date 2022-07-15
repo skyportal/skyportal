@@ -69,6 +69,7 @@ from skyportal.handlers.api import (
     ObjHandler,
     ObjPhotometryHandler,
     ObjClassificationHandler,
+    ObjClassificationQueryHandler,
     ObjTNSHandler,
     ObservationHandler,
     ObservationGCNHandler,
@@ -174,6 +175,7 @@ skyportal_handlers = [
     (r'/api/candidates(/[0-9A-Za-z-_]+)/([0-9]+)', CandidateHandler),
     (r'/api/candidates(/.*)?', CandidateHandler),
     (r'/api/classification(/[0-9]+)?', ClassificationHandler),
+    (r'/api/classification_objects(/.*)?', ObjClassificationQueryHandler),
     (r'/api/enum_types(/.*)?', EnumTypesHandler),
     (
         r'/api/default_observation_plan(/[0-9A-Za-z-_\.\+]+)?',

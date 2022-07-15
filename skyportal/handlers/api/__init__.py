@@ -6,7 +6,11 @@ from .analysis import (
     AnalysisProductsHandler,
 )
 from .candidate import CandidateHandler
-from .classification import ClassificationHandler, ObjClassificationHandler
+from .classification import (
+    ClassificationHandler,
+    ObjClassificationHandler,
+    ObjClassificationQueryHandler,
+)
 from .comment import CommentHandler, CommentAttachmentHandler
 from .annotation import AnnotationHandler
 from .annotation_services import (
