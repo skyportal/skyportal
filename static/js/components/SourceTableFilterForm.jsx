@@ -13,7 +13,6 @@ import Typography from "@mui/material/Typography";
 import Input from "@mui/material/Input";
 import Chip from "@mui/material/Chip";
 import Select from "@mui/material/Select";
-import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
 import { useForm, Controller } from "react-hook-form";
 
@@ -87,7 +86,15 @@ const useStyles = makeStyles((theme) => ({
     },
   },
   select: {
-    width: "25%",
+    width: "40%",
+    height: "3rem",
+  },
+  selectItems: {
+    display: "flex",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "left",
+    gap: "0.25rem",
   },
   selectItem: {
     whiteSpace: "break-spaces",
@@ -142,7 +149,7 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const { handleSubmit, register, control, reset } = useForm();
+  const { handleSubmit, register, control, reset, getValues } = useForm();
 
   const handleClickReset = () => {
     reset();
@@ -153,6 +160,16 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
   gcnEvents?.events.forEach((gcnEvent) => {
     gcnEventsLookUp[gcnEvent.id] = gcnEvent;
   });
+
+  const gcnEventsSelect = gcnEvents
+    ? [
+        {
+          id: -1,
+          dateobs: "Clear Selection",
+        },
+        ...gcnEvents.events,
+      ]
+    : [];
 
   const handleFilterPreSubmit = (formData) => {
     if (formData.gcneventid !== "") {
@@ -643,64 +660,77 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
             placeholder="2021-01-01T00:00:00"
           />
         </div>
-        <div>
-          <InputLabel id="gcnEventSelectLabel">GCN Event</InputLabel>
-          <Controller
-            render={({ onChange, value }) => (
-              <Select
-                inputProps={{ MenuProps: { disableScrollLock: true } }}
-                labelId="gcnEventSelectLabel"
-                value={value || ""}
-                onChange={(event) => {
-                  setSelectedGcnEventId(event.target.value);
-                  onChange(event.target.value);
-                }}
-                className={classes.select}
-              >
-                {gcnEvents?.events.map((gcnEvent) => (
-                  <MenuItem
-                    value={gcnEvent.id}
-                    key={gcnEvent.id}
-                    className={classes.selectItem}
-                  >
-                    {`${gcnEvent.dateobs}`}
-                  </MenuItem>
-                ))}
-              </Select>
-            )}
-            name="gcneventid"
-            control={control}
-            defaultValue=""
-          />
-          <Controller
-            render={({ onChange, value }) => (
-              <Select
-                inputProps={{ MenuProps: { disableScrollLock: true } }}
-                labelId="localizationSelectLabel"
-                value={value || ""}
-                onChange={(event) => {
-                  onChange(event.target.value);
-                }}
-                className={classes.select}
-                disabled={!selectedGcnEventId}
-              >
-                {gcnEventsLookUp[selectedGcnEventId]?.localizations?.map(
-                  (localization) => (
+        <div className={classes.formItemRightColumn}>
+          <Typography variant="subtitle2" className={classes.title}>
+            GCN Event
+          </Typography>
+          <div className={classes.selectItems}>
+            <Controller
+              render={({ value }) => (
+                <Select
+                  inputProps={{ MenuProps: { disableScrollLock: true } }}
+                  labelId="gcnEventSelectLabel"
+                  value={value || ""}
+                  onChange={(event) => {
+                    reset({
+                      ...getValues(),
+                      gcneventid:
+                        event.target.value === -1 ? "" : event.target.value,
+                      localizationid:
+                        event.target.value === -1
+                          ? ""
+                          : gcnEventsLookUp[event.target.value]
+                              ?.localizations[0]?.id || "",
+                    });
+                    setSelectedGcnEventId(event.target.value);
+                  }}
+                  className={classes.select}
+                >
+                  {gcnEventsSelect?.map((gcnEvent) => (
                     <MenuItem
-                      value={localization.id}
-                      key={localization.id}
+                      value={gcnEvent.id}
+                      key={gcnEvent.id}
                       className={classes.selectItem}
                     >
-                      {`${localization.localization_name}`}
+                      {`${gcnEvent.dateobs}`}
                     </MenuItem>
-                  )
-                )}
-              </Select>
-            )}
-            name="localizationid"
-            control={control}
-            defaultValue=""
-          />
+                  ))}
+                </Select>
+              )}
+              name="gcneventid"
+              control={control}
+              defaultValue=""
+            />
+            <Controller
+              render={({ onChange, value }) => (
+                <Select
+                  inputProps={{ MenuProps: { disableScrollLock: true } }}
+                  labelId="localizationSelectLabel"
+                  value={value || ""}
+                  onChange={(event) => {
+                    onChange(event.target.value);
+                  }}
+                  className={classes.select}
+                  disabled={!selectedGcnEventId}
+                >
+                  {gcnEventsLookUp[selectedGcnEventId]?.localizations?.map(
+                    (localization) => (
+                      <MenuItem
+                        value={localization.id}
+                        key={localization.id}
+                        className={classes.selectItem}
+                      >
+                        {`${localization.localization_name}`}
+                      </MenuItem>
+                    )
+                  )}
+                </Select>
+              )}
+              name="localizationid"
+              control={control}
+              defaultValue=""
+            />
+          </div>
         </div>
         <div className={classes.formButtons}>
           <ButtonGroup
