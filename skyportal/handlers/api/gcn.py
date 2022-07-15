@@ -479,8 +479,7 @@ class GcnEventHandler(BaseHandler):
                     if sort_order == "asc"
                     else [GcnEvent.dateobs.desc()]
                 )
-            # if sort_by == "localizations":
-            #     order by last localization date ??? name ?
+
         if order_by is None:
             order_by = [GcnEvent.dateobs.desc()]
 
