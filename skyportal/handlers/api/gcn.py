@@ -79,17 +79,18 @@ def post_gcnevent_from_xml(payload, user_id, session):
 
     dateobs = get_dateobs(root)
 
-    try:
-        event = GcnEvent.query.filter_by(dateobs=dateobs).one()
+    event = session.scalars(
+        GcnEvent.select(user).where(GcnEvent.dateobs == dateobs)
+    ).first()
 
+    if event is None:
+        event = GcnEvent(dateobs=dateobs, sent_by_id=user.id)
+        session.add(event)
+    else:
         if not event.is_accessible_by(user, mode="update"):
             raise ValueError(
                 "Insufficient permissions: GCN event can only be updated by original poster"
             )
-
-    except NoResultFound:
-        event = GcnEvent(dateobs=dateobs, sent_by_id=user.id)
-        session.add(event)
 
     tags = [
         GcnTag(
@@ -160,17 +161,18 @@ def post_gcnevent_from_dictionary(payload, user_id, session):
 
     dateobs = payload['dateobs']
 
-    try:
-        event = GcnEvent.query.filter_by(dateobs=dateobs).one()
+    event = session.scalars(
+        GcnEvent.select(user).where(GcnEvent.dateobs == dateobs)
+    ).first()
 
+    if event is None:
+        event = GcnEvent(dateobs=dateobs, sent_by_id=user.id)
+        session.add(event)
+    else:
         if not event.is_accessible_by(user, mode="update"):
             raise ValueError(
                 "Insufficient permissions: GCN event can only be updated by original poster"
             )
-
-    except NoResultFound:
-        event = GcnEvent(dateobs=dateobs, sent_by_id=user.id)
-        session.add(event)
 
     tags = [
         GcnTag(
@@ -190,10 +192,12 @@ def post_gcnevent_from_dictionary(payload, user_id, session):
         return event.id
 
     if type(skymap) is dict:
-        required_keys = {'ra', 'dec', 'error'}
+        required_keys = {'localization_name', 'uniq', 'probdensity'}
         if not required_keys.issubset(set(skymap.keys())):
-            raise ValueError("ra, dec, and error must be in skymap to parse")
-        skymap = from_cone(skymap['ra'], skymap['dec'], skymap['error'])
+            required_cone_keys = {'ra', 'dec', 'error'}
+            if not required_cone_keys.issubset(set(skymap.keys())):
+                raise ValueError("ra, dec, and error must be in skymap to parse")
+            skymap = from_cone(skymap['ra'], skymap['dec'], skymap['error'])
     else:
         skymap = from_url(skymap)
 
@@ -370,7 +374,7 @@ class GcnEventHandler(BaseHandler):
                     "Either xml or dateobs must be present in data to parse GcnEvent"
                 )
 
-        with DBSession() as session:
+        with self.Session() as session:
             if 'xml' in data:
                 event_id = post_gcnevent_from_xml(
                     data['xml'], self.associated_user_object.id, session
