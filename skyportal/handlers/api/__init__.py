@@ -3,6 +3,7 @@ from .allocation import AllocationHandler, AllocationReportHandler
 from .analysis import (
     AnalysisServiceHandler,
     AnalysisHandler,
+    AnalysisProductsHandler,
 )
 from .candidate import CandidateHandler
 from .classification import ClassificationHandler, ObjClassificationHandler
@@ -29,6 +30,7 @@ from .gcn import (
     GcnEventHandler,
     GcnEventObservationPlanRequestsHandler,
     GcnEventSurveyEfficiencyHandler,
+    GcnSummaryHandler,
     LocalizationHandler,
 )
 from .group import (
