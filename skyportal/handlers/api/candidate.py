@@ -508,9 +508,12 @@ class CandidateHandler(BaseHandler):
                     .all()
                 )
             if len(c.photstats) > 0:
-                candidate_info["last_detected_at"] = Time(
-                    c.photstats[-1].last_detected_mjd, format='mjd'
-                ).datetime
+                if c.photstats[-1].last_detected_mjd is not None:
+                    candidate_info["last_detected_at"] = Time(
+                        c.photstats[-1].last_detected_mjd, format='mjd'
+                    ).datetime
+                else:
+                    candidate_info["last_detected_at"] = None
             else:
                 candidate_info["last_detected_at"] = None
             candidate_info["gal_lon"] = c.gal_lon_deg
