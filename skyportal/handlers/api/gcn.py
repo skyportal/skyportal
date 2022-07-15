@@ -412,6 +412,9 @@ class GcnEventHandler(BaseHandler):
         except ValueError as e:
             return self.error(f'numPerPage fails: {e}')
 
+        sort_by = self.get_query_argument("sortBy", None)
+        sort_order = self.get_query_argument("sortOrder", "asc")
+
         if dateobs is not None:
             event = (
                 GcnEvent.query_records_accessible_by(
@@ -467,6 +470,22 @@ class GcnEventHandler(BaseHandler):
         )
 
         total_matches = query.count()
+
+        order_by = None
+        if sort_by is not None:
+            if sort_by == "dateobs":
+                order_by = (
+                    [GcnEvent.dateobs]
+                    if sort_order == "asc"
+                    else [GcnEvent.dateobs.desc()]
+                )
+            # if sort_by == "localizations":
+            #     order by last localization date ??? name ?
+        if order_by is None:
+            order_by = [GcnEvent.dateobs.desc()]
+
+        query = query.order_by(*order_by)
+
         if n_per_page is not None:
             query = (
                 query.distinct()
