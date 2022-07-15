@@ -607,6 +607,14 @@ sources:
       - =program_A
       - =program_B
     redshift: 3
+  - id: ZTF20abwysqy
+    ra: 6.7856144
+    dec: 34.8442757
+    group_ids:
+      - =public_group_id
+      - =program_A
+      - =program_B
+    redshift: 0.7481
 
 sources/ZTF21aaqjmps/comments:
   - obj_id: ZTF21aaqjmps
@@ -744,6 +752,16 @@ photometry:
     instrument_id: =ZTF
     assignment_id: 2
     file: ZTFinGCN_phot.csv
+    group_ids:
+      - =program_A
+      - =program_B
+    stream_ids:
+      - =ztf_public
+      - =ztf_partnership
+  - obj_id: ZTF20abwysqy
+    instrument_id: =ZTF
+    assignment_id: 2
+    file: ZTF20abwysqy_phot.csv
     group_ids:
       - =program_A
       - =program_B
