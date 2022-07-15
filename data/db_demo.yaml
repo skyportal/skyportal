@@ -609,7 +609,7 @@ sources:
     redshift: 3
   - id: ZTF20abwysqy
     ra: 6.7856144
-    dec: 34.8442757
+    dec: 34.027306
     group_ids:
       - =public_group_id
       - =program_A
@@ -895,6 +895,7 @@ gcn_event:
       file: ../skyportal/tests/data/GRB180116A_Fermi_GBM_Gnd_Pos.xml
   - xml:
       file: ./GW190814.xml
+
 
 gcn_event/1/comments:
   - text: "This is a test comment"
