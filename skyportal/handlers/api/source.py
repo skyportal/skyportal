@@ -179,15 +179,21 @@ def get_source(
                 lambda: add_linked_thumbnails_and_push_ws_msg(obj_id, user.id),
             )
     if include_comments:
-        comments = session.scalars(
-            Comment.select(
-                user,
-                options=[
-                    joinedload(Comment.author),
-                    joinedload(Comment.groups),
-                ],
-            ).where(Comment.obj_id == obj_id)
-        ).all()
+        comments = (
+            session.scalars(
+                Comment.select(
+                    user,
+                    options=[
+                        joinedload(Comment.author),
+                        joinedload(Comment.groups),
+                    ],
+                )
+                .where(Comment.obj_id == obj_id)
+                .distinct()
+            )
+            .unique()
+            .all()
+        )
         source_info["comments"] = sorted(
             (
                 {
@@ -220,7 +226,10 @@ def get_source(
             Annotation.select(user)
             .options(joinedload(Annotation.author))
             .where(Annotation.obj_id == obj_id)
-        ).all(),
+            .distinct()
+        )
+        .unique()
+        .all(),
         key=lambda x: x.origin,
     )
     readable_classifications = session.scalars(
