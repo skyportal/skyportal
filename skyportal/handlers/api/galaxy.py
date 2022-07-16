@@ -61,18 +61,18 @@ def get_galaxies(
     if localization_dateobs is not None:
 
         if localization_name is not None:
-            localization = (
-                Localization.query_records_accessible_by(session.user_or_token)
-                .filter(Localization.dateobs == localization_dateobs)
-                .filter(Localization.localization_name == localization_name)
-                .first()
-            )
+            localization = session.scalars(
+                Localization.select(session.user_or_token).where(
+                    Localization.dateobs == localization_dateobs,
+                    Localization.localization_name == localization_name,
+                )
+            ).first()
         else:
-            localization = (
-                Localization.query_records_accessible_by(session.user_or_token)
-                .filter(Localization.dateobs == localization_dateobs)
-                .first()
-            )
+            localization = session.scalars(
+                Localization.select(session.user_or_token).where(
+                    Localization.dateobs == localization_dateobs,
+                )
+            ).first()
         if localization is None:
             if localization_name is not None:
                 raise (
@@ -93,14 +93,14 @@ def get_galaxies(
         ).subquery()
 
         min_probdensity = (
-            sa.select(
-                sa.func.min(localizationtile_subquery.columns.probdensity)
-            ).filter(localizationtile_subquery.columns.cum_prob <= localization_cumprob)
+            sa.select(sa.func.min(localizationtile_subquery.columns.probdensity)).where(
+                localizationtile_subquery.columns.cum_prob <= localization_cumprob
+            )
         ).scalar_subquery()
 
         tiles_subquery = (
             sa.select(Galaxy.id)
-            .filter(
+            .where(
                 LocalizationTile.localization_id == localization.id,
                 LocalizationTile.healpix.contains(Galaxy.healpix),
                 LocalizationTile.probdensity >= min_probdensity,
