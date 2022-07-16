@@ -1203,10 +1203,11 @@ def post_source(data, user_id, session):
 
     user = session.query(User).get(user_id)
 
-    obj_already_exists = (
-        session.scalars(Obj.select(user).where(Obj.id == data["id"])).first()
-        is not None
-    )
+    obj = session.scalars(Obj.select(user).where(Obj.id == data["id"])).first()
+    if obj is None:
+        obj_already_exists = False
+    else:
+        obj_already_exists = True
     schema = Obj.__schema__()
 
     ra = data.get('ra', None)
@@ -1235,13 +1236,14 @@ def post_source(data, user_id, session):
             "one valid group ID that you belong to."
         )
 
-    try:
-        obj = schema.load(data)
-    except ValidationError as e:
-        raise ValidationError(
-            'Invalid/missing parameters: ' f'{e.normalized_messages()}'
-        )
-    session.add(obj)
+    if not obj_already_exists:
+        try:
+            obj = schema.load(data)
+        except ValidationError as e:
+            raise ValidationError(
+                'Invalid/missing parameters: ' f'{e.normalized_messages()}'
+            )
+        session.add(obj)
 
     if (ra is not None) and (dec is not None):
         # This adds a healpix index for a new object being created
