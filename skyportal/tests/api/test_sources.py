@@ -13,6 +13,8 @@ from skyportal.models import cosmo
 from datetime import datetime, timezone, timedelta
 from dateutil import parser
 
+import pytest
+
 
 def test_source_list(view_only_token):
     status, data = api("GET", "sources", token=view_only_token)
@@ -77,6 +79,7 @@ def test_token_user_retrieving_source_with_phot_exists(view_only_token, public_s
     )
 
 
+@pytest.mark.flaky(reruns=2)
 def test_token_user_retrieving_source_with_thumbnails(view_only_token, public_source):
     status, data = api(
         "GET",
