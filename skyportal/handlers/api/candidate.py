@@ -1030,9 +1030,14 @@ class CandidateHandler(BaseHandler):
         data = self.get_json()
 
         with self.Session() as session:
-            obj_already_exists = (
-                session.scalars(Obj.select(session.user_or_token)).first() is not None
-            )
+
+            obj = session.scalars(
+                Obj.select(session.user_or_token).where(Obj.id == data["id"])
+            ).first()
+            if obj is None:
+                obj_already_exists = False
+            else:
+                obj_already_exists = True
             schema = Obj.__schema__()
 
             ra = data.get('ra', None)
@@ -1054,12 +1059,15 @@ class CandidateHandler(BaseHandler):
             except KeyError:
                 return self.error("Missing required filter_ids parameter.")
 
-            try:
-                obj = schema.load(data)
-            except ValidationError as e:
-                return self.error(
-                    "Invalid/missing parameters: " f"{e.normalized_messages()}"
-                )
+            if not obj_already_exists:
+                try:
+                    obj = schema.load(data)
+                except ValidationError as e:
+                    return self.error(
+                        "Invalid/missing parameters: " f"{e.normalized_messages()}"
+                    )
+                session.add(obj)
+
             filters = session.scalars(
                 Filter.select(session.user_or_token).where(Filter.id.in_(filter_ids))
             )
@@ -1067,7 +1075,6 @@ class CandidateHandler(BaseHandler):
                 return self.error("At least one valid filter ID must be provided.")
 
             update_redshift_history_if_relevant(data, obj, self.associated_user_object)
-            session.add(obj)
 
             candidates = [
                 Candidate(
