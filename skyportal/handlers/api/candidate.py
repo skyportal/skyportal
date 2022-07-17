@@ -1075,6 +1075,7 @@ class CandidateHandler(BaseHandler):
                 return self.error("At least one valid filter ID must be provided.")
 
             update_redshift_history_if_relevant(data, obj, self.associated_user_object)
+            update_healpix_if_relevant(data, obj)
 
             candidates = [
                 Candidate(
