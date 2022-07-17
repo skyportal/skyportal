@@ -168,7 +168,7 @@ def get_source(
         if "ps1" not in existing_thumbnail_types:
             IOLoop.current().run_in_executor(
                 None,
-                lambda: add_ps1_thumbnail_and_push_ws_msg(obj_id, user.id),
+                lambda: add_ps1_thumbnail_and_push_ws_msg(obj_id, user_id),
             )
         if (
             "sdss" not in existing_thumbnail_types
@@ -176,7 +176,7 @@ def get_source(
         ):
             IOLoop.current().run_in_executor(
                 None,
-                lambda: add_linked_thumbnails_and_push_ws_msg(obj_id, user.id),
+                lambda: add_linked_thumbnails_and_push_ws_msg(obj_id, user_id),
             )
     if include_comments:
         comments = (
