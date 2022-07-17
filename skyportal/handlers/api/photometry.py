@@ -1109,7 +1109,6 @@ class PhotometryHandler(BaseHandler):
                                 photometr_id=photometry_id, stream_id=stream.id
                             )
                         )
-            session.commit()
 
             phot_stat = session.scalars(
                 PhotStat.select(session.user_or_token, mode="update").where(
@@ -1117,12 +1116,18 @@ class PhotometryHandler(BaseHandler):
                 )
             ).first()
             if phot_stat is not None:
-                all_phot = session.scalars(
-                    sa.select(Photometry).where(Photometry.obj_id == photometry.obj_id)
-                ).all()
+                all_phot = (
+                    session.scalars(
+                        Photometry.select(session.user_or_token)
+                        .where(Photometry.obj_id == photometry.obj_id)
+                        .distinct()
+                    )
+                    .unique()
+                    .all()
+                )
                 phot_stat.full_update(all_phot)
 
-            session.commit()  # this happens above a user level permission
+            session.commit()
 
             return self.success()
 
@@ -1170,14 +1175,18 @@ class PhotometryHandler(BaseHandler):
                 )
             ).first()
             if phot_stat is not None:
-                all_phot = session.scalars(
-                    Photometry.select(session.user_or_token).where(
-                        Photometry.obj_id == photometry.obj_id
+                all_phot = (
+                    session.scalars(
+                        Photometry.select(session.user_or_token)
+                        .where(Photometry.obj_id == photometry.obj_id)
+                        .distinct()
                     )
-                ).all()
+                    .unique()
+                    .all()
+                )
                 phot_stat.full_update(all_phot)
 
-            session.commit()  # this happens above a user level permission
+            session.commit()
 
             return self.success()
 
@@ -1200,11 +1209,15 @@ class ObjPhotometryHandler(BaseHandler):
                     status=403,
                 )
 
-            photometry = session.scalars(
-                Photometry.select(session.user_or_token).where(
-                    Photometry.obj_id == obj_id
+            photometry = (
+                session.scalars(
+                    Photometry.select(session.user_or_token)
+                    .where(Photometry.obj_id == obj_id)
+                    .distinct()
                 )
-            ).all()
+                .unique()
+                .all()
+            )
 
             data = [serialize(phot, outsys, format) for phot in photometry]
 
