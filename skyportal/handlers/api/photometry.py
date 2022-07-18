@@ -1313,7 +1313,6 @@ class PhotometryRangeHandler(BaseHandler):
             min_date = standardized['min_date']
             max_date = standardized['max_date']
 
-
             gids = [g.id for g in self.current_user.accessible_groups]
 
             group_phot_subquery = (
