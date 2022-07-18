@@ -594,8 +594,14 @@ def test_filter_by_gcnevent(
     driver.get(f"/become_user/{user.id}")
     driver.get("/sources")
 
-    # Filter for alias
     driver.click_xpath("//button[@data-testid='Filter Table-iconButton']")
+
+    before_input = driver.wait_for_xpath('//input[@name="startDate"]')
+    before_input.send_keys("2019-08-14T21:10:39")
+
+    after_input = driver.wait_for_xpath('//input[@name="endDate"]')
+    after_input.send_keys("2019-08-21T21:10:39")
+
     gcnevent_select = driver.wait_for_xpath(
         '//*[@aria-labelledby="gcnEventSelectLabel"]'
     )
