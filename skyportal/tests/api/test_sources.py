@@ -1636,23 +1636,6 @@ def test_sources_hidden_photometry_not_leaked(
     assert data['status'] == 'success'
     photometry_id = data['data']['ids'][0]
 
-    # Check the photometry sent back with the source
-    status, data = api(
-        "GET",
-        "sources",
-        params={"group_ids": f"{public_group.id}", "includePhotometry": "true"},
-        token=view_only_token,
-    )
-    assert status == 200
-    assert len(data["data"]["sources"]) == 1
-    assert data["data"]["sources"][0]["id"] == obj_id
-    assert len(public_source.photometry) - 1 == len(
-        data["data"]["sources"][0]["photometry"]
-    )
-    assert photometry_id not in map(
-        lambda x: x["id"], data["data"]["sources"][0]["photometry"]
-    )
-
     # Check for single GET call as well
     status, data = api(
         "GET",
@@ -2038,3 +2021,47 @@ def test_token_user_retrieving_source_with_comment_filter(
     assert status == 200
     assert data["status"] == "success"
     assert len(data["data"]["sources"]) == 1
+
+
+def test_patch_healpix(upload_data_token, view_only_token, public_group):
+
+    obj_id = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "sources",
+        data={
+            "id": obj_id,
+            "redshift": 3,
+            "group_ids": [public_group.id],
+            "ra": 234.22,
+            "dec": -22.33,
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+
+    assert status == 200
+    status, data = api("GET", f"sources/{obj_id}", token=view_only_token)
+    assert status == 200
+    assert data["data"]["id"] == obj_id
+    assert data["data"]["healpix"] == 3120579787410559663
+
+    status, data = api(
+        "PATCH",
+        f"sources/{obj_id}",
+        data={
+            "ra": 230.22,
+            "dec": -22.33,
+            "transient": False,
+            "ra_dis": 2.3,
+            "redshift": 0.00001,
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data["status"] == "success"
+
+    status, data = api("GET", f"sources/{obj_id}", token=view_only_token)
+    assert status == 200
+    assert data["data"]["id"] == obj_id
+    assert data["data"]["healpix"] == 3126137476541327364

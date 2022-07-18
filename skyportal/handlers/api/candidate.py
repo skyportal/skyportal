@@ -4,6 +4,7 @@ import re
 import json
 import uuid
 from astropy.time import Time
+import astropy.units as u
 import string
 import arrow
 import numpy as np
@@ -18,6 +19,7 @@ from sqlalchemy.sql import column, Values
 from sqlalchemy.types import Float, Boolean, String, Integer
 from sqlalchemy.exc import IntegrityError
 from marshmallow.exceptions import ValidationError
+import healpix_alchemy as ha
 
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.model_util import recursive_to_dict
@@ -97,6 +99,25 @@ def update_redshift_history_if_relevant(request_data, obj, user):
 
         redshift_history.append(history_params)
         obj.redshift_history = redshift_history
+
+
+def update_healpix_if_relevant(request_data, obj):
+
+    # first check if the ra and dec is being updated
+    ra = request_data.get('ra', None)
+    dec = request_data.get('dec', None)
+
+    if (ra is not None) and (dec is not None):
+        # This adds a healpix index for a new object being created
+        obj.healpix = ha.constants.HPX.lonlat_to_healpix(ra * u.deg, dec * u.deg)
+        return
+
+    # otherwise make sure healpix is correct
+    if (obj.ra is not None) and (obj.dec is not None):
+        obj.healpix = ha.constants.HPX.lonlat_to_healpix(
+            obj.ra * u.deg, obj.dec * u.deg
+        )
+        return
 
 
 class CandidateHandler(BaseHandler):
@@ -487,9 +508,12 @@ class CandidateHandler(BaseHandler):
                     .all()
                 )
             if len(c.photstats) > 0:
-                candidate_info["last_detected_at"] = Time(
-                    c.photstats[-1].last_detected_mjd, format='mjd'
-                ).datetime
+                if c.photstats[-1].last_detected_mjd is not None:
+                    candidate_info["last_detected_at"] = Time(
+                        c.photstats[-1].last_detected_mjd, format='mjd'
+                    ).datetime
+                else:
+                    candidate_info["last_detected_at"] = None
             else:
                 candidate_info["last_detected_at"] = None
             candidate_info["gal_lon"] = c.gal_lon_deg
@@ -933,9 +957,12 @@ class CandidateHandler(BaseHandler):
                     selected_groups_annotations + other_annotations
                 )
                 if len(obj.photstats) > 0:
-                    candidate_list[-1]["last_detected_at"] = Time(
-                        obj.photstats[-1].last_detected_mjd, format='mjd'
-                    ).datetime
+                    if obj.photstats[-1].last_detected_mjd is not None:
+                        candidate_list[-1]["last_detected_at"] = Time(
+                            obj.photstats[-1].last_detected_mjd, format='mjd'
+                        ).datetime
+                    else:
+                        candidate_list[-1]["last_detected_at"] = None
                 else:
                     candidate_list[-1]["last_detected_at"] = None
                 candidate_list[-1]["gal_lat"] = obj.gal_lat_deg

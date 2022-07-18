@@ -112,8 +112,39 @@ results = joblib.load(base64.b64decode(data["analysis"]["results"]["data"]))
 
 A valid POST will immediately invalidate the unique token so that analysis entry cannot be posted to again (the user can simply restart an analysis with different parameters if they wish).
 
+### Getting specific analysis products programmatically
 
-### Supernova Fitter Example
+SkyPortal has an API endpoint that allows programmatic access to GET products (plots, results, and posterior visualization) produced by an analysis service.
+The GET endpoints are:
+
+Plots (return an image to display):
+```
+http://<skyportal_base>:5000/api/obj/analysis/<analysis_id>/plots/<plot_number>
+```
+
+Posterior viz (ie. return a corner plot image to display):
+```
+http://<skyportal_base>:5000/api/obj/analysis/<analysis_id>/corner
+```
+(attach corner plot kwargs in the body of the GET)
+
+Results (returned as a json):
+```
+http://<skyportal_base>:5000/api/obj/analysis/<analysis_id>/results
+```
+
+For example, to save the first plot of `analysis_id=32`, one can do something like this:
+
+```python
+import shutil
+url = "http://localhost:5000/api/obj/analysis/32/plots/0"
+r = requests.get(url, headers=header, stream=True)
+if r.status_code == 200:
+    with open('img.png', 'wb') as out_file:
+        shutil.copyfileobj(r.raw, out_file)
+```
+
+## Supernova Fitter Example
 
 SkyPortal ships with an example 3rd party analysis app to fit lightcurves with supernova models in `sncosmo` (see `services/sn_analysis_service/`). To use it locally, load the demo data to create an analysis service entry that establishes the SN fitter microservice:
 

@@ -4,6 +4,8 @@ import uuid
 import pandas as pd
 import time
 from regions import Regions
+from tdtax import taxonomy, __version__
+
 import pytest
 from skyportal.tests import api
 from selenium.webdriver.common.keys import Keys
@@ -952,3 +954,85 @@ def test_candidate_date_filtering(
     driver.scroll_to_element_and_click(submit_button)
     for i in range(5):
         driver.wait_for_xpath(f'//a[@data-testid="{candidate_id}_{i}"]', 10)
+
+
+def filter_for_user(driver, username):
+    # Helper function to filter for a specific user on the page
+    driver.click_xpath("//button[@data-testid='Filter Table-iconButton']")
+    username_input_xpath = "//input[@id='root_username']"
+    username_input = driver.wait_for_xpath(username_input_xpath)
+    driver.click_xpath(username_input_xpath)
+    username_input.send_keys(username)
+    driver.click_xpath(
+        "//div[contains(@class, 'MUIDataTableFilter-root')]//button[text()='Submit']",
+        scroll_parent=True,
+    )
+
+
+def test_user_expiration(
+    driver,
+    user,
+    super_admin_user,
+):
+    driver.get(f'/become_user/{super_admin_user.id}')
+    driver.get('/user_management')
+    filter_for_user(driver, user.username)
+
+    # Set expiration date to today
+    driver.click_xpath(f"//*[@data-testid='editUserExpirationDate{user.id}']")
+    date = datetime.now().strftime("%m/%d/%Y")
+    driver.wait_for_xpath("//input[@id='expirationDatePicker']").send_keys(date)
+    driver.click_xpath('//*[text()="Submit"]')
+
+    # Check that user deactivated
+    driver.get(f'/become_user/{user.id}')
+    driver.get("/")
+    driver.wait_for_xpath_to_disappear("//*[contains(text(), 'Top Sources')]")
+
+
+def test_slider_classifications(
+    driver,
+    public_source,
+    super_admin_user,
+    public_group,
+    taxonomy_token,
+):
+    test_taxonomy = "test taxonomy" + str(uuid.uuid4())
+    status, _ = api(
+        'POST',
+        'taxonomy',
+        data={
+            'name': test_taxonomy,
+            'hierarchy': taxonomy,
+            'group_ids': [public_group.id],
+            'provenance': f"tdtax_{__version__}",
+            'version': __version__,
+            'isLatest': True,
+        },
+        token=taxonomy_token,
+    )
+    assert status == 200
+
+    driver.get(f"/become_user/{super_admin_user.id}")  # become a super-user
+
+    # Go to the group sources page
+    driver.get(f"/group_sources/{public_group.id}")
+
+    # Wait for the group name appears
+    driver.wait_for_xpath(f"//*[text()[contains(., '{public_group.name}')]]")
+
+    # Expand public source row
+    driver.click_xpath("//*[@id='expandable-button']")
+
+    # Select test taxonomy
+    driver.click_xpath(f"//*[@id='taxonomy-select-{public_source.id}']")
+    driver.click_xpath(f"//li[text()='{test_taxonomy}']", scroll_parent=True)
+    driver.click_xpath("//h6[text()='Stellar variable']")
+
+    # Set 'Algol' slider to 0.5
+    driver.click_xpath("//span[@id='Algol']//span[@data-index='2']")
+    driver.click_xpath("//button[@name='submitClassificationsButton']")
+
+    # need to reload the page to see classification
+    driver.get(f"/group_sources/{public_group.id}")
+    driver.wait_for_xpath(f"//*[text()[contains(., '{'Algol'}')]]")

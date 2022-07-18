@@ -24,9 +24,9 @@ def test_api_rate_limiting(view_only_token):
         )
         if r.status_code != 200:
             break
-    # Based on baselayer's default nginx settings of max 5r/s + bursts of 10 (no delay)
+    # Based on baselayer's default nginx settings of max 10r/s + bursts of 10 (no delay)
     # See https://www.nginx.com/blog/rate-limiting-nginx/#bursts
-    assert 11 <= n_successful_requests <= 16
+    assert 11 <= n_successful_requests <= 20
     r = requests.get(
         f'http://{localhost_external_ip}:{cfg["ports.app"]}/api/sysinfo',
         headers={'Authorization': f'token {view_only_token}'},

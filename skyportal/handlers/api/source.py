@@ -63,6 +63,7 @@ from ...utils.offset import (
 from .candidate import (
     grab_query_results,
     update_redshift_history_if_relevant,
+    update_healpix_if_relevant,
     add_linked_thumbnails_and_push_ws_msg,
     Session,
 )
@@ -2020,14 +2021,35 @@ class SourceHandler(BaseHandler):
         is_token_request = isinstance(self.current_user, Token)
 
         if obj_id is not None:
-            with DBSession() as session:
-                source_info = get_source(
-                    obj_id,
+            with self.Session() as session:
+                try:
+                    source_info = get_source(
+                        obj_id,
+                        self.associated_user_object.id,
+                        session,
+                        include_thumbnails=include_thumbnails,
+                        include_comments=include_comments,
+                        include_photometry=include_photometry,
+                        include_photometry_exists=include_photometry_exists,
+                        include_spectrum_exists=include_spectrum_exists,
+                        include_period_exists=include_period_exists,
+                        include_detection_stats=include_detection_stats,
+                        is_token_request=is_token_request,
+                        include_requested=include_requested,
+                        requested_only=requested_only,
+                        include_color_mag=include_color_mag,
+                    )
+                except Exception as e:
+                    return self.error(f'Cannot retrieve source: {str(e)}')
+                return self.success(data=source_info)
+
+        with self.Session() as session:
+            try:
+                query_results = get_sources(
                     self.associated_user_object.id,
                     session,
                     include_thumbnails=include_thumbnails,
                     include_comments=include_comments,
-                    include_photometry=include_photometry,
                     include_photometry_exists=include_photometry_exists,
                     include_spectrum_exists=include_spectrum_exists,
                     include_period_exists=include_period_exists,
@@ -2036,69 +2058,55 @@ class SourceHandler(BaseHandler):
                     include_requested=include_requested,
                     requested_only=requested_only,
                     include_color_mag=include_color_mag,
+                    remove_nested=remove_nested,
+                    first_detected_date=first_detected_date,
+                    last_detected_date=last_detected_date,
+                    sourceID=sourceID,
+                    ra=ra,
+                    dec=dec,
+                    radius=radius,
+                    has_spectrum_before=has_spectrum_before,
+                    has_spectrum_after=has_spectrum_after,
+                    saved_before=saved_before,
+                    saved_after=saved_after,
+                    created_or_modified_after=created_or_modified_after,
+                    list_name=list_name,
+                    simbad_class=simbad_class,
+                    alias=alias,
+                    origin=origin,
+                    has_tns_name=has_tns_name,
+                    has_spectrum=has_spectrum,
+                    min_redshift=min_redshift,
+                    max_redshift=max_redshift,
+                    min_peak_magnitude=min_peak_magnitude,
+                    max_peak_magnitude=max_peak_magnitude,
+                    min_latest_magnitude=min_latest_magnitude,
+                    max_latest_magnitude=max_latest_magnitude,
+                    classifications=classifications,
+                    nonclassifications=nonclassifications,
+                    annotations_filter=annotations_filter,
+                    annotations_filter_origin=annotations_filter_origin,
+                    annotations_filter_before=annotations_filter_before,
+                    annotations_filter_after=annotations_filter_after,
+                    comments_filter=comments_filter,
+                    comments_filter_author=comments_filter_author,
+                    comments_filter_before=comments_filter_before,
+                    comments_filter_after=comments_filter_after,
+                    localization_dateobs=localization_dateobs,
+                    localization_name=localization_name,
+                    localization_cumprob=localization_cumprob,
+                    page_number=page_number,
+                    num_per_page=num_per_page,
+                    sort_by=sort_by,
+                    sort_order=sort_order,
+                    group_ids=group_ids,
+                    user_accessible_group_ids=user_accessible_group_ids,
+                    save_summary=save_summary,
+                    total_matches=total_matches,
+                    includeGeoJSON=includeGeoJSON,
                 )
-                return self.success(data=source_info)
-        with DBSession() as session:
-            query_results = get_sources(
-                self.associated_user_object.id,
-                session,
-                include_thumbnails=include_thumbnails,
-                include_comments=include_comments,
-                include_photometry_exists=include_photometry_exists,
-                include_spectrum_exists=include_spectrum_exists,
-                include_period_exists=include_period_exists,
-                include_detection_stats=include_detection_stats,
-                is_token_request=is_token_request,
-                include_requested=include_requested,
-                requested_only=requested_only,
-                include_color_mag=include_color_mag,
-                remove_nested=remove_nested,
-                first_detected_date=first_detected_date,
-                last_detected_date=last_detected_date,
-                sourceID=sourceID,
-                ra=ra,
-                dec=dec,
-                radius=radius,
-                has_spectrum_before=has_spectrum_before,
-                has_spectrum_after=has_spectrum_after,
-                saved_before=saved_before,
-                saved_after=saved_after,
-                created_or_modified_after=created_or_modified_after,
-                list_name=list_name,
-                simbad_class=simbad_class,
-                alias=alias,
-                origin=origin,
-                has_tns_name=has_tns_name,
-                has_spectrum=has_spectrum,
-                min_redshift=min_redshift,
-                max_redshift=max_redshift,
-                min_peak_magnitude=min_peak_magnitude,
-                max_peak_magnitude=max_peak_magnitude,
-                min_latest_magnitude=min_latest_magnitude,
-                max_latest_magnitude=max_latest_magnitude,
-                classifications=classifications,
-                nonclassifications=nonclassifications,
-                annotations_filter=annotations_filter,
-                annotations_filter_origin=annotations_filter_origin,
-                annotations_filter_before=annotations_filter_before,
-                annotations_filter_after=annotations_filter_after,
-                comments_filter=comments_filter,
-                comments_filter_author=comments_filter_author,
-                comments_filter_before=comments_filter_before,
-                comments_filter_after=comments_filter_after,
-                localization_dateobs=localization_dateobs,
-                localization_name=localization_name,
-                localization_cumprob=localization_cumprob,
-                page_number=page_number,
-                num_per_page=num_per_page,
-                sort_by=sort_by,
-                sort_order=sort_order,
-                group_ids=group_ids,
-                user_accessible_group_ids=user_accessible_group_ids,
-                save_summary=save_summary,
-                total_matches=total_matches,
-                includeGeoJSON=includeGeoJSON,
-            )
+            except Exception as e:
+                return self.error(f'Cannot retrieve sources: {str(e)}')
 
             return self.success(data=query_results)
 
@@ -2191,6 +2199,9 @@ class SourceHandler(BaseHandler):
                 'Invalid/missing parameters: ' f'{e.normalized_messages()}'
             )
         update_redshift_history_if_relevant(data, obj, self.associated_user_object)
+
+        update_healpix_if_relevant(data, obj)
+
         self.verify_and_commit()
         self.push_all(
             action="skyportal/REFRESH_SOURCE",
