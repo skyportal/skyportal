@@ -16,6 +16,8 @@ import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
 import { useForm, Controller } from "react-hook-form";
 
+import { showNotification } from "baselayer/components/Notifications";
+
 import { allowedClasses } from "./ClassificationForm";
 
 import * as gcnEventsActions from "../ducks/gcnEvents";
@@ -171,21 +173,60 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
       ]
     : [];
 
-  const handleFilterPreSubmit = (formData) => {
-    if (formData.gcneventid !== "") {
-      formData.localizationDateobs =
-        gcnEventsLookUp[formData.gcneventid]?.dateobs;
-      if (formData.localizationid !== "") {
-        formData.localizationName = gcnEventsLookUp[
-          formData.gcneventid
-        ]?.localizations?.filter(
-          (l) => l.id === formData.localizationid
-        )[0]?.localization_name;
-        formData.localizationid = "";
+  const validate = (formData) => {
+    let valid = true;
+    if (formData.gcneventid !== "" || formData.localizationid !== "") {
+      if (formData.startDate === "" || formData.endDate === "") {
+        dispatch(
+          showNotification(
+            "Please enter First and Last Detected dates when filtering by GCN Event",
+            "error"
+          )
+        );
+        valid = false;
+      } else if (new Date(formData.startDate) > new Date(formData.endDate)) {
+        dispatch(
+          showNotification(
+            "First Detected date must be before Last Detected date",
+            "error"
+          )
+        );
+        valid = false;
+      } // check if there are more than 31 days between start and end date
+      else if (
+        (new Date(formData.endDate) - new Date(formData.startDate)) /
+          (1000 * 60 * 60 * 24) >
+        31
+      ) {
+        dispatch(
+          showNotification(
+            "Please enter a date range less than 31 days",
+            "error"
+          )
+        );
+        valid = false;
       }
-      formData.gcneventid = "";
     }
-    handleFilterSubmit(formData);
+    return valid;
+  };
+
+  const handleFilterPreSubmit = (formData) => {
+    if (validate(formData)) {
+      if (formData.gcneventid !== "") {
+        formData.localizationDateobs =
+          gcnEventsLookUp[formData.gcneventid]?.dateobs;
+        if (formData.localizationid !== "") {
+          formData.localizationName = gcnEventsLookUp[
+            formData.gcneventid
+          ]?.localizations?.filter(
+            (l) => l.id === formData.localizationid
+          )[0]?.localization_name;
+          formData.localizationid = "";
+        }
+        formData.gcneventid = "";
+      }
+      handleFilterSubmit(formData);
+    }
   };
 
   return (

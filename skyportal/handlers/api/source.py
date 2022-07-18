@@ -71,7 +71,7 @@ from .color_mag import get_color_mag
 
 DEFAULT_SOURCES_PER_PAGE = 100
 MAX_SOURCES_PER_PAGE = 500
-
+MAX_NB_DAYS_USING_LOCALIZATION = 31
 _, cfg = load_env()
 log = make_log('api/source')
 
@@ -412,7 +412,7 @@ def get_sources(
         obj_query = obj_query.filter(Obj.within(other, radius))
 
     if first_detected_date:
-        first_detected_date = arrow.get(first_detected_date.strip()).datetime
+        first_detected_date = arrow.get(first_detected_date).datetime
         photstat_subquery = (
             PhotStat.query_records_accessible_by(user)
             .filter(PhotStat.first_detected_mjd >= Time(first_detected_date).mjd)
@@ -422,7 +422,7 @@ def get_sources(
             photstat_subquery, Obj.id == photstat_subquery.c.obj_id
         )
     if last_detected_date:
-        last_detected_date = arrow.get(last_detected_date.strip()).datetime
+        last_detected_date = arrow.get(last_detected_date).datetime
         photstat_subquery = (
             PhotStat.query_records_accessible_by(user)
             .filter(PhotStat.last_detected_mjd <= Time(last_detected_date).mjd)
@@ -433,7 +433,7 @@ def get_sources(
         )
     if has_spectrum_after:
         try:
-            has_spectrum_after = str(arrow.get(has_spectrum_after.strip()).datetime)
+            has_spectrum_after = str(arrow.get(has_spectrum_after).datetime)
         except arrow.ParserError:
             raise arrow.ParserError(
                 f"Invalid input for parameter hasSpectrumAfter:{has_spectrum_after}"
@@ -448,7 +448,7 @@ def get_sources(
         )
     if has_spectrum_before:
         try:
-            has_spectrum_before = str(arrow.get(has_spectrum_before.strip()).datetime)
+            has_spectrum_before = str(arrow.get(has_spectrum_before).datetime)
         except arrow.ParserError:
             raise arrow.ParserError(
                 f"Invalid input for parameter hasSpectrumBefore:{has_spectrum_before}"
@@ -468,7 +468,7 @@ def get_sources(
     if created_or_modified_after:
         try:
             created_or_modified_date = str(
-                arrow.get(created_or_modified_after.strip()).datetime
+                arrow.get(created_or_modified_after).datetime
             )
         except arrow.ParserError:
             raise arrow.ParserError("Invalid value provided for createdOrModifiedAfter")
@@ -1975,6 +1975,11 @@ class SourceHandler(BaseHandler):
             save_summary = fields.Boolean()
             remove_nested = fields.Boolean()
             include_thumbnails = fields.Boolean()
+            first_detected_date = UTCTZnaiveDateTime(required=False, missing=None)
+            last_detected_date = UTCTZnaiveDateTime(required=False, missing=None)
+            has_spectrum_after = UTCTZnaiveDateTime(required=False, missing=None)
+            has_spectrum_before = UTCTZnaiveDateTime(required=False, missing=None)
+            created_or_modified_after = UTCTZnaiveDateTime(required=False, missing=None)
 
         validator_instance = Validator()
         params_to_be_validated = {}
@@ -1988,6 +1993,18 @@ class SourceHandler(BaseHandler):
             params_to_be_validated['include_thumbnails'] = include_thumbnails
         if remove_nested is not None:
             params_to_be_validated['remove_nested'] = remove_nested
+        if first_detected_date is not None:
+            params_to_be_validated['first_detected_date'] = first_detected_date
+        if last_detected_date is not None:
+            params_to_be_validated['last_detected_date'] = last_detected_date
+        if has_spectrum_after is not None:
+            params_to_be_validated['has_spectrum_after'] = has_spectrum_after
+        if has_spectrum_before is not None:
+            params_to_be_validated['has_spectrum_before'] = has_spectrum_before
+        if created_or_modified_after is not None:
+            params_to_be_validated[
+                'created_or_modified_after'
+            ] = created_or_modified_after
 
         try:
             validated = validator_instance.load(params_to_be_validated)
@@ -1999,6 +2016,27 @@ class SourceHandler(BaseHandler):
         save_summary = validated['save_summary']
         remove_nested = validated['remove_nested']
         include_thumbnails = validated['include_thumbnails']
+        first_detected_date = validated['first_detected_date']
+        last_detected_date = validated['last_detected_date']
+        has_spectrum_after = validated['has_spectrum_after']
+        has_spectrum_before = validated['has_spectrum_before']
+        created_or_modified_after = validated['created_or_modified_after']
+
+        if localization_dateobs is not None or localization_name is not None:
+            if first_detected_date is None or last_detected_date is None:
+                return self.error(
+                    'must specify startDate and endDate when filtering by localizationDateobs or localizationName'
+                )
+            if first_detected_date > last_detected_date:
+                return self.error(
+                    "startDate must be before endDate when filtering by localizationDateobs or localizationName",
+                )
+            if (
+                last_detected_date - first_detected_date
+            ).days > MAX_NB_DAYS_USING_LOCALIZATION:
+                return self.error(
+                    "startDate and endDate must be less than a month apart when filtering by localizationDateobs or localizationName",
+                )
 
         # parse the group ids:
         group_ids = self.get_query_argument('group_ids', None)
