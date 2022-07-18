@@ -92,4 +92,7 @@ def handle(payload, root):
 
 
 if __name__ == "__main__":
-    gcn.listen(handler=handle)
+    try:
+        gcn.listen(handler=handle)
+    except Exception as e:
+        log(f'Error: {e}')
