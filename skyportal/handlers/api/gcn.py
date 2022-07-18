@@ -12,6 +12,8 @@ import humanize
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm import sessionmaker, scoped_session
+from marshmallow import Schema, fields
+from marshmallow.exceptions import ValidationError
 
 from skyportal.models.photometry import Photometry
 
@@ -780,6 +782,33 @@ class GcnSummaryHandler(BaseHandler):
         show_galaxies = self.get_query_argument('showGalaxies', False)
         show_observations = self.get_query_argument('showObservations', False)
         no_text = self.get_query_argument('noText', False)
+
+        class UTCTZnaiveDateTime(fields.DateTime):
+            def _deserialize(self, value, attr, data, **kwargs):
+                value = super()._deserialize(value, attr, data, **kwargs)
+                if value and value.tzinfo:
+                    value = (value - value.utcoffset()).replace(tzinfo=None)
+                return value
+
+        class Validator(Schema):
+            start_date = UTCTZnaiveDateTime(required=False, missing=None)
+            end_date = UTCTZnaiveDateTime(required=False, missing=None)
+
+        validator_instance = Validator()
+        params_to_be_validated = {}
+        if start_date is not None:
+            params_to_be_validated['start_date'] = start_date
+        if end_date is not None:
+            params_to_be_validated['end_date'] = end_date
+
+        try:
+            validated = validator_instance.load(params_to_be_validated)
+        except ValidationError as e:
+            return self.error(f'Error parsing query params: {e.args[0]}.')
+
+        start_date = validated['start_date']
+        end_date = validated['end_date']
+
         try:
             if not no_text:
                 if title is None:
