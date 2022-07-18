@@ -3,18 +3,21 @@ import PropTypes from "prop-types";
 import { useSelector, useDispatch } from "react-redux";
 import { Link } from "react-router-dom";
 
-import { makeStyles } from "@material-ui/core/styles";
-import Grid from "@material-ui/core/Grid";
-import Button from "@material-ui/core/Button";
-import Chip from "@material-ui/core/Chip";
-import Tooltip from "@material-ui/core/Tooltip";
-import Accordion from "@material-ui/core/Accordion";
-import AccordionSummary from "@material-ui/core/AccordionSummary";
-import AccordionDetails from "@material-ui/core/AccordionDetails";
-import ExpandMoreIcon from "@material-ui/icons/ExpandMore";
-import Typography from "@material-ui/core/Typography";
+import makeStyles from "@mui/styles/makeStyles";
+import Grid from "@mui/material/Grid";
+import Button from "@mui/material/Button";
+import Chip from "@mui/material/Chip";
+import Tooltip from "@mui/material/Tooltip";
+import Box from "@mui/material/Box";
+import Collapse from "@mui/material/Collapse";
+import Accordion from "@mui/material/Accordion";
+import AccordionSummary from "@mui/material/AccordionSummary";
+import AccordionDetails from "@mui/material/AccordionDetails";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import Typography from "@mui/material/Typography";
 import { log10, abs, ceil } from "mathjs";
-import CircularProgress from "@material-ui/core/CircularProgress";
+import CircularProgress from "@mui/material/CircularProgress";
+import HelpOutlineOutlinedIcon from "@mui/icons-material/HelpOutlineOutlined";
 
 import CommentList from "./CommentList";
 import ClassificationList from "./ClassificationList";
@@ -50,6 +53,8 @@ const CentroidPlot = React.lazy(() =>
   import(/* webpackChunkName: "CentroidPlot" */ "./CentroidPlot")
 );
 
+const green = "#359d73";
+
 // Export to allow Candidate.jsx to use styles
 export const useSourceStyles = makeStyles((theme) => ({
   chip: {
@@ -77,7 +82,7 @@ export const useSourceStyles = makeStyles((theme) => ({
     fontSize: "200%",
     fontWeight: "900",
     color:
-      theme.palette.type === "dark"
+      theme.palette.mode === "dark"
         ? theme.palette.secondary.main
         : theme.palette.primary.main,
     paddingBottom: "0.25em",
@@ -108,6 +113,10 @@ export const useSourceStyles = makeStyles((theme) => ({
   alignLeft: {
     display: "inline-block",
     verticalAlign: "super",
+  },
+  alignEnd: {
+    display: "flex",
+    justifyContent: "space-between",
   },
   followupContainer: {
     display: "flex",
@@ -151,6 +160,41 @@ export const useSourceStyles = makeStyles((theme) => ({
     display: "flex",
     flexDirection: "row",
   },
+  tooltipContent: {
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "center",
+    alignItems: "center",
+    width: "100%",
+  },
+  legend: {
+    width: "100%",
+    display: "flex",
+    flexDirection: "row",
+    justifyContent: "left",
+    alignItems: "center",
+    gap: "10px",
+  },
+  circle: {
+    borderRadius: "50%",
+    width: "25px",
+    height: "25px",
+    display: "inline-block",
+  },
+  downTriangle: {
+    width: 0,
+    height: 0,
+    backgroundColor: "transparent",
+    borderStyle: "solid",
+    borderTopWidth: "15px",
+    borderRightWidth: "15px",
+    borderBottomWidth: "0px",
+    borderLeftWidth: "15px",
+    borderTopColor: "#359d73",
+    borderRightColor: "transparent",
+    borderBottomColor: "transparent",
+    borderLeftColor: "transparent",
+  },
 }));
 
 const SourceDesktop = ({ source }) => {
@@ -158,6 +202,8 @@ const SourceDesktop = ({ source }) => {
   const classes = useSourceStyles();
   const [showStarList, setShowStarList] = useState(false);
   const [showPhotometry, setShowPhotometry] = useState(false);
+  const [rightPaneVisible, setRightPaneVisible] = useState(true);
+  const plotWidth = rightPaneVisible ? 800 : 1200;
 
   const { instrumentList, instrumentFormParams } = useSelector(
     (state) => state.instruments
@@ -192,17 +238,55 @@ const SourceDesktop = ({ source }) => {
     ? ceil(abs(log10(source.redshift_error)))
     : 4;
 
+  const Title = () => (
+    <div className={classes.tooltipContent}>
+      <div className={classes.legend}>
+        <div className={classes.downTriangle} />
+        <p>Stands for Non Detections</p>
+      </div>
+      <div className={classes.legend}>
+        <div
+          style={{
+            background: `${green}`,
+          }}
+          className={classes.circle}
+        />
+        <p> Stands for Detections</p>
+      </div>
+    </div>
+  );
+  const PhotometryToolTip = () => (
+    <Tooltip
+      title={Title()}
+      placement="top"
+      classes={{ tooltip: classes.tooltip }}
+    >
+      <HelpOutlineOutlinedIcon />
+    </Tooltip>
+  );
+
   return (
     <Grid container spacing={2} className={classes.source}>
-      <Grid item xs={7}>
-        <div className={classes.alignLeft}>
-          <SharePage />
-        </div>
-        <div className={classes.name}>{source.id}</div>
-        <div className={classes.alignRight}>
-          <FavoritesButton sourceID={source.id} />
-        </div>
-        <br />
+      <Grid item xs={rightPaneVisible ? 7 : 12}>
+        <Box className={classes.alignEnd}>
+          <div>
+            <div className={classes.alignLeft}>
+              <SharePage />
+            </div>
+            <div className={classes.name}>{source.id}</div>
+            <div className={classes.alignRight}>
+              <FavoritesButton sourceID={source.id} />
+            </div>
+          </div>
+          {!rightPaneVisible && (
+            <Button
+              onClick={() => setRightPaneVisible(true)}
+              data-testid="show-right-pane-button"
+            >
+              Show right panel
+            </Button>
+          )}
+        </Box>
         {source.alias ? (
           <div className={classes.infoLine}>
             <b>Aliases: &nbsp;</b>
@@ -380,21 +464,26 @@ const SourceDesktop = ({ source }) => {
               <Typography className={classes.accordionHeading}>
                 Photometry
               </Typography>
+              <PhotometryToolTip />
             </AccordionSummary>
             <AccordionDetails>
-              <Grid container>
+              <Grid container id="photometry-container">
                 <div className={classes.photometryContainer}>
-                  <Suspense
-                    fallback={
-                      <div>
-                        <CircularProgress color="secondary" />
-                      </div>
-                    }
-                  >
-                    <Plot
-                      url={`/api/internal/plot/photometry/${source.id}?width=800&height=500`}
-                    />
-                  </Suspense>
+                  {!source.photometry_exists ? (
+                    <div> No photometry exists </div>
+                  ) : (
+                    <Suspense
+                      fallback={
+                        <div>
+                          <CircularProgress color="secondary" />
+                        </div>
+                      }
+                    >
+                      <Plot
+                        url={`/api/internal/plot/photometry/${source.id}?width=${plotWidth}&height=500`}
+                      />
+                    </Suspense>
+                  )}
                 </div>
                 <div className={classes.buttonContainer}>
                   <Link to={`/upload_photometry/${source.id}`} role="link">
@@ -438,17 +527,25 @@ const SourceDesktop = ({ source }) => {
             <AccordionDetails>
               <Grid container>
                 <div className={classes.photometryContainer}>
-                  <Suspense
-                    fallback={
-                      <div>
-                        <CircularProgress color="secondary" />
-                      </div>
-                    }
-                  >
-                    <Plot
-                      url={`/api/internal/plot/spectroscopy/${source.id}?width=800&height=600&cacheID=${specIDs}`}
-                    />
-                  </Suspense>
+                  {!source.spectrum_exists ? (
+                    <div> No spectra exist </div>
+                  ) : (
+                    <Suspense
+                      fallback={
+                        <div>
+                          <CircularProgress color="secondary" />
+                        </div>
+                      }
+                    >
+                      <Plot
+                        url={`/api/internal/plot/spectroscopy/${
+                          source.id
+                        }?width=${
+                          plotWidth !== 0 ? plotWidth : 800
+                        }&height=600&cacheID=${specIDs}`}
+                      />
+                    </Suspense>
+                  )}
                 </div>
                 <div className={classes.buttonContainer}>
                   <Link to={`/upload_spectrum/${source.id}`} role="link">
@@ -489,6 +586,7 @@ const SourceDesktop = ({ source }) => {
                   followupRequests={source.followup_requests}
                   instrumentList={instrumentList}
                   instrumentFormParams={instrumentFormParams}
+                  totalMatches={source.followup_requests.length}
                 />
                 <AssignmentForm
                   obj_id={source.id}
@@ -508,170 +606,180 @@ const SourceDesktop = ({ source }) => {
         />
       </Grid>
       <Grid item xs={5}>
-        <div className={classes.columnItem}>
-          <Accordion defaultExpanded>
-            <AccordionSummary
-              expandIcon={<ExpandMoreIcon />}
-              aria-controls="annotations-content"
-              id="annotations-header"
-            >
-              <Typography className={classes.accordionHeading}>
-                Auto-annotations
-              </Typography>
-            </AccordionSummary>
-            <AccordionDetails>
-              <AnnotationsTable
-                annotations={source.annotations}
-                spectrumAnnotations={spectrumAnnotations}
-              />
-            </AccordionDetails>
-            <AccordionDetails>
-              <SourceAnnotationButtons source={source} />
-            </AccordionDetails>
-          </Accordion>
-        </div>
-        <div className={classes.columnItem}>
-          <Accordion
-            defaultExpanded
-            className={classes.comments}
-            data-testid="comments-accordion"
+        {rightPaneVisible && (
+          <Button
+            onClick={() => setRightPaneVisible(false)}
+            data-testid="hide-right-pane-button"
           >
-            <AccordionSummary
-              expandIcon={<ExpandMoreIcon />}
-              aria-controls="comments-content"
-              id="comments-header"
-            >
-              <Typography className={classes.accordionHeading}>
-                Comments
-              </Typography>
-            </AccordionSummary>
-            <AccordionDetails>
-              <CommentList />
-            </AccordionDetails>
-          </Accordion>
-        </div>
-        <div className={classes.columnItem}>
-          <Accordion defaultExpanded className={classes.classifications}>
-            <AccordionSummary
-              expandIcon={<ExpandMoreIcon />}
-              aria-controls="classifications-content"
-              id="classifications-header"
-            >
-              <Typography className={classes.accordionHeading}>
-                Classifications
-              </Typography>
-            </AccordionSummary>
-            <AccordionDetails>
-              <div className={classes.classifications}>
-                <ClassificationList />
-                <ClassificationForm
-                  obj_id={source.id}
-                  action="createNew"
-                  taxonomyList={taxonomyList}
-                />
-              </div>
-            </AccordionDetails>
-          </Accordion>
-        </div>
-        <div className={classes.columnItem}>
-          <Accordion
-            defaultExpanded
-            className={classes.tns}
-            data-testid="tns-accordion"
-          >
-            <AccordionSummary
-              expandIcon={<ExpandMoreIcon />}
-              aria-controls="tns-content"
-              id="tns-header"
-            >
-              <Typography className={classes.accordionHeading}>
-                TNS Form
-              </Typography>
-            </AccordionSummary>
-            <AccordionDetails>
-              <TNSATForm obj_id={source.id} />
-            </AccordionDetails>
-          </Accordion>
-        </div>
-        <div className={classes.columnItem}>
-          {source.color_magnitude.length ? (
-            <Accordion defaultExpanded className={classes.classifications}>
+            Hide right pane
+          </Button>
+        )}
+        <Collapse in={rightPaneVisible}>
+          <div className={classes.columnItem}>
+            <Accordion defaultExpanded>
               <AccordionSummary
                 expandIcon={<ExpandMoreIcon />}
-                aria-controls="hr-diagram-content"
-                id="hr-diagram-header"
+                aria-controls="annotations-content"
+                id="annotations-header"
               >
                 <Typography className={classes.accordionHeading}>
-                  HR Diagram
+                  Auto-annotations
                 </Typography>
               </AccordionSummary>
               <AccordionDetails>
-                <div
-                  className={classes.hr_diagram}
-                  data-testid={`hr_diagram_${source.id}`}
-                >
-                  <Suspense
-                    fallback={
-                      <div>
-                        <CircularProgress color="secondary" />
-                      </div>
-                    }
-                  >
-                    <VegaHR
-                      data={source.color_magnitude}
-                      width={300}
-                      height={300}
-                    />
-                  </Suspense>
+                <AnnotationsTable
+                  annotations={source.annotations}
+                  spectrumAnnotations={spectrumAnnotations}
+                />
+              </AccordionDetails>
+              <AccordionDetails>
+                <SourceAnnotationButtons source={source} />
+              </AccordionDetails>
+            </Accordion>
+          </div>
+          <div className={classes.columnItem}>
+            <Accordion
+              defaultExpanded
+              className={classes.comments}
+              data-testid="comments-accordion"
+            >
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon />}
+                aria-controls="comments-content"
+                id="comments-header"
+              >
+                <Typography className={classes.accordionHeading}>
+                  Comments
+                </Typography>
+              </AccordionSummary>
+              <AccordionDetails>
+                <CommentList />
+              </AccordionDetails>
+            </Accordion>
+          </div>
+          <div className={classes.columnItem}>
+            <Accordion defaultExpanded className={classes.classifications}>
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon />}
+                aria-controls="classifications-content"
+                id="classifications-header"
+              >
+                <Typography className={classes.accordionHeading}>
+                  Classifications
+                </Typography>
+              </AccordionSummary>
+              <AccordionDetails>
+                <div className={classes.classifications}>
+                  <ClassificationList />
+                  <ClassificationForm
+                    obj_id={source.id}
+                    action="createNew"
+                    taxonomyList={taxonomyList}
+                  />
                 </div>
               </AccordionDetails>
             </Accordion>
-          ) : null}
-        </div>
-        <div className={classes.columnItem}>
-          <Accordion defaultExpanded>
-            <AccordionSummary
-              expandIcon={<ExpandMoreIcon />}
-              aria-controls="centroidplot-content"
-              id="centroidplot-header"
+          </div>
+          <div className={classes.columnItem}>
+            <Accordion
+              defaultExpanded
+              className={classes.tns}
+              data-testid="tns-accordion"
             >
-              <Typography className={classes.accordionHeading}>
-                Centroid Plot
-              </Typography>
-            </AccordionSummary>
-            <AccordionDetails>
-              <Suspense
-                fallback={
-                  <div>
-                    <CircularProgress color="secondary" />
-                  </div>
-                }
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon />}
+                aria-controls="tns-content"
+                id="tns-header"
               >
-                <CentroidPlot
-                  className={classes.smallPlot}
-                  sourceId={source.id}
-                  size="21.875rem"
-                />
-              </Suspense>
-            </AccordionDetails>
-          </Accordion>
-        </div>
-        <div className={classes.columnItem}>
-          <Accordion defaultExpanded>
-            <AccordionSummary
-              expandIcon={<ExpandMoreIcon />}
-              aria-controls="notifications-content"
-              id="notifications-header"
-            >
-              <Typography className={classes.accordionHeading}>
-                Source Notification
-              </Typography>
-            </AccordionSummary>
-            <AccordionDetails>
-              <SourceNotification sourceId={source.id} />
-            </AccordionDetails>
-          </Accordion>
-        </div>
+                <Typography className={classes.accordionHeading}>
+                  TNS Form
+                </Typography>
+              </AccordionSummary>
+              <AccordionDetails>
+                <TNSATForm obj_id={source.id} />
+              </AccordionDetails>
+            </Accordion>
+          </div>
+          <div className={classes.columnItem}>
+            {source.color_magnitude.length ? (
+              <Accordion defaultExpanded className={classes.classifications}>
+                <AccordionSummary
+                  expandIcon={<ExpandMoreIcon />}
+                  aria-controls="hr-diagram-content"
+                  id="hr-diagram-header"
+                >
+                  <Typography className={classes.accordionHeading}>
+                    HR Diagram
+                  </Typography>
+                </AccordionSummary>
+                <AccordionDetails>
+                  <div
+                    className={classes.hr_diagram}
+                    data-testid={`hr_diagram_${source.id}`}
+                  >
+                    <Suspense
+                      fallback={
+                        <div>
+                          <CircularProgress color="secondary" />
+                        </div>
+                      }
+                    >
+                      <VegaHR
+                        data={source.color_magnitude}
+                        width={300}
+                        height={300}
+                      />
+                    </Suspense>
+                  </div>
+                </AccordionDetails>
+              </Accordion>
+            ) : null}
+          </div>
+          <div className={classes.columnItem}>
+            <Accordion defaultExpanded>
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon />}
+                aria-controls="centroidplot-content"
+                id="centroidplot-header"
+              >
+                <Typography className={classes.accordionHeading}>
+                  Centroid Plot
+                </Typography>
+              </AccordionSummary>
+              <AccordionDetails>
+                <Suspense
+                  fallback={
+                    <div>
+                      <CircularProgress color="secondary" />
+                    </div>
+                  }
+                >
+                  <CentroidPlot
+                    className={classes.smallPlot}
+                    sourceId={source.id}
+                    size="21.875rem"
+                  />
+                </Suspense>
+              </AccordionDetails>
+            </Accordion>
+          </div>
+          <div className={classes.columnItem}>
+            <Accordion defaultExpanded>
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon />}
+                aria-controls="notifications-content"
+                id="notifications-header"
+              >
+                <Typography className={classes.accordionHeading}>
+                  Source Notification
+                </Typography>
+              </AccordionSummary>
+              <AccordionDetails>
+                <SourceNotification sourceId={source.id} />
+              </AccordionDetails>
+            </Accordion>
+          </div>
+        </Collapse>
       </Grid>
     </Grid>
   );
@@ -722,6 +830,8 @@ SourceDesktop.propTypes = {
     ),
     duplicates: PropTypes.arrayOf(PropTypes.string),
     alias: PropTypes.arrayOf(PropTypes.string),
+    photometry_exists: PropTypes.bool,
+    spectrum_exists: PropTypes.bool,
   }).isRequired,
 };
 

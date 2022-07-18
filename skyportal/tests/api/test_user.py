@@ -57,7 +57,12 @@ def test_add_basic_user_info(manage_groups_token, super_admin_token):
     status, data = api(
         "POST",
         "user",
-        data={"username": username, "first_name": "Fritz"},
+        data={
+            "username": username,
+            "first_name": "Fritz",
+            "last_name": "Marshal",
+            'affiliations': ['Caltech'],
+        },
         token=super_admin_token,
     )
     assert status == 200
@@ -65,6 +70,8 @@ def test_add_basic_user_info(manage_groups_token, super_admin_token):
     status, data = api('GET', f'user/{new_user_id}', token=super_admin_token)
     assert status == 200
     assert data["data"]["first_name"] == "Fritz"
+    assert data["data"]["last_name"] == "Marshal"
+    assert data["data"]["affiliations"] == ['Caltech']
 
     status, data = api('DELETE', f'user/{new_user_id}', token=super_admin_token)
     assert status == 200
@@ -108,6 +115,7 @@ def test_add_delete_user_adds_deletes_single_user_group(
         "GET", "groups?includeSingleUserGroups=true", token=manage_groups_token
     )
     assert data["status"] == "success"
+
     assert not any(
         [
             group["single_user_group"] and group["name"] == username

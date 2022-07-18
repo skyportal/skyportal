@@ -3,21 +3,22 @@ import { useDispatch, useSelector } from "react-redux";
 import { useForm, Controller } from "react-hook-form";
 import PropTypes from "prop-types";
 
-import FormControlLabel from "@material-ui/core/FormControlLabel";
-import Checkbox from "@material-ui/core/Checkbox";
-import Button from "@material-ui/core/Button";
-import { KeyboardDateTimePicker } from "@material-ui/pickers";
-import Paper from "@material-ui/core/Paper";
-import SearchIcon from "@material-ui/icons/Search";
-import Input from "@material-ui/core/Input";
-import InputLabel from "@material-ui/core/InputLabel";
-import Chip from "@material-ui/core/Chip";
-import Select from "@material-ui/core/Select";
-import MenuItem from "@material-ui/core/MenuItem";
-import TextField from "@material-ui/core/TextField";
-import Tooltip from "@material-ui/core/Tooltip";
-import { Typography } from "@material-ui/core";
-import { makeStyles, useTheme } from "@material-ui/core/styles";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import Checkbox from "@mui/material/Checkbox";
+import Button from "@mui/material/Button";
+import DateTimePicker from "@mui/lab/DateTimePicker";
+import AdapterDateFns from "@mui/lab/AdapterDateFns";
+import LocalizationProvider from "@mui/lab/LocalizationProvider";
+import Paper from "@mui/material/Paper";
+import SearchIcon from "@mui/icons-material/Search";
+import Input from "@mui/material/Input";
+import InputLabel from "@mui/material/InputLabel";
+import Select from "@mui/material/Select";
+import MenuItem from "@mui/material/MenuItem";
+import TextField from "@mui/material/TextField";
+import Tooltip from "@mui/material/Tooltip";
+import { Typography } from "@mui/material";
+import makeStyles from "@mui/styles/makeStyles";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
@@ -28,6 +29,7 @@ import FoldBox from "./FoldBox";
 import CandidatesPreferences from "./CandidatesPreferences";
 import FormValidationError from "./FormValidationError";
 import { allowedClasses } from "./ClassificationForm";
+import ClassificationSelect from "./ClassificationSelect";
 
 dayjs.extend(utc);
 
@@ -81,15 +83,6 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-function getStyles(classification, selectedClassifications, theme) {
-  return {
-    fontWeight:
-      selectedClassifications.indexOf(classification) === -1
-        ? theme.typography.fontWeightRegular
-        : theme.typography.fontWeightMedium,
-  };
-}
-
 const rejectedStatusSelectOptions = [
   { value: "hide", label: "Hide rejected candidates" },
   { value: "show", label: "Show rejected candidates" },
@@ -129,7 +122,6 @@ const FilterCandidateList = ({
   setSortOrder,
 }) => {
   const classes = useStyles();
-  const theme = useTheme();
 
   const availableAnnotationsInfo = useSelector(
     (state) => state.candidates.annotationsInfo
@@ -142,7 +134,7 @@ const FilterCandidateList = ({
     }
   }, [dispatch, availableAnnotationsInfo]);
 
-  const { scanningProfiles } = useSelector(
+  const { scanningProfiles, useAMPM } = useSelector(
     (state) => state.profile.preferences
   );
 
@@ -184,16 +176,6 @@ const FilterCandidateList = ({
     defaultStartDate.setDate(defaultStartDate.getDate() - 1);
   }
 
-  const ITEM_HEIGHT = 48;
-  const MenuProps = {
-    PaperProps: {
-      style: {
-        maxHeight: ITEM_HEIGHT * 4.5,
-        width: 250,
-      },
-    },
-  };
-
   // Get unique classification names, in alphabetical order
   const { taxonomyList } = useSelector((state) => state.taxonomies);
   const latestTaxonomyList = taxonomyList?.filter((t) => t.isLatest);
@@ -206,7 +188,9 @@ const FilterCandidateList = ({
   });
   classifications = Array.from(new Set(classifications)).sort();
 
-  const [selectedClassifications, setSelectedClassifications] = useState([]);
+  const [selectedClassifications, setSelectedClassifications] = useState(
+    selectedScanningProfile?.classifications || []
+  );
   const [selectedAnnotationOrigin, setSelectedAnnotationOrigin] = useState(
     selectedScanningProfile?.sortingOrigin
   );
@@ -313,8 +297,8 @@ const FilterCandidateList = ({
     if (formData.endDate) {
       data.endDate = formData.endDate.toISOString();
     }
-    if (formData.classifications.length > 0) {
-      data.classifications = formData.classifications;
+    if (selectedClassifications.length > 0) {
+      data.classifications = selectedClassifications;
     }
     if (formData.redshiftMinimum) {
       data.minRedshift = formData.redshiftMinimum;
@@ -323,9 +307,9 @@ const FilterCandidateList = ({
       data.maxRedshift = formData.redshiftMaximum;
     }
     if (formData.sortingOrigin) {
-      data.sortingOrigin = formData.sortingOrigin;
-      data.sortingKey = formData.sortingKey;
-      data.sortingOrder = formData.sortingOrder;
+      data.sortByAnnotationOrigin = formData.sortingOrigin;
+      data.sortByAnnotationKey = formData.sortingKey;
+      data.sortByAnnotationOrder = formData.sortingOrder;
     }
 
     // Submit a new search for candidates
@@ -373,17 +357,19 @@ const FilterCandidateList = ({
             )}
             <Controller
               render={({ onChange, value }) => (
-                <KeyboardDateTimePicker
-                  value={value ? dayjs.utc(value) : null}
-                  onChange={(e, date) =>
-                    date ? onChange(dayjs.utc(date)) : onChange(date)
-                  }
-                  label="Start (UTC)"
-                  format="YYYY/MM/DD HH:mm"
-                  ampm={false}
-                  showTodayButton={false}
-                  data-testid="startDatePicker"
-                />
+                <LocalizationProvider dateAdapter={AdapterDateFns}>
+                  <DateTimePicker
+                    value={value}
+                    onChange={(newValue) => onChange(newValue)}
+                    label="Start (UTC)"
+                    showTodayButton={false}
+                    ampm={useAMPM}
+                    renderInput={(params) => (
+                      /* eslint-disable-next-line react/jsx-props-no-spreading */
+                      <TextField id="startDatePicker" {...params} />
+                    )}
+                  />
+                </LocalizationProvider>
               )}
               rules={{ validate: validateDates }}
               name="startDate"
@@ -393,17 +379,19 @@ const FilterCandidateList = ({
             &nbsp;
             <Controller
               render={({ onChange, value }) => (
-                <KeyboardDateTimePicker
-                  value={value ? dayjs.utc(value) : null}
-                  onChange={(e, date) =>
-                    date ? onChange(dayjs.utc(date)) : onChange(date)
-                  }
-                  label="End (UTC)"
-                  format="YYYY/MM/DD HH:mm"
-                  ampm={false}
-                  showTodayButton={false}
-                  data-testid="endDatePicker"
-                />
+                <LocalizationProvider dateAdapter={AdapterDateFns}>
+                  <DateTimePicker
+                    value={value}
+                    onChange={(newValue) => onChange(newValue)}
+                    label="End (UTC)"
+                    showTodayButton={false}
+                    ampm={useAMPM}
+                    renderInput={(props) => (
+                      /* eslint-disable-next-line react/jsx-props-no-spreading */
+                      <TextField id="endDatePicker" {...props} />
+                    )}
+                  />
+                </LocalizationProvider>
               )}
               rules={{ validate: validateDates }}
               name="endDate"
@@ -431,55 +419,11 @@ const FilterCandidateList = ({
               ))}
             </Controller>
           </div>
-          <div className={classes.formRow}>
-            <InputLabel id="classifications-select-label">
-              Classifications
-            </InputLabel>
-            <Controller
-              labelId="classifications-select-label"
-              render={({ onChange, value }) => (
-                <Select
-                  id="classifications-select"
-                  multiple
-                  value={value}
-                  onChange={(event) => {
-                    setSelectedClassifications(event.target.value);
-                    onChange(event.target.value);
-                  }}
-                  input={<Input id="classifications-select" />}
-                  renderValue={(selected) => (
-                    <div className={classes.chips}>
-                      {selected?.map((classification) => (
-                        <Chip
-                          key={classification}
-                          label={classification}
-                          className={classes.chip}
-                        />
-                      ))}
-                    </div>
-                  )}
-                  MenuProps={MenuProps}
-                >
-                  {classifications?.map((classification) => (
-                    <MenuItem
-                      key={classification}
-                      value={classification}
-                      style={getStyles(
-                        classification,
-                        selectedClassifications,
-                        theme
-                      )}
-                    >
-                      {classification}
-                    </MenuItem>
-                  ))}
-                </Select>
-              )}
-              name="classifications"
-              control={control}
-              defaultValue={selectedScanningProfile?.classifications || []}
-            />
-          </div>
+          <ClassificationSelect
+            selectedClassifications={selectedClassifications}
+            setSelectedClassifications={setSelectedClassifications}
+            showShortcuts
+          />
           <div className={classes.formRow}>
             <InputLabel id="redshift-select-label">Redshift</InputLabel>
             <div className={classes.redshiftField}>
@@ -726,7 +670,18 @@ const FilterCandidateList = ({
   );
 };
 FilterCandidateList.propTypes = {
-  userAccessibleGroups: PropTypes.arrayOf(PropTypes.object).isRequired,
+  userAccessibleGroups: PropTypes.arrayOf(
+    PropTypes.shape({
+      single_user_group: PropTypes.bool.isRequired,
+      created_at: PropTypes.string.isRequired,
+      id: PropTypes.number.isRequired,
+      modified: PropTypes.string.isRequired,
+      name: PropTypes.string.isRequired,
+      nickname: PropTypes.string,
+      private: PropTypes.bool.isRequired,
+      description: PropTypes.string,
+    })
+  ).isRequired,
   setQueryInProgress: PropTypes.func.isRequired,
   setFilterGroups: PropTypes.func.isRequired,
   numPerPage: PropTypes.number.isRequired,

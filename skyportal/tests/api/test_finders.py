@@ -56,7 +56,7 @@ def test_unsourced_finder(upload_data_token):
         "unsourced_finder",
         params={
             "catalog_id": "3905335598144227200",
-            "location_type": "gaia_edr3",
+            "location_type": "gaia_dr3",
             "image_source": "ps1",
             "output_type": "pdf",
             "obstime": "2012-02-28",
@@ -101,7 +101,7 @@ def test_unsourced_finder(upload_data_token):
         "unsourced_finder",
         params={
             "catalog_id": "-1",
-            "location_type": "gaia_dr2",
+            "location_type": "gaia_dr3",
             "image_source": "ps1",
             "output_type": "pdf",
             "obstime": "2012-02-28",

@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import Button from "@material-ui/core/Button";
-import Form from "@rjsf/material-ui";
-import Select from "@material-ui/core/Select";
-import InputLabel from "@material-ui/core/InputLabel";
-import MenuItem from "@material-ui/core/MenuItem";
-import CircularProgress from "@material-ui/core/CircularProgress";
-import { makeStyles } from "@material-ui/core/styles";
+import Button from "@mui/material/Button";
+// eslint-disable-next-line import/no-unresolved
+import Form from "@rjsf/material-ui/v5";
+import Select from "@mui/material/Select";
+import InputLabel from "@mui/material/InputLabel";
+import MenuItem from "@mui/material/MenuItem";
+import CircularProgress from "@mui/material/CircularProgress";
+import makeStyles from "@mui/styles/makeStyles";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
@@ -20,6 +21,9 @@ dayjs.extend(utc);
 const useStyles = makeStyles(() => ({
   select: {
     width: "25%",
+  },
+  selectInstrument: {
+    width: "99%",
   },
   container: {
     width: "99%",
@@ -76,14 +80,30 @@ const FollowupRequestSelectionForm = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dispatch, setSelectedInstrumentId]);
 
+  if (!Array.isArray(followupRequestList)) {
+    return <p>Waiting for followup requests to load...</p>;
+  }
+
   if (
     instrumentList.length === 0 ||
     telescopeList.length === 0 ||
+    followupRequestList.length === 0 ||
     !selectedInstrumentId ||
     Object.keys(instrumentFormParams).length === 0
   ) {
-    return <p>No robotic followup requests for this source...</p>;
+    return <p>No robotic followup requests found...</p>;
   }
+
+  const sortedInstrumentList = [...instrumentList];
+  sortedInstrumentList.sort((i1, i2) => {
+    if (i1.name > i2.name) {
+      return 1;
+    }
+    if (i2.name > i1.name) {
+      return -1;
+    }
+    return 0;
+  });
 
   const telLookUp = {};
   // eslint-disable-next-line no-unused-expressions
@@ -118,7 +138,7 @@ const FollowupRequestSelectionForm = () => {
     setIsSubmittingFilter(false);
   };
 
-  function createUrl(instrumentId, format, queryParams) {
+  function createScheduleUrl(instrumentId, format, queryParams) {
     let url = `/api/followup_request/schedule/${instrumentId}`;
     if (queryParams) {
       const filteredQueryParams = filterOutEmptyValues(queryParams);
@@ -126,6 +146,11 @@ const FollowupRequestSelectionForm = () => {
       url += `?${queryString}`;
     }
     url += `&output_format=${format}`;
+    return url;
+  }
+
+  function createAllocationReportUrl(instrumentId) {
+    const url = `/api/allocation/report/${instrumentId}`;
     return url;
   }
 
@@ -176,7 +201,12 @@ const FollowupRequestSelectionForm = () => {
     },
   };
 
-  const url = createUrl(selectedInstrumentId, selectedFormat, formDataState);
+  const scheduleUrl = createScheduleUrl(
+    selectedInstrumentId,
+    selectedFormat,
+    formDataState
+  );
+  const reportUrl = createAllocationReportUrl(selectedInstrumentId);
   return (
     <div>
       <div data-testid="gcnsource-selection-form">
@@ -202,9 +232,9 @@ const FollowupRequestSelectionForm = () => {
           value={selectedInstrumentId}
           onChange={handleSelectedInstrumentChange}
           name="followupRequestInstrumentSelect"
-          className={classes.select}
+          className={classes.selectInstrument}
         >
-          {instrumentList?.map((instrument) => (
+          {sortedInstrumentList?.map((instrument) => (
             <MenuItem
               value={instrument.id}
               key={instrument.id}
@@ -236,7 +266,7 @@ const FollowupRequestSelectionForm = () => {
           </MenuItem>
         </Select>
         <Button
-          href={`${url}`}
+          href={`${scheduleUrl}`}
           download={`scheduleRequest-${selectedInstrumentId}`}
           size="small"
           color="primary"
@@ -245,6 +275,17 @@ const FollowupRequestSelectionForm = () => {
           data-testid={`scheduleRequest_${selectedInstrumentId}`}
         >
           Download
+        </Button>
+        <Button
+          href={`${reportUrl}`}
+          download={`reportRequest-${selectedInstrumentId}`}
+          size="small"
+          color="primary"
+          type="submit"
+          variant="outlined"
+          data-testid={`reportRequest_${selectedInstrumentId}`}
+        >
+          Instrument Allocation Analysis
         </Button>
       </div>
     </div>

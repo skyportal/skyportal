@@ -1,10 +1,10 @@
 import React from "react";
 import { useSelector } from "react-redux";
 
-import Card from "@material-ui/core/Card";
-import CardContent from "@material-ui/core/CardContent";
-import Typography from "@material-ui/core/Typography";
-import Box from "@material-ui/core/Box";
+import Card from "@mui/material/Card";
+import CardContent from "@mui/material/CardContent";
+import Typography from "@mui/material/Typography";
+import Box from "@mui/material/Box";
 import PropTypes from "prop-types";
 
 import UserAvatar, { isAllKoreanCharacters } from "./UserAvatar";
@@ -50,6 +50,10 @@ const getUserRealName = (firstName, lastName) => {
   return `${firstName} ${lastName}`;
 };
 
+const getUserAffiliations = (affiliations) => (
+  <em>{affiliations.join(", ")}</em>
+);
+
 const UserProfileInfo = () => {
   const profile = useSelector((state) => state.profile);
 
@@ -72,17 +76,32 @@ const UserProfileInfo = () => {
             gravatarUrl={profile.gravatar_url}
           />
           &nbsp;&nbsp;
-          <h2
-            id="userRealname"
-            style={{
-              visibility: !(profile.first_name || profile.last_name)
-                ? "hidden"
-                : "visible",
-            }}
-          >
-            {(profile.first_name || profile.last_name) &&
-              getUserRealName(profile.first_name, profile.last_name)}
-          </h2>
+          <div style={{ display: "flex", flexDirection: "column" }}>
+            <h2
+              id="userRealname"
+              style={{
+                visibility: !(profile.first_name || profile.last_name)
+                  ? "hidden"
+                  : "visible",
+                margin: 0,
+              }}
+            >
+              {(profile.first_name || profile.last_name) &&
+                getUserRealName(profile.first_name, profile.last_name)}
+            </h2>
+            <h5
+              id="userAffiliations"
+              style={{
+                visibility: !(profile?.affiliations?.length > 0)
+                  ? "hidden"
+                  : "visible",
+                margin: 0,
+              }}
+            >
+              {profile?.affiliations?.length > 0 &&
+                getUserAffiliations(profile.affiliations)}
+            </h5>
+          </div>
         </div>
         &nbsp;
         <br />

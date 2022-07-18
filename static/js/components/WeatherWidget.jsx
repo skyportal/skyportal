@@ -2,19 +2,19 @@ import React, { useEffect, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import PropTypes from "prop-types";
 
-import { makeStyles } from "@material-ui/core/styles";
-import Paper from "@material-ui/core/Paper";
-import Typography from "@material-ui/core/Typography";
-import DragHandleIcon from "@material-ui/icons/DragHandle";
-import CardActions from "@material-ui/core/CardActions";
-import Button from "@material-ui/core/Button";
+import makeStyles from "@mui/styles/makeStyles";
+import Paper from "@mui/material/Paper";
+import Typography from "@mui/material/Typography";
+import DragHandleIcon from "@mui/icons-material/DragHandle";
+import CardActions from "@mui/material/CardActions";
+import Button from "@mui/material/Button";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
-import MenuItem from "@material-ui/core/MenuItem";
-import Menu from "@material-ui/core/Menu";
-import IconButton from "@material-ui/core/IconButton";
-import MoreVertIcon from "@material-ui/icons/MoreVert";
+import MenuItem from "@mui/material/MenuItem";
+import Menu from "@mui/material/Menu";
+import IconButton from "@mui/material/IconButton";
+import MoreVertIcon from "@mui/icons-material/MoreVert";
 
 import * as profileActions from "../ducks/profile";
 import * as weatherActions from "../ducks/weather";
@@ -211,6 +211,7 @@ const WeatherWidget = ({ classes }) => {
                 data-testid="tel-list-button"
                 aria-haspopup="true"
                 onClick={handleClickDropdownIcon}
+                size="large"
               >
                 <MoreVertIcon />
               </IconButton>

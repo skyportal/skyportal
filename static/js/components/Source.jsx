@@ -2,13 +2,15 @@ import React, { useEffect, useState, useRef } from "react";
 import PropTypes from "prop-types";
 import { useSelector, useDispatch } from "react-redux";
 
-import { useTheme } from "@material-ui/core/styles";
-import Paper from "@material-ui/core/Paper";
+import { useTheme } from "@mui/material/styles";
+import Paper from "@mui/material/Paper";
 
 import * as Action from "../ducks/source";
 import SourceDesktop from "./SourceDesktop";
 import SourceMobile from "./SourceMobile";
 import Spinner from "./Spinner";
+
+import withRouter from "./withRouter";
 
 const sidebarWidth = 190;
 
@@ -77,4 +79,4 @@ Source.propTypes = {
   }).isRequired,
 };
 
-export default Source;
+export default withRouter(Source);

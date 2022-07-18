@@ -3,11 +3,11 @@ import { useDispatch, useSelector } from "react-redux";
 
 import PropTypes from "prop-types";
 
-import IconButton from "@material-ui/core/IconButton";
-import StarIcon from "@material-ui/icons/Star";
-import StarBorderIcon from "@material-ui/icons/StarBorder";
-import Button from "@material-ui/core/Button";
-import Tooltip from "@material-ui/core/Tooltip";
+import IconButton from "@mui/material/IconButton";
+import StarIcon from "@mui/icons-material/Star";
+import StarBorderIcon from "@mui/icons-material/StarBorder";
+import Button from "@mui/material/Button";
+import Tooltip from "@mui/material/Tooltip";
 
 import * as Actions from "../ducks/favorites";
 
@@ -24,7 +24,6 @@ const ButtonInclude = (sourceID, textMode) => {
       <Button
         onClick={handleSubmit}
         disabled={isSubmitting}
-        color="default"
         variant="contained"
         data-testid={`favorites-text-include_${sourceID}`}
       >
@@ -38,6 +37,7 @@ const ButtonInclude = (sourceID, textMode) => {
         onClick={handleSubmit}
         data-testid={`favorites-include_${sourceID}`}
         disabled={isSubmitting}
+        size="large"
       >
         <StarIcon />
       </IconButton>
@@ -58,7 +58,6 @@ const ButtonExclude = (sourceID, textMode) => {
       <Button
         onClick={handleSubmit}
         disabled={isSubmitting}
-        color="default"
         variant="contained"
         data-testid={`favorites-text-exclude_${sourceID}`}
       >
@@ -72,6 +71,7 @@ const ButtonExclude = (sourceID, textMode) => {
         onClick={handleSubmit}
         data-testid={`favorites-exclude_${sourceID}`}
         disabled={isSubmitting}
+        size="large"
       >
         <StarBorderIcon />
       </IconButton>

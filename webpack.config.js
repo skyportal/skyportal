@@ -81,6 +81,11 @@ const config = {
         include: /node_modules\/react-resizable\/css/,
         use: ["style-loader", "css-loader"],
       },
+      {
+        test: /\.css$/,
+        include: /node_modules\/react-big-calendar\/lib\/css/,
+        use: ["style-loader", "css-loader"],
+      },
     ],
   },
   plugins: [
@@ -115,6 +120,7 @@ const config = {
     fallback: {
       path: path.resolve(__dirname, "node_modules/path-browserify"),
       buffer: path.resolve(__dirname, "node_modules/buffer"),
+      url: false,
     },
   },
 

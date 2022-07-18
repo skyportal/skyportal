@@ -151,6 +151,8 @@ def test_observing_run_page(driver, view_only_user, red_transients_run):
     driver.get('/runs')
     runs = ObservingRun.query.all()
 
+    driver.click_xpath('//button[@data-testid="observationRunButton"]')
+
     for run in runs:
         observingrun_title = (
             f"{run.calendar_date} "
@@ -171,6 +173,9 @@ def test_add_run_to_observing_run_page(
     driver.get('/runs')
 
     driver.wait_for_xpath('//form')
+
+    driver.click_xpath('//button[@data-testid="observationRunButton"]')
+
     observingrun_title = (
         f"{red_transients_run.calendar_date} "
         f"{red_transients_run.instrument.name}/"

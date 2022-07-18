@@ -2,6 +2,7 @@ import uuid
 import datetime
 import json
 from io import StringIO
+import traceback
 
 from astropy.time import Time
 from astropy.table import Table
@@ -32,6 +33,7 @@ from ...models import (
     PHOT_ZP,
     GroupPhotometry,
     StreamPhotometry,
+    PhotStat,
 )
 
 from ...models.schema import (
@@ -47,6 +49,8 @@ _, cfg = load_env()
 
 
 log = make_log('api/photometry')
+
+MAX_NUMBER_ROWS = 10000
 
 
 def save_data_using_copy(rows, table, columns):
@@ -101,6 +105,7 @@ def serialize(phot, outsys, format):
         'dec': phot.dec,
         'filter': phot.filter,
         'mjd': phot.mjd,
+        'snr': phot.snr,
         'instrument_id': phot.instrument_id,
         'instrument_name': phot.instrument.name,
         'ra_unc': phot.ra_unc,
@@ -448,15 +453,14 @@ def get_values_table_and_condition(df):
 
 
 def insert_new_photometry_data(
-    df, instrument_cache, group_ids, stream_ids, user, validate=True
+    df, instrument_cache, group_ids, stream_ids, user, session, validate=True
 ):
     # check for existing photometry and error if any is found
     if validate:
         values_table, condition = get_values_table_and_condition(df)
 
         duplicated_photometry = (
-            DBSession()
-            .execute(sa.select(Photometry).join(values_table, condition))
+            session.execute(sa.select(Photometry).join(values_table, condition))
             .scalars()
             .all()
         )
@@ -476,7 +480,7 @@ def insert_new_photometry_data(
 
     pkq = f"SELECT nextval('photometry_id_seq') FROM " f"generate_series(1, {len(df)})"
 
-    proxy = DBSession().execute(pkq)
+    proxy = session.execute(pkq)
 
     # cache this as list for response
     ids = [i[0] for i in proxy]
@@ -492,7 +496,11 @@ def insert_new_photometry_data(
     group_photometry_params = []
     stream_photometry_params = []
     for packet in rows:
-        if packet["filter"] not in instrument_cache[packet['instrument_id']].filters:
+        if (
+            instrument_cache[packet['instrument_id']].type == "imager"
+            and packet["filter"]
+            not in instrument_cache[packet['instrument_id']].filters
+        ):
             instrument = instrument_cache[packet['instrument_id']]
             raise ValidationError(
                 f"Instrument {instrument.name} has no filter " f"{packet['filter']}."
@@ -593,7 +601,28 @@ def insert_new_photometry_data(
             ('photometr_id', 'stream_id', 'created_at', 'modified'),
         )
 
-    DBSession.commit()
+    # add a phot stats for each photometry
+    obj_id = phot['obj_id']
+    phot_stat = session.scalars(
+        sa.select(PhotStat).where(PhotStat.obj_id == obj_id)
+    ).first()
+    # if there are a lot of new points, should just
+    # pull up all the photometry and recalculate
+    # instead of adding them one-by-one
+    if phot_stat is None or len(params) > 50:
+        all_phot = session.scalars(
+            sa.select(Photometry).where(Photometry.obj_id == obj_id)
+        ).all()
+        phot_stat = PhotStat(obj_id=obj_id)
+        phot_stat.full_update(all_phot)
+        session.add(phot_stat)
+
+    else:
+        for phot in params:
+            phot_stat.add_photometry_point(phot)
+            session.add(phot_stat)
+
+    session.commit()  # add the updated phot_stats
     return ids, upload_id
 
 
@@ -614,7 +643,7 @@ def get_group_ids(data, user):
         public_group = (
             DBSession()
             .execute(
-                sa.select(Group).filter(Group.name == cfg["misc"]["public_group_name"])
+                sa.select(Group).filter(Group.name == cfg["misc.public_group_name"])
             )
             .scalars()
             .first()
@@ -643,6 +672,7 @@ def get_stream_ids(data, user):
                     f"Invalid format for stream id {stream_id}, must be an integer."
                 )
             stream = Stream.get_if_accessible_by(stream_id, user)
+
             if stream is None:
                 raise ValidationError(f'No stream with ID {stream_id}')
     else:
@@ -672,6 +702,15 @@ def add_external_photometry(json, user):
     stream_ids = get_stream_ids(json, user)
     df, instrument_cache = standardize_photometry_data(json)
 
+    if len(df.index) > MAX_NUMBER_ROWS:
+        raise ValueError(
+            f'Maximum number of photometry rows to post exceeded: {len(df.index)} > {MAX_NUMBER_ROWS}. '
+            'Please break up the data into smaller sets and try again'
+        )
+
+    username = user.username
+    log(f'Pending request from {username} with {len(df.index)} rows')
+
     # This lock ensures that the Photometry table data are not modified in any way
     # between when the query for duplicate photometry is first executed and
     # when the insert statement with the new photometry is performed.
@@ -684,21 +723,22 @@ def add_external_photometry(json, user):
                 f'LOCK TABLE {Photometry.__tablename__} IN SHARE ROW EXCLUSIVE MODE'
             )
             ids, upload_id = insert_new_photometry_data(
-                df, instrument_cache, group_ids, stream_ids, user
+                df, instrument_cache, group_ids, stream_ids, user, session
+            )
+            log(
+                f'Request from {username} with {len(df.index)} rows complete with upload_id {upload_id}'
             )
         except Exception as e:
             session.rollback()
             log(f"Unable to post photometry: {e}")
 
-    log("Successfully posted photometry")
-
 
 class PhotometryHandler(BaseHandler):
     @permissions(['Upload data'])
     def post(self):
-        """
+        f"""
         ---
-        description: Upload photometry
+        description: Upload photometry. Posting is capped at {MAX_NUMBER_ROWS} for database stability purposes.
         tags:
           - photometry
         requestBody:
@@ -747,6 +787,15 @@ class PhotometryHandler(BaseHandler):
         except (ValidationError, RuntimeError) as e:
             return self.error(e.args[0])
 
+        if len(df.index) > MAX_NUMBER_ROWS:
+            return self.error(
+                f'Maximum number of photometry rows to post exceeded: {len(df.index)} > {MAX_NUMBER_ROWS}. '
+                'Please break up the data into smaller sets and try again'
+            )
+
+        username = self.associated_user_object.username
+        log(f'Pending request from {username} with {len(df.index)} rows')
+
         # This lock ensures that the Photometry table data are not modified in any way
         # between when the query for duplicate photometry is first executed and
         # when the insert statement with the new photometry is performed.
@@ -764,10 +813,15 @@ class PhotometryHandler(BaseHandler):
                     group_ids,
                     stream_ids,
                     self.associated_user_object,
+                    session,
                 )
-            except Exception as e:
+            except Exception:
                 session.rollback()
-                return self.error(e.args[0])
+                return self.error(traceback.format_exc())
+
+        log(
+            f'Request from {username} with {len(df.index)} rows complete with upload_id {upload_id}'
+        )
 
         return self.success(data={'ids': ids, 'upload_id': upload_id})
 
@@ -901,6 +955,7 @@ class PhotometryHandler(BaseHandler):
                         group_ids,
                         stream_ids,
                         self.associated_user_object,
+                        session,
                         validate=False,
                     )
 
@@ -910,9 +965,9 @@ class PhotometryHandler(BaseHandler):
                 # release the lock
                 self.verify_and_commit()
 
-            except Exception as e:
+            except Exception:
                 session.rollback()
-                return self.error(e.args[0])
+                return self.error(traceback.format_exc())
 
         # get ids in the correct order
         ids = [id_map[pdidx] for pdidx, _ in df.iterrows()]
@@ -922,9 +977,10 @@ class PhotometryHandler(BaseHandler):
     def get(self, photometry_id):
         # The full docstring/API spec is below as an f-string
 
-        phot = Photometry.get_if_accessible_by(
-            photometry_id, self.current_user, raise_if_none=True
-        )
+        phot = Photometry.get_if_accessible_by(photometry_id, self.current_user)
+
+        if phot is None:
+            return self.error(f'Cannot find photometry point with ID: {photometry_id}.')
 
         # get the desired output format
         format = self.get_query_argument('format', 'mag')
@@ -963,7 +1019,6 @@ class PhotometryHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-
         try:
             photometry_id = int(photometry_id)
         except ValueError:
@@ -1002,9 +1057,8 @@ class PhotometryHandler(BaseHandler):
                 return self.error(
                     "Invalid group_ids field. Specify at least one valid group ID."
                 )
-            if not all(
-                [group in self.current_user.accessible_groups for group in groups]
-            ):
+            accessible_group_ids = [g.id for g in self.current_user.accessible_groups]
+            if not all([g.id in accessible_group_ids for g in groups]):
                 return self.error(
                     "Cannot upload photometry to groups you are not a member of."
                 )
@@ -1033,6 +1087,24 @@ class PhotometryHandler(BaseHandler):
                     )
 
         self.verify_and_commit()
+
+        phot_stat = (
+            DBSession()
+            .scalars(sa.select(PhotStat).where(PhotStat.obj_id == photometry.obj_id))
+            .first()
+        )
+        if phot_stat is not None:
+            all_phot = (
+                DBSession()
+                .scalars(
+                    sa.select(Photometry).where(Photometry.obj_id == photometry.obj_id)
+                )
+                .all()
+            )
+            phot_stat.full_update(all_phot)
+
+        DBSession().commit()  # this happens above a user level permission
+
         return self.success()
 
     @permissions(['Upload data'])
@@ -1059,11 +1131,32 @@ class PhotometryHandler(BaseHandler):
                 schema: Error
         """
         photometry = Photometry.get_if_accessible_by(
-            photometry_id, self.current_user, mode="delete", raise_if_none=True
+            photometry_id, self.current_user, mode="delete"
         )
 
+        if photometry is None:
+            return self.error(f'Cannot find photometry point with ID: {photometry_id}.')
+
         DBSession().delete(photometry)
+
         self.verify_and_commit()
+
+        phot_stat = (
+            DBSession()
+            .scalars(sa.select(PhotStat).where(PhotStat.obj_id == photometry.obj_id))
+            .first()
+        )
+        if phot_stat is not None:
+            all_phot = (
+                DBSession()
+                .scalars(
+                    sa.select(Photometry).where(Photometry.obj_id == photometry.obj_id)
+                )
+                .all()
+            )
+            phot_stat.full_update(all_phot)
+
+        DBSession().commit()  # this happens above a user level permission
 
         return self.success()
 
@@ -1073,7 +1166,11 @@ class ObjPhotometryHandler(BaseHandler):
     def get(self, obj_id):
         phase_fold_data = self.get_query_argument("phaseFoldData", False)
 
-        Obj.get_if_accessible_by(obj_id, self.current_user, raise_if_none=True)
+        if Obj.get_if_accessible_by(obj_id, self.current_user) is None:
+            return self.error(
+                f"Insufficient permissions for User {self.current_user.id} to read Obj {obj_id}",
+                status=403,
+            )
         photometry = Photometry.query_records_accessible_by(self.current_user).filter(
             Photometry.obj_id == obj_id
         )
@@ -1197,6 +1294,28 @@ class PhotometryRangeHandler(BaseHandler):
         output = [serialize(p, magsys, format) for p in query]
         self.verify_and_commit()
         return self.success(data=output)
+
+
+class PhotometryOriginHandler(BaseHandler):
+    @auth_or_token
+    def get(self):
+        """
+        ---
+        description: Get all photometry origins
+        tags:
+          - photometry
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        origins = DBSession().query(Photometry.origin).distinct().all()
+        return self.success(data=[origin[0] for origin in origins])
 
 
 PhotometryHandler.get.__doc__ = f"""

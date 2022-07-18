@@ -43,7 +43,7 @@ def test_sharing_photometry(
     # `view_only_token only` belongs to `public_group`, but not `public_group2`
     assert status == 400
     assert data["status"] == "error"
-    assert "Insufficient permissions" in data["message"]
+    assert "Cannot find photometry point with ID" in data["message"]
 
     status, data = api(
         "POST",
@@ -105,7 +105,7 @@ def test_sharing_photometry_with_foreign_group(
     # `view_only_token only` belongs to `public_group`, but not `public_group2`
     assert status == 400
     assert data["status"] == "error"
-    assert "Insufficient permissions" in data["message"]
+    assert "Cannot find photometry point with ID" in data["message"]
 
     status, data = api(
         "POST",

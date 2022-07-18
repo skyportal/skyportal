@@ -1,20 +1,19 @@
 import React from "react";
 import { useSelector, useDispatch } from "react-redux";
 
-import FormGroup from "@material-ui/core/FormGroup";
-import FormControlLabel from "@material-ui/core/FormControlLabel";
-import Switch from "@material-ui/core/Switch";
-import Typography from "@material-ui/core/Typography";
-
-// import { useTheme } from '@material-ui/core/styles';
+import FormGroup from "@mui/material/FormGroup";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import Switch from "@mui/material/Switch";
 
 import * as profileActions from "../ducks/profile";
+import UserPreferencesHeader from "./UserPreferencesHeader";
 
 const UIPreferences = () => {
   const preferences = useSelector((state) => state.profile.preferences);
   const currentTheme = preferences?.theme;
   const invertThumbnails = preferences?.invertThumbnails || false;
   const compactComments = preferences?.compactComments || false;
+  const useAMPM = preferences?.useAMPM || false;
   const dispatch = useDispatch();
 
   const themeToggled = (event) => {
@@ -35,6 +34,13 @@ const UIPreferences = () => {
   const commentsToggled = (event) => {
     const prefs = {
       compactComments: event.target.checked,
+    };
+    dispatch(profileActions.updateUserPreferences(prefs));
+  };
+
+  const useAMPMToggled = (event) => {
+    const prefs = {
+      useAMPM: event.target.checked,
     };
     dispatch(profileActions.updateUserPreferences(prefs));
   };
@@ -63,16 +69,24 @@ const UIPreferences = () => {
     />
   );
 
+  const useAMPMSwitch = (
+    <Switch
+      value="Use 24 hour or AM/PM"
+      checked={useAMPM}
+      onChange={useAMPMToggled}
+    />
+  );
+
   /* To get hold of the current theme:
 
   const themeCtx = useTheme();
-  console.log(themeCtx.palette.type);
+  console.log(themeCtx.palette.mode);
 
   */
 
   return (
     <div>
-      <Typography variant="h6">UI Preferences</Typography>
+      <UserPreferencesHeader title="UI Preferences" />
       <FormGroup row>
         <FormControlLabel control={themeSwitch} label="Dark mode" />
         <FormControlLabel
@@ -83,6 +97,7 @@ const UIPreferences = () => {
           control={commpactCommentsSwitch}
           label="Compact Comments"
         />
+        <FormControlLabel control={useAMPMSwitch} label="24 Hour or AM/PM" />
       </FormGroup>
     </div>
   );

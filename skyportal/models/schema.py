@@ -1010,7 +1010,8 @@ class ObservationPlanPost(_Schema):
     )
 
     payload = fields.Field(
-        required=False, metadata={'description': "Content of the followup request."}
+        required=False,
+        metadata={'description': "Content of the observation plan request."},
     )
 
     status = fields.String(
@@ -1021,7 +1022,7 @@ class ObservationPlanPost(_Schema):
 
     allocation_id = fields.Integer(
         required=True,
-        metadata={'description': "Followup request allocation ID."},
+        metadata={'description': "Observation plan request allocation ID."},
     )
 
     localization_id = fields.Integer(
@@ -1034,7 +1035,30 @@ class ObservationPlanPost(_Schema):
         required=False,
         metadata={
             'description': (
-                'IDs of groups to share the results of the followup request with.'
+                'IDs of groups to share the results of the observation plan request with.'
+            )
+        },
+    )
+
+
+class DefaultObservationPlanPost(_Schema):
+
+    payload = fields.Field(
+        required=False,
+        metadata={'description': "Content of the default observation plan request."},
+    )
+
+    allocation_id = fields.Integer(
+        required=True,
+        metadata={'description': "Observation plan request allocation ID."},
+    )
+
+    target_group_ids = fields.List(
+        fields.Integer,
+        required=False,
+        metadata={
+            'description': (
+                'IDs of groups to share the results of the default observation plan request with.'
             )
         },
     )
@@ -1373,6 +1397,12 @@ class SpectrumPost(_Schema):
         },
     )
 
+    units = fields.String(
+        metadata={
+            'description': "Units of the fluxes/errors. Options are Jy, AB, or erg/s/cm/cm/AA).",
+        },
+    )
+
     obj_id = fields.String(
         required=True,
         metadata={'description': "ID of this Spectrum's Obj."},
@@ -1465,6 +1495,106 @@ class SpectrumPost(_Schema):
     )
 
 
+class SpectrumHead(_Schema):
+
+    obj_id = fields.String(
+        required=True,
+        metadata={'description': "ID of this Spectrum's Obj."},
+    )
+
+    observed_at = fields.DateTime(
+        metadata={'description': 'The ISO UTC time the spectrum was taken.'},
+        required=True,
+    )
+
+    reducers = fields.List(
+        fields.Integer,
+        metadata={
+            'description': "IDs of the Users who reduced this Spectrum, "
+            "or to use as points of contact given an external reducer."
+        },
+        missing=[],
+    )
+
+    external_reducer = fields.String(
+        metadata={'description': "Free text provided as an external reducer"},
+        required=False,
+        missing=None,
+    )
+
+    observers = fields.List(
+        fields.Integer,
+        metadata={
+            'description': "IDs of the Users who observed this Spectrum, "
+            "or to use as points of contact given an external observer."
+        },
+        missing=[],
+    )
+
+    external_observer = fields.String(
+        metadata={'description': "Free text provided as an external observer"},
+        required=False,
+        missing=None,
+    )
+
+    origin = fields.String(
+        required=False, metadata={'description': "Origin of the spectrum."}
+    )
+
+    type = fields.String(
+        validate=validate.OneOf(ALLOWED_SPECTRUM_TYPES),
+        required=False,
+        metadata={
+            "description": f'''Type of spectrum. One of: {''.join(f"'{t}'" for t in ALLOWED_SPECTRUM_TYPES)}.
+                         Defaults to 'f{default_spectrum_type}'.'''
+        },
+    )
+
+    label = fields.String(
+        required=False,
+        metadata={
+            'description': "User defined label (can be used to replace default instrument/date labeling on plot legends)."
+        },
+    )
+
+    instrument_id = fields.Integer(
+        required=True,
+        metadata={'description': "ID of the Instrument that acquired the Spectrum."},
+    )
+    instrument_name = fields.String(
+        required=True,
+        metadata={'description': "Name of the Instrument that acquired the Spectrum."},
+    )
+
+    group_ids = fields.Field(
+        missing=[],
+        metadata={
+            'description': 'IDs of the Groups to share this spectrum with. Set to "all"'
+            ' to make this spectrum visible to all users.'
+        },
+    )
+
+    followup_request_id = fields.Integer(
+        required=False,
+        metadata={
+            'description': 'ID of the Followup request that generated this spectrum, '
+            'if any.'
+        },
+    )
+
+    assignment_id = fields.Integer(
+        required=False,
+        metadata={
+            'description': 'ID of the classical assignment that generated this spectrum, '
+            'if any.'
+        },
+    )
+
+    altdata = fields.Field(
+        metadata={'description': 'Miscellaneous alternative metadata.'}
+    )
+
+
 class GroupIDList(_Schema):
 
     group_ids = fields.List(fields.Integer, required=True)
@@ -1475,6 +1605,12 @@ class GalaxyHandlerPost(_Schema):
     catalog_data = fields.List(
         fields.Field(), metadata={"description": 'Galaxy catalog data'}
     )
+
+
+class GalaxyASCIIFileHandlerPost(_Schema):
+    catalogName = fields.String(metadata={"description": 'Galaxy catalog name.'})
+
+    catalogData = fields.Field(metadata={'description': 'Catalog data Ascii string'})
 
 
 def register_components(spec):
@@ -1515,4 +1651,5 @@ ObservationPlanPost = ObservationPlanPost()
 ObservationExternalAPIHandlerPost = ObservationExternalAPIHandlerPost()
 SpectrumAsciiFileParseJSON = SpectrumAsciiFileParseJSON()
 SpectrumPost = SpectrumPost()
+SpectrumHead = SpectrumHead()
 GroupIDList = GroupIDList()

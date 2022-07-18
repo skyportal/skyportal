@@ -1,9 +1,10 @@
 import React from "react";
 import embed from "vega-embed";
 import PropTypes from "prop-types";
+import { useTheme } from "@mui/material/styles";
 
-const airmassSpec = (url) => ({
-  $schema: "https://vega.github.io/schema/vega-lite/v4.json",
+const airmassSpec = (url, titleFontSize, labelFontSize) => ({
+  $schema: "https://vega.github.io/schema/vega-lite/v5.2.0.json",
   background: "transparent",
   data: {
     url,
@@ -23,6 +24,8 @@ const airmassSpec = (url) => ({
       },
       axis: {
         grid: true,
+        titleFontSize,
+        labelFontSize
       },
     },
     x: {
@@ -33,6 +36,8 @@ const airmassSpec = (url) => ({
         format: "%b",
         formatType: "time",
         tickCount: "month",
+        titleFontSize,
+        labelFontSize
       },
     },
   },
@@ -58,11 +63,12 @@ const airmassSpec = (url) => ({
 
 const HoursBelowAirmassPlot = React.memo((props) => {
   const { dataUrl } = props;
+  const theme = useTheme();
   return (
     <div
       ref={(node) => {
         if (node) {
-          embed(node, airmassSpec(dataUrl), {
+          embed(node, airmassSpec(dataUrl, theme.plotFontSizes.titleFontSize, theme.plotFontSizes.labelFontSize), {
             actions: false,
           });
         }

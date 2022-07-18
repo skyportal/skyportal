@@ -63,8 +63,14 @@ class GroupAdmissionRequestHandler(BaseHandler):
         group_id = self.get_query_argument("groupID", None)
         if admission_request_id is not None:
             admission_request = GroupAdmissionRequest.get_if_accessible_by(
-                admission_request_id, self.current_user, raise_if_none=True, mode="read"
+                admission_request_id,
+                self.current_user,
+                mode="read",
             )
+            if admission_request is None:
+                return self.error(
+                    f'Could not find an admission request with the ID: {admission_request_id}.'
+                )
             response_data = {
                 **admission_request.to_dict(),
                 "user": admission_request.user,

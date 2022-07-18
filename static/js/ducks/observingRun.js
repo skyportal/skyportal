@@ -10,11 +10,20 @@ const FETCH_OBSERVING_RUN_OK = "skyportal/FETCH_OBSERVING_RUN_OK";
 
 const SUBMIT_OBSERVING_RUN = "skyportal/SUBMIT_OBSERVING_RUN";
 
+const DELETE_OBSERVING_RUN = "skyportal/DELETE_OBSERVING_RUN";
+
 export const fetchObservingRun = (id) =>
   API.GET(`/api/observing_run/${id}`, FETCH_OBSERVING_RUN);
 
 export const submitObservingRun = (run) =>
   API.POST(`/api/observing_run`, SUBMIT_OBSERVING_RUN, run);
+
+export function deleteObservingRun(observingRunID) {
+  return API.DELETE(
+    `/api/observing_run/${observingRunID}`,
+    DELETE_OBSERVING_RUN
+  );
+}
 
 // Websocket message handler
 messageHandler.add((actionType, payload, dispatch, getState) => {

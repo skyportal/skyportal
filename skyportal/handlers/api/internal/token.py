@@ -41,7 +41,10 @@ class TokenHandler(BaseHandler):
                 "User has attempted to grant token ACLs they do not have "
                 "access to. Please try again."
             )
-        if len(user.tokens) > 0 and not user.is_admin:
+        existing_tokens = (
+            DBSession().query(Token).filter(Token.created_by_id == user.id).all()
+        )
+        if len(existing_tokens) > 0 and not user.is_admin:
             return self.error(
                 "You have reached the maximum number of tokens "
                 "allowed for your account type."

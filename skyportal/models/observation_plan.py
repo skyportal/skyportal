@@ -1,4 +1,5 @@
 __all__ = [
+    'DefaultObservationPlanRequest',
     'ObservationPlanRequest',
     'ObservationPlanRequestTargetGroup',
     'EventObservationPlan',
@@ -25,7 +26,7 @@ from baselayer.app.models import (
 )
 
 from .group import Group
-from .instrument import Instrument, InstrumentFieldTile
+from .instrument import Instrument, InstrumentField, InstrumentFieldTile
 from .allocation import Allocation
 from .localization import LocalizationTile
 
@@ -58,6 +59,63 @@ def updatable_by_token_with_listener_acl(cls, user_or_token):
         .join(Instrument)
         .filter(Instrument.id.in_(accessible_instrument_ids))
     )
+
+
+class DefaultObservationPlanRequest(Base):
+    """A default request for an EventObservationPlan."""
+
+    # TODO: Make read-accessible via target groups
+    create = read = AccessibleIfRelatedRowsAreAccessible(allocation="read")
+    update = delete = (
+        (
+            AccessibleIfUserMatches('allocation.group.users')
+            | AccessibleIfUserMatches('requester')
+        )
+        & read
+    ) | CustomUserAccessControl(updatable_by_token_with_listener_acl)
+
+    requester_id = sa.Column(
+        sa.ForeignKey('users.id', ondelete='SET NULL'),
+        nullable=True,
+        index=True,
+        doc="ID of the User who requested the default observation plan request.",
+    )
+
+    requester = relationship(
+        User,
+        back_populates='default_observationplan_requests',
+        doc="The User who requested the default requests.",
+        foreign_keys=[requester_id],
+    )
+
+    payload = sa.Column(
+        psql.JSONB,
+        nullable=False,
+        doc="Content of the default observation plan request.",
+    )
+
+    allocation_id = sa.Column(
+        sa.ForeignKey('allocations.id', ondelete='CASCADE'), nullable=False, index=True
+    )
+    allocation = relationship('Allocation', back_populates='default_observation_plans')
+
+    target_groups = relationship(
+        'Group',
+        secondary='default_observationplan_groups',
+        passive_deletes=True,
+        doc='Groups to share the resulting data from this default request with.',
+    )
+
+
+DefaultObservationPlanRequestTargetGroup = join_model(
+    'default_observationplan_groups', DefaultObservationPlanRequest, Group
+)
+DefaultObservationPlanRequestTargetGroup.create = (
+    DefaultObservationPlanRequestTargetGroup.update
+) = DefaultObservationPlanRequestTargetGroup.delete = (
+    AccessibleIfUserMatches('defaultobservationplanrequest.requester')
+    & DefaultObservationPlanRequestTargetGroup.read
+)
 
 
 class ObservationPlanRequest(Base):
@@ -162,6 +220,13 @@ class ObservationPlanRequest(Base):
         order_by="FacilityTransaction.created_at.desc()",
     )
 
+    transaction_requests = relationship(
+        'FacilityTransactionRequest',
+        back_populates='observation_plan_request',
+        passive_deletes=True,
+        order_by="FacilityTransactionRequest.created_at.desc()",
+    )
+
     @property
     def instrument(self):
         return self.allocation.instrument
@@ -173,7 +238,7 @@ ObservationPlanRequestTargetGroup = join_model(
 ObservationPlanRequestTargetGroup.create = (
     ObservationPlanRequestTargetGroup.update
 ) = ObservationPlanRequestTargetGroup.delete = (
-    AccessibleIfUserMatches('followuprequest.requester')
+    AccessibleIfUserMatches('observationplanrequest.requester')
     & ObservationPlanRequestTargetGroup.read
 )
 
@@ -243,6 +308,13 @@ class EventObservationPlan(Base):
         doc='Planned observations associated with this plan.',
     )
 
+    survey_efficiency_analyses = relationship(
+        'SurveyEfficiencyForObservationPlan',
+        cascade='delete',
+        passive_deletes=True,
+        doc="Survey efficiency analyses of the event.",
+    )
+
     @property
     def start_observation(self):
         """Time of the first planned observation."""
@@ -288,24 +360,51 @@ class EventObservationPlan(Base):
         return overhead + self.total_time
 
     @property
-    def area(self):
+    def area(self, cumulative_probability=1.0):
         """Integrated area in sq. deg within localization."""
 
-        union = (
-            sa.select(ha.func.union(InstrumentFieldTile.healpix).label('healpix'))
-            .filter(
+        cum_prob = (
+            sa.func.sum(LocalizationTile.probdensity * LocalizationTile.healpix.area)
+            .over(order_by=LocalizationTile.probdensity.desc())
+            .label('cum_prob')
+        )
+        localizationtile_subquery = (
+            sa.select(LocalizationTile.probdensity, cum_prob)
+            .where(
+                LocalizationTile.localization_id
+                == self.observation_plan_request.localization_id,
+            )
+            .distinct()
+        ).subquery()
+
+        min_probdensity = (
+            sa.select(sa.func.min(localizationtile_subquery.columns.probdensity)).where(
+                localizationtile_subquery.columns.cum_prob <= cumulative_probability
+            )
+        ).scalar_subquery()
+
+        tiles_subquery = (
+            sa.select(InstrumentFieldTile.id)
+            .where(
+                LocalizationTile.localization_id
+                == self.observation_plan_request.localization_id,
+                LocalizationTile.probdensity >= min_probdensity,
+                InstrumentFieldTile.instrument_id == self.instrument_id,
+                InstrumentFieldTile.instrument_field_id == InstrumentField.id,
                 InstrumentFieldTile.instrument_field_id == PlannedObservation.field_id,
                 PlannedObservation.observation_plan_id == self.id,
+                InstrumentFieldTile.healpix.overlaps(LocalizationTile.healpix),
             )
+            .distinct()
             .subquery()
         )
 
-        area = sa.func.sum(union.columns.healpix.area)
-        query_area = sa.select(area).filter(
-            LocalizationTile.localization_id
-            == self.observation_plan_request.localization_id,
-            union.columns.healpix.overlaps(LocalizationTile.healpix),
+        union = sa.select(ha.func.union(InstrumentFieldTile.healpix).label('healpix'))
+        union = union.join(
+            tiles_subquery, tiles_subquery.c.id == InstrumentFieldTile.id
         )
+        area = sa.func.sum(union.columns.healpix.area)
+        query_area = sa.select(area)
         intarea = DBSession().execute(query_area).scalar_one()
 
         if intarea is None:
@@ -313,27 +412,70 @@ class EventObservationPlan(Base):
         return intarea * (180.0 / np.pi) ** 2
 
     @property
-    def probability(self):
+    def probability(self, cumulative_probability=1.0):
         """Integrated probability within a given localization."""
 
-        union = (
-            sa.select(ha.func.union(InstrumentFieldTile.healpix).label('healpix'))
-            .filter(
+        cum_prob = (
+            sa.func.sum(LocalizationTile.probdensity * LocalizationTile.healpix.area)
+            .over(order_by=LocalizationTile.probdensity.desc())
+            .label('cum_prob')
+        )
+        localizationtile_subquery = (
+            sa.select(LocalizationTile.probdensity, cum_prob)
+            .where(
+                LocalizationTile.localization_id
+                == self.observation_plan_request.localization_id,
+            )
+            .distinct()
+        ).subquery()
+
+        min_probdensity = (
+            sa.select(sa.func.min(localizationtile_subquery.columns.probdensity)).where(
+                localizationtile_subquery.columns.cum_prob <= cumulative_probability
+            )
+        ).scalar_subquery()
+
+        tiles_subquery = (
+            sa.select(InstrumentFieldTile.id)
+            .where(
+                LocalizationTile.localization_id
+                == self.observation_plan_request.localization_id,
+                LocalizationTile.probdensity >= min_probdensity,
+                InstrumentFieldTile.instrument_id == self.instrument_id,
+                InstrumentFieldTile.instrument_field_id == InstrumentField.id,
                 InstrumentFieldTile.instrument_field_id == PlannedObservation.field_id,
                 PlannedObservation.observation_plan_id == self.id,
+                InstrumentFieldTile.healpix.overlaps(LocalizationTile.healpix),
             )
+            .distinct()
             .subquery()
         )
 
+        tiles_subquery = (
+            sa.select(InstrumentFieldTile.id)
+            .where(
+                LocalizationTile.localization_id
+                == self.observation_plan_request.localization_id,
+                LocalizationTile.probdensity >= min_probdensity,
+                InstrumentFieldTile.instrument_id == self.instrument_id,
+                InstrumentFieldTile.instrument_field_id == InstrumentField.id,
+                InstrumentFieldTile.instrument_field_id == PlannedObservation.field_id,
+                PlannedObservation.observation_plan_id == self.id,
+                InstrumentFieldTile.healpix.overlaps(LocalizationTile.healpix),
+            )
+            .distinct()
+            .subquery()
+        )
+
+        union = sa.select(ha.func.union(InstrumentFieldTile.healpix).label('healpix'))
+        union = union.join(
+            tiles_subquery, tiles_subquery.c.id == InstrumentFieldTile.id
+        )
         prob = sa.func.sum(
             LocalizationTile.probdensity
             * (union.columns.healpix * LocalizationTile.healpix).area
         )
-        query_prob = sa.select(prob).filter(
-            LocalizationTile.localization_id
-            == self.observation_plan_request.localization_id,
-            union.columns.healpix.overlaps(LocalizationTile.healpix),
-        )
+        query_prob = sa.select(prob)
         intprob = DBSession().execute(query_prob).scalar_one()
         if intprob is None:
             intprob = 0.0

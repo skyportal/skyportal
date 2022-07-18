@@ -3,19 +3,22 @@ import PropTypes from "prop-types";
 import { useSelector, useDispatch } from "react-redux";
 import { Link } from "react-router-dom";
 
-import { makeStyles } from "@material-ui/core/styles";
-import useMediaQuery from "@material-ui/core/useMediaQuery";
-import Grid from "@material-ui/core/Grid";
-import Button from "@material-ui/core/Button";
-import Chip from "@material-ui/core/Chip";
-import Tooltip from "@material-ui/core/Tooltip";
-import Accordion from "@material-ui/core/Accordion";
-import AccordionSummary from "@material-ui/core/AccordionSummary";
-import AccordionDetails from "@material-ui/core/AccordionDetails";
-import ExpandMoreIcon from "@material-ui/icons/ExpandMore";
-import Typography from "@material-ui/core/Typography";
-import Paper from "@material-ui/core/Paper";
-import CircularProgress from "@material-ui/core/CircularProgress";
+import makeStyles from "@mui/styles/makeStyles";
+import useMediaQuery from "@mui/material/useMediaQuery";
+import Grid from "@mui/material/Grid";
+import Button from "@mui/material/Button";
+import Chip from "@mui/material/Chip";
+import Tooltip from "@mui/material/Tooltip";
+import Accordion from "@mui/material/Accordion";
+import AccordionSummary from "@mui/material/AccordionSummary";
+import AccordionDetails from "@mui/material/AccordionDetails";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import Typography from "@mui/material/Typography";
+import Paper from "@mui/material/Paper";
+import CircularProgress from "@mui/material/CircularProgress";
+import Popover from "@mui/material/Popover";
+import IconButton from "@mui/material/IconButton";
+import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
 
 import {
   isBrowser,
@@ -60,6 +63,8 @@ const CentroidPlot = React.lazy(() =>
   import(/* webpackChunkName: "CentroidPlot" */ "./CentroidPlot")
 );
 
+const green = "#359d73";
+
 export const useSourceStyles = makeStyles((theme) => ({
   chip: {
     margin: theme.spacing(0.5),
@@ -100,7 +105,7 @@ export const useSourceStyles = makeStyles((theme) => ({
     fontSize: "200%",
     fontWeight: "900",
     color:
-      theme.palette.type === "dark"
+      theme.palette.mode === "dark"
         ? theme.palette.secondary.main
         : theme.palette.primary.main,
     paddingBottom: "0.25em",
@@ -115,13 +120,13 @@ export const useSourceStyles = makeStyles((theme) => ({
     flexDirection: "column",
     paddingBottom: "0.5rem",
     overflowX: "scroll",
-    "& div button": {
-      margin: "0.5rem",
-    },
   },
   plotButtons: {
     display: "flex",
     flexFlow: "row wrap",
+    "& button": {
+      margin: "0.5rem",
+    },
   },
   comments: {
     marginLeft: "1rem",
@@ -195,6 +200,41 @@ export const useSourceStyles = makeStyles((theme) => ({
   findingChart: {
     alignItems: "center",
   },
+  tooltipContent: {
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "center",
+    alignItems: "center",
+    width: "100%",
+  },
+  legend: {
+    width: "100%",
+    display: "flex",
+    flexDirection: "row",
+    justifyContent: "left",
+    alignItems: "center",
+    gap: "10px",
+  },
+  circle: {
+    borderRadius: "50%",
+    width: "25px",
+    height: "25px",
+    display: "inline-block",
+  },
+  downTriangle: {
+    width: 0,
+    height: 0,
+    backgroundColor: "transparent",
+    borderStyle: "solid",
+    borderTopWidth: "15px",
+    borderRightWidth: "15px",
+    borderBottomWidth: "0px",
+    borderLeftWidth: "15px",
+    borderTopColor: "#359d73",
+    borderRightColor: "transparent",
+    borderBottomColor: "transparent",
+    borderLeftColor: "transparent",
+  },
 }));
 
 const SourceMobile = WidthProvider(
@@ -207,6 +247,15 @@ const SourceMobile = WidthProvider(
 
     const [showStarList, setShowStarList] = useState(false);
     const [showPhotometry, setShowPhotometry] = useState(false);
+    const [anchorEl, setAnchorEl] = useState(null);
+    const handleClick = (event) => {
+      setAnchorEl(event.currentTarget);
+    };
+    const handleClose = () => {
+      setAnchorEl(null);
+    };
+    const open = Boolean(anchorEl);
+    const id = open ? "simple-popover" : undefined;
 
     const { instrumentList, instrumentFormParams } = useSelector(
       (state) => state.instruments
@@ -473,18 +522,24 @@ const SourceMobile = WidthProvider(
                 </Typography>
               </AccordionSummary>
               <AccordionDetails>
-                <div className={classes.photometryContainer}>
-                  <Suspense
-                    fallback={
-                      <div>
-                        <CircularProgress color="secondary" />
-                      </div>
-                    }
-                  >
-                    <Plot
-                      url={`/api/internal/plot/photometry/${source.id}?width=${plotWidth}&device=${device}`}
-                    />
-                  </Suspense>
+                <Grid container>
+                  <div className={classes.photometryContainer}>
+                    {!source.photometry_exists ? (
+                      <div> No photometry exists </div>
+                    ) : (
+                      <Suspense
+                        fallback={
+                          <div>
+                            <CircularProgress color="secondary" />
+                          </div>
+                        }
+                      >
+                        <Plot
+                          url={`/api/internal/plot/photometry/${source.id}?width=${plotWidth}&device=${device}`}
+                        />
+                      </Suspense>
+                    )}
+                  </div>
                   <div className={classes.plotButtons}>
                     {isBrowser && (
                       <Link to={`/upload_photometry/${source.id}`} role="link">
@@ -504,8 +559,45 @@ const SourceMobile = WidthProvider(
                     >
                       Show Photometry Table
                     </Button>
+                    <IconButton
+                      aria-label="help"
+                      size="small"
+                      onClick={handleClick}
+                    >
+                      <HelpOutlineIcon />
+                    </IconButton>
+                    <Popover
+                      id={id}
+                      open={open}
+                      anchorEl={anchorEl}
+                      onClose={handleClose}
+                      anchorOrigin={{
+                        vertical: "top",
+                        horizontal: "right",
+                      }}
+                      transformOrigin={{
+                        vertical: "top",
+                        horizontal: "left",
+                      }}
+                    >
+                      <div className={classes.tooltipContent}>
+                        <div className={classes.legend}>
+                          <div className={classes.downTriangle} />
+                          <p>Stands for Non Detections</p>
+                        </div>
+                        <div className={classes.legend}>
+                          <div
+                            style={{
+                              background: `${green}`,
+                            }}
+                            className={classes.circle}
+                          />
+                          <p> Stands for Detections</p>
+                        </div>
+                      </div>
+                    </Popover>
                   </div>
-                </div>
+                </Grid>
               </AccordionDetails>
             </Accordion>
           </div>
@@ -523,17 +615,21 @@ const SourceMobile = WidthProvider(
               <AccordionDetails>
                 <Grid container>
                   <div className={classes.photometryContainer}>
-                    <Suspense
-                      fallback={
-                        <div>
-                          <CircularProgress color="secondary" />
-                        </div>
-                      }
-                    >
-                      <Plot
-                        url={`/api/internal/plot/spectroscopy/${source.id}?width=${plotWidth}&device=${device}&cacheID=${specIDs}`}
-                      />
-                    </Suspense>
+                    {!source.spectrum_exists ? (
+                      <div> No spectra exist </div>
+                    ) : (
+                      <Suspense
+                        fallback={
+                          <div>
+                            <CircularProgress color="secondary" />
+                          </div>
+                        }
+                      >
+                        <Plot
+                          url={`/api/internal/plot/spectroscopy/${source.id}?width=${plotWidth}&device=${device}&cacheID=${specIDs}`}
+                        />
+                      </Suspense>
+                    )}
                   </div>
                   <div className={classes.plotButtons}>
                     {isBrowser && (
@@ -616,6 +712,7 @@ const SourceMobile = WidthProvider(
                     followupRequests={source.followup_requests}
                     instrumentList={instrumentList}
                     instrumentFormParams={instrumentFormParams}
+                    totalMatches={source.followup_requests.length}
                   />
                   <AssignmentForm
                     obj_id={source.id}
@@ -768,6 +865,8 @@ SourceMobile.propTypes = {
       })
     ),
     alias: PropTypes.arrayOf(PropTypes.string),
+    photometry_exists: PropTypes.bool,
+    spectrum_exists: PropTypes.bool,
   }).isRequired,
 };
 

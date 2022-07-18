@@ -4,13 +4,17 @@ __all__ = [
     'GroupAnnotation',
     'GroupClassification',
     'GroupPhotometry',
+    'GroupPhotometricSeries',
     'GroupSpectrum',
     'GroupCommentOnSpectrum',
     'GroupCommentOnGCN',
+    'GroupCommentOnShift',
     'GroupAnnotationOnSpectrum',
     'GroupInvitation',
     'GroupSourceNotification',
     'GroupStream',
+    'GroupAnalysisService',
+    'GroupObjAnalysis',
 ]
 
 import sqlalchemy as sa
@@ -18,7 +22,7 @@ import sqlalchemy as sa
 from baselayer.app.models import join_model, User, AccessibleIfUserMatches
 
 from baselayer.app.models import DBSession, restricted, CustomUserAccessControl
-from .photometry import Photometry
+from .photometry import Photometry, PhotometricSeries
 from .taxonomy import Taxonomy
 from .comment import Comment
 from .annotation import Annotation
@@ -27,12 +31,29 @@ from .spectrum import Spectrum
 from .comment import CommentOnSpectrum
 from .annotation import AnnotationOnSpectrum
 from .comment import CommentOnGCN
+from .comment import CommentOnShift
 from .invitation import Invitation
 from .source_notification import SourceNotification
 from .filter import Filter
 from .stream import Stream, StreamUser
+from .survey_efficiency import (
+    SurveyEfficiencyForObservations,
+    SurveyEfficiencyForObservationPlan,
+)
 from .group import Group, accessible_by_group_admins, accessible_by_group_members
+from .analysis import AnalysisService, ObjAnalysis
 
+GroupObjAnalysis = join_model("group_obj_analyses", Group, ObjAnalysis)
+GroupObjAnalysis.__doc__ = "Join table mapping Groups to ObjAnalysis."
+GroupObjAnalysis.delete = GroupObjAnalysis.update = (
+    accessible_by_group_admins & GroupObjAnalysis.read
+)
+
+GroupAnalysisService = join_model("group_analysisservices", Group, AnalysisService)
+GroupAnalysisService.__doc__ = "Join table mapping Groups to Analysis Services."
+GroupAnalysisService.delete = GroupAnalysisService.update = (
+    accessible_by_group_admins & GroupAnalysisService.read
+)
 
 GroupTaxonomy = join_model("group_taxonomy", Group, Taxonomy)
 GroupTaxonomy.__doc__ = "Join table mapping Groups to Taxonomies."
@@ -45,6 +66,28 @@ GroupComment.__doc__ = "Join table mapping Groups to Comments."
 GroupComment.delete = GroupComment.update = (
     accessible_by_group_admins & GroupComment.read
 )
+
+GroupSurveyEfficiencyForObservationPlan = join_model(
+    "group_survey_efficiency_for_observation_plan",
+    Group,
+    SurveyEfficiencyForObservationPlan,
+)
+GroupSurveyEfficiencyForObservationPlan.__doc__ = (
+    "Join table mapping Groups to SurveyEfficiencyForObservationPlans."
+)
+GroupSurveyEfficiencyForObservationPlan.delete = (
+    GroupSurveyEfficiencyForObservationPlan.update
+) = (accessible_by_group_admins & GroupSurveyEfficiencyForObservationPlan.read)
+
+GroupSurveyEfficiencyForObservations = join_model(
+    "group_survey_efficiency_for_observations", Group, SurveyEfficiencyForObservations
+)
+GroupSurveyEfficiencyForObservations.__doc__ = (
+    "Join table mapping Groups to SurveyEfficiencyForObservations."
+)
+GroupSurveyEfficiencyForObservations.delete = (
+    GroupSurveyEfficiencyForObservations.update
+) = (accessible_by_group_admins & GroupSurveyEfficiencyForObservations.read)
 
 GroupAnnotation = join_model("group_annotations", Group, Annotation)
 GroupAnnotation.__doc__ = "Join table mapping Groups to Annotation."
@@ -62,6 +105,14 @@ GroupPhotometry = join_model("group_photometry", Group, Photometry)
 GroupPhotometry.__doc__ = "Join table mapping Groups to Photometry."
 GroupPhotometry.delete = GroupPhotometry.update = (
     accessible_by_group_admins & GroupPhotometry.read
+)
+
+GroupPhotometricSeries = join_model(
+    "group_photometric_series", Group, PhotometricSeries
+)
+GroupPhotometricSeries.__doc__ = "Join table mapping Groups to PhotometricSeries."
+GroupPhotometricSeries.delete = GroupPhotometricSeries.update = (
+    accessible_by_group_admins & GroupPhotometricSeries.read
 )
 
 GroupSpectrum = join_model("group_spectra", Group, Spectrum)
@@ -90,6 +141,12 @@ GroupCommentOnGCN = join_model("group_comments_on_gcns", Group, CommentOnGCN)
 GroupCommentOnGCN.__doc__ = "Join table mapping Groups to CommentOnGCN."
 GroupCommentOnGCN.delete = GroupCommentOnGCN.update = (
     accessible_by_group_admins & GroupCommentOnGCN.read
+)
+
+GroupCommentOnShift = join_model("group_comments_on_shifts", Group, CommentOnShift)
+GroupCommentOnShift.__doc__ = "Join table mapping Groups to CommentOnShift."
+GroupCommentOnShift.delete = GroupCommentOnShift.update = (
+    accessible_by_group_admins & GroupCommentOnShift.read
 )
 
 GroupInvitation = join_model('group_invitations', Group, Invitation)

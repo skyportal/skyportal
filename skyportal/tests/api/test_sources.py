@@ -5,6 +5,7 @@ import numpy as np
 import arrow
 from tdtax import taxonomy, __version__
 import astropy.units as u
+from astropy.time import Time
 
 from skyportal.tests import api
 from skyportal.models import cosmo
@@ -400,7 +401,7 @@ def test_cannot_post_source_with_null_radec(
         },
         token=upload_data_token,
     )
-    assert status == 400
+    assert status == 500
 
 
 def test_add_source_without_group_id(upload_data_token, view_only_token, public_group):
@@ -461,7 +462,7 @@ def test_starlist(upload_data_token, public_source):
     assert "starlist_str" in data["data"]
     assert isinstance(data["data"]["starlist_info"][2]["dec"], float)
 
-    # use DR2 for offsets ... it should not be identical position as DR2
+    # use DR3 for offsets ... it should not be identical position as DR3
     status, data = api(
         "GET",
         f"sources/{public_source.id}/offsets",
@@ -771,10 +772,9 @@ def test_object_last_detected(
     )
     assert status == 200
     assert data["status"] == "success"
-    assert (
-        data["data"]["last_detected_at"]
-        == arrow.get((90000.0 - 40_587) * 86400.0).isoformat()
-    )
+    assert arrow.get(
+        Time(data["data"]["photstats"][-1]["last_detected_mjd"], format="mjd").datetime
+    ) == arrow.get((90000.0 - 40_587) * 86400.0)
 
 
 def test_source_photometry_summary_info(
@@ -806,9 +806,7 @@ def test_source_photometry_summary_info(
     assert len(data["data"]["ids"]) == 2
 
     mag1_ab = -2.5 * np.log10(pt1["flux"]) + 25.0
-    iso1 = arrow.get((pt1["mjd"] - 40_587) * 86400.0).isoformat()
     mag2_ab = -2.5 * np.log10(pt2["flux"]) + 25.0
-    iso2 = arrow.get((pt2["mjd"] - 40_587) * 86400.0).isoformat()
 
     status, data = api(
         "GET",
@@ -818,178 +816,11 @@ def test_source_photometry_summary_info(
     )
     assert status == 200
     assert data["status"] == "success"
-    assert data["data"]["last_detected_at"] == iso2
-    assert data["data"]["last_detected_mag"] == mag2_ab
-    assert data["data"]["peak_detected_at"] == iso1
-    assert data["data"]["peak_detected_mag"] == mag1_ab
 
-
-def test_sources_include_detection_stats(
-    upload_data_token,
-    super_admin_token,
-    public_group,
-    public_group2,
-    upload_data_token_two_groups,
-    view_only_token,
-):
-
-    obj_id = str(uuid.uuid4())
-    status, data = api(
-        "POST",
-        "sources",
-        data={
-            "id": obj_id,
-            "ra": 234.22,
-            "dec": -22.33,
-            "group_ids": [public_group.id],
-        },
-        token=upload_data_token,
-    )
-    assert status == 200
-    assert data["data"]["id"] == obj_id
-
-    name = str(uuid.uuid4())
-    status, data = api(
-        'POST',
-        'telescope',
-        data={
-            'name': name,
-            'nickname': name,
-            'lat': 0.0,
-            'lon': 0.0,
-            'elevation': 0.0,
-            'diameter': 10.0,
-        },
-        token=super_admin_token,
-    )
-    assert status == 200
-    assert data['status'] == 'success'
-    telescope_id = data['data']['id']
-
-    instrument_name = str(uuid.uuid4())
-    status, data = api(
-        'POST',
-        'instrument',
-        data={
-            'name': instrument_name,
-            'type': 'imager',
-            'band': 'NIR',
-            'filters': ['ztfg'],
-            'telescope_id': telescope_id,
-        },
-        token=super_admin_token,
-    )
-    assert status == 200
-    assert data['status'] == 'success'
-    instrument_id = data['data']['id']
-
-    # Some very high mjd to make this the latest point
-    # This is not a detection though
-    status, data = api(
-        'POST',
-        'photometry',
-        data={
-            'obj_id': obj_id,
-            'mjd': 99999.0,
-            'instrument_id': instrument_id,
-            'mag': None,
-            'magerr': None,
-            'limiting_mag': 22.3,
-            'magsys': 'ab',
-            'filter': 'ztfg',
-            'group_ids': [public_group.id],
-        },
-        token=upload_data_token,
-    )
-    assert status == 200
-    assert data['status'] == 'success'
-
-    # Another high mjd, but this time a photometry point not visible to the user
-    status, data = api(
-        'POST',
-        'photometry',
-        data={
-            'obj_id': obj_id,
-            'mjd': 99900.0,
-            'instrument_id': instrument_id,
-            'mag': None,
-            'magerr': None,
-            'limiting_mag': 22.3,
-            'magsys': 'ab',
-            'filter': 'ztfg',
-            'group_ids': [public_group2.id],
-        },
-        token=upload_data_token_two_groups,
-    )
-    assert status == 200
-    assert data['status'] == 'success'
-
-    # A high mjd, but lower than the first point
-    # Since this is a detection, it should be returned as "last_detected"
-    status, data = api(
-        'POST',
-        'photometry',
-        data={
-            'obj_id': obj_id,
-            'mjd': 90000.0,
-            'instrument_id': instrument_id,
-            'flux': 12.24,
-            'fluxerr': 0.031,
-            'zp': 25.0,
-            'magsys': 'ab',
-            'filter': 'ztfg',
-            'group_ids': [public_group.id],
-        },
-        token=upload_data_token,
-    )
-    assert status == 200
-    assert data['status'] == 'success'
-
-    status, data = api(
-        "GET",
-        "sources",
-        params={"includeDetectionStats": "true"},
-        token=view_only_token,
-    )
-    assert status == 200
-    assert data["status"] == "success"
-
-    # Note: 40_587 is the MJD of UNIX time 1970-01-01
-    # Because arrow.get views dates as seconds since UNIX time,
-    # s["peak_detected_at"]` is the MJD of 90000 in isodate format.
-
-    # In summary: arrow.get("1970-01-01") - datetime.timedelta(40587) =>
-    # <Arrow [1858-11-17T00:00:00+00:00]>
-
-    assert any(
-        [
-            s["last_detected_at"] == arrow.get((90000.0 - 40_587) * 86400.0).isoformat()
-            for s in data["data"]["sources"]
-        ]
-    )
-    assert any(
-        [
-            s["peak_detected_at"] == arrow.get((90000.0 - 40_587) * 86400.0).isoformat()
-            for s in data["data"]["sources"]
-        ]
-    )
-
-    assert any(
-        [
-            np.isclose(s["last_detected_mag"], 22.280546455476145)
-            if s["last_detected_mag"] is not None
-            else False
-            for s in data["data"]["sources"]
-        ]
-    )
-    assert any(
-        [
-            np.isclose(s["peak_detected_mag"], 22.280546455476145)
-            if s["last_detected_mag"] is not None
-            else False
-            for s in data["data"]["sources"]
-        ]
-    )
+    assert data["data"]["photstats"][-1]["first_detected_mjd"] == pt1["mjd"]
+    assert data["data"]["photstats"][-1]["first_detected_mag"] == mag1_ab
+    assert data["data"]["photstats"][-1]["peak_mjd_global"] == pt2["mjd"]
+    assert data["data"]["photstats"][-1]["peak_mag_global"] == mag2_ab
 
 
 # Sources filtering tests
@@ -1598,7 +1429,7 @@ def test_sources_filter_by_peak_mag(
     )
     assert status == 200
     assert len(data["data"]["sources"]) == 1
-    assert data["data"]["sources"][0]["id"] == obj_id1
+    assert data["data"]["sources"][0]["id"] == obj_id2
 
     # Filter for obj 2 only
     status, data = api(
@@ -1609,7 +1440,7 @@ def test_sources_filter_by_peak_mag(
     )
     assert status == 200
     assert len(data["data"]["sources"]) == 1
-    assert data["data"]["sources"][0]["id"] == obj_id2
+    assert data["data"]["sources"][0]["id"] == obj_id1
 
 
 def test_sources_filter_by_latest_mag(
@@ -1689,7 +1520,7 @@ def test_sources_filter_by_latest_mag(
     status, data = api(
         "GET",
         "sources",
-        params={"minLatestMagnitude": 23, "group_ids": f"{public_group.id}"},
+        params={"maxLatestMagnitude": 23, "group_ids": f"{public_group.id}"},
         token=view_only_token,
     )
     assert status == 200
@@ -1700,7 +1531,7 @@ def test_sources_filter_by_latest_mag(
     status, data = api(
         "GET",
         "sources",
-        params={"maxLatestMagnitude": 23, "group_ids": f"{public_group.id}"},
+        params={"minLatestMagnitude": 23, "group_ids": f"{public_group.id}"},
         token=view_only_token,
     )
     assert status == 200
@@ -1804,23 +1635,6 @@ def test_sources_hidden_photometry_not_leaked(
     assert status == 200
     assert data['status'] == 'success'
     photometry_id = data['data']['ids'][0]
-
-    # Check the photometry sent back with the source
-    status, data = api(
-        "GET",
-        "sources",
-        params={"group_ids": f"{public_group.id}", "includePhotometry": "true"},
-        token=view_only_token,
-    )
-    assert status == 200
-    assert len(data["data"]["sources"]) == 1
-    assert data["data"]["sources"][0]["id"] == obj_id
-    assert len(public_source.photometry) - 1 == len(
-        data["data"]["sources"][0]["photometry"]
-    )
-    assert photometry_id not in map(
-        lambda x: x["id"], data["data"]["sources"][0]["photometry"]
-    )
 
     # Check for single GET call as well
     status, data = api(
@@ -2087,7 +1901,11 @@ def test_token_user_retrieving_source_with_annotation_filter(
     status, data = api(
         "GET",
         "sources",
-        params={"annotationsFilter": f"{annotation_name}:2.0:le"},
+        params={
+            'annotationsFilter': f'{annotation_name}:2.0:le',
+            'sortBy': 'saved_at',
+            'sortOrder': 'desc',
+        },
         token=super_admin_token,
     )
     assert status == 200
@@ -2098,8 +1916,10 @@ def test_token_user_retrieving_source_with_annotation_filter(
         "GET",
         "sources",
         params={
-            "annotationsFilter": f"{annotation_name}:2.0:le",
-            "annotationsFilterOrigin": "kowalski",
+            'annotationsFilter': f'{annotation_name}:2.0:le',
+            'annotationsFilterOrigin': 'kowalski',
+            'sortBy': 'saved_at',
+            'sortOrder': 'desc',
         },
         token=super_admin_token,
     )
@@ -2110,7 +1930,11 @@ def test_token_user_retrieving_source_with_annotation_filter(
     status, data = api(
         "GET",
         "sources",
-        params={"annotationsFilter": f"{annotation_name}:2.0:ge"},
+        params={
+            'annotationsFilter': f'{annotation_name}:2.0:ge',
+            'sortBy': 'saved_at',
+            'sortOrder': 'desc',
+        },
         token=super_admin_token,
     )
     assert status == 200
@@ -2173,7 +1997,11 @@ def test_token_user_retrieving_source_with_comment_filter(
     status, data = api(
         "GET",
         "sources",
-        params={"commentsFilter": f"{comment_text_less}"},
+        params={
+            'commentsFilter': f'{comment_text_less}',
+            'sortBy': 'saved_at',
+            'sortOrder': 'desc',
+        },
         token=super_admin_token,
     )
     assert status == 200
@@ -2183,9 +2011,57 @@ def test_token_user_retrieving_source_with_comment_filter(
     status, data = api(
         "GET",
         "sources",
-        params={"commentsFilter": f"{comment_text}"},
+        params={
+            'commentsFilter': f'{comment_text}',
+            'sortBy': 'saved_at',
+            'sortOrder': 'desc',
+        },
         token=super_admin_token,
     )
     assert status == 200
     assert data["status"] == "success"
     assert len(data["data"]["sources"]) == 1
+
+
+def test_patch_healpix(upload_data_token, view_only_token, public_group):
+
+    obj_id = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "sources",
+        data={
+            "id": obj_id,
+            "redshift": 3,
+            "group_ids": [public_group.id],
+            "ra": 234.22,
+            "dec": -22.33,
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+
+    assert status == 200
+    status, data = api("GET", f"sources/{obj_id}", token=view_only_token)
+    assert status == 200
+    assert data["data"]["id"] == obj_id
+    assert data["data"]["healpix"] == 3120579787410559663
+
+    status, data = api(
+        "PATCH",
+        f"sources/{obj_id}",
+        data={
+            "ra": 230.22,
+            "dec": -22.33,
+            "transient": False,
+            "ra_dis": 2.3,
+            "redshift": 0.00001,
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data["status"] == "success"
+
+    status, data = api("GET", f"sources/{obj_id}", token=view_only_token)
+    assert status == 200
+    assert data["data"]["id"] == obj_id
+    assert data["data"]["healpix"] == 3126137476541327364

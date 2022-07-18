@@ -2,13 +2,21 @@ import React, { useState } from "react";
 import PropTypes from "prop-types";
 import { useDispatch } from "react-redux";
 
-import Button from "@material-ui/core/Button";
-import CircularProgress from "@material-ui/core/CircularProgress";
+import Button from "@mui/material/Button";
+import CircularProgress from "@mui/material/CircularProgress";
 
 import * as sourceActions from "../ducks/source";
 
 const SourceAnnotationButtons = ({ source }) => {
   const dispatch = useDispatch();
+
+  const [isSubmittingAnnotationGaia, setIsSubmittingAnnotationGaia] =
+    useState(null);
+  const handleAnnotationGaia = async (id) => {
+    setIsSubmittingAnnotationGaia(id);
+    await dispatch(sourceActions.fetchGaia(id));
+    setIsSubmittingAnnotationGaia(null);
+  };
 
   const [isSubmittingAnnotationWise, setIsSubmittingAnnotationWise] =
     useState(null);
@@ -26,8 +34,34 @@ const SourceAnnotationButtons = ({ source }) => {
     setIsSubmittingAnnotationVizier(null);
   };
 
+  const [isSubmittingAnnotationPhotoz, setIsSubmittingAnnotationPhotoz] =
+    useState(null);
+  const handleAnnotationPhotoz = async (id) => {
+    setIsSubmittingAnnotationPhotoz(id);
+    await dispatch(sourceActions.fetchPhotoz(id));
+    setIsSubmittingAnnotationPhotoz(null);
+  };
+
   return (
     <div>
+      {isSubmittingAnnotationGaia === source.id ? (
+        <div>
+          <CircularProgress />
+        </div>
+      ) : (
+        <Button
+          onClick={() => {
+            handleAnnotationGaia(source.id);
+          }}
+          size="small"
+          color="primary"
+          type="submit"
+          variant="outlined"
+          data-testid={`gaiaRequest_${source.id}`}
+        >
+          Gaia
+        </Button>
+      )}
       {isSubmittingAnnotationWise === source.id ? (
         <div>
           <CircularProgress />
@@ -62,6 +96,24 @@ const SourceAnnotationButtons = ({ source }) => {
           data-testid={`vizierRequest_${source.id}`}
         >
           Million Quasar
+        </Button>
+      )}
+      {isSubmittingAnnotationPhotoz === source.id ? (
+        <div>
+          <CircularProgress />
+        </div>
+      ) : (
+        <Button
+          onClick={() => {
+            handleAnnotationPhotoz(source.id);
+          }}
+          size="small"
+          color="primary"
+          type="submit"
+          variant="outlined"
+          data-testid={`photozRequest_${source.id}`}
+        >
+          Photoz
         </Button>
       )}
     </div>

@@ -20,6 +20,8 @@ from bokeh.models import (
     CategoricalColorMapper,
     Legend,
     LegendItem,
+    Dropdown,
+    Spinner,
 )
 from bokeh.models.widgets import (
     CheckboxGroup,
@@ -384,6 +386,10 @@ def annotate_spec(plot, spectra, lower, upper):
         Results of query for spectra of object.
     lower, upper : float
         Plot limits allowing calculation of annotation symbol y value.
+
+    Returns
+    -------
+    None
     """
     # get y position of annotation
     text_y = upper - (upper - lower) * 0.05
@@ -478,9 +484,51 @@ def add_plot_legend(plot, legend_items, width, legend_orientation, legend_loc):
         )
 
 
-def make_clear_photometry_button(model_dict):
-    button = Button(name="Clear Photometry", label="Clear Photometry", width=112)
-    callback_clear_photometry = CustomJS(
+def get_photometry_button_callback(info, model_dict):
+    """Get the callback function for a photometry button for showing photometry
+    points
+
+    Parameters
+    ----------
+    info : dict
+        Dictionary including the filters and origins that should be turned visible
+        on click of this photometry button.
+    model_dict : dict
+        A dictionary containing all of the GlyphRenderers for the plot.
+
+    Returns
+    -------
+    CustomJS defining the callback
+    """
+    return CustomJS(
+        args={'info': info, 'model_dict': model_dict},
+        code="""
+        for (const [key, value] of Object.entries(model_dict)) {
+          const [filter, origin, extra] = key.split("~");
+          if (info['filters'].includes(filter) || info['origins'].includes(origin)) {
+            value.visible = true;
+          }
+        }
+        """,
+    )
+
+
+def make_hide_photometry_button(model_dict):
+    """Make a button to hide photometry on the photometry plot.
+
+    Parameters
+    ----------
+    model_dict : dict
+        A dictionary containing all of the GlyphRenderers for the plot.
+
+    Returns
+    -------
+    bokeh Button object
+    """
+    button = Button(
+        name="Hide All Photometry", label="Hide All Photometry", width_policy="min"
+    )
+    callback_hide_photometry = CustomJS(
         args={'model_dict': model_dict},
         code="""
         for (const [key, value] of Object.entries(model_dict)) {
@@ -488,13 +536,26 @@ def make_clear_photometry_button(model_dict):
         }
         """,
     )
-    button.js_on_click(callback_clear_photometry)
+    button.js_on_click(callback_hide_photometry)
     return button
 
 
-def make_add_all_photometry_button(model_dict):
-    button = Button(name="Add All Photometry", label="Add All Photometry", width=120)
-    callback_add_photometry = CustomJS(
+def make_show_all_photometry_button(model_dict):
+    """Make a button to show all photometry on the photometry plot.
+
+    Parameters
+    ----------
+    model_dict : dict
+        A dictionary containing all of the GlyphRenderers for the plot.
+
+    Returns
+    -------
+    bokeh Button object
+    """
+    button = Button(
+        name="Show All Photometry", label="Show All Photometry", width_policy="min"
+    )
+    callback_show_photometry = CustomJS(
         args={'model_dict': model_dict},
         code="""
         for (const [key, value] of Object.entries(model_dict)) {
@@ -502,24 +563,1188 @@ def make_add_all_photometry_button(model_dict):
         }
         """,
     )
-    button.js_on_click(callback_add_photometry)
+    button.js_on_click(callback_show_photometry)
     return button
 
 
-def make_ztf_only_button(model_dict):
-    button = Button(name="Add ZTF Only", label="Add ZTF Only", width=110)
-    callback_add_photometry = CustomJS(
-        args={'model_dict': model_dict},
-        code="""
-        for (const [key, value] of Object.entries(model_dict)) {
-            if (key.startsWith('ZTF')) {
-                value.visible = true
-            }
-        }
-        """,
+def make_show_and_hide_photometry_buttons(model_dict, user, device):
+    """Make a container for the show and hide photometry buttons.
+
+    Parameters
+    ----------
+    model_dict : dict
+        A dictionary containing all of the GlyphRenderers for the plot.
+    user : User object
+        Current user.
+    device : str
+        String representation of device being used by the user. Contains "browser",
+        "mobile", or "tablet"
+
+    Returns
+    -------
+    bokeh row object
+    """
+    buttons = [
+        make_show_all_photometry_button(model_dict),
+        make_hide_photometry_button(model_dict),
+    ]
+    if user.preferences and "photometryButtons" in user.preferences:
+        for name, info in user.preferences["photometryButtons"].items():
+            btn = Button(label=f"Show {name}", width_policy="min")
+            btn.js_on_click(get_photometry_button_callback(info, model_dict))
+            buttons.append(btn)
+    if "mobile" in device:
+        return column(buttons)
+    # if not on mobile, return a column of rows with 5 buttons in each row.
+    return column([row(buttons[i : i + 5]) for i in range(0, len(buttons), 5)])
+
+
+def add_axis_labels(plot, panel_name):
+    """Add axis labels to a photometry plot.
+
+    Parameters
+    ----------
+    plot : bokeh Figure object
+        Figure object that axis labels should be added to
+    panel_name : str
+        Name of the panel. One of flux, mag or period
+
+    Returns
+    -------
+    None
+
+    """
+    axis_label_dict = {
+        'flux': {'x': 'MJD', 'y': 'Flux (μJy)'},
+        'mag': {'x': 'MJD', 'y': 'AB mag'},
+        'period': {'x': 'phase', 'y': 'mag'},
+    }
+    plot.xaxis.axis_label = axis_label_dict[panel_name]['x']
+    plot.yaxis.axis_label = axis_label_dict[panel_name]['y']
+
+
+def check_visibility_on_phot_plot(user, show_all_filters, show_all_origins, label):
+    """Function to check if a photometry point should be displayed on the plot in
+    accordance with the user's photometry plotting preferences.
+
+    Parameters
+    ----------
+    user : User object
+        Current user
+    show_all_filters: Boolean
+        Boolean value indicating whether to show all filters or not. Set to true
+        when the plot does not contain any of the user's automatically visible filters
+        as set in the preferences.
+    show_all_origins: Boolean
+        Boolean value indicating whether to show all origins or not. Set to true
+        when the plot does not contain any of the user's automatically visible
+        origins as set in the preferences.
+    label : str
+        Label of the photometry containing instrument, filter, and origin such as
+        'ZTF/ztfg/Muphoten'
+
+    Returns
+    -------
+    visible : boolean
+        Boolean value indicating whether the point should be visible or not.
+    """
+    if show_all_filters and show_all_origins:
+        return True
+    split = label.split('/')
+    filter = split[1]
+    origin = None
+    if len(split) == 3:
+        origin = split[2]
+    visible = False
+    if user.preferences:
+        if (
+            ("automaticallyVisibleFilters" in user.preferences)
+            and (filter in user.preferences['automaticallyVisibleFilters'])
+        ) or (
+            origin
+            and ('automaticallyVisibleOrigins' in user.preferences)
+            and (origin in user.preferences['automaticallyVisibleOrigins'])
+        ):
+            visible = True
+    return visible
+
+
+def make_scatter(
+    plot,
+    model_dict,
+    name,
+    i,
+    label,
+    data_source,
+    x,
+    y,
+    renderers,
+    imhover,
+    spinner,
+    color_dict,
+    markers,
+    instruments,
+    user,
+    show_all_filters,
+    show_all_origins,
+):
+    """Adds a scatter plot to a bokeh Figure object.
+
+    Parameters
+    ----------
+    plot : bokeh Figure object
+        Figure object that scatter plot should be added to
+    model_dict : dict
+        A dictionary containing all of the GlyphRenderers for the plot.
+    name : str
+        Short name describing the scatter points such as 'obs', 'unobs', or 'bin'
+    i : int
+        Index of the loop that iterates over all the separate photometry. Used to
+        keep track of which photometry point the GlyphRenderer belongs to
+    label : str
+        Label of the photometry containing instrument, filter, and origin such as
+        'ZTF/ztfg/Muphoten'
+    data_source : bokeh ColumnDataSource object
+        ColumnDataSource used for plot.scatter
+    x : str
+        x name like 'mjd'
+    y : str
+        y name like 'lim_mag'
+    renderers : list
+        List of renderers for the current legend item. This scatter plot
+        GlyphRenderer is added to the renderers.
+    imhover : HoverTool object
+        HoverTool for current photometry
+    spinner : Spinner object
+        Spinner for controlling the data size of photometry points.
+    color_dict : dict
+        Dictionary defining which color the data points should be
+    markers : list
+        List of marker shapes
+    instruments : list
+        List of instruments
+    user : User object
+        Current user.
+    show_all_filters: Boolean
+        Boolean value indicating whether to show all filters or not. Set to true
+        when the plot does not contain any of the user's automatically visible
+        filters as set in the preferences.
+    show_all_origins: Boolean
+        Boolean value indicating whether to show all origins or not. Set to
+        true when the plot does not contain any of the user's automatically
+        visible origins as set in the preferences.
+
+    Returns
+    -------
+    None
+    """
+    split = label.split('/')
+    key = f'{split[1]}~{split[2] if len(split) == 3 else "None"}~{name}{i}'
+    size = 4
+    if user.preferences and "photometryDataPointSize" in user.preferences:
+        size = int(user.preferences["photometryDataPointSize"])
+    visible = check_visibility_on_phot_plot(
+        user, show_all_filters, show_all_origins, label
     )
-    button.js_on_click(callback_add_photometry)
+    model_dict[key] = plot.scatter(
+        x=x,
+        y=y,
+        size=size,
+        visible=visible,
+        color=color_dict,
+        marker=factor_mark('instrument', markers, instruments),
+        fill_alpha=0.1,
+        line_color=color_dict,
+        fill_color=color_dict,
+        source=data_source,
+    )
+    renderers.append(model_dict[key])
+    imhover.renderers.append(model_dict[key])
+    spinner.js_link('value', model_dict[key].glyph, 'size')
+
+
+def make_multi_line(
+    plot,
+    model_dict,
+    name,
+    i,
+    label,
+    data_source,
+    renderers,
+    user,
+    show_all_filters,
+    show_all_origins,
+):
+    """Adds a multi-line plot to a bokeh Figure object.
+
+    Parameters
+    ----------
+    plot : bokeh Figure object
+        Figure object that multi-line plot should be added to
+    model_dict : dict
+        A dictionary containing all of the GlyphRenderers for the plot.
+    name : str
+        Short name describing the scatter points such as 'obs', 'unobs', or 'bin'
+    i : int
+        Index of the loop that iterates over all the separate photometry. Used to
+        keep track of which photometry point the GlyphRenderer belongs to
+    label : str
+        Label of the photometry containing instrument, filter, and origin such as
+        'ZTF/ztfg/Muphoten'
+    data_source : bokeh ColumnDataSource object
+        ColumnDataSource used for plot.scatter
+    renderers : list
+        List of renderers for the current legend item. This scatter plot
+        GlyphRenderer is added to the renderers.
+    user : User object
+        Current user.
+    show_all_filters: Boolean
+        Boolean value indicating whether to show all filters or not. Set to true
+         when the plot does not contain any of the user's automatically visible
+         filters as set in the preferences.
+    show_all_origins: Boolean
+        Boolean value indicating whether to show all origins or not. Set to true
+        when the plot does not contain any of the user's automatically visible
+        origins as set in the preferences.
+
+    Returns
+    -------
+    None
+    """
+    split = label.split('/')
+    key = f'{split[1]}~{split[2] if len(split) == 3 else "None"}~{name}{i}'
+    visible = check_visibility_on_phot_plot(
+        user, show_all_filters, show_all_origins, label
+    )
+    model_dict[key] = plot.multi_line(
+        xs='xs',
+        ys='ys',
+        visible=visible,
+        color='color',
+        source=data_source,
+    )
+    renderers.append(model_dict[key])
+
+
+def get_errs(panel_name, df, ph=''):
+    """Gets the errors for a certain panel. Used to make the error lines on the data
+    points.
+
+    Parameters
+    ----------
+    panel_name : str
+        Name of the panel. One of 'mag', 'flux', and 'period'
+    df : pandas DataFrame object
+        Photometry data
+    ph : Optional str
+        Only used with the period panel. ph is 'a' or 'b'
+
+    Returns
+    -------
+    Tuple containing the x and y errors
+    """
+    df = df if panel_name == 'flux' else df[df['obs']]
+    err_dict = {
+        'mag': {'px': 'mjd', 'py': 'mag', 'err': 'magerr'},
+        'flux': {'px': 'mjd', 'py': 'flux', 'err': 'fluxerr'},
+        'period': {'px': f'mjd_fold{ph}', 'py': 'mag', 'err': 'magerr'},
+    }
+    y_err_x = []
+    y_err_y = []
+    for d, ro in df.iterrows():
+        px = ro[err_dict[panel_name]['px']]
+        py = ro[err_dict[panel_name]['py']]
+        err = ro[err_dict[panel_name]['err']]
+
+        y_err_x.append((px, px))
+        y_err_y.append((py - err, py + err))
+    return (y_err_x, y_err_y)
+
+
+def mark_detections(plot, detection_dates, ymin, ymax):
+    """Mark detection lines on a plot
+
+    Parameters
+    ----------
+    plot : bokeh Figure object
+    detections_date : pandas Series object
+        The detections dates to be plotted as lines
+    ymin : int
+        Minimum y range value of the plot
+    ymax : int
+        Maximum y range value of the plot
+
+    Returns
+    -------
+    None
+    """
+    first = round(detection_dates.min(), 6)
+    last = round(detection_dates.max(), 6)
+    first_color = "#34b4eb"
+    last_color = "#8992f5"
+    midpoint = (ymax + ymin) / 2
+    line_top = 5 * ymax - 4 * midpoint
+    line_bottom = 5 * ymin - 4 * midpoint
+    y = np.linspace(line_bottom, line_top, num=5000)
+    first_r = plot.line(
+        x=np.full(5000, first),
+        y=y,
+        line_alpha=0.5,
+        line_color=first_color,
+        line_width=2,
+    )
+    plot.add_tools(
+        HoverTool(
+            tooltips=[("First detection", f'{first}')],
+            renderers=[first_r],
+        )
+    )
+    last_r = plot.line(
+        x=np.full(5000, last),
+        y=y,
+        line_alpha=0.5,
+        line_color=last_color,
+        line_width=2,
+    )
+    plot.add_tools(
+        HoverTool(
+            tooltips=[("Last detection", f'{last}')],
+            renderers=[last_r],
+            point_policy='follow_mouse',
+        )
+    )
+
+
+def get_show_all_flag(user, data, type):
+    """Return a flag of whether to show all photometry points of a certain type on the phot plot.
+
+    Parameters
+    ----------
+    user : User object
+        Current user.
+    data : pandas DataFrame object
+        Photometry data (ungrouped)
+    type : str
+        Thing we're filtering the photometry by. Currently one of 'filters' or 'origins'.
+
+    Returns
+    -------
+    boolean flag for show all.
+    """
+    # The purpose of the boolean flag is for the case where the plot contains none of the user's automatically visible filters
+    # /origins: in that case we will display all of the photometry points and set show_all_filters/origins to `True`. Otherwise, we
+    # would like to selectively display points based on the user's preferences, so the flags will be set to `False`.
+    unique_values = list(data[type[:-1]].unique())
+    if 'None' in unique_values:
+        unique_values.remove('None')
+    show_all = True
+    if user.preferences:
+        if f"automaticallyVisible{type.capitalize()}" in user.preferences:
+            for value in user.preferences[f'automaticallyVisible{type.capitalize()}']:
+                if value in unique_values:
+                    show_all = False
+                    break
+    return show_all
+
+
+def make_legend_items_and_detection_lines(
+    grouped_data,
+    plot,
+    spinner,
+    model_dict,
+    imhover,
+    panel_name,
+    color_dict,
+    y_range,
+    data,
+    obsind,
+    markers,
+    instruments,
+    period,
+    user,
+):
+    """Makes the legend items for a plot and adds detections lines.
+
+    Parameters
+    ----------
+    grouped_data : pandas DataFrameGroupBy object
+        The photometry data grouped by label.
+    plot : bokeh Figure object
+    spinner : Spinner object
+        Spinner for controlling the data size of photometry points.
+    model_dict : dict
+        A dictionary containing all of the GlyphRenderers for the plot.
+    imhover : HoverTool object
+        HoverTool for current photometry
+    panel_name : str
+        Name of the panel. One of 'flux', 'mag' or 'period'
+    color_dict : dict
+        Dictionary defining which color the data points should be
+    y_range : tuple(int)
+        Tuple containing the minimum and maximum y range values of the plot
+        respectively
+    data : pandas DataFrame object
+        Photometry data (ungrouped)
+    obsind : pandas Series object
+        Index of points that have been positively detected (observed),
+        i.e., points that are not upper limits.
+    markers : list
+        List of marker shapes
+    instruments : list
+        List of instruments
+    period : float
+        period used for manipulating the data frame
+    user : User object
+        Current user.
+
+    Returns
+    -------
+    List of LegendItem objects
+    """
+
+    empty_data_source = dict(
+        mjd=[],
+        flux=[],
+        fluxerr=[],
+        filter=[],
+        color=[],
+        lim_mag=[],
+        mag=[],
+        magerr=[],
+        instrument=[],
+        stacked=[],
+    )
+
+    show_all_filters = get_show_all_flag(user, data, 'filters')
+    show_all_origins = get_show_all_flag(user, data, 'origins')
+
+    legend_items = []
+    for i, (label, df) in enumerate(grouped_data):
+        renderers = []
+        unobs_source = df[~df['obs']].copy()
+        unobs_source.loc[:, 'alpha'] = 0.8
+        if panel_name == 'flux':
+            df = df[df['hasflux']]
+        elif panel_name == 'period':
+            df['mjd_folda'] = (df['mjd'] % period) / period
+            df['mjd_foldb'] = df['mjd_folda'] + 1.0
+        if panel_name == 'mag' or panel_name == 'flux':
+            y_err_x, y_err_y = get_errs(panel_name, df)
+            plotting_dict = {
+                'mag': {
+                    'scatter': {
+                        'unobs': {
+                            'x': 'mjd',
+                            'y': 'lim_mag',
+                            'data_source': unobs_source,
+                        },
+                        'obs': {'x': 'mjd', 'y': 'mag', 'data_source': df[df['obs']]},
+                        'bin': {
+                            'x': 'mjd',
+                            'y': 'mag',
+                            'data_source': empty_data_source,
+                        },
+                        'unobsbin': {
+                            'x': 'mjd',
+                            'y': 'lim_mag',
+                            'data_source': empty_data_source,
+                        },
+                    }
+                },
+                'flux': {
+                    'scatter': {
+                        'obs': {'x': 'mjd', 'y': 'flux', 'data_source': df},
+                        'bin': {
+                            'x': 'mjd',
+                            'y': 'flux',
+                            'data_source': empty_data_source,
+                        },
+                    }
+                },
+            }
+            for name, values in plotting_dict[panel_name]['scatter'].items():
+                if name == 'unobs':
+                    markers = ['inverted_triangle']
+                else:
+                    markers = ['circle']
+                make_scatter(
+                    plot,
+                    model_dict,
+                    name,
+                    i,
+                    label,
+                    ColumnDataSource(values['data_source']),
+                    values['x'],
+                    values['y'],
+                    renderers,
+                    imhover,
+                    spinner,
+                    color_dict,
+                    markers,
+                    instruments,
+                    user,
+                    show_all_filters,
+                    show_all_origins,
+                )
+            make_multi_line(
+                plot,
+                model_dict,
+                'obserr',
+                i,
+                label,
+                ColumnDataSource(
+                    data=dict(
+                        xs=y_err_x,
+                        ys=y_err_y,
+                        color=df['color']
+                        if panel_name == 'flux'
+                        else df[df['obs']]['color'],
+                        alpha=[1.0]
+                        * len(df if panel_name == 'flux' else df[df['obs']]),
+                    )
+                ),
+                renderers,
+                user,
+                show_all_filters,
+                show_all_origins,
+            )
+            make_multi_line(
+                plot,
+                model_dict,
+                'binerr',
+                i,
+                label,
+                ColumnDataSource(data=dict(xs=[], ys=[], color=[])),
+                renderers,
+                user,
+                show_all_filters,
+                show_all_origins,
+            )
+        elif panel_name == 'period':
+            for ph in ['a', 'b']:
+                y_err_x, y_err_y = get_errs(panel_name, df, ph)
+                make_scatter(
+                    plot,
+                    model_dict,
+                    f'fold{ph}',
+                    i,
+                    label,
+                    ColumnDataSource(df[df['obs']]),
+                    f'mjd_fold{ph}',
+                    'mag',
+                    renderers,
+                    imhover,
+                    spinner,
+                    color_dict,
+                    markers,
+                    instruments,
+                    user,
+                    show_all_filters,
+                    show_all_origins,
+                )
+                make_multi_line(
+                    plot,
+                    model_dict,
+                    f'fold{ph}err',
+                    i,
+                    label,
+                    ColumnDataSource(
+                        data=dict(
+                            xs=y_err_x,
+                            ys=y_err_y,
+                            color=df[df['obs']]['color'],
+                            alpha=[1.0] * len(df[df['obs']]),
+                        )
+                    ),
+                    renderers,
+                    user,
+                    show_all_filters,
+                    show_all_origins,
+                )
+        else:
+            raise ValueError("Panel name should be one of mag, flux, and period.")
+        if panel_name == 'mag' or panel_name == 'flux':
+            mark_detections(
+                plot,
+                data[obsind]['mjd']
+                if panel_name == 'mag'
+                else data[data['hasflux']]['mjd'],
+                y_range[0],
+                y_range[1],
+            )
+        key = f'all{i}'
+        model_dict[key] = ColumnDataSource(df)
+
+        key = f'bold{i}'
+        model_dict[key] = ColumnDataSource(
+            df[
+                [
+                    'mjd',
+                    'flux',
+                    'fluxerr',
+                    'mag',
+                    'magerr',
+                    'filter',
+                    'zp',
+                    'magsys',
+                    'lim_mag',
+                    'stacked',
+                ]
+            ]
+        )
+
+        legend_items.append(LegendItem(label=label, renderers=renderers))
+
+    return legend_items
+
+
+def transformed_model_dict(model_dict):
+    """In order to programmatically toggle visibilty, the model_dict keys are altered to contain the filter, instrument, and origin of
+    the photometry point. However, many widgets need the original model dict with keys such as obs0 and bin0 in order to work correctly.
+    This function changes the keys of the model dict to work with that format.
+
+    Parameters
+    ----------
+    model_dict : dict
+        Dictionary with string keys and GlyphRenderer values.
+
+    Returns
+    -------
+    dict with transformed keys.
+    """
+    transformed_model_dict = {}
+    for k, v in model_dict.items():
+        label = k.split('~')[2] if '~' in k else k
+        transformed_model_dict[label] = v
+    return transformed_model_dict
+
+
+def make_binsize_slider(grouped_data, model_dict):
+    """Makes a slider to control binsize.
+
+    Parameters
+    ----------
+    grouped_data : pandas DataFrameGroupBy object
+        The photometry data grouped by label.
+    model_dict : dict
+        A dictionary containing all of the GlyphRenderers for the plot.
+
+    Returns
+    -------
+    bokeh Slider object
+    """
+    model_dict = transformed_model_dict(model_dict)
+    slider = Slider(
+        start=0.0,
+        end=15.0,
+        value=0.0,
+        step=1.0,
+        title='Binsize (days)',
+        max_width=350,
+        margin=(4, 10, 0, 10),
+    )
+    callback = CustomJS(
+        args={'slider': slider, 'n_labels': len(grouped_data), **model_dict},
+        code=open(
+            os.path.join(os.path.dirname(__file__), '../static/js/plotjs', 'stackm.js')
+        )
+        .read()
+        .replace('default_zp', str(PHOT_ZP))
+        .replace('detect_thresh', str(PHOT_DETECTION_THRESHOLD)),
+    )
+    slider.js_on_change('value', callback)
+    return slider
+
+
+def make_export_csv_button(grouped_data, model_dict, obj_id):
+    """Makes a button to export a bold light curve to CSV.
+
+    Parameters
+    ----------
+    grouped_data : pandas DataFrameGroupBy object
+        The photometry data grouped by label.
+    model_dict : dict
+        A dictionary containing all of the GlyphRenderers for the plot.
+    obj_id : str
+        ID of the object
+
+    Returns
+    -------
+    bokeh Button object
+    """
+    model_dict = transformed_model_dict(model_dict)
+    button = Button(label="Export Bold Light Curve to CSV")
+    button.js_on_click(
+        CustomJS(
+            args={'n_labels': len(grouped_data), **model_dict},
+            code=open(
+                os.path.join(
+                    os.path.dirname(__file__), '../static/js/plotjs', "download.js"
+                )
+            )
+            .read()
+            .replace('objname', obj_id)
+            .replace('default_zp', str(PHOT_ZP)),
+        )
+    )
     return button
+
+
+def make_period_controls(
+    period_labels,
+    period_list,
+    period,
+    grouped_data,
+    plot,
+    model_dict,
+    device,
+    width,
+    layout,
+):
+    """Makes period controls to be used in a period photometry panel.
+
+    Parameters
+    ----------
+    period_labels : list
+        List of labels for the period buttons.
+    period_list : list
+        List of periods for the period buttons.
+    period : float
+        The current period.
+    grouped_data : pandas DataFrameGroupBy object
+        The photometry data grouped by label.
+    plot : bokeh Plot object
+        The plot object.
+    model_dict : dict
+        A dictionary containing all of the GlyphRenderers for the plot.
+    device : str
+        The device to use for the plot.
+    width : int
+        The width of the plot.
+    layout : bokeh Layout object
+        The layout object.
+
+    Returns
+    -------
+    bokeh column object
+    """
+    model_dict = transformed_model_dict(model_dict)
+    period_selection = RadioGroup(labels=period_labels, active=0)
+
+    phase_selection = RadioGroup(labels=["One phase", "Two phases"], active=1)
+    period_title = Div(text="Period (days): ")
+    period_textinput = TextInput(value=str(period if period is not None else 0.0))
+    period_textinput.js_on_change(
+        'value',
+        CustomJS(
+            args={
+                'textinput': period_textinput,
+                'numphases': phase_selection,
+                'n_labels': len(grouped_data),
+                'p': plot,
+                **model_dict,
+            },
+            code=open(
+                os.path.join(
+                    os.path.dirname(__file__), '../static/js/plotjs', 'foldphase.js'
+                )
+            ).read(),
+        ),
+    )
+    # a way to modify the period
+    period_double_button = Button(label="*2", width=30)
+    period_double_button.js_on_click(
+        CustomJS(
+            args={'textinput': period_textinput},
+            code="""
+            const period = parseFloat(textinput.value);
+            textinput.value = parseFloat(2.*period).toFixed(9);
+            """,
+        )
+    )
+    period_halve_button = Button(label="/2", width=30)
+    period_halve_button.js_on_click(
+        CustomJS(
+            args={'textinput': period_textinput},
+            code="""
+                    const period = parseFloat(textinput.value);
+                    textinput.value = parseFloat(period/2.).toFixed(9);
+                    """,
+        )
+    )
+    # a way to select the period
+    period_selection.js_on_click(
+        CustomJS(
+            args={'textinput': period_textinput, 'periods': period_list},
+            code="""
+            textinput.value = parseFloat(periods[this.active]).toFixed(9);
+            """,
+        )
+    )
+    phase_selection.js_on_click(
+        CustomJS(
+            args={
+                'textinput': period_textinput,
+                'numphases': phase_selection,
+                'n_labels': len(grouped_data),
+                'p': plot,
+                **model_dict,
+            },
+            code=open(
+                os.path.join(
+                    os.path.dirname(__file__), '../static/js/plotjs', 'foldphase.js'
+                )
+            ).read(),
+        )
+    )
+    if device == "mobile_portrait":
+        period_controls = column(
+            row(
+                period_title,
+                period_textinput,
+                period_double_button,
+                period_halve_button,
+                width=width,
+                sizing_mode="scale_width",
+            ),
+            phase_selection,
+            period_selection,
+            width=width,
+        )
+    else:
+        period_controls = column(
+            row(
+                period_title,
+                period_textinput,
+                period_double_button,
+                period_halve_button,
+                phase_selection,
+                width=width,
+                sizing_mode="scale_width",
+            ),
+            period_selection,
+            margin=10,
+        )
+    return period_controls
+
+
+def add_widgets(
+    panel_name,
+    layout,
+    grouped_data,
+    model_dict,
+    obj_id,
+    period_labels,
+    period_list,
+    period,
+    plot,
+    device,
+    width,
+):
+    """Adds widgets to the layout of a photometry panel.
+
+    Parameters
+    ----------
+    panel_name : str
+        Name of the panel. One of 'mag', 'flux', and 'period'. Used to determine
+        which
+        widgets to add.
+    layout : bokeh column object
+        The layout of the panel. Widgets added to this object.
+    grouped_data : pandas DataFrameGroupBy object
+        The photometry data grouped by label.
+    model_dict : dict
+        A dictionary containing all of the GlyphRenderers for the plot.
+    obj_id : int
+        ID of the source/object the photometry is for
+    period_labels, period_list, period : list, list, float
+        Information needed for the period controls
+    plot : bokeh Figure object
+    device : str
+        String representation of device being used by the user. Contains "browser",
+        "mobile", or "tablet"
+    width : int
+        Width of the plot
+
+    Returns
+    -------
+    None
+    """
+    if panel_name == 'mag':
+        slider = make_binsize_slider(grouped_data, model_dict)
+        export_csv_button = make_export_csv_button(grouped_data, model_dict, obj_id)
+        top_layout = (
+            slider
+            if "mobile" in device or "tablet" in device
+            else row(slider, export_csv_button)
+        )
+        layout.children.insert(0, top_layout)
+    elif panel_name == 'flux':
+        slider = make_binsize_slider(grouped_data, model_dict)
+        layout.children.insert(0, slider)
+    elif panel_name == 'period':
+        period_controls = make_period_controls(
+            period_labels,
+            period_list,
+            period,
+            grouped_data,
+            plot,
+            model_dict,
+            device,
+            width,
+            layout,
+        )
+        layout.children.insert(2, period_controls)
+    else:
+        raise ValueError("Panel name should be one of mag, flux, and period.")
+
+
+def make_photometry_panel(panel_name, device, width, user, data, obj_id, spectra):
+    """Makes a panel for the photometry plot.
+
+    Parameters
+    ----------
+    panel_name : str
+        Name of the panel. One of 'mag', 'flux', and 'period'
+    device : str
+        String representation of device being used by the user. Contains "browser",
+        "mobile", or "tablet"
+    width : int
+        Width of the plot
+    user : User object
+        Current user.
+    data : pandas DataFrame object
+        Photometry data
+    obj_id : int
+        ID of the source/object the photometry is for
+    spectra : list of Spectra objects
+        The source/object's spectra
+
+    Returns
+    -------
+    bokeh Panel object or None if the panel should
+    not be added to the plot (i.e. no period plot)
+    """
+    # get marker for each unique instrument
+    instruments = list(data.instrument.unique())
+    markers = []
+    for i, inst in enumerate(instruments):
+        markers.append(phot_markers[i % len(phot_markers)])
+
+    filters = list(set(data['filter']))
+    ewaves = [get_effective_wavelength(f) for f in filters]
+    colors = [get_color(w) for w in ewaves]
+
+    color_mapper = CategoricalColorMapper(factors=filters, palette=colors)
+    color_dict = {'field': 'filter', 'transform': color_mapper}
+
+    # calculate the magnitudes - a photometry point is considered "significant"
+    # or "detected" (and thus can be represented by a magnitude) if its snr
+    # is above PHOT_DETECTION_THRESHOLD
+    obsind = data['hasflux'] & (
+        data['flux'].fillna(0.0) / data['fluxerr'] >= PHOT_DETECTION_THRESHOLD
+    )
+    data.loc[~obsind, 'mag'] = None
+    data.loc[obsind, 'mag'] = -2.5 * np.log10(data[obsind]['flux']) + PHOT_ZP
+
+    # calculate the magnitude errors using standard error propagation formulae
+    # https://en.wikipedia.org/wiki/Propagation_of_uncertainty#Example_formulae
+    data.loc[~obsind, 'magerr'] = None
+    coeff = 2.5 / np.log(10)
+    magerrs = np.abs(coeff * data[obsind]['fluxerr'] / data[obsind]['flux'])
+    data.loc[obsind, 'magerr'] = magerrs
+    data['obs'] = obsind
+    data['stacked'] = False
+
+    grouped_data = data.groupby('label', sort=False)
+
+    finite = np.isfinite(data['flux'])
+    fdata = data[finite]
+    lower = np.min(fdata['flux']) * 0.95
+    upper = np.max(fdata['flux']) * 1.05
+
+    xmin = data['mjd'].min() - 2
+    xmax = data['mjd'].max() + 2
+    ymax = (
+        np.nanmax(
+            (
+                np.nanmax(data.loc[obsind, 'mag']) if any(obsind) else np.nan,
+                np.nanmax(data.loc[~obsind, 'lim_mag']) if any(~obsind) else np.nan,
+            )
+        )
+        + 0.1
+    )
+    ymin = (
+        np.nanmin(
+            (
+                np.nanmin(data.loc[obsind, 'mag']) if any(obsind) else np.nan,
+                np.nanmin(data.loc[~obsind, 'lim_mag']) if any(~obsind) else np.nan,
+            )
+        )
+        - 0.1
+    )
+
+    (
+        frame_width,
+        aspect_ratio,
+        legend_row_height,
+        legend_items_per_row,
+    ) = get_dimensions_by_device(device, width)
+    height = (
+        500
+        if device == "browser"
+        else math.floor(width / aspect_ratio)
+        + legend_row_height * int(len(grouped_data) / legend_items_per_row)
+        + 30  # 30 is the height of the toolbar
+    )
+    active_drag = None if "mobile" in device or "tablet" in device else "box_zoom"
+    tools = (
+        'box_zoom,pan,reset'
+        if "mobile" in device or "tablet" in device
+        else "box_zoom,wheel_zoom,pan,reset,save"
+    )
+    legend_loc = "below" if "mobile" in device or "tablet" in device else "right"
+    legend_orientation = (
+        "vertical" if device in ["browser", "mobile_portrait"] else "horizontal"
+    )
+
+    ranges = {
+        'mag': {'y_range': (ymax, ymin), 'x_range': (xmin, xmax)},
+        'flux': {'y_range': (lower, upper), 'x_range': (xmin, xmax)},
+        'period': {'y_range': (ymax, ymin), 'x_range': (-0.01, 2.01)},
+    }
+
+    y_range = ranges[panel_name]['y_range']
+    x_range = ranges[panel_name]['x_range']
+
+    plot = figure(
+        frame_width=frame_width,
+        height=height,
+        active_drag=active_drag,
+        tools=tools,
+        y_range=y_range,
+        x_range=x_range,
+        toolbar_location='above',
+        toolbar_sticky=True,
+        x_axis_location='below' if panel_name == 'period' else 'above',
+        sizing_mode="stretch_width",
+    )
+    add_axis_labels(plot, panel_name)
+    plot.toolbar.logo = None
+    if device == "mobile_portrait":
+        plot.xaxis.ticker.desired_num_ticks = 5
+
+    if panel_name == 'mag' or panel_name == 'flux':
+        now = Time.now().mjd
+        plot.extra_x_ranges = {
+            "Days Ago": Range1d(start=now - x_range[0], end=now - x_range[1])
+        }
+        plot.add_layout(
+            LinearAxis(x_range_name="Days Ago", axis_label="Days Ago"), 'below'
+        )
+
+    obj = Obj.get_if_accessible_by(obj_id, user)
+    if obj.dm is not None:
+        plot.extra_y_ranges = {
+            "Absolute Mag": Range1d(start=y_range[0] - obj.dm, end=y_range[1] - obj.dm)
+        }
+        plot.add_layout(
+            LinearAxis(y_range_name="Absolute Mag", axis_label="m - DM"), 'right'
+        )
+    period_labels = []
+    period_list = []
+    period = None
+    if panel_name == 'period':
+        annotation_list = (
+            Annotation.query_records_accessible_by(user)
+            .filter(Annotation.obj_id == obj.id)
+            .all()
+        )
+        for an in annotation_list:
+            if 'period' in an.data:
+                period_list.append(an.data['period'])
+                period_labels.append(an.origin + ": %.9f" % an.data['period'])
+
+        if len(period_list) > 0:
+            period = period_list[0]
+        else:
+            period = None
+            return None
+
+    imhover = HoverTool(tooltips=tooltip_format)
+    imhover.renderers = []
+    plot.add_tools(imhover)
+
+    model_dict = {}
+    spinner = Spinner(
+        title="Data point size",
+        low=1,
+        high=60,
+        step=0.5,
+        value=(
+            user.preferences['photometryDataPointSize']
+            if user.preferences and 'photometryDataPointSize' in user.preferences
+            else 4
+        ),
+        width_policy="min",
+    )
+    spinner.js_on_change(
+        'value',
+        CustomJS(
+            args=dict(spinner=spinner),
+            code=open(
+                os.path.join(
+                    os.path.dirname(__file__),
+                    '../static/js/plotjs',
+                    'update_data_point_size.js',
+                )
+            ).read(),
+        ),
+    )
+
+    legend_items = make_legend_items_and_detection_lines(
+        grouped_data,
+        plot,
+        spinner,
+        model_dict,
+        imhover,
+        panel_name,
+        color_dict,
+        y_range,
+        data,
+        obsind,
+        markers,
+        instruments,
+        period,
+        user,
+    )
+
+    add_plot_legend(plot, legend_items, width, legend_orientation, legend_loc)
+
+    if panel_name == 'mag' or panel_name == 'flux':
+        annotate_spec(plot, spectra, y_range[0], y_range[1])
+
+    layout = column(
+        plot,
+        column(
+            make_show_and_hide_photometry_buttons(model_dict, user, device), spinner
+        ),
+        # width=width,
+    )
+    add_widgets(
+        panel_name,
+        layout,
+        grouped_data,
+        model_dict,
+        obj_id,
+        period_labels,
+        period_list,
+        period,
+        plot,
+        device,
+        width,
+    )
+    return Panel(child=layout, title=panel_name.capitalize())
 
 
 def photometry_plot(obj_id, user, width=600, device="browser"):
@@ -529,6 +1754,13 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
     ----------
     obj_id : str
         ID of Obj to be plotted.
+    user : User object
+        Current user.
+    width : int
+        Width of the plot
+    device : str
+        String representation of device being used by the user. Contains "browser",
+        "mobile", or "tablet"
 
     Returns
     -------
@@ -561,7 +1793,6 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
     if data.empty:
         return None, None, None
 
-    # get spectra to annotate on phot plots
     spectra = (
         Spectrum.query_records_accessible_by(user)
         .filter(Spectrum.obj_id == obj_id)
@@ -573,23 +1804,11 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
 
     data.sort_values(by=['effwave'], inplace=True)
 
-    # get marker for each unique instrument
-    instruments = list(data.instrument.unique())
-    markers = []
-    for i, inst in enumerate(instruments):
-        markers.append(phot_markers[i % len(phot_markers)])
-
-    filters = list(set(data['filter']))
-    ewaves = [get_effective_wavelength(f) for f in filters]
-    colors = [get_color(w) for w in ewaves]
-
-    color_mapper = CategoricalColorMapper(factors=filters, palette=colors)
-    color_dict = {'field': 'filter', 'transform': color_mapper}
-
+    # labels for legend items
     labels = []
     for i, datarow in data.iterrows():
         label = f'{datarow["instrument"]}/{datarow["filter"]}'
-        if datarow['origin'] is not None:
+        if datarow['origin'] != 'None':
             label += f'/{datarow["origin"]}'
         labels.append(label)
 
@@ -608,818 +1827,19 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
     # keep track of things that are only upper limits
     data['hasflux'] = ~data['flux'].isna()
 
-    # calculate the magnitudes - a photometry point is considered "significant"
-    # or "detected" (and thus can be represented by a magnitude) if its snr
-    # is above PHOT_DETECTION_THRESHOLD
-    obsind = data['hasflux'] & (
-        data['flux'].fillna(0.0) / data['fluxerr'] >= PHOT_DETECTION_THRESHOLD
+    panel_names = ['mag', 'flux', 'period']
+    panels = []
+
+    for panel_name in panel_names:
+        panel = make_photometry_panel(
+            panel_name, device, width, user, data, obj_id, spectra
+        )
+        if panel:
+            panels.append(panel)
+    tabs = Tabs(
+        tabs=panels,
+        # width=width,
     )
-    data.loc[~obsind, 'mag'] = None
-    data.loc[obsind, 'mag'] = -2.5 * np.log10(data[obsind]['flux']) + PHOT_ZP
-
-    # calculate the magnitude errors using standard error propagation formulae
-    # https://en.wikipedia.org/wiki/Propagation_of_uncertainty#Example_formulae
-    data.loc[~obsind, 'magerr'] = None
-    coeff = 2.5 / np.log(10)
-    magerrs = np.abs(coeff * data[obsind]['fluxerr'] / data[obsind]['flux'])
-    data.loc[obsind, 'magerr'] = magerrs
-    data['obs'] = obsind
-    data['stacked'] = False
-
-    split = data.groupby('label', sort=False)
-
-    finite = np.isfinite(data['flux'])
-    fdata = data[finite]
-    lower = np.min(fdata['flux']) * 0.95
-    upper = np.max(fdata['flux']) * 1.05
-
-    xmin = data['mjd'].min() - 2
-    xmax = data['mjd'].max() + 2
-
-    # Layout parameters based on device type
-    active_drag = None if "mobile" in device or "tablet" in device else "box_zoom"
-    tools = (
-        'box_zoom,pan,reset'
-        if "mobile" in device or "tablet" in device
-        else "box_zoom,wheel_zoom,pan,reset,save"
-    )
-    legend_loc = "below" if "mobile" in device or "tablet" in device else "right"
-    legend_orientation = (
-        "vertical" if device in ["browser", "mobile_portrait"] else "horizontal"
-    )
-
-    # Compute a plot component height based on rough number of legend rows added below the plot
-    # Values are based on default sizing of bokeh components and an estimate of how many
-    # legend items would fit on the average device screen. Note that the legend items per
-    # row is computed more exactly later once labels are extracted from the data (with the
-    # add_plot_legend() function).
-    #
-    # The height is manually computed like this instead of using built in aspect_ratio/sizing options
-    # because with the new Interactive Legend approach (instead of the legacy CheckboxLegendGroup), the
-    # Legend component is considered part of the plot and plays into the sizing computations. Since the
-    # number of items in the legend can alter the needed heights of the plot, using built-in Bokeh options
-    # for sizing does not allow for keeping the actual graph part of the plot at a consistent aspect ratio.
-    #
-    # For the frame width, by default we take the desired plot width minus 64 for the y-axis/label taking
-    # up horizontal space
-
-    (
-        frame_width,
-        aspect_ratio,
-        legend_row_height,
-        legend_items_per_row,
-    ) = get_dimensions_by_device(device, width)
-
-    height = (
-        500
-        if device == "browser"
-        else math.floor(width / aspect_ratio)
-        + legend_row_height * int(len(split) / legend_items_per_row)
-        + 30  # 30 is the height of the toolbar
-    )
-
-    plot = figure(
-        frame_width=frame_width,
-        height=height,
-        active_drag=active_drag,
-        tools=tools,
-        toolbar_location='above',
-        toolbar_sticky=True,
-        y_range=(lower, upper),
-        min_border_right=16,
-        x_axis_location='above',
-        sizing_mode="stretch_width",
-    )
-
-    plot.xaxis.axis_label = 'MJD'
-    now = Time.now().mjd
-    plot.extra_x_ranges = {"Days Ago": Range1d(start=now - xmin, end=now - xmax)}
-    plot.add_layout(LinearAxis(x_range_name="Days Ago", axis_label="Days Ago"), 'below')
-
-    imhover = HoverTool(tooltips=tooltip_format)
-    imhover.renderers = []
-    plot.add_tools(imhover)
-
-    model_dict = {}
-
-    legend_items = []
-    for i, (label, sdf) in enumerate(split):
-        renderers = []
-
-        # for the flux plot, we only show things that have a flux value
-        df = sdf[sdf['hasflux']]
-
-        key = f'{label}obs{i}'
-        model_dict[key] = plot.scatter(
-            x='mjd',
-            y='flux',
-            color='color',
-            marker=factor_mark('instrument', markers, instruments),
-            fill_color=color_dict,
-            alpha='alpha',
-            source=ColumnDataSource(df),
-        )
-        renderers.append(model_dict[key])
-        imhover.renderers.append(model_dict[key])
-
-        key = f'{label}bin{i}'
-        model_dict[key] = plot.scatter(
-            x='mjd',
-            y='flux',
-            color='color',
-            marker=factor_mark('instrument', markers, instruments),
-            fill_color=color_dict,
-            source=ColumnDataSource(
-                data=dict(
-                    mjd=[],
-                    flux=[],
-                    fluxerr=[],
-                    filter=[],
-                    color=[],
-                    lim_mag=[],
-                    mag=[],
-                    magerr=[],
-                    stacked=[],
-                    instrument=[],
-                )
-            ),
-        )
-        renderers.append(model_dict[key])
-        imhover.renderers.append(model_dict[key])
-
-        key = label + 'obserr' + str(i)
-        y_err_x = []
-        y_err_y = []
-
-        for d, ro in df.iterrows():
-            px = ro['mjd']
-            py = ro['flux']
-            err = ro['fluxerr']
-
-            y_err_x.append((px, px))
-            y_err_y.append((py - err, py + err))
-
-        model_dict[key] = plot.multi_line(
-            xs='xs',
-            ys='ys',
-            color='color',
-            alpha='alpha',
-            source=ColumnDataSource(
-                data=dict(
-                    xs=y_err_x, ys=y_err_y, color=df['color'], alpha=[1.0] * len(df)
-                )
-            ),
-        )
-        renderers.append(model_dict[key])
-
-        key = f'{label}binerr{i}'
-        model_dict[key] = plot.multi_line(
-            xs='xs',
-            ys='ys',
-            color='color',
-            # legend_label=label,
-            source=ColumnDataSource(data=dict(xs=[], ys=[], color=[])),
-        )
-        renderers.append(model_dict[key])
-
-        legend_items.append(LegendItem(label=label, renderers=renderers))
-    if device == "mobile_portrait":
-        plot.xaxis.ticker.desired_num_ticks = 5
-    plot.yaxis.axis_label = 'Flux (μJy)'
-    plot.toolbar.logo = None
-
-    add_phot_flux_button = make_add_all_photometry_button(model_dict)
-    clear_phot_flux_button = make_clear_photometry_button(model_dict)
-    flux_ztf_only_button = make_ztf_only_button(model_dict)
-
-    add_plot_legend(plot, legend_items, width, legend_orientation, legend_loc)
-    slider = Slider(
-        start=0.0,
-        end=15.0,
-        value=0.0,
-        step=1.0,
-        title='Binsize (days)',
-        max_width=350,
-        margin=(4, 10, 0, 10),
-    )
-
-    callback = CustomJS(
-        args={'slider': slider, 'n_labels': len(split), **model_dict},
-        code=open(
-            os.path.join(os.path.dirname(__file__), '../static/js/plotjs', 'stackf.js')
-        )
-        .read()
-        .replace('default_zp', str(PHOT_ZP))
-        .replace('detect_thresh', str(PHOT_DETECTION_THRESHOLD)),
-    )
-
-    slider.js_on_change('value', callback)
-
-    # Mark the first and last detections
-    detection_dates = data[data['hasflux']]['mjd']
-    if len(detection_dates) > 0:
-        first = round(detection_dates.min(), 6)
-        last = round(detection_dates.max(), 6)
-        first_color = "#34b4eb"
-        last_color = "#8992f5"
-        midpoint = (upper + lower) / 2
-        line_top = 5 * upper - 4 * midpoint
-        line_bottom = 5 * lower - 4 * midpoint
-        y = np.linspace(line_bottom, line_top, num=5000)
-        first_r = plot.line(
-            x=np.full(5000, first),
-            y=y,
-            line_alpha=0.5,
-            line_color=first_color,
-            line_width=2,
-        )
-        plot.add_tools(
-            HoverTool(
-                tooltips=[("First detection", f'{first}')],
-                renderers=[first_r],
-            )
-        )
-        last_r = plot.line(
-            x=np.full(5000, last),
-            y=y,
-            line_alpha=0.5,
-            line_color=last_color,
-            line_width=2,
-        )
-        plot.add_tools(
-            HoverTool(
-                tooltips=[("Last detection", f'{last}')],
-                renderers=[last_r],
-            )
-        )
-
-    # Mark when spectra were taken
-    annotate_spec(plot, spectra, lower, upper)
-    layout = column(
-        slider,
-        plot,
-        row(clear_phot_flux_button, add_phot_flux_button, flux_ztf_only_button),
-        width=width,
-        height=height,
-    )
-
-    p1 = Panel(child=layout, title='Flux')
-
-    # now make the mag light curve
-    ymax = (
-        np.nanmax(
-            (
-                np.nanmax(data.loc[obsind, 'mag']) if any(obsind) else np.nan,
-                np.nanmax(data.loc[~obsind, 'lim_mag']) if any(~obsind) else np.nan,
-            )
-        )
-        + 0.1
-    )
-    ymin = (
-        np.nanmin(
-            (
-                np.nanmin(data.loc[obsind, 'mag']) if any(obsind) else np.nan,
-                np.nanmin(data.loc[~obsind, 'lim_mag']) if any(~obsind) else np.nan,
-            )
-        )
-        - 0.1
-    )
-
-    plot = figure(
-        frame_width=frame_width,
-        height=height,
-        active_drag=active_drag,
-        tools=tools,
-        y_range=(ymax, ymin),
-        x_range=(xmin, xmax),
-        toolbar_location='above',
-        toolbar_sticky=True,
-        x_axis_location='above',
-        sizing_mode="stretch_width",
-    )
-
-    plot.xaxis.axis_label = 'MJD'
-    now = Time.now().mjd
-    plot.extra_x_ranges = {"Days Ago": Range1d(start=now - xmin, end=now - xmax)}
-    plot.add_layout(LinearAxis(x_range_name="Days Ago", axis_label="Days Ago"), 'below')
-
-    obj = Obj.get_if_accessible_by(obj_id, user, raise_if_none=True)
-    if obj.dm is not None:
-        plot.extra_y_ranges = {
-            "Absolute Mag": Range1d(start=ymax - obj.dm, end=ymin - obj.dm)
-        }
-        plot.add_layout(
-            LinearAxis(y_range_name="Absolute Mag", axis_label="m - DM"), 'right'
-        )
-
-    # Mark the first and last detections again
-    detection_dates = data[obsind]['mjd']
-    if len(detection_dates) > 0:
-        first = round(detection_dates.min(), 6)
-        last = round(detection_dates.max(), 6)
-        midpoint = (ymax + ymin) / 2
-        line_top = 5 * ymax - 4 * midpoint
-        line_bottom = 5 * ymin - 4 * midpoint
-        y = np.linspace(line_bottom, line_top, num=5000)
-        first_r = plot.line(
-            x=np.full(5000, first),
-            y=y,
-            line_alpha=0.5,
-            line_color=first_color,
-            line_width=2,
-        )
-        plot.add_tools(
-            HoverTool(
-                tooltips=[("First detection", f'{first}')],
-                renderers=[first_r],
-            )
-        )
-        last_r = plot.line(
-            x=np.full(5000, last),
-            y=y,
-            line_alpha=0.5,
-            line_color=last_color,
-            line_width=2,
-        )
-        plot.add_tools(
-            HoverTool(
-                tooltips=[("Last detection", f'{last}')],
-                renderers=[last_r],
-                point_policy='follow_mouse',
-            )
-        )
-
-    # Mark when spectra were taken
-    annotate_spec(plot, spectra, ymax, ymin)
-
-    imhover = HoverTool(tooltips=tooltip_format)
-    imhover.renderers = []
-    plot.add_tools(imhover)
-
-    model_dict = {}
-
-    # Legend items are individually stored instead of being applied
-    # directly when plotting so that they can be separated into multiple
-    # Legend() components if needed (to simulate horizontal row wrapping).
-    # This is necessary because Bokeh does not support row wrapping with
-    # horizontally-oriented legends out-of-the-box.
-    legend_items = []
-    for i, (label, df) in enumerate(split):
-        renderers = []
-
-        unobs_source = df[~df['obs']].copy()
-        unobs_source.loc[:, 'alpha'] = 0.8
-
-        key = f'{label}unobs{i}'
-        model_dict[key] = plot.scatter(
-            x='mjd',
-            y='lim_mag',
-            color=color_dict,
-            marker=factor_mark('instrument', markers, instruments),
-            fill_alpha=0.0,
-            line_color=color_dict,
-            alpha='alpha',
-            source=ColumnDataSource(unobs_source),
-        )
-        renderers.append(model_dict[key])
-        imhover.renderers.append(model_dict[key])
-
-        key = f'{label}obs{i}'
-        model_dict[key] = plot.scatter(
-            x='mjd',
-            y='mag',
-            color='color',
-            marker=factor_mark('instrument', markers, instruments),
-            fill_color=color_dict,
-            alpha='alpha',
-            source=ColumnDataSource(df[df['obs']]),
-        )
-        renderers.append(model_dict[key])
-        imhover.renderers.append(model_dict[key])
-
-        key = f'{label}bin{i}'
-        model_dict[key] = plot.scatter(
-            x='mjd',
-            y='mag',
-            color=color_dict,
-            marker=factor_mark('instrument', markers, instruments),
-            fill_color='color',
-            source=ColumnDataSource(
-                data=dict(
-                    mjd=[],
-                    flux=[],
-                    fluxerr=[],
-                    filter=[],
-                    color=[],
-                    lim_mag=[],
-                    mag=[],
-                    magerr=[],
-                    instrument=[],
-                    stacked=[],
-                )
-            ),
-        )
-        renderers.append(model_dict[key])
-        imhover.renderers.append(model_dict[key])
-
-        key = label + 'obserr' + str(i)
-        y_err_x = []
-        y_err_y = []
-
-        for d, ro in df[df['obs']].iterrows():
-            px = ro['mjd']
-            py = ro['mag']
-            err = ro['magerr']
-
-            y_err_x.append((px, px))
-            y_err_y.append((py - err, py + err))
-
-        model_dict[key] = plot.multi_line(
-            xs='xs',
-            ys='ys',
-            color='color',
-            alpha='alpha',
-            source=ColumnDataSource(
-                data=dict(
-                    xs=y_err_x,
-                    ys=y_err_y,
-                    color=df[df['obs']]['color'],
-                    alpha=[1.0] * len(df[df['obs']]),
-                )
-            ),
-        )
-        renderers.append(model_dict[key])
-
-        key = f'{label}binerr{i}'
-        model_dict[key] = plot.multi_line(
-            xs='xs',
-            ys='ys',
-            color='color',
-            source=ColumnDataSource(data=dict(xs=[], ys=[], color=[])),
-        )
-        renderers.append(model_dict[key])
-
-        key = f'{label}unobsbin{i}'
-        model_dict[key] = plot.scatter(
-            x='mjd',
-            y='lim_mag',
-            color='color',
-            marker='inverted_triangle',
-            fill_color='white',
-            line_color=color_dict,
-            alpha=0.8,
-            source=ColumnDataSource(
-                data=dict(
-                    mjd=[],
-                    flux=[],
-                    fluxerr=[],
-                    filter=[],
-                    color=[],
-                    lim_mag=[],
-                    mag=[],
-                    magerr=[],
-                    instrument=[],
-                    stacked=[],
-                )
-            ),
-        )
-        imhover.renderers.append(model_dict[key])
-        renderers.append(model_dict[key])
-
-        key = f'all{i}'
-        model_dict[key] = ColumnDataSource(df)
-
-        key = f'bold{i}'
-        model_dict[key] = ColumnDataSource(
-            df[
-                [
-                    'mjd',
-                    'flux',
-                    'fluxerr',
-                    'mag',
-                    'magerr',
-                    'filter',
-                    'zp',
-                    'magsys',
-                    'lim_mag',
-                    'stacked',
-                ]
-            ]
-        )
-
-        legend_items.append(LegendItem(label=label, renderers=renderers))
-
-    add_plot_legend(plot, legend_items, width, legend_orientation, legend_loc)
-    plot.yaxis.axis_label = 'AB mag'
-    plot.toolbar.logo = None
-
-    slider = Slider(
-        start=0.0,
-        end=15.0,
-        value=0.0,
-        step=1.0,
-        title='Binsize (days)',
-        max_width=350,
-        margin=(4, 10, 0, 10),
-    )
-
-    add_phot_mag_button = make_add_all_photometry_button(model_dict)
-    clear_phot_mag_button = make_clear_photometry_button(model_dict)
-    mag_ztf_only_button = make_ztf_only_button(model_dict)
-
-    button = Button(label="Export Bold Light Curve to CSV")
-    button.js_on_click(
-        CustomJS(
-            args={'slider': slider, 'n_labels': len(split), **model_dict},
-            code=open(
-                os.path.join(
-                    os.path.dirname(__file__), '../static/js/plotjs', "download.js"
-                )
-            )
-            .read()
-            .replace('objname', obj_id)
-            .replace('default_zp', str(PHOT_ZP)),
-        )
-    )
-
-    # Don't need to expose CSV download on mobile
-    top_layout = (
-        slider if "mobile" in device or "tablet" in device else row(slider, button)
-    )
-
-    callback = CustomJS(
-        args={'slider': slider, 'n_labels': len(split), **model_dict},
-        code=open(
-            os.path.join(os.path.dirname(__file__), '../static/js/plotjs', 'stackm.js')
-        )
-        .read()
-        .replace('default_zp', str(PHOT_ZP))
-        .replace('detect_thresh', str(PHOT_DETECTION_THRESHOLD)),
-    )
-    slider.js_on_change('value', callback)
-    layout = column(
-        top_layout,
-        plot,
-        row(clear_phot_mag_button, add_phot_mag_button, mag_ztf_only_button),
-        width=width,
-        height=height,
-    )
-
-    p2 = Panel(child=layout, title='Mag')
-
-    # now make period plot
-
-    # get periods from annotations
-    annotation_list = (
-        Annotation.query_records_accessible_by(user)
-        .filter(Annotation.obj_id == obj.id)
-        .all()
-    )
-    period_labels = []
-    period_list = []
-    for an in annotation_list:
-        if 'period' in an.data:
-            period_list.append(an.data['period'])
-            period_labels.append(an.origin + ": %.9f" % an.data['period'])
-
-    if len(period_list) > 0:
-        period = period_list[0]
-    else:
-        period = None
-    # don't generate if no period annotated
-    if period is not None:
-        # bokeh figure for period plotting
-        period_plot = figure(
-            frame_width=frame_width,
-            height=height,
-            active_drag=active_drag,
-            tools=tools,
-            y_range=(ymax, ymin),
-            x_range=(-0.01, 2.01),  # initially one phase
-            toolbar_location='above',
-            toolbar_sticky=False,
-            x_axis_location='below',
-            sizing_mode="stretch_width",
-        )
-
-        # axis labels
-        period_plot.xaxis.axis_label = 'phase'
-        period_plot.yaxis.axis_label = 'mag'
-        period_plot.toolbar.logo = None
-
-        # do we have a distance modulus (dm)?
-        obj = Obj.get_if_accessible_by(obj_id, user)
-        if obj.dm is not None:
-            period_plot.extra_y_ranges = {
-                "Absolute Mag": Range1d(start=ymax - obj.dm, end=ymin - obj.dm)
-            }
-            period_plot.add_layout(
-                LinearAxis(y_range_name="Absolute Mag", axis_label="m - DM"), 'right'
-            )
-
-        # initiate hover tool
-        period_imhover = HoverTool(tooltips=tooltip_format)
-        period_imhover.renderers = []
-        period_plot.add_tools(period_imhover)
-
-        # initiate period radio buttons
-        period_selection = RadioGroup(labels=period_labels, active=0)
-
-        phase_selection = RadioGroup(labels=["One phase", "Two phases"], active=1)
-
-        # store all the plot data
-        period_model_dict = {}
-
-        # iterate over each filter
-        legend_items = []
-        for i, (label, df) in enumerate(split):
-            renderers = []
-            # fold x-axis on period in days
-            df['mjd_folda'] = (df['mjd'] % period) / period
-            df['mjd_foldb'] = df['mjd_folda'] + 1.0
-
-            # phase plotting
-            for ph in ['a', 'b']:
-                key = label + 'fold' + ph + f'{i}'
-                period_model_dict[key] = period_plot.scatter(
-                    x='mjd_fold' + ph,
-                    y='mag',
-                    color='color',
-                    marker=factor_mark('instrument', markers, instruments),
-                    fill_color=color_dict,
-                    alpha='alpha',
-                    # visible=('a' in ph),
-                    source=ColumnDataSource(df[df['obs']]),  # only visible data
-                )
-                # add to hover tool
-                period_imhover.renderers.append(period_model_dict[key])
-                renderers.append(period_model_dict[key])
-
-                # errorbars for phases
-                key = label + 'fold' + ph + f'err{i}'
-                y_err_x = []
-                y_err_y = []
-
-                # get each visible error value
-                for d, ro in df[df['obs']].iterrows():
-                    px = ro['mjd_fold' + ph]
-                    py = ro['mag']
-                    err = ro['magerr']
-                    # set up error tuples
-                    y_err_x.append((px, px))
-                    y_err_y.append((py - err, py + err))
-                # plot phase errors
-                period_model_dict[key] = period_plot.multi_line(
-                    xs='xs',
-                    ys='ys',
-                    color='color',
-                    alpha='alpha',
-                    # visible=('a' in ph),
-                    source=ColumnDataSource(
-                        data=dict(
-                            xs=y_err_x,
-                            ys=y_err_y,
-                            color=df[df['obs']]['color'],
-                            alpha=[1.0] * len(df[df['obs']]),
-                        )
-                    ),
-                )
-                renderers.append(period_model_dict[key])
-
-            legend_items.append(LegendItem(label=label, renderers=renderers))
-
-        add_plot_legend(
-            period_plot, legend_items, width, legend_orientation, legend_loc
-        )
-
-        add_phot_period_button = make_add_all_photometry_button(period_model_dict)
-        clear_phot_period_button = make_clear_photometry_button(period_model_dict)
-        period_ztf_only_button = make_ztf_only_button(period_model_dict)
-
-        # set up period adjustment text box
-        period_title = Div(text="Period (days): ")
-        period_textinput = TextInput(value=str(period if period is not None else 0.0))
-        period_textinput.js_on_change(
-            'value',
-            CustomJS(
-                args={
-                    'textinput': period_textinput,
-                    'numphases': phase_selection,
-                    'n_labels': len(split),
-                    'p': period_plot,
-                    **period_model_dict,
-                },
-                code=open(
-                    os.path.join(
-                        os.path.dirname(__file__), '../static/js/plotjs', 'foldphase.js'
-                    )
-                ).read(),
-            ),
-        )
-        # a way to modify the period
-        period_double_button = Button(label="*2", width=30)
-        period_double_button.js_on_click(
-            CustomJS(
-                args={'textinput': period_textinput},
-                code="""
-                const period = parseFloat(textinput.value);
-                textinput.value = parseFloat(2.*period).toFixed(9);
-                """,
-            )
-        )
-        period_halve_button = Button(label="/2", width=30)
-        period_halve_button.js_on_click(
-            CustomJS(
-                args={'textinput': period_textinput},
-                code="""
-                        const period = parseFloat(textinput.value);
-                        textinput.value = parseFloat(period/2.).toFixed(9);
-                        """,
-            )
-        )
-        # a way to select the period
-        period_selection.js_on_click(
-            CustomJS(
-                args={'textinput': period_textinput, 'periods': period_list},
-                code="""
-                textinput.value = parseFloat(periods[this.active]).toFixed(9);
-                """,
-            )
-        )
-        phase_selection.js_on_click(
-            CustomJS(
-                args={
-                    'textinput': period_textinput,
-                    'numphases': phase_selection,
-                    'n_labels': len(split),
-                    'p': period_plot,
-                    **period_model_dict,
-                },
-                code=open(
-                    os.path.join(
-                        os.path.dirname(__file__), '../static/js/plotjs', 'foldphase.js'
-                    )
-                ).read(),
-            )
-        )
-
-        # layout
-        if device == "mobile_portrait":
-            period_controls = column(
-                row(
-                    period_title,
-                    period_textinput,
-                    period_double_button,
-                    period_halve_button,
-                    width=width,
-                    sizing_mode="scale_width",
-                ),
-                phase_selection,
-                period_selection,
-                width=width,
-            )
-            # Add extra height to plot based on period control components added
-            # 18 is the height of each period selection radio option (per default font size)
-            # and the 130 encompasses the other components which are consistent no matter
-            # the data size.
-            height += 130 + 18 * len(period_labels)
-        else:
-            period_controls = column(
-                row(
-                    period_title,
-                    period_textinput,
-                    period_double_button,
-                    period_halve_button,
-                    phase_selection,
-                    width=width,
-                    sizing_mode="scale_width",
-                ),
-                period_selection,
-                margin=10,
-            )
-            # Add extra height to plot based on period control components added
-            # Numbers are derived in similar manner to the "mobile_portrait" case above
-            height += 90 + 18 * len(period_labels)
-
-        period_layout = column(
-            period_plot,
-            row(
-                clear_phot_period_button, add_phot_period_button, period_ztf_only_button
-            ),
-            period_controls,
-            width=width,
-            height=height,
-        )
-
-        # Period panel
-        p3 = Panel(child=period_layout, title='Period')
-
-        # tabs for mag, flux, period
-        tabs = Tabs(tabs=[p2, p1, p3], width=width, height=height, sizing_mode='fixed')
-    else:
-        # tabs for mag, flux
-        tabs = Tabs(tabs=[p2, p1], width=width, height=height + 90, sizing_mode='fixed')
-
     try:
         return bokeh_embed.json_item(tabs)
     except ValueError:
@@ -1472,7 +1892,7 @@ def spectroscopy_plot(
     obj_id,
     user,
     spec_id=None,
-    width=600,
+    width=800,
     device="browser",
     smoothing=False,
     smooth_number=10,
@@ -1677,14 +2097,6 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
         + 30  # 30 is the height of the toolbar
     )
 
-    # Add some height for the checkboxes and sliders
-    if device == "mobile_portrait":
-        height = plot_height + 440
-    elif device == "mobile_landscape":
-        height = plot_height + 370
-    else:
-        height = plot_height + 220
-
     # check browser plot_height for legend overflow
     if device == "browser":
         plot_height_of_legend = (
@@ -1736,8 +2148,19 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
         active_drag=active_drag,
     )
 
+    # https://docs.bokeh.org/en/latest/docs/user_guide/styling.html#setting-render-levels
+    # image is the lowest render level in bokeh plots, set all of the grid lines to this lowest level
+    # so we can use the 'underlay' and 'glyph' levels for the spectra.
+    for grid in plot.grid:
+        grid.level = "image"
+    for grid in plot.xgrid:
+        grid.level = "image"
+    for grid in plot.ygrid:
+        grid.level = "image"
+
     model_dict = {}
     legend_items = []
+    label_dict = {}
     for i, (key, df) in enumerate(split):
 
         renderers = []
@@ -1746,6 +2169,7 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
             label = s.label
         else:
             label = f'{s.instrument.name} ({s.observed_at.date().strftime("%m/%d/%y")})'
+        label_dict[str(s.id)] = i
         model_dict['s' + str(i)] = plot.step(
             x='wavelength',
             y='flux',
@@ -1774,8 +2198,7 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
         )
         renderers.append(model_dict[f'l{i}'])
 
-        legend_items.append(LegendItem(label=label, renderers=renderers))
-
+        legend_items.append(LegendItem(label=label, renderers=renderers, id=s.id))
     plot.xaxis.axis_label = 'Wavelength (Å)'
     plot.yaxis.axis_label = 'Flux'
     plot.toolbar.logo = None
@@ -2016,9 +2439,10 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
         )
         column_checkboxes.js_on_click(callback_toggle_lines)
 
-    second_to_last_column = all_column_checkboxes[-2]
-    clear_all_spectra = Button(name="Clear Spectra", label="Clear Spectra", width=100)
-    callback_clear_all_spectra = CustomJS(
+    hide_all_spectra = Button(
+        name="Hide All Spectra", label="Hide All Spectra", width_policy="min"
+    )
+    callback_hide_all_spectra = CustomJS(
         args={'model_dict': model_dict},
         code="""
             for (const[key, value] of Object.entries(model_dict)) {
@@ -2028,12 +2452,12 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
             }
         """,
     )
-    clear_all_spectra.js_on_click(callback_clear_all_spectra)
-    all_column_checkboxes[-2] = column(second_to_last_column, clear_all_spectra)
+    hide_all_spectra.js_on_click(callback_hide_all_spectra)
 
-    third_to_last_column = all_column_checkboxes[-3]
-    add_all_spectra = Button(name="Add All Spectra", label="Add All Spectra", width=30)
-    callback_add_all_spectra = CustomJS(
+    show_all_spectra = Button(
+        name="Show All Spectra", label="Show All Spectra", width_policy="min"
+    )
+    callback_show_all_spectra = CustomJS(
         args={'model_dict': model_dict},
         code="""
             for (const[key, value] of Object.entries(model_dict)) {
@@ -2043,31 +2467,22 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
             }
         """,
     )
-    add_all_spectra.js_on_click(callback_add_all_spectra)
-    all_column_checkboxes[-3] = column(third_to_last_column, add_all_spectra)
+    show_all_spectra.js_on_click(callback_show_all_spectra)
 
-    last_column = all_column_checkboxes[-1]
     reset_checkboxes_button = Button(
-        name="Reset Checkboxes", label="Reset Checkboxes", width=30
+        name="Reset Checkboxes", label="Reset Checkboxes", width_policy="min"
     )
     callback_reset_specs = CustomJS(
         args={
             'all_column_checkboxes': all_column_checkboxes,
-            'last_column': last_column,
-            'second_to_last_column': second_to_last_column,
-            'third_to_last_column': third_to_last_column,
         },
         code=f"""
-            for (let i = 0; i < {len(all_column_checkboxes) - 3}; i++) {{
+            for (let i = 0; i < {len(all_column_checkboxes)}; i++) {{
                 all_column_checkboxes[i].active = [];
             }}
-            last_column.active = [];
-            second_to_last_column.active = [];
-            third_to_last_column.active = [];
         """,
     )
     reset_checkboxes_button.js_on_click(callback_reset_specs)
-    all_column_checkboxes[-1] = column(last_column, reset_checkboxes_button)
 
     # Move spectral lines when redshift or velocity changes
     speclines = {f'specline_{i}': line for i, line in enumerate(shifting_elements)}
@@ -2111,7 +2526,48 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
                 """,
         ),
     )
-    row2 = row(all_column_checkboxes)
+
+    on_top_spectra_dropdown = Dropdown(
+        label="Select on top spectra",
+        menu=[
+            (legend_item.label['value'], str(legend_item.id))
+            for legend_item in legend_items
+        ],
+        width_policy="min",
+    )
+    on_top_spectra_dropdown.js_on_event(
+        "menu_item_click",
+        CustomJS(
+            args={'model_dict': model_dict, 'label_dict': label_dict},
+            code="""
+            for (const[key, value] of Object.entries(model_dict)) {
+                if (!key.startsWith('element_') && (key.charAt(key.length - 1) === label_dict[this.item].toString())) {
+                    value.level = 'glyph'
+                }
+                else {
+                    value.level = 'underlay'
+                }
+            }
+            """,
+        ),
+    )
+
+    row1 = row(all_column_checkboxes)
+    row2 = (
+        column(
+            on_top_spectra_dropdown,
+            show_all_spectra,
+            hide_all_spectra,
+            reset_checkboxes_button,
+        )
+        if "mobile" in device
+        else row(
+            on_top_spectra_dropdown,
+            show_all_spectra,
+            hide_all_spectra,
+            reset_checkboxes_button,
+        )
+    )
     row3 = (
         column(z, v_exp, smooth_column)
         if "mobile" in device
@@ -2119,11 +2575,11 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
     )
     return column(
         plot,
+        row1,
         row2,
         row3,
         sizing_mode='stretch_width',
         width=width,
-        height=height,
     )
 
 

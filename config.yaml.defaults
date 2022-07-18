@@ -22,7 +22,7 @@ app:
     default_filters: ['ztfg', 'ztfr', 'ztfi']
 
   # this endpoint does not actually do anything -- it is just for testing
-  sedm_endpoint: http://pharos.caltech.edu/add_fritz
+  sedm_endpoint: http://minar.caltech.edu/add_fritz
   sedmv2_endpoint:
 
   lt_host: 161.72.57.3
@@ -33,9 +33,9 @@ app:
   lco_port: 443
 
   ztf:
-    protocol: http
-    host: skipper.caltech.edu
-    port: 4000
+    protocol: https
+    host: kowalski.caltech.edu
+    port: 443
 
   ztf_forced_endpoint: https://ztfweb.ipac.caltech.edu
 
@@ -49,10 +49,12 @@ app:
   atlas:
     protocol: https
     host: fallingstar-data.com
+    port:
 
   kait:
     protocol: http
     host: herculesii.astro.berkeley.edu
+    port:
 
   treasuremap_endpoint: http://treasuremap.space
 
@@ -98,6 +100,8 @@ app:
       component: AllocationPage
     - path: "/observations"
       component: ObservationPage
+    - path: "/galaxies"
+      component: GalaxyPage
     - path: "/followup_requests"
       component: FollowupRequestPage
     - path: "/group_sources/:id"
@@ -120,8 +124,12 @@ app:
       component: TelescopePage
     - path: "/instruments"
       component: InstrumentPage
+    - path: "/services"
+      component: AnalysisServicePage
     - path: "/shifts"
-      component: ShiftPage
+      component: ShiftNoId
+    - path: "/shifts/:id"
+      component: ShiftWithId
 
   sidebar:
     # See https://material-ui.com/components/material-icons/
@@ -185,6 +193,14 @@ app:
           icon: ZoomInOutlined
           url: /observations
 
+        - name: Galaxies
+          icon: TornadoOutlined
+          url: /galaxies
+
+        - name: Analysis Services
+          icon: SentimentSatisfied
+          url: /services
+
     - name: Admin
       permissions: ["Manage users", "System admin"]
       subitems:
@@ -241,7 +257,7 @@ app:
     #
     # The props property should be a set of properties to be passed on to the
     # underlying React component for the widget. You may run into cases in which
-    # you must pass a more complex, dyamic property (perhaps fetched from the
+    # you must pass a more complex, dynamic property (perhaps fetched from the
     # application redux store). Since you can not know that in the time of the
     # configuration writing, such properties should be directly coded into the
     # HomePage.jsx.template file (see the GroupList widget for an example)
@@ -335,6 +351,16 @@ app:
         sm: [4.5, 1, 1.5, 2]
         xs: [0, 10, 4, 2]
 
+    NewSource:
+      resizeable: true
+      minW: 3
+      layouts:
+        xlg: [10, 0, 4, 3]
+        lg: [7, 0, 3, 3]
+        md: [0, 0, 8, 3]
+        sm: [0, 0, 4.5, 3]
+        xs: [0, 1, 4, 3]
+
 database:
   database: skyportal
   host: localhost
@@ -400,7 +426,7 @@ misc:
   # If {"flat": True} then use a subclass of the FLRW, called `FlatLambdaCMD`
   # otherwise use `LambdaCDM`. See `utils.cosmology.py` for the way in which
   # the user-supplied cosmology parameter set constructs the site-wide cosmology.
-  cosmology: Planck18_arXiv_v2
+  cosmology: Planck18
   #cosmology: {H0: "65.0", Om0: 0.3, Ode0: 0.7, name: 'skyportal_user_cosmo'}
 
   # The minimum signal-to-noise ratio/ n-sigma for lim mag cacluations to
@@ -433,8 +459,8 @@ external_logging:
     excluded_log_files: ["log/websocket_server.log"]
 
 cron:
-  - interval: 60
-    script: jobs/count_unsaved_candidates.py
+  # - interval: 60
+  #  script: jobs/count_unsaved_candidates.py
   # - interval: 1440
   #   script: jobs/delete_unsaved_candidates.py
   #   limit: ["01:00", "02:00"]
@@ -495,6 +521,14 @@ spectrum_types:
    - host_center
   default: source
 
+cross_match:
+  gaia:
+    catalog: "gaiaedr3.gaia_source"
+    radius: 2.0
+    limmag: 20.5
+    number: 1
+
+
 # define the additional passbands that are not in SNCosmo
 # (https://sncosmo.readthedocs.io/en/stable/bandpass-list.html)
 # the names must be unique. The wavelength array should
@@ -514,3 +548,53 @@ spectrum_types:
 #    wavelength: [5580, 5582, 8249, 8250]
 #    transmission: [0, 1, 1, 0]
 #    description: "basic ATLAS O filter - tophat transmission"
+
+user:
+  default_role: 'Full user'
+  default_groups: []
+  default_acls: []
+
+ports:
+  facility_queue: 64510
+
+gcn_notice_types:
+  - FERMI_GBM_FLT_POS
+  - FERMI_GBM_GND_POS
+  - FERMI_GBM_FIN_POS
+  - FERMI_GBM_SUBTHRESH
+  # - LVC_PRELIMINARY
+  # - LVC_INITIAL
+  # - LVC_UPDATE
+  # - LVC_RETRACTION
+  - AMON_ICECUBE_COINC
+  - AMON_ICECUBE_HESE
+  - ICECUBE_ASTROTRACK_GOLD
+  - ICECUBE_ASTROTRACK_BRONZE
+
+gcn_observation_plans:
+  - allocation-proposal_id: ZTF-001
+    payload:
+      filter_strategy: block
+      schedule_type: greedy_slew
+      schedule_strategy: tiling
+      galaxy_catalog: CLU_mini
+      exposure_time: 300
+      filters: g,r,g
+      maximum_airmass: 2
+      integrated_probability: 90
+      minimum_time_difference: 30
+      program_id: Partnership
+      subprogram_name: GRB
+
+health_monitor:
+  seconds_between_checks: 30.5
+  allowed_downtime_seconds: 120
+  allowed_times_down: 3
+  request_timeout_seconds: 30
+  # How long do we give apps after restart to become healthy
+  startup_grace_seconds: 30
+
+analysis_services:
+  analysis_folder: analysis_data
+  sn_analysis_service:
+    port: 6801

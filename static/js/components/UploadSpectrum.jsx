@@ -3,26 +3,28 @@ import PropTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
 import { Link } from "react-router-dom";
 import MUIDataTable from "mui-datatables";
-import Form from "@rjsf/material-ui";
+// eslint-disable-next-line import/no-unresolved
+import Form from "@rjsf/material-ui/v5";
 import dataUriToBuffer from "data-uri-to-buffer";
-import Typography from "@material-ui/core/Typography";
-import Accordion from "@material-ui/core/Accordion";
-import Grid from "@material-ui/core/Grid";
-import Paper from "@material-ui/core/Paper";
-import Button from "@material-ui/core/Button";
-import HelpOutlineIcon from "@material-ui/icons/HelpOutline";
-import { makeStyles } from "@material-ui/core/styles";
-import CircularProgress from "@material-ui/core/CircularProgress";
+import Typography from "@mui/material/Typography";
+import Accordion from "@mui/material/Accordion";
+import Grid from "@mui/material/Grid";
+import Paper from "@mui/material/Paper";
+import Button from "@mui/material/Button";
+import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
+import makeStyles from "@mui/styles/makeStyles";
+import CircularProgress from "@mui/material/CircularProgress";
 import embed from "vega-embed";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import { showNotification } from "baselayer/components/Notifications";
 
-import AccordionSummary from "@material-ui/core/AccordionSummary";
-import AccordionDetails from "@material-ui/core/AccordionDetails";
-import ExpandMoreIcon from "@material-ui/icons/ExpandMore";
+import AccordionSummary from "@mui/material/AccordionSummary";
+import AccordionDetails from "@mui/material/AccordionDetails";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 
 import { HtmlTooltip } from "./UploadPhotometry";
+import withRouter from "./withRouter";
 
 import * as spectraActions from "../ducks/spectra";
 import { fetchSource } from "../ducks/source";
@@ -60,7 +62,7 @@ const useStyles = makeStyles(() => ({
 }));
 
 const spectrumPreviewSpec = (data) => ({
-  $schema: "https://vega.github.io/schema/vega-lite/v4.json",
+  $schema: "https://vega.github.io/schema/vega-lite/v5.2.0.json",
   width: "container",
   height: 200,
   data: { values: data },
@@ -707,4 +709,4 @@ UploadSpectrumForm.propTypes = {
   }).isRequired,
 };
 
-export default UploadSpectrumForm;
+export default withRouter(UploadSpectrumForm);

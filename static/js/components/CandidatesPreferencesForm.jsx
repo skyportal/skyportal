@@ -3,18 +3,18 @@ import { useSelector, useDispatch } from "react-redux";
 import { useForm, Controller } from "react-hook-form";
 import PropTypes from "prop-types";
 
-import Select from "@material-ui/core/Select";
-import MenuItem from "@material-ui/core/MenuItem";
-import Typography from "@material-ui/core/Typography";
-import Button from "@material-ui/core/Button";
-import Input from "@material-ui/core/Input";
-import InputLabel from "@material-ui/core/InputLabel";
-import Chip from "@material-ui/core/Chip";
-import TextField from "@material-ui/core/TextField";
-import FormControlLabel from "@material-ui/core/FormControlLabel";
-import Checkbox from "@material-ui/core/Checkbox";
-import SaveIcon from "@material-ui/icons/Save";
-import { makeStyles, useTheme } from "@material-ui/core/styles";
+import Select from "@mui/material/Select";
+import MenuItem from "@mui/material/MenuItem";
+import Typography from "@mui/material/Typography";
+import Button from "@mui/material/Button";
+import Input from "@mui/material/Input";
+import InputLabel from "@mui/material/InputLabel";
+import TextField from "@mui/material/TextField";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import Checkbox from "@mui/material/Checkbox";
+import SaveIcon from "@mui/icons-material/Save";
+
+import makeStyles from "@mui/styles/makeStyles";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
@@ -24,6 +24,7 @@ import * as profileActions from "../ducks/profile";
 import Responsive from "./Responsive";
 import FoldBox from "./FoldBox";
 import FormValidationError from "./FormValidationError";
+import ClassificationSelect from "./ClassificationSelect";
 
 dayjs.extend(utc);
 
@@ -62,15 +63,6 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-function getStyles(classification, selectedClassifications, theme) {
-  return {
-    fontWeight:
-      selectedClassifications.indexOf(classification) === -1
-        ? theme.typography.fontWeightRegular
-        : theme.typography.fontWeightMedium,
-  };
-}
-
 const rejectedStatusSelectOptions = [
   { value: "hide", label: "Hide rejected candidates" },
   { value: "show", label: "Show rejected candidates" },
@@ -104,24 +96,13 @@ const savedStatusSelectOptions = [
 const CandidatesPreferencesForm = ({
   userAccessibleGroups,
   availableAnnotationsInfo,
-  classifications,
   addOrEdit,
   editingProfile,
   closeDialog,
   selectedScanningProfile,
   setSelectedScanningProfile,
 }) => {
-  const theme = useTheme();
   const classes = useStyles();
-  const ITEM_HEIGHT = 48;
-  const MenuProps = {
-    PaperProps: {
-      style: {
-        maxHeight: ITEM_HEIGHT * 4.5,
-        width: 250,
-      },
-    },
-  };
   const preferences = useSelector((state) => state.profile.preferences);
 
   const dispatch = useDispatch();
@@ -220,8 +201,8 @@ const CandidatesPreferencesForm = ({
     if (formData.timeRange) {
       data.timeRange = formData.timeRange;
     }
-    if (formData.classifications.length > 0) {
-      data.classifications = formData.classifications;
+    if (selectedClassifications.length > 0) {
+      data.classifications = selectedClassifications;
     }
     if (formData.redshiftMinimum) {
       data.redshiftMinimum = formData.redshiftMinimum;
@@ -346,51 +327,10 @@ const CandidatesPreferencesForm = ({
           </Controller>
         </div>
         <div className={classes.formRow}>
-          <InputLabel id="profile-classifications-select-label">
-            Classifications
-          </InputLabel>
-          <Controller
-            labelId="profile-classifications-select-label"
-            render={({ onChange, value }) => (
-              <Select
-                multiple
-                value={value}
-                onChange={(event) => {
-                  setSelectedClassifications(event.target.value);
-                  onChange(event.target.value);
-                }}
-                input={<Input data-testid="profile-classifications-select" />}
-                renderValue={(selected) => (
-                  <div className={classes.chips}>
-                    {selected?.map((classification) => (
-                      <Chip
-                        key={classification}
-                        label={classification}
-                        className={classes.chip}
-                      />
-                    ))}
-                  </div>
-                )}
-                MenuProps={MenuProps}
-              >
-                {classifications?.map((classification) => (
-                  <MenuItem
-                    key={classification}
-                    value={classification}
-                    style={getStyles(
-                      classification,
-                      selectedClassifications,
-                      theme
-                    )}
-                  >
-                    {classification}
-                  </MenuItem>
-                ))}
-              </Select>
-            )}
-            name="classifications"
-            control={control}
-            defaultValue={[]}
+          <ClassificationSelect
+            selectedClassifications={selectedClassifications}
+            setSelectedClassifications={setSelectedClassifications}
+            showShortcuts
           />
         </div>
         <div className={classes.formRow}>
@@ -608,7 +548,6 @@ const CandidatesPreferencesForm = ({
 CandidatesPreferencesForm.propTypes = {
   userAccessibleGroups: PropTypes.arrayOf(PropTypes.shape({})),
   availableAnnotationsInfo: PropTypes.shape({}),
-  classifications: PropTypes.arrayOf(PropTypes.string),
   addOrEdit: PropTypes.string.isRequired,
   // Args below required for editing
   editingProfile: PropTypes.shape({
@@ -625,7 +564,6 @@ CandidatesPreferencesForm.propTypes = {
 CandidatesPreferencesForm.defaultProps = {
   userAccessibleGroups: [],
   availableAnnotationsInfo: null,
-  classifications: [],
   editingProfile: null,
   closeDialog: null,
   selectedScanningProfile: null,

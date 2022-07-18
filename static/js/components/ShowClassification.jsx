@@ -1,13 +1,15 @@
 import React from "react";
 import PropTypes from "prop-types";
-import Tooltip from "@material-ui/core/Tooltip";
-import Chip from "@material-ui/core/Chip";
+import Tooltip from "@mui/material/Tooltip";
+import Chip from "@mui/material/Chip";
 
-import { makeStyles } from "@material-ui/core/styles";
+import makeStyles from "@mui/styles/makeStyles";
 
 export const useStyles = makeStyles((theme) => ({
   chip: {
     margin: theme.spacing(0.5),
+    fontSize: "1.2rem",
+    fontWeight: "bold",
   },
 }));
 

@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import PropTypes from "prop-types";
-import Select from "@material-ui/core/Select";
-import InputLabel from "@material-ui/core/InputLabel";
-import MenuItem from "@material-ui/core/MenuItem";
-import Form from "@rjsf/material-ui";
-import CircularProgress from "@material-ui/core/CircularProgress";
-import { makeStyles } from "@material-ui/core/styles";
+import Select from "@mui/material/Select";
+import InputLabel from "@mui/material/InputLabel";
+import MenuItem from "@mui/material/MenuItem";
+// eslint-disable-next-line import/no-unresolved
+import Form from "@rjsf/material-ui/v5";
+import CircularProgress from "@mui/material/CircularProgress";
+import makeStyles from "@mui/styles/makeStyles";
 import * as sourceActions from "../ducks/source";
 import * as allocationActions from "../ducks/allocations";
 import * as instrumentActions from "../ducks/instruments";
@@ -47,7 +48,11 @@ const FollowupRequestForm = ({
   const { telescopeList } = useSelector((state) => state.telescopes);
   const { allocationList } = useSelector((state) => state.allocations);
   const allGroups = useSelector((state) => state.groups.all);
-  const [selectedAllocationId, setSelectedAllocationId] = useState(null);
+  const defaultAllocationId = useSelector(
+    (state) => state.profile.preferences.followupDefault
+  );
+  const [selectedAllocationId, setSelectedAllocationId] =
+    useState(defaultAllocationId);
   const [selectedGroupIds, setSelectedGroupIds] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -63,8 +68,30 @@ const FollowupRequestForm = ({
       );
 
       const { data } = result;
-      setSelectedAllocationId(data[0]?.id);
-      setSelectedGroupIds([data[0]?.group_id]);
+      const tempAllocationLookUp = {};
+      data?.forEach((allocation) => {
+        tempAllocationLookUp[allocation.id] = allocation;
+      });
+
+      if (!selectedAllocationId) {
+        setSelectedAllocationId(data[0]?.id);
+        if (data[0]?.default_share_group_ids?.length > 0) {
+          setSelectedGroupIds(data[0]?.default_share_group_ids);
+        } else {
+          setSelectedGroupIds([data[0]?.group_id]);
+        }
+      } else if (
+        tempAllocationLookUp[selectedAllocationId]?.default_share_group_ids
+          ?.length > 0
+      ) {
+        setSelectedGroupIds(
+          tempAllocationLookUp[selectedAllocationId]?.default_share_group_ids
+        );
+      } else {
+        setSelectedGroupIds([
+          tempAllocationLookUp[selectedAllocationId]?.group_id,
+        ]);
+      }
     };
 
     getAllocations();
@@ -79,7 +106,7 @@ const FollowupRequestForm = ({
         apiType: "api_classname",
       })
     );
-  }, [setSelectedAllocationId, setSelectedGroupIds]);
+  }, [setSelectedAllocationId, setSelectedGroupIds, dispatch]);
 
   // need to check both of these conditions as selectedAllocationId is
   // initialized to be null and useEffect is not called on the first
@@ -88,6 +115,7 @@ const FollowupRequestForm = ({
   if (
     allocationList.length === 0 ||
     !selectedAllocationId ||
+    !selectedGroupIds ||
     Object.keys(instrumentFormParams).length === 0
   ) {
     return <h3>No robotic instruments available...</h3>;
@@ -128,6 +156,13 @@ const FollowupRequestForm = ({
 
   const handleSelectedAllocationChange = (e) => {
     setSelectedAllocationId(e.target.value);
+    if (allocationLookUp[e.target.value]?.default_share_group_ids?.length > 0) {
+      setSelectedGroupIds(
+        allocationLookUp[e.target.value]?.default_share_group_ids
+      );
+    } else {
+      setSelectedGroupIds([allocationLookUp[e.target.value]?.group_id]);
+    }
   };
 
   const handleSubmit = async ({ formData }) => {
@@ -172,9 +207,10 @@ const FollowupRequestForm = ({
             className={classes.allocationSelectItem}
           >
             {`${
-              telLookUp[instLookUp[allocation.instrument_id].telescope_id].name
-            } / ${instLookUp[allocation.instrument_id].name} - ${
-              groupLookUp[allocation.group_id].name
+              telLookUp[instLookUp[allocation.instrument_id]?.telescope_id]
+                ?.name
+            } / ${instLookUp[allocation.instrument_id]?.name} - ${
+              groupLookUp[allocation.group_id]?.name
             } (PI ${allocation.pi})`}
           </MenuItem>
         ))}
@@ -186,22 +222,29 @@ const FollowupRequestForm = ({
         groupIDs={selectedGroupIds}
       />
       <div data-testid="followup-request-form">
-        <Form
-          schema={
-            instrumentFormParams[
-              allocationLookUp[selectedAllocationId].instrument_id
-            ].formSchema
-          }
-          uiSchema={
-            instrumentFormParams[
-              allocationLookUp[selectedAllocationId].instrument_id
-            ].uiSchema
-          }
-          liveValidate
-          validate={validate}
-          onSubmit={handleSubmit}
-          disabled={isSubmitting}
-        />
+        {allocationLookUp[selectedAllocationId].instrument_id in
+        instrumentFormParams ? (
+          <Form
+            schema={
+              instrumentFormParams[
+                allocationLookUp[selectedAllocationId].instrument_id
+              ].formSchema
+            }
+            uiSchema={
+              instrumentFormParams[
+                allocationLookUp[selectedAllocationId].instrument_id
+              ].uiSchema
+            }
+            liveValidate
+            validate={validate}
+            onSubmit={handleSubmit}
+            disabled={isSubmitting}
+          />
+        ) : (
+          <div className={classes.marginTop}>
+            <CircularProgress />
+          </div>
+        )}
         {isSubmitting && (
           <div className={classes.marginTop}>
             <CircularProgress />
@@ -221,9 +264,9 @@ FollowupRequestForm.propTypes = {
     })
   ).isRequired,
   instrumentFormParams: PropTypes.shape({
-    formSchema: PropTypes.objectOf(PropTypes.any),
-    uiSchema: PropTypes.objectOf(PropTypes.any),
-    implementedMethods: PropTypes.objectOf(PropTypes.any),
+    formSchema: PropTypes.objectOf(PropTypes.any), // eslint-disable-line react/forbid-prop-types
+    uiSchema: PropTypes.objectOf(PropTypes.any), // eslint-disable-line react/forbid-prop-types
+    implementedMethods: PropTypes.objectOf(PropTypes.any), // eslint-disable-line react/forbid-prop-types
   }).isRequired,
 };
 

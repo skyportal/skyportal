@@ -9,7 +9,6 @@ import sqlalchemy as sa
 from sqlalchemy import event
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.ext.hybrid import hybrid_method
 
 from astropy import coordinates as ap_coord
 from astropy import units as u
@@ -28,7 +27,7 @@ from baselayer.app.models import (
 )
 from baselayer.log import make_log
 
-from .photometry import Photometry
+from .photometry import Photometry, PhotometricSeries
 from .spectrum import Spectrum
 from .candidate import Candidate
 from .thumbnail import Thumbnail
@@ -40,11 +39,13 @@ log = make_log('models.obj')
 # The minimum signal-to-noise ratio to consider a photometry point as a detection
 PHOT_DETECTION_THRESHOLD = cfg["misc.photometry_detection_threshold_nsigma"]
 
+PS1_CUTOUT_TIMEOUT = 10
+
 
 def delete_obj_if_all_data_owned(cls, user_or_token):
     from .source import Source
 
-    allow_nonadmins = cfg["misc.allow_nonadmins_delete_objs"] or False
+    allow_nonadmins = cfg["misc.allow_nonadmins_delete_objs"]
 
     deletable_photometry = Photometry.query_records_accessible_by(
         user_or_token, mode="delete"
@@ -59,6 +60,22 @@ def delete_obj_if_all_data_owned(cls, user_or_token):
         )
         .filter(deletable_photometry.c.id.is_(None))
         .distinct(Photometry.obj_id)
+        .subquery()
+    )
+
+    deletable_photometric_series = PhotometricSeries.query_records_accessible_by(
+        user_or_token, mode="delete"
+    ).subquery()
+    nondeletable_photometric_series = (
+        DBSession()
+        .query(PhotometricSeries.obj_id)
+        .join(
+            deletable_photometric_series,
+            deletable_photometric_series.c.id == PhotometricSeries.id,
+            isouter=True,
+        )
+        .filter(deletable_photometric_series.c.id.is_(None))
+        .distinct(PhotometricSeries.obj_id)
         .subquery()
     )
 
@@ -120,6 +137,12 @@ def delete_obj_if_all_data_owned(cls, user_or_token):
         )
         .filter(nondeletable_photometry.c.obj_id.is_(None))
         .join(
+            nondeletable_photometric_series,
+            nondeletable_photometric_series.c.obj_id == cls.id,
+            isouter=True,
+        )
+        .filter(nondeletable_photometric_series.c.obj_id.is_(None))
+        .join(
             nondeletable_spectra,
             nondeletable_spectra.c.obj_id == cls.id,
             isouter=True,
@@ -149,7 +172,7 @@ class Obj(Base, conesearch_alchemy.Point):
     delete = restricted | CustomUserAccessControl(delete_obj_if_all_data_owned)
 
     id = sa.Column(sa.String, primary_key=True, doc="Name of the object.")
-    # TODO should this column type be decimal? fixed-precison numeric
+    # TODO should this column type be decimal? fixed-precision numeric
 
     ra_dis = sa.Column(sa.Float, doc="J2000 Right Ascension at discovery time [deg].")
     dec_dis = sa.Column(sa.Float, doc="J2000 Declination at discovery time [deg].")
@@ -290,10 +313,29 @@ class Obj(Base, conesearch_alchemy.Point):
         doc="Photometry of the object.",
     )
 
+    photstats = relationship(
+        'PhotStat',
+        back_populates='obj',
+        cascade='save-update, merge, refresh-expire, expunge, delete',
+        single_parent=True,
+        passive_deletes=True,
+        doc="Photometry statistics associated with the object.",
+    )
+
     detect_photometry_count = sa.Column(
         sa.Integer,
         nullable=True,
         doc="How many times the object was detected above :math:`S/N = phot_detection_threshold (3.0 by default)`.",
+    )
+
+    photometric_series = relationship(
+        'PhotometricSeries',
+        back_populates='obj',
+        cascade='save-update, merge, refresh-expire, expunge, delete',
+        single_parent=True,
+        passive_deletes=True,
+        order_by="PhotometricSeries.mjd_first",
+        doc="Photometric series associated with the object.",
     )
 
     spectra = relationship(
@@ -336,113 +378,13 @@ class Obj(Base, conesearch_alchemy.Point):
         doc="Notifications regarding the object sent out by users",
     )
 
-    @hybrid_method
-    def last_detected_at(self, user):
-        """UTC ISO date at which the object was last detected above a given S/N (3.0 by default)."""
-        detections = [
-            phot.iso
-            for phot in Photometry.query_records_accessible_by(user)
-            .filter(Photometry.obj_id == self.id)
-            .all()
-            if phot.snr is not None and phot.snr > PHOT_DETECTION_THRESHOLD
-        ]
-        return max(detections) if detections else None
-
-    @last_detected_at.expression
-    def last_detected_at(cls, user):
-        """UTC ISO date at which the object was last detected above a given S/N (3.0 by default)."""
-        return (
-            Photometry.query_records_accessible_by(
-                user, columns=[sa.func.max(Photometry.iso)], mode="read"
-            )
-            .filter(Photometry.obj_id == cls.id)
-            .filter(Photometry.snr.isnot(None))
-            .filter(Photometry.snr > PHOT_DETECTION_THRESHOLD)
-            .label('last_detected_at')
-        )
-
-    @hybrid_method
-    def last_detected_mag(self, user):
-        """Magnitude at which the object was last detected above a given S/N (3.0 by default)."""
-        return (
-            Photometry.query_records_accessible_by(
-                user, columns=[Photometry.mag], mode="read"
-            )
-            .filter(Photometry.obj_id == self.id)
-            .filter(Photometry.snr.isnot(None))
-            .filter(Photometry.snr > PHOT_DETECTION_THRESHOLD)
-            .order_by(Photometry.mjd.desc())
-            .limit(1)
-            .scalar()
-        )
-
-    @last_detected_mag.expression
-    def last_detected_mag(cls, user):
-        """Magnitude at which the object was last detected above a given S/N (3.0 by default)."""
-        return (
-            Photometry.query_records_accessible_by(
-                user, columns=[Photometry.mag], mode="read"
-            )
-            .filter(Photometry.obj_id == cls.id)
-            .filter(Photometry.snr.isnot(None))
-            .filter(Photometry.snr > PHOT_DETECTION_THRESHOLD)
-            .order_by(Photometry.mjd.desc())
-            .limit(1)
-            .label('last_detected_mag')
-        )
-
-    @hybrid_method
-    def peak_detected_at(self, user):
-        """UTC ISO date at which the object was detected at peak magnitude above a given S/N (3.0 by default)."""
-        detections = [
-            (phot.iso, phot.mag)
-            for phot in Photometry.query_records_accessible_by(user)
-            .filter(Photometry.obj_id == self.id)
-            .all()
-            if phot.snr is not None and phot.snr > PHOT_DETECTION_THRESHOLD
-        ]
-        return max(detections, key=(lambda x: x[1]))[0] if detections else None
-
-    @peak_detected_at.expression
-    def peak_detected_at(cls, user):
-        """UTC ISO date at which the object was detected at peak magnitude above a given S/N (3.0 by default)."""
-        return (
-            Photometry.query_records_accessible_by(
-                user, columns=[Photometry.iso], mode="read"
-            )
-            .filter(Photometry.obj_id == cls.id)
-            .filter(Photometry.snr.isnot(None))
-            .filter(Photometry.snr > PHOT_DETECTION_THRESHOLD)
-            .order_by(Photometry.mag.desc())
-            .limit(1)
-            .label('peak_detected_at')
-        )
-
-    @hybrid_method
-    def peak_detected_mag(self, user):
-        """Peak magnitude at which the object was detected above a given S/N (3.0 by default)."""
-        return (
-            Photometry.query_records_accessible_by(
-                user, columns=[sa.func.max(Photometry.mag)], mode="read"
-            )
-            .filter(Photometry.obj_id == self.id)
-            .filter(Photometry.snr.isnot(None))
-            .filter(Photometry.snr > PHOT_DETECTION_THRESHOLD)
-            .scalar()
-        )
-
-    @peak_detected_mag.expression
-    def peak_detected_mag(cls, user):
-        """Peak magnitude at which the object was detected above a given S/N (3.0 by default)."""
-        return (
-            Photometry.query_records_accessible_by(
-                user, columns=[sa.func.max(Photometry.mag)], mode="read"
-            )
-            .filter(Photometry.obj_id == cls.id)
-            .filter(Photometry.snr.isnot(None))
-            .filter(Photometry.snr > PHOT_DETECTION_THRESHOLD)
-            .label('peak_detected_mag')
-        )
+    obj_analyses = relationship(
+        'ObjAnalysis',
+        back_populates='obj',
+        cascade='save-update, merge, refresh-expire, expunge',
+        passive_deletes=True,
+        doc="Analyses assocated with this obj.",
+    )
 
     def add_linked_thumbnails(self, session=DBSession):
         """Determine the URLs of the SDSS and DESI DR8 thumbnails of the object,
@@ -481,15 +423,37 @@ class Obj(Base, conesearch_alchemy.Point):
         The cutout service doesn't allow directly querying for an image; the
         best we can do is request a page that contains a link to the image we
         want (in this case a combination of the g/r/i filters).
+
+        If this page does not return without PS1_CUTOUT_TIMEOUT seconds then
+        we assume that the image is not available and return None.
         """
         ps_query_url = (
             f"https://ps1images.stsci.edu/cgi-bin/ps1cutouts"
             f"?pos={self.ra}+{self.dec}&filter=color&filter=g"
             f"&filter=r&filter=i&filetypes=stack&size=250"
         )
-        response = requests.get(ps_query_url)
-        match = re.search('src="//ps1images.stsci.edu.*?"', response.content.decode())
-        return match.group().replace('src="', 'https:').replace('"', '')
+        cutout_url = "/static/images/currently_unavailable.png"
+        try:
+            response = requests.get(ps_query_url, timeout=PS1_CUTOUT_TIMEOUT)
+            response.raise_for_status()
+            no_stamps = re.search(
+                "No PS1 3PI images were found", response.content.decode()
+            )
+            if no_stamps:
+                cutout_url = "/static/images/outside_survey.png"
+            match = re.search(
+                'src="//ps1images.stsci.edu.*?"', response.content.decode()
+            )
+            if match:
+                cutout_url = match.group().replace('src="', 'https:').replace('"', '')
+        except requests.exceptions.HTTPError as http_err:
+            log(f"HTTPError getting thumbnail for {self.id}: {http_err}")
+        except requests.exceptions.Timeout as timeout_err:
+            log(f"Timeout in getting thumbnail for {self.id}: {timeout_err}")
+        except requests.exceptions.RequestException as other_err:
+            log(f"Unexpected error in getting thumbnail for {self.id}: {other_err}")
+        finally:
+            return cutout_url
 
     @property
     def target(self):
@@ -525,7 +489,7 @@ class Obj(Base, conesearch_alchemy.Point):
 
         # there may be a non-redshift based measurement of distance
         # for nearby sources
-        if self.altdata:
+        if isinstance(self.altdata, dict):
             if self.altdata.get("dm") is not None:
                 # see eq (24) of https://ned.ipac.caltech.edu/level5/Hogg/Hogg7.html
                 return (

@@ -24,10 +24,20 @@ const DELETE_COMMENT_ON_SPECTRUM = "skyportal/DELETE_COMMENT_ON_SPECTRUM";
 const GET_COMMENT_ATTACHMENT = "skyportal/GET_COMMENT_ATTACHMENT";
 const GET_COMMENT_ATTACHMENT_OK = "skyportal/GET_COMMENT_ATTACHMENT_OK";
 
+const GET_COMMENT_ATTACHMENT_PREVIEW =
+  "skyportal/GET_COMMENT_ATTACHMENT_PREVIEW";
+const GET_COMMENT_ATTACHMENT_PREVIEW_OK =
+  "skyportal/GET_COMMENT_ATTACHMENT_PREVIEW_OK";
+
 const GET_COMMENT_ON_SPECTRUM_ATTACHMENT =
   "skyportal/GET_COMMENT_ON_SPECTRUM_ATTACHMENT";
 const GET_COMMENT_ON_SPECTRUM_ATTACHMENT_OK =
   "skyportal/GET_COMMENT_ON_SPECTRUM_ATTACHMENT_OK";
+
+const GET_COMMENT_ON_SPECTRUM_ATTACHMENT_PREVIEW =
+  "skyportal/GET_COMMENT_ON_SPECTRUM_ATTACHMENT_PREVIEW";
+const GET_COMMENT_ON_SPECTRUM_ATTACHMENT_PREVIEW_OK =
+  "skyportal/GET_COMMENT_ON_SPECTRUM_ATTACHMENT_PREVIEW_OK";
 
 const ADD_SOURCE_VIEW = "skyportal/ADD_SOURCE_VIEW";
 
@@ -58,9 +68,15 @@ const SHARE_DATA = "skyportal/SHARE_DATA";
 
 const SEND_ALERT = "skyportal/SEND_ALERT";
 
+const FETCH_GAIA = "skyportal/FETCH_GAIA";
+
 const FETCH_WISE = "skyportal/FETCH_WISE";
 
 const FETCH_VIZIER = "skyportal/FETCH_VIZIER";
+
+const FETCH_PHOTOZ = "skyportal/FETCH_PHOTOZ";
+
+const CHECK_SOURCE = "skyportal/CHECK_SOURCE";
 
 export const shareData = (data) => API.POST("/api/sharing", SHARE_DATA, data);
 
@@ -151,6 +167,13 @@ export function getCommentAttachment(sourceID, commentID) {
   );
 }
 
+export function getCommentAttachmentPreview(sourceID, commentID) {
+  return API.GET(
+    `/api/sources/${sourceID}/comments/${commentID}`,
+    GET_COMMENT_ATTACHMENT_PREVIEW
+  );
+}
+
 export function getCommentOnSpectrumAttachment(spectrumID, commentID) {
   return API.GET(
     `/api/spectra/${spectrumID}/comments/${commentID}/attachment`,
@@ -158,9 +181,23 @@ export function getCommentOnSpectrumAttachment(spectrumID, commentID) {
   );
 }
 
+export function getCommentOnSpectrumAttachmentPreview(spectrumID, commentID) {
+  return API.GET(
+    `/api/spectra/${spectrumID}/comments/${commentID}`,
+    GET_COMMENT_ON_SPECTRUM_ATTACHMENT_PREVIEW
+  );
+}
+
 export function fetchSource(id, actionType = FETCH_LOADED_SOURCE) {
   return API.GET(
     `/api/sources/${id}?includeComments=true&includeColorMagnitude=true&includeThumbnails=true&includePhotometryExists=true&includeSpectrumExists=true`,
+    actionType
+  );
+}
+
+export function checkSource(id, params, actionType = CHECK_SOURCE) {
+  return API.GET(
+    `/api/source_exists/${id}?ra=${params.ra}&dec=${params.dec}&radius=0.0003`,
     actionType
   );
 }
@@ -228,11 +265,17 @@ export const deleteAssignment = (id) =>
 export const sendAlert = (params) =>
   API.POST(`/api/source_notifications`, SEND_ALERT, params);
 
+export const fetchGaia = (sourceID) =>
+  API.POST(`/api/sources/${sourceID}/annotations/gaia`, FETCH_GAIA);
+
 export const fetchWise = (sourceID) =>
   API.POST(`/api/sources/${sourceID}/annotations/irsa`, FETCH_WISE);
 
 export const fetchVizier = (sourceID) =>
   API.POST(`/api/sources/${sourceID}/annotations/vizier`, FETCH_VIZIER);
+
+export const fetchPhotoz = (sourceID) =>
+  API.POST(`/api/sources/${sourceID}/annotations/datalab`, FETCH_PHOTOZ);
 
 // Websocket message handler
 messageHandler.add((actionType, payload, dispatch, getState) => {
@@ -240,7 +283,6 @@ messageHandler.add((actionType, payload, dispatch, getState) => {
 
   if (actionType === REFRESH_SOURCE) {
     const loaded_obj_key = source?.internal_key;
-
     if (loaded_obj_key === payload.obj_key) {
       dispatch(fetchSource(source.id));
     }
@@ -270,22 +312,50 @@ const reducer = (state = { source: null, loadError: false }, action) => {
         loadError: `Error while loading source: ${action.message}`,
       };
     case GET_COMMENT_ATTACHMENT_OK: {
-      const { commentId, attachment } = action.data;
+      const { commentId, text, attachment, attachment_name } = action.data;
       return {
         ...state,
         commentAttachment: {
           commentId,
+          text,
           attachment,
+          attachment_name,
+        },
+      };
+    }
+    case GET_COMMENT_ATTACHMENT_PREVIEW_OK: {
+      const { commentId, text, attachment, attachment_name } = action.data;
+      return {
+        ...state,
+        commentAttachment: {
+          commentId,
+          text,
+          attachment,
+          attachment_name,
         },
       };
     }
     case GET_COMMENT_ON_SPECTRUM_ATTACHMENT_OK: {
-      const { commentId, attachment } = action.data;
+      const { commentId, text, attachment, attachment_name } = action.data;
       return {
         ...state,
         commentAttachment: {
           commentId,
+          text,
           attachment,
+          attachment_name,
+        },
+      };
+    }
+    case GET_COMMENT_ON_SPECTRUM_ATTACHMENT_PREVIEW_OK: {
+      const { commentId, text, attachment, attachment_name } = action.data;
+      return {
+        ...state,
+        commentAttachment: {
+          commentId,
+          text,
+          attachment,
+          attachment_name,
         },
       };
     }

@@ -1,19 +1,17 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
-import List from "@material-ui/core/List";
-import ListItem from "@material-ui/core/ListItem";
-import ListItemText from "@material-ui/core/ListItemText";
-import Typography from "@material-ui/core/Typography";
-import Paper from "@material-ui/core/Paper";
-import Grid from "@material-ui/core/Grid";
-import { makeStyles } from "@material-ui/core/styles";
 import PropTypes from "prop-types";
-import CircularProgress from "@material-ui/core/CircularProgress";
-import { showNotification } from "baselayer/components/Notifications";
-import { Button } from "@material-ui/core";
+import makeStyles from "@mui/styles/makeStyles";
+import Paper from "@mui/material/Paper";
+import Grid from "@mui/material/Grid";
+import Button from "@mui/material/Button";
+import CircularProgress from "@mui/material/CircularProgress";
 import NewShift from "./NewShift";
+import MyCalendar from "./ShiftCalendar";
+import { CurrentShiftMenu, CommentOnShift } from "./ShiftManagement";
+import ShiftSummary from "./ShiftSummary";
 
-import * as shiftActions from "../ducks/shift";
+import { getShiftsSummary } from "../ducks/shift";
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -22,157 +20,134 @@ const useStyles = makeStyles((theme) => ({
     backgroundColor: theme.palette.background.paper,
   },
   paperContent: {
+    marginBottom: theme.spacing(2),
     padding: "1rem",
   },
-  shiftDelete: {
-    cursor: "pointer",
-    fontSize: "2em",
-    position: "absolute",
-    padding: 0,
-    right: 0,
-    top: 0,
-  },
-  shiftDeleteDisabled: {
-    opacity: 0,
-  },
 }));
 
-const textStyles = makeStyles(() => ({
-  primary: {
-    fontWeight: "bold",
-    fontSize: "130%",
-  },
-  secondary: {
-    fontSize: "120%",
-    whiteSpace: "pre-wrap",
-  },
-}));
-
-export function shiftTitle(shift) {
-  if (!shift?.group.name) {
-    return (
-      <div>
-        <CircularProgress color="secondary" />
-      </div>
-    );
-  }
-
-  let result = `${shift?.group.name}`;
-  if (shift?.name) {
-    result += `: ${shift?.name}`;
-  }
-
-  return result;
-}
-
-export function shiftInfo(shift) {
-  if (!shift?.group.name) {
-    return (
-      <div>
-        <CircularProgress color="secondary" />
-      </div>
-    );
-  }
-  const startDate = new Date(`${shift.start_date}Z`).toLocaleString("en-US", {
-    hour12: false,
-  });
-  const endDate = new Date(`${shift.end_date}Z`).toLocaleString("en-US", {
-    hour12: false,
-  });
-
-  const array = [
-    ...(shift?.start_date ? [`Start Date: ${startDate}`] : []),
-    ...(shift?.end_date ? [`End Date: ${endDate}`] : []),
-  ];
-
-  // eslint-disable-next-line prefer-template
-  const result = array.join("\n");
-
-  return result;
-}
-
-const ShiftList = ({ shifts, deletePermission }) => {
+const ShiftPage = ({ route }) => {
+  const classes = useStyles();
   const dispatch = useDispatch();
-  const deleteShift = (shift) => {
-    dispatch(shiftActions.deleteShift(shift.id)).then((result) => {
-      if (result.status === "success") {
-        dispatch(showNotification("Shift deleted"));
-      }
-    });
-  };
-
-  const classes = useStyles();
-  const textClasses = textStyles();
-  return (
-    <div className={classes.root}>
-      <List component="nav">
-        {shifts?.map((shift) => (
-          <ListItem button key={shift.id}>
-            <ListItemText
-              primary={shiftTitle(shift)}
-              secondary={shiftInfo(shift)}
-              classes={textClasses}
-            />
-            <Button
-              key={shift.id}
-              id="delete_button"
-              classes={{
-                root: classes.shiftDelete,
-                disabled: classes.shiftDeleteDisabled,
-              }}
-              onClick={() => deleteShift(shift)}
-              disabled={!deletePermission}
-            >
-              &times;
-            </Button>
-          </ListItem>
-        ))}
-      </List>
-    </div>
-  );
-};
-
-const ShiftPage = () => {
-  const classes = useStyles();
-  const { shiftList } = useSelector((state) => state.shifts);
   const currentUser = useSelector((state) => state.profile);
+  const shiftList = useSelector((state) => state.shifts.shiftList);
+  const currentShift = useSelector((state) => state.shift.currentShift);
+  const [show, setShow] = useState(true);
 
-  if (!shiftList) {
-    return <CircularProgress />;
-  }
+  useEffect(() => {
+    if (!currentShift?.id && route) {
+      const shift = shiftList.find((s) => s.id === parseInt(route.id, 10));
+      if (shift)
+        dispatch({
+          type: "skyportal/CURRENT_SHIFT",
+          data: shift,
+        });
+      dispatch(
+        getShiftsSummary({
+          shiftID: parseInt(route.id, 10),
+        })
+      );
+      setShow(false);
+    } else if (currentShift) {
+      const updatedShift = shiftList.find((s) => s.id === currentShift.id);
+      // check if the shift shift_users length is different from the current shift
+      if (
+        updatedShift &&
+        updatedShift.shift_users.length !== currentShift.shift_users.length
+      ) {
+        dispatch({ type: "skyportal/CURRENT_SHIFT", data: updatedShift });
+        setShow(false);
+      } else if (updatedShift) {
+        if (
+          Object.keys(updatedShift).length > 0 &&
+          Object.keys(currentShift).length > 0
+        ) {
+          if (
+            updatedShift?.comments?.length !== currentShift?.comments?.length
+          ) {
+            dispatch({ type: "skyportal/CURRENT_SHIFT", data: updatedShift });
+          } else {
+            let usersHaveChanged = false;
+            // check if the users have the same ids, or if they need a replacement when they didnt need one before, and vice versa
+            for (let i = 0; i < updatedShift.shift_users.length; i += 1) {
+              const old_shift_user = currentShift.shift_users[i];
+              const new_shift_user = updatedShift.shift_users[i];
+              if (
+                new_shift_user.id !== old_shift_user.id ||
+                new_shift_user.needs_replacement !==
+                  old_shift_user.needs_replacement ||
+                new_shift_user.modified !== old_shift_user.modified
+              ) {
+                usersHaveChanged = true;
+                break;
+              }
+            }
+            if (usersHaveChanged) {
+              dispatch({ type: "skyportal/CURRENT_SHIFT", data: updatedShift });
+              setShow(false);
+            }
+          }
+        }
+      }
+    }
+  }, [shiftList, dispatch]);
 
   const permission =
     currentUser.permissions?.includes("System admin") ||
     currentUser.permissions?.includes("Manage shifts");
-
   return (
     <Grid container spacing={3}>
       <Grid item md={6} sm={12}>
         <Paper elevation={1}>
-          <div className={classes.paperContent}>
-            <Typography variant="h6">List of Shifts</Typography>
-            <ShiftList shifts={shiftList} deletePermission={permission} />
-          </div>
+          {shiftList ? (
+            <MyCalendar
+              events={shiftList}
+              currentShift={currentShift}
+              setShow={setShow}
+            />
+          ) : (
+            <CircularProgress />
+          )}
         </Paper>
       </Grid>
-      {permission && (
-        <Grid item md={6} sm={12}>
+
+      <Grid item md={6} sm={12}>
+        {permission && (
           <Paper>
             <div className={classes.paperContent}>
-              <Typography variant="h6">Add a New Shift</Typography>
-              <NewShift />
+              <Button
+                name="add_shift_button"
+                onClick={() => setShow((prev) => !prev)}
+              >
+                Add New Shift
+              </Button>
+              {show ? <NewShift /> : null}
             </div>
           </Paper>
-        </Grid>
-      )}
+        )}
+        <Paper elevation={1}>
+          {shiftList && !show && currentShift ? (
+            <CurrentShiftMenu currentShift={currentShift} />
+          ) : null}
+        </Paper>
+        <Paper elevation={1}>
+          {shiftList && !show && currentShift ? <CommentOnShift /> : null}
+        </Paper>
+      </Grid>
+      <Grid item md={12} sm={12}>
+        <ShiftSummary />
+      </Grid>
     </Grid>
   );
 };
 
-ShiftList.propTypes = {
-  // eslint-disable-next-line react/forbid-prop-types
-  shifts: PropTypes.arrayOf(PropTypes.any).isRequired,
-  deletePermission: PropTypes.bool.isRequired,
+ShiftPage.propTypes = {
+  route: PropTypes.shape({
+    id: PropTypes.string,
+  }),
+};
+
+ShiftPage.defaultProps = {
+  route: null,
 };
 
 export default ShiftPage;

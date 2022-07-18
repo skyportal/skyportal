@@ -3,7 +3,9 @@ from copy import copy
 import re
 import json
 import uuid
-
+from astropy.time import Time
+import astropy.units as u
+import string
 import arrow
 import numpy as np
 
@@ -17,6 +19,7 @@ from sqlalchemy.sql import column, Values
 from sqlalchemy.types import Float, Boolean, String, Integer
 from sqlalchemy.exc import IntegrityError
 from marshmallow.exceptions import ValidationError
+import healpix_alchemy as ha
 
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.model_util import recursive_to_dict
@@ -48,7 +51,7 @@ _, cfg = load_env()
 cache_dir = "cache/candidates_queries"
 cache = Cache(
     cache_dir=cache_dir,
-    max_age=cfg["misc"]["minutes_to_keep_candidate_query_cache"] * 60,
+    max_age=cfg["misc.minutes_to_keep_candidate_query_cache"] * 60,
 )
 log = make_log('api/candidate')
 
@@ -56,24 +59,25 @@ Session = scoped_session(sessionmaker(bind=DBSession.session_factory.kw["bind"])
 
 
 def add_linked_thumbnails_and_push_ws_msg(obj_id, user_id):
-    session = Session()
-    try:
-        user = session.query(User).get(user_id)
-        if Obj.get_if_accessible_by(obj_id, user) is None:
-            raise AccessError(
-                f"Insufficient permissions for User {user_id} to read Obj {obj_id}"
+    with Session() as session:
+        try:
+            user = session.query(User).get(user_id)
+            if Obj.get_if_accessible_by(obj_id, user) is None:
+                raise AccessError(
+                    f"Insufficient permissions for User {user_id} to read Obj {obj_id}"
+                )
+            obj = session.query(Obj).get(obj_id)
+            obj.add_linked_thumbnails(session=session)
+            flow = Flow()
+            flow.push(
+                '*', "skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}
             )
-        obj = session.query(Obj).get(obj_id)
-        obj.add_linked_thumbnails(session=session)
-        flow = Flow()
-        flow.push(
-            '*', "skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}
-        )
-        flow.push('*', "skyportal/REFRESH_CANDIDATE", payload={"id": obj.internal_key})
-    except Exception as e:
-        log(f"Unable to add linked thumbnails to {obj_id}: {e}")
-    finally:
-        Session.remove()
+            flow.push(
+                '*', "skyportal/REFRESH_CANDIDATE", payload={"id": obj.internal_key}
+            )
+        except Exception as e:
+            log(f"Unable to add linked thumbnails to {obj_id}: {e}")
+            session.rollback()
 
 
 def update_redshift_history_if_relevant(request_data, obj, user):
@@ -95,6 +99,25 @@ def update_redshift_history_if_relevant(request_data, obj, user):
 
         redshift_history.append(history_params)
         obj.redshift_history = redshift_history
+
+
+def update_healpix_if_relevant(request_data, obj):
+
+    # first check if the ra and dec is being updated
+    ra = request_data.get('ra', None)
+    dec = request_data.get('dec', None)
+
+    if (ra is not None) and (dec is not None):
+        # This adds a healpix index for a new object being created
+        obj.healpix = ha.constants.HPX.lonlat_to_healpix(ra * u.deg, dec * u.deg)
+        return
+
+    # otherwise make sure healpix is correct
+    if (obj.ra is not None) and (obj.dec is not None):
+        obj.healpix = ha.constants.HPX.lonlat_to_healpix(
+            obj.ra * u.deg, obj.dec * u.deg
+        )
+        return
 
 
 class CandidateHandler(BaseHandler):
@@ -396,7 +419,7 @@ class CandidateHandler(BaseHandler):
         include_comments = self.get_query_argument("includeComments", False)
 
         if obj_id is not None:
-            query_options = [joinedload(Obj.thumbnails)]
+            query_options = [joinedload(Obj.thumbnails), joinedload(Obj.photstats)]
 
             c = Obj.get_if_accessible_by(
                 obj_id,
@@ -484,7 +507,15 @@ class CandidateHandler(BaseHandler):
                     .filter(Classification.obj_id == obj_id)
                     .all()
                 )
-            candidate_info["last_detected_at"] = c.last_detected_at(self.current_user)
+            if len(c.photstats) > 0:
+                if c.photstats[-1].last_detected_mjd is not None:
+                    candidate_info["last_detected_at"] = Time(
+                        c.photstats[-1].last_detected_mjd, format='mjd'
+                    ).datetime
+                else:
+                    candidate_info["last_detected_at"] = None
+            else:
+                candidate_info["last_detected_at"] = None
             candidate_info["gal_lon"] = c.gal_lon_deg
             candidate_info["gal_lat"] = c.gal_lat_deg
             candidate_info["luminosity_distance"] = c.luminosity_distance
@@ -520,43 +551,50 @@ class CandidateHandler(BaseHandler):
         list_name = self.get_query_argument('listName', None)
         list_name_reject = self.get_query_argument('listNameReject', None)
 
-        user_accessible_group_ids = [g.id for g in self.current_user.accessible_groups]
-        user_accessible_filter_ids = [
-            filtr.id
-            for g in self.current_user.accessible_groups
-            for filtr in g.filters
-            if g.filters is not None
-        ]
-        if group_ids is not None:
-            if isinstance(group_ids, str) and "," in group_ids:
-                group_ids = [int(g_id) for g_id in group_ids.split(",")]
-            elif isinstance(group_ids, str) and group_ids.isdigit():
-                group_ids = [int(group_ids)]
-            else:
-                return self.error("Invalid groupIDs value -- select at least one group")
-            filter_ids = [
-                f.id
-                for f in Filter.query_records_accessible_by(self.current_user).filter(
-                    Filter.group_id.in_(group_ids)
-                )
+        with self.Session() as session:
+            user_accessible_group_ids = [
+                g.id for g in self.current_user.accessible_groups
             ]
-        elif filter_ids is not None:
-            if "," in filter_ids:
-                filter_ids = [int(f_id) for f_id in filter_ids.split(",")]
-            elif filter_ids.isdigit():
-                filter_ids = [int(filter_ids)]
-            else:
-                return self.error("Invalid filterIDs paramter value.")
-            group_ids = [
-                f.group_id
-                for f in Filter.query_records_accessible_by(self.current_user).filter(
-                    Filter.id.in_(filter_ids)
-                )
+            user_accessible_filter_ids = [
+                filtr.id
+                for g in self.current_user.accessible_groups
+                for filtr in g.filters
+                if g.filters is not None
             ]
-        else:
-            # If 'groupIDs' & 'filterIDs' params not present in request, use all user groups
-            group_ids = user_accessible_group_ids
-            filter_ids = user_accessible_filter_ids
+            if group_ids is not None:
+                if (
+                    isinstance(group_ids, str)
+                    and "," in group_ids
+                    and set(group_ids).issubset(string.digits + ',')
+                ):
+                    group_ids = [int(g_id) for g_id in group_ids.split(",")]
+                elif isinstance(group_ids, str) and group_ids.isdigit():
+                    group_ids = [int(group_ids)]
+                else:
+                    return self.error(
+                        "Invalid groupIDs value -- select at least one group"
+                    )
+                filters = session.scalars(
+                    Filter.select(self.current_user).where(
+                        Filter.group_id.in_(group_ids)
+                    )
+                ).all()
+                filter_ids = [f.id for f in filters]
+            elif filter_ids is not None:
+                if "," in filter_ids and set(filter_ids) in set(string.digits + ','):
+                    filter_ids = [int(f_id) for f_id in filter_ids.split(",")]
+                elif filter_ids.isdigit():
+                    filter_ids = [int(filter_ids)]
+                else:
+                    return self.error("Invalid filterIDs paramter value.")
+                filters = session.scalars(
+                    Filter.select(self.current_user).where(Filter.id.in_(filter_ids))
+                ).all()
+                group_ids = [f.group_id for f in filters]
+            else:
+                # If 'groupIDs' & 'filterIDs' params not present in request, use all user groups
+                group_ids = user_accessible_group_ids
+                filter_ids = user_accessible_filter_ids
 
         try:
             page = int(page_number)
@@ -822,6 +860,7 @@ class CandidateHandler(BaseHandler):
                 order_by=order_by,
                 query_id=query_id,
                 use_cache=True,
+                include_detection_stats=True,
             )
         except ValueError as e:
             if "Page number out of range" in str(e):
@@ -917,9 +956,15 @@ class CandidateHandler(BaseHandler):
                 candidate_list[-1]["annotations"] = (
                     selected_groups_annotations + other_annotations
                 )
-                candidate_list[-1]["last_detected_at"] = obj.last_detected_at(
-                    self.current_user
-                )
+                if len(obj.photstats) > 0:
+                    if obj.photstats[-1].last_detected_mjd is not None:
+                        candidate_list[-1]["last_detected_at"] = Time(
+                            obj.photstats[-1].last_detected_mjd, format='mjd'
+                        ).datetime
+                    else:
+                        candidate_list[-1]["last_detected_at"] = None
+                else:
+                    candidate_list[-1]["last_detected_at"] = None
                 candidate_list[-1]["gal_lat"] = obj.gal_lat_deg
                 candidate_list[-1]["gal_lon"] = obj.gal_lon_deg
                 candidate_list[-1]["luminosity_distance"] = obj.luminosity_distance
@@ -1039,12 +1084,11 @@ class CandidateHandler(BaseHandler):
                 f"Failed to post candidate for object {obj.id}: {e.args[0]}"
             )
 
+        calling_user_id = self.associated_user_object.id
         if not obj_already_exists:
             IOLoop.current().run_in_executor(
                 None,
-                lambda: add_linked_thumbnails_and_push_ws_msg(
-                    obj.id, self.associated_user_object.id
-                ),
+                lambda: add_linked_thumbnails_and_push_ws_msg(obj.id, calling_user_id),
             )
 
         return self.success(data={"ids": [c.id for c in candidates]})
@@ -1131,9 +1175,9 @@ def grab_query_results(
     items_name,
     order_by=None,
     include_thumbnails=True,
+    include_detection_stats=False,
     query_id=None,
     use_cache=False,
-    include_detection_stats=False,
     current_user=None,
 ):
     """
@@ -1236,15 +1280,11 @@ def grab_query_results(
         ):
             raise ValueError("Page number out of range.")
 
+    options = []
+    if include_thumbnails:
+        options.append(joinedload(Obj.thumbnails))
     if include_detection_stats:
-        # Load in all last_detected_at values at once
-        last_detected_at = Obj.last_detected_at(current_user)
-        # Load in all last_detected_mag values at once
-        last_detected_mag = Obj.last_detected_mag(current_user)
-        # Load in all peak_detected_at values at once
-        peak_detected_at = Obj.peak_detected_at(current_user)
-        # Load in all peak_detected_mag values at once
-        peak_detected_mag = Obj.peak_detected_mag(current_user)
+        options.append(joinedload(Obj.photstats))
 
     items = []
     if len(obj_ids_in_page) > 0:
@@ -1252,62 +1292,17 @@ def grab_query_results(
         # so only filter on the values if they exist
         obj_ids_values = get_obj_id_values(obj_ids_in_page)
 
-        if include_detection_stats:
-            if include_thumbnails:
-                items = (
-                    DBSession()
-                    .execute(
-                        sa.select(Obj)
-                        .options(joinedload(Obj.thumbnails))
-                        .add_columns(last_detected_at)
-                        .add_columns(last_detected_mag)
-                        .add_columns(peak_detected_at)
-                        .add_columns(peak_detected_mag)
-                        .join(obj_ids_values, obj_ids_values.c.id == Obj.id)
-                        .order_by(obj_ids_values.c.ordering)
-                    )
-                    .unique()
-                    .all()
-                )
-            else:
-                items = (
-                    DBSession()
-                    .execute(
-                        sa.select(Obj)
-                        .add_columns(last_detected_at)
-                        .add_columns(last_detected_mag)
-                        .add_columns(peak_detected_at)
-                        .add_columns(peak_detected_mag)
-                        .join(obj_ids_values, obj_ids_values.c.id == Obj.id)
-                        .order_by(obj_ids_values.c.ordering)
-                    )
-                    .unique()
-                    .all()
-                )
-        else:
-            if include_thumbnails:
-                items = (
-                    DBSession()
-                    .execute(
-                        sa.select(Obj)
-                        .options(joinedload(Obj.thumbnails))
-                        .join(obj_ids_values, obj_ids_values.c.id == Obj.id)
-                        .order_by(obj_ids_values.c.ordering)
-                    )
-                    .unique()
-                    .all()
-                )
-            else:
-                items = (
-                    DBSession()
-                    .execute(
-                        sa.select(Obj)
-                        .join(obj_ids_values, obj_ids_values.c.id == Obj.id)
-                        .order_by(obj_ids_values.c.ordering)
-                    )
-                    .unique()
-                    .all()
-                )
+        items = (
+            DBSession()
+            .execute(
+                sa.select(Obj)
+                .options(*options)
+                .join(obj_ids_values, obj_ids_values.c.id == Obj.id)
+                .order_by(obj_ids_values.c.ordering)
+            )
+            .unique()
+            .all()
+        )
 
     info[items_name] = items
     return info

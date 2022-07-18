@@ -7,11 +7,11 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
 
-import Typography from "@material-ui/core/Typography";
-import Paper from "@material-ui/core/Paper";
-import { makeStyles } from "@material-ui/core/styles";
-import DragHandleIcon from "@material-ui/icons/DragHandle";
-import CircularProgress from "@material-ui/core/CircularProgress";
+import Typography from "@mui/material/Typography";
+import Paper from "@mui/material/Paper";
+import makeStyles from "@mui/styles/makeStyles";
+import DragHandleIcon from "@mui/icons-material/DragHandle";
+import CircularProgress from "@mui/material/CircularProgress";
 
 import { ra_to_hours, dec_to_dms } from "../units";
 import * as profileActions from "../ducks/profile";
@@ -73,7 +73,7 @@ export const useSourceListStyles = makeStyles((theme) => ({
   },
   sourceNameLink: {
     color:
-      theme.palette.type === "dark"
+      theme.palette.mode === "dark"
         ? theme.palette.secondary.main
         : theme.palette.primary.main,
   },
@@ -101,7 +101,7 @@ export const useSourceListStyles = makeStyles((theme) => ({
     transition: "all 0.3s ease",
     "&:hover": {
       backgroundColor:
-        theme.palette.type === "light" ? theme.palette.secondary.light : null,
+        theme.palette.mode === "light" ? theme.palette.secondary.light : null,
     },
     "&:hover $quickViewButton": {
       visibility: "visible",

@@ -2,18 +2,19 @@ import React, { useState } from "react";
 import PropTypes from "prop-types";
 import { useSelector } from "react-redux";
 
-import Paper from "@material-ui/core/Paper";
-import Button from "@material-ui/core/Button";
-import ButtonGroup from "@material-ui/core/ButtonGroup";
-import Checkbox from "@material-ui/core/Checkbox";
-import FormControlLabel from "@material-ui/core/FormControlLabel";
-import TextField from "@material-ui/core/TextField";
-import { makeStyles, useTheme } from "@material-ui/core/styles";
-import Typography from "@material-ui/core/Typography";
-import Input from "@material-ui/core/Input";
-import Chip from "@material-ui/core/Chip";
-import Select from "@material-ui/core/Select";
-import MenuItem from "@material-ui/core/MenuItem";
+import Paper from "@mui/material/Paper";
+import Button from "@mui/material/Button";
+import ButtonGroup from "@mui/material/ButtonGroup";
+import Checkbox from "@mui/material/Checkbox";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import TextField from "@mui/material/TextField";
+import { useTheme } from "@mui/material/styles";
+import makeStyles from "@mui/styles/makeStyles";
+import Typography from "@mui/material/Typography";
+import Input from "@mui/material/Input";
+import Chip from "@mui/material/Chip";
+import Select from "@mui/material/Select";
+import MenuItem from "@mui/material/MenuItem";
 import { useForm, Controller } from "react-hook-form";
 
 import { allowedClasses } from "./ClassificationForm";
@@ -209,7 +210,6 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
             Time Last Detected (UTC)
           </Typography>
           <TextField
-            disabled
             size="small"
             label="Last Detected After"
             name="startDate"
@@ -217,7 +217,6 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
             placeholder="2012-08-30T00:00:00"
           />
           <TextField
-            disabled
             size="small"
             label="Last Detected Before"
             name="endDate"
@@ -375,7 +374,6 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
             Peak Magnitude
           </Typography>
           <TextField
-            disabled
             size="small"
             label="Min"
             name="minPeakMagnitude"
@@ -386,7 +384,6 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
             inputRef={register}
           />
           <TextField
-            disabled
             size="small"
             label="Max"
             name="maxPeakMagnitude"
@@ -518,7 +515,6 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
             Latest Magnitude
           </Typography>
           <TextField
-            disabled
             size="small"
             label="Min"
             name="minLatestMagnitude"
@@ -529,7 +525,6 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
             inputRef={register}
           />
           <TextField
-            disabled
             size="small"
             label="Max"
             name="maxLatestMagnitude"

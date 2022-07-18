@@ -7,10 +7,18 @@ import PropTypes from "prop-types";
 import { Provider, useSelector } from "react-redux";
 import ReactDOM from "react-dom";
 
-import { BrowserRouter, Switch, useLocation } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation, useParams } from "react-router-dom";
 
-import { MuiPickersUtilsProvider } from "@material-ui/pickers";
-import { makeStyles } from "@material-ui/core/styles";
+import AdapterDateFns from '@mui/lab/AdapterDateFns';
+import LocalizationProvider from '@mui/lab/LocalizationProvider';
+import {
+  createTheme,
+  ThemeProvider,
+  StyledEngineProvider,
+  useTheme,
+  adaptV4Theme,
+} from "@mui/material/styles";
+import makeStyles from "@mui/styles/makeStyles";
 import { isMobile } from "react-device-detect";
 
 import DayJSUtils from "@date-io/dayjs";
@@ -27,7 +35,6 @@ import store from "../store";
 import hydrate from "../actions";
 import * as rotateLogoActions from "../ducks/logo";
 
-import PropsRoute from "./Route";
 import NoMatchingRoute from "./NoMatchingRoute";
 import Responsive from "./Responsive";
 
@@ -41,7 +48,6 @@ import SidebarAndHeader from "./SidebarAndHeader";
 import ErrorBoundary from "./ErrorBoundary";
 
 messageHandler.init(store.dispatch, store.getState);
-
 
 const useStyles = makeStyles((theme) => ({
   content: {
@@ -72,9 +78,21 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 const MainContent = ({ root }) => {
+
+  const theme = useTheme();
+  return (
+    <ThemeProvider theme={theme}>
+      <MainContentInternal root={root} />
+    </ThemeProvider>
+  )
+
+};
+
+const MainContentInternal = ({ root }) => {
   const { open } = useSelector((state) => state.sidebar);
 
   const classes = useStyles();
+  const theme = useTheme();
 
   useEffect(() => {
     store.dispatch(hydrate());
@@ -87,9 +105,10 @@ const MainContent = ({ root }) => {
   }, [location]);
 
   return (
-    <Theme {% if testing %} disableTransitions {% endif %}>
+   <StyledEngineProvider injectFirst>
+     <Theme {% if testing %} disableTransitions {% endif %}>
 
-      <div className={classes.websocket}>
+      <div>
         <WebSocket
           url={`${window.location.protocol === "https:" ? "wss" :
           "ws"}://${root}websocket`}
@@ -99,8 +118,7 @@ const MainContent = ({ root }) => {
         />
       </div>
 
-      <MuiPickersUtilsProvider utils={DayJSUtils}>
-
+      <LocalizationProvider dateAdapter={AdapterDateFns}>
         <SidebarAndHeader open={open} />
 
         <div
@@ -112,20 +130,21 @@ const MainContent = ({ root }) => {
 
           <Notifications />
 
-          <Switch>
+          <Routes>
 
             {%- for route in app.routes %}
-            <PropsRoute exact path="{{ route.path }}" component={{ "{" }}{{ route.component }}{{ "}" }} />
+            <Route path="{{ route.path }}" element={{ "{<" }}{{ route.component }}{{ "/>}" }} />
             {%- endfor %}
 
-            <PropsRoute component={NoMatchingRoute} />
+            <Route path="*" element={<NoMatchingRoute/>} />
 
-          </Switch>
+          </Routes>
 
         </div>
 
-      </MuiPickersUtilsProvider>
+      </LocalizationProvider>
     </Theme>
+  </StyledEngineProvider>
   );
 };
 

@@ -1,7 +1,8 @@
 import React, { useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import PropTypes from "prop-types";
-import { makeStyles, useTheme } from "@material-ui/core/styles";
+import { useTheme } from "@mui/material/styles";
+import makeStyles from "@mui/styles/makeStyles";
 import embed from "vega-embed";
 import * as d3 from "d3";
 import convertLength from "convert-css-length";
@@ -87,8 +88,8 @@ const getMessages = (delRaGroup, delDecGroup) => {
 };
 
 // The Vega-Lite specifications for the centroid plot
-const spec = (inputData, textColor) => ({
-  $schema: "https://vega.github.io/schema/vega-lite/v4.json",
+const spec = (inputData, textColor, titleFontSize, labelFontSize) => ({
+  $schema: "https://vega.github.io/schema/vega-lite/v5.2.0.json",
   width: "container",
   height: "container",
   background: "transparent",
@@ -174,7 +175,8 @@ const spec = (inputData, textColor) => ({
           type: "quantitative",
           axis: {
             title: "\u0394RA (arcsec)",
-            titleFontSize: 14,
+            titleFontSize,
+            labelFontSize,
             titlePadding: 8,
             labelColor: textColor,
             tickColor: textColor,
@@ -186,7 +188,8 @@ const spec = (inputData, textColor) => ({
           type: "quantitative",
           axis: {
             title: "\u0394Dec (arcsec)",
-            titleFontSize: 14,
+            titleFontSize,
+            labelFontSize,
             titlePadding: 8,
             labelColor: textColor,
             tickColor: textColor,
@@ -206,10 +209,10 @@ const spec = (inputData, textColor) => ({
           scale: { range: ["#2f5492", "#ff7f0e", "#2ca02c"] },
           legend: {
             title: "Filter",
-            titleFontSize: 14,
-            labelFontSize: 12,
+            titleFontSize,
+            labelFontSize,
             titleLimit: 240,
-            lableLimit: 240,
+            labelLimit: 240,
             rowPadding: 4,
             orient: "bottom",
             labelColor: textColor,
@@ -356,9 +359,18 @@ const CentroidPlot = ({ sourceId, size }) => {
           data-testid="centroid-plot-div"
           ref={(node) => {
             if (node) {
-              embed(node, spec(plotData, theme.palette.text.primary), {
-                actions: false,
-              });
+              embed(
+                node,
+                spec(
+                  plotData,
+                  theme.palette.text.primary,
+                  theme.plotFontSizes.titleFontSize,
+                  theme.plotFontSizes.labelFontSize
+                ),
+                {
+                  actions: false,
+                }
+              );
             }
           }}
         />

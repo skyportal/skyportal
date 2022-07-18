@@ -1,6 +1,7 @@
 import React from "react";
 import { useDispatch, useSelector } from "react-redux";
-import Form from "@rjsf/material-ui";
+// eslint-disable-next-line import/no-unresolved
+import Form from "@rjsf/material-ui/v5";
 import { showNotification } from "baselayer/components/Notifications";
 import { submitTelescope } from "../ducks/telescope";
 import { fetchTelescopes } from "../ducks/telescopes";
@@ -34,6 +35,30 @@ const NewTelescope = () => {
         errors.name.addError("Telescope name matches another, please change.");
       }
     });
+    if (formData.fixed_location === true) {
+      if (formData.lon === undefined) {
+        errors.lon.addError(
+          "Longitude must be specified if telescope is fixed."
+        );
+      } else if (formData.lon < -180 || formData.lon > 180) {
+        errors.lon.addError("Longitude must be between -180 and 180.");
+      }
+      if (formData.lat === undefined) {
+        errors.lat.addError(
+          "Latitude must be specified if telescope is fixed."
+        );
+      } else if (formData.lat < -90 || formData.lat > 90) {
+        errors.lat.addError("Latitude must be between -90 and 90.");
+      }
+      if (formData.elevation === undefined) {
+        errors.elevation.addError(
+          "Elevation must be specified if telescope is fixed."
+        );
+      } else if (formData.elevation < 0) {
+        errors.elevation.addError("Elevation must be positive.");
+      }
+    }
+
     return errors;
   }
 

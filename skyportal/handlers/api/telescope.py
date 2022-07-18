@@ -38,8 +38,33 @@ class TelescopeHandler(BaseHandler):
                 schema: Error
         """
         data = self.get_json()
-        schema = Telescope.__schema__()
 
+        schema = Telescope.__schema__()
+        # check if the telescope has a fixed location
+        if 'fixed_location' in data:
+            if data['fixed_location']:
+                if 'lat' not in data or 'lon' not in data or 'elevation' not in data:
+                    return self.error(
+                        'Missing latitude, longitude, or elevation; required if the telescope is fixed'
+                    )
+                elif (
+                    not isinstance(data['lat'], (int, float))
+                    or not isinstance(data['lon'], (int, float))
+                    or not isinstance(data['elevation'], (int, float))
+                ):
+                    return self.error(
+                        'Latitude, longitude, and elevation must all be numbers'
+                    )
+                elif (
+                    data['lat'] < -90
+                    or data['lat'] > 90
+                    or data['lon'] < -180
+                    or data['lon'] > 180
+                    or data['elevation'] < 0
+                ):
+                    return self.error(
+                        'Latitude must be between -90 and 90, longitude between -180 and 180, and elevation must be positive'
+                    )
         try:
             telescope = schema.load(data)
         except ValidationError as e:
@@ -105,9 +130,45 @@ class TelescopeHandler(BaseHandler):
         query = Telescope.query
         if tel_name is not None:
             query = query.filter(Telescope.name == tel_name)
+
         data = query.all()
+        telescopes = []
+        for telescope in data:
+            if telescope is None:
+                continue
+            temp = telescope.to_dict()
+            morning = False
+            evening = False
+            is_night_astronomical = False
+            if (
+                telescope.fixed_location
+                and telescope.lon is not None
+                and telescope.lat is not None
+                and telescope.elevation is not None
+                and telescope.observer is not None
+            ):
+                try:
+                    morning = telescope.next_twilight_morning_astronomical()
+                    evening = telescope.next_twilight_evening_astronomical()
+                    if morning is not None and evening is not None:
+                        is_night_astronomical = bool(morning.jd < evening.jd)
+                        morning = morning.iso
+                        evening = evening.iso
+                    else:
+                        morning = False
+                        evening = False
+                        is_night_astronomical = False
+                except Exception:
+                    morning = False
+                    evening = False
+                    is_night_astronomical = False
+            temp['is_night_astronomical'] = is_night_astronomical
+            temp['next_twilight_morning_astronomical'] = morning
+            temp['next_twilight_evening_astronomical'] = evening
+            telescopes.append(temp)
+
         self.verify_and_commit()
-        return self.success(data=data)
+        return self.success(data=telescopes)
 
     @permissions(['Manage sources'])
     def put(self, telescope_id):

@@ -1,16 +1,16 @@
 import React, { useState, useEffect } from "react";
 import PropTypes from "prop-types";
 import { useDispatch } from "react-redux";
-import EditIcon from "@material-ui/icons/Edit";
-import Dialog from "@material-ui/core/Dialog";
-import DialogContent from "@material-ui/core/DialogContent";
-import DialogTitle from "@material-ui/core/DialogTitle";
-import Button from "@material-ui/core/Button";
-import { makeStyles } from "@material-ui/core/styles";
-import SaveIcon from "@material-ui/icons/Save";
-import ClearIcon from "@material-ui/icons/Clear";
-import Tooltip from "@material-ui/core/Tooltip";
-import TextField from "@material-ui/core/TextField";
+import EditIcon from "@mui/icons-material/Edit";
+import Dialog from "@mui/material/Dialog";
+import DialogContent from "@mui/material/DialogContent";
+import DialogTitle from "@mui/material/DialogTitle";
+import Button from "@mui/material/Button";
+import makeStyles from "@mui/styles/makeStyles";
+import SaveIcon from "@mui/icons-material/Save";
+import ClearIcon from "@mui/icons-material/Clear";
+import Tooltip from "@mui/material/Tooltip";
+import TextField from "@mui/material/TextField";
 
 import { showNotification } from "baselayer/components/Notifications";
 import FormValidationError from "./FormValidationError";

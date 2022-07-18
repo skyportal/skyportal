@@ -139,6 +139,17 @@ class UserFactory(factory.alchemy.SQLAlchemyModelFactory):
                 DBSession().commit()
 
     @factory.post_generation
+    def acls(obj, create, extracted, **kwargs):
+        if not create:
+            return
+
+        if extracted:
+            for acl in extracted:
+                obj.acls.append(acl)
+                DBSession().add(obj)
+                DBSession().commit()
+
+    @factory.post_generation
     def groups(obj, create, extracted, **kwargs):
         if not create:
             return
@@ -171,6 +182,7 @@ class UserFactory(factory.alchemy.SQLAlchemyModelFactory):
         )
         if user is not None:
             # If it is, delete it
+            DBSession().refresh(user)
             DBSession().delete(user)
             DBSession().commit()
 
