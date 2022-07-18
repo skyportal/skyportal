@@ -1367,7 +1367,7 @@ class PhotometryOriginHandler(BaseHandler):
             origins = (
                 session.scalars(sa.select(Photometry.origin).distinct()).unique().all()
             )
-            return self.success(data=[origin[0] for origin in origins])
+            return self.success(data=origins)
 
 
 PhotometryHandler.get.__doc__ = f"""
