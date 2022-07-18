@@ -13,6 +13,8 @@ from skyportal.models import cosmo
 from datetime import datetime, timezone, timedelta
 from dateutil import parser
 
+import pytest
+
 
 def test_source_list(view_only_token):
     status, data = api("GET", "sources", token=view_only_token)
@@ -77,6 +79,7 @@ def test_token_user_retrieving_source_with_phot_exists(view_only_token, public_s
     )
 
 
+@pytest.mark.flaky(reruns=2)
 def test_token_user_retrieving_source_with_thumbnails(view_only_token, public_source):
     status, data = api(
         "GET",
@@ -825,18 +828,18 @@ def test_source_photometry_summary_info(
 
 # Sources filtering tests
 def test_sources_filter_by_name_or_id(upload_data_token, view_only_token, public_group):
-    obj_id = "test_source_1"
-    obj_id2 = "some_other_object"
+    obj_id1 = str(uuid.uuid4())
+    obj_id2 = str(uuid.uuid4())
 
     # Upload two new sources
     status, data = api(
         "POST",
         "sources",
-        data={"id": obj_id, "ra": 230, "dec": -22.33, "group_ids": [public_group.id]},
+        data={"id": obj_id1, "ra": 230, "dec": -22.33, "group_ids": [public_group.id]},
         token=upload_data_token,
     )
     assert status == 200
-    assert data["data"]["id"] == obj_id
+    assert data["data"]["id"] == obj_id1
     status, data = api(
         "POST",
         "sources",
@@ -850,12 +853,12 @@ def test_sources_filter_by_name_or_id(upload_data_token, view_only_token, public
     status, data = api(
         "GET",
         "sources",
-        params={"sourceID": f"{obj_id[0:5]}", "group_ids": f"{public_group.id}"},
+        params={"sourceID": f"{obj_id1[0:5]}", "group_ids": f"{public_group.id}"},
         token=view_only_token,
     )
     assert status == 200
     assert len(data["data"]["sources"]) == 1
-    assert data["data"]["sources"][0]["id"] == obj_id
+    assert data["data"]["sources"][0]["id"] == obj_id1
 
 
 def test_sources_filter_by_position(upload_data_token, view_only_token, public_group):
