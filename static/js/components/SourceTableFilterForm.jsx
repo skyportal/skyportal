@@ -150,7 +150,7 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
         </div>
         <div className={classes.formItemRightColumn}>
           <Typography variant="subtitle2" className={classes.title}>
-            Position
+            sudo systemctl status bt-agent Position
           </Typography>
           <TextField
             size="small"
@@ -207,11 +207,11 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
         </div>
         <div className={classes.formItemRightColumn}>
           <Typography variant="subtitle2" className={classes.title}>
-            Time Last Detected (UTC)
+            Time First/Last Detected (UTC)
           </Typography>
           <TextField
             size="small"
-            label="Last Detected After"
+            label="First Detected After"
             name="startDate"
             inputRef={register}
             placeholder="2012-08-30T00:00:00"
