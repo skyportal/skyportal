@@ -431,9 +431,6 @@ class ObjClassificationQueryHandler(BaseHandler):
         description: find the sources with classifications
         tags:
           - source
-        description: Retrieve all objects with classifications
-        tags:
-          - classifications
         parameters:
         - in: query
           name: startDate
@@ -441,7 +438,7 @@ class ObjClassificationQueryHandler(BaseHandler):
           schema:
             type: string
           description: |
-            Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
+            Arrow-parseable date string (e.g. 2020-01-01) for when the classification was made. If provided, filter by
             created_at >= startDate
         - in: query
           name: endDate
@@ -449,7 +446,7 @@ class ObjClassificationQueryHandler(BaseHandler):
           schema:
             type: string
           description: |
-            Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
+            Arrow-parseable date string (e.g. 2020-01-01) for when the classification was made. If provided, filter by
             created_at <= endDate
         responses:
             200:
