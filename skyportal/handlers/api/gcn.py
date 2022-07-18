@@ -1132,8 +1132,8 @@ class GcnSummaryHandler(BaseHandler):
                 if show_observations:
                     # get the executed obs, by instrument
                     observations_text = []
-                    start_date = arrow.get(start_date.strip()).datetime
-                    end_date = arrow.get(end_date.strip()).datetime
+                    start_date = arrow.get(start_date).datetime
+                    end_date = arrow.get(end_date).datetime
 
                     stmt = Instrument.select(session.user_or_token).options(
                         joinedload(Instrument.telescope)
