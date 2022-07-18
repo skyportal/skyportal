@@ -325,6 +325,11 @@ const GcnSelectionForm = ({ gcnEvent, setSelectedLocalizationName }) => {
         title: "Cumulative Probability",
         default: 0.95,
       },
+      maxDistance: {
+        type: "number",
+        title: "Maximum Distance [Mpc]",
+        default: 150,
+      },
       queryList: {
         type: "array",
         items: {

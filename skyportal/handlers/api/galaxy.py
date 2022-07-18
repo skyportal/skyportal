@@ -25,6 +25,10 @@ MAX_GALAXIES = 10000
 def get_galaxies(
     session,
     catalog_name=None,
+    min_redshift=None,
+    max_redshift=None,
+    min_distance=None,
+    max_distance=None,
     localization_dateobs=None,
     localization_name=None,
     localization_cumprob=None,
@@ -57,6 +61,42 @@ def get_galaxies(
     query = Galaxy.select(session.user_or_token)
     if catalog_name is not None:
         query = query.where(Galaxy.catalog_name == catalog_name)
+
+    if min_redshift is not None:
+        try:
+            min_redshift = float(min_redshift)
+        except ValueError:
+            raise ValueError(
+                "Invalid values for min_redshift - could not convert to float"
+            )
+        query = query.where(Galaxy.redshift >= min_redshift)
+
+    if max_redshift is not None:
+        try:
+            max_redshift = float(max_redshift)
+        except ValueError:
+            raise ValueError(
+                "Invalid values for max_redshift - could not convert to float"
+            )
+        query = query.where(Galaxy.redshift <= max_redshift)
+
+    if min_distance is not None:
+        try:
+            min_distance = float(min_distance)
+        except ValueError:
+            raise ValueError(
+                "Invalid values for min_distance - could not convert to float"
+            )
+        query = query.where(Galaxy.distmpc >= min_distance)
+
+    if max_distance is not None:
+        try:
+            max_distance = float(max_distance)
+        except ValueError:
+            raise ValueError(
+                "Invalid values for max_distance - could not convert to float"
+            )
+        query = query.where(Galaxy.distmpc <= max_distance)
 
     if localization_dateobs is not None:
 
@@ -241,6 +281,34 @@ class GalaxyCatalogHandler(BaseHandler):
                 type: string
               description: Filter by catalog name (exact match)
             - in: query
+              name: minDistance
+              nullable: true
+              schema:
+                type: number
+              description: |
+                If provided, return only galaxies with a distance of at least this value
+            - in: query
+              name: maxDistance
+              nullable: true
+              schema:
+                type: number
+              description: |
+                If provided, return only galaxies with a distance of at most this value
+            - in: query
+              name: minRedshift
+              nullable: true
+              schema:
+                type: number
+              description: |
+                If provided, return only galaxies with a redshift of at least this value
+            - in: query
+              name: maxRedshift
+              nullable: true
+              schema:
+                type: number
+              description: |
+                If provided, return only galaxies with a redshift of at most this value
+            - in: query
               name: localizationDateobs
               schema:
                 type: string
@@ -305,6 +373,10 @@ class GalaxyCatalogHandler(BaseHandler):
         localization_cumprob = self.get_query_argument("localizationCumprob", 0.95)
         includeGeoJSON = self.get_query_argument("includeGeoJSON", False)
         catalog_names_only = self.get_query_argument("catalogNamesOnly", False)
+        min_redshift = self.get_query_argument("minRedshift", None)
+        max_redshift = self.get_query_argument("maxRedshift", None)
+        min_distance = self.get_query_argument("minDistance", None)
+        max_distance = self.get_query_argument("maxDistance", None)
 
         page_number = self.get_query_argument("pageNumber", 1)
         try:
@@ -318,22 +390,26 @@ class GalaxyCatalogHandler(BaseHandler):
         except ValueError as e:
             return self.error(f'numPerPage fails: {e}')
         with self.Session() as session:
-            try:
+            if True:
+                # try:
                 data = get_galaxies(
                     session,
-                    catalog_name,
-                    localization_dateobs,
-                    localization_name,
-                    localization_cumprob,
-                    includeGeoJSON,
-                    catalog_names_only,
-                    page_number,
-                    num_per_page,
+                    catalog_name=catalog_name,
+                    min_redshift=min_redshift,
+                    max_redshift=max_redshift,
+                    min_distance=min_distance,
+                    max_distance=max_distance,
+                    localization_dateobs=localization_dateobs,
+                    localization_name=localization_name,
+                    localization_cumprob=localization_cumprob,
+                    includeGeoJSON=includeGeoJSON,
+                    catalog_names_only=catalog_names_only,
+                    page_number=page_number,
+                    num_per_page=num_per_page,
                 )
-                self.verify_and_commit()
                 return self.success(data)
-            except Exception as e:
-                return self.error(f'get_galaxies fails: {e}')
+            # except Exception as e:
+            #    return self.error(f'get_galaxies fails: {e}')
 
     @permissions(['System admin'])
     def delete(self, catalog_name):
