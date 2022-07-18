@@ -390,8 +390,7 @@ class GalaxyCatalogHandler(BaseHandler):
         except ValueError as e:
             return self.error(f'numPerPage fails: {e}')
         with self.Session() as session:
-            if True:
-                # try:
+            try:
                 data = get_galaxies(
                     session,
                     catalog_name=catalog_name,
@@ -408,8 +407,8 @@ class GalaxyCatalogHandler(BaseHandler):
                     num_per_page=num_per_page,
                 )
                 return self.success(data)
-            # except Exception as e:
-            #    return self.error(f'get_galaxies fails: {e}')
+            except Exception as e:
+                return self.error(f'get_galaxies fails: {e}')
 
     @permissions(['System admin'])
     def delete(self, catalog_name):
