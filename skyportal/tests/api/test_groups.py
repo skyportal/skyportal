@@ -537,7 +537,7 @@ def test_non_group_admin_cannot_remove_user_from_group(
         f"groups/{public_group.id}/users/{user.id}",
         token=view_only_token2,
     )
-    assert status == 400
+    assert status == 403
 
 
 def test_cannot_add_self_to_group(public_group2, view_only_token, user):
@@ -618,7 +618,7 @@ def test_cannot_remove_user_from_single_user_group(super_admin_token, user):
         f"groups/{single_user_group.id}/users/{user.id}",
         token=super_admin_token,
     )
-    assert status == 400
+    assert status == 403
 
 
 def test_user_cannot_remove_self_from_single_user_group(view_only_token, user):
@@ -629,4 +629,4 @@ def test_user_cannot_remove_self_from_single_user_group(view_only_token, user):
         f"groups/{single_user_group.id}/users/{user.id}",
         token=view_only_token,
     )
-    assert status == 400
+    assert status == 403

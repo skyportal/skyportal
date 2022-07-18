@@ -507,7 +507,7 @@ class Obj(Base, conesearch_alchemy.Point):
 
         # there may be a non-redshift based measurement of distance
         # for nearby sources
-        if self.altdata:
+        if isinstance(self.altdata, dict):
             if self.altdata.get("dm") is not None:
                 # see eq (24) of https://ned.ipac.caltech.edu/level5/Hogg/Hogg7.html
                 return (

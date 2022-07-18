@@ -145,6 +145,7 @@ class TelescopeHandler(BaseHandler):
                 and telescope.lon is not None
                 and telescope.lat is not None
                 and telescope.elevation is not None
+                and telescope.observer is not None
             ):
                 try:
                     morning = telescope.next_twilight_morning_astronomical()
@@ -153,6 +154,10 @@ class TelescopeHandler(BaseHandler):
                         is_night_astronomical = bool(morning.jd < evening.jd)
                         morning = morning.iso
                         evening = evening.iso
+                    else:
+                        morning = False
+                        evening = False
+                        is_night_astronomical = False
                 except Exception:
                     morning = False
                     evening = False
