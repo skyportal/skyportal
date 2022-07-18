@@ -2,6 +2,8 @@ import os
 import numpy as np
 
 from skyportal.tests import api
+from skyportal.utils.gcn import from_url
+
 import time
 import uuid
 import pandas as pd
@@ -122,6 +124,27 @@ def test_gcn_IPN(super_admin_token, view_only_token):
     assert status == 200
     data = data["data"]
     assert data["dateobs"] == "2022-06-17T18:31:12"
+    assert 'IPN' in data["tags"]
+
+
+def test_gcn_from_moc(super_admin_token, view_only_token):
+
+    skymap = f'{os.path.dirname(__file__)}/../data/GRB220617A_IPN_map_hpx.fits.gz'
+    dateobs = '2022-06-18T18:31:12'
+    tags = ['IPN', 'GRB']
+    skymap = from_url(skymap)
+
+    data = {'dateobs': dateobs, 'skymap': skymap, 'tags': tags}
+
+    status, data = api('POST', 'gcn_event', data=data, token=super_admin_token)
+    assert status == 200
+    assert data['status'] == 'success'
+
+    dateobs = "2022-06-18 18:31:12"
+    status, data = api('GET', f'gcn_event/{dateobs}', token=super_admin_token)
+    assert status == 200
+    data = data["data"]
+    assert data["dateobs"] == "2022-06-18T18:31:12"
     assert 'IPN' in data["tags"]
 
 

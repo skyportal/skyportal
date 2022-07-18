@@ -607,6 +607,14 @@ sources:
       - =program_A
       - =program_B
     redshift: 3
+  - id: ZTF20abwysqy
+    ra: 6.7856144
+    dec: 34.027306
+    group_ids:
+      - =public_group_id
+      - =program_A
+      - =program_B
+    redshift: 0.7481
 
 sources/ZTF21aaqjmps/comments:
   - obj_id: ZTF21aaqjmps
@@ -750,6 +758,16 @@ photometry:
     stream_ids:
       - =ztf_public
       - =ztf_partnership
+  - obj_id: ZTF20abwysqy
+    instrument_id: =ZTF
+    assignment_id: 2
+    file: ZTF20abwysqy_phot.csv
+    group_ids:
+      - =program_A
+      - =program_B
+    stream_ids:
+      - =ztf_public
+      - =ztf_partnership
 
 followup_request:
   - obj_id: ZTFrlh6cyjh
@@ -877,6 +895,7 @@ gcn_event:
       file: ../skyportal/tests/data/GRB180116A_Fermi_GBM_Gnd_Pos.xml
   - xml:
       file: ./GW190814.xml
+
 
 gcn_event/1/comments:
   - text: "This is a test comment"

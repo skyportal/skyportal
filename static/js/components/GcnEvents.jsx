@@ -80,7 +80,6 @@ const GcnEvents = () => {
   const theme = useTheme();
   const dispatch = useDispatch();
   const gcnEvents = useSelector((state) => state.gcnEvents);
-
   const [fetchParams, setFetchParams] = useState({
     pageNumber: 1,
     numPerPage: defaultNumPerPage,
@@ -96,20 +95,46 @@ const GcnEvents = () => {
 
   const { events, totalMatches } = gcnEvents;
 
-  const handlePageChange = async (page, numPerPage) => {
+  const handlePageChange = async (pageNumber, numPerPage, sortData) => {
     const params = {
       ...fetchParams,
+      pageNumber,
       numPerPage,
-      pageNumber: page + 1,
     };
+    if (sortData && Object.keys(sortData).length > 0) {
+      params.sortBy = sortData.name;
+      params.sortOrder = sortData.direction;
+    }
     // Save state for future
+    setFetchParams(params);
+    await dispatch(gcnEventsActions.fetchGcnEvents(params));
+  };
+
+  const handleTableSorting = async (sortData) => {
+    const params = {
+      ...fetchParams,
+      pageNumber: 1,
+      sortBy: sortData.name,
+      sortOrder: sortData.direction,
+    };
     setFetchParams(params);
     await dispatch(gcnEventsActions.fetchGcnEvents(params));
   };
 
   const handleTableChange = (action, tableState) => {
     if (action === "changePage" || action === "changeRowsPerPage") {
-      handlePageChange(tableState.page, tableState.rowsPerPage);
+      handlePageChange(
+        tableState.page + 1,
+        tableState.rowsPerPage,
+        tableState.sortOrder
+      );
+    }
+    if (action === "sort") {
+      if (tableState.sortOrder.direction === "none") {
+        handlePageChange(1, tableState.rowsPerPage, {});
+      } else {
+        handleTableSorting(tableState.sortOrder);
+      }
     }
   };
 
@@ -186,7 +211,6 @@ const GcnEvents = () => {
   ];
 
   const options = {
-    search: true,
     selectableRows: "none",
     elevation: 0,
     page: fetchParams.pageNumber - 1,
@@ -196,10 +220,11 @@ const GcnEvents = () => {
     serverSide: true,
     pagination: true,
     count: totalMatches,
+    onTableChange: handleTableChange,
+    search: false, // Disable search for now (not implemented yet)
+    download: false, // Disable download button for now (not implemented yet)
+    filter: false, // Disable filter button for now (not implemented yet)
   };
-  if (typeof handleTableChange === "function") {
-    options.onTableChange = handleTableChange;
-  }
 
   return (
     <div>
