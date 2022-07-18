@@ -75,6 +75,8 @@ MAX_SOURCES_PER_PAGE = 500
 _, cfg = load_env()
 log = make_log('api/source')
 
+MAX_LOCALIZATION_SOURCES = 50000
+
 
 def get_source(
     obj_id,
@@ -102,7 +104,7 @@ def get_source(
     See Source Handler for optional arguments
     """
 
-    user = session.query(User).get(user_id)
+    user = session.scalar(sa.select(User).where(User.id == user_id))
 
     options = []
     if include_thumbnails:
@@ -187,9 +189,7 @@ def get_source(
                         joinedload(Comment.author),
                         joinedload(Comment.groups),
                     ],
-                )
-                .where(Comment.obj_id == obj_id)
-                .distinct()
+                ).where(Comment.obj_id == obj_id)
             )
             .unique()
             .all()
@@ -226,7 +226,6 @@ def get_source(
             Annotation.select(user)
             .options(joinedload(Annotation.author))
             .where(Annotation.obj_id == obj_id)
-            .distinct()
         )
         .unique()
         .all(),
@@ -270,9 +269,7 @@ def get_source(
             ).first()
             is not None
         )
-    source_query = Source.query_records_accessible_by(user).filter(
-        Source.obj_id == source_info["id"]
-    )
+    source_query = Source.select(user).where(Source.obj_id == source_info["id"])
     source_query = apply_active_or_requested_filtering(
         source_query, include_requested, requested_only
     )
@@ -372,7 +369,7 @@ def get_sources(
     See Source Handler for optional arguments
     """
 
-    user = session.query(User).get(user_id)
+    user = session.scalar(sa.select(User).where(User.id == user_id))
 
     obj_query_options = []
     if include_thumbnails and not remove_nested:
@@ -735,25 +732,31 @@ def get_sources(
         # This grabs just the IDs so the more expensive localization in-out
         # check is done on only this subset
         obj_ids = session.scalars(obj_query).all()
+
+        if len(obj_ids) > MAX_LOCALIZATION_SOURCES:
+            raise ValueError('Need fewer sources for efficient cross-match.')
+
         obj_query = Obj.select(user, options=obj_query_options).where(
             Obj.id.in_(obj_ids)
         )
 
-        if localization_name is not None:
-            localization = (
-                Localization.query_records_accessible_by(user)
-                .filter(Localization.dateobs == localization_dateobs)
-                .filter(Localization.localization_name == localization_name)
-                .first()
-            )
+        if localization_name is None:
+            localization = session.scalars(
+                Localization.select(
+                    user,
+                )
+                .where(Localization.dateobs == localization_dateobs)
+                .order_by(Localization.created_at.desc())
+            ).first()
         else:
-            localization = (
-                Localization.query_records_accessible_by(user)
-                .filter(Localization.dateobs == localization_dateobs)
-                # order by descending date to find the most recent localization
+            localization = session.scalars(
+                Localization.select(
+                    user,
+                )
+                .where(Localization.dateobs == localization_dateobs)
+                .where(Localization.localization_name == localization_name)
                 .order_by(Localization.modified.desc())
-                .first()
-            )
+            ).first()
         if localization is None:
             if localization_name is not None:
                 raise ValueError(
@@ -1201,7 +1204,7 @@ def post_source(data, user_id, session):
         Database session for this transaction
     """
 
-    user = session.query(User).get(user_id)
+    user = session.scalar(sa.select(User).where(User.id == user_id))
 
     obj = session.scalars(Obj.select(user).where(Obj.id == data["id"])).first()
     if obj is None:
@@ -1255,6 +1258,9 @@ def post_source(data, user_id, session):
             "Invalid group_ids field. Please specify at least "
             "one valid group ID that you belong to."
         )
+    group_ids_loaded = [g.id for g in groups]
+    if not set(group_ids_loaded) == set(group_ids):
+        raise AttributeError('Not all group_ids could be loaded.')
 
     update_redshift_history_if_relevant(data, obj, user)
 
