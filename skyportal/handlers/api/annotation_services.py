@@ -550,7 +550,11 @@ class DatalabQueryHandler(BaseHandler):
                           INNER JOIN {catalog}.tractor
                           ON {catalog}.tractor.ls_id = {catalog}.photo_z.ls_id
                           where 't' = Q3C_RADIAL_QUERY(ra, dec, {obj.ra}, {obj.dec}, {radius_deg})"""
-            query = qc.query(sql=sql_query)
+            try:
+                query = qc.query(sql=sql_query)
+            except qc.queryClientError as e:
+                return self.error(f'Error initializing query: {str(e)}')
+
             df = pd.read_table(StringIO(query), sep=",")
             annotations = []
             for index, row in df.iterrows():
