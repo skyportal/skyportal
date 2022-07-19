@@ -249,57 +249,54 @@ const ObservationPage = () => {
           </div>
         </Paper>
       </Grid>
-      {currentUser.permissions?.includes("System admin") && (
-        <Grid item md={6} sm={12}>
-          <Paper className={classes.paperContent}>
-            <div>
-              <Accordion defaultExpanded elevation={0}>
-                <AccordionSummary
-                  expandIcon={<ExpandMoreIcon />}
-                  aria-controls="add-new-observations-content"
-                  id="add-new-observations-header"
-                >
-                  <Typography className={classes.accordionHeading}>
-                    Add New Observations
-                  </Typography>
-                </AccordionSummary>
-                <AccordionDetails>
-                  <div>
-                    <br style={{ marginBottom: "1rem" }} />
-                    <Divider
-                      variant="middle"
-                      className={classes.dividerHeader}
-                    />
-                    <br />
-                    <div className={classes.content}>
-                      <Typography variant="h6">
-                        Add Observations from File
-                      </Typography>
-                      <NewObservation />
-                    </div>
-                    <br />
-                    <Divider variant="middle" className={classes.divider} />
-                    <br />
-                    <div className={classes.content}>
-                      <Typography variant="h6">
-                        Add API Executed Observations
-                      </Typography>
-                      <NewAPIObservation />
-                    </div>
-                    <br />
-                    <Divider variant="middle" className={classes.divider} />
-                    <br />
-                    <div className={classes.content}>
-                      <Typography variant="h6">
-                        Add API Queued Observations
-                      </Typography>
-                      <NewAPIQueuedObservation />
-                    </div>
+      <Grid item md={6} sm={12}>
+        <Paper className={classes.paperContent}>
+          <div>
+            <Accordion defaultExpanded elevation={0}>
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon />}
+                aria-controls="add-new-observations-content"
+                id="add-new-observations-header"
+              >
+                <Typography className={classes.accordionHeading}>
+                  Add New Observations
+                </Typography>
+              </AccordionSummary>
+              <AccordionDetails>
+                <div>
+                  <br style={{ marginBottom: "1rem" }} />
+                  <Divider variant="middle" className={classes.dividerHeader} />
+                  <br />
+                  <div className={classes.content}>
+                    <Typography variant="h6">
+                      Add Observations from File
+                    </Typography>
+                    <NewObservation />
                   </div>
-                </AccordionDetails>
-              </Accordion>
-            </div>
-          </Paper>
+                  <br />
+                  <Divider variant="middle" className={classes.divider} />
+                  <br />
+                  <div className={classes.content}>
+                    <Typography variant="h6">
+                      Add API Executed Observations
+                    </Typography>
+                    <NewAPIObservation />
+                  </div>
+                  <br />
+                  <Divider variant="middle" className={classes.divider} />
+                  <br />
+                  <div className={classes.content}>
+                    <Typography variant="h6">
+                      Add API Queued Observations
+                    </Typography>
+                    <NewAPIQueuedObservation />
+                  </div>
+                </div>
+              </AccordionDetails>
+            </Accordion>
+          </div>
+        </Paper>
+        {currentUser.permissions?.includes("System admin") && (
           <Paper>
             <div className={classes.paperContent}>
               <Accordion defaultExpanded elevation={0}>
@@ -320,8 +317,8 @@ const ObservationPage = () => {
               </Accordion>
             </div>
           </Paper>
-        </Grid>
-      )}
+        )}
+      </Grid>
     </Grid>
   );
 };
