@@ -141,6 +141,9 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
     []
   );
 
+  const maxNbDaysUsingLocalization = useSelector(
+    (state) => state.config.maxNbDaysUsingLocalization
+  );
   const gcnEvents = useSelector((state) => state.gcnEvents);
   const [selectedGcnEventId, setSelectedGcnEventId] = useState(null);
 
@@ -192,15 +195,17 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
           )
         );
         valid = false;
-      } // check if there are more than 31 days between start and end date
+      } // check if there are more than maxNbDaysUsingLocalization days between start and end date
       else if (
         (new Date(formData.endDate) - new Date(formData.startDate)) /
           (1000 * 60 * 60 * 24) >
-        31
+        (maxNbDaysUsingLocalization || 31)
       ) {
         dispatch(
           showNotification(
-            "Please enter a date range less than 31 days",
+            `Please enter a date range less than ${
+              maxNbDaysUsingLocalization || 31
+            } days`,
             "error"
           )
         );
