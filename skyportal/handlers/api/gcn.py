@@ -12,7 +12,7 @@ import humanize
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm import sessionmaker, scoped_session
-from marshmallow import Schema, fields
+from marshmallow import Schema
 from marshmallow.exceptions import ValidationError
 
 from skyportal.models.photometry import Photometry
@@ -23,6 +23,7 @@ from .galaxy import get_galaxies, MAX_GALAXIES
 import pandas as pd
 from tabulate import tabulate
 import datetime
+from ...utils.UTCTZnaiveDateTime import UTCTZnaiveDateTime
 
 from baselayer.app.access import auth_or_token
 from baselayer.log import make_log
@@ -804,13 +805,6 @@ class GcnSummaryHandler(BaseHandler):
         show_galaxies = self.get_query_argument('showGalaxies', False)
         show_observations = self.get_query_argument('showObservations', False)
         no_text = self.get_query_argument('noText', False)
-
-        class UTCTZnaiveDateTime(fields.DateTime):
-            def _deserialize(self, value, attr, data, **kwargs):
-                value = super()._deserialize(value, attr, data, **kwargs)
-                if value and value.tzinfo:
-                    value = (value - value.utcoffset()).replace(tzinfo=None)
-                return value
 
         class Validator(Schema):
             start_date = UTCTZnaiveDateTime(required=False, missing=None)

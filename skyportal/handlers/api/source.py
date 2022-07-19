@@ -18,6 +18,7 @@ import operator  # noqa: F401
 import functools
 import conesearch_alchemy as ca
 import healpix_alchemy as ha
+from ...utils.UTCTZnaiveDateTime import UTCTZnaiveDateTime
 
 from baselayer.app.access import permissions, auth_or_token
 from baselayer.app.env import load_env
@@ -1953,22 +1954,6 @@ class SourceHandler(BaseHandler):
         localization_name = self.get_query_argument("localizationName", None)
         localization_cumprob = self.get_query_argument("localizationCumprob", 0.95)
         includeGeoJSON = self.get_query_argument("includeGeoJSON", False)
-
-        # These are just throwaway helper classes to help with deserialization
-        class UTCTZnaiveDateTime(fields.DateTime):
-            """
-            DateTime object that deserializes both timezone aware iso8601
-            strings and naive iso8601 strings into naive datetime objects
-            in utc
-
-            See discussion in https://github.com/Scille/umongo/issues/44#issuecomment-244407236
-            """
-
-            def _deserialize(self, value, attr, data, **kwargs):
-                value = super()._deserialize(value, attr, data, **kwargs)
-                if value and value.tzinfo:
-                    value = (value - value.utcoffset()).replace(tzinfo=None)
-                return value
 
         class Validator(Schema):
             saved_after = UTCTZnaiveDateTime(required=False, missing=None)
