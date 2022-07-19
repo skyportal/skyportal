@@ -121,7 +121,6 @@ class WeatherHandler(BaseHandler):
                         data = response.json()
                         weather.weather_info = data
                         weather.retrieved_at = datetime.datetime.utcnow()
-                        session.verify()
                         session.commit()
                     else:
                         message = response.text
