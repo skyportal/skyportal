@@ -73,7 +73,7 @@ def test_add_sources_two_groups(
     saved_at_element = driver.wait_for_xpath(
         f"//*[text()[contains(., '{t1.strftime('%Y-%m-%dT%H:%M')}')]]"
     )
-    saved_group1 = parser.parse(saved_at_element.text + " UTC")
+    saved_group1 = parser.parse(saved_at_element.text)
     assert abs(saved_group1 - t1) < timedelta(seconds=30)
 
     # check the redshift shows up
@@ -188,7 +188,7 @@ def test_add_sources_two_groups(
     saved_at_element = driver.wait_for_xpath(
         f"//*[text()[contains(., '{t2.strftime('%Y-%m-%dT%H:%M')}')]]"
     )
-    saved_group2 = parser.parse(saved_at_element.text + " UTC")
+    saved_group2 = parser.parse(saved_at_element.text)
     assert abs(saved_group2 - t2) < timedelta(seconds=2)
 
     # the new group must have been saved later!
