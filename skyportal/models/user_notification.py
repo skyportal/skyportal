@@ -147,16 +147,6 @@ def user_preferences(target, notification_setting, resource_type):
 
 
 @event.listens_for(UserNotification, 'after_insert')
-def push_frontend_notification(mapper, connection, target):
-    resource_type = notification_resource_type(target)
-    log(
-        f"Sent frontend notification to user {target.user.id}, body: {target.text}, resource_type: {resource_type}"
-    )
-    ws_flow = Flow()
-    ws_flow.push(target.user.id, "skyportal/FETCH_NOTIFICATIONS")
-
-
-@event.listens_for(UserNotification, 'after_insert')
 def send_slack_notification(mapper, connection, target):
     resource_type = notification_resource_type(target)
     notifications_prefs = user_preferences(target, "slack", resource_type)
@@ -277,6 +267,16 @@ def send_sms_notification(mapper, connection, target):
             )
         except Exception as e:
             log(f"Error sending sms notification: {e}")
+
+
+@event.listens_for(UserNotification, 'after_insert')
+def push_frontend_notification(mapper, connection, target):
+    resource_type = notification_resource_type(target)
+    log(
+        f"Sent frontend notification to user {target.user.id}, body: {target.text}, resource_type: {resource_type}"
+    )
+    ws_flow = Flow()
+    ws_flow.push(target.user.id, "skyportal/FETCH_NOTIFICATIONS")
 
 
 @event.listens_for(Classification, 'after_insert')
