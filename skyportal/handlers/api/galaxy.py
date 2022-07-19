@@ -138,7 +138,7 @@ def get_galaxies(
             )
         ).scalar_subquery()
 
-        tiles = session.scalars(
+        tile_ids = session.scalars(
             sa.select(LocalizationTile.id).where(
                 LocalizationTile.localization_id == localization.id,
                 LocalizationTile.probdensity >= min_probdensity,
@@ -148,7 +148,7 @@ def get_galaxies(
         tiles_subquery = (
             sa.select(Galaxy.id)
             .where(
-                LocalizationTile.id.in_(tiles),
+                LocalizationTile.id.in_(tile_ids),
                 LocalizationTile.healpix.contains(Galaxy.healpix),
             )
             .subquery()
