@@ -784,12 +784,18 @@ def get_sources(
             ).filter(localizationtile_subquery.columns.cum_prob <= localization_cumprob)
         ).scalar_subquery()
 
+        tile_ids = session.scalars(
+            sa.select(LocalizationTile.id).where(
+                LocalizationTile.localization_id == localization.id,
+                LocalizationTile.probdensity >= min_probdensity,
+            )
+        ).all()
+
         tiles_subquery = (
             sa.select(Obj.id)
             .filter(
-                LocalizationTile.localization_id == localization.id,
+                LocalizationTile.id.in_(tile_ids),
                 LocalizationTile.healpix.contains(Obj.healpix),
-                LocalizationTile.probdensity >= min_probdensity,
             )
             .subquery()
         )
