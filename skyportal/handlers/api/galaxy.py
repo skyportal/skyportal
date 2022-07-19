@@ -162,11 +162,7 @@ def get_galaxies(
     count_stmt = sa.select(func.count()).select_from(query)
     total_matches = session.execute(count_stmt).scalar()
     if num_per_page is not None:
-        query = (
-            query.distinct()
-            .limit(num_per_page)
-            .offset((page_number - 1) * num_per_page)
-        )
+        query = query.limit(num_per_page).offset((page_number - 1) * num_per_page)
 
     galaxies = session.scalars(query).all()
     query_results = {"galaxies": galaxies, "totalMatches": int(total_matches)}
