@@ -122,7 +122,7 @@ def user_preferences(target, notification_setting, resource_type):
         if (
             not target.user.preferences['slack_integration']
             .get("url", "")
-            .startswith(cfg["slack.expected_url_preamble"], "https")
+            .startswith(cfg["slack.expected_url_preamble"])
         ):
             return
 
@@ -165,6 +165,9 @@ def send_slack_notification(mapper, connection, target):
             slack_microservice_url,
             data=data,
             headers={'Content-Type': 'application/json'},
+        )
+        log(
+            f"Sent slack notification to user {target.user.id} at slack_url: {integration_url}, body: {target.text}, resource_type: {resource_type}"
         )
     except Exception as e:
         log(f"Error sending slack notification: {e}")
@@ -214,6 +217,9 @@ def send_email_notification(mapper, connection, target):
                 subject=subject,
                 body=body,
             )
+            log(
+                f"Sent email notification to user {target.user.id} at email: {target.user.contact_email}, subject: {subject}, body: {body}, resource_type: {resource_type}"
+            )
         except Exception as e:
             log(f"Error sending email notification: {e}")
 
@@ -256,8 +262,21 @@ def send_sms_notification(mapper, connection, target):
                 from_=from_number,
                 to=target.user.contact_phone.e164,
             )
+            log(
+                f"Sent SMS notification to user {target.user.id} at phone number: {target.user.contact_phone.e164}, body: {target.text}, resource_type: {resource_type}"
+            )
         except Exception as e:
             log(f"Error sending sms notification: {e}")
+
+
+@event.listens_for(UserNotification, 'after_insert')
+def push_frontend_notification(mapper, connection, target):
+    resource_type = notification_resource_type(target)
+    log(
+        f"Sent frontend notification to user {target.user.id}, body: {target.text}, resource_type: {resource_type}"
+    )
+    ws_flow = Flow()
+    ws_flow.push(target.user.id, "skyportal/FETCH_NOTIFICATIONS")
 
 
 @event.listens_for(Classification, 'after_insert')
@@ -328,8 +347,6 @@ def add_user_notifications(mapper, connection, target):
                 ).all()
             else:
                 users = []
-
-        ws_flow = Flow()
 
         for user in users:
             # Only notify users who have read access to the new record in question
@@ -479,5 +496,3 @@ def add_user_notifications(mapper, connection, target):
                                         url=f"/source/{target.obj_id}",
                                     )
                                 )
-                # >>>>>>> upstream/main
-                ws_flow.push(user.id, "skyportal/FETCH_NOTIFICATIONS")
