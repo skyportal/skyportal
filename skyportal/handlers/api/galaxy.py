@@ -138,12 +138,18 @@ def get_galaxies(
             )
         ).scalar_subquery()
 
+        tiles = session.scalars(
+            sa.select(LocalizationTile.id).where(
+                LocalizationTile.localization_id == localization.id,
+                LocalizationTile.probdensity >= min_probdensity,
+            )
+        ).all()
+
         tiles_subquery = (
             sa.select(Galaxy.id)
             .where(
-                LocalizationTile.localization_id == localization.id,
+                LocalizationTile.id.in_(tiles),
                 LocalizationTile.healpix.contains(Galaxy.healpix),
-                LocalizationTile.probdensity >= min_probdensity,
             )
             .subquery()
         )
@@ -384,7 +390,7 @@ class GalaxyCatalogHandler(BaseHandler):
         except ValueError as e:
             return self.error(f'pageNumber fails: {e}')
 
-        num_per_page = self.get_query_argument("numPerPage", 100)
+        num_per_page = self.get_query_argument("numPerPage", 1000)
         try:
             num_per_page = int(num_per_page)
         except ValueError as e:
