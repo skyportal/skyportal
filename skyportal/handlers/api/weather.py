@@ -7,7 +7,7 @@ from baselayer.app.env import load_env
 from ...utils.offset import get_url
 
 from ..base import BaseHandler
-from ...models import Telescope, Weather, User
+from ...models import Telescope, Weather
 
 _, cfg = load_env()
 weather_refresh = cfg.get("weather.refresh_time")
@@ -68,33 +68,29 @@ class WeatherHandler(BaseHandler):
                               description: Weather fetching error message
         """
         with self.Session() as session:
-            user = session.scalars(
-                User.select(self.current_user).where(
-                    User.username == self.associated_user_object.username
-                )
-            ).first()
-            user_prefs = getattr(user, 'preferences', None) or {}
+            user_prefs = getattr(self.associated_user_object, 'preferences', None) or {}
             weather_prefs = user_prefs.get('weather', {})
             weather_prefs = {**default_prefs, **weather_prefs}
 
-        try:
-            default_telescope_id = int(weather_prefs["telescopeID"])
-        except (TypeError, ValueError):
-            return self.error(
-                f"telescope ID ({weather_prefs['telescopeID']}) "
-                f"given in preferences is not a valid ID (integer)."
-            )
+            try:
+                default_telescope_id = int(weather_prefs["telescopeID"])
+            except (TypeError, ValueError):
+                return self.error(
+                    f"telescope ID ({weather_prefs['telescopeID']}) "
+                    f"given in preferences is not a valid ID (integer)."
+                )
 
-        # use the query telecope ID otherwise fall back to preferences id
-        telescope_id = self.get_query_argument("telescope_id", default_telescope_id)
+            # use the query telecope ID otherwise fall back to preferences id
+            telescope_id = self.get_query_argument("telescope_id", default_telescope_id)
 
-        telescope = Telescope.get(telescope_id, self.current_user)
-        if telescope is None:
-            return self.error(
-                f"Could not load telescope with ID {weather_prefs['telescopeID']}"
-            )
+            telescope = session.scalars(
+                Telescope.select(self.current_user).where(Telescope.id == telescope_id)
+            ).first()
+            if telescope is None:
+                return self.error(
+                    f"Could not load telescope with ID {weather_prefs['telescopeID']}"
+                )
 
-        with self.Session() as session:
             weather = session.scalars(
                 sa.select(Weather).where(Weather.telescope_id == telescope_id)
             ).first()
@@ -130,7 +126,6 @@ class WeatherHandler(BaseHandler):
                     else:
                         message = response.text
 
-                session.verify()
                 session.commit()
 
             return self.success(
