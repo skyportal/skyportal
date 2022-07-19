@@ -1,6 +1,7 @@
 import re
 from marshmallow.exceptions import ValidationError
 
+from baselayer.app.custom_exceptions import AccessError
 from baselayer.app.access import auth_or_token
 from ..base import BaseHandler
 from ...models import (
@@ -134,13 +135,21 @@ class UserObjListHandler(BaseHandler):
             return self.error(f'Invalid/missing parameters: {e.normalized_messages()}')
 
         obj_id = data.get('obj_id')
-        Obj.get_if_accessible_by(obj_id, self.current_user, raise_if_none=True)
+        obj_check = Obj.get_if_accessible_by(obj_id, self.current_user)
+        if obj_check is None:
+            return self.error(f'Cannot find Obj with ID: {obj_id}')
 
         list_name = data.get('list_name')
         if not check_list_name(list_name):
             return self.error(
                 "Input `list_name` must begin with alphanumeric/underscore"
             )
+
+        if (
+            user_id != self.associated_user_object.id
+            and not self.associated_user_object.is_admin
+        ):
+            return self.error("Only admins can add listings to other users' accounts")
 
         query = Listing.query_records_accessible_by(self.current_user).filter(
             Listing.user_id == int(user_id),
@@ -156,7 +165,10 @@ class UserObjListHandler(BaseHandler):
 
         listing = Listing(user_id=user_id, obj_id=obj_id, list_name=list_name)
         DBSession().add(listing)
-        self.verify_and_commit()
+        try:
+            self.verify_and_commit()
+        except AccessError as e:
+            return self.error(str(e))
 
         if list_name == "favorites":
             self.push(action='skyportal/REFRESH_FAVORITES')

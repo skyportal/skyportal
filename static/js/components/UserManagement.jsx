@@ -3,28 +3,31 @@ import { useDispatch, useSelector } from "react-redux";
 import { useForm, Controller } from "react-hook-form";
 
 import MUIDataTable from "mui-datatables";
-import Paper from "@material-ui/core/Paper";
-import Chip from "@material-ui/core/Chip";
-import Typography from "@material-ui/core/Typography";
-import Autocomplete from "@material-ui/lab/Autocomplete";
-import Button from "@material-ui/core/Button";
-import TextField from "@material-ui/core/TextField";
-import AddCircleIcon from "@material-ui/icons/AddCircle";
-import HelpIcon from "@material-ui/icons/Help";
-import EditIcon from "@material-ui/icons/Edit";
-import IconButton from "@material-ui/core/IconButton";
-import Dialog from "@material-ui/core/Dialog";
-import DialogContent from "@material-ui/core/DialogContent";
-import DialogTitle from "@material-ui/core/DialogTitle";
-import Tooltip from "@material-ui/core/Tooltip";
-import { DatePicker } from "@material-ui/pickers";
+import Paper from "@mui/material/Paper";
+import Chip from "@mui/material/Chip";
+import Typography from "@mui/material/Typography";
+import Autocomplete, { createFilterOptions } from "@mui/material/Autocomplete";
+import Button from "@mui/material/Button";
+import TextField from "@mui/material/TextField";
+import AddCircleIcon from "@mui/icons-material/AddCircle";
+import HelpIcon from "@mui/icons-material/Help";
+import EditIcon from "@mui/icons-material/Edit";
+import IconButton from "@mui/material/IconButton";
+import Dialog from "@mui/material/Dialog";
+import DialogContent from "@mui/material/DialogContent";
+import DialogTitle from "@mui/material/DialogTitle";
+import Tooltip from "@mui/material/Tooltip";
+import DatePicker from "@mui/lab/DatePicker";
 import {
-  makeStyles,
   createTheme,
-  MuiThemeProvider,
+  ThemeProvider,
+  StyledEngineProvider,
   useTheme,
-} from "@material-ui/core/styles";
-import Form from "@rjsf/material-ui";
+  adaptV4Theme,
+} from "@mui/material/styles";
+import makeStyles from "@mui/styles/makeStyles";
+// eslint-disable-next-line import/no-unresolved
+import Form from "@rjsf/material-ui/v5";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
@@ -40,6 +43,8 @@ import * as invitationsActions from "../ducks/invitations";
 import * as aclsActions from "../ducks/acls";
 import * as rolesActions from "../ducks/roles";
 import Spinner from "./Spinner";
+
+import * as ProfileActions from "../ducks/profile";
 
 dayjs.extend(utc);
 
@@ -64,16 +69,18 @@ const useStyles = makeStyles(() => ({
 }));
 
 const dataTableStyles = (theme) =>
-  createTheme({
-    overrides: {
-      MuiPaper: {
-        elevation4: {
-          boxShadow: "none !important",
+  createTheme(
+    adaptV4Theme({
+      overrides: {
+        MuiPaper: {
+          elevation4: {
+            boxShadow: "none !important",
+          },
         },
       },
-    },
-    palette: theme.palette,
-  });
+      palette: theme.palette,
+    })
+  );
 
 const defaultNumPerPage = 25;
 
@@ -98,6 +105,8 @@ const UserManagement = () => {
   const [addUserGroupsDialogOpen, setAddUserGroupsDialogOpen] = useState(false);
   const [addUserRolesDialogOpen, setAddUserRolesDialogOpen] = useState(false);
   const [addUserACLsDialogOpen, setAddUserACLsDialogOpen] = useState(false);
+  const [addUserAffiliationsDialogOpen, setAddUserAffiliationsDialogOpen] =
+    useState(false);
   const [addUserStreamsDialogOpen, setAddUserStreamsDialogOpen] =
     useState(false);
   const [
@@ -108,6 +117,8 @@ const UserManagement = () => {
   const [dataFetched, setDataFetched] = useState(false);
 
   const { handleSubmit, errors, reset, control, getValues } = useForm();
+
+  const filter = createFilterOptions();
 
   useEffect(() => {
     const fetchData = () => {
@@ -225,6 +236,18 @@ const UserManagement = () => {
     }
   };
 
+  const handleAddUserAffiliations = async (formData) => {
+    const result = await dispatch(
+      ProfileActions.updateBasicUserInfo(formData, clickedUser.id)
+    );
+    if (result.status === "success") {
+      dispatch(showNotification("Successfully updated user's affiliations."));
+      setAddUserAffiliationsDialogOpen(false);
+      dispatch(usersActions.fetchUsers(fetchParams));
+      setClickedUser(null);
+    }
+  };
+
   const handleAddUserRoles = async (formData) => {
     const result = await dispatch(
       rolesActions.addUserRoles({
@@ -269,6 +292,19 @@ const UserManagement = () => {
     const result = await dispatch(aclsActions.deleteUserACL({ userID, acl }));
     if (result.status === "success") {
       dispatch(showNotification("User ACL successfully removed."));
+      dispatch(usersActions.fetchUsers(fetchParams));
+    }
+  };
+
+  const handleClickDeleteUserAffiliations = async (user, affiliation) => {
+    const data = {
+      affiliations: user.affiliations.filter((value) => value !== affiliation),
+    };
+    const result = await dispatch(
+      ProfileActions.updateBasicUserInfo(data, user.id)
+    );
+    if (result.status === "success") {
+      dispatch(showNotification("Successfully deleted user's affiliation."));
       dispatch(usersActions.fetchUsers(fetchParams));
     }
   };
@@ -401,6 +437,54 @@ const UserManagement = () => {
             <p>
               These are in addition to those ACLs associated with user role(s).
               See help icon tooltip in roles column header for those ACLs.
+            </p>
+          </>
+        }
+      >
+        <HelpIcon color="disabled" size="small" className={classes.icon} />
+      </Tooltip>
+    </>
+  );
+
+  const renderAffiliations = (dataIndex) => {
+    const user = users[dataIndex];
+    return (
+      <div>
+        <IconButton
+          aria-label="add-affiliation"
+          data-testid={`addUserAffiliationsButton${user.id}`}
+          onClick={() => {
+            setClickedUser(user);
+            setAddUserAffiliationsDialogOpen(true);
+          }}
+          size="small"
+        >
+          <AddCircleIcon color="disabled" />
+        </IconButton>
+        {user?.affiliations?.map((affiliation) => (
+          <Chip
+            label={affiliation}
+            onDelete={() => {
+              handleClickDeleteUserAffiliations(user, affiliation);
+            }}
+            key={affiliation}
+            data-testid={`deleteUserAffiliationsButton_${user.id}_${affiliation}`}
+          />
+        ))}
+      </div>
+    );
+  };
+
+  const renderAffiliationsHeader = () => (
+    <>
+      Affiliations
+      <Tooltip
+        interactive
+        title={
+          <>
+            <p>
+              These are affiliations. They can be used when writing papers or
+              circulars
             </p>
           </>
         }
@@ -579,6 +663,10 @@ const UserManagement = () => {
           type: "string",
           title: "Username",
         },
+        affiliations: {
+          type: "string",
+          title: "Affiliations",
+        },
         email: {
           type: "string",
           title: "Email",
@@ -644,6 +732,16 @@ const UserManagement = () => {
       label: "Username",
       options: {
         // Turn off default filtering for custom form
+        filter: false,
+      },
+    },
+    {
+      name: "affiliations",
+      label: "Affiliations",
+      options: {
+        sort: false,
+        customBodyRenderLite: renderAffiliations,
+        customHeadLabelRender: renderAffiliationsHeader,
         filter: false,
       },
     },
@@ -729,9 +827,11 @@ const UserManagement = () => {
     <Paper className={classes.container}>
       <Typography variant="h5">Manage users</Typography>
       <Paper variant="outlined" className={classes.section}>
-        <MuiThemeProvider theme={dataTableStyles(theme)}>
-          <MUIDataTable columns={columns} data={users} options={options} />
-        </MuiThemeProvider>
+        <StyledEngineProvider injectFirst>
+          <ThemeProvider theme={dataTableStyles(theme)}>
+            <MUIDataTable columns={columns} data={users} options={options} />
+          </ThemeProvider>
+        </StyledEngineProvider>
       </Paper>
       <br />
       {invitationsEnabled && <UserInvitations />}
@@ -918,6 +1018,85 @@ const UserManagement = () => {
         </DialogContent>
       </Dialog>
       <Dialog
+        open={addUserAffiliationsDialogOpen}
+        onClose={() => {
+          setAddUserAffiliationsDialogOpen(false);
+        }}
+        style={{ position: "fixed" }}
+      >
+        <DialogTitle>
+          {`Update user ${clickedUser?.username} affiliations:`}
+        </DialogTitle>
+        <DialogContent>
+          <form onSubmit={handleSubmit(handleAddUserAffiliations)}>
+            <Controller
+              name="affiliations"
+              render={({ onChange, value, ...props }) => (
+                <Autocomplete
+                  multiple
+                  onChange={(e, data) => onChange(data)}
+                  value={value}
+                  options={clickedUser?.affiliations?.map((aff) => aff)}
+                  // eslint-disable-next-line no-shadow
+                  filterOptions={(options, params) => {
+                    const filtered = filter(options, params);
+
+                    const { inputValue } = params;
+                    // Suggest the creation of a new value
+                    const isExisting = options.some(
+                      (option) => inputValue === option
+                    );
+                    if (inputValue !== "" && !isExisting) {
+                      filtered.push(inputValue);
+                    }
+
+                    return filtered;
+                  }}
+                  getOptionLabel={(option) => {
+                    // Value selected with enter, right from the input
+                    if (typeof option === "string") {
+                      return option;
+                    }
+                    // Add "xxx" option created dynamically
+                    if (option.inputValue) {
+                      return option.inputValue;
+                    }
+                    // Regular option
+                    return option;
+                  }}
+                  freeSolo
+                  data-testid="addUserAffiliationsSelect"
+                  renderInput={(params) => (
+                    <TextField
+                      // eslint-disable-next-line react/jsx-props-no-spreading
+                      {...params}
+                      variant="outlined"
+                      label="Select Affiliations"
+                      data-testid="addUserAffiliationsTextField"
+                    />
+                  )}
+                  // eslint-disable-next-line react/jsx-props-no-spreading
+                  {...props}
+                />
+              )}
+              control={control}
+              defaultValue={clickedUser?.affiliations}
+            />
+            <br />
+            <div>
+              <Button
+                variant="contained"
+                type="submit"
+                name="submitAddAffiliationsButton"
+                data-testid="submitAddAffilitiationsButton"
+              >
+                Submit
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+      <Dialog
         open={addUserRolesDialogOpen}
         onClose={() => {
           setAddUserRolesDialogOpen(false);
@@ -997,9 +1176,11 @@ const UserManagement = () => {
                     date ? onChange(dayjs.utc(date)) : onChange(date)
                   }
                   label="Expiration date (UTC)"
-                  format="YYYY/MM/DD"
-                  disablePast
-                  data-testid="expirationDatePicker"
+                  showTodayButton={false}
+                  renderInput={(params) => (
+                    /* eslint-disable-next-line react/jsx-props-no-spreading */
+                    <TextField id="expirationDatePicker" {...params} />
+                  )}
                 />
               )}
               name="date"

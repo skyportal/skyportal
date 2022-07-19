@@ -3,6 +3,7 @@ from sqlalchemy.orm import joinedload
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token, AccessError
 from baselayer.app.model_util import recursive_to_dict
+from baselayer.app.flow import Flow
 from ..base import BaseHandler
 from ...models import (
     DBSession,
@@ -11,8 +12,40 @@ from ...models import (
     Obj,
     Instrument,
     Source,
+    User,
 )
 from ...models.schema import ObservingRunPost, ObservingRunGetWithAssignments
+
+
+def post_observing_run(data, user_id, session):
+    """Post ObservingRun to database.
+    data: dict
+        Observing run dictionary
+    user_id : int
+        SkyPortal ID of User posting the GcnEvent
+    session: sqlalchemy.Session
+        Database session for this transaction
+    """
+
+    user = session.query(User).get(user_id)
+
+    try:
+        rund = ObservingRunPost.load(data)
+    except ValidationError as exc:
+        raise ValidationError(
+            f"Invalid/missing parameters: {exc.normalized_messages()}"
+        )
+
+    run = ObservingRun(**rund)
+    run.owner_id = user.id
+
+    session.add(run)
+    session.commit()
+
+    flow = Flow()
+    flow.push('*', "skyportal/FETCH_OBSERVING_RUNS")
+
+    return run.id
 
 
 class ObservingRunHandler(BaseHandler):
@@ -49,21 +82,9 @@ class ObservingRunHandler(BaseHandler):
         """
         data = self.get_json()
 
-        try:
-            rund = ObservingRunPost.load(data)
-        except ValidationError as exc:
-            return self.error(
-                f"Invalid/missing parameters: {exc.normalized_messages()}"
-            )
-
-        run = ObservingRun(**rund)
-        run.owner_id = self.associated_user_object.id
-
-        DBSession().add(run)
-        self.verify_and_commit()
-
-        self.push_all(action="skyportal/FETCH_OBSERVING_RUNS")
-        return self.success(data={"id": run.id})
+        with DBSession() as session:
+            run_id = post_observing_run(data, self.associated_user_object.id, session)
+            return self.success(data={"id": run_id})
 
     @auth_or_token
     def get(self, run_id=None):

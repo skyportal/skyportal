@@ -50,9 +50,11 @@ class FilterHandler(BaseHandler):
             f = Filter.get_if_accessible_by(
                 filter_id,
                 self.current_user,
-                raise_if_none=True,
                 options=[joinedload(Filter.stream)],
             )
+            if f is None:
+                return self.error(f'Cannot find a filter with ID: {filter_id}.')
+
             self.verify_and_commit()
             return self.success(data=f)
 
@@ -126,9 +128,10 @@ class FilterHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        f = Filter.get_if_accessible_by(
-            filter_id, self.current_user, mode="update", raise_if_none=True
-        )
+        f = Filter.get_if_accessible_by(filter_id, self.current_user, mode="update")
+        if f is None:
+            return self.error(f'Cannot find a filter with ID: {filter_id}.')
+
         data = self.get_json()
         data["id"] = filter_id
 
@@ -165,9 +168,10 @@ class FilterHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        f = Filter.get_if_accessible_by(
-            filter_id, self.current_user, mode="delete", raise_if_none=True
-        )
+        f = Filter.get_if_accessible_by(filter_id, self.current_user, mode="delete")
+        if f is None:
+            return self.error(f'Cannot find a filter with ID: {filter_id}.')
+
         DBSession().delete(f)
         self.verify_and_commit()
         return self.success()

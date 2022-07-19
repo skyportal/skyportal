@@ -1,8 +1,10 @@
+from sqlalchemy.orm import sessionmaker, scoped_session
 from baselayer.app.access import auth_or_token
 
 from ..base import BaseHandler
 from ...models import (
     FollowupRequest,
+    DBSession,
 )
 
 
@@ -27,10 +29,13 @@ class PhotometryRequestHandler(BaseHandler):
                 schema: Success
         """
 
+        Session = scoped_session(
+            sessionmaker(bind=DBSession.session_factory.kw["bind"])
+        )
+        session = Session()
+
         try:
-            followup_request = FollowupRequest.get_if_accessible_by(
-                request_id, self.current_user, mode="read", raise_if_none=True
-            )
+            followup_request = session.query(FollowupRequest).get(request_id)
 
             api = followup_request.instrument.api_class
             if not api.implements()['get']:
@@ -39,7 +44,7 @@ class PhotometryRequestHandler(BaseHandler):
             followup_request.last_modified_by_id = self.associated_user_object.id
             internal_key = followup_request.obj.internal_key
 
-            api.get(followup_request)
+            api.get(followup_request, session)
             self.verify_and_commit()
 
             self.push_all(

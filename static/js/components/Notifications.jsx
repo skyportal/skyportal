@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
 
-import Badge from "@material-ui/core/Badge";
-import MUINotificationsIcon from "@material-ui/icons/NotificationsOutlined";
-import IconButton from "@material-ui/core/IconButton";
-import Popover from "@material-ui/core/Popover";
-import { makeStyles } from "@material-ui/core/styles";
-import List from "@material-ui/core/List";
-import ListItem from "@material-ui/core/ListItem";
-import Divider from "@material-ui/core/Divider";
-import Button from "@material-ui/core/Button";
+import Badge from "@mui/material/Badge";
+import MUINotificationsIcon from "@mui/icons-material/NotificationsOutlined";
+import IconButton from "@mui/material/IconButton";
+import Popover from "@mui/material/Popover";
+import makeStyles from "@mui/styles/makeStyles";
+import List from "@mui/material/List";
+import ListItem from "@mui/material/ListItem";
+import Divider from "@mui/material/Divider";
+import Button from "@mui/material/Button";
 import ReactMarkdown from "react-markdown";
 
 import * as userNotificationsActions from "../ducks/userNotifications";
@@ -102,6 +102,7 @@ const Notifications = () => {
         onClick={handleClickOpen}
         style={{ margin: "0.5rem" }}
         data-testid="notificationsButton"
+        size="large"
       >
         <Badge
           badgeContent={unreadCount}

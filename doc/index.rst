@@ -99,6 +99,7 @@ User Guide
    slack
    mma
    advanced_usage
+   analysis
 
 Contributing
 ------------

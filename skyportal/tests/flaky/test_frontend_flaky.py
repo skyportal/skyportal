@@ -1,12 +1,17 @@
+import datetime
 import os
 import uuid
-import pytest
 import pandas as pd
 import time
 from regions import Regions
+from tdtax import taxonomy, __version__
 
+import pytest
 from skyportal.tests import api
 from selenium.webdriver.common.keys import Keys
+from selenium.common.exceptions import TimeoutException
+from selenium.webdriver.common.by import By
+from datetime import date, timedelta
 
 
 @pytest.mark.flaky(reruns=2)
@@ -35,8 +40,8 @@ def test_telescope_frontend_desktop(super_admin_token, super_admin_user, driver)
     driver.get("/telescopes")
 
     # check for API telescope in the map
-    marker_xpath = f'//*[@id="telescopes_label"][contains(.,"{telescope_name}")]'
-    driver.wait_for_xpath(marker_xpath)
+    marker_xpath = f'//*[@class="rsm-svg "]/*/*/*[@id="telescope_marker"]/*[@id="telescopes_label"][contains(.,"{telescope_name}")]'
+    driver.wait_for_xpath(marker_xpath, timeout=30)
     driver.click_xpath(marker_xpath)
     # check for API telescope in the list
     driver.wait_for_xpath(f'//*[@id="{telescope_name}_info"]')
@@ -52,9 +57,10 @@ def test_telescope_frontend_desktop(super_admin_token, super_admin_user, driver)
     driver.wait_for_xpath('//*[@id="root_diameter"]').send_keys('2.0')
     driver.wait_for_xpath('//*[@id="root_lat"]').send_keys('10.0')
     driver.wait_for_xpath('//*[@id="root_lon"]').send_keys('10.0')
+    driver.wait_for_xpath('//*[@id="root_elevation"]').send_keys('50.0')
 
-    tab = driver.find_element_by_xpath('//*[@class="MuiFormGroup-root"]')
-    for row in tab.find_elements_by_xpath('//span[text()="Yes"]'):
+    tab = driver.find_element(By.XPATH, '//*[@class="MuiFormGroup-root"]')
+    for row in tab.find_elements(By.XPATH, '//span[text()="Yes"]'):
         row.click()
 
     submit_button_xpath = '//button[@type="submit"]'
@@ -62,8 +68,8 @@ def test_telescope_frontend_desktop(super_admin_token, super_admin_user, driver)
     driver.click_xpath(submit_button_xpath)
 
     # check for form telescope in the map
-    marker_xpath = f'//*[@id="telescopes_label"][contains(.,"{name2}")]'
-    driver.wait_for_xpath(marker_xpath)
+    marker_xpath = f'//*[@class="rsm-svg "]/*/*/*[@id="telescope_marker"]/*[@id="telescopes_label"][contains(.,"{name2}")]'
+    driver.wait_for_xpath(marker_xpath, timeout=30)
     driver.click_xpath(marker_xpath)
     # check for form telescope in the list
     driver.wait_for_xpath(f'//*[@id="{name2}_info"]')
@@ -97,16 +103,21 @@ def test_telescope_frontend_mobile(super_admin_token, super_admin_user, driver):
     driver.get("/telescopes")
 
     # check for API instrument
-    driver.wait_for_xpath(f'//span[text()="{telescope_name}"]')
+    driver.wait_for_xpath(
+        f'//*[@class="MuiList-root MuiList-padding"]/*/*/span[text()="{telescope_name}"]'
+    )
 
     # add dropdown instrument
     name2 = str(uuid.uuid4())
     driver.wait_for_xpath('//*[@id="root_name"]').send_keys(name2)
     driver.wait_for_xpath('//*[@id="root_nickname"]').send_keys(name2)
+    driver.wait_for_xpath('//*[@id="root_lat"]').send_keys('5.0')
+    driver.wait_for_xpath('//*[@id="root_lon"]').send_keys('5.0')
     driver.wait_for_xpath('//*[@id="root_diameter"]').send_keys('2.0')
+    driver.wait_for_xpath('//*[@id="root_elevation"]').send_keys('50.0')
 
-    tab = driver.find_element_by_xpath('//*[@class="MuiFormGroup-root"]')
-    for row in tab.find_elements_by_xpath('//span[text()="Yes"]'):
+    tab = driver.find_element(By.XPATH, '//*[@class="MuiFormGroup-root"]')
+    for row in tab.find_elements(By.XPATH, '//span[text()="Yes"]'):
         row.click()
 
     submit_button_xpath = '//button[@type="submit"]'
@@ -114,7 +125,12 @@ def test_telescope_frontend_mobile(super_admin_token, super_admin_user, driver):
     driver.click_xpath(submit_button_xpath)
 
     # check for dropdown instrument
-    driver.wait_for_xpath(f'//span[text()="{name2}"]')
+    driver.wait_for_xpath(
+        f'//*[@class="MuiList-root MuiList-padding"]/*/*/span[text()="{name2}"]'
+    )
+
+    driver.set_window_position(0, 0)
+    driver.set_window_size(1920, 1080)
 
 
 @pytest.mark.flaky(reruns=5)
@@ -183,7 +199,10 @@ def test_instrument_frontend(super_admin_token, super_admin_user, driver):
         f'//span[text()[contains(.,"{instrument_name2}/{telescope_name}")]]', timeout=20
     )
     # try adding a second time
+    driver.click_xpath("//body")
+    driver.execute_script("window.scrollBy(0,0)", "")
     driver.wait_for_xpath('//*[@id="root_name"]').send_keys(instrument_name2)
+
     driver.click_xpath('//*[@id="root_type"]')
     driver.click_xpath('//li[contains(text(), "Imager")]')
     driver.wait_for_xpath('//*[@id="root_band"]').send_keys('Optical')
@@ -280,18 +299,19 @@ def test_super_user_post_allocation(
 
     # go to the allocations page
     driver.get("/allocations")
-
+    start_date = date.today().strftime("%m/%d/%Y")
+    end_date = (date.today() + timedelta(days=2)).strftime("%m/%d/%Y")
     # check for API instrument
     driver.wait_for_xpath(
         f'//span[text()[contains(.,"{instrument_name}/{telescope_name}")]]', timeout=20
     )
     driver.wait_for_xpath('//*[@id="root_pi"]').send_keys('Shri')
-    driver.wait_for_xpath('//*[@id="root_start_date"]').send_keys('01/01/2022')
+    driver.wait_for_xpath('//*[@id="root_start_date"]').send_keys(start_date)
     driver.wait_for_xpath('//*[@id="root_start_date"]').send_keys(Keys.TAB)
     driver.wait_for_xpath('//*[@id="root_start_date"]').send_keys('01:01')
     driver.wait_for_xpath('//*[@id="root_start_date"]').send_keys('P')
 
-    driver.wait_for_xpath('//*[@id="root_end_date"]').send_keys('03/01/2022')
+    driver.wait_for_xpath('//*[@id="root_end_date"]').send_keys(end_date)
     driver.wait_for_xpath('//*[@id="root_end_date"]').send_keys(Keys.TAB)
     driver.wait_for_xpath('//*[@id="root_end_date"]').send_keys('01:01')
     driver.wait_for_xpath('//*[@id="root_end_date"]').send_keys('P')
@@ -435,8 +455,8 @@ def test_gcnevents_observations(
     driver.wait_for_xpath('//*[@id="root_endDate"]').send_keys('P')
     driver.wait_for_xpath('//*[@id="root_localizationCumprob"]').clear()
     driver.wait_for_xpath('//*[@id="root_localizationCumprob"]').send_keys('1.01')
-    driver.wait_for_xpath('//*[@id="root_localizationName"]')
-    driver.click_xpath('//*[@id="root_localizationName"]')
+    driver.wait_for_xpath('//*[@id="localizationSelectLabel"]/../*/*[@role="button"]')
+    driver.click_xpath('//*[@id="localizationSelectLabel"]/../*/*[@role="button"]')
     driver.wait_for_xpath('//li[contains(text(), "bayestar.fits.gz")]')
     driver.click_xpath('//li[contains(text(), "bayestar.fits.gz")]')
 
@@ -447,7 +467,7 @@ def test_gcnevents_observations(
     driver.click_xpath(submit_button_xpath)
 
     # check that the executed observation table appears
-    driver.wait_for_xpath('//*[text()="84434604"]')
+    driver.wait_for_xpath('//*[text()="84434604"]', timeout=10)
     driver.wait_for_xpath('//*[text()="ztfr"]')
     driver.wait_for_xpath('//*[text()="1.57415"]')
     driver.wait_for_xpath('//*[text()="20.40705"]')
@@ -512,7 +532,7 @@ def test_followup_request_frontend(
     )
 
 
-@pytest.mark.flaky(reruns=2)
+# @pytest.mark.flaky(reruns=2)
 def test_observationplan_request(driver, user, super_admin_token, public_group):
 
     datafile = f'{os.path.dirname(__file__)}/../data/GW190425_initial.xml'
@@ -602,11 +622,28 @@ def test_observationplan_request(driver, user, super_admin_token, public_group):
     )
     assert status == 200
     assert data["status"] == "success"
+    catalog_name = str(uuid.uuid4())
+    galaxy_name = str(uuid.uuid4())
+    data = {
+        'catalog_name': catalog_name,
+        'catalog_data': {'name': [galaxy_name], 'ra': [228.5], 'dec': [35.5]},
+    }
+    status, data = api('POST', 'galaxy_catalog', data=data, token=super_admin_token)
+    assert status == 200
+    assert data['status'] == 'success'
 
     driver.get(f'/become_user/{user.id}')
     driver.get('/gcn_events/2019-04-25T08:18:05')
 
-    driver.wait_for_xpath('//*[text()="190425 08:18:05"]')
+    nretries = 0
+    while nretries < 5:
+        try:
+            driver.wait_for_xpath('//*[text()="190425 08:18:05"]')
+            break
+        except TimeoutException:
+            driver.refresh()
+            nretries = nretries + 1
+
     driver.wait_for_xpath('//*[text()="LVC"]')
     driver.wait_for_xpath('//*[text()="BNS"]')
 
@@ -615,27 +652,29 @@ def test_observationplan_request(driver, user, super_admin_token, public_group):
     )
     driver.wait_for_xpath(submit_button_xpath)
 
-    select_box = driver.find_element_by_id(
-        "mui-component-select-followupRequestAllocationSelect"
+    select_box = driver.find_element(
+        By.ID, "mui-component-select-followupRequestAllocationSelect"
     )
     select_box.click()
-
     driver.click_xpath(
         f'//li[contains(text(), "{instrument_name}")][contains(text(), "{public_group.name}")]',
         scroll_parent=True,
     )
-
     # Click somewhere outside to remove focus from instrument select
-    driver.click_xpath("//header")
-
+    driver.click_xpath("//body")
     driver.click_xpath(submit_button_xpath)
 
+    submit_button_xpath = '//button[contains(., "Generate Observation Plans")]'
+    driver.wait_for_xpath(submit_button_xpath)
+    driver.click_xpath(submit_button_xpath)
+    time.sleep(30)
+
     driver.wait_for_xpath(
-        f"//div[@data-testid='{instrument_name}-requests-header']", timeout=15
+        f"//div[@data-testid='{instrument_name}-requests-header']", timeout=30
     )
     driver.click_xpath(f"//div[@data-testid='{instrument_name}-requests-header']")
     driver.wait_for_xpath(
-        f'//div[contains(@data-testid, "{instrument_name}_observationplanRequestsTable")]//div[contains(., "g,r,i")]',
+        f'//div[contains(@data-testid, "{instrument_name}_observationplanRequestsTable")]//div[contains(., "ztfg,ztfr,ztfi")]',
         timeout=15,
     )
     driver.wait_for_xpath(
@@ -671,6 +710,10 @@ def test_observationplan_request(driver, user, super_admin_token, public_group):
     )
     driver.click_xpath(
         f'//button[contains(@data-testid, "removeRequest_{observation_plan_request_id}")]',
+        scroll_parent=True,
+    )
+    driver.click_xpath(
+        f'//button[contains(@data-testid, "observingRunRequest_{observation_plan_request_id}")]',
         scroll_parent=True,
     )
     driver.wait_for_xpath(
@@ -749,8 +792,6 @@ def test_gcn_request(driver, user, super_admin_token, public_group):
             assert data['status'] == 'success'
             assert data['data']['band'] == 'NIR'
 
-            print(data['data'])
-
             assert len(data['data']['fields']) == 5
             fields_loaded = True
         except AssertionError:
@@ -798,13 +839,19 @@ def test_gcn_request(driver, user, super_admin_token, public_group):
 
     driver.get(f'/become_user/{user.id}')
     driver.get('/gcn_events/2019-04-25T08:18:05')
-
-    driver.wait_for_xpath('//*[text()="190425 08:18:05"]')
+    nretries = 0
+    while nretries < 5:
+        try:
+            driver.wait_for_xpath('//*[text()="190425 08:18:05"]', timeout=20)
+            break
+        except TimeoutException:
+            driver.refresh()
+            nretries = nretries + 1
     driver.wait_for_xpath('//*[text()="LVC"]')
     driver.wait_for_xpath('//*[text()="BNS"]')
 
-    driver.wait_for_xpath('//*[@id="root_localizationName"]')
-    driver.click_xpath('//*[@id="root_localizationName"]')
+    driver.wait_for_xpath('//*[@id="localizationSelectLabel"]/../*/*[@role="button"]')
+    driver.click_xpath('//*[@id="localizationSelectLabel"]/../*/*[@role="button"]')
     driver.wait_for_xpath('//li[contains(text(), "bayestar.fits.gz")]')
     driver.click_xpath('//li[contains(text(), "bayestar.fits.gz")]')
     driver.wait_for_xpath('//*[@id="root_localizationCumprob"]').clear()
@@ -814,17 +861,178 @@ def test_gcn_request(driver, user, super_admin_token, public_group):
     driver.wait_for_xpath(submit_button_xpath)
     driver.click_xpath(submit_button_xpath)
 
-    select_box = driver.find_element_by_id(
-        "mui-component-select-followupRequestInstrumentSelect"
-    )
-    select_box.click()
+    # adding a retry loop because the list of instruments can take time to be fetched
+    driver.wait_for_xpath('//*[@id="instrumentSelectLabel"]/../*/*[@role="button"]')
+    driver.click_xpath('//*[@id="instrumentSelectLabel"]/../*/*[@role="button"]')
 
-    driver.click_xpath(
-        f'//li[contains(text(), "{telescope_name}")][contains(text(), "{instrument_name}")]',
-        scroll_parent=True,
-    )
+    nretries = 0
+    while nretries < 5:
+        try:
+            driver.click_xpath(
+                f'//*[@id="menu-gcnPageInstrumentSelect"]/*/ul/li[contains(text(), "{instrument_name}")]',
+                scroll_parent=True,
+            )
+            break
+        except AssertionError:
+            nretries = nretries + 1
 
     driver.click_xpath(
         f'//a[contains(@data-testid, "observationGcn_{instrument_id}")]',
         scroll_parent=True,
     )
+
+
+@pytest.mark.flaky(reruns=2)
+def test_candidate_date_filtering(
+    driver,
+    user,
+    public_candidate,
+    public_filter,
+    public_group,
+    upload_data_token,
+    ztf_camera,
+):
+    candidate_id = str(uuid.uuid4())
+    for i in range(5):
+        status, data = api(
+            "POST",
+            "candidates",
+            data={
+                "id": f"{candidate_id}_{i}",
+                "ra": 234.22,
+                "dec": -22.33,
+                "redshift": 3,
+                "altdata": {"simbad": {"class": "RRLyr"}},
+                "transient": False,
+                "ra_dis": 2.3,
+                "filter_ids": [public_filter.id],
+                "passed_at": str(datetime.datetime.utcnow()),
+            },
+            token=upload_data_token,
+        )
+        assert status == 200
+
+        status, data = api(
+            "POST",
+            "photometry",
+            data={
+                "obj_id": f"{candidate_id}_{i}",
+                "mjd": 58000.0,
+                "instrument_id": ztf_camera.id,
+                "flux": 12.24,
+                "fluxerr": 0.031,
+                "zp": 25.0,
+                "magsys": "ab",
+                "filter": "ztfr",
+                "group_ids": [public_group.id],
+            },
+            token=upload_data_token,
+        )
+        assert status == 200
+
+    driver.get(f"/become_user/{user.id}")
+    driver.get("/candidates")
+    driver.click_xpath(
+        f'//*[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]',
+        wait_clickable=False,
+    )
+    start_date_input = driver.wait_for_xpath("//input[@id='startDatePicker']")
+    start_date_input.clear()
+    start_date_input.send_keys("12/01/2020 12:00 p")
+    end_date_input = driver.wait_for_xpath("//input[@id='endDatePicker']")
+    end_date_input.clear()
+    end_date_input.send_keys("12/01/2020 12:00 p")
+    submit_button = driver.wait_for_xpath_to_be_clickable('//button[text()="Search"]')
+    driver.scroll_to_element_and_click(submit_button)
+    for i in range(5):
+        driver.wait_for_xpath_to_disappear(
+            f'//a[@data-testid="{candidate_id}_{i}"]', 10
+        )
+    end_date_input.clear()
+    end_date_input.send_keys("12/01/2090 12:00 p")
+    submit_button = driver.wait_for_xpath_to_be_clickable('//button[text()="Search"]')
+    driver.scroll_to_element_and_click(submit_button)
+    for i in range(5):
+        driver.wait_for_xpath(f'//a[@data-testid="{candidate_id}_{i}"]', 10)
+
+
+def filter_for_user(driver, username):
+    # Helper function to filter for a specific user on the page
+    driver.click_xpath("//button[@data-testid='Filter Table-iconButton']")
+    username_input_xpath = "//input[@id='root_username']"
+    username_input = driver.wait_for_xpath(username_input_xpath)
+    driver.click_xpath(username_input_xpath)
+    username_input.send_keys(username)
+    driver.click_xpath(
+        "//div[contains(@class, 'MUIDataTableFilter-root')]//button[text()='Submit']",
+        scroll_parent=True,
+    )
+
+
+def test_user_expiration(
+    driver,
+    user,
+    super_admin_user,
+):
+    driver.get(f'/become_user/{super_admin_user.id}')
+    driver.get('/user_management')
+    filter_for_user(driver, user.username)
+
+    # Set expiration date to today
+    driver.click_xpath(f"//*[@data-testid='editUserExpirationDate{user.id}']")
+    date = datetime.now().strftime("%m/%d/%Y")
+    driver.wait_for_xpath("//input[@id='expirationDatePicker']").send_keys(date)
+    driver.click_xpath('//*[text()="Submit"]')
+
+    # Check that user deactivated
+    driver.get(f'/become_user/{user.id}')
+    driver.get("/")
+    driver.wait_for_xpath_to_disappear("//*[contains(text(), 'Top Sources')]")
+
+
+def test_slider_classifications(
+    driver,
+    public_source,
+    super_admin_user,
+    public_group,
+    taxonomy_token,
+):
+    test_taxonomy = "test taxonomy" + str(uuid.uuid4())
+    status, _ = api(
+        'POST',
+        'taxonomy',
+        data={
+            'name': test_taxonomy,
+            'hierarchy': taxonomy,
+            'group_ids': [public_group.id],
+            'provenance': f"tdtax_{__version__}",
+            'version': __version__,
+            'isLatest': True,
+        },
+        token=taxonomy_token,
+    )
+    assert status == 200
+
+    driver.get(f"/become_user/{super_admin_user.id}")  # become a super-user
+
+    # Go to the group sources page
+    driver.get(f"/group_sources/{public_group.id}")
+
+    # Wait for the group name appears
+    driver.wait_for_xpath(f"//*[text()[contains(., '{public_group.name}')]]")
+
+    # Expand public source row
+    driver.click_xpath("//*[@id='expandable-button']")
+
+    # Select test taxonomy
+    driver.click_xpath(f"//*[@id='taxonomy-select-{public_source.id}']")
+    driver.click_xpath(f"//li[text()='{test_taxonomy}']", scroll_parent=True)
+    driver.click_xpath("//h6[text()='Stellar variable']")
+
+    # Set 'Algol' slider to 0.5
+    driver.click_xpath("//span[@id='Algol']//span[@data-index='2']")
+    driver.click_xpath("//button[@name='submitClassificationsButton']")
+
+    # need to reload the page to see classification
+    driver.get(f"/group_sources/{public_group.id}")
+    driver.wait_for_xpath(f"//*[text()[contains(., '{'Algol'}')]]")

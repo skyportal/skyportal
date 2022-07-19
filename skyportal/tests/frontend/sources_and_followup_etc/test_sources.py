@@ -4,8 +4,8 @@ import uuid
 from io import BytesIO
 import pytest
 from selenium.webdriver.common.action_chains import ActionChains
-from selenium.webdriver.common.keys import Keys
 from selenium.common.exceptions import TimeoutException
+from selenium.webdriver.common.by import By
 from PIL import Image, ImageChops
 
 from baselayer.app.config import load_config
@@ -56,7 +56,7 @@ def test_comment_username_autosuggestion(driver, user, public_source):
     comment_text = f"hey @{user.username[:5]}"
     enter_comment_text(driver, comment_text)
     matchButtonXpath = (
-        f'//button//span[text()="{user.username} {user.first_name} {user.last_name}"]'
+        f'//button[text()="{user.username} {user.first_name} {user.last_name}"]'
     )
     driver.wait_for_xpath(matchButtonXpath)
     driver.click_xpath(matchButtonXpath)
@@ -74,7 +74,7 @@ def test_comment_user_last_name_autosuggestion(driver, user, public_source):
     comment_text = f"hey @{user.last_name[:5]}"
     enter_comment_text(driver, comment_text)
     matchButtonXpath = (
-        f'//button//span[text()="{user.username} {user.first_name} {user.last_name}"]'
+        f'//button[text()="{user.username} {user.first_name} {user.last_name}"]'
     )
     driver.wait_for_xpath(matchButtonXpath)
     driver.click_xpath(matchButtonXpath)
@@ -92,7 +92,7 @@ def test_comment_user_first_name_autosuggestion(driver, user, public_source):
     comment_text = f"hey @{user.first_name[:5]}"
     enter_comment_text(driver, comment_text)
     matchButtonXpath = (
-        f'//button//span[text()="{user.username} {user.first_name} {user.last_name}"]'
+        f'//button[text()="{user.username} {user.first_name} {user.last_name}"]'
     )
     driver.wait_for_xpath(matchButtonXpath)
     driver.click_xpath(matchButtonXpath)
@@ -187,16 +187,14 @@ def test_classifications(driver, user, taxonomy_token, public_group, public_sour
     ActionChains(driver).move_to_element(header).click().perform()
 
     driver.click_xpath('//*[@id="probability"]')
-    driver.wait_for_xpath('//*[@id="probability"]').send_keys("1", Keys.ENTER)
-    driver.click_xpath(
-        "//*[@id='classifications-content']//span[text()='Submit']",
-        wait_clickable=False,
-    )
+    driver.wait_for_xpath('//*[@id="probability"]').send_keys("1")
+
+    driver.click_xpath("//*[text()='Submit']", wait_clickable=False)
     # Notification
     driver.wait_for_xpath("//*[text()='Classification saved']")
     # Scroll up to get top of classifications list component in view
-    classifications = driver.find_element_by_xpath(
-        "//div[@id='classifications-header']"
+    classifications = driver.find_element(
+        By.XPATH, "//div[@id='classifications-header']"
     )
     driver.scroll_to_element(classifications)
 
@@ -219,14 +217,11 @@ def test_classifications(driver, user, taxonomy_token, public_group, public_sour
     driver.click_xpath('//*[@id="classification"]')
     driver.click_xpath('//li[contains(@data-value, "Mult-mode")]', scroll_parent=True)
     driver.click_xpath('//*[@id="probability"]')
-    driver.wait_for_xpath('//*[@id="probability"]').send_keys("0.02", Keys.ENTER)
-    driver.click_xpath(
-        "//*[@id='classifications-content']//span[text()='Submit']",
-        wait_clickable=False,
-    )
+    driver.wait_for_xpath('//*[@id="probability"]').send_keys("0.02")
+    driver.click_xpath("//*[text()='Submit']", wait_clickable=False)
     driver.wait_for_xpath("//*[text()='Classification saved']")
-    driver.find_element_by_xpath(
-        "//span[contains(@class, 'MuiChip-label') and text()='Mult-mode?']"
+    driver.find_element(
+        By.XPATH, "//span[contains(@class, 'MuiChip-label') and text()='Mult-mode?']"
     )
 
 
@@ -323,7 +318,7 @@ def test_upload_download_comment_attachment(driver, user, public_source):
         comment_text_p = driver.wait_for_xpath(
             f'//div[@data-testid="comments-accordion"]//p[text()="{comment_text}"]'
         )
-    comment_div = comment_text_p.find_element_by_xpath("../..")
+    comment_div = comment_text_p.find_element(By.XPATH, "../..")
     driver.execute_script("arguments[0].scrollIntoView();", comment_div)
     ActionChains(driver).move_to_element(comment_div).perform()
 
@@ -384,10 +379,11 @@ def test_delete_comment(driver, user, public_source):
     comment_text = str(uuid.uuid4())
     add_comment_and_wait_for_display(driver, comment_text)
     comment_text_p = driver.wait_for_xpath(f'//p[text()="{comment_text}"]')
-    comment_div = comment_text_p.find_element_by_xpath("../..")
-    comment_id = comment_div.get_attribute("name").split("commentDiv")[-1]
-    delete_button = comment_div.find_element_by_xpath(
-        f"//*[@name='deleteCommentButton{comment_id}']"
+    comment_div = comment_text_p.find_element(By.XPATH, "../..")
+    comment_id = comment_div.get_attribute("name").split("commentDivSource")[-1]
+    print("comment_id", comment_id)
+    delete_button = comment_div.find_element(
+        By.XPATH, f"//*[@name='deleteCommentButton{comment_id}']"
     )
     driver.execute_script("arguments[0].scrollIntoView();", comment_div)
     ActionChains(driver).move_to_element(comment_div).pause(0.1).perform()
@@ -403,10 +399,10 @@ def test_delete_comment(driver, user, public_source):
         except TimeoutException:
             return
         else:
-            comment_div = comment_text_div.find_element_by_xpath("..")
-            comment_id = comment_div.get_attribute("name").split("commentDiv")[-1]
-            delete_button = comment_div.find_element_by_xpath(
-                f"//*[@name='deleteCommentButton{comment_id}']"
+            comment_div = comment_text_div.find_element(By.XPATH, "..")
+            comment_id = comment_div.get_attribute("name").split("commentDivSource")[-1]
+            delete_button = comment_div.find_element(
+                By.XPATH, f"//*[@name='deleteCommentButton{comment_id}']"
             )
             driver.execute_script("arguments[0].scrollIntoView();", comment_div)
             ActionChains(driver).move_to_element(comment_div).pause(0.1).perform()
@@ -426,10 +422,10 @@ def test_regular_user_cannot_delete_unowned_comment(
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_source.id}")
     comment_text_p = driver.wait_for_xpath(f'//p[text()="{comment_text}"]')
-    comment_div = comment_text_p.find_element_by_xpath("../..")
-    comment_id = comment_div.get_attribute("name").split("commentDiv")[-1]
-    delete_button = comment_div.find_element_by_xpath(
-        f"//*[@name='deleteCommentButton{comment_id}']"
+    comment_div = comment_text_p.find_element(By.XPATH, "../..")
+    comment_id = comment_div.get_attribute("name").split("commentDivSource")[-1]
+    delete_button = comment_div.find_element(
+        By.XPATH, f"//*[@name='deleteCommentButton{comment_id}']"
     )
     driver.execute_script("arguments[0].scrollIntoView();", comment_div)
     ActionChains(driver).move_to_element(comment_div).pause(0.1).perform()
@@ -450,8 +446,8 @@ def test_super_user_can_delete_unowned_comment(
     driver.get(f"/source/{public_source.id}")
 
     comment_text_p = driver.wait_for_xpath(f'//p[text()="{comment_text}"]')
-    comment_div = comment_text_p.find_element_by_xpath("../..")
-    comment_id = comment_div.get_attribute("name").split("commentDiv")[-1]
+    comment_div = comment_text_p.find_element(By.XPATH, "../..")
+    comment_id = comment_div.get_attribute("name").split("commentDivSource")[-1]
 
     # wait for delete button to become interactible - hence pause 0.1
     driver.scroll_to_element(comment_text_p)
@@ -467,7 +463,7 @@ def test_super_user_can_delete_unowned_comment(
 def test_show_starlist(driver, user, public_source):
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_source.id}")
-    button = driver.wait_for_xpath('//span[text()="Show Starlist"]')
+    button = driver.wait_for_xpath('//button[text()="Show Starlist"]')
     button.click()
     driver.wait_for_xpath("//code/div/pre[text()[contains(., '_o1')]]", timeout=45)
 
@@ -732,9 +728,12 @@ def test_source_hr_diagram(driver, user, public_source, annotation_token):
         f'sources/{public_source.id}/annotations',
         data={
             'obj_id': public_source.id,
-            'origin': 'cross_match1',
+            'origin': 'gaiadr3.gaia_source',
             'data': {
-                'gaia': {'Mag_G': 11.3, 'Mag_Bp': 12.8, 'Mag_Rp': 11.0, 'Plx': 20}
+                'Mag_G': 11.3,
+                'Mag_Bp': 12.8,
+                'Mag_Rp': 11.0,
+                'Plx': 20,
             },
         },
         token=annotation_token,
@@ -828,5 +827,5 @@ def test_duplicate_sources_render(
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_source.id}")
     driver.wait_for_xpath('//*[contains(text(), "Possible duplicate of:")]')
-    driver.click_xpath(f'//button//span[text()="{obj_id2}"]')
+    driver.click_xpath(f'//button[text()="{obj_id2}"]')
     driver.wait_for_xpath(f'//div[text()="{obj_id2}"]')

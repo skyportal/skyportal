@@ -1,6 +1,8 @@
+import arrow
 from sqlalchemy.orm import joinedload
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token, AccessError
+from skyportal.models.comment import CommentOnShift
 from ..base import BaseHandler
 from ...models import (
     DBSession,
@@ -10,6 +12,7 @@ from ...models import (
     User,
     Token,
     UserNotification,
+    GcnEvent,
 )
 
 
@@ -66,6 +69,9 @@ class ShiftHandler(BaseHandler):
                             description:
                               type: string
                               description: New Shift's description
+                            required_users_number:
+                              type: integer
+                              description: The number of users required to join this shift for it to be considered full
           400:
             content:
               application/json:
@@ -168,6 +174,7 @@ class ShiftHandler(BaseHandler):
             for su in shift.shift_users:
                 user = su.user.to_dict()
                 user["admin"] = su.admin
+                user["needs_replacement"] = su.needs_replacement
                 del user["oauth_uid"]
                 susers.append(user)
             gusers = []
@@ -181,6 +188,35 @@ class ShiftHandler(BaseHandler):
             shift["shift_users"] = susers
             shift["group"] = shift["group"].to_dict()
             shift["group"]["group_users"] = gusers
+            comments = (
+                CommentOnShift.query_records_accessible_by(
+                    self.current_user,
+                    options=[
+                        joinedload(CommentOnShift.author),
+                        joinedload(CommentOnShift.groups),
+                    ],
+                )
+                .filter(CommentOnShift.shift_id == shift["id"])
+                .all()
+            )
+            shift["comments"] = sorted(
+                (
+                    {
+                        **{
+                            k: v
+                            for k, v in c.to_dict().items()
+                            if k != "attachment_bytes"
+                        },
+                        "author": {
+                            **c.author.to_dict(),
+                            "gravatar_url": c.author.gravatar_url,
+                        },
+                    }
+                    for c in comments
+                ),
+                key=lambda x: x["created_at"],
+                reverse=True,
+            )
             shifts.append(shift)
 
         self.verify_and_commit()
@@ -277,6 +313,9 @@ class ShiftUserHandler(BaseHandler):
                             admin:
                               type: boolean
                               description: Boolean indicating whether user is shift admin
+                            needs_replacement:
+                              type: boolean
+                              description: Boolean indicating whether user needs replacement or not
         """
 
         data = self.get_json()
@@ -289,25 +328,39 @@ class ShiftUserHandler(BaseHandler):
         except (ValueError, TypeError):
             return self.error("Invalid userID parameter: unable to parse to integer")
 
+        needs_replacement = data.get("needs_replacement", False)
+        try:
+            needs_replacement = bool(needs_replacement)
+        except (ValueError, TypeError):
+            return self.error(
+                "Invalid needs_replacement parameter: unable to parse to boolean"
+            )
+
         admin = data.get("admin", False)
         if not isinstance(admin, bool):
             return self.error(
                 "Invalid (non-boolean) value provided for parameter `admin`"
             )
-        # if the shift has no users, we need to make sure the user is an admin
-        if not ShiftUser.query.filter_by(shift_id=shift_id).count():
-            admin = True
-
-        shift_id = int(shift_id)
+        # if the shift has no admins, we add the user as an admin
+        try:
+            shift_id = int(shift_id)
+        except (ValueError, TypeError):
+            return self.error("Invalid shift_id parameter: unable to parse to integer")
 
         shift = Shift.get_if_accessible_by(
-            shift_id, self.current_user, raise_if_none=True, mode='read'
+            shift_id,
+            self.current_user,
+            raise_if_none=True,
+            mode='read',
+            options=[joinedload(Shift.shift_users)],
         )
+        if not any(su.admin for su in shift.shift_users):
+            admin = True
+
         user = User.get_if_accessible_by(
             user_id, self.current_user, raise_if_none=True, mode='read'
         )
 
-        # Add user to group
         su = (
             ShiftUser.query.filter(ShiftUser.shift_id == shift_id)
             .filter(ShiftUser.user_id == user_id)
@@ -317,8 +370,20 @@ class ShiftUserHandler(BaseHandler):
             return self.error(
                 f"User {user_id} is already a member of shift {shift_id}."
             )
+        if shift.required_users_number:
+            if len(shift.shift_users) >= shift.required_users_number:
+                return self.error(
+                    f"Shift {shift_id} has reached its maximum number of users."
+                )
 
-        DBSession().add(ShiftUser(shift_id=shift_id, user_id=user_id, admin=admin))
+        DBSession().add(
+            ShiftUser(
+                shift_id=shift_id,
+                user_id=user_id,
+                admin=admin,
+                needs_replacement=needs_replacement,
+            )
+        )
         DBSession().add(
             UserNotification(
                 user=user,
@@ -335,10 +400,10 @@ class ShiftUserHandler(BaseHandler):
         )
 
     @permissions(["Manage shifts"])
-    def patch(self, shift_id, *ignored_args):
+    def patch(self, shift_id, user_id):
         """
         ---
-        description: Update a shift user's admin status
+        description: Update a shift user's admin status, or needs_replacement status
         tags:
           - shifts
           - users
@@ -360,6 +425,10 @@ class ShiftUserHandler(BaseHandler):
                     type: boolean
                     description: |
                       Boolean indicating whether user is shift admin.
+                  needs_replacement:
+                    type: boolean
+                    description: |
+                      Boolean indicating whether user needs replacement or not
 
                 required:
                   - userID
@@ -374,8 +443,6 @@ class ShiftUserHandler(BaseHandler):
             shift_id = int(shift_id)
         except ValueError:
             return self.error("Invalid shift ID")
-
-        user_id = data.get("userID")
         try:
             user_id = int(user_id)
         except ValueError:
@@ -397,9 +464,49 @@ class ShiftUserHandler(BaseHandler):
                 "Invalid (non-boolean) value provided for parameter `admin`"
             )
         shiftuser.admin = admin
+
+        needs_replacement = data.get("needs_replacement", False)
+        try:
+            needs_replacement = bool(needs_replacement)
+        except (ValueError, TypeError):
+            return self.error(
+                "Invalid needs_replacement parameter: unable to parse to boolean"
+            )
+        shiftuser.needs_replacement = needs_replacement
+
+        if needs_replacement:
+            # send a user notification to all members of the group associated to the shift
+            # that the user needs to be replaced
+            # recover all group users associated to the shift
+            try:
+                shift = Shift.get_if_accessible_by(
+                    shift_id,
+                    self.current_user,
+                    options=[
+                        joinedload(Shift.group).joinedload(Group.group_users),
+                    ],
+                    raise_if_none=True,
+                )
+            except AccessError as e:
+                return self.error(f'Could not find shift. Original error: {e}')
+            for group_user in shift.group.group_users:
+                if group_user.user_id != user_id:
+                    DBSession().add(
+                        UserNotification(
+                            user=group_user.user,
+                            text=f"*@{shiftuser.user.username}* needs a replacement for shift: {shift.name} from {shift.start_date} to {shift.end_date}.",
+                            url=f"/shifts/{shift.id}",
+                        )
+                    )
+                    self.flow.push(
+                        group_user.user_id, "skyportal/FETCH_NOTIFICATIONS", {}
+                    )
+
         self.verify_and_commit()
+        self.push_all(action='skyportal/REFRESH_SHIFTS', payload={'shift_id': shift_id})
         return self.success()
 
+    @permissions(["Manage shifts"])
     @auth_or_token
     def delete(self, shift_id, user_id):
         """
@@ -437,9 +544,11 @@ class ShiftUserHandler(BaseHandler):
             .filter(ShiftUser.user_id == user_id)
             .first()
         )
-
         if su is None:
-            raise AccessError("ShiftUser does not exist.")
+            return self.error(
+                "ShiftUser does not exist, or you don't have the right to delete him.",
+                status=403,
+            )
 
         DBSession().delete(su)
         self.verify_and_commit()
@@ -447,3 +556,156 @@ class ShiftUserHandler(BaseHandler):
             action='skyportal/REFRESH_SHIFTS', payload={'shift_id': int(shift_id)}
         )
         return self.success()
+
+
+class ShiftSummary(BaseHandler):
+    """
+    This handler has a get method that returns a summary
+    of all the activity of shift users on skyportal for a given period.
+    It is used to generate a report.
+    """
+
+    @auth_or_token
+    def get(self, shift_id=None):
+        """
+        ---
+        description: Get a summary of all the activity of shift users on skyportal for a given period
+        tags:
+          - shifts
+          - users
+          - sources
+          - gcn
+        parameters:
+          - in: path
+            name: shift_id
+            required: false
+            schema:
+              type: integer
+          - in: query
+            name: startDate
+            required: false
+            schema:
+              type: string
+            description: |
+              Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
+              shift.start_date >= startDate
+          - in: qyert
+            name: end_date
+            required: false
+            schema:
+              type: string
+            description: |
+              Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
+              shift.start_date <=endDate
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+        """
+
+        start_date = self.get_query_argument("startDate", None)
+        end_date = self.get_query_argument("endDate", None)
+        if (start_date is None or end_date is None) and shift_id is None:
+            return self.error("Please provide start_date and end_date, or shift_id")
+
+        if start_date is not None and end_date is not None:
+            try:
+                start_date = arrow.get(start_date).datetime
+                end_date = arrow.get(end_date).datetime
+            except ValueError:
+                return self.error("Please provide valid start_date and end_date")
+            if start_date > end_date:
+                return self.error("Please provide start_date < end_date")
+            if start_date > arrow.utcnow():
+                return self.error("Please provide start_date < today")
+            # if there is more than 4 weeks, we return an error
+            if (end_date - start_date).days > 28:
+                return self.error("Please provide a period of less than 4 weeks")
+
+        report = {}
+        if start_date and end_date:
+            s = (
+                Shift.query_records_accessible_by(
+                    self.current_user,
+                    mode="read",
+                    options=[
+                        joinedload(Shift.shift_users),
+                    ],
+                )
+                .filter(Shift.start_date >= start_date)
+                .filter(Shift.start_date <= end_date)
+                .order_by(Shift.start_date.asc())
+                .all()
+            )
+        else:
+            s = (
+                Shift.query_records_accessible_by(
+                    self.current_user,
+                    mode="read",
+                    options=[
+                        joinedload(Shift.shift_users),
+                    ],
+                )
+                .filter(Shift.id == shift_id)
+                .all()
+            )
+        if len(s) == 0:
+            return self.error("No shifts found")
+        shifts = []
+        for shift in s:
+            susers = []
+            for su in shift.shift_users:
+                user = su.user.to_dict()
+                user["admin"] = su.admin
+                user["needs_replacement"] = su.needs_replacement
+                del user["oauth_uid"]
+                susers.append(user)
+            shift = shift.to_dict()
+            shift["shift_users"] = susers
+            shifts.append(shift)
+
+        report['shifts'] = {}
+        report['shifts']['total'] = len(shifts)
+        report['shifts']['data'] = shifts
+        if shift_id and not start_date and not end_date:
+            start_date = shifts[0]['start_date']
+            end_date = shifts[0]['end_date']
+
+        gcns = (
+            GcnEvent.query_records_accessible_by(
+                self.current_user,
+                mode="read",
+            )
+            .filter(GcnEvent.dateobs >= start_date)
+            .filter(GcnEvent.dateobs <= end_date)
+            .order_by(GcnEvent.dateobs.asc())
+            .all()
+        )
+        gcn_added_during_shifts = []
+        # get the gcns added during the shifts
+        if len(gcns) > 0:
+            for shift in shifts:
+                # get list of user_id who are shift_users
+                for gcn in gcns:
+                    gcn = gcn.to_dict()
+                    if (
+                        gcn["dateobs"] >= shift["start_date"]
+                        and gcn["dateobs"] <= shift["end_date"]
+                    ):
+                        if gcn["id"] not in [
+                            gcn["id"] for gcn in gcn_added_during_shifts
+                        ]:
+                            gcn['shift_ids'] = [shift['id']]
+                            gcn_added_during_shifts.append(gcn)
+
+                        else:
+                            for gcn_added in gcn_added_during_shifts:
+                                if gcn_added['id'] == gcn['id']:
+                                    gcn_added['shift_ids'].append(shift['id'])
+                                    break
+            report['gcns'] = {'total': len(gcn_added_during_shifts)}
+            report['gcns']['data'] = gcn_added_during_shifts
+
+        self.push_all(action="skyportal/FETCH_SHIFT_SUMMARY", payload=report)
+        return self.success(data=report)

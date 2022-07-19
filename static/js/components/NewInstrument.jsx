@@ -1,7 +1,8 @@
 import React from "react";
 import { useDispatch, useSelector } from "react-redux";
-import Form from "@rjsf/material-ui";
-import CircularProgress from "@material-ui/core/CircularProgress";
+// eslint-disable-next-line import/no-unresolved
+import Form from "@rjsf/material-ui/v5";
+import CircularProgress from "@mui/material/CircularProgress";
 import dataUriToBuffer from "data-uri-to-buffer";
 import { showNotification } from "baselayer/components/Notifications";
 import { submitInstrument } from "../ducks/instrument";
@@ -183,6 +184,11 @@ const NewInstrument = () => {
         type: "string",
         title: "FOV Attributes",
         description: "Rectangle [width,height]; Circle [radius]",
+      },
+      sensitivity_data: {
+        type: "string",
+        title:
+          "Sensitivity data (i.e. {'ztfg': {'limiting_magnitude': 20.3, 'magsys': 'ab', 'exposure_time': 30, 'zeropoint': 26.3,}}",
       },
     },
     required: ["name", "type", "band", "telescope_id"],

@@ -3,10 +3,10 @@ import { useSelector } from "react-redux";
 import PropTypes from "prop-types";
 import { CountUp } from "use-count-up";
 
-import { makeStyles } from "@material-ui/core/styles";
-import Paper from "@material-ui/core/Paper";
-import Typography from "@material-ui/core/Typography";
-import DragHandleIcon from "@material-ui/icons/DragHandle";
+import makeStyles from "@mui/styles/makeStyles";
+import Paper from "@mui/material/Paper";
+import Typography from "@mui/material/Typography";
+import DragHandleIcon from "@mui/icons-material/DragHandle";
 
 import WidgetPrefsDialog from "./WidgetPrefsDialog";
 import * as profileActions from "../ducks/profile";

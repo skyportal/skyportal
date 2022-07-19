@@ -26,6 +26,8 @@ const SUBMIT_OBSERVATIONS_TREASUREMAP =
 const DELETE_OBSERVATIONS_TREASUREMAP =
   "skyportal/DELETE_OBSERVATIONS_TREASUREMAP";
 const REQUEST_API_OBSERVATIONS = "skyportal/REQUEST_API_OBSERVATIONS";
+const REQUEST_API_QUEUED_OBSERVATIONS =
+  "skyportal/REQUEST_API_QUEUED_OBSERVATIONS";
 
 export const submitObservations = (params) =>
   API.POST(`/api/observation`, SUBMIT_OBSERVATIONS, params);
@@ -43,6 +45,10 @@ export function fetchObservations(filterParams = {}) {
     filterParams.endDate = dayjs().utc().format("YYYY-MM-DDTHH:mm:ssZ");
   }
 
+  if (!Object.keys(filterParams).includes("numPerPage")) {
+    filterParams.numPerPage = 10;
+  }
+
   return API.GET("/api/observation", FETCH_OBSERVATIONS, filterParams);
 }
 
@@ -58,6 +64,14 @@ export function requestAPIObservations(data) {
   );
 }
 
+export function requestAPIQueuedObservations(id, data = {}) {
+  return API.GET(
+    `/api/observation/external_api/${id}`,
+    REQUEST_API_QUEUED_OBSERVATIONS,
+    data
+  );
+}
+
 // Websocket message handler
 messageHandler.add((actionType, payload, dispatch) => {
   if (actionType === REFRESH_OBSERVATIONS) {
@@ -67,6 +81,7 @@ messageHandler.add((actionType, payload, dispatch) => {
 
 export function fetchGcnEventObservations(dateobs, filterParams = {}) {
   filterParams.localizationDateobs = dateobs;
+  filterParams.numPerPage = 1000;
 
   if (!Object.keys(filterParams).includes("startDate")) {
     if (dateobs) {
@@ -109,7 +124,7 @@ messageHandler.add((actionType, payload, dispatch, getState) => {
   }
 });
 
-const reducer = (state = null, action) => {
+const reducer = (state = { gcnEventObservations: [] }, action) => {
   switch (action.type) {
     case FETCH_OBSERVATIONS_OK: {
       return {

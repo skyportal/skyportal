@@ -1,3 +1,9 @@
+groups:
+  - name: Program A
+    =id: program_A
+  - name: Program B
+    =id: program_B
+
 user:
   - username: testadmin
     roles:
@@ -8,15 +14,39 @@ user:
   - username: groupadmin
     roles:
       - Group admin
+    first_name: Theo
+    last_name: du Laz
     =id: groupadmin
   - username: fulluser
     roles:
       - Full user
     =id: fulluser
+    first_name: Michael
+    last_name: Coughlin
   - username: viewonlyuser
     roles:
       - View only
     =id: viewonlyuser
+    first_name: Guy
+    last_name: Nir
+
+groups/=program_A/users:
+  - userID: =testadmin
+    admin: true
+  - userID: =groupadmin
+    admin: true
+  - userID: =fulluser
+    admin: false
+
+groups/=program_B/users:
+  - userID: =testadmin
+    admin: true
+  - userID: =groupadmin
+    admin: true
+  - userID: =viewonlyuser
+    admin: false
+  - userID: =fulluser
+    admin: false
 
 streams:
   - name: ZTF Public
@@ -34,28 +64,6 @@ streams:
       collection: ZTF_alerts
       selector: [1, 2, 3]
     =id: ztf_caltech
-
-groups:
-  - name: Program A
-    group_admins:
-      - =testadmin
-      - =groupadmin
-    =id: program_A
-  - name: Program B
-    group_admins:
-      - =testadmin
-      - =groupadmin
-    =id: program_B
-
-groups/=program_A/users:
-  - userID: =fulluser
-    admin: false
-
-groups/=program_B/users:
-  - userID: =viewonlyuser
-    admin: false
-  - userID: =fulluser
-    admin: false
 
 streams/=ztf_public/users:
   - user_id: =viewonlyuser
@@ -244,6 +252,7 @@ instrument:
     #   file: ../data/ZTF_Fields.csv
     # field_region:
     #   file: ../data/ZTF_Region.reg
+    sensitivity_data: {'ztfg': {'limiting_magnitude': 20.3, 'magsys': 'ab', 'exposure_time': 30, 'zeropoint': 26.3,}, 'ztfr': {'limiting_magnitude': 20.3, 'magsys': 'ab', 'exposure_time': 30, 'zeropoint': 26.3,}, 'ztfi': {'limiting_magnitude': 19.6, 'magsys': 'ab', 'exposure_time': 30, 'zeropoint': 26.3,}}
   - name: ALFOSC
     type: imaging spectrograph
     band: V
@@ -387,6 +396,7 @@ allocation:
     group_id: =program_A
     instrument_id: =SEDM
     =id: SEDM_allocation
+    default_share_group_ids: [=program_A, =program_B]
   - pi: Michael Coughlin
     proposal_id: LT-001
     start_date: "3020-02-12T00:00:00"
@@ -446,6 +456,7 @@ allocation:
     hours_allocated: 100
     group_id: =program_A
     instrument_id: =ZTF
+    =id: ZTF_allocation
   - pi: Michael Coughlin
     proposal_id: ATLAS-001
     start_date: "3020-02-12T00:00:00"
@@ -496,6 +507,11 @@ allocation:
     hours_allocated: 100
     group_id: =program_A
     instrument_id: =LSST
+
+galaxy_catalog:
+  - catalog_name: CLU_mini
+    catalog_data:
+      file: ../data/CLU_mini.hdf5
 
 candidates:
   - id: ZTF21aaqjmps
@@ -591,6 +607,14 @@ sources:
       - =program_A
       - =program_B
     redshift: 3
+  - id: ZTF20abwysqy
+    ra: 6.7856144
+    dec: 34.027306
+    group_ids:
+      - =public_group_id
+      - =program_A
+      - =program_B
+    redshift: 0.7481
 
 sources/ZTF21aaqjmps/comments:
   - obj_id: ZTF21aaqjmps
@@ -734,6 +758,16 @@ photometry:
     stream_ids:
       - =ztf_public
       - =ztf_partnership
+  - obj_id: ZTF20abwysqy
+    instrument_id: =ZTF
+    assignment_id: 2
+    file: ZTF20abwysqy_phot.csv
+    group_ids:
+      - =program_A
+      - =program_B
+    stream_ids:
+      - =ztf_public
+      - =ztf_partnership
 
 followup_request:
   - obj_id: ZTFrlh6cyjh
@@ -855,34 +889,61 @@ thumbnail:
       file: ./ZTFrlh6cyjh_new.png
 
 gcn_event:
-  - xml:
-      file: ../skyportal/tests/data/GW190425_initial.xml
+#  - xml:
+#      file: ../skyportal/tests/data/GW190425_initial.xml
   - xml:
       file: ../skyportal/tests/data/GRB180116A_Fermi_GBM_Gnd_Pos.xml
+  - xml:
+      file: ./GW190814.xml
 
-galaxy_catalog:
-  - catalog_name: CLU_mini
-    catalog_data:
-      file: ../data/CLU_mini.hdf5
+
+gcn_event/1/comments:
+  - text: "This is a test comment"
+    author_id: testadmin
+    created_at: "2022-03-18 16:00:00"
 
 shifts:
   - group_id: =program_A
     start_date: "2022-03-18 8:00:00"
     end_date: "2022-03-18 14:00:00"
-    name: "the Day Shift"
-    shift_admins:
-      - =testadmin
-    =id: dayshift
-
-  - group_id: =program_B
-    start_date: "2022-03-18 16:00:00"
-    end_date: "2022-03-18 22:00:00"
     name: "the Night Shift"
     shift_admins:
-      - =groupadmin
+      - =testadmin
+    required_users_number: 6
     =id: nightshift
 
+  - group_id: =program_B
+    start_date: "2018-01-15 20:00:00"
+    end_date: "2018-01-16 20:00:00"
+    name: "the GCN Shift"
+    shift_admins:
+      - =groupadmin
+    required_users_number: 4
+    =id: gcnshift
 
-shifts/=nightshift/users:
+
+shifts/=gcnshift/users:
   - userID: =viewonlyuser
     admin: false
+    needs_replacement: true
+
+default_observation_plan:
+  - allocation_id: =ZTF_allocation
+    payload: {'filter_strategy': 'block', 'schedule_type': 'greedy', 'schedule_strategy': 'tiling', 'galaxy_catalog': 'CLU_mini', 'exposure_time': 300, 'filters': 'g,r,g', 'maximum_airmass': 2, 'integrated_probability': 90, 'minimum_time_difference': 30, 'program_id': 'Partnership', 'subprogram_name': 'GRB'}
+
+analysis_service:
+  - name: "Demo_Analysis"
+    display_name: "Demo analysis service display name"
+    description: "Description for demo analysis"
+    version: "1.0"
+    contact_name: "Vera Rubin"
+    url: "http://localhost:6801/analysis/demo_analysis"
+    authentication_type: "header_token"
+    _authinfo: '{"header_token": {"Authorization": "Bearer MY_TOKEN"}}'
+    analysis_type: "lightcurve_fitting"
+    input_data_types: ["photometry", "redshift", "spectra", "annotations", "classifications", "comments"]
+    # `source` is the model kw name defined in SNcosmo (https://sncosmo.readthedocs.io/en/stable/source-list.html)
+    optional_analysis_parameters: '{"source": ["nugent-sn2p", "salt3", "v19-1998bw", "mlcs2k2", "nugent-sn2n"], "fix_z": ["True", "False"]}'
+    group_ids:
+      - =program_A
+      - =program_B

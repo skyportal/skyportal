@@ -3,13 +3,15 @@ import { useSelector, useDispatch } from "react-redux";
 import { Link } from "react-router-dom";
 import PropTypes from "prop-types";
 
-import Paper from "@material-ui/core/Paper";
-import Typography from "@material-ui/core/Typography";
-import DragHandleIcon from "@material-ui/icons/DragHandle";
-import ButtonGroup from "@material-ui/core/ButtonGroup";
-import Button from "@material-ui/core/Button";
-import Tooltip from "@material-ui/core/Tooltip";
-import { makeStyles, useTheme } from "@material-ui/core/styles";
+import Paper from "@mui/material/Paper";
+import Typography from "@mui/material/Typography";
+import DragHandleIcon from "@mui/icons-material/DragHandle";
+import ButtonGroup from "@mui/material/ButtonGroup";
+import Button from "@mui/material/Button";
+import Tooltip from "@mui/material/Tooltip";
+import { useTheme } from "@mui/material/styles";
+
+import makeStyles from "@mui/styles/makeStyles";
 
 import { ra_to_hours, dec_to_dms } from "../units";
 import * as profileActions from "../ducks/profile";
@@ -49,7 +51,7 @@ const useStyles = makeStyles((theme) => ({
   },
   sourceNameLink: {
     color:
-      theme.palette.type === "dark"
+      theme.palette.mode === "dark"
         ? theme.palette.secondary.main
         : theme.palette.primary.main,
   },
@@ -84,7 +86,7 @@ const timespans = [
 ];
 
 const defaultPrefs = {
-  maxNumSources: "",
+  maxNumSources: "10",
   sinceDaysAgo: "7",
 };
 
@@ -250,6 +252,10 @@ const TopSources = ({ classes }) => {
   const topSourcesPrefs =
     useSelector((state) => state.profile.preferences.topSources) ||
     defaultPrefs;
+
+  if (!Object.keys(topSourcesPrefs).includes("maxNumSources")) {
+    topSourcesPrefs.maxNumSources = defaultPrefs.maxNumSources;
+  }
 
   const [currentTimespan, setCurrentTimespan] = useState(
     timespans.find(

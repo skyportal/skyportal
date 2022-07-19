@@ -1010,7 +1010,8 @@ class ObservationPlanPost(_Schema):
     )
 
     payload = fields.Field(
-        required=False, metadata={'description': "Content of the followup request."}
+        required=False,
+        metadata={'description': "Content of the observation plan request."},
     )
 
     status = fields.String(
@@ -1021,7 +1022,7 @@ class ObservationPlanPost(_Schema):
 
     allocation_id = fields.Integer(
         required=True,
-        metadata={'description': "Followup request allocation ID."},
+        metadata={'description': "Observation plan request allocation ID."},
     )
 
     localization_id = fields.Integer(
@@ -1034,7 +1035,30 @@ class ObservationPlanPost(_Schema):
         required=False,
         metadata={
             'description': (
-                'IDs of groups to share the results of the followup request with.'
+                'IDs of groups to share the results of the observation plan request with.'
+            )
+        },
+    )
+
+
+class DefaultObservationPlanPost(_Schema):
+
+    payload = fields.Field(
+        required=False,
+        metadata={'description': "Content of the default observation plan request."},
+    )
+
+    allocation_id = fields.Integer(
+        required=True,
+        metadata={'description': "Observation plan request allocation ID."},
+    )
+
+    target_group_ids = fields.List(
+        fields.Integer,
+        required=False,
+        metadata={
+            'description': (
+                'IDs of groups to share the results of the default observation plan request with.'
             )
         },
     )
@@ -1581,6 +1605,12 @@ class GalaxyHandlerPost(_Schema):
     catalog_data = fields.List(
         fields.Field(), metadata={"description": 'Galaxy catalog data'}
     )
+
+
+class GalaxyASCIIFileHandlerPost(_Schema):
+    catalogName = fields.String(metadata={"description": 'Galaxy catalog name.'})
+
+    catalogData = fields.Field(metadata={'description': 'Catalog data Ascii string'})
 
 
 def register_components(spec):

@@ -2,24 +2,27 @@ import React, { useState } from "react";
 import PropTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
 
-import { withStyles, makeStyles, useTheme } from "@material-ui/core/styles";
-import Dialog from "@material-ui/core/Dialog";
-import DialogContent from "@material-ui/core/DialogContent";
-import DialogActions from "@material-ui/core/DialogActions";
-import MuiDialogTitle from "@material-ui/core/DialogTitle";
-import Button from "@material-ui/core/Button";
-import CloudDownloadIcon from "@material-ui/icons/CloudDownload";
-import IconButton from "@material-ui/core/IconButton";
-import CloseIcon from "@material-ui/icons/Close";
-import Typography from "@material-ui/core/Typography";
-import Tooltip from "@material-ui/core/Tooltip";
-import grey from "@material-ui/core/colors/grey";
-
+import { useTheme } from "@mui/material/styles";
+import withStyles from "@mui/styles/withStyles";
+import makeStyles from "@mui/styles/makeStyles";
+import Dialog from "@mui/material/Dialog";
+import DialogContent from "@mui/material/DialogContent";
+import DialogActions from "@mui/material/DialogActions";
+import MuiDialogTitle from "@mui/material/DialogTitle";
+import Button from "@mui/material/Button";
+import CloudDownloadIcon from "@mui/icons-material/CloudDownload";
+import IconButton from "@mui/material/IconButton";
+import CloseIcon from "@mui/icons-material/Close";
+import Typography from "@mui/material/Typography";
+import Tooltip from "@mui/material/Tooltip";
 import FilePreviewer, { FilePreviewerThumbnail } from "react-file-previewer";
+
 import ReactJson from "react-json-view";
+import { grey } from "@mui/material/colors";
 
 import * as sourceActions from "../ducks/source";
 import * as gcnEventActions from "../ducks/gcnEvent";
+import * as shiftActions from "../ducks/shift";
 
 const useStyles = makeStyles((theme) => ({
   linkButton: {
@@ -88,6 +91,7 @@ const DialogTitle = withStyles(dialogTitleStyles)(
           aria-label="close"
           className={classes.closeButton}
           onClick={onClose}
+          size="large"
         >
           <CloseIcon />
         </IconButton>
@@ -119,15 +123,18 @@ const CommentAttachmentPreview = ({
   associatedResourceType,
   objectID = null,
   gcnEventID = null,
+  shiftID = null,
 }) => {
   const classes = useStyles();
   const theme = useTheme();
-  const darkTheme = theme.palette.type === "dark";
+  const darkTheme = theme.palette.mode === "dark";
 
   function resourceType(state) {
     let type = "";
     if (associatedResourceType === "gcn_event") {
       type = state.gcnEvent.commentAttachment;
+    } else if (associatedResourceType === "shift") {
+      type = state.shift.commentAttachment;
     } else {
       type = state.source.commentAttachment;
     }
@@ -180,6 +187,10 @@ const CommentAttachmentPreview = ({
           commentId
         )
       );
+    } else if (associatedResourceType === "shift") {
+      dispatch(
+        shiftActions.getCommentOnShiftAttachmentPreview(shiftID, commentId)
+      );
     }
   }
 
@@ -187,6 +198,8 @@ const CommentAttachmentPreview = ({
   // The FilePreviewer expects a url ending with .pdf for PDF files
   if (associatedResourceType === "gcn_event") {
     baseUrl = `/api/${associatedResourceType}/${gcnEventID}/comments/${commentId}/attachment`;
+  } else if (associatedResourceType === "shift") {
+    baseUrl = `/api/${associatedResourceType}/${shiftID}/comments/${commentId}/attachment`;
   } else {
     baseUrl = `/api/${associatedResourceType}/${objectID}/comments/${commentId}/attachment`;
   }
@@ -271,6 +284,7 @@ CommentAttachmentPreview.propTypes = {
   filename: PropTypes.string.isRequired,
   objectID: PropTypes.string,
   gcnEventID: PropTypes.number,
+  shiftID: PropTypes.number,
   commentId: PropTypes.number.isRequired,
   associatedResourceType: PropTypes.string.isRequired,
 };
@@ -278,6 +292,7 @@ CommentAttachmentPreview.propTypes = {
 CommentAttachmentPreview.defaultProps = {
   objectID: null,
   gcnEventID: null,
+  shiftID: null,
 };
 
 export default CommentAttachmentPreview;

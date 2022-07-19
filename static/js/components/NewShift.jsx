@@ -1,7 +1,8 @@
 import React from "react";
 import { useDispatch, useSelector } from "react-redux";
-import Form from "@rjsf/material-ui";
-import CircularProgress from "@material-ui/core/CircularProgress";
+// eslint-disable-next-line import/no-unresolved
+import Form from "@rjsf/material-ui/v5";
+import CircularProgress from "@mui/material/CircularProgress";
 import { showNotification } from "baselayer/components/Notifications";
 
 import dayjs from "dayjs";
@@ -33,8 +34,12 @@ const NewShift = () => {
 
   const handleSubmit = async ({ formData }) => {
     if (!formData.repeatsDaily) {
-      formData.start_date = formData.start_date.replace("+00:00", "");
-      formData.end_date = formData.end_date.replace("+00:00", "");
+      formData.start_date = formData.start_date
+        .replace("+00:00", "")
+        .replace(".000Z", "");
+      formData.end_date = formData.end_date
+        .replace("+00:00", "")
+        .replace(".000Z", "");
       delete formData.repeatsDaily;
       const result = await dispatch(submitShift(formData));
       if (result.status === "success") {
@@ -52,11 +57,13 @@ const NewShift = () => {
         newFormData.start_date = startDate
           .add(i, "day")
           .format("YYYY-MM-DDTHH:mm:ssZ")
-          .replace("+00:00", "");
+          .replace("+00:00", "")
+          .replace(".000Z", "");
         newFormData.end_date = endDate
           .subtract(days - i, "day")
           .format("YYYY-MM-DDTHH:mm:ssZ")
-          .replace("+00:00", "");
+          .replace("+00:00", "")
+          .replace(".000Z", "");
         const result = dispatch(submitShift(newFormData));
         if (result.status === "success") {
           dispatch(showNotification("Shift saved"));
@@ -119,6 +126,10 @@ const NewShift = () => {
         format: "date-time",
         title: "End Date (Local Time)",
         default: defaultEndDate,
+      },
+      required_users_number: {
+        type: "integer",
+        title: "Number of users required in the shift (optional)",
       },
       description: {
         type: "string",

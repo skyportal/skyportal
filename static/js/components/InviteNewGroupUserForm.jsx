@@ -1,22 +1,24 @@
 import React, { useState } from "react";
 import PropTypes from "prop-types";
 import { useDispatch } from "react-redux";
-import TextField from "@material-ui/core/TextField";
-import Button from "@material-ui/core/Button";
-import Dialog from "@material-ui/core/Dialog";
-import DialogActions from "@material-ui/core/DialogActions";
-import DialogContent from "@material-ui/core/DialogContent";
-import DialogContentText from "@material-ui/core/DialogContentText";
-import DialogTitle from "@material-ui/core/DialogTitle";
-import Select from "@material-ui/core/Select";
-import MenuItem from "@material-ui/core/MenuItem";
-import Typography from "@material-ui/core/Typography";
-import InputLabel from "@material-ui/core/InputLabel";
-import IconButton from "@material-ui/core/IconButton";
-import HelpOutlineIcon from "@material-ui/icons/HelpOutline";
-import Popover from "@material-ui/core/Popover";
-import { DatePicker } from "@material-ui/pickers";
-import { makeStyles } from "@material-ui/core/styles";
+import TextField from "@mui/material/TextField";
+import Button from "@mui/material/Button";
+import Dialog from "@mui/material/Dialog";
+import DialogActions from "@mui/material/DialogActions";
+import DialogContent from "@mui/material/DialogContent";
+import DialogContentText from "@mui/material/DialogContentText";
+import DialogTitle from "@mui/material/DialogTitle";
+import Select from "@mui/material/Select";
+import MenuItem from "@mui/material/MenuItem";
+import Typography from "@mui/material/Typography";
+import InputLabel from "@mui/material/InputLabel";
+import IconButton from "@mui/material/IconButton";
+import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
+import Popover from "@mui/material/Popover";
+import AdapterDateFns from "@mui/lab/AdapterDateFns";
+import LocalizationProvider from "@mui/lab/LocalizationProvider";
+import DatePicker from "@mui/lab/DatePicker";
+import makeStyles from "@mui/styles/makeStyles";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
@@ -149,15 +151,18 @@ const InviteNewGroupUserForm = ({ group_id }) => {
         </Select>
       </div>
       <div className={classes.userExpirationDate}>
-        <DatePicker
-          value={formState.userExpirationDate}
-          onChange={handleExpirationDateChange}
-          label="User expiration date (UTC)"
-          format="YYYY/MM/DD"
-          disablePast
-          clearable
-          data-testid="expirationDatePicker"
-        />
+        <LocalizationProvider dateAdapter={AdapterDateFns}>
+          <DatePicker
+            value={formState.userExpirationDate}
+            onChange={handleExpirationDateChange}
+            label="User expiration date (UTC)"
+            showTodayButton={false}
+            renderInput={(params) => (
+              /* eslint-disable-next-line react/jsx-props-no-spreading */
+              <TextField id="expirationDatePicker" {...params} />
+            )}
+          />
+        </LocalizationProvider>
         <IconButton
           aria-label="help"
           size="small"
