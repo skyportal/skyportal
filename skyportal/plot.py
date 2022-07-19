@@ -2616,15 +2616,17 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
         )
     )
     row3 = (
-        column(z, v_exp, smooth_column, w)
+        column(z, v_exp, smooth_column)
         if "mobile" in device
-        else row(z, v_exp, smooth_column, w)
+        else row(z, v_exp, smooth_column)
     )
+    row4 = row(w)
     return column(
         plot,
         row1,
         row2,
         row3,
+        row4,
         sizing_mode='stretch_width',
         width=width,
     )
