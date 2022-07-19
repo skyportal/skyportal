@@ -147,11 +147,13 @@ def user_preferences(target, notification_setting, resource_type):
 
 
 @event.listens_for(UserNotification, 'after_insert')
-def log_frontend_notification(mapper, connection, target):
+def push_frontend_notification(mapper, connection, target):
     resource_type = notification_resource_type(target)
     log(
         f"Sent frontend notification to user {target.user.id}, body: {target.text}, resource_type: {resource_type}"
     )
+    ws_flow = Flow()
+    ws_flow.push(target.user.id, "skyportal/FETCH_NOTIFICATIONS")
 
 
 @event.listens_for(UserNotification, 'after_insert')
@@ -346,8 +348,6 @@ def add_user_notifications(mapper, connection, target):
             else:
                 users = []
 
-        ws_flow = Flow()
-
         for user in users:
             # Only notify users who have read access to the new record in question
             if (
@@ -496,5 +496,3 @@ def add_user_notifications(mapper, connection, target):
                                         url=f"/source/{target.obj_id}",
                                     )
                                 )
-
-                ws_flow.push(user.id, "skyportal/FETCH_NOTIFICATIONS")
