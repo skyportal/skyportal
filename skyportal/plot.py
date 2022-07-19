@@ -2329,11 +2329,35 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
         width=slider_width,
         margin=(0, 10, 0, 10),
     )
+    w_title = Div(text="Custom wavelength")
+    w_input = NumericInput(
+        value=0.0,
+        mode='float',
+    )
 
     # Track elements that need to be shifted with change in z / v
     shifting_elements = []
     renderers = []
     obj_redshift = 0 if obj.redshift is None else obj.redshift
+
+    flux_values = list(np.linspace(ymin, ymax, 100))
+    flux_values[-1] = np.nan
+    wavelength_values = [w_input.value]
+    el_data = pd.DataFrame(
+        {
+            'name': 'custom_wavelength_name',
+            'x': wavelength_values,
+            'wavelength': wavelength_values,
+        }
+    )
+    # el_data['x'] = el_data['wavelength'] * (1.0 + obj_redshift)
+    new_line_w = plot.vbar(
+        x='x',
+        width=10,
+        top=ymax,
+        line_alpha=0.3,
+        source=ColumnDataSource(el_data),
+    )
 
     for i, (name, (wavelengths, color)) in enumerate(SPEC_LINES.items()):
 
@@ -2385,6 +2409,29 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
         if name not in ('Sky Lines', 'Tellurics-1', 'Tellurics-2'):
             shifting_elements.append(new_line)
             new_line.glyph.line_alpha = 1.0
+
+    new_line_w.visible = False
+    model_dict['custom_line'] = new_line_w
+    renderers.append(new_line_w)
+
+    w_input.js_on_change(
+        'value',
+        CustomJS(
+            args={'input': w_input, 'model_dict': model_dict},
+            code="""
+                    model_dict['custom_line'].data_source.data['x'][0] = input.value;
+                    model_dict['custom_line'].visible = true;
+                    model_dict['custom_line'].data_source.data['wavelength'][0] = input.value;
+                    model_dict['custom_line'].data_source.change.emit();
+                """,
+        ),
+    )
+    w = column(
+        w_title,
+        w_input,
+        width=width if "mobile" in device else int(width * 1 / 5) - 20,
+        margin=(4, 10, 0, 10),
+    )
 
     # add the elemental lines to hover tool
     hover_lines = HoverTool(
@@ -2569,9 +2616,9 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
         )
     )
     row3 = (
-        column(z, v_exp, smooth_column)
+        column(z, v_exp, smooth_column, w)
         if "mobile" in device
-        else row(z, v_exp, smooth_column)
+        else row(z, v_exp, smooth_column, w)
     )
     return column(
         plot,
