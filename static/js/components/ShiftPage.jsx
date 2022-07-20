@@ -32,9 +32,10 @@ const ShiftPage = ({ route }) => {
   const shiftList = useSelector((state) => state.shifts.shiftList);
   const currentShift = useSelector((state) => state.shift.currentShift);
   const [show, setShow] = useState(true);
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    if (!currentShift?.id && route) {
+    if (route && loaded) {
       const shift = shiftList.find((s) => s.id === parseInt(route.id, 10));
       if (shift)
         dispatch({
@@ -47,7 +48,14 @@ const ShiftPage = ({ route }) => {
         })
       );
       setShow(false);
-    } else if (currentShift) {
+    }
+  }, [loaded]);
+
+  useEffect(() => {
+    if (!loaded && shiftList?.length > 0) {
+      setLoaded(true);
+    }
+    if (currentShift) {
       const updatedShift = shiftList.find((s) => s.id === currentShift.id);
       // check if the shift shift_users length is different from the current shift
       if (
