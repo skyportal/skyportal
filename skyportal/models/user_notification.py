@@ -271,12 +271,27 @@ def send_sms_notification(mapper, connection, target):
 
 @event.listens_for(UserNotification, 'after_insert')
 def push_frontend_notification(mapper, connection, target):
+    if 'user_id' in target.__dict__:
+        user_id = target.user_id
+    elif 'user' in target.__dict__:
+        if 'id' in target.user.__dict__:
+            user_id = target.user.id
+        else:
+            user_id = None
+    else:
+        user_id = None
+
+    if user_id is None:
+        log(
+            "Error sending frontend notification: user_id or user.id not found in notification's target"
+        )
+        return
     resource_type = notification_resource_type(target)
     log(
-        f"Sent frontend notification to user {target.user.id}, body: {target.text}, resource_type: {resource_type}"
+        f"Sent frontend notification to user {user_id}, body: {target.text}, resource_type: {resource_type}"
     )
     ws_flow = Flow()
-    ws_flow.push(target.user.id, "skyportal/FETCH_NOTIFICATIONS")
+    ws_flow.push(user_id, "skyportal/FETCH_NOTIFICATIONS")
 
 
 @event.listens_for(Classification, 'after_insert')
