@@ -6,12 +6,14 @@ import Paper from "@mui/material/Paper";
 import Grid from "@mui/material/Grid";
 import Button from "@mui/material/Button";
 import CircularProgress from "@mui/material/CircularProgress";
+import { showNotification } from "baselayer/components/Notifications";
 import NewShift from "./NewShift";
 import MyCalendar from "./ShiftCalendar";
 import { CurrentShiftMenu, CommentOnShift } from "./ShiftManagement";
 import ShiftSummary from "./ShiftSummary";
 
 import { getShiftsSummary } from "../ducks/shift";
+import * as shiftsActions from "../ducks/shifts";
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -35,19 +37,32 @@ const ShiftPage = ({ route }) => {
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
+    if (!loaded) {
+      dispatch(shiftsActions.fetchShifts()).then((data) => {
+        console.log(data);
+        if (data.status === "success" && data.data.length === 0) {
+          dispatch(showNotification("No shifts found", "warning"));
+        } else if (data.status !== "success") {
+          dispatch(showNotification("Error fetching shifts", "error"));
+        }
+      });
+    }
     if (route && loaded) {
       const shift = shiftList.find((s) => s.id === parseInt(route.id, 10));
-      if (shift)
+      if (shift) {
         dispatch({
           type: "skyportal/CURRENT_SHIFT",
           data: shift,
         });
-      dispatch(
-        getShiftsSummary({
-          shiftID: parseInt(route.id, 10),
-        })
-      );
-      setShow(false);
+        dispatch(
+          getShiftsSummary({
+            shiftID: parseInt(route.id, 10),
+          })
+        );
+        setShow(false);
+      } else {
+        dispatch(showNotification("Shift not found", "error"));
+      }
     }
   }, [loaded]);
 
