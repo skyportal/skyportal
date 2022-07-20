@@ -1,3 +1,4 @@
+import sqlalchemy as sa
 from sqlalchemy import or_
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import auth_or_token, permissions, AccessError
@@ -663,38 +664,51 @@ class GroupUsersFromOtherGroupsHandler(BaseHandler):
                 "Improperly formatted fromGroupIDs parameter; "
                 "must be an array of integers."
             )
-        group = Group.get_if_accessible_by(
-            group_id, self.current_user, mode="read", raise_if_none=True
-        )
-        from_groups = Group.get_if_accessible_by(
-            from_group_ids, self.current_user, mode='read', raise_if_none=True
-        )
 
-        user_ids = set()
-        for from_group in from_groups:
-            for user in from_group.users:
-                user_ids.add(user.id)
+        with self.Session() as session:
+            group = session.scalars(
+                Group.select(self.current_user).where(Group.id == group_id)
+            ).first()
+            if group is None:
+                return self.error("Cannot access group with given ID.")
 
-        for user_id in user_ids:
-            # Add user to group
-            gu = (
-                GroupUser.query.filter(GroupUser.group_id == group_id)
-                .filter(GroupUser.user_id == user_id)
-                .first()
-            )
-            if gu is None:
-                DBSession().add(
-                    GroupUser(group_id=group_id, user_id=user_id, admin=False)
+            from_groups = session.scalars(
+                Group.select(self.current_user).where(Group.id.in_(from_group_ids))
+            ).all()
+            if set(from_group_ids) != {g.id for g in from_groups}:
+                return self.error(
+                    "Cannot access one or more groups with given by fromGroupIDs."
                 )
-                DBSession().add(
-                    UserNotification(
-                        user_id=user_id,
-                        text=f"You've been added to group *{group.name}*",
-                        url=f"/group/{group.id}",
+
+            user_ids = set()
+            for from_group in from_groups:
+                for user in from_group.users:
+                    user_ids.add(user.id)
+
+            for user_id in user_ids:
+                # Add user to group
+                gu = session.scalars(
+                    sa.select(GroupUser)
+                    .where(GroupUser.group_id == group_id)
+                    .where(GroupUser.user_id == user_id)
+                ).first()
+                user = session.scalars(
+                    sa.select(User).where(User.id == user_id)
+                ).first()
+                if gu is None:
+                    session.add(
+                        GroupUser(group_id=group_id, user_id=user_id, admin=False)
                     )
-                )
+                    session.add(
+                        UserNotification(
+                            user=user,
+                            user_id=user_id,
+                            text=f"You've been added to group *{group.name}*",
+                            url=f"/group/{group.id}",
+                        )
+                    )
 
-        self.verify_and_commit()
+            session.commit()
 
         self.push_all(action='skyportal/REFRESH_GROUP', payload={'group_id': group_id})
         for user_id in user_ids:
