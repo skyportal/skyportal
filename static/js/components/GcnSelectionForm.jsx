@@ -185,16 +185,26 @@ const GcnSelectionForm = ({ gcnEvent, setSelectedLocalizationName }) => {
     formData.endDate = formData.endDate
       .replace("+00:00", "")
       .replace(".000Z", "");
-    await dispatch(
-      sourcesActions.fetchGcnEventSources(gcnEvent.dateobs, formData)
-    );
+
+    if (formData.queryList.includes("sources")) {
+      await dispatch(
+        sourcesActions.fetchGcnEventSources(gcnEvent.dateobs, formData)
+      );
+    }
     formData.includeGeoJSON = true;
-    await dispatch(
-      observationsActions.fetchGcnEventObservations(gcnEvent.dateobs, formData)
-    );
-    await dispatch(
-      galaxiesActions.fetchGcnEventGalaxies(gcnEvent.dateobs, formData)
-    );
+    if (formData.queryList.includes("observations")) {
+      await dispatch(
+        observationsActions.fetchGcnEventObservations(
+          gcnEvent.dateobs,
+          formData
+        )
+      );
+    }
+    if (formData.queryList.includes("galaxies")) {
+      await dispatch(
+        galaxiesActions.fetchGcnEventGalaxies(gcnEvent.dateobs, formData)
+      );
+    }
     setFormDataState(formData);
     setIsSubmitting(false);
   };
@@ -315,8 +325,22 @@ const GcnSelectionForm = ({ gcnEvent, setSelectedLocalizationName }) => {
         title: "Cumulative Probability",
         default: 0.95,
       },
+      maxDistance: {
+        type: "number",
+        title: "Maximum Distance [Mpc]",
+        default: 150,
+      },
+      queryList: {
+        type: "array",
+        items: {
+          type: "string",
+          enum: ["sources", "galaxies", "observations"],
+        },
+        uniqueItems: true,
+        title: "Query list",
+      },
     },
-    required: ["startDate", "endDate", "localizationCumprob"],
+    required: ["startDate", "endDate", "localizationCumprob", "queryList"],
   };
 
   if (!gcnEvent) {

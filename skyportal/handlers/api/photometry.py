@@ -819,11 +819,11 @@ class PhotometryHandler(BaseHandler):
                 session.rollback()
                 return self.error(traceback.format_exc())
 
-        log(
-            f'Request from {username} with {len(df.index)} rows complete with upload_id {upload_id}'
-        )
+            log(
+                f'Request from {username} with {len(df.index)} rows complete with upload_id {upload_id}'
+            )
 
-        return self.success(data={'ids': ids, 'upload_id': upload_id})
+            return self.success(data={'ids': ids, 'upload_id': upload_id})
 
     @permissions(['Upload data'])
     def put(self):
@@ -965,29 +965,35 @@ class PhotometryHandler(BaseHandler):
                 # release the lock
                 self.verify_and_commit()
 
+                # get ids in the correct order
+                ids = [id_map[pdidx] for pdidx, _ in df.iterrows()]
+                return self.success(data={'ids': ids})
+
             except Exception:
                 session.rollback()
                 return self.error(traceback.format_exc())
-
-        # get ids in the correct order
-        ids = [id_map[pdidx] for pdidx, _ in df.iterrows()]
-        return self.success(data={'ids': ids})
 
     @auth_or_token
     def get(self, photometry_id):
         # The full docstring/API spec is below as an f-string
 
-        phot = Photometry.get_if_accessible_by(photometry_id, self.current_user)
+        with self.Session() as session:
+            phot = session.scalars(
+                Photometry.select(session.user_or_token).where(
+                    Photometry.id == photometry_id
+                )
+            ).first()
 
-        if phot is None:
-            return self.error(f'Cannot find photometry point with ID: {photometry_id}.')
+            if phot is None:
+                return self.error(
+                    f'Cannot find photometry point with ID: {photometry_id}.'
+                )
 
-        # get the desired output format
-        format = self.get_query_argument('format', 'mag')
-        outsys = self.get_query_argument('magsys', 'ab')
-        output = serialize(phot, outsys, format)
-        self.verify_and_commit()
-        return self.success(data=output)
+            # get the desired output format
+            format = self.get_query_argument('format', 'mag')
+            outsys = self.get_query_argument('magsys', 'ab')
+            output = serialize(phot, outsys, format)
+            return self.success(data=output)
 
     @permissions(['Upload data'])
     def patch(self, photometry_id):
@@ -1024,88 +1030,106 @@ class PhotometryHandler(BaseHandler):
         except ValueError:
             return self.error('Photometry id must be an int.')
 
-        photometry = Photometry.get_if_accessible_by(
-            photometry_id, self.current_user, mode="update", raise_if_none=True
-        )
-
         data = self.get_json()
         group_ids = data.pop("group_ids", None)
         stream_ids = data.pop("stream_ids", None)
 
-        try:
-            phot = PhotometryFlux.load(data)
-        except ValidationError as e1:
+        with self.Session() as session:
+            photometry = session.scalars(
+                Photometry.select(session.user_or_token, mode="update").where(
+                    Photometry.id == photometry_id
+                )
+            ).first()
+
+            if photometry is None:
+                return self.error(
+                    f'Cannot find photometry point with ID: {photometry_id}.'
+                )
+
             try:
-                phot = PhotometryMag.load(data)
-            except ValidationError as e2:
-                return self.error(
-                    'Invalid input format: Tried to parse '
-                    f'{data} as PhotometryFlux, got: '
-                    f'"{e1.normalized_messages()}." Tried '
-                    f'to parse {data} as PhotometryMag, got:'
-                    f' "{e2.normalized_messages()}."'
-                )
-
-        phot.original_user_data = data
-        phot.id = photometry_id
-        DBSession().merge(phot)
-
-        # Update groups, if relevant
-        if group_ids is not None:
-            groups = Group.query.filter(Group.id.in_(group_ids)).all()
-            if not groups:
-                return self.error(
-                    "Invalid group_ids field. Specify at least one valid group ID."
-                )
-            accessible_group_ids = [g.id for g in self.current_user.accessible_groups]
-            if not all([g.id in accessible_group_ids for g in groups]):
-                return self.error(
-                    "Cannot upload photometry to groups you are not a member of."
-                )
-            photometry.groups = groups
-
-        # Update streams, if relevant
-        if stream_ids is not None:
-            streams = Stream.get_if_accessible_by(
-                stream_ids, self.current_user, raise_if_none=True
-            )
-            # Add new stream_photometry rows if not already present
-            for stream in streams:
-                if (
-                    StreamPhotometry.query_records_accessible_by(self.current_user)
-                    .filter(
-                        StreamPhotometry.stream_id == stream.id,
-                        StreamPhotometry.photometr_id == photometry_id,
+                phot = PhotometryFlux.load(data)
+            except ValidationError as e1:
+                try:
+                    phot = PhotometryMag.load(data)
+                except ValidationError as e2:
+                    return self.error(
+                        'Invalid input format: Tried to parse '
+                        f'{data} as PhotometryFlux, got: '
+                        f'"{e1.normalized_messages()}." Tried '
+                        f'to parse {data} as PhotometryMag, got:'
+                        f' "{e2.normalized_messages()}."'
                     )
-                    .first()
-                    is None
-                ):
-                    DBSession().add(
-                        StreamPhotometry(
-                            photometr_id=photometry_id, stream_id=stream.id
+
+            phot.original_user_data = data
+            phot.id = photometry_id
+            session.merge(phot)
+
+            # Update groups, if relevant
+            if group_ids is not None:
+                groups = session.scalars(
+                    Group.select(session.user_or_token).where(Group.id.in_(group_ids))
+                ).all()
+                if not groups:
+                    return self.error(
+                        "Invalid group_ids field. Specify at least one valid group ID."
+                    )
+                accessible_group_ids = [
+                    g.id for g in self.current_user.accessible_groups
+                ]
+                if not all([g.id in accessible_group_ids for g in groups]):
+                    return self.error(
+                        "Cannot upload photometry to groups you are not a member of."
+                    )
+                photometry.groups = groups
+
+            # Update streams, if relevant
+            if stream_ids is not None:
+                streams = session.scalars(
+                    Stream.select(session.user_or_token).where(
+                        Stream.id.in_(stream_ids)
+                    )
+                ).all()
+
+                if not streams:
+                    return self.error(
+                        "Invalid stream_ids field. Specify at least one valid stream ID."
+                    )
+
+                # Add new stream_photometry rows if not already present
+                for stream in streams:
+                    stream_photometry = session.scalars(
+                        StreamPhotometry.select(session.user_or_token).where(
+                            StreamPhotometry.stream_id == stream.id,
+                            StreamPhotometry.photometr_id == photometry_id,
                         )
-                    )
+                    ).first()
+                    if stream_photometry is None:
+                        session.add(
+                            StreamPhotometry(
+                                photometr_id=photometry_id, stream_id=stream.id
+                            )
+                        )
 
-        self.verify_and_commit()
-
-        phot_stat = (
-            DBSession()
-            .scalars(sa.select(PhotStat).where(PhotStat.obj_id == photometry.obj_id))
-            .first()
-        )
-        if phot_stat is not None:
-            all_phot = (
-                DBSession()
-                .scalars(
-                    sa.select(Photometry).where(Photometry.obj_id == photometry.obj_id)
+            phot_stat = session.scalars(
+                PhotStat.select(session.user_or_token, mode="update").where(
+                    PhotStat.obj_id == photometry.obj_id
                 )
-                .all()
-            )
-            phot_stat.full_update(all_phot)
+            ).first()
+            if phot_stat is not None:
+                all_phot = (
+                    session.scalars(
+                        Photometry.select(session.user_or_token)
+                        .where(Photometry.obj_id == photometry.obj_id)
+                        .distinct()
+                    )
+                    .unique()
+                    .all()
+                )
+                phot_stat.full_update(all_phot)
 
-        DBSession().commit()  # this happens above a user level permission
+            session.commit()
 
-        return self.success()
+            return self.success()
 
     @permissions(['Upload data'])
     def delete(self, photometry_id):
@@ -1130,77 +1154,95 @@ class PhotometryHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        photometry = Photometry.get_if_accessible_by(
-            photometry_id, self.current_user, mode="delete"
-        )
 
-        if photometry is None:
-            return self.error(f'Cannot find photometry point with ID: {photometry_id}.')
-
-        DBSession().delete(photometry)
-
-        self.verify_and_commit()
-
-        phot_stat = (
-            DBSession()
-            .scalars(sa.select(PhotStat).where(PhotStat.obj_id == photometry.obj_id))
-            .first()
-        )
-        if phot_stat is not None:
-            all_phot = (
-                DBSession()
-                .scalars(
-                    sa.select(Photometry).where(Photometry.obj_id == photometry.obj_id)
+        with self.Session() as session:
+            photometry = session.scalars(
+                Photometry.select(session.user_or_token, mode="delete").where(
+                    Photometry.id == photometry_id
                 )
-                .all()
-            )
-            phot_stat.full_update(all_phot)
+            ).first()
 
-        DBSession().commit()  # this happens above a user level permission
+            if photometry is None:
+                return self.error(
+                    f'Cannot find photometry point with ID: {photometry_id}.'
+                )
 
-        return self.success()
+            session.delete(photometry)
+
+            phot_stat = session.scalars(
+                PhotStat.select(session.user_or_token, mode="update").where(
+                    PhotStat.obj_id == photometry.obj_id
+                )
+            ).first()
+            if phot_stat is not None:
+                all_phot = (
+                    session.scalars(
+                        Photometry.select(session.user_or_token)
+                        .where(Photometry.obj_id == photometry.obj_id)
+                        .distinct()
+                    )
+                    .unique()
+                    .all()
+                )
+                phot_stat.full_update(all_phot)
+
+            session.commit()
+
+            return self.success()
 
 
 class ObjPhotometryHandler(BaseHandler):
     @auth_or_token
     def get(self, obj_id):
         phase_fold_data = self.get_query_argument("phaseFoldData", False)
-
-        if Obj.get_if_accessible_by(obj_id, self.current_user) is None:
-            return self.error(
-                f"Insufficient permissions for User {self.current_user.id} to read Obj {obj_id}",
-                status=403,
-            )
-        photometry = Photometry.query_records_accessible_by(self.current_user).filter(
-            Photometry.obj_id == obj_id
-        )
         format = self.get_query_argument('format', 'mag')
         outsys = self.get_query_argument('magsys', 'ab')
 
-        self.verify_and_commit()
-        data = [serialize(phot, outsys, format) for phot in photometry]
+        with self.Session() as session:
 
-        if phase_fold_data:
-            period, modified = None, arrow.Arrow(1, 1, 1)
-            annotations = (
-                Annotation.query_records_accessible_by(self.current_user)
-                .filter(Annotation.obj_id == obj_id)
+            obj = session.scalars(
+                Obj.select(session.user_or_token).where(Obj.id == obj_id)
+            ).first()
+            if obj is None:
+                return self.error(
+                    f"Insufficient permissions for User {self.current_user.id} to read Obj {obj_id}",
+                    status=403,
+                )
+
+            photometry = (
+                session.scalars(
+                    Photometry.select(session.user_or_token)
+                    .where(Photometry.obj_id == obj_id)
+                    .distinct()
+                )
+                .unique()
                 .all()
             )
-            period_str_options = ['period', 'Period', 'PERIOD']
-            for an in annotations:
-                if not isinstance(an.data, dict):
-                    continue
-                for period_str in period_str_options:
-                    if period_str in an.data and arrow.get(an.modified) > modified:
-                        period = an.data[period_str]
-                        modified = arrow.get(an.modified)
-            if period is None:
-                self.error(f'No period for object {obj_id}')
-            for ii in range(len(data)):
-                data[ii]['phase'] = np.mod(data[ii]['mjd'], period) / period
 
-        return self.success(data=data)
+            data = [serialize(phot, outsys, format) for phot in photometry]
+
+            if phase_fold_data:
+                period, modified = None, arrow.Arrow(1, 1, 1)
+
+                annotations = session.scalars(
+                    Annotation.select(session.user_or_token).where(
+                        Annotation.obj_id == obj_id
+                    )
+                ).all()
+                period_str_options = ['period', 'Period', 'PERIOD']
+                for an in annotations:
+                    if not isinstance(an.data, dict):
+                        continue
+                    for period_str in period_str_options:
+                        if period_str in an.data and arrow.get(an.modified) > modified:
+                            period = an.data[period_str]
+                            modified = arrow.get(an.modified)
+                if period is None:
+                    self.error(f'No period for object {obj_id}')
+                for ii in range(len(data)):
+                    data[ii]['phase'] = np.mod(data[ii]['mjd'], period) / period
+
+            return self.success(data=data)
 
 
 class BulkDeletePhotometryHandler(BaseHandler):
@@ -1227,21 +1269,23 @@ class BulkDeletePhotometryHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        photometry_to_delete = (
-            Photometry.query_records_accessible_by(self.current_user, mode="delete")
-            .filter(Photometry.upload_id == upload_id)
-            .all()
-        )
 
-        n = len(photometry_to_delete)
-        if n == 0:
-            return self.error('Invalid bulk upload id.')
+        with self.Session() as session:
+            photometry_to_delete = session.scalars(
+                Photometry.select(session.user_or_token, mode="delete").where(
+                    Photometry.upload_id == upload_id
+                )
+            ).all()
 
-        for phot in photometry_to_delete:
-            DBSession().delete(phot)
+            n = len(photometry_to_delete)
+            if n == 0:
+                return self.error('Invalid bulk upload id.')
 
-        self.verify_and_commit()
-        return self.success(f"Deleted {n} photometry points.")
+            for phot in photometry_to_delete:
+                session.delete(phot)
+
+            session.commit()
+            return self.success(f"Deleted {n} photometry points.")
 
 
 class PhotometryRangeHandler(BaseHandler):
@@ -1250,12 +1294,6 @@ class PhotometryRangeHandler(BaseHandler):
         """Docstring appears below as an f-string."""
 
         json = self.get_json()
-
-        try:
-            standardized = PhotometryRangeQuery.load(json)
-        except ValidationError as e:
-            return self.error(f'Invalid request body: {e.normalized_messages()}')
-
         magsys = self.get_query_argument('magsys', default='ab')
 
         if magsys not in ALLOWED_MAGSYSTEMS:
@@ -1265,35 +1303,43 @@ class PhotometryRangeHandler(BaseHandler):
         if format not in ['mag', 'flux']:
             return self.error('Invalid output format.')
 
-        instrument_ids = standardized['instrument_ids']
-        min_date = standardized['min_date']
-        max_date = standardized['max_date']
+        with self.Session() as session:
+            try:
+                standardized = PhotometryRangeQuery.load(json)
+            except ValidationError as e:
+                return self.error(f'Invalid request body: {e.normalized_messages()}')
 
-        gids = [g.id for g in self.current_user.accessible_groups]
+            instrument_ids = standardized['instrument_ids']
+            min_date = standardized['min_date']
+            max_date = standardized['max_date']
 
-        group_phot_subquery = (
-            GroupPhotometry.query_records_accessible_by(self.current_user)
-            .filter(GroupPhotometry.group_id.in_(gids))
-            .subquery()
-        )
-        query = Photometry.query_records_accessible_by(self.current_user)
+            gids = [g.id for g in self.current_user.accessible_groups]
 
-        if instrument_ids is not None:
-            query = query.filter(Photometry.instrument_id.in_(instrument_ids))
-        if min_date is not None:
-            mjd = Time(min_date, format='datetime').mjd
-            query = query.filter(Photometry.mjd >= mjd)
-        if max_date is not None:
-            mjd = Time(max_date, format='datetime').mjd
-            query = query.filter(Photometry.mjd <= mjd)
+            group_phot_subquery = (
+                GroupPhotometry.select(session.user_or_token)
+                .where(GroupPhotometry.group_id.in_(gids))
+                .subquery()
+            )
+            query = Photometry.select(session.user_or_token)
 
-        query = query.join(
-            group_phot_subquery, Photometry.id == group_phot_subquery.c.photometr_id
-        )
+            if instrument_ids is not None:
+                query = query.where(Photometry.instrument_id.in_(instrument_ids))
+            if min_date is not None:
+                mjd = Time(min_date, format='datetime').mjd
+                query = query.where(Photometry.mjd >= mjd)
+            if max_date is not None:
+                mjd = Time(max_date, format='datetime').mjd
+                query = query.where(Photometry.mjd <= mjd)
 
-        output = [serialize(p, magsys, format) for p in query]
-        self.verify_and_commit()
-        return self.success(data=output)
+            query = query.join(
+                group_phot_subquery, Photometry.id == group_phot_subquery.c.photometr_id
+            )
+
+            output = [
+                serialize(p, magsys, format)
+                for p in session.scalars(query.distinct()).unique().all()
+            ]
+            return self.success(data=output)
 
 
 class PhotometryOriginHandler(BaseHandler):
@@ -1314,8 +1360,12 @@ class PhotometryOriginHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        origins = DBSession().query(Photometry.origin).distinct().all()
-        return self.success(data=[origin[0] for origin in origins])
+
+        with self.Session() as session:
+            origins = (
+                session.scalars(sa.select(Photometry.origin).distinct()).unique().all()
+            )
+            return self.success(data=origins)
 
 
 PhotometryHandler.get.__doc__ = f"""
