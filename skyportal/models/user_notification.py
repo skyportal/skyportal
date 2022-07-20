@@ -276,6 +276,9 @@ def push_frontend_notification(mapper, connection, target):
     elif 'user' in target.__dict__:
         user_id = target.user.id
     else:
+        log(
+            "Error sending push notification: user_id or user not found in notification's target"
+        )
         return
     resource_type = notification_resource_type(target)
     log(
