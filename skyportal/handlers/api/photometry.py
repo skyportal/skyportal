@@ -1120,6 +1120,8 @@ class PhotometryHandler(BaseHandler):
                     sa.select(Photometry).where(Photometry.obj_id == photometry.obj_id)
                 ).all()
                 phot_stat.full_update(all_phot)
+                for phot in all_phot:
+                    session.expunge(phot)
 
             session.commit()
 
