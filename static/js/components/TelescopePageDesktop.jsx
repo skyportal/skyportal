@@ -75,6 +75,7 @@ export function telescopeInfo(telescope) {
 
 const TelescopePage = () => {
   dispatch = useDispatch();
+  const currentUser = useSelector((state) => state.profile);
   const { telescopeList } = useSelector((state) => state.telescopes);
   const currentTelescopeMenu = useSelector(
     (state) => state.telescope.currentTelescopeMenu
@@ -125,19 +126,23 @@ const TelescopePage = () => {
             >
               Telescope List
             </Button>
-            <Button
-              id="new-telescope"
-              onClick={() => setSelectedMenu("New Telescope")}
-              className={isMenuSelected("New Telescope")}
-            >
-              New Telescope
-            </Button>
+            {currentUser.permissions?.includes("Manage allocations") && (
+              <Button
+                id="new-telescope"
+                onClick={() => setSelectedMenu("New Telescope")}
+                className={isMenuSelected("New Telescope")}
+              >
+                New Telescope
+              </Button>
+            )}
           </Paper>
           <Paper className={classes.paperContent}>
             {currentTelescopeMenu === "Telescope List" ? (
               <TelescopeInfo />
             ) : (
-              <NewTelescope />
+              currentUser.permissions?.includes("Manage allocations") && (
+                <NewTelescope />
+              )
             )}
           </Paper>
         </Grid>
