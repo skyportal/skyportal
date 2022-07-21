@@ -8,7 +8,7 @@ from ...enum_types import (
     GCN_NOTICE_TYPES,
 )
 
-from .source import MAX_NB_DAYS_USING_LOCALIZATION
+from .source import MAX_NUM_DAYS_USING_LOCALIZATION
 
 from skyportal.models import cosmo
 
@@ -68,6 +68,6 @@ class ConfigHandler(BaseHandler):
                 "allowedSpectrumTypes": ALLOWED_SPECTRUM_TYPES,
                 "defaultSpectrumType": default_spectrum_type,
                 "gcnNoticeTypes": GCN_NOTICE_TYPES,
-                "maxNbDaysUsingLocalization": MAX_NB_DAYS_USING_LOCALIZATION,
+                "maxNumDaysUsingLocalization": MAX_NUM_DAYS_USING_LOCALIZATION,
             }
         )
