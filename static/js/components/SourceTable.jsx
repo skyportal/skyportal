@@ -22,6 +22,7 @@ import makeStyles from "@mui/styles/makeStyles";
 import CheckIcon from "@mui/icons-material/Check";
 import ClearIcon from "@mui/icons-material/Clear";
 import InfoIcon from "@mui/icons-material/Info";
+import QuestionMarkIcon from '@mui/icons-material/QuestionMark';
 import CircularProgress from "@mui/material/CircularProgress";
 import Divider from "@mui/material/Divider";
 import ListItem from "@mui/material/ListItem";
@@ -46,6 +47,7 @@ import * as sourceActions from "../ducks/source";
 import * as sourcesActions from "../ducks/sources";
 import { filterOutEmptyValues } from "../API";
 import { getAnnotationValueString } from "./ScanningPageCandidateAnnotations";
+import SourcesInGCN from "./SourcesInGcn";
 
 const VegaSpectrum = React.lazy(() => import("./VegaSpectrum"));
 const VegaHR = React.lazy(() => import("./VegaHR"));
@@ -299,6 +301,8 @@ const SourceTable = ({
   favoritesRemoveButton = false,
   hideTitle = false,
   downloadCallback,
+  includeGcnStatus = false,
+  sourceInGcnFilter
 }) => {
   // sourceStatus should be one of either "saved" (default) or "requested" to add a button to agree to save the source.
   // If groupID is not given, show all data available to user's accessible groups
@@ -313,6 +317,11 @@ const SourceTable = ({
       (c) => c !== "Favorites"
     );
   }
+  console.log(includeGcnStatus);
+  if (includeGcnStatus) {
+    console.log("includeGcnStatus");
+    defaultDisplayedColumns.push("GCN Status");
+  }
 
   const [displayedColumns, setDisplayedColumns] = useState(
     defaultDisplayedColumns
@@ -323,8 +332,14 @@ const SourceTable = ({
 
   const [tableFilterList, setTableFilterList] = useState([]);
   const [filterFormData, setFilterFormData] = useState(null);
+  
   const [rowsPerPage, setRowsPerPage] = useState(numPerPage);
   const [queryInProgress, setQueryInProgress] = useState(false);
+
+  const gcnEvent = useSelector((state) => state.gcnEvent);
+  const localization = useSelector((state) => state.localization);
+  console.log(gcnEvent);
+  console.log(localization);
 
   useEffect(() => {
     if (sources) {
@@ -839,6 +854,52 @@ const SourceTable = ({
     return getSavedBy(source);
   };
 
+  const renderGcnStatus = (dataIndex) => {
+    console.log("renderGcnStatus");
+    const source = sources[dataIndex];
+    let statusIcon = null;
+    if (source.confirm_status === "confirmed") {
+      console.log("confirmed");
+      statusIcon = <CheckIcon
+        size="small"
+        key={`${source.id}_confirm_status`}
+        color="green"
+      />
+    } else if (source.confirm_status === "rejected") {
+      console.log("rejected");
+      statusIcon = <ClearIcon
+        size="small"
+        key={`${source.id}_confirm_status`}
+        color="secondary"
+      />
+    } else if (source.confirm_status === "pending") {
+      console.log("pending");
+      statusIcon = <QuestionMarkIcon
+        size="small"
+        key={`${source.id}_confirm_status`}
+        color="primary"
+      />
+    }
+
+
+
+    return (
+      <div>
+        {statusIcon}
+        <SourcesInGCN
+          dateobs={gcnEvent.dateobs}
+          localizationName={localization.localization_name}
+          sourceId={source.id}
+          startDate={sourceInGcnFilter.startDate}
+          endDate={sourceInGcnFilter.endDate}
+          currentState={source.confirm_status}
+        />
+      </div>
+    )
+
+  }
+
+
   const handleFilterSubmit = async (formData) => {
     setQueryInProgress(true);
 
@@ -1097,6 +1158,20 @@ const SourceTable = ({
       },
     },
   ];
+
+  // if all sources have a status, add a status column
+  if (includeGcnStatus) {
+    console.log("gcnEventSources", includeGcnStatus);
+    columns.push({
+      name: "GCN Status",
+      options: {
+        filter: false,
+        sort: false,
+        customBodyRenderLite: renderGcnStatus,
+        display: displayedColumns.includes("GCN Status"),
+      },
+    });
+  }
 
   const options = {
     draggableColumns: { enabled: true },

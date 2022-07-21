@@ -64,7 +64,7 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-const GcnSelectionForm = ({ gcnEvent, setSelectedLocalizationName }) => {
+const GcnSelectionForm = ({ gcnEvent, setSelectedLocalizationName, setSourceFilteringState }) => {
   const classes = useStyles();
   const dispatch = useDispatch();
 
@@ -206,6 +206,7 @@ const GcnSelectionForm = ({ gcnEvent, setSelectedLocalizationName }) => {
       );
     }
     setFormDataState(formData);
+    setSourceFilteringState(formData);
     setIsSubmitting(false);
   };
 

@@ -55,28 +55,12 @@ class SourcesInGCN(Base):
         doc="Localization"
     )
 
-    confirmed = sa.Column(
+    confirmed_or_rejected = sa.Column(
         sa.Boolean,
         nullable=False,
         default=False,
         doc="Confirmed",
     )
-
-    rejected = sa.Column(
-        sa.Boolean,
-        nullable=False,
-        default=False,
-        doc="Rejected",
-    )
-
-    # it can be either confirmed or rejected, not both True at the same time
-    def confirm(self):
-        self.confirmed = True
-        self.rejected = False
-
-    def reject(self):
-        self.confirmed = False
-        self.rejected = True
 
 
 

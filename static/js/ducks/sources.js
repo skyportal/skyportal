@@ -86,6 +86,12 @@ export function fetchGcnEventSources(dateobs, filterParams = {}) {
     }
   }
 
+  if (!Object.keys(filterParams).includes("include_localization_status")) {
+    if (dateobs) {
+      filterParams.includeLocalizationStatus = true;
+    }
+  }
+
   filterParams.includeGeoJSON = true;
   return API.GET("/api/sources", FETCH_GCNEVENT_SOURCES, filterParams);
 }

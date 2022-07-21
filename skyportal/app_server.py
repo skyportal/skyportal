@@ -222,8 +222,8 @@ skyportal_handlers = [
         GcnEventSurveyEfficiencyHandler,
     ),
     (r'/api/gcn_event(/.*)?', GcnEventHandler),
-    (r'/api/sources_in_gcn/(.*)/(.*)/(.*)', SourcesInGcnHandler),
     (r'/api/sources_in_gcn/(.*)/(.*)', SourcesInGcnHandler),
+    (r'/api/sources_in_gcn/(.*)', SourcesInGcnHandler),
     (
         r'/api/localization(/[0-9]+)/airmass(/[0-9]+)?',
         ObservationPlanAirmassChartHandler,
