@@ -37,7 +37,7 @@ Session = scoped_session(sessionmaker(bind=DBSession.session_factory.kw["bind"])
 
 
 class InstrumentHandler(BaseHandler):
-    @permissions(['System admin'])
+    @permissions(['Manage allocations'])
     def post(self):
         # See bottom of this file for redoc docstring -- moved it there so that
         # it could be made an f-string.
@@ -458,7 +458,7 @@ class InstrumentHandler(BaseHandler):
             data = [instrument.to_dict() for instrument in instruments]
             return self.success(data=data)
 
-    @permissions(['System admin'])
+    @permissions(['Manage allocations'])
     def put(self, instrument_id):
         """
         ---
@@ -584,7 +584,7 @@ class InstrumentHandler(BaseHandler):
         self.push_all(action="skyportal/REFRESH_INSTRUMENTS")
         return self.success()
 
-    @permissions(['System admin'])
+    @permissions(['Manage allocations'])
     def delete(self, instrument_id):
         """
         ---
