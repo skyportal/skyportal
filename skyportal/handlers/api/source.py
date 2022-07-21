@@ -28,7 +28,6 @@ from baselayer.log import make_log
 
 from ..base import BaseHandler
 from ...models import (
-    DBSession,
     Allocation,
     Annotation,
     Comment,
@@ -76,6 +75,8 @@ MAX_SOURCES_PER_PAGE = 500
 _, cfg = load_env()
 log = make_log('api/source')
 
+MAX_LOCALIZATION_SOURCES = 50000
+
 
 def get_source(
     obj_id,
@@ -103,7 +104,7 @@ def get_source(
     See Source Handler for optional arguments
     """
 
-    user = session.query(User).get(user_id)
+    user = session.scalar(sa.select(User).where(User.id == user_id))
 
     options = []
     if include_thumbnails:
@@ -111,13 +112,15 @@ def get_source(
     if include_detection_stats:
         options.append(joinedload(Obj.photstats))
 
-    s = Obj.get_if_accessible_by(obj_id, user, options=options)
+    s = session.scalars(
+        Obj.select(user, options=options).where(Obj.id == obj_id)
+    ).first()
     if s is None:
         raise ValueError("Source not found")
 
     source_info = s.to_dict()
-    source_info["followup_requests"] = (
-        FollowupRequest.query_records_accessible_by(
+    source_info["followup_requests"] = session.scalars(
+        FollowupRequest.select(
             user,
             options=[
                 joinedload(FollowupRequest.allocation).joinedload(
@@ -127,30 +130,24 @@ def get_source(
                 joinedload(FollowupRequest.requester),
             ],
         )
-        .filter(FollowupRequest.obj_id == obj_id)
-        .filter(FollowupRequest.status != "deleted")
-        .all()
-    )
-    source_info["assignments"] = (
-        ClassicalAssignment.query_records_accessible_by(
+        .where(FollowupRequest.obj_id == obj_id)
+        .where(FollowupRequest.status != "deleted")
+    ).all()
+    source_info["assignments"] = session.scalars(
+        ClassicalAssignment.select(
             user,
             options=[
                 joinedload(ClassicalAssignment.run)
                 .joinedload(ObservingRun.instrument)
                 .joinedload(Instrument.telescope)
             ],
-        )
-        .filter(ClassicalAssignment.obj_id == obj_id)
-        .all()
-    )
+        ).where(ClassicalAssignment.obj_id == obj_id)
+    ).all()
     point = ca.Point(ra=s.ra, dec=s.dec)
     # Check for duplicates (within 4 arcsecs)
-    duplicates = (
-        Obj.query_records_accessible_by(user)
-        .filter(Obj.within(point, 4 / 3600))
-        .filter(Obj.id != s.id)
-        .all()
-    )
+    duplicates = session.scalars(
+        Obj.select(user).where(Obj.within(point, 4 / 3600)).where(Obj.id != s.id)
+    ).all()
     if len(duplicates) > 0:
         source_info["duplicates"] = [dup.id for dup in duplicates]
     else:
@@ -173,7 +170,7 @@ def get_source(
         if "ps1" not in existing_thumbnail_types:
             IOLoop.current().run_in_executor(
                 None,
-                lambda: add_ps1_thumbnail_and_push_ws_msg(obj_id, user.id),
+                lambda: add_ps1_thumbnail_and_push_ws_msg(obj_id, user_id),
             )
         if (
             "sdss" not in existing_thumbnail_types
@@ -181,18 +178,20 @@ def get_source(
         ):
             IOLoop.current().run_in_executor(
                 None,
-                lambda: add_linked_thumbnails_and_push_ws_msg(obj_id, user.id),
+                lambda: add_linked_thumbnails_and_push_ws_msg(obj_id, user_id),
             )
     if include_comments:
         comments = (
-            Comment.query_records_accessible_by(
-                user,
-                options=[
-                    joinedload(Comment.author),
-                    joinedload(Comment.groups),
-                ],
+            session.scalars(
+                Comment.select(
+                    user,
+                    options=[
+                        joinedload(Comment.author),
+                        joinedload(Comment.groups),
+                    ],
+                ).where(Comment.obj_id == obj_id)
             )
-            .filter(Comment.obj_id == obj_id)
+            .unique()
             .all()
         )
         source_info["comments"] = sorted(
@@ -210,11 +209,9 @@ def get_source(
             reverse=True,
         )
     if include_period_exists:
-        annotations = (
-            Annotation.query_records_accessible_by(user)
-            .filter(Annotation.obj_id == obj_id)
-            .all()
-        )
+        annotations = session.scalars(
+            Annotation.select(user).where(Annotation.obj_id == obj_id)
+        ).all()
         period_str_options = ['period', 'Period', 'PERIOD']
         source_info["period_exists"] = any(
             [
@@ -225,18 +222,18 @@ def get_source(
         )
 
     source_info["annotations"] = sorted(
-        Annotation.query_records_accessible_by(
-            user, options=[joinedload(Annotation.author)]
+        session.scalars(
+            Annotation.select(user)
+            .options(joinedload(Annotation.author))
+            .where(Annotation.obj_id == obj_id)
         )
-        .filter(Annotation.obj_id == obj_id)
+        .unique()
         .all(),
         key=lambda x: x.origin,
     )
-    readable_classifications = (
-        Classification.query_records_accessible_by(user)
-        .filter(Classification.obj_id == obj_id)
-        .all()
-    )
+    readable_classifications = session.scalars(
+        Classification.select(user).where(Classification.obj_id == obj_id)
+    ).all()
 
     readable_classifications_json = []
     for classification in readable_classifications:
@@ -252,49 +249,41 @@ def get_source(
     source_info["angular_diameter_distance"] = s.angular_diameter_distance
 
     if include_photometry:
-        photometry = (
-            Photometry.query_records_accessible_by(user)
-            .filter(Photometry.obj_id == obj_id)
-            .all()
-        )
+        photometry = session.scalars(
+            Photometry.select(user).where(Photometry.obj_id == obj_id)
+        ).all()
         source_info["photometry"] = [
             serialize(phot, 'ab', 'flux') for phot in photometry
         ]
     if include_photometry_exists:
         source_info["photometry_exists"] = (
-            Photometry.query_records_accessible_by(user)
-            .filter(Photometry.obj_id == obj_id)
-            .first()
+            session.scalars(
+                Photometry.select(user).where(Photometry.obj_id == obj_id)
+            ).first()
             is not None
         )
     if include_spectrum_exists:
         source_info["spectrum_exists"] = (
-            len(
-                Spectrum.query_records_accessible_by(user)
-                .filter(Spectrum.obj_id == obj_id)
-                .all()
-            )
-            > 0
+            session.scalars(
+                Spectrum.select(user).where(Spectrum.obj_id == obj_id)
+            ).first()
+            is not None
         )
-    source_query = Source.query_records_accessible_by(user).filter(
-        Source.obj_id == source_info["id"]
-    )
+    source_query = Source.select(user).where(Source.obj_id == source_info["id"])
     source_query = apply_active_or_requested_filtering(
         source_query, include_requested, requested_only
     )
     source_subquery = source_query.subquery()
-    groups = (
-        Group.query_records_accessible_by(user)
-        .join(source_subquery, Group.id == source_subquery.c.group_id)
-        .all()
-    )
+    groups = session.scalars(
+        Group.select(user).join(source_subquery, Group.id == source_subquery.c.group_id)
+    ).all()
     source_info["groups"] = [g.to_dict() for g in groups]
     for group in source_info["groups"]:
-        source_table_row = (
-            Source.query_records_accessible_by(user)
-            .filter(Source.obj_id == s.id, Source.group_id == group["id"])
-            .first()
-        )
+        source_table_row = session.scalars(
+            Source.select(user)
+            .where(Source.obj_id == s.id)
+            .where(Source.group_id == group["id"])
+        ).first()
         if source_table_row is not None:
             group["active"] = source_table_row.active
             group["requested"] = source_table_row.requested
@@ -380,7 +369,7 @@ def get_sources(
     See Source Handler for optional arguments
     """
 
-    user = session.query(User).get(user_id)
+    user = session.scalar(sa.select(User).where(User.id == user_id))
 
     obj_query_options = []
     if include_thumbnails and not remove_nested:
@@ -388,11 +377,14 @@ def get_sources(
     if include_detection_stats:
         obj_query_options.append(joinedload(Obj.photstats))
 
-    obj_query = Obj.query_records_accessible_by(user, options=obj_query_options)
-    source_query = Source.query_records_accessible_by(user)
+    if localization_dateobs is not None:
+        obj_query = Obj.select(user, columns=[Obj.id])
+    else:
+        obj_query = Obj.select(user, options=obj_query_options)
+    source_query = Source.select(user)
 
     if sourceID:
-        obj_query = obj_query.filter(
+        obj_query = obj_query.where(
             func.lower(Obj.id).contains(func.lower(sourceID.strip()))
         )
     if any([ra, dec, radius]):
@@ -410,13 +402,13 @@ def get_sources(
                 "Invalid values for ra, dec or radius - could not convert to float"
             )
         other = ca.Point(ra=ra, dec=dec)
-        obj_query = obj_query.filter(Obj.within(other, radius))
+        obj_query = obj_query.where(Obj.within(other, radius))
 
     if first_detected_date:
         first_detected_date = arrow.get(first_detected_date.strip()).datetime
         photstat_subquery = (
-            PhotStat.query_records_accessible_by(user)
-            .filter(PhotStat.first_detected_mjd >= Time(first_detected_date).mjd)
+            PhotStat.select(user)
+            .where(PhotStat.first_detected_mjd >= Time(first_detected_date).mjd)
             .subquery()
         )
         obj_query = obj_query.join(
@@ -425,8 +417,8 @@ def get_sources(
     if last_detected_date:
         last_detected_date = arrow.get(last_detected_date.strip()).datetime
         photstat_subquery = (
-            PhotStat.query_records_accessible_by(user)
-            .filter(PhotStat.last_detected_mjd <= Time(last_detected_date).mjd)
+            PhotStat.select(user)
+            .where(PhotStat.last_detected_mjd <= Time(last_detected_date).mjd)
             .subquery()
         )
         obj_query = obj_query.join(
@@ -440,8 +432,8 @@ def get_sources(
                 f"Invalid input for parameter hasSpectrumAfter:{has_spectrum_after}"
             )
         spectrum_subquery = (
-            Spectrum.query_records_accessible_by(user)
-            .filter(Spectrum.observed_at >= has_spectrum_after)
+            Spectrum.select(user)
+            .where(Spectrum.observed_at >= has_spectrum_after)
             .subquery()
         )
         obj_query = obj_query.join(
@@ -455,17 +447,17 @@ def get_sources(
                 f"Invalid input for parameter hasSpectrumBefore:{has_spectrum_before}"
             )
         spectrum_subquery = (
-            Spectrum.query_records_accessible_by(user)
-            .filter(Spectrum.observed_at <= has_spectrum_before)
+            Spectrum.select(user)
+            .where(Spectrum.observed_at <= has_spectrum_before)
             .subquery()
         )
         obj_query = obj_query.join(
             spectrum_subquery, Obj.id == spectrum_subquery.c.obj_id
         )
     if saved_before:
-        source_query = source_query.filter(Source.saved_at <= saved_before)
+        source_query = source_query.where(Source.saved_at <= saved_before)
     if saved_after:
-        source_query = source_query.filter(Source.saved_at >= saved_after)
+        source_query = source_query.where(Source.saved_at >= saved_after)
     if created_or_modified_after:
         try:
             created_or_modified_date = str(
@@ -473,7 +465,7 @@ def get_sources(
             )
         except arrow.ParserError:
             raise arrow.ParserError("Invalid value provided for createdOrModifiedAfter")
-        obj_query = obj_query.filter(
+        obj_query = obj_query.where(
             or_(
                 Obj.created_at > created_or_modified_date,
                 Obj.modified > created_or_modified_date,
@@ -481,26 +473,26 @@ def get_sources(
         )
     if list_name:
         listing_subquery = (
-            Listing.query_records_accessible_by(user)
-            .filter(Listing.list_name == list_name)
-            .filter(Listing.user_id == user.id)
+            Listing.select(user)
+            .where(Listing.list_name == list_name)
+            .where(Listing.user_id == user.id)
             .subquery()
         )
         obj_query = obj_query.join(
             listing_subquery, Obj.id == listing_subquery.c.obj_id
         )
     if simbad_class:
-        obj_query = obj_query.filter(
+        obj_query = obj_query.where(
             func.lower(Obj.altdata['simbad']['class'].astext) == simbad_class.lower()
         )
     if alias is not None:
-        obj_query = obj_query.filter(Obj.alias.any(alias.strip()))
+        obj_query = obj_query.where(Obj.alias.any(alias.strip()))
     if origin is not None:
-        obj_query = obj_query.filter(Obj.origin.contains(origin.strip()))
+        obj_query = obj_query.where(Obj.origin.contains(origin.strip()))
     if has_tns_name:
-        obj_query = obj_query.filter(Obj.altdata['tns']['name'].isnot(None))
+        obj_query = obj_query.where(Obj.altdata['tns']['name'].isnot(None))
     if has_spectrum:
-        spectrum_subquery = Spectrum.query_records_accessible_by(user).subquery()
+        spectrum_subquery = Spectrum.select(user).subquery()
         obj_query = obj_query.join(
             spectrum_subquery, Obj.id == spectrum_subquery.c.obj_id
         )
@@ -511,7 +503,7 @@ def get_sources(
             raise ValueError(
                 "Invalid values for minRedshift - could not convert to float"
             )
-        obj_query = obj_query.filter(Obj.redshift >= min_redshift)
+        obj_query = obj_query.where(Obj.redshift >= min_redshift)
     if max_redshift is not None:
         try:
             max_redshift = float(max_redshift)
@@ -519,7 +511,7 @@ def get_sources(
             raise ValueError(
                 "Invalid values for maxRedshift - could not convert to float"
             )
-        obj_query = obj_query.filter(Obj.redshift <= max_redshift)
+        obj_query = obj_query.where(Obj.redshift <= max_redshift)
 
     if min_peak_magnitude is not None:
         try:
@@ -529,7 +521,7 @@ def get_sources(
                 "Invalid values for minPeakMagnitude - could not convert to float"
             )
         min_peak_magnitude_subquery = (
-            PhotStat.query_records_accessible_by(user)
+            PhotStat.select(user)
             .where(PhotStat.peak_mag_global <= min_peak_magnitude)
             .subquery()
         )
@@ -544,7 +536,7 @@ def get_sources(
                 "Invalid values for maxPeakMagnitude - could not convert to float"
             )
         max_peak_magnitude_subquery = (
-            PhotStat.query_records_accessible_by(user)
+            PhotStat.select(user)
             .where(PhotStat.peak_mag_global >= max_peak_magnitude)
             .subquery()
         )
@@ -559,7 +551,7 @@ def get_sources(
                 "Invalid values for minLatestMagnitude - could not convert to float"
             )
         min_latest_magnitude_subquery = (
-            PhotStat.query_records_accessible_by(user)
+            PhotStat.select(user)
             .where(PhotStat.last_detected_mag <= min_latest_magnitude)
             .subquery()
         )
@@ -576,7 +568,7 @@ def get_sources(
                 "Invalid values for maxLatestMagnitude - could not convert to float"
             )
         max_latest_magnitude_subquery = (
-            PhotStat.query_records_accessible_by(user)
+            PhotStat.select(user)
             .where(PhotStat.last_detected_mag >= max_latest_magnitude)
             .subquery()
         )
@@ -607,9 +599,7 @@ def get_sources(
                     )
                 )
             )
-            classification_accessible_query = (
-                Classification.query_records_accessible_by(user).subquery()
-            )
+            classification_accessible_query = Classification.select(user).subquery()
 
             classification_query = (
                 session.query(
@@ -617,8 +607,8 @@ def get_sources(
                     Classification.classification,
                 )
                 .join(Taxonomy)
-                .filter(Classification.classification.in_(classifications))
-                .filter(Taxonomy.name.in_(taxonomy_names))
+                .where(Classification.classification.in_(classifications))
+                .where(Taxonomy.name.in_(taxonomy_names))
             )
             classification_subquery = classification_query.subquery()
 
@@ -637,7 +627,7 @@ def get_sources(
 
         else:
             # Not filtering on classifications, but ordering on them
-            classification_query = Classification.query_records_accessible_by(user)
+            classification_query = Classification.select(user)
             classification_subquery = classification_query.subquery()
 
             # We need an outer join here when just sorting by classifications
@@ -669,9 +659,7 @@ def get_sources(
                 )
             )
         )
-        classification_accessible_subquery = Classification.query_records_accessible_by(
-            user
-        ).subquery()
+        classification_accessible_subquery = Classification.select(user).subquery()
 
         nonclassification_query = (
             session.query(
@@ -679,8 +667,8 @@ def get_sources(
                 Classification.classification,
             )
             .join(Taxonomy)
-            .filter(Classification.classification.notin_(nonclassifications))
-            .filter(Taxonomy.name.in_(taxonomy_names))
+            .where(Classification.classification.notin_(nonclassifications))
+            .where(Taxonomy.name.in_(taxonomy_names))
         )
         nonclassification_subquery = nonclassification_query.subquery()
 
@@ -740,21 +728,35 @@ def get_sources(
                 "Invalid commentsFilterAuthor value -- must provide at least one string value"
             )
     if localization_dateobs is not None:
-        if localization_name is not None:
-            localization = (
-                Localization.query_records_accessible_by(user)
-                .filter(Localization.dateobs == localization_dateobs)
-                .filter(Localization.localization_name == localization_name)
-                .first()
-            )
+
+        # This grabs just the IDs so the more expensive localization in-out
+        # check is done on only this subset
+        obj_ids = session.scalars(obj_query).all()
+
+        if len(obj_ids) > MAX_LOCALIZATION_SOURCES:
+            raise ValueError('Need fewer sources for efficient cross-match.')
+
+        obj_query = Obj.select(user, options=obj_query_options).where(
+            Obj.id.in_(obj_ids)
+        )
+
+        if localization_name is None:
+            localization = session.scalars(
+                Localization.select(
+                    user,
+                )
+                .where(Localization.dateobs == localization_dateobs)
+                .order_by(Localization.created_at.desc())
+            ).first()
         else:
-            localization = (
-                Localization.query_records_accessible_by(user)
-                .filter(Localization.dateobs == localization_dateobs)
-                # order by descending date to find the most recent localization
+            localization = session.scalars(
+                Localization.select(
+                    user,
+                )
+                .where(Localization.dateobs == localization_dateobs)
+                .where(Localization.localization_name == localization_name)
                 .order_by(Localization.modified.desc())
-                .first()
-            )
+            ).first()
         if localization is None:
             if localization_name is not None:
                 raise ValueError(
@@ -782,12 +784,18 @@ def get_sources(
             ).filter(localizationtile_subquery.columns.cum_prob <= localization_cumprob)
         ).scalar_subquery()
 
+        tile_ids = session.scalars(
+            sa.select(LocalizationTile.id).where(
+                LocalizationTile.localization_id == localization.id,
+                LocalizationTile.probdensity >= min_probdensity,
+            )
+        ).all()
+
         tiles_subquery = (
             sa.select(Obj.id)
             .filter(
-                LocalizationTile.localization_id == localization.id,
+                LocalizationTile.id.in_(tile_ids),
                 LocalizationTile.healpix.contains(Obj.healpix),
-                LocalizationTile.probdensity >= min_probdensity,
             )
             .subquery()
         )
@@ -863,6 +871,7 @@ def get_sources(
         raise ValueError("Invalid page number value.")
     if save_summary:
         query_results = paginate_summary_query(
+            session,
             source_query,
             page_number,
             num_per_page,
@@ -1201,9 +1210,13 @@ def post_source(data, user_id, session):
         Database session for this transaction
     """
 
-    user = session.query(User).get(user_id)
+    user = session.scalar(sa.select(User).where(User.id == user_id))
 
-    obj_already_exists = Obj.get_if_accessible_by(data["id"], user) is not None
+    obj = session.scalars(Obj.select(user).where(Obj.id == data["id"])).first()
+    if obj is None:
+        obj_already_exists = False
+    else:
+        obj_already_exists = True
     schema = Obj.__schema__()
 
     ra = data.get('ra', None)
@@ -1232,36 +1245,37 @@ def post_source(data, user_id, session):
             "one valid group ID that you belong to."
         )
 
-    try:
-        obj = schema.load(data)
-    except ValidationError as e:
-        raise ValidationError(
-            'Invalid/missing parameters: ' f'{e.normalized_messages()}'
-        )
+    if not obj_already_exists:
+        try:
+            obj = schema.load(data)
+        except ValidationError as e:
+            raise ValidationError(
+                'Invalid/missing parameters: ' f'{e.normalized_messages()}'
+            )
+        session.add(obj)
 
     if (ra is not None) and (dec is not None):
         # This adds a healpix index for a new object being created
         obj.healpix = ha.constants.HPX.lonlat_to_healpix(ra * u.deg, dec * u.deg)
 
-    groups = (
-        Group.query_records_accessible_by(user).filter(Group.id.in_(group_ids)).all()
-    )
+    groups = session.scalars(Group.select(user).where(Group.id.in_(group_ids))).all()
     if not groups:
         raise AttributeError(
             "Invalid group_ids field. Please specify at least "
             "one valid group ID that you belong to."
         )
+    group_ids_loaded = [g.id for g in groups]
+    if not set(group_ids_loaded) == set(group_ids):
+        raise AttributeError('Not all group_ids could be loaded.')
 
     update_redshift_history_if_relevant(data, obj, user)
 
-    session.add(obj)
     for group in groups:
-        source = (
-            Source.query_records_accessible_by(user)
-            .filter(Source.obj_id == obj.id)
-            .filter(Source.group_id == group.id)
-            .first()
-        )
+        source = session.scalars(
+            Source.select(user)
+            .where(Source.obj_id == obj.id)
+            .where(Source.group_id == group.id)
+        ).first()
         if source is not None:
             source.active = True
             source.saved_by = user
@@ -1318,12 +1332,13 @@ def add_ps1_thumbnail_and_push_ws_msg(obj_id, user_id):
             session.rollback()
 
 
-def paginate_summary_query(query, page, num_per_page, total_matches):
+def paginate_summary_query(session, query, page, num_per_page, total_matches):
     if total_matches is None:
-        total_matches = query.count()
+        count_stmt = sa.select(func.count()).select_from(query.distinct())
+        total_matches = session.execute(count_stmt).scalar()
     query = query.offset((page - 1) * num_per_page)
     query = query.limit(num_per_page)
-    return {"sources": query.all(), "total_matches": total_matches}
+    return {"sources": session.scalars(query).all(), "total_matches": total_matches}
 
 
 class SourceHandler(BaseHandler):
@@ -1351,20 +1366,24 @@ class SourceHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
-        user_group_ids = [g.id for g in self.associated_user_object.accessible_groups]
-        num_s = (
-            DBSession()
-            .query(Source)
-            .filter(Source.obj_id == obj_id)
-            .filter(Source.group_id.in_(user_group_ids))
-            .count()
-        )
-        self.verify_and_commit()
-        if num_s > 0:
-            return self.success()
-        else:
-            self.set_status(404)
-            self.finish()
+
+        with self.Session() as session:
+            user_group_ids = [
+                g.id for g in self.associated_user_object.accessible_groups
+            ]
+            query = (
+                Source.select(session.user_or_token)
+                .where(Source.obj_id == obj_id)
+                .where(Source.group_id.in_(user_group_ids))
+            )
+            num_s = session.scalar(
+                sa.select(func.count()).select_from(query.distinct())
+            )
+            if num_s > 0:
+                return self.success()
+            else:
+                self.set_status(404)
+                self.finish()
 
     @auth_or_token
     def get(self, obj_id=None):
@@ -2157,7 +2176,7 @@ class SourceHandler(BaseHandler):
 
         data = self.get_json()
 
-        with DBSession() as session:
+        with self.Session() as session:
             obj_id = post_source(data, self.associated_user_object.id, session)
             return self.success(data={"id": obj_id})
 
@@ -2234,19 +2253,19 @@ class SourceHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        if group_id not in [g.id for g in self.current_user.accessible_groups]:
-            return self.error("Inadequate permissions.")
-        s = (
-            Source.query_records_accessible_by(self.current_user, mode="update")
-            .filter(Source.obj_id == obj_id)
-            .filter(Source.group_id == group_id)
-            .first()
-        )
-        s.active = False
-        s.unsaved_by = self.current_user
-        self.verify_and_commit()
 
-        return self.success()
+        with self.Session() as session:
+            if group_id not in [g.id for g in self.current_user.accessible_groups]:
+                return self.error("Inadequate permissions.")
+            s = session.scalars(
+                Source.select(self.current_user, mode="update")
+                .where(Source.obj_id == obj_id)
+                .where(Source.group_id == group_id)
+            ).first()
+            s.active = False
+            s.unsaved_by = self.current_user
+            session.commit()
+            return self.success()
 
 
 class SourceOffsetsHandler(BaseHandler):

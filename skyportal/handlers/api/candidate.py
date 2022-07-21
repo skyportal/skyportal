@@ -1028,70 +1028,84 @@ class CandidateHandler(BaseHandler):
                               description: List of new candidate IDs
         """
         data = self.get_json()
-        obj_already_exists = (
-            Obj.get_if_accessible_by(data["id"], self.current_user) is not None
-        )
-        schema = Obj.__schema__()
 
-        ra = data.get('ra', None)
-        dec = data.get('dec', None)
+        with self.Session() as session:
 
-        if ra is None and not obj_already_exists:
-            return self.error("RA must not be null for a new Obj")
+            obj = session.scalars(
+                Obj.select(session.user_or_token).where(Obj.id == data["id"])
+            ).first()
+            if obj is None:
+                obj_already_exists = False
+            else:
+                obj_already_exists = True
+            schema = Obj.__schema__()
 
-        if dec is None and not obj_already_exists:
-            return self.error("Dec must not be null for a new Obj")
+            ra = data.get('ra', None)
+            dec = data.get('dec', None)
 
-        passing_alert_id = data.pop("passing_alert_id", None)
-        passed_at = data.pop("passed_at", None)
-        if passed_at is None:
-            return self.error("Missing required parameter: `passed_at`.")
-        passed_at = arrow.get(passed_at).datetime
-        try:
-            filter_ids = data.pop("filter_ids")
-        except KeyError:
-            return self.error("Missing required filter_ids parameter.")
+            if ra is None and not obj_already_exists:
+                return self.error("RA must not be null for a new Obj")
 
-        try:
-            obj = schema.load(data)
-        except ValidationError as e:
-            return self.error(
-                "Invalid/missing parameters: " f"{e.normalized_messages()}"
+            if dec is None and not obj_already_exists:
+                return self.error("Dec must not be null for a new Obj")
+
+            passing_alert_id = data.pop("passing_alert_id", None)
+            passed_at = data.pop("passed_at", None)
+            if passed_at is None:
+                return self.error("Missing required parameter: `passed_at`.")
+            passed_at = arrow.get(passed_at).datetime
+            try:
+                filter_ids = data.pop("filter_ids")
+            except KeyError:
+                return self.error("Missing required filter_ids parameter.")
+
+            if not obj_already_exists:
+                try:
+                    obj = schema.load(data)
+                except ValidationError as e:
+                    return self.error(
+                        "Invalid/missing parameters: " f"{e.normalized_messages()}"
+                    )
+                session.add(obj)
+
+            filters = session.scalars(
+                Filter.select(session.user_or_token).where(Filter.id.in_(filter_ids))
             )
-        filters = Filter.get_if_accessible_by(filter_ids, self.current_user)
-        if not filters:
-            return self.error("At least one valid filter ID must be provided.")
+            if not filters:
+                return self.error("At least one valid filter ID must be provided.")
 
-        update_redshift_history_if_relevant(data, obj, self.associated_user_object)
-        DBSession().add(obj)
+            update_redshift_history_if_relevant(data, obj, self.associated_user_object)
+            update_healpix_if_relevant(data, obj)
 
-        candidates = [
-            Candidate(
-                obj=obj,
-                filter=filter,
-                passing_alert_id=passing_alert_id,
-                passed_at=passed_at,
-                uploader_id=self.associated_user_object.id,
-            )
-            for filter in filters
-        ]
-        DBSession().add_all(candidates)
-        try:
-            self.verify_and_commit()
-        except IntegrityError as e:
-            DBSession().rollback()
-            return self.error(
-                f"Failed to post candidate for object {obj.id}: {e.args[0]}"
-            )
+            candidates = [
+                Candidate(
+                    obj=obj,
+                    filter=filter,
+                    passing_alert_id=passing_alert_id,
+                    passed_at=passed_at,
+                    uploader_id=self.associated_user_object.id,
+                )
+                for filter in filters
+            ]
+            session.add_all(candidates)
+            try:
+                session.commit()
+            except IntegrityError as e:
+                session.rollback()
+                return self.error(
+                    f"Failed to post candidate for object {obj.id}: {e.args[0]}"
+                )
 
-        calling_user_id = self.associated_user_object.id
-        if not obj_already_exists:
-            IOLoop.current().run_in_executor(
-                None,
-                lambda: add_linked_thumbnails_and_push_ws_msg(obj.id, calling_user_id),
-            )
+            calling_user_id = self.associated_user_object.id
+            if not obj_already_exists:
+                IOLoop.current().run_in_executor(
+                    None,
+                    lambda: add_linked_thumbnails_and_push_ws_msg(
+                        obj.id, calling_user_id
+                    ),
+                )
 
-        return self.success(data={"ids": [c.id for c in candidates]})
+            return self.success(data={"ids": [c.id for c in candidates]})
 
     @permissions(["Upload data"])
     def delete(self, obj_id, filter_id):
@@ -1202,7 +1216,7 @@ def grab_query_results(
     # from. This is because subqueries provide a set of results to query from,
     # losing any order_by information.
     row = func.row_number().over(order_by=order_by).label("row_num")
-    full_query = q.add_column(row)
+    full_query = q.add_columns(row)
 
     info = {}
     full_query = full_query.subquery()
