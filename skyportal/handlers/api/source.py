@@ -72,7 +72,7 @@ from .color_mag import get_color_mag
 
 DEFAULT_SOURCES_PER_PAGE = 100
 MAX_SOURCES_PER_PAGE = 500
-MAX_NB_DAYS_USING_LOCALIZATION = 31
+MAX_NUM_DAYS_USING_LOCALIZATION = 31
 _, cfg = load_env()
 log = make_log('api/source')
 
@@ -2038,7 +2038,7 @@ class SourceHandler(BaseHandler):
                 )
             if (
                 last_detected_date - first_detected_date
-            ).days > MAX_NB_DAYS_USING_LOCALIZATION:
+            ).days > MAX_NUM_DAYS_USING_LOCALIZATION:
                 return self.error(
                     "startDate and endDate must be less than a month apart when filtering by localizationDateobs or localizationName",
                 )
