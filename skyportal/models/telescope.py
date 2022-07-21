@@ -12,16 +12,33 @@ import astroplan
 from astropy import units as u
 from astropy import time as ap_time
 
-from baselayer.app.models import Base, restricted
+from baselayer.app.models import (
+    Base,
+    CustomUserAccessControl,
+    DBSession,
+    public,
+)
 from baselayer.log import make_log
 
-log = make_log('api/source')
+log = make_log('model/telescope')
+
+
+def manage_telescope_access_logic(cls, user_or_token):
+    with DBSession() as session:
+        if 'Manage allocations' in [acl.id for acl in user_or_token.acls]:
+            return session.query(cls)
+        elif user_or_token.is_system_admin:
+            return session.query(cls)
+        else:
+            # return an empty query
+            return session.query(cls).filter(cls.id == -1)
 
 
 class Telescope(Base):
     """A ground or space-based observational facility that can host Instruments."""
 
-    create = restricted
+    read = public
+    create = update = delete = CustomUserAccessControl(manage_telescope_access_logic)
 
     name = sa.Column(
         sa.String,

@@ -12,7 +12,12 @@ from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm import deferred
 
-from baselayer.app.models import Base, restricted
+from baselayer.app.models import (
+    Base,
+    CustomUserAccessControl,
+    DBSession,
+    public,
+)
 
 from skyportal import facility_apis
 
@@ -22,6 +27,9 @@ from ..enum_types import (
     listener_classnames,
     api_classnames,
 )
+from baselayer.log import make_log
+
+log = make_log('model/instrument')
 
 
 class ArrayOfEnum(ARRAY):
@@ -43,10 +51,22 @@ class ArrayOfEnum(ARRAY):
         return process
 
 
+def manage_instrument_access_logic(cls, user_or_token):
+    with DBSession() as session:
+        if 'Manage allocations' in [acl.id for acl in user_or_token.acls]:
+            return session.query(cls)
+        elif user_or_token.is_system_admin:
+            return session.query(cls)
+        else:
+            # return an empty query
+            return session.query(cls).filter(cls.id == -1)
+
+
 class Instrument(Base):
     """An instrument attached to a telescope."""
 
-    create = restricted
+    read = public
+    create = update = delete = CustomUserAccessControl(manage_instrument_access_logic)
 
     name = sa.Column(sa.String, unique=True, nullable=False, doc="Instrument name.")
     type = sa.Column(
