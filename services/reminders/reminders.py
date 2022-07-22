@@ -182,6 +182,6 @@ queue = ReminderQueue()
 
 if __name__ == "__main__":
     loop = IOLoop.current()
-    loop.add_callback(queue.load_from_db)
+    # loop.add_callback(queue.load_from_db)
     loop.add_callback(queue.service)
     loop.start()
