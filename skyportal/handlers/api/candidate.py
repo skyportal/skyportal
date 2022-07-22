@@ -8,6 +8,7 @@ import astropy.units as u
 import string
 import arrow
 import numpy as np
+import time
 
 from tornado.ioloop import IOLoop
 
@@ -414,6 +415,8 @@ class CandidateHandler(BaseHandler):
                   schema: Error
         """
 
+        start = time.time()
+
         user_accessible_group_ids = [g.id for g in self.current_user.accessible_groups]
         include_photometry = self.get_query_argument("includePhotometry", False)
         include_spectra = self.get_query_argument("includeSpectra", False)
@@ -528,8 +531,10 @@ class CandidateHandler(BaseHandler):
 
             query_size = sizeof(candidate_info)
             if query_size >= SIZE_WARNING_THRESHOLD:
+                end = time.time()
+                duration = end - start
                 log(
-                    f'User {self.associated_user_object.id} candidate query for object {obj_id} returned {query_size} bytes'
+                    f'User {self.associated_user_object.id} candidate query for object {obj_id} returned {query_size} bytes in {duration} seconds'
                 )
 
             return self.success(data=candidate_info)
@@ -987,8 +992,10 @@ class CandidateHandler(BaseHandler):
 
         query_size = sizeof(query_results)
         if query_size >= SIZE_WARNING_THRESHOLD:
+            end = time.time()
+            duration = end - start
             log(
-                f'User {self.associated_user_object.id} candidate query returned {query_size} bytes'
+                f'User {self.associated_user_object.id} candidate query returned {query_size} bytes in {duration} seconds'
             )
 
         return self.success(data=query_results)
