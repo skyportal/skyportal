@@ -12,6 +12,8 @@ import humanize
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm import sessionmaker, scoped_session
+from marshmallow import Schema
+from marshmallow.exceptions import ValidationError
 
 from skyportal.models.photometry import Photometry
 
@@ -21,6 +23,7 @@ from .galaxy import get_galaxies, MAX_GALAXIES
 import pandas as pd
 from tabulate import tabulate
 import datetime
+from ...utils.UTCTZnaiveDateTime import UTCTZnaiveDateTime
 
 from baselayer.app.access import auth_or_token
 from baselayer.log import make_log
@@ -802,6 +805,26 @@ class GcnSummaryHandler(BaseHandler):
         show_galaxies = self.get_query_argument('showGalaxies', False)
         show_observations = self.get_query_argument('showObservations', False)
         no_text = self.get_query_argument('noText', False)
+
+        class Validator(Schema):
+            start_date = UTCTZnaiveDateTime(required=False, missing=None)
+            end_date = UTCTZnaiveDateTime(required=False, missing=None)
+
+        validator_instance = Validator()
+        params_to_be_validated = {}
+        if start_date is not None:
+            params_to_be_validated['start_date'] = start_date
+        if end_date is not None:
+            params_to_be_validated['end_date'] = end_date
+
+        try:
+            validated = validator_instance.load(params_to_be_validated)
+        except ValidationError as e:
+            return self.error(f'Error parsing query params: {e.args[0]}.')
+
+        start_date = validated['start_date']
+        end_date = validated['end_date']
+
         try:
             if not no_text:
                 if title is None:
@@ -1103,8 +1126,8 @@ class GcnSummaryHandler(BaseHandler):
                 if show_observations:
                     # get the executed obs, by instrument
                     observations_text = []
-                    start_date = arrow.get(start_date.strip()).datetime
-                    end_date = arrow.get(end_date.strip()).datetime
+                    start_date = arrow.get(start_date).datetime
+                    end_date = arrow.get(end_date).datetime
 
                     stmt = Instrument.select(session.user_or_token).options(
                         joinedload(Instrument.telescope)
