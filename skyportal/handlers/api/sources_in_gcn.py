@@ -1,17 +1,14 @@
-from numpy import isin
-from baselayer.app.access import auth_or_token
+from baselayer.app.access import auth_or_token, permissions
 from ..base import BaseHandler
-from ...models import DBSession, Source, Localization, SourcesInGCN
+from ...models import DBSession, Localization, SourcesInGCN
 
 from .source import get_sources, MAX_SOURCES_PER_PAGE
 
 
 class SourcesInGcnHandler(BaseHandler):
-    @auth_or_token
+    @permissions(['Manage GCNs'])
     def post(self, dateobs):
-
         data = self.get_json()
-        print(data)
         if 'localizationName' not in data:
             return self.error("Missing required parameter: localization_name")
         if 'sourceId' not in data:
@@ -33,7 +30,7 @@ class SourcesInGcnHandler(BaseHandler):
             return self.error("confirmed_or_rejected must be a boolean")
 
         if start_date is None:
-                return self.error(message="Missing startDate")
+            return self.error(message="Missing startDate")
         if end_date is None:
             return self.error(message="Missing endDate")
 
@@ -56,15 +53,27 @@ class SourcesInGcnHandler(BaseHandler):
         if len(sources) == 0:
             return self.error("No sources found")
 
-        localization = Localization.query.filter(Localization.localization_name == localization_name, Localization.dateobs == dateobs).first()
+        localization = Localization.query.filter(
+            Localization.localization_name == localization_name,
+            Localization.dateobs == dateobs,
+        ).first()
         if not localization:
             return self.error("Localization not found")
 
-        source_in_gcn = SourcesInGCN.query.filter(SourcesInGCN.obj_id == source_id, SourcesInGCN.localization_id == localization.id).first()
+        source_in_gcn = SourcesInGCN.query.filter(
+            SourcesInGCN.obj_id == source_id,
+            SourcesInGCN.localization_id == localization.id,
+        ).first()
         if source_in_gcn:
-            return self.error("Source is already confirmed or rejected in this localization")
+            return self.error(
+                "Source is already confirmed or rejected in this localization"
+            )
 
-        source_in_gcn = SourcesInGCN(obj_id=source_id, localization_id=localization.id, confirmed_or_rejected=confirmed_or_rejected)
+        source_in_gcn = SourcesInGCN(
+            obj_id=source_id,
+            localization_id=localization.id,
+            confirmed_or_rejected=confirmed_or_rejected,
+        )
         DBSession.add(source_in_gcn)
         DBSession.commit()
         return self.success(data={'id': source_in_gcn.id})
@@ -72,16 +81,49 @@ class SourcesInGcnHandler(BaseHandler):
     @auth_or_token
     def get(self, dateobs):
         localization_name = self.get_query_argument('localizationName')
+        sources_id_list = self.get_query_argument('sourcesIdList', '')
+
         if not isinstance(localization_name, str):
             return self.error("localizationName must be a string")
-        # get all sources that have been confirmed or rejected in this localization
-        localization = Localization.query.filter(Localization.localization_name == localization_name, Localization.dateobs == dateobs).first()
+        if not isinstance(sources_id_list, str):
+            return self.error("sourcesIdList must be a comma separated string")
+
+        sources_id_list = sources_id_list.split(',')
+
+        localization = Localization.query.filter(
+            Localization.localization_name == localization_name,
+            Localization.dateobs == dateobs,
+        ).first()
         if not localization:
             return self.error("Localization not found")
-        sources_in_gcn = SourcesInGCN.query.filter(SourcesInGCN.localization_id == Localization.id).filter(Localization.localization_name == localization_name, Localization.dateobs == dateobs).all()
-        return self.success(data=sources_in_gcn)
 
-    @auth_or_token
+        if len(sources_id_list) == 0:
+            sources_in_gcn = (
+                SourcesInGCN.query.filter(
+                    SourcesInGCN.localization_id == Localization.id
+                )
+                .filter(
+                    Localization.localization_name == localization_name,
+                    Localization.dateobs == dateobs,
+                )
+                .all()
+            )
+            return self.success(data=sources_in_gcn)
+        else:
+            sources_in_gcn = (
+                SourcesInGCN.query.filter(
+                    SourcesInGCN.localization_id == Localization.id
+                )
+                .filter(
+                    Localization.localization_name == localization_name,
+                    Localization.dateobs == dateobs,
+                )
+                .filter(SourcesInGCN.obj_id.in_(sources_id_list))
+                .all()
+            )
+            return self.success(data=sources_in_gcn)
+
+    @permissions(['Manage GCNs'])
     def put(self, dateobs, source_id):
         data = self.get_json()
         localization_name = data.get('localizationName')
@@ -93,33 +135,50 @@ class SourcesInGcnHandler(BaseHandler):
         if not isinstance(confirmed_or_rejected, bool):
             return self.error("confirmed_or_rejected must be a boolean")
 
-        localization = Localization.query.filter(Localization.localization_name == localization_name, Localization.dateobs == dateobs).first()
+        localization = Localization.query.filter(
+            Localization.localization_name == localization_name,
+            Localization.dateobs == dateobs,
+        ).first()
         if not localization:
             return self.error("Localization not found")
 
-        source_in_gcn = SourcesInGCN.query.filter(SourcesInGCN.obj_id == source_id, SourcesInGCN.localization_id == localization.id).first()
+        source_in_gcn = SourcesInGCN.query.filter(
+            SourcesInGCN.obj_id == source_id,
+            SourcesInGCN.localization_id == localization.id,
+        ).first()
         if not source_in_gcn:
-            return self.error("This source is not confirmed or rejected in this localization yet")
+            return self.error(
+                "This source is not confirmed or rejected in this localization yet"
+            )
         source_in_gcn.confirmed_or_rejected = confirmed_or_rejected
 
         DBSession.commit()
         return self.success(data={'id': source_in_gcn.id})
 
-    @auth_or_token
+    @permissions(['Manage GCNs'])
     def delete(self, dateobs, source_id):
-        localization_name = self.get_query_argument('localizationName')
+        data = self.get_json()
+        localization_name = data.get('localizationName')
         if not isinstance(localization_name, str):
             return self.error("localizationName must be a string")
-        if not isinstance(source_id, int):
-            return self.error("source_id must be an integer")
+        if not isinstance(source_id, str):
+            return self.error("source_id must be a string")
 
-        localization = Localization.query.filter(Localization.localization_name == localization_name, Localization.dateobs == dateobs).first()
+        localization = Localization.query.filter(
+            Localization.localization_name == localization_name,
+            Localization.dateobs == dateobs,
+        ).first()
         if not localization:
             return self.error("Localization not found")
 
-        source_in_gcn = SourcesInGCN.query.filter(SourcesInGCN.source_id == source_id, SourcesInGCN.localization_id == localization.id).first()
+        source_in_gcn = SourcesInGCN.query.filter(
+            SourcesInGCN.source_id == source_id,
+            SourcesInGCN.localization_id == localization.id,
+        ).first()
         if not source_in_gcn:
-            return self.error("This source is not confirmed or rejected in this localization yet")
+            return self.error(
+                "This source is not confirmed or rejected in this localization yet"
+            )
 
         DBSession.delete(source_in_gcn)
         DBSession.commit()

@@ -22,7 +22,7 @@ import makeStyles from "@mui/styles/makeStyles";
 import CheckIcon from "@mui/icons-material/Check";
 import ClearIcon from "@mui/icons-material/Clear";
 import InfoIcon from "@mui/icons-material/Info";
-import QuestionMarkIcon from '@mui/icons-material/QuestionMark';
+import QuestionMarkIcon from "@mui/icons-material/QuestionMark";
 import CircularProgress from "@mui/material/CircularProgress";
 import Divider from "@mui/material/Divider";
 import ListItem from "@mui/material/ListItem";
@@ -45,6 +45,7 @@ import FavoritesButton from "./FavoritesButton";
 import MultipleClassificationsForm from "./MultipleClassificationsForm";
 import * as sourceActions from "../ducks/source";
 import * as sourcesActions from "../ducks/sources";
+import * as sourcesingcnActions from "../ducks/sourcesingcn";
 import { filterOutEmptyValues } from "../API";
 import { getAnnotationValueString } from "./ScanningPageCandidateAnnotations";
 import SourcesInGCN from "./SourcesInGcn";
@@ -302,7 +303,7 @@ const SourceTable = ({
   hideTitle = false,
   downloadCallback,
   includeGcnStatus = false,
-  sourceInGcnFilter
+  sourceInGcnFilter,
 }) => {
   // sourceStatus should be one of either "saved" (default) or "requested" to add a button to agree to save the source.
   // If groupID is not given, show all data available to user's accessible groups
@@ -317,9 +318,7 @@ const SourceTable = ({
       (c) => c !== "Favorites"
     );
   }
-  console.log(includeGcnStatus);
   if (includeGcnStatus) {
-    console.log("includeGcnStatus");
     defaultDisplayedColumns.push("GCN Status");
   }
 
@@ -332,18 +331,26 @@ const SourceTable = ({
 
   const [tableFilterList, setTableFilterList] = useState([]);
   const [filterFormData, setFilterFormData] = useState(null);
-  
+
   const [rowsPerPage, setRowsPerPage] = useState(numPerPage);
   const [queryInProgress, setQueryInProgress] = useState(false);
 
   const gcnEvent = useSelector((state) => state.gcnEvent);
   const localization = useSelector((state) => state.localization);
-  console.log(gcnEvent);
-  console.log(localization);
+
+  const sourcesingcn = useSelector((state) => state.sourcesingcn.sourcesingcn);
 
   useEffect(() => {
     if (sources) {
       setQueryInProgress(false);
+      if (includeGcnStatus) {
+        dispatch(
+          sourcesingcnActions.fetchSourcesInGcn(gcnEvent.dateobs, {
+            localizationName: localization.localization_name,
+            sourcesIdList: sources.map((s) => s.id),
+          })
+        );
+      }
     }
   }, [sources]);
 
@@ -855,36 +862,49 @@ const SourceTable = ({
   };
 
   const renderGcnStatus = (dataIndex) => {
-    console.log("renderGcnStatus");
     const source = sources[dataIndex];
     let statusIcon = null;
-    if (source.confirm_status === "confirmed") {
-      console.log("confirmed");
-      statusIcon = <CheckIcon
-        size="small"
-        key={`${source.id}_confirm_status`}
-        color="green"
-      />
-    } else if (source.confirm_status === "rejected") {
-      console.log("rejected");
-      statusIcon = <ClearIcon
-        size="small"
-        key={`${source.id}_confirm_status`}
-        color="secondary"
-      />
-    } else if (source.confirm_status === "pending") {
-      console.log("pending");
-      statusIcon = <QuestionMarkIcon
-        size="small"
-        key={`${source.id}_confirm_status`}
-        color="primary"
-      />
+    if (sourcesingcn.filter((s) => s.obj_id === source.id).length === 0) {
+      statusIcon = (
+        <QuestionMarkIcon
+          size="small"
+          key={`${source.id}_confirm_status`}
+          color="primary"
+        />
+      );
+    } else if (
+      sourcesingcn.filter((s) => s.obj_id === source.id)[0]
+        .confirmed_or_rejected === true
+    ) {
+      statusIcon = (
+        <CheckIcon
+          size="small"
+          key={`${source.id}_confirm_status`}
+          color="green"
+        />
+      );
+    } else if (
+      sourcesingcn.filter((s) => s.obj_id === source.id)[0]
+        .confirmed_or_rejected === false
+    ) {
+      statusIcon = (
+        <ClearIcon
+          size="small"
+          key={`${source.id}_confirm_status`}
+          color="secondary"
+        />
+      );
     }
 
-
-
     return (
-      <div>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
         {statusIcon}
         <SourcesInGCN
           dateobs={gcnEvent.dateobs}
@@ -892,13 +912,11 @@ const SourceTable = ({
           sourceId={source.id}
           startDate={sourceInGcnFilter.startDate}
           endDate={sourceInGcnFilter.endDate}
-          currentState={source.confirm_status}
+          sourcesIdList={sources.map((s) => s.id)}
         />
       </div>
-    )
-
-  }
-
+    );
+  };
 
   const handleFilterSubmit = async (formData) => {
     setQueryInProgress(true);
@@ -1161,7 +1179,6 @@ const SourceTable = ({
 
   // if all sources have a status, add a status column
   if (includeGcnStatus) {
-    console.log("gcnEventSources", includeGcnStatus);
     columns.push({
       name: "GCN Status",
       options: {
@@ -1409,6 +1426,11 @@ SourceTable.propTypes = {
   favoritesRemoveButton: PropTypes.bool,
   hideTitle: PropTypes.bool,
   downloadCallback: PropTypes.func.isRequired,
+  includeGcnStatus: PropTypes.bool,
+  sourceInGcnFilter: PropTypes.shape({
+    startDate: PropTypes.string,
+    endDate: PropTypes.string,
+  }),
 };
 
 SourceTable.defaultProps = {
@@ -1421,6 +1443,8 @@ SourceTable.defaultProps = {
   sortingCallback: null,
   favoritesRemoveButton: false,
   hideTitle: false,
+  includeGcnStatus: false,
+  sourceInGcnFilter: {},
 };
 
 export default SourceTable;
