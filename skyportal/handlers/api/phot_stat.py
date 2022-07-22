@@ -5,7 +5,6 @@ from sqlalchemy.orm import joinedload
 
 from ..base import BaseHandler
 from ...models import (
-    DBSession,
     Obj,
     Photometry,
     PhotStat,
@@ -49,7 +48,7 @@ class PhotStatHandler(BaseHandler):
         if obj is None:
             return self.error(f'Cannot find source with id "{obj_id}". ')
 
-        with DBSession() as session:
+        with self.Session() as session:
             stmt = sa.select(PhotStat).where(PhotStat.obj_id == obj_id)
             phot_stat = session.scalars(stmt).first()
 
@@ -104,7 +103,7 @@ class PhotStatHandler(BaseHandler):
         if obj is None:
             return self.error(f'Cannot find source with id "{obj_id}". ')
 
-        with DBSession() as session:
+        with self.Session() as session:
             stmt = sa.select(PhotStat).where(PhotStat.obj_id == obj_id)
             phot_stat = session.scalars(stmt).first()
             if phot_stat is not None:
@@ -118,7 +117,7 @@ class PhotStatHandler(BaseHandler):
             phot_stat = PhotStat(obj_id=obj_id)
             phot_stat.full_update(photometry)
             session.add(phot_stat)
-            self.verify_and_commit()
+            session.commit()
 
         return self.success()
 
@@ -152,17 +151,17 @@ class PhotStatHandler(BaseHandler):
         if obj is None:
             return self.error(f'Cannot find source with id "{obj_id}". ')
 
-        with DBSession() as session:
+        with self.Session() as session:
             stmt = sa.select(PhotStat).where(PhotStat.obj_id == obj_id)
             phot_stat = session.scalars(stmt).first()
             if phot_stat is None:
-                phot_stat = PhotStat()
+                phot_stat = PhotStat(obj_id=obj_id)
 
             stmt = sa.select(Photometry).where(Photometry.obj_id == obj_id)
             photometry = session.scalars(stmt).all()
             phot_stat.full_update(photometry)
             session.add(phot_stat)
-            self.verify_and_commit()
+            session.commit()
 
         return self.success()
 
@@ -195,7 +194,7 @@ class PhotStatHandler(BaseHandler):
         if obj is None:
             return self.error(f'Cannot find source with id "{obj_id}". ')
 
-        with DBSession() as session:
+        with self.Session() as session:
             stmt = sa.select(PhotStat).where(PhotStat.obj_id == obj_id)
             phot_stats = session.scalars(stmt).all()
             if phot_stats is None:
@@ -204,7 +203,8 @@ class PhotStatHandler(BaseHandler):
                 )
             for p in phot_stats:
                 session.delete(p)
-            self.verify_and_commit()
+
+            session.commit()
 
         return self.success()
 
@@ -304,7 +304,7 @@ class PhotStatUpdateHandler(BaseHandler):
         full_update_start_time = self.get_query_argument('fullUpdateStartTime', None)
         full_update_end_time = self.get_query_argument('fullUpdateEndTime', None)
 
-        with DBSession() as session:
+        with self.Session() as session:
             try:
                 # start with Objs that have created_at within range
                 stmt = sa.select(Obj).options(joinedload(Obj.photstats))
@@ -465,7 +465,7 @@ class PhotStatUpdateHandler(BaseHandler):
         created_at_start_time = self.get_query_argument('createdAtStartTime', None)
         created_at_end_time = self.get_query_argument('createdAtEndTime', None)
 
-        with DBSession() as session:
+        with self.Session() as session:
             stmt = sa.select(Obj).options(joinedload(Obj.photstats))
             try:
                 if created_at_start_time:
@@ -493,14 +493,19 @@ class PhotStatUpdateHandler(BaseHandler):
             stmt = stmt.limit(num_per_page)
             objects = session.execute(stmt).scalars().unique().all()
 
-            for i, obj in enumerate(objects):
-                stmt = sa.select(Photometry).where(Photometry.obj_id == obj.id)
-                photometry = session.scalars(stmt).all()
-                phot_stat = PhotStat(obj_id=obj.id)
-                phot_stat.full_update(photometry)
-                session.add(phot_stat)
+            try:
+                for i, obj in enumerate(objects):
+                    stmt = sa.select(Photometry).where(Photometry.obj_id == obj.id)
+                    photometry = session.scalars(stmt).all()
+                    phot_stat = PhotStat(obj_id=obj.id)
+                    phot_stat.full_update(photometry)
+                    session.add(phot_stat)
+            except Exception as e:
+                return self.error(
+                    f'Error calculating photometry stats: {e} for object {obj.id}'
+                )
 
-            self.verify_and_commit()
+            session.commit()
 
         results = {
             'totalMatches': total_matches,
@@ -629,7 +634,7 @@ class PhotStatUpdateHandler(BaseHandler):
         full_update_start_time = self.get_query_argument('fullUpdateStartTime', None)
         full_update_end_time = self.get_query_argument('fullUpdateEndTime', None)
 
-        with DBSession() as session:
+        with self.Session() as session:
             stmt = sa.select(Obj).options(joinedload(Obj.photstats))
             try:
                 if created_at_start_time:
@@ -702,12 +707,17 @@ class PhotStatUpdateHandler(BaseHandler):
             stmt = stmt.limit(num_per_page)
             objects = session.scalars(stmt).unique().all()
 
-            for i, obj in enumerate(objects):
-                stmt = sa.select(Photometry).where(Photometry.obj_id == obj.id)
-                photometry = session.scalars(stmt).all()
-                obj.photstats[0].full_update(photometry)
+            try:
+                for i, obj in enumerate(objects):
+                    stmt = sa.select(Photometry).where(Photometry.obj_id == obj.id)
+                    photometry = session.scalars(stmt).all()
+                    obj.photstats[0].full_update(photometry)
+            except Exception as e:
+                return self.error(
+                    f'Error calculating photometry stats: {e} for object {obj.id}'
+                )
 
-            self.verify_and_commit()
+            session.commit()
 
         results = {
             'totalMatches': total_matches,
