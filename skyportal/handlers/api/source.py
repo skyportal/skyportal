@@ -232,9 +232,13 @@ def get_source(
         .all(),
         key=lambda x: x.origin,
     )
-    readable_classifications = session.scalars(
-        Classification.select(user).where(Classification.obj_id == obj_id)
-    ).all()
+    readable_classifications = (
+        session.scalars(
+            Classification.select(user).where(Classification.obj_id == obj_id)
+        )
+        .unique()
+        .all()
+    )
 
     readable_classifications_json = []
     for classification in readable_classifications:
