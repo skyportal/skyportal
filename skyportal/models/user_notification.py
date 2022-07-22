@@ -188,7 +188,6 @@ def send_slack_notification(mapper, connection, target):
 def send_email_notification(mapper, connection, target):
     resource_type = notification_resource_type(target)
     prefs = user_preferences(target, "email", resource_type)
-    print(prefs)
     if not prefs:
         return
 
@@ -228,7 +227,6 @@ def send_email_notification(mapper, connection, target):
 
     if subject and body and target.user.contact_email:
         try:
-            print("tried sending email")
             send_email(
                 recipients=[target.user.contact_email],
                 subject=subject,
