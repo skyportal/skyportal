@@ -45,6 +45,7 @@ from ...models import (
     Comment,
 )
 from ...utils.cache import Cache, array_to_bytes
+from ...utils.sizeof import sizeof, SIZE_WARNING_THRESHOLD
 
 
 _, cfg = load_env()
@@ -524,6 +525,13 @@ class CandidateHandler(BaseHandler):
 
             candidate_info = recursive_to_dict(candidate_info)
             self.verify_and_commit()
+
+            query_size = sizeof(candidate_info)
+            if query_size >= SIZE_WARNING_THRESHOLD:
+                log(
+                    f'User {self.associated_user_object.id} candidate query for object {obj_id} returned {query_size} bytes'
+                )
+
             return self.success(data=candidate_info)
 
         page_number = self.get_query_argument("pageNumber", None) or 1
@@ -976,6 +984,13 @@ class CandidateHandler(BaseHandler):
         query_results["candidates"] = candidate_list
         query_results = recursive_to_dict(query_results)
         self.verify_and_commit()
+
+        query_size = sizeof(query_results)
+        if query_size >= SIZE_WARNING_THRESHOLD:
+            log(
+                f'User {self.associated_user_object.id} candidate query returned {query_size} bytes'
+            )
+
         return self.success(data=query_results)
 
     @permissions(["Upload data"])

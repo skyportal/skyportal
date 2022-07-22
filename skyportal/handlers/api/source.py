@@ -19,6 +19,7 @@ import functools
 import conesearch_alchemy as ca
 import healpix_alchemy as ha
 from ...utils.UTCTZnaiveDateTime import UTCTZnaiveDateTime
+from ...utils.sizeof import sizeof, SIZE_WARNING_THRESHOLD
 
 from baselayer.app.access import permissions, auth_or_token
 from baselayer.app.env import load_env
@@ -2087,6 +2088,13 @@ class SourceHandler(BaseHandler):
                     )
                 except Exception as e:
                     return self.error(f'Cannot retrieve source: {str(e)}')
+
+                query_size = sizeof(source_info)
+                if query_size >= SIZE_WARNING_THRESHOLD:
+                    log(
+                        f'User {self.associated_user_object.id} source query returned {query_size} bytes'
+                    )
+
                 return self.success(data=source_info)
 
         with self.Session() as session:
@@ -2154,6 +2162,11 @@ class SourceHandler(BaseHandler):
             except Exception as e:
                 return self.error(f'Cannot retrieve sources: {str(e)}')
 
+            query_size = sizeof(query_results)
+            if query_size >= SIZE_WARNING_THRESHOLD:
+                log(
+                    f'User {self.associated_user_object.id} source query returned {query_size} bytes'
+                )
             return self.success(data=query_results)
 
     @permissions(['Upload data'])
