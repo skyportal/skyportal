@@ -348,9 +348,7 @@ class PhotStatUpdateHandler(BaseHandler):
                         arrow.get(quick_update_end_time.strip()).datetime
                     )
                     stmt_with = stmt_with.where(
-                        Obj.photstats.any(
-                            PhotStat.last_full_update <= quick_update_end_time
-                        )
+                        Obj.photstats.any(PhotStat.last_update <= quick_update_end_time)
                     )
                 if full_update_start_time:
                     full_update_start_time = str(
@@ -670,9 +668,7 @@ class PhotStatUpdateHandler(BaseHandler):
                         arrow.get(quick_update_end_time.strip()).datetime
                     )
                     stmt = stmt.where(
-                        Obj.photstats.any(
-                            PhotStat.last_full_update <= quick_update_end_time
-                        )
+                        Obj.photstats.any(PhotStat.last_update <= quick_update_end_time)
                     )
                 if full_update_start_time:
                     full_update_start_time = str(
