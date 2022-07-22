@@ -201,6 +201,13 @@ const SurveyEfficiencyForm = ({ gcnevent, observationplanRequest }) => {
       errors.start_date.addError("Start Date must come before End Date");
     }
 
+    const maxInjections = 100000;
+    if (formData.numberInjections > maxInjections) {
+      errors.numberInjections.addError(
+        `Number of injections must be less than ${maxInjections}`
+      );
+    }
+
     return errors;
   };
 

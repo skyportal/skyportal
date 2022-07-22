@@ -1116,16 +1116,12 @@ class PhotometryHandler(BaseHandler):
                 )
             ).first()
             if phot_stat is not None:
-                all_phot = (
-                    session.scalars(
-                        Photometry.select(session.user_or_token)
-                        .where(Photometry.obj_id == photometry.obj_id)
-                        .distinct()
-                    )
-                    .unique()
-                    .all()
-                )
+                all_phot = session.scalars(
+                    sa.select(Photometry).where(Photometry.obj_id == photometry.obj_id)
+                ).all()
                 phot_stat.full_update(all_phot)
+                for phot in all_phot:
+                    session.expunge(phot)
 
             session.commit()
 
@@ -1175,15 +1171,9 @@ class PhotometryHandler(BaseHandler):
                 )
             ).first()
             if phot_stat is not None:
-                all_phot = (
-                    session.scalars(
-                        Photometry.select(session.user_or_token)
-                        .where(Photometry.obj_id == photometry.obj_id)
-                        .distinct()
-                    )
-                    .unique()
-                    .all()
-                )
+                all_phot = session.scalars(
+                    sa.select(Photometry).where(Photometry.obj_id == photometry.obj_id)
+                ).all()
                 phot_stat.full_update(all_phot)
 
             session.commit()
@@ -1283,6 +1273,18 @@ class BulkDeletePhotometryHandler(BaseHandler):
 
             for phot in photometry_to_delete:
                 session.delete(phot)
+
+            obj_ids = {phot.obj_id for phot in photometry_to_delete}
+            for oid in obj_ids:
+                stat = session.scalars(
+                    PhotStat.select(session.user_or_token, mode="update").where(
+                        PhotStat.obj_id == oid
+                    )
+                ).first()
+                all_phot = session.scalars(
+                    sa.select(Photometry).where(Photometry.obj_id == oid)
+                ).all()
+                stat.full_update(all_phot)
 
             session.commit()
             return self.success(f"Deleted {n} photometry points.")
