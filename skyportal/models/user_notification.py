@@ -109,19 +109,19 @@ def user_preferences(target, notification_setting, resource_type):
             return
         if not target.user.contact_email:
             return
+        # this ensures that an email is sent regardless of the user's preferences
+        # this is useful for group_admission_requests, where we want the admins to always be notified by email
+        if resource_type in ['group_admission_request']:
+            return True
+
+    if not target.user.preferences:
+        return
+
     if notification_setting == "sms":
         if client is None:
             return
         if not target.user.contact_phone:
             return
-
-    # this ensures that an email is sent regardless of the user's preferences
-    # this is useful for grou_admission_requests, where we want the admins to always be notified by email
-    if resource_type in ['group_admission_request'] and notification_setting == "email":
-        return True
-
-    if not target.user.preferences:
-        return
 
     if notification_setting == "slack":
         if not target.user.preferences.get('slack_integration'):
@@ -526,7 +526,7 @@ def add_user_notifications(mapper, connection, target):
                                             user=user,
                                             text=f"New classification *{target.classification}* for source *{target.obj_id}*",
                                             notification_type="sources",
-                                            url=f"/sources/{target.obj_id}",
+                                            url=f"/source/{target.obj_id}",
                                         )
                                     )
                     elif is_spectra:
