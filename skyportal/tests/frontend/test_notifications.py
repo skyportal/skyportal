@@ -85,9 +85,11 @@ def test_group_admission_requests_notifications(
     driver.get(f"/become_user/{super_admin_user.id}")
     driver.get(f"/group/{public_group2.id}")
     driver.click_xpath('//*[@data-testid="notificationsButton"]')
-    driver.wait_for_xpath('//*[text()=" has requested to join "]')
+    driver.wait_for_xpath('//*[text()="New Group Admission Request from "]')
     driver.click_xpath('//*[@data-testid="deleteAllNotificationsButton"]')
-    driver.wait_for_xpath_to_disappear('//*[text()=" has requested to join "]')
+    driver.wait_for_xpath_to_disappear(
+        '//*[text()="New Group Admission Request from "]'
+    )
 
     filter_for_value(driver, user.username, last=True)
     driver.wait_for_xpath('//div[text()="pending"]')
