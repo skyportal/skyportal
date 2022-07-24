@@ -613,15 +613,17 @@ def insert_new_photometry_data(
         all_phot = session.scalars(
             sa.select(Photometry).where(Photometry.obj_id == obj_id)
         ).all()
-        phot_stat = PhotStat(obj_id=obj_id)
+
+        if phot_stat is None:
+            phot_stat = PhotStat(obj_id=obj_id)
+
         phot_stat.full_update(all_phot)
-        session.add(phot_stat)
 
     else:
         for phot in params:
             phot_stat.add_photometry_point(phot)
-            session.add(phot_stat)
 
+    session.add(phot_stat)
     session.commit()  # add the updated phot_stats
     return ids, upload_id
 

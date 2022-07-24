@@ -708,6 +708,9 @@ class PhotStatUpdateHandler(BaseHandler):
                     stmt = sa.select(Photometry).where(Photometry.obj_id == obj.id)
                     photometry = session.scalars(stmt).all()
                     obj.photstats[0].full_update(photometry)
+                    # make sure only one photstats per object
+                    for j in range(1, len(obj.photstats)):
+                        session.delete(obj.photstats[j])
             except Exception as e:
                 return self.error(
                     f'Error calculating photometry stats: {e} for object {obj.id}'
