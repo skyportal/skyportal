@@ -822,9 +822,9 @@ class AnalysisHandler(BaseHandler):
                     author=author,
                     groups=groups,
                     analysis_service=analysis_service,
-                    show_parameters=data.get('show_parameters', False),
-                    show_plots=data.get('show_plots', False),
-                    show_corner=data.get('show_corner', False),
+                    show_parameters=data.get('show_parameters', True),
+                    show_plots=data.get('show_plots', True),
+                    show_corner=data.get('show_corner', True),
                     analysis_parameters=analysis_parameters,
                     status='queued',
                     handled_by_url="api/webhook/obj_analysis",
@@ -878,36 +878,37 @@ class AnalysisHandler(BaseHandler):
                 Callback function for when the analysis service is done.
                 Updates the Analysis object with the results/errors.
                 """
-                # grab the analysis (only Obj for now)
-                if analysis_resource_type.lower() == 'obj':
-                    try:
-                        analysis = session.query(ObjAnalysis).get(analysis_id)
-                        if analysis is None:
-                            logger.error(f'Analysis {analysis_id} not found')
+                with self.Session() as session:
+                    # grab the analysis (only Obj for now)
+                    if analysis_resource_type.lower() == 'obj':
+                        try:
+                            analysis = session.query(ObjAnalysis).get(analysis_id)
+                            if analysis is None:
+                                logger.error(f'Analysis {analysis_id} not found')
+                                return
+                        except Exception as e:
+                            log(f'Could not access Analysis {analysis_id} {e}.')
                             return
-                    except Exception as e:
-                        log(f'Could not access Analysis {analysis_id} {e}.')
+                    else:
+                        log(f"Invalid analysis_resource_type: {analysis_resource_type}")
                         return
-                else:
-                    log(f"Invalid analysis_resource_type: {analysis_resource_type}")
-                    return
 
-                analysis.last_activity = datetime.datetime.utcnow()
-                try:
-                    result = future.result()
-                    analysis.status = (
-                        'pending' if result.status_code == 200 else 'failure'
-                    )
-                    # truncate the return just so we dont have a huge string in the database
-                    analysis.status_message = result.text[:1024]
-                except Exception:
-                    analysis.status = 'failure'
-                    analysis.status_message = str(future.exception())[:1024]
-                finally:
-                    logger(
-                        f"[id={analysis_id} service={analysis_service_id}] status='{analysis.status}' message='{analysis.status_message}'"
-                    )
-                    session.commit()
+                    analysis.last_activity = datetime.datetime.utcnow()
+                    try:
+                        result = future.result()
+                        analysis.status = (
+                            'pending' if result.status_code == 200 else 'failure'
+                        )
+                        # truncate the return just so we dont have a huge string in the database
+                        analysis.status_message = result.text[:1024]
+                    except Exception:
+                        analysis.status = 'failure'
+                        analysis.status_message = str(future.exception())[:1024]
+                    finally:
+                        logger(
+                            f"[id={analysis_id} service={analysis_service_id}] status='{analysis.status}' message='{analysis.status_message}'"
+                        )
+                        session.commit()
 
             # Start the analysis service in a separate thread and log any exceptions
             x = IOLoop.current().run_in_executor(None, external_analysis_service)
@@ -1013,16 +1014,27 @@ class AnalysisHandler(BaseHandler):
                     stmt = ObjAnalysis.select(self.current_user).where(
                         ObjAnalysis.id == analysis_id
                     )
-                    s = session.scalars(stmt).first()
-                    if s is None:
+                    analysis = session.scalars(stmt).first()
+                    if analysis is None:
                         return self.error('Cannot access this Analysis.', status=403)
 
-                    analysis_dict = recursive_to_dict(s)
+                    analysis_dict = recursive_to_dict(analysis)
+                    stmt = AnalysisService.select(self.current_user).where(
+                        AnalysisService.id == analysis.analysis_service_id
+                    )
+                    analysis_service = session.scalars(stmt).first()
+                    analysis_dict[
+                        "analysis_service_name"
+                    ] = analysis_service.display_name
+                    analysis_dict[
+                        "analysis_service_description"
+                    ] = analysis_service.description
+
                     if include_filename:
-                        analysis_dict["filename"] = s._full_name
-                    analysis_dict["groups"] = s.groups
+                        analysis_dict["filename"] = analysis._full_name
+                    analysis_dict["groups"] = analysis.groups
                     if include_analysis_data:
-                        analysis_dict["data"] = s.data
+                        analysis_dict["data"] = analysis.data
 
                     return self.success(data=analysis_dict)
 
@@ -1033,8 +1045,31 @@ class AnalysisHandler(BaseHandler):
                 analyses = session.scalars(stmt).all()
 
                 ret_array = []
+                analysis_services_dict = {}
                 for a in analyses:
                     analysis_dict = recursive_to_dict(a)
+                    if a.analysis_service_id not in analysis_services_dict.keys():
+                        stmt = AnalysisService.select(self.current_user).where(
+                            AnalysisService.id == a.analysis_service_id
+                        )
+                        analysis_service = session.scalars(stmt).first()
+                        analysis_services_dict.update(
+                            {
+                                a.analysis_service_id: {
+                                    "analysis_service_name": analysis_service.display_name,
+                                    "analysis_service_description": analysis_service.description,
+                                }
+                            }
+                        )
+
+                    service_info = analysis_services_dict[a.analysis_service_id]
+                    analysis_dict["analysis_service_name"] = service_info[
+                        "analysis_service_name"
+                    ]
+                    analysis_dict["analysis_service_description"] = service_info[
+                        "analysis_service_description"
+                    ]
+
                     analysis_dict["groups"] = a.groups
                     if include_filename:
                         analysis_dict["filename"] = a._full_name
@@ -1044,7 +1079,6 @@ class AnalysisHandler(BaseHandler):
                     f'analysis_resource_type must be one of {", ".join(["obj"])}',
                     status=404,
                 )
-
             return self.success(data=ret_array)
 
     @permissions(["Run Analyses"])

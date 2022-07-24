@@ -4,6 +4,7 @@ import * as API from "../API";
 import store from "../store";
 
 export const REFRESH_SOURCE = "skyportal/REFRESH_SOURCE";
+export const REFRESH_OBJ_ANALYSES = "skyportal/REFRESH_OBJ_ANALYSES";
 
 const FETCH_LOADED_SOURCE = "skyportal/FETCH_LOADED_SOURCE";
 const FETCH_LOADED_SOURCE_OK = "skyportal/FETCH_LOADED_SOURCE_OK";
@@ -78,10 +79,10 @@ const FETCH_PHOTOZ = "skyportal/FETCH_PHOTOZ";
 
 const CHECK_SOURCE = "skyportal/CHECK_SOURCE";
 
-const ADD_ANALYSIS_SERVICE_FOR_OBJ = "skyportal/ADD_ANALYSIS_SERVICE_FOR_OBJ";
+const START_ANALYSIS_FOR_OBJ = "skyportal/START_SERVICE_FOR_OBJ";
+const DELETE_ANALYSIS = "skyportal/DELETE_ANALYSIS";
 
-const FETCH_ANALYSIS_SERVICES_FOR_OBJ =
-  "skyportal/FETCH_ANALYSIS_SERVICES_FOR_OBJ";
+const FETCH_ANALYSES_FOR_OBJ = "skyportal/FETCH_ANALYSES_FOR_OBJ";
 
 export const shareData = (data) => API.POST("/api/sharing", SHARE_DATA, data);
 
@@ -96,21 +97,26 @@ export function addSourceTNS(id, formData) {
   return API.POST(`/api/sources/${id}/tns`, ADD_SOURCE_TNS, formData);
 }
 
-export function addAnalysisService(id, analysis_service_id, formData = {}) {
+export function startAnalysis(id, analysis_service_id, formData = {}) {
   return API.POST(
     `/api/obj/${id}/analysis/${analysis_service_id}`,
-    ADD_ANALYSIS_SERVICE_FOR_OBJ,
+    START_ANALYSIS_FOR_OBJ,
     formData
   );
 }
 
-export function fetchAnalysisService(
-  analysis_resource_type = "obj",
-  params = {}
-) {
+export function deleteAnalysis(analysis_id, formData = {}) {
+  return API.DELETE(
+    `/api/obj/analysis/${analysis_id}`,
+    DELETE_ANALYSIS,
+    formData
+  );
+}
+
+export function fetchAnalyses(analysis_resource_type = "obj", params = {}) {
   return API.GET(
     `/api/${analysis_resource_type}/analysis`,
-    FETCH_ANALYSIS_SERVICES_FOR_OBJ,
+    FETCH_ANALYSES_FOR_OBJ,
     params
   );
 }
