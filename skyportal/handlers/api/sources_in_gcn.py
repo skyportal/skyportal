@@ -165,7 +165,7 @@ class SourcesInGcnHandler(BaseHandler):
 
 
 class SourceInGcnsHandler(BaseHandler):
-    @permissions(['Manage GCNs'])
+    @auth_or_token
     def get(self, source_id):
         source_in_gcn = (
             SourcesInGCN.query.filter(SourcesInGCN.obj_id == source_id)
