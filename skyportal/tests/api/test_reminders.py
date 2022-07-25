@@ -9,7 +9,7 @@ def post_and_verify_reminder(endpoint, token):
     reminder_text = str(uuid.uuid4())
     next_reminder = datetime.utcnow() + timedelta(seconds=10)
     reminder_delay = 1
-    number_of_reminders = 2
+    number_of_reminders = 1
     request_data = {
         'text': reminder_text,
         'next_reminder': next_reminder.strftime("%Y-%m-%dT%H:%M:%S"),
