@@ -55,7 +55,6 @@ from ...models import (
     PhotStat,
     Spectrum,
     SourceView,
-    SourcesInGCN
 )
 from ...utils.offset import (
     get_nearby_offset_stars,
@@ -82,18 +81,6 @@ log = make_log('api/source')
 
 MAX_LOCALIZATION_SOURCES = 50000
 
-def get_confirm_status(session, source_id, start_date, end_date):
-    sourceingcn = (session.query(SourcesInGCN)
-    .filter(SourcesInGCN.obj_id == source_id)
-    # .filter(SourcesInGCN.start_date >= start_date)
-    # .filter(SourcesInGCN.end_date <= end_date)
-    ).first()
-    if sourceingcn is None:
-        return "pending"
-    elif sourceingcn.confirmed_or_rejected is True:
-        return "confirmed"
-    else:
-        return "rejected"
 
 def get_source(
     obj_id,
@@ -381,7 +368,6 @@ def get_sources(
     save_summary=False,
     total_matches=None,
     includeGeoJSON=False,
-    include_localization_status=False,
 ):
     """Query multiple sources from database.
     user_id : int
@@ -1176,10 +1162,6 @@ def get_sources(
                 obj_list[-1]["color_magnitude"] = get_color_mag(
                     obj_list[-1]["annotations"]
                 )
-
-        if include_localization_status and first_detected_date and last_detected_date:
-            for obj in obj_list:
-                obj["confirm_status"] = get_confirm_status(session, obj["id"], first_detected_date, last_detected_date)
         query_results["sources"] = obj_list
 
     query_results = recursive_to_dict(query_results)
@@ -2001,7 +1983,6 @@ class SourceHandler(BaseHandler):
         localization_name = self.get_query_argument("localizationName", None)
         localization_cumprob = self.get_query_argument("localizationCumprob", 0.95)
         includeGeoJSON = self.get_query_argument("includeGeoJSON", False)
-        include_localization_status = self.get_query_argument("includeLocalizationStatus", False)
 
         class Validator(Schema):
             saved_after = UTCTZnaiveDateTime(required=False, missing=None)
@@ -2184,7 +2165,6 @@ class SourceHandler(BaseHandler):
                     save_summary=save_summary,
                     total_matches=total_matches,
                     includeGeoJSON=includeGeoJSON,
-                    include_localization_status=include_localization_status,
                 )
             except Exception as e:
                 return self.error(f'Cannot retrieve sources: {str(e)}')
