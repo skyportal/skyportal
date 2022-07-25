@@ -99,7 +99,12 @@ DownloadXMLButton.propTypes = {
   }).isRequired,
 };
 
-const GcnEventSourcesPage = ({ route, sources, localizationName, sourceFilteringState }) => {
+const GcnEventSourcesPage = ({
+  route,
+  sources,
+  localizationName,
+  sourceFilteringState,
+}) => {
   const classes = useStyles();
   const dispatch = useDispatch();
   const [sourcesRowsPerPage, setSourcesRowsPerPage] = useState(100);
@@ -219,6 +224,11 @@ GcnEventSourcesPage.propTypes = {
     ),
   }),
   localizationName: PropTypes.string.isRequired,
+  sourceFilteringState: PropTypes.shape({
+    startDate: PropTypes.string,
+    endDate: PropTypes.string,
+    localizationCumprob: PropTypes.number,
+  }).isRequired,
 };
 
 GcnEventSourcesPage.defaultProps = {
@@ -234,6 +244,7 @@ const GcnEventPage = ({ route }) => {
   const [sourceFilteringState, setSourceFilteringState] = useState({
     startDate: null,
     endDate: null,
+    localizationCumprob: null,
   });
 
   const gcnEventSources = useSelector(

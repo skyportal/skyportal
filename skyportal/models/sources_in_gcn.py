@@ -4,21 +4,13 @@ __all__ = ['SourcesInGCN']
 
 import sqlalchemy as sa
 from sqlalchemy.orm import relationship
-from traitlets import default
-
 
 from baselayer.app.models import (
     Base,
-    CustomUserAccessControl,
-    UserAccessControl,
-    DBSession,
-    safe_aliased,
 )
 from baselayer.app.env import load_env
-from skyportal.models.source import Source
-from skyportal.models.localization import Localization
 
-from .group import GroupUser, accessible_by_group_members
+from .group import accessible_by_group_members
 
 _, cfg = load_env()
 
@@ -41,18 +33,11 @@ class SourcesInGCN(Base):
         doc='The assigned Obj.',
     )
 
-    localization_id = sa.Column(
-        sa.ForeignKey("localizations.id", ondelete="CASCADE"),
+    dateobs = sa.Column(
+        sa.ForeignKey('gcnevents.dateobs', ondelete="CASCADE"),
         nullable=False,
         index=True,
-        doc="Localization ID",
-    )
-
-    localization = relationship(
-        "Localization",
-        foreign_keys=[localization_id],
-        back_populates="sources_in_gcns",
-        doc="Localization"
+        doc='UTC event timestamp',
     )
 
     confirmed_or_rejected = sa.Column(
@@ -61,8 +46,3 @@ class SourcesInGCN(Base):
         default=False,
         doc="Confirmed",
     )
-
-
-
-
-

@@ -912,6 +912,7 @@ const SourceTable = ({
           sourceId={source.id}
           startDate={sourceInGcnFilter.startDate}
           endDate={sourceInGcnFilter.endDate}
+          localizationCumprob={sourceInGcnFilter.localizationCumprob}
           sourcesIdList={sources.map((s) => s.id)}
         />
       </div>
@@ -1430,6 +1431,7 @@ SourceTable.propTypes = {
   sourceInGcnFilter: PropTypes.shape({
     startDate: PropTypes.string,
     endDate: PropTypes.string,
+    localizationCumprob: PropTypes.number,
   }),
 };
 

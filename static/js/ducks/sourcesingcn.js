@@ -16,11 +16,10 @@ export const fetchSourcesInGcn = (dateobs, data) =>
 export const submitSourceInGcn = (dateobs, data) =>
   API.POST(`/api/sources_in_gcn/${dateobs}`, SUBMIT_SOURCE_IN_GCN, data);
 
-export const deleteSourceInGcn = (dateobs, source_id, data) =>
+export const deleteSourceInGcn = (dateobs, source_id) =>
   API.DELETE(
     `/api/sources_in_gcn/${dateobs}/${source_id}`,
-    DELETE_SOURCE_IN_GCN,
-    data
+    DELETE_SOURCE_IN_GCN
   );
 
 export const patchSourceInGcn = (dateobs, source_id, data) =>

@@ -89,6 +89,7 @@ const SourcesInGCN = ({
   sourceId,
   startDate,
   endDate,
+  localizationCumprob,
   sourcesIdList,
 }) => {
   const dispatch = useDispatch();
@@ -142,6 +143,7 @@ const SourcesInGCN = ({
           startDate,
           endDate,
           localizationName,
+          localizationCumprob,
           confirmedOrRejected: true,
         })
       ).then((response) => {
@@ -155,7 +157,6 @@ const SourcesInGCN = ({
         SourceInGcnAction.patchSourceInGcn(dateobs, sourceId, {
           startDate,
           endDate,
-          localizationName,
           confirmedOrRejected: true,
         })
       ).then((response) => {
@@ -177,6 +178,7 @@ const SourcesInGCN = ({
           startDate,
           endDate,
           localizationName,
+          localizationCumprob,
           confirmedOrRejected: false,
         })
       ).then((response) => {
@@ -190,7 +192,6 @@ const SourcesInGCN = ({
         SourceInGcnAction.patchSourceInGcn(dateobs, sourceId, {
           startDate,
           endDate,
-          localizationName,
           confirmedOrRejected: false,
         })
       ).then((response) => {
@@ -206,18 +207,14 @@ const SourcesInGCN = ({
 
   const handleUndefined = () => {
     if (currentState === "confirmed" || currentState === "rejected") {
-      dispatch(
-        SourceInGcnAction.deleteSourceInGcn(dateobs, sourceId, {
-          startDate,
-          endDate,
-          localizationName,
-        })
-      ).then((response) => {
-        if (response.status === "success") {
-          handleUpdate();
-          handleClose();
+      dispatch(SourceInGcnAction.deleteSourceInGcn(dateobs, sourceId)).then(
+        (response) => {
+          if (response.status === "success") {
+            handleUpdate();
+            handleClose();
+          }
         }
-      });
+      );
     } else {
       showNotification("Source already undefined", "error");
     }
@@ -263,6 +260,7 @@ SourcesInGCN.propTypes = {
   sourceId: PropTypes.string.isRequired,
   startDate: PropTypes.string.isRequired,
   endDate: PropTypes.string.isRequired,
+  localizationCumprob: PropTypes.string.isRequired,
   sourcesIdList: PropTypes.arrayOf(PropTypes.string).isRequired,
 };
 

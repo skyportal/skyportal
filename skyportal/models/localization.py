@@ -102,13 +102,6 @@ class Localization(Base):
         doc="Survey efficiency analyses of the event.",
     )
 
-    sources_in_gcns = relationship(
-        "SourcesInGCN",
-        back_populates="localization",
-        passive_deletes=True,
-        doc="Sources in a localization.",
-    )
-
     @hybrid_property
     def is_3d(self):
         return (
