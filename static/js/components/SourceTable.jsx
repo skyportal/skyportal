@@ -865,35 +865,17 @@ const SourceTable = ({
     const source = sources[dataIndex];
     let statusIcon = null;
     if (sourcesingcn.filter((s) => s.obj_id === source.id).length === 0) {
-      statusIcon = (
-        <QuestionMarkIcon
-          size="small"
-          key={`${source.id}_confirm_status`}
-          color="primary"
-        />
-      );
+      statusIcon = <QuestionMarkIcon size="small" color="primary" />;
     } else if (
       sourcesingcn.filter((s) => s.obj_id === source.id)[0]
         .confirmed_or_rejected === true
     ) {
-      statusIcon = (
-        <CheckIcon
-          size="small"
-          key={`${source.id}_confirm_status`}
-          color="green"
-        />
-      );
+      statusIcon = <CheckIcon size="small" color="green" />;
     } else if (
       sourcesingcn.filter((s) => s.obj_id === source.id)[0]
         .confirmed_or_rejected === false
     ) {
-      statusIcon = (
-        <ClearIcon
-          size="small"
-          key={`${source.id}_confirm_status`}
-          color="secondary"
-        />
-      );
+      statusIcon = <ClearIcon size="small" color="secondary" />;
     }
 
     return (
@@ -904,6 +886,7 @@ const SourceTable = ({
           alignItems: "center",
           justifyContent: "center",
         }}
+        name={`${source.id}_gcn_status`}
       >
         {statusIcon}
         <SourcesInGCN
@@ -1180,7 +1163,7 @@ const SourceTable = ({
 
   // if all sources have a status, add a status column
   if (includeGcnStatus) {
-    columns.push({
+    columns.splice(1, 0, {
       name: "GCN Status",
       options: {
         filter: false,
