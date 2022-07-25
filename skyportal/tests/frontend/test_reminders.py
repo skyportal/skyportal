@@ -9,7 +9,7 @@ from selenium.webdriver.common.keys import Keys
 
 def post_and_verify_reminder(endpoint, token):
     reminder_text = str(uuid.uuid4())
-    next_reminder = datetime.utcnow() + timedelta(seconds=10)
+    next_reminder = datetime.utcnow() + timedelta(seconds=5)
     reminder_delay = 1
     number_of_reminders = 2
     request_data = {
@@ -37,7 +37,7 @@ def post_and_verify_reminder(endpoint, token):
     assert data[-1]['reminder_delay'] == reminder_delay
     assert data[-1]['number_of_reminders'] == number_of_reminders
 
-    time.sleep(15)  # wait for the reminder to be sent
+    time.sleep(20)  # wait for the reminder to be sent
     status, data = api('GET', endpoint, token=token)
     assert status == 200
     assert data['status'] == 'success'
@@ -58,6 +58,7 @@ def post_and_verify_reminder_frontend(driver, reminder_text):
     )
     driver.scroll_to_element_and_click(search_button_xpath)
     search_bar = driver.wait_for_xpath('//input[@aria-label="Search"]')
+
     search_bar.send_keys(f"{reminder_text}")
     driver.wait_for_xpath(f'//*[text()="{reminder_text}"]', timeout=10)
     search_bar.clear()
@@ -77,7 +78,7 @@ def post_and_verify_reminder_frontend(driver, reminder_text):
     driver.scroll_to_element_and_click(
         driver.wait_for_xpath('//form[@id="reminder-form"]/*/*[@type="submit"]')
     )
-
+    driver.wait_for_xpath_to_disappear('//*[contains(.,"New Reminder on ")]')
     search_bar = driver.wait_for_xpath('//input[@aria-label="Search"]')
     search_bar.send_keys(f"{reminder_text_2}")
     driver.wait_for_xpath(f'//*[text()="{reminder_text_2}"]', timeout=10)
