@@ -5,8 +5,6 @@
 
 from astropy.time import Time
 from datetime import datetime, timedelta
-import asyncio
-from tornado.ioloop import IOLoop
 import requests
 
 from baselayer.log import make_log
@@ -23,6 +21,7 @@ from skyportal.models import (
 )
 from skyportal.models.gcn import GcnEvent
 from skyportal.models.shift import Shift
+import time
 
 env, cfg = load_env()
 
@@ -30,158 +29,113 @@ init_db(**cfg['database'])
 
 log = make_log('reminders')
 
-request_session = requests.Session()
-request_session.trust_env = (
-    False  # Otherwise pre-existing netrc config will override auth headers
-)
+REQUEST_TIMEOUT_SECONDS = cfg['health_monitor.request_timeout_seconds']
 
 
-class ReminderQueue(asyncio.Queue):
-    async def load_from_db(self):
-        # Load items from database into queue
-        while True:
-            try:
-                with DBSession() as session:
-                    reminders = (
-                        (
-                            session.query(Reminder)
-                            .where(Reminder.number_of_reminders != 0)
-                            .all()
-                        )
-                        + (
-                            session.query(ReminderOnSpectrum)
-                            .where(ReminderOnSpectrum.number_of_reminders != 0)
-                            .all()
-                        )
-                        + (
-                            session.query(ReminderOnGCN)
-                            .where(ReminderOnGCN.number_of_reminders != 0)
-                            .all()
-                            + (
-                                session.query(ReminderOnShift)
-                                .where(ReminderOnShift.number_of_reminders != 0)
-                                .all()
-                            )
-                        )
-                    )
+def service():
+    loaded = False
+    while not loaded:
+        # ping the app to see if its running
+        port = cfg['ports.app_internal']
+        try:
+            r = requests.get(
+                f'http://localhost:{port}/api/sysinfo', timeout=REQUEST_TIMEOUT_SECONDS
+            )
+        except:  # noqa: E722
+            status_code = 0
+        else:
+            status_code = r.status_code
 
-                    for reminder in reminders:
-                        await self.put([reminder.id, reminder.__class__])
-                    break
-            except Exception as e:
-                log(e)
-                await asyncio.sleep(5)
+        if status_code == 200:
+            loaded = True
+    while loaded:
+        try:
+            send_reminders()
+        except Exception as e:
+            log(e)
 
-    async def service(self):
-        last_update = datetime.utcnow()
+
+def send_reminders():
+    now = datetime.utcnow()
+    reminders = []
+    with DBSession() as session:
+        try:
+            reminders = (
+                (
+                    session.query(Reminder)
+                    .where(Reminder.number_of_reminders > 0)
+                    .where(Reminder.next_reminder <= now)
+                    .all()
+                )
+                + (
+                    session.query(ReminderOnSpectrum)
+                    .where(ReminderOnSpectrum.number_of_reminders > 0)
+                    .where(ReminderOnSpectrum.next_reminder <= now)
+                    .all()
+                )
+                + (
+                    session.query(ReminderOnGCN)
+                    .where(ReminderOnGCN.number_of_reminders > 0)
+                    .where(ReminderOnGCN.next_reminder <= now)
+                    .all()
+                )
+                + (
+                    session.query(ReminderOnShift)
+                    .where(ReminderOnShift.number_of_reminders > 0)
+                    .where(ReminderOnShift.next_reminder <= now)
+                    .all()
+                )
+            )
+        except Exception as e:
+            log(e)
+
         ws_flow = Flow()
+        for reminder in reminders:
+            reminder_type = reminder.__class__
+            if reminder_type == Reminder:
+                text_to_send = (
+                    f"Reminder of source *{reminder.obj_id}*: {reminder.text}"
+                )
+                url_endpoint = f"/source/{reminder.obj_id}"
+            elif reminder_type == ReminderOnSpectrum:
+                text_to_send = (
+                    f"Reminder of spectrum *{reminder.spectrum_id}*: {reminder.text}"
+                )
+                url_endpoint = f"/source/{reminder.spectrum_id}"
+            elif reminder_type == ReminderOnGCN:
+                gcn_event = session.query(GcnEvent).get(reminder.gcn_id)
+                text_to_send = (
+                    f"Reminder of GCN event *{gcn_event.dateobs}*: {reminder.text}"
+                )
+                url_endpoint = f"/gcn_events/{reminder.gcn_id}"
+            elif reminder_type == ReminderOnShift:
+                shift = session.query(Shift).get(reminder.shift_id)
+                text_to_send = f"Reminder of shift *{shift.name}*: {reminder.text}"
+                url_endpoint = f"/shifts/{shift.id}"
 
-        while True:
-            try:
-                with DBSession() as session:
-                    reminders = (
-                        (
-                            session.query(Reminder)
-                            .where(Reminder.created_at > last_update)
-                            .all()
-                        )
-                        + (
-                            session.query(ReminderOnSpectrum)
-                            .where(ReminderOnSpectrum.created_at > last_update)
-                            .all()
-                        )
-                        + (
-                            session.query(ReminderOnGCN)
-                            .where(ReminderOnGCN.created_at > last_update)
-                            .all()
-                        )
-                        + (
-                            session.query(ReminderOnShift)
-                            .where(ReminderOnShift.created_at > last_update)
-                            .all()
-                        )
-                    )
-                    for reminder in reminders:
-                        await self.put([reminder.id, reminder.__class__])
+            session.add(
+                UserNotification(
+                    user=reminder.user,
+                    text=text_to_send,
+                    notification_type="mention",
+                    url=url_endpoint,
+                )
+            )
+            loop = True
+            while loop:
+                reminder.number_of_reminders = reminder.number_of_reminders - 1
+                reminder.next_reminder = reminder.next_reminder + timedelta(
+                    days=reminder.reminder_delay
+                )
+                if reminder.next_reminder > Time(now, format='datetime'):
+                    loop = False
+            session.add(reminder)
+            session.commit()
 
-                    if len(reminders) > 0:
-                        last_update = datetime.utcnow()
+            ws_flow.push(reminder.user.id, "skyportal/FETCH_NOTIFICATIONS")
 
-                # missing ? what happens if a reminder in the queue has been modified?
-                # should we use: .where(ReminderOnShift.created_at > last_update) instead, and if a reminder is already in the queue,
-                # we update it, if its not in the queue we just add it.
-                if not self.empty():
-                    reminder_id, reminder_type = await self.get()
-                    with DBSession() as session:
-                        reminder = session.query(reminder_type).get(reminder_id)
-                        dt = Time(datetime.utcnow(), format='datetime') - Time(
-                            reminder.next_reminder, format='datetime'
-                        )
-                        if dt < 0:
-                            await self.put([reminder_id, reminder_type])
-                        else:
-                            log(f"Sending reminder {reminder.id}")
+    time.sleep(5)
 
-                            if reminder_type == Reminder:
-                                text_to_send = f"Reminder of source *{reminder.obj_id}*: {reminder.text}"
-                                url_endpoint = f"/source/{reminder.obj_id}"
-                            elif reminder_type == ReminderOnSpectrum:
-                                text_to_send = f"Reminder of spectrum *{reminder.spectrum_id}*: {reminder.text}"
-                                url_endpoint = f"/source/{reminder.spectrum_id}"
-                            elif reminder_type == ReminderOnGCN:
-                                gcn_event = session.query(GcnEvent).get(reminder.gcn_id)
-                                text_to_send = f"Reminder of GCN event *{gcn_event.dateobs}*: {reminder.text}"
-                                url_endpoint = f"/gcn_events/{reminder.gcn_id}"
-                            elif reminder_type == ReminderOnShift:
-                                shift = session.query(Shift).get(reminder.shift_id)
-                                text_to_send = (
-                                    f"Reminder of shift *{shift.name}*: {reminder.text}"
-                                )
-                                url_endpoint = f"/shifts/{shift.id}"
-                            else:
-                                return self.error(
-                                    f'Unknown reminder type "{reminder_type}".'
-                                )
-
-                            session.add(
-                                UserNotification(
-                                    user=reminder.user,
-                                    text=text_to_send,
-                                    notification_type="mention",
-                                    url=url_endpoint,
-                                )
-                            )
-                            ws_flow.push(
-                                reminder.user.id, "skyportal/FETCH_NOTIFICATIONS"
-                            )
-                            loop = True
-                            while loop:
-                                reminder.number_of_reminders = (
-                                    reminder.number_of_reminders - 1
-                                )
-                                if reminder.number_of_reminders > 0:
-                                    reminder.next_reminder = (
-                                        reminder.next_reminder
-                                        + timedelta(days=reminder.reminder_delay)
-                                    )
-                                else:
-                                    loop = False
-                                if reminder.next_reminder > Time(
-                                    datetime.utcnow(), format='datetime'
-                                ):
-                                    await self.put([reminder.id, reminder.__class__])
-                                    loop = False
-                            session.add(reminder)
-                            session.commit()
-            except Exception as e:
-                log(e)
-                await asyncio.sleep(5)
-
-
-queue = ReminderQueue()
 
 if __name__ == "__main__":
-    loop = IOLoop.current()
-    loop.add_callback(queue.load_from_db)
-    loop.add_callback(queue.service)
-    loop.start()
+    service()
