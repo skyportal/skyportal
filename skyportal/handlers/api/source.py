@@ -18,7 +18,10 @@ import operator  # noqa: F401
 import functools
 import conesearch_alchemy as ca
 import healpix_alchemy as ha
+import time
+
 from ...utils.UTCTZnaiveDateTime import UTCTZnaiveDateTime
+from ...utils.sizeof import sizeof, SIZE_WARNING_THRESHOLD
 
 from baselayer.app.access import permissions, auth_or_token
 from baselayer.app.env import load_env
@@ -245,9 +248,13 @@ def get_source(
         .all(),
         key=lambda x: x.origin,
     )
-    readable_classifications = session.scalars(
-        Classification.select(user).where(Classification.obj_id == obj_id)
-    ).all()
+    readable_classifications = (
+        session.scalars(
+            Classification.select(user).where(Classification.obj_id == obj_id)
+        )
+        .unique()
+        .all()
+    )
 
     readable_classifications_json = []
     for classification in readable_classifications:
@@ -1924,6 +1931,9 @@ class SourceHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
+
+        start = time.time()
+
         page_number = self.get_query_argument('pageNumber', 1)
         num_per_page = min(
             int(self.get_query_argument("numPerPage", DEFAULT_SOURCES_PER_PAGE)),
@@ -2102,6 +2112,15 @@ class SourceHandler(BaseHandler):
                     )
                 except Exception as e:
                     return self.error(f'Cannot retrieve source: {str(e)}')
+
+                query_size = sizeof(source_info)
+                if query_size >= SIZE_WARNING_THRESHOLD:
+                    end = time.time()
+                    duration = end - start
+                    log(
+                        f'User {self.associated_user_object.id} source query returned {query_size} bytes in {duration} seconds'
+                    )
+
                 return self.success(data=source_info)
 
         with self.Session() as session:
@@ -2170,6 +2189,13 @@ class SourceHandler(BaseHandler):
             except Exception as e:
                 return self.error(f'Cannot retrieve sources: {str(e)}')
 
+            query_size = sizeof(query_results)
+            if query_size >= SIZE_WARNING_THRESHOLD:
+                end = time.time()
+                duration = end - start
+                log(
+                    f'User {self.associated_user_object.id} source query returned {query_size} bytes in {duration} seconds'
+                )
             return self.success(data=query_results)
 
     @permissions(['Upload data'])

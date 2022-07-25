@@ -387,7 +387,7 @@ class GcnEventHandler(BaseHandler):
                     data, self.associated_user_object.id, session
                 )
 
-        return self.success(data={'gcnevent_id': event_id})
+            return self.success(data={'gcnevent_id': event_id})
 
     @auth_or_token
     async def get(self, dateobs=None):
