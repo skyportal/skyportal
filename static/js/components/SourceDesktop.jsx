@@ -302,7 +302,7 @@ const SourceDesktop = ({ source }) => {
             <b>Associated to: &nbsp;</b>
             <div key="associated_gcns">
               {associatedGCNs.map((dateobs) => (
-                <a key={`${dateobs}`} href={`gcn_events/${dateobs}`}>
+                <a key={`${dateobs}`} href={`/gcn_events/${dateobs}`}>
                   {dateobs}
                 </a>
               ))}

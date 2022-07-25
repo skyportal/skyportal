@@ -166,7 +166,7 @@ const SourcesInGCN = ({
         }
       });
     } else {
-      showNotification("Source already confirmed", "error");
+      dispatch(showNotification("Source already confirmed", "error"));
     }
   };
 
@@ -201,7 +201,7 @@ const SourcesInGCN = ({
         }
       });
     } else {
-      showNotification("Source already rejected", "error");
+      dispatch(showNotification("Source already rejected", "error"));
     }
   };
 
@@ -216,7 +216,7 @@ const SourcesInGCN = ({
         }
       );
     } else {
-      showNotification("Source already undefined", "error");
+      dispatch(showNotification("Source already undefined", "error"));
     }
   };
 
