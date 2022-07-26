@@ -2,7 +2,15 @@ from astropy.coordinates import SkyCoord
 import astropy.units as u
 from astropy.time import Time
 
-from dl import queryClient as qc
+try:
+    from dl import queryClient as qc
+except Exception:
+
+    class qc:
+        def query(*args, **kwargs):
+            return ""
+
+
 import pandas as pd
 from io import StringIO
 from sqlalchemy.exc import IntegrityError

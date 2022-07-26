@@ -48,7 +48,7 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-const LightcurveFitForm = ({ obj_id }) => {
+const AnalysisForm = ({ obj_id }) => {
   const classes = useStyles();
   const dispatch = useDispatch();
 
@@ -114,11 +114,7 @@ const LightcurveFitForm = ({ obj_id }) => {
       params = { analysis_parameters: formData, group_ids: selectedGroupIds };
     }
     await dispatch(
-      sourceActions.addAnalysisService(
-        obj_id,
-        selectedAnalysisServiceId,
-        params
-      )
+      sourceActions.startAnalysis(obj_id, selectedAnalysisServiceId, params)
     );
     setIsSubmitting(false);
   };
@@ -144,7 +140,7 @@ const LightcurveFitForm = ({ obj_id }) => {
     });
   }
 
-  const LightcurveFitSelectionFormSchema = {
+  const AnalysisSelectionFormSchema = {
     type: "object",
     properties: OptionalParameters,
     required: Object.keys(
@@ -157,7 +153,7 @@ const LightcurveFitForm = ({ obj_id }) => {
     <div className={classes.container}>
       <div>
         <InputLabel id="analysisServiceSelectLabel">
-          Analysis Service
+          Start New Analysis
         </InputLabel>
         <Select
           inputProps={{ MenuProps: { disableScrollLock: true } }}
@@ -186,7 +182,7 @@ const LightcurveFitForm = ({ obj_id }) => {
       <div data-testid="analysis-service-request-form">
         <div>
           <Form
-            schema={LightcurveFitSelectionFormSchema}
+            schema={AnalysisSelectionFormSchema}
             onSubmit={handleSubmit}
             // eslint-disable-next-line react/jsx-no-bind
             disabled={isSubmitting}
@@ -203,8 +199,8 @@ const LightcurveFitForm = ({ obj_id }) => {
   );
 };
 
-LightcurveFitForm.propTypes = {
-  obj_id: PropTypes.number.isRequired,
+AnalysisForm.propTypes = {
+  obj_id: PropTypes.string.isRequired,
 };
 
-export default LightcurveFitForm;
+export default AnalysisForm;
