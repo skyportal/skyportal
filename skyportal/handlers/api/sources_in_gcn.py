@@ -10,7 +10,6 @@ class SourcesInGcnHandler(BaseHandler):
     @permissions(['Manage GCNs'])
     def post(self, dateobs):
         data = self.get_json()
-        print(data)
         if 'localizationName' not in data:
             return self.error("Missing required parameter: localization_name")
         if 'localizationCumprob' not in data:
@@ -128,14 +127,16 @@ class SourcesInGcnHandler(BaseHandler):
         if not gcn_event:
             return self.error(f"GCN event not found for dateobs: {dateobs}")
 
-        source_in_gcn = SourcesInGCN.query.filter(
-            SourcesInGCN.obj_id == source_id,
-            SourcesInGCN.dateobs == dateobs,
-        ).first()
-        if not source_in_gcn:
-            return self.error(
-                "This source is not confirmed or rejected in this localization yet"
+        source_in_gcn = (
+            SourcesInGCN.query_records_accessible_by(self.current_user, mode="update")
+            .filter(
+                SourcesInGCN.obj_id == source_id,
+                SourcesInGCN.dateobs == dateobs,
             )
+            .first()
+        )
+        if not source_in_gcn:
+            return self.error("Source is not confirmed or rejected in this GCN event")
         source_in_gcn.confirmed_or_rejected = confirmed_or_rejected
 
         DBSession.commit()
@@ -150,14 +151,16 @@ class SourcesInGcnHandler(BaseHandler):
         if not gcn_event:
             return self.error(f"GCN event not found for dateobs: {dateobs}")
 
-        source_in_gcn = SourcesInGCN.query.filter(
-            SourcesInGCN.obj_id == source_id,
-            SourcesInGCN.dateobs == dateobs,
-        ).first()
-        if not source_in_gcn:
-            return self.error(
-                "This source is not confirmed or rejected in this localization yet"
+        source_in_gcn = (
+            SourcesInGCN.query_records_accessible_by(self.current_user, mode="delete")
+            .filter(
+                SourcesInGCN.obj_id == source_id,
+                SourcesInGCN.dateobs == dateobs,
             )
+            .first()
+        )
+        if not source_in_gcn:
+            return self.error("Source is not confirmed or rejected in this GCN event")
 
         DBSession.delete(source_in_gcn)
         DBSession.commit()

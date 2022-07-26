@@ -5,20 +5,24 @@ __all__ = ['SourcesInGCN']
 import sqlalchemy as sa
 from sqlalchemy.orm import relationship
 
-from baselayer.app.models import (
-    Base,
-)
+from baselayer.app.models import Base, CustomUserAccessControl, DBSession, public
 from baselayer.app.env import load_env
-
-from .group import accessible_by_group_members
 
 _, cfg = load_env()
 
 
+def manage_sourcesingcn_access_logic(cls, user_or_token):
+    if user_or_token.is_admin or 'Manage GCNs' in user_or_token.permissions:
+        return public.query_accessible_rows(cls, user_or_token)
+    else:
+        print("can't access")
+        return DBSession().query(cls).filter(sa.false())
+
+
 class SourcesInGCN(Base):
 
-    create = read = accessible_by_group_members
-    update = delete = accessible_by_group_members
+    read = public
+    create = update = delete = CustomUserAccessControl(manage_sourcesingcn_access_logic)
 
     obj_id = sa.Column(
         sa.ForeignKey('objs.id', ondelete='CASCADE'),
