@@ -107,7 +107,7 @@ def test_gcn_Fermi(super_admin_token, view_only_token):
     assert status == 200
 
 
-def test_gcn_IPN(super_admin_token, view_only_token):
+def test_gcn_IPN(super_admin_token):
 
     skymap = f'{os.path.dirname(__file__)}/../data/GRB220617A_IPN_map_hpx.fits.gz'
     dateobs = '2022-06-17T18:31:12'
@@ -115,7 +115,18 @@ def test_gcn_IPN(super_admin_token, view_only_token):
 
     data = {'dateobs': dateobs, 'skymap': skymap, 'tags': tags}
 
-    status, data = api('POST', 'gcn_event', data=data, token=super_admin_token)
+    nretries = 0
+    posted = False
+    while nretries < 10 and not posted:
+        status, data = api('POST', 'gcn_event', data=data, token=super_admin_token)
+        if status == 200:
+            posted = True
+        else:
+            nretries += 1
+            time.sleep(3)
+
+    assert nretries < 10
+    assert posted is True
     assert status == 200
     assert data['status'] == 'success'
 
