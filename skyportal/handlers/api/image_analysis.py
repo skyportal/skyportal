@@ -11,6 +11,7 @@ from astropy.coordinates import search_around_sky
 from astropy.time import Time
 import astropy.units as u
 
+import base64
 import numpy as np
 from sqlalchemy.orm import sessionmaker, scoped_session
 import tempfile
@@ -348,31 +349,32 @@ class ImageAnalysisHandler(BaseHandler):
         filt = data.get("filter")
         obstime = data.get("obstime")
         obstime = Time(arrow.get(obstime.strip()).datetime)
-
         with tempfile.NamedTemporaryFile(
-            suffix=".fits.fz", mode="w", delete=False
+            suffix=".fits.fz", mode="wb", delete=False
         ) as f:
+            # TODO: remove temp file when done
+            # TODO: fix the error with asyncio not handling the exceptions from reduce_image well
+            image_data = base64.b64decode(image_data)
             f.write(image_data)
             f.flush()
-
-            # hdul = fits.open(f.name)
-            filename = './test.fits.fz'
-            hdul = fits.open(filename)
+            hdul = fits.open(f.name)
             header = hdul[1].header
             image_data = hdul[1].data.astype(np.double)
             header['FILTER'] = filt
             header['DATE-OBS'] = obstime.isot
-
-            IOLoop.current().run_in_executor(
-                None,
-                lambda: reduce_image(
-                    filename,
-                    image_data,
-                    header,
-                    obj_id,
-                    instrument.id,
-                    self.associated_user_object.id,
-                ),
-            )
+            try:
+                IOLoop.current().run_in_executor(
+                    None,
+                    lambda: reduce_image(
+                        f.name,
+                        image_data,
+                        header,
+                        obj_id,
+                        instrument.id,
+                        self.associated_user_object.id,
+                    ),
+                )
+            except Exception as e:
+                return self.error(message=str(e))
 
             return self.success()

@@ -8,7 +8,6 @@ import Form from "@rjsf/material-ui/v5";
 import PropTypes from "prop-types";
 import CircularProgress from "@mui/material/CircularProgress";
 import makeStyles from "@mui/styles/makeStyles";
-import dataUriToBuffer from "data-uri-to-buffer";
 // eslint-disable-next-line import/no-unresolved
 import { showNotification } from "baselayer/components/Notifications";
 
@@ -38,16 +37,20 @@ const ImageAnalysisForm = ({ obj_id }) => {
   const defaultDate = dayjs().utc().format("YYYY-MM-DDTHH:mm:ssZ");
 
   const handleSubmit = async ({ formData }) => {
-    formData.instrument_id = selectedInstrumentId;
-    formData.obstime = formData.obstime
-      .replace("+00:00", "")
-      .replace(".000Z", "");
+    const data = { ...formData };
+    data.instrument_id = selectedInstrumentId;
+    data.obstime = data.obstime.replace("+00:00", "").replace(".000Z", "");
 
-    if (Object.keys(formData).includes("image_file")) {
-      formData.image_data = dataUriToBuffer(formData.image_file).toString();
+    if (Object.keys(data).includes("image_file")) {
+      const image_data = Buffer.from(
+        data.image_file.split(",")[1],
+        "base64"
+      ).toString("base64");
+      data.image_data = image_data;
     }
+    delete data.image_file;
     const result = await dispatch(
-      sourceActions.submitImageAnalysis(obj_id, formData)
+      sourceActions.submitImageAnalysis(obj_id, data)
     );
     if (result.status === "success") {
       dispatch(showNotification("Image analysis submitted"));
