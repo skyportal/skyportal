@@ -495,7 +495,7 @@ def test_run_analysis_with_correct_and_incorrect_token(
             False
         ), f"analysis was not started properly ({data['data']['status_message']})"
 
-    # Since this is random data, this fit might (usually) fail
+    # Since this is random data, this fit might succeed (usually) or fail (seldom)
     # that's ok because it means we're getting the
     # roundtrip return of the webhhook
     if analysis_status == "success":
@@ -799,7 +799,7 @@ def test_delete_analysis_service_cascades_to_delete_associated_analysis(
         params=params,
     )
     assert status == 200
-    if analysis_status == "success":
+    if analysis_status == "completed":
         # there should be a filename if the analysis succeeded
         filename = data['data']['filename']
         assert os.path.exists(filename)
@@ -822,7 +822,153 @@ def test_delete_analysis_service_cascades_to_delete_associated_analysis(
     )
     assert status == 403
     assert data['status'] == 'error'
-    if analysis_status == "success":
+    if analysis_status == "completed":
         # this file should be removed if it was
         # created when the analysis service completed
         assert not os.path.exists(filename)
+
+
+def test_retrieve_data_products(
+    analysis_service_token, analysis_token, public_group, public_source
+):
+    name = str(uuid.uuid4())
+    optional_analysis_parameters = {"test_parameters": ["test_value_1", "test_value_2"]}
+    post_data = {
+        'name': name,
+        'display_name': "test analysis service name",
+        'description': "A test analysis service description",
+        'version': "1.0",
+        'contact_name': "Vera Rubin",
+        'contact_email': "vr@ls.st",
+        # this is the URL/port of the SN analysis service that will be running during testing
+        'url': f"http://localhost:{analysis_port}/analysis/demo_analysis",
+        'optional_analysis_parameters': json.dumps(optional_analysis_parameters),
+        'authentication_type': "none",
+        'analysis_type': 'lightcurve_fitting',
+        'input_data_types': ['photometry', 'redshift'],
+        'timeout': 60,
+        'group_ids': [public_group.id],
+    }
+
+    status, data = api(
+        'POST', 'analysis_service', data=post_data, token=analysis_service_token
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    analysis_service_id = data['data']['id']
+
+    status, data = api(
+        'POST',
+        f'obj/{public_source.id}/analysis/{analysis_service_id}',
+        token=analysis_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    analysis_id = data['data'].get('id')
+    assert analysis_id is not None
+
+    max_attempts = 20
+    analysis_status = 'queued'
+
+    while max_attempts > 0:
+        if analysis_status != "queued":
+            break
+        status, data = api(
+            'GET',
+            f'obj/analysis/{analysis_id}',
+            token=analysis_token,
+        )
+        assert status == 200
+        assert data["data"]["analysis_service_id"] == analysis_service_id
+        analysis_status = data["data"]["status"]
+
+        max_attempts -= 1
+        time.sleep(5)
+    else:
+        assert (
+            False
+        ), f"analysis was not started properly ({data['data']['status_message']})"
+
+    if analysis_status == "completed":
+        # try to get a plot
+        response = api(
+            'GET',
+            f'obj/analysis/{analysis_id}/plots/0',
+            token=analysis_token,
+            raw_response=True,
+        )
+        status = response.status_code
+        data = response.text
+        assert status == 200
+        assert isinstance(data, str)
+        assert data[0:10].find("PNG") != -1
+        assert response.headers.get("Content-Type", "Empty").find("image/png") != -1
+
+        # try to get a plot which should not be there
+        response = api(
+            'GET',
+            f'obj/analysis/{analysis_id}/plots/99999',
+            token=analysis_token,
+            raw_response=True,
+        )
+        status = response.status_code
+        data = response.text
+        assert status == 404
+
+        # try to get the corner plot of the posterior
+        response = api(
+            'GET',
+            f'obj/analysis/{analysis_id}/corner',
+            token=analysis_token,
+            raw_response=True,
+        )
+        status = response.status_code
+        data = response.text
+        assert status == 200
+        assert isinstance(data, str)
+        assert data[0:10].find("PNG") != -1
+        assert response.headers.get("Content-Type", "Empty").find("image/png") != -1
+
+        # try to get the results
+        status, data = api(
+            'GET',
+            f'obj/analysis/{analysis_id}/results',
+            token=analysis_token,
+        )
+        assert status == 200
+        assert data['status'] == 'success'
+        assert isinstance(data['data'], dict)
+    else:
+        # try to get a plot which does not exist
+        response = api(
+            'GET',
+            f'obj/analysis/{analysis_id}/plots/0',
+            token=analysis_token,
+            raw_response=True,
+        )
+        status = response.status_code
+        data = response.text
+        assert status == 404
+
+        # try to get a corner plot which does not exist
+        response = api(
+            'GET',
+            f'obj/analysis/{analysis_id}/corner',
+            token=analysis_token,
+            raw_response=True,
+        )
+        status = response.status_code
+        data = response.text
+        assert status == 404
+        assert data.find("No data found") != -1
+
+        # try to get a non-existing results
+        status, data = api(
+            'GET',
+            f'obj/analysis/{analysis_id}/results',
+            token=analysis_token,
+        )
+        assert status == 404
+        assert data["message"].find("No data found") != -1

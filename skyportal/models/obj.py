@@ -9,7 +9,6 @@ import sqlalchemy as sa
 from sqlalchemy import event
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.ext.hybrid import hybrid_method
 
 from astropy import coordinates as ap_coord
 from astropy import units as u
@@ -387,122 +386,6 @@ class Obj(Base, conesearch_alchemy.Point):
         doc="Analyses assocated with this obj.",
     )
 
-    @hybrid_method
-    def last_detected_at(self, user):
-        """UTC ISO date at which the object was last detected above a given S/N (3.0 by default)."""
-        detections = [
-            phot.iso
-            for phot in Photometry.query_records_accessible_by(user)
-            .filter(Photometry.obj_id == self.id)
-            .all()
-            if phot.snr is not None and phot.snr > PHOT_DETECTION_THRESHOLD
-        ]
-        series_detections = [
-            phot.iso_last_detected
-            for phot in PhotometricSeries.query_records_accessible_by(user)
-            .filter(PhotometricSeries.obj_id == self.id)
-            .all()
-            if phot.detected
-        ]
-        detections += series_detections
-        return max(detections) if detections else None
-
-    @last_detected_at.expression
-    def last_detected_at(cls, user):
-        """UTC ISO date at which the object was last detected above a given S/N (3.0 by default)."""
-        return (
-            Photometry.query_records_accessible_by(
-                user, columns=[sa.func.max(Photometry.iso)], mode="read"
-            )
-            .filter(Photometry.obj_id == cls.id)
-            .filter(Photometry.snr.isnot(None))
-            .filter(Photometry.snr > PHOT_DETECTION_THRESHOLD)
-            .label('last_detected_at')
-        )
-
-    @hybrid_method
-    def last_detected_mag(self, user):
-        """Magnitude at which the object was last detected above a given S/N (3.0 by default)."""
-        return (
-            Photometry.query_records_accessible_by(
-                user, columns=[Photometry.mag], mode="read"
-            )
-            .filter(Photometry.obj_id == self.id)
-            .filter(Photometry.snr.isnot(None))
-            .filter(Photometry.snr > PHOT_DETECTION_THRESHOLD)
-            .order_by(Photometry.mjd.desc())
-            .limit(1)
-            .scalar()
-        )
-
-    @last_detected_mag.expression
-    def last_detected_mag(cls, user):
-        """Magnitude at which the object was last detected above a given S/N (3.0 by default)."""
-        return (
-            Photometry.query_records_accessible_by(
-                user, columns=[Photometry.mag], mode="read"
-            )
-            .filter(Photometry.obj_id == cls.id)
-            .filter(Photometry.snr.isnot(None))
-            .filter(Photometry.snr > PHOT_DETECTION_THRESHOLD)
-            .order_by(Photometry.mjd.desc())
-            .limit(1)
-            .label('last_detected_mag')
-        )
-
-    @hybrid_method
-    def peak_detected_at(self, user):
-        """UTC ISO date at which the object was detected at peak magnitude above a given S/N (3.0 by default)."""
-        detections = [
-            (phot.iso, phot.mag)
-            for phot in Photometry.query_records_accessible_by(user)
-            .filter(Photometry.obj_id == self.id)
-            .all()
-            if phot.snr is not None and phot.snr > PHOT_DETECTION_THRESHOLD
-        ]
-        return max(detections, key=(lambda x: x[1]))[0] if detections else None
-
-    @peak_detected_at.expression
-    def peak_detected_at(cls, user):
-        """UTC ISO date at which the object was detected at peak magnitude above a given S/N (3.0 by default)."""
-        return (
-            Photometry.query_records_accessible_by(
-                user, columns=[Photometry.iso], mode="read"
-            )
-            .filter(Photometry.obj_id == cls.id)
-            .filter(Photometry.snr.isnot(None))
-            .filter(Photometry.snr > PHOT_DETECTION_THRESHOLD)
-            .order_by(Photometry.mag.desc())
-            .limit(1)
-            .label('peak_detected_at')
-        )
-
-    @hybrid_method
-    def peak_detected_mag(self, user):
-        """Peak magnitude at which the object was detected above a given S/N (3.0 by default)."""
-        return (
-            Photometry.query_records_accessible_by(
-                user, columns=[sa.func.max(Photometry.mag)], mode="read"
-            )
-            .filter(Photometry.obj_id == self.id)
-            .filter(Photometry.snr.isnot(None))
-            .filter(Photometry.snr > PHOT_DETECTION_THRESHOLD)
-            .scalar()
-        )
-
-    @peak_detected_mag.expression
-    def peak_detected_mag(cls, user):
-        """Peak magnitude at which the object was detected above a given S/N (3.0 by default)."""
-        return (
-            Photometry.query_records_accessible_by(
-                user, columns=[sa.func.max(Photometry.mag)], mode="read"
-            )
-            .filter(Photometry.obj_id == cls.id)
-            .filter(Photometry.snr.isnot(None))
-            .filter(Photometry.snr > PHOT_DETECTION_THRESHOLD)
-            .label('peak_detected_mag')
-        )
-
     def add_linked_thumbnails(self, session=DBSession):
         """Determine the URLs of the SDSS and DESI DR8 thumbnails of the object,
         insert them into the Thumbnails table, and link them to the object."""
@@ -606,7 +489,7 @@ class Obj(Base, conesearch_alchemy.Point):
 
         # there may be a non-redshift based measurement of distance
         # for nearby sources
-        if self.altdata:
+        if isinstance(self.altdata, dict):
             if self.altdata.get("dm") is not None:
                 # see eq (24) of https://ned.ipac.caltech.edu/level5/Hogg/Hogg7.html
                 return (

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
+import CircularProgress from "@mui/material/CircularProgress";
 import Typography from "@mui/material/Typography";
 import Paper from "@mui/material/Paper";
 import Grid from "@mui/material/Grid";
@@ -74,10 +75,6 @@ const FollowupRequestPage = () => {
     dispatch(followupRequestActions.fetchFollowupRequests(params));
   }, [dispatch, selectedInstrumentId]);
 
-  if (!Array.isArray(followupRequestList)) {
-    return <p>Waiting for followup requests to load...</p>;
-  }
-
   const handlePageChange = async (page, numPerPage) => {
     const params = {
       ...fetchParams,
@@ -105,22 +102,21 @@ const FollowupRequestPage = () => {
     return <p>Loading information...</p>;
   }
 
+  const sortedInstrumentList = [...instrumentList];
+  sortedInstrumentList.sort((i1, i2) => {
+    if (i1.name > i2.name) {
+      return 1;
+    }
+    if (i2.name > i1.name) {
+      return -1;
+    }
+    return 0;
+  });
+
   const telLookUp = {};
   // eslint-disable-next-line no-unused-expressions
   telescopeList?.forEach((tel) => {
     telLookUp[tel.id] = tel;
-  });
-
-  const requestsGroupedByInstId = followupRequestList.reduce((r, a) => {
-    r[a.allocation.instrument.id] = [
-      ...(r[a.allocation.instrument.id] || []),
-      a,
-    ];
-    return r;
-  }, {});
-
-  Object.values(requestsGroupedByInstId).forEach((value) => {
-    value.sort();
   });
 
   const handleSelectedInstrumentChange = async (e) => {
@@ -142,19 +138,25 @@ const FollowupRequestPage = () => {
         <Paper elevation={1}>
           <div className={classes.paperContent}>
             <Typography variant="h6">List of Followup Requests</Typography>
-            <div>
-              <FollowupRequestLists
-                followupRequests={followupRequestList}
-                instrumentList={instrumentList}
-                instrumentFormParams={instrumentFormParams}
-                pageNumber={fetchParams.pageNumber}
-                numPerPage={fetchParams.numPerPage}
-                handleTableChange={handleTableChange}
-                totalMatches={totalMatches}
-                serverSide
-                showObject
-              />
-            </div>
+            {!followupRequestList ? (
+              <div>
+                <CircularProgress />
+              </div>
+            ) : (
+              <div>
+                <FollowupRequestLists
+                  followupRequests={followupRequestList}
+                  instrumentList={instrumentList}
+                  instrumentFormParams={instrumentFormParams}
+                  pageNumber={fetchParams.pageNumber}
+                  numPerPage={fetchParams.numPerPage}
+                  handleTableChange={handleTableChange}
+                  totalMatches={totalMatches}
+                  serverSide
+                  showObject
+                />
+              </div>
+            )}
           </div>
           <div>
             <InputLabel id="instrumentSelectLabel">Instrument</InputLabel>
@@ -166,7 +168,7 @@ const FollowupRequestPage = () => {
               name="followupRequestInstrumentSelect"
               className={classes.select}
             >
-              {instrumentList?.map((instrument) => (
+              {sortedInstrumentList?.map((instrument) => (
                 <MenuItem
                   value={instrument.id}
                   key={instrument.id}

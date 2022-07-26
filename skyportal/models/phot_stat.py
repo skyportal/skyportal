@@ -71,9 +71,9 @@ class PhotStat(Base):
         self.mag_rms_global = None
         self.mag_rms_per_filter = {}
 
-    read = public
+    read = update = public
 
-    write = update = delete = restricted
+    write = delete = restricted
 
     last_update = sa.Column(
         sa.DateTime,

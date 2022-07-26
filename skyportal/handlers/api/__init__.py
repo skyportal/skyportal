@@ -3,9 +3,14 @@ from .allocation import AllocationHandler, AllocationReportHandler
 from .analysis import (
     AnalysisServiceHandler,
     AnalysisHandler,
+    AnalysisProductsHandler,
 )
 from .candidate import CandidateHandler
-from .classification import ClassificationHandler, ObjClassificationHandler
+from .classification import (
+    ClassificationHandler,
+    ObjClassificationHandler,
+    ObjClassificationQueryHandler,
+)
 from .comment import CommentHandler, CommentAttachmentHandler
 from .annotation import AnnotationHandler
 from .annotation_services import (
@@ -29,6 +34,7 @@ from .gcn import (
     GcnEventHandler,
     GcnEventObservationPlanRequestsHandler,
     GcnEventSurveyEfficiencyHandler,
+    GcnSummaryHandler,
     LocalizationHandler,
 )
 from .group import (
@@ -39,6 +45,7 @@ from .group import (
     ObjGroupsHandler,
 )
 from .image_analysis import ImageAnalysisHandler
+from .healpix import HealpixUpdateHandler
 from .user_obj_list import UserObjListHandler
 from .group_admission_request import GroupAdmissionRequestHandler
 from .instrument import InstrumentHandler
@@ -64,6 +71,7 @@ from .observation_plan import (
     ObservationPlanMovieHandler,
     ObservationPlanSimSurveyHandler,
     ObservationPlanSimSurveyPlotHandler,
+    ObservationPlanSummaryStatisticsHandler,
     ObservationPlanSurveyEfficiencyHandler,
     ObservationPlanGeoJSONHandler,
     ObservationPlanAirmassChartHandler,

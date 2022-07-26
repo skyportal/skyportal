@@ -8,7 +8,7 @@ import jsonschema
 import requests
 from marshmallow.exceptions import ValidationError
 import sqlalchemy as sa
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, undefer
 from sqlalchemy.orm import sessionmaker, scoped_session
 import urllib
 from astropy.time import Time
@@ -32,6 +32,7 @@ from ligo.skymap.distance import parameters_to_marginal_moments
 from ligo.skymap.bayestar import rasterize
 from ligo.skymap import plot  # noqa: F401 F811
 import random
+import afterglowpy
 import sncosmo
 
 from baselayer.app.access import auth_or_token
@@ -53,11 +54,15 @@ from ...models import (
     ObservationPlanRequest,
     PlannedObservation,
     SurveyEfficiencyForObservationPlan,
+    SurveyEfficiencyForObservations,
     Telescope,
     User,
 )
-
 from ...models.schema import ObservationPlanPost
+from ...utils.simsurvey import (
+    get_simsurvey_parameters,
+    random_parameters_notheta,
+)
 
 from skyportal.handlers.api.source import post_source
 from skyportal.handlers.api.followup_request import post_assignment
@@ -543,6 +548,82 @@ class ObservationPlanSubmitHandler(BaseHandler):
         return self.success(data=observation_plan_request)
 
 
+class ObservationPlanSummaryStatisticsHandler(BaseHandler):
+    @auth_or_token
+    def get(self, observation_plan_request_id):
+        """
+        ---
+        description: Get summary statistics for the observation plan.
+        tags:
+          - observation_plan_requests
+        parameters:
+          - in: path
+            name: observation_plan_id
+            required: true
+            schema:
+              type: string
+        responses:
+          200:
+            content:
+              application/json:
+                schema: SingleObservationPlanRequest
+        """
+
+        with self.Session() as session:
+
+            stmt = (
+                ObservationPlanRequest.select(session.user_or_token)
+                .where(ObservationPlanRequest.id == observation_plan_request_id)
+                .options(
+                    joinedload(ObservationPlanRequest.observation_plans)
+                    .joinedload(EventObservationPlan.planned_observations)
+                    .joinedload(PlannedObservation.field)
+                )
+            )
+            observation_plan_request = session.scalars(stmt).first()
+
+            if observation_plan_request is None:
+                return self.error(
+                    f'Could not find observation_plan_request with ID {observation_plan_request_id}'
+                )
+
+            event = session.scalars(
+                GcnEvent.select(
+                    session.user_or_token, options=[joinedload(GcnEvent.gcn_notices)]
+                ).where(GcnEvent.id == observation_plan_request.gcnevent_id)
+            ).first()
+            if event is None:
+                return self.error(
+                    message=f"Invalid GcnEvent ID: {observation_plan_request.gcnevent_id}"
+                )
+
+            observation_plan = observation_plan_request.observation_plans[0]
+            num_observations = observation_plan.num_observations
+            if num_observations == 0:
+                return self.error('Need at least one observation to produce a GCN')
+
+            start_observation = astropy.time.Time(
+                observation_plan.start_observation, format='datetime'
+            )
+            unique_filters = observation_plan.unique_filters
+            total_time = observation_plan.total_time
+            probability = observation_plan.probability
+            area = observation_plan.area
+
+            dt = observation_plan.start_observation - event.dateobs
+            data = {
+                'num_observations': num_observations,
+                'start_observation': start_observation.isot,
+                'unique_filters': unique_filters,
+                'total_time': total_time,
+                'probability': probability,
+                'area': area,
+                'dt': humanize.naturaldelta(dt),
+            }
+
+            return self.success(data=data)
+
+
 class ObservationPlanGCNHandler(BaseHandler):
     @auth_or_token
     def get(self, observation_plan_request_id):
@@ -564,62 +645,62 @@ class ObservationPlanGCNHandler(BaseHandler):
                 schema: SingleObservationPlanRequest
         """
 
-        options = [
-            joinedload(ObservationPlanRequest.observation_plans)
-            .joinedload(EventObservationPlan.planned_observations)
-            .joinedload(PlannedObservation.field)
-        ]
+        with self.Session() as session:
 
-        observation_plan_request = ObservationPlanRequest.get_if_accessible_by(
-            observation_plan_request_id,
-            self.current_user,
-            mode="read",
-            raise_if_none=True,
-            options=options,
-        )
-        self.verify_and_commit()
-
-        event = (
-            GcnEvent.query_records_accessible_by(
-                self.current_user,
-                options=[
-                    joinedload(GcnEvent.gcn_notices),
-                ],
+            stmt = (
+                ObservationPlanRequest.select(session.user_or_token)
+                .where(ObservationPlanRequest.id == observation_plan_request_id)
+                .options(
+                    joinedload(ObservationPlanRequest.observation_plans)
+                    .joinedload(EventObservationPlan.planned_observations)
+                    .joinedload(PlannedObservation.field)
+                )
             )
-            .filter(GcnEvent.id == observation_plan_request.gcnevent_id)
-            .first()
-        )
+            observation_plan_request = session.scalars(stmt).first()
 
-        allocation = Allocation.get_if_accessible_by(
-            observation_plan_request.allocation_id,
-            self.current_user,
-            raise_if_none=True,
-        )
+            if observation_plan_request is None:
+                return self.error(
+                    f'Could not find observation_plan_request with ID {observation_plan_request_id}'
+                )
 
-        instrument = allocation.instrument
+            event = session.scalars(
+                GcnEvent.select(
+                    session.user_or_token, options=[joinedload(GcnEvent.gcn_notices)]
+                ).where(GcnEvent.id == observation_plan_request.gcnevent_id)
+            ).first()
+            if event is None:
+                return self.error(
+                    message=f"Invalid GcnEvent ID: {observation_plan_request.gcnevent_id}"
+                )
 
-        observation_plan = observation_plan_request.observation_plans[0]
-        num_observations = observation_plan.num_observations
-        if num_observations == 0:
-            return self.error('Need at least one observation to produce a GCN')
+            stmt = Allocation.select(session.user_or_token).where(
+                Allocation.id == observation_plan_request.allocation_id,
+            )
+            allocation = session.scalars(stmt).first()
+            instrument = allocation.instrument
 
-        start_observation = astropy.time.Time(
-            observation_plan.start_observation, format='datetime'
-        )
-        unique_filters = observation_plan.unique_filters
-        total_time = observation_plan.total_time
-        probability = observation_plan.probability
-        area = observation_plan.area
+            observation_plan = observation_plan_request.observation_plans[0]
+            num_observations = observation_plan.num_observations
+            if num_observations == 0:
+                return self.error('Need at least one observation to produce a GCN')
 
-        trigger_time = astropy.time.Time(event.dateobs, format='datetime')
-        dt = observation_plan.start_observation - event.dateobs
+            start_observation = astropy.time.Time(
+                observation_plan.start_observation, format='datetime'
+            )
+            unique_filters = observation_plan.unique_filters
+            total_time = observation_plan.total_time
+            probability = observation_plan.probability
+            area = observation_plan.area
 
-        content = f"""
+            trigger_time = astropy.time.Time(event.dateobs, format='datetime')
+            dt = observation_plan.start_observation - event.dateobs
+
+            content = f"""
             SUBJECT: Follow-up of {event.gcn_notices[0].stream} trigger {trigger_time.isot} with {instrument.name}.
             We observed the localization region of {event.gcn_notices[0].stream} trigger {trigger_time.isot} UTC with {instrument.name} on the {instrument.telescope.name}. We obtained a total of {num_observations} images covering {",".join(unique_filters)} bands for a total of {total_time} seconds. The observations covered {area:.1f} square degrees beginning at {start_observation.isot} ({humanize.naturaldelta(dt)} after the burst trigger time) corresponding to ~{int(100 * probability)}% of the probability enclosed in the localization region.
             """
 
-        return self.success(data=content)
+            return self.success(data=content)
 
 
 def observation_animations(
@@ -775,55 +856,63 @@ class ObservationPlanMovieHandler(BaseHandler):
                 schema: SingleObservationPlanRequest
         """
 
-        options = [
-            joinedload(ObservationPlanRequest.observation_plans)
-            .joinedload(EventObservationPlan.planned_observations)
-            .joinedload(PlannedObservation.field)
-            .undefer(InstrumentField.contour_summary)
-        ]
+        with self.Session() as session:
 
-        observation_plan_request = ObservationPlanRequest.get_if_accessible_by(
-            observation_plan_request_id,
-            self.current_user,
-            mode="read",
-            raise_if_none=True,
-            options=options,
-        )
-        self.verify_and_commit()
-
-        localization = (
-            Localization.query_records_accessible_by(
-                self.current_user,
+            stmt = (
+                ObservationPlanRequest.select(session.user_or_token)
+                .where(ObservationPlanRequest.id == observation_plan_request_id)
+                .options(
+                    joinedload(ObservationPlanRequest.observation_plans)
+                    .joinedload(EventObservationPlan.planned_observations)
+                    .joinedload(PlannedObservation.field)
+                    .undefer(InstrumentField.contour_summary)
+                )
             )
-            .filter(Localization.id == observation_plan_request.localization_id)
-            .first()
-        )
+            observation_plan_request = session.scalars(stmt).first()
 
-        observations = observation_plan_request.observation_plans[
-            0
-        ].planned_observations
+            if observation_plan_request is None:
+                return self.error(
+                    f'Could not find observation_plan_request with ID {observation_plan_request_id}'
+                )
 
-        output_format = 'gif'
-        anim = functools.partial(
-            observation_animations,
-            observations,
-            localization,
-            output_format=output_format,
-            figsize=(10, 8),
-            decay=4,
-            alpha_default=1,
-            alpha_cutoff=0.1,
-        )
+            localization = session.scalars(
+                Localization.select(
+                    session.user_or_token,
+                ).where(Localization.id == observation_plan_request.localization_id)
+            ).first()
+            if localization is None:
+                return self.error(
+                    message=f"Invalid Localization dateobs: {observation_plan_request.localization_id}"
+                )
 
-        self.push_notification(
-            'Movie generation in progress. Download will start soon.'
-        )
-        rez = await IOLoop.current().run_in_executor(None, anim)
+            observation_plan = observation_plan_request.observation_plans[0]
+            num_observations = observation_plan.num_observations
+            if num_observations == 0:
+                return self.error('Need at least one observation to produce a movie')
 
-        filename = rez["name"]
-        data = io.BytesIO(rez["data"])
+            observations = observation_plan.planned_observations
 
-        await self.send_file(data, filename, output_type=output_format)
+            output_format = 'gif'
+            anim = functools.partial(
+                observation_animations,
+                observations,
+                localization,
+                output_format=output_format,
+                figsize=(10, 8),
+                decay=4,
+                alpha_default=1,
+                alpha_cutoff=0.1,
+            )
+
+            self.push_notification(
+                'Movie generation in progress. Download will start soon.'
+            )
+            rez = await IOLoop.current().run_in_executor(None, anim)
+
+            filename = rez["name"]
+            data = io.BytesIO(rez["data"])
+
+            await self.send_file(data, filename, output_type=output_format)
 
 
 class ObservationPlanTreasureMapHandler(BaseHandler):
@@ -851,76 +940,80 @@ class ObservationPlanTreasureMapHandler(BaseHandler):
                 schema: Error
         """
 
-        options = [
-            joinedload(ObservationPlanRequest.observation_plans)
-            .joinedload(EventObservationPlan.planned_observations)
-            .joinedload(PlannedObservation.field)
-        ]
+        with self.Session() as session:
 
-        observation_plan_request = ObservationPlanRequest.get_if_accessible_by(
-            observation_plan_request_id,
-            self.current_user,
-            mode="read",
-            raise_if_none=True,
-            options=options,
-        )
-        self.verify_and_commit()
-
-        event = (
-            GcnEvent.query_records_accessible_by(
-                self.current_user,
-                options=[
-                    joinedload(GcnEvent.gcn_notices),
-                ],
+            stmt = (
+                ObservationPlanRequest.select(session.user_or_token)
+                .where(ObservationPlanRequest.id == observation_plan_request_id)
+                .options(
+                    joinedload(ObservationPlanRequest.observation_plans)
+                    .joinedload(EventObservationPlan.planned_observations)
+                    .joinedload(PlannedObservation.field)
+                )
             )
-            .filter(GcnEvent.id == observation_plan_request.gcnevent_id)
-            .first()
-        )
+            observation_plan_request = session.scalars(stmt).first()
 
-        allocation = Allocation.get_if_accessible_by(
-            observation_plan_request.allocation_id,
-            self.current_user,
-            raise_if_none=True,
-        )
+            if observation_plan_request is None:
+                return self.error(
+                    f'Could not find observation_plan_request with ID {observation_plan_request_id}'
+                )
 
-        instrument = allocation.instrument
+            event = session.scalars(
+                GcnEvent.select(
+                    session.user_or_token, options=[joinedload(GcnEvent.gcn_notices)]
+                ).where(GcnEvent.id == observation_plan_request.gcnevent_id)
+            ).first()
+            if event is None:
+                return self.error(
+                    message=f"Invalid GcnEvent ID: {observation_plan_request.gcnevent_id}"
+                )
 
-        altdata = allocation.altdata
-        if not altdata:
-            raise self.error('Missing allocation information.')
+            stmt = Allocation.select(session.user_or_token).where(
+                Allocation.id == observation_plan_request.allocation_id,
+            )
+            allocation = session.scalars(stmt).first()
+            instrument = allocation.instrument
 
-        observation_plan = observation_plan_request.observation_plans[0]
-        planned_observations = observation_plan.planned_observations
+            altdata = allocation.altdata
+            if not altdata:
+                return self.error('Missing allocation information.')
 
-        if len(planned_observations) == 0:
-            return self.error('Cannot submit observing plan with no observations.')
+            observation_plan = observation_plan_request.observation_plans[0]
+            num_observations = observation_plan.num_observations
+            if num_observations == 0:
+                return self.error('Need at least one observation to produce a GCN')
 
-        graceid = event.graceid
-        payload = {"graceid": graceid, "api_token": altdata['TREASUREMAP_API_TOKEN']}
+            planned_observations = observation_plan.planned_observations
 
-        pointings = []
-        for obs in planned_observations:
-            pointing = {}
-            pointing["ra"] = obs.field.ra
-            pointing["dec"] = obs.field.dec
-            pointing["band"] = obs.filt
-            pointing["instrumentid"] = str(instrument.treasuremap_id)
-            pointing["status"] = "planned"
-            pointing["time"] = Time(obs.obstime, format='datetime').isot
-            pointing["depth"] = 0.0
-            pointing["depth_unit"] = "ab_mag"
-            pointings.append(pointing)
-        payload["pointings"] = pointings
+            graceid = event.graceid
+            payload = {
+                "graceid": graceid,
+                "api_token": altdata['TREASUREMAP_API_TOKEN'],
+            }
 
-        url = urllib.parse.urljoin(TREASUREMAP_URL, 'api/v0/pointings')
-        r = requests.post(url=url, json=payload)
-        r.raise_for_status()
-        request_json = r.json()
-        errors = request_json["ERRORS"]
-        if len(errors) > 0:
-            return self.error(f'TreasureMap upload failed: {errors}')
-        self.push_notification('TreasureMap upload succeeded')
-        return self.success()
+            pointings = []
+            for obs in planned_observations:
+                pointing = {}
+                pointing["ra"] = obs.field.ra
+                pointing["dec"] = obs.field.dec
+                pointing["band"] = obs.filt
+                pointing["instrumentid"] = str(instrument.treasuremap_id)
+                pointing["status"] = "planned"
+                pointing["time"] = Time(obs.obstime, format='datetime').isot
+                pointing["depth"] = 0.0
+                pointing["depth_unit"] = "ab_mag"
+                pointings.append(pointing)
+            payload["pointings"] = pointings
+
+            url = urllib.parse.urljoin(TREASUREMAP_URL, 'api/v0/pointings')
+            r = requests.post(url=url, json=payload)
+            r.raise_for_status()
+            request_json = r.json()
+            errors = request_json["ERRORS"]
+            if len(errors) > 0:
+                return self.error(f'TreasureMap upload failed: {errors}')
+            self.push_notification('TreasureMap upload succeeded')
+            return self.success()
 
     @auth_or_token
     def delete(self, observation_plan_request_id):
@@ -942,60 +1035,60 @@ class ObservationPlanTreasureMapHandler(BaseHandler):
                 schema: Success
         """
 
-        options = [
-            joinedload(ObservationPlanRequest.observation_plans)
-            .joinedload(EventObservationPlan.planned_observations)
-            .joinedload(PlannedObservation.field)
-        ]
+        with self.Session() as session:
 
-        observation_plan_request = ObservationPlanRequest.get_if_accessible_by(
-            observation_plan_request_id,
-            self.current_user,
-            mode="read",
-            raise_if_none=True,
-            options=options,
-        )
-        self.verify_and_commit()
-
-        event = (
-            GcnEvent.query_records_accessible_by(
-                self.current_user,
-                options=[
-                    joinedload(GcnEvent.gcn_notices),
-                ],
+            stmt = (
+                ObservationPlanRequest.select(session.user_or_token)
+                .where(ObservationPlanRequest.id == observation_plan_request_id)
+                .options(
+                    joinedload(ObservationPlanRequest.observation_plans)
+                    .joinedload(EventObservationPlan.planned_observations)
+                    .joinedload(PlannedObservation.field)
+                )
             )
-            .filter(GcnEvent.id == observation_plan_request.gcnevent_id)
-            .first()
-        )
+            observation_plan_request = session.scalars(stmt).first()
 
-        allocation = Allocation.get_if_accessible_by(
-            observation_plan_request.allocation_id,
-            self.current_user,
-            raise_if_none=True,
-        )
+            if observation_plan_request is None:
+                return self.error(
+                    f'Could not find observation_plan_request with ID {observation_plan_request_id}'
+                )
 
-        instrument = allocation.instrument
+            event = session.scalars(
+                GcnEvent.select(
+                    session.user_or_token, options=[joinedload(GcnEvent.gcn_notices)]
+                ).where(GcnEvent.id == observation_plan_request.gcnevent_id)
+            ).first()
+            if event is None:
+                return self.error(
+                    message=f"Invalid GcnEvent ID: {observation_plan_request.gcnevent_id}"
+                )
 
-        altdata = allocation.altdata
-        if not altdata:
-            raise self.error('Missing allocation information.')
+            stmt = Allocation.select(session.user_or_token).where(
+                Allocation.id == observation_plan_request.allocation_id,
+            )
+            allocation = session.scalars(stmt).first()
+            instrument = allocation.instrument
 
-        graceid = event.graceid
-        payload = {
-            "graceid": graceid,
-            "api_token": altdata['TREASUREMAP_API_TOKEN'],
-            "instrumentid": instrument.treasuremap_id,
-        }
+            altdata = allocation.altdata
+            if not altdata:
+                return self.error('Missing allocation information.')
 
-        baseurl = urllib.parse.urljoin(TREASUREMAP_URL, 'api/v0/cancel_all')
-        url = f"{baseurl}?{urllib.parse.urlencode(payload)}"
-        r = requests.post(url=url)
-        r.raise_for_status()
-        request_text = r.text
-        if "successfully" not in request_text:
-            return self.error(f'TreasureMap delete failed: {request_text}')
-        self.push_notification(f'TreasureMap delete succeeded: {request_text}.')
-        return self.success()
+            graceid = event.graceid
+            payload = {
+                "graceid": graceid,
+                "api_token": altdata['TREASUREMAP_API_TOKEN'],
+                "instrumentid": instrument.treasuremap_id,
+            }
+
+            baseurl = urllib.parse.urljoin(TREASUREMAP_URL, 'api/v0/cancel_all')
+            url = f"{baseurl}?{urllib.parse.urlencode(payload)}"
+            r = requests.post(url=url)
+            r.raise_for_status()
+            request_text = r.text
+            if "successfully" not in request_text:
+                return self.error(f'TreasureMap delete failed: {request_text}')
+            self.push_notification(f'TreasureMap delete succeeded: {request_text}.')
+            return self.success()
 
 
 class ObservationPlanSurveyEfficiencyHandler(BaseHandler):
@@ -1019,26 +1112,28 @@ class ObservationPlanSurveyEfficiencyHandler(BaseHandler):
                 schema: ArrayOfSurveyEfficiencyForObservationPlans
         """
 
-        options = [
-            joinedload(ObservationPlanRequest.observation_plans).joinedload(
-                EventObservationPlan.survey_efficiency_analyses
-            )
-        ]
+        with self.Session() as session:
 
-        observation_plan_request = ObservationPlanRequest.get_if_accessible_by(
-            observation_plan_request_id,
-            self.current_user,
-            mode="read",
-            options=options,
-        )
-        if observation_plan_request is None:
-            return self.error(
-                f'No observation plan with ID: {observation_plan_request_id}'
+            stmt = (
+                ObservationPlanRequest.select(session.user_or_token)
+                .where(ObservationPlanRequest.id == observation_plan_request_id)
+                .options(
+                    joinedload(ObservationPlanRequest.observation_plans).joinedload(
+                        EventObservationPlan.survey_efficiency_analyses
+                    )
+                )
             )
-        self.verify_and_commit()
+            observation_plan_request = session.scalars(stmt).first()
 
-        if len(observation_plan_request.observation_plans) > 0:
+            if observation_plan_request is None:
+                return self.error(
+                    f'Could not find observation_plan_request with ID {observation_plan_request_id}'
+                )
+
             observation_plan = observation_plan_request.observation_plans[0]
+            num_observations = observation_plan.num_observations
+            if num_observations == 0:
+                return self.error('Need at least one observation to produce a GCN')
 
             analysis_data = []
             for analysis in observation_plan.survey_efficiency_analyses:
@@ -1053,8 +1148,6 @@ class ObservationPlanSurveyEfficiencyHandler(BaseHandler):
                 )
 
             return self.success(data=analysis_data)
-        else:
-            return self.error('Observation plan not yet available.')
 
 
 class ObservationPlanGeoJSONHandler(BaseHandler):
@@ -1078,26 +1171,25 @@ class ObservationPlanGeoJSONHandler(BaseHandler):
                 schema: SingleObservationPlanRequest
         """
 
-        options = [
-            joinedload(ObservationPlanRequest.observation_plans)
-            .joinedload(EventObservationPlan.planned_observations)
-            .joinedload(PlannedObservation.field)
-            .undefer(InstrumentField.contour_summary)
-        ]
+        with self.Session() as session:
 
-        observation_plan_request = ObservationPlanRequest.get_if_accessible_by(
-            observation_plan_request_id,
-            self.current_user,
-            mode="read",
-            options=options,
-        )
-        if observation_plan_request is None:
-            return self.error(
-                f'No observation plan with ID: {observation_plan_request_id}'
+            stmt = (
+                ObservationPlanRequest.select(session.user_or_token)
+                .where(ObservationPlanRequest.id == observation_plan_request_id)
+                .options(
+                    joinedload(ObservationPlanRequest.observation_plans)
+                    .joinedload(EventObservationPlan.planned_observations)
+                    .joinedload(PlannedObservation.field)
+                    .undefer(InstrumentField.contour_summary)
+                )
             )
-        self.verify_and_commit()
+            observation_plan_request = session.scalars(stmt).first()
 
-        if len(observation_plan_request.observation_plans) > 0:
+            if observation_plan_request is None:
+                return self.error(
+                    f'Could not find observation_plan_request with ID {observation_plan_request_id}'
+                )
+
             observation_plan = observation_plan_request.observation_plans[0]
             # features are JSON representations that the d3 stuff understands.
             # We use these to render the contours of the sky localization and
@@ -1113,8 +1205,6 @@ class ObservationPlanGeoJSONHandler(BaseHandler):
                     continue
 
             return self.success(data={'geojson': geojson})
-        else:
-            return self.error('Observation plan not yet available.')
 
 
 class ObservationPlanFieldsHandler(BaseHandler):
@@ -1154,36 +1244,34 @@ class ObservationPlanFieldsHandler(BaseHandler):
         if field_ids_to_remove is None:
             return self.error('Need to specify field IDs to remove')
 
-        options = [
-            joinedload(ObservationPlanRequest.observation_plans)
-            .joinedload(EventObservationPlan.planned_observations)
-            .joinedload(PlannedObservation.field)
-            .undefer(InstrumentField.contour_summary)
-        ]
+        with self.Session() as session:
 
-        observation_plan_request = ObservationPlanRequest.get_if_accessible_by(
-            observation_plan_request_id,
-            self.current_user,
-            mode="read",
-            options=options,
-        )
-        if observation_plan_request is None:
-            return self.error(
-                f'No observation plan with ID: {observation_plan_request_id}'
+            stmt = (
+                ObservationPlanRequest.select(session.user_or_token)
+                .where(ObservationPlanRequest.id == observation_plan_request_id)
+                .options(
+                    joinedload(ObservationPlanRequest.observation_plans)
+                    .joinedload(EventObservationPlan.planned_observations)
+                    .joinedload(PlannedObservation.field)
+                    .undefer(InstrumentField.contour_summary)
+                )
             )
-        self.verify_and_commit()
+            observation_plan_request = session.scalars(stmt).first()
 
-        if len(observation_plan_request.observation_plans) > 0:
+            if observation_plan_request is None:
+                return self.error(
+                    f'Could not find observation_plan_request with ID {observation_plan_request_id}'
+                )
+
             observation_plan = observation_plan_request.observation_plans[0]
             dateobs = observation_plan_request.gcnevent.dateobs
 
-            with DBSession() as session:
-                for observation in observation_plan.planned_observations:
-                    if observation.field_id in field_ids_to_remove:
-                        session.delete(observation)
-                    else:
-                        continue
-                self.verify_and_commit()
+            for observation in observation_plan.planned_observations:
+                if observation.field_id in field_ids_to_remove:
+                    session.delete(observation)
+                else:
+                    continue
+                session.commit()
 
             self.push_all(
                 action="skyportal/REFRESH_GCNEVENT",
@@ -1191,8 +1279,6 @@ class ObservationPlanFieldsHandler(BaseHandler):
             )
 
             return self.success()
-        else:
-            return self.error('Observation plan not yet available.')
 
 
 class ObservationPlanAirmassChartHandler(BaseHandler):
@@ -1221,58 +1307,56 @@ class ObservationPlanAirmassChartHandler(BaseHandler):
                 schema: Success
         """
 
-        telescope = Telescope.get_if_accessible_by(
-            telescope_id,
-            self.current_user,
-            mode="read",
-            raise_if_none=True,
-        )
-        self.verify_and_commit()
+        with self.Session() as session:
 
-        localization = (
-            Localization.query_records_accessible_by(
-                self.current_user,
+            stmt = Telescope.select(self.current_user).where(
+                Telescope.id == telescope_id
             )
-            .filter(Localization.id == localization_id)
-            .first()
-        )
+            telescope = session.scalars(stmt).first()
 
-        trigger_time = astropy.time.Time(localization.dateobs, format='datetime')
+            stmt = Localization.select(self.current_user).where(
+                Localization.id == localization_id
+            )
+            localization = session.scalars(stmt).first()
 
-        output_format = 'pdf'
-        with tempfile.NamedTemporaryFile(
-            suffix='.fits'
-        ) as fitsfile, tempfile.NamedTemporaryFile(
-            suffix=f'.{output_format}'
-        ) as imgfile, matplotlib.style.context(
-            'default'
-        ):
-            ligo.skymap.io.write_sky_map(fitsfile.name, localization.table_2d, moc=True)
-            plot_airmass(
-                [
-                    '--site-longitude',
-                    str(telescope.lon),
-                    '--site-latitude',
-                    str(telescope.lat),
-                    '--site-height',
-                    str(telescope.elevation),
-                    '--time',
-                    trigger_time.isot,
-                    fitsfile.name,
-                    '-o',
-                    imgfile.name,
-                ]
+            trigger_time = astropy.time.Time(localization.dateobs, format='datetime')
+
+            output_format = 'pdf'
+            with tempfile.NamedTemporaryFile(
+                suffix='.fits'
+            ) as fitsfile, tempfile.NamedTemporaryFile(
+                suffix=f'.{output_format}'
+            ) as imgfile, matplotlib.style.context(
+                'default'
+            ):
+                ligo.skymap.io.write_sky_map(
+                    fitsfile.name, localization.table_2d, moc=True
+                )
+                plot_airmass(
+                    [
+                        '--site-longitude',
+                        str(telescope.lon),
+                        '--site-latitude',
+                        str(telescope.lat),
+                        '--site-height',
+                        str(telescope.elevation),
+                        '--time',
+                        trigger_time.isot,
+                        fitsfile.name,
+                        '-o',
+                        imgfile.name,
+                    ]
+                )
+
+                with open(imgfile.name, mode='rb') as g:
+                    content = g.read()
+
+            data = io.BytesIO(content)
+            filename = (
+                f"{localization.localization_name}-{telescope.nickname}.{output_format}"
             )
 
-            with open(imgfile.name, mode='rb') as g:
-                content = g.read()
-
-        data = io.BytesIO(content)
-        filename = (
-            f"{localization.localization_name}-{telescope.nickname}.{output_format}"
-        )
-
-        await self.send_file(data, filename, output_type=output_format)
+            await self.send_file(data, filename, output_type=output_format)
 
 
 class ObservationPlanCreateObservingRunHandler(BaseHandler):
@@ -1330,7 +1414,7 @@ class ObservationPlanCreateObservingRunHandler(BaseHandler):
         if len(planned_observations) == 0:
             return self.error('Cannot create observing run with no observations.')
 
-        with DBSession() as session:
+        with self.Session() as session:
 
             observing_run = {
                 'instrument_id': instrument.id,
@@ -1384,39 +1468,50 @@ def observation_simsurvey(
     observations,
     localization_id,
     instrument_id,
-    survey_efficiency_analysis,
+    survey_efficiency_analysis_id,
+    survey_efficiency_analysis_type,
+    width,
+    height,
     number_of_injections=1000,
     number_of_detections=2,
     detection_threshold=5,
     minimum_phase=0,
     maximum_phase=3,
-    injection_filename='data/nsns_nph1.0e+06_mejdyn0.020_mejwind0.130_phi30.txt',
+    model_name='kilonova',
+    optional_injection_parameters={},
 ):
 
     """Perform the simsurvey analyis for a given skymap
-        Parameters
-        ----------
-        observations : skyportal.models.observation_plan.PlannedObservation
-            The planned observations associated with the request
-        localization_id : int
-            The id of the skyportal.models.localization.Localization that the request is made based on
-        instrument_id : int
-            The id of the skyportal.models.instrument.Instrument that the request is made based on
-        survey_efficiency_analysis : skyportal.models.survey_efficiency.SurveyEfficiencyForObservations or skyportal.models.survey_efficiency.SurveyEfficiencyForObservationPlan
-            The survey efficiency analysis for the request
-        number_of_injections: int
-            Number of simulations to evaluate efficiency with. Defaults to 1000.
-        number_of_detections: int
-            Number of detections required for detection. Defaults to 1.
-        detection_threshold: int
-            Threshold (in sigmas) required for detection. Defaults to 5.
-        minimum_phase: int
-            Minimum phase (in days) post event time to consider detections. Defaults to 0.
-        maximum_phase: int
-            Maximum phase (in days) post event time to consider detections. Defaults to 3.
-        injection_filename: str
-            Path to file for injestion as a simsurvey.models.AngularTimeSeriesSource
-    . Defaults to nsns_nph1.0e+06_mejdyn0.020_mejwind0.130_phi30.txt from https://github.com/mbulla/kilonova_models.
+    Parameters
+    ----------
+    observations : skyportal.models.observation_plan.PlannedObservation
+        The planned observations associated with the request
+    localization_id : int
+        The id of the skyportal.models.localization.Localization that the request is made based on
+    instrument_id : int
+        The id of the skyportal.models.instrument.Instrument that the request is made based on
+    survey_efficiency_analysis_id : int
+        The id of the survey efficiency analysis for the request (either skyportal.models.survey_efficiency.SurveyEfficiencyForObservations or skyportal.models.survey_efficiency.SurveyEfficiencyForObservationPlan).
+    survey_efficiency_analysis_type : str
+        Either SurveyEfficiencyForObservations or SurveyEfficiencyForObservationPlan.
+    width : float
+        Width of the telescope field of view in degrees.
+    height : float
+        Height of the telescope field of view in degrees.
+    number_of_injections : int
+        Number of simulations to evaluate efficiency with. Defaults to 1000.
+    number_of_detections : int
+        Number of detections required for detection. Defaults to 1.
+    detection_threshold : int
+        Threshold (in sigmas) required for detection. Defaults to 5.
+    minimum_phase : int
+        Minimum phase (in days) post event time to consider detections. Defaults to 0.
+    maximum_phase : int
+        Maximum phase (in days) post event time to consider detections. Defaults to 3.
+    model_name : str
+        Model to simulate efficiency for. Must be one of kilonova, afterglow, or linear. Defaults to kilonova.
+    optional_injection_parameters: dict
+        Optional parameters to specify the injection type, along with a list of possible values (to be used in a dropdown UI)
     """
 
     session = Session()
@@ -1429,13 +1524,37 @@ def observation_simsurvey(
         if localization is None:
             raise ValueError(f'No localization with ID {localization_id}')
 
-        instrument = session.execute(
+        instrument = session.scalars(
             sa.select(Instrument).where(Instrument.id == instrument_id)
         ).first()
-        if instrument is not None:
-            (instrument,) = instrument
-        else:
+        if instrument is None:
             raise ValueError(f'No instrument with ID {instrument_id}')
+
+        if survey_efficiency_analysis_type == "SurveyEfficiencyForObservations":
+            survey_efficiency_analysis = session.scalars(
+                sa.select(SurveyEfficiencyForObservations).where(
+                    SurveyEfficiencyForObservations.id == survey_efficiency_analysis_id
+                )
+            ).first()
+            if survey_efficiency_analysis is None:
+                raise ValueError(
+                    f'No SurveyEfficiencyForObservations with ID {survey_efficiency_analysis_id}'
+                )
+        elif survey_efficiency_analysis_type == "SurveyEfficiencyForObservationPlan":
+            survey_efficiency_analysis = session.scalars(
+                sa.select(SurveyEfficiencyForObservationPlan).where(
+                    SurveyEfficiencyForObservationPlan.id
+                    == survey_efficiency_analysis_id
+                )
+            ).first()
+            if survey_efficiency_analysis is None:
+                raise ValueError(
+                    f'No SurveyEfficiencyForObservationPlan with ID {survey_efficiency_analysis_id}'
+                )
+        else:
+            raise ValueError(
+                'survey_efficiency_analysis_type must be SurveyEfficiencyForObservations or SurveyEfficiencyForObservationPlan'
+            )
 
         trigger_time = astropy.time.Time(localization.dateobs, format='datetime')
 
@@ -1475,6 +1594,8 @@ def observation_simsurvey(
             obs_field=df['field_id'].astype(int),
             skynoise=df['skynoise'],
             zp=df['zp'],
+            width=width,
+            height=height,
             fields={
                 k: v for k, v in pointings.items() if k in ['ra', 'dec', 'field_id']
             },
@@ -1497,18 +1618,96 @@ def observation_simsurvey(
             np.max([1, (distmean - 5 * diststd)]) * u.Mpc
         )
         distance_upper = astropy.coordinates.Distance((distmean + 5 * diststd) * u.Mpc)
-        phase, wave, cos_theta, flux = model_tools.read_possis_file(injection_filename)
-        transientprop = {
-            'lcmodel': sncosmo.Model(
-                AngularTimeSeriesSource(
-                    phase=phase, wave=wave, flux=flux, cos_theta=cos_theta
-                )
+
+        if model_name == "kilonova":
+            phase, wave, cos_theta, flux = model_tools.read_possis_file(
+                optional_injection_parameters["injection_filename"]
             )
-        }
+            transientprop = {
+                'lcmodel': sncosmo.Model(
+                    AngularTimeSeriesSource(
+                        phase=phase, wave=wave, flux=flux, cos_theta=cos_theta
+                    )
+                )
+            }
+            template = "AngularTimeSeriesSource"
+
+        elif model_name == "afterglow":
+            phases = np.linspace(
+                optional_injection_parameters["t_i"],
+                optional_injection_parameters["t_f"],
+                optional_injection_parameters["ntime"],
+            )
+            wave = np.linspace(
+                optional_injection_parameters["lambda_min"],
+                optional_injection_parameters["lambda_max"],
+                optional_injection_parameters["nlambda"],
+            )
+            nu = 3e8 / (wave * 1e-10)
+
+            grb_param_keys = [
+                "jetType",
+                "specType",
+                "thetaObs",
+                "E0",
+                "thetaCore",
+                "thetaWing",
+                "n0",
+                "p",
+                "epsilon_e",
+                "epsilon_B",
+                "z",
+                "d_L",
+                "xi_N",
+            ]
+            grb_params = {k: optional_injection_parameters[k] for k in grb_param_keys}
+            # explicitly case E0 and d_L as float as they like to be an int
+            grb_params["E0"] = float(grb_params["E0"])
+            grb_params["d_L"] = float(grb_params["d_L"])
+
+            flux = []
+            for phase in phases:
+                t = phase * np.ones(nu.shape)
+                mJys = afterglowpy.fluxDensity(t, nu, **grb_params)
+                Jys = 1e-3 * mJys
+                # convert to erg/s/cm^2/A
+                flux.append(Jys * 2.99792458e-05 / (wave**2))
+            transientprop = {
+                'lcmodel': sncosmo.Model(
+                    sncosmo.TimeSeriesSource(phases, wave, np.array(flux))
+                ),
+                'lcsimul_func': random_parameters_notheta,
+            }
+            template = None
+
+        elif model_name == "linear":
+            phases = np.linspace(
+                optional_injection_parameters["t_i"],
+                optional_injection_parameters["t_f"],
+                optional_injection_parameters["ntime"],
+            )
+            wave = np.linspace(
+                optional_injection_parameters["lambda_min"],
+                optional_injection_parameters["lambda_max"],
+                optional_injection_parameters["nlambda"],
+            )
+            magdiff = (
+                optional_injection_parameters["mag"]
+                + phases * optional_injection_parameters["dmag"]
+            )
+            F_Lxlambda2 = 10 ** (-(magdiff + 2.406) / 2.5)
+            waves, F_Lxlambda2s = np.meshgrid(wave, F_Lxlambda2)
+            flux = F_Lxlambda2s / (waves) ** 2
+            transientprop = {
+                'lcmodel': sncosmo.Model(sncosmo.TimeSeriesSource(phases, wave, flux)),
+                'lcsimul_func': random_parameters_notheta,
+            }
+            template = None
+
         tr = simsurvey.get_transient_generator(
             [distance_lower.z, distance_upper.z],
             transient="generic",
-            template="AngularTimeSeriesSource",
+            template=template,
             ntransient=number_of_injections,
             ratefunc=lambda z: 5e-7,
             dec_range=(-90, 90),
@@ -1628,7 +1827,7 @@ def observation_simsurvey_plot(
     return {
         "success": True,
         "name": f"simsurvey.{output_format}",
-        "dat": buf.read(),
+        "data": buf.read(),
         "reason": "",
     }
 
@@ -1683,14 +1882,22 @@ class ObservationPlanSimSurveyHandler(BaseHandler):
             description: |
               Maximum phase (in days) post event time to consider detections. Defaults to 3.
           - in: query
-            name: injectionFilename
+            name: model_name
             nullable: true
             schema:
               type: string
             description: |
-              Path to file for injestion as a simsurvey.models.AngularTimeSeriesSource.
-              Defaults to nsns_nph1.0e+06_mejdyn0.020_mejwind0.130_phi30.txt
-              from https://github.com/mbulla/kilonova_models.
+              Model to simulate efficiency for. Must be one of kilonova, afterglow, or linear. Defaults to kilonova.
+          - in: query
+            name: optionalInjectionParameters
+            type: object
+            additionalProperties:
+              type: array
+              items:
+                type: string
+                description: |
+                  Optional parameters to specify the injection type, along
+                  with a list of possible values (to be used in a dropdown UI)
           - in: query
             name: group_ids
             nullable: true
@@ -1714,126 +1921,162 @@ class ObservationPlanSimSurveyHandler(BaseHandler):
         detection_threshold = float(self.get_query_argument("detectionThreshold", 5))
         minimum_phase = float(self.get_query_argument("minimumPhase", 0))
         maximum_phase = float(self.get_query_argument("maximumPhase", 3))
-        injection_filename = self.get_query_argument(
-            "injectionFilename",
-            'data/nsns_nph1.0e+06_mejdyn0.020_mejwind0.130_phi30.txt',
+        model_name = self.get_query_argument("modelName", "kilonova")
+        optional_injection_parameters = json.loads(
+            self.get_query_argument("optionalInjectionParameters", '{}')
+        )
+
+        if model_name not in ["kilonova", "afterglow", "linear"]:
+            return self.error(
+                f"{model_name} must be one of kilonova, afterglow or linear"
+            )
+
+        optional_injection_parameters = get_simsurvey_parameters(
+            model_name, optional_injection_parameters
         )
 
         group_ids = self.get_query_argument('group_ids', None)
-        if not group_ids:
-            groups = self.current_user.accessible_groups
-        else:
+        with self.Session() as session:
+
+            if not group_ids:
+                group_ids = [
+                    g.id for g in self.associated_user_object.accessible_groups
+                ]
+
             try:
-                groups = Group.get_if_accessible_by(
-                    group_ids, self.current_user, raise_if_none=True
-                )
+                stmt = Group.select(self.current_user).where(Group.id.in_(group_ids))
+                groups = session.scalars(stmt).all()
             except AccessError:
                 return self.error('Could not find any accessible groups.', status=403)
 
-        options = [
-            joinedload(ObservationPlanRequest.observation_plans)
-            .joinedload(EventObservationPlan.planned_observations)
-            .joinedload(PlannedObservation.field)
-        ]
-
-        observation_plan_request = ObservationPlanRequest.get_if_accessible_by(
-            observation_plan_request_id,
-            self.current_user,
-            mode="read",
-            raise_if_none=True,
-            options=options,
-        )
-        self.verify_and_commit()
-
-        allocation = Allocation.get_if_accessible_by(
-            observation_plan_request.allocation_id,
-            self.current_user,
-            raise_if_none=True,
-        )
-
-        localization = (
-            Localization.query_records_accessible_by(
-                self.current_user,
+            stmt = (
+                ObservationPlanRequest.select(session.user_or_token)
+                .where(ObservationPlanRequest.id == observation_plan_request_id)
+                .options(
+                    joinedload(ObservationPlanRequest.observation_plans)
+                    .joinedload(EventObservationPlan.planned_observations)
+                    .joinedload(PlannedObservation.field)
+                )
             )
-            .filter(Localization.id == observation_plan_request.localization_id)
-            .first()
-        )
+            observation_plan_request = session.scalars(stmt).first()
 
-        instrument = allocation.instrument
-
-        if instrument.sensitivity_data is None:
-            return self.error('Need sensitivity_data to evaluate efficiency')
-
-        observation_plan = observation_plan_request.observation_plans[0]
-        planned_observations = observation_plan.planned_observations
-        num_observations = observation_plan.num_observations
-        if num_observations == 0:
-            self.push_notification(
-                'Need at least one observation to evaluate efficiency',
-                notification_type='error',
-            )
-            return self.error('Need at least one observation to evaluate efficiency')
-
-        unique_filters = observation_plan.unique_filters
-
-        if not set(unique_filters).issubset(set(instrument.sensitivity_data.keys())):
-            return self.error('Need sensitivity_data for all filters present')
-
-        for filt in unique_filters:
-            if not {'exposure_time', 'limiting_magnitude', 'zeropoint'}.issubset(
-                set(list(instrument.sensitivity_data[filt].keys()))
-            ):
+            if observation_plan_request is None:
                 return self.error(
-                    f'Sensitivity_data dictionary missing keys for filter {filt}'
+                    f'Could not find observation_plan_request with ID {observation_plan_request_id}'
                 )
 
-        self.push_notification(
-            'Simsurvey analysis in progress. Should be available soon.'
-        )
+            stmt = Allocation.select(session.user_or_token).where(
+                Allocation.id == observation_plan_request.allocation_id,
+            )
+            allocation = session.scalars(stmt).first()
 
-        payload = {
-            'number_of_injections': number_of_injections,
-            'number_of_detections': number_of_detections,
-            'detection_threshold': detection_threshold,
-            'minimum_phase': minimum_phase,
-            'maximum_phase': maximum_phase,
-            'injection_filename': injection_filename,
-        }
+            stmt = Localization.select(self.current_user).where(
+                Localization.id == observation_plan_request.localization_id
+            )
+            localization = session.scalars(stmt).first()
+            if localization is None:
+                return self.error(
+                    f'Localization with ID {observation_plan_request.localization_id} inaccessible.'
+                )
 
-        survey_efficiency_analysis = SurveyEfficiencyForObservationPlan(
-            requester_id=self.associated_user_object.id,
-            observation_plan_id=observation_plan.id,
-            groups=groups,
-            payload=payload,
-            status='running',
-        )
+            instrument = allocation.instrument
 
-        DBSession().add(survey_efficiency_analysis)
-        DBSession().commit()
+            if instrument.sensitivity_data is None:
+                return self.error('Need sensitivity_data to evaluate efficiency')
 
-        observations = []
-        for o in planned_observations:
-            obs_dict = o.to_dict()
-            obs_dict['field'] = obs_dict['field'].to_dict()
-            observations.append(obs_dict)
+            observation_plan = observation_plan_request.observation_plans[0]
+            planned_observations = observation_plan.planned_observations
+            num_observations = observation_plan.num_observations
+            if num_observations == 0:
+                self.push_notification(
+                    'Need at least one observation to evaluate efficiency',
+                    notification_type='error',
+                )
+                return self.error(
+                    'Need at least one observation to evaluate efficiency'
+                )
 
-        simsurvey_analysis = functools.partial(
-            observation_simsurvey,
-            observations,
-            localization.id,
-            instrument.id,
-            survey_efficiency_analysis,
-            number_of_injections=payload['number_of_injections'],
-            number_of_detections=payload['number_of_detections'],
-            detection_threshold=payload['detection_threshold'],
-            minimum_phase=payload['minimum_phase'],
-            maximum_phase=payload['maximum_phase'],
-            injection_filename=payload['injection_filename'],
-        )
+            unique_filters = observation_plan.unique_filters
 
-        IOLoop.current().run_in_executor(None, simsurvey_analysis)
+            if not set(unique_filters).issubset(
+                set(instrument.sensitivity_data.keys())
+            ):
+                return self.error('Need sensitivity_data for all filters present')
 
-        return self.success(data={"id": survey_efficiency_analysis.id})
+            for filt in unique_filters:
+                if not {'exposure_time', 'limiting_magnitude', 'zeropoint'}.issubset(
+                    set(list(instrument.sensitivity_data[filt].keys()))
+                ):
+                    return self.error(
+                        f'Sensitivity_data dictionary missing keys for filter {filt}'
+                    )
+
+            payload = {
+                'number_of_injections': number_of_injections,
+                'number_of_detections': number_of_detections,
+                'detection_threshold': detection_threshold,
+                'minimum_phase': minimum_phase,
+                'maximum_phase': maximum_phase,
+                'model_name': model_name,
+                'optional_injection_parameters': optional_injection_parameters,
+            }
+
+            survey_efficiency_analysis = SurveyEfficiencyForObservationPlan(
+                requester_id=self.associated_user_object.id,
+                observation_plan_id=observation_plan.id,
+                payload=payload,
+                groups=groups,
+                status='running',
+            )
+            session.add(survey_efficiency_analysis)
+            session.commit()
+
+            observations = []
+            for ii, o in enumerate(planned_observations):
+                obs_dict = o.to_dict()
+                obs_dict['field'] = obs_dict['field'].to_dict()
+                observations.append(obs_dict)
+
+                if ii == 0:
+                    stmt = (
+                        InstrumentField.select(self.current_user)
+                        .where(InstrumentField.id == obs_dict["field"]["id"])
+                        .options(undefer(InstrumentField.contour_summary))
+                    )
+                    field = session.scalars(stmt).first()
+                    if field is None:
+                        return self.error(
+                            message='Missing field {obs_dict["field"]["id"]} required to estimate field size'
+                        )
+                    contour_summary = field.to_dict()["contour_summary"]["features"][0]
+                    coordinates = np.array(contour_summary["geometry"]["coordinates"])
+                    width = np.max(coordinates[:, 0]) - np.min(coordinates[:, 0])
+                    height = np.max(coordinates[:, 1]) - np.min(coordinates[:, 1])
+
+            self.push_notification(
+                'Simsurvey analysis in progress. Should be available soon.'
+            )
+            simsurvey_analysis = functools.partial(
+                observation_simsurvey,
+                observations,
+                localization.id,
+                instrument.id,
+                survey_efficiency_analysis.id,
+                "SurveyEfficiencyForObservationPlan",
+                width=width,
+                height=height,
+                number_of_injections=payload['number_of_injections'],
+                number_of_detections=payload['number_of_detections'],
+                detection_threshold=payload['detection_threshold'],
+                minimum_phase=payload['minimum_phase'],
+                maximum_phase=payload['maximum_phase'],
+                model_name=payload['model_name'],
+                optional_injection_parameters=payload['optional_injection_parameters'],
+            )
+
+            IOLoop.current().run_in_executor(None, simsurvey_analysis)
+
+            return self.success(data={"id": survey_efficiency_analysis.id})
 
 
 class ObservationPlanSimSurveyPlotHandler(BaseHandler):
@@ -1921,64 +2164,58 @@ class DefaultObservationPlanRequestHandler(BaseHandler):
         """
         data = self.get_json()
 
-        target_groups = []
-        for group_id in data.pop('target_group_ids', []):
-            g = Group.get_if_accessible_by(
-                group_id, self.current_user, raise_if_none=False
+        with self.Session() as session:
+            target_group_ids = data.pop('target_group_ids', [])
+            stmt = Group.select(self.current_user).where(Group.id.in_(target_group_ids))
+            target_groups = session.scalars(stmt).all()
+
+            stmt = Allocation.select(session.user_or_token).where(
+                Allocation.id == data['allocation_id'],
             )
-            if g is None:
-                raise AttributeError(f"Missing group with ID: {group_id}")
-            target_groups.append(g)
+            allocation = session.scalars(stmt).first()
+            if allocation is None:
+                return self.error(
+                    f"Missing allocation with ID: {data['allocation_id']}", status=403
+                )
 
-        allocation = Allocation.get_if_accessible_by(
-            data['allocation_id'],
-            self.current_user,
-            raise_if_none=False,
-        )
-        if allocation is None:
-            raise AttributeError(f"Missing allocation with ID: {data['allocation_id']}")
+            instrument = allocation.instrument
+            if instrument.api_classname_obsplan is None:
+                return self.error('Instrument has no remote API.', status=403)
 
-        instrument = allocation.instrument
-        if instrument.api_classname_obsplan is None:
-            raise AttributeError('Instrument has no remote API.')
+            try:
+                formSchema = instrument.api_class_obsplan.custom_json_schema(
+                    instrument, self.current_user
+                )
+            except AttributeError:
+                formSchema = instrument.api_class_obsplan.form_json_schema
 
-        try:
-            formSchema = instrument.api_class_obsplan.custom_json_schema(
-                instrument, self.current_user
+            payload = data['payload']
+            if "start_date" in payload:
+                return self.error('Cannot have start_date in the payload')
+            else:
+                payload['start_date'] = str(datetime.utcnow())
+
+            if "end_date" in payload:
+                return self.error('Cannot have end_date in the payload')
+            else:
+                payload['end_date'] = str(datetime.utcnow() + timedelta(days=1))
+
+            if "queue_name" in payload:
+                return self.error('Cannot have queue_name in the payload')
+            else:
+                payload['queue_name'] = "ToO_{str(datetime.utcnow()).replace(' ','T')}"
+
+            # validate the payload
+            try:
+                jsonschema.validate(payload, formSchema)
+            except jsonschema.exceptions.ValidationError as e:
+                return self.error(f'Payload failed to validate: {e}', status=403)
+
+            default_observation_plan_request = (
+                DefaultObservationPlanRequest.__schema__().load(data)
             )
-        except AttributeError:
-            formSchema = instrument.api_class_obsplan.form_json_schema
+            default_observation_plan_request.target_groups = target_groups
 
-        payload = data['payload']
-        if "start_date" in payload:
-            return self.error('Cannot have start_date in the payload')
-        else:
-            payload['start_date'] = str(datetime.utcnow())
-
-        if "end_date" in payload:
-            return self.error('Cannot have end_date in the payload')
-        else:
-            payload['end_date'] = str(datetime.utcnow() + timedelta(days=1))
-
-        if "queue_name" in payload:
-            return self.error('Cannot have queue_name in the payload')
-        else:
-            payload['queue_name'] = "ToO_{str(datetime.utcnow()).replace(' ','T')}"
-
-        # validate the payload
-        try:
-            jsonschema.validate(payload, formSchema)
-        except jsonschema.exceptions.ValidationError as e:
-            raise jsonschema.exceptions.ValidationError(
-                f'Payload failed to validate: {e}'
-            )
-
-        default_observation_plan_request = (
-            DefaultObservationPlanRequest.__schema__().load(data)
-        )
-        default_observation_plan_request.target_groups = target_groups
-
-        with DBSession() as session:
             session.add(default_observation_plan_request)
             session.commit()
 
@@ -2063,20 +2300,19 @@ class DefaultObservationPlanRequestHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        default_observation_plan_request = (
-            DefaultObservationPlanRequest.get_if_accessible_by(
-                default_observation_plan_id,
-                self.current_user,
-                mode="delete",
-                raise_if_none=False,
-            )
-        )
-        if default_observation_plan_request is None:
-            return self.error(
-                'Default observation plan with ID {default_observation_plan_id} is not available.'
-            )
 
-        with DBSession() as session:
+        with self.Session() as session:
+
+            stmt = DefaultObservationPlanRequest.select(session.user_or_token).where(
+                DefaultObservationPlanRequest.id == default_observation_plan_id
+            )
+            default_observation_plan_request = session.scalars(stmt).first()
+
+            if default_observation_plan_request is None:
+                return self.error(
+                    'Default observation plan with ID {default_observation_plan_id} is not available.'
+                )
+
             session.delete(default_observation_plan_request)
             session.commit()
             self.push_all(action="skyportal/REFRESH_DEFAULT_OBSERVATION_PLANS")

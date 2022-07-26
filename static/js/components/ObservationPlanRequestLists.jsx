@@ -180,6 +180,77 @@ ObservationPlanGlobe.propTypes = {
   }).isRequired,
 };
 
+const ObservationPlanSummaryStatistics = ({ observationplanRequest }) => {
+  const dispatch = useDispatch();
+
+  const [summaryStatistics, setSummaryStatistics] = useState(null);
+  useEffect(() => {
+    const fetchSummaryStatistics = async () => {
+      const response = await dispatch(
+        GET(
+          `/api/observation_plan/${observationplanRequest.id}/summary_statistics`,
+          "skyportal/FETCH_OBSERVATION_PLAN_SUMMARY_STATISTICS"
+        )
+      );
+      setSummaryStatistics(response.data);
+    };
+    fetchSummaryStatistics();
+  }, [dispatch, setSummaryStatistics, observationplanRequest]);
+
+  return (
+    <div>
+      {!summaryStatistics ? (
+        <div>
+          <CircularProgress />
+        </div>
+      ) : (
+        <div>
+          <ul>
+            <li>
+              {" "}
+              Number of Observations: {summaryStatistics.num_observations}{" "}
+            </li>
+            <li> Delay from Trigger: {summaryStatistics.dt} </li>
+            <li>
+              {" "}
+              Start of Observations: {summaryStatistics.start_observation}{" "}
+            </li>
+            <li>
+              {" "}
+              Unique filters: {summaryStatistics.unique_filters?.join(
+                ", "
+              )}{" "}
+            </li>
+            <li> Total time [s]: {summaryStatistics.total_time} </li>
+            <li> Probability: {summaryStatistics.probability?.toFixed(3)} </li>
+            <li> Area [sq. deg.]: {summaryStatistics.area?.toFixed(1)} </li>
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+};
+
+ObservationPlanSummaryStatistics.propTypes = {
+  observationplanRequest: PropTypes.shape({
+    id: PropTypes.number,
+    requester: PropTypes.shape({
+      id: PropTypes.number,
+      username: PropTypes.string,
+    }),
+    instrument: PropTypes.shape({
+      id: PropTypes.number,
+      name: PropTypes.string,
+    }),
+    status: PropTypes.string,
+    allocation: PropTypes.shape({
+      group: PropTypes.shape({
+        name: PropTypes.string,
+      }),
+    }),
+  }).isRequired,
+};
+
 const ObservationPlanRequestLists = ({ gcnEvent }) => {
   const classes = useStyles();
   const dispatch = useDispatch();
@@ -269,7 +340,7 @@ const ObservationPlanRequestLists = ({ gcnEvent }) => {
   }
 
   if (!observationPlanRequestList || observationPlanRequestList.length === 0) {
-    return <p>No observation plan requests for this source...</p>;
+    return <p>No observation plan requests for this event...</p>;
   }
 
   if (gcnEvent.localizations.length === 0 || !selectedLocalizationId) {
@@ -333,77 +404,39 @@ const ObservationPlanRequestLists = ({ gcnEvent }) => {
     });
     columns.push({ name: "status", label: "Status" });
 
-    const renderNumberObservations = (dataIndex) => {
+    const renderSummaryStatistics = (dataIndex) => {
       const observationplanRequest =
         requestsGroupedByInstId[instrument_id][dataIndex];
-      return (
-        <div>
-          {observationplanRequest.observation_plans &&
-          observationplanRequest.observation_plans.length > 0 ? (
-            <div>
-              {observationplanRequest.observation_plans[0].num_observations}
-            </div>
-          ) : (
-            <div>N/A</div>
-          )}
-        </div>
-      );
-    };
-    columns.push({
-      name: "nobs",
-      label: "Number of Observations",
-      options: {
-        customBodyRenderLite: renderNumberObservations,
-      },
-    });
 
-    const renderArea = (dataIndex) => {
-      const observationplanRequest =
-        requestsGroupedByInstId[instrument_id][dataIndex];
-      return (
-        <div>
-          {observationplanRequest.observation_plans &&
-          observationplanRequest.observation_plans.length > 0 ? (
-            <div>
-              {observationplanRequest.observation_plans[0].area.toFixed(2)}
-            </div>
-          ) : (
-            <div>N/A</div>
-          )}
-        </div>
-      );
-    };
-    columns.push({
-      name: "area",
-      label: "Area [sq. deg.]",
-      options: {
-        customBodyRenderLite: renderArea,
-      },
-    });
+      // eslint-disable-next-line react-hooks/rules-of-hooks
+      const [isSubmitting, setIsSubmitting] = useState(false);
+      const handleSubmit = () => {
+        setIsSubmitting(true);
+      };
 
-    const renderProbability = (dataIndex) => {
-      const observationplanRequest =
-        requestsGroupedByInstId[instrument_id][dataIndex];
       return (
         <div>
-          {observationplanRequest.observation_plans &&
-          observationplanRequest.observation_plans.length > 0 ? (
+          {!isSubmitting ? (
             <div>
-              {observationplanRequest.observation_plans[0].probability.toFixed(
-                3
-              )}
+              <Button onClick={handleSubmit} variant="outlined" size="small">
+                Generate Statistics
+              </Button>
             </div>
           ) : (
-            <div>N/A</div>
+            <div>
+              <ObservationPlanSummaryStatistics
+                observationplanRequest={observationplanRequest}
+              />
+            </div>
           )}
         </div>
       );
     };
     columns.push({
-      name: "probability",
-      label: "Int. Probability",
+      name: "summarystatistics",
+      label: "Summary Statistics",
       options: {
-        customBodyRenderLite: renderProbability,
+        customBodyRenderLite: renderSummaryStatistics,
       },
     });
 

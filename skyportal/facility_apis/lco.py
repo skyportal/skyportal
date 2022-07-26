@@ -490,7 +490,7 @@ class LCOAPI(FollowUpAPI):
     """An interface to LCO operations."""
 
     @staticmethod
-    def delete(request):
+    def delete(request, session):
 
         """Delete a follow-up request from LCO queue (all instruments).
 
@@ -498,23 +498,18 @@ class LCOAPI(FollowUpAPI):
         ----------
         request: skyportal.models.FollowupRequest
             The request to delete from the queue and the SkyPortal database.
+        session: sqlalchemy.Session
+            Database session for this transaction
         """
 
-        from ..models import DBSession, FollowupRequest, FacilityTransaction
-
-        req = (
-            DBSession()
-            .query(FollowupRequest)
-            .filter(FollowupRequest.id == request.id)
-            .one()
-        )
+        from ..models import FacilityTransaction
 
         altdata = request.allocation.altdata
 
         if not altdata:
             raise ValueError('Missing allocation information.')
 
-        content = req.transactions[0].response["content"]
+        content = request.transactions[0].response["content"]
         content = json.loads(content)
         uid = content["id"]
 
@@ -533,10 +528,10 @@ class LCOAPI(FollowUpAPI):
             initiator_id=request.last_modified_by_id,
         )
 
-        DBSession().add(transaction)
+        session.add(transaction)
 
     @staticmethod
-    def update(request):
+    def update(request, session):
 
         """Update a follow-up request from LCO queue (all instruments).
 
@@ -544,31 +539,26 @@ class LCOAPI(FollowUpAPI):
         ----------
         request: skyportal.models.FollowupRequest
             The request to update from the queue and the SkyPortal database.
+        session: sqlalchemy.Session
+            Database session for this transaction
         """
 
-        from ..models import DBSession, FollowupRequest, FacilityTransaction
-
-        req = (
-            DBSession()
-            .query(FollowupRequest)
-            .filter(FollowupRequest.id == request.id)
-            .one()
-        )
+        from ..models import FollowupRequest, FacilityTransaction
 
         # this happens for failed submissions
         # just go ahead and delete
-        if len(req.transactions) == 0:
-            DBSession().query(FollowupRequest).filter(
+        if len(request.transactions) == 0:
+            session.query(FollowupRequest).filter(
                 FollowupRequest.id == request.id
             ).delete()
-            DBSession().commit()
+            session.commit()
             return
 
         altdata = request.allocation.altdata
         if not altdata:
             raise ValueError('Missing allocation information.')
 
-        content = req.transactions[0].response["content"]
+        content = request.transactions[0].response["content"]
         content = json.loads(content)
         uid = content["id"]
 
@@ -579,7 +569,7 @@ class LCOAPI(FollowUpAPI):
 
         r.raise_for_status()
 
-        content = req.transactions[0].response["content"]
+        content = request.transactions[0].response["content"]
         content = json.loads(content)
 
         if content["state"] == "COMPLETED":
@@ -592,7 +582,7 @@ class LCOAPI(FollowUpAPI):
             initiator_id=request.last_modified_by_id,
         )
 
-        DBSession().add(transaction)
+        session.add(transaction)
 
 
 class SINISTROAPI(LCOAPI):
@@ -601,7 +591,7 @@ class SINISTROAPI(LCOAPI):
 
     # subclasses *must* implement the method below
     @staticmethod
-    def submit(request):
+    def submit(request, session):
 
         """Submit a follow-up request to LCO's SINISTRO.
 
@@ -609,9 +599,11 @@ class SINISTROAPI(LCOAPI):
         ----------
         request: skyportal.models.FollowupRequest
             The request to add to the queue and the SkyPortal database.
+        session: sqlalchemy.Session
+            Database session for this transaction
         """
 
-        from ..models import FacilityTransaction, DBSession
+        from ..models import FacilityTransaction
 
         altdata = request.allocation.altdata
         if not altdata:
@@ -639,7 +631,7 @@ class SINISTROAPI(LCOAPI):
             initiator_id=request.last_modified_by_id,
         )
 
-        DBSession().add(transaction)
+        session.add(transaction)
 
     form_json_schema = {
         "type": "object",
@@ -713,7 +705,7 @@ class SPECTRALAPI(LCOAPI):
 
     # subclasses *must* implement the method below
     @staticmethod
-    def submit(request):
+    def submit(request, session):
 
         """Submit a follow-up request to LCO's SPECTRAL.
 
@@ -721,9 +713,11 @@ class SPECTRALAPI(LCOAPI):
         ----------
         request: skyportal.models.FollowupRequest
             The request to add to the queue and the SkyPortal database.
+        session: sqlalchemy.Session
+            Database session for this transaction
         """
 
-        from ..models import FacilityTransaction, DBSession
+        from ..models import FacilityTransaction
 
         altdata = request.allocation.altdata
 
@@ -753,7 +747,7 @@ class SPECTRALAPI(LCOAPI):
             initiator_id=request.last_modified_by_id,
         )
 
-        DBSession().add(transaction)
+        session.add(transaction)
 
     form_json_schema = {
         "type": "object",
@@ -827,7 +821,7 @@ class MUSCATAPI(LCOAPI):
 
     # subclasses *must* implement the method below
     @staticmethod
-    def submit(request):
+    def submit(request, session):
 
         """Submit a follow-up request to LCO's MUSCAT.
 
@@ -835,9 +829,11 @@ class MUSCATAPI(LCOAPI):
         ----------
         request: skyportal.models.FollowupRequest
             The request to add to the queue and the SkyPortal database.
+        session: sqlalchemy.Session
+            Database session for this transaction
         """
 
-        from ..models import FacilityTransaction, DBSession
+        from ..models import FacilityTransaction
 
         altdata = request.allocation.altdata
         if not altdata:
@@ -865,7 +861,7 @@ class MUSCATAPI(LCOAPI):
             initiator_id=request.last_modified_by_id,
         )
 
-        DBSession().add(transaction)
+        session.add(transaction)
 
     form_json_schema = {
         "type": "object",
@@ -932,7 +928,7 @@ class FLOYDSAPI(LCOAPI):
 
     # subclasses *must* implement the method below
     @staticmethod
-    def submit(request):
+    def submit(request, session):
 
         """Submit a follow-up request to LCO's FLOYDS.
 
@@ -940,9 +936,11 @@ class FLOYDSAPI(LCOAPI):
         ----------
         request: skyportal.models.FollowupRequest
             The request to add to the queue and the SkyPortal database.
+        session: sqlalchemy.Session
+            Database session for this transaction
         """
 
-        from ..models import FacilityTransaction, DBSession
+        from ..models import FacilityTransaction
 
         altdata = request.allocation.altdata
         if not altdata:
@@ -971,7 +969,7 @@ class FLOYDSAPI(LCOAPI):
             initiator_id=request.last_modified_by_id,
         )
 
-        DBSession().add(transaction)
+        session.add(transaction)
 
     form_json_schema = {
         "type": "object",

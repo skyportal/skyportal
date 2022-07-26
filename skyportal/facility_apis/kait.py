@@ -63,7 +63,7 @@ class KAITAPI(FollowUpAPI):
 
     # subclasses *must* implement the method below
     @staticmethod
-    def submit(request):
+    def submit(request, session):
 
         """Submit a follow-up request to KAIT.
 
@@ -71,9 +71,11 @@ class KAITAPI(FollowUpAPI):
         ----------
         request: skyportal.models.FollowupRequest
             The request to add to the queue and the SkyPortal database.
+        session: sqlalchemy.Session
+            Database session for this transaction
         """
 
-        from ..models import FacilityTransaction, DBSession
+        from ..models import FacilityTransaction
 
         req = KAITRequest()
         requestgroup = req._build_payload(request)
@@ -103,7 +105,7 @@ class KAITAPI(FollowUpAPI):
             initiator_id=request.last_modified_by_id,
         )
 
-        DBSession().add(transaction)
+        session.add(transaction)
 
     form_json_schema = {
         "type": "object",

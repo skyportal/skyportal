@@ -1,6 +1,7 @@
 from tornado.ioloop import IOLoop
 from geojson import Point, Feature
 import sqlalchemy as sa
+from sqlalchemy import func
 from sqlalchemy.orm import sessionmaker, scoped_session
 import astropy.units as u
 import healpix_alchemy as ha
@@ -19,6 +20,173 @@ log = make_log('api/galaxy')
 Session = scoped_session(sessionmaker(bind=DBSession.session_factory.kw["bind"]))
 
 MAX_GALAXIES = 10000
+
+
+def get_galaxies(
+    session,
+    catalog_name=None,
+    min_redshift=None,
+    max_redshift=None,
+    min_distance=None,
+    max_distance=None,
+    localization_dateobs=None,
+    localization_name=None,
+    localization_cumprob=None,
+    includeGeoJSON=False,
+    catalog_names_only=False,
+    page_number=1,
+    num_per_page=MAX_GALAXIES,
+):
+    if catalog_names_only:
+        stmt = Galaxy.select(
+            session.user_or_token, columns=[Galaxy.catalog_name]
+        ).distinct(Galaxy.catalog_name)
+        catalogs = session.scalars(stmt).all()
+        query_result = []
+        for catalog_name in catalogs:
+            stmt = Galaxy.select(session.user_or_token).where(
+                Galaxy.catalog_name == catalog_name
+            )
+            count_stmt = sa.select(func.count()).select_from(stmt)
+            total_matches = session.execute(count_stmt).scalar()
+            query_result.append(
+                {
+                    'catalog_name': catalog_name,
+                    'catalog_count': int(total_matches),
+                }
+            )
+
+        return query_result
+
+    query = Galaxy.select(session.user_or_token)
+    if catalog_name is not None:
+        query = query.where(Galaxy.catalog_name == catalog_name)
+
+    if min_redshift is not None:
+        try:
+            min_redshift = float(min_redshift)
+        except ValueError:
+            raise ValueError(
+                "Invalid values for min_redshift - could not convert to float"
+            )
+        query = query.where(Galaxy.redshift >= min_redshift)
+
+    if max_redshift is not None:
+        try:
+            max_redshift = float(max_redshift)
+        except ValueError:
+            raise ValueError(
+                "Invalid values for max_redshift - could not convert to float"
+            )
+        query = query.where(Galaxy.redshift <= max_redshift)
+
+    if min_distance is not None:
+        try:
+            min_distance = float(min_distance)
+        except ValueError:
+            raise ValueError(
+                "Invalid values for min_distance - could not convert to float"
+            )
+        query = query.where(Galaxy.distmpc >= min_distance)
+
+    if max_distance is not None:
+        try:
+            max_distance = float(max_distance)
+        except ValueError:
+            raise ValueError(
+                "Invalid values for max_distance - could not convert to float"
+            )
+        query = query.where(Galaxy.distmpc <= max_distance)
+
+    if localization_dateobs is not None:
+
+        if localization_name is not None:
+            localization = session.scalars(
+                Localization.select(session.user_or_token).where(
+                    Localization.dateobs == localization_dateobs,
+                    Localization.localization_name == localization_name,
+                )
+            ).first()
+        else:
+            localization = session.scalars(
+                Localization.select(session.user_or_token).where(
+                    Localization.dateobs == localization_dateobs,
+                )
+            ).first()
+        if localization is None:
+            if localization_name is not None:
+                raise (
+                    f"Localization {localization_dateobs} with name {localization_name} not found",
+                )
+            else:
+                raise (f"Localization {localization_dateobs} not found")
+
+        cum_prob = (
+            sa.func.sum(LocalizationTile.probdensity * LocalizationTile.healpix.area)
+            .over(order_by=LocalizationTile.probdensity.desc())
+            .label('cum_prob')
+        )
+        localizationtile_subquery = (
+            sa.select(LocalizationTile.probdensity, cum_prob).filter(
+                LocalizationTile.localization_id == localization.id
+            )
+        ).subquery()
+
+        min_probdensity = (
+            sa.select(sa.func.min(localizationtile_subquery.columns.probdensity)).where(
+                localizationtile_subquery.columns.cum_prob <= localization_cumprob
+            )
+        ).scalar_subquery()
+
+        tile_ids = session.scalars(
+            sa.select(LocalizationTile.id).where(
+                LocalizationTile.localization_id == localization.id,
+                LocalizationTile.probdensity >= min_probdensity,
+            )
+        ).all()
+
+        tiles_subquery = (
+            sa.select(Galaxy.id)
+            .where(
+                LocalizationTile.id.in_(tile_ids),
+                LocalizationTile.healpix.contains(Galaxy.healpix),
+            )
+            .subquery()
+        )
+
+        query = query.join(
+            tiles_subquery,
+            Galaxy.id == tiles_subquery.c.id,
+        )
+
+    count_stmt = sa.select(func.count()).select_from(query)
+    total_matches = session.execute(count_stmt).scalar()
+    if num_per_page is not None:
+        query = query.limit(num_per_page).offset((page_number - 1) * num_per_page)
+
+    galaxies = session.scalars(query).all()
+    query_results = {"galaxies": galaxies, "totalMatches": int(total_matches)}
+
+    if includeGeoJSON:
+        # features are JSON representations that the d3 stuff understands.
+        # We use these to render the contours of the sky localization and
+        # locations of the transients.
+
+        features = []
+        for source in query_results["galaxies"]:
+            point = Point((source.ra, source.dec))
+            if source.name is not None:
+                source_name = source.name
+            else:
+                source_name = f'{source.ra},{source.dec}'
+
+            features.append(Feature(geometry=point, properties={"name": source_name}))
+
+        query_results["geojson"] = {
+            'type': 'FeatureCollection',
+            'features': features,
+        }
+    return query_results
 
 
 class GalaxyCatalogHandler(BaseHandler):
@@ -115,6 +283,34 @@ class GalaxyCatalogHandler(BaseHandler):
                 type: string
               description: Filter by catalog name (exact match)
             - in: query
+              name: minDistance
+              nullable: true
+              schema:
+                type: number
+              description: |
+                If provided, return only galaxies with a distance of at least this value
+            - in: query
+              name: maxDistance
+              nullable: true
+              schema:
+                type: number
+              description: |
+                If provided, return only galaxies with a distance of at most this value
+            - in: query
+              name: minRedshift
+              nullable: true
+              schema:
+                type: number
+              description: |
+                If provided, return only galaxies with a redshift of at least this value
+            - in: query
+              name: maxRedshift
+              nullable: true
+              schema:
+                type: number
+              description: |
+                If provided, return only galaxies with a redshift of at most this value
+            - in: query
               name: localizationDateobs
               schema:
                 type: string
@@ -179,6 +375,10 @@ class GalaxyCatalogHandler(BaseHandler):
         localization_cumprob = self.get_query_argument("localizationCumprob", 0.95)
         includeGeoJSON = self.get_query_argument("includeGeoJSON", False)
         catalog_names_only = self.get_query_argument("catalogNamesOnly", False)
+        min_redshift = self.get_query_argument("minRedshift", None)
+        max_redshift = self.get_query_argument("maxRedshift", None)
+        min_distance = self.get_query_argument("minDistance", None)
+        max_distance = self.get_query_argument("maxDistance", None)
 
         page_number = self.get_query_argument("pageNumber", 1)
         try:
@@ -186,134 +386,31 @@ class GalaxyCatalogHandler(BaseHandler):
         except ValueError as e:
             return self.error(f'pageNumber fails: {e}')
 
-        n_per_page = self.get_query_argument("numPerPage", 100)
+        num_per_page = self.get_query_argument("numPerPage", 1000)
         try:
-            n_per_page = int(n_per_page)
+            num_per_page = int(num_per_page)
         except ValueError as e:
             return self.error(f'numPerPage fails: {e}')
-
-        if catalog_names_only:
-            with DBSession() as session:
-                catalogs = session.execute(
-                    sa.select(Galaxy.catalog_name).distinct()
-                ).all()
-                query_result = []
-                for (catalog_name,) in catalogs:
-                    query = Galaxy.query_records_accessible_by(
-                        self.current_user, mode="read"
-                    )
-                    query = query.filter(Galaxy.catalog_name == catalog_name)
-                    total_matches = query.count()
-                    query_result.append(
-                        {
-                            'catalog_name': catalog_name,
-                            'catalog_count': int(total_matches),
-                        }
-                    )
-
-                return self.success(data=query_result)
-
-        query = Galaxy.query_records_accessible_by(self.current_user, mode="read")
-        if catalog_name is not None:
-            query = query.filter(Galaxy.catalog_name == catalog_name)
-
-        if localization_dateobs is not None:
-
-            if localization_name is not None:
-                localization = (
-                    Localization.query_records_accessible_by(self.current_user)
-                    .filter(Localization.dateobs == localization_dateobs)
-                    .filter(Localization.localization_name == localization_name)
-                    .first()
+        with self.Session() as session:
+            try:
+                data = get_galaxies(
+                    session,
+                    catalog_name=catalog_name,
+                    min_redshift=min_redshift,
+                    max_redshift=max_redshift,
+                    min_distance=min_distance,
+                    max_distance=max_distance,
+                    localization_dateobs=localization_dateobs,
+                    localization_name=localization_name,
+                    localization_cumprob=localization_cumprob,
+                    includeGeoJSON=includeGeoJSON,
+                    catalog_names_only=catalog_names_only,
+                    page_number=page_number,
+                    num_per_page=num_per_page,
                 )
-            else:
-                localization = (
-                    Localization.query_records_accessible_by(self.current_user)
-                    .filter(Localization.dateobs == localization_dateobs)
-                    .first()
-                )
-            if localization is None:
-                if localization_name is not None:
-                    return self.error(
-                        f"Localization {localization_dateobs} with name {localization_name} not found",
-                        status=404,
-                    )
-                else:
-                    return self.error(
-                        f"Localization {localization_dateobs} not found", status=404
-                    )
-
-            cum_prob = (
-                sa.func.sum(
-                    LocalizationTile.probdensity * LocalizationTile.healpix.area
-                )
-                .over(order_by=LocalizationTile.probdensity.desc())
-                .label('cum_prob')
-            )
-            localizationtile_subquery = (
-                sa.select(LocalizationTile.probdensity, cum_prob).filter(
-                    LocalizationTile.localization_id == localization.id
-                )
-            ).subquery()
-
-            min_probdensity = (
-                sa.select(
-                    sa.func.min(localizationtile_subquery.columns.probdensity)
-                ).filter(
-                    localizationtile_subquery.columns.cum_prob <= localization_cumprob
-                )
-            ).scalar_subquery()
-
-            tiles_subquery = (
-                sa.select(Galaxy.id)
-                .filter(
-                    LocalizationTile.localization_id == localization.id,
-                    LocalizationTile.healpix.contains(Galaxy.healpix),
-                    LocalizationTile.probdensity >= min_probdensity,
-                )
-                .subquery()
-            )
-
-            query = query.join(
-                tiles_subquery,
-                Galaxy.id == tiles_subquery.c.id,
-            )
-
-        total_matches = query.count()
-        if n_per_page is not None:
-            query = (
-                query.distinct()
-                .limit(n_per_page)
-                .offset((page_number - 1) * n_per_page)
-            )
-
-        galaxies = query.all()
-        query_results = {"galaxies": galaxies, "totalMatches": int(total_matches)}
-
-        if includeGeoJSON:
-            # features are JSON representations that the d3 stuff understands.
-            # We use these to render the contours of the sky localization and
-            # locations of the transients.
-
-            features = []
-            for source in query_results["galaxies"]:
-                point = Point((source.ra, source.dec))
-                if source.name is not None:
-                    source_name = source.name
-                else:
-                    source_name = f'{source.ra},{source.dec}'
-
-                features.append(
-                    Feature(geometry=point, properties={"name": source_name})
-                )
-
-            query_results["geojson"] = {
-                'type': 'FeatureCollection',
-                'features': features,
-            }
-
-        self.verify_and_commit()
-        return self.success(data=query_results)
+                return self.success(data)
+            except Exception as e:
+                return self.error(f'get_galaxies fails: {e}')
 
     @permissions(['System admin'])
     def delete(self, catalog_name):
@@ -339,11 +436,11 @@ class GalaxyCatalogHandler(BaseHandler):
                 schema: Error
         """
 
-        with DBSession() as session:
+        with self.Session() as session:
             session.execute(
                 sa.delete(Galaxy).where(Galaxy.catalog_name == catalog_name)
             )
-            self.verify_and_commit()
+            session.commit()
             return self.success()
 
 
