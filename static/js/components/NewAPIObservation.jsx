@@ -1,6 +1,7 @@
 import React, { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import Form from "@rjsf/material-ui";
+// eslint-disable-next-line import/no-unresolved
+import Form from "@rjsf/material-ui/v5";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
@@ -134,7 +135,7 @@ const NewAPIObservation = () => {
           title: `${
             telLookUp[instLookUp[allocation.instrument_id].telescope_id].name
           } / ${instLookUp[allocation.instrument_id].name} - ${
-            groupLookUp[allocation.group_id].name
+            groupLookUp[allocation.group_id]?.name
           } (PI ${allocation.pi})`,
         })),
         title: "Allocation",

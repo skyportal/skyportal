@@ -315,7 +315,7 @@ class ZTFAPI(FollowUpAPI):
     """An interface to ZTF operations."""
 
     @staticmethod
-    def delete(request):
+    def delete(request, session):
 
         """Delete a follow-up request from ZTF queue.
 
@@ -323,24 +323,19 @@ class ZTFAPI(FollowUpAPI):
         ----------
         request : skyportal.models.FollowupRequest
             The request to delete from the queue and the SkyPortal database.
+        session: sqlalchemy.Session
+            Database session for this transaction
         """
 
-        from ..models import DBSession, FollowupRequest, FacilityTransaction
-
-        req = (
-            DBSession()
-            .query(FollowupRequest)
-            .filter(FollowupRequest.id == request.id)
-            .one()
-        )
+        from ..models import FollowupRequest, FacilityTransaction
 
         # this happens for failed submissions
         # just go ahead and delete
-        if len(req.transactions) == 0:
-            DBSession().query(FollowupRequest).filter(
+        if len(request.transactions) == 0:
+            session.query(FollowupRequest).filter(
                 FollowupRequest.id == request.id
             ).delete()
-            DBSession().commit()
+            session.commit()
             return
 
         altdata = request.allocation.altdata
@@ -369,7 +364,7 @@ class ZTFAPI(FollowUpAPI):
             initiator_id=request.last_modified_by_id,
         )
 
-        DBSession().add(transaction)
+        session.add(transaction)
 
     @staticmethod
     def get(request, session):
@@ -489,7 +484,7 @@ class ZTFAPI(FollowUpAPI):
 
     # subclasses *must* implement the method below
     @staticmethod
-    def submit(request):
+    def submit(request, session):
 
         """Submit a follow-up request to ZTF.
 
@@ -497,9 +492,11 @@ class ZTFAPI(FollowUpAPI):
         ----------
         request : skyportal.models.FollowupRequest
             The request to add to the queue and the SkyPortal database.
+        session: sqlalchemy.Session
+            Database session for this transaction
         """
 
-        from ..models import FacilityTransaction, DBSession
+        from ..models import FacilityTransaction
 
         req = ZTFRequest()
 
@@ -553,7 +550,7 @@ class ZTFAPI(FollowUpAPI):
             initiator_id=request.last_modified_by_id,
         )
 
-        DBSession().add(transaction)
+        session.add(transaction)
 
     form_json_schema = {
         "type": "object",
@@ -717,7 +714,7 @@ class ZTFMMAAPI(MMAAPI):
         DBSession().add(transaction)
 
     @staticmethod
-    def queued(allocation, start_date, end_date):
+    def queued(allocation, start_date=None, end_date=None, queues_only=False):
 
         """Retrieve queued observations by ZTF.
 
@@ -729,6 +726,8 @@ class ZTFMMAAPI(MMAAPI):
             Minimum time for observation request
         end_date : datetime.datetime
             Maximum time for observation request
+        queues_only : bool
+            Return only queues (do not commit observations to database)
         """
 
         altdata = allocation.altdata
@@ -745,18 +744,51 @@ class ZTFMMAAPI(MMAAPI):
 
         if r.status_code == 200:
             df = pd.DataFrame(r.json()['data'])
-            queue_names = set(df['queue_name'])
-            fetch_obs = functools.partial(
-                fetch_queued_observations,
-                allocation.instrument.id,
-                df,
-                start_date,
-                end_date,
-            )
-            IOLoop.current().run_in_executor(None, fetch_obs)
+            queue_names = sorted(list(set(df['queue_name'])))
+
+            if not queues_only:
+                fetch_obs = functools.partial(
+                    fetch_queued_observations,
+                    allocation.instrument.id,
+                    df,
+                    start_date,
+                    end_date,
+                )
+                IOLoop.current().run_in_executor(None, fetch_obs)
             return queue_names
         else:
             return ValueError(f'Error querying for queued observations: {r.text}')
+
+    @staticmethod
+    def remove_queue(allocation, queue_name, username):
+
+        """Remove a queue from ZTF.
+
+        Parameters
+        ----------
+        allocation : skyportal.models.Allocation
+            The allocation with queue information.
+        queue_name : str
+            Remove a queue from ZTF
+        username: str
+            Username for the removal
+        """
+
+        altdata = allocation.altdata
+        if not altdata:
+            raise ValueError('Missing allocation information.')
+
+        headers = {"Authorization": f"Bearer {altdata['access_token']}"}
+        payload = {'queue_name': queue_name, 'user': username}
+
+        url = urllib.parse.urljoin(ZTF_URL, 'api/triggers/ztf')
+        s = Session()
+        ztfreq = Request('DELETE', url, json=payload, headers=headers)
+        prepped = ztfreq.prepare()
+
+        r = s.send(prepped)
+        if not r.status_code == 200:
+            return ValueError(f'Error deleting queue: {r.text}')
 
     @staticmethod
     def retrieve(allocation, start_date, end_date):

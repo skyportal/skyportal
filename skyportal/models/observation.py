@@ -33,7 +33,9 @@ class ExecutedObservation(Base):
         sa.Integer, primary_key=True, doc='Observation ID supplied by instrument'
     )
 
-    obstime = sa.Column(sa.DateTime, doc='Exposure timestamp')
+    obstime = sa.Column(
+        sa.DateTime, doc='Exposure timestamp', nullable=False, index=True
+    )
 
     field = relationship("InstrumentField")
 
@@ -78,7 +80,7 @@ class QueuedObservation(Base):
 
     queue_name = sa.Column(sa.String, doc='Queue name')
 
-    obstime = sa.Column(sa.DateTime, doc='Queued timestamp')
+    obstime = sa.Column(sa.DateTime, doc='Queued timestamp', nullable=False, index=True)
 
     validity_window_start = sa.Column(
         sa.DateTime,

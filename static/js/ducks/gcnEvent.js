@@ -39,6 +39,15 @@ const SEND_OBSERVATION_PLAN_REQUEST = "skyportal/SEND_OBSERVATION_PLAN_REQUEST";
 const REMOVE_OBSERVATION_PLAN_REQUEST =
   "skyportal/REMOVE_OBSERVATION_PLAN_REQUEST";
 
+const CREATE_OBSERVATION_PLAN_REQUEST_OBSERVING_RUN =
+  "skyportal/CREATE_OBSERVATION_PLAN_REQUEST_OBSERVING_RUN";
+
+const DELETE_OBSERVATION_PLAN_FIELDS =
+  "skyportal/DELETE_OBSERVATION_PLAN_FIELDS";
+
+const GET_GCNEVENT_SUMMARY = "skyportal/FETCH_GCNEVENT_SUMMARY";
+const GET_GCNEVENT_SUMMARY_OK = "skyportal/FETCH_GCNEVENT_SUMMARY_OK";
+
 export const fetchGcnEvent = (dateobs) =>
   API.GET(`/api/gcn_event/${dateobs}`, FETCH_GCNEVENT);
 
@@ -122,6 +131,19 @@ export const deleteObservationPlanRequestTreasureMap = (id) =>
     DELETE_OBSERVATION_PLAN_REQUEST_TREASUREMAP
   );
 
+export const createObservationPlanRequestObservingRun = (id) =>
+  API.POST(
+    `/api/observation_plan/${id}/observing_run`,
+    CREATE_OBSERVATION_PLAN_REQUEST_OBSERVING_RUN
+  );
+
+export const deleteObservationPlanFields = (id, fieldIds) =>
+  API.DELETE(
+    `/api/observation_plan/${id}/fields`,
+    DELETE_OBSERVATION_PLAN_FIELDS,
+    { fieldIds }
+  );
+
 export function getCommentOnGcnEventAttachment(gcnEventID, commentID) {
   return API.GET(
     `/api/gcn_event/${gcnEventID}/comments/${commentID}/attachment`,
@@ -136,6 +158,13 @@ export function getCommentOnGcnEventAttachmentPreview(gcnEventID, commentID) {
   );
 }
 
+export function getGcnEventSummary({ dateobs, params }) {
+  return API.GET(
+    `/api/gcn_events/summary/${dateobs}`,
+    GET_GCNEVENT_SUMMARY,
+    params
+  );
+}
 // Websocket message handler
 messageHandler.add((actionType, payload, dispatch, getState) => {
   const { gcnEvent } = getState();
@@ -178,6 +207,12 @@ const reducer = (state = null, action) => {
           attachment,
           attachment_name,
         },
+      };
+    }
+    case GET_GCNEVENT_SUMMARY_OK: {
+      return {
+        ...state,
+        summary: action.data,
       };
     }
     default:

@@ -1,4 +1,10 @@
-__all__ = ['Stream', 'StreamUser', 'StreamPhotometry', 'StreamInvitation']
+__all__ = [
+    'Stream',
+    'StreamUser',
+    'StreamPhotometry',
+    'StreamPhotometricSeries',
+    'StreamInvitation',
+]
 
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB
@@ -15,7 +21,7 @@ from baselayer.app.models import (
 )
 
 from .group import Group, accessible_by_stream_members
-from .photometry import Photometry
+from .photometry import Photometry, PhotometricSeries
 from .invitation import Invitation
 
 
@@ -63,6 +69,15 @@ class Stream(Base):
         doc='The photometry associated with this stream.',
     )
 
+    photometric_series = relationship(
+        "PhotometricSeries",
+        secondary="stream_photometric_series",
+        back_populates="streams",
+        cascade="save-update, merge, refresh-expire, expunge",
+        passive_deletes=True,
+        doc='Photometric series associated with this stream.',
+    )
+
 
 def stream_delete_logic(cls, user_or_token):
     """Can only delete a stream from a user if none of the user's groups
@@ -100,5 +115,11 @@ StreamUser.delete = CustomUserAccessControl(stream_delete_logic)
 StreamPhotometry = join_model("stream_photometry", Stream, Photometry)
 StreamPhotometry.__doc__ = "Join table mapping Streams to Photometry."
 StreamPhotometry.create = accessible_by_stream_members
+
+StreamPhotometricSeries = join_model(
+    "stream_photometric_series", Stream, PhotometricSeries
+)
+StreamPhotometricSeries.__doc__ = "Join table mapping Streams to PhotometricSeries."
+StreamPhotometricSeries.create = accessible_by_stream_members
 
 StreamInvitation = join_model('stream_invitations', Stream, Invitation)

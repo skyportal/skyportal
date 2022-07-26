@@ -37,7 +37,7 @@ class UnsourcedFinderHandler(BaseHandler):
           required: true
           schema:
             type: string
-            enum: [gaia_edr3, gaia_dr2, pos]
+            enum: [gaia_dr3, gaia_dr2, pos]
           description: |
             What is the type of the search? From gaia or by position? If `pos`
             then `ra` and `dec` should be given. If otherwise, the catalog
@@ -97,7 +97,7 @@ class UnsourcedFinderHandler(BaseHandler):
           schema:
             type: boolean
           description: |
-            Use ZTFref catalog for offset star positions, otherwise DR2.
+            Use ZTFref catalog for offset star positions, otherwise DR3.
             Defaults to True.
         - in: query
           name: obstime
@@ -141,7 +141,7 @@ class UnsourcedFinderHandler(BaseHandler):
                 schema: Error
         """
         location_type = self.get_query_argument('location_type')
-        if location_type not in ["gaia_edr3", "gaia_dr2", "pos"]:
+        if location_type not in ["gaia_dr3", "gaia_dr2", "pos"]:
             return self.error(f'Invalid argument for `location_type`: {location_type}')
 
         obstime = self.get_query_argument(
@@ -158,7 +158,7 @@ class UnsourcedFinderHandler(BaseHandler):
             if not catalog_id.isnumeric():
                 return self.error('`catalog_id` must be a number')
 
-            # database name should be something like gaiaedr3
+            # database name should be something like gaiadr3
             db_name = "".join(location_type.split("_"))
             obstime_decimalyear = Time(isoparse(obstime)).decimalyear
             query_string = f"""

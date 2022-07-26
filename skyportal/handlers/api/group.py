@@ -1,3 +1,4 @@
+import sqlalchemy as sa
 from sqlalchemy import or_
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import auth_or_token, permissions, AccessError
@@ -190,8 +191,6 @@ class GroupHandler(BaseHandler):
                 .filter(Group.name == group_name)
                 .all()
             )
-            # Ensure access
-            self.verify_and_commit()
             return self.success(data=groups)
 
         include_single_user_groups = self.get_query_argument(
@@ -213,7 +212,6 @@ class GroupHandler(BaseHandler):
         info["all_groups"] = sorted(
             all_groups_query.all(), key=lambda g: g.name.lower()
         )
-        self.verify_and_commit()
 
         return self.success(data=info)
 
@@ -267,27 +265,33 @@ class GroupHandler(BaseHandler):
             return self.error(
                 "Invalid group_admins field; unable to parse all items to int"
             )
-        group_admins = (
-            User.query_records_accessible_by(self.current_user)
-            .filter(User.id.in_(group_admin_ids))
-            .all()
-        )
-        if self.current_user not in group_admins and not isinstance(
-            self.current_user, Token
-        ):
-            group_admins.append(self.current_user)
 
-        g = Group(
-            name=data["name"],
-            nickname=data.get("nickname") or None,
-            description=data.get("description") or None,
-        )
-        DBSession().add(g)
-        DBSession().add_all(
-            [GroupUser(group=g, user=user, admin=True) for user in group_admins]
-        )
-        self.verify_and_commit()
-        return self.success(data={"id": g.id})
+        with self.Session() as session:
+            group_admins = session.scalars(
+                User.select(self.current_user).where(User.id.in_(group_admin_ids))
+            ).all()
+            if self.current_user.id not in [
+                u.id for u in group_admins
+            ] and not isinstance(self.current_user, Token):
+                group_admins.append(self.current_user)
+
+            g = Group(
+                name=data["name"],
+                nickname=data.get("nickname") or None,
+                description=data.get("description") or None,
+            )
+
+            session.add(g)
+
+            for user in group_admins:
+                session.merge(user)
+
+            session.add_all(
+                [GroupUser(group=g, user=user, admin=True) for user in group_admins]
+            )
+
+            session.commit()
+            return self.success(data={"id": g.id})
 
     @permissions(["Upload data"])
     def put(self, group_id):
@@ -599,7 +603,7 @@ class GroupUserHandler(BaseHandler):
         )
 
         if gu is None:
-            raise AccessError("GroupUser does not exist.")
+            return self.error("GroupUser does not exist.", status=403)
 
         DBSession().delete(gu)
         self.verify_and_commit()
@@ -660,38 +664,51 @@ class GroupUsersFromOtherGroupsHandler(BaseHandler):
                 "Improperly formatted fromGroupIDs parameter; "
                 "must be an array of integers."
             )
-        group = Group.get_if_accessible_by(
-            group_id, self.current_user, mode="read", raise_if_none=True
-        )
-        from_groups = Group.get_if_accessible_by(
-            from_group_ids, self.current_user, mode='read', raise_if_none=True
-        )
 
-        user_ids = set()
-        for from_group in from_groups:
-            for user in from_group.users:
-                user_ids.add(user.id)
+        with self.Session() as session:
+            group = session.scalars(
+                Group.select(self.current_user).where(Group.id == group_id)
+            ).first()
+            if group is None:
+                return self.error("Cannot access group with given ID.")
 
-        for user_id in user_ids:
-            # Add user to group
-            gu = (
-                GroupUser.query.filter(GroupUser.group_id == group_id)
-                .filter(GroupUser.user_id == user_id)
-                .first()
-            )
-            if gu is None:
-                DBSession().add(
-                    GroupUser(group_id=group_id, user_id=user_id, admin=False)
+            from_groups = session.scalars(
+                Group.select(self.current_user).where(Group.id.in_(from_group_ids))
+            ).all()
+            if set(from_group_ids) != {g.id for g in from_groups}:
+                return self.error(
+                    "Cannot access one or more groups with given by fromGroupIDs."
                 )
-                DBSession().add(
-                    UserNotification(
-                        user_id=user_id,
-                        text=f"You've been added to group *{group.name}*",
-                        url=f"/group/{group.id}",
+
+            user_ids = set()
+            for from_group in from_groups:
+                for user in from_group.users:
+                    user_ids.add(user.id)
+
+            for user_id in user_ids:
+                # Add user to group
+                gu = session.scalars(
+                    sa.select(GroupUser)
+                    .where(GroupUser.group_id == group_id)
+                    .where(GroupUser.user_id == user_id)
+                ).first()
+                user = session.scalars(
+                    sa.select(User).where(User.id == user_id)
+                ).first()
+                if gu is None:
+                    session.add(
+                        GroupUser(group_id=group_id, user_id=user_id, admin=False)
                     )
-                )
+                    session.add(
+                        UserNotification(
+                            user=user,
+                            user_id=user_id,
+                            text=f"You've been added to group *{group.name}*",
+                            url=f"/group/{group.id}",
+                        )
+                    )
 
-        self.verify_and_commit()
+            session.commit()
 
         self.push_all(action='skyportal/REFRESH_GROUP', payload={'group_id': group_id})
         for user_id in user_ids:

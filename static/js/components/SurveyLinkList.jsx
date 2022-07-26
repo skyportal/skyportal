@@ -3,7 +3,7 @@ import { useSelector } from "react-redux";
 import PropTypes from "prop-types";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
-import { makeStyles } from "@material-ui/core/styles";
+import makeStyles from "@mui/styles/makeStyles";
 
 import { ra_to_hours, dec_to_dms } from "../units";
 
@@ -81,7 +81,7 @@ SurveyLink.defaultProps = {
 SurveyLinkForm.propTypes = {
   name: PropTypes.string.isRequired,
   url: PropTypes.string.isRequired,
-  formData: PropTypes.objectOf(PropTypes.any).isRequired,
+  formData: PropTypes.objectOf(PropTypes.any).isRequired, // eslint-disable-line react/forbid-prop-types
   urlEncoded: PropTypes.bool,
 };
 
@@ -122,6 +122,17 @@ const SurveyLinkList = ({ ra, dec, id }) => {
         url={`https://ui.adsabs.harvard.edu/search/q=object%22${ra}%20${
           dec > 0 ? "%2B" : ""
         }${dec}%3A0%201%22&sort=date%20desc%2C%20bibcode%20desc&p_=0`}
+      />
+      <SurveyLink
+        name="Aladin"
+        url={`http://aladin.unistra.fr/AladinLite/?target=${ra_to_hours(
+          ra,
+          "%20"
+        )}${dec > 0 ? "%2B" : ""}${dec_to_dms(
+          dec,
+          "%20",
+          false
+        )}&fov=0.08&survey=P%2FPanSTARRS%2FDR1%2Fcolor-z-zg-g`}
       />
       <SurveyLink
         name="CFHT"
@@ -168,6 +179,10 @@ const SurveyLinkList = ({ ra, dec, id }) => {
       <SurveyLink
         name="Gaia DR2"
         url={`http://vizier.u-strasbg.fr/viz-bin/VizieR?-source=I/345/gaia2&-out.add=_r&-out.add=2C_DEJ&-sort=_r&-to=&-out.max=20&-meta.ucd=2&-meta.foot=1&-c=${ra_hrs}+${dec_hrs}&-c.rs=10`}
+      />
+      <SurveyLink
+        name="Galex"
+        url={`http://galex.stsci.edu/GR6/?page=searchresults&type=mastform&ra=${ra}&dec=${dec}&radius=1.0&outputformat=HTML_Table&max_records=20&action=Search`}
       />
       <SurveyLink
         name="HEASARC"

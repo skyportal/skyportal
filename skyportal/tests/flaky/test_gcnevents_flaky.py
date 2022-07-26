@@ -2,7 +2,6 @@ import os
 import uuid
 import pytest
 import time
-from selenium.webdriver.common.keys import Keys
 
 from skyportal.tests import api
 
@@ -61,10 +60,10 @@ def test_gcnevents_object(
 
     status, data = api("GET", f"sources/{obj_id}", token=view_only_token)
     assert status == 200
-
+    catalog_name = str(uuid.uuid4())
     galaxy_name = str(uuid.uuid4())
     data = {
-        'catalog_name': 'galaxy_in_Fermi',
+        'catalog_name': catalog_name,
         'catalog_data': {'name': [galaxy_name], 'ra': [228.5], 'dec': [35.5]},
     }
     status, data = api('POST', 'galaxy_catalog', data=data, token=super_admin_token)
@@ -91,18 +90,10 @@ def test_gcnevents_object(
     driver.wait_for_xpath('//*[text()="GRB"]')
 
     # test modify sources form
-    driver.wait_for_xpath('//*[@id="root_startDate"]').send_keys('01/15/2018')
-    driver.wait_for_xpath('//*[@id="root_startDate"]').send_keys(Keys.TAB)
-    driver.wait_for_xpath('//*[@id="root_startDate"]').send_keys('01:01')
-    driver.wait_for_xpath('//*[@id="root_startDate"]').send_keys('P')
-    driver.wait_for_xpath('//*[@id="root_endDate"]').send_keys('01/18/2018')
-    driver.wait_for_xpath('//*[@id="root_endDate"]').send_keys(Keys.TAB)
-    driver.wait_for_xpath('//*[@id="root_endDate"]').send_keys('01:01')
-    driver.wait_for_xpath('//*[@id="root_endDate"]').send_keys('P')
-    driver.wait_for_xpath('//*[@id="root_localizationName"]')
-    driver.click_xpath('//*[@id="root_localizationName"]')
-    driver.wait_for_xpath('//li[contains(text(), "214.74000_28.14000_11.19000")]')
-    driver.click_xpath('//li[contains(text(), "214.74000_28.14000_11.19000")]')
+    driver.wait_for_xpath('//*[@id="root_queryList"]')
+    driver.click_xpath('//*[@id="root_queryList"]')
+    driver.wait_for_xpath('//li[contains(text(), "sources")]')
+    driver.click_xpath('//li[contains(text(), "sources")]')
 
     submit_button_xpath = '//button[@type="submit"]'
     driver.wait_for_xpath(submit_button_xpath)

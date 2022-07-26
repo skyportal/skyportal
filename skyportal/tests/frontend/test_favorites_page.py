@@ -26,8 +26,15 @@ def test_add_remove_favorites(driver, user, public_source):
     # little triangle you push to expand the table
     driver.click_xpath("//*[@id='expandable-button']")
 
+    driver.wait_for_xpath(
+        f"//*[contains(@data-testid, 'favorites-text-include_{public_source.id}')]",
+        timeout=20,
+    )
+
     # click to un-save the source as favorite
-    driver.click_xpath(f'//*[@data-testid="favorites-text-include_{public_source.id}"]')
+    driver.click_xpath(
+        f'//*[@data-testid="favorites-text-include_{public_source.id}"]',
+    )
 
     driver.wait_for_xpath(
         '//*[contains(text(), "No sources have been saved as favorites.")]'
@@ -84,7 +91,7 @@ def test_add_favorites_from_api(driver, super_admin_user, public_group):
     driver.wait_for_xpath("//input[@name='sourceID']").send_keys(obj_id)
 
     driver.click_xpath(
-        "//div[contains(@class, 'MUIDataTableFilter-root')]//span[text()='Submit']",
+        "//button[text()='Submit']",
         scroll_parent=True,
     )
     # find the name of the newly added source

@@ -81,6 +81,7 @@ messageHandler.add((actionType, payload, dispatch) => {
 
 export function fetchGcnEventObservations(dateobs, filterParams = {}) {
   filterParams.localizationDateobs = dateobs;
+  filterParams.numPerPage = 1000;
 
   if (!Object.keys(filterParams).includes("startDate")) {
     if (dateobs) {
@@ -123,7 +124,7 @@ messageHandler.add((actionType, payload, dispatch, getState) => {
   }
 });
 
-const reducer = (state = null, action) => {
+const reducer = (state = { gcnEventObservations: [] }, action) => {
   switch (action.type) {
     case FETCH_OBSERVATIONS_OK: {
       return {

@@ -94,6 +94,14 @@ class Localization(Base):
         doc="Observation plan requests of the localization.",
     )
 
+    survey_efficiency_analyses = relationship(
+        'SurveyEfficiencyForObservations',
+        back_populates='localization',
+        cascade='delete',
+        passive_deletes=True,
+        doc="Survey efficiency analyses of the event.",
+    )
+
     @hybrid_property
     def is_3d(self):
         return (
@@ -163,12 +171,14 @@ class LocalizationTile(Base):
     localization_id = sa.Column(
         sa.ForeignKey('localizations.id', ondelete="CASCADE"),
         primary_key=True,
+        index=True,
         doc='localization ID',
     )
 
     probdensity = sa.Column(
         sa.Float,
         nullable=False,
+        index=True,
         doc="Probability density for the tile",
     )
 

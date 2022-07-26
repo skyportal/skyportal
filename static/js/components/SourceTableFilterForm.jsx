@@ -1,22 +1,26 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import PropTypes from "prop-types";
-import { useSelector } from "react-redux";
-
-import Paper from "@material-ui/core/Paper";
-import Button from "@material-ui/core/Button";
-import ButtonGroup from "@material-ui/core/ButtonGroup";
-import Checkbox from "@material-ui/core/Checkbox";
-import FormControlLabel from "@material-ui/core/FormControlLabel";
-import TextField from "@material-ui/core/TextField";
-import { makeStyles, useTheme } from "@material-ui/core/styles";
-import Typography from "@material-ui/core/Typography";
-import Input from "@material-ui/core/Input";
-import Chip from "@material-ui/core/Chip";
-import Select from "@material-ui/core/Select";
-import MenuItem from "@material-ui/core/MenuItem";
+import { useDispatch, useSelector } from "react-redux";
+import Paper from "@mui/material/Paper";
+import Button from "@mui/material/Button";
+import ButtonGroup from "@mui/material/ButtonGroup";
+import Checkbox from "@mui/material/Checkbox";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import TextField from "@mui/material/TextField";
+import { useTheme } from "@mui/material/styles";
+import makeStyles from "@mui/styles/makeStyles";
+import Typography from "@mui/material/Typography";
+import Input from "@mui/material/Input";
+import Chip from "@mui/material/Chip";
+import Select from "@mui/material/Select";
+import MenuItem from "@mui/material/MenuItem";
 import { useForm, Controller } from "react-hook-form";
 
+import { showNotification } from "baselayer/components/Notifications";
+
 import { allowedClasses } from "./ClassificationForm";
+
+import * as gcnEventsActions from "../ducks/gcnEvents";
 
 const useStyles = makeStyles((theme) => ({
   paperDiv: {
@@ -83,6 +87,20 @@ const useStyles = makeStyles((theme) => ({
       marginRight: "1rem",
     },
   },
+  select: {
+    width: "40%",
+    height: "3rem",
+  },
+  selectItems: {
+    display: "flex",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "left",
+    gap: "0.25rem",
+  },
+  selectItem: {
+    whiteSpace: "break-spaces",
+  },
 }));
 
 const getMultiselectStyles = (value, selectedValues, theme) => ({
@@ -94,6 +112,7 @@ const getMultiselectStyles = (value, selectedValues, theme) => ({
 
 const SourceTableFilterForm = ({ handleFilterSubmit }) => {
   const classes = useStyles();
+  const dispatch = useDispatch();
   const theme = useTheme();
 
   const ITEM_HEIGHT = 48;
@@ -122,10 +141,97 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
     []
   );
 
-  const { handleSubmit, register, control, reset } = useForm();
+  const maxNumDaysUsingLocalization = useSelector(
+    (state) => state.config.maxNumDaysUsingLocalization
+  );
+  const gcnEvents = useSelector((state) => state.gcnEvents);
+  const [selectedGcnEventId, setSelectedGcnEventId] = useState(null);
+
+  useEffect(() => {
+    if (gcnEvents?.length > 0 || !gcnEvents) {
+      dispatch(gcnEventsActions.fetchGcnEvents());
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const { handleSubmit, register, control, reset, getValues } = useForm();
 
   const handleClickReset = () => {
     reset();
+  };
+
+  const gcnEventsLookUp = {};
+  // eslint-disable-next-line no-unused-expressions
+  gcnEvents?.events.forEach((gcnEvent) => {
+    gcnEventsLookUp[gcnEvent.id] = gcnEvent;
+  });
+
+  const gcnEventsSelect = gcnEvents
+    ? [
+        {
+          id: -1,
+          dateobs: "Clear Selection",
+        },
+        ...gcnEvents.events,
+      ]
+    : [];
+
+  const validate = (formData) => {
+    let valid = true;
+    if (formData.gcneventid !== "" || formData.localizationid !== "") {
+      if (formData.startDate === "" || formData.endDate === "") {
+        dispatch(
+          showNotification(
+            "Please enter First and Last Detected dates when filtering by GCN Event",
+            "error"
+          )
+        );
+        valid = false;
+      } else if (new Date(formData.startDate) > new Date(formData.endDate)) {
+        dispatch(
+          showNotification(
+            "First Detected date must be before Last Detected date",
+            "error"
+          )
+        );
+        valid = false;
+      } // check if there are more than maxNumDaysUsingLocalization days between start and end date
+      else if (
+        (new Date(formData.endDate) - new Date(formData.startDate)) /
+          (1000 * 60 * 60 * 24) >
+        (maxNumDaysUsingLocalization || 31)
+      ) {
+        dispatch(
+          showNotification(
+            `Please enter a date range less than ${
+              maxNumDaysUsingLocalization || 31
+            } days`,
+            "error"
+          )
+        );
+        valid = false;
+      }
+    }
+    return valid;
+  };
+
+  const handleFilterPreSubmit = (formData) => {
+    if (validate(formData)) {
+      if (formData.gcneventid !== "") {
+        formData.localizationDateobs =
+          gcnEventsLookUp[formData.gcneventid]?.dateobs;
+        if (formData.localizationid !== "") {
+          formData.localizationName = gcnEventsLookUp[
+            formData.gcneventid
+          ]?.localizations?.filter(
+            (l) => l.id === formData.localizationid
+          )[0]?.localization_name;
+          formData.localizationid = "";
+        }
+        formData.gcneventid = "";
+      }
+      handleFilterSubmit(formData);
+    }
   };
 
   return (
@@ -135,7 +241,7 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
       </div>
       <form
         className={classes.root}
-        onSubmit={handleSubmit(handleFilterSubmit)}
+        onSubmit={handleSubmit(handleFilterPreSubmit)}
       >
         <div className={classes.formItem}>
           <Typography variant="subtitle2" className={classes.title}>
@@ -206,18 +312,16 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
         </div>
         <div className={classes.formItemRightColumn}>
           <Typography variant="subtitle2" className={classes.title}>
-            Time Last Detected (UTC)
+            Time First/Last Detected (UTC)
           </Typography>
           <TextField
-            disabled
             size="small"
-            label="Last Detected After"
+            label="First Detected After"
             name="startDate"
             inputRef={register}
             placeholder="2012-08-30T00:00:00"
           />
           <TextField
-            disabled
             size="small"
             label="Last Detected Before"
             name="endDate"
@@ -375,7 +479,6 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
             Peak Magnitude
           </Typography>
           <TextField
-            disabled
             size="small"
             label="Min"
             name="minPeakMagnitude"
@@ -386,7 +489,6 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
             inputRef={register}
           />
           <TextField
-            disabled
             size="small"
             label="Max"
             name="maxPeakMagnitude"
@@ -518,7 +620,6 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
             Latest Magnitude
           </Typography>
           <TextField
-            disabled
             size="small"
             label="Min"
             name="minLatestMagnitude"
@@ -529,7 +630,6 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
             inputRef={register}
           />
           <TextField
-            disabled
             size="small"
             label="Max"
             name="maxLatestMagnitude"
@@ -605,6 +705,78 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
             inputRef={register}
             placeholder="2021-01-01T00:00:00"
           />
+        </div>
+        <div className={classes.formItemRightColumn}>
+          <Typography variant="subtitle2" className={classes.title}>
+            GCN Event
+          </Typography>
+          <div className={classes.selectItems}>
+            <Controller
+              render={({ value }) => (
+                <Select
+                  inputProps={{ MenuProps: { disableScrollLock: true } }}
+                  labelId="gcnEventSelectLabel"
+                  value={value || ""}
+                  onChange={(event) => {
+                    reset({
+                      ...getValues(),
+                      gcneventid:
+                        event.target.value === -1 ? "" : event.target.value,
+                      localizationid:
+                        event.target.value === -1
+                          ? ""
+                          : gcnEventsLookUp[event.target.value]
+                              ?.localizations[0]?.id || "",
+                    });
+                    setSelectedGcnEventId(event.target.value);
+                  }}
+                  className={classes.select}
+                >
+                  {gcnEventsSelect?.map((gcnEvent) => (
+                    <MenuItem
+                      value={gcnEvent.id}
+                      key={gcnEvent.id}
+                      className={classes.selectItem}
+                    >
+                      {`${gcnEvent.dateobs}`}
+                    </MenuItem>
+                  ))}
+                </Select>
+              )}
+              name="gcneventid"
+              control={control}
+              defaultValue=""
+            />
+            <Controller
+              render={({ onChange, value }) => (
+                <Select
+                  inputProps={{ MenuProps: { disableScrollLock: true } }}
+                  labelId="localizationSelectLabel"
+                  value={value || ""}
+                  onChange={(event) => {
+                    onChange(event.target.value);
+                  }}
+                  className={classes.select}
+                  disabled={!selectedGcnEventId}
+                >
+                  {gcnEventsLookUp[selectedGcnEventId]?.localizations?.map(
+                    (localization) => (
+                      <MenuItem
+                        value={localization.id}
+                        key={localization.id}
+                        className={classes.selectItem}
+                      >
+                        {`${localization.localization_name}`}
+                      </MenuItem>
+                    )
+                  )}
+                </Select>
+              )}
+              name="localizationid"
+              control={control}
+              defaultValue=""
+            />
+          </div>
         </div>
         <div className={classes.formButtons}>
           <ButtonGroup

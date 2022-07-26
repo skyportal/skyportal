@@ -139,13 +139,12 @@ jobs:
           fi
           sudo tar -xzf ${CACHED_DOWNLOAD_DIR}/geckodriver-v${GECKO_VER}-linux64.tar.gz -C /usr/local/bin
           geckodriver --version
-          pip install --upgrade selenium
           python -c "import selenium; print(f'Selenium {selenium.__version__}')"
 
       - name: Test loading demo data
         run: |
           make run &
-          sleep 10 && make load_demo_data
+          sleep 60 && make load_demo_data
           kill %1
 
       - name: Run test suite

@@ -3,20 +3,22 @@ import { useDispatch, useSelector } from "react-redux";
 import { useForm, Controller } from "react-hook-form";
 import PropTypes from "prop-types";
 
-import FormControlLabel from "@material-ui/core/FormControlLabel";
-import Checkbox from "@material-ui/core/Checkbox";
-import Button from "@material-ui/core/Button";
-import { KeyboardDateTimePicker } from "@material-ui/pickers";
-import Paper from "@material-ui/core/Paper";
-import SearchIcon from "@material-ui/icons/Search";
-import Input from "@material-ui/core/Input";
-import InputLabel from "@material-ui/core/InputLabel";
-import Select from "@material-ui/core/Select";
-import MenuItem from "@material-ui/core/MenuItem";
-import TextField from "@material-ui/core/TextField";
-import Tooltip from "@material-ui/core/Tooltip";
-import { Typography } from "@material-ui/core";
-import { makeStyles } from "@material-ui/core/styles";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import Checkbox from "@mui/material/Checkbox";
+import Button from "@mui/material/Button";
+import DateTimePicker from "@mui/lab/DateTimePicker";
+import AdapterDateFns from "@mui/lab/AdapterDateFns";
+import LocalizationProvider from "@mui/lab/LocalizationProvider";
+import Paper from "@mui/material/Paper";
+import SearchIcon from "@mui/icons-material/Search";
+import Input from "@mui/material/Input";
+import InputLabel from "@mui/material/InputLabel";
+import Select from "@mui/material/Select";
+import MenuItem from "@mui/material/MenuItem";
+import TextField from "@mui/material/TextField";
+import Tooltip from "@mui/material/Tooltip";
+import { Typography } from "@mui/material";
+import makeStyles from "@mui/styles/makeStyles";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
@@ -132,7 +134,7 @@ const FilterCandidateList = ({
     }
   }, [dispatch, availableAnnotationsInfo]);
 
-  const { scanningProfiles } = useSelector(
+  const { scanningProfiles, useAMPM } = useSelector(
     (state) => state.profile.preferences
   );
 
@@ -355,17 +357,19 @@ const FilterCandidateList = ({
             )}
             <Controller
               render={({ onChange, value }) => (
-                <KeyboardDateTimePicker
-                  value={value ? dayjs.utc(value) : null}
-                  onChange={(e, date) =>
-                    date ? onChange(dayjs.utc(date)) : onChange(date)
-                  }
-                  label="Start (UTC)"
-                  format="YYYY/MM/DD HH:mm"
-                  ampm={false}
-                  showTodayButton={false}
-                  data-testid="startDatePicker"
-                />
+                <LocalizationProvider dateAdapter={AdapterDateFns}>
+                  <DateTimePicker
+                    value={value}
+                    onChange={(newValue) => onChange(newValue)}
+                    label="Start (UTC)"
+                    showTodayButton={false}
+                    ampm={useAMPM}
+                    renderInput={(params) => (
+                      /* eslint-disable-next-line react/jsx-props-no-spreading */
+                      <TextField id="startDatePicker" {...params} />
+                    )}
+                  />
+                </LocalizationProvider>
               )}
               rules={{ validate: validateDates }}
               name="startDate"
@@ -375,17 +379,19 @@ const FilterCandidateList = ({
             &nbsp;
             <Controller
               render={({ onChange, value }) => (
-                <KeyboardDateTimePicker
-                  value={value ? dayjs.utc(value) : null}
-                  onChange={(e, date) =>
-                    date ? onChange(dayjs.utc(date)) : onChange(date)
-                  }
-                  label="End (UTC)"
-                  format="YYYY/MM/DD HH:mm"
-                  ampm={false}
-                  showTodayButton={false}
-                  data-testid="endDatePicker"
-                />
+                <LocalizationProvider dateAdapter={AdapterDateFns}>
+                  <DateTimePicker
+                    value={value}
+                    onChange={(newValue) => onChange(newValue)}
+                    label="End (UTC)"
+                    showTodayButton={false}
+                    ampm={useAMPM}
+                    renderInput={(props) => (
+                      /* eslint-disable-next-line react/jsx-props-no-spreading */
+                      <TextField id="endDatePicker" {...props} />
+                    )}
+                  />
+                </LocalizationProvider>
               )}
               rules={{ validate: validateDates }}
               name="endDate"

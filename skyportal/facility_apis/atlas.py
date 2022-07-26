@@ -6,7 +6,6 @@ import numpy as np
 import pandas as pd
 from io import StringIO
 from sqlalchemy.orm import sessionmaker, scoped_session
-from tornado.ioloop import IOLoop
 
 from . import FollowUpAPI
 from baselayer.app.env import load_env
@@ -17,7 +16,7 @@ from ..utils import http
 
 env, cfg = load_env()
 
-if cfg['app.atlas.port'] is None:
+if cfg.get('app.atlas.port') is None:
     ATLAS_URL = f"{cfg['app.atlas.protocol']}://{cfg['app.atlas.host']}"
 else:
     ATLAS_URL = (
@@ -222,78 +221,37 @@ class ATLASAPI(FollowUpAPI):
             Database session to use for photometry
         """
 
-        from ..models import (
-            FollowupRequest,
-            FacilityTransaction,
-            Allocation,
-            Instrument,
-        )
-
-        req = (
-            session.query(FollowupRequest)
-            .filter(FollowupRequest.id == request.id)
-            .one()
-        )
-
-        instrument = (
-            Instrument.query_records_accessible_by(req.requester)
-            .join(Allocation)
-            .join(FollowupRequest)
-            .filter(FollowupRequest.id == request.id)
-            .first()
-        )
+        from ..models import FacilityTransaction
 
         altdata = request.allocation.altdata
 
         if not altdata:
             raise ValueError('Missing allocation information.')
 
-        content = req.transactions[0].response["content"]
+        content = request.transactions[-1].response["content"]
         content = json.loads(content)
 
-        r = requests.get(
-            content["url"],
-            headers={
+        request_body = {
+            'method': 'GET',
+            'endpoint': content["url"],
+            'headers': {
                 'Authorization': f"Token {altdata['api_token']}",
                 'Accept': 'application/json',
             },
-        )
+            'followup_request_id': request.id,
+            'initiator_id': request.last_modified_by_id,
+        }
 
-        if r.status_code == 200:
-            try:
-                json_response = r.json()
-            except Exception:
-                raise ('No JSON data returned in request')
+        facility_microservice_url = f'http://127.0.0.1:{cfg["ports.facility_queue"]}'
 
-            if json_response['finishtimestamp']:
-                IOLoop.current().run_in_executor(
-                    None,
-                    lambda: commit_photometry(
-                        json_response,
-                        altdata,
-                        req.id,
-                        instrument.id,
-                        request.requester.id,
-                    ),
-                )
-                req.status = "Committing photometry to database"
-
-            elif json_response['starttimestamp']:
-                req.status = (
-                    f"Task is running (started at {json_response['starttimestamp']})"
-                )
-            else:
-                req.status = (
-                    f"Waiting for job to start (queued at {json_response['timestamp']})"
-                )
-        else:
-            req.status = f'error: {r.content}'
+        r = requests.post(facility_microservice_url, json=request_body)
+        log(f'Response for request {request.id}: {r.text}')
 
         transaction = FacilityTransaction(
             request=http.serialize_requests_request(r.request),
             response=http.serialize_requests_response(r),
-            followup_request=req,
-            initiator_id=req.last_modified_by_id,
+            followup_request=request,
+            initiator_id=request.last_modified_by_id,
         )
 
         session.add(transaction)
@@ -301,7 +259,7 @@ class ATLASAPI(FollowUpAPI):
 
     # subclasses *must* implement the method below
     @staticmethod
-    def submit(request):
+    def submit(request, session):
 
         """Submit a forced photometry request to ATLAS.
 
@@ -309,9 +267,11 @@ class ATLASAPI(FollowUpAPI):
         ----------
         request: skyportal.models.FollowupRequest
             The request to add to the queue and the SkyPortal database.
+        session: sqlalchemy.Session
+            Database session for this transaction
         """
 
-        from ..models import FacilityTransaction, DBSession
+        from ..models import FacilityTransaction
 
         req = ATLASRequest()
         requestgroup = req._build_payload(request)
@@ -343,10 +303,10 @@ class ATLASAPI(FollowUpAPI):
             initiator_id=request.last_modified_by_id,
         )
 
-        DBSession().add(transaction)
+        session.add(transaction)
 
     @staticmethod
-    def delete(request):
+    def delete(request, session):
 
         """Delete a photometry request from ATLAS API.
 
@@ -354,14 +314,11 @@ class ATLASAPI(FollowUpAPI):
         ----------
         request: skyportal.models.FollowupRequest
             The request to delete from the queue and the SkyPortal database.
+        session: sqlalchemy.Session
+            Database session for this transaction
         """
 
-        from ..models import DBSession, FollowupRequest
-
-        DBSession().query(FollowupRequest).filter(
-            FollowupRequest.id == request.id
-        ).delete()
-        DBSession().commit()
+        session.delete(request)
 
     form_json_schema = {
         "type": "object",

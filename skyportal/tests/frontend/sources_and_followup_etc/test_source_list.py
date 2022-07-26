@@ -1,11 +1,21 @@
+import os
 import uuid
+import time
 
 from skyportal.tests import api
 from tdtax import taxonomy, __version__
 
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta
 
+from baselayer.app.config import load_config
 from dateutil import parser
+from os.path import join as pjoin
+import random
+import numpy as np
+
+from selenium.webdriver.common.keys import Keys
+
+cfg = load_config()
 
 
 def test_add_sources_two_groups(
@@ -18,7 +28,7 @@ def test_add_sources_two_groups(
     classification_token_two_groups,
 ):
     obj_id = str(uuid.uuid4())
-    t1 = datetime.now(timezone.utc)
+    t1 = datetime.utcnow()
 
     # upload a new source, saved to the public group
     status, data = api(
@@ -52,7 +62,7 @@ def test_add_sources_two_groups(
     obj_button.clear()
     obj_button.send_keys(obj_id)
     driver.click_xpath(
-        "//div[contains(@class, 'MUIDataTableFilter-root')]//span[text()='Submit']",
+        "//button[text()='Submit']",
         scroll_parent=True,
     )
 
@@ -63,7 +73,7 @@ def test_add_sources_two_groups(
     saved_at_element = driver.wait_for_xpath(
         f"//*[text()[contains(., '{t1.strftime('%Y-%m-%dT%H:%M')}')]]"
     )
-    saved_group1 = parser.parse(saved_at_element.text + " UTC")
+    saved_group1 = parser.parse(saved_at_element.text)
     assert abs(saved_group1 - t1) < timedelta(seconds=30)
 
     # check the redshift shows up
@@ -119,7 +129,7 @@ def test_add_sources_two_groups(
     obj_button.clear()
     obj_button.send_keys(obj_id)
     driver.click_xpath(
-        "//div[contains(@class, 'MUIDataTableFilter-root')]//span[text()='Submit']",
+        "//button[text()='Submit']",
         scroll_parent=True,
     )
 
@@ -127,7 +137,7 @@ def test_add_sources_two_groups(
     driver.wait_for_xpath(f"//*[text()[contains(., '{'Algol'}')]]")
 
     # add this source to another group
-    t2 = datetime.now(timezone.utc)
+    t2 = datetime.utcnow()
     status, data = api(
         'POST',
         'sources',
@@ -167,7 +177,7 @@ def test_add_sources_two_groups(
     obj_button.clear()
     obj_button.send_keys(obj_id)
     driver.click_xpath(
-        "//div[contains(@class, 'MUIDataTableFilter-root')]//span[text()='Submit']",
+        "//button[text()='Submit']",
         scroll_parent=True,
     )
 
@@ -178,7 +188,7 @@ def test_add_sources_two_groups(
     saved_at_element = driver.wait_for_xpath(
         f"//*[text()[contains(., '{t2.strftime('%Y-%m-%dT%H:%M')}')]]"
     )
-    saved_group2 = parser.parse(saved_at_element.text + " UTC")
+    saved_group2 = parser.parse(saved_at_element.text)
     assert abs(saved_group2 - t2) < timedelta(seconds=2)
 
     # the new group must have been saved later!
@@ -254,9 +264,7 @@ def test_filter_by_classification(
     driver.click_xpath(
         f"//li[@data-value='{taxonomy_name}: Algol']", scroll_parent=True
     )
-    driver.click_xpath(
-        "//div[contains(@class, 'MUIDataTableFilter-root')]//span[text()='Submit']"
-    )
+    driver.click_xpath("//button[text()='Submit']")
 
     # Should see the posted source
     driver.wait_for_xpath(f'//a[@data-testid="{source_id}"]')
@@ -268,9 +276,7 @@ def test_filter_by_classification(
         scroll_parent=True,
     )
     driver.click_xpath(f"//li[@data-value='{taxonomy_name}: AGN']", scroll_parent=True)
-    driver.click_xpath(
-        "//div[contains(@class, 'MUIDataTableFilter-root')]//span[text()='Submit']"
-    )
+    driver.click_xpath("//button[text()='Submit']")
     # Should no longer see the source
     driver.wait_for_xpath_to_disappear(f'//a[@data-testid="{source_id}"]')
 
@@ -280,8 +286,6 @@ def test_filter_by_spectrum_time(
     user,
     public_group,
     upload_data_token,
-    taxonomy_token,
-    classification_token,
     lris,
 ):
     obj_id1 = str(uuid.uuid4())
@@ -321,7 +325,7 @@ def test_filter_by_spectrum_time(
         'spectrum',
         data={
             'obj_id': obj_id1,
-            'observed_at': str(datetime.now(timezone.utc)),
+            'observed_at': str(datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S")),
             'instrument_id': lris.id,
             'wavelengths': [664, 665, 666],
             'fluxes': [234.2, 232.1, 235.3],
@@ -332,14 +336,15 @@ def test_filter_by_spectrum_time(
     assert status == 200
     assert data['status'] == 'success'
 
-    test_time = datetime.now(timezone.utc)
     # Add spectrum to source 2
     status, data = api(
         'POST',
         'spectrum',
         data={
             'obj_id': obj_id2,
-            'observed_at': str(datetime.now(timezone.utc) + timedelta(days=1)),
+            'observed_at': str(
+                (datetime.utcnow() + timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%S")
+            ),
             'instrument_id': lris.id,
             'wavelengths': [664, 665, 666],
             'fluxes': [234.2, 232.1, 235.3],
@@ -353,6 +358,8 @@ def test_filter_by_spectrum_time(
     driver.get(f"/become_user/{user.id}")
     driver.get("/sources")
 
+    test_time = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S")
+
     # Filter for spectrum time after
     driver.click_xpath("//button[@data-testid='Filter Table-iconButton']")
     driver.click_xpath(
@@ -363,11 +370,8 @@ def test_filter_by_spectrum_time(
         "//div[@data-testid='hasSpectrumBeforeTest']//input"
     )
 
-    before_input.send_keys(str(test_time.isoformat()))
-
-    driver.click_xpath(
-        "//div[contains(@class, 'MUIDataTableFilter-root')]//span[text()='Submit']"
-    )
+    before_input.send_keys(test_time)
+    driver.click_xpath("//button[text()='Submit']")
 
     # Should see the first source
     driver.wait_for_xpath(f'//a[@data-testid="{obj_id1}"]')
@@ -382,10 +386,9 @@ def test_filter_by_spectrum_time(
         "//div[@data-testid='hasSpectrumAfterTest']//input"
     )
 
-    after_input.send_keys(str(test_time.isoformat()))
-
+    after_input.send_keys(test_time)
     driver.click_xpath(
-        "//div[contains(@class, 'MUIDataTableFilter-root')]//span[text()='Submit']"
+        "//button[text()='Submit']",
     )
 
     # Should see the posted source
@@ -434,7 +437,7 @@ def test_filter_by_alias_and_origin(
 
     alias_field.send_keys(alias)
     driver.click_xpath(
-        "//div[contains(@class, 'MUIDataTableFilter-root')]//span[text()='Submit']",
+        "//button[text()='Submit']",
         scroll_parent=True,
     )
 
@@ -446,7 +449,7 @@ def test_filter_by_alias_and_origin(
     alias_field = driver.wait_for_xpath("//*[@data-testid='alias-text']//input")
     alias_field.send_keys(str(uuid.uuid4()))
     driver.click_xpath(
-        "//div[contains(@class, 'MUIDataTableFilter-root')]//span[text()='Submit']",
+        "//button[text()='Submit']",
         scroll_parent=True,
     )
 
@@ -460,7 +463,7 @@ def test_filter_by_alias_and_origin(
     )
     alias_field.send_keys(origin)
     driver.click_xpath(
-        "//div[contains(@class, 'MUIDataTableFilter-root')]//span[text()='Submit']",
+        "//button[text()='Submit']",
         scroll_parent=True,
     )
 
@@ -474,12 +477,156 @@ def test_filter_by_alias_and_origin(
     )
     origin_field.send_keys(str(uuid.uuid4()))
     driver.click_xpath(
-        "//div[contains(@class, 'MUIDataTableFilter-root')]//span[text()='Submit']",
+        "//button[text()='Submit']",
         scroll_parent=True,
     )
 
     # Should no longer see the source
     driver.wait_for_xpath_to_disappear(f'//a[@data-testid="{source_id}"]')
+
+
+def test_filter_by_gcnevent(
+    driver,
+    user,
+    super_admin_token,
+    view_only_token,
+    ztf_camera,
+    upload_data_token,
+):
+
+    datafile = f'{os.path.dirname(__file__)}/../../../../data/GW190814.xml'
+    with open(datafile, 'rb') as fid:
+        payload = fid.read()
+    data = {'xml': payload}
+
+    status, data = api('POST', 'gcn_event', data=data, token=super_admin_token)
+    assert status == 200
+    assert data['status'] == 'success'
+
+    # wait for event to load
+    for n_times in range(26):
+        status, data = api(
+            'GET', "gcn_event/2019-08-14T21:10:39", token=super_admin_token
+        )
+        if data['status'] == 'success':
+            break
+        time.sleep(2)
+    assert n_times < 25
+
+    # wait for the localization to load
+    params = {"include2DMap": True}
+    for n_times_2 in range(26):
+        status, data = api(
+            'GET',
+            'localization/2019-08-14T21:10:39/name/LALInference.v1.fits.gz',
+            token=super_admin_token,
+            params=params,
+        )
+
+        if data['status'] == 'success':
+            data = data["data"]
+            assert data["dateobs"] == "2019-08-14T21:10:39"
+            assert data["localization_name"] == "LALInference.v1.fits.gz"
+            assert np.isclose(np.sum(data["flat_2d"]), 1)
+            break
+        else:
+            time.sleep(2)
+    assert n_times_2 < 25
+
+    obj_id = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "sources",
+        data={
+            "id": obj_id,
+            "ra": 24.6258,
+            "dec": -32.9024,
+            "redshift": 3,
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+
+    status, data = api("GET", f"sources/{obj_id}", token=view_only_token)
+    assert status == 200
+
+    status, data = api(
+        'POST',
+        'photometry',
+        data={
+            'obj_id': obj_id,
+            'mjd': 58709 + 1,
+            'instrument_id': ztf_camera.id,
+            'flux': 12.24,
+            'fluxerr': 0.031,
+            'zp': 25.0,
+            'magsys': 'ab',
+            'filter': 'ztfg',
+            "ra": 24.6258,
+            "dec": -32.9024,
+            "ra_unc": 0.01,
+            "dec_unc": 0.01,
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    notinevent_obj_id = str(uuid.uuid4())
+
+    status, data = api(
+        "POST",
+        "sources",
+        data={
+            "id": notinevent_obj_id,
+            "ra": 40,
+            "dec": -10,
+            "redshift": 3,
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+
+    driver.get(f"/become_user/{user.id}")
+    driver.get("/sources")
+
+    driver.click_xpath("//button[@data-testid='Filter Table-iconButton']")
+
+    before_input = driver.wait_for_xpath('//input[@name="startDate"]')
+    before_input.send_keys("2019-08-14T21:10:39")
+
+    after_input = driver.wait_for_xpath('//input[@name="endDate"]')
+    after_input.send_keys("2019-08-21T21:10:39")
+
+    gcnevent_select = driver.wait_for_xpath(
+        '//*[@aria-labelledby="gcnEventSelectLabel"]'
+    )
+    gcnevent_select.send_keys(Keys.END)
+    driver.scroll_to_element_and_click(gcnevent_select)
+    driver.click_xpath(
+        '//li[contains(text(), "2019-08-14T21:10:39")]',
+        scroll_parent=True,
+    )
+
+    localization_select = driver.wait_for_xpath(
+        '//*[@aria-labelledby="localizationSelectLabel"]'
+    )
+    driver.scroll_to_element_and_click(localization_select)
+    driver.click_xpath(
+        '//li[contains(text(), "LALInference.v1.fits.gz")]',
+        scroll_parent=True,
+    )
+
+    driver.click_xpath(
+        "//button[text()='Submit']",
+        scroll_parent=True,
+    )
+
+    # The source that is not in the event should disappear
+    driver.wait_for_xpath_to_disappear(f'//a[@data-testid="{notinevent_obj_id}"]')
+
+    # Should see the posted source
+    driver.wait_for_xpath(f'//a[@data-testid="{obj_id}"]')
 
 
 def test_hr_diagram(
@@ -515,7 +662,7 @@ def test_hr_diagram(
         f'sources/{source_id}/annotations',
         data={
             'obj_id': source_id,
-            'origin': 'gaiaedr3.gaia_source',
+            'origin': 'gaiadr3.gaia_source',
             'data': {'Mag_G': 11.3, 'Mag_Bp': 11.8, 'Mag_Rp': 11.0, 'Plx': 20},
         },
         token=annotation_token,
@@ -528,10 +675,7 @@ def test_hr_diagram(
     obj_button = driver.wait_for_xpath("//input[@name='sourceID']")
     obj_button.clear()
     obj_button.send_keys(source_id)
-    driver.click_xpath(
-        "//div[contains(@class, 'MUIDataTableFilter-root')]//span[text()='Submit']",
-        scroll_parent=True,
-    )
+    driver.click_xpath("//button[text()='Submit']", scroll_parent=True)
 
     # find the name of the newly added source
     driver.wait_for_xpath(f"//a[contains(@href, '/source/{source_id}')]")
@@ -543,3 +687,68 @@ def test_hr_diagram(
     driver.wait_for_xpath(f'//tr[@data-testid="groupSourceExpand_{source_id}"]')
 
     driver.wait_for_xpath(f'//div[@data-testid="hr_diagram_{source_id}"]')
+
+
+def test_download_sources(driver, user, public_group, upload_data_token):
+    # generate a list of 20 source ids:
+    source_ids = [str(uuid.uuid4()) for i in range(20)]
+    origin = str(uuid.uuid4())
+    # post 20 sources:
+    for source_id in source_ids:
+        status, data = api(
+            "POST",
+            "sources",
+            data={
+                "id": source_id,
+                # random ra value
+                "ra": random.random() * 360 - 180,
+                "dec": random.random() * 180 - 90,
+                "redshift": 3,
+                "transient": False,
+                "ra_dis": 2.3,
+                "origin": origin,
+                "group_ids": [public_group.id],
+            },
+            token=upload_data_token,
+        )
+        assert status == 200
+
+    driver.get(f"/become_user/{user.id}")
+    driver.get("/sources")
+
+    # Filter for origin
+    driver.click_xpath("//button[@data-testid='Filter Table-iconButton']")
+    alias_field = driver.wait_for_xpath(
+        "//*[@data-testid='origin-text']//input",
+    )
+    alias_field.send_keys(origin)
+    driver.click_xpath(
+        "//button[text()='Submit']",
+        scroll_parent=True,
+    )
+
+    # click the download button
+    driver.click_xpath('//button[@aria-label="Download CSV"]')
+
+    driver.wait_for_xpath('//*[contains(., "Downloading 20 sources")]')
+
+    driver.wait_for_xpath_to_disappear('//*[contains(., "Downloading 20 sources")]')
+
+    # check that the download has the right number of lines
+    fpath = str(os.path.abspath(pjoin(cfg['paths.downloads_folder'], 'sources.csv')))
+    try_count = 1
+    while not os.path.exists(fpath) and try_count <= 5:
+        try_count += 1
+        time.sleep(1)
+    assert os.path.exists(fpath)
+
+    try:
+        with open(fpath) as f:
+            lines = f.read()
+        assert (
+            lines.split('\n')[0]
+            == '"id","ra [deg]","dec [deg]","redshift","classification","groups","Date saved","Alias","Origin","TNS Name"'
+        )
+        assert len(lines.split('\n')) == 21
+    finally:
+        os.remove(fpath)
