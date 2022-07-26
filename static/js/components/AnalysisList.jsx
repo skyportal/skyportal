@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useDispatch } from "react-redux";
+import { Link } from "react-router-dom";
+
 import PropTypes from "prop-types";
 import Button from "@mui/material/Button";
 import Accordion from "@mui/material/Accordion";
@@ -11,6 +13,10 @@ import Tooltip from "@mui/material/Tooltip";
 import Chip from "@mui/material/Chip";
 import DeleteIcon from "@mui/icons-material/Delete";
 import { showNotification } from "baselayer/components/Notifications";
+import dayjs from "dayjs";
+
+import utc from "dayjs/plugin/utc";
+import relativeTime from "dayjs/plugin/relativeTime";
 
 import {
   createTheme,
@@ -23,6 +29,9 @@ import makeStyles from "@mui/styles/makeStyles";
 import MUIDataTable from "mui-datatables";
 
 import * as sourceActions from "../ducks/source";
+
+dayjs.extend(relativeTime);
+dayjs.extend(utc);
 
 const useStyles = makeStyles(() => ({
   observationplanRequestTable: {
@@ -38,6 +47,16 @@ const useStyles = makeStyles(() => ({
   },
   chip: {
     margin: "0.1em",
+  },
+  infoButton: {
+    paddingRight: "0.5rem",
+  },
+  tooltipContent: {
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "center",
+    alignItems: "center",
+    width: "100%",
   },
   container: {
     margin: "1rem 0",
@@ -113,31 +132,73 @@ const AnalysisList = ({ obj_id }) => {
   const deleteAnalysis = async (analysisID) => {
     dispatch(showNotification(`Deleting Analysis (${analysisID}).`));
     dispatch(sourceActions.deleteAnalysis(analysisID));
+    const fetchAnalysesList = async (objID) => {
+      const response = await dispatch(
+        sourceActions.fetchAnalyses("obj", { objID })
+      );
+      setAnalysesList(response.data);
+    };
+    fetchAnalysesList(obj_id);
   };
 
   const getDataTableColumns = () => {
     const columns = [];
 
-    const renderDelete = (dataIndex) => {
+    const renderDedicatedPage = (dataIndex) => {
       const analysis = analysesList[dataIndex];
       return (
-        <Button
-          size="small"
-          color="primary"
-          type="button"
-          name={`deleteAnalysisButton${dataIndex}`}
-          onClick={() => deleteAnalysis(analysis.id)}
-          className="analysisDelete"
-        >
-          <DeleteIcon fontSize="small" />
-        </Button>
+        <div className={classes.infoButton}>
+          <Tooltip title="Link to analysis page" placement="top">
+            <Link to={`/source/${obj_id}/analysis/${analysis.id}`} role="link">
+              <Button variant="contained" size="small">
+                {analysis.id}
+              </Button>
+            </Link>
+          </Tooltip>
+        </div>
       );
     };
     columns.push({
-      name: "Delete",
-      label: "",
+      name: "Link",
+      label: "Analysis Page",
       options: {
-        customBodyRenderLite: renderDelete,
+        customBodyRenderLite: renderDedicatedPage,
+      },
+    });
+
+    const renderStatus = (dataIndex) => {
+      const analysis = analysesList[dataIndex];
+      let chip_color = "warning";
+      if (analysis.status === "completed") {
+        chip_color = "success";
+      }
+      if (analysis.status === "failure") {
+        chip_color = "error";
+      }
+      const last_active_str = `${dayjs().to(
+        dayjs.utc(`${analysis.last_activity}Z`)
+      )}`;
+      const duration_str = `${analysis.duration?.toFixed(2)} sec`;
+      const tooltip_str = `${last_active_str} (${duration_str})`;
+      return (
+        <div>
+          <Tooltip title={tooltip_str} placement="top">
+            <Chip
+              label={analysis?.status}
+              key={`chip${analysis.id}_${analysis.status}`}
+              size="small"
+              className={classes.chip}
+              color={chip_color}
+            />
+          </Tooltip>
+        </div>
+      );
+    };
+    columns.push({
+      name: "status",
+      label: "Status",
+      options: {
+        customBodyRenderLite: renderStatus,
       },
     });
 
@@ -166,11 +227,30 @@ const AnalysisList = ({ obj_id }) => {
       },
     });
 
-    columns.push({ name: "status", label: "Status" });
     columns.push({ name: "status_message", label: "Message" });
-    columns.push({ name: "created_at", label: "Created" });
-    columns.push({ name: "last_activity", label: "Last" });
-    columns.push({ name: "duration", label: "Duration [s]" });
+
+    const renderDelete = (dataIndex) => {
+      const analysis = analysesList[dataIndex];
+      return (
+        <Button
+          size="small"
+          color="primary"
+          type="button"
+          name={`deleteAnalysisButton${dataIndex}`}
+          onClick={() => deleteAnalysis(analysis.id)}
+          className="analysisDelete"
+        >
+          <DeleteIcon fontSize="small" />
+        </Button>
+      );
+    };
+    columns.push({
+      name: "Delete",
+      label: "",
+      options: {
+        customBodyRenderLite: renderDelete,
+      },
+    });
 
     const renderAnalysisParameters = (dataIndex) => {
       const analysis = analysesList[dataIndex];
