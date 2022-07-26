@@ -9,6 +9,7 @@ import PropTypes from "prop-types";
 import CircularProgress from "@mui/material/CircularProgress";
 import makeStyles from "@mui/styles/makeStyles";
 import dataUriToBuffer from "data-uri-to-buffer";
+// eslint-disable-next-line import/no-unresolved
 import { showNotification } from "baselayer/components/Notifications";
 
 import dayjs from "dayjs";
@@ -77,6 +78,21 @@ const ImageAnalysisForm = ({ obj_id }) => {
     setSelectedInstrumentId(e.target.value);
   };
 
+  const catalogs = [
+    "ps1",
+    "gaiadr2",
+    "gaiaedr3",
+    "skymapper",
+    "vsx",
+    "apass",
+    "sdss",
+    "atlas",
+    "usnob1",
+    "gsc",
+  ];
+  const astrometric_refinement_method = ["scamp", "astropy", "astrometrynet"];
+  const templates = ["PanSTARRS/DR1/g", "PanSTARRS/DR1/r", "PanSTARRS/DR1/i"];
+
   const imageAnalysisFormSchema = {
     type: "object",
     properties: {
@@ -94,6 +110,60 @@ const ImageAnalysisForm = ({ obj_id }) => {
         })),
         title: "Filter list",
         default: instLookUp[selectedInstrumentId]?.filters[0],
+      },
+      gain: {
+        type: "number",
+        title: "Gain",
+        default: instLookUp[selectedInstrumentId]?.gain,
+      },
+      s_n_detection: {
+        type: "number",
+        title: "S/N Detection",
+        default: 5,
+      },
+      s_n_blind_match: {
+        type: "number",
+        title: "S/N Blind Match",
+        default: 20,
+      },
+      upper_scale: {
+        type: "number",
+        title: "Upper Scale",
+        default: 5,
+      },
+      lower_scale: {
+        type: "number",
+        title: "Lower Scale",
+        default: 0.1,
+      },
+      astrometric_refinement_cat: {
+        type: "string",
+        title: "Astrometric Refinement Catalog",
+        default: "ps1",
+        enum: catalogs,
+      },
+      astrometric_refinement_meth: {
+        type: "string",
+        title: "Astrometric Refinement Method",
+        default: "astropy",
+        enum: astrometric_refinement_method,
+      },
+      matching_radius: {
+        type: "number",
+        title: "Matching Radius",
+        default: 2 / 3600,
+      },
+      crossmatch_catalog: {
+        type: "string",
+        title: "Crossmatch Catalog",
+        default: "ps1",
+        enum: catalogs,
+      },
+      template: {
+        type: "string",
+        title: "Template",
+        default: "PanSTARRS/DR1/g",
+        enum: templates,
       },
       image_file: {
         type: "string",
