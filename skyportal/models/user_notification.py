@@ -97,11 +97,11 @@ def notification_resource_type(target):
 
 
 def user_preferences(target, notification_setting, resource_type):
-    if not resource_type:
+    if not isinstance(notification_setting, str):
+        return
+    if not isinstance(resource_type, str):
         return
     if not target.user:
-        return
-    if not notification_setting:
         return
 
     if notification_setting == "email":
@@ -355,13 +355,9 @@ def add_user_notifications(mapper, connection, target):
                 )
             ).all()
             for gu in group_admins_gu:
-                group_admin = (
-                    session.scalars(
-                        sa.select(User).where(User.id == gu.user_id)
-                    ).first()
-                    if gu is not None
-                    else None
-                )
+                group_admin = session.scalars(
+                    sa.select(User).where(User.id == gu.user_id)
+                ).first()
 
                 if group_admin is not None:
                     users.append(group_admin)
