@@ -29,14 +29,6 @@ export const patchSourceInGcn = (dateobs, source_id, data) =>
     data
   );
 
-// Websocket message handler
-// messageHandler.add((actionType, payload, dispatch) => {
-//   const data = payload.data;
-//   if (actionType === FETCH_SOURCES_IN_GCN) {
-//     dispatch(fetchSourceIn(data.dateobs, data.localization_name));
-//   }
-// });
-
 const reducer = (state = { sourcesingcn: [] }, action) => {
   switch (action.type) {
     case FETCH_SOURCES_IN_GCN_OK: {

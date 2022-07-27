@@ -1,9 +1,10 @@
 from baselayer.app.access import auth_or_token, permissions
 from skyportal.models.gcn import GcnEvent
 from ..base import BaseHandler
-from ...models import DBSession, Localization, SourcesInGCN
+from ...models import Localization, SourcesInGCN
 
 from .source import get_sources, MAX_SOURCES_PER_PAGE
+import sqlalchemy as sa
 
 
 class SourcesInGcnHandler(BaseHandler):
@@ -43,48 +44,56 @@ class SourcesInGcnHandler(BaseHandler):
             return self.error(message="Missing endDate")
 
         with self.Session() as session:
-            sources = get_sources(
-                user_id=self.associated_user_object.id,
-                session=session,
-                first_detected_date=start_date,
-                last_detected_date=end_date,
-                localization_dateobs=dateobs,
-                localization_name=localization_name,
-                localization_cumprob=localization_cumprob,
-                page_number=1,
-                num_per_page=MAX_SOURCES_PER_PAGE,
-                sourceID=source_id,
-            )
+            try:
+                sources = get_sources(
+                    user_id=self.associated_user_object.id,
+                    session=session,
+                    first_detected_date=start_date,
+                    last_detected_date=end_date,
+                    localization_dateobs=dateobs,
+                    localization_name=localization_name,
+                    localization_cumprob=localization_cumprob,
+                    page_number=1,
+                    num_per_page=MAX_SOURCES_PER_PAGE,
+                    sourceID=source_id,
+                )
 
-            sources = sources['sources']
+                sources = sources['sources']
 
-        if len(sources) == 0:
-            return self.error("No sources found")
+                if len(sources) == 0:
+                    return self.error("No sources found")
 
-        localization = Localization.query.filter(
-            Localization.localization_name == localization_name,
-            Localization.dateobs == dateobs,
-        ).first()
-        if not localization:
-            return self.error("Localization not found")
+                stmt = sa.select(Localization).where(
+                    Localization.localization_name == localization_name,
+                    Localization.dateobs == dateobs,
+                )
+                localization = session.scalars(stmt).first()
+                if not localization:
+                    return self.error("Localization not found")
 
-        source_in_gcn = SourcesInGCN.query.filter(
-            SourcesInGCN.obj_id == source_id,
-            SourcesInGCN.dateobs == dateobs,
-        ).first()
-        if source_in_gcn:
-            return self.error(
-                "Source is already confirmed or rejected in this localization"
-            )
+                stmt = sa.select(SourcesInGCN).where(
+                    SourcesInGCN.dateobs == dateobs,
+                    SourcesInGCN.obj_id == source_id,
+                )
+                source_in_gcn = session.scalars(stmt).first()
+                if source_in_gcn:
+                    return self.error(
+                        "Source is already confirmed or rejected in this localization"
+                    )
 
-        source_in_gcn = SourcesInGCN(
-            obj_id=source_id,
-            dateobs=dateobs,
-            confirmed_or_rejected=confirmed_or_rejected,
-        )
-        DBSession.add(source_in_gcn)
-        DBSession.commit()
-        return self.success(data={'id': source_in_gcn.id})
+                source_in_gcn = SourcesInGCN(
+                    obj_id=source_id,
+                    dateobs=dateobs,
+                    confirmed_or_rejected=confirmed_or_rejected,
+                )
+                session.add(source_in_gcn)
+                session.commit()
+                source_in_gcn_id = source_in_gcn.id
+            except Exception as e:
+                session.rollback()
+                return self.error(str(e))
+
+        return self.success(data={'id': source_in_gcn_id})
 
     @auth_or_token
     def get(self, dateobs):
@@ -95,24 +104,28 @@ class SourcesInGcnHandler(BaseHandler):
 
         sources_id_list = sources_id_list.split(',')
 
-        gcn_event = GcnEvent.query.filter(GcnEvent.dateobs == dateobs).first()
-        if not gcn_event:
-            return self.error(f"GCN event not found for dateobs: {dateobs}")
+        with self.Session() as session:
+            try:
+                stmt = sa.select(GcnEvent).where(GcnEvent.dateobs == dateobs)
+                gcn_event = session.scalars(stmt).first()
+                if not gcn_event:
+                    return self.error(f"GCN event not found for dateobs: {dateobs}")
 
-        if len(sources_id_list) == 0:
-            sources_in_gcn = SourcesInGCN.query.filter(
-                Localization.dateobs == dateobs
-            ).all()
-            return self.success(data=sources_in_gcn)
-        else:
-            sources_in_gcn = (
-                SourcesInGCN.query.filter(
-                    Localization.dateobs == dateobs,
-                )
-                .filter(SourcesInGCN.obj_id.in_(sources_id_list))
-                .all()
-            )
-            return self.success(data=sources_in_gcn)
+                if len(sources_id_list) == 0:
+                    stmt = sa.select(SourcesInGCN).where(
+                        Localization.dateobs == dateobs
+                    )
+                    sources_in_gcn = session.scalars(stmt).all()
+                else:
+                    stmt = sa.select(SourcesInGCN).where(
+                        Localization.dateobs == dateobs,
+                        SourcesInGCN.obj_id.in_(sources_id_list),
+                    )
+                    sources_in_gcn = session.scalars(stmt).all()
+            except Exception as e:
+                return self.error(str(e))
+
+        return self.success(data=sources_in_gcn)
 
     @permissions(['Manage GCNs'])
     def put(self, dateobs, source_id):
@@ -123,23 +136,37 @@ class SourcesInGcnHandler(BaseHandler):
         if not isinstance(confirmed_or_rejected, bool):
             return self.error("confirmed_or_rejected must be a boolean")
 
-        gcn_event = GcnEvent.query.filter(GcnEvent.dateobs == dateobs).first()
-        if not gcn_event:
-            return self.error(f"GCN event not found for dateobs: {dateobs}")
+        with self.Session() as session:
+            try:
+                stmt = sa.select(GcnEvent).where(GcnEvent.dateobs == dateobs)
+                gcn_event = session.scalars(stmt).first()
+                if not gcn_event:
+                    return self.error(f"GCN event not found for dateobs: {dateobs}")
 
-        source_in_gcn = (
-            SourcesInGCN.query_records_accessible_by(self.current_user, mode="update")
-            .filter(
-                SourcesInGCN.obj_id == source_id,
-                SourcesInGCN.dateobs == dateobs,
-            )
-            .first()
-        )
-        if not source_in_gcn:
-            return self.error("Source is not confirmed or rejected in this GCN event")
-        source_in_gcn.confirmed_or_rejected = confirmed_or_rejected
+                stmt = sa.select(SourcesInGCN).where(
+                    SourcesInGCN.dateobs == dateobs, SourcesInGCN.obj_id == source_id
+                )
+                source_in_gcn = session.scalars(stmt).first()
+                source_in_gcn = (
+                    SourcesInGCN.query_records_accessible_by(
+                        self.current_user, mode="update"
+                    )
+                    .filter(
+                        SourcesInGCN.obj_id == source_id,
+                        SourcesInGCN.dateobs == dateobs,
+                    )
+                    .first()
+                )
+                if not source_in_gcn:
+                    return self.error(
+                        "Source is not confirmed or rejected in this GCN event"
+                    )
+                source_in_gcn.confirmed_or_rejected = confirmed_or_rejected
+            except Exception as e:
+                session.rollback()
+                return self.error(str(e))
 
-        DBSession.commit()
+        self.verify_and_commit()
         return self.success(data={'id': source_in_gcn.id})
 
     @permissions(['Manage GCNs'])
@@ -147,37 +174,40 @@ class SourcesInGcnHandler(BaseHandler):
         if not isinstance(source_id, str):
             return self.error("source_id must be a string")
 
-        gcn_event = GcnEvent.query.filter(GcnEvent.dateobs == dateobs).first()
-        if not gcn_event:
-            return self.error(f"GCN event not found for dateobs: {dateobs}")
-
-        source_in_gcn = (
-            SourcesInGCN.query_records_accessible_by(self.current_user, mode="delete")
-            .filter(
-                SourcesInGCN.obj_id == source_id,
-                SourcesInGCN.dateobs == dateobs,
-            )
-            .first()
-        )
-        if not source_in_gcn:
-            return self.error("Source is not confirmed or rejected in this GCN event")
-
-        DBSession.delete(source_in_gcn)
-        DBSession.commit()
+        with self.Session() as session:
+            try:
+                stmt = sa.select(GcnEvent).where(GcnEvent.dateobs == dateobs)
+                gcn_event = session.scalars(stmt).first()
+                if not gcn_event:
+                    return self.error(f"GCN event not found for dateobs: {dateobs}")
+                stmt = sa.select(SourcesInGCN).where(
+                    SourcesInGCN.obj_id == source_id, SourcesInGCN.dateobs == dateobs
+                )
+                source_in_gcn = session.scalars(stmt).first()
+                if not source_in_gcn:
+                    return self.error(
+                        "Source is not confirmed or rejected in this GCN event"
+                    )
+                session.delete(source_in_gcn)
+                session.commit()
+            except Exception as e:
+                session.rollback()
+                return self.error(str(e))
         return self.success(data={'id': source_in_gcn.id})
 
 
 class SourceInGcnsHandler(BaseHandler):
     @auth_or_token
     def get(self, source_id):
-        source_in_gcn = (
-            SourcesInGCN.query.filter(SourcesInGCN.obj_id == source_id)
-            .filter(SourcesInGCN.confirmed_or_rejected.is_(True))
-            .all()
-        )
-
-        # transform it in a list of gcn events (list of dateobs)
-        gcn_events = []
-        for source in source_in_gcn:
-            gcn_events.append(source.dateobs)
-        return self.success(data={"gcns": gcn_events})
+        if not isinstance(source_id, str):
+            return self.error("source_id must be a string")
+        with self.Session() as session:
+            try:
+                stmt = sa.select(SourcesInGCN.dateobs).where(
+                    SourcesInGCN.obj_id == source_id,
+                    SourcesInGCN.confirmed_or_rejected.is_(True),
+                )
+                gcns = session.scalars(stmt.distinct()).all()
+            except Exception as e:
+                return self.error(str(e))
+        return self.success(data={"gcns": gcns})

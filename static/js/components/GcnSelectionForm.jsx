@@ -194,7 +194,6 @@ const GcnSelectionForm = ({
       await dispatch(
         sourcesActions.fetchGcnEventSources(gcnEvent.dateobs, formData)
       );
-      console.log(formData);
       setSourceFilteringState(formData);
     }
     formData.includeGeoJSON = true;
