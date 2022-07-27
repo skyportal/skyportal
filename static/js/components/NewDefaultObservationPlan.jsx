@@ -62,9 +62,7 @@ const NewDefaultObservationPlan = () => {
       // update
 
       const result = await dispatch(
-        allocationActions.fetchAllocationsApiObsplan({
-          apiType: "api_classname_obsplan",
-        })
+        allocationActions.fetchAllocationsApiObsplan()
       );
 
       const { data } = result;
@@ -94,7 +92,7 @@ const NewDefaultObservationPlan = () => {
     !selectedAllocationId ||
     Object.keys(instrumentFormParams).length === 0
   ) {
-    return <h3>No robotic instruments available...</h3>;
+    return <h3>No allocations with an observation plan API...</h3>;
   }
 
   if (
