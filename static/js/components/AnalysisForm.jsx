@@ -107,11 +107,23 @@ const AnalysisForm = ({ obj_id }) => {
 
   const handleSubmit = async ({ formData }) => {
     setIsSubmitting(true);
-    let params;
-    if (selectedGroupIds.length === 0) {
-      params = { analysis_parameters: formData };
-    } else {
-      params = { analysis_parameters: formData, group_ids: selectedGroupIds };
+    const analysis_parameters = {
+      ...formData,
+    };
+
+    delete analysis_parameters.show_parameters;
+    delete analysis_parameters.show_plots;
+    delete analysis_parameters.show_corner;
+
+    const params = {
+      show_parameters: formData.show_parameters,
+      show_plots: formData.show_plots,
+      show_corner: formData.show_corner,
+      analysis_parameters,
+    };
+
+    if (selectedGroupIds.length >= 0) {
+      params.group_ids = selectedGroupIds;
     }
     await dispatch(
       sourceActions.startAnalysis(obj_id, selectedAnalysisServiceId, params)
@@ -136,17 +148,46 @@ const AnalysisForm = ({ obj_id }) => {
       const params =
         analysisServiceLookUp[selectedAnalysisServiceId]
           ?.optional_analysis_parameters[key];
-      OptionalParameters[key] = { type: "string", enum: params };
+      if (["True", "False"].every((val) => params.includes(val))) {
+        OptionalParameters[key] = { type: "boolean" };
+      } else {
+        OptionalParameters[key] = { type: "string", enum: params };
+      }
     });
   }
 
   const AnalysisSelectionFormSchema = {
     type: "object",
-    properties: OptionalParameters,
-    required: Object.keys(
-      analysisServiceLookUp[selectedAnalysisServiceId]
-        ?.optional_analysis_parameters
-    ),
+    properties: {
+      ...OptionalParameters,
+      show_parameters: {
+        type: "boolean",
+        title: "Show Parameters",
+        description: "Whether to render the parameters of this analysis",
+        default: false,
+      },
+      show_plots: {
+        type: "boolean",
+        title: "Show Plots",
+        description: "Whether to render the plots of this analysis",
+        default: false,
+      },
+      show_corner: {
+        type: "boolean",
+        title: "Show Corner",
+        description: "Whether to render the corner of this analysis",
+        default: false,
+      },
+    },
+    required: [
+      ...Object.keys(
+        analysisServiceLookUp[selectedAnalysisServiceId]
+          ?.optional_analysis_parameters
+      ),
+      "show_parameters",
+      "show_plots",
+      "show_corner",
+    ],
   };
 
   return (
