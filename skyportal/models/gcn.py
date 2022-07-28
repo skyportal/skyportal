@@ -190,9 +190,6 @@ class GcnEvent(Base):
         doc="List of different names for this event, parsed from different GCN notices.",
     )
 
-    # TODO: Delete this comment once you have generated the migration script for this new column.
-    # Here's the docs to do it: https://skyportal.io/docs/migrations.html
-
     @hybrid_property
     def tags(self):
         """List of tags."""
