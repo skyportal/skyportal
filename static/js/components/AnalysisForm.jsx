@@ -76,10 +76,6 @@ const AnalysisForm = ({ obj_id }) => {
 
   useEffect(() => {
     const getAnalysisServices = async () => {
-      // Wait for the allocations to update before setting
-      // the new default form fields, so that the instruments list can
-      // update
-
       const result = await dispatch(
         analysisServicesActions.fetchAnalysisServices()
       );

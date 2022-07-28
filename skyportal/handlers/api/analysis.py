@@ -946,8 +946,7 @@ class AnalysisHandler(BaseHandler):
               schema:
                 type: string
               description: |
-                Return any analysis on an object with ID that has a (partial) match
-                to this argument (i.e., the given argument is "in" the object's ID).
+                Return any analysis on an object with ID objID
             - in: query
               name: includeAnalysisData
               nullable: true
