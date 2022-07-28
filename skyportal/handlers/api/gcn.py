@@ -12,6 +12,8 @@ import humanize
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm import sessionmaker, scoped_session
+from marshmallow import Schema
+from marshmallow.exceptions import ValidationError
 
 from skyportal.models.photometry import Photometry
 
@@ -21,6 +23,7 @@ from .galaxy import get_galaxies, MAX_GALAXIES
 import pandas as pd
 from tabulate import tabulate
 import datetime
+from ...utils.UTCTZnaiveDateTime import UTCTZnaiveDateTime
 
 from baselayer.app.access import auth_or_token
 from baselayer.log import make_log
@@ -79,17 +82,18 @@ def post_gcnevent_from_xml(payload, user_id, session):
 
     dateobs = get_dateobs(root)
 
-    try:
-        event = GcnEvent.query.filter_by(dateobs=dateobs).one()
+    event = session.scalars(
+        GcnEvent.select(user).where(GcnEvent.dateobs == dateobs)
+    ).first()
 
+    if event is None:
+        event = GcnEvent(dateobs=dateobs, sent_by_id=user.id)
+        session.add(event)
+    else:
         if not event.is_accessible_by(user, mode="update"):
             raise ValueError(
                 "Insufficient permissions: GCN event can only be updated by original poster"
             )
-
-    except NoResultFound:
-        event = GcnEvent(dateobs=dateobs, sent_by_id=user.id)
-        session.add(event)
 
     tags = [
         GcnTag(
@@ -160,17 +164,18 @@ def post_gcnevent_from_dictionary(payload, user_id, session):
 
     dateobs = payload['dateobs']
 
-    try:
-        event = GcnEvent.query.filter_by(dateobs=dateobs).one()
+    event = session.scalars(
+        GcnEvent.select(user).where(GcnEvent.dateobs == dateobs)
+    ).first()
 
+    if event is None:
+        event = GcnEvent(dateobs=dateobs, sent_by_id=user.id)
+        session.add(event)
+    else:
         if not event.is_accessible_by(user, mode="update"):
             raise ValueError(
                 "Insufficient permissions: GCN event can only be updated by original poster"
             )
-
-    except NoResultFound:
-        event = GcnEvent(dateobs=dateobs, sent_by_id=user.id)
-        session.add(event)
 
     tags = [
         GcnTag(
@@ -190,10 +195,12 @@ def post_gcnevent_from_dictionary(payload, user_id, session):
         return event.id
 
     if type(skymap) is dict:
-        required_keys = {'ra', 'dec', 'error'}
+        required_keys = {'localization_name', 'uniq', 'probdensity'}
         if not required_keys.issubset(set(skymap.keys())):
-            raise ValueError("ra, dec, and error must be in skymap to parse")
-        skymap = from_cone(skymap['ra'], skymap['dec'], skymap['error'])
+            required_cone_keys = {'ra', 'dec', 'error'}
+            if not required_cone_keys.issubset(set(skymap.keys())):
+                raise ValueError("ra, dec, and error must be in skymap to parse")
+            skymap = from_cone(skymap['ra'], skymap['dec'], skymap['error'])
     else:
         skymap = from_url(skymap)
 
@@ -370,7 +377,7 @@ class GcnEventHandler(BaseHandler):
                     "Either xml or dateobs must be present in data to parse GcnEvent"
                 )
 
-        with DBSession() as session:
+        with self.Session() as session:
             if 'xml' in data:
                 event_id = post_gcnevent_from_xml(
                     data['xml'], self.associated_user_object.id, session
@@ -380,7 +387,7 @@ class GcnEventHandler(BaseHandler):
                     data, self.associated_user_object.id, session
                 )
 
-        return self.success(data={'gcnevent_id': event_id})
+            return self.success(data={'gcnevent_id': event_id})
 
     @auth_or_token
     async def get(self, dateobs=None):
@@ -411,6 +418,9 @@ class GcnEventHandler(BaseHandler):
             n_per_page = int(n_per_page)
         except ValueError as e:
             return self.error(f'numPerPage fails: {e}')
+
+        sort_by = self.get_query_argument("sortBy", None)
+        sort_order = self.get_query_argument("sortOrder", "asc")
 
         if dateobs is not None:
             event = (
@@ -467,6 +477,21 @@ class GcnEventHandler(BaseHandler):
         )
 
         total_matches = query.count()
+
+        order_by = None
+        if sort_by is not None:
+            if sort_by == "dateobs":
+                order_by = (
+                    [GcnEvent.dateobs]
+                    if sort_order == "asc"
+                    else [GcnEvent.dateobs.desc()]
+                )
+
+        if order_by is None:
+            order_by = [GcnEvent.dateobs.desc()]
+
+        query = query.order_by(*order_by)
+
         if n_per_page is not None:
             query = (
                 query.distinct()
@@ -780,6 +805,26 @@ class GcnSummaryHandler(BaseHandler):
         show_galaxies = self.get_query_argument('showGalaxies', False)
         show_observations = self.get_query_argument('showObservations', False)
         no_text = self.get_query_argument('noText', False)
+
+        class Validator(Schema):
+            start_date = UTCTZnaiveDateTime(required=False, missing=None)
+            end_date = UTCTZnaiveDateTime(required=False, missing=None)
+
+        validator_instance = Validator()
+        params_to_be_validated = {}
+        if start_date is not None:
+            params_to_be_validated['start_date'] = start_date
+        if end_date is not None:
+            params_to_be_validated['end_date'] = end_date
+
+        try:
+            validated = validator_instance.load(params_to_be_validated)
+        except ValidationError as e:
+            return self.error(f'Error parsing query params: {e.args[0]}.')
+
+        start_date = validated['start_date']
+        end_date = validated['end_date']
+
         try:
             if not no_text:
                 if title is None:
@@ -1081,8 +1126,8 @@ class GcnSummaryHandler(BaseHandler):
                 if show_observations:
                     # get the executed obs, by instrument
                     observations_text = []
-                    start_date = arrow.get(start_date.strip()).datetime
-                    end_date = arrow.get(end_date.strip()).datetime
+                    start_date = arrow.get(start_date).datetime
+                    end_date = arrow.get(end_date).datetime
 
                     stmt = Instrument.select(session.user_or_token).options(
                         joinedload(Instrument.telescope)

@@ -2,6 +2,8 @@ import os
 import numpy as np
 
 from skyportal.tests import api
+from skyportal.utils.gcn import from_url
+
 import time
 import uuid
 import pandas as pd
@@ -105,7 +107,7 @@ def test_gcn_Fermi(super_admin_token, view_only_token):
     assert status == 200
 
 
-def test_gcn_IPN(super_admin_token, view_only_token):
+def test_gcn_IPN(super_admin_token):
 
     skymap = f'{os.path.dirname(__file__)}/../data/GRB220617A_IPN_map_hpx.fits.gz'
     dateobs = '2022-06-17T18:31:12'
@@ -113,7 +115,18 @@ def test_gcn_IPN(super_admin_token, view_only_token):
 
     data = {'dateobs': dateobs, 'skymap': skymap, 'tags': tags}
 
-    status, data = api('POST', 'gcn_event', data=data, token=super_admin_token)
+    nretries = 0
+    posted = False
+    while nretries < 10 and not posted:
+        status, data = api('POST', 'gcn_event', data=data, token=super_admin_token)
+        if status == 200:
+            posted = True
+        else:
+            nretries += 1
+            time.sleep(3)
+
+    assert nretries < 10
+    assert posted is True
     assert status == 200
     assert data['status'] == 'success'
 
@@ -122,6 +135,27 @@ def test_gcn_IPN(super_admin_token, view_only_token):
     assert status == 200
     data = data["data"]
     assert data["dateobs"] == "2022-06-17T18:31:12"
+    assert 'IPN' in data["tags"]
+
+
+def test_gcn_from_moc(super_admin_token, view_only_token):
+
+    skymap = f'{os.path.dirname(__file__)}/../data/GRB220617A_IPN_map_hpx.fits.gz'
+    dateobs = '2022-06-18T18:31:12'
+    tags = ['IPN', 'GRB']
+    skymap = from_url(skymap)
+
+    data = {'dateobs': dateobs, 'skymap': skymap, 'tags': tags}
+
+    status, data = api('POST', 'gcn_event', data=data, token=super_admin_token)
+    assert status == 200
+    assert data['status'] == 'success'
+
+    dateobs = "2022-06-18 18:31:12"
+    status, data = api('GET', f'gcn_event/{dateobs}', token=super_admin_token)
+    assert status == 200
+    data = data["data"]
+    assert data["dateobs"] == "2022-06-18T18:31:12"
     assert 'IPN' in data["tags"]
 
 
@@ -614,7 +648,7 @@ def test_gcn_summary_observations(
 
     # wait for the executed observations to populate
 
-    data = {
+    params = {
         'telescopeName': name,
         'instrumentName': instrument_name,
         'startDate': '2019-08-13 08:18:05',
@@ -622,18 +656,22 @@ def test_gcn_summary_observations(
     }
     nretries = 0
     observations_loaded = False
-    while not observations_loaded and nretries < 26:
+    while not observations_loaded and nretries < 25:
         try:
             status, data = api(
-                'GET', 'observation', params=data, token=super_admin_token
+                'GET', 'observation', params=params, token=super_admin_token
             )
             assert status == 200
             data = data["data"]
-            assert len(data['observations']) == 10
+            assert len(data['observations']) >= 9
             observations_loaded = True
         except AssertionError:
             nretries = nretries + 1
             time.sleep(2)
+
+    assert nretries < 25
+    assert status == 200
+    assert observations_loaded is True
 
     # get the gcn event summary
     params = {

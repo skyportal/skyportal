@@ -551,7 +551,7 @@ def test_gcn_summary_observations(
 
     # wait for the executed observations to populate
 
-    data = {
+    params = {
         'telescopeName': name,
         'instrumentName': instrument_name,
         'startDate': '2019-08-13 08:18:05',
@@ -559,19 +559,22 @@ def test_gcn_summary_observations(
     }
     nretries = 0
     observations_loaded = False
-    while not observations_loaded and nretries < 26:
+    while not observations_loaded and nretries < 25:
         try:
             status, data = api(
-                'GET', 'observation', params=data, token=super_admin_token
+                'GET', 'observation', params=params, token=super_admin_token
             )
             assert status == 200
             data = data["data"]
-            assert len(data['observations']) == 10
+            assert len(data['observations']) >= 9
             observations_loaded = True
         except AssertionError:
             nretries = nretries + 1
             time.sleep(2)
 
+    assert nretries < 25
+    assert status == 200
+    assert observations_loaded is True
     # get the gcn event summary
     params = {
         "title": "gcn summary",
@@ -604,7 +607,6 @@ def test_gcn_summary_observations(
         with open(fpath) as f:
             lines = f.read()
         data = lines.split('\n')
-        print(data)
         assert "TITLE: GCN SUMMARY" in data[0]
         assert "SUBJECT: Follow-up" in data[1]
         assert "DATE" in data[2]
