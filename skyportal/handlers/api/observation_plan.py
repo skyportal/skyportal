@@ -1516,7 +1516,8 @@ def observation_simsurvey(
 
     session = Session()
 
-    try:
+    # try:
+    if True:
 
         localization = session.scalars(
             sa.select(Localization).where(Localization.id == localization_id)
@@ -1603,21 +1604,32 @@ def observation_simsurvey(
 
         order = hp.nside2order(localization.nside)
         t = rasterize(localization.table, order)
-        result = t['PROB'], t['DISTMU'], t['DISTSIGMA'], t['DISTNORM']
-        hp_data = hp.reorder(result, 'NESTED', 'RING')
-        map_struct = {}
-        map_struct['prob'] = hp_data[0]
-        map_struct['distmu'] = hp_data[1]
-        map_struct['distsigma'] = hp_data[2]
 
-        distmean, diststd = parameters_to_marginal_moments(
-            map_struct['prob'], map_struct['distmu'], map_struct['distsigma']
-        )
+        if 'DISTMU' in t:
+            result = t['PROB'], t['DISTMU'], t['DISTSIGMA'], t['DISTNORM']
+            hp_data = hp.reorder(result, 'NESTED', 'RING')
+            map_struct = {}
+            map_struct['prob'] = hp_data[0]
+            map_struct['distmu'] = hp_data[1]
+            map_struct['distsigma'] = hp_data[2]
 
-        distance_lower = astropy.coordinates.Distance(
-            np.max([1, (distmean - 5 * diststd)]) * u.Mpc
-        )
-        distance_upper = astropy.coordinates.Distance((distmean + 5 * diststd) * u.Mpc)
+            distmean, diststd = parameters_to_marginal_moments(
+                map_struct['prob'], map_struct['distmu'], map_struct['distsigma']
+            )
+
+            distance_lower = astropy.coordinates.Distance(
+                np.max([1, (distmean - 5 * diststd)]) * u.Mpc
+            )
+            distance_upper = astropy.coordinates.Distance(
+                (distmean + 5 * diststd) * u.Mpc
+            )
+        else:
+            result = t['PROB']
+            hp_data = hp.reorder(result, 'NESTED', 'RING')
+            map_struct = {}
+            map_struct['prob'] = hp_data
+            distance_lower = astropy.coordinates.Distance(1 * u.Mpc)
+            distance_upper = astropy.coordinates.Distance(1000 * u.Mpc)
 
         if model_name == "kilonova":
             phase, wave, cos_theta, flux = model_tools.read_possis_file(
@@ -1752,12 +1764,12 @@ def observation_simsurvey(
             f"Finished survey efficiency analysis for ID {survey_efficiency_analysis.id}"
         )
 
-    except Exception as e:
-        return log(
-            f"Unable to complete survey efficiency analysis {survey_efficiency_analysis.id}: {e}"
-        )
-    finally:
-        Session.remove()
+    # except Exception as e:
+    #    return log(
+    #        f"Unable to complete survey efficiency analysis {survey_efficiency_analysis.id}: {e}"
+    #    )
+    # finally:
+    #    Session.remove()
 
 
 def observation_simsurvey_plot(
