@@ -4,6 +4,7 @@ import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
 import makeStyles from "@mui/styles/makeStyles";
 
+import * as allocationActions from "../ducks/allocations";
 import * as profileActions from "../ducks/profile";
 import UserPreferencesHeader from "./UserPreferencesHeader";
 
@@ -18,7 +19,9 @@ const useStyles = makeStyles(() => ({
 
 const FollowupRequestPreferences = () => {
   const { telescopeList } = useSelector((state) => state.telescopes);
-  const { allocationList } = useSelector((state) => state.allocations);
+  const { allocationListApiClassname } = useSelector(
+    (state) => state.allocations
+  );
   const allGroups = useSelector((state) => state.groups.all);
   const { instrumentList, instrumentFormParams } = useSelector(
     (state) => state.instruments
@@ -33,9 +36,13 @@ const FollowupRequestPreferences = () => {
   const dispatch = useDispatch();
 
   useEffect(() => {
-    allocationList.unshift({ id: -1, name: "Clear selection" });
-  }, [dispatch, allocationList]);
+    dispatch(allocationActions.fetchAllocationsApiClassname());
+  }, [dispatch]);
 
+  const allocationListApiClassnameOptions = [
+    { id: -1, name: "No preference" },
+    ...allocationListApiClassname,
+  ];
   const handleChange = (event) => {
     const prefs = {
       followupDefault: event.target.value === -1 ? null : event.target.value,
@@ -45,12 +52,12 @@ const FollowupRequestPreferences = () => {
   };
 
   if (
-    allocationList.length === 0 ||
+    allocationListApiClassname.length === 0 ||
     instrumentList.length === 0 ||
     telescopeList.length === 0 ||
     Object.keys(instrumentFormParams).length === 0
   ) {
-    return <h3>No robotic instruments available...</h3>;
+    return <h3>No allocations with an API...</h3>;
   }
 
   const groupLookUp = {};
@@ -67,7 +74,7 @@ const FollowupRequestPreferences = () => {
 
   const allocationLookUp = {};
   // eslint-disable-next-line no-unused-expressions
-  allocationList?.forEach((allocation) => {
+  allocationListApiClassnameOptions?.forEach((allocation) => {
     allocationLookUp[allocation.id] = allocation;
   });
 
@@ -91,14 +98,14 @@ const FollowupRequestPreferences = () => {
         name="followupRequestAllocationSelect"
         className={classes.allocationSelect}
       >
-        {allocationList?.map((allocation) => (
+        {allocationListApiClassnameOptions?.map((allocation) => (
           <MenuItem
             value={allocation.id}
             key={allocation.id}
             className={classes.SelectItem}
           >
             {allocation.id === -1 ? (
-              <div>No preference</div>
+              allocation.name
             ) : (
               <div>
                 {`${

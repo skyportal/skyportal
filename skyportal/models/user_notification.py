@@ -23,6 +23,7 @@ from .spectrum import Spectrum
 from .comment import Comment
 from .listing import Listing
 from .facility_transaction import FacilityTransaction
+from .group import GroupAdmissionRequest, GroupUser, Group
 from ..email_utils import send_email
 from twilio.rest import Client as TwilioClient
 import gcn
@@ -96,12 +97,11 @@ def notification_resource_type(target):
 
 
 def user_preferences(target, notification_setting, resource_type):
-    if not resource_type:
+    if not isinstance(notification_setting, str):
+        return
+    if not isinstance(resource_type, str):
         return
     if not target.user:
-        return
-
-    if not target.user.preferences:
         return
 
     if notification_setting == "email":
@@ -109,12 +109,21 @@ def user_preferences(target, notification_setting, resource_type):
             return
         if not target.user.contact_email:
             return
-    elif notification_setting == "sms":
+        # this ensures that an email is sent regardless of the user's preferences
+        # this is useful for group_admission_requests, where we want the admins to always be notified by email
+        if resource_type in ['group_admission_request']:
+            return True
+
+    if not target.user.preferences:
+        return
+
+    if notification_setting == "sms":
         if client is None:
             return
         if not target.user.contact_phone:
             return
-    elif notification_setting == "slack":
+
+    if notification_setting == "slack":
         if not target.user.preferences.get('slack_integration'):
             return
         if not target.user.preferences['slack_integration'].get("active"):
@@ -127,6 +136,7 @@ def user_preferences(target, notification_setting, resource_type):
             return
 
     prefs = target.user.preferences.get('notifications')
+
     if not prefs:
         return
     else:
@@ -143,6 +153,7 @@ def user_preferences(target, notification_setting, resource_type):
                 return
             if not prefs[resource_type][notification_setting].get("active", False):
                 return
+
         return prefs
 
 
@@ -208,6 +219,10 @@ def send_email_notification(mapper, connection, target):
 
     elif resource_type == "mention":
         subject = f"{cfg['app.title']} - User mentioned you in a comment"
+        body = f'{target.text} ({get_app_base_url()}{target.url})'
+
+    elif resource_type == "group_admission_request":
+        subject = f"{cfg['app.title']} - New group admission request"
         body = f'{target.text} ({get_app_base_url()}{target.url})'
 
     if subject and body and target.user.contact_email:
@@ -299,6 +314,7 @@ def push_frontend_notification(mapper, connection, target):
 @event.listens_for(Comment, 'after_insert')
 @event.listens_for(GcnNotice, 'after_insert')
 @event.listens_for(FacilityTransaction, 'after_insert')
+@event.listens_for(GroupAdmissionRequest, 'after_insert')
 def add_user_notifications(mapper, connection, target):
 
     # Add front-end user notifications
@@ -310,6 +326,9 @@ def add_user_notifications(mapper, connection, target):
         is_classification = target.__class__.__name__ == "Classification"
         is_spectra = target.__class__.__name__ == "Spectrum"
         is_comment = target.__class__.__name__ == "Comment"
+        is_group_admission_request = (
+            target.__class__.__name__ == "GroupAdmissionRequest"
+        )
 
         if is_gcnevent:
             users = session.scalars(
@@ -327,6 +346,22 @@ def add_user_notifications(mapper, connection, target):
                     .is_(True)
                 )
             ).all()
+        elif is_group_admission_request:
+            users = []
+            group_admins_gu = session.scalars(
+                sa.select(GroupUser).where(
+                    GroupUser.group_id == target.group_id,
+                    GroupUser.admin.is_(True),
+                )
+            ).all()
+            for gu in group_admins_gu:
+                group_admin = session.scalars(
+                    sa.select(User).where(User.id == gu.user_id)
+                ).first()
+
+                if group_admin is not None:
+                    users.append(group_admin)
+
         else:
 
             if is_classification:
@@ -430,6 +465,21 @@ def add_user_notifications(mapper, connection, target):
                                 url=f"/source/{target.followup_request.obj_id}",
                             )
                         )
+                elif is_group_admission_request:
+                    user_from_request = session.scalars(
+                        sa.select(User).where(User.id == target.user_id)
+                    ).first()
+                    group_from_request = session.scalars(
+                        sa.select(Group).where(Group.id == target.group_id)
+                    ).first()
+                    session.add(
+                        UserNotification(
+                            user=user,
+                            text=f"New Group Admission Request from *@{user_from_request.username}* for Group *{group_from_request.name}*",
+                            notification_type="group_admission_request",
+                            url=f"/group/{group_from_request.id}",
+                        )
+                    )
                 else:
                     favorite_sources = session.scalars(
                         sa.select(Listing)
@@ -472,7 +522,7 @@ def add_user_notifications(mapper, connection, target):
                                             user=user,
                                             text=f"New classification *{target.classification}* for source *{target.obj_id}*",
                                             notification_type="sources",
-                                            url=f"/sources/{target.obj_id}",
+                                            url=f"/source/{target.obj_id}",
                                         )
                                     )
                     elif is_spectra:
