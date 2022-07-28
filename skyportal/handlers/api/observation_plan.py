@@ -1516,8 +1516,7 @@ def observation_simsurvey(
 
     session = Session()
 
-    # try:
-    if True:
+    try:
 
         localization = session.scalars(
             sa.select(Localization).where(Localization.id == localization_id)
@@ -1764,12 +1763,12 @@ def observation_simsurvey(
             f"Finished survey efficiency analysis for ID {survey_efficiency_analysis.id}"
         )
 
-    # except Exception as e:
-    #    return log(
-    #        f"Unable to complete survey efficiency analysis {survey_efficiency_analysis.id}: {e}"
-    #    )
-    # finally:
-    #    Session.remove()
+    except Exception as e:
+        return log(
+            f"Unable to complete survey efficiency analysis {survey_efficiency_analysis.id}: {e}"
+        )
+    finally:
+        Session.remove()
 
 
 def observation_simsurvey_plot(
