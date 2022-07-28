@@ -222,7 +222,7 @@ skyportal_handlers = [
         GcnEventSurveyEfficiencyHandler,
     ),
     (
-        r'/api/gcn_event(/[0-9A-Za-z-_\.\+]+)/aliases',
+        r'/api/gcn_event(/.*)/aliases',
         GcnAliasesHandler,
     ),
     (r'/api/gcn_event(/.*)?', GcnEventHandler),

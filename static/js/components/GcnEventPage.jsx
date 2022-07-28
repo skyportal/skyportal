@@ -313,6 +313,13 @@ const GcnEventPage = ({ route }) => {
             </AccordionSummary>
             <AccordionDetails>
               <div className={styles.gcnEventContainer}>
+                {gcnEvent?.aliases?.length > 0 ? (
+                  <h3>
+                    Aliases: <span>{gcnEvent.aliases.join(", ")}</span>
+                  </h3>
+                ) : (
+                  <h3>No aliases yet</h3>
+                )}
                 <Link to={`/gcn_events/${gcnEvent.dateobs}`}>
                   <Button color="primary">
                     {dayjs(gcnEvent.dateobs).format("YYMMDD HH:mm:ss")}

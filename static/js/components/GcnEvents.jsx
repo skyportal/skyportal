@@ -179,12 +179,25 @@ const GcnEvents = () => {
     </Link>
   );
 
+  const renderAliases = (dataIndex) =>
+    events[dataIndex]?.aliases?.length > 0 ? (
+      <p>{events[dataIndex]?.aliases.join(", ")}</p>
+    ) : (
+      <p>No aliases</p>
+    );
   const columns = [
     {
       name: "dateobs",
       label: "Date Observed",
       options: {
         customBodyRenderLite: renderDateObs,
+      },
+    },
+    {
+      name: "aliases",
+      label: "Aliases",
+      options: {
+        customBodyRenderLite: renderAliases,
       },
     },
     {

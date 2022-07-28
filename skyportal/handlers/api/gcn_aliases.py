@@ -56,8 +56,9 @@ class GcnAliasesHandler(BaseHandler):
                 # and save them in the database in GcnEvent.aliases column
 
                 new_gcn_aliases = [
-                    'Test name'
-                ]  # HARDCODED. This would be the result of the web scraping
+                    'Test name',
+                    'GWSomething',
+                ]  # HARDCODED. This would be the result of the web scraping. !!!LEO REPLACE THIS BY YOUR CODE!!!
 
                 # here, we need to decide if we replace the current aliases by the new ones, or if we just add names that we didn't have before.
                 # we can do this by comparing the two lists.
