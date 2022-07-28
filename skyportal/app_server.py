@@ -119,8 +119,8 @@ from skyportal.handlers.api import (
     WeatherHandler,
     AnalysisWebhookHandler,
     PS1ThumbnailHandler,
-    SourcesInGcnHandler,
-    SourceInGcnsHandler,
+    SourcesConfirmedInGCNHandler,
+    GCNsAssociatedToSourceHandler,
 )
 from skyportal.handlers.api.internal import (
     PlotPhotometryHandler,
@@ -223,9 +223,9 @@ skyportal_handlers = [
         GcnEventSurveyEfficiencyHandler,
     ),
     (r'/api/gcn_event(/.*)?', GcnEventHandler),
-    (r'/api/sources_in_gcn/(.*)/(.*)', SourcesInGcnHandler),
-    (r'/api/sources_in_gcn/(.*)', SourcesInGcnHandler),
-    (r'/api/source_in_gcns/(.*)', SourceInGcnsHandler),
+    (r'/api/sources_in_gcn/(.*)/(.*)', SourcesConfirmedInGCNHandler),
+    (r'/api/sources_in_gcn/(.*)', SourcesConfirmedInGCNHandler),
+    (r'/api/associated_gcns/(.*)', GCNsAssociatedToSourceHandler),
     (
         r'/api/localization(/[0-9]+)/airmass(/[0-9]+)?',
         ObservationPlanAirmassChartHandler,
