@@ -12,8 +12,104 @@ from marshmallow.exceptions import ValidationError
 class SourcesConfirmedInGCNHandler(BaseHandler):
     @auth_or_token
     def get(self, dateobs, source_id=None):
+        """
+        ---
+        single:
+          tags:
+            - source_confirmed_in_gcn
+          description: Retrieve a source that has been confirmed or rejected in GCN
+          parameters:
+            - in: path
+              name: dateobs
+              required: true
+              schema:
+                type: string
+              description: The dateobs of the event, as an arrow parseable string
+            - in: path
+              name: source_id
+              required: false
+              schema:
+                type: string
+              description: The source_id of the source to retrieve
+          responses:
+            200:
+              content:
+                application/json:
+                  schema:
+                    allOf:
+                      - $ref: '#/components/schemas/Success'
+                      - type: object
+                        properties:
+                          data:
+                            type: object
+                            properties:
+                              id:
+                                type: integer
+                                description: the id of the confirmed_source_in_gcn
+                              obj_id:
+                                type: string
+                                description: the source_id of the source
+                              dateobs:
+                                type: string
+                                description: dateobs of the GCN evn
+                              confirmed:
+                                type: boolean
+                                description: Boolean indicating whether the source is confirmed or rejected
+            400:
+              content:
+                application/json:
+                  schema: Error
 
-        # try except parsing the dateobs with arrow
+        multiple:
+          tags:
+            - sources_confirmed_in_gcn
+          description: Retrieve all classifications
+          parameters:
+            - in: path
+              name: dateobs
+              required: true
+              schema:
+                type: string
+              description: The dateobs of the event, as an arrow parseable string
+            - in: query
+              name: sourcesIDList
+              nullable: true
+              schema:
+                type: string
+              description: A comma-separated list of source_id's to retrieve
+          responses:
+            200:
+              content:
+                application/json:
+                  schema:
+                    allOf:
+                      - $ref: '#/components/schemas/Success'
+                      - type: object
+                        properties:
+                          data:
+                            type: object
+                            properties:
+                              gcns:
+                                type: array
+                                items:
+                                  id:
+                                    type: integer
+                                    description: the id of the confirmed_source_in_gcn
+                                  obj_id:
+                                    type: string
+                                    description: the source_id of the source
+                                  dateobs:
+                                    type: string
+                                    description: dateobs of the GCN evn
+                                  confirmed:
+                                    type: boolean
+                                    description: Boolean indicating whether the source is confirmed or rejected
+
+            400:
+              content:
+                application/json:
+                  schema: Error
+        """
         try:
             arrow.get(dateobs).datetime
         except Exception:
@@ -61,6 +157,70 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
 
     @permissions(['Manage GCNs'])
     def post(self, dateobs):
+        """
+        ---
+        description: Confirm or reject a source in a gcn
+        tags:
+          - source_confirmed_in_gcn
+        parameters:
+          - in: path
+            name: dateobs
+            required: true
+            schema:
+              type: string
+            description: The dateobs of the event, as an arrow parseable string
+        requestBody:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  localization_name:
+                    type: string
+                    description: The name of the localization of the event
+                  localization_cumprob:
+                    type: string
+                    description: The cumprob of the localization of the event
+                  source_id:
+                    type: string
+                    description: The source_id of the source to confirm or reject
+                  confirmed_or_rejected:
+                    type: boolean
+                    description: Whether the source is confirmed or rejected
+                  start_date:
+                    type: string
+                    description: The start date (min first detected in photstat) of the source, as an arrow parseable string
+                  end_date:
+                    type: string
+                    description: The end date (max last detected in photstat) of the source, as an arrow parseable string
+                required:
+                  - localization_name
+                  - localization_cumprob
+                  - source_id
+                  - confirmed_or_rejected
+                  - start_date
+                  - end_date
+        responses:
+          200:
+            content:
+              application/json:
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          type: object
+                          properties:
+                            id:
+                              type: int
+                              description: The id of the source_confirmed_in_gcn
+          400:
+            content:
+              application/json:
+                schema: Error
+
+        """
         data = self.get_json()
         try:
             arrow.get(dateobs).datetime
@@ -178,6 +338,54 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
 
     @permissions(['Manage GCNs'])
     def put(self, dateobs, source_id):
+        """
+        ---
+        description: Update the confirmed or rejected status of a source in a GCN
+        tags:
+          - source_confirmed_in_gcn
+        parameters:
+          - in: path
+            name: dateobs
+            required: true
+            schema:
+              type: string
+          - in: path
+            name: source_id
+            required: true
+            schema:
+              type: string
+        requestBody:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  confirmed_or_rejected:
+                    type: boolean
+                    description: Whether the source is confirmed or rejected
+                required:
+                  - confirmed_or_rejected
+
+        responses:
+          200:
+            content:
+              application/json:
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          type: object
+                          properties:
+                            id:
+                              type: int
+                              description: The id of the modified source_confirmed_in_gcn
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
         data = self.get_json()
         confirmed_or_rejected = data.get('confirmed_or_rejected', False)
         try:
@@ -220,6 +428,42 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
 
     @permissions(['Manage GCNs'])
     def delete(self, dateobs, source_id):
+        """
+        ---
+        description: Deletes a confirmed or rejected source in a GCN
+        tags:
+          - source_confirmed_in_gcn
+        parameters:
+          - in: path
+            name: dateobs
+            required: true
+            schema:
+              type: string
+          - in: path
+            name: source_id
+            required: true
+            schema:
+              type: string
+        responses:
+          200:
+            content:
+              application/json:
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          type: object
+                          properties:
+                            id:
+                              type: int
+                              description: The id of the deleted source_confirmed_in_gcn
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
         try:
             arrow.get(dateobs).datetime
         except Exception:
@@ -257,6 +501,39 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
 class GCNsAssociatedToSourceHandler(BaseHandler):
     @auth_or_token
     def get(self, source_id):
+        """
+        ---
+        description: Get the GCNs associated to a source (GCNs for which the source has been confirmed)
+        tags:
+          - gcn_associated_to_source
+        parameters:
+          - in: path
+            name: source_id
+            required: true
+            schema:
+              type: string
+        responses:
+          200:
+            content:
+              application/json:
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          type: object
+                          properties:
+                            gcns:
+                              type: array
+                              items:
+                                type: string
+                                description: GCNs dateobs
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
         if not isinstance(source_id, str):
             return self.error("source_id must be a string")
 
