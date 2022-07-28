@@ -1,6 +1,6 @@
 # this is the model of a table that has: a source id, a localization id, a flag to indicate if the source is confirmed or rejected
 
-__all__ = ['SourcesInGCN']
+__all__ = ['SourcesConfirmedInGCN']
 
 import sqlalchemy as sa
 from sqlalchemy.orm import relationship
@@ -11,7 +11,7 @@ from baselayer.app.env import load_env
 _, cfg = load_env()
 
 
-def manage_sourcesingcn_access_logic(cls, user_or_token):
+def manage_sources_confirmed_in_gcn_access_logic(cls, user_or_token):
     if user_or_token.is_admin or 'Manage GCNs' in user_or_token.permissions:
         return public.query_accessible_rows(cls, user_or_token)
     else:
@@ -19,10 +19,12 @@ def manage_sourcesingcn_access_logic(cls, user_or_token):
         return DBSession().query(cls).filter(sa.false())
 
 
-class SourcesInGCN(Base):
+class SourcesConfirmedInGCN(Base):
 
     read = public
-    create = update = delete = CustomUserAccessControl(manage_sourcesingcn_access_logic)
+    create = update = delete = CustomUserAccessControl(
+        manage_sources_confirmed_in_gcn_access_logic
+    )
 
     obj_id = sa.Column(
         sa.ForeignKey('objs.id', ondelete='CASCADE'),
@@ -44,9 +46,9 @@ class SourcesInGCN(Base):
         doc='UTC event timestamp',
     )
 
-    confirmed_or_rejected = sa.Column(
+    confirmed = sa.Column(
         sa.Boolean,
         nullable=False,
         default=False,
-        doc="Confirmed",
+        doc="If True, the source is confirmed in the GCN. If False, the source is rejected in the GCN. If there is no row, the source is not yet confirmed or rejected in the GCN.",
     )

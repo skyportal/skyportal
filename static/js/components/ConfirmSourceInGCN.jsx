@@ -18,7 +18,7 @@ import utc from "dayjs/plugin/utc";
 
 import { showNotification } from "baselayer/components/Notifications";
 
-import * as SourceInGcnAction from "../ducks/sourcesingcn";
+import * as SourceInGcnAction from "../ducks/confirmedsourcesingcn";
 
 dayjs.extend(utc);
 
@@ -83,14 +83,14 @@ const DialogTitle = withStyles(dialogTitleStyles)(
   )
 );
 
-const SourcesInGCN = ({
+const ConfirmSourceInGCN = ({
   dateobs,
-  localizationName,
-  sourceId,
-  startDate,
-  endDate,
-  localizationCumprob,
-  sourcesIdList,
+  localization_name,
+  localization_cumprob,
+  source_id,
+  start_date,
+  end_date,
+  sources_id_list,
 }) => {
   const dispatch = useDispatch();
   const classes = useStyles();
@@ -103,48 +103,41 @@ const SourcesInGCN = ({
     setOpen(false);
   };
 
-  const findCurrentState = () => {
-    let state = "pending";
+  let currentState = "unknown";
+  if (
+    sourcesingcn?.length > 0 &&
+    sourcesingcn.filter((s) => s.obj_id === source_id).length !== 0
+  ) {
     if (
-      sourcesingcn.filter((s) => s.obj_id === sourceId).length !== 0 &&
-      sourcesingcn?.length > 0
+      sourcesingcn.filter((s) => s.obj_id === source_id)[0]?.confirmed === true
     ) {
-      if (
-        sourcesingcn.filter((s) => s.obj_id === sourceId)[0]
-          ?.confirmed_or_rejected === true
-      ) {
-        state = "confirmed";
-      } else if (
-        sourcesingcn.filter((s) => s.obj_id === sourceId)[0]
-          .confirmed_or_rejected === false
-      ) {
-        state = "rejected";
-      }
+      currentState = "confirmed";
+    } else if (
+      sourcesingcn.filter((s) => s.obj_id === source_id)[0].confirmed === false
+    ) {
+      currentState = "rejected";
     }
-    return state;
-  };
-
-  const currentState = findCurrentState();
+  }
 
   const handleUpdate = () => {
     dispatch(
       SourceInGcnAction.fetchSourcesInGcn(dateobs, {
-        localizationName,
-        sourcesIdList,
+        localizationName: localization_name,
+        sourcesIdList: sources_id_list,
       })
     );
   };
 
   const handleConfirm = () => {
-    if (currentState === "pending") {
+    if (currentState === "unknown") {
       dispatch(
         SourceInGcnAction.submitSourceInGcn(dateobs, {
-          sourceId,
-          startDate,
-          endDate,
-          localizationName,
-          localizationCumprob,
-          confirmedOrRejected: true,
+          source_id,
+          start_date,
+          end_date,
+          localization_name,
+          localization_cumprob,
+          confirmed_or_rejected: true,
         })
       ).then((response) => {
         if (response.status === "success") {
@@ -154,10 +147,8 @@ const SourcesInGCN = ({
       });
     } else if (currentState === "rejected") {
       dispatch(
-        SourceInGcnAction.patchSourceInGcn(dateobs, sourceId, {
-          startDate,
-          endDate,
-          confirmedOrRejected: true,
+        SourceInGcnAction.patchSourceInGcn(dateobs, source_id, {
+          confirmed_or_rejected: true,
         })
       ).then((response) => {
         if (response.status === "success") {
@@ -171,15 +162,15 @@ const SourcesInGCN = ({
   };
 
   const handleReject = () => {
-    if (currentState === "pending") {
+    if (currentState === "unknown") {
       dispatch(
         SourceInGcnAction.submitSourceInGcn(dateobs, {
-          sourceId,
-          startDate,
-          endDate,
-          localizationName,
-          localizationCumprob,
-          confirmedOrRejected: false,
+          source_id,
+          start_date,
+          end_date,
+          localization_name,
+          localization_cumprob,
+          confirmed_or_rejected: false,
         })
       ).then((response) => {
         if (response.status === "success") {
@@ -189,10 +180,8 @@ const SourcesInGCN = ({
       });
     } else if (currentState === "confirmed") {
       dispatch(
-        SourceInGcnAction.patchSourceInGcn(dateobs, sourceId, {
-          startDate,
-          endDate,
-          confirmedOrRejected: false,
+        SourceInGcnAction.patchSourceInGcn(dateobs, source_id, {
+          confirmed_or_rejected: false,
         })
       ).then((response) => {
         if (response.status === "success") {
@@ -207,7 +196,7 @@ const SourcesInGCN = ({
 
   const handleUndefined = () => {
     if (currentState === "confirmed" || currentState === "rejected") {
-      dispatch(SourceInGcnAction.deleteSourceInGcn(dateobs, sourceId)).then(
+      dispatch(SourceInGcnAction.deleteSourceInGcn(dateobs, source_id)).then(
         (response) => {
           if (response.status === "success") {
             handleUpdate();
@@ -238,7 +227,7 @@ const SourcesInGCN = ({
             maxWidth="md"
           >
             <DialogTitle onClose={handleClose}>
-              Confirm/Reject Source in GCN
+              Confirm/Reject Source {source_id} in GCN {dateobs}
             </DialogTitle>
             <DialogContent dividers>
               <div className={classes.dialogContent}>
@@ -254,14 +243,14 @@ const SourcesInGCN = ({
   ) : null;
 };
 
-SourcesInGCN.propTypes = {
+ConfirmSourceInGCN.propTypes = {
   dateobs: PropTypes.string.isRequired,
-  localizationName: PropTypes.string.isRequired,
-  sourceId: PropTypes.string.isRequired,
-  startDate: PropTypes.string.isRequired,
-  endDate: PropTypes.string.isRequired,
-  localizationCumprob: PropTypes.string.isRequired,
-  sourcesIdList: PropTypes.arrayOf(PropTypes.string).isRequired,
+  localization_name: PropTypes.string.isRequired,
+  source_id: PropTypes.string.isRequired,
+  start_date: PropTypes.string.isRequired,
+  end_date: PropTypes.string.isRequired,
+  localization_cumprob: PropTypes.string.isRequired,
+  sources_id_list: PropTypes.arrayOf(PropTypes.string).isRequired,
 };
 
-export default SourcesInGCN;
+export default ConfirmSourceInGCN;

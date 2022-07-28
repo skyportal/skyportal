@@ -281,7 +281,7 @@ export const fetchPhotoz = (sourceID) =>
   API.POST(`/api/sources/${sourceID}/annotations/datalab`, FETCH_PHOTOZ);
 
 export const fetchAssociatedGCNs = (sourceID) =>
-  API.GET(`/api/source_in_gcns/${sourceID}`, FETCH_ASSOCIATED_GCNS);
+  API.GET(`/api/associated_gcns/${sourceID}`, FETCH_ASSOCIATED_GCNS);
 
 // Websocket message handler
 messageHandler.add((actionType, payload, dispatch, getState) => {

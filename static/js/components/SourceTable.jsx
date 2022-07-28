@@ -45,10 +45,10 @@ import FavoritesButton from "./FavoritesButton";
 import MultipleClassificationsForm from "./MultipleClassificationsForm";
 import * as sourceActions from "../ducks/source";
 import * as sourcesActions from "../ducks/sources";
-import * as sourcesingcnActions from "../ducks/sourcesingcn";
+import * as sourcesingcnActions from "../ducks/confirmedsourcesingcn";
 import { filterOutEmptyValues } from "../API";
 import { getAnnotationValueString } from "./ScanningPageCandidateAnnotations";
-import SourcesInGCN from "./SourcesInGcn";
+import ConfirmSourceInGCN from "./ConfirmSourceInGCN";
 
 const VegaSpectrum = React.lazy(() => import("./VegaSpectrum"));
 const VegaHR = React.lazy(() => import("./VegaHR"));
@@ -867,13 +867,11 @@ const SourceTable = ({
     if (sourcesingcn.filter((s) => s.obj_id === source.id).length === 0) {
       statusIcon = <QuestionMarkIcon size="small" color="primary" />;
     } else if (
-      sourcesingcn.filter((s) => s.obj_id === source.id)[0]
-        .confirmed_or_rejected === true
+      sourcesingcn.filter((s) => s.obj_id === source.id)[0].confirmed === true
     ) {
       statusIcon = <CheckIcon size="small" color="green" />;
     } else if (
-      sourcesingcn.filter((s) => s.obj_id === source.id)[0]
-        .confirmed_or_rejected === false
+      sourcesingcn.filter((s) => s.obj_id === source.id)[0].confirmed === false
     ) {
       statusIcon = <ClearIcon size="small" color="secondary" />;
     }
@@ -889,14 +887,14 @@ const SourceTable = ({
         name={`${source.id}_gcn_status`}
       >
         {statusIcon}
-        <SourcesInGCN
+        <ConfirmSourceInGCN
           dateobs={gcnEvent.dateobs}
-          localizationName={localization.localization_name}
-          sourceId={source.id}
-          startDate={sourceInGcnFilter.startDate}
-          endDate={sourceInGcnFilter.endDate}
-          localizationCumprob={sourceInGcnFilter.localizationCumprob}
-          sourcesIdList={sources.map((s) => s.id)}
+          localization_name={localization.localization_name}
+          localization_cumprob={sourceInGcnFilter.localizationCumprob}
+          source_id={source.id}
+          start_date={sourceInGcnFilter.startDate}
+          end_date={sourceInGcnFilter.endDate}
+          sources_id_list={sources.map((s) => s.id)}
         />
       </div>
     );
@@ -1161,7 +1159,6 @@ const SourceTable = ({
     },
   ];
 
-  // if all sources have a status, add a status column
   if (includeGcnStatus) {
     columns.splice(1, 0, {
       name: "GCN Status",

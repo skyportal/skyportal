@@ -821,12 +821,12 @@ def test_confirm_reject_source_in_gcn(
 
     # confirm source
     params = {
-        "sourceId": obj_id,
-        "localizationName": "LALInference.v1.fits.gz",
-        "localizationCumprob": 0.95,
-        "confirmedOrRejected": True,
-        "startDate": "2019-08-13 08:18:05",
-        "endDate": "2019-08-19 08:18:05",
+        "source_id": obj_id,
+        "localization_name": "LALInference.v1.fits.gz",
+        "localization_cumprob": 0.95,
+        "confirmed_or_rejected": True,
+        "start_date": "2019-08-13 08:18:05",
+        "end_date": "2019-08-19 08:18:05",
     }
 
     # verify that you can't confirm a source without the Manage GCNs permission
@@ -860,12 +860,12 @@ def test_confirm_reject_source_in_gcn(
     assert len(data) == 1
     assert data[0]["obj_id"] == obj_id
     assert data[0]["dateobs"] == "2019-08-14T21:10:39"
-    assert data[0]["confirmed_or_rejected"] is True
+    assert data[0]["confirmed"] is True
 
-    # find gncs associated to source
+    # find gcns associated to source
     status, data = api(
         'GET',
-        f"source_in_gcns/{obj_id}",
+        f"associated_gcns/{obj_id}",
         token=upload_data_token,
     )
     assert status == 200
@@ -874,7 +874,7 @@ def test_confirm_reject_source_in_gcn(
 
     # reject source
     params = {
-        "confirmedOrRejected": False,
+        "confirmed_or_rejected": False,
     }
 
     status, data = api(
@@ -907,14 +907,14 @@ def test_confirm_reject_source_in_gcn(
     assert len(data) == 1
     assert data[0]["obj_id"] == obj_id
     assert data[0]["dateobs"] == "2019-08-14T21:10:39"
-    assert data[0]["confirmed_or_rejected"] is False
+    assert data[0]["confirmed"] is False
 
     # verify that no gcns are associated to source
 
-    # find no gncs associated to source
+    # find no gcns associated to source
     status, data = api(
         'GET',
-        f"source_in_gcns/{obj_id}",
+        f"associated_gcns/{obj_id}",
         token=upload_data_token,
     )
     assert status == 200
