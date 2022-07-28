@@ -36,6 +36,7 @@ from skyportal.handlers.api import (
     GcnEventObservationPlanRequestsHandler,
     GcnEventSurveyEfficiencyHandler,
     GcnSummaryHandler,
+    GcnAliasesHandler,
     HealpixUpdateHandler,
     LocalizationHandler,
     GroupHandler,
@@ -219,6 +220,10 @@ skyportal_handlers = [
     (
         r'/api/gcn_event(/[0-9A-Za-z-_\.\+]+)/survey_efficiency',
         GcnEventSurveyEfficiencyHandler,
+    ),
+    (
+        r'/api/gcn_event(/[0-9A-Za-z-_\.\+]+)/aliases',
+        GcnAliasesHandler,
     ),
     (r'/api/gcn_event(/.*)?', GcnEventHandler),
     (

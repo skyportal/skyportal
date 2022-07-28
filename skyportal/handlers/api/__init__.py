@@ -37,6 +37,7 @@ from .gcn import (
     GcnSummaryHandler,
     LocalizationHandler,
 )
+from .gcn_aliases import GcnAliasesHandler
 from .group import (
     GroupHandler,
     GroupUserHandler,

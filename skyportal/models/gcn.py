@@ -183,6 +183,16 @@ class GcnEvent(Base):
         doc="Comments posted about this GCN event.",
     )
 
+    aliases = sa.Column(
+        sa.ARRAY(sa.String),
+        nullable=False,
+        server_default="{}",
+        doc="List of different names for this event, parsed from different GCN notices.",
+    )
+
+    # TODO: Delete this comment once you have generated the migration script for this new column.
+    # Here's the docs to do it: https://skyportal.io/docs/migrations.html
+
     @hybrid_property
     def tags(self):
         """List of tags."""
