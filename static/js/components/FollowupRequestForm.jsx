@@ -46,7 +46,9 @@ const FollowupRequestForm = ({
   const classes = useStyles();
   const dispatch = useDispatch();
   const { telescopeList } = useSelector((state) => state.telescopes);
-  const { allocationList } = useSelector((state) => state.allocations);
+  const { allocationListApiClassname } = useSelector(
+    (state) => state.allocations
+  );
   const allGroups = useSelector((state) => state.groups.all);
   const defaultAllocationId = useSelector(
     (state) => state.profile.preferences.followupDefault
@@ -62,9 +64,7 @@ const FollowupRequestForm = ({
       // the new default form fields, so that the allocations list can
       // update
       const result = await dispatch(
-        allocationActions.fetchAllocations({
-          apiType: "api_classname",
-        })
+        allocationActions.fetchAllocationsApiClassname()
       );
 
       const { data } = result;
@@ -101,11 +101,6 @@ const FollowupRequestForm = ({
         apiType: "api_classname",
       })
     );
-    dispatch(
-      allocationActions.fetchAllocations({
-        apiType: "api_classname",
-      })
-    );
   }, [setSelectedAllocationId, setSelectedGroupIds, dispatch]);
 
   // need to check both of these conditions as selectedAllocationId is
@@ -113,12 +108,12 @@ const FollowupRequestForm = ({
   // render to update it, so it can be null even if allocationList is not
   // empty.
   if (
-    allocationList.length === 0 ||
+    allocationListApiClassname.length === 0 ||
     !selectedAllocationId ||
     !selectedGroupIds ||
     Object.keys(instrumentFormParams).length === 0
   ) {
-    return <h3>No robotic instruments available...</h3>;
+    return <h3>No allocations with an observation plan API...</h3>;
   }
 
   if (
@@ -145,7 +140,7 @@ const FollowupRequestForm = ({
   });
 
   const allocationLookUp = {};
-  allocationList?.forEach((allocation) => {
+  allocationListApiClassname?.forEach((allocation) => {
     allocationLookUp[allocation.id] = allocation;
   });
 
@@ -200,7 +195,7 @@ const FollowupRequestForm = ({
         name="followupRequestAllocationSelect"
         className={classes.allocationSelect}
       >
-        {allocationList?.map((allocation) => (
+        {allocationListApiClassname?.map((allocation) => (
           <MenuItem
             value={allocation.id}
             key={allocation.id}

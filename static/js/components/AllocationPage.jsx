@@ -292,6 +292,7 @@ const AllocationPage = () => {
                 <NewAllocation />
               </div>
             </Paper>
+            <br />
             <Paper>
               <div className={classes.paperContent}>
                 <Typography variant="h6">
