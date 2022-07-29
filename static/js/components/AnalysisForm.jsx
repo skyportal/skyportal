@@ -175,15 +175,7 @@ const AnalysisForm = ({ obj_id }) => {
         default: false,
       },
     },
-    required: [
-      ...Object.keys(
-        analysisServiceLookUp[selectedAnalysisServiceId]
-          ?.optional_analysis_parameters
-      ),
-      "show_parameters",
-      "show_plots",
-      "show_corner",
-    ],
+    required: ["show_parameters", "show_plots", "show_corner"],
   };
 
   return (
