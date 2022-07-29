@@ -132,6 +132,7 @@ const AnalysisForm = ({ obj_id }) => {
   };
 
   const OptionalParameters = {};
+  const RequiredParameters = [];
   if (
     analysisServiceLookUp[selectedAnalysisServiceId]
       ?.optional_analysis_parameters
@@ -148,6 +149,7 @@ const AnalysisForm = ({ obj_id }) => {
         OptionalParameters[key] = { type: "boolean" };
       } else {
         OptionalParameters[key] = { type: "string", enum: params };
+        RequiredParameters.push(key);
       }
     });
   }
@@ -175,7 +177,9 @@ const AnalysisForm = ({ obj_id }) => {
         default: false,
       },
     },
-    required: ["show_parameters", "show_plots", "show_corner"],
+    required: ["show_parameters", "show_plots", "show_corner"].concat(
+      RequiredParameters
+    ),
   };
 
   return (

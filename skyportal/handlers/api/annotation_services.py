@@ -5,6 +5,7 @@ from astropy.time import Time
 try:
     from dl import queryClient as qc
 except Exception:
+
     class qc:
         def query(*args, **kwargs):
             return ""
