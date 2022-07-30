@@ -66,7 +66,7 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
                                 description: dateobs of the GCN evn
                               confirmed:
                                 type: boolean
-                                description: Boolean indicating whether the source is confirmed or rejected
+                                description: Boolean indicating whether the source is confirmed (True) or rejected (False)
             400:
               content:
                 application/json:
@@ -114,7 +114,7 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
                                 description: dateobs of the GCN evn
                               confirmed:
                                 type: boolean
-                                description: Boolean indicating whether the source is confirmed or rejected
+                                description: Whether the source is confirmed (True) or rejected (False)
 
             400:
               content:
@@ -364,7 +364,7 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
                 properties:
                   confirmed:
                     type: boolean
-                    description: Whether the source is confirmed or rejected
+                    description: Whether the source is confirmed (True) or rejected (False)
                 required:
                   - confirmed
 
