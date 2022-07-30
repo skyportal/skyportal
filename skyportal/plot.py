@@ -1798,9 +1798,13 @@ def photometry_plot(obj_id, user_id, session, width=600, device="browser"):
         User.select(session.user_or_token).where(User.id == user_id)
     ).first()
 
-    spectra = session.scalars(
-        Spectrum.select(session.user_or_token).where(Spectrum.obj_id == obj_id)
-    ).all()
+    spectra = (
+        session.scalars(
+            Spectrum.select(session.user_or_token).where(Spectrum.obj_id == obj_id)
+        )
+        .unique()
+        .all()
+    )
 
     data['effwave'] = [get_effective_wavelength(f) for f in data['filter']]
     data['color'] = [get_color(w) for w in data['effwave']]
@@ -1946,9 +1950,13 @@ def spectroscopy_plot(
     ).first()
     if obj is None:
         raise ValueError(f'Cannot find object with ID "{obj_id}"')
-    spectra = session.scalars(
-        Spectrum.select(session.user_or_token).where(Spectrum.obj_id == obj_id)
-    ).all()
+    spectra = (
+        session.scalars(
+            Spectrum.select(session.user_or_token).where(Spectrum.obj_id == obj_id)
+        )
+        .unique()
+        .all()
+    )
 
     # Accept a string with a single spectrum ID
     # or a comma separated list of IDs.
@@ -2192,7 +2200,6 @@ def make_spectrum_layout(
 
         # this starts out the same as the previous plot, but can be binned/smoothed later in JS
         dfs = copy.deepcopy(df)
-
         if smoothing:
             dfs['flux'] = smoothing_function(dfs['flux_original'], smooth_number)
         model_dict[f'bin{i}'] = plot.step(
