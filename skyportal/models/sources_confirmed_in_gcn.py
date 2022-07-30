@@ -15,7 +15,6 @@ def manage_sources_confirmed_in_gcn_access_logic(cls, user_or_token):
     if user_or_token.is_admin or 'Manage GCNs' in user_or_token.permissions:
         return public.query_accessible_rows(cls, user_or_token)
     else:
-        print("can't access")
         return DBSession().query(cls).filter(sa.false())
 
 
@@ -50,5 +49,6 @@ class SourcesConfirmedInGCN(Base):
         sa.Boolean,
         nullable=False,
         default=False,
-        doc="If True, the source is confirmed in the GCN. If False, the source is rejected in the GCN. If there is no row, the source is not yet confirmed or rejected in the GCN.",
+        doc="If True, the source is confirmed in the GCN. If False, the source is rejected in the GCN."
+        "If there is no row, the source is not yet confirmed or rejected in the GCN.",
     )

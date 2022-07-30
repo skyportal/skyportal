@@ -824,7 +824,7 @@ def test_confirm_reject_source_in_gcn(
         "source_id": obj_id,
         "localization_name": "LALInference.v1.fits.gz",
         "localization_cumprob": 0.95,
-        "confirmed_or_rejected": True,
+        "confirmed": True,
         "start_date": "2019-08-13 08:18:05",
         "end_date": "2019-08-19 08:18:05",
     }
@@ -874,11 +874,11 @@ def test_confirm_reject_source_in_gcn(
 
     # reject source
     params = {
-        "confirmed_or_rejected": False,
+        "confirmed": False,
     }
 
     status, data = api(
-        'PUT',
+        'PATCH',
         f'sources_in_gcn/2019-08-14T21:10:39/{obj_id}',
         data=params,
         token=upload_data_token,
@@ -886,7 +886,7 @@ def test_confirm_reject_source_in_gcn(
     assert status == 401
 
     status, data = api(
-        'PUT',
+        'PATCH',
         f'sources_in_gcn/2019-08-14T21:10:39/{obj_id}',
         data=params,
         token=super_admin_token,

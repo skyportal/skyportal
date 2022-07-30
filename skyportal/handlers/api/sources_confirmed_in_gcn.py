@@ -4,9 +4,21 @@ from .source import get_sources, MAX_SOURCES_PER_PAGE
 from ...models import GcnEvent, Localization, SourcesConfirmedInGCN
 from ...utils.UTCTZnaiveDateTime import UTCTZnaiveDateTime
 
-import arrow
-from marshmallow import Schema
+from marshmallow import Schema, fields
 from marshmallow.exceptions import ValidationError
+
+
+class Validator(Schema):
+    source_id = fields.String()
+    dateobs = UTCTZnaiveDateTime(required=False, missing=None)
+    start_date = UTCTZnaiveDateTime(required=False, missing=None)
+    end_date = UTCTZnaiveDateTime(required=False, missing=None)
+    confirmed = fields.Boolean(
+        truthy=['true', 'True', True], falsy=['false', 'False', False]
+    )
+    localization_name = fields.String()
+    localization_cumprob = fields.Float()
+    sources_id_list = fields.String()
 
 
 class SourcesConfirmedInGCNHandler(BaseHandler):
@@ -63,7 +75,7 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
         multiple:
           tags:
             - sources_confirmed_in_gcn
-          description: Retrieve all classifications
+          description: Retrieve sources that has been confirmed or rejected in GCN
           parameters:
             - in: path
               name: dateobs
@@ -76,7 +88,9 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
               nullable: true
               schema:
                 type: string
-              description: A comma-separated list of source_id's to retrieve
+              description: |
+                  A comma-separated list of source_id's to retrieve.
+                  If not provided, all sources confirmed or rejected in GCN will be returned.
           responses:
             200:
               content:
@@ -87,36 +101,43 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
                       - type: object
                         properties:
                           data:
-                            type: object
-                            properties:
-                              gcns:
-                                type: array
-                                items:
-                                  id:
-                                    type: integer
-                                    description: the id of the confirmed_source_in_gcn
-                                  obj_id:
-                                    type: string
-                                    description: the source_id of the source
-                                  dateobs:
-                                    type: string
-                                    description: dateobs of the GCN evn
-                                  confirmed:
-                                    type: boolean
-                                    description: Boolean indicating whether the source is confirmed or rejected
+                            type: array
+                            items:
+                              id:
+                                type: integer
+                                description: the id of the confirmed_source_in_gcn
+                              obj_id:
+                                type: string
+                                description: the source_id of the source
+                              dateobs:
+                                type: string
+                                description: dateobs of the GCN evn
+                              confirmed:
+                                type: boolean
+                                description: Boolean indicating whether the source is confirmed or rejected
 
             400:
               content:
                 application/json:
                   schema: Error
         """
-        try:
-            arrow.get(dateobs).datetime
-        except Exception:
-            return self.error(f'Invalid dateobs: {dateobs}')
         sources_id_list = self.get_query_argument('sourcesIDList', '')
-        if not isinstance(sources_id_list, str):
-            return self.error("sourcesIDList must be a comma separated string")
+        validator_instance = Validator()
+        params_to_be_validated = {
+            'sources_id_list': sources_id_list,
+            'dateobs': dateobs,
+        }
+        if source_id is not None:
+            params_to_be_validated['source_id'] = source_id
+        try:
+            validated = validator_instance.load(params_to_be_validated)
+        except ValidationError as e:
+            return self.error(f'Error parsing query params: {e.args[0]}.')
+        if source_id is not None:
+            source_id = validated['source_id'].strip()
+        dateobs = validated['dateobs']
+        sources_id_list = validated['sources_id_list']
+
         if sources_id_list != '':
             try:
                 sources_id_list = [
@@ -184,20 +205,20 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
                   source_id:
                     type: string
                     description: The source_id of the source to confirm or reject
-                  confirmed_or_rejected:
+                  confirmed:
                     type: boolean
-                    description: Whether the source is confirmed or rejected
+                    description: Whether the source is confirmed (True) or rejected (False)
                   start_date:
                     type: string
-                    description: The start date (min first detected in photstat) of the source, as an arrow parseable string
+                    description: First detection of source(s) after start_date, as an arrow parseable string
                   end_date:
                     type: string
-                    description: The end date (max last detected in photstat) of the source, as an arrow parseable string
+                    description: Last detection of source(s) before the end_date, as an arrow parseable string
                 required:
                   - localization_name
                   - localization_cumprob
                   - source_id
-                  - confirmed_or_rejected
+                  - confirmed
                   - start_date
                   - end_date
         responses:
@@ -222,18 +243,14 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
 
         """
         data = self.get_json()
-        try:
-            arrow.get(dateobs).datetime
-        except Exception:
-            return self.error(f'Invalid dateobs: {dateobs}')
         if 'localization_name' not in data:
             return self.error("Missing required parameter: localization_name")
         if 'localization_cumprob' not in data:
             return self.error("Missing required parameter: localization_cumprob")
         if 'source_id' not in data:
             return self.error("Missing source_id")
-        if 'confirmed_or_rejected' not in data:
-            return self.error("Missing confirmed_or_rejected")
+        if 'confirmed' not in data:
+            return self.error("Missing confirmed")
         if 'start_date' not in data:
             return self.error("Missing start_date")
         if 'end_date' not in data:
@@ -242,47 +259,32 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
         localization_name = data['localization_name']
         localization_cumprob = data['localization_cumprob']
         source_id = data.get('source_id')
-        confirmed_or_rejected = data.get('confirmed_or_rejected')
+        confirmed = data.get('confirmed')
         start_date = data.get('start_date')
         end_date = data.get('end_date')
 
-        if start_date is None:
-            return self.error(message="Missing startDate")
-        if end_date is None:
-            return self.error(message="Missing endDate")
-
-        class Validator(Schema):
-            start_date = UTCTZnaiveDateTime(required=False, missing=None)
-            end_date = UTCTZnaiveDateTime(required=False, missing=None)
-
         validator_instance = Validator()
-        params_to_be_validated = {}
-        params_to_be_validated['start_date'] = start_date
-        params_to_be_validated['end_date'] = end_date
+        params_to_be_validated = {
+            'source_id': source_id,
+            'dateobs': dateobs,
+            'start_date': start_date,
+            'end_date': end_date,
+            'confirmed': confirmed,
+            'localization_name': localization_name,
+            'localization_cumprob': localization_cumprob,
+        }
         try:
             validated = validator_instance.load(params_to_be_validated)
         except ValidationError as e:
             return self.error(f'Error parsing query params: {e.args[0]}.')
+
+        source_id = validated['source_id']
+        dateobs = validated['dateobs']
         start_date = validated['start_date']
         end_date = validated['end_date']
-
-        if localization_cumprob is None:
-            return self.error("Missing required parameter: localization_cumprob")
-        try:
-            localization_cumprob = float(localization_cumprob)
-        except ValueError:
-            return self.error("localization_cumprob must be a float")
-        if not isinstance(localization_name, str):
-            return self.error("localizationName must be a string")
-        if not isinstance(source_id, str):
-            return self.error("sourceID must be an integer")
-
-        if confirmed_or_rejected is None:
-            return self.error("Missing required parameter: confirmed_or_rejected")
-        try:
-            confirmed_or_rejected = bool(confirmed_or_rejected)
-        except ValueError:
-            return self.error("confirmed_or_rejected must be a boolean")
+        confirmed = validated['confirmed']
+        localization_name = validated['localization_name']
+        localization_cumprob = validated['localization_cumprob']
 
         with self.Session() as session:
             try:
@@ -325,7 +327,7 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
                 source_in_gcn = SourcesConfirmedInGCN(
                     obj_id=source_id,
                     dateobs=dateobs,
-                    confirmed=confirmed_or_rejected,
+                    confirmed=confirmed,
                 )
                 session.add(source_in_gcn)
                 session.commit()
@@ -337,7 +339,7 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
         return self.success(data={'id': source_in_gcn_id})
 
     @permissions(['Manage GCNs'])
-    def put(self, dateobs, source_id):
+    def patch(self, dateobs, source_id):
         """
         ---
         description: Update the confirmed or rejected status of a source in a GCN
@@ -360,11 +362,11 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
               schema:
                 type: object
                 properties:
-                  confirmed_or_rejected:
+                  confirmed:
                     type: boolean
                     description: Whether the source is confirmed or rejected
                 required:
-                  - confirmed_or_rejected
+                  - confirmed
 
         responses:
           200:
@@ -387,17 +389,24 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
                 schema: Error
         """
         data = self.get_json()
-        confirmed_or_rejected = data.get('confirmed_or_rejected', False)
-        try:
-            arrow.get(dateobs).datetime
-        except Exception:
-            return self.error(f'Invalid dateobs: {dateobs}')
-        if not isinstance(source_id, str):
-            return self.error("source_id must be a string")
-        if not isinstance(confirmed_or_rejected, bool):
-            return self.error("confirmed_or_rejected must be a boolean")
+        if 'confirmed' not in data:
+            return self.error("Missing confirmed")
+        confirmed = data.get('confirmed')
 
-        source_id = source_id.strip()
+        validator_instance = Validator()
+        params_to_be_validated = {
+            'source_id': source_id,
+            'dateobs': dateobs,
+            'confirmed': confirmed,
+        }
+        try:
+            validated = validator_instance.load(params_to_be_validated)
+        except ValidationError as e:
+            return self.error(f'Error parsing query params: {e.args[0]}.')
+
+        source_id = validated['source_id'].strip()
+        dateobs = validated['dateobs']
+        confirmed = validated['confirmed']
 
         with self.Session() as session:
             try:
@@ -417,7 +426,7 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
                     return self.error(
                         "Source is not confirmed or rejected in this GCN event"
                     )
-                source_in_gcn.confirmed = confirmed_or_rejected
+                source_in_gcn.confirmed = confirmed
                 session.commit()
                 source_in_gcn_id = source_in_gcn.id
             except Exception as e:
@@ -430,7 +439,7 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
     def delete(self, dateobs, source_id):
         """
         ---
-        description: Deletes a confirmed or rejected source in a GCN
+        description: Deletes the confirmed or rejected status of source in a GCN. It's status can be considered as 'undefined'
         tags:
           - source_confirmed_in_gcn
         parameters:
@@ -464,14 +473,19 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        try:
-            arrow.get(dateobs).datetime
-        except Exception:
-            return self.error(f'Invalid dateobs: {dateobs}')
-        if not isinstance(source_id, str):
-            return self.error("source_id must be a string")
 
-        source_id = source_id.strip()
+        validator_instance = Validator()
+        params_to_be_validated = {
+            'source_id': source_id,
+            'dateobs': dateobs,
+        }
+        try:
+            validated = validator_instance.load(params_to_be_validated)
+        except ValidationError as e:
+            return self.error(f'Error parsing query params: {e.args[0]}.')
+
+        source_id = validated['source_id'].strip()
+        dateobs = validated['dateobs']
 
         with self.Session() as session:
             try:
@@ -498,12 +512,12 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
         return self.success(data={'id': source_in_gcn.id})
 
 
-class GCNsAssociatedToSourceHandler(BaseHandler):
+class GCNsAssociatedWithSourceHandler(BaseHandler):
     @auth_or_token
     def get(self, source_id):
         """
         ---
-        description: Get the GCNs associated to a source (GCNs for which the source has been confirmed)
+        description: Get the GCNs associated with a source (GCNs for which the source has been confirmed)
         tags:
           - gcn_associated_to_source
         parameters:

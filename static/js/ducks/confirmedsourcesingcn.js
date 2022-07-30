@@ -23,7 +23,7 @@ export const deleteSourceInGcn = (dateobs, source_id) =>
   );
 
 export const patchSourceInGcn = (dateobs, source_id, data) =>
-  API.PUT(
+  API.PATCH(
     `/api/sources_in_gcn/${dateobs}/${source_id}`,
     PATCH_SOURCE_IN_GCN,
     data

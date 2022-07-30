@@ -137,7 +137,7 @@ const ConfirmSourceInGCN = ({
           end_date,
           localization_name,
           localization_cumprob,
-          confirmed_or_rejected: true,
+          confirmed: true,
         })
       ).then((response) => {
         if (response.status === "success") {
@@ -148,7 +148,7 @@ const ConfirmSourceInGCN = ({
     } else if (currentState === "rejected") {
       dispatch(
         SourceInGcnAction.patchSourceInGcn(dateobs, source_id, {
-          confirmed_or_rejected: true,
+          confirmed: true,
         })
       ).then((response) => {
         if (response.status === "success") {
@@ -170,7 +170,7 @@ const ConfirmSourceInGCN = ({
           end_date,
           localization_name,
           localization_cumprob,
-          confirmed_or_rejected: false,
+          confirmed: false,
         })
       ).then((response) => {
         if (response.status === "success") {
@@ -181,7 +181,7 @@ const ConfirmSourceInGCN = ({
     } else if (currentState === "confirmed") {
       dispatch(
         SourceInGcnAction.patchSourceInGcn(dateobs, source_id, {
-          confirmed_or_rejected: false,
+          confirmed: false,
         })
       ).then((response) => {
         if (response.status === "success") {
