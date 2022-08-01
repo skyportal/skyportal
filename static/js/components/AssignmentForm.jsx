@@ -84,8 +84,10 @@ const AssignmentForm = ({ obj_id, observingRunList }) => {
   }));
   const classes = useStyles();
 
+  // the use of integer dates leads to some upcoming runs being
+  // left out depending on the timezone
   const upcomingObservingRuns = observingRunList.filter((run) =>
-    dayjs().isBefore(dayjs(run.run_end_utc))
+    dayjs().isBefore(dayjs(run.run_end_utc).add(2, "day"))
   );
 
   if (upcomingObservingRuns.length === 0) {
