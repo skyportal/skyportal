@@ -14,7 +14,7 @@
     "@mui/lab": "5.0.0-alpha.88",
     "@mui/material": "5.8.2",
     "@mui/styled-engine": "5.8.7",
-    "@mui/styles": "5.8.6",
+    "@mui/styles": "5.9.2",
     "@rjsf/core": "4.2.0",
     "@rjsf/material-ui": "4.2.0",
     "autosuggest-highlight": "3.2.1",
