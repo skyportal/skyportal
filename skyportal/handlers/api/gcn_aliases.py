@@ -9,9 +9,6 @@ from ...models import GcnEvent
 CIRCULARS_URL = "https://gcn.gsfc.nasa.gov/gcn/selected.html"
 
 class GcnAliasesHandler(BaseHandler):
-    def get(self):
-        return self.success(data={'info': "W"})
-
     @permissions(["Manage GCNs"])
     def post(self, dateobs):
         """
