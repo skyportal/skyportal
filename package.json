@@ -22,7 +22,7 @@
     "check-dependencies": "1.1.0",
     "clsx": "1.1.1",
     "convert-css-length": "2.0.1",
-    "core-js": "3.22.4",
+    "core-js": "3.24.1",
     "css-loader": "5.2.6",
     "d3": "7.4.4",
     "d3-array": "3.1.5",
