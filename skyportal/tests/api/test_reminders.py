@@ -35,7 +35,7 @@ def post_and_verify_reminder(endpoint, token):
     assert data[-1]['reminder_delay'] == reminder_delay
     assert data[-1]['number_of_reminders'] == number_of_reminders
 
-    time.sleep(15)  # wait for the reminder to be sent
+    time.sleep(10)  # wait for the reminder to be sent
     status, data = api('GET', endpoint, token=token)
     assert status == 200
     assert data['status'] == 'success'

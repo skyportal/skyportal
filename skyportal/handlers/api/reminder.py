@@ -393,7 +393,6 @@ class ReminderHandler(BaseHandler):
         number_of_reminders = data.get("number_of_reminders", 1)
         with self.Session() as session:
             try:
-                print("beginning of handler")
                 group_ids = data.pop('group_ids', None)
                 if not group_ids:
                     group_ids = [g.id for g in self.current_user.accessible_groups]
@@ -424,7 +423,6 @@ class ReminderHandler(BaseHandler):
                 ).all()
 
                 is_bot_reminder = isinstance(self.current_user, Token)
-                print("about to post to session")
                 reminders = post_reminder(
                     self.associated_user_object,
                     associated_resource_type,
@@ -440,7 +438,6 @@ class ReminderHandler(BaseHandler):
                 for reminder in reminders:
                     session.add(reminder)
 
-                print("added them to the session")
                 action, payload = None, None
                 if associated_resource_type.lower() == "source":
                     text_to_send = f"*@{self.associated_user_object.username}* created a reminder on *{resource_id}*"
@@ -498,7 +495,7 @@ class ReminderHandler(BaseHandler):
                 return self.error(str(e))
 
     @permissions(['Reminder'])
-    def put(self, associated_resource_type, resource_id, reminder_id):
+    def patch(self, associated_resource_type, resource_id, reminder_id):
         """
         ---
         description: Update a reminder

@@ -51,7 +51,7 @@ class ReminderMixin:
     )
 
     reminder_delay = sa.Column(
-        sa.Float, nullable=False, index=True, doc="Delay until next reminder in days."
+        sa.Float, nullable=False, doc="Delay until next reminder in days."
     )
 
     number_of_reminders = sa.Column(

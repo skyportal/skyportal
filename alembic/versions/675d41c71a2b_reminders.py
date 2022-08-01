@@ -49,12 +49,6 @@ def upgrade():
     )
     op.create_index(op.f('ix_reminders_obj_id'), 'reminders', ['obj_id'], unique=False)
     op.create_index(
-        op.f('ix_reminders_reminder_delay'),
-        'reminders',
-        ['reminder_delay'],
-        unique=False,
-    )
-    op.create_index(
         op.f('ix_reminders_user_id'), 'reminders', ['user_id'], unique=False
     )
     op.create_table(
@@ -128,12 +122,6 @@ def upgrade():
         unique=False,
     )
     op.create_index(
-        op.f('ix_reminders_on_gcns_reminder_delay'),
-        'reminders_on_gcns',
-        ['reminder_delay'],
-        unique=False,
-    )
-    op.create_index(
         op.f('ix_reminders_on_gcns_user_id'),
         'reminders_on_gcns',
         ['user_id'],
@@ -172,12 +160,6 @@ def upgrade():
         op.f('ix_reminders_on_shifts_number_of_reminders'),
         'reminders_on_shifts',
         ['number_of_reminders'],
-        unique=False,
-    )
-    op.create_index(
-        op.f('ix_reminders_on_shifts_reminder_delay'),
-        'reminders_on_shifts',
-        ['reminder_delay'],
         unique=False,
     )
     op.create_index(
@@ -298,12 +280,6 @@ def upgrade():
         unique=False,
     )
     op.create_index(
-        op.f('ix_reminders_on_spectra_reminder_delay'),
-        'reminders_on_spectra',
-        ['reminder_delay'],
-        unique=False,
-    )
-    op.create_index(
         op.f('ix_reminders_on_spectra_spectrum_id'),
         'reminders_on_spectra',
         ['spectrum_id'],
@@ -371,10 +347,6 @@ def downgrade():
         op.f('ix_reminders_on_spectra_spectrum_id'), table_name='reminders_on_spectra'
     )
     op.drop_index(
-        op.f('ix_reminders_on_spectra_reminder_delay'),
-        table_name='reminders_on_spectra',
-    )
-    op.drop_index(
         op.f('ix_reminders_on_spectra_obj_id'), table_name='reminders_on_spectra'
     )
     op.drop_index(
@@ -417,9 +389,6 @@ def downgrade():
         op.f('ix_reminders_on_shifts_shift_id'), table_name='reminders_on_shifts'
     )
     op.drop_index(
-        op.f('ix_reminders_on_shifts_reminder_delay'), table_name='reminders_on_shifts'
-    )
-    op.drop_index(
         op.f('ix_reminders_on_shifts_number_of_reminders'),
         table_name='reminders_on_shifts',
     )
@@ -431,9 +400,6 @@ def downgrade():
     )
     op.drop_table('reminders_on_shifts')
     op.drop_index(op.f('ix_reminders_on_gcns_user_id'), table_name='reminders_on_gcns')
-    op.drop_index(
-        op.f('ix_reminders_on_gcns_reminder_delay'), table_name='reminders_on_gcns'
-    )
     op.drop_index(
         op.f('ix_reminders_on_gcns_number_of_reminders'), table_name='reminders_on_gcns'
     )
@@ -450,7 +416,6 @@ def downgrade():
     op.drop_index('group_reminders_forward_ind', table_name='group_reminders')
     op.drop_table('group_reminders')
     op.drop_index(op.f('ix_reminders_user_id'), table_name='reminders')
-    op.drop_index(op.f('ix_reminders_reminder_delay'), table_name='reminders')
     op.drop_index(op.f('ix_reminders_obj_id'), table_name='reminders')
     op.drop_index(op.f('ix_reminders_number_of_reminders'), table_name='reminders')
     op.drop_index(op.f('ix_reminders_next_reminder'), table_name='reminders')
