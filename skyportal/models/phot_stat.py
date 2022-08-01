@@ -348,7 +348,7 @@ class PhotStat(Base):
 
     __table_args__ = (
         sa.Index(
-            "index_phot_stats_on_mean_color_gin",
+            "ix_photstats_mean_color_gin",
             "mean_color",
             postgresql_using="gin",
         ),
