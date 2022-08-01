@@ -132,7 +132,10 @@ const DialogTitle = withStyles(dialogTitleStyles)(
 
 const NewReminder = ({ resourceId, resourceType, handleClose }) => {
   const dispatch = useDispatch();
-  const defaultDate = dayjs().utc().format("YYYY-MM-DDTHH:mm:ssZ");
+  const defaultDate = dayjs()
+    .add(1, "day")
+    .utc()
+    .format("YYYY-MM-DDTHH:mm:ssZ");
 
   const handleSubmit = ({ formData }) => {
     formData.next_reminder = formData.next_reminder
@@ -154,7 +157,7 @@ const NewReminder = ({ resourceId, resourceType, handleClose }) => {
     if (formData.text === "") {
       errors.text = "Reminder text is required";
     }
-    if (defaultDate > formData.next_reminder) {
+    if (dayjs().utc().format("YYYY-MM-DDTHH:mm:ssZ") > formData.next_reminder) {
       errors.next_reminder.addError("Next reminder date can't be in the past");
     }
     if (formData.number_of_reminders <= 0) {
