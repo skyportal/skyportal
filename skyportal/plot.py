@@ -2438,10 +2438,15 @@ def make_spectrum_layout(
         CustomJS(
             args={'input': w_input, 'model_dict': model_dict},
             code="""
-                    model_dict['custom_line'].data_source.data['x'][0] = input.value;
-                    model_dict['custom_line'].visible = true;
-                    model_dict['custom_line'].data_source.data['wavelength'][0] = input.value;
-                    model_dict['custom_line'].data_source.change.emit();
+                    if (input.value === null) {
+                        model_dict['custom_line'].visible = false;
+                    }
+                    else {
+                        model_dict['custom_line'].data_source.data['x'][0] = input.value;
+                        model_dict['custom_line'].visible = true;
+                        model_dict['custom_line'].data_source.data['wavelength'][0] = input.value;
+                        model_dict['custom_line'].data_source.change.emit();
+                    }
                 """,
         ),
     )
