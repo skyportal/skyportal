@@ -1,10 +1,17 @@
 import arrow
+import requests
+import re
+from bs4 import BeautifulSoup
 from ..base import BaseHandler
 from baselayer.app.access import permissions
 from ...models import GcnEvent
 
+CIRCULARS_URL = "https://gcn.gsfc.nasa.gov/gcn/selected.html"
 
 class GcnAliasesHandler(BaseHandler):
+    def get(self):
+        return self.success(data={'info': "W"})
+
     @permissions(["Manage GCNs"])
     def post(self, dateobs):
         """
@@ -52,16 +59,26 @@ class GcnAliasesHandler(BaseHandler):
                 if gcn_event is None:
                     return self.error(f'No GCN event found for {dateobs}')
 
-                # here, Leo, will implement his script to scrape other names of this event
-                # and save them in the database in GcnEvent.aliases column
+                split_date = dateobs.split("T", 1)
+                date = split_date[0].replace("-", "")[2:]
+                time = split_date[1]
+                date_pattern = f".*{date}.*"
 
-                new_gcn_aliases = [
-                    'Test name',
-                    'GWSomething',
-                ]  # HARDCODED. This would be the result of the web scraping. !!!LEO REPLACE THIS BY YOUR CODE!!!
+                all_circulars_page = requests.get(CIRCULARS_URL)
+                all_circulars_soup = BeautifulSoup(all_circulars_page.content, "html.parser")
+                date_matches = all_circulars_soup.find_all("b", text=re.compile(date_pattern))
+                new_gcn_aliases = []
+                if date_matches:
+                    # Assign A, B, etc
+                    for date_match in date_matches:
+                        formatted_name = date_match.text.split()[1][:-1]
+                        compiled_url = f"https://gcn.gsfc.nasa.gov/gcn/other/{formatted_name}.gcn3"
 
-                # here, we need to decide if we replace the current aliases by the new ones, or if we just add names that we didn't have before.
-                # we can do this by comparing the two lists.
+                        circulars_page = requests.get(compiled_url)
+                        if time in circulars_page.text:
+                            new_gcn_aliases.append(formatted_name)
+                            break
+
                 if gcn_event.aliases is None:
                     gcn_event.aliases = new_gcn_aliases
                 else:
