@@ -33,9 +33,9 @@ class PlotPhotometryHandler(BaseHandler):
         with self.Session() as session:
             try:
                 json = plot.photometry_plot(
-                    obj_id,
-                    self.current_user.id,
-                    session,
+                    obj_id=obj_id,
+                    user_id=self.current_user.id,
+                    session=session,
                     width=int(width),
                     device=device,
                 )
@@ -60,9 +60,9 @@ class PlotSpectroscopyHandler(BaseHandler):
         with self.Session() as session:
             try:
                 json = plot.spectroscopy_plot(
-                    obj_id,
-                    session,
-                    spec_id,
+                    obj_id=obj_id,
+                    session=session,
+                    spec_id=spec_id,
                     width=int(width),
                     device=device,
                     smoothing=smoothing,
