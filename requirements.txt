@@ -29,14 +29,14 @@ regions==0.6
 jsonschema==3.2.0
 jsonpath_ng==1.5.3
 pytest-rerunfailures==10.2
-timezonefinder==6.0.1
+timezonefinder==6.0.2
 astroplan==0.8
 py3-validate-email==1.0.5
 alembic==1.8.0
 marshmallow-jsonschema==0.13.0
 requests_toolbelt==0.9.1
 sendgrid==6.9.7
-twilio==7.9.1
+twilio==7.12.0
 jsonschema-to-openapi==0.2.1
 responses==0.21.0
 numba==0.55.2
@@ -57,7 +57,7 @@ pip==22.1.2
 gwemopt==0.0.76
 humanize==4.0.0
 xarray>=21.1
-simsurvey==0.7.3
+simsurvey==0.7.5
 noaodatalab==2.20.0
 black==22.3.0
 click==8.1.3
