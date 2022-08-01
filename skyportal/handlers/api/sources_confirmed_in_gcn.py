@@ -4,21 +4,59 @@ from .source import get_sources, MAX_SOURCES_PER_PAGE
 from ...models import GcnEvent, Localization, SourcesConfirmedInGCN
 from ...utils.UTCTZnaiveDateTime import UTCTZnaiveDateTime
 
-from marshmallow import Schema, fields
+from marshmallow import Schema, fields, validates_schema
 from marshmallow.exceptions import ValidationError
 
 
 class Validator(Schema):
+    method = fields.Str(required=True)
+    dateobs = UTCTZnaiveDateTime(required=True)
     source_id = fields.String()
-    dateobs = UTCTZnaiveDateTime(required=False, missing=None)
     start_date = UTCTZnaiveDateTime(required=False, missing=None)
     end_date = UTCTZnaiveDateTime(required=False, missing=None)
     confirmed = fields.Boolean(
-        truthy=['true', 'True', True], falsy=['false', 'False', False]
+        truthy=['true', 'True', 'confirmed', True],
+        falsy=['false', 'False', 'rejected', False],
     )
     localization_name = fields.String()
     localization_cumprob = fields.Float()
     sources_id_list = fields.String()
+
+    @validates_schema
+    def validate_requires(self, data, **kwargs):
+        if 'method' not in data:
+            raise ValidationError('method is required')
+        if data['method'] not in ['POST', 'GET', 'PATCH', 'DELETE']:
+            raise ValidationError('method must be one of POST, GET, PATCH or DELETE')
+        if data['method'] == 'GET':
+            if 'sources_id_list' not in data:
+                raise ValidationError('Missing required fields')
+            if data['sources_id_list'] is None:
+                raise ValidationError('Missing required fields')
+        if data['method'] == 'POST':
+            if (
+                'start_date' not in data
+                or 'end_date' not in data
+                or 'localization_name' not in data
+                or 'localization_cumprob' not in data
+            ):
+                raise ValidationError('Missing required fields')
+            if (
+                data['start_date'] is None
+                or data['end_date'] is None
+                or data['localization_name'] is None
+                or data['localization_cumprob'] is None
+            ):
+                raise ValidationError('Missing required fields')
+        if (
+            data['method'] == 'PATCH'
+            or data['method'] == 'DELETE'
+            or data['method'] == 'POST'
+        ):
+            if 'source_id' not in data:
+                raise ValidationError('Missing required fields')
+            if data['source_id'] is None:
+                raise ValidationError('Missing required fields')
 
 
 class SourcesConfirmedInGCNHandler(BaseHandler):
@@ -29,7 +67,7 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
         single:
           tags:
             - source_confirmed_in_gcn
-          description: Retrieve a source that has been confirmed or rejected in GCN
+          description: Retrieve a source that has been confirmed or rejected in a GCN
           parameters:
             - in: path
               name: dateobs
@@ -75,7 +113,7 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
         multiple:
           tags:
             - sources_confirmed_in_gcn
-          description: Retrieve sources that has been confirmed or rejected in GCN
+          description: Retrieve sources that have been confirmed/rejected in a GCN
           parameters:
             - in: path
               name: dateobs
@@ -122,19 +160,18 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
                   schema: Error
         """
         sources_id_list = self.get_query_argument('sourcesIDList', '')
+        if source_id is not None:
+            sources_id_list = source_id
         validator_instance = Validator()
         params_to_be_validated = {
+            'method': 'GET',
             'sources_id_list': sources_id_list,
             'dateobs': dateobs,
         }
-        if source_id is not None:
-            params_to_be_validated['source_id'] = source_id
         try:
             validated = validator_instance.load(params_to_be_validated)
         except ValidationError as e:
             return self.error(f'Error parsing query params: {e.args[0]}.')
-        if source_id is not None:
-            source_id = validated['source_id'].strip()
         dateobs = validated['dateobs']
         sources_id_list = validated['sources_id_list']
 
@@ -147,10 +184,6 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
                 return self.error(
                     "some of the sourceIDs in the sourcesIDList are not valid strings"
                 )
-
-        if source_id is not None:
-            # if a source_id is passed as a parameter, we only want to return the source_id, we ignore the query argument sourcesIDList
-            sources_id_list = [source_id]
 
         with self.Session() as session:
             try:
@@ -210,10 +243,10 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
                     description: Whether the source is confirmed (True) or rejected (False)
                   start_date:
                     type: string
-                    description: First detection of source(s) after start_date, as an arrow parseable string
+                    description: Query sources with a first detection after start_date, as an arrow parseable string
                   end_date:
                     type: string
-                    description: Last detection of source(s) before the end_date, as an arrow parseable string
+                    description: Query sources with a last detection before end_date, as an arrow parseable string
                 required:
                   - localization_name
                   - localization_cumprob
@@ -243,21 +276,9 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
 
         """
         data = self.get_json()
-        if 'localization_name' not in data:
-            return self.error("Missing required parameter: localization_name")
-        if 'localization_cumprob' not in data:
-            return self.error("Missing required parameter: localization_cumprob")
-        if 'source_id' not in data:
-            return self.error("Missing source_id")
-        if 'confirmed' not in data:
-            return self.error("Missing confirmed")
-        if 'start_date' not in data:
-            return self.error("Missing start_date")
-        if 'end_date' not in data:
-            return self.error("Missing end_date")
 
-        localization_name = data['localization_name']
-        localization_cumprob = data['localization_cumprob']
+        localization_name = data.get('localization_name')
+        localization_cumprob = data.get('localization_cumprob')
         source_id = data.get('source_id')
         confirmed = data.get('confirmed')
         start_date = data.get('start_date')
@@ -265,6 +286,7 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
 
         validator_instance = Validator()
         params_to_be_validated = {
+            'method': 'POST',
             'source_id': source_id,
             'dateobs': dateobs,
             'start_date': start_date,
@@ -304,7 +326,7 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
                 sources = sources['sources']
 
                 if len(sources) == 0:
-                    return self.error("No sources found")
+                    return self.error("No sources found, can't confirm/reject")
 
                 stmt = Localization.select(session.user_or_token).where(
                     Localization.localization_name == localization_name,
@@ -321,7 +343,7 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
                 source_in_gcn = session.scalars(stmt).first()
                 if source_in_gcn:
                     return self.error(
-                        "Source is already confirmed or rejected in this localization"
+                        "Source is already confirmed/rejected in this localization"
                     )
 
                 source_in_gcn = SourcesConfirmedInGCN(
@@ -389,12 +411,11 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
                 schema: Error
         """
         data = self.get_json()
-        if 'confirmed' not in data:
-            return self.error("Missing confirmed")
         confirmed = data.get('confirmed')
 
         validator_instance = Validator()
         params_to_be_validated = {
+            'method': 'PATCH',
             'source_id': source_id,
             'dateobs': dateobs,
             'confirmed': confirmed,
@@ -424,7 +445,7 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
                 source_in_gcn = session.scalars(stmt).first()
                 if not source_in_gcn:
                     return self.error(
-                        "Source is not confirmed or rejected in this GCN event"
+                        "Source is not confirmed/rejected in this GCN event"
                     )
                 source_in_gcn.confirmed = confirmed
                 session.commit()
@@ -439,7 +460,9 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
     def delete(self, dateobs, source_id):
         """
         ---
-        description: Deletes the confirmed or rejected status of source in a GCN. It's status can be considered as 'undefined'
+        description: |
+          Deletes the confirmed or rejected status of source in a GCN.
+          Its status can be considered as 'undefined'.
         tags:
           - source_confirmed_in_gcn
         parameters:
@@ -476,6 +499,7 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
 
         validator_instance = Validator()
         params_to_be_validated = {
+            'method': 'DELETE',
             'source_id': source_id,
             'dateobs': dateobs,
         }
