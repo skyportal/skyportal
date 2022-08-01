@@ -68,7 +68,8 @@ class GcnAliasesHandler(BaseHandler):
                 if date_matches:
                     # Assign A, B, etc
                     for date_match in date_matches:
-                        formatted_name = date_match.text.split()[1][:-1]
+                        formatted_name = date_match.text.replace("_"," ").replace("-"," ").split()[1][:-1]
+
                         compiled_url = f"https://gcn.gsfc.nasa.gov/gcn/other/{formatted_name}.gcn3"
 
                         circulars_page = requests.get(compiled_url)
