@@ -1620,7 +1620,7 @@ def observation_simsurvey(
                 np.max([1, (distmean - 5 * diststd)]) * u.Mpc
             )
             distance_upper = astropy.coordinates.Distance(
-                (distmean + 5 * diststd) * u.Mpc
+                np.max([2, (distmean + 5 * diststd)]) * u.Mpc
             )
         else:
             result = t['PROB']
