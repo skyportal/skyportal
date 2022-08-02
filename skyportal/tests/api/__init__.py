@@ -1,0 +1,1 @@
+from .test_reminders import post_and_verify_reminder

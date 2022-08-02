@@ -254,7 +254,7 @@ class ReminderHandler(BaseHandler):
                             f'Unsupported associated resource type "{associated_resource_type}".'
                         )
                     reminders = session.scalars(stmt).all()
-                    self.verify_and_commit()
+                    session.commit()
                     return self.success(
                         data={
                             'resourceId': resource_id,

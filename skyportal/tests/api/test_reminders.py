@@ -61,6 +61,7 @@ def post_and_verify_reminder(endpoint, token):
     ).strftime("%Y-%m-%dT%H:%M:%S")
     assert data[-1]['reminder_delay'] == reminder_delay
     assert data[-1]['number_of_reminders'] == number_of_reminders - 1
+    return reminder_text
 
 
 def test_reminder_on_shift(
