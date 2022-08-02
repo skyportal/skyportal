@@ -557,34 +557,39 @@ user:
 ports:
   facility_queue: 64510
 
-gcn_notice_types:
-  - FERMI_GBM_FLT_POS
-  - FERMI_GBM_GND_POS
-  - FERMI_GBM_FIN_POS
-  - FERMI_GBM_SUBTHRESH
-  # - LVC_PRELIMINARY
-  # - LVC_INITIAL
-  # - LVC_UPDATE
-  # - LVC_RETRACTION
-  - AMON_ICECUBE_COINC
-  - AMON_ICECUBE_HESE
-  - ICECUBE_ASTROTRACK_GOLD
-  - ICECUBE_ASTROTRACK_BRONZE
+gcn:
+  server: gcn.nasa.gov
+  # you can obtain a client_id and client_secret at https://gcn.nasa.gov/quickstart
+  client_id:
+  client_secret:
+  notice_types:
+    - FERMI_GBM_FLT_POS
+    - FERMI_GBM_GND_POS
+    - FERMI_GBM_FIN_POS
+    - FERMI_GBM_SUBTHRESH
+    # - LVC_PRELIMINARY
+    # - LVC_INITIAL
+    # - LVC_UPDATE
+    # - LVC_RETRACTION
+    # - AMON_ICECUBE_COINC
+    # - AMON_ICECUBE_HESE
+    - ICECUBE_ASTROTRACK_GOLD
+    - ICECUBE_ASTROTRACK_BRONZE
 
-gcn_observation_plans:
-  - allocation-proposal_id: ZTF-001
-    payload:
-      filter_strategy: block
-      schedule_type: greedy_slew
-      schedule_strategy: tiling
-      galaxy_catalog: CLU_mini
-      exposure_time: 300
-      filters: g,r,g
-      maximum_airmass: 2
-      integrated_probability: 90
-      minimum_time_difference: 30
-      program_id: Partnership
-      subprogram_name: GRB
+  observation_plans:
+    - allocation-proposal_id: ZTF-001
+      payload:
+        filter_strategy: block
+        schedule_type: greedy_slew
+        schedule_strategy: tiling
+        galaxy_catalog: CLU_mini
+        exposure_time: 300
+        filters: g,r,g
+        maximum_airmass: 2
+        integrated_probability: 90
+        minimum_time_difference: 30
+        program_id: Partnership
+        subprogram_name: GRB
 
 health_monitor:
   seconds_between_checks: 30.5
