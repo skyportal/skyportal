@@ -4,7 +4,7 @@ import sqlalchemy as sa
 from sqlalchemy import func
 from sqlalchemy.orm import sessionmaker, scoped_session
 import astropy.units as u
-from astropy.table import Table
+from astropy.io import ascii
 import healpix_alchemy as ha
 import numpy as np
 import pandas as pd
@@ -591,72 +591,64 @@ class GalaxyASCIIFileHandler(BaseHandler):
         return self.success()
 
 
-class GalaxyGladeHandler(BaseHandler):
-    @permissions(['System Admin'])
-    def post(self):
-        """
-        ---
-        description: Upload galaxies from GLADE+ catalog
-        tags:
-          - galaxys
-        responses:
-          200:
-            content:
-              application/json:
-                schema: ArrayOfGalaxys
-          400:
-            content:
-              application/json:
-                schema: Error
-        """
+def add_glade():
 
-        catalog_name = 'GLADE'
+    catalog_name = 'GLADE'
 
-        column_names = [
-            'GLADE_no',
-            'PGC_no',
-            'GWGC_name',
-            'HyperLEDA_name',
-            '2MASS_name',
-            'WISExSCOS_name',
-            'SDSS-DR16Q_name',
-            'Object_type',
-            'RA',
-            'Dec',
-            'B',
-            'B_err',
-            'B_flag',
-            'B_Abs',
-            'J',
-            'J_err',
-            'H',
-            'H_err',
-            'K',
-            'K_err',
-            'W1',
-            'W1_err',
-            'W2',
-            'W2_err',
-            'W1_flag',
-            'B_J',
-            'B_J_err',
-            'z_helio',
-            'z_cmb',
-            'z_flag',
-            'v_err',
-            'z_err',
-            'd_L',
-            'd_L_err',
-            'dist',
-            'Mstar',
-            'Mstar_err',
-            'Mstar_flag',
-            'Merger_rate',
-            'Merger_rate_error',
-        ]
+    column_names = [
+        'GLADE_no',
+        'PGC_no',
+        'GWGC_name',
+        'HyperLEDA_name',
+        '2MASS_name',
+        'WISExSCOS_name',
+        'SDSS-DR16Q_name',
+        'Object_type',
+        'RA',
+        'Dec',
+        'B',
+        'B_err',
+        'B_flag',
+        'B_Abs',
+        'J',
+        'J_err',
+        'H',
+        'H_err',
+        'K',
+        'K_err',
+        'W1',
+        'W1_err',
+        'W2',
+        'W2_err',
+        'W1_flag',
+        'B_J',
+        'B_J_err',
+        'z_helio',
+        'z_cmb',
+        'z_flag',
+        'v_err',
+        'z_err',
+        'd_L',
+        'd_L_err',
+        'dist',
+        'Mstar',
+        'Mstar_err',
+        'Mstar_flag',
+        'Merger_rate',
+        'Merger_rate_error',
+    ]
 
-        datafile = 'http://elysium.elte.hu/~dalyag/GLADE+.txt'
-        df = Table.read(datafile, format='ascii', names=column_names).to_pandas()
+    datafile = 'http://elysium.elte.hu/~dalyag/GLADE+.txt'
+    tbls = ascii.read(
+        datafile,
+        names=column_names,
+        guess=False,
+        delimiter=' ',
+        format='no_header',
+        fast_reader={'chunk_size': int(10 * 1e6), 'chunk_generator': True},  # 10 MB
+    )
+    for ii, tbl in enumerate(tbls):
+        df = tbl.to_pandas()
         df = df.replace({'null': np.nan})
         df['GLADE_name'] = ['GLADE-' + str(n) for n in df['GLADE_no']]
 
@@ -675,8 +667,20 @@ class GalaxyGladeHandler(BaseHandler):
             },
             inplace=True,
         )
-        df['distmpc'] = df['distmpc'].astype(float)
-        df['distmpc_unc'] = df['distmpc_unc'].astype(float)
+
+        float_columns = [
+            'ra',
+            'dec',
+            'mstar',
+            'magk',
+            'magb',
+            'redshift',
+            'redshift_error',
+            'distmpc',
+            'distmpc_unc',
+        ]
+        for col in float_columns:
+            df[col] = df[col].astype(float)
 
         drop_columns = list(
             set(df.columns.values)
@@ -703,10 +707,10 @@ class GalaxyGladeHandler(BaseHandler):
         catalog_data = df.to_dict(orient='list')
 
         if not all(k in catalog_data for k in ['ra', 'dec', 'name']):
-            return self.error("ra, dec, and name required in catalog_data.")
+            return ValueError("ra, dec, and name required in catalog_data.")
 
         if not all(k in catalog_data for k in ['ra', 'dec', 'name']):
-            return self.error("ra, dec, and name required in catalog_data.")
+            return ValueError("ra, dec, and name required in catalog_data.")
 
         # fill in any missing optional parameters
         optional_parameters = [
@@ -737,18 +741,38 @@ class GalaxyGladeHandler(BaseHandler):
         ]
         for key in positive_definite_parameters:
             if any([(x is not None) and (x < 0) for x in catalog_data[key]]):
-                return self.error(f"{key} should be positive definite.")
+                return ValueError(f"{key} should be positive definite.")
 
         # check RA bounds
         if any([(x < 0) or (x >= 360) for x in catalog_data['ra']]):
-            return self.error("ra should span 0=<ra<360.")
+            return ValueError("ra should span 0=<ra<360.")
 
         # check Declination bounds
         if any([(x > 90) or (x < -90) for x in catalog_data['dec']]):
-            return self.error("declination should span -90<dec<90.")
+            return ValueError("declination should span -90<dec<90.")
 
-        IOLoop.current().run_in_executor(
-            None, lambda: add_galaxies(catalog_name, catalog_data)
-        )
+        add_galaxies(catalog_name, catalog_data)
+
+
+class GalaxyGladeHandler(BaseHandler):
+    @permissions(['System Admin'])
+    def post(self):
+        """
+        ---
+        description: Upload galaxies from GLADE+ catalog
+        tags:
+          - galaxys
+        responses:
+          200:
+            content:
+              application/json:
+                schema: ArrayOfGalaxys
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+
+        IOLoop.current().run_in_executor(None, lambda: add_glade())
 
         return self.success()
