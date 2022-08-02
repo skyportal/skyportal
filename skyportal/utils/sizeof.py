@@ -2,8 +2,8 @@
 
 import sys
 
-# create logs at 10 MB
-SIZE_WARNING_THRESHOLD = 1e7
+# create logs at 2 MB
+SIZE_WARNING_THRESHOLD = 2e6
 
 
 def sizeof(obj):
