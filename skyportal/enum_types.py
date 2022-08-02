@@ -186,4 +186,4 @@ sqla_enum_types = [
     allowed_webbook_status_types,
 ]
 
-GCN_NOTICE_TYPES = tuple(cfg.get('gcn_notice_types', []))
+GCN_NOTICE_TYPES = tuple(cfg.get('gcn.notice_types', []))

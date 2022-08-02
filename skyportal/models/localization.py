@@ -171,12 +171,14 @@ class LocalizationTile(Base):
     localization_id = sa.Column(
         sa.ForeignKey('localizations.id', ondelete="CASCADE"),
         primary_key=True,
+        index=True,
         doc='localization ID',
     )
 
     probdensity = sa.Column(
         sa.Float,
         nullable=False,
+        index=True,
         doc="Probability density for the tile",
     )
 

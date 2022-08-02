@@ -1,8 +1,9 @@
 import arrow
+import sqlalchemy as sa
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
-from ...models import DBSession, Group, Classification, Taxonomy
+from ...models import DBSession, Group, Classification, Taxonomy, Obj
 
 DEFAULT_CLASSIFICATIONS_PER_PAGE = 100
 MAX_CLASSIFICATIONS_PER_PAGE = 500
@@ -420,3 +421,78 @@ class ObjClassificationHandler(BaseHandler):
         )
         self.verify_and_commit()
         return self.success(data=classifications)
+
+
+class ObjClassificationQueryHandler(BaseHandler):
+    @auth_or_token
+    def get(self):
+        """
+        ---
+        description: find the sources with classifications
+        tags:
+          - source
+        parameters:
+        - in: query
+          name: startDate
+          nullable: true
+          schema:
+            type: string
+          description: |
+            Arrow-parseable date string (e.g. 2020-01-01) for when the classification was made. If provided, filter by
+            created_at >= startDate
+        - in: query
+          name: endDate
+          nullable: true
+          schema:
+            type: string
+          description: |
+            Arrow-parseable date string (e.g. 2020-01-01) for when the classification was made. If provided, filter by
+            created_at <= endDate
+        responses:
+            200:
+              content:
+                application/json:
+                  schema:
+                    allOf:
+                      - $ref: '#/components/schemas/Success'
+                      - type: object
+                        properties:
+                          data:
+                            type: array
+                            items:
+                              integer
+                            description: |
+                              List of obj IDs with classifications
+            400:
+              content:
+                application/json:
+                  schema: Error
+        """
+
+        start_date = self.get_query_argument('startDate', None)
+        end_date = self.get_query_argument('endDate', None)
+
+        with self.Session() as session:
+
+            # get owned
+            classifications = Classification.select(session.user_or_token)
+
+            if start_date:
+                start_date = str(arrow.get(start_date.strip()).datetime)
+                classifications = classifications.where(
+                    Classification.created_at >= start_date
+                )
+            if end_date:
+                end_date = str(arrow.get(end_date.strip()).datetime)
+                classifications = classifications.where(
+                    Classification.created_at <= end_date
+                )
+
+            classifications_subquery = classifications.subquery()
+
+            stmt = sa.select(Obj.id).join(
+                classifications_subquery, classifications_subquery.c.obj_id == Obj.id
+            )
+            obj_ids = session.scalars(stmt.distinct()).all()
+
+            return self.success(data=obj_ids)
