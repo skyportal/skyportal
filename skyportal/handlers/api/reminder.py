@@ -324,7 +324,7 @@ class ReminderHandler(BaseHandler):
         return self.success(data=reminder)
 
     @permissions(['Reminder'])
-    def post(self, associated_resource_type, resource_id):
+    def post(self, associated_resource_type, resource_id, reminder_id=None):
         """
         ---
         description: Post a reminder

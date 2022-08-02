@@ -222,10 +222,6 @@ skyportal_handlers = [
         GcnEventSurveyEfficiencyHandler,
     ),
     (
-        r'/api/(source|spectra|gcn_event|shift)/([0-9A-Za-z-_\.\+]+)/reminders',
-        ReminderHandler,
-    ),
-    (
         r'/api/(source|spectra|gcn_event|shift)/([0-9A-Za-z-_\.\+]+)/reminders(/[0-9]+)?',
         ReminderHandler,
     ),
