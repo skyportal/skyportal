@@ -386,6 +386,13 @@ class Obj(Base, conesearch_alchemy.Point):
         doc="Analyses assocated with this obj.",
     )
 
+    sources_in_gcns = relationship(
+        "SourcesConfirmedInGCN",
+        back_populates="obj",
+        passive_deletes=True,
+        doc="Sources in a localization.",
+    )
+
     def add_linked_thumbnails(self, session=DBSession):
         """Determine the URLs of the SDSS and DESI DR8 thumbnails of the object,
         insert them into the Thumbnails table, and link them to the object."""
