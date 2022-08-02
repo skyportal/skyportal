@@ -8,6 +8,7 @@ from ...models import GcnEvent
 
 CIRCULARS_URL = "https://gcn.gsfc.nasa.gov/gcn/selected.html"
 
+
 class GcnAliasesHandler(BaseHandler):
     @permissions(["Manage GCNs"])
     def post(self, dateobs):
@@ -62,15 +63,25 @@ class GcnAliasesHandler(BaseHandler):
                 date_pattern = f".*{date}.*"
 
                 all_circulars_page = requests.get(CIRCULARS_URL)
-                all_circulars_soup = BeautifulSoup(all_circulars_page.content, "html.parser")
-                date_matches = all_circulars_soup.find_all("b", text=re.compile(date_pattern))
+                all_circulars_soup = BeautifulSoup(
+                    all_circulars_page.content, "html.parser"
+                )
+                date_matches = all_circulars_soup.find_all(
+                    "b", text=re.compile(date_pattern)
+                )
                 new_gcn_aliases = []
                 if date_matches:
                     # Assign A, B, etc
                     for date_match in date_matches:
-                        formatted_name = date_match.text.replace("_"," ").replace("-"," ").split()[1][:-1]
+                        formatted_name = (
+                            date_match.text.replace("_", " ")
+                            .replace("-", " ")
+                            .split()[1][:-1]
+                        )
 
-                        compiled_url = f"https://gcn.gsfc.nasa.gov/gcn/other/{formatted_name}.gcn3"
+                        compiled_url = (
+                            f"https://gcn.gsfc.nasa.gov/gcn/other/{formatted_name}.gcn3"
+                        )
 
                         circulars_page = requests.get(compiled_url)
                         if time in circulars_page.text:
