@@ -64,7 +64,11 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-const GcnSelectionForm = ({ gcnEvent, setSelectedLocalizationName }) => {
+const GcnSelectionForm = ({
+  gcnEvent,
+  setSelectedLocalizationName,
+  setSourceFilteringState,
+}) => {
   const classes = useStyles();
   const dispatch = useDispatch();
 
@@ -190,6 +194,7 @@ const GcnSelectionForm = ({ gcnEvent, setSelectedLocalizationName }) => {
       await dispatch(
         sourcesActions.fetchGcnEventSources(gcnEvent.dateobs, formData)
       );
+      setSourceFilteringState(formData);
     }
     formData.includeGeoJSON = true;
     if (formData.queryList.includes("observations")) {
@@ -515,5 +520,6 @@ GcnSelectionForm.propTypes = {
     id: PropTypes.number,
   }).isRequired,
   setSelectedLocalizationName: PropTypes.func.isRequired,
+  setSourceFilteringState: PropTypes.func.isRequired,
 };
 export default GcnSelectionForm;

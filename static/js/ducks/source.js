@@ -79,6 +79,8 @@ const FETCH_PHOTOZ = "skyportal/FETCH_PHOTOZ";
 
 const CHECK_SOURCE = "skyportal/CHECK_SOURCE";
 
+const FETCH_ASSOCIATED_GCNS = "skyportal/FETCH_ASSOCIATED_GCNS";
+const FETCH_ASSOCIATED_GCNS_OK = "skyportal/FETCH_ASSOCIATED_GCNS_OK";
 const START_ANALYSIS_FOR_OBJ = "skyportal/START_SERVICE_FOR_OBJ";
 const DELETE_ANALYSIS = "skyportal/DELETE_ANALYSIS";
 
@@ -307,6 +309,9 @@ export const fetchVizier = (sourceID) =>
 export const fetchPhotoz = (sourceID) =>
   API.POST(`/api/sources/${sourceID}/annotations/datalab`, FETCH_PHOTOZ);
 
+export const fetchAssociatedGCNs = (sourceID) =>
+  API.GET(`/api/associated_gcns/${sourceID}`, FETCH_ASSOCIATED_GCNS);
+
 // Websocket message handler
 messageHandler.add((actionType, payload, dispatch, getState) => {
   const { source } = getState();
@@ -320,7 +325,10 @@ messageHandler.add((actionType, payload, dispatch, getState) => {
 });
 
 // Reducer for currently displayed source
-const reducer = (state = { source: null, loadError: false }, action) => {
+const reducer = (
+  state = { source: null, loadError: false, associatedGCNs: null },
+  action
+) => {
   switch (action.type) {
     case FETCH_LOADED_SOURCE_OK: {
       const source = action.data;
@@ -387,6 +395,13 @@ const reducer = (state = { source: null, loadError: false }, action) => {
           attachment,
           attachment_name,
         },
+      };
+    }
+    case FETCH_ASSOCIATED_GCNS_OK: {
+      const { gcns } = action.data;
+      return {
+        ...state,
+        associatedGCNs: gcns,
       };
     }
     default:
