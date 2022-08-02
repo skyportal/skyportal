@@ -9,9 +9,9 @@ from selenium.webdriver.common.keys import Keys
 
 def post_and_verify_reminder(endpoint, token):
     reminder_text = str(uuid.uuid4())
-    next_reminder = datetime.utcnow() + timedelta(seconds=5)
+    next_reminder = datetime.utcnow() + timedelta(seconds=1)
     reminder_delay = 1
-    number_of_reminders = 2
+    number_of_reminders = 1
     request_data = {
         'text': reminder_text,
         'next_reminder': next_reminder.strftime("%Y-%m-%dT%H:%M:%S"),
@@ -37,8 +37,22 @@ def post_and_verify_reminder(endpoint, token):
     assert data[-1]['reminder_delay'] == reminder_delay
     assert data[-1]['number_of_reminders'] == number_of_reminders
 
-    time.sleep(10)  # wait for the reminder to be sent
-    status, data = api('GET', endpoint, token=token)
+    n_retries = 0
+    while n_retries < 10:
+        status, data = api(
+            'GET',
+            endpoint,
+            token=token,
+        )
+        if (
+            data['status'] == 'success'
+            and data['data']['reminders'][-1]['number_of_reminders']
+            == number_of_reminders - 1
+        ):
+            break
+        time.sleep(1)
+        n_retries += 1
+    assert n_retries < 10
     assert status == 200
     assert data['status'] == 'success'
     data = data['data']['reminders']
