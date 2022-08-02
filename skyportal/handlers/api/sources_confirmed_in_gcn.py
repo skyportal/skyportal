@@ -243,10 +243,10 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
                     description: Whether the source is confirmed (True) or rejected (False)
                   start_date:
                     type: string
-                    description: Query sources with a first detection after start_date, as an arrow parseable string
+                    description: Choose sources with a first detection after start_date, as an arrow parseable string
                   end_date:
                     type: string
-                    description: Query sources with a last detection before end_date, as an arrow parseable string
+                    description: Choose sources with a last detection before end_date, as an arrow parseable string
                 required:
                   - localization_name
                   - localization_cumprob
