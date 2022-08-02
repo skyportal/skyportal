@@ -3,9 +3,9 @@ from marshmallow.exceptions import ValidationError
 from baselayer.app.custom_exceptions import AccessError
 from baselayer.app.access import permissions, auth_or_token
 from baselayer.app.flow import Flow
+from skyportal.models.source import Source
 from ..base import BaseHandler
 from ...models import (
-    DBSession,
     Reminder,
     ReminderOnSpectrum,
     ReminderOnGCN,
@@ -21,7 +21,7 @@ from ...models import (
 
 
 def post_reminder(
-    user,
+    session,
     associated_resource_type,
     resource_id,
     reminder_text,
@@ -60,13 +60,18 @@ def post_reminder(
     """
 
     reminders = []
+    resource_name = None
     if associated_resource_type.lower() == "source":
-        obj_id = resource_id
+        source = session.scalars(
+            Source.select(session.user_or_token).where(Source.obj_id == resource_id)
+        ).first()
+        if not source:
+            raise AccessError(f"Could not find source {resource_id}")
         for user in users:
             reminders.append(
                 Reminder(
                     text=reminder_text,
-                    obj_id=obj_id,
+                    obj_id=source.obj_id,
                     groups=groups,
                     bot=is_bot_reminder,
                     next_reminder=next_reminder,
@@ -75,19 +80,18 @@ def post_reminder(
                     user=user,
                 )
             )
+        resource_name = source.obj_id
     elif associated_resource_type.lower() == "spectra":
-        spectrum_id = resource_id
-        try:
-            spectrum = Spectrum.get_if_accessible_by(
-                spectrum_id, user, raise_if_none=True
-            )
-        except AccessError:
+        spectrum = session.scalars(
+            Spectrum.select(session.user_or_token).where(Spectrum.id == resource_id)
+        ).first()
+        if not spectrum:
             raise ValueError(f'Could not find spectrum {resource_id}.')
         for user in users:
             reminders.append(
                 ReminderOnSpectrum(
                     text=reminder_text,
-                    spectrum_id=spectrum_id,
+                    spectrum_id=spectrum.id,
                     groups=groups,
                     bot=is_bot_reminder,
                     obj_id=spectrum.obj_id,
@@ -97,13 +101,12 @@ def post_reminder(
                     user=user,
                 )
             )
+        resource_name = source.obj_id
     elif associated_resource_type.lower() == "gcn_event":
-        gcnevent_id = resource_id
-        try:
-            gcn_event = GcnEvent.get_if_accessible_by(
-                gcnevent_id, user, raise_if_none=True
-            )
-        except AccessError:
+        gcn_event = session.scalars(
+            GcnEvent.select(session.user_or_token).where(GcnEvent.id == resource_id)
+        ).first()
+        if not gcn_event:
             raise ValueError(f'Could not find GcnEvent {resource_id}.')
         for user in users:
             reminders.append(
@@ -118,11 +121,12 @@ def post_reminder(
                     user=user,
                 )
             )
+        resource_name = gcn_event.dateobs
     elif associated_resource_type.lower() == "shift":
-        shift_id = resource_id
-        try:
-            shift = Shift.get_if_accessible_by(shift_id, user, raise_if_none=True)
-        except AccessError:
+        shift = session.scalars(
+            Shift.select(session.user_or_token).where(Shift.id == resource_id)
+        ).first()
+        if not shift:
             raise ValueError(f'Could not find Shift {resource_id}.')
         for user in users:
             reminders.append(
@@ -137,10 +141,11 @@ def post_reminder(
                     user=user,
                 )
             )
+        resource_name = shift.id
     else:
         raise ValueError(f'Unknown resource type "{associated_resource_type}".')
 
-    return reminders
+    return reminders, resource_name
 
 
 class ReminderHandler(BaseHandler):
@@ -225,103 +230,90 @@ class ReminderHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
-        if reminder_id is None:
-            if associated_resource_type.lower() == "source":
-                reminders = (
-                    Reminder.query_records_accessible_by(self.current_user)
-                    .filter(Reminder.obj_id == resource_id)
-                    .all()
-                )
-            elif associated_resource_type.lower() == "spectra":
-                reminders = (
-                    ReminderOnSpectrum.query_records_accessible_by(self.current_user)
-                    .filter(ReminderOnSpectrum.spectrum_id == resource_id)
-                    .all()
-                )
-            elif associated_resource_type.lower() == "gcn_event":
-                reminders = (
-                    ReminderOnGCN.query_records_accessible_by(self.current_user)
-                    .filter(ReminderOnGCN.gcn_id == resource_id)
-                    .all()
-                )
-            elif associated_resource_type.lower() == "shift":
-                reminders = (
-                    ReminderOnShift.query_records_accessible_by(self.current_user)
-                    .filter(ReminderOnShift.shift_id == resource_id)
-                    .all()
-                )
-            else:
-                return self.error(
-                    f'Unsupported associated resource type "{associated_resource_type}".'
-                )
-            self.verify_and_commit()
-            return self.success(
-                data={
-                    'resourceId': resource_id,
-                    'resourceType': associated_resource_type.lower(),
-                    'reminders': reminders,
-                }
-            )
-
         try:
-            reminder_id = int(reminder_id)
-        except (TypeError, ValueError):
-            return self.error("Must provide a valid (scalar integer) reminder ID. ")
+            with self.Session() as session:
+                if reminder_id is None:
+                    if associated_resource_type.lower() == "source":
+                        stmt = Reminder.select(session.user_or_token).where(
+                            Reminder.obj_id == resource_id
+                        )
+                    elif associated_resource_type.lower() == "spectra":
+                        stmt = ReminderOnSpectrum.select(session.user_or_token).where(
+                            ReminderOnSpectrum.spectrum_id == resource_id
+                        )
+                    elif associated_resource_type.lower() == "gcn_event":
+                        stmt = ReminderOnGCN.select(session.user_or_token).where(
+                            ReminderOnGCN.gcn_id == resource_id
+                        )
+                    elif associated_resource_type.lower() == "shift":
+                        stmt = ReminderOnShift.select(session.user_or_token).where(
+                            ReminderOnShift.shift_id == resource_id
+                        )
+                    else:
+                        return self.error(
+                            f'Unsupported associated resource type "{associated_resource_type}".'
+                        )
+                    reminders = session.scalars(stmt).all()
+                    self.verify_and_commit()
+                    return self.success(
+                        data={
+                            'resourceId': resource_id,
+                            'resourceType': associated_resource_type.lower(),
+                            'reminders': reminders,
+                        }
+                    )
+                else:
+                    try:
+                        reminder_id = int(reminder_id)
+                    except (TypeError, ValueError):
+                        return self.error(
+                            "Must provide a valid (scalar integer) reminder ID. "
+                        )
 
-        # the default is to reminder on an object
-        if associated_resource_type.lower() == "source":
-            try:
-                reminder = Reminder.get_if_accessible_by(
-                    reminder_id, self.current_user, raise_if_none=True
-                )
-            except AccessError:
-                return self.error(
-                    'Could not find any accessible reminders.', status=403
-                )
-            reminder_resource_id_str = str(reminder.obj_id)
+                    # the default is to reminder on an object
+                    if associated_resource_type.lower() == "source":
+                        stmt = Reminder.select(session.user_or_token).where(
+                            Reminder.id == reminder_id
+                        )
 
-        elif associated_resource_type.lower() == "spectra":
-            try:
-                reminder = ReminderOnSpectrum.get_if_accessible_by(
-                    reminder_id, self.current_user, raise_if_none=True
-                )
-            except AccessError:
-                return self.error(
-                    'Could not find any accessible reminders.', status=403
-                )
-            reminder_resource_id_str = str(reminder.spectrum_id)
-        elif associated_resource_type.lower() == "gcn_event":
-            try:
-                reminder = ReminderOnGCN.get_if_accessible_by(
-                    reminder_id, self.current_user, raise_if_none=True
-                )
-            except AccessError:
-                return self.error(
-                    'Could not find any accessible reminders.', status=403
-                )
-            reminder_resource_id_str = str(reminder.gcn_id)
-        elif associated_resource_type.lower() == "shift":
-            try:
-                reminder = ReminderOnShift.get_if_accessible_by(
-                    reminder_id, self.current_user, raise_if_none=True
-                )
-            except AccessError:
-                return self.error(
-                    'Could not find any accessible reminders.', status=403
-                )
-            reminder_resource_id_str = str(reminder.shift_id)
-        # add more options using elif
-        else:
-            return self.error(
-                f'Unsupported associated_resource_type "{associated_resource_type}".'
-            )
+                    elif associated_resource_type.lower() == "spectra":
+                        stmt = ReminderOnSpectrum.select(session.user_or_token).where(
+                            ReminderOnSpectrum.id == reminder_id
+                        )
+                    elif associated_resource_type.lower() == "gcn_event":
+                        stmt = ReminderOnGCN.select(session.user_or_token).where(
+                            ReminderOnGCN.id == reminder_id
+                        )
+                    elif associated_resource_type.lower() == "shift":
+                        stmt = ReminderOnShift.select(session.user_or_token).where(
+                            ReminderOnShift.id == reminder_id
+                        )
+                    # add more options using elif
+                    else:
+                        return self.error(
+                            f'Unsupported associated_resource_type "{associated_resource_type}".'
+                        )
 
-        if reminder_resource_id_str != resource_id:
-            return self.error(
-                f'Reminder resource ID does not match resource ID given in path ({resource_id})'
-            )
+                    reminder = session.scalar(stmt).first()
 
-        return self.success(data=reminder)
+                    if reminder is None:
+                        return self.error(f'Could not find reminder {reminder_id}.')
+
+                    if associated_resource_type.lower() in ["source", "spectra"]:
+                        reminder_resource_id_str = str(reminder.obj_id)
+                    elif associated_resource_type.lower() == "gcn_event":
+                        reminder_resource_id_str = str(reminder.gcn_id)
+                    elif associated_resource_type.lower() == "shift":
+                        reminder_resource_id_str = str(reminder.shift_id)
+
+                    if reminder_resource_id_str != resource_id:
+                        return self.error(
+                            f'Reminder resource ID does not match resource ID given in path ({resource_id})'
+                        )
+
+                    return self.success(data=reminder)
+        except Exception as e:
+            return self.error(str(e))
 
     @permissions(['Reminder'])
     def post(self, associated_resource_type, resource_id, reminder_id=None):
@@ -423,48 +415,47 @@ class ReminderHandler(BaseHandler):
                 ).all()
 
                 is_bot_reminder = isinstance(self.current_user, Token)
-                reminders = post_reminder(
-                    self.associated_user_object,
-                    associated_resource_type,
-                    resource_id,
-                    reminder_text,
-                    groups,
-                    users,
-                    is_bot_reminder,
-                    next_reminder,
-                    reminder_delay=reminder_delay,
-                    number_of_reminders=number_of_reminders,
-                )
+                try:
+                    reminders, resource_name = post_reminder(
+                        session,
+                        associated_resource_type,
+                        resource_id,
+                        reminder_text,
+                        groups,
+                        users,
+                        is_bot_reminder,
+                        next_reminder,
+                        reminder_delay=reminder_delay,
+                        number_of_reminders=number_of_reminders,
+                    )
+                except Exception as e:
+                    return self.error(str(e))
+
                 for reminder in reminders:
                     session.add(reminder)
 
                 action, payload = None, None
                 if associated_resource_type.lower() == "source":
-                    text_to_send = f"*@{self.associated_user_object.username}* created a reminder on *{resource_id}*"
-                    url_endpoint = f"/source/{resource_id}"
+                    text_to_send = f"*@{self.associated_user_object.username}* created a reminder on source *{resource_name}*"
+                    url_endpoint = f"/source/{resource_name}"
                     action = 'skyportal/REFRESH_REMINDER_SOURCE'
                     payload = {'id': resource_id}
                     notification_type = 'reminder_source'
                 elif associated_resource_type.lower() == "spectra":
-                    text_to_send = f"*@{self.associated_user_object.username}* created a reminder on *{resource_id}*"
-                    url_endpoint = f"/source/{resource_id}"
+                    text_to_send = f"*@{self.associated_user_object.username}* created a reminder on spectrum *{resource_name}*"
+                    url_endpoint = f"/manage_data/{resource_name}"
                     action = 'skyportal/REFRESH_REMINDER_SOURCE_SPECTRA'
                     payload = {'id': resource_id}
                     notification_type = 'reminder_spectra'
                 elif associated_resource_type.lower() == "gcn_event":
-                    gcn_event = (
-                        session.query(GcnEvent)
-                        .filter(GcnEvent.id == resource_id)
-                        .first()
-                    )
-                    text_to_send = f"*@{self.associated_user_object.username}* created a reminder on *{gcn_event.dateobs}*"
-                    url_endpoint = f"/gcn_events/{gcn_event.dateobs}"
+                    text_to_send = f"*@{self.associated_user_object.username}* created a reminder on GCN event *{resource_name}*"
+                    url_endpoint = f"/gcn_events/{resource_name}"
                     action = 'skyportal/REFRESH_REMINDER_GCNEVENT'
                     payload = {'id': resource_id}
                     notification_type = 'reminder_gcn'
                 elif associated_resource_type.lower() == "shift":
-                    text_to_send = f"*@{self.associated_user_object.username}* created a reminder on *shift {resource_id}*"
-                    url_endpoint = "/shifts"
+                    text_to_send = f"*@{self.associated_user_object.username}* created a reminder on shift *{resource_name}*"
+                    url_endpoint = f"/shifts/{resource_name}"
                     action = 'skyportal/REFRESH_REMINDER_SHIFT'
                     payload = {'id': resource_id}
                     notification_type = 'reminder_shift'
@@ -557,63 +548,14 @@ class ReminderHandler(BaseHandler):
         except (TypeError, ValueError):
             return self.error("Must provide a valid (scalar integer) reminder ID. ")
 
-        if associated_resource_type.lower() == "source":
-            schema = Reminder.__schema__()
-            try:
-                c = Reminder.get_if_accessible_by(
-                    reminder_id, self.current_user, mode="update", raise_if_none=True
-                )
-            except AccessError:
-                return self.error(
-                    'Could not find any accessible reminders.', status=403
-                )
-            reminder_resource_id_str = str(c.obj_id)
-
-        elif associated_resource_type.lower() == "spectra":
-            schema = ReminderOnSpectrum.__schema__()
-            try:
-                c = ReminderOnSpectrum.get_if_accessible_by(
-                    reminder_id, self.current_user, mode="update", raise_if_none=True
-                )
-            except AccessError:
-                return self.error(
-                    'Could not find any accessible reminders.', status=403
-                )
-            reminder_resource_id_str = str(c.spectrum_id)
-
-        elif associated_resource_type.lower() == "gcn_event":
-            schema = ReminderOnGCN.__schema__()
-            try:
-                c = ReminderOnGCN.get_if_accessible_by(
-                    reminder_id, self.current_user, mode="update", raise_if_none=True
-                )
-            except AccessError:
-                return self.error(
-                    'Could not find any accessible reminders.', status=403
-                )
-            reminder_resource_id_str = str(c.gcn_id)
-        elif associated_resource_type.lower() == "shift":
-            schema = ReminderOnShift.__schema__()
-            try:
-                c = ReminderOnShift.get_if_accessible_by(
-                    reminder_id, self.current_user, mode="update", raise_if_none=True
-                )
-            except AccessError:
-                return self.error(
-                    'Could not find any accessible reminders.', status=403
-                )
-            reminder_resource_id_str = str(c.shift_id)
-        # add more options using elif
-        else:
-            return self.error(
-                f'Unsupported associated_resource_type "{associated_resource_type}".'
-            )
-
         data = self.get_json()
         group_ids = data.pop('group_ids', None)
         with self.Session() as session:
-            if group_ids is not None:
-                if not set(group_ids).issubset(
+            try:
+                group_ids = data.pop('group_ids', None)
+                if not group_ids:
+                    group_ids = [g.id for g in self.current_user.accessible_groups]
+                elif not set(group_ids).issubset(
                     {g.id for g in self.current_user.accessible_groups}
                 ):
                     return self.error(
@@ -622,43 +564,138 @@ class ReminderHandler(BaseHandler):
                 groups = session.scalars(
                     Group.select(session.user_or_token).where(Group.id.in_(group_ids))
                 ).all()
-                c.groups = groups
-        data['id'] = reminder_id
+                data["groups"] = groups
 
-        try:
-            schema.load(data, partial=True)
-        except ValidationError as e:
-            return self.error(f'Invalid/missing parameters: {e.normalized_messages()}')
+                user_ids = data.pop('user_ids', None)
+                if not user_ids:
+                    user_ids = [self.associated_user_object.id]
+                else:
+                    accessible_users = session.scalars(
+                        User.select(session.user_or_token)
+                    ).all()
+                    accessible_user_ids = [u.id for u in accessible_users]
+                    if not set(user_ids).issubset(set(accessible_user_ids)):
+                        return self.error(
+                            'cannot find some of the requested users', status=403
+                        )
+                users = session.scalars(
+                    User.select(session.user_or_token).where(User.id.in_(user_ids))
+                ).all()
+                data["users"] = users
+                data['id'] = reminder_id
 
-        if reminder_resource_id_str != resource_id:
-            return self.error(
-                f'Reminder resource ID does not match resource ID given in path ({resource_id})'
-            )
+                if associated_resource_type.lower() == "source":
+                    source = session.scalars(
+                        Source.select(session.user_or_token).where(
+                            Source.obj_id == resource_id
+                        )
+                    )
+                    if not source:
+                        raise AccessError(f"Could not find source {resource_id}")
+                    schema = Reminder.__schema__()
+                    reminder = session.scalars(
+                        Reminder.select(session.user_or_token).where(
+                            Reminder.id == reminder_id
+                        )
+                    ).first()
 
-        self.verify_and_commit()
+                elif associated_resource_type.lower() == "spectra":
+                    spectrum = session.scalars(
+                        Spectrum.select(session.user_or_token).where(
+                            Spectrum.obj_id == resource_id
+                        )
+                    )
+                    if not spectrum:
+                        raise AccessError(f"Could not find spectrum {resource_id}")
+                    schema = ReminderOnSpectrum.__schema__()
+                    reminder = session.scalars(
+                        ReminderOnSpectrum.select(session.user_or_token).where(
+                            ReminderOnSpectrum.id == reminder_id
+                        )
+                    ).first()
 
-        if isinstance(c, Reminder):
-            self.push_all(
-                action='skyportal/REFRESH_REMINDER_SOURCE',
-                payload={'id': c.obj_id},
-            )
-        elif isinstance(c, ReminderOnSpectrum):
-            self.push_all(
-                action='skyportal/REFRESH_REMINDER_SOURCE_SPECTRA',
-                payload={'id': c.obj_id},
-            )
-        elif isinstance(c, ReminderOnGCN):
-            self.push_all(
-                action='skyportal/REFRESH_REMINDER_GCNEVENT',
-                payload={'id': c.gcn_id},
-            )
-        elif isinstance(c, ReminderOnShift):
-            self.push_all(
-                action='skyportal/REFRESH_REMINDER_SHIFT',
-                payload={'id': c.shift_id},
-            )
+                elif associated_resource_type.lower() == "gcn_event":
+                    gcn_event = session.scalars(
+                        GcnEvent.select(session.user_or_token).where(
+                            GcnEvent.id == resource_id
+                        )
+                    )
+                    if not gcn_event:
+                        raise AccessError(f"Could not find gcn event {resource_id}")
+                    schema = ReminderOnGCN.__schema__()
+                    reminder = session.scalars(
+                        ReminderOnGCN.select(session.user_or_token).where(
+                            ReminderOnGCN.id == reminder_id
+                        )
+                    ).first()
+                elif associated_resource_type.lower() == "shift":
+                    shift = session.scalars(
+                        Shift.select(session.user_or_token).where(
+                            Shift.id == resource_id
+                        )
+                    )
+                    if not shift:
+                        raise AccessError(f"Could not find shift {resource_id}")
+                    schema = ReminderOnShift.__schema__()
+                    reminder = session.scalars(
+                        ReminderOnShift.select(session.user_or_token).where(
+                            ReminderOnShift.id == reminder_id
+                        )
+                    ).first()
+                # add more options using elif
+                else:
+                    return self.error(
+                        f'Unsupported associated_resource_type "{associated_resource_type}".'
+                    )
 
-        return self.success()
+                if not reminder:
+                    return self.error(f"Could not find reminder {reminder_id}")
+
+                if associated_resource_type.lower() in ["source", "spectra"]:
+                    reminder_resource_id_str = str(reminder.obj_id)
+                elif associated_resource_type.lower() == "gcn_event":
+                    reminder_resource_id_str = str(reminder.gcn_id)
+                elif associated_resource_type.lower() == "shift":
+                    reminder_resource_id_str = str(reminder.shift_id)
+
+                if reminder_resource_id_str != resource_id:
+                    return self.error(
+                        f'Reminder resource ID does not match resource ID given in path ({resource_id})'
+                    )
+
+                try:
+                    schema.load(data, partial=True)
+                except ValidationError as e:
+                    return self.error(
+                        f'Invalid/missing parameters: {e.normalized_messages()}'
+                    )
+
+                session.commit()
+
+                if isinstance(reminder, Reminder):
+                    self.push_all(
+                        action='skyportal/REFRESH_REMINDER_SOURCE',
+                        payload={'id': reminder.obj_id},
+                    )
+                elif isinstance(reminder, ReminderOnSpectrum):
+                    self.push_all(
+                        action='skyportal/REFRESH_REMINDER_SOURCE_SPECTRA',
+                        payload={'id': reminder.obj_id},
+                    )
+                elif isinstance(reminder, ReminderOnGCN):
+                    self.push_all(
+                        action='skyportal/REFRESH_REMINDER_GCNEVENT',
+                        payload={'id': reminder.gcn_id},
+                    )
+                elif isinstance(reminder, ReminderOnShift):
+                    self.push_all(
+                        action='skyportal/REFRESH_REMINDER_SHIFT',
+                        payload={'id': reminder.shift_id},
+                    )
+
+                return self.success()
+            except Exception as e:
+                return self.error(str(e))
 
     @permissions(['Reminder'])
     def delete(self, associated_resource_type, resource_id, reminder_id):
@@ -704,89 +741,108 @@ class ReminderHandler(BaseHandler):
             reminder_id = int(reminder_id)
         except (TypeError, ValueError):
             return self.error("Must provide a valid (scalar integer) reminder ID.")
-
-        if associated_resource_type.lower() == "source":
+        with self.Session() as session:
             try:
-                c = Reminder.get_if_accessible_by(
-                    reminder_id, self.current_user, mode="delete", raise_if_none=True
-                )
-            except AccessError:
-                return self.error(
-                    'Could not find any accessible reminders.', status=403
-                )
-            reminder_resource_id_str = str(c.obj_id)
-        elif associated_resource_type.lower() == "spectra":
-            try:
-                c = ReminderOnSpectrum.get_if_accessible_by(
-                    reminder_id, self.current_user, mode="delete", raise_if_none=True
-                )
-            except AccessError:
-                return self.error(
-                    'Could not find any accessible reminders.', status=403
-                )
-            reminder_resource_id_str = str(c.spectrum_id)
-        elif associated_resource_type.lower() == "gcn_event":
-            try:
-                c = ReminderOnGCN.get_if_accessible_by(
-                    reminder_id, self.current_user, mode="delete", raise_if_none=True
-                )
-            except AccessError:
-                return self.error(
-                    'Could not find any accessible reminders.', status=403
-                )
-            reminder_resource_id_str = str(c.gcn_id)
-        elif associated_resource_type.lower() == "shift":
-            try:
-                c = ReminderOnShift.get_if_accessible_by(
-                    reminder_id, self.current_user, mode="delete", raise_if_none=True
-                )
-            except AccessError:
-                return self.error(
-                    'Could not find any accessible reminders.', status=403
-                )
-            reminder_resource_id_str = str(c.shift_id)
+                if associated_resource_type.lower() == "source":
+                    source = session.scalars(
+                        Source.select(session.user_or_token).where(
+                            Source.obj_id == resource_id
+                        )
+                    )
+                    if not source:
+                        raise AccessError(f"Could not find source {resource_id}")
+                    reminder = session.scalars(
+                        Reminder.select(session.user_or_token).where(
+                            Reminder.id == reminder_id
+                        )
+                    ).first()
 
-        # add more options using elif
-        else:
-            return self.error(
-                f'Unsupported associated_resource_type "{associated_resource_type}".'
-            )
+                elif associated_resource_type.lower() == "spectra":
+                    spectrum = session.scalars(
+                        Spectrum.select(session.user_or_token).where(
+                            Spectrum.obj_id == resource_id
+                        )
+                    )
+                    if not spectrum:
+                        raise AccessError(f"Could not find spectrum {resource_id}")
+                    reminder = session.scalars(
+                        ReminderOnSpectrum.select(session.user_or_token).where(
+                            ReminderOnSpectrum.id == reminder_id
+                        )
+                    ).first()
 
-        if isinstance(c, ReminderOnGCN):
-            gcn_id = c.gcn.id
-        elif not isinstance(c, ReminderOnShift):
-            obj_id = c.obj.id
-        elif isinstance(c, ReminderOnShift):
-            shift_id = c.shift.shift_id
+                elif associated_resource_type.lower() == "gcn_event":
+                    gcn_event = session.scalars(
+                        GcnEvent.select(session.user_or_token).where(
+                            GcnEvent.id == resource_id
+                        )
+                    )
+                    if not gcn_event:
+                        raise AccessError(f"Could not find gcn event {resource_id}")
+                    reminder = session.scalars(
+                        ReminderOnGCN.select(session.user_or_token).where(
+                            ReminderOnGCN.id == reminder_id
+                        )
+                    ).first()
 
-        if reminder_resource_id_str != resource_id:
-            return self.error(
-                f'Reminder resource ID does not match resource ID given in path ({resource_id})'
-            )
+                elif associated_resource_type.lower() == "shift":
+                    shift = session.scalars(
+                        Shift.select(session.user_or_token).where(
+                            Shift.id == resource_id
+                        )
+                    )
+                    if not shift:
+                        raise AccessError(f"Could not find shift {resource_id}")
+                    reminder = session.scalars(
+                        ReminderOnShift.select(session.user_or_token).where(
+                            ReminderOnShift.id == reminder_id
+                        )
+                    ).first()
+                # add more options using elif
+                else:
+                    return self.error(
+                        f'Unsupported associated_resource_type "{associated_resource_type}".'
+                    )
 
-        DBSession().delete(c)
-        self.verify_and_commit()
+                if not reminder:
+                    return self.error(f"Could not find reminder {reminder_id}")
 
-        if hasattr(c, 'obj'):
-            self.push_all(
-                action='skyportal/REFRESH_REMINDER_SOURCE',
-                payload={'id': obj_id},
-            )
+                if associated_resource_type.lower() in ["source", "spectra"]:
+                    reminder_resource_id_str = str(reminder.obj_id)
+                elif associated_resource_type.lower() == "gcn_event":
+                    reminder_resource_id_str = str(reminder.gcn_id)
+                elif associated_resource_type.lower() == "shift":
+                    reminder_resource_id_str = str(reminder.shift_id)
 
-        if isinstance(c, ReminderOnGCN):
-            self.push_all(
-                action='skyportal/REFRESH_REMINDER_GCNEVENT',
-                payload={'id': gcn_id},
-            )
-        elif isinstance(c, ReminderOnSpectrum):
-            self.push_all(
-                action='skyportal/REFRESH_REMINDER_SOURCE_SPECTRA',
-                payload={'id': obj_id},
-            )
-        elif isinstance(c, ReminderOnShift):
-            self.push_all(
-                action='skyportal/REFRESH_REMINDER_SHIFT',
-                payload={'id': shift_id},
-            )
+                if reminder_resource_id_str != resource_id:
+                    return self.error(
+                        f'Reminder resource ID does not match resource ID given in path ({resource_id})'
+                    )
 
-        return self.success()
+                session.delete(reminder)
+                session.commit()
+
+                if isinstance(reminder, Reminder):
+                    self.push_all(
+                        action='skyportal/REFRESH_REMINDER_SOURCE',
+                        payload={'id': reminder.obj_id},
+                    )
+                elif isinstance(reminder, ReminderOnSpectrum):
+                    self.push_all(
+                        action='skyportal/REFRESH_REMINDER_SOURCE_SPECTRA',
+                        payload={'id': reminder.obj_id},
+                    )
+                elif isinstance(reminder, ReminderOnGCN):
+                    self.push_all(
+                        action='skyportal/REFRESH_REMINDER_GCNEVENT',
+                        payload={'id': reminder.gcn_id},
+                    )
+                elif isinstance(reminder, ReminderOnShift):
+                    self.push_all(
+                        action='skyportal/REFRESH_REMINDER_SHIFT',
+                        payload={'id': reminder.shift_id},
+                    )
+
+                return self.success()
+            except Exception as e:
+                return self.error(str(e))

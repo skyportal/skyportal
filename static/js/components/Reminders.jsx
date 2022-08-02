@@ -227,6 +227,15 @@ const RemindersTable = ({ reminders, resourceId, resourceType }) => {
   const classes = useStyles();
   const theme = useTheme();
   const [open, setOpen] = useState(false);
+  // for now, we'll just show the reminders of the current user.
+  // in the future, we'll want to show all reminders for the resource
+  // show the users in the reminders list (datatable)
+  // and allow to choose users to add to the reminders to in the NewReminder dialog
+  const currentUser = useSelector((state) => state.profile);
+
+  reminders = reminders.filter(
+    (reminder) => reminder.user_id === currentUser.id
+  );
 
   const handleClose = () => {
     setOpen(false);
