@@ -105,8 +105,11 @@ class AnalysisWebhookHandler(BaseHandler):
                 ).total_seconds()
                 session.commit()
             except Exception as e:
-                log(f'Troubling accessing Analysis with token {token} {e}.')
-                return self.error("Invalid token", status=403)
+                log(f'Trouble posting Analysis results. Token: {token}. Error: {e}')
+                return self.error(
+                    f'Trouble posting Analysis results. Token: {token}. Error: {e}',
+                    status=403,
+                )
 
             data = self.get_json()
 
