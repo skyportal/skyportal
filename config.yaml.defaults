@@ -90,6 +90,8 @@ app:
       component: About
     - path: "/run/:id"
       component: RunSummary
+    - path: "/source/:obj_id/analysis/:analysis_id"
+      component: SourceAnalysisPage
     - path: "/manage_data/:id"
       component: ManageDataForm
     - path: "/filter/:fid"
