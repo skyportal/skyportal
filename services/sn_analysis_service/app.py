@@ -184,7 +184,7 @@ def run_sn_model(data_dict):
                 {
                     "analysis": analysis_results,
                     "status": "success",
-                    "message": f"Good results with chi^2/dof={result.chisq/result.ndof}",
+                    "message": f"Good results with chi^2/dof={result.chisq}/{result.ndof}",
                 }
             )
         else:
