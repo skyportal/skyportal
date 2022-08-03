@@ -101,7 +101,7 @@ def post_reminder(
                     user=user,
                 )
             )
-        resource_name = source.obj_id
+        resource_name = spectrum.obj_id
     elif associated_resource_type.lower() == "gcn_event":
         gcn_event = session.scalars(
             GcnEvent.select(session.user_or_token).where(GcnEvent.id == resource_id)
