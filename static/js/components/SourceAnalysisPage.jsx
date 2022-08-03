@@ -185,12 +185,12 @@ const SourceAnalysisPage = ({ route }) => {
                 <AccordionDetails>
                   <Card className={classes.root} variant="outlined">
                     <CardContent>
-                      {Object.keys(analysisResults).map((k, v) => (
+                      {Object.keys(analysisResults).map((k) => (
                         <span
                           className={classes.div}
                           key={`display_results_${k}`}
                         >
-                          <b>{k}</b>: {JSON.stringify(v)}
+                          <b>{k}</b>: {JSON.stringify(analysisResults[k])}
                           <br />
                         </span>
                       ))}
