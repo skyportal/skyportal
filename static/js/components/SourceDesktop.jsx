@@ -37,6 +37,8 @@ import EditSourceGroups from "./EditSourceGroups";
 import UpdateSourceRedshift from "./UpdateSourceRedshift";
 import SourceRedshiftHistory from "./SourceRedshiftHistory";
 import AnnotationsTable from "./AnnotationsTable";
+import AnalysisList from "./AnalysisList";
+import AnalysisForm from "./AnalysisForm";
 import SourceSaveHistory from "./SourceSaveHistory";
 import PhotometryTable from "./PhotometryTable";
 import FavoritesButton from "./FavoritesButton";
@@ -677,6 +679,25 @@ const SourceDesktop = ({ source }) => {
                     taxonomyList={taxonomyList}
                   />
                 </div>
+              </AccordionDetails>
+            </Accordion>
+          </div>
+          <div className={classes.columnItem}>
+            <Accordion defaultExpanded>
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon />}
+                aria-controls="analysis-content"
+                id="analysis-header"
+              >
+                <Typography className={classes.accordionHeading}>
+                  External Analysis
+                </Typography>
+              </AccordionSummary>
+              <AccordionDetails>
+                <AnalysisList obj_id={source.id} />
+              </AccordionDetails>
+              <AccordionDetails>
+                <AnalysisForm obj_id={source.id} />
               </AccordionDetails>
             </Accordion>
           </div>
