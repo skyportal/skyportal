@@ -1,12 +1,10 @@
 import React, { useEffect, useState } from "react";
 import PropTypes from "prop-types";
 import { useSelector, useDispatch } from "react-redux";
-import { Link } from "react-router-dom";
 
 import Accordion from "@mui/material/Accordion";
 import AccordionSummary from "@mui/material/AccordionSummary";
 import AccordionDetails from "@mui/material/AccordionDetails";
-import Button from "@mui/material/Button";
 import Chip from "@mui/material/Chip";
 import makeStyles from "@mui/styles/makeStyles";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
@@ -35,6 +33,7 @@ import ObservationPlanRequestLists from "./ObservationPlanRequestLists";
 
 import CommentList from "./CommentList";
 import GcnTags from "./GcnTags";
+import GcnAliases from "./GcnAliases";
 
 import withRouter from "./withRouter";
 
@@ -313,19 +312,8 @@ const GcnEventPage = ({ route }) => {
             </AccordionSummary>
             <AccordionDetails>
               <div className={styles.gcnEventContainer}>
-                {gcnEvent?.aliases?.length > 0 ? (
-                  <h3>
-                    Aliases: <span>{gcnEvent.aliases.join(", ")}</span>
-                  </h3>
-                ) : (
-                  <h3>No aliases yet</h3>
-                )}
-                <Link to={`/gcn_events/${gcnEvent.dateobs}`}>
-                  <Button color="primary">
-                    {dayjs(gcnEvent.dateobs).format("YYMMDD HH:mm:ss")}
-                  </Button>
-                </Link>
-                ({dayjs().to(dayjs.utc(`${gcnEvent.dateobs}Z`))})
+                <GcnAliases gcnEvent={gcnEvent} />
+                <br />({dayjs().to(dayjs.utc(`${gcnEvent.dateobs}Z`))})
               </div>
             </AccordionDetails>
           </Accordion>

@@ -48,6 +48,8 @@ const DELETE_OBSERVATION_PLAN_FIELDS =
 const GET_GCNEVENT_SUMMARY = "skyportal/FETCH_GCNEVENT_SUMMARY";
 const GET_GCNEVENT_SUMMARY_OK = "skyportal/FETCH_GCNEVENT_SUMMARY_OK";
 
+const POST_GCN_ALIASES = "skyportal/POST_GCN_ALIASES";
+
 export const fetchGcnEvent = (dateobs) =>
   API.GET(`/api/gcn_event/${dateobs}`, FETCH_GCNEVENT);
 
@@ -165,6 +167,11 @@ export function getGcnEventSummary({ dateobs, params }) {
     params
   );
 }
+
+export function postGcnAliases(dateobs) {
+  return API.POST(`/api/gcn_event/${dateobs}/aliases`, POST_GCN_ALIASES);
+}
+
 // Websocket message handler
 messageHandler.add((actionType, payload, dispatch, getState) => {
   const { gcnEvent } = getState();
