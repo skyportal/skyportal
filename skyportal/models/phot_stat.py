@@ -578,6 +578,15 @@ class PhotStat(Base):
             List of photometry points associated with this object.
 
         """
+        if len(phot_list) == 0:
+            # use initialization to set None/{} to all values
+            self.__init__(self.obj_id)
+
+            # make sure to update the last update time
+            self.last_update = datetime.utcnow()
+            self.last_full_update = datetime.utcnow()
+            return
+
         filters = []
         mjds = []
         mags = []
