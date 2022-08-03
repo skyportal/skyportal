@@ -63,11 +63,11 @@ class UserObjListHandler(BaseHandler):
             stmt = Listing.select(self.current_user).where(Listing.user_id == user_id)
 
             if list_name is not None:
-                stmt = stmt.where(Listing.name == list_name)
+                stmt = stmt.where(Listing.list_name == list_name)
 
             listings = session.scalars(stmt).all()
 
-        return self.success(data=listings)
+            return self.success(data=listings)
 
     @auth_or_token
     def post(self):
@@ -153,7 +153,7 @@ class UserObjListHandler(BaseHandler):
         with self.Session() as session:
             stmt = Listing.select(self.current_user).where(
                 Listing.user_id == user_id,
-                Listing.name == list_name,
+                Listing.list_name == list_name,
                 Listing.obj_id == obj_id,
             )
 
@@ -272,13 +272,13 @@ class UserObjListHandler(BaseHandler):
 
             session.commit()
 
-        if list_name == "favorites":
-            self.push(action='skyportal/REFRESH_FAVORITES')
-            self.push(action='skyportal/REFRESH_FAVORITE_SOURCES')
-        if list_name == "rejected_candidates":
-            self.push(action='skyportal/REFRESH_REJECTED_CANDIDATES')
+            if list_name == "favorites":
+                self.push(action='skyportal/REFRESH_FAVORITES')
+                self.push(action='skyportal/REFRESH_FAVORITE_SOURCES')
+            if list_name == "rejected_candidates":
+                self.push(action='skyportal/REFRESH_REJECTED_CANDIDATES')
 
-        return self.success()
+            return self.success()
 
     @auth_or_token
     def delete(self, listing_id=None):
@@ -359,14 +359,12 @@ class UserObjListHandler(BaseHandler):
 
                 list_name = data.get('list_name')
                 listing = session.scalars(
-                    Listing.select(self.current_user, mode="delete")
-                    .where(
+                    Listing.select(self.current_user, mode="delete").where(
                         Listing.user_id == user_id,
                         Listing.obj_id == obj_id,
                         Listing.list_name == list_name,
                     )
-                    .first()
-                )
+                ).first()
 
             if listing is None:
                 return self.error("Cannot delete Listing.")
@@ -376,10 +374,10 @@ class UserObjListHandler(BaseHandler):
             session.delete(listing)
             session.commit()
 
-        if list_name == "favorites":
-            self.push(action='skyportal/REFRESH_FAVORITES')
-            self.push(action='skyportal/REFRESH_FAVORITE_SOURCES')
-        if list_name == "rejected_candidates":
-            self.push(action='skyportal/REFRESH_REJECTED_CANDIDATES')
+            if list_name == "favorites":
+                self.push(action='skyportal/REFRESH_FAVORITES')
+                self.push(action='skyportal/REFRESH_FAVORITE_SOURCES')
+            if list_name == "rejected_candidates":
+                self.push(action='skyportal/REFRESH_REJECTED_CANDIDATES')
 
-        return self.success()
+            return self.success()
