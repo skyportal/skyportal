@@ -129,3 +129,7 @@ from .user import (
 from .unsourced_finder import UnsourcedFinderHandler
 from .weather import WeatherHandler
 from .webhook import AnalysisWebhookHandler
+from .sources_confirmed_in_gcn import (
+    SourcesConfirmedInGCNHandler,
+    GCNsAssociatedWithSourceHandler,
+)

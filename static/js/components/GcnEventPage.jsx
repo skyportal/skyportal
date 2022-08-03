@@ -99,7 +99,12 @@ DownloadXMLButton.propTypes = {
   }).isRequired,
 };
 
-const GcnEventSourcesPage = ({ route, sources, localizationName }) => {
+const GcnEventSourcesPage = ({
+  route,
+  sources,
+  localizationName,
+  sourceFilteringState,
+}) => {
   const classes = useStyles();
   const dispatch = useDispatch();
   const [sourcesRowsPerPage, setSourcesRowsPerPage] = useState(100);
@@ -162,6 +167,8 @@ const GcnEventSourcesPage = ({ route, sources, localizationName }) => {
         sortingCallback={handleSourcesTableSorting}
         favoritesRemoveButton
         hideTitle
+        includeGcnStatus
+        sourceInGcnFilter={sourceFilteringState}
       />
     </div>
   );
@@ -217,6 +224,11 @@ GcnEventSourcesPage.propTypes = {
     ),
   }),
   localizationName: PropTypes.string.isRequired,
+  sourceFilteringState: PropTypes.shape({
+    startDate: PropTypes.string,
+    endDate: PropTypes.string,
+    localizationCumprob: PropTypes.number,
+  }).isRequired,
 };
 
 GcnEventSourcesPage.defaultProps = {
@@ -229,6 +241,11 @@ const GcnEventPage = ({ route }) => {
   const styles = useStyles();
   const [selectedLocalizationName, setSelectedLocalizationName] =
     useState(null);
+  const [sourceFilteringState, setSourceFilteringState] = useState({
+    startDate: null,
+    endDate: null,
+    localizationCumprob: null,
+  });
 
   const gcnEventSources = useSelector(
     (state) => state?.sources?.gcnEventSources
@@ -271,6 +288,7 @@ const GcnEventPage = ({ route }) => {
                 <GcnSelectionForm
                   gcnEvent={gcnEvent}
                   setSelectedLocalizationName={setSelectedLocalizationName}
+                  setSourceFilteringState={setSourceFilteringState}
                 />
               </div>
             </AccordionDetails>
@@ -431,6 +449,7 @@ const GcnEventPage = ({ route }) => {
                           route={route}
                           sources={gcnEventSources}
                           localizationName={selectedLocalizationName}
+                          sourceFilteringState={sourceFilteringState}
                         />
                       )}
                     </div>
