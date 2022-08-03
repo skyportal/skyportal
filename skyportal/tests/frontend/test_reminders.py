@@ -5,7 +5,65 @@ import time
 from skyportal.tests import api
 from datetime import date, timedelta, datetime
 from selenium.webdriver.common.keys import Keys
-from skyportal.tests.api import post_and_verify_reminder
+
+
+def post_and_verify_reminder(endpoint, token):
+    reminder_text = str(uuid.uuid4())
+    next_reminder = datetime.utcnow() + timedelta(seconds=1)
+    reminder_delay = 1
+    number_of_reminders = 1
+    request_data = {
+        'text': reminder_text,
+        'next_reminder': next_reminder.strftime("%Y-%m-%dT%H:%M:%S"),
+        'reminder_delay': reminder_delay,
+        'number_of_reminders': number_of_reminders,
+    }
+
+    status, data = api(
+        'POST',
+        endpoint,
+        data=request_data,
+        token=token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    status, data = api('GET', endpoint, token=token)
+    assert status == 200
+    assert data['status'] == 'success'
+    data = data['data']['reminders']
+    assert data[-1]['text'] == reminder_text
+    assert data[-1]['next_reminder'] == next_reminder.strftime("%Y-%m-%dT%H:%M:%S")
+    assert data[-1]['reminder_delay'] == reminder_delay
+    assert data[-1]['number_of_reminders'] == number_of_reminders
+
+    n_retries = 0
+    while n_retries < 10:
+        status, data = api(
+            'GET',
+            endpoint,
+            token=token,
+        )
+        if (
+            data['status'] == 'success'
+            and data['data']['reminders'][-1]['number_of_reminders']
+            == number_of_reminders - 1
+        ):
+            break
+        time.sleep(1)
+        n_retries += 1
+    assert n_retries < 10
+    assert status == 200
+    assert data['status'] == 'success'
+    data = data['data']['reminders']
+    assert len(data) == 1
+    assert data[-1]['text'] == reminder_text
+    assert data[-1]['next_reminder'] == (
+        next_reminder + timedelta(days=reminder_delay)
+    ).strftime("%Y-%m-%dT%H:%M:%S")
+    assert data[-1]['reminder_delay'] == reminder_delay
+    assert data[-1]['number_of_reminders'] == number_of_reminders - 1
+    return reminder_text
 
 
 def post_and_verify_reminder_frontend(driver, reminder_text):

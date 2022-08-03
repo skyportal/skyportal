@@ -110,7 +110,7 @@ def send_reminders():
                 notification_type = "reminder_on_source"
             elif reminder_type == ReminderOnSpectrum:
                 text_to_send = f"Reminder of spectrum *{reminder.spectrum_id}* on source *{reminder.obj_id}*: {reminder.text}"
-                url_endpoint = f"/manage_data/{reminder.obj_id}"
+                url_endpoint = f"/source/{reminder.obj_id}"
                 notification_type = "reminder_on_spectra"
             elif reminder_type == ReminderOnGCN:
                 gcn_event = session.scalars(

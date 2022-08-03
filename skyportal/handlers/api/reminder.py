@@ -443,7 +443,7 @@ class ReminderHandler(BaseHandler):
                     notification_type = 'reminder_source'
                 elif associated_resource_type.lower() == "spectra":
                     text_to_send = f"*@{self.associated_user_object.username}* created a reminder on spectrum *{resource_name}*"
-                    url_endpoint = f"/manage_data/{resource_name}"
+                    url_endpoint = f"/source/{resource_name}"
                     action = 'skyportal/REFRESH_REMINDER_SOURCE_SPECTRA'
                     payload = {'id': resource_id}
                     notification_type = 'reminder_spectra'
