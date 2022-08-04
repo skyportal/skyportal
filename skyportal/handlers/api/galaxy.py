@@ -1,3 +1,4 @@
+import os
 from tornado.ioloop import IOLoop
 from geojson import Point, Feature
 import sqlalchemy as sa
@@ -591,7 +592,7 @@ class GalaxyASCIIFileHandler(BaseHandler):
         return self.success()
 
 
-def add_glade():
+def add_glade(file_path=None, file_url=None):
 
     catalog_name = 'GLADE'
 
@@ -638,7 +639,14 @@ def add_glade():
         'Merger_rate_error',
     ]
 
-    datafile = 'http://elysium.elte.hu/~dalyag/GLADE+.txt'
+    if file_path is not None:
+        datafile = file_path
+    elif file_url is not None:
+        datafile = file_url
+    else:
+        datafile = "http://elysium.elte.hu/~dalyag/GLADE+.txt"
+
+    print(f"Downloading {datafile}")
     tbls = ascii.read(
         datafile,
         names=column_names,
@@ -648,46 +656,30 @@ def add_glade():
         fast_reader={'chunk_size': int(10 * 1e6), 'chunk_generator': True},  # 10 MB
     )
     for ii, tbl in enumerate(tbls):
-        df = tbl.to_pandas()
-        df = df.replace({'null': np.nan})
-        df['GLADE_name'] = ['GLADE-' + str(n) for n in df['GLADE_no']]
+        try:
+            df = tbl.to_pandas()
+            df = df.replace({'null': np.nan})
+            df['GLADE_name'] = ['GLADE-' + str(n) for n in df['GLADE_no']]
 
-        df.rename(
-            columns={
-                'RA': 'ra',
-                'Dec': 'dec',
-                'GLADE_name': 'name',
-                'Mstar': 'mstar',
-                'K': 'magk',
-                'B': 'magb',
-                'z_helio': 'redshift',
-                'z_err': 'redshift_error',
-                'd_L': 'distmpc',
-                'd_L_err': 'distmpc_unc',
-            },
-            inplace=True,
-        )
+            df.rename(
+                columns={
+                    'RA': 'ra',
+                    'Dec': 'dec',
+                    'GLADE_name': 'name',
+                    'Mstar': 'mstar',
+                    'K': 'magk',
+                    'B': 'magb',
+                    'z_helio': 'redshift',
+                    'z_err': 'redshift_error',
+                    'd_L': 'distmpc',
+                    'd_L_err': 'distmpc_unc',
+                },
+                inplace=True,
+            )
 
-        float_columns = [
-            'ra',
-            'dec',
-            'mstar',
-            'magk',
-            'magb',
-            'redshift',
-            'redshift_error',
-            'distmpc',
-            'distmpc_unc',
-        ]
-        for col in float_columns:
-            df[col] = df[col].astype(float)
-
-        drop_columns = list(
-            set(df.columns.values)
-            - {
+            float_columns = [
                 'ra',
                 'dec',
-                'name',
                 'mstar',
                 'magk',
                 'magb',
@@ -695,68 +687,89 @@ def add_glade():
                 'redshift_error',
                 'distmpc',
                 'distmpc_unc',
-            }
-        )
+            ]
+            for col in float_columns:
+                df[col] = df[col].astype(float)
 
-        df.drop(
-            columns=drop_columns,
-            inplace=True,
-        )
+            drop_columns = list(
+                set(df.columns.values)
+                - {
+                    'ra',
+                    'dec',
+                    'name',
+                    'mstar',
+                    'magk',
+                    'magb',
+                    'redshift',
+                    'redshift_error',
+                    'distmpc',
+                    'distmpc_unc',
+                }
+            )
 
-        df = df.replace({np.nan: None})
-        catalog_data = df.to_dict(orient='list')
+            df.drop(
+                columns=drop_columns,
+                inplace=True,
+            )
 
-        if not all(k in catalog_data for k in ['ra', 'dec', 'name']):
-            return ValueError("ra, dec, and name required in catalog_data.")
+            df = df.replace({np.nan: None})
+            catalog_data = df.to_dict(orient='list')
 
-        if not all(k in catalog_data for k in ['ra', 'dec', 'name']):
-            return ValueError("ra, dec, and name required in catalog_data.")
+            if not all(k in catalog_data for k in ['ra', 'dec', 'name']):
+                return ValueError("ra, dec, and name required in catalog_data.")
 
-        # fill in any missing optional parameters
-        optional_parameters = [
-            'alt_name',
-            'distmpc',
-            'distmpc_unc',
-            'redshift',
-            'redshift_error',
-            'sfr_fuv',
-            'mstar',
-            'magk',
-            'magb',
-            'a',
-            'b2a',
-            'pa',
-            'btc',
-        ]
-        for key in optional_parameters:
-            if key not in catalog_data:
-                catalog_data[key] = [None] * len(catalog_data['ra'])
+            if not all(k in catalog_data for k in ['ra', 'dec', 'name']):
+                return ValueError("ra, dec, and name required in catalog_data.")
 
-        # check for positive definite parameters
-        positive_definite_parameters = [
-            'distmpc',
-            'distmpc_unc',
-            'redshift',
-            'redshift_error',
-        ]
-        for key in positive_definite_parameters:
-            if any([(x is not None) and (x < 0) for x in catalog_data[key]]):
-                return ValueError(f"{key} should be positive definite.")
+            # fill in any missing optional parameters
+            optional_parameters = [
+                'alt_name',
+                'distmpc',
+                'distmpc_unc',
+                'redshift',
+                'redshift_error',
+                'sfr_fuv',
+                'mstar',
+                'magk',
+                'magb',
+                'a',
+                'b2a',
+                'pa',
+                'btc',
+            ]
+            for key in optional_parameters:
+                if key not in catalog_data:
+                    catalog_data[key] = [None] * len(catalog_data['ra'])
 
-        # check RA bounds
-        if any([(x < 0) or (x >= 360) for x in catalog_data['ra']]):
-            return ValueError("ra should span 0=<ra<360.")
+            # check for positive definite parameters
+            positive_definite_parameters = [
+                'distmpc',
+                'distmpc_unc',
+                'redshift',
+                'redshift_error',
+            ]
+            for key in positive_definite_parameters:
+                if any([(x is not None) and (x < 0) for x in catalog_data[key]]):
+                    return ValueError(f"{key} should be positive definite.")
 
-        # check Declination bounds
-        if any([(x > 90) or (x < -90) for x in catalog_data['dec']]):
-            return ValueError("declination should span -90<dec<90.")
+            # check RA bounds
+            if any([(x < 0) or (x >= 360) for x in catalog_data['ra']]):
+                return ValueError("ra should span 0=<ra<360.")
 
-        add_galaxies(catalog_name, catalog_data)
+            # check Declination bounds
+            if any([(x > 90) or (x < -90) for x in catalog_data['dec']]):
+                return ValueError("declination should span -90<dec<90.")
+
+            print(len(catalog_data['dec']))
+            add_galaxies(catalog_name, catalog_data)
+        except Exception:
+            print(f"Error in {ii}th table.")
+            continue
 
 
 class GalaxyGladeHandler(BaseHandler):
     @permissions(['System Admin'])
-    def post(self):
+    async def post(self):
         """
         ---
         description: Upload galaxies from GLADE+ catalog
@@ -773,6 +786,52 @@ class GalaxyGladeHandler(BaseHandler):
                 schema: Error
         """
 
-        IOLoop.current().run_in_executor(None, lambda: add_glade())
+        def add_glade_and_notify(file_path=None, file_url=None):
+            add_glade(file_path, file_url)
+            self.push(
+                'Added galaxies from GLADE+ catalog',
+            )
 
-        return self.success()
+        try:
+            file_name = None
+            file_url = None
+            data = self.get_json()
+            if 'file_name' in data:
+                file_name = data['file_name']
+                if not file_name.endswith('.txt'):
+                    return self.error("Catalog's file type is incorrect. Must be .txt.")
+                # check if file exists in the skyportal/data directory
+                file_path = os.path.join(
+                    os.path.dirname(os.path.realpath(__file__)),
+                    '../../../data',
+                    file_name,
+                )
+                if not os.path.isfile(file_path):
+                    return self.error("File does not exist.")
+                file_url = file_path
+            elif 'file_url' in data:
+                file_url = data['file_url']
+                if not file_url.endswith('.txt'):
+                    return self.error(
+                        "Catalog's url points to an incorrect file type. Must be .txt."
+                    )
+                if not file_url.startswith('http'):
+                    return self.error("Catalog's file URL is incorrect.")
+            else:
+                file_path = os.path.join(
+                    os.path.dirname(os.path.realpath(__file__)),
+                    '../../../data',
+                    'GLADE+.txt',
+                )
+                if not os.path.isfile(file_path):
+                    print("didn't find it!")
+                    file_path = None
+
+            IOLoop.current().run_in_executor(
+                None,
+                lambda: add_glade_and_notify(file_path=file_path, file_url=file_url),
+            )
+
+            return self.success()
+        except Exception as e:
+            return self.error(str(e))
