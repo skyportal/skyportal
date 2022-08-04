@@ -104,16 +104,23 @@ def add_user_and_setup_groups(
     affiliations=None,
     contact_phone=None,
     contact_email=None,
-    roles=[],
+    role_ids=[],
     group_ids_and_admin=[],
     oauth_uid=None,
     expiration_date=None,
 ):
 
     try:
+        # the roles come from the association_proxy
+        # in baselayer/app/models.py line 1851
+        # they are queried from a different session
+        # in the "creator" lambda. Until we figure out
+        # how to do this in the same session, this should
+        # solve the problem.
+        roles = session.scalars(sa.select(Role).where(Role.id.in_(role_ids))).all()
         user = User(
             username=username.lower(),
-            role_ids=roles,
+            roles=roles,
             first_name=first_name,
             last_name=last_name,
             affiliations=affiliations,
@@ -124,7 +131,8 @@ def add_user_and_setup_groups(
         )
         session.add(user)
         session.flush()
-        if roles == []:
+
+        if role_ids == []:
             set_default_role(user, session)
 
         if group_ids_and_admin == []:
@@ -151,7 +159,7 @@ def add_user_and_setup_groups(
         session.commit()
     except Exception as e:
         session.rollback()
-        log(e.args[0])
+        log(str(e))
         raise e
     return user.id
 
@@ -428,7 +436,7 @@ class UserHandler(BaseHandler):
                               description: New user ID
         """
         data = self.get_json()
-        roles = data.get("roles", [])
+        role_ids = data.get("roles", [])
         group_ids_and_admin = data.get("groupIDsAndAdmin", [])
 
         phone = data.get("contact_phone")
@@ -470,7 +478,7 @@ class UserHandler(BaseHandler):
                     contact_phone=contact_phone,
                     contact_email=contact_email,
                     oauth_uid=data.get("oauth_uid"),
-                    roles=roles,
+                    role_ids=role_ids,
                     group_ids_and_admin=group_ids_and_admin,
                 )
             except Exception as e:
@@ -565,8 +573,10 @@ class UserHandler(BaseHandler):
         """
         with self.Session() as session:
             user = session.scalars(
-                User.select(self.current_user).where(User.id == user_id)
+                User.select(self.current_user, mode='delete').where(User.id == user_id)
             ).first()
+            if user is None:
+                return self.error(f"Cannot find/delete user with ID {user_id}")
             session.delete(user)
             session.commit()
 
