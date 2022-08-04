@@ -9,6 +9,7 @@ from regions import Regions
 from astropy.table import Table
 
 from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.common.by import By
 
 from baselayer.app.config import load_config
 from os.path import join as pjoin
@@ -778,3 +779,37 @@ def test_confirm_reject_source_in_gcn(
 
     driver.wait_for_xpath('//*[contains(., "Associated to:")]')
     driver.wait_for_xpath('//*[contains(., "2019-08-14T21:10:39")]')
+
+
+def test_gcn_aliases(
+    driver,
+    super_admin_user,
+    super_admin_token,
+    view_only_token,
+):
+
+    datafile = f'{os.path.dirname(__file__)}/../../../data/GW190814.xml'
+    with open(datafile, 'rb') as fid:
+        payload = fid.read()
+    data = {'xml': payload}
+
+    status, data = api('POST', 'gcn_event', data=data, token=super_admin_token)
+    assert status == 200
+    assert data['status'] == 'success'
+
+    # wait for event to load
+    for n_times in range(26):
+        status, data = api(
+            'GET', "gcn_event/2019-08-14T21:10:39", token=super_admin_token
+        )
+        if data['status'] == 'success':
+            break
+        time.sleep(2)
+    assert n_times < 25
+
+    driver.get(f'/become_user/{super_admin_user.id}')
+    driver.get('/gcn_events/2019-08-14T21:10:39')
+    driver.wait_for_xpath('//*[@name="add-aliases"]')
+    driver.click_xpath('//*[@name="add-aliases"]')
+    driver.wait_for_xpath('//*[contains(., "S190814BV")]')
+    assert len(driver.find_elements(By.XPATH, '//*[@name="aliases-chips"]/*')) == 2

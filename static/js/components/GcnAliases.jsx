@@ -61,7 +61,7 @@ const GcnAliases = ({ gcnEvent }) => {
   return (
     <div className={classes.root}>
       <h3 className={classes.title}>Aliases: </h3>
-      <div className={classes.chips}>
+      <div className={classes.chips} name="aliases-chips">
         {aliases.map((alias) => (
           <Chip
             size="small"
@@ -81,7 +81,8 @@ const GcnAliases = ({ gcnEvent }) => {
             className={classes.addIcon}
             size="small"
             label="+"
-            key="add"
+            key="add-aliases"
+            name="add-aliases"
             clickable
             onClick={() => {
               handleClick();

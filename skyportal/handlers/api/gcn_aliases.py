@@ -5,8 +5,6 @@ from baselayer.app.access import permissions
 from ...models import GcnEvent
 from astropy.time import Time
 
-CIRCULARS_URL = "https://gcn.gsfc.nasa.gov/gcn/selected.html"
-
 
 def get_tach_event_id(dateobs, tags):
     date = dateobs.split("T", 1)[0]
