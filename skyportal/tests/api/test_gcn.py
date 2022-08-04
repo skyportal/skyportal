@@ -319,8 +319,6 @@ def test_gcn_summary_galaxies(
     super_admin_token,
     view_only_token,
     public_group,
-    ztf_camera,
-    upload_data_token,
 ):
 
     catalog_name = 'test_galaxy_catalog'
@@ -461,10 +459,7 @@ def test_gcn_summary_galaxies(
 def test_gcn_summary_observations(
     super_admin_user,
     super_admin_token,
-    view_only_token,
     public_group,
-    ztf_camera,
-    upload_data_token,
 ):
 
     datafile = f'{os.path.dirname(__file__)}/../../../data/GW190814.xml'
@@ -725,3 +720,231 @@ def test_gcn_summary_observations(
     assert "filter" in obs_table[1]
     assert "exposure" in obs_table[1]
     assert "limmag (ab)" in obs_table[1]
+
+
+def test_confirm_reject_source_in_gcn(
+    super_admin_token,
+    view_only_token,
+    ztf_camera,
+    upload_data_token,
+):
+
+    datafile = f'{os.path.dirname(__file__)}/../../../data/GW190814.xml'
+    with open(datafile, 'rb') as fid:
+        payload = fid.read()
+    data = {'xml': payload}
+
+    status, data = api('POST', 'gcn_event', data=data, token=super_admin_token)
+    assert status == 200
+    assert data['status'] == 'success'
+
+    # wait for event to load
+    for n_times in range(26):
+        status, data = api(
+            'GET', "gcn_event/2019-08-14T21:10:39", token=super_admin_token
+        )
+        if data['status'] == 'success':
+            break
+        time.sleep(2)
+    assert n_times < 25
+
+    # wait for the localization to load
+    params = {"include2DMap": True}
+    for n_times_2 in range(26):
+        status, data = api(
+            'GET',
+            'localization/2019-08-14T21:10:39/name/LALInference.v1.fits.gz',
+            token=super_admin_token,
+            params=params,
+        )
+
+        if data['status'] == 'success':
+            data = data["data"]
+            assert data["dateobs"] == "2019-08-14T21:10:39"
+            assert data["localization_name"] == "LALInference.v1.fits.gz"
+            assert np.isclose(np.sum(data["flat_2d"]), 1)
+            break
+        else:
+            time.sleep(2)
+    assert n_times_2 < 25
+
+    obj_id = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "sources",
+        data={
+            "id": obj_id,
+            "ra": 24.6258,
+            "dec": -32.9024,
+            "redshift": 3,
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+
+    status, data = api("GET", f"sources/{obj_id}", token=view_only_token)
+    assert status == 200
+
+    status, data = api(
+        'POST',
+        'photometry',
+        data={
+            'obj_id': obj_id,
+            'mjd': 58709 + 1,
+            'instrument_id': ztf_camera.id,
+            'flux': 12.24,
+            'fluxerr': 0.031,
+            'zp': 25.0,
+            'magsys': 'ab',
+            'filter': 'ztfg',
+            "ra": 24.6258,
+            "dec": -32.9024,
+            "ra_unc": 0.01,
+            "dec_unc": 0.01,
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    params = {
+        "sourcesIdList": obj_id,
+    }
+    status, data = api(
+        'GET',
+        'sources_in_gcn/2019-08-14T21:10:39',
+        params=params,
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert len(data["data"]) == 0
+
+    # confirm source
+    params = {
+        "source_id": obj_id,
+        "localization_name": "LALInference.v1.fits.gz",
+        "localization_cumprob": 0.95,
+        "confirmed": True,
+        "start_date": "2019-08-13 08:18:05",
+        "end_date": "2019-08-19 08:18:05",
+    }
+
+    # verify that you can't confirm a source without the Manage GCNs permission
+    status, data = api(
+        'POST',
+        'sources_in_gcn/2019-08-14T21:10:39',
+        data=params,
+        token=upload_data_token,
+    )
+    assert status == 401
+
+    status, data = api(
+        'POST',
+        'sources_in_gcn/2019-08-14T21:10:39',
+        data=params,
+        token=super_admin_token,
+    )
+    assert status == 200
+
+    params = {
+        "sourcesIdList": obj_id,
+    }
+    status, data = api(
+        'GET',
+        'sources_in_gcn/2019-08-14T21:10:39',
+        params=params,
+        token=upload_data_token,
+    )
+    assert status == 200
+    data = data["data"]
+    assert len(data) == 1
+    assert data[0]["obj_id"] == obj_id
+    assert data[0]["dateobs"] == "2019-08-14T21:10:39"
+    assert data[0]["confirmed"] is True
+
+    # find gcns associated to source
+    status, data = api(
+        'GET',
+        f"associated_gcns/{obj_id}",
+        token=upload_data_token,
+    )
+    assert status == 200
+    data = data["data"]
+    assert '2019-08-14T21:10:39' in data['gcns']
+
+    # reject source
+    params = {
+        "confirmed": False,
+    }
+
+    status, data = api(
+        'PATCH',
+        f'sources_in_gcn/2019-08-14T21:10:39/{obj_id}',
+        data=params,
+        token=upload_data_token,
+    )
+    assert status == 401
+
+    status, data = api(
+        'PATCH',
+        f'sources_in_gcn/2019-08-14T21:10:39/{obj_id}',
+        data=params,
+        token=super_admin_token,
+    )
+    assert status == 200
+
+    params = {
+        "sourcesIdList": obj_id,
+    }
+    status, data = api(
+        'GET',
+        'sources_in_gcn/2019-08-14T21:10:39',
+        params=params,
+        token=upload_data_token,
+    )
+    assert status == 200
+    data = data["data"]
+    assert len(data) == 1
+    assert data[0]["obj_id"] == obj_id
+    assert data[0]["dateobs"] == "2019-08-14T21:10:39"
+    assert data[0]["confirmed"] is False
+
+    # verify that no gcns are associated to source
+
+    # find no gcns associated to source
+    status, data = api(
+        'GET',
+        f"associated_gcns/{obj_id}",
+        token=upload_data_token,
+    )
+    assert status == 200
+    data = data["data"]
+    assert len(data['gcns']) == 0
+
+    # mark source as unknow (delete it from the table)
+    status, data = api(
+        'DELETE',
+        f'sources_in_gcn/2019-08-14T21:10:39/{obj_id}',
+        token=upload_data_token,
+    )
+    assert status == 401
+
+    status, data = api(
+        'DELETE',
+        f'sources_in_gcn/2019-08-14T21:10:39/{obj_id}',
+        token=super_admin_token,
+    )
+    assert status == 200
+
+    params = {
+        "sourcesIdList": obj_id,
+    }
+    status, data = api(
+        'GET',
+        'sources_in_gcn/2019-08-14T21:10:39',
+        params=params,
+        token=upload_data_token,
+    )
+    assert status == 200
+    data = data["data"]
+    assert len(data) == 0
