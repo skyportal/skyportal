@@ -8,7 +8,7 @@ how to install them on MacOS and Debian-based systems below.
 - Python 3.8 or later
 - Supervisor (v>=3.0b2)
 - NGINX (v>=1.7)
-- PostgreSQL (v>=9.6)
+- PostgreSQL (v>=14.0)
 - Node.JS/npm (v>=5.8.0)
 
 When installing SkyPortal on Debian-based systems, 2 additional packages are required to be able to install pycurl later on:
@@ -86,7 +86,7 @@ host skyportal_test skyportal ::1/128 trust
 host all postgres ::1/128 trust
 ```
 
-In some PostgreSQL installations, the default TCP port may be different from the 5432 value assumed in our default configuration file values. To remedy this, you can either edit your config.yaml file to reflect your system's PostgreSQL default port, or update your system-wide config to use port 5432 by editing /etc/postgresql/12/main/postgresql.conf (replace "12" with your installed version number) and changing the line `port = XXXX` (where "XXXX" is whatever the system default was) to `port = 5432`.
+In some PostgreSQL installations, the default TCP port may be different from the 5432 value assumed in our default configuration file values. To remedy this, you can either edit your config.yaml file to reflect your system's PostgreSQL default port, or update your system-wide config to use port 5432 by editing /etc/postgresql/14/main/postgresql.conf (replace "14" with your installed version number) and changing the line `port = XXXX` (where "XXXX" is whatever the system default was) to `port = 5432`.
 
 Restart PostgreSQL:
 

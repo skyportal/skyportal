@@ -30,14 +30,19 @@ class PlotPhotometryHandler(BaseHandler):
         # Just return browser by default if not one of accepted types
         if device not in device_types:
             device = "browser"
-        json = plot.photometry_plot(
-            obj_id,
-            self.current_user,
-            width=int(width),
-            device=device,
-        )
-        self.verify_and_commit()
-        self.success(data={'bokehJSON': json, 'url': self.request.uri})
+        with self.Session() as session:
+            try:
+                json = plot.photometry_plot(
+                    obj_id=obj_id,
+                    user_id=self.current_user.id,
+                    session=session,
+                    width=int(width),
+                    device=device,
+                )
+            except Exception as e:
+                return self.error(f'Exception in photometry plot: {e}')
+
+            self.success(data={'bokehJSON': json, 'url': self.request.uri})
 
 
 class PlotSpectroscopyHandler(BaseHandler):
@@ -51,30 +56,22 @@ class PlotSpectroscopyHandler(BaseHandler):
         if device not in device_types:
             device = "browser"
         spec_id = self.get_query_argument("spectrumID", None)
-        try:
-            json = plot.spectroscopy_plot(
-                obj_id,
-                self.associated_user_object,
-                spec_id,
-                width=int(width),
-                device=device,
-                smoothing=smoothing,
-                smooth_number=smooth_number,
-            )
-        except Exception as e:
-            return self.error(f'Exception in photometry plot: {e}')
 
-        json = plot.spectroscopy_plot(
-            obj_id,
-            self.associated_user_object,
-            spec_id,
-            width=int(width),
-            device=device,
-            smoothing=smoothing,
-            smooth_number=smooth_number,
-        )
-        self.verify_and_commit()
-        self.success(data={'bokehJSON': json, 'url': self.request.uri})
+        with self.Session() as session:
+            try:
+                json = plot.spectroscopy_plot(
+                    obj_id=obj_id,
+                    session=session,
+                    spec_id=spec_id,
+                    width=int(width),
+                    device=device,
+                    smoothing=smoothing,
+                    smooth_number=smooth_number,
+                )
+            except Exception as e:
+                return self.error(f'Exception in spectroscopy plot: {e}')
+
+            self.success(data={'bokehJSON': json, 'url': self.request.uri})
 
 
 class AirmassHandler(BaseHandler):
