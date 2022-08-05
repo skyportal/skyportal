@@ -5,7 +5,6 @@ from baselayer.app.custom_exceptions import AccessError
 from baselayer.app.access import auth_or_token
 from ..base import BaseHandler
 from ...models import (
-    DBSession,
     Obj,
     Listing,
 )
@@ -60,15 +59,15 @@ class UserObjListHandler(BaseHandler):
 
         list_name = self.get_query_argument("listName", None)
 
-        query = Listing.query_records_accessible_by(self.current_user).filter(
-            Listing.user_id == user_id
-        )
+        with self.Session() as session:
+            stmt = Listing.select(self.current_user).where(Listing.user_id == user_id)
 
-        if list_name is not None:
-            query = query.filter(Listing.list_name == list_name)
+            if list_name is not None:
+                stmt = stmt.where(Listing.list_name == list_name)
 
-        self.verify_and_commit()
-        return self.success(data=query.all())
+            listings = session.scalars(stmt).all()
+
+            return self.success(data=listings)
 
     @auth_or_token
     def post(self):
@@ -129,13 +128,19 @@ class UserObjListHandler(BaseHandler):
         if user_id is None:
             user_id = self.associated_user_object.id
 
+        if (
+            user_id != self.associated_user_object.id
+            and not self.associated_user_object.is_admin
+        ):
+            return self.error("Only admins can add listings to other users' accounts")
+
         try:
             schema.load(data)
         except ValidationError as e:
             return self.error(f'Invalid/missing parameters: {e.normalized_messages()}')
 
         obj_id = data.get('obj_id')
-        obj_check = Obj.get_if_accessible_by(obj_id, self.current_user)
+        obj_check = Obj.get(obj_id, self.current_user)
         if obj_check is None:
             return self.error(f'Cannot find Obj with ID: {obj_id}')
 
@@ -145,38 +150,36 @@ class UserObjListHandler(BaseHandler):
                 "Input `list_name` must begin with alphanumeric/underscore"
             )
 
-        if (
-            user_id != self.associated_user_object.id
-            and not self.associated_user_object.is_admin
-        ):
-            return self.error("Only admins can add listings to other users' accounts")
-
-        query = Listing.query_records_accessible_by(self.current_user).filter(
-            Listing.user_id == int(user_id),
-            Listing.obj_id == obj_id,
-            Listing.list_name == list_name,
-        )
-
-        # what to do if listing already exists...
-        if query.first() is not None:
-            return self.error(
-                f'Listing already exists with user_id={user_id}, obj_id={obj_id} and list_name={list_name}'
+        with self.Session() as session:
+            stmt = Listing.select(self.current_user).where(
+                Listing.user_id == user_id,
+                Listing.list_name == list_name,
+                Listing.obj_id == obj_id,
             )
 
-        listing = Listing(user_id=user_id, obj_id=obj_id, list_name=list_name)
-        DBSession().add(listing)
-        try:
-            self.verify_and_commit()
-        except AccessError as e:
-            return self.error(str(e))
+            # what to do if listing already exists...
+            if session.scalars(stmt).first() is not None:
+                return self.error(
+                    f'Listing already exists with user_id={user_id}, '
+                    f'obj_id={obj_id} and list_name={list_name}'
+                )
 
-        if list_name == "favorites":
-            self.push(action='skyportal/REFRESH_FAVORITES')
-            self.push(action='skyportal/REFRESH_FAVORITE_SOURCES')
-        if list_name == "rejected_candidates":
-            self.push(action='skyportal/REFRESH_REJECTED_CANDIDATES')
+            listing = Listing(user_id=user_id, obj_id=obj_id, list_name=list_name)
 
-        return self.success(data={'id': listing.id})
+            session.add(listing)
+
+            try:
+                session.commit()
+            except AccessError as e:
+                return self.error(str(e))
+
+            if list_name == "favorites":
+                self.push(action='skyportal/REFRESH_FAVORITES')
+                self.push(action='skyportal/REFRESH_FAVORITE_SOURCES')
+            if list_name == "rejected_candidates":
+                self.push(action='skyportal/REFRESH_REJECTED_CANDIDATES')
+
+            return self.success(data={'id': listing.id})
 
     @auth_or_token
     def patch(self, listing_id):
@@ -221,50 +224,61 @@ class UserObjListHandler(BaseHandler):
                 schema: Success
 
         """
-        listing = Listing.get_if_accessible_by(
-            listing_id, self.current_user, mode="update", raise_if_none=True
-        )
+        with self.Session() as session:
+            listing = session.scalars(
+                Listing.select(self.current_user, mode="update").where(
+                    Listing.id == listing_id
+                )
+            ).first()
+            if listing is None:
+                return self.error(f'Cannot find listing with ID: {listing_id}')
 
-        # get the data from the request body
-        data = self.get_json()
+            # get the data from the request body
+            data = self.get_json()
 
-        schema = Listing.__schema__()
-        try:
-            schema.load(data, partial=True)
-        except ValidationError as e:
-            return self.error(f'Invalid/missing parameters: {e.normalized_messages()}')
+            schema = Listing.__schema__()
+            try:
+                schema.load(data, partial=True)
+            except ValidationError as e:
+                return self.error(
+                    f'Invalid/missing parameters: {e.normalized_messages()}'
+                )
 
-        user_id = data.get('user_id', listing.user_id)
-        user_id = int(user_id)
-        if (
-            user_id != self.associated_user_object.id
-            and not self.current_user.is_system_admin
-        ):
-            return self.error("Insufficient permissions.")
+            user_id = data.get('user_id', listing.user_id)
+            user_id = int(user_id)
+            if (
+                user_id != self.associated_user_object.id
+                and not self.current_user.is_system_admin
+            ):
+                return self.error("Insufficient permissions.")
 
-        obj_id = data.get('obj_id', listing.obj_id)
-        Obj.get_if_accessible_by(obj_id, self.current_user, raise_if_none=True)
+            obj_id = data.get('obj_id', listing.obj_id)
+            obj_check = session.scalars(
+                Obj.select(self.current_user).where(Obj.id == obj_id)
+            ).first()
+            if obj_check is None:
+                return self.error(f'Cannot find Obj with ID: {obj_id}')
 
-        list_name = data.get('list_name', listing.list_name)
+            list_name = data.get('list_name', listing.list_name)
 
-        if not check_list_name(list_name):
-            return self.error(
-                "Input `list_name` must begin with alphanumeric/underscore"
-            )
+            if not check_list_name(list_name):
+                return self.error(
+                    "Input `list_name` must begin with alphanumeric/underscore"
+                )
 
-        listing.user_id = user_id
-        listing.obj_id = obj_id
-        listing.list_name = list_name
+            listing.user_id = user_id
+            listing.obj_id = obj_id
+            listing.list_name = list_name
 
-        self.verify_and_commit()
+            session.commit()
 
-        if list_name == "favorites":
-            self.push(action='skyportal/REFRESH_FAVORITES')
-            self.push(action='skyportal/REFRESH_FAVORITE_SOURCES')
-        if list_name == "rejected_candidates":
-            self.push(action='skyportal/REFRESH_REJECTED_CANDIDATES')
+            if list_name == "favorites":
+                self.push(action='skyportal/REFRESH_FAVORITES')
+                self.push(action='skyportal/REFRESH_FAVORITE_SOURCES')
+            if list_name == "rejected_candidates":
+                self.push(action='skyportal/REFRESH_REJECTED_CANDIDATES')
 
-        return self.success()
+            return self.success()
 
     @auth_or_token
     def delete(self, listing_id=None):
@@ -311,51 +325,59 @@ class UserObjListHandler(BaseHandler):
 
 
         """
+        with self.Session() as session:
+            if listing_id is not None:
+                try:
+                    listing_id = int(listing_id)
+                except ValueError:
+                    return self.error(f"Invalid listing_id {listing_id}")
 
-        if listing_id is not None:
-            listing = Listing.query.get(int(listing_id))
-        else:
-            data = self.get_json()
+                listing = session.scalars(
+                    Listing.select(self.current_user).where(Listing.id == listing_id)
+                ).first()
+                if listing is None:
+                    return self.error(f'Cannot find listing with ID: {listing_id}')
+            else:
+                data = self.get_json()
 
-            schema = Listing.__schema__(exclude=['user_id'])
-            user_id = data.pop('user_id', None)
+                schema = Listing.__schema__(exclude=['user_id'])
+                user_id = data.pop('user_id', self.associated_user_object.id)
 
-            if user_id is None:
-                user_id = self.associated_user_object.id
+                try:
+                    schema.load(data)
+                except ValidationError as e:
+                    return self.error(
+                        f'Invalid/missing parameters: {e.normalized_messages()}'
+                    )
 
-            try:
-                schema.load(data)
-            except ValidationError as e:
-                return self.error(
-                    f'Invalid/missing parameters: {e.normalized_messages()}'
-                )
+                obj_id = data.get('obj_id')
+                obj_test = session.scalars(
+                    Obj.select(self.current_user).where(Obj.id == obj_id)
+                ).first()
+                if obj_test is None:
+                    return self.error(f'Cannot find Obj with ID: {obj_id}')
 
-            obj_id = data.get('obj_id')
-            Obj.get_if_accessible_by(obj_id, self.current_user, raise_if_none=True)
+                list_name = data.get('list_name')
+                listing = session.scalars(
+                    Listing.select(self.current_user, mode="delete").where(
+                        Listing.user_id == user_id,
+                        Listing.obj_id == obj_id,
+                        Listing.list_name == list_name,
+                    )
+                ).first()
 
-            list_name = data.get('list_name')
-            listing = (
-                Listing.query_records_accessible_by(self.current_user, mode="delete")
-                .filter(
-                    Listing.user_id == user_id,
-                    Listing.obj_id == obj_id,
-                    Listing.list_name == list_name,
-                )
-                .first()
-            )
+            if listing is None:
+                return self.error("Cannot delete Listing.")
 
-        if listing is None:
-            return self.error("Listing does not exist.")
+            list_name = listing.list_name
 
-        list_name = listing.list_name
+            session.delete(listing)
+            session.commit()
 
-        DBSession.delete(listing)
-        self.verify_and_commit()
+            if list_name == "favorites":
+                self.push(action='skyportal/REFRESH_FAVORITES')
+                self.push(action='skyportal/REFRESH_FAVORITE_SOURCES')
+            if list_name == "rejected_candidates":
+                self.push(action='skyportal/REFRESH_REJECTED_CANDIDATES')
 
-        if list_name == "favorites":
-            self.push(action='skyportal/REFRESH_FAVORITES')
-            self.push(action='skyportal/REFRESH_FAVORITE_SOURCES')
-        if list_name == "rejected_candidates":
-            self.push(action='skyportal/REFRESH_REJECTED_CANDIDATES')
-
-        return self.success()
+            return self.success()

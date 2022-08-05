@@ -485,7 +485,7 @@ def add_user_notifications(mapper, connection, target):
                         sa.select(Listing)
                         .where(Listing.list_name == 'favorites')
                         .where(Listing.obj_id == target.obj_id)
-                        .distinct(Listing.user_id)
+                        .where(Listing.user_id == user.id)
                     ).all()
 
                     if is_classification:
