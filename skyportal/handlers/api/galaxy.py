@@ -10,12 +10,13 @@ import healpix_alchemy as ha
 import numpy as np
 import pandas as pd
 from io import StringIO
-
+import time
 from baselayer.app.access import permissions, auth_or_token
 from baselayer.log import make_log
 
 from ..base import BaseHandler
 from ...models import DBSession, Galaxy, Localization, LocalizationTile
+import datetime
 
 
 log = make_log('api/galaxy')
@@ -594,8 +595,6 @@ class GalaxyASCIIFileHandler(BaseHandler):
 
 def add_glade(file_path=None, file_url=None):
 
-    catalog_name = 'GLADE'
-
     column_names = [
         'GLADE_no',
         'PGC_no',
@@ -646,21 +645,37 @@ def add_glade(file_path=None, file_url=None):
     else:
         datafile = "http://elysium.elte.hu/~dalyag/GLADE+.txt"
 
-    print(f"Downloading {datafile}")
+    if datafile.startswith("http"):
+        log(f"add_glade - Downloading {datafile}")
+    else:
+        log(f"add_glade - Reading {datafile}")
+
+    start_dl_timer = time.perf_counter()
     tbls = ascii.read(
         datafile,
         names=column_names,
         guess=False,
         delimiter=' ',
         format='no_header',
-        fast_reader={'chunk_size': int(10 * 1e6), 'chunk_generator': True},  # 10 MB
+        fast_reader={'chunk_size': int(10 * 1e7), 'chunk_generator': True},  # 100 MB
     )
-    for ii, tbl in enumerate(tbls):
-        try:
-            df = tbl.to_pandas()
-            df = df.replace({'null': np.nan})
-            df['GLADE_name'] = ['GLADE-' + str(n) for n in df['GLADE_no']]
+    if datafile.startswith('http'):
+        end_dl_timer = time.perf_counter()
+        print(
+            f"add_glade - Downloaded {datafile} in {end_dl_timer - start_dl_timer:0.4f} seconds"
+        )
+    full_length = 0
+    full_blueshift_length = 0
+    start_loop_timer = time.perf_counter()
+    for ii, df in enumerate(tbls):
 
+        try:
+            start_timer = time.perf_counter()
+            df = df.to_pandas()
+            df = df.replace({'null': np.nan})
+            # df['GLADE_name'] = ['GLADE-' + str(n) for n in df['GLADE_no']]
+            # create a GLADE_name column, where names are: GLADE-<GLADE_no> with GLADE_no as a string using pandas
+            df['GLADE_name'] = 'GLADE-' + df['GLADE_no'].astype(str)
             df.rename(
                 columns={
                     'RA': 'ra',
@@ -711,15 +726,18 @@ def add_glade(file_path=None, file_url=None):
                 columns=drop_columns,
                 inplace=True,
             )
-
             df = df.replace({np.nan: None})
-            catalog_data = df.to_dict(orient='list')
-
-            if not all(k in catalog_data for k in ['ra', 'dec', 'name']):
-                return ValueError("ra, dec, and name required in catalog_data.")
-
-            if not all(k in catalog_data for k in ['ra', 'dec', 'name']):
-                return ValueError("ra, dec, and name required in catalog_data.")
+            positive_definite_parameters = [
+                'distmpc',
+                'distmpc_unc',
+                'redshift_error',
+            ]
+            # remove rows where any of the positive definite parameters are negative using pandas
+            for key in positive_definite_parameters:
+                df = df.drop(df.index[df[key] < 0])
+            # if ra, dec or name are missing, remove the row
+            required_columns = ['ra', 'dec', 'name']
+            df = df[df[required_columns].notnull().all(axis=1)]
 
             # fill in any missing optional parameters
             optional_parameters = [
@@ -737,34 +755,86 @@ def add_glade(file_path=None, file_url=None):
                 'pa',
                 'btc',
             ]
+
+            # for the optional parameters, if a row is missing a value, fill it in with None
             for key in optional_parameters:
-                if key not in catalog_data:
-                    catalog_data[key] = [None] * len(catalog_data['ra'])
+                if key not in df.columns.values:
+                    df[key] = None
+            # remove rows with incorrect ra or dec
+            df = df[(df['ra'] >= 0) & (df['ra'] < 360)]
+            df = df[(df['dec'] >= -90) & (df['dec'] <= 90)]
 
-            # check for positive definite parameters
-            positive_definite_parameters = [
-                'distmpc',
-                'distmpc_unc',
-                'redshift',
-                'redshift_error',
+            # add a healpix column where healpix = ha.constants.HPX.lonlat_to_healpix(ra * u.deg, dec * u.deg)
+            df['healpix'] = [
+                ha.constants.HPX.lonlat_to_healpix(ra * u.deg, dec * u.deg)
+                for ra, dec in zip(df['ra'], df['dec'])
             ]
-            for key in positive_definite_parameters:
-                if any([(x is not None) and (x < 0) for x in catalog_data[key]]):
-                    return ValueError(f"{key} should be positive definite.")
-
-            # check RA bounds
-            if any([(x < 0) or (x >= 360) for x in catalog_data['ra']]):
-                return ValueError("ra should span 0=<ra<360.")
-
-            # check Declination bounds
-            if any([(x > 90) or (x < -90) for x in catalog_data['dec']]):
-                return ValueError("declination should span -90<dec<90.")
-
-            print(len(catalog_data['dec']))
-            add_galaxies(catalog_name, catalog_data)
-        except Exception:
-            print(f"Error in {ii}th table.")
+            # add a catalog_name column where catalog_name = 'GLADE'
+            df['catalog_name'] = 'GLADE'
+            utcnow = datetime.datetime.utcnow().isoformat()
+            df['created_at'] = utcnow
+            df['modified_at'] = utcnow
+            blueshift_length = len(df[(df['redshift'] < 0)])
+            length = len(df)
+            full_length += length
+            full_blueshift_length += blueshift_length
+            columns = (
+                "ra",
+                "dec",
+                "magb",
+                "magk",
+                "redshift",
+                "redshift_error",
+                "distmpc",
+                "distmpc_unc",
+                "mstar",
+                "name",
+                "alt_name",
+                "sfr_fuv",
+                "a",
+                "b2a",
+                "pa",
+                "btc",
+                "healpix",
+                "catalog_name",
+                'created_at',
+                'modified',
+            )
+            output = StringIO()
+            df.replace("NaN", "null", inplace=True)
+            df.replace(np.nan, "NaN", inplace=True)
+            df.to_csv(
+                output,
+                index=False,
+                sep='\t',
+                header=False,
+                encoding='utf8',
+                quotechar="'",
+            )
+            output.seek(0)
+            connection = DBSession().connection().connection
+            cursor = connection.cursor()
+            cursor.copy_from(
+                output,
+                "galaxys",
+                sep='\t',
+                null='',
+                columns=columns,
+            )
+            cursor.close()
+            output.close()
+            DBSession().commit()
+            end_timer = time.perf_counter()
+            log(
+                f"add_glade - File part {ii}: Added {length} galaxies (including {blueshift_length} with a negative redshift) in {end_timer - start_timer:0.4f} seconds"
+            )
+        except Exception as e:
+            log(f"add_glade - File part {ii}: Error: {e}")
             continue
+    log(
+        f"add_glade - Added a total of {full_length} galaxies (including {full_blueshift_length} with a negative redshift) to the database in {time.perf_counter() - start_loop_timer:0.4f} seconds"
+    )
+    return full_length, full_blueshift_length
 
 
 class GalaxyGladeHandler(BaseHandler):
@@ -772,14 +842,26 @@ class GalaxyGladeHandler(BaseHandler):
     async def post(self):
         """
         ---
-        description: Upload galaxies from GLADE+ catalog
+        description: Upload galaxies from GLADE+ catalog. If no file_name or file_url is provided, will look for the GLADE+ catalog in the data directory. If it can't be found, it will download it.
         tags:
           - galaxys
+        requestBody:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                    file_name:
+                        type: string
+                        description: Name of the file containing the galaxies (in the data directory)
+                    file_url:
+                        type: string
+                        description: URL of the file containing the galaxies
         responses:
           200:
             content:
               application/json:
-                schema: ArrayOfGalaxys
+                schema: Success
           400:
             content:
               application/json:
@@ -787,9 +869,9 @@ class GalaxyGladeHandler(BaseHandler):
         """
 
         def add_glade_and_notify(file_path=None, file_url=None):
-            add_glade(file_path, file_url)
+            full_length, full_blueshift_length = add_glade(file_path, file_url)
             self.push(
-                'Added galaxies from GLADE+ catalog',
+                f'Added {full_length} galaxies (including {full_blueshift_length} with a negative redshift) to the database'
             )
 
         try:
@@ -800,7 +882,6 @@ class GalaxyGladeHandler(BaseHandler):
                 file_name = data['file_name']
                 if not file_name.endswith('.txt'):
                     return self.error("Catalog's file type is incorrect. Must be .txt.")
-                # check if file exists in the skyportal/data directory
                 file_path = os.path.join(
                     os.path.dirname(os.path.realpath(__file__)),
                     '../../../data',
@@ -824,7 +905,6 @@ class GalaxyGladeHandler(BaseHandler):
                     'GLADE+.txt',
                 )
                 if not os.path.isfile(file_path):
-                    print("didn't find it!")
                     file_path = None
 
             IOLoop.current().run_in_executor(
