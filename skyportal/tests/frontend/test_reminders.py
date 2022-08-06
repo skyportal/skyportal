@@ -32,10 +32,19 @@ def post_and_verify_reminder(endpoint, token):
     assert status == 200
     assert data['status'] == 'success'
     data = data['data']['reminders']
-    assert data[-1]['text'] == reminder_text
-    assert data[-1]['next_reminder'] == next_reminder.strftime("%Y-%m-%dT%H:%M:%S")
-    assert data[-1]['reminder_delay'] == reminder_delay
-    assert data[-1]['number_of_reminders'] == number_of_reminders
+    # find the index of reminder we just created using the text
+    reminder_index = next(
+        index
+        for index, reminder in enumerate(data)
+        if reminder['text'] == reminder_text
+    )
+    assert reminder_index != -1
+    assert data[reminder_index]['text'] == reminder_text
+    assert data[reminder_index]['next_reminder'] == next_reminder.strftime(
+        "%Y-%m-%dT%H:%M:%S"
+    )
+    assert data[reminder_index]['reminder_delay'] == reminder_delay
+    assert data[reminder_index]['number_of_reminders'] == number_of_reminders
 
     n_retries = 0
     while n_retries < 10:
@@ -44,25 +53,27 @@ def post_and_verify_reminder(endpoint, token):
             endpoint,
             token=token,
         )
-        if (
-            data['status'] == 'success'
-            and data['data']['reminders'][-1]['number_of_reminders']
-            == number_of_reminders - 1
-        ):
-            break
+        if data['status'] == 'success':
+            data = data['data']['reminders']
+            # find the index of reminder we just created using the text
+            reminder_index = next(
+                index
+                for index, reminder in enumerate(data)
+                if reminder['text'] == reminder_text
+            )
+            if data[reminder_index]['number_of_reminders'] == number_of_reminders - 1:
+                break
         time.sleep(1)
         n_retries += 1
     assert n_retries < 10
     assert status == 200
-    assert data['status'] == 'success'
-    data = data['data']['reminders']
     assert len(data) == 1
-    assert data[-1]['text'] == reminder_text
-    assert data[-1]['next_reminder'] == (
+    assert data[reminder_index]['text'] == reminder_text
+    assert data[reminder_index]['next_reminder'] == (
         next_reminder + timedelta(days=reminder_delay)
     ).strftime("%Y-%m-%dT%H:%M:%S")
-    assert data[-1]['reminder_delay'] == reminder_delay
-    assert data[-1]['number_of_reminders'] == number_of_reminders - 1
+    assert data[reminder_index]['reminder_delay'] == reminder_delay
+    assert data[reminder_index]['number_of_reminders'] == number_of_reminders - 1
     return reminder_text
 
 
