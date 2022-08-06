@@ -46,17 +46,12 @@ def is_loaded():
 
 
 def service():
-    loaded = False
     while True:
-        if not loaded:
-            loaded = is_loaded()
-        if loaded:
+        if is_loaded():
             try:
                 send_reminders()
             except Exception as e:
                 log(e)
-                if not is_loaded():
-                    loaded = False
         time.sleep(5)
 
 
@@ -98,7 +93,7 @@ def send_reminders():
             )
         except Exception as e:
             log(e)
-
+        log(reminders)
         ws_flow = Flow()
         for reminder in reminders:
             reminder_type = reminder.__class__
