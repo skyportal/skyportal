@@ -93,7 +93,6 @@ def send_reminders():
             )
         except Exception as e:
             log(e)
-        log(reminders)
         ws_flow = Flow()
         for reminder in reminders:
             reminder_type = reminder.__class__
