@@ -25,12 +25,10 @@ def post_and_verify_reminder(endpoint, token):
     )
     assert status == 200
     assert data['status'] == 'success'
-    print("posted:", status, data)
 
     status, data = api('GET', endpoint, token=token)
     assert status == 200
     assert data['status'] == 'success'
-    print("get posted:", status, data)
     data = data['data']['reminders']
     # find the index of reminder we just created using the text
     reminder_index = next(
@@ -53,7 +51,6 @@ def post_and_verify_reminder(endpoint, token):
             endpoint,
             token=token,
         )
-        print("get triggered or not:", status, data)
         if data['status'] == 'success':
             data = data['data']['reminders']
             # find the index of reminder we just created using the text
