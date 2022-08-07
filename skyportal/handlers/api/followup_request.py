@@ -96,6 +96,7 @@ def post_assignment(data, user_id, session):
     assignment = ClassicalAssignment(**data)
 
     assignment.requester_id = user.id
+    assignment.last_modified_by_id = user.id
     session.add(assignment)
     session.commit()
 
@@ -171,7 +172,7 @@ class AssignmentHandler(BaseHandler):
                     joinedload(ClassicalAssignment.obj),
                 )
 
-            assignments = session.scalars(assignments).all()
+            assignments = session.scalars(assignments).unique().all()
 
             if len(assignments) == 0 and assignment_id is not None:
                 return self.error("Could not retrieve assignment.")
@@ -188,6 +189,7 @@ class AssignmentHandler(BaseHandler):
             if assignment_id is not None:
                 out_json = out_json[0]
 
+            print(out_json)
             return self.success(data=out_json)
 
     @permissions(['Upload data'])
@@ -293,6 +295,9 @@ class AssignmentHandler(BaseHandler):
 
             if 'priority' in data:
                 assignment.priority = data['priority']
+
+            if 'last_modified_by_id' in data:
+                assignment.last_modified_by_id = data['last_modified_by_id']
 
             session.commit()
 
