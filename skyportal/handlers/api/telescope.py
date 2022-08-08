@@ -140,6 +140,7 @@ class TelescopeHandler(BaseHandler):
                         f"Could not load telescope with ID {telescope_id}"
                     )
                 return self.success(data=t)
+
             tel_name = self.get_query_argument("name", None)
             stmt = Telescope.select(session.user_or_token)
             if tel_name is not None:
