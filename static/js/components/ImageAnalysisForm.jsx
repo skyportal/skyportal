@@ -40,15 +40,8 @@ const ImageAnalysisForm = ({ obj_id }) => {
     const data = { ...formData };
     data.instrument_id = selectedInstrumentId;
     data.obstime = data.obstime.replace("+00:00", "").replace(".000Z", "");
+    console.log(data.image_data);
 
-    if (Object.keys(data).includes("image_file")) {
-      const image_data = Buffer.from(
-        data.image_file.split(",")[1],
-        "base64"
-      ).toString("base64");
-      data.image_data = image_data;
-    }
-    delete data.image_file;
     const result = await dispatch(
       sourceActions.submitImageAnalysis(obj_id, data)
     );
@@ -168,14 +161,14 @@ const ImageAnalysisForm = ({ obj_id }) => {
         default: "PanSTARRS/DR1/g",
         enum: templates,
       },
-      image_file: {
+      image_data: {
         type: "string",
         format: "data-url",
         title: "Image data file",
         description: "Image data file",
       },
     },
-    required: ["obstime", "filter", "image_file"],
+    required: ["obstime", "filter", "image_data"],
   };
 
   return (

@@ -1,4 +1,5 @@
 import tornado.web
+import shutil
 
 from baselayer.app.app_server import MainPageHandler
 from baselayer.app.model_util import create_tables
@@ -453,6 +454,20 @@ def make_app(cfg, baselayer_handlers, baselayer_settings, process=None, env=None
         print('  Your server is insecure. Please update the secret string ')
         print('  in the configuration file!')
         print('!' * 80)
+
+    if cfg['image_analysis'] is True:
+        missing_bins = []
+        for exe in ['scamp', 'sextractor', 'psfex']:
+            bin = shutil.which(exe)
+            if bin is None:
+                missing_bins.append(exe)
+
+        if len(missing_bins) > 0:
+            print('!' * 80)
+            print(
+                f"  Can't run image analysis. Missing dependencies: {', '.join(missing_bins)}"
+            )
+            print('!' * 80)
 
     handlers = baselayer_handlers + skyportal_handlers
 
