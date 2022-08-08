@@ -1,18 +1,22 @@
+import os
 from tornado.ioloop import IOLoop
 from geojson import Point, Feature
 import sqlalchemy as sa
 from sqlalchemy import func
 from sqlalchemy.orm import sessionmaker, scoped_session
 import astropy.units as u
+from astropy.io import ascii
 import healpix_alchemy as ha
+import numpy as np
 import pandas as pd
 from io import StringIO
-
+import time
 from baselayer.app.access import permissions, auth_or_token
 from baselayer.log import make_log
 
 from ..base import BaseHandler
 from ...models import DBSession, Galaxy, Localization, LocalizationTile
+import datetime
 
 
 log = make_log('api/galaxy')
@@ -587,3 +591,327 @@ class GalaxyASCIIFileHandler(BaseHandler):
         )
 
         return self.success()
+
+
+def add_glade(file_path=None, file_url=None):
+
+    column_names = [
+        'GLADE_no',
+        'PGC_no',
+        'GWGC_name',
+        'HyperLEDA_name',
+        '2MASS_name',
+        'WISExSCOS_name',
+        'SDSS-DR16Q_name',
+        'Object_type',
+        'RA',
+        'Dec',
+        'B',
+        'B_err',
+        'B_flag',
+        'B_Abs',
+        'J',
+        'J_err',
+        'H',
+        'H_err',
+        'K',
+        'K_err',
+        'W1',
+        'W1_err',
+        'W2',
+        'W2_err',
+        'W1_flag',
+        'B_J',
+        'B_J_err',
+        'z_helio',
+        'z_cmb',
+        'z_flag',
+        'v_err',
+        'z_err',
+        'd_L',
+        'd_L_err',
+        'dist',
+        'Mstar',
+        'Mstar_err',
+        'Mstar_flag',
+        'Merger_rate',
+        'Merger_rate_error',
+    ]
+
+    if file_path is not None:
+        datafile = file_path
+    elif file_url is not None:
+        datafile = file_url
+    else:
+        datafile = "http://elysium.elte.hu/~dalyag/GLADE+.txt"
+
+    if datafile.startswith("http"):
+        log(f"add_glade - Downloading {datafile}")
+    else:
+        log(f"add_glade - Reading {datafile}")
+
+    start_dl_timer = time.perf_counter()
+    tbls = ascii.read(
+        datafile,
+        names=column_names,
+        guess=False,
+        delimiter=' ',
+        format='no_header',
+        fast_reader={'chunk_size': int(10 * 1e7), 'chunk_generator': True},  # 100 MB
+    )
+    if datafile.startswith('http'):
+        end_dl_timer = time.perf_counter()
+        print(
+            f"add_glade - Downloaded {datafile} in {end_dl_timer - start_dl_timer:0.4f} seconds"
+        )
+    full_length = 0
+    full_blueshift_length = 0
+    start_loop_timer = time.perf_counter()
+    for ii, df in enumerate(tbls):
+
+        try:
+            start_timer = time.perf_counter()
+            df = df.to_pandas()
+            df = df.replace({'null': np.nan})
+            # df['GLADE_name'] = ['GLADE-' + str(n) for n in df['GLADE_no']]
+            # create a GLADE_name column, where names are: GLADE-<GLADE_no> with GLADE_no as a string using pandas
+            df['GLADE_name'] = 'GLADE-' + df['GLADE_no'].astype(str)
+            df.rename(
+                columns={
+                    'RA': 'ra',
+                    'Dec': 'dec',
+                    'GLADE_name': 'name',
+                    'Mstar': 'mstar',
+                    'K': 'magk',
+                    'B': 'magb',
+                    'z_helio': 'redshift',
+                    'z_err': 'redshift_error',
+                    'd_L': 'distmpc',
+                    'd_L_err': 'distmpc_unc',
+                },
+                inplace=True,
+            )
+
+            float_columns = [
+                'ra',
+                'dec',
+                'mstar',
+                'magk',
+                'magb',
+                'redshift',
+                'redshift_error',
+                'distmpc',
+                'distmpc_unc',
+            ]
+            for col in float_columns:
+                df[col] = df[col].astype(float)
+
+            drop_columns = list(
+                set(df.columns.values)
+                - {
+                    'ra',
+                    'dec',
+                    'name',
+                    'mstar',
+                    'magk',
+                    'magb',
+                    'redshift',
+                    'redshift_error',
+                    'distmpc',
+                    'distmpc_unc',
+                }
+            )
+
+            df.drop(
+                columns=drop_columns,
+                inplace=True,
+            )
+            df = df.replace({np.nan: None})
+            positive_definite_parameters = [
+                'distmpc',
+                'distmpc_unc',
+                'redshift_error',
+            ]
+            # remove rows where any of the positive definite parameters are negative using pandas
+            for key in positive_definite_parameters:
+                df = df.drop(df.index[df[key] < 0])
+            # if ra, dec or name are missing, remove the row
+            required_columns = ['ra', 'dec', 'name']
+            df = df[df[required_columns].notnull().all(axis=1)]
+
+            # fill in any missing optional parameters
+            optional_parameters = [
+                'alt_name',
+                'distmpc',
+                'distmpc_unc',
+                'redshift',
+                'redshift_error',
+                'sfr_fuv',
+                'mstar',
+                'magk',
+                'magb',
+                'a',
+                'b2a',
+                'pa',
+                'btc',
+            ]
+
+            # for the optional parameters, if a row is missing a value, fill it in with None
+            for key in optional_parameters:
+                if key not in df.columns.values:
+                    df[key] = None
+            # remove rows with incorrect ra or dec
+            df = df[(df['ra'] >= 0) & (df['ra'] < 360)]
+            df = df[(df['dec'] >= -90) & (df['dec'] <= 90)]
+
+            # add a healpix column where healpix = ha.constants.HPX.lonlat_to_healpix(ra * u.deg, dec * u.deg)
+            df['healpix'] = [
+                ha.constants.HPX.lonlat_to_healpix(ra * u.deg, dec * u.deg)
+                for ra, dec in zip(df['ra'], df['dec'])
+            ]
+            # add a catalog_name column where catalog_name = 'GLADE'
+            df['catalog_name'] = 'GLADE'
+            utcnow = datetime.datetime.utcnow().isoformat()
+            df['created_at'] = utcnow
+            df['modified_at'] = utcnow
+            blueshift_length = len(df[(df['redshift'] < 0)])
+            length = len(df)
+            full_length += length
+            full_blueshift_length += blueshift_length
+            columns = (
+                "ra",
+                "dec",
+                "magb",
+                "magk",
+                "redshift",
+                "redshift_error",
+                "distmpc",
+                "distmpc_unc",
+                "mstar",
+                "name",
+                "alt_name",
+                "sfr_fuv",
+                "a",
+                "b2a",
+                "pa",
+                "btc",
+                "healpix",
+                "catalog_name",
+                'created_at',
+                'modified',
+            )
+            output = StringIO()
+            df.replace("NaN", "null", inplace=True)
+            df.replace(np.nan, "NaN", inplace=True)
+            df.to_csv(
+                output,
+                index=False,
+                sep='\t',
+                header=False,
+                encoding='utf8',
+                quotechar="'",
+            )
+            output.seek(0)
+            connection = DBSession().connection().connection
+            cursor = connection.cursor()
+            cursor.copy_from(
+                output,
+                "galaxys",
+                sep='\t',
+                null='',
+                columns=columns,
+            )
+            cursor.close()
+            output.close()
+            DBSession().commit()
+            end_timer = time.perf_counter()
+            log(
+                f"add_glade - File part {ii}: Added {length} galaxies (including {blueshift_length} with a negative redshift) in {end_timer - start_timer:0.4f} seconds"
+            )
+        except Exception as e:
+            log(f"add_glade - File part {ii}: Error: {e}")
+            continue
+    log(
+        f"add_glade - Added a total of {full_length} galaxies (including {full_blueshift_length} with a negative redshift) to the database in {time.perf_counter() - start_loop_timer:0.4f} seconds"
+    )
+    return full_length, full_blueshift_length
+
+
+class GalaxyGladeHandler(BaseHandler):
+    @permissions(['System Admin'])
+    async def post(self):
+        """
+        ---
+        description: Upload galaxies from GLADE+ catalog. If no file_name or file_url is provided, will look for the GLADE+ catalog in the data directory. If it can't be found, it will download it.
+        tags:
+          - galaxys
+        requestBody:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                    file_name:
+                        type: string
+                        description: Name of the file containing the galaxies (in the data directory)
+                    file_url:
+                        type: string
+                        description: URL of the file containing the galaxies
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+
+        def add_glade_and_notify(file_path=None, file_url=None):
+            full_length, full_blueshift_length = add_glade(file_path, file_url)
+            self.push(
+                f'Added {full_length} galaxies (including {full_blueshift_length} with a negative redshift) to the database'
+            )
+
+        try:
+            file_name = None
+            file_url = None
+            data = self.get_json()
+            if 'file_name' in data:
+                file_name = data['file_name']
+                if not file_name.endswith('.txt'):
+                    return self.error("Catalog's file type is incorrect. Must be .txt.")
+                file_path = os.path.join(
+                    os.path.dirname(os.path.realpath(__file__)),
+                    '../../../data',
+                    file_name,
+                )
+                if not os.path.isfile(file_path):
+                    return self.error("File does not exist.")
+                file_url = file_path
+            elif 'file_url' in data:
+                file_url = data['file_url']
+                if not file_url.endswith('.txt'):
+                    return self.error(
+                        "Catalog's url points to an incorrect file type. Must be .txt."
+                    )
+                if not file_url.startswith('http'):
+                    return self.error("Catalog's file URL is incorrect.")
+            else:
+                file_path = os.path.join(
+                    os.path.dirname(os.path.realpath(__file__)),
+                    '../../../data',
+                    'GLADE+.txt',
+                )
+                if not os.path.isfile(file_path):
+                    file_path = None
+
+            IOLoop.current().run_in_executor(
+                None,
+                lambda: add_glade_and_notify(file_path=file_path, file_url=file_url),
+            )
+
+            return self.success()
+        except Exception as e:
+            return self.error(str(e))
