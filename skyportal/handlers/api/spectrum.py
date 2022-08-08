@@ -95,10 +95,8 @@ def parse_string_list(str_list):
     if isinstance(str_list, str):
         if len(str_list) == 0:
             return []
-        elif "," in str_list:
-            return [c.strip() for c in str_list.split(",")]
         else:
-            return [str_list.strip()]
+            return [c.strip() for c in str_list.split(",")]
     else:
         raise TypeError('Must input a string!')
 
