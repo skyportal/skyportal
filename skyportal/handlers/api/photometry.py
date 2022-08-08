@@ -135,7 +135,7 @@ def serialize(phot, outsys, format):
         # to the new magnitude system
         corrected_db_zp = PHOT_ZP + db_correction
 
-        if format == 'mag':
+        if format in ['mag', 'both']:
             if (
                 phot.original_user_data is not None
                 and 'limiting_mag' in phot.original_user_data
@@ -163,6 +163,14 @@ def serialize(phot, outsys, format):
                     'limiting_mag': maglimit_out,
                 }
             )
+            if format == "both":
+                return_value.update(
+                    {
+                        'flux': nan_to_none(phot.flux),
+                        'fluxerr': phot.fluxerr,
+                        'zp': corrected_db_zp,
+                    }
+                )
         elif format == 'flux':
             return_value.update(
                 {
@@ -175,7 +183,7 @@ def serialize(phot, outsys, format):
         else:
             raise ValueError(
                 'Invalid output format specified. Must be one of '
-                f"['flux', 'mag'], got '{format}'."
+                f"['flux', 'mag', 'both'], got '{format}'."
             )
     except ValueError as e:
         raise ValueError(
@@ -613,15 +621,17 @@ def insert_new_photometry_data(
         all_phot = session.scalars(
             sa.select(Photometry).where(Photometry.obj_id == obj_id)
         ).all()
-        phot_stat = PhotStat(obj_id=obj_id)
+
+        if phot_stat is None:
+            phot_stat = PhotStat(obj_id=obj_id)
+
         phot_stat.full_update(all_phot)
-        session.add(phot_stat)
 
     else:
         for phot in params:
             phot_stat.add_photometry_point(phot)
-            session.add(phot_stat)
 
+    session.add(phot_stat)
     session.commit()  # add the updated phot_stats
     return ids, upload_id
 
@@ -1116,16 +1126,12 @@ class PhotometryHandler(BaseHandler):
                 )
             ).first()
             if phot_stat is not None:
-                all_phot = (
-                    session.scalars(
-                        Photometry.select(session.user_or_token)
-                        .where(Photometry.obj_id == photometry.obj_id)
-                        .distinct()
-                    )
-                    .unique()
-                    .all()
-                )
+                all_phot = session.scalars(
+                    sa.select(Photometry).where(Photometry.obj_id == photometry.obj_id)
+                ).all()
                 phot_stat.full_update(all_phot)
+                for phot in all_phot:
+                    session.expunge(phot)
 
             session.commit()
 
@@ -1175,15 +1181,9 @@ class PhotometryHandler(BaseHandler):
                 )
             ).first()
             if phot_stat is not None:
-                all_phot = (
-                    session.scalars(
-                        Photometry.select(session.user_or_token)
-                        .where(Photometry.obj_id == photometry.obj_id)
-                        .distinct()
-                    )
-                    .unique()
-                    .all()
-                )
+                all_phot = session.scalars(
+                    sa.select(Photometry).where(Photometry.obj_id == photometry.obj_id)
+                ).all()
                 phot_stat.full_update(all_phot)
 
             session.commit()
@@ -1283,6 +1283,18 @@ class BulkDeletePhotometryHandler(BaseHandler):
 
             for phot in photometry_to_delete:
                 session.delete(phot)
+
+            obj_ids = {phot.obj_id for phot in photometry_to_delete}
+            for oid in obj_ids:
+                stat = session.scalars(
+                    PhotStat.select(session.user_or_token, mode="update").where(
+                        PhotStat.obj_id == oid
+                    )
+                ).first()
+                all_phot = session.scalars(
+                    sa.select(Photometry).where(Photometry.obj_id == oid)
+                ).all()
+                stat.full_update(all_phot)
 
             session.commit()
             return self.success(f"Deleted {n} photometry points.")

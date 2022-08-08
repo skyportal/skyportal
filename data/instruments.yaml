@@ -102,7 +102,7 @@
   type: spectrograph
 - =id: GMOS_GS
   band: optical
-  name: GMOS
+  name: GMOS_GS
   telescope_id: =GS
   type: imaging spectrograph
   filters: ['sdssu', 'sdssg', 'sdssr', 'sdssi', 'sdssz', 'desy']
@@ -117,9 +117,9 @@
   telescope_id: =PTEL
   type: imager
   filters: ['cspjs', 'csphs', 'cspk']
-- =id: GMOS
+- =id: GMOS_GN
   band: optical
-  name: GMOS
+  name: GMOS_GN
   telescope_id: =Gemini N
   type: imaging spectrograph
   filters: ['sdssu', 'sdssg', 'sdssr', 'sdssi', 'sdssz', 'desy']

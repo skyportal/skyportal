@@ -267,6 +267,15 @@ class Obj(Base, conesearch_alchemy.Point):
         doc="Comments posted about the object.",
     )
 
+    reminders = relationship(
+        'Reminder',
+        back_populates='obj',
+        cascade='save-update, merge, refresh-expire, expunge, delete',
+        passive_deletes=True,
+        order_by="Reminder.created_at",
+        doc="Reminders about the object.",
+    )
+
     comments_on_spectra = relationship(
         'CommentOnSpectrum',
         back_populates='obj',
@@ -274,6 +283,15 @@ class Obj(Base, conesearch_alchemy.Point):
         passive_deletes=True,
         order_by="CommentOnSpectrum.created_at",
         doc="Comments posted about spectra belonging to the object.",
+    )
+
+    reminders_on_spectra = relationship(
+        'ReminderOnSpectrum',
+        back_populates='obj',
+        cascade='save-update, merge, refresh-expire, expunge, delete',
+        passive_deletes=True,
+        order_by="ReminderOnSpectrum.created_at",
+        doc="Reminders about spectra belonging to the object.",
     )
 
     annotations = relationship(
@@ -384,6 +402,13 @@ class Obj(Base, conesearch_alchemy.Point):
         cascade='save-update, merge, refresh-expire, expunge',
         passive_deletes=True,
         doc="Analyses assocated with this obj.",
+    )
+
+    sources_in_gcns = relationship(
+        "SourcesConfirmedInGCN",
+        back_populates="obj",
+        passive_deletes=True,
+        doc="Sources in a localization.",
     )
 
     def add_linked_thumbnails(self, session=DBSession):

@@ -90,6 +90,7 @@ from .photometry_request import PhotometryRequestHandler
 from .public_group import PublicGroupHandler
 from .roles import RoleHandler, UserRoleHandler
 from .obj import ObjHandler
+from .reminder import ReminderHandler
 from .sharing import SharingHandler
 from .shift import ShiftHandler, ShiftUserHandler, ShiftSummary
 from .source import (
@@ -129,3 +130,7 @@ from .user import (
 from .unsourced_finder import UnsourcedFinderHandler
 from .weather import WeatherHandler
 from .webhook import AnalysisWebhookHandler
+from .sources_confirmed_in_gcn import (
+    SourcesConfirmedInGCNHandler,
+    GCNsAssociatedWithSourceHandler,
+)
