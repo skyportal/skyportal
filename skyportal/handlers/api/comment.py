@@ -247,15 +247,24 @@ class CommentHandler(BaseHandler):
                     f'Comment resource ID does not match resource ID given in path ({resource_id})'
                 )
 
-            if not comment.attachment_bytes:
-                comment_data = comment.to_dict()
-            else:
+            if comment.get_attachment_path() is not None:
+                with open(comment.get_attachment_path(), 'rb') as f:
+                    data = f.read()
+                comment_data = {
+                    "commentId": int(comment_id),
+                    "text": comment.text,
+                    "attachment": data,
+                    "attachment_name": str(comment.attachment_name),
+                }
+            elif comment.attachment_bytes is not None:
                 comment_data = {
                     "commentId": int(comment_id),
                     "text": comment.text,
                     "attachment": base64.b64decode(comment.attachment_bytes).decode(),
                     "attachment_name": str(comment.attachment_name),
                 }
+            else:
+                comment_data = comment.to_dict()
 
             query_size = sizeof(comment_data)
             if query_size >= SIZE_WARNING_THRESHOLD:
@@ -342,6 +351,7 @@ class CommentHandler(BaseHandler):
         data = self.get_json()
 
         comment_text = data.get("text")
+        attachment_bytes, attachment_name, data_to_disk = None, None, None
 
         if 'attachment' in data:
             if (
@@ -349,10 +359,13 @@ class CommentHandler(BaseHandler):
                 and 'body' in data['attachment']
                 and 'name' in data['attachment']
             ):
-                attachment_bytes = str.encode(
+                # attachment_bytes = str.encode(
+                #     data['attachment']['body'].split('base64,')[-1]
+                # )
+                attachment_name = data['attachment']['name']
+                data_to_disk = base64.b64decode(
                     data['attachment']['body'].split('base64,')[-1]
                 )
-                attachment_name = data['attachment']['name']
             else:
                 return self.error("Malformed comment attachment")
         else:
@@ -475,6 +488,9 @@ class CommentHandler(BaseHandler):
 
             session.add(comment)
             session.commit()
+            if data_to_disk is not None:
+                comment.save_data(attachment_name, data_to_disk)
+                session.commit()
             if users_mentioned_in_comment:
                 for user_mentioned in users_mentioned_in_comment:
                     self.flow.push(
@@ -643,16 +659,20 @@ class CommentHandler(BaseHandler):
 
             if 'text' in data:
                 c.text = data['text']
-
+            attachment_name = None
             if 'attachment_name' in data:
-                c.attachment_name = data['attachment_name']
-
+                attachment_name = data['attachment_name']
+                c.attachment_name = attachment_name
+            data_to_disk = None
             if attachment_bytes is not None:
-                attachment_bytes = str.encode(attachment_bytes.split('base64,')[-1])
-                c.attachment_bytes = attachment_bytes
+                # attachment_bytes = str.encode(attachment_bytes.split('base64,')[-1])
+                data_to_disk = base64.b64decode(
+                    data['attachment']['body'].split('base64,')[-1]
+                )
+                # c.attachment_bytes = attachment_bytes
 
-            bytes_is_none = c.attachment_bytes is None
-            name_is_none = c.attachment_name is None
+            bytes_is_none = data_to_disk is None
+            name_is_none = attachment_name is None
 
             if bytes_is_none ^ name_is_none:
                 return self.error(
@@ -678,6 +698,9 @@ class CommentHandler(BaseHandler):
 
             session.add(c)
             session.commit()
+            if data_to_disk is not None:
+                c.save_data(attachment_name, data_to_disk)
+                session.commit()
 
             if hasattr(c, 'obj'):  # comment on object, or object related resources
                 self.push_all(
@@ -970,20 +993,32 @@ class CommentAttachmentHandler(BaseHandler):
                     f'Comment resource ID does not match resource ID given in path ({resource_id})'
                 )
 
-            if not comment.attachment_bytes:
+            if not comment.attachment_bytes and not comment.get_attachment_path():
                 return self.error('Comment has no attachment')
 
+            data_path = comment.get_attachment_path()
             if download:
                 self.set_header(
                     "Content-Disposition",
                     "attachment; " f"filename={comment.attachment_name}",
                 )
                 self.set_header("Content-type", "application/octet-stream")
-                self.write(base64.b64decode(comment.attachment_bytes))
+                if data_path is None:
+                    data = base64.b64decode(comment.attachment_bytes)
+                else:
+                    with open(data_path, 'rb') as f:
+                        data = f.read()
+                self.write(data)
             else:
+                if data_path is None:
+                    data = base64.b64decode(comment.attachment_bytes).decode()
+                else:
+                    with open(data_path, 'rb') as f:
+                        data = f.read()
+
                 comment_data = {
                     "commentId": int(comment_id),
-                    "attachment": base64.b64decode(comment.attachment_bytes).decode(),
+                    "attachment": data,
                 }
 
                 query_size = sizeof(comment_data)
