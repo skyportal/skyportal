@@ -27,7 +27,11 @@ from ..enum_types import (
     listener_classnames,
     api_classnames,
 )
+
+from baselayer.app.env import load_env
 from baselayer.log import make_log
+
+_, cfg = load_env()
 
 log = make_log('model/instrument')
 
@@ -52,14 +56,13 @@ class ArrayOfEnum(ARRAY):
 
 
 def manage_instrument_access_logic(cls, user_or_token):
-    with DBSession() as session:
-        if user_or_token.is_system_admin:
-            return session.query(cls)
-        elif 'Manage allocations' in [acl.id for acl in user_or_token.acls]:
-            return session.query(cls)
-        else:
-            # return an empty query
-            return session.query(cls).filter(cls.id == -1)
+    if user_or_token.is_system_admin:
+        return DBSession().query(cls)
+    elif 'Manage allocations' in [acl.id for acl in user_or_token.acls]:
+        return DBSession().query(cls)
+    else:
+        # return an empty query
+        return DBSession().query(cls).filter(cls.id == -1)
 
 
 class Instrument(Base):
