@@ -188,6 +188,14 @@ class GcnEvent(Base):
         nullable=False,
         server_default="{}",
         doc="List of different names for this event, parsed from different GCN notices.",
+
+    reminders = relationship(
+        'ReminderOnGCN',
+        back_populates='gcn',
+        cascade='save-update, merge, refresh-expire, expunge, delete',
+        passive_deletes=True,
+        order_by="ReminderOnGCN.created_at",
+        doc="Reminders about this GCN event.",
     )
 
     @hybrid_property
