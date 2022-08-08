@@ -189,7 +189,6 @@ class AssignmentHandler(BaseHandler):
             if assignment_id is not None:
                 out_json = out_json[0]
 
-            print(out_json)
             return self.success(data=out_json)
 
     @permissions(['Upload data'])
