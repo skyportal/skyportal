@@ -175,7 +175,7 @@ class AssignmentHandler(BaseHandler):
             assignments = session.scalars(assignments).unique().all()
 
             if len(assignments) == 0 and assignment_id is not None:
-                return self.error("Could not retrieve assignment.")
+                return self.error("Could not retrieve assignment with ID {assignment_id}.")
 
             out_json = ClassicalAssignment.__schema__().dump(assignments, many=True)
 
