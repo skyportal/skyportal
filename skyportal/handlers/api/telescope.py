@@ -141,11 +141,11 @@ class TelescopeHandler(BaseHandler):
                     )
                 return self.success(data=t)
             tel_name = self.get_query_argument("name", None)
-            query = Telescope.select(session.user_or_token)
+            stmt = Telescope.select(session.user_or_token)
             if tel_name is not None:
-                query = query.where(Telescope.name == tel_name)
+                stmt = stmt.where(Telescope.name == tel_name)
 
-            data = session.scalars(query).all()
+            data = session.scalars(stmt).all()
             telescopes = []
             for telescope in data:
                 if telescope is None:
