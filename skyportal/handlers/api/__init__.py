@@ -29,7 +29,7 @@ from .followup_request import (
     AssignmentHandler,
 )
 from .facility_listener import FacilityMessageHandler
-from .galaxy import GalaxyCatalogHandler, GalaxyASCIIFileHandler
+from .galaxy import GalaxyCatalogHandler, GalaxyASCIIFileHandler, GalaxyGladeHandler
 from .gcn import (
     GcnEventHandler,
     GcnEventObservationPlanRequestsHandler,
