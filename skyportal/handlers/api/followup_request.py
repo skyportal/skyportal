@@ -90,8 +90,8 @@ def post_assignment(data, session):
 
     assignment = ClassicalAssignment(**data)
 
-    assignment.requester_id = session.user_or_token.id
-    assignment.last_modified_by_id = session.user_or_token.id
+    assignment.requester_id = session.user_or_token.created_by.id
+    assignment.last_modified_by_id = session.user_or_token.created_by.id
     session.add(assignment)
     session.commit()
 
