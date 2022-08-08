@@ -3,7 +3,7 @@ from jsonschema.exceptions import ValidationError as JSONValidationError
 
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
-from ...models import DBSession, Taxonomy, Group
+from ...models import Taxonomy, Group
 
 
 class TaxonomyHandler(BaseHandler):
@@ -44,24 +44,31 @@ class TaxonomyHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
-        if taxonomy_id is not None:
-            taxonomy = Taxonomy.get_taxonomy_usable_by_user(
-                taxonomy_id, self.current_user
-            )
-            if taxonomy is None or len(taxonomy) == 0:
-                return self.error(
-                    'Taxonomy does not exist or is not available to user.'
+
+        with self.Session() as session:
+            if taxonomy_id is not None:
+                taxonomy = Taxonomy.get_taxonomy_usable_by_user(
+                    taxonomy_id,
+                    self.current_user,
+                    session,
                 )
+                if taxonomy is None or len(taxonomy) == 0:
+                    return self.error(
+                        'Taxonomy does not exist or is not available to user.'
+                    )
 
-            return self.success(data=taxonomy[0])
+                return self.success(data=taxonomy[0])
 
-        query = Taxonomy.query.filter(
-            Taxonomy.groups.any(
-                Group.id.in_([g.id for g in self.current_user.accessible_groups])
+            query = session.scalars(
+                Taxonomy.select(session.user_or_token).where(
+                    Taxonomy.groups.any(
+                        Group.id.in_(
+                            [g.id for g in self.current_user.accessible_groups]
+                        )
+                    )
+                )
             )
-        )
-        self.verify_and_commit()
-        return self.success(data=query.all())
+            return self.success(data=query.all())
 
     @permissions(['Post taxonomy'])
     def post(self):
@@ -140,67 +147,75 @@ class TaxonomyHandler(BaseHandler):
         if version is None:
             return self.error("A version string must be provided for a taxonomy")
 
-        existing_matches = (
-            Taxonomy.query.filter(Taxonomy.name == name)
-            .filter(Taxonomy.version == version)
-            .all()
-        )
-        if len(existing_matches) != 0:
-            return self.error(
-                "That version/name combination is already "
-                "present. If you really want to replace this "
-                "then delete the appropriate entry."
+        with self.Session() as session:
+
+            existing_matches = session.scalars(
+                Taxonomy.select(session.user_or_token)
+                .where(Taxonomy.name == name)
+                .where(Taxonomy.version == version)
+            ).all()
+            if len(existing_matches) != 0:
+                return self.error(
+                    "That version/name combination is already "
+                    "present. If you really want to replace this "
+                    "then delete the appropriate entry."
+                )
+
+            # Ensure a valid taxonomy
+            hierarchy = data.get('hierarchy', None)
+            if hierarchy is None:
+                return self.error("A JSON of the taxonomy must be given")
+
+            try:
+                validate(hierarchy, schema)
+            except JSONValidationError:
+                return self.error("Hierarchy does not validate against the schema.")
+
+            # establish the groups to use
+            user_group_ids = [g.id for g in self.current_user.groups]
+            user_accessible_group_ids = [
+                g.id for g in self.current_user.accessible_groups
+            ]
+
+            group_ids = data.pop("group_ids", user_group_ids)
+            if group_ids == []:
+                group_ids = user_group_ids
+            group_ids = [gid for gid in group_ids if gid in user_accessible_group_ids]
+            if not group_ids:
+                return self.error(
+                    f"Invalid group IDs field ({group_ids}): "
+                    "You must provide one or more valid group IDs."
+                )
+            groups = session.scalars(
+                Group.select(session.user_or_token).where(Group.id.in_(group_ids))
+            ).all()
+
+            provenance = data.get('provenance', None)
+
+            # update others with this name
+            # TODO: deal with the same name but different groups?
+            isLatest = data.get('isLatest', True)
+            if isLatest:
+                taxonomy_update = session.scalars(
+                    Taxonomy.select(session.user_or_token).where(Taxonomy.name == name)
+                ).first()
+                if taxonomy_update is not None:
+                    taxonomy_update.isLatest = False
+                    session.add(taxonomy_update)
+
+            taxonomy = Taxonomy(
+                name=name,
+                hierarchy=hierarchy,
+                provenance=provenance,
+                version=version,
+                isLatest=isLatest,
+                groups=groups,
             )
 
-        # Ensure a valid taxonomy
-        hierarchy = data.get('hierarchy', None)
-        if hierarchy is None:
-            return self.error("A JSON of the taxonomy must be given")
+            session.add(taxonomy)
+            session.commit()
 
-        try:
-            validate(hierarchy, schema)
-        except JSONValidationError:
-            return self.error("Hierarchy does not validate against the schema.")
-
-        # establish the groups to use
-
-        user_group_ids = [g.id for g in self.current_user.groups]
-        user_accessible_group_ids = [g.id for g in self.current_user.accessible_groups]
-
-        group_ids = data.pop("group_ids", user_group_ids)
-        if group_ids == []:
-            group_ids = user_group_ids
-        group_ids = [gid for gid in group_ids if gid in user_accessible_group_ids]
-        if not group_ids:
-            return self.error(
-                f"Invalid group IDs field ({group_ids}): "
-                "You must provide one or more valid group IDs."
-            )
-        groups = Group.query.filter(Group.id.in_(group_ids)).all()
-
-        provenance = data.get('provenance', None)
-
-        # update others with this name
-        # TODO: deal with the same name but different groups?
-        isLatest = data.get('isLatest', True)
-        if isLatest:
-            DBSession().query(Taxonomy).filter(Taxonomy.name == name).update(
-                {'isLatest': False}
-            )
-
-        taxonomy = Taxonomy(
-            name=name,
-            hierarchy=hierarchy,
-            provenance=provenance,
-            version=version,
-            isLatest=isLatest,
-            groups=groups,
-        )
-
-        DBSession().add(taxonomy)
-        self.verify_and_commit()
-
-        return self.success(data={'taxonomy_id': taxonomy.id})
+            return self.success(data={'taxonomy_id': taxonomy.id})
 
     @permissions(['Delete taxonomy'])
     def delete(self, taxonomy_id):
@@ -222,11 +237,18 @@ class TaxonomyHandler(BaseHandler):
                 schema: Success
         """
 
-        taxonomy = Taxonomy.get_if_accessible_by(
-            taxonomy_id, self.current_user, mode='delete', raise_if_none=True
-        )
+        with self.Session() as session:
+            taxonomy = session.scalars(
+                Taxonomy.select(session.user_or_token, mode='delete').where(
+                    Taxonomy.id == taxonomy_id
+                )
+            ).first()
+            if taxonomy is None:
+                return self.error(
+                    'Taxonomy does not exist or is not available to user.'
+                )
 
-        DBSession().delete(taxonomy)
-        self.verify_and_commit()
+            session.delete(taxonomy)
+            session.commit()
 
-        return self.success()
+            return self.success()

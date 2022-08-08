@@ -1455,7 +1455,7 @@ class ObservationPlanCreateObservingRunHandler(BaseHandler):
                     'priority': str(int(priority)),
                 }
                 try:
-                    post_assignment(assignment, self.associated_user_object.id, session)
+                    post_assignment(assignment, session)
                 except ValueError:
                     # No need to assign multiple times to same run
                     pass

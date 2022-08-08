@@ -35,6 +35,7 @@ import ObservationPlanRequestLists from "./ObservationPlanRequestLists";
 
 import CommentList from "./CommentList";
 import GcnTags from "./GcnTags";
+import Reminders from "./Reminders";
 
 import withRouter from "./withRouter";
 
@@ -523,6 +524,18 @@ const GcnEventPage = ({ route }) => {
               ) : (
                 <Typography variant="h5">Fetching galaxies...</Typography>
               )}
+            </AccordionDetails>
+          </Accordion>
+        </div>
+        <div className={styles.columnItem}>
+          <Accordion defaultExpanded>
+            <AccordionDetails>
+              <div className={styles.gcnEventContainer}>
+                <Reminders
+                  resourceId={gcnEvent.id.toString()}
+                  resourceType="gcn_event"
+                />
+              </div>
             </AccordionDetails>
           </Accordion>
         </div>
