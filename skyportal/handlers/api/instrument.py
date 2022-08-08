@@ -498,26 +498,19 @@ class InstrumentHandler(BaseHandler):
         data['id'] = int(instrument_id)
         with self.Session() as session:
             # permission check
-            stmt = Instrument.select(session.user_or_token).where(
+            stmt = Instrument.select(session.user_or_token, mode="update").where(
                 Instrument.id == int(instrument_id)
             )
             instrument = session.scalars(stmt).first()
             if instrument is None:
                 return self.error(f'Missing instrument with ID {instrument_id}')
 
-            filters = instrument.filters
             sensitivity_data = data.get('sensitivity_data', None)
             if isinstance(sensitivity_data, str):
                 sensitivity_data = ast.literal_eval(
                     sensitivity_data.replace("\'", "\"")
                 )
                 data['sensitivity_data'] = sensitivity_data
-
-            if sensitivity_data:
-                if not set(sensitivity_data.keys()).issubset(filters):
-                    return self.error(
-                        'Filter names must be present in both sensitivity_data property and filters property'
-                    )
 
             field_data = data.pop("field_data", None)
             field_region = data.pop("field_region", None)
@@ -568,10 +561,43 @@ class InstrumentHandler(BaseHandler):
             schema = Instrument.__schema__()
             try:
                 schema.load(data, partial=True)
-            except ValidationError as exc:
+            except ValidationError as e:
                 return self.error(
-                    'Invalid/missing parameters: ' f'{exc.normalized_messages()}'
+                    'Invalid/missing parameters: ' f'{e.normalized_messages()}'
                 )
+
+            if 'name' in data:
+                instrument.name = data['name']
+            if 'type' in data:
+                instrument.type = data['type']
+            if 'band' in data:
+                instrument.band = data['band']
+            if 'telescope_id' in data:
+                instrument.telescope_id = data['telescope_id']
+            if 'filters' in data:
+                instrument.filters = data['filters']
+
+            if sensitivity_data:
+                if not set(sensitivity_data.keys()).issubset(instrument.filters):
+                    return self.error(
+                        'Filter names must be present in both sensitivity_data property and filters property'
+                    )
+
+            if 'sensitivity_data' in data:
+                instrument.sensitivity_data = data['sensitivity_data']
+            if 'api_classname' in data:
+                instrument.api_classname = data['api_classname']
+            if 'api_classname_obsplan' in data:
+                instrument.api_classname_obsplan = data['api_classname_obsplan']
+            if 'listener_classname' in data:
+                instrument.listener_classname = data['listener_classname']
+            if 'treasuremap_id' in data:
+                instrument.treasuremap_id = data['treasuremap_id']
+            if 'tns_id' in data:
+                instrument.tns_id = data['tns_id']
+            if 'region' in data:
+                instrument.region = data['region']
+
             session.commit()
 
             if field_data is not None:
@@ -623,10 +649,14 @@ class InstrumentHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        instrument = Instrument.get_if_accessible_by(
-            int(instrument_id), self.current_user, raise_if_none=True, mode='update'
-        )
         with self.Session() as session:
+            stmt = Instrument.select(session.user_or_token, mode="delete").where(
+                Instrument.id == int(instrument_id)
+            )
+            instrument = session.scalars(stmt).first()
+            if instrument is None:
+                return self.error(f'Missing instrument with ID {instrument_id}')
+
             session.delete(instrument)
             session.commit()
 
