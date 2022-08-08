@@ -183,6 +183,15 @@ class GcnEvent(Base):
         doc="Comments posted about this GCN event.",
     )
 
+    reminders = relationship(
+        'ReminderOnGCN',
+        back_populates='gcn',
+        cascade='save-update, merge, refresh-expire, expunge, delete',
+        passive_deletes=True,
+        order_by="ReminderOnGCN.created_at",
+        doc="Reminders about this GCN event.",
+    )
+
     @hybrid_property
     def tags(self):
         """List of tags."""

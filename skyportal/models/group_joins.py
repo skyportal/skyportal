@@ -9,6 +9,10 @@ __all__ = [
     'GroupCommentOnSpectrum',
     'GroupCommentOnGCN',
     'GroupCommentOnShift',
+    'GroupReminder',
+    'GroupReminderOnSpectrum',
+    'GroupReminderOnGCN',
+    'GroupReminderOnShift',
     'GroupAnnotationOnSpectrum',
     'GroupInvitation',
     'GroupSourceNotification',
@@ -24,14 +28,12 @@ from baselayer.app.models import join_model, User, AccessibleIfUserMatches
 from baselayer.app.models import DBSession, restricted, CustomUserAccessControl
 from .photometry import Photometry, PhotometricSeries
 from .taxonomy import Taxonomy
-from .comment import Comment
+from .comment import Comment, CommentOnSpectrum, CommentOnGCN, CommentOnShift
 from .annotation import Annotation
 from .classification import Classification
 from .spectrum import Spectrum
-from .comment import CommentOnSpectrum
 from .annotation import AnnotationOnSpectrum
-from .comment import CommentOnGCN
-from .comment import CommentOnShift
+from .reminder import Reminder, ReminderOnGCN, ReminderOnSpectrum, ReminderOnShift
 from .invitation import Invitation
 from .source_notification import SourceNotification
 from .filter import Filter
@@ -67,6 +69,11 @@ GroupComment.delete = GroupComment.update = (
     accessible_by_group_admins & GroupComment.read
 )
 
+GroupReminder = join_model("group_reminders", Group, Reminder)
+GroupReminder.__doc__ = "Join table mapping Groups to Reminders."
+GroupReminder.delete = GroupReminder.update = (
+    accessible_by_group_admins & GroupReminder.read
+)
 GroupSurveyEfficiencyForObservationPlan = join_model(
     "group_survey_efficiency_for_observation_plan",
     Group,
@@ -129,6 +136,14 @@ GroupCommentOnSpectrum.delete = GroupCommentOnSpectrum.update = (
     accessible_by_group_admins & GroupCommentOnSpectrum.read
 )
 
+GroupReminderOnSpectrum = join_model(
+    "group_reminders_on_spectra", Group, ReminderOnSpectrum
+)
+GroupReminderOnSpectrum.__doc__ = "Join table mapping Groups to ReminderOnSpectrum."
+GroupReminderOnSpectrum.delete = GroupReminderOnSpectrum.update = (
+    accessible_by_group_admins & GroupReminderOnSpectrum.read
+)
+
 GroupAnnotationOnSpectrum = join_model(
     "group_annotations_on_spectra", Group, AnnotationOnSpectrum
 )
@@ -143,10 +158,22 @@ GroupCommentOnGCN.delete = GroupCommentOnGCN.update = (
     accessible_by_group_admins & GroupCommentOnGCN.read
 )
 
+GroupReminderOnGCN = join_model("group_reminders_on_gcns", Group, ReminderOnGCN)
+GroupReminderOnGCN.__doc__ = "Join table mapping Groups to ReminderOnGCN."
+GroupReminderOnGCN.delete = GroupReminderOnGCN.update = (
+    accessible_by_group_admins & GroupReminderOnGCN.read
+)
+
 GroupCommentOnShift = join_model("group_comments_on_shifts", Group, CommentOnShift)
 GroupCommentOnShift.__doc__ = "Join table mapping Groups to CommentOnShift."
 GroupCommentOnShift.delete = GroupCommentOnShift.update = (
     accessible_by_group_admins & GroupCommentOnShift.read
+)
+
+GroupReminderOnShift = join_model("group_reminders_on_shifts", Group, ReminderOnShift)
+GroupReminderOnShift.__doc__ = "Join table mapping Groups to ReminderOnShift."
+GroupReminderOnShift.delete = GroupReminderOnShift.update = (
+    accessible_by_group_admins & GroupReminderOnShift.read
 )
 
 GroupInvitation = join_model('group_invitations', Group, Invitation)
