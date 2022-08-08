@@ -506,8 +506,8 @@ class ShiftUserHandler(BaseHandler):
                                 user=group_user.user,
                                 text=(
                                     f"*@{shiftuser.user.username}* needs a "
-                                    "replacement for shift: {shift.name} "
-                                    "from {shift.start_date} to {shift.end_date}."
+                                    f"replacement for shift: {shift.name} "
+                                    f"from {shift.start_date} to {shift.end_date}."
                                 ),
                                 url=f"/shifts/{shift.id}",
                             )
