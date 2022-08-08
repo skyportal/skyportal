@@ -45,7 +45,6 @@ from ...models import (
     Obj,
     Group,
     Allocation,
-    User,
     cosmo,
 )
 
@@ -56,17 +55,13 @@ from ...models.schema import AssignmentSchema, FollowupRequestPost
 MAX_FOLLOWUP_REQUESTS = 1000
 
 
-def post_assignment(data, user_id, session):
+def post_assignment(data, session):
     """Post assignment to database.
     data: dict
         Assignment dictionary
-    user_id : int
-        SkyPortal ID of User posting the GcnEvent
     session: sqlalchemy.Session
         Database session for this transaction
     """
-
-    user = session.query(User).get(user_id)
 
     try:
         assignment = ClassicalAssignment(**AssignmentSchema.load(data=data))
@@ -78,13 +73,13 @@ def post_assignment(data, user_id, session):
     run_id = assignment.run_id
     data['priority'] = assignment.priority.name
     run = session.scalars(
-        ObservingRun.select(user).where(ObservingRun.id == run_id)
+        ObservingRun.select(session.user_or_token).where(ObservingRun.id == run_id)
     ).first()
     if run is None:
         raise ValueError('Observing run is not accessible.')
 
     predecessor = session.scalars(
-        ClassicalAssignment.select(user).where(
+        ClassicalAssignment.select(session.user_or_token).where(
             ClassicalAssignment.obj_id == assignment.obj_id,
             ClassicalAssignment.run_id == run_id,
         )
@@ -95,8 +90,8 @@ def post_assignment(data, user_id, session):
 
     assignment = ClassicalAssignment(**data)
 
-    assignment.requester_id = user.id
-    assignment.last_modified_by_id = user.id
+    assignment.requester_id = session.user_or_token.id
+    assignment.last_modified_by_id = session.user_or_token.id
     session.add(assignment)
     session.commit()
 
@@ -175,7 +170,9 @@ class AssignmentHandler(BaseHandler):
             assignments = session.scalars(assignments).unique().all()
 
             if len(assignments) == 0 and assignment_id is not None:
-                return self.error("Could not retrieve assignment with ID {assignment_id}.")
+                return self.error(
+                    "Could not retrieve assignment with ID {assignment_id}."
+                )
 
             out_json = ClassicalAssignment.__schema__().dump(assignments, many=True)
 
@@ -223,9 +220,7 @@ class AssignmentHandler(BaseHandler):
 
         with self.Session() as session:
             try:
-                assignment_id = post_assignment(
-                    data, self.associated_user_object.id, session
-                )
+                assignment_id = post_assignment(data, session)
             except ValidationError as e:
                 return self.error(
                     'Error posting followup request: ' f'"{e.normalized_messages()}"'
