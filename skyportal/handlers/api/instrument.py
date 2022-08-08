@@ -44,114 +44,123 @@ class InstrumentHandler(BaseHandler):
 
         data = self.get_json()
         telescope_id = data.get('telescope_id')
-        telescope = Telescope.get_if_accessible_by(
-            telescope_id, self.current_user, raise_if_none=True, mode="read"
-        )
-
-        sensitivity_data = data.get("sensitivity_data", None)
-        if isinstance(sensitivity_data, str):
-            sensitivity_data = ast.literal_eval(sensitivity_data.replace("\'", "\""))
-            data['sensitivity_data'] = sensitivity_data
-
-        if sensitivity_data:
-            filters = data.get("filters", [])
-            if not set(sensitivity_data.keys()).issubset(filters):
-                return self.error(
-                    'Sensitivity_data filters must be a subset of the instrument filters'
-                )
-
-        field_data = data.pop("field_data", None)
-        field_region = data.pop("field_region", None)
-
-        field_fov_type = data.pop("field_fov_type", None)
-        field_fov_attributes = data.pop("field_fov_attributes", None)
-
-        if (field_region is not None) and (field_fov_type is not None):
-            return self.error('must supply only one of field_region or field_fov_type')
-
-        if field_region is not None:
-            regions = Regions.parse(field_region, format='ds9')
-            data['region'] = regions.serialize(format='ds9')
-
-        if field_fov_type is not None:
-            if field_fov_attributes is None:
-                return self.error(
-                    'field_fov_attributes required if field_fov_type supplied'
-                )
-            if not field_fov_type.lower() in ["circle", "rectangle"]:
-                return self.error('field_fov_type must be circle or rectangle')
-            if isinstance(field_fov_attributes, list):
-                field_fov_attributes = [float(x) for x in field_fov_attributes]
-            else:
-                field_fov_attributes = [float(field_fov_attributes)]
-
-            center = SkyCoord(0.0, 0.0, unit='deg', frame='icrs')
-            if field_fov_type.lower() == "circle":
-                if not len(field_fov_attributes) == 1:
-                    return self.error(
-                        'If field_fov_type is circle, then should supply only radius for field_fov_attributes'
-                    )
-                radius = field_fov_attributes[0]
-                regions = CircleSkyRegion(center=center, radius=radius * u.deg)
-            elif field_fov_type.lower() == "rectangle":
-                if not len(field_fov_attributes) == 2:
-                    return self.error(
-                        'If field_fov_type is rectangle, then should supply width and height for field_fov_attributes'
-                    )
-                width, height = field_fov_attributes
-                regions = RectangleSkyRegion(
-                    center=center, width=width * u.deg, height=height * u.deg
-                )
-            data['region'] = regions.serialize(format='ds9')
-
-        schema = Instrument.__schema__()
-        try:
-            instrument = schema.load(data)
-        except ValidationError as exc:
-            return self.error(
-                'Invalid/missing parameters: ' f'{exc.normalized_messages()}'
+        with self.Session() as session:
+            stmt = Telescope.select(session.user_or_token).filter(
+                Telescope.id == telescope_id
             )
+            telescope = session.scalars(stmt).first()
+            if not telescope:
+                return self.error(f'No telescope with id {telescope_id}')
 
-        existing_instrument = (
-            Instrument.query_records_accessible_by(
-                self.current_user,
-            )
-            .filter(
+            sensitivity_data = data.get("sensitivity_data", None)
+            if isinstance(sensitivity_data, str):
+                sensitivity_data = ast.literal_eval(
+                    sensitivity_data.replace("\'", "\"")
+                )
+                data['sensitivity_data'] = sensitivity_data
+
+            if sensitivity_data:
+                filters = data.get("filters", [])
+                if not set(sensitivity_data.keys()).issubset(filters):
+                    return self.error(
+                        'Sensitivity_data filters must be a subset of the instrument filters'
+                    )
+
+            field_data = data.pop("field_data", None)
+            field_region = data.pop("field_region", None)
+
+            field_fov_type = data.pop("field_fov_type", None)
+            field_fov_attributes = data.pop("field_fov_attributes", None)
+
+            if (field_region is not None) and (field_fov_type is not None):
+                return self.error(
+                    'must supply only one of field_region or field_fov_type'
+                )
+
+            if field_region is not None:
+                regions = Regions.parse(field_region, format='ds9')
+                data['region'] = regions.serialize(format='ds9')
+
+            if field_fov_type is not None:
+                if field_fov_attributes is None:
+                    return self.error(
+                        'field_fov_attributes required if field_fov_type supplied'
+                    )
+                if not field_fov_type.lower() in ["circle", "rectangle"]:
+                    return self.error('field_fov_type must be circle or rectangle')
+                if isinstance(field_fov_attributes, list):
+                    field_fov_attributes = [float(x) for x in field_fov_attributes]
+                else:
+                    field_fov_attributes = [float(field_fov_attributes)]
+
+                center = SkyCoord(0.0, 0.0, unit='deg', frame='icrs')
+                if field_fov_type.lower() == "circle":
+                    if not len(field_fov_attributes) == 1:
+                        return self.error(
+                            'If field_fov_type is circle, then should supply only radius for field_fov_attributes'
+                        )
+                    radius = field_fov_attributes[0]
+                    regions = CircleSkyRegion(center=center, radius=radius * u.deg)
+                elif field_fov_type.lower() == "rectangle":
+                    if not len(field_fov_attributes) == 2:
+                        return self.error(
+                            'If field_fov_type is rectangle, then should supply width and height for field_fov_attributes'
+                        )
+                    width, height = field_fov_attributes
+                    regions = RectangleSkyRegion(
+                        center=center, width=width * u.deg, height=height * u.deg
+                    )
+                data['region'] = regions.serialize(format='ds9')
+
+            schema = Instrument.__schema__()
+            try:
+                instrument = schema.load(data)
+            except ValidationError as exc:
+                return self.error(
+                    'Invalid/missing parameters: ' f'{exc.normalized_messages()}'
+                )
+
+            stmt = Instrument.select(session.user_or_token).where(
                 Instrument.name == data.get('name'),
                 Instrument.telescope_id == telescope_id,
             )
-            .first()
-        )
-        if existing_instrument is None:
-            instrument.telescope = telescope
-            DBSession().add(instrument)
-            DBSession().commit()
-        else:
-            instrument = existing_instrument
-
-        if field_data is not None:
-            if (field_region is None) and (field_fov_type is None):
+            existing_instrument = session.scalars(stmt).first()
+            if existing_instrument is not None:
                 return self.error(
-                    'field_region or field_fov_type is required with field_data'
+                    'Instrument with name {} already exists for telescope {}'.format(
+                        existing_instrument.name, telescope_id
+                    )
                 )
 
-            if type(field_data) is str:
-                field_data = pd.read_table(StringIO(field_data), sep=",").to_dict(
-                    orient='list'
+            instrument.telescope = telescope
+            session.add(instrument)
+            session.commit()
+
+            if field_data is not None:
+                if (field_region is None) and (field_fov_type is None):
+                    return self.error(
+                        'field_region or field_fov_type is required with field_data'
+                    )
+
+                if type(field_data) is str:
+                    field_data = pd.read_table(StringIO(field_data), sep=",").to_dict(
+                        orient='list'
+                    )
+
+                if not {'ID', 'RA', 'Dec'}.issubset(field_data):
+                    return self.error("ID, RA, and Dec required in field_data.")
+
+                log(f"Started generating fields for instrument {instrument.id}")
+                # run async
+                IOLoop.current().run_in_executor(
+                    None,
+                    lambda: add_tiles(
+                        instrument.id, instrument.name, regions, field_data
+                    ),
                 )
 
-            if not {'ID', 'RA', 'Dec'}.issubset(field_data):
-                return self.error("ID, RA, and Dec required in field_data.")
-
-            log(f"Started generating fields for instrument {instrument.id}")
-            # run async
-            IOLoop.current().run_in_executor(
-                None,
-                lambda: add_tiles(instrument.id, instrument.name, regions, field_data),
-            )
-
-        self.push_all(action="skyportal/REFRESH_INSTRUMENTS")
-        return self.success(data={"id": instrument.id})
+            self.push_all(action="skyportal/REFRESH_INSTRUMENTS")
+            return self.success(data={"id": instrument.id})
 
     @auth_or_token
     async def get(self, instrument_id=None):
@@ -487,102 +496,109 @@ class InstrumentHandler(BaseHandler):
         """
         data = self.get_json()
         data['id'] = int(instrument_id)
-
-        # permission check
-        instrument = Instrument.get_if_accessible_by(
-            int(instrument_id), self.current_user, mode='update'
-        )
-        if instrument is None:
-            return self.error(f'Missing instrument with ID {instrument_id}')
-
-        filters = instrument.filters
-        sensitivity_data = data.get('sensitivity_data', None)
-        if isinstance(sensitivity_data, str):
-            sensitivity_data = ast.literal_eval(sensitivity_data.replace("\'", "\""))
-            data['sensitivity_data'] = sensitivity_data
-
-        if sensitivity_data:
-            if not set(sensitivity_data.keys()).issubset(filters):
-                return self.error(
-                    'Filter names must be present in both sensitivity_data property and filters property'
-                )
-
-        field_data = data.pop("field_data", None)
-        field_region = data.pop("field_region", None)
-
-        field_fov_type = data.pop("field_fov_type", None)
-        field_fov_attributes = data.pop("field_fov_attributes", None)
-
-        if (field_region is not None) and (field_fov_type is not None):
-            return self.error('must supply only one of field_region or field_fov_type')
-
-        if field_region is not None:
-            regions = Regions.parse(field_region, format='ds9')
-            data['region'] = regions.serialize(format='ds9')
-
-        if field_fov_type is not None:
-            if field_fov_attributes is None:
-                return self.error(
-                    'field_fov_attributes required if field_fov_type supplied'
-                )
-            if not field_fov_type.lower() in ["circle", "rectangle"]:
-                return self.error('field_fov_type must be circle or rectangle')
-            if isinstance(field_fov_attributes, list):
-                field_fov_attributes = [float(x) for x in field_fov_attributes]
-            else:
-                field_fov_attributes = [float(field_fov_attributes)]
-
-            center = SkyCoord(0.0, 0.0, unit='deg', frame='icrs')
-            if field_fov_type.lower() == "circle":
-                if not len(field_fov_attributes) == 1:
-                    return self.error(
-                        'If field_fov_type is circle, then should supply only radius for field_fov_attributes'
-                    )
-                radius = field_fov_attributes[0]
-                regions = CircleSkyRegion(center=center, radius=radius * u.deg)
-            elif field_fov_type.lower() == "rectangle":
-                if not len(field_fov_attributes) == 2:
-                    return self.error(
-                        'If field_fov_type is rectangle, then should supply width and height for field_fov_attributes'
-                    )
-                width, height = field_fov_attributes
-                regions = RectangleSkyRegion(
-                    center=center, width=width * u.deg, height=height * u.deg
-                )
-            data['region'] = regions.serialize(format='ds9')
-
-        schema = Instrument.__schema__()
-        try:
-            schema.load(data, partial=True)
-        except ValidationError as exc:
-            return self.error(
-                'Invalid/missing parameters: ' f'{exc.normalized_messages()}'
+        with self.Session() as session:
+            # permission check
+            stmt = Instrument.select(session.user_or_token).where(
+                Instrument.id == int(instrument_id)
             )
-        self.verify_and_commit()
+            instrument = session.scalars(stmt).first()
+            if instrument is None:
+                return self.error(f'Missing instrument with ID {instrument_id}')
 
-        if field_data is not None:
-            if (field_region is None) and (field_fov_type is None):
+            filters = instrument.filters
+            sensitivity_data = data.get('sensitivity_data', None)
+            if isinstance(sensitivity_data, str):
+                sensitivity_data = ast.literal_eval(
+                    sensitivity_data.replace("\'", "\"")
+                )
+                data['sensitivity_data'] = sensitivity_data
+
+            if sensitivity_data:
+                if not set(sensitivity_data.keys()).issubset(filters):
+                    return self.error(
+                        'Filter names must be present in both sensitivity_data property and filters property'
+                    )
+
+            field_data = data.pop("field_data", None)
+            field_region = data.pop("field_region", None)
+
+            field_fov_type = data.pop("field_fov_type", None)
+            field_fov_attributes = data.pop("field_fov_attributes", None)
+
+            if (field_region is not None) and (field_fov_type is not None):
                 return self.error(
-                    'field_region or field_fov_type is required with field_data'
+                    'must supply only one of field_region or field_fov_type'
                 )
 
-            if type(field_data) is str:
-                field_data = pd.read_table(StringIO(field_data), sep=",").to_dict(
-                    orient='list'
+            if field_region is not None:
+                regions = Regions.parse(field_region, format='ds9')
+                data['region'] = regions.serialize(format='ds9')
+
+            if field_fov_type is not None:
+                if field_fov_attributes is None:
+                    return self.error(
+                        'field_fov_attributes required if field_fov_type supplied'
+                    )
+                if not field_fov_type.lower() in ["circle", "rectangle"]:
+                    return self.error('field_fov_type must be circle or rectangle')
+                if isinstance(field_fov_attributes, list):
+                    field_fov_attributes = [float(x) for x in field_fov_attributes]
+                else:
+                    field_fov_attributes = [float(field_fov_attributes)]
+
+                center = SkyCoord(0.0, 0.0, unit='deg', frame='icrs')
+                if field_fov_type.lower() == "circle":
+                    if not len(field_fov_attributes) == 1:
+                        return self.error(
+                            'If field_fov_type is circle, then should supply only radius for field_fov_attributes'
+                        )
+                    radius = field_fov_attributes[0]
+                    regions = CircleSkyRegion(center=center, radius=radius * u.deg)
+                elif field_fov_type.lower() == "rectangle":
+                    if not len(field_fov_attributes) == 2:
+                        return self.error(
+                            'If field_fov_type is rectangle, then should supply width and height for field_fov_attributes'
+                        )
+                    width, height = field_fov_attributes
+                    regions = RectangleSkyRegion(
+                        center=center, width=width * u.deg, height=height * u.deg
+                    )
+                data['region'] = regions.serialize(format='ds9')
+
+            schema = Instrument.__schema__()
+            try:
+                schema.load(data, partial=True)
+            except ValidationError as exc:
+                return self.error(
+                    'Invalid/missing parameters: ' f'{exc.normalized_messages()}'
+                )
+            session.commit()
+
+            if field_data is not None:
+                if (field_region is None) and (field_fov_type is None):
+                    return self.error(
+                        'field_region or field_fov_type is required with field_data'
+                    )
+
+                if type(field_data) is str:
+                    field_data = pd.read_table(StringIO(field_data), sep=",").to_dict(
+                        orient='list'
+                    )
+
+                if not {'ID', 'RA', 'Dec'}.issubset(field_data):
+                    return self.error("ID, RA, and Dec required in field_data.")
+
+                log(f"Started generating fields for instrument {instrument.id}")
+                # run async
+                IOLoop.current().run_in_executor(
+                    None,
+                    lambda: add_tiles(
+                        instrument.id, instrument.name, regions, field_data
+                    ),
                 )
 
-            if not {'ID', 'RA', 'Dec'}.issubset(field_data):
-                return self.error("ID, RA, and Dec required in field_data.")
-
-            log(f"Started generating fields for instrument {instrument.id}")
-            # run async
-            IOLoop.current().run_in_executor(
-                None,
-                lambda: add_tiles(instrument.id, instrument.name, regions, field_data),
-            )
-
-        self.push_all(action="skyportal/REFRESH_INSTRUMENTS")
-        return self.success()
+            self.push_all(action="skyportal/REFRESH_INSTRUMENTS")
+            return self.success()
 
     @permissions(['Manage allocations'])
     def delete(self, instrument_id):
@@ -610,8 +626,9 @@ class InstrumentHandler(BaseHandler):
         instrument = Instrument.get_if_accessible_by(
             int(instrument_id), self.current_user, raise_if_none=True, mode='update'
         )
-        DBSession().delete(instrument)
-        self.verify_and_commit()
+        with self.Session() as session:
+            session.delete(instrument)
+            session.commit()
 
         self.push_all(action="skyportal/REFRESH_INSTRUMENTS")
         return self.success()

@@ -25,9 +25,9 @@ log = make_log('model/telescope')
 
 def manage_telescope_access_logic(cls, user_or_token):
     with DBSession() as session:
-        if 'Manage allocations' in [acl.id for acl in user_or_token.acls]:
+        if user_or_token.is_system_admin:
             return session.query(cls)
-        elif user_or_token.is_system_admin:
+        elif 'Manage allocations' in [acl.id for acl in user_or_token.acls]:
             return session.query(cls)
         else:
             # return an empty query
