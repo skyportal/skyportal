@@ -148,7 +148,6 @@ class ShiftHandler(BaseHandler):
                     session.scalars(
                         Shift.select(
                             session.user_or_token,
-                            mode="read",
                             options=[
                                 joinedload(Shift.group).joinedload(Group.group_users),
                                 joinedload(Shift.shift_users),
@@ -165,7 +164,6 @@ class ShiftHandler(BaseHandler):
                     session.scalars(
                         Shift.select(
                             session.user_or_token,
-                            mode="read",
                             options=[
                                 joinedload(Shift.group).joinedload(Group.group_users),
                                 joinedload(Shift.shift_users),
@@ -358,7 +356,6 @@ class ShiftUserHandler(BaseHandler):
             shift = session.scalars(
                 Shift.select(
                     session.user_or_token,
-                    mode='read',
                     options=[joinedload(Shift.shift_users)],
                 ).where(Shift.id == shift_id)
             ).first()
@@ -478,12 +475,14 @@ class ShiftUserHandler(BaseHandler):
             shiftuser.admin = admin
 
             needs_replacement = data.get("needs_replacement", False)
-            try:
-                needs_replacement = bool(needs_replacement)
-            except (ValueError, TypeError):
-                return self.error(
-                    "Invalid needs_replacement parameter: unable to parse to boolean"
-                )
+            # test if bool already
+            if type(needs_replacement) != bool:
+                try:
+                    needs_replacement = bool(needs_replacement)
+                except (ValueError, TypeError):
+                    return self.error(
+                        "Invalid needs_replacement parameter: unable to parse to boolean"
+                    )
             shiftuser.needs_replacement = needs_replacement
 
             if needs_replacement:
@@ -505,7 +504,11 @@ class ShiftUserHandler(BaseHandler):
                         session.add(
                             UserNotification(
                                 user=group_user.user,
-                                text=f"*@{shiftuser.user.username}* needs a replacement for shift: {shift.name} from {shift.start_date} to {shift.end_date}.",
+                                text=(
+                                    f"*@{shiftuser.user.username}* needs a "
+                                    "replacement for shift: {shift.name} "
+                                    "from {shift.start_date} to {shift.end_date}."
+                                ),
                                 url=f"/shifts/{shift.id}",
                             )
                         )
@@ -551,6 +554,11 @@ class ShiftUserHandler(BaseHandler):
         except ValueError:
             return self.error("Invalid user_id; unable to parse to integer")
 
+        try:
+            shift_id = int(shift_id)
+        except ValueError:
+            return self.error("Invalid shift_id; unable to parse to integer")
+
         with self.Session() as session:
             su = session.scalars(
                 ShiftUser.select(session.user_or_token, mode='delete')
@@ -566,7 +574,7 @@ class ShiftUserHandler(BaseHandler):
             session.delete(su)
             session.commit()
             self.push_all(
-                action='skyportal/REFRESH_SHIFTS', payload={'shift_id': int(shift_id)}
+                action='skyportal/REFRESH_SHIFTS', payload={'shift_id': shift_id}
             )
             return self.success()
 
@@ -644,7 +652,6 @@ class ShiftSummary(BaseHandler):
                     session.scalars(
                         Shift.select(
                             session.user_or_token,
-                            mode="read",
                             options=[
                                 joinedload(Shift.shift_users),
                             ],
@@ -661,7 +668,6 @@ class ShiftSummary(BaseHandler):
                     session.scalars(
                         Shift.select(
                             session.user_or_token,
-                            mode="read",
                             options=[
                                 joinedload(Shift.shift_users),
                             ],
@@ -696,7 +702,6 @@ class ShiftSummary(BaseHandler):
                 session.scalars(
                     GcnEvent.select(
                         session.user_or_token,
-                        mode="read",
                     )
                     .where(GcnEvent.dateobs >= start_date)
                     .where(GcnEvent.dateobs <= end_date)
