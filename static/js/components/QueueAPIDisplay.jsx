@@ -42,7 +42,9 @@ const QueueAPIDisplay = () => {
 
   const { instrumentList } = useSelector((state) => state.instruments);
   const { telescopeList } = useSelector((state) => state.telescopes);
-  const { allocationList } = useSelector((state) => state.allocations);
+  const { allocationListApiObsplan } = useSelector(
+    (state) => state.allocations
+  );
   const allGroups = useSelector((state) => state.groups.all);
 
   const dispatch = useDispatch();
@@ -54,9 +56,7 @@ const QueueAPIDisplay = () => {
       // update
 
       const result = await dispatch(
-        allocationActions.fetchAllocations({
-          apiType: "api_classname_obsplan",
-        })
+        allocationActions.fetchAllocationsApiObsplan()
       );
 
       const { data } = result;
@@ -70,11 +70,6 @@ const QueueAPIDisplay = () => {
         apiType: "api_classname_obsplan",
       })
     );
-    dispatch(
-      allocationActions.fetchAllocations({
-        apiType: "api_classname_obsplan",
-      })
-    );
 
     // Don't want to reset everytime the component rerenders and
     // the defaultStartDate is updated, so ignore ESLint here
@@ -83,7 +78,7 @@ const QueueAPIDisplay = () => {
 
   useEffect(() => {
     const getQueues = async () => {
-      if (selectedAllocationId && allocationList?.length > 0) {
+      if (selectedAllocationId && allocationListApiObsplan?.length > 0) {
         const response = await dispatch(
           queuedObservationActions.requestAPIQueues(selectedAllocationId)
         );
@@ -108,8 +103,8 @@ const QueueAPIDisplay = () => {
     return <h3>No telescopes/instruments available...</h3>;
   }
 
-  if (allocationList.length === 0) {
-    return <h3>No robotic instruments available...</h3>;
+  if (allocationListApiObsplan.length === 0) {
+    return <h3>No allocations with an observation plan API...</h3>;
   }
 
   const groupLookUp = {};
@@ -132,7 +127,7 @@ const QueueAPIDisplay = () => {
 
   const allocationLookUp = {};
   // eslint-disable-next-line no-unused-expressions
-  allocationList?.forEach((allocation) => {
+  allocationListApiObsplan?.forEach((allocation) => {
     allocationLookUp[allocation.id] = allocation;
   });
 
@@ -163,7 +158,7 @@ const QueueAPIDisplay = () => {
         name="followupRequestAllocationSelect"
         className={classes.select}
       >
-        {allocationList?.map((allocation) => (
+        {allocationListApiObsplan?.map((allocation) => (
           <MenuItem
             value={allocation.id}
             key={allocation.id}

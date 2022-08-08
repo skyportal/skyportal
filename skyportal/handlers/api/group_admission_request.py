@@ -177,25 +177,6 @@ class GroupAdmissionRequestHandler(BaseHandler):
         )
         DBSession().add(admission_request)
 
-        group_admin_gu = (
-            GroupUser.query.filter(GroupUser.group_id == group_id)
-            .filter(GroupUser.admin.is_(True))
-            .first()
-        )
-        group_admin = (
-            User.query.get(group_admin_gu.user_id)
-            if group_admin_gu is not None
-            else None
-        )
-        if group_admin is not None:
-            DBSession().add(
-                UserNotification(
-                    user=group_admin,
-                    text=f"*@{requesting_user.username}* has requested to join *{group.name}*",
-                    url=f"/group/{group_id}",
-                )
-            )
-
         try:
             self.verify_and_commit()
         except AccessError as e:
@@ -205,8 +186,6 @@ class GroupAdmissionRequestHandler(BaseHandler):
             )
 
         self.push(action="skyportal/FETCH_USER_PROFILE")
-        if group_admin is not None:
-            self.flow.push(group_admin.id, "skyportal/FETCH_NOTIFICATIONS", {})
         return self.success(data={"id": admission_request.id})
 
     @permissions(["Upload data"])

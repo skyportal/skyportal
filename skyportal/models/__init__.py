@@ -41,6 +41,7 @@ from .user_notification import *
 from .user_token import *
 from .weather import *
 from .webhook import *
+from .sources_confirmed_in_gcn import *
 
 # Cosmology
 from .cosmo import cosmo

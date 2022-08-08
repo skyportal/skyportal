@@ -6,6 +6,7 @@ import collections
 
 import numpy as np
 import pandas as pd
+from sqlalchemy.orm import joinedload
 
 from bokeh.core.properties import List, String
 from bokeh.layouts import row, column
@@ -44,15 +45,14 @@ from matplotlib.colors import rgb2hex
 import os
 from baselayer.app.env import load_env
 from skyportal.models import (
-    DBSession,
     Obj,
     Annotation,
     AnnotationOnSpectrum,
     Photometry,
     Instrument,
-    Telescope,
     PHOT_ZP,
     Spectrum,
+    User,
 )
 
 from .enum_types import ALLOWED_SPECTRUM_TYPES
@@ -1499,7 +1499,9 @@ def add_widgets(
         raise ValueError("Panel name should be one of mag, flux, and period.")
 
 
-def make_photometry_panel(panel_name, device, width, user, data, obj_id, spectra):
+def make_photometry_panel(
+    panel_name, device, width, user, data, obj_id, spectra, session
+):
     """Makes a panel for the photometry plot.
 
     Parameters
@@ -1519,12 +1521,15 @@ def make_photometry_panel(panel_name, device, width, user, data, obj_id, spectra
         ID of the source/object the photometry is for
     spectra : list of Spectra objects
         The source/object's spectra
+    session: sqlalchemy.Session
+        Database session for this transaction
 
     Returns
     -------
     bokeh Panel object or None if the panel should
     not be added to the plot (i.e. no period plot)
     """
+
     # get marker for each unique instrument
     instruments = list(data.instrument.unique())
     markers = []
@@ -1643,7 +1648,9 @@ def make_photometry_panel(panel_name, device, width, user, data, obj_id, spectra
             LinearAxis(x_range_name="Days Ago", axis_label="Days Ago"), 'below'
         )
 
-    obj = Obj.get_if_accessible_by(obj_id, user)
+    obj = session.scalars(
+        Obj.select(session.user_or_token).where(Obj.id == obj_id)
+    ).first()
     if obj.dm is not None:
         plot.extra_y_ranges = {
             "Absolute Mag": Range1d(start=y_range[0] - obj.dm, end=y_range[1] - obj.dm)
@@ -1655,11 +1662,9 @@ def make_photometry_panel(panel_name, device, width, user, data, obj_id, spectra
     period_list = []
     period = None
     if panel_name == 'period':
-        annotation_list = (
-            Annotation.query_records_accessible_by(user)
-            .filter(Annotation.obj_id == obj.id)
-            .all()
-        )
+        annotation_list = session.scalars(
+            Annotation.select(session.user_or_token).where(Annotation.obj_id == obj.id)
+        ).all()
         for an in annotation_list:
             if 'period' in an.data:
                 period_list.append(an.data['period'])
@@ -1747,15 +1752,17 @@ def make_photometry_panel(panel_name, device, width, user, data, obj_id, spectra
     return Panel(child=layout, title=panel_name.capitalize())
 
 
-def photometry_plot(obj_id, user, width=600, device="browser"):
+def photometry_plot(obj_id, user_id, session, width=600, device="browser"):
     """Create object photometry scatter plot.
 
     Parameters
     ----------
     obj_id : str
         ID of Obj to be plotted.
-    user : User object
-        Current user.
+    user_id : User object ID
+        Current user ID.
+    session: sqlalchemy.Session
+        Database session for this transaction
     width : int
         Width of the plot
     device : str
@@ -1768,34 +1775,34 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
         Returns Bokeh JSON embedding for the desired plot.
     """
 
-    telescope_subquery = Telescope.query_records_accessible_by(user).subquery()
-    instrument_subquery = Instrument.query_records_accessible_by(user).subquery()
-    with DBSession() as session:
-        data = pd.read_sql(
-            Photometry.query_records_accessible_by(user)
-            .add_columns(
-                telescope_subquery.c.nickname.label("telescope"),
-                instrument_subquery.c.name.label("instrument"),
-            )
-            .join(
-                instrument_subquery,
-                instrument_subquery.c.id == Photometry.instrument_id,
-            )
-            .join(
-                telescope_subquery,
-                telescope_subquery.c.id == instrument_subquery.c.telescope_id,
-            )
-            .filter(Photometry.obj_id == obj_id)
-            .statement,
-            session.get_bind(),
-        )
+    data = session.scalars(
+        Photometry.select(session.user_or_token)
+        .options(joinedload(Photometry.instrument).joinedload(Instrument.telescope))
+        .where(Photometry.obj_id == obj_id)
+    ).all()
 
+    query_result = []
+    for p in data:
+        telescope = p.instrument.telescope.nickname
+        instrument = p.instrument.name
+        result = p.to_dict()
+        result['telescope'] = telescope
+        result['instrument'] = instrument
+        query_result.append(result)
+
+    data = pd.DataFrame.from_dict(query_result)
     if data.empty:
         return None, None, None
 
+    user = session.scalars(
+        User.select(session.user_or_token).where(User.id == user_id)
+    ).first()
+
     spectra = (
-        Spectrum.query_records_accessible_by(user)
-        .filter(Spectrum.obj_id == obj_id)
+        session.scalars(
+            Spectrum.select(session.user_or_token).where(Spectrum.obj_id == obj_id)
+        )
+        .unique()
         .all()
     )
 
@@ -1832,7 +1839,7 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
 
     for panel_name in panel_names:
         panel = make_photometry_panel(
-            panel_name, device, width, user, data, obj_id, spectra
+            panel_name, device, width, user, data, obj_id, spectra, session
         )
         if panel:
             panels.append(panel)
@@ -1890,7 +1897,7 @@ def smoothing_function(values, window_size):
 
 def spectroscopy_plot(
     obj_id,
-    user,
+    session,
     spec_id=None,
     width=800,
     device="browser",
@@ -1904,8 +1911,8 @@ def spectroscopy_plot(
     ----------
     obj_id : str
         ID of Obj to be plotted.
-    user :
-        The user object that is requesting the plot.
+    session: sqlalchemy.Session
+        Database session for this transaction
     spec_id : str or None
         A string with a single spectrum ID or a
         comma-separated list of IDs.
@@ -1938,10 +1945,16 @@ def spectroscopy_plot(
 
     """
 
-    obj = Obj.get_if_accessible_by(obj_id, user)
+    obj = session.scalars(
+        Obj.select(session.user_or_token).where(Obj.id == obj_id)
+    ).first()
+    if obj is None:
+        raise ValueError(f'Cannot find object with ID "{obj_id}"')
     spectra = (
-        Spectrum.query_records_accessible_by(user)
-        .filter(Spectrum.obj_id == obj_id)
+        session.scalars(
+            Spectrum.select(session.user_or_token).where(Spectrum.obj_id == obj_id)
+        )
+        .unique()
         .all()
     )
 
@@ -1978,7 +1991,7 @@ def spectroscopy_plot(
             make_spectrum_layout(
                 obj,
                 spectra_by_type[spec_type],
-                user,
+                session,
                 device,
                 width,
                 smoothing,
@@ -1991,15 +2004,22 @@ def spectroscopy_plot(
         spectrum_types = [s for s in spectra_by_type]
         for i, layout in enumerate(layouts):
             panels.append(Panel(child=layout, title=spectrum_types[i]))
-        tabs = Tabs(
-            tabs=panels, width=width, height=layouts[0].height + 60, sizing_mode='fixed'
-        )
+
+        height = None
+        for layout in layouts:
+            if layout.height is not None:
+                height = layout.height + 60
+                break
+
+        tabs = Tabs(tabs=panels, width=width, height=height, sizing_mode='fixed')
         return bokeh_embed.json_item(tabs)
 
     return bokeh_embed.json_item(layouts[0])
 
 
-def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_number):
+def make_spectrum_layout(
+    obj, spectra, session, device, width, smoothing, smooth_number
+):
     """
     Helper function that takes the object, spectra and user info,
     as well as the total width of the figure,
@@ -2014,8 +2034,8 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
     spectra : dict
         The different spectra to be plotted. This can be a subset of
         e.g., all the spectra of one type.
-    user : dict
-        info about the user, used to get the individual user plot preferences.
+    session: sqlalchemy.Session
+        Database session for this transaction
     device: string
         name of the device used ("browser", "mobile", "mobile_portrait", "tablet", etc).
     width: int
@@ -2041,11 +2061,11 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
         normfac = np.nanmedian(np.abs(s.fluxes))
         normfac = normfac if normfac != 0.0 else 1e-20
         altdata = json.dumps(s.altdata) if s.altdata is not None else ""
-        annotations = (
-            AnnotationOnSpectrum.query_records_accessible_by(user)
-            .filter(AnnotationOnSpectrum.spectrum_id == s.id)
-            .all()
-        )
+        annotations = session.scalars(
+            AnnotationOnSpectrum.select(session.user_or_token).where(
+                AnnotationOnSpectrum.spectrum_id == s.id
+            )
+        ).all()
         annotations = (
             json.dumps([{a.origin: a.data} for a in annotations])
             if len(annotations)
@@ -2180,7 +2200,6 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
 
         # this starts out the same as the previous plot, but can be binned/smoothed later in JS
         dfs = copy.deepcopy(df)
-
         if smoothing:
             dfs['flux'] = smoothing_function(dfs['flux_original'], smooth_number)
         model_dict[f'bin{i}'] = plot.step(
@@ -2329,11 +2348,35 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
         width=slider_width,
         margin=(0, 10, 0, 10),
     )
+    w_title = Div(text="Custom wavelength")
+    w_input = NumericInput(
+        value=0.0,
+        mode='float',
+    )
 
     # Track elements that need to be shifted with change in z / v
     shifting_elements = []
     renderers = []
     obj_redshift = 0 if obj.redshift is None else obj.redshift
+
+    flux_values = list(np.linspace(ymin, ymax, 100))
+    flux_values[-1] = np.nan
+    wavelength_values = [w_input.value]
+    el_data = pd.DataFrame(
+        {
+            'name': 'custom_wavelength_name',
+            'x': wavelength_values,
+            'wavelength': wavelength_values,
+        }
+    )
+    # el_data['x'] = el_data['wavelength'] * (1.0 + obj_redshift)
+    new_line_w = plot.vbar(
+        x='x',
+        width=10,
+        top=ymax,
+        line_alpha=0.3,
+        source=ColumnDataSource(el_data),
+    )
 
     for i, (name, (wavelengths, color)) in enumerate(SPEC_LINES.items()):
 
@@ -2385,6 +2428,34 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
         if name not in ('Sky Lines', 'Tellurics-1', 'Tellurics-2'):
             shifting_elements.append(new_line)
             new_line.glyph.line_alpha = 1.0
+
+    new_line_w.visible = False
+    model_dict['custom_line'] = new_line_w
+    renderers.append(new_line_w)
+
+    w_input.js_on_change(
+        'value',
+        CustomJS(
+            args={'input': w_input, 'model_dict': model_dict},
+            code="""
+                    if (input.value === null) {
+                        model_dict['custom_line'].visible = false;
+                    }
+                    else {
+                        model_dict['custom_line'].data_source.data['x'][0] = input.value;
+                        model_dict['custom_line'].visible = true;
+                        model_dict['custom_line'].data_source.data['wavelength'][0] = input.value;
+                        model_dict['custom_line'].data_source.change.emit();
+                    }
+                """,
+        ),
+    )
+    w = column(
+        w_title,
+        w_input,
+        width=width if "mobile" in device else int(width * 1 / 5) - 20,
+        margin=(4, 10, 0, 10),
+    )
 
     # add the elemental lines to hover tool
     hover_lines = HoverTool(
@@ -2573,13 +2644,16 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
         if "mobile" in device
         else row(z, v_exp, smooth_column)
     )
+    row4 = row(w)
     return column(
         plot,
         row1,
         row2,
         row3,
+        row4,
         sizing_mode='stretch_width',
         width=width,
+        height=plot_height,
     )
 
 

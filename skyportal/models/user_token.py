@@ -291,7 +291,7 @@ User.update = User.delete = CustomUserAccessControl(user_update_delete_logic)
 def create_single_user_group(mapper, connection, target):
 
     # Create single-user group
-    @event.listens_for(DBSession(), "after_flush", once=True)
+    @event.listens_for(inspect(target).session, "after_flush", once=True)
     def receive_after_flush(session, context):
         session.add(
             Group(name=slugify(target.username), users=[target], single_user_group=True)
