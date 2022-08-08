@@ -32,6 +32,7 @@ from skyportal.handlers.api import (
     FacilityMessageHandler,
     GalaxyCatalogHandler,
     GalaxyASCIIFileHandler,
+    GalaxyGladeHandler,
     GcnEventHandler,
     GcnEventObservationPlanRequestsHandler,
     GcnEventSurveyEfficiencyHandler,
@@ -194,6 +195,7 @@ skyportal_handlers = [
     ),
     (r'/api/followup_request(/.*)?', FollowupRequestHandler),
     (r'/api/photometry_request(/.*)', PhotometryRequestHandler),
+    (r'/api/galaxy_catalog/glade', GalaxyGladeHandler),
     (r'/api/galaxy_catalog/ascii', GalaxyASCIIFileHandler),
     (r'/api/galaxy_catalog(/[0-9A-Za-z-_\.\+]+)?', GalaxyCatalogHandler),
     (
