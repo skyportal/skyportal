@@ -334,12 +334,14 @@ class ShiftUserHandler(BaseHandler):
             return self.error("Invalid userID parameter: unable to parse to integer")
 
         needs_replacement = data.get("needs_replacement", False)
-        try:
-            needs_replacement = bool(needs_replacement)
-        except (ValueError, TypeError):
-            return self.error(
-                "Invalid needs_replacement parameter: unable to parse to boolean"
-            )
+        # test if bool already
+        if type(needs_replacement) != bool:
+            try:
+                needs_replacement = bool(needs_replacement)
+            except (ValueError, TypeError):
+                return self.error(
+                    "Invalid needs_replacement parameter: unable to parse to boolean"
+                )
 
         admin = data.get("admin", False)
         if not isinstance(admin, bool):
