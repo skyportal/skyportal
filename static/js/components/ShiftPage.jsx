@@ -11,6 +11,7 @@ import NewShift from "./NewShift";
 import MyCalendar from "./ShiftCalendar";
 import { CurrentShiftMenu, CommentOnShift } from "./ShiftManagement";
 import ShiftSummary from "./ShiftSummary";
+import Reminders from "./Reminders";
 
 import { getShiftsSummary } from "../ducks/shift";
 import * as shiftsActions from "../ducks/shifts";
@@ -148,12 +149,20 @@ const ShiftPage = ({ route }) => {
           </Paper>
         )}
         <Paper elevation={1}>
-          {shiftList && !show && currentShift ? (
+          {shiftList && !show && currentShift?.id ? (
             <CurrentShiftMenu currentShift={currentShift} />
           ) : null}
         </Paper>
         <Paper elevation={1}>
-          {shiftList && !show && currentShift ? <CommentOnShift /> : null}
+          {shiftList && !show && currentShift?.id ? <CommentOnShift /> : null}
+        </Paper>
+        <Paper elevation={1}>
+          {shiftList && !show && currentShift?.id ? (
+            <Reminders
+              resourceId={currentShift.id.toString()}
+              resourceType="shift"
+            />
+          ) : null}
         </Paper>
       </Grid>
       <Grid item md={12} sm={12}>

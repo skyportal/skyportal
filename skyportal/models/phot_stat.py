@@ -237,7 +237,7 @@ class PhotStat(Base):
     mean_color = sa.Column(
         MutableDict.as_mutable(JSONB),
         nullable=True,
-        index=True,
+        index=False,
         doc='Average magnitude difference in various filters combinations. '
         'The value is saved in a separate key for each filter combination, '
         'where the keys are named {filter1}-{filter2}. '
@@ -344,6 +344,14 @@ class PhotStat(Base):
         doc='Average variability of the magnitude, '
         'keyed to the name of each filter. '
         'Will be None if no points are detections. ',
+    )
+
+    __table_args__ = (
+        sa.Index(
+            "ix_photstats_mean_color_gin",
+            "mean_color",
+            postgresql_using="gin",
+        ),
     )
 
     def add_photometry_point(self, phot):
@@ -566,42 +574,71 @@ class PhotStat(Base):
 
         Parameters
         ----------
-        phot_list: 1D array-like of skyportal.models.Photometry
+        phot_list: 1D array-like of skyportal.models.Photometry or dicts
             List of photometry points associated with this object.
 
         """
-        filters = np.array([phot.filter for phot in phot_list])
-        mjds = np.array([phot.mjd for phot in phot_list])
-        mags = np.array([phot.mag for phot in phot_list])
-        dets = np.array(
-            [
-                phot.flux
-                and phot.fluxerr
-                and phot.flux / phot.fluxerr > PHOT_DETECTION_THRESHOLD
-                for phot in phot_list
-            ],
-            dtype=bool,
-        )
-        lims = np.nan * np.ones(len(dets))
+        if len(phot_list) == 0:
+            # use initialization to set None/{} to all values
+            self.__init__(self.obj_id)
 
-        for i, phot in enumerate(phot_list):
+            # make sure to update the last update time
+            self.last_update = datetime.utcnow()
+            self.last_full_update = datetime.utcnow()
+            return
+
+        filters = []
+        mjds = []
+        mags = []
+        dets = []
+        lims = []
+        for phot in phot_list:
             if isinstance(phot, Photometry):
                 phot = phot.__dict__
-            if not dets[i]:  # get limiting magnitude for non-detection
+            elif not isinstance(phot, dict):
+                raise TypeError('phot must be a dict or Photometry object')
+
+            filters.append(phot['filter'])
+            mjds.append(phot['mjd'])
+
+            if 'mag' in phot:
+                mags.append(phot['mag'])
+            elif phot['flux'] is not None and phot['flux'] > 0:
+                mags.append(-2.5 * np.log10(phot['flux']) + PHOT_ZP)
+            else:
+                mags.append(np.nan)
+
+            is_detected = (
+                phot['flux'] is not None
+                and phot['fluxerr'] is not None
+                and phot['fluxerr'] > 0
+                and phot['flux'] / phot['fluxerr'] > PHOT_DETECTION_THRESHOLD
+            )
+            dets.append(is_detected)
+
+            if not is_detected:
                 if (
-                    phot['original_user_data'] is not None
+                    'original_user_data' in phot
+                    and phot['original_user_data'] is not None
                     and 'limiting_mag' in phot['original_user_data']
                 ):
-                    lims[i] = phot['original_user_data']['limiting_mag']
+                    lims.append(phot['original_user_data']['limiting_mag'])
                 else:
-                    fluxerr = phot['fluxerr']
-                    fivesigma = 5 * fluxerr
+                    fivesigma = 5 * phot['fluxerr']
                     if fivesigma > 0:
-                        lims[i] = -2.5 * np.log10(fivesigma) + PHOT_ZP
+                        lims.append(-2.5 * np.log10(fivesigma) + PHOT_ZP)
                     else:
-                        lims[i] = None
+                        lims.append(None)
+            else:
+                lims.append(np.nan)
 
-        # make sure all non-detections have a limiting magnitudes
+        filters = np.array(filters)
+        mjds = np.array(mjds)
+        mags = np.array(mags)
+        dets = np.array(dets)
+        lims = np.array(lims)
+
+        # make sure all non-detections have limiting magnitudes
         bad_idx = ~dets & np.isnan(lims)
         filters = filters[~bad_idx]
         mjds = mjds[~bad_idx]

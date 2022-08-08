@@ -3,12 +3,14 @@ from phonenumbers.phonenumberutil import NumberParseException
 from validate_email import validate_email
 import arrow
 
+import sqlalchemy as sa
+from sqlalchemy import func
+
 from ..base import BaseHandler
 from baselayer.app.access import permissions, auth_or_token
 from baselayer.app.env import load_env
 from baselayer.log import make_log
 from ...models import (
-    DBSession,
     User,
     Role,
     UserRole,
@@ -27,14 +29,17 @@ env, cfg = load_env()
 
 
 def set_default_role(user, session):
-    '''
-    Set the default role for a user. The default role can be set in the config file.
-    This method does not commit the session, so the session needs to be commited after calling this method.
-    If the default role from the config does not exist, an exception is raised, and can be caught by the caller (i.e in a handler).
-    '''
+    """
+    Set the default role for a user.
+    The default role can be set in the config file.
+    This method does not commit the session,
+    so the session needs to be committed after calling this method.
+    If the default role from the config does not exist,
+    an exception is raised, and can be caught by the caller (i.e., in a handler).
+    """
     default_role = cfg['user.default_role']
     if isinstance(default_role, str) and default_role in role_acls:
-        role = session.query(Role).filter(Role.id == default_role).first()
+        role = session.scalars(sa.select(Role).where(Role.id == default_role)).first()
         if role is None:
             # raise an error:
             raise Exception(
@@ -45,11 +50,14 @@ def set_default_role(user, session):
 
 
 def set_default_acls(user, session):
-    '''
-    Set the default acls for a user. The default acls can be set in the config file.
-    This method does not commit the session, so the session needs to be commited after calling this method.
-    If the default acl from the config does not exist, an exception is raised, and can be caught by the caller (i.e in a handler).
-    '''
+    """
+    Set the default acls for a user.
+    The default acls can be set in the config file.
+    This method does not commit the session,
+    so the session needs to be committed after calling this method.
+    If the default acl from the config does not exist,
+    an exception is raised, and can be caught by the caller (i.e., in a handler).
+    """
     for acl_id in cfg['user.default_acls']:
         if acl_id not in all_acl_ids:
             raise Exception(
@@ -60,18 +68,23 @@ def set_default_acls(user, session):
 
 
 def set_default_group(user, session):
-    '''
-    Set the default groups for a user. The default groups can be set in the config file.
-    This method does not commit the session, so the session needs to be commited after calling this method.
-    If the default group from the config does not exist, an exception is raised, and can be caught by the caller (i.e in a handler).
-    '''
+    """
+    Set the default groups for a user.
+    The default groups can be set in the config file.
+    This method does not commit the session,
+    so the session needs to be committed after calling this method.
+    If the default group from the config does not exist,
+    an exception is raised, and can be caught by the caller (i.e., in a handler).
+    """
     default_groups = []
     if cfg['misc.public_group_name'] is not None:
         default_groups.append(cfg['misc.public_group_name'])
     default_groups.extend(cfg['user.default_groups'])
     default_groups = list(set(default_groups))
     for default_group_name in default_groups:
-        group = session.query(Group).filter(Group.name == default_group_name).first()
+        group = session.scalars(
+            sa.select(Group).where(Group.name == default_group_name)
+        ).first()
         if group is None:
             raise Exception(
                 f"Invalid default_group configuration value: {default_group_name} does not exist"
@@ -84,68 +97,71 @@ def set_default_group(user, session):
 
 
 def add_user_and_setup_groups(
+    session,
     username,
     first_name=None,
     last_name=None,
     affiliations=None,
     contact_phone=None,
     contact_email=None,
-    roles=[],
+    role_ids=[],
     group_ids_and_admin=[],
     oauth_uid=None,
     expiration_date=None,
 ):
-    with DBSession() as session:
-        try:
-            user = User(
-                username=username.lower(),
-                role_ids=roles,
-                first_name=first_name,
-                last_name=last_name,
-                affiliations=affiliations,
-                contact_phone=contact_phone,
-                contact_email=contact_email,
-                oauth_uid=oauth_uid,
-                expiration_date=expiration_date,
-            )
-            session.add(user)
-            session.flush()
-            if roles == []:
-                set_default_role(user, session)
 
-            if group_ids_and_admin == []:
-                set_default_group(user, session)
-            else:
-                for group_id, admin in group_ids_and_admin:
-                    session.add(
-                        GroupUser(user_id=user.id, group_id=group_id, admin=admin)
-                    )
-                    group = session.query(Group).filter(Group.id == group_id).first()
-                    if group.streams:
-                        for stream in group.streams:
-                            session.add(
-                                StreamUser(stream_id=stream.id, user_id=user.id)
-                            )
+    try:
+        # the roles come from the association_proxy
+        # in baselayer/app/models.py line 1851
+        # they are queried from a different session
+        # in the "creator" lambda. Until we figure out
+        # how to do this in the same session, this should
+        # solve the problem.
+        roles = session.scalars(sa.select(Role).where(Role.id.in_(role_ids))).all()
+        user = User(
+            username=username.lower(),
+            roles=roles,
+            first_name=first_name,
+            last_name=last_name,
+            affiliations=affiliations,
+            contact_phone=contact_phone,
+            contact_email=contact_email,
+            oauth_uid=oauth_uid,
+            expiration_date=expiration_date,
+        )
+        session.add(user)
+        session.flush()
 
-                # Add user to sitewide public group
-                if cfg["misc.public_group_name"] is not None:
-                    public_group = (
-                        session.query(Group)
-                        .filter(Group.name == cfg["misc.public_group_name"])
-                        .first()
-                    )
-                    if public_group is not None:
-                        session.add(
-                            GroupUser(group_id=public_group.id, user_id=user.id)
-                        )
+        if role_ids == []:
+            set_default_role(user, session)
 
-            set_default_acls(user, session)
-            session.commit()
-        except Exception as e:
-            session.rollback()
-            log(e.args[0])
-            raise e
-        return user.id
+        if group_ids_and_admin == []:
+            set_default_group(user, session)
+        else:
+            for group_id, admin in group_ids_and_admin:
+                session.add(GroupUser(user_id=user.id, group_id=group_id, admin=admin))
+                group = session.scalars(
+                    sa.select(Group).where(Group.id == group_id)
+                ).first()
+                if group.streams:
+                    for stream in group.streams:
+                        session.add(StreamUser(stream_id=stream.id, user_id=user.id))
+
+            # Add user to sitewide public group
+            if cfg["misc.public_group_name"] is not None:
+                public_group = session.scalars(
+                    sa.select(Group).where(Group.name == cfg["misc.public_group_name"])
+                ).first()
+                if public_group is not None:
+                    session.add(GroupUser(group_id=public_group.id, user_id=user.id))
+
+        set_default_acls(user, session)
+        session.commit()
+    except Exception as e:
+        session.rollback()
+        log(str(e))
+        raise e
+    return user.id
 
 
 class UserHandler(BaseHandler):
@@ -264,21 +280,30 @@ class UserHandler(BaseHandler):
                   schema: Error
         """
         if user_id is not None:
-            user = User.query.get(int(user_id))
-            if user is None:
-                return self.error(f"Invalid user ID ({user_id}).")
-            user_info = user.to_dict()
+            try:
+                user_id = int(user_id)
+            except ValueError:
+                return self.error(f"Invalid user_id {user_id}")
 
-            # return the phone number so it can be serialized
-            if user_info.get("contact_phone"):
-                user_info["contact_phone"] = user_info["contact_phone"].e164
+            with self.Session() as session:
+                user = session.scalars(
+                    User.select(self.current_user).where(User.id == user_id)
+                ).first()
+                if user is None:
+                    return self.error(f"Cannot find user with ID {user_id}.")
+                user_info = user.to_dict()
 
-            user_info["permissions"] = sorted(user.permissions)
-            user_info["roles"] = sorted(role.id for role in user.roles)
-            user_info["acls"] = sorted(acl.id for acl in user.acls)
-            self.verify_and_commit()
-            return self.success(data=user_info)
+                # return the phone number so it can be serialized
+                if user_info.get("contact_phone"):
+                    user_info["contact_phone"] = user_info["contact_phone"].e164
 
+                user_info["permissions"] = sorted(user.permissions)
+                user_info["roles"] = sorted(role.id for role in user.roles)
+                user_info["acls"] = sorted(acl.id for acl in user.acls)
+
+                return self.success(data=user_info)
+
+        # get users by query parameters
         page_number = self.get_query_argument("pageNumber", None) or 1
         n_per_page = self.get_query_argument("numPerPage", None)
         first_name = self.get_query_argument("firstName", None)
@@ -300,47 +325,51 @@ class UserHandler(BaseHandler):
         except ValueError:
             return self.error("Invalid numPerPage value.")
 
-        query = User.query.order_by(User.username)
+        with self.Session() as session:
+            stmt = User.select(self.current_user).order_by(User.username)
 
-        if first_name is not None:
-            query = query.filter(User.first_name.contains(first_name))
-        if last_name is not None:
-            query = query.filter(User.last_name.contains(last_name))
-        if username is not None:
-            query = query.filter(User.username.contains(username))
-        if email_address is not None:
-            query = query.filter(User.contact_email.contains(email_address))
-        if role is not None:
-            query = query.join(UserRole).join(Role).filter(Role.id == role)
-        if acl is not None:
-            query = query.join(UserACL).join(ACL).filter(ACL.id == acl)
-        if group is not None:
-            query = query.join(GroupUser).join(Group).filter(Group.name == group)
-        if stream is not None:
-            query = query.join(StreamUser).join(Stream).filter(Stream.name == stream)
+            if first_name is not None:
+                stmt = stmt.where(User.first_name.contains(first_name))
+            if last_name is not None:
+                stmt = stmt.where(User.last_name.contains(last_name))
+            if username is not None:
+                stmt = stmt.where(User.username.contains(username))
+            if email_address is not None:
+                stmt = stmt.where(User.contact_email.contains(email_address))
+            if role is not None:
+                stmt = stmt.join(UserRole).join(Role).where(Role.id == role)
+            if acl is not None:
+                stmt = stmt.join(UserACL).join(ACL).where(ACL.id == acl)
+            if group is not None:
+                stmt = stmt.join(GroupUser).join(Group).where(Group.name == group)
+            if stream is not None:
+                stmt = stmt.join(StreamUser).join(Stream).where(Stream.name == stream)
 
-        total_matches = query.count()
-        if n_per_page is not None:
-            query = query.limit(n_per_page).offset((page_number - 1) * n_per_page)
-        info = {}
-        return_values = []
-        for user in query.all():
-            return_values.append(user.to_dict())
-            return_values[-1]["permissions"] = sorted(user.permissions)
-            return_values[-1]["roles"] = sorted(role.id for role in user.roles)
-            return_values[-1]["acls"] = sorted(acl.id for acl in user.acls)
-            if user.contact_phone:
-                return_values[-1]["contact_phone"] = user.contact_phone.e164
-            return_values[-1]["contact_email"] = user.contact_email
-            # Only Sys admins can see other users' group memberships
-            if self.current_user.is_system_admin:
-                return_values[-1]["groups"] = user.groups
-                return_values[-1]["streams"] = user.streams
+            total_matches = session.execute(
+                sa.select(func.count()).select_from(stmt)
+            ).scalar()
 
-        info["users"] = return_values
-        info["totalMatches"] = int(total_matches)
-        self.verify_and_commit()
-        return self.success(data=info)
+            if n_per_page is not None:
+                stmt = stmt.limit(n_per_page).offset((page_number - 1) * n_per_page)
+            info = {}
+            return_values = []
+            for user in session.scalars(stmt).all():
+                return_values.append(user.to_dict())
+                return_values[-1]["permissions"] = sorted(user.permissions)
+                return_values[-1]["roles"] = sorted(role.id for role in user.roles)
+                return_values[-1]["acls"] = sorted(acl.id for acl in user.acls)
+                if user.contact_phone:
+                    return_values[-1]["contact_phone"] = user.contact_phone.e164
+                return_values[-1]["contact_email"] = user.contact_email
+                # Only Sys admins can see other users' group memberships
+                if self.current_user.is_system_admin:
+                    return_values[-1]["groups"] = user.groups
+                    return_values[-1]["streams"] = user.streams
+
+            info["users"] = return_values
+            info["totalMatches"] = int(total_matches)
+
+            return self.success(data=info)
 
     @permissions(["Manage users"])
     def post(self):
@@ -407,7 +436,7 @@ class UserHandler(BaseHandler):
                               description: New user ID
         """
         data = self.get_json()
-        roles = data.get("roles", [])
+        role_ids = data.get("roles", [])
         group_ids_and_admin = data.get("groupIDsAndAdmin", [])
 
         phone = data.get("contact_phone")
@@ -438,23 +467,26 @@ class UserHandler(BaseHandler):
         # check if the affiliations are a list
         if affiliations is not None and not isinstance(affiliations, list):
             return self.error("Affiliations must be a list of strings")
+        with self.Session() as session:
+            try:
+                user_id = add_user_and_setup_groups(
+                    session=session,
+                    username=data["username"],
+                    first_name=data.get("first_name"),
+                    last_name=data.get("last_name"),
+                    affiliations=affiliations,
+                    contact_phone=contact_phone,
+                    contact_email=contact_email,
+                    oauth_uid=data.get("oauth_uid"),
+                    role_ids=role_ids,
+                    group_ids_and_admin=group_ids_and_admin,
+                )
+            except Exception as e:
+                session.rollback()
+                return self.error(str(e))
 
-        try:
-            user_id = add_user_and_setup_groups(
-                username=data["username"],
-                first_name=data.get("first_name"),
-                last_name=data.get("last_name"),
-                affiliations=affiliations,
-                contact_phone=contact_phone,
-                contact_email=contact_email,
-                oauth_uid=data.get("oauth_uid"),
-                roles=roles,
-                group_ids_and_admin=group_ids_and_admin,
-            )
-        except Exception as e:
-            return self.error(str(e))
+            session.commit()
 
-        self.verify_and_commit()
         return self.success(data={"id": user_id})
 
     @permissions(["Manage users"])
@@ -489,18 +521,30 @@ class UserHandler(BaseHandler):
                 schema: Success
         """
         data = self.get_json()
-        if user_id is not None:
-            user = User.get_if_accessible_by(
-                user_id, self.current_user, mode="update", raise_if_none=True
-            )
-            if (expiration_date := data.get("expirationDate")) is not None:
-                try:
-                    user.expiration_date = arrow.get(expiration_date.strip()).datetime
-                except arrow.parser.ParserError:
-                    return self.error("Unable to parse `expirationDate` parameter.")
 
-            self.verify_and_commit()
-            return self.success()
+        if user_id is not None:
+            try:
+                user_id = int(user_id)
+            except ValueError:
+                return self.error(f"Invalid user ID {user_id}")
+
+            with self.Session() as session:
+                user = session.scalars(
+                    User.select(self.current_user, mode='update').where(
+                        User.id == user_id
+                    )
+                ).first()
+                expiration_date = data.get("expirationDate")
+                if expiration_date is not None:
+                    try:
+                        user.expiration_date = arrow.get(
+                            expiration_date.strip()
+                        ).datetime
+                    except arrow.parser.ParserError:
+                        return self.error("Unable to parse `expirationDate` parameter.")
+
+                session.commit()
+                return self.success()
         else:
             return self.error("User ID must be provided")
 
@@ -529,8 +573,10 @@ class UserHandler(BaseHandler):
         """
         with self.Session() as session:
             user = session.scalars(
-                User.select(self.current_user).where(User.id == user_id)
+                User.select(self.current_user, mode='delete').where(User.id == user_id)
             ).first()
+            if user is None:
+                return self.error(f"Cannot find/delete user with ID {user_id}")
             session.delete(user)
             session.commit()
 
