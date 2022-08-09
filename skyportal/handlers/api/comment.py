@@ -247,16 +247,7 @@ class CommentHandler(BaseHandler):
                     f'Comment resource ID does not match resource ID given in path ({resource_id})'
                 )
 
-            if not comment.attachment_bytes:
-                comment_data = comment.to_dict()
-            else:
-                comment_data = {
-                    "commentId": int(comment_id),
-                    "text": comment.text,
-                    "attachment": base64.b64decode(comment.attachment_bytes).decode(),
-                    "attachment_name": str(comment.attachment_name),
-                }
-
+            comment_data = comment.to_dict()
             query_size = sizeof(comment_data)
             if query_size >= SIZE_WARNING_THRESHOLD:
                 end = time.time()
