@@ -2488,6 +2488,12 @@ def make_spectrum_layout(
     # To form columns from the rows, zip the rows together.
     element_dicts = zip(*rows)
 
+    # we add the height of the rows to the height of the plot
+    nb_rows = len(
+        list(zip(*itertools.zip_longest(*[iter(SPEC_LINES.items())] * columns)))[0]
+    )
+    plot_height += nb_rows * 60
+
     all_column_checkboxes = []
     for column_idx, element_dict in enumerate(element_dicts):
         element_dict = [e for e in element_dict if e is not None]
