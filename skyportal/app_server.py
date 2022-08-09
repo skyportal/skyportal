@@ -32,6 +32,7 @@ from skyportal.handlers.api import (
     FacilityMessageHandler,
     GalaxyCatalogHandler,
     GalaxyASCIIFileHandler,
+    GalaxyGladeHandler,
     GcnEventHandler,
     GcnEventObservationPlanRequestsHandler,
     GcnEventSurveyEfficiencyHandler,
@@ -99,6 +100,7 @@ from skyportal.handlers.api import (
     SpectrumRangeHandler,
     SyntheticPhotometryHandler,
     ObjSpectraHandler,
+    ReminderHandler,
     SpectrumTNSHandler,
     ShiftHandler,
     ShiftUserHandler,
@@ -193,6 +195,7 @@ skyportal_handlers = [
     ),
     (r'/api/followup_request(/.*)?', FollowupRequestHandler),
     (r'/api/photometry_request(/.*)', PhotometryRequestHandler),
+    (r'/api/galaxy_catalog/glade', GalaxyGladeHandler),
     (r'/api/galaxy_catalog/ascii', GalaxyASCIIFileHandler),
     (r'/api/galaxy_catalog(/[0-9A-Za-z-_\.\+]+)?', GalaxyCatalogHandler),
     (
@@ -221,6 +224,10 @@ skyportal_handlers = [
     (
         r'/api/gcn_event(/[0-9A-Za-z-_\.\+]+)/survey_efficiency',
         GcnEventSurveyEfficiencyHandler,
+    ),
+    (
+        r'/api/(source|spectra|gcn_event|shift)/([0-9A-Za-z-_\.\+]+)/reminders(/[0-9]+)?',
+        ReminderHandler,
     ),
     (r'/api/gcn_event(/.*)?', GcnEventHandler),
     (r'/api/sources_in_gcn/(.*)/(.*)', SourcesConfirmedInGCNHandler),

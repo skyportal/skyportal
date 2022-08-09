@@ -29,7 +29,7 @@ from .followup_request import (
     AssignmentHandler,
 )
 from .facility_listener import FacilityMessageHandler
-from .galaxy import GalaxyCatalogHandler, GalaxyASCIIFileHandler
+from .galaxy import GalaxyCatalogHandler, GalaxyASCIIFileHandler, GalaxyGladeHandler
 from .gcn import (
     GcnEventHandler,
     GcnEventObservationPlanRequestsHandler,
@@ -90,6 +90,7 @@ from .photometry_request import PhotometryRequestHandler
 from .public_group import PublicGroupHandler
 from .roles import RoleHandler, UserRoleHandler
 from .obj import ObjHandler
+from .reminder import ReminderHandler
 from .sharing import SharingHandler
 from .shift import ShiftHandler, ShiftUserHandler, ShiftSummary
 from .source import (

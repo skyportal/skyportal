@@ -169,6 +169,15 @@ class Spectrum(Base):
         doc="Comments posted about this spectrum.",
     )
 
+    reminders = relationship(
+        'ReminderOnSpectrum',
+        back_populates='spectrum',
+        cascade='save-update, merge, refresh-expire, expunge, delete',
+        passive_deletes=True,
+        order_by="ReminderOnSpectrum.created_at",
+        doc="Reminders about this spectrum.",
+    )
+
     annotations = relationship(
         'AnnotationOnSpectrum',
         back_populates='spectrum',

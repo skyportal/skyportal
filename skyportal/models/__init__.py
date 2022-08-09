@@ -26,6 +26,7 @@ from .observation_plan import *
 from .observing_run import *
 from .photometry import *
 from .phot_stat import *
+from .reminder import *
 from .shift import *
 from .source import *
 from .source_view import *
