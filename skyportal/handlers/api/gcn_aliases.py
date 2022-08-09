@@ -1,5 +1,6 @@
 import arrow
 import requests
+import re
 from ..base import BaseHandler
 from baselayer.app.access import permissions
 from ...models import GcnEvent
@@ -85,13 +86,12 @@ def get_tach_event_id(dateobs, tags):
     return event_id
 
 
-def get_other_aliases(ids, day):
+def get_other_aliases(ids, day, original):
     url = "https://heasarc.gsfc.nasa.gov/wsgi-scripts/tach/gcn_v2/tach.wsgi/graphql"
     headers = {
         "Content-Type": "application/json",
         "Origin": "https://heasarc.gsfc.nasa.gov",
     }
-    # currently only checks for other GW aliases, not sure if more should be checked
     aliases = []
     for id in ids:
         payload = {
@@ -109,9 +109,13 @@ def get_other_aliases(ids, day):
         if response.status_code == 200:
             data = response.json()
             body = data["data"]["circularBodyById"]["edges"][0]["node"]["body"]
-            if f"GW {day}" in body or f"GW{day}" in body:
-                aliases.append(f"GW{day}")
-                continue
+            exception = f"(?!.*{original}.*)"
+            # checks if any other alias is mentioned in circulars (GW, GRB, S, or IceCube)
+            match = re.search(
+                exception + r"(GW|GRB|IceCube|S)[-]?[ ]?\d{6}[A-Z]?\b", body
+            )
+            if match:
+                aliases.append(match.group())
     return aliases
 
 
@@ -170,7 +174,7 @@ def get_tach_event_aliases(id):
                 circular_ids.append(event["node"]["id_"])
             nums = [int(x) for x in aliases[0].split() if x.isdigit()]
             day = "".join(nums)
-            other_aliases = get_other_aliases(circular_ids, day)
+            other_aliases = get_other_aliases(circular_ids, day, aliases[0])
             aliases += other_aliases
             return aliases
         else:
