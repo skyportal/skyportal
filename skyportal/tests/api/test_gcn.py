@@ -23,14 +23,38 @@ def test_gcn_GW(super_admin_token, view_only_token):
     assert data['status'] == 'success'
 
     dateobs = "2019-04-25 08:18:05"
-    params = {"include2DMap": True}
-
     status, data = api('GET', f'gcn_event/{dateobs}', token=super_admin_token)
     assert status == 200
     data = data["data"]
     assert data["dateobs"] == "2019-04-25T08:18:05"
     assert 'GW' in data["tags"]
 
+    params = {
+        'startDate': "2019-04-25T00:00:00",
+        'endDate': "2019-04-26T00:00:00",
+        'tag': 'GW',
+    }
+
+    status, data = api('GET', 'gcn_event', token=super_admin_token, params=params)
+    assert status == 200
+    data = data["data"]
+    assert len(data['events']) > 0
+    data = data['events'][0]
+    assert data["dateobs"] == "2019-04-25T08:18:05"
+    assert 'GW' in data["tags"]
+
+    params = {
+        'startDate': "2019-04-25T00:00:00",
+        'endDate': "2019-04-26T00:00:00",
+        'tag': 'Fermi',
+    }
+
+    status, data = api('GET', 'gcn_event', token=super_admin_token, params=params)
+    assert status == 200
+    data = data["data"]
+    assert len(data['events']) == 0
+
+    params = {"include2DMap": True}
     skymap = "bayestar.fits.gz"
     status, data = api(
         'GET',
@@ -49,7 +73,7 @@ def test_gcn_GW(super_admin_token, view_only_token):
         f'localization/{dateobs}/name/{skymap}',
         token=view_only_token,
     )
-    assert status == 400
+    assert status == 404
 
     status, data = api(
         'DELETE',
