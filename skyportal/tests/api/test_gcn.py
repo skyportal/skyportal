@@ -121,7 +121,7 @@ def test_gcn_Fermi(super_admin_token, view_only_token):
         f'localization/{dateobs}/name/{skymap}',
         token=view_only_token,
     )
-    assert status == 400
+    assert status == 404
 
     status, data = api(
         'DELETE',
