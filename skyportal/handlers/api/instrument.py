@@ -566,37 +566,16 @@ class InstrumentHandler(BaseHandler):
                     'Invalid/missing parameters: ' f'{e.normalized_messages()}'
                 )
 
-            if 'name' in data:
-                instrument.name = data['name']
-            if 'type' in data:
-                instrument.type = data['type']
-            if 'band' in data:
-                instrument.band = data['band']
-            if 'telescope_id' in data:
-                instrument.telescope_id = data['telescope_id']
-            if 'filters' in data:
-                instrument.filters = data['filters']
+            for k in data:
+                if k != 'sensitivity_data':
+                    setattr(instrument, k, data[k])
 
             if sensitivity_data:
                 if not set(sensitivity_data.keys()).issubset(instrument.filters):
                     return self.error(
                         'Filter names must be present in both sensitivity_data property and filters property'
                     )
-
-            if 'sensitivity_data' in data:
-                instrument.sensitivity_data = data['sensitivity_data']
-            if 'api_classname' in data:
-                instrument.api_classname = data['api_classname']
-            if 'api_classname_obsplan' in data:
-                instrument.api_classname_obsplan = data['api_classname_obsplan']
-            if 'listener_classname' in data:
-                instrument.listener_classname = data['listener_classname']
-            if 'treasuremap_id' in data:
-                instrument.treasuremap_id = data['treasuremap_id']
-            if 'tns_id' in data:
-                instrument.tns_id = data['tns_id']
-            if 'region' in data:
-                instrument.region = data['region']
+                instrument.sensitivity_data = sensitivity_data
 
             session.commit()
 
