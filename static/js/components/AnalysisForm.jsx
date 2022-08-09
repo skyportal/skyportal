@@ -162,19 +162,19 @@ const AnalysisForm = ({ obj_id }) => {
         type: "boolean",
         title: "Show Parameters",
         description: "Whether to render the parameters of this analysis",
-        default: false,
+        default: true,
       },
       show_plots: {
         type: "boolean",
         title: "Show Plots",
         description: "Whether to render the plots of this analysis",
-        default: false,
+        default: true,
       },
       show_corner: {
         type: "boolean",
         title: "Show Corner",
         description: "Whether to render the corner of this analysis",
-        default: false,
+        default: true,
       },
     },
     required: ["show_parameters", "show_plots", "show_corner"].concat(
@@ -193,7 +193,8 @@ const AnalysisForm = ({ obj_id }) => {
           labelId="analysisServiceSelectLabel"
           value={selectedAnalysisServiceId || ""}
           onChange={handleSelectedAnalysisServiceChange}
-          name="gcnPageInstrumentSelect"
+          name="analysisServiceSelect"
+          data-testid="analysisServiceSelect"
           className={classes.Select}
         >
           {analysisServiceList?.map((analysisService) => (

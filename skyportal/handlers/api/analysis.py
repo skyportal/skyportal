@@ -1013,6 +1013,9 @@ class AnalysisHandler(BaseHandler):
                     stmt = ObjAnalysis.select(self.current_user).where(
                         ObjAnalysis.id == analysis_id
                     )
+                    if obj_id:
+                        stmt = stmt.where(ObjAnalysis.obj_id.contains(obj_id.strip()))
+
                     analysis = session.scalars(stmt).first()
                     if analysis is None:
                         return self.error('Cannot access this Analysis.', status=403)
@@ -1028,6 +1031,7 @@ class AnalysisHandler(BaseHandler):
                     analysis_dict[
                         "analysis_service_description"
                     ] = analysis_service.description
+                    analysis_dict["num_plots"] = analysis.number_of_analysis_plots
 
                     if include_filename:
                         analysis_dict["filename"] = analysis._full_name
