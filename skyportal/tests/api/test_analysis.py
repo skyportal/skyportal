@@ -873,7 +873,7 @@ def test_retrieve_data_products(
     analysis_status = 'queued'
 
     while max_attempts > 0:
-        if analysis_status != "queued":
+        if analysis_status not in ["queued", "pending"]:
             break
         status, data = api(
             'GET',
@@ -885,7 +885,7 @@ def test_retrieve_data_products(
         analysis_status = data["data"]["status"]
 
         max_attempts -= 1
-        time.sleep(5)
+        time.sleep(3)
     else:
         assert (
             False
