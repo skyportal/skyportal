@@ -57,11 +57,9 @@ def get_tach_event_id(dateobs, tags):
         return None
 
     events = data["data"]["allEventDetails"]["edges"]
-    # find the event with the right trigger time
     event_id = None
     for event in events:
         trigger = event["node"]["trigger"]
-        # the trigger has the format "YYYY-MM-ddTHH:MM:SS.sss" so we need to round it to the nearest second
         if trigger is not None:
             try:
                 trigger = Time(Time(trigger, precision=0).iso).datetime.strftime(
@@ -75,7 +73,6 @@ def get_tach_event_id(dateobs, tags):
     if event_id is None:
         event_ids = []
         for event in events:
-            # this time, there is no trigger so we look at the date
             if event["node"]["date"] == date and event["node"]["evttype"] in tags:
                 event_ids.append(event["node"]["id_"])
         if len(event_ids) != 1:
@@ -109,12 +106,15 @@ def get_other_aliases(ids, day, original):
         if response.status_code == 200:
             data = response.json()
             body = data["data"]["circularBodyById"]["edges"][0]["node"]["body"]
-            exception = f"(?!.*{original}.*)"
-            # checks if any other alias is mentioned in circulars (GW, GRB, S, or IceCube)
+            exception = f"(?i)(?!.*{original}.*)"
             match = re.search(
                 exception + r"\b([^\s\d])+[ |-]?(" + day + r")+[^\s\d]?\b", body
             )
-            if match:
+            if (
+                match
+                and len(match.group()) < 20
+                and match.group().replace(" ", "").upper() != original.upper()
+            ):
                 aliases.append(match.group())
     return aliases
 
@@ -168,8 +168,6 @@ def get_tach_event_aliases(id):
             events = data["data"]["allCirculars"]["edges"]
             circular_ids = []
             for event in events:
-                # for now we just take the event name, which is always the same (the name given to the event in TACH)
-                # maybe we could parse the circulars and find the different names used for the same event?
                 aliases.append(event["node"]["evtidCircular"]["event"].replace(" ", ""))
                 circular_ids.append(event["node"]["id_"])
             nums = [int(x) for x in aliases[0].split() if x.isdigit()]
