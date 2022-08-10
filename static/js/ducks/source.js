@@ -85,6 +85,8 @@ const START_ANALYSIS_FOR_OBJ = "skyportal/START_SERVICE_FOR_OBJ";
 const DELETE_ANALYSIS = "skyportal/DELETE_ANALYSIS";
 
 const FETCH_ANALYSES_FOR_OBJ = "skyportal/FETCH_ANALYSES_FOR_OBJ";
+const FETCH_ANALYSIS_FOR_OBJ = "skyportal/FETCH_ANALYSIS_FOR_OBJ";
+const FETCH_ANALYSIS_RESULTS_FOR_OBJ = "skyportal/FETCH_ANALYSIS_FOR_OBJ";
 
 export const shareData = (data) => API.POST("/api/sharing", SHARE_DATA, data);
 
@@ -119,6 +121,30 @@ export function fetchAnalyses(analysis_resource_type = "obj", params = {}) {
   return API.GET(
     `/api/${analysis_resource_type}/analysis`,
     FETCH_ANALYSES_FOR_OBJ,
+    params
+  );
+}
+
+export function fetchAnalysis(
+  analysis_id,
+  analysis_resource_type = "obj",
+  params = {}
+) {
+  return API.GET(
+    `/api/${analysis_resource_type}/analysis/${analysis_id}`,
+    FETCH_ANALYSIS_FOR_OBJ,
+    params
+  );
+}
+
+export function fetchAnalysisResults(
+  analysis_id,
+  analysis_resource_type = "obj",
+  params = {}
+) {
+  return API.GET(
+    `/api/${analysis_resource_type}/analysis/${analysis_id}/results`,
+    FETCH_ANALYSIS_RESULTS_FOR_OBJ,
     params
   );
 }

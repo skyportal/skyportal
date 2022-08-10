@@ -1,3 +1,4 @@
+import json
 import uuid
 import datetime
 import base64
@@ -306,18 +307,26 @@ def test_post_comment_attachment(super_admin_token, public_source, lris, public_
     )
     assert status == 200
     assert data['status'] == 'success'
+    comment_id = data["data"]["comment_id"]
 
     status, data = api(
         'GET',
-        f'spectra/{spectrum_id}/comments/{data["data"]["comment_id"]}',
+        f'spectra/{spectrum_id}/comments/{comment_id}',
         token=super_admin_token,
     )
     assert status == 200
     assert data['status'] == 'success'
 
     assert data['data']['text'] == 'Looks like Ia'
-    assert data['data']['attachment'] == base64.b64decode(payload['body']).decode()
     assert data['data']['attachment_name'] == payload['name']
+
+    status, data = api(
+        'GET',
+        f'spectra/{spectrum_id}/comments/{comment_id}/attachment',
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data == json.loads(base64.b64decode(payload['body']).decode())
 
 
 def test_fetch_all_comments_on_obj(
