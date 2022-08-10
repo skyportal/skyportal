@@ -112,7 +112,7 @@ def get_other_aliases(ids, day, original):
             exception = f"(?!.*{original}.*)"
             # checks if any other alias is mentioned in circulars (GW, GRB, S, or IceCube)
             match = re.search(
-                exception + r"(GW|GRB|IceCube|S)[-]?[ ]?\d{6}[A-Z]?\b", body
+                exception + r"\b([^\s\d])+[ |-]?(" + day + r")+[^\s\d]?\b", body
             )
             if match:
                 aliases.append(match.group())
