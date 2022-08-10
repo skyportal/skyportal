@@ -346,6 +346,7 @@ def get_sources(
     max_peak_magnitude=None,
     min_latest_magnitude=None,
     max_latest_magnitude=None,
+    number_of_detections=None,
     classifications=None,
     nonclassifications=None,
     annotations_filter=None,
@@ -427,6 +428,15 @@ def get_sources(
         photstat_subquery = (
             PhotStat.select(user)
             .where(PhotStat.last_detected_mjd <= Time(last_detected_date).mjd)
+            .subquery()
+        )
+        obj_query = obj_query.join(
+            photstat_subquery, Obj.id == photstat_subquery.c.obj_id
+        )
+    if number_of_detections:
+        photstat_subquery = (
+            PhotStat.select(user)
+            .where(PhotStat.num_det_global >= number_of_detections)
             .subquery()
         )
         obj_query = obj_query.join(
@@ -1839,6 +1849,13 @@ class SourceHandler(BaseHandler):
             description: |
               If provided, return only sources whose latest photometry magnitude is at most this value
           - in: query
+            name: numberDetections
+            nullable: true
+            schema:
+              type: number
+            description: |
+              If provided, return only sources who have at least numberDetections detections.
+          - in: query
             name: hasSpectrum
             nullable: true
             schema:
@@ -1978,6 +1995,7 @@ class SourceHandler(BaseHandler):
         created_or_modified_after = self.get_query_argument(
             "createdOrModifiedAfter", None
         )
+        number_of_detections = self.get_query_argument("numberDetections", None)
 
         localization_dateobs = self.get_query_argument("localizationDateobs", None)
         localization_name = self.get_query_argument("localizationName", None)
@@ -2143,6 +2161,7 @@ class SourceHandler(BaseHandler):
                     max_peak_magnitude=max_peak_magnitude,
                     min_latest_magnitude=min_latest_magnitude,
                     max_latest_magnitude=max_latest_magnitude,
+                    number_of_detections=number_of_detections,
                     classifications=classifications,
                     nonclassifications=nonclassifications,
                     annotations_filter=annotations_filter,
