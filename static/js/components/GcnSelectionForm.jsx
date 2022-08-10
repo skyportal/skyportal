@@ -325,6 +325,11 @@ const GcnSelectionForm = ({
         title: "End Date",
         default: defaultEndDate,
       },
+      numberDetections: {
+        type: "number",
+        title: "Minimum Number of Detections",
+        default: 2,
+      },
       localizationCumprob: {
         type: "number",
         title: "Cumulative Probability",
