@@ -28,7 +28,20 @@ virtualenv skyportal_env
 source skyportal_env/bin/activate
 ```
 
-(You can also use `conda` or `pipenv` to create your environment.)
+You can also use `conda` or `pipenv` to create your environment.
+
+If you developing on a Mac with an ARM (M1/M2) you might consider using a Rosetta-driven environment so that you more easily install dependencies (that tend to be x86-centric):
+
+```
+CONDA_SUBDIR=osx-64 conda create -n skyportal_env \
+      python=3.9
+conda activate skyportal_env
+conda config --env --set subdir osx-64
+conda config --add channels conda-forge
+conda config --set channel_priority strict
+```
+
+
 
 If you are using Windows Subsystem for Linux (WSL) be sure you clone the repository onto a location on the virtual machine, not the mounted Windows drive. Additionally, we recommend that you use WSL 2, and not WSL 1, in order to avoid complications in interfacing with the Linux image's `localhost` network.
 
@@ -38,77 +51,97 @@ These instructions assume that you have [Homebrew](http://brew.sh/) installed.
 
 1. Install dependencies
 
-```
-brew install supervisor nginx postgresql node
-```
+	```
+	brew install supervisor nginx postgresql node \
+	     llvm libomp gsl rust
+	nvm install node
+	```
 
 2. Start the PostgreSQL server:
 
   - To start automatically at login: `brew services start postgresql`
   - To start manually: `pg_ctl -D /usr/local/var/postgres start`
 
+  You may also need to run the following command to create the proper admin user:
+
+  ```bash
+  /usr/local/opt/postgres/bin/createuser -s postgres
+  ```
+
 3. To run the test suite, you'll need Geckodriver:
 
-```
-brew install geckodriver
-```
+	```
+	brew install geckodriver
+	```
 
 4. To build the docs, you'll need graphviz:
-```
-brew install graphviz
-```
+
+	```
+	brew install graphviz
+	```
+
+5. (ARM M1/M2) Explicitly [install ligo.skymap using conda rather than pip](https://lscsoft.docs.ligo.org/ligo.skymap/quickstart/install.html#option-2-conda):
+
+   ```
+   conda activate skyportal_env
+   conda install ligo.skymap
+   ```
+
 
 ## Installation: Debian-based Linux and WSL
 
 1. Install dependencies
 
-```
-sudo apt install nginx supervisor postgresql libpq-dev npm python3-pip libcurl4-gnutls-dev libgnutls28-dev
-```
+	```
+	sudo apt install nginx supervisor postgresql \
+	      libpq-dev npm python3-pip \
+	      libcurl4-gnutls-dev libgnutls28-dev
+	```
 
 2. Configure your database permissions.
 
-In `pg_hba.conf` (typically located in
-`/etc/postgresql/<postgres-version>/main`), insert the following lines
-*before* any other `host` lines:
+	In `pg_hba.conf` (typically located in
+	`/etc/postgresql/<postgres-version>/main`), insert the following lines
+	*before* any other `host` lines:
 
-```
-host skyportal skyportal 127.0.0.1/32 trust
-host skyportal_test skyportal 127.0.0.1/32 trust
-host all postgres 127.0.0.1/32 trust
-```
+	```
+	host skyportal skyportal 127.0.0.1/32 trust
+	host skyportal_test skyportal 127.0.0.1/32 trust
+	host all postgres 127.0.0.1/32 trust
+	```
 
-If you are deploying SkyPortal using IPv6 rather than IPv4, you should add the following lines instead:
+	If you are deploying SkyPortal using IPv6 rather than IPv4, you should add the following lines instead:
 
-```
-host skyportal skyportal ::1/128 trust
-host skyportal_test skyportal ::1/128 trust
-host all postgres ::1/128 trust
-```
+	```
+	host skyportal skyportal ::1/128 trust
+	host skyportal_test skyportal ::1/128 trust
+	host all postgres ::1/128 trust
+	```
 
-In some PostgreSQL installations, the default TCP port may be different from the 5432 value assumed in our default configuration file values. To remedy this, you can either edit your config.yaml file to reflect your system's PostgreSQL default port, or update your system-wide config to use port 5432 by editing /etc/postgresql/14/main/postgresql.conf (replace "14" with your installed version number) and changing the line `port = XXXX` (where "XXXX" is whatever the system default was) to `port = 5432`.
+	In some PostgreSQL installations, the default TCP port may be different from the 5432 value assumed in our default configuration file values. To remedy this, you can either edit your config.yaml file to reflect your system's PostgreSQL default port, or update your system-wide config to use port 5432 by editing /etc/postgresql/14/main/postgresql.conf (replace "14" with your installed version number) and changing the line `port = XXXX` (where "XXXX" is whatever the system default was) to `port = 5432`.
 
-Restart PostgreSQL:
+	Restart PostgreSQL:
 
-```
-sudo service postgresql restart
-```
+	```
+	sudo service postgresql restart
+	```
 
 3. To run the test suite, you'll need Geckodriver:
 
-- Download the latest version from https://github.com/mozilla/geckodriver/releases/
-- Extract the binary to somewhere on your path
-- Ensure it runs with `geckodriver --version`
+	- Download the latest version from https://github.com/mozilla/geckodriver/releases/
+	- Extract the binary to somewhere on your path
+	- Ensure it runs with `geckodriver --version`
 
-In later versions of Ubuntu (16.04+), you can install Geckodriver through apt:
-```
-sudo apt install firefox-geckodriver
-```
+	In later versions of Ubuntu (16.04+), you can install Geckodriver through apt:
+	```
+	sudo apt install firefox-geckodriver
+	```
 
 4. To build the docs, you'll need graphviz:
-```
-sudo apt install graphviz-dev graphviz
-```
+
+	```
+	sudo apt install graphviz-dev graphviz
+	```
 
 ## Launch
 

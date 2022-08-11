@@ -6,7 +6,7 @@ from ...models import Telescope
 
 
 class TelescopeHandler(BaseHandler):
-    @permissions(['Upload data'])
+    @permissions(['Manage allocations'])
     def post(self):
         """
         ---
@@ -184,7 +184,7 @@ class TelescopeHandler(BaseHandler):
 
             return self.success(data=telescopes)
 
-    @permissions(['Manage sources'])
+    @permissions(['Manage allocations'])
     def put(self, telescope_id):
         """
         ---
@@ -257,7 +257,7 @@ class TelescopeHandler(BaseHandler):
             self.push_all(action="skyportal/REFRESH_TELESCOPES")
             return self.success()
 
-    @permissions(['Manage sources'])
+    @permissions(['Manage allocations'])
     def delete(self, telescope_id):
         """
         ---

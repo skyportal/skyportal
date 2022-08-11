@@ -13,11 +13,14 @@ import {
 import makeStyles from "@mui/styles/makeStyles";
 import Chip from "@mui/material/Chip";
 import Button from "@mui/material/Button";
+import InfoIcon from "@mui/icons-material/Info";
 
 import MUIDataTable from "mui-datatables";
 
+import { filterOutEmptyValues } from "../API";
 import * as gcnEventsActions from "../ducks/gcnEvents";
 import Spinner from "./Spinner";
+import GcnEventsFilterForm from "./GcnEventsFilterForm";
 
 const useStyles = makeStyles((theme) => ({
   container: {
@@ -80,6 +83,8 @@ const GcnEvents = () => {
   const theme = useTheme();
   const dispatch = useDispatch();
   const gcnEvents = useSelector((state) => state.gcnEvents);
+  const [filterFormSubmitted, setFilterFormSubmitted] = useState(false);
+
   const [fetchParams, setFetchParams] = useState({
     pageNumber: 1,
     numPerPage: defaultNumPerPage,
@@ -110,6 +115,22 @@ const GcnEvents = () => {
     await dispatch(gcnEventsActions.fetchGcnEvents(params));
   };
 
+  const handleTableFilter = async (pageNumber, numPerPage, filterData) => {
+    const params = {
+      ...fetchParams,
+      pageNumber,
+      numPerPage,
+    };
+    if (filterData && Object.keys(filterData).length > 0) {
+      params.startDate = filterData.startDate;
+      params.endDate = filterData.endDate;
+      params.tag = filterData.tag;
+    }
+    // Save state for future
+    setFetchParams(params);
+    await dispatch(gcnEventsActions.fetchGcnEvents(params));
+  };
+
   const handleTableSorting = async (sortData) => {
     const params = {
       ...fetchParams,
@@ -119,6 +140,13 @@ const GcnEvents = () => {
     };
     setFetchParams(params);
     await dispatch(gcnEventsActions.fetchGcnEvents(params));
+  };
+
+  const handleFilterSubmit = async (formData) => {
+    const data = filterOutEmptyValues(formData);
+
+    handleTableFilter(1, defaultNumPerPage, data);
+    setFilterFormSubmitted(true);
   };
 
   const handleTableChange = (action, tableState) => {
@@ -185,6 +213,16 @@ const GcnEvents = () => {
     ) : (
       <p>No aliases</p>
     );
+
+  const customFilterDisplay = () =>
+    filterFormSubmitted ? (
+      <div className={classes.filterAlert}>
+        <InfoIcon /> &nbsp; Filters submitted to server!
+      </div>
+    ) : (
+      <GcnEventsFilterForm handleFilterSubmit={handleFilterSubmit} />
+    );
+
   const columns = [
     {
       name: "dateobs",
@@ -236,7 +274,8 @@ const GcnEvents = () => {
     onTableChange: handleTableChange,
     search: false, // Disable search for now (not implemented yet)
     download: false, // Disable download button for now (not implemented yet)
-    filter: false, // Disable filter button for now (not implemented yet)
+    filter: true,
+    customFilterDialogFooter: customFilterDisplay,
   };
 
   return (

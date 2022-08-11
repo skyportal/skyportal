@@ -9,6 +9,7 @@ from tornado.ioloop import IOLoop
 import arrow
 import astropy
 import humanize
+import sqlalchemy as sa
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm import sessionmaker, scoped_session
@@ -231,6 +232,30 @@ def post_gcnevent_from_dictionary(payload, user_id, session):
     return event.id
 
 
+class GcnEventTagsHandler(BaseHandler):
+    @auth_or_token
+    def get(self):
+        """
+        ---
+        description: Get all GCN Event tags
+        tags:
+          - photometry
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+
+        with self.Session() as session:
+            tags = session.scalars(sa.select(GcnTag.text).distinct()).unique().all()
+            return self.success(data=tags)
+
+
 class GcnEventSurveyEfficiencyHandler(BaseHandler):
     @auth_or_token
     async def get(self, gcnevent_id):
@@ -252,28 +277,29 @@ class GcnEventSurveyEfficiencyHandler(BaseHandler):
                 schema: ArrayOfSurveyEfficiencyForObservationss
         """
 
-        event = (
-            GcnEvent.query_records_accessible_by(
-                self.current_user,
-                options=[joinedload(GcnEvent.survey_efficiency_analyses)],
-            )
-            .filter(GcnEvent.id == gcnevent_id)
-            .first()
-        )
+        with self.Session() as session:
+            event = session.scalars(
+                GcnEvent.select(
+                    session.user_or_token,
+                    options=[joinedload(GcnEvent.survey_efficiency_analyses)],
+                ).where(GcnEvent.id == gcnevent_id)
+            ).first()
+            if event is None:
+                return self.error("GCN event not found", status=404)
 
-        analysis_data = []
-        for analysis in event.survey_efficiency_analyses:
-            analysis_data.append(
-                {
-                    **analysis.to_dict(),
-                    'number_of_transients': analysis.number_of_transients,
-                    'number_in_covered': analysis.number_in_covered,
-                    'number_detected': analysis.number_detected,
-                    'efficiency': analysis.efficiency,
-                }
-            )
+            analysis_data = []
+            for analysis in event.survey_efficiency_analyses:
+                analysis_data.append(
+                    {
+                        **analysis.to_dict(),
+                        'number_of_transients': analysis.number_of_transients,
+                        'number_in_covered': analysis.number_in_covered,
+                        'number_detected': analysis.number_detected,
+                        'efficiency': analysis.efficiency,
+                    }
+                )
 
-        return self.success(data=analysis_data)
+            return self.success(data=analysis_data)
 
 
 class GcnEventObservationPlanRequestsHandler(BaseHandler):
@@ -297,44 +323,43 @@ class GcnEventObservationPlanRequestsHandler(BaseHandler):
                 schema: ArrayOfObservationPlanRequests
         """
 
-        event = (
-            GcnEvent.query_records_accessible_by(
-                self.current_user,
-                options=[
-                    joinedload(GcnEvent.observationplan_requests)
-                    .joinedload(ObservationPlanRequest.allocation)
-                    .joinedload(Allocation.instrument),
-                    joinedload(GcnEvent.observationplan_requests)
-                    .joinedload(ObservationPlanRequest.allocation)
-                    .joinedload(Allocation.group),
-                    joinedload(GcnEvent.observationplan_requests).joinedload(
-                        ObservationPlanRequest.requester
-                    ),
-                    joinedload(GcnEvent.observationplan_requests).joinedload(
-                        ObservationPlanRequest.observation_plans
-                    ),
-                ],
-            )
-            .filter(GcnEvent.id == gcnevent_id)
-            .first()
-        )
+        with self.Session() as session:
+            event = session.scalars(
+                GcnEvent.select(
+                    session.user_or_token,
+                    options=[
+                        joinedload(GcnEvent.observationplan_requests)
+                        .joinedload(ObservationPlanRequest.allocation)
+                        .joinedload(Allocation.instrument),
+                        joinedload(GcnEvent.observationplan_requests)
+                        .joinedload(ObservationPlanRequest.allocation)
+                        .joinedload(Allocation.group),
+                        joinedload(GcnEvent.observationplan_requests).joinedload(
+                            ObservationPlanRequest.requester
+                        ),
+                        joinedload(GcnEvent.observationplan_requests).joinedload(
+                            ObservationPlanRequest.observation_plans
+                        ),
+                    ],
+                ).where(GcnEvent.id == gcnevent_id)
+            ).first()
 
-        # go through some pain to get probability and area included
-        # as these are properties
-        request_data = []
-        for ii, req in enumerate(event.observationplan_requests):
-            dat = req.to_dict()
-            plan_data = []
-            for plan in dat["observation_plans"]:
-                plan_dict = {
-                    **plan.to_dict(),
-                }
-                plan_data.append(plan_dict)
+            # go through some pain to get probability and area included
+            # as these are properties
+            request_data = []
+            for ii, req in enumerate(event.observationplan_requests):
+                dat = req.to_dict()
+                plan_data = []
+                for plan in dat["observation_plans"]:
+                    plan_dict = {
+                        **plan.to_dict(),
+                    }
+                    plan_data.append(plan_dict)
 
-            dat["observation_plans"] = plan_data
-            request_data.append(dat)
+                dat["observation_plans"] = plan_data
+                request_data.append(dat)
 
-        return self.success(data=request_data)
+            return self.success(data=request_data)
 
 
 class GcnEventHandler(BaseHandler):
@@ -393,9 +418,44 @@ class GcnEventHandler(BaseHandler):
     async def get(self, dateobs=None):
         """
         ---
-        description: Retrieve GCN events
-        tags:
-          - gcnevents
+        single:
+          description: Retrieve a GCN event
+          tags:
+            - gcnevents
+          parameters:
+            - in: path
+              name: dateobs
+              required: false
+              schema:
+                type: string
+        multiple:
+          description: Retrieve multiple GCN events
+          tags:
+            - gcnevents
+          parameters:
+            - in: query
+              name: startDate
+              nullable: true
+              schema:
+                type: string
+              description: |
+                Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
+                dateobs >= startDate
+            - in: query
+              name: endDate
+              nullable: true
+              schema:
+                type: string
+              description: |
+                Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
+                dateobs <= endDate
+            - in: query
+              name: tag
+              nullable: true
+              schema:
+                type: string
+              description: |
+                Gcn Tag to match against
         responses:
           200:
             content:
@@ -422,90 +482,113 @@ class GcnEventHandler(BaseHandler):
         sort_by = self.get_query_argument("sortBy", None)
         sort_order = self.get_query_argument("sortOrder", "asc")
 
+        start_date = self.get_query_argument('startDate', None)
+        end_date = self.get_query_argument('endDate', None)
+        tag = self.get_query_argument('tag', None)
+
         if dateobs is not None:
-            event = (
-                GcnEvent.query_records_accessible_by(
-                    self.current_user,
-                    options=[
-                        joinedload(GcnEvent.localizations),
-                        joinedload(GcnEvent.gcn_notices),
-                        joinedload(GcnEvent.observationplan_requests)
-                        .joinedload(ObservationPlanRequest.allocation)
-                        .joinedload(Allocation.instrument),
-                        joinedload(GcnEvent.comments),
-                    ],
-                )
-                .filter_by(dateobs=dateobs)
-                .first()
-            )
-            if event is None:
-                return self.error("GCN event not found", status=404)
+            with self.Session() as session:
+                event = session.scalars(
+                    GcnEvent.select(
+                        session.user_or_token,
+                        options=[
+                            joinedload(GcnEvent.localizations),
+                            joinedload(GcnEvent.gcn_notices),
+                            joinedload(GcnEvent.observationplan_requests)
+                            .joinedload(ObservationPlanRequest.allocation)
+                            .joinedload(Allocation.instrument),
+                            joinedload(GcnEvent.comments),
+                        ],
+                    ).where(GcnEvent.dateobs == dateobs)
+                ).first()
+                if event is None:
+                    return self.error("GCN event not found", status=404)
 
-            data = {
-                **event.to_dict(),
-                "tags": list(set(event.tags)),
-                "lightcurve": event.lightcurve,
-                "comments": sorted(
-                    (
-                        {
-                            **{
-                                k: v
-                                for k, v in c.to_dict().items()
-                                if k != "attachment_bytes"
-                            },
-                            "author": {
-                                **c.author.to_dict(),
-                                "gravatar_url": c.author.gravatar_url,
-                            },
-                        }
-                        for c in event.comments
+                data = {
+                    **event.to_dict(),
+                    "tags": list(set(event.tags)),
+                    "lightcurve": event.lightcurve,
+                    "comments": sorted(
+                        (
+                            {
+                                **{
+                                    k: v
+                                    for k, v in c.to_dict().items()
+                                    if k != "attachment_bytes"
+                                },
+                                "author": {
+                                    **c.author.to_dict(),
+                                    "gravatar_url": c.author.gravatar_url,
+                                },
+                            }
+                            for c in event.comments
+                        ),
+                        key=lambda x: x["created_at"],
+                        reverse=True,
                     ),
-                    key=lambda x: x["created_at"],
-                    reverse=True,
-                ),
-            }
+                }
 
-            return self.success(data=data)
+                return self.success(data=data)
 
-        query = GcnEvent.query_records_accessible_by(
-            self.current_user,
-            options=[
-                joinedload(GcnEvent.localizations),
-                joinedload(GcnEvent.gcn_notices),
-                joinedload(GcnEvent.observationplan_requests),
-            ],
-        )
+        with self.Session() as session:
 
-        total_matches = query.count()
-
-        order_by = None
-        if sort_by is not None:
-            if sort_by == "dateobs":
-                order_by = (
-                    [GcnEvent.dateobs]
-                    if sort_order == "asc"
-                    else [GcnEvent.dateobs.desc()]
-                )
-
-        if order_by is None:
-            order_by = [GcnEvent.dateobs.desc()]
-
-        query = query.order_by(*order_by)
-
-        if n_per_page is not None:
-            query = (
-                query.distinct()
-                .limit(n_per_page)
-                .offset((page_number - 1) * n_per_page)
+            query = GcnEvent.select(
+                session.user_or_token,
+                options=[
+                    joinedload(GcnEvent.localizations),
+                    joinedload(GcnEvent.gcn_notices),
+                    joinedload(GcnEvent.observationplan_requests),
+                ],
             )
 
-        events = []
-        for event in query.all():
-            events.append({**event.to_dict(), "tags": list(set(event.tags))})
+            if start_date:
+                start_date = arrow.get(start_date.strip()).datetime
+                query = query.where(GcnEvent.dateobs >= start_date)
+            if end_date:
+                end_date = arrow.get(end_date.strip()).datetime
+                query = query.where(GcnEvent.dateobs <= end_date)
+            if tag:
+                tag_subquery = (
+                    GcnTag.select(session.user_or_token)
+                    .where(GcnTag.text.contains(tag))
+                    .subquery()
+                )
+                query = query.join(
+                    tag_subquery, GcnEvent.dateobs == tag_subquery.c.dateobs
+                )
 
-        query_results = {"events": events, "totalMatches": int(total_matches)}
+            total_matches = session.scalar(
+                sa.select(sa.func.count()).select_from(query)
+            )
 
-        return self.success(data=query_results)
+            order_by = None
+            if sort_by is not None:
+                if sort_by == "dateobs":
+                    order_by = (
+                        [GcnEvent.dateobs]
+                        if sort_order == "asc"
+                        else [GcnEvent.dateobs.desc()]
+                    )
+
+            if order_by is None:
+                order_by = [GcnEvent.dateobs.desc()]
+
+            query = query.order_by(*order_by)
+
+            if n_per_page is not None:
+                query = (
+                    query.distinct()
+                    .limit(n_per_page)
+                    .offset((page_number - 1) * n_per_page)
+                )
+
+            events = []
+            for event in session.scalars(query).unique().all():
+                events.append({**event.to_dict(), "tags": list(set(event.tags))})
+
+            query_results = {"events": events, "totalMatches": int(total_matches)}
+
+            return self.success(data=query_results)
 
     @auth_or_token
     def delete(self, dateobs):
@@ -530,19 +613,19 @@ class GcnEventHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        event = GcnEvent.query.filter_by(dateobs=dateobs).first()
-        if event is None:
-            return self.error("GCN event not found", status=404)
+        with self.Session() as session:
+            event = session.scalars(
+                GcnEvent.select(session.user_or_token, model="delete").where(
+                    GcnEvent.dateobs == dateobs
+                )
+            ).first()
+            if event is None:
+                return self.error("GCN event not found", status=404)
 
-        if not event.is_accessible_by(self.current_user, mode="delete"):
-            return self.error(
-                "Insufficient permissions: GCN event can only be deleted by original poster"
-            )
+            session.delete(event)
+            session.commit()
 
-        DBSession().delete(event)
-        self.verify_and_commit()
-
-        return self.success()
+            return self.success()
 
 
 def add_tiles(localization_id):
@@ -626,29 +709,28 @@ class LocalizationHandler(BaseHandler):
 
         include_2D_map = self.get_query_argument("include2DMap", False)
 
-        localization = (
-            Localization.query_records_accessible_by(self.current_user)
-            .filter(
-                Localization.dateobs == dateobs,
-                Localization.localization_name == localization_name,
-            )
-            .first()
-        )
-        if localization is None:
-            return self.error("Localization not found", status=404)
+        with self.Session() as session:
+            localization = session.scalars(
+                Localization.select(session.user_or_token).where(
+                    Localization.dateobs == dateobs,
+                    Localization.localization_name == localization_name,
+                )
+            ).first()
+            if localization is None:
+                return self.error("Localization not found", status=404)
 
-        if include_2D_map:
-            data = {
-                **localization.to_dict(),
-                "flat_2d": localization.flat_2d,
-                "contour": localization.contour,
-            }
-        else:
-            data = {
-                **localization.to_dict(),
-                "contour": localization.contour,
-            }
-        return self.success(data=data)
+            if include_2D_map:
+                data = {
+                    **localization.to_dict(),
+                    "flat_2d": localization.flat_2d,
+                    "contour": localization.contour,
+                }
+            else:
+                data = {
+                    **localization.to_dict(),
+                    "contour": localization.contour,
+                }
+            return self.success(data=data)
 
     @auth_or_token
     def delete(self, dateobs, localization_name):
@@ -679,22 +761,21 @@ class LocalizationHandler(BaseHandler):
                 schema: Error
         """
 
-        localization = Localization.query.filter_by(
-            dateobs=dateobs, localization_name=localization_name
-        ).first()
+        with self.Session() as session:
+            localization = session.scalars(
+                Localization.select(session.user_or_token, mode="delete").where(
+                    Localization.dateobs == dateobs,
+                    Localization.localization_name == localization_name,
+                )
+            ).first()
 
-        if localization is None:
-            return self.error("Localization not found", status=404)
+            if localization is None:
+                return self.error("Localization not found", status=404)
 
-        if not localization.is_accessible_by(self.current_user, mode="delete"):
-            return self.error(
-                "Insufficient permissions: Localization can only be deleted by original poster"
-            )
+            session.delete(localization)
+            session.commit()
 
-        DBSession().delete(localization)
-        self.verify_and_commit()
-
-        return self.success()
+            return self.success()
 
 
 class GcnSummaryHandler(BaseHandler):

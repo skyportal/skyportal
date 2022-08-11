@@ -34,6 +34,7 @@ from .gcn import (
     GcnEventHandler,
     GcnEventObservationPlanRequestsHandler,
     GcnEventSurveyEfficiencyHandler,
+    GcnEventTagsHandler,
     GcnSummaryHandler,
     LocalizationHandler,
 )

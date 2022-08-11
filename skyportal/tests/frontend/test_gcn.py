@@ -725,6 +725,28 @@ def test_confirm_reject_source_in_gcn(
     assert status == 200
     assert data['status'] == 'success'
 
+    status, data = api(
+        'POST',
+        'photometry',
+        data={
+            'obj_id': obj_id,
+            'mjd': 58709 + 2,
+            'instrument_id': ztf_camera.id,
+            'flux': 6.24,
+            'fluxerr': 0.031,
+            'zp': 25.0,
+            'magsys': 'ab',
+            'filter': 'ztfg',
+            "ra": 24.6258,
+            "dec": -32.9024,
+            "ra_unc": 0.01,
+            "dec_unc": 0.01,
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
     driver.get(f'/become_user/{super_admin_user.id}')
     driver.get('/gcn_events/2019-08-14T21:10:39')
 
