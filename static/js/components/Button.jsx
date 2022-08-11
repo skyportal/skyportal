@@ -9,11 +9,6 @@ const Button = ({ primary, secondary, async, ...muiButtonProps }) => {
       "Error: startIcon used in Button props. Please use endIcon as specified in the SkyPortal style documentation: https://skyportal.io/docs/styling.html#buttons"
     );
   }
-  if (muiButtonProps.variant || muiButtonProps.color) {
-    throw new Error(
-      "Error: do use variant or color prop in Button, see button documentation for recommended usage https://skyportal.io/docs/styling.html#buttons"
-    );
-  }
   if (async) {
     return (
       <LoadingButton
