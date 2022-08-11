@@ -131,6 +131,7 @@ class Shift(Base):
         cascade='save-update, merge, refresh-expire, expunge',
         passive_deletes=True,
         doc='Elements of a join table mapping Users to Shifts.',
+        overlaps='shifts, users',
     )
 
     comments = relationship(

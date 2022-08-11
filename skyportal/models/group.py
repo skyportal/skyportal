@@ -321,6 +321,7 @@ class Group(Base):
         cascade='save-update, merge, refresh-expire, expunge',
         passive_deletes=True,
         doc='Elements of a join table mapping Users to Groups.',
+        overlaps='users, groups',
     )
 
     observing_runs = relationship(
