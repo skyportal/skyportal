@@ -305,7 +305,6 @@ def get_source(
         source_info["color_magnitude"] = get_color_mag(source_info["annotations"])
 
     source_info = recursive_to_dict(source_info)
-    session.commit()
     return source_info
 
 
@@ -2660,7 +2659,9 @@ class SourceFinderHandler(BaseHandler):
                 return self.error('Invalid argument for `imsize`')
 
             if imsize < 2.0 or imsize > 15.0:
-                return self.error('The value for `imsize` is outside the allowed range (2.0-15.0)')
+                return self.error(
+                    'The value for `imsize` is outside the allowed range (2.0-15.0)'
+                )
 
             initial_pos = (source.ra, source.dec)
             try:
