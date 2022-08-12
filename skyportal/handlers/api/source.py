@@ -2693,7 +2693,7 @@ class SourceFinderHandler(BaseHandler):
 
             if not 0 <= num_offset_stars <= 4:
                 return self.error(
-                    'The value for `num_offset_stars` is outside the allowed range'
+                    'The value for `num_offset_stars` is outside the allowed range (0-4)'
                 )
 
             obstime = self.get_query_argument(
