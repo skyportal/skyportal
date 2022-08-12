@@ -2652,7 +2652,7 @@ class SourceFinderHandler(BaseHandler):
             if output_type not in ["png", "pdf"]:
                 return self.error(f'Invalid argument for `type`: {output_type}')
 
-            imsize = self.get_query_argument('imsize', '4.0')
+            imsize = self.get_query_argument('imsize', 4.0)
             try:
                 imsize = float(imsize)
             except ValueError:
