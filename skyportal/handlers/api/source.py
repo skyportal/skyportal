@@ -2835,9 +2835,9 @@ class SourceNotificationHandler(BaseHandler):
             source_id = data["sourceId"]
 
             source_group_ids = [
-                row[0]
+                row
                 for row in session.scalars(
-                    Source.scalars(
+                    Source.select(
                         session.user_or_token, columns=[Source.group_id]
                     ).where(Source.obj_id == source_id)
                 ).all()
