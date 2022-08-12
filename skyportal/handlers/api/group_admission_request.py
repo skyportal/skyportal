@@ -175,10 +175,18 @@ class GroupAdmissionRequestHandler(BaseHandler):
             ).first()
             if requesting_user is None:
                 return self.error("Invalid user ID")
-            if requesting_user.id != self.current_user.created_by.id:
-                return self.error(
-                    "Group admission request cannot be made on behalf of others."
-                )
+
+            if hasattr(self.current_user, 'created_by'):
+                if requesting_user.id != self.current_user.created_by.id:
+                    return self.error(
+                        "Group admission request cannot be made on behalf of others."
+                    )
+            else:
+                if requesting_user.id != self.current_user.id:
+                    return self.error(
+                        "Group admission request cannot be made on behalf of others."
+                    )
+
             # Ensure user is not already a member of target group
             gu = session.scalars(
                 GroupUser.select(session.user_or_token)
