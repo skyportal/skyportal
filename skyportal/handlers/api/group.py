@@ -830,6 +830,14 @@ class GroupStreamHandler(BaseHandler):
                     f'Cannot add users to group {group_id}. It is a single user group.'
                 )
 
+            for user in group.users:
+                user_streams = [stream.id for stream in user.streams]
+                if stream_id not in user_streams:
+                    return self.error(
+                        f'Not all users have stream access with ID {stream_id}',
+                        status=403,
+                    )
+
             # Add new GroupStream
             gs = session.scalars(
                 GroupStream.select(session.user_or_token).where(
