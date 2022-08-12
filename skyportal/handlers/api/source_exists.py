@@ -52,35 +52,39 @@ class SourceExistsHandler(BaseHandler):
         dec = self.get_query_argument('dec', None)
         radius = self.get_query_argument('radius', None)
 
-        if obj_id is not None:
-            s = Obj.get_if_accessible_by(obj_id, self.current_user)
-            if s is not None:
-                return self.success("A source of that name already exists.")
-        obj_query = Obj.query_records_accessible_by(self.current_user)
-        if any([ra, dec, radius]):
-            if not all([ra, dec, radius]):
-                return self.error(
-                    "If any of 'ra', 'dec' or 'radius' are "
-                    "provided, all three are required."
-                )
-            try:
-                ra = float(ra)
-                dec = float(dec)
-                radius = float(radius)
-            except ValueError:
-                return self.error(
-                    "Invalid values for ra, dec or radius - could not convert to float"
-                )
-            other = ca.Point(ra=ra, dec=dec)
-            obj_query = obj_query.filter(Obj.within(other, radius))
-            objs = obj_query.all()
-            if len(objs) == 1:
-                return self.success(
-                    f"A source at that location already exists: {objs[0].id}."
-                )
-            elif len(objs) > 1:
-                return self.success(
-                    f"Sources at that location already exist: {','.join([obj.id for obj in objs])}."
-                )
+        with self.Session() as session:
 
-        return self.success("A source of that name does not exist.")
+            if obj_id is not None:
+                s = session.scalars(
+                    Obj.select(session.user_or_token).where(Obj.id == obj_id)
+                ).first()
+                if s is not None:
+                    return self.success("A source of that name already exists.")
+            obj_query = Obj.select(session.user_or_token)
+            if any([ra, dec, radius]):
+                if not all([ra, dec, radius]):
+                    return self.error(
+                        "If any of 'ra', 'dec' or 'radius' are "
+                        "provided, all three are required."
+                    )
+                try:
+                    ra = float(ra)
+                    dec = float(dec)
+                    radius = float(radius)
+                except ValueError:
+                    return self.error(
+                        "Invalid values for ra, dec or radius - could not convert to float"
+                    )
+                other = ca.Point(ra=ra, dec=dec)
+                obj_query = obj_query.where(Obj.within(other, radius))
+                objs = session.scalars(obj_query).unique().all()
+                if len(objs) == 1:
+                    return self.success(
+                        f"A source at that location already exists: {objs[0].id}."
+                    )
+                elif len(objs) > 1:
+                    return self.success(
+                        f"Sources at that location already exist: {','.join([obj.id for obj in objs])}."
+                    )
+
+            return self.success("A source of that name does not exist.")
