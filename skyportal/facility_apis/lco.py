@@ -99,7 +99,7 @@ class SINISTRORequest:
             'proposal': altdata["PROPOSAL_ID"],
             'ipp_value': request.payload["priority"],
             'operator': 'SINGLE',
-            'observation_type': 'NORMAL',
+            'observation_type': request.payload["observation_mode"],
             'requests': [
                 {
                     'configurations': configurations,
@@ -201,7 +201,7 @@ class SPECTRALRequest:
             'proposal': altdata["PROPOSAL_ID"],
             'ipp_value': request.payload["priority"],
             'operator': 'SINGLE',
-            'observation_type': 'NORMAL',
+            'observation_type': request.payload["observation_mode"],
             'requests': [
                 {
                     'configurations': configurations,
@@ -310,7 +310,7 @@ class MUSCATRequest:
             'proposal': altdata["PROPOSAL_ID"],
             'ipp_value': request.payload["priority"],
             'operator': 'SINGLE',
-            'observation_type': 'NORMAL',
+            'observation_type': request.payload["observation_mode"],
             'requests': [
                 {
                     'configurations': configurations,
@@ -472,7 +472,7 @@ class FLOYDSRequest:
             'proposal': altdata["PROPOSAL_ID"],
             'ipp_value': request.payload["priority"],
             'operator': 'SINGLE',
-            'observation_type': 'NORMAL',
+            'observation_type': request.payload["observation_mode"],
             'requests': [
                 {
                     'configurations': configurations,
@@ -617,12 +617,15 @@ class SINISTROAPI(LCOAPI):
             headers={"Authorization": f'Token {altdata["API_TOKEN"]}'},
             json=requestgroup,  # Make sure you use json!
         )
-        r.raise_for_status()
 
         if r.status_code == 201:
             request.status = 'submitted'
         else:
-            request.status = f'rejected: {r.content}'
+            if "non_field_errors" in r.json():
+                error_message = r.json()["non_field_errors"]
+            else:
+                error_message = r.content
+            request.status = error_message
 
         transaction = FacilityTransaction(
             request=http.serialize_requests_request(r.request),
@@ -636,6 +639,11 @@ class SINISTROAPI(LCOAPI):
     form_json_schema = {
         "type": "object",
         "properties": {
+            "observation_mode": {
+                "type": "string",
+                "enum": ["NORMAL", "RAPID_RESPONSE", "TIME_CRITICAL"],
+                "default": "NORMAL",
+            },
             "observation_choices": {
                 "type": "array",
                 "title": "Desired Observations",
@@ -733,12 +741,14 @@ class SPECTRALAPI(LCOAPI):
             json=requestgroup,  # Make sure you use json!
         )
 
-        r.raise_for_status()
-
         if r.status_code == 201:
             request.status = 'submitted'
         else:
-            request.status = f'rejected: {r.content}'
+            if "non_field_errors" in r.json():
+                error_message = r.json()["non_field_errors"]
+            else:
+                error_message = r.content
+            request.status = error_message
 
         transaction = FacilityTransaction(
             request=http.serialize_requests_request(r.request),
@@ -752,6 +762,11 @@ class SPECTRALAPI(LCOAPI):
     form_json_schema = {
         "type": "object",
         "properties": {
+            "observation_mode": {
+                "type": "string",
+                "enum": ["NORMAL", "RAPID_RESPONSE", "TIME_CRITICAL"],
+                "default": "NORMAL",
+            },
             "observation_choices": {
                 "type": "array",
                 "title": "Desired Observations",
@@ -847,12 +862,15 @@ class MUSCATAPI(LCOAPI):
             headers={"Authorization": f'Token {altdata["API_TOKEN"]}'},
             json=requestgroup,  # Make sure you use json!
         )
-        r.raise_for_status()
 
         if r.status_code == 201:
             request.status = 'submitted'
         else:
-            request.status = f'rejected: {r.content}'
+            if "non_field_errors" in r.json():
+                error_message = r.json()["non_field_errors"]
+            else:
+                error_message = r.content
+            request.status = error_message
 
         transaction = FacilityTransaction(
             request=http.serialize_requests_request(r.request),
@@ -866,6 +884,11 @@ class MUSCATAPI(LCOAPI):
     form_json_schema = {
         "type": "object",
         "properties": {
+            "observation_mode": {
+                "type": "string",
+                "enum": ["NORMAL", "RAPID_RESPONSE", "TIME_CRITICAL"],
+                "default": "NORMAL",
+            },
             "exposure_time": {
                 "title": "Exposure Time [s]",
                 "type": "number",
@@ -955,12 +978,14 @@ class FLOYDSAPI(LCOAPI):
             json=requestgroup,  # Make sure you use json!
         )
 
-        r.raise_for_status()
-
         if r.status_code == 201:
             request.status = 'submitted'
         else:
-            request.status = f'rejected: {r.content}'
+            if "non_field_errors" in r.json():
+                error_message = r.json()["non_field_errors"]
+            else:
+                error_message = r.content
+            request.status = error_message
 
         transaction = FacilityTransaction(
             request=http.serialize_requests_request(r.request),
@@ -974,6 +999,11 @@ class FLOYDSAPI(LCOAPI):
     form_json_schema = {
         "type": "object",
         "properties": {
+            "observation_mode": {
+                "type": "string",
+                "enum": ["NORMAL", "RAPID_RESPONSE", "TIME_CRITICAL"],
+                "default": "NORMAL",
+            },
             "exposure_time": {
                 "title": "Exposure Time [s]",
                 "type": "number",
