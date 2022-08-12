@@ -1,5 +1,6 @@
 import arrow
 import sqlalchemy as sa
+from sqlalchemy import func
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
@@ -130,11 +131,12 @@ class ClassificationHandler(BaseHandler):
                     Classification.created_at <= end_date
                 )
 
-            total_matches = classifications.count()
+            count_stmt = sa.select(func.count()).select_from(classifications)
+            total_matches = session.execute(count_stmt).scalar()
             classifications = classifications.limit(n_per_page).offset(
                 (page_number - 1) * n_per_page
             )
-            classifications = classifications.unique().all()
+            classifications = session.scalars(classifications).unique().all()
 
             info = {}
             info["classifications"] = [req.to_dict() for req in classifications]
