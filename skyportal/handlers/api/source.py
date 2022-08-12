@@ -2542,7 +2542,7 @@ class SourceOffsetsHandler(BaseHandler):
                 [x["str"].replace(" ", "&nbsp;") for x in starlist_info]
             )
 
-            self.verify_and_commit()
+            session.commit()
             return self.success(
                 data={
                     'facility': facility,
