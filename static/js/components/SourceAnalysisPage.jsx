@@ -52,7 +52,7 @@ const useStyles = makeStyles((theme) => ({
     height: "95%",
     width: "95%",
   },
-  corner: {                                                                                                                                                                                                                                                                                                  
+  corner: {
     height: "70vh",
   },
   media: {
