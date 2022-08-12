@@ -55,7 +55,7 @@ def test_group_admission_read_access(
         token=view_only_token,
     )
     assert_api_fail(
-        status, data, 400, "Could not find an admission request with the ID"
+        status, data, 400, "User must be group admin or requester to see request"
     )
 
 
