@@ -27,7 +27,6 @@ const useStyles = makeStyles((theme) => ({
   root: ({ size }) => ({
     width: size,
     margin: "0.5rem auto",
-    maxHeight: "31rem",
     flexGrow: 1,
   }),
   div: {
@@ -53,13 +52,11 @@ const useStyles = makeStyles((theme) => ({
     height: "95%",
     width: "95%",
   },
-  corner: {
-    height: "60%",
-    width: "60%",
+  corner: {                                                                                                                                                                                                                                                                                                  
+    height: "70vh",
   },
   media: {
-    height: "90%",
-    width: "90%",
+    height: "70vh",
   },
   downTriangle: {
     width: 0,
