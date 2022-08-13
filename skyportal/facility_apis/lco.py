@@ -624,7 +624,7 @@ class SINISTROAPI(LCOAPI):
             if "non_field_errors" in r.json():
                 error_message = r.json()["non_field_errors"]
             else:
-                error_message = r.content
+                error_message = r.content.decode()
             request.status = error_message
 
         transaction = FacilityTransaction(
@@ -747,7 +747,7 @@ class SPECTRALAPI(LCOAPI):
             if "non_field_errors" in r.json():
                 error_message = r.json()["non_field_errors"]
             else:
-                error_message = r.content
+                error_message = r.content.decode()
             request.status = error_message
 
         transaction = FacilityTransaction(
@@ -869,7 +869,7 @@ class MUSCATAPI(LCOAPI):
             if "non_field_errors" in r.json():
                 error_message = r.json()["non_field_errors"]
             else:
-                error_message = r.content
+                error_message = r.content.decode()
             request.status = error_message
 
         transaction = FacilityTransaction(
@@ -984,7 +984,7 @@ class FLOYDSAPI(LCOAPI):
             if "non_field_errors" in r.json():
                 error_message = r.json()["non_field_errors"]
             else:
-                error_message = r.content
+                error_message = r.content.decode()
             request.status = error_message
 
         transaction = FacilityTransaction(
