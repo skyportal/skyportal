@@ -142,7 +142,7 @@ const GcnEventsFilterForm = ({ handleFilterSubmit }) => {
         </div>
         <div className={classes.formItemRightColumn}>
           <Typography variant="subtitle2" className={classes.title}>
-            GCN Tag
+            GCN Tag to Keep
           </Typography>
           <div className={classes.selectItems}>
             <Controller
@@ -154,7 +154,8 @@ const GcnEventsFilterForm = ({ handleFilterSubmit }) => {
                   onChange={(event) => {
                     reset({
                       ...getValues(),
-                      tag: event.target.value === -1 ? "" : event.target.value,
+                      tagKeep:
+                        event.target.value === -1 ? "" : event.target.value,
                     });
                   }}
                   className={classes.select}
@@ -170,7 +171,44 @@ const GcnEventsFilterForm = ({ handleFilterSubmit }) => {
                   ))}
                 </Select>
               )}
-              name="tag"
+              name="tagKeep"
+              control={control}
+              defaultValue=""
+            />
+          </div>
+        </div>
+        <div className={classes.formItemRightColumn}>
+          <Typography variant="subtitle2" className={classes.title}>
+            GCN Tag to Filter Out
+          </Typography>
+          <div className={classes.selectItems}>
+            <Controller
+              render={({ value }) => (
+                <Select
+                  inputProps={{ MenuProps: { disableScrollLock: true } }}
+                  labelId="gcnTagRemoveLabel"
+                  value={value || ""}
+                  onChange={(event) => {
+                    reset({
+                      ...getValues(),
+                      tagRemove:
+                        event.target.value === -1 ? "" : event.target.value,
+                    });
+                  }}
+                  className={classes.select}
+                >
+                  {gcnTags?.map((gcnTag) => (
+                    <MenuItem
+                      value={gcnTag}
+                      key={gcnTag}
+                      className={classes.selectItem}
+                    >
+                      {`${gcnTag}`}
+                    </MenuItem>
+                  ))}
+                </Select>
+              )}
+              name="tagRemove"
               control={control}
               defaultValue=""
             />
