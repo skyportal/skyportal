@@ -1,8 +1,9 @@
+import json
 import uuid
 import datetime
 import base64
 
-from skyportal.tests import api
+from skyportal.tests import api, assert_api, assert_api_fail
 
 
 def test_add_and_retrieve_comment_group_id(
@@ -226,8 +227,7 @@ def test_delete_comment(comment_token, upload_data_token, public_source, lris):
         },
         token=upload_data_token,
     )
-    assert status == 200
-    assert data['status'] == 'success'
+    assert_api(status, data)
     spectrum_id = data["data"]["id"]
 
     status, data = api(
@@ -239,34 +239,35 @@ def test_delete_comment(comment_token, upload_data_token, public_source, lris):
         },
         token=comment_token,
     )
-    assert status == 200
+    assert_api(status, data)
     comment_id = data['data']['comment_id']
 
     status, data = api(
         'GET', f'spectra/{spectrum_id}/comments/{comment_id}', token=comment_token
     )
-    assert status == 200
+    assert_api(status, data)
     assert data['data']['text'] == 'Comment text'
 
     # try to delete using the wrong spectrum ID
     status, data = api(
         'DELETE', f'spectra/{spectrum_id+1}/comments/{comment_id}', token=comment_token
     )
-    assert status == 400
-    assert (
-        "Comment resource ID does not match resource ID given in path"
-        in data["message"]
+    assert_api_fail(
+        status,
+        data,
+        400,
+        "Comment resource ID does not match resource ID given in path",
     )
 
     status, data = api(
         'DELETE', f'spectra/{spectrum_id}/comments/{comment_id}', token=comment_token
     )
-    assert status == 200
+    assert_api(status, data)
 
     status, data = api(
         'GET', f'spectra/{spectrum_id}/comments/{comment_id}', token=comment_token
     )
-    assert status == 403
+    assert_api_fail(status, data, 403)
 
 
 def test_post_comment_attachment(super_admin_token, public_source, lris, public_group):
@@ -306,18 +307,26 @@ def test_post_comment_attachment(super_admin_token, public_source, lris, public_
     )
     assert status == 200
     assert data['status'] == 'success'
+    comment_id = data["data"]["comment_id"]
 
     status, data = api(
         'GET',
-        f'spectra/{spectrum_id}/comments/{data["data"]["comment_id"]}',
+        f'spectra/{spectrum_id}/comments/{comment_id}',
         token=super_admin_token,
     )
     assert status == 200
     assert data['status'] == 'success'
 
     assert data['data']['text'] == 'Looks like Ia'
-    assert data['data']['attachment'] == base64.b64decode(payload['body']).decode()
     assert data['data']['attachment_name'] == payload['name']
+
+    status, data = api(
+        'GET',
+        f'spectra/{spectrum_id}/comments/{comment_id}/attachment',
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data == json.loads(base64.b64decode(payload['body']).decode())
 
 
 def test_fetch_all_comments_on_obj(

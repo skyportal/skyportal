@@ -1,5 +1,7 @@
+import pytest
 from skyportal.tests import api
 from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.common.by import By
 from datetime import date, timedelta
 import uuid
 import time
@@ -7,6 +9,7 @@ import os
 import numpy as np
 
 
+@pytest.mark.flaky(reruns=2)
 def test_shift(
     public_group,
     super_admin_token,
@@ -78,9 +81,11 @@ def test_shift(
     driver.wait_for_xpath('//*[@id="root_comment"]').send_keys('This is a comment')
     driver.click_xpath('//button[@type="submitComment"]')
 
-    # check for comment in shift page
+    driver.wait_for_xpath('//*[contains(text(), "This is a comment")]')
     assert (
-        len(driver.find_elements_by_xpath('//*[contains(text(), "This is a comment")]'))
+        len(
+            driver.find_elements(By.XPATH, '//*[contains(text(), "This is a comment")]')
+        )
         == 1
     )
 
@@ -88,9 +93,13 @@ def test_shift(
     driver.scroll_to_element_and_click(driver.wait_for_xpath('//*[@id="comment"]'))
     driver.click_xpath('//*[contains(@name, "deleteCommentButton")]')
 
+    driver.wait_for_xpath_to_disappear('//*[contains(text(), "This is a comment")]')
+
     # check if comment has been successfully deleted
     assert (
-        len(driver.find_elements_by_xpath('//*[contains(text(), "This is a comment")]'))
+        len(
+            driver.find_elements(By.XPATH, '//*[contains(text(), "This is a comment")]')
+        )
         == 0
     )
 
@@ -305,15 +314,15 @@ def test_shift(
 
     assert (
         len(
-            driver.find_elements_by_xpath(
-                f'//*[@id="current_shift_title"][contains(.,"{form_name}")]'
+            driver.find_elements(
+                By.XPATH, f'//*[@id="current_shift_title"][contains(.,"{form_name}")]'
             )
         )
         == 0
     )
 
     assert (
-        len(driver.find_elements_by_xpath(f'//*/strong[contains(.,"{form_name}")]'))
+        len(driver.find_elements(By.XPATH, f'//*/strong[contains(.,"{form_name}")]'))
         == 0
     )
 

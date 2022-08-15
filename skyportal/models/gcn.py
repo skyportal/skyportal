@@ -166,6 +166,14 @@ class GcnEvent(Base):
         doc="Observation plan requests of the event.",
     )
 
+    survey_efficiency_analyses = relationship(
+        'SurveyEfficiencyForObservations',
+        back_populates='gcnevent',
+        cascade='delete',
+        passive_deletes=True,
+        doc="Survey efficiency analyses of the event.",
+    )
+
     comments = relationship(
         'CommentOnGCN',
         back_populates='gcn',
@@ -173,6 +181,15 @@ class GcnEvent(Base):
         passive_deletes=True,
         order_by="CommentOnGCN.created_at",
         doc="Comments posted about this GCN event.",
+    )
+
+    reminders = relationship(
+        'ReminderOnGCN',
+        back_populates='gcn',
+        cascade='save-update, merge, refresh-expire, expunge, delete',
+        passive_deletes=True,
+        order_by="ReminderOnGCN.created_at",
+        doc="Reminders about this GCN event.",
     )
 
     @hybrid_property

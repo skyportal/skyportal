@@ -1,7 +1,8 @@
 # Customizations of baselayer User and Token models
 
+import sqlalchemy as sa
 from sqlalchemy.orm import relationship
-from sqlalchemy import event
+from sqlalchemy import event, inspect
 
 from slugify import slugify
 
@@ -70,16 +71,25 @@ def user_or_token_accessible_streams(self):
     return self.streams
 
 
+@property
+def get_single_user_group(self):
+    group = (
+        DBSession()
+        .scalars(
+            sa.select(Group)
+            .join(GroupUser)
+            .where(Group.single_user_group.is_(True), GroupUser.user_id == self.id)
+        )
+        .first()
+    )
+    return group
+
+
 User.to_dict = user_to_dict
 User.accessible_groups = user_or_token_accessible_groups
 User.accessible_streams = user_or_token_accessible_streams
-User.single_user_group = property(
-    lambda self: DBSession()
-    .query(Group)
-    .join(GroupUser)
-    .filter(Group.single_user_group.is_(True), GroupUser.user_id == self.id)
-    .first()
-)
+User.single_user_group = get_single_user_group
+
 User.streams = relationship(
     'Stream',
     secondary='stream_users',
@@ -92,6 +102,7 @@ User.groups = relationship(
     secondary='group_users',
     back_populates='users',
     passive_deletes=True,
+    lazy='selectin',
     doc="The Groups this User is a member of.",
 )
 User.shifts = relationship(
@@ -105,6 +116,13 @@ User.comments = relationship(
     "Comment",
     back_populates="author",
     foreign_keys="Comment.author_id",
+    cascade="delete",
+    passive_deletes=True,
+)
+User.reminders = relationship(
+    "Reminder",
+    back_populates="user",
+    foreign_keys="Reminder.user_id",
     cascade="delete",
     passive_deletes=True,
 )
@@ -122,6 +140,13 @@ User.photometry = relationship(
     passive_deletes=True,
     foreign_keys="Photometry.owner_id",
 )
+User.photometric_series = relationship(
+    'PhotometricSeries',
+    doc='PhotometricSeries uploaded by this User.',
+    back_populates='owner',
+    passive_deletes=True,
+    foreign_keys="PhotometricSeries.owner_id",
+)
 User.spectra = relationship(
     'Spectrum', doc='Spectra uploaded by this User.', back_populates='owner'
 )
@@ -129,6 +154,13 @@ User.comments_on_spectra = relationship(
     "CommentOnSpectrum",
     back_populates="author",
     foreign_keys="CommentOnSpectrum.author_id",
+    cascade="delete",
+    passive_deletes=True,
+)
+User.reminders_on_spectra = relationship(
+    "ReminderOnSpectrum",
+    back_populates="user",
+    foreign_keys="ReminderOnSpectrum.user_id",
     cascade="delete",
     passive_deletes=True,
 )
@@ -146,6 +178,13 @@ User.comments_on_gcns = relationship(
     cascade="delete",
     passive_deletes=True,
 )
+User.reminders_on_gcns = relationship(
+    "ReminderOnGCN",
+    back_populates="user",
+    foreign_keys="ReminderOnGCN.user_id",
+    cascade="delete",
+    passive_deletes=True,
+)
 User.default_observationplan_requests = relationship(
     'DefaultObservationPlanRequest',
     back_populates='requester',
@@ -157,6 +196,13 @@ User.comments_on_shifts = relationship(
     "CommentOnShift",
     back_populates="author",
     foreign_keys="CommentOnShift.author_id",
+    cascade="delete",
+    passive_deletes=True,
+)
+User.reminders_on_shifts = relationship(
+    "ReminderOnShift",
+    back_populates="user",
+    foreign_keys="ReminderOnShift.user_id",
     cascade="delete",
     passive_deletes=True,
 )
@@ -173,6 +219,21 @@ User.observationplan_requests = relationship(
     passive_deletes=True,
     doc="The observation plan requests this User has made.",
     foreign_keys=[ObservationPlanRequest.requester_id],
+)
+User.survey_efficiency_for_observations = relationship(
+    'SurveyEfficiencyForObservations',
+    back_populates='requester',
+    passive_deletes=True,
+    cascade="delete",
+    doc="The survey efficiency analyses on Observations this User has made.",
+    foreign_keys="SurveyEfficiencyForObservations.requester_id",
+)
+User.survey_efficiency_for_observation_plan = relationship(
+    'SurveyEfficiencyForObservationPlan',
+    back_populates='requester',
+    passive_deletes=True,
+    doc="The survey efficiency analyses on ObservationPlans this User has made.",
+    foreign_keys="SurveyEfficiencyForObservationPlan.requester_id",
 )
 User.transactions = relationship(
     'FacilityTransaction',
@@ -258,7 +319,7 @@ User.update = User.delete = CustomUserAccessControl(user_update_delete_logic)
 def create_single_user_group(mapper, connection, target):
 
     # Create single-user group
-    @event.listens_for(DBSession(), "after_flush", once=True)
+    @event.listens_for(inspect(target).session, "after_flush", once=True)
     def receive_after_flush(session, context):
         session.add(
             Group(name=slugify(target.username), users=[target], single_user_group=True)
@@ -270,9 +331,16 @@ def delete_single_user_group(mapper, connection, target):
     single_user_group = target.single_user_group
 
     # Delete single-user group
-    @event.listens_for(DBSession(), "after_flush_postexec", once=True)
+    @event.listens_for(inspect(target).session, "after_flush_postexec", once=True)
     def receive_after_flush(session, context):
-        DBSession().delete(single_user_group)
+        if single_user_group:
+            # must assign to a new variable to allow
+            # the one from the outer scope (that makes the closure)
+            # to be known by the inner scope (this function)
+            # also, must merge the single_user_group as it is
+            # usually generated by a different session
+            new_single_user_group = session.merge(single_user_group)
+            session.delete(new_single_user_group)
 
 
 @event.listens_for(User, 'after_update')

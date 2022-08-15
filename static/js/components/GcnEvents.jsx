@@ -13,11 +13,14 @@ import {
 import makeStyles from "@mui/styles/makeStyles";
 import Chip from "@mui/material/Chip";
 import Button from "@mui/material/Button";
+import InfoIcon from "@mui/icons-material/Info";
 
 import MUIDataTable from "mui-datatables";
 
+import { filterOutEmptyValues } from "../API";
 import * as gcnEventsActions from "../ducks/gcnEvents";
 import Spinner from "./Spinner";
+import GcnEventsFilterForm from "./GcnEventsFilterForm";
 
 const useStyles = makeStyles((theme) => ({
   container: {
@@ -80,6 +83,7 @@ const GcnEvents = () => {
   const theme = useTheme();
   const dispatch = useDispatch();
   const gcnEvents = useSelector((state) => state.gcnEvents);
+  const [filterFormSubmitted, setFilterFormSubmitted] = useState(false);
 
   const [fetchParams, setFetchParams] = useState({
     pageNumber: 1,
@@ -96,20 +100,69 @@ const GcnEvents = () => {
 
   const { events, totalMatches } = gcnEvents;
 
-  const handlePageChange = async (page, numPerPage) => {
+  const handlePageChange = async (pageNumber, numPerPage, sortData) => {
     const params = {
       ...fetchParams,
+      pageNumber,
       numPerPage,
-      pageNumber: page + 1,
     };
+    if (sortData && Object.keys(sortData).length > 0) {
+      params.sortBy = sortData.name;
+      params.sortOrder = sortData.direction;
+    }
     // Save state for future
     setFetchParams(params);
     await dispatch(gcnEventsActions.fetchGcnEvents(params));
   };
 
+  const handleTableFilter = async (pageNumber, numPerPage, filterData) => {
+    const params = {
+      ...fetchParams,
+      pageNumber,
+      numPerPage,
+    };
+    if (filterData && Object.keys(filterData).length > 0) {
+      params.startDate = filterData.startDate;
+      params.endDate = filterData.endDate;
+      params.tag = filterData.tag;
+    }
+    // Save state for future
+    setFetchParams(params);
+    await dispatch(gcnEventsActions.fetchGcnEvents(params));
+  };
+
+  const handleTableSorting = async (sortData) => {
+    const params = {
+      ...fetchParams,
+      pageNumber: 1,
+      sortBy: sortData.name,
+      sortOrder: sortData.direction,
+    };
+    setFetchParams(params);
+    await dispatch(gcnEventsActions.fetchGcnEvents(params));
+  };
+
+  const handleFilterSubmit = async (formData) => {
+    const data = filterOutEmptyValues(formData);
+
+    handleTableFilter(1, defaultNumPerPage, data);
+    setFilterFormSubmitted(true);
+  };
+
   const handleTableChange = (action, tableState) => {
     if (action === "changePage" || action === "changeRowsPerPage") {
-      handlePageChange(tableState.page, tableState.rowsPerPage);
+      handlePageChange(
+        tableState.page + 1,
+        tableState.rowsPerPage,
+        tableState.sortOrder
+      );
+    }
+    if (action === "sort") {
+      if (tableState.sortOrder.direction === "none") {
+        handlePageChange(1, tableState.rowsPerPage, {});
+      } else {
+        handleTableSorting(tableState.sortOrder);
+      }
     }
   };
 
@@ -154,6 +207,15 @@ const GcnEvents = () => {
     </Link>
   );
 
+  const customFilterDisplay = () =>
+    filterFormSubmitted ? (
+      <div className={classes.filterAlert}>
+        <InfoIcon /> &nbsp; Filters submitted to server!
+      </div>
+    ) : (
+      <GcnEventsFilterForm handleFilterSubmit={handleFilterSubmit} />
+    );
+
   const columns = [
     {
       name: "dateobs",
@@ -186,7 +248,6 @@ const GcnEvents = () => {
   ];
 
   const options = {
-    search: true,
     selectableRows: "none",
     elevation: 0,
     page: fetchParams.pageNumber - 1,
@@ -196,10 +257,12 @@ const GcnEvents = () => {
     serverSide: true,
     pagination: true,
     count: totalMatches,
+    onTableChange: handleTableChange,
+    search: false, // Disable search for now (not implemented yet)
+    download: false, // Disable download button for now (not implemented yet)
+    filter: true,
+    customFilterDialogFooter: customFilterDisplay,
   };
-  if (typeof handleTableChange === "function") {
-    options.onTableChange = handleTableChange;
-  }
 
   return (
     <div>

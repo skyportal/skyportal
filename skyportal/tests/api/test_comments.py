@@ -1,3 +1,4 @@
+import json
 import uuid
 import base64
 from skyportal.tests import api
@@ -282,11 +283,15 @@ def test_problematic_put_comment_attachment_1275(
     )
     assert status3 == 200
     assert data3["status"] == 'success'
-    assert (
-        data3['data']['attachment']
-        == base64.b64decode(payload['attachment_bytes']).decode()
-    )
     assert data3['data']['attachment_name'] == payload['attachment_name']
+
+    status4, data4 = api(
+        'GET',
+        f'sources/{public_source.id}/comments/{data["data"]["comment_id"]}/attachment',
+        token=super_admin_token,
+    )
+    assert status4 == 200
+    assert data4 == json.loads(base64.b64decode(payload['attachment_bytes']).decode())
 
 
 def test_problematic_post_comment_attachment_1275(

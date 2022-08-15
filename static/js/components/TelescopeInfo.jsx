@@ -59,15 +59,10 @@ const useStyles = makeStyles(() => ({
     backgroundColor: "#f9d71c",
     borderRadius: "50%",
   },
-  canObserveNonFixed: {
-    height: "1rem",
-    width: "1rem",
-    backgroundColor: "#0c1445",
-  },
   cannotObserveNonFixed: {
     height: "1rem",
     width: "1rem",
-    backgroundColor: "#f9d71c",
+    backgroundColor: "#5ca9d6",
   },
   telescope_time: {
     display: "flex",
@@ -99,16 +94,12 @@ const TelescopeInfo = () => {
               {telescope.is_night_astronomical && telescope.fixed_location && (
                 <span className={classes.canObserveFixed} />
               )}
-              {telescope.is_night_astronomical && !telescope.fixed_location && (
-                <span className={classes.canObserveNonFixed} />
-              )}
               {!telescope.is_night_astronomical && telescope.fixed_location && (
                 <span className={classes.cannotObserveFixed} />
               )}
-              {!telescope.is_night_astronomical &&
-                !telescope.fixed_location && (
-                  <span className={classes.cannotObserveNonFixed} />
-                )}
+              {!telescope.fixed_location && (
+                <span className={classes.cannotObserveNonFixed} />
+              )}
               <h2 className={classes.h2}>
                 {telescope.name} ({telescope.nickname})
               </h2>

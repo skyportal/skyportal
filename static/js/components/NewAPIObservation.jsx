@@ -15,7 +15,9 @@ dayjs.extend(utc);
 const NewAPIObservation = () => {
   const { instrumentList } = useSelector((state) => state.instruments);
   const { telescopeList } = useSelector((state) => state.telescopes);
-  const { allocationList } = useSelector((state) => state.allocations);
+  const { allocationListApiObsplan } = useSelector(
+    (state) => state.allocations
+  );
   const allGroups = useSelector((state) => state.groups.all);
 
   const dispatch = useDispatch();
@@ -32,23 +34,13 @@ const NewAPIObservation = () => {
       // Wait for the allocations to update before setting
       // the new default form fields, so that the allocations list can
       // update
-
-      await dispatch(
-        allocationActions.fetchAllocations({
-          apiType: "api_classname_obsplan",
-        })
-      );
+      await dispatch(allocationActions.fetchAllocationsApiObsplan());
     };
 
     getAllocations();
 
     dispatch(
       instrumentActions.fetchInstrumentForms({
-        apiType: "api_classname_obsplan",
-      })
-    );
-    dispatch(
-      allocationActions.fetchAllocations({
         apiType: "api_classname_obsplan",
       })
     );
@@ -67,8 +59,8 @@ const NewAPIObservation = () => {
     return <h3>No telescopes/instruments available...</h3>;
   }
 
-  if (allocationList.length === 0) {
-    return <h3>No robotic instruments available...</h3>;
+  if (allocationListApiObsplan.length === 0) {
+    return <h3>No allocations with an observation plan API...</h3>;
   }
 
   const groupLookUp = {};
@@ -130,16 +122,16 @@ const NewAPIObservation = () => {
       },
       allocation_id: {
         type: "integer",
-        oneOf: allocationList.map((allocation) => ({
+        oneOf: allocationListApiObsplan.map((allocation) => ({
           enum: [allocation.id],
           title: `${
             telLookUp[instLookUp[allocation.instrument_id].telescope_id].name
           } / ${instLookUp[allocation.instrument_id].name} - ${
-            groupLookUp[allocation.group_id].name
+            groupLookUp[allocation.group_id]?.name
           } (PI ${allocation.pi})`,
         })),
         title: "Allocation",
-        default: allocationList[0]?.id,
+        default: allocationListApiObsplan[0]?.id,
       },
     },
     required: ["start_date", "end_date", "allocation_id"],

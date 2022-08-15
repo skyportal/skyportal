@@ -85,6 +85,8 @@ DBSession().add(obj)  # add a new object into the DB
 DBSession().commit()  # commit modifications to objects
 DBSession().rollback()  # recover after a DB error
 ```
+For more information on how to use the session, see `baselayer/doc/dev.md`.
+
 
 - Generic logic applicable to any model is included in the base model class `baselayer.app.models.Base` (`to_dict`, `__str__`, etc.), but can be overridden within a specific model
 - Models can be queried directly (`User.query.all()`), or more specific queries can be constructed via the session object (`DBSession().query(User.id).all()`)

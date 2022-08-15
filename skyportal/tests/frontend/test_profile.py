@@ -7,23 +7,21 @@ from skyportal.tests import api
 from tdtax import taxonomy, __version__
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.action_chains import ActionChains
+from selenium.webdriver.common.by import By
 
 
 def test_token_acls_options_rendering1(driver, user):
     driver.get(f"/become_user/{user.id}")
     driver.get("/profile")
-    driver.wait_for_xpath('//*[@data-testid="acls[0]"]')
-    driver.wait_for_xpath('//*[@data-testid="acls[1]"]')
-    driver.wait_for_xpath('//*[@data-testid="acls[2]"]')
-    driver.wait_for_xpath('//*[@data-testid="acls[3]"]')
-    driver.wait_for_xpath('//*[@data-testid="acls[4]"]')
-    driver.wait_for_xpath_to_disappear('//*[@data-testid="acls[5]"]')
+    for i in range(6):
+        driver.wait_for_xpath(f'//*[@data-testid="acls[{i}]"]')
+    driver.wait_for_xpath_to_disappear('//*[@data-testid="acls[6]"]')
 
 
 def test_token_acls_options_rendering2(driver, super_admin_user):
     driver.get(f"/become_user/{super_admin_user.id}")
     driver.get("/profile")
-    for i in range(5):
+    for i in range(6):
         driver.wait_for_xpath(f'//*[@data-testid="acls[{i}]"]')
 
 
@@ -38,7 +36,7 @@ def test_add_and_see_realname_in_user_profile(driver, user):
     last_name_entry.send_keys(last_name)
 
     driver.scroll_to_element_and_click(
-        driver.find_element_by_xpath('//*[@id="updateProfileButton"]')
+        driver.find_element(By.XPATH, '//*[@id="updateProfileButton"]')
     )
 
     # now that we added the name, let's see if it's displayed correctly
@@ -48,6 +46,32 @@ def test_add_and_see_realname_in_user_profile(driver, user):
 
     driver.wait_for_xpath(
         f'//*[@id="userRealname"][contains(text(), "{first_name}") and contains(text(), "{last_name}")]'
+    )
+
+
+def test_add_and_see_affiliations_in_user_profile(driver, user):
+    driver.get(f"/become_user/{user.id}")
+    driver.get("/profile")
+    affiliations_entry = driver.wait_for_xpath('//input[@name="affiliations"]')
+    driver.scroll_to_element_and_click(affiliations_entry)
+    affiliation_1 = str(uuid.uuid4())
+    affiliations_entry.send_keys(affiliation_1)
+    affiliations_entry.send_keys(Keys.ENTER)
+
+    affiliation_2 = str(uuid.uuid4())
+    affiliations_entry.send_keys(affiliation_2)
+    affiliations_entry.send_keys(Keys.ENTER)
+
+    driver.scroll_to_element_and_click(
+        driver.find_element(By.XPATH, '//*[@id="updateProfileButton"]')
+    )
+
+    # now that we added the affiliations, let's see if they are displayed correctly
+    driver.wait_for_xpath(
+        '//*[@id="userAffiliations"][contains(@style, "visibility: visible")]'
+    )
+    driver.wait_for_xpath(
+        f'//*[@id="userAffiliations"]/em[contains(text(), "{affiliation_1}") and contains(text(), "{affiliation_2}")]'
     )
 
 
@@ -63,6 +87,12 @@ def test_add_data_to_user_profile(driver, user):
     last_name = str(uuid.uuid4())
     last_name_entry.send_keys(last_name)
 
+    affiliations_entry = driver.wait_for_xpath('//input[@name="affiliations"]')
+    driver.scroll_to_element_and_click(affiliations_entry)
+    affiliation = str(uuid.uuid4())
+    affiliations_entry.send_keys(affiliation)
+    affiliations_entry.send_keys(Keys.ENTER)
+
     email_entry = driver.wait_for_xpath('//input[@name="email"]')
     driver.scroll_to_element_and_click(email_entry)
     email = f"{str(uuid.uuid4())[:5]}@hotmail.com"
@@ -75,7 +105,7 @@ def test_add_data_to_user_profile(driver, user):
     phone_entry.send_keys(phone)
 
     driver.scroll_to_element_and_click(
-        driver.find_element_by_xpath('//*[@id="updateProfileButton"]')
+        driver.find_element(By.XPATH, '//*[@id="updateProfileButton"]')
     )
 
 

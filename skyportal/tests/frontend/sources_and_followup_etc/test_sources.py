@@ -1,15 +1,21 @@
 import os
 from os.path import join as pjoin
 import uuid
+import json
+import time
+
 from io import BytesIO
 import pytest
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.common.exceptions import TimeoutException
+from selenium.webdriver.common.by import By
 from PIL import Image, ImageChops
 
 from baselayer.app.config import load_config
 from skyportal.tests import api
 from skyportal.models import DBSession
+
+analysis_port = 6802
 
 
 cfg = load_config()
@@ -116,6 +122,123 @@ def test_public_source_page_null_z(driver, user, public_source, public_group):
     driver.wait_for_xpath(f'//span[text()="{public_group.name}"]')
 
 
+def test_analysis_start(
+    driver, user, public_source, analysis_service_token, public_group
+):
+
+    name = str(uuid.uuid4())
+    optional_analysis_parameters = {}
+
+    post_data = {
+        'name': name,
+        'display_name': "test analysis service name",
+        'description': "A test analysis service description",
+        'version': "1.0",
+        'contact_name': "Vera Rubin",
+        'contact_email': "vr@ls.st",
+        # this is the URL/port of the SN analysis service that will be running during testing
+        'url': f"http://localhost:{analysis_port}/analysis/demo_analysis",
+        'optional_analysis_parameters': json.dumps(optional_analysis_parameters),
+        'authentication_type': "none",
+        'analysis_type': 'lightcurve_fitting',
+        'input_data_types': ['photometry', 'redshift'],
+        'timeout': 60,
+        'group_ids': [public_group.id],
+    }
+
+    status, data = api(
+        'POST', 'analysis_service', data=post_data, token=analysis_service_token
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    driver.get(f"/become_user/{user.id}")
+    driver.get(f"/source/{public_source.id}")
+    driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
+    driver.wait_for_xpath('//*[text()="External Analysis"]')
+
+    driver.click_xpath('//div[@data-testid="analysisServiceSelect"]')
+    driver.click_xpath(
+        '//div[@data-testid="analysis-service-request-form"]//*[@type="submit"]'
+    )
+    driver.wait_for_xpath(
+        "//*[text()='Sending data to analysis service to start the analysis.']"
+    )
+
+
+def test_analysis_page(
+    driver, user, public_source, analysis_service_token, analysis_token, public_group
+):
+
+    name = str(uuid.uuid4())
+    optional_analysis_parameters = {"test_parameters": ["test_value_1", "test_value_2"]}
+    post_data = {
+        'name': name,
+        'display_name': "test analysis service name",
+        'description': "A test analysis service description",
+        'version': "1.0",
+        'contact_name': "Vera Rubin",
+        'contact_email': "vr@ls.st",
+        # this is the URL/port of the SN analysis service that will be running during testing
+        'url': f"http://localhost:{analysis_port}/analysis/demo_analysis",
+        'optional_analysis_parameters': json.dumps(optional_analysis_parameters),
+        'authentication_type': "none",
+        'analysis_type': 'lightcurve_fitting',
+        'input_data_types': ['photometry', 'redshift'],
+        'timeout': 60,
+        'group_ids': [public_group.id],
+    }
+
+    status, data = api(
+        'POST', 'analysis_service', data=post_data, token=analysis_service_token
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    analysis_service_id = data['data']['id']
+
+    status, data = api(
+        'POST',
+        f'obj/{public_source.id}/analysis/{analysis_service_id}',
+        token=analysis_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    analysis_id = data['data'].get('id')
+    assert analysis_id is not None
+
+    max_attempts = 20
+    analysis_status = 'queued'
+
+    while max_attempts > 0:
+        if analysis_status != "queued":
+            break
+        status, data = api(
+            'GET',
+            f'obj/analysis/{analysis_id}',
+            token=analysis_token,
+        )
+        assert status == 200
+        assert data["data"]["analysis_service_id"] == analysis_service_id
+        analysis_status = data["data"]["status"]
+
+        max_attempts -= 1
+        time.sleep(5)
+    else:
+        assert (
+            False
+        ), f"analysis was not started properly ({data['data']['status_message']})"
+
+    driver.get(f"/become_user/{user.id}")
+    driver.get(f"/source/{public_source.id}/analysis/{analysis_id}")
+
+    driver.wait_for_xpath(f'//span[text()="{analysis_status}"]')
+
+    if analysis_status == "completed":
+        driver.wait_for_xpath('//p[text()="Analysis Results"]')
+
+
 @pytest.mark.flaky(reruns=3)
 def test_classifications(driver, user, taxonomy_token, public_group, public_source):
     simple = {
@@ -192,8 +315,8 @@ def test_classifications(driver, user, taxonomy_token, public_group, public_sour
     # Notification
     driver.wait_for_xpath("//*[text()='Classification saved']")
     # Scroll up to get top of classifications list component in view
-    classifications = driver.find_element_by_xpath(
-        "//div[@id='classifications-header']"
+    classifications = driver.find_element(
+        By.XPATH, "//div[@id='classifications-header']"
     )
     driver.scroll_to_element(classifications)
 
@@ -219,8 +342,8 @@ def test_classifications(driver, user, taxonomy_token, public_group, public_sour
     driver.wait_for_xpath('//*[@id="probability"]').send_keys("0.02")
     driver.click_xpath("//*[text()='Submit']", wait_clickable=False)
     driver.wait_for_xpath("//*[text()='Classification saved']")
-    driver.find_element_by_xpath(
-        "//span[contains(@class, 'MuiChip-label') and text()='Mult-mode?']"
+    driver.find_element(
+        By.XPATH, "//span[contains(@class, 'MuiChip-label') and text()='Mult-mode?']"
     )
 
 
@@ -317,7 +440,7 @@ def test_upload_download_comment_attachment(driver, user, public_source):
         comment_text_p = driver.wait_for_xpath(
             f'//div[@data-testid="comments-accordion"]//p[text()="{comment_text}"]'
         )
-    comment_div = comment_text_p.find_element_by_xpath("../..")
+    comment_div = comment_text_p.find_element(By.XPATH, "../..")
     driver.execute_script("arguments[0].scrollIntoView();", comment_div)
     ActionChains(driver).move_to_element(comment_div).perform()
 
@@ -378,11 +501,10 @@ def test_delete_comment(driver, user, public_source):
     comment_text = str(uuid.uuid4())
     add_comment_and_wait_for_display(driver, comment_text)
     comment_text_p = driver.wait_for_xpath(f'//p[text()="{comment_text}"]')
-    comment_div = comment_text_p.find_element_by_xpath("../..")
+    comment_div = comment_text_p.find_element(By.XPATH, "../..")
     comment_id = comment_div.get_attribute("name").split("commentDivSource")[-1]
-    print("comment_id", comment_id)
-    delete_button = comment_div.find_element_by_xpath(
-        f"//*[@name='deleteCommentButton{comment_id}']"
+    delete_button = comment_div.find_element(
+        By.XPATH, f"//*[@name='deleteCommentButton{comment_id}']"
     )
     driver.execute_script("arguments[0].scrollIntoView();", comment_div)
     ActionChains(driver).move_to_element(comment_div).pause(0.1).perform()
@@ -398,10 +520,10 @@ def test_delete_comment(driver, user, public_source):
         except TimeoutException:
             return
         else:
-            comment_div = comment_text_div.find_element_by_xpath("..")
+            comment_div = comment_text_div.find_element(By.XPATH, "..")
             comment_id = comment_div.get_attribute("name").split("commentDivSource")[-1]
-            delete_button = comment_div.find_element_by_xpath(
-                f"//*[@name='deleteCommentButton{comment_id}']"
+            delete_button = comment_div.find_element(
+                By.XPATH, f"//*[@name='deleteCommentButton{comment_id}']"
             )
             driver.execute_script("arguments[0].scrollIntoView();", comment_div)
             ActionChains(driver).move_to_element(comment_div).pause(0.1).perform()
@@ -421,10 +543,10 @@ def test_regular_user_cannot_delete_unowned_comment(
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_source.id}")
     comment_text_p = driver.wait_for_xpath(f'//p[text()="{comment_text}"]')
-    comment_div = comment_text_p.find_element_by_xpath("../..")
+    comment_div = comment_text_p.find_element(By.XPATH, "../..")
     comment_id = comment_div.get_attribute("name").split("commentDivSource")[-1]
-    delete_button = comment_div.find_element_by_xpath(
-        f"//*[@name='deleteCommentButton{comment_id}']"
+    delete_button = comment_div.find_element(
+        By.XPATH, f"//*[@name='deleteCommentButton{comment_id}']"
     )
     driver.execute_script("arguments[0].scrollIntoView();", comment_div)
     ActionChains(driver).move_to_element(comment_div).pause(0.1).perform()
@@ -445,7 +567,7 @@ def test_super_user_can_delete_unowned_comment(
     driver.get(f"/source/{public_source.id}")
 
     comment_text_p = driver.wait_for_xpath(f'//p[text()="{comment_text}"]')
-    comment_div = comment_text_p.find_element_by_xpath("../..")
+    comment_div = comment_text_p.find_element(By.XPATH, "../..")
     comment_id = comment_div.get_attribute("name").split("commentDivSource")[-1]
 
     # wait for delete button to become interactible - hence pause 0.1

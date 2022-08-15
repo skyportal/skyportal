@@ -1,8 +1,16 @@
 from .acls import ACLHandler, UserACLHandler
-from .allocation import AllocationHandler
-from .analysis import AnalysisServiceHandler
+from .allocation import AllocationHandler, AllocationReportHandler
+from .analysis import (
+    AnalysisServiceHandler,
+    AnalysisHandler,
+    AnalysisProductsHandler,
+)
 from .candidate import CandidateHandler
-from .classification import ClassificationHandler, ObjClassificationHandler
+from .classification import (
+    ClassificationHandler,
+    ObjClassificationHandler,
+    ObjClassificationQueryHandler,
+)
 from .comment import CommentHandler, CommentAttachmentHandler
 from .annotation import AnnotationHandler
 from .annotation_services import (
@@ -21,9 +29,13 @@ from .followup_request import (
     AssignmentHandler,
 )
 from .facility_listener import FacilityMessageHandler
-from .galaxy import GalaxyCatalogHandler
+from .galaxy import GalaxyCatalogHandler, GalaxyASCIIFileHandler, GalaxyGladeHandler
 from .gcn import (
     GcnEventHandler,
+    GcnEventObservationPlanRequestsHandler,
+    GcnEventSurveyEfficiencyHandler,
+    GcnEventTagsHandler,
+    GcnSummaryHandler,
     LocalizationHandler,
 )
 from .group import (
@@ -33,7 +45,7 @@ from .group import (
     GroupUsersFromOtherGroupsHandler,
     ObjGroupsHandler,
 )
-
+from .healpix import HealpixUpdateHandler
 from .user_obj_list import UserObjListHandler
 from .group_admission_request import GroupAdmissionRequestHandler
 from .instrument import InstrumentHandler
@@ -47,6 +59,7 @@ from .observation import (
     ObservationTreasureMapHandler,
     ObservationExternalAPIHandler,
     ObservationSimSurveyHandler,
+    ObservationSimSurveyPlotHandler,
 )
 from .observingrun import ObservingRunHandler
 from .observation_plan import (
@@ -57,6 +70,9 @@ from .observation_plan import (
     ObservationPlanSubmitHandler,
     ObservationPlanMovieHandler,
     ObservationPlanSimSurveyHandler,
+    ObservationPlanSimSurveyPlotHandler,
+    ObservationPlanSummaryStatisticsHandler,
+    ObservationPlanSurveyEfficiencyHandler,
     ObservationPlanGeoJSONHandler,
     ObservationPlanAirmassChartHandler,
     ObservationPlanCreateObservingRunHandler,
@@ -69,11 +85,13 @@ from .photometry import (
     PhotometryRangeHandler,
     PhotometryOriginHandler,
 )
+from .phot_stat import PhotStatHandler, PhotStatUpdateHandler
 from .color_mag import ObjColorMagHandler
 from .photometry_request import PhotometryRequestHandler
 from .public_group import PublicGroupHandler
 from .roles import RoleHandler, UserRoleHandler
 from .obj import ObjHandler
+from .reminder import ReminderHandler
 from .sharing import SharingHandler
 from .shift import ShiftHandler, ShiftUserHandler, ShiftSummary
 from .source import (
@@ -93,6 +111,10 @@ from .spectrum import (
     SpectrumRangeHandler,
     SyntheticPhotometryHandler,
 )
+from .survey_efficiency import (
+    SurveyEfficiencyForObservationPlanHandler,
+    SurveyEfficiencyForObservationsHandler,
+)
 from .stream import StreamHandler, StreamUserHandler
 from .sysinfo import SysInfoHandler
 from .config_handler import ConfigHandler
@@ -108,3 +130,8 @@ from .user import (
 )
 from .unsourced_finder import UnsourcedFinderHandler
 from .weather import WeatherHandler
+from .webhook import AnalysisWebhookHandler
+from .sources_confirmed_in_gcn import (
+    SourcesConfirmedInGCNHandler,
+    GCNsAssociatedWithSourceHandler,
+)

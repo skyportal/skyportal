@@ -240,6 +240,7 @@ const GeoJSONGlobePlot = ({
   setRotation,
   selectedFields,
   setSelectedFields,
+  airmass_threshold = 2.5,
 }) => {
   const classes = useStyles();
   function renderMap(svg, svgheight, svgwidth, data) {
@@ -355,12 +356,21 @@ const GeoJSONGlobePlot = ({
           const { field_id } = f.contour_summary.properties;
           const { features } = f.contour_summary;
           const selected = selectedFields.includes(Number(f.id));
+          const { airmass } = f;
           svg
             .data(features)
             .append("path")
             .attr("class", field_id)
             .classed(classes.fieldStyle, true)
-            .style("fill", selected ? filterColor : "white")
+            .style(
+              "fill",
+              // eslint-disable-next-line no-nested-ternary
+              selected
+                ? filterColor
+                : airmass && airmass < airmass_threshold
+                ? "white"
+                : "gray"
+            )
             .attr("d", geoGenerator)
             .on("click", () => {
               if (!selected) {
@@ -512,6 +522,7 @@ GeoJSONGlobePlot.propTypes = {
   setRotation: PropTypes.func,
   selectedFields: PropTypes.arrayOf(PropTypes.number),
   setSelectedFields: PropTypes.func,
+  airmass_threshold: PropTypes.number,
 };
 
 GeoJSONGlobePlot.defaultProps = {
@@ -533,6 +544,7 @@ GeoJSONGlobePlot.defaultProps = {
   setRotation: () => {},
   selectedFields: [],
   setSelectedFields: () => {},
+  airmass_threshold: 2.5,
 };
 
 export default LocalizationPlot;

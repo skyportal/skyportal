@@ -14,7 +14,24 @@ const FETCH_GALAXIES_OK = "skyportal/FETCH_GALAXIES_OK";
 const FETCH_GCNEVENT_GALAXIES = "skyportal/FETCH_GCNEVENT_GALAXIES";
 const FETCH_GCNEVENT_GALAXIES_OK = "skyportal/FETCH_GCNEVENT_GALAXIES_OK";
 
+const DELETE_GALAXIES = "skyportal/DELETE_GALAXIES";
+
+const UPLOAD_GALAXIES = "skyportal/UPLOAD_GALAXIES";
+
+export function uploadGalaxies(data) {
+  return API.POST(`/api/galaxy_catalog/ascii`, UPLOAD_GALAXIES, data);
+}
+
 export function fetchGalaxies(filterParams = {}) {
+  return API.GET("/api/galaxy_catalog", FETCH_GALAXIES, filterParams);
+}
+
+export function deleteCatalog(catalog) {
+  return API.DELETE(`/api/galaxy_catalog/${catalog}`, DELETE_GALAXIES);
+}
+
+export function fetchCatalogs(filterParams = {}) {
+  filterParams.catalogNamesOnly = true;
   return API.GET("/api/galaxy_catalog", FETCH_GALAXIES, filterParams);
 }
 

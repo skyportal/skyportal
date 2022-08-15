@@ -128,7 +128,7 @@ const InstrumentPage = () => {
           </div>
         </Paper>
       </Grid>
-      {currentUser.permissions?.includes("System admin") && (
+      {currentUser.permissions?.includes("Manage allocations") && (
         <Grid item md={6} sm={12}>
           <Paper>
             <div className={classes.paperContent}>

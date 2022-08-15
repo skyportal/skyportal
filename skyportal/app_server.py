@@ -8,8 +8,11 @@ from skyportal.handlers import BecomeUserHandler, LogoutHandler
 from skyportal.handlers.api import (
     ACLHandler,
     AnalysisServiceHandler,
+    AnalysisHandler,
+    AnalysisProductsHandler,
     UserACLHandler,
     AllocationHandler,
+    AllocationReportHandler,
     AssignmentHandler,
     CandidateHandler,
     ClassificationHandler,
@@ -28,7 +31,14 @@ from skyportal.handlers.api import (
     FollowupRequestPrioritizationHandler,
     FacilityMessageHandler,
     GalaxyCatalogHandler,
+    GalaxyASCIIFileHandler,
+    GalaxyGladeHandler,
     GcnEventHandler,
+    GcnEventTagsHandler,
+    GcnEventObservationPlanRequestsHandler,
+    GcnEventSurveyEfficiencyHandler,
+    GcnSummaryHandler,
+    HealpixUpdateHandler,
     LocalizationHandler,
     GroupHandler,
     GroupUserHandler,
@@ -48,15 +58,21 @@ from skyportal.handlers.api import (
     ObservationPlanSubmitHandler,
     ObservationPlanMovieHandler,
     ObservationPlanSimSurveyHandler,
+    ObservationPlanSimSurveyPlotHandler,
     ObservationPlanGeoJSONHandler,
+    ObservationPlanSummaryStatisticsHandler,
+    ObservationPlanSurveyEfficiencyHandler,
     ObservationPlanAirmassChartHandler,
     ObservationPlanCreateObservingRunHandler,
     ObservationPlanFieldsHandler,
     PhotometryHandler,
+    PhotStatHandler,
+    PhotStatUpdateHandler,
     BulkDeletePhotometryHandler,
     ObjHandler,
     ObjPhotometryHandler,
     ObjClassificationHandler,
+    ObjClassificationQueryHandler,
     ObjTNSHandler,
     ObservationHandler,
     ObservationGCNHandler,
@@ -64,6 +80,7 @@ from skyportal.handlers.api import (
     ObservationASCIIFileHandler,
     ObservationExternalAPIHandler,
     ObservationSimSurveyHandler,
+    ObservationSimSurveyPlotHandler,
     PhotometryRangeHandler,
     PhotometryRequestHandler,
     PhotometryOriginHandler,
@@ -84,6 +101,7 @@ from skyportal.handlers.api import (
     SpectrumRangeHandler,
     SyntheticPhotometryHandler,
     ObjSpectraHandler,
+    ReminderHandler,
     SpectrumTNSHandler,
     ShiftHandler,
     ShiftUserHandler,
@@ -91,6 +109,8 @@ from skyportal.handlers.api import (
     StatsHandler,
     StreamHandler,
     StreamUserHandler,
+    SurveyEfficiencyForObservationsHandler,
+    SurveyEfficiencyForObservationPlanHandler,
     SysInfoHandler,
     ConfigHandler,
     TaxonomyHandler,
@@ -100,7 +120,10 @@ from skyportal.handlers.api import (
     UserHandler,
     UnsourcedFinderHandler,
     WeatherHandler,
+    AnalysisWebhookHandler,
     PS1ThumbnailHandler,
+    SourcesConfirmedInGCNHandler,
+    GCNsAssociatedWithSourceHandler,
 )
 from skyportal.handlers.api.internal import (
     PlotPhotometryHandler,
@@ -145,11 +168,19 @@ class CustomApplication(tornado.web.Application):
 skyportal_handlers = [
     # API endpoints
     (r'/api/acls', ACLHandler),
+    (r'/api/allocation/report(/[0-9]+)', AllocationReportHandler),
     (r'/api/allocation(/.*)?', AllocationHandler),
     (r'/api/analysis_service(/.*)?', AnalysisServiceHandler),
+    (r'/api/(obj)/([0-9A-Za-z-_]+)/analysis(/[0-9]+)?', AnalysisHandler),
+    (r'/api/(obj)/analysis(/[0-9]+)?', AnalysisHandler),
+    (
+        r'/api/(obj)/analysis(/[0-9]+)/(corner|results|plots)(/[0-9]+)?',
+        AnalysisProductsHandler,
+    ),
     (r'/api/assignment(/.*)?', AssignmentHandler),
     (r'/api/candidates(/[0-9A-Za-z-_]+)/([0-9]+)', CandidateHandler),
     (r'/api/candidates(/.*)?', CandidateHandler),
+    (r'/api/classification/sources(/.*)?', ObjClassificationQueryHandler),
     (r'/api/classification(/[0-9]+)?', ClassificationHandler),
     (r'/api/enum_types(/.*)?', EnumTypesHandler),
     (
@@ -165,7 +196,9 @@ skyportal_handlers = [
     ),
     (r'/api/followup_request(/.*)?', FollowupRequestHandler),
     (r'/api/photometry_request(/.*)', PhotometryRequestHandler),
-    (r'/api/galaxy_catalog(/[0-9]+)?', GalaxyCatalogHandler),
+    (r'/api/galaxy_catalog/glade', GalaxyGladeHandler),
+    (r'/api/galaxy_catalog/ascii', GalaxyASCIIFileHandler),
+    (r'/api/galaxy_catalog(/[0-9A-Za-z-_\.\+]+)?', GalaxyCatalogHandler),
     (
         r'/api/(sources|spectra|gcn_event|shift)/([0-9A-Za-z-_\.\+]+)/comments',
         CommentHandler,
@@ -185,11 +218,30 @@ skyportal_handlers = [
         r'/api/(sources|spectra|gcn_event|shift)/([0-9A-Za-z-_\.\+]+)/comments(/[0-9]+)/attachment.pdf',
         CommentAttachmentHandler,
     ),
+    (
+        r'/api/gcn_event(/[0-9A-Za-z-_\.\+]+)/observation_plan_requests',
+        GcnEventObservationPlanRequestsHandler,
+    ),
+    (
+        r'/api/gcn_event(/[0-9A-Za-z-_\.\+]+)/survey_efficiency',
+        GcnEventSurveyEfficiencyHandler,
+    ),
+    (
+        r'/api/(source|spectra|gcn_event|shift)/([0-9A-Za-z-_\.\+]+)/reminders(/[0-9]+)?',
+        ReminderHandler,
+    ),
+    (r'/api/gcn_event/tags', GcnEventTagsHandler),
     (r'/api/gcn_event(/.*)?', GcnEventHandler),
+    (r'/api/sources_in_gcn/(.*)/(.*)', SourcesConfirmedInGCNHandler),
+    (r'/api/sources_in_gcn/(.*)', SourcesConfirmedInGCNHandler),
+    (r'/api/associated_gcns/(.*)', GCNsAssociatedWithSourceHandler),
     (
         r'/api/localization(/[0-9]+)/airmass(/[0-9]+)?',
         ObservationPlanAirmassChartHandler,
     ),
+    (r'/api/healpix', HealpixUpdateHandler),
+    (r'/api/sources/([0-9A-Za-z-_\.\+]+)/phot_stat', PhotStatHandler),
+    (r'/api/phot_stats', PhotStatUpdateHandler),
     (r'/api/localization(/.*)/name(/.*)?', LocalizationHandler),
     (r'/api/groups/public', PublicGroupHandler),
     (r'/api/groups(/[0-9]+)/streams(/[0-9]+)?', GroupStreamHandler),
@@ -207,7 +259,9 @@ skyportal_handlers = [
     (r'/api/observation(/[0-9]+)?', ObservationHandler),
     (r'/api/observation/ascii(/[0-9]+)?', ObservationASCIIFileHandler),
     (r'/api/observation/gcn(/[0-9]+)', ObservationGCNHandler),
-    (r'/api/observation/simsurvey(/[0-9]+)', ObservationSimSurveyHandler),
+    (r'/api/gcn_events/summary(/.*)?', GcnSummaryHandler),
+    (r'/api/observation/simsurvey(/[0-9]+)?', ObservationSimSurveyHandler),
+    (r'/api/observation/simsurvey(/[0-9]+)/plot', ObservationSimSurveyPlotHandler),
     (r'/api/observation/treasuremap(/[0-9]+)', ObservationTreasureMapHandler),
     (r'/api/observation/external_api(/[0-9]+)?', ObservationExternalAPIHandler),
     (r'/api/observing_run(/[0-9]+)?', ObservingRunHandler),
@@ -229,12 +283,24 @@ skyportal_handlers = [
         ObservationPlanMovieHandler,
     ),
     (
+        r'/api/observation_plan(/[0-9A-Za-z-_\.\+]+)/simsurvey/plot',
+        ObservationPlanSimSurveyPlotHandler,
+    ),
+    (
         r'/api/observation_plan(/[0-9A-Za-z-_\.\+]+)/simsurvey',
         ObservationPlanSimSurveyHandler,
     ),
     (
         r'/api/observation_plan(/[0-9A-Za-z-_\.\+]+)/geojson',
         ObservationPlanGeoJSONHandler,
+    ),
+    (
+        r'/api/observation_plan(/[0-9A-Za-z-_\.\+]+)/summary_statistics',
+        ObservationPlanSummaryStatisticsHandler,
+    ),
+    (
+        r'/api/observation_plan(/[0-9A-Za-z-_\.\+]+)/survey_efficiency',
+        ObservationPlanSurveyEfficiencyHandler,
     ),
     (
         r'/api/observation_plan(/[0-9A-Za-z-_\.\+]+)/observing_run',
@@ -305,6 +371,14 @@ skyportal_handlers = [
     # End deprecated
     (r'/api/streams(/[0-9]+)/users(/.*)?', StreamUserHandler),
     (r'/api/streams(/[0-9]+)?', StreamHandler),
+    (
+        r'/api/survey_efficiency/observations(/[0-9]+)?',
+        SurveyEfficiencyForObservationsHandler,
+    ),
+    (
+        r'/api/survey_efficiency/observation_plan(/[0-9]+)?',
+        SurveyEfficiencyForObservationPlanHandler,
+    ),
     (r'/api/db_stats', StatsHandler),
     (r'/api/sysinfo', SysInfoHandler),
     (r'/api/config', ConfigHandler),
@@ -317,8 +391,13 @@ skyportal_handlers = [
     (r'/api/user(/[0-9]+)/roles(/.*)?', UserRoleHandler),
     (r'/api/user(/.*)?', UserHandler),
     (r'/api/weather(/.*)?', WeatherHandler),
+    # strictly require uuid4 token for this unauthenticated endpoint
+    (
+        r'/api/webhook/(obj)_analysis/([0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})?',
+        AnalysisWebhookHandler,
+    ),
     (r'/api/internal/tokens(/.*)?', TokenHandler),
-    (r'/api/internal/profile', ProfileHandler),
+    (r"/api/internal/profile(/[0-9]+)?", ProfileHandler),
     (r'/api/internal/dbinfo', DBInfoHandler),
     (r'/api/internal/source_views(/.*)?', SourceViewsHandler),
     (r'/api/internal/source_counts(/.*)?', SourceCountHandler),
@@ -376,7 +455,7 @@ def make_app(cfg, baselayer_handlers, baselayer_settings, process=None, env=None
         one key, 'debug'---true if launched with `--debug`.
 
     """
-    if cfg['cookie_secret'] == 'abc01234':
+    if cfg['app.secret_key'] == 'abc01234':
         print('!' * 80)
         print('  Your server is insecure. Please update the secret string ')
         print('  in the configuration file!')

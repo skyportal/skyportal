@@ -16,6 +16,9 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import Typography from "@mui/material/Typography";
 import Paper from "@mui/material/Paper";
 import CircularProgress from "@mui/material/CircularProgress";
+import Popover from "@mui/material/Popover";
+import IconButton from "@mui/material/IconButton";
+import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
 
 import {
   isBrowser,
@@ -59,6 +62,8 @@ const Plot = React.lazy(() => import(/* webpackChunkName: "Bokeh" */ "./Plot"));
 const CentroidPlot = React.lazy(() =>
   import(/* webpackChunkName: "CentroidPlot" */ "./CentroidPlot")
 );
+
+const green = "#359d73";
 
 export const useSourceStyles = makeStyles((theme) => ({
   chip: {
@@ -195,6 +200,41 @@ export const useSourceStyles = makeStyles((theme) => ({
   findingChart: {
     alignItems: "center",
   },
+  tooltipContent: {
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "center",
+    alignItems: "center",
+    width: "100%",
+  },
+  legend: {
+    width: "100%",
+    display: "flex",
+    flexDirection: "row",
+    justifyContent: "left",
+    alignItems: "center",
+    gap: "10px",
+  },
+  circle: {
+    borderRadius: "50%",
+    width: "25px",
+    height: "25px",
+    display: "inline-block",
+  },
+  downTriangle: {
+    width: 0,
+    height: 0,
+    backgroundColor: "transparent",
+    borderStyle: "solid",
+    borderTopWidth: "15px",
+    borderRightWidth: "15px",
+    borderBottomWidth: "0px",
+    borderLeftWidth: "15px",
+    borderTopColor: "#359d73",
+    borderRightColor: "transparent",
+    borderBottomColor: "transparent",
+    borderLeftColor: "transparent",
+  },
 }));
 
 const SourceMobile = WidthProvider(
@@ -207,6 +247,15 @@ const SourceMobile = WidthProvider(
 
     const [showStarList, setShowStarList] = useState(false);
     const [showPhotometry, setShowPhotometry] = useState(false);
+    const [anchorEl, setAnchorEl] = useState(null);
+    const handleClick = (event) => {
+      setAnchorEl(event.currentTarget);
+    };
+    const handleClose = () => {
+      setAnchorEl(null);
+    };
+    const open = Boolean(anchorEl);
+    const id = open ? "simple-popover" : undefined;
 
     const { instrumentList, instrumentFormParams } = useSelector(
       (state) => state.instruments
@@ -510,6 +559,43 @@ const SourceMobile = WidthProvider(
                     >
                       Show Photometry Table
                     </Button>
+                    <IconButton
+                      aria-label="help"
+                      size="small"
+                      onClick={handleClick}
+                    >
+                      <HelpOutlineIcon />
+                    </IconButton>
+                    <Popover
+                      id={id}
+                      open={open}
+                      anchorEl={anchorEl}
+                      onClose={handleClose}
+                      anchorOrigin={{
+                        vertical: "top",
+                        horizontal: "right",
+                      }}
+                      transformOrigin={{
+                        vertical: "top",
+                        horizontal: "left",
+                      }}
+                    >
+                      <div className={classes.tooltipContent}>
+                        <div className={classes.legend}>
+                          <div className={classes.downTriangle} />
+                          <p>Stands for Non Detections</p>
+                        </div>
+                        <div className={classes.legend}>
+                          <div
+                            style={{
+                              background: `${green}`,
+                            }}
+                            className={classes.circle}
+                          />
+                          <p> Stands for Detections</p>
+                        </div>
+                      </div>
+                    </Popover>
                   </div>
                 </Grid>
               </AccordionDetails>

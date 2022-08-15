@@ -25,11 +25,14 @@ from .observation import *
 from .observation_plan import *
 from .observing_run import *
 from .photometry import *
+from .phot_stat import *
+from .reminder import *
 from .shift import *
 from .source import *
 from .source_view import *
 from .source_notification import *
 from .spectrum import *
+from .survey_efficiency import *
 from .stream import *
 from .taxonomy import *
 from .telescope import *
@@ -38,6 +41,8 @@ from .thumbnail import *
 from .user_notification import *
 from .user_token import *
 from .weather import *
+from .webhook import *
+from .sources_confirmed_in_gcn import *
 
 # Cosmology
 from .cosmo import cosmo

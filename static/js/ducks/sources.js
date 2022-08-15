@@ -43,7 +43,7 @@ const addFilterParamDefaults = (filterParams) => {
   filterParams.includeSpectrumExists = true;
   filterParams.includeColorMagnitude = true;
   filterParams.includeThumbnails = true;
-  filterParams.includeDetectionStats = false;
+  filterParams.includeDetectionStats = true;
 };
 
 export function fetchSources(filterParams = {}) {
@@ -83,6 +83,12 @@ export function fetchGcnEventSources(dateobs, filterParams = {}) {
       filterParams.endDate = dayjs(dateobs)
         .add(7, "day")
         .format("YYYY-MM-DD HH:mm:ss");
+    }
+  }
+
+  if (!Object.keys(filterParams).includes("include_localization_status")) {
+    if (dateobs) {
+      filterParams.includeLocalizationStatus = true;
     }
   }
 

@@ -1,5 +1,7 @@
 import uuid
 import pytest
+from selenium.webdriver.common.by import By
+
 from baselayer.app.env import load_env
 from skyportal.tests import api
 
@@ -30,6 +32,7 @@ def test_add_new_group(driver, super_admin_user, user, super_admin_token):
     driver.get('/')
     driver.refresh()
     driver.get('/groups')
+    driver.wait_for_xpath('//h3[text()="Create New Group"]', timeout=30)
     driver.wait_for_xpath('//input[@name="name"]').send_keys(test_proj_name)
     driver.wait_for_xpath('//input[@name="description"]').send_keys(group_description)
     driver.click_xpath('//div[@id="groupAdminsSelect"]')
@@ -86,8 +89,8 @@ def test_add_new_group_user_admin(
     driver.wait_for_xpath(f'//a[contains(.,"{user_no_groups.username}")]')
     assert (
         len(
-            driver.find_elements_by_xpath(
-                f'//div[@id="{user_no_groups.id}-admin-chip"]'
+            driver.find_elements(
+                By.XPATH, f'//div[@id="{user_no_groups.id}-admin-chip"]'
             )
         )
         == 1
@@ -123,8 +126,8 @@ def test_add_new_group_user_nonadmin(
     driver.wait_for_xpath(f'//a[contains(.,"{user_no_groups.username}")]')
     assert (
         len(
-            driver.find_elements_by_xpath(
-                f'//div[@id="{user_no_groups.id}-admin-chip"]'
+            driver.find_elements(
+                By.XPATH, f'//div[@id="{user_no_groups.id}-admin-chip"]'
             )
         )
         == 0
@@ -162,8 +165,8 @@ def test_add_new_group_user_cant_save(
     driver.wait_for_xpath(f'//a[contains(.,"{user_no_groups.username}")]')
     assert (
         len(
-            driver.find_elements_by_xpath(
-                f'//div[@id="{user_no_groups.id}-admin-chip"]'
+            driver.find_elements(
+                By.XPATH, f'//div[@id="{user_no_groups.id}-admin-chip"]'
             )
         )
         == 0
@@ -275,7 +278,7 @@ def test_add_stream_add_delete_filter_group(
     driver.click_xpath('//button[@data-testid="add-filter-dialog-submit"]')
     driver.wait_for_xpath(f'//span[contains(.,"{filter_name}")]')
     assert (
-        len(driver.find_elements_by_xpath(f'//span[contains(.,"{filter_name}")]')) == 1
+        len(driver.find_elements(By.XPATH, f'//span[contains(.,"{filter_name}")]')) == 1
     )
 
     # delete filter
@@ -299,4 +302,4 @@ def test_cannot_add_stream_group_users_cant_access(
 
     driver.click_xpath(f'//li[contains(.,"{public_stream2.name}")]', scroll_parent=True)
     driver.click_xpath('//button[@data-testid="add-stream-dialog-submit"]')
-    driver.wait_for_xpath('//*[contains(.,"Insufficient permissions")]')
+    driver.wait_for_xpath('//*[contains(.,"Not all users have stream access with")]')

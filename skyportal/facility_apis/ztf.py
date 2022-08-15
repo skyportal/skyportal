@@ -315,7 +315,7 @@ class ZTFAPI(FollowUpAPI):
     """An interface to ZTF operations."""
 
     @staticmethod
-    def delete(request):
+    def delete(request, session):
 
         """Delete a follow-up request from ZTF queue.
 
@@ -323,24 +323,19 @@ class ZTFAPI(FollowUpAPI):
         ----------
         request : skyportal.models.FollowupRequest
             The request to delete from the queue and the SkyPortal database.
+        session: sqlalchemy.Session
+            Database session for this transaction
         """
 
-        from ..models import DBSession, FollowupRequest, FacilityTransaction
-
-        req = (
-            DBSession()
-            .query(FollowupRequest)
-            .filter(FollowupRequest.id == request.id)
-            .one()
-        )
+        from ..models import FollowupRequest, FacilityTransaction
 
         # this happens for failed submissions
         # just go ahead and delete
-        if len(req.transactions) == 0:
-            DBSession().query(FollowupRequest).filter(
+        if len(request.transactions) == 0:
+            session.query(FollowupRequest).filter(
                 FollowupRequest.id == request.id
             ).delete()
-            DBSession().commit()
+            session.commit()
             return
 
         altdata = request.allocation.altdata
@@ -369,7 +364,7 @@ class ZTFAPI(FollowUpAPI):
             initiator_id=request.last_modified_by_id,
         )
 
-        DBSession().add(transaction)
+        session.add(transaction)
 
     @staticmethod
     def get(request, session):
@@ -489,7 +484,7 @@ class ZTFAPI(FollowUpAPI):
 
     # subclasses *must* implement the method below
     @staticmethod
-    def submit(request):
+    def submit(request, session):
 
         """Submit a follow-up request to ZTF.
 
@@ -497,9 +492,11 @@ class ZTFAPI(FollowUpAPI):
         ----------
         request : skyportal.models.FollowupRequest
             The request to add to the queue and the SkyPortal database.
+        session: sqlalchemy.Session
+            Database session for this transaction
         """
 
-        from ..models import FacilityTransaction, DBSession
+        from ..models import FacilityTransaction
 
         req = ZTFRequest()
 
@@ -553,7 +550,7 @@ class ZTFAPI(FollowUpAPI):
             initiator_id=request.last_modified_by_id,
         )
 
-        DBSession().add(transaction)
+        session.add(transaction)
 
     form_json_schema = {
         "type": "object",

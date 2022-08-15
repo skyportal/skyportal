@@ -1,17 +1,26 @@
 import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import Button from "@mui/material/Button";
+import Checkbox from "@mui/material/Checkbox";
 import Chip from "@mui/material/Chip";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import DateTimePicker from "@mui/lab/DateTimePicker";
+import AdapterDateFns from "@mui/lab/AdapterDateFns";
+import LocalizationProvider from "@mui/lab/LocalizationProvider";
 import PropTypes from "prop-types";
 import Select from "@mui/material/Select";
 import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
+import TextField from "@mui/material/TextField";
 // eslint-disable-next-line import/no-unresolved
 import Form from "@rjsf/material-ui/v5";
 import CircularProgress from "@mui/material/CircularProgress";
 import makeStyles from "@mui/styles/makeStyles";
 import { showNotification } from "baselayer/components/Notifications";
 import GeoPropTypes from "geojson-prop-types";
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
+import relativeTime from "dayjs/plugin/relativeTime";
 
 import * as gcnEventActions from "../ducks/gcnEvent";
 import * as allocationActions from "../ducks/allocations";
@@ -21,6 +30,9 @@ import GroupShareSelect from "./GroupShareSelect";
 import LocalizationPlot from "./LocalizationPlot";
 
 import "react-datepicker/dist/react-datepicker-cssmodules.css";
+
+dayjs.extend(relativeTime);
+dayjs.extend(utc);
 
 const useStyles = makeStyles(() => ({
   chips: {
@@ -40,7 +52,7 @@ const useStyles = makeStyles(() => ({
     width: "100%",
   },
   fieldsToUseSelect: {
-    width: "80%",
+    width: "75%",
   },
   SelectItem: {
     whiteSpace: "break-spaces",
@@ -48,6 +60,10 @@ const useStyles = makeStyles(() => ({
   container: {
     width: "99%",
     marginBottom: "1rem",
+    "& > *": {
+      marginTop: "1rem",
+      marginBottom: "1rem",
+    },
   },
 }));
 
@@ -58,6 +74,12 @@ const FieldSelect = ({
 }) => {
   const classes = useStyles();
 
+  const fields = [];
+  skymapInstrument?.fields?.forEach((field) => {
+    fields.push(Number(field.id));
+  });
+  fields.sort((a, b) => a - b);
+
   const handleSelectedFieldChange = (e) => {
     setSelectedFields(e.target.value);
   };
@@ -66,38 +88,40 @@ const FieldSelect = ({
     setSelectedFields([]);
   };
 
-  const fields = [];
-  skymapInstrument?.fields?.forEach((field) => {
-    fields.push(Number(field.id));
-  });
-  fields.sort((a, b) => a - b);
+  const selectAllFields = () => {
+    setSelectedFields(fields);
+  };
 
   return (
-    <div>
+    <div style={{ display: "flex", flexDirection: "column" }}>
       <InputLabel id="fieldsToUseSelectLabel">Fields to use</InputLabel>
-      <Select
-        inputProps={{ MenuProps: { disableScrollLock: true } }}
-        labelId="fieldsToSelectLabel"
-        name="fieldsToUseSelect"
-        className={classes.fieldsToUseSelect}
-        multiple
-        value={selectedFields || []}
-        onChange={handleSelectedFieldChange}
-      >
-        {fields?.map((field) => (
-          <MenuItem value={field} key={field} className={classes.SelectItem}>
-            {field}
-          </MenuItem>
-        ))}
-      </Select>
-      <Button
-        id="clear-fieldsToUseSelect"
-        size="small"
-        color="secondary"
-        onClick={() => clearSelectedFields()}
-      >
-        Clear Fields
-      </Button>
+      <div style={{ display: "flex", flexDirection: "row" }}>
+        <Select
+          inputProps={{ MenuProps: { disableScrollLock: true } }}
+          labelId="fieldsToSelectLabel"
+          name="fieldsToUseSelect"
+          className={classes.fieldsToUseSelect}
+          multiple
+          value={selectedFields || []}
+          onChange={handleSelectedFieldChange}
+        >
+          {fields?.map((field) => (
+            <MenuItem value={field} key={field} className={classes.SelectItem}>
+              {field}
+            </MenuItem>
+          ))}
+        </Select>
+        <Button
+          id="clear-fieldsToUseSelect"
+          onClick={() => clearSelectedFields()}
+          style={{ marginLeft: "1rem" }}
+        >
+          Clear all
+        </Button>
+        <Button id="all-fieldsToUseSelect" onClick={() => selectAllFields()}>
+          Select all
+        </Button>
+      </div>
     </div>
   );
 };
@@ -235,7 +259,11 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
   const dispatch = useDispatch();
 
   const { telescopeList } = useSelector((state) => state.telescopes);
-  const { allocationList } = useSelector((state) => state.allocations);
+  const { allocationListApiObsplan } = useSelector(
+    (state) => state.allocations
+  );
+
+  const { useAMPM } = useSelector((state) => state.profile.preferences);
 
   const allGroups = useSelector((state) => state.groups.all);
   const [selectedAllocationId, setSelectedAllocationId] = useState(null);
@@ -245,6 +273,14 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
   const [planQueues, setPlanQueues] = useState([]);
   const [skymapInstrument, setSkymapInstrument] = useState(null);
   const [selectedFields, setSelectedFields] = useState([]);
+  const [multiPlansChecked, setMultiPlansChecked] = useState(false);
+
+  const defaultAirmassTime = new Date(
+    dayjs(gcnevent?.dateobs).format("YYYY-MM-DDTHH:mm:ssZ")
+  );
+  const [airmassTime, setAirmassTime] = useState(defaultAirmassTime);
+  const [temporaryAirmassTime, setTemporaryAirmassTime] =
+    useState(defaultAirmassTime);
 
   const { instrumentList, instrumentFormParams } = useSelector(
     (state) => state.instruments
@@ -264,7 +300,7 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
 
   const allocationLookUp = {};
   // eslint-disable-next-line no-unused-expressions
-  allocationList?.forEach((allocation) => {
+  allocationListApiObsplan?.forEach((allocation) => {
     allocationLookUp[allocation.id] = allocation;
   });
 
@@ -281,18 +317,20 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
       const response = await dispatch(
         instrumentActions.fetchInstrumentSkymap(
           instLookUp[allocationLookUp[selectedAllocationId]?.instrument_id]?.id,
-          loc
+          loc,
+          airmassTime.toJSON()
         )
       );
       setSkymapInstrument(response.data);
     };
     if (
       instLookUp[allocationLookUp[selectedAllocationId]?.instrument_id]?.id &&
-      gcnevent
+      gcnevent &&
+      airmassTime
     ) {
       fetchSkymapInstrument();
     }
-  }, [dispatch, setSkymapInstrument, loc, selectedAllocationId]);
+  }, [dispatch, setSkymapInstrument, loc, selectedAllocationId, airmassTime]);
 
   useEffect(() => {
     const getAllocations = async () => {
@@ -301,9 +339,7 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
       // update
 
       const result = await dispatch(
-        allocationActions.fetchAllocations({
-          apiType: "api_classname_obsplan",
-        })
+        allocationActions.fetchAllocationsApiObsplan()
       );
 
       const { data } = result;
@@ -316,11 +352,6 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
 
     dispatch(
       instrumentsActions.fetchInstrumentForms({
-        apiType: "api_classname_obsplan",
-      })
-    );
-    dispatch(
-      allocationActions.fetchAllocations({
         apiType: "api_classname_obsplan",
       })
     );
@@ -337,14 +368,14 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
 
   // need to check both of these conditions as selectedAllocationId is
   // initialized to be null and useEffect is not called on the first
-  // render to update it, so it can be null even if allocationList is not
+  // render to update it, so it can be null even if allocationListApiObsplan is not
   // empty.
   if (
-    allocationList.length === 0 ||
+    allocationListApiObsplan.length === 0 ||
     !selectedAllocationId ||
     Object.keys(instrumentFormParams).length === 0
   ) {
-    return <h3>No robotic instruments available...</h3>;
+    return <h3>No allocations with an observation plan API...</h3>;
   }
 
   if (
@@ -389,6 +420,7 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
     } else {
       const json = {
         observation_plans: planQueues,
+        combine_plans: multiPlansChecked,
       };
       await dispatch(gcnEventActions.submitObservationPlanRequest(json));
       setPlanQueues([]);
@@ -408,6 +440,17 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
     return errors;
   };
 
+  const handleChange = (newValue) => {
+    setTemporaryAirmassTime(new Date(newValue));
+  };
+
+  const setAirmass = () => {
+    setAirmassTime(temporaryAirmassTime);
+    dispatch(
+      showNotification("Updating airmass tiles... patience please.", "info")
+    );
+  };
+
   return (
     <div className={classes.container}>
       <div>
@@ -418,49 +461,78 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
           setSelectedFields={setSelectedFields}
         />
       </div>
-      <InputLabel id="allocationSelectLabel">Allocation</InputLabel>
-      <Select
-        inputProps={{ MenuProps: { disableScrollLock: true } }}
-        labelId="allocationSelectLabel"
-        value={selectedAllocationId}
-        onChange={handleSelectedAllocationChange}
-        name="followupRequestAllocationSelect"
-        className={classes.allocationSelect}
-      >
-        {allocationList?.map((allocation) => (
-          <MenuItem
-            value={allocation.id}
-            key={allocation.id}
-            className={classes.SelectItem}
+      <div style={{ display: "flex", flexDirection: "column" }}>
+        <InputLabel id="airmassTimeSelectLabel">Airmass Time</InputLabel>
+        <div style={{ display: "flex", flexDirection: "row" }}>
+          <LocalizationProvider dateAdapter={AdapterDateFns}>
+            <DateTimePicker
+              value={temporaryAirmassTime}
+              onChange={(newValue) => handleChange(newValue)}
+              label="Time to compute airmass (UTC)"
+              showTodayButton={false}
+              ampm={useAMPM}
+              renderInput={(params) => (
+                /* eslint-disable-next-line react/jsx-props-no-spreading */
+                <TextField id="airmassTimePicker" {...params} />
+              )}
+            />
+          </LocalizationProvider>
+          <Button
+            id="setAirmassSelect"
+            onClick={() => setAirmass()}
+            style={{ marginLeft: "1rem" }}
           >
-            {`${
-              telLookUp[instLookUp[allocation.instrument_id].telescope_id].name
-            } / ${instLookUp[allocation.instrument_id].name} - ${
-              groupLookUp[allocation.group_id].name
-            } (PI ${allocation.pi})`}
-          </MenuItem>
-        ))}
-      </Select>
-      <InputLabel id="allocationSelectLabel">Localization</InputLabel>
-      <Select
-        inputProps={{ MenuProps: { disableScrollLock: true } }}
-        labelId="localizationSelectLabel"
-        value={selectedLocalizationId || ""}
-        onChange={handleSelectedLocalizationChange}
-        name="observationPlanRequestLocalizationSelect"
-        className={classes.localizationSelect}
-      >
-        {gcnevent.localizations?.map((localization) => (
-          <MenuItem
-            value={localization.id}
-            key={localization.id}
-            className={classes.SelectItem}
-          >
-            {`${localization.localization_name}`}
-          </MenuItem>
-        ))}
-      </Select>
-      <br />
+            Update airmass calculation
+          </Button>
+        </div>
+      </div>
+      <div>
+        <InputLabel id="allocationSelectLabel">Allocation</InputLabel>
+        <Select
+          inputProps={{ MenuProps: { disableScrollLock: true } }}
+          labelId="allocationSelectLabel"
+          value={selectedAllocationId}
+          onChange={handleSelectedAllocationChange}
+          name="followupRequestAllocationSelect"
+          className={classes.allocationSelect}
+        >
+          {allocationListApiObsplan?.map((allocation) => (
+            <MenuItem
+              value={allocation.id}
+              key={allocation.id}
+              className={classes.SelectItem}
+            >
+              {`${
+                telLookUp[instLookUp[allocation.instrument_id].telescope_id]
+                  .name
+              } / ${instLookUp[allocation.instrument_id].name} - ${
+                groupLookUp[allocation.group_id]?.name
+              } (PI ${allocation.pi})`}
+            </MenuItem>
+          ))}
+        </Select>
+      </div>
+      <div>
+        <InputLabel id="allocationSelectLabel">Localization</InputLabel>
+        <Select
+          inputProps={{ MenuProps: { disableScrollLock: true } }}
+          labelId="localizationSelectLabel"
+          value={selectedLocalizationId || ""}
+          onChange={handleSelectedLocalizationChange}
+          name="observationPlanRequestLocalizationSelect"
+          className={classes.localizationSelect}
+        >
+          {gcnevent.localizations?.map((localization) => (
+            <MenuItem
+              value={localization.id}
+              key={localization.id}
+              className={classes.SelectItem}
+            >
+              {`${localization.localization_name}`}
+            </MenuItem>
+          ))}
+        </Select>
+      </div>
       <GroupShareSelect
         groupList={allGroups}
         setGroupIDs={setSelectedGroupIds}
@@ -518,15 +590,29 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
       </div>
       <div>
         {planQueues.length !== 0 && (
-          <Button
-            size="small"
-            color="primary"
-            type="submit"
-            variant="outlined"
-            onClick={handleSubmit}
-          >
-            Generate Observation Plans
-          </Button>
+          <>
+            <Button
+              size="small"
+              color="primary"
+              type="submit"
+              variant="outlined"
+              onClick={handleSubmit}
+            >
+              Generate Observation Plans
+            </Button>
+            <FormControlLabel
+              label="Combine plans"
+              control={
+                <Checkbox
+                  onChange={(event) =>
+                    setMultiPlansChecked(event.target.checked)
+                  }
+                  checked={multiPlansChecked}
+                  data-testid="combinedPlansCheckBox"
+                />
+              }
+            />
+          </>
         )}
         {isSubmitting && (
           <div className={classes.marginTop}>

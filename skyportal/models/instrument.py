@@ -2,14 +2,22 @@ __all__ = ['Instrument', 'InstrumentField', 'InstrumentFieldTile']
 
 import re
 
+from astropy import coordinates as ap_coord
+import astroplan
 import healpix_alchemy
+import numpy as np
 import sqlalchemy as sa
 from sqlalchemy import cast
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm import deferred
 
-from baselayer.app.models import Base, restricted
+from baselayer.app.models import (
+    Base,
+    CustomUserAccessControl,
+    DBSession,
+    public,
+)
 
 from skyportal import facility_apis
 
@@ -19,6 +27,13 @@ from ..enum_types import (
     listener_classnames,
     api_classnames,
 )
+
+from baselayer.app.env import load_env
+from baselayer.log import make_log
+
+_, cfg = load_env()
+
+log = make_log('model/instrument')
 
 
 class ArrayOfEnum(ARRAY):
@@ -40,10 +55,21 @@ class ArrayOfEnum(ARRAY):
         return process
 
 
+def manage_instrument_access_logic(cls, user_or_token):
+    if user_or_token.is_system_admin:
+        return DBSession().query(cls)
+    elif 'Manage allocations' in [acl.id for acl in user_or_token.acls]:
+        return DBSession().query(cls)
+    else:
+        # return an empty query
+        return DBSession().query(cls).filter(cls.id == -1)
+
+
 class Instrument(Base):
     """An instrument attached to a telescope."""
 
-    create = restricted
+    read = public
+    create = update = delete = CustomUserAccessControl(manage_instrument_access_logic)
 
     name = sa.Column(sa.String, unique=True, nullable=False, doc="Instrument name.")
     type = sa.Column(
@@ -73,6 +99,12 @@ class Instrument(Base):
         back_populates='instrument',
         passive_deletes=True,
         doc="The Photometry produced by this instrument.",
+    )
+    photometric_series = relationship(
+        'PhotometricSeries',
+        back_populates='instrument',
+        passive_deletes=True,
+        doc="PhotometricSeries produced by this instrument.",
     )
     spectra = relationship(
         'Spectrum',
@@ -236,6 +268,70 @@ class InstrumentField(Base):
     )
 
     tiles = relationship("InstrumentFieldTile")
+
+    @property
+    def target(self):
+        """Representation of the RA and Dec of this Field as an
+        astroplan.FixedTarget."""
+        coord = ap_coord.SkyCoord(self.ra, self.dec, unit='deg')
+        return astroplan.FixedTarget(name=self.id, coord=coord)
+
+    def airmass(self, time, below_horizon=np.inf):
+        """Return the airmass of the field at a given time. Uses the Pickering
+        (2002) interpolation of the Rayleigh (molecular atmosphere) airmass.
+
+        The Pickering interpolation tends toward 38.7494 as the altitude
+        approaches zero.
+
+        Parameters
+        ----------
+        time : `astropy.time.Time` or list of astropy.time.Time`
+            The time or times at which to calculate the airmass
+        below_horizon : scalar, Numeric
+            Airmass value to assign when an object is below the horizon.
+            An object is "below the horizon" when its altitude is less than
+            zero degrees.
+
+        Returns
+        -------
+        airmass : ndarray
+           The airmass of the Obj at the requested times
+        """
+
+        output_shape = time.shape
+        time = np.atleast_1d(time)
+        altitude = self.altitude(self.instrument.telescope, time).to('degree').value
+        above = altitude > 0
+
+        # use Pickering (2002) interpolation to calculate the airmass
+        # The Pickering interpolation tends toward 38.7494 as the altitude
+        # approaches zero.
+        sinarg = np.zeros_like(altitude)
+        airmass = np.ones_like(altitude) * np.inf
+        sinarg[above] = altitude[above] + 244 / (165 + 47 * altitude[above] ** 1.1)
+        airmass[above] = 1.0 / np.sin(np.deg2rad(sinarg[above]))
+
+        # set objects below the horizon to an airmass of infinity
+        airmass[~above] = below_horizon
+        airmass = airmass.reshape(output_shape)
+
+        return airmass
+
+    def altitude(self, telescope, time):
+        """Return the altitude of the object at a given time.
+
+        Parameters
+        ----------
+        time : `astropy.time.Time`
+            The time or times at which to calculate the altitude
+
+        Returns
+        -------
+        alt : `astropy.coordinates.AltAz`
+           The altitude of the Obj at the requested times
+        """
+
+        return self.instrument.telescope.observer.altaz(time, self.target).alt
 
 
 class InstrumentFieldTile(Base):

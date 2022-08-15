@@ -13,6 +13,7 @@ const UIPreferences = () => {
   const currentTheme = preferences?.theme;
   const invertThumbnails = preferences?.invertThumbnails || false;
   const compactComments = preferences?.compactComments || false;
+  const useAMPM = preferences?.useAMPM || false;
   const dispatch = useDispatch();
 
   const themeToggled = (event) => {
@@ -33,6 +34,13 @@ const UIPreferences = () => {
   const commentsToggled = (event) => {
     const prefs = {
       compactComments: event.target.checked,
+    };
+    dispatch(profileActions.updateUserPreferences(prefs));
+  };
+
+  const useAMPMToggled = (event) => {
+    const prefs = {
+      useAMPM: event.target.checked,
     };
     dispatch(profileActions.updateUserPreferences(prefs));
   };
@@ -61,6 +69,14 @@ const UIPreferences = () => {
     />
   );
 
+  const useAMPMSwitch = (
+    <Switch
+      value="Use 24 hour or AM/PM"
+      checked={useAMPM}
+      onChange={useAMPMToggled}
+    />
+  );
+
   /* To get hold of the current theme:
 
   const themeCtx = useTheme();
@@ -81,6 +97,7 @@ const UIPreferences = () => {
           control={commpactCommentsSwitch}
           label="Compact Comments"
         />
+        <FormControlLabel control={useAMPMSwitch} label="24 Hour or AM/PM" />
       </FormGroup>
     </div>
   );

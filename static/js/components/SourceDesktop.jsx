@@ -17,6 +17,7 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import Typography from "@mui/material/Typography";
 import { log10, abs, ceil } from "mathjs";
 import CircularProgress from "@mui/material/CircularProgress";
+import HelpOutlineOutlinedIcon from "@mui/icons-material/HelpOutlineOutlined";
 
 import CommentList from "./CommentList";
 import ClassificationList from "./ClassificationList";
@@ -36,13 +37,17 @@ import EditSourceGroups from "./EditSourceGroups";
 import UpdateSourceRedshift from "./UpdateSourceRedshift";
 import SourceRedshiftHistory from "./SourceRedshiftHistory";
 import AnnotationsTable from "./AnnotationsTable";
+import AnalysisList from "./AnalysisList";
+import AnalysisForm from "./AnalysisForm";
 import SourceSaveHistory from "./SourceSaveHistory";
 import PhotometryTable from "./PhotometryTable";
 import FavoritesButton from "./FavoritesButton";
 import SourceAnnotationButtons from "./SourceAnnotationButtons";
 import TNSATForm from "./TNSATForm";
+import Reminders from "./Reminders";
 
 import * as spectraActions from "../ducks/spectra";
+import * as sourceActions from "../ducks/source";
 
 const VegaHR = React.lazy(() => import("./VegaHR"));
 
@@ -51,6 +56,8 @@ const Plot = React.lazy(() => import(/* webpackChunkName: "Bokeh" */ "./Plot"));
 const CentroidPlot = React.lazy(() =>
   import(/* webpackChunkName: "CentroidPlot" */ "./CentroidPlot")
 );
+
+const green = "#359d73";
 
 // Export to allow Candidate.jsx to use styles
 export const useSourceStyles = makeStyles((theme) => ({
@@ -157,6 +164,41 @@ export const useSourceStyles = makeStyles((theme) => ({
     display: "flex",
     flexDirection: "row",
   },
+  tooltipContent: {
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "center",
+    alignItems: "center",
+    width: "100%",
+  },
+  legend: {
+    width: "100%",
+    display: "flex",
+    flexDirection: "row",
+    justifyContent: "left",
+    alignItems: "center",
+    gap: "10px",
+  },
+  circle: {
+    borderRadius: "50%",
+    width: "25px",
+    height: "25px",
+    display: "inline-block",
+  },
+  downTriangle: {
+    width: 0,
+    height: 0,
+    backgroundColor: "transparent",
+    borderStyle: "solid",
+    borderTopWidth: "15px",
+    borderRightWidth: "15px",
+    borderBottomWidth: "0px",
+    borderLeftWidth: "15px",
+    borderTopColor: "#359d73",
+    borderRightColor: "transparent",
+    borderBottomColor: "transparent",
+    borderLeftColor: "transparent",
+  },
 }));
 
 const SourceDesktop = ({ source }) => {
@@ -192,13 +234,43 @@ const SourceDesktop = ({ source }) => {
   }
   const specIDs = spectra ? spectra.map((s) => s.id).join(",") : "";
 
+  const associatedGCNs = useSelector((state) => state.source.associatedGCNs);
+
   useEffect(() => {
     dispatch(spectraActions.fetchSourceSpectra(source.id));
+    dispatch(sourceActions.fetchAssociatedGCNs(source.id));
   }, [source.id, dispatch]);
 
   const z_round = source.redshift_error
     ? ceil(abs(log10(source.redshift_error)))
     : 4;
+
+  const Title = () => (
+    <div className={classes.tooltipContent}>
+      <div className={classes.legend}>
+        <div className={classes.downTriangle} />
+        <p>Stands for Non Detections</p>
+      </div>
+      <div className={classes.legend}>
+        <div
+          style={{
+            background: `${green}`,
+          }}
+          className={classes.circle}
+        />
+        <p> Stands for Detections</p>
+      </div>
+    </div>
+  );
+  const PhotometryToolTip = () => (
+    <Tooltip
+      title={Title()}
+      placement="top"
+      classes={{ tooltip: classes.tooltip }}
+    >
+      <HelpOutlineOutlinedIcon />
+    </Tooltip>
+  );
 
   return (
     <Grid container spacing={2} className={classes.source}>
@@ -218,7 +290,7 @@ const SourceDesktop = ({ source }) => {
               onClick={() => setRightPaneVisible(true)}
               data-testid="show-right-pane-button"
             >
-              Show right pane
+              Show right panel
             </Button>
           )}
         </Box>
@@ -226,6 +298,18 @@ const SourceDesktop = ({ source }) => {
           <div className={classes.infoLine}>
             <b>Aliases: &nbsp;</b>
             <div key="aliases"> {source.alias.join(", ")} </div>
+          </div>
+        ) : null}
+        {associatedGCNs?.length > 0 ? (
+          <div className={classes.infoLine}>
+            <b>Associated to: &nbsp;</b>
+            <div key="associated_gcns">
+              {associatedGCNs.map((dateobs) => (
+                <a key={`${dateobs}`} href={`/gcn_events/${dateobs}`}>
+                  {dateobs}
+                </a>
+              ))}
+            </div>
           </div>
         ) : null}
         <div className={classes.sourceInfo}>
@@ -399,6 +483,7 @@ const SourceDesktop = ({ source }) => {
               <Typography className={classes.accordionHeading}>
                 Photometry
               </Typography>
+              <PhotometryToolTip />
             </AccordionSummary>
             <AccordionDetails>
               <Grid container id="photometry-container">
@@ -615,6 +700,25 @@ const SourceDesktop = ({ source }) => {
             </Accordion>
           </div>
           <div className={classes.columnItem}>
+            <Accordion defaultExpanded>
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon />}
+                aria-controls="analysis-content"
+                id="analysis-header"
+              >
+                <Typography className={classes.accordionHeading}>
+                  External Analysis
+                </Typography>
+              </AccordionSummary>
+              <AccordionDetails>
+                <AnalysisList obj_id={source.id} />
+              </AccordionDetails>
+              <AccordionDetails>
+                <AnalysisForm obj_id={source.id} />
+              </AccordionDetails>
+            </Accordion>
+          </div>
+          <div className={classes.columnItem}>
             <Accordion
               defaultExpanded
               className={classes.tns}
@@ -710,6 +814,9 @@ const SourceDesktop = ({ source }) => {
               </AccordionSummary>
               <AccordionDetails>
                 <SourceNotification sourceId={source.id} />
+              </AccordionDetails>
+              <AccordionDetails>
+                <Reminders resourceId={source.id} resourceType="source" />
               </AccordionDetails>
             </Accordion>
           </div>

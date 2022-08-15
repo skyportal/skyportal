@@ -22,6 +22,9 @@ const useStyles = makeStyles(() => ({
   select: {
     width: "25%",
   },
+  selectInstrument: {
+    width: "99%",
+  },
   container: {
     width: "99%",
     marginBottom: "1rem",
@@ -91,6 +94,17 @@ const FollowupRequestSelectionForm = () => {
     return <p>No robotic followup requests found...</p>;
   }
 
+  const sortedInstrumentList = [...instrumentList];
+  sortedInstrumentList.sort((i1, i2) => {
+    if (i1.name > i2.name) {
+      return 1;
+    }
+    if (i2.name > i1.name) {
+      return -1;
+    }
+    return 0;
+  });
+
   const telLookUp = {};
   // eslint-disable-next-line no-unused-expressions
   telescopeList?.forEach((tel) => {
@@ -124,7 +138,7 @@ const FollowupRequestSelectionForm = () => {
     setIsSubmittingFilter(false);
   };
 
-  function createUrl(instrumentId, format, queryParams) {
+  function createScheduleUrl(instrumentId, format, queryParams) {
     let url = `/api/followup_request/schedule/${instrumentId}`;
     if (queryParams) {
       const filteredQueryParams = filterOutEmptyValues(queryParams);
@@ -132,6 +146,11 @@ const FollowupRequestSelectionForm = () => {
       url += `?${queryString}`;
     }
     url += `&output_format=${format}`;
+    return url;
+  }
+
+  function createAllocationReportUrl(instrumentId) {
+    const url = `/api/allocation/report/${instrumentId}`;
     return url;
   }
 
@@ -182,7 +201,12 @@ const FollowupRequestSelectionForm = () => {
     },
   };
 
-  const url = createUrl(selectedInstrumentId, selectedFormat, formDataState);
+  const scheduleUrl = createScheduleUrl(
+    selectedInstrumentId,
+    selectedFormat,
+    formDataState
+  );
+  const reportUrl = createAllocationReportUrl(selectedInstrumentId);
   return (
     <div>
       <div data-testid="gcnsource-selection-form">
@@ -208,9 +232,9 @@ const FollowupRequestSelectionForm = () => {
           value={selectedInstrumentId}
           onChange={handleSelectedInstrumentChange}
           name="followupRequestInstrumentSelect"
-          className={classes.select}
+          className={classes.selectInstrument}
         >
-          {instrumentList?.map((instrument) => (
+          {sortedInstrumentList?.map((instrument) => (
             <MenuItem
               value={instrument.id}
               key={instrument.id}
@@ -242,7 +266,7 @@ const FollowupRequestSelectionForm = () => {
           </MenuItem>
         </Select>
         <Button
-          href={`${url}`}
+          href={`${scheduleUrl}`}
           download={`scheduleRequest-${selectedInstrumentId}`}
           size="small"
           color="primary"
@@ -251,6 +275,17 @@ const FollowupRequestSelectionForm = () => {
           data-testid={`scheduleRequest_${selectedInstrumentId}`}
         >
           Download
+        </Button>
+        <Button
+          href={`${reportUrl}`}
+          download={`reportRequest-${selectedInstrumentId}`}
+          size="small"
+          color="primary"
+          type="submit"
+          variant="outlined"
+          data-testid={`reportRequest_${selectedInstrumentId}`}
+        >
+          Instrument Allocation Analysis
         </Button>
       </div>
     </div>

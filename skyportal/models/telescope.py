@@ -12,16 +12,32 @@ import astroplan
 from astropy import units as u
 from astropy import time as ap_time
 
-from baselayer.app.models import Base, restricted
+from baselayer.app.models import (
+    Base,
+    CustomUserAccessControl,
+    DBSession,
+    public,
+)
 from baselayer.log import make_log
 
-log = make_log('api/source')
+log = make_log('model/telescope')
+
+
+def manage_telescope_access_logic(cls, user_or_token):
+    if user_or_token.is_system_admin:
+        return DBSession().query(cls)
+    elif 'Manage allocations' in [acl.id for acl in user_or_token.acls]:
+        return DBSession().query(cls)
+    else:
+        # return an empty query
+        return DBSession().query(cls).filter(cls.id == -1)
 
 
 class Telescope(Base):
     """A ground or space-based observational facility that can host Instruments."""
 
-    create = restricted
+    read = public
+    create = update = delete = CustomUserAccessControl(manage_telescope_access_logic)
 
     name = sa.Column(
         sa.String,
@@ -62,80 +78,133 @@ class Telescope(Base):
     @property
     def observer(self):
         """Return an `astroplan.Observer` representing an observer at this
-        facility, accounting for the latitude, longitude, elevation, and
-        local time zone of the observatory (if ground based)."""
+        facility, accounting for the latitude, longitude, and elevation."""
         try:
             return self._observer
         except AttributeError:
-            if not self.fixed_location:
-                return None
+            if (
+                self.lon is None
+                or self.lon == ""
+                or np.isnan(self.lon)
+                or self.lat is None
+                or self.lat == ""
+                or np.isnan(self.lat)
+                or self.fixed_location is False
+                or self.fixed_location is None
+            ):
+                self._observer = None
+                return self._observer
 
-            try:
-                tf = timezonefinder.TimezoneFinder(in_memory=True)
-                local_tz = tf.timezone_at(
-                    lng=(self.lon + 180) % 360 - 180, lat=self.lat
-                )
-                elevation = self.elevation
-                if (
-                    self.elevation is None
-                    or self.elevation == ""
-                    or np.isnan(self.elevation)
-                ):
-                    elevation = 0
+        try:
+            elevation = self.elevation
+            # if elevation is not specified, assume it is 0
+            if (
+                self.elevation is None
+                or self.elevation == ""
+                or np.isnan(self.elevation)
+            ):
+                elevation = 0
 
-                self._observer = astroplan.Observer(
-                    longitude=self.lon * u.deg,
-                    latitude=self.lat * u.deg,
-                    elevation=elevation * u.m,
-                    timezone=local_tz,
-                )
+            self._observer = astroplan.Observer(
+                longitude=self.lon * u.deg,
+                latitude=self.lat * u.deg,
+                elevation=elevation * u.m,
+            )
 
-            except Exception as e:
-                log(
-                    f'Telescope {self.id} ("{self.name}") cannot calculate an observer: {e}'
-                )
-                return None
+        except Exception as e:
+            log(
+                f'Telescope {self.id} ("{self.name}") cannot calculate an observer: {e}'
+            )
+            self._observer = None
 
         return self._observer
+
+    @property
+    def observer_timezone(self):
+        """Return an `astroplan.Observer` representing an observer at this
+        facility, accounting for the latitude, longitude, elevation, and
+        local time zone of the observatory (if ground based)."""
+        try:
+            return self._observer_timezone
+        except AttributeError:
+            if (
+                self.lon is None
+                or self.lon == ""
+                or np.isnan(self.lon)
+                or self.lat is None
+                or self.lat == ""
+                or np.isnan(self.lat)
+                or self.fixed_location is False
+                or self.fixed_location is None
+            ):
+                self._observer_timezone = None
+                return self._observer_timezone
+
+        try:
+            tf = timezonefinder.TimezoneFinder(in_memory=True)
+            local_tz = tf.timezone_at(lng=(self.lon + 180) % 360 - 180, lat=self.lat)
+            elevation = self.elevation
+            # if elevation is not specified, assume it is 0
+            if (
+                self.elevation is None
+                or self.elevation == ""
+                or np.isnan(self.elevation)
+            ):
+                elevation = 0
+
+            self._observer_timezone = astroplan.Observer(
+                longitude=self.lon * u.deg,
+                latitude=self.lat * u.deg,
+                elevation=elevation * u.m,
+                timezone=local_tz,
+            )
+
+        except Exception as e:
+            log(
+                f'Telescope {self.id} ("{self.name}") cannot calculate an observer: {e}'
+            )
+            self._observer_timezone = None
+
+        return self._observer_timezone
 
     def next_sunset(self, time=None):
         """The astropy timestamp of the next sunset after `time` at this site.
         If time=None, uses the current time."""
-        if time is None:
-            time = ap_time.Time.now()
         observer = self.observer
         if observer is None:
             return None
+        if time is None:
+            time = ap_time.Time.now()
         return observer.sun_set_time(time, which='next')
 
     def next_sunrise(self, time=None):
         """The astropy timestamp of the next sunrise after `time` at this site.
         If time=None, uses the current time."""
-        if time is None:
-            time = ap_time.Time.now()
         observer = self.observer
         if observer is None:
             return None
+        if time is None:
+            time = ap_time.Time.now()
         return observer.sun_rise_time(time, which='next')
 
     def next_twilight_evening_nautical(self, time=None):
         """The astropy timestamp of the next evening nautical (-12 degree)
         twilight at this site. If time=None, uses the current time."""
-        if time is None:
-            time = ap_time.Time.now()
         observer = self.observer
         if observer is None:
             return None
+        if time is None:
+            time = ap_time.Time.now()
         return observer.twilight_evening_nautical(time, which='next')
 
     def next_twilight_morning_nautical(self, time=None):
         """The astropy timestamp of the next morning nautical (-12 degree)
         twilight at this site. If time=None, uses the current time."""
-        if time is None:
-            time = ap_time.Time.now()
         observer = self.observer
         if observer is None:
             return None
+        if time is None:
+            time = ap_time.Time.now()
         with warnings.catch_warnings():
             # for telescopes above the arctic circle (or below antarctic circle)
             # there is no morning nautical twilight
@@ -149,11 +218,11 @@ class Telescope(Base):
     def next_twilight_evening_astronomical(self, time=None):
         """The astropy timestamp of the next evening astronomical (-18 degree)
         twilight at this site. If time=None, uses the current time."""
-        if time is None:
-            time = ap_time.Time.now()
         observer = self.observer
         if observer is None:
             return None
+        if time is None:
+            time = ap_time.Time.now()
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             t = observer.twilight_evening_astronomical(time, which='next')
@@ -164,11 +233,11 @@ class Telescope(Base):
     def next_twilight_morning_astronomical(self, time=None):
         """The astropy timestamp of the next morning astronomical (-18 degree)
         twilight at this site. If time=None, uses the current time."""
-        if time is None:
-            time = ap_time.Time.now()
         observer = self.observer
         if observer is None:
             return None
+        if time is None:
+            time = ap_time.Time.now()
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             t = observer.twilight_morning_astronomical(time, which='next')
