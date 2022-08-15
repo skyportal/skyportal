@@ -2,7 +2,6 @@ from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.custom_exceptions import AccessError
 from ..base import BaseHandler
 from ...models import (
-    DBSession,
     Group,
     User,
     GroupUser,
@@ -61,36 +60,55 @@ class GroupAdmissionRequestHandler(BaseHandler):
                   schema: Error
         """
         group_id = self.get_query_argument("groupID", None)
-        if admission_request_id is not None:
-            admission_request = GroupAdmissionRequest.get_if_accessible_by(
-                admission_request_id,
-                self.current_user,
-                mode="read",
-            )
-            if admission_request is None:
-                return self.error(
-                    f'Could not find an admission request with the ID: {admission_request_id}.'
-                )
-            response_data = {
-                **admission_request.to_dict(),
-                "user": admission_request.user,
-            }
-            response_data["user"] = admission_request.user
-            self.verify_and_commit()
-            return self.success(data=response_data)
 
-        q = GroupAdmissionRequest.query_records_accessible_by(
-            self.current_user, mode="read"
-        )
-        if group_id is not None:
-            q = q.filter(GroupAdmissionRequest.group_id == group_id)
-        admission_requests = q.all()
-        response_data = [
-            {**admission_request.to_dict(), "user": admission_request.user}
-            for admission_request in admission_requests
-        ]
-        self.verify_and_commit()
-        return self.success(data=response_data)
+        with self.Session() as session:
+            if admission_request_id is not None:
+                admission_request = session.scalars(
+                    GroupAdmissionRequest.select(session.user_or_token).where(
+                        GroupAdmissionRequest.id == admission_request_id
+                    )
+                ).first()
+                if admission_request is None:
+                    return self.error(
+                        f'Could not find an admission request with the ID: {admission_request_id}.'
+                    )
+                group = session.scalars(
+                    Group.select(session.user_or_token).where(
+                        Group.id == admission_request.group_id
+                    )
+                ).first()
+                if group is None:
+                    return self.error("Invalid group ID")
+                admins = session.scalars(
+                    GroupUser.select(session.user_or_token)
+                    .where(GroupUser.group_id == admission_request.group_id)
+                    .where(GroupUser.admin.is_(True))
+                ).all()
+                admin_ids = [admin.user.id for admin in admins]
+
+                if (admission_request.user.id != self.current_user.created_by.id) and (
+                    self.current_user.created_by.id not in admin_ids
+                ):
+                    return self.error(
+                        'User must be group admin or requester to see request'
+                    )
+
+                response_data = {
+                    **admission_request.to_dict(),
+                    "user": admission_request.user,
+                }
+                response_data["user"] = admission_request.user
+                return self.success(data=response_data)
+
+            q = GroupAdmissionRequest.select(session.user_or_token)
+            if group_id is not None:
+                q = q.where(GroupAdmissionRequest.group_id == group_id)
+            admission_requests = session.scalars(q).unique().all()
+            response_data = [
+                {**admission_request.to_dict(), "user": admission_request.user}
+                for admission_request in admission_requests
+            ]
+            return self.success(data=response_data)
 
     @auth_or_token
     def post(self):
@@ -146,47 +164,66 @@ class GroupAdmissionRequestHandler(BaseHandler):
         except ValueError:
             return self.error("Invalid `groupID` parameter; unable to parse to int")
 
-        group = Group.query.get(group_id)
-        if group is None or group.single_user_group:
-            return self.error("Invalid group ID")
-        requesting_user = User.query.get(user_id)
-        if requesting_user is None:
-            return self.error("Invalid user ID")
-        # Ensure user is not already a member of target group
-        gu = (
-            GroupUser.query.filter(GroupUser.group_id == group_id)
-            .filter(GroupUser.user_id == user_id)
-            .first()
-        )
-        if gu is not None:
-            return self.error(f"User {user_id} is already a member of group {group_id}")
-        # Ensure user has sufficient stream access for target group
-        if group.streams:
-            if not all(
-                [
-                    stream in requesting_user.accessible_streams
-                    for stream in group.streams
-                ]
-            ):
+        with self.Session() as session:
+            group = session.scalars(
+                Group.select(session.user_or_token).where(Group.id == group_id)
+            ).first()
+            if group is None or group.single_user_group:
+                return self.error("Invalid group ID")
+            requesting_user = session.scalars(
+                User.select(session.user_or_token).where(User.id == user_id)
+            ).first()
+            if requesting_user is None:
+                return self.error("Invalid user ID")
+
+            if hasattr(self.current_user, 'created_by'):
+                if requesting_user.id != self.current_user.created_by.id:
+                    return self.error(
+                        "Group admission request cannot be made on behalf of others."
+                    )
+            else:
+                if requesting_user.id != self.current_user.id:
+                    return self.error(
+                        "Group admission request cannot be made on behalf of others."
+                    )
+
+            # Ensure user is not already a member of target group
+            gu = session.scalars(
+                GroupUser.select(session.user_or_token)
+                .where(GroupUser.group_id == group_id)
+                .where(GroupUser.user_id == user_id)
+            ).first()
+            if gu is not None:
                 return self.error(
-                    f"User {user_id} does not have sufficient stream access "
-                    f"to be added to group {group_id}."
+                    f"User {user_id} is already a member of group {group_id}"
                 )
-        admission_request = GroupAdmissionRequest(
-            user_id=user_id, group_id=group_id, status="pending"
-        )
-        DBSession().add(admission_request)
-
-        try:
-            self.verify_and_commit()
-        except AccessError as e:
-            return self.error(
-                "Insufficient permissions: group admission requests cannot be made "
-                f"on behalf of others. (Original exception: {e})"
+            # Ensure user has sufficient stream access for target group
+            if group.streams:
+                if not all(
+                    [
+                        stream in requesting_user.accessible_streams
+                        for stream in group.streams
+                    ]
+                ):
+                    return self.error(
+                        f"User {user_id} does not have sufficient stream access "
+                        f"to be added to group {group_id}."
+                    )
+            admission_request = GroupAdmissionRequest(
+                user_id=user_id, group_id=group_id, status="pending"
             )
+            session.add(admission_request)
 
-        self.push(action="skyportal/FETCH_USER_PROFILE")
-        return self.success(data={"id": admission_request.id})
+            try:
+                session.commit()
+            except AccessError as e:
+                return self.error(
+                    "Insufficient permissions: group admission requests cannot be made "
+                    f"on behalf of others. (Original exception: {e})"
+                )
+
+            self.push(action="skyportal/FETCH_USER_PROFILE")
+            return self.success(data={"id": admission_request.id})
 
     @permissions(["Upload data"])
     def patch(self, admission_request_id):
@@ -229,31 +266,32 @@ class GroupAdmissionRequestHandler(BaseHandler):
                 "Invalid 'status' value - should be one of either 'accepted', 'declined', or 'pending'"
             )
 
-        try:
-            admission_request = GroupAdmissionRequest.get_if_accessible_by(
-                admission_request_id,
-                self.current_user,
-                raise_if_none=True,
-                mode="update",
-            )
-        except AccessError as e:
-            return self.error(
-                "Insufficient permissions: group admission request status can "
-                f"only be changed by group admins. (Original exception: {e})"
+        with self.Session() as session:
+            admission_request = session.scalars(
+                GroupAdmissionRequest.select(
+                    session.user_or_token, mode="update"
+                ).where(GroupAdmissionRequest.id == admission_request_id)
+            ).first()
+            if admission_request is None:
+                return self.error(
+                    "Insufficient permissions: group admission request status can "
+                    "only be changed by group admins."
+                )
+
+            admission_request.status = status
+            session.add(
+                UserNotification(
+                    user=admission_request.user,
+                    text=f"Your admission request to group *{admission_request.group.name}* has been *{status}*",
+                    url="/groups",
+                )
             )
 
-        admission_request.status = status
-        DBSession().add(
-            UserNotification(
-                user=admission_request.user,
-                text=f"Your admission request to group *{admission_request.group.name}* has been *{status}*",
-                url="/groups",
+            session.commit()
+            self.flow.push(
+                admission_request.user_id, "skyportal/FETCH_NOTIFICATIONS", {}
             )
-        )
-
-        self.verify_and_commit()
-        self.flow.push(admission_request.user_id, "skyportal/FETCH_NOTIFICATIONS", {})
-        return self.success()
+            return self.success()
 
     @permissions(["Upload data"])
     def delete(self, admission_request_id):
@@ -276,19 +314,19 @@ class GroupAdmissionRequestHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        try:
-            admission_request = GroupAdmissionRequest.get_if_accessible_by(
-                admission_request_id,
-                self.current_user,
-                raise_if_none=True,
-                mode="delete",
-            )
-        except AccessError as e:
-            return self.error(
-                "Insufficient permissions: only the requester can delete a "
-                f"group admission request. (Original exception: {e})"
-            )
-        DBSession().delete(admission_request)
-        self.verify_and_commit()
-        self.push(action="skyportal/FETCH_USER_PROFILE")
-        return self.success()
+
+        with self.Session() as session:
+            admission_request = session.scalars(
+                GroupAdmissionRequest.select(
+                    session.user_or_token, mode="delete"
+                ).where(GroupAdmissionRequest.id == admission_request_id)
+            ).first()
+            if admission_request is None:
+                return self.error(
+                    "Insufficient permissions: only the requester can delete a "
+                    "group admission request."
+                )
+            session.delete(admission_request)
+            session.commit()
+            self.push(action="skyportal/FETCH_USER_PROFILE")
+            return self.success()
