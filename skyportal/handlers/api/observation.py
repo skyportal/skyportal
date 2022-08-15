@@ -406,7 +406,6 @@ def get_observations(
             Observation.instrument_field_id == tiles_subquery.c.id,
         )
 
-        return_statistics = True
         if return_statistics:
             obs_subquery = obs_query.subquery()
             fields_query = sa.select(InstrumentField.id).join(
