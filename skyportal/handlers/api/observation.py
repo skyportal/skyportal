@@ -1147,6 +1147,7 @@ class ObservationExternalAPIHandler(BaseHandler):
             self.push_notification(
                 'Observation ingestion in progress. Should be available soon.'
             )
+            return self.success()
         except Exception as e:
             return self.error(f"Error in querying instrument API: {e}")
 
