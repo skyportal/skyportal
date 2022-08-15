@@ -405,8 +405,8 @@ def test_cannot_add_user_to_group_wout_stream_access(
         data={"userID": user.id, "admin": False},
         token=super_admin_token,
     )
-    assert status == 400
-    assert "Insufficient permissions" in data["message"]
+    assert status == 403
+    assert "does not have stream access with ID" in data["message"]
 
 
 def test_cannot_delete_stream_actively_filtered(
@@ -418,7 +418,7 @@ def test_cannot_delete_stream_actively_filtered(
         token=super_admin_token,
     )
     assert status == 400
-    assert "Insufficient permissions" in data["message"]
+    assert "No stream IDs with" in data["message"]
 
 
 def test_delete_stream_not_actively_filtered(
@@ -581,7 +581,7 @@ def test_non_group_admin_cannot_add_user_to_group(
         token=group_admin_token,
     )
     assert status == 400
-    assert "Insufficient permission" in data["message"]
+    assert "not accessible" in data["message"]
 
 
 def test_cannot_add_stream_to_single_user_group(super_admin_token, user, public_stream):
@@ -594,7 +594,7 @@ def test_cannot_add_stream_to_single_user_group(super_admin_token, user, public_
         token=super_admin_token,
     )
     assert status == 400
-    assert "Insufficient permissions" in data["message"]
+    assert "It is a single user group" in data["message"]
 
 
 def test_cannot_add_another_user_to_single_user_group(user2, super_admin_token, user):
@@ -607,7 +607,7 @@ def test_cannot_add_another_user_to_single_user_group(user2, super_admin_token, 
         token=super_admin_token,
     )
     assert status == 400
-    assert "Insufficient permissions" in data["message"]
+    assert "It is a single user group" in data["message"]
 
 
 def test_cannot_remove_user_from_single_user_group(super_admin_token, user):
