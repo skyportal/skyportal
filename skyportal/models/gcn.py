@@ -188,6 +188,7 @@ class GcnEvent(Base):
         nullable=False,
         server_default="{}",
         doc="List of different names for this event, parsed from different GCN notices.",
+    )
 
     reminders = relationship(
         'ReminderOnGCN',
