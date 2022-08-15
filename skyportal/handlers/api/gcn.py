@@ -450,12 +450,19 @@ class GcnEventHandler(BaseHandler):
                 Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
                 dateobs <= endDate
             - in: query
-              name: tag
+              name: tagKeep
               nullable: true
               schema:
                 type: string
               description: |
                 Gcn Tag to match against
+            - in: query
+              name: tagRemove
+              nullable: true
+              schema:
+                type: string
+              description: |
+                Gcn Tag to filter out
         responses:
           200:
             content:
@@ -484,7 +491,8 @@ class GcnEventHandler(BaseHandler):
 
         start_date = self.get_query_argument('startDate', None)
         end_date = self.get_query_argument('endDate', None)
-        tag = self.get_query_argument('tag', None)
+        tag_keep = self.get_query_argument('tagKeep', None)
+        tag_remove = self.get_query_argument('tagRemove', None)
 
         if dateobs is not None:
             with self.Session() as session:
@@ -547,14 +555,23 @@ class GcnEventHandler(BaseHandler):
             if end_date:
                 end_date = arrow.get(end_date.strip()).datetime
                 query = query.where(GcnEvent.dateobs <= end_date)
-            if tag:
+            if tag_keep:
                 tag_subquery = (
                     GcnTag.select(session.user_or_token)
-                    .where(GcnTag.text.contains(tag))
+                    .where(GcnTag.text.contains(tag_keep))
                     .subquery()
                 )
                 query = query.join(
                     tag_subquery, GcnEvent.dateobs == tag_subquery.c.dateobs
+                )
+            if tag_remove:
+                tag_subquery = (
+                    GcnTag.select(session.user_or_token)
+                    .where(GcnTag.text.contains(tag_remove))
+                    .subquery()
+                )
+                query = query.join(
+                    tag_subquery, GcnEvent.dateobs != tag_subquery.c.dateobs
                 )
 
             total_matches = session.scalar(

@@ -124,7 +124,8 @@ const GcnEvents = () => {
     if (filterData && Object.keys(filterData).length > 0) {
       params.startDate = filterData.startDate;
       params.endDate = filterData.endDate;
-      params.tag = filterData.tag;
+      params.tagKeep = filterData.tagKeep;
+      params.tagRemove = filterData.tagRemove;
     }
     // Save state for future
     setFetchParams(params);
