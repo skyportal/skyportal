@@ -164,6 +164,8 @@ and then, from a different window, do `make load_demo_data`.
 
 If you are using WSL, be sure everything (the git repository and all dependencies) are on the Linux machine and not the Windows side, as connection oddities can otherwise cause several errors.
 
+Mac users may need to disable Airplay Receiver in System Preferences to free up port 5000 and avoid a 403 Forbidden error.
+
 ## Additional Configuration
 
 The configuration file lives in `config.yaml`, and is meant to be
