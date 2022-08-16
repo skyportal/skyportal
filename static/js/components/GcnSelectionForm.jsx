@@ -407,7 +407,7 @@ const GcnSelectionForm = ({
               key={localization.id}
               className={classes.localizationSelectItem}
             >
-              {`${localization.localization_name}`}
+              {`Skymap: ${localization.localization_name} / Created: ${localization.created_at}`}
             </MenuItem>
           ))}
         </Select>
