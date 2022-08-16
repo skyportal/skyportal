@@ -957,6 +957,9 @@ class PhotometryHandler(BaseHandler):
                         )
                         # update the corresponding photometry entry in the db
                         duplicate.groups = groups
+                        log(
+                            f'Adding groups {group_ids_update} to photometry {duplicate.id}'
+                        )
 
                     # posting to new streams?
                     if stream_ids:
@@ -969,9 +972,16 @@ class PhotometryHandler(BaseHandler):
                                         photometr_id=duplicate.id, stream_id=id
                                     )
                                 )
+                            log(
+                                f'Adding streams {stream_ids_update} to photometry {duplicate.id}'
+                            )
 
                 # now safely drop the duplicates:
                 new_photometry = df.loc[new_photometry_df_idxs]
+                print(
+                    f'Inserting {len(new_photometry.index)} '
+                    f'(out of {len(df.index)}) new photometry points'
+                )
 
                 if len(new_photometry) > 0:
                     ids, upload_id = insert_new_photometry_data(
@@ -994,7 +1004,8 @@ class PhotometryHandler(BaseHandler):
                 ids = [id_map[pdidx] for pdidx, _ in df.iterrows()]
 
                 log(
-                    f'Request from {username} for object {obj_id} with {len(new_photometry.index)} rows complete with upload_id {upload_id}'
+                    f'Request from {username} for object {obj_id} with {len(new_photometry.index)} '
+                    f'rows complete with upload_id {upload_id}'
                 )
                 return self.success(data={'ids': ids})
 
