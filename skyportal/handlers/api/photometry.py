@@ -978,7 +978,7 @@ class PhotometryHandler(BaseHandler):
 
                 # now safely drop the duplicates:
                 new_photometry = df.loc[new_photometry_df_idxs]
-                print(
+                log(
                     f'Inserting {len(new_photometry.index)} '
                     f'(out of {len(df.index)}) new photometry points'
                 )
