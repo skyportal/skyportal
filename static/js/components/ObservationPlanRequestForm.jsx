@@ -528,7 +528,7 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
               key={localization.id}
               className={classes.SelectItem}
             >
-              {`${localization.localization_name}`}
+              {`Skymap: ${localization.localization_name} / Created: ${localization.created_at}`}
             </MenuItem>
           ))}
         </Select>
