@@ -130,7 +130,6 @@ const NotificationPreferences = () => {
         },
       },
     };
-    console.log("prefs", prefs);
     dispatch(profileActions.updateUserPreferences(prefs));
     setSelectedGcnNoticeTypes([...new Set(selectedGcnNoticeTypes)]);
     setSelectedGcnTags([...new Set(selectedGcnTags)]);
