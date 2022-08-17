@@ -993,9 +993,14 @@ class PhotometryHandler(BaseHandler):
                 # get ids in the correct order
                 ids = [id_map[pdidx] for pdidx, _ in df.iterrows()]
 
-                log(
-                    f'Request from {username} for object {obj_id} with {len(new_photometry.index)} rows complete with upload_id {upload_id}'
-                )
+                if len(new_photometry) > 0:
+                    log(
+                        f'Request from {username} for object {obj_id} with {len(new_photometry.index)} rows complete with upload_id {upload_id}'
+                    )
+                else:
+                    log(
+                        f'Request from {username} for object {obj_id} with {len(new_photometry.index)} rows complete with no new photometry'
+                    )
                 return self.success(data={'ids': ids})
 
             except Exception:
