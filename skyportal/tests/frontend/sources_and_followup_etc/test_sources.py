@@ -232,8 +232,9 @@ def test_analysis_page(
 
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_source.id}/analysis/{analysis_id}")
+    print(analysis_status)
 
-    driver.wait_for_xpath(f'//span[text()="{analysis_status}"]', timeout=40)
+    driver.wait_for_xpath(f'//span[text()="{analysis_status}"]')
 
     if analysis_status == "completed":
         driver.wait_for_xpath('//p[text()="Analysis Results"]')
