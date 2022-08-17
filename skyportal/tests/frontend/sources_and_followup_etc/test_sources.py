@@ -166,6 +166,7 @@ def test_analysis_start(
     )
 
 
+@pytest.mark.flaky(reruns=3)
 def test_analysis_page(
     driver, user, public_source, analysis_service_token, analysis_token, public_group
 ):
