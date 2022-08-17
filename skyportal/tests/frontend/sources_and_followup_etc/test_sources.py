@@ -122,6 +122,7 @@ def test_public_source_page_null_z(driver, user, public_source, public_group):
     driver.wait_for_xpath(f'//span[text()="{public_group.name}"]')
 
 
+@pytest.mark.flaky(reruns=3)
 def test_analysis_start(
     driver, user, public_source, analysis_service_token, public_group
 ):
