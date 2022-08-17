@@ -427,18 +427,26 @@ def add_user_notifications(mapper, connection, target):
                                     "gcn_events"
                                 ].keys()
                             ):
-                                root = lxml.etree.fromstring(target.content)
-                                tags = [text for text in get_tags(root)]
-                                intersection = list(
-                                    set(tags)
-                                    & set(
+                                if (
+                                    len(
                                         user.preferences['notifications']['gcn_events'][
                                             "gcn_tags"
                                         ]
                                     )
-                                )
-                                if len(intersection) == 0:
-                                    return
+                                    > 0
+                                ):
+                                    root = lxml.etree.fromstring(target.content)
+                                    tags = [text for text in get_tags(root)]
+                                    intersection = list(
+                                        set(tags)
+                                        & set(
+                                            user.preferences['notifications'][
+                                                'gcn_events'
+                                            ]["gcn_tags"]
+                                        )
+                                    )
+                                    if len(intersection) == 0:
+                                        return
                             session.add(
                                 UserNotification(
                                     user=user,
