@@ -13,6 +13,8 @@ from selenium.webdriver.common.keys import Keys
 from baselayer.app.config import load_config
 from os.path import join as pjoin
 
+import pytest
+
 cfg = load_config()
 
 
@@ -637,6 +639,7 @@ def test_gcn_summary_observations(
         os.remove(fpath)
 
 
+@pytest.mark.flaky(reruns=3)
 def test_confirm_reject_source_in_gcn(
     driver,
     super_admin_user,
