@@ -7,6 +7,7 @@ from sqlalchemy.orm import relationship
 
 from sqlalchemy import event, inspect
 import arrow
+import lxml
 import requests
 
 from baselayer.app.models import Base, User, AccessibleIfUserMatches
@@ -30,6 +31,7 @@ import gcn
 from sqlalchemy import or_
 
 from skyportal.models import Shift, ShiftUser
+from skyportal.utils.gcn import get_tags
 
 _, cfg = load_env()
 
@@ -419,6 +421,24 @@ def add_user_notifications(mapper, connection, target):
                                 'gcn_notice_types'
                             ]
                         ):
+                            if (
+                                "gcn_tags"
+                                in user.preferences['notifications'][
+                                    "gcn_events"
+                                ].keys()
+                            ):
+                                root = lxml.etree.fromstring(target.content)
+                                tags = [text for text in get_tags(root)]
+                                intersection = list(
+                                    set(tags)
+                                    & set(
+                                        user.preferences['notifications']['gcn_events'][
+                                            "gcn_tags"
+                                        ]
+                                    )
+                                )
+                                if len(intersection) == 0:
+                                    return
                             session.add(
                                 UserNotification(
                                     user=user,

@@ -14,6 +14,7 @@ import HelpOutlineOutlinedIcon from "@mui/icons-material/HelpOutlineOutlined";
 import UserPreferencesHeader from "./UserPreferencesHeader";
 import ClassificationSelect from "./ClassificationSelect";
 import GcnNoticeTypesSelect from "./GcnNoticeTypesSelect";
+import GcnTagsSelect from "./GcnTagsSelect";
 import NotificationSettingsSelect from "./NotificationSettingsSelect";
 import * as profileActions from "../ducks/profile";
 
@@ -62,6 +63,10 @@ const NotificationPreferences = () => {
     profile?.notications?.gcn_events?.gcn_notice_types || []
   );
 
+  const [selectedGcnTags, setSelectedGcnTags] = useState(
+    profile?.notications?.gcn_events?.gcn_tags || []
+  );
+
   useEffect(() => {
     setSelectedClassifications(
       profile?.notifications?.sources?.classifications || []
@@ -69,6 +74,7 @@ const NotificationPreferences = () => {
     setSelectedGcnNoticeTypes(
       profile?.notifications?.gcn_events?.gcn_notice_types || []
     );
+    setSelectedGcnTags(profile?.notifications?.gcn_events?.gcn_tags || []);
   }, [profile]);
 
   const prefToggled = (event) => {
@@ -120,11 +126,14 @@ const NotificationPreferences = () => {
       notifications: {
         gcn_events: {
           gcn_notice_types: [...new Set(selectedGcnNoticeTypes)],
+          gcn_tags: [...new Set(selectedGcnTags)],
         },
       },
     };
+    console.log("prefs", prefs);
     dispatch(profileActions.updateUserPreferences(prefs));
     setSelectedGcnNoticeTypes([...new Set(selectedGcnNoticeTypes)]);
+    setSelectedGcnTags([...new Set(selectedGcnTags)]);
     dispatch(showNotification("Gcn notice types updated"));
   };
 
@@ -203,6 +212,10 @@ const NotificationPreferences = () => {
                 <GcnNoticeTypesSelect
                   selectedGcnNoticeTypes={selectedGcnNoticeTypes}
                   setSelectedGcnNoticeTypes={setSelectedGcnNoticeTypes}
+                />
+                <GcnTagsSelect
+                  selectedGcnTags={selectedGcnTags}
+                  setSelectedGcnTags={setSelectedGcnTags}
                 />
                 <Button
                   variant="contained"
