@@ -302,6 +302,32 @@ const GcnEventPage = ({ route }) => {
               <AccordionSummary
                 expandIcon={<ExpandMoreIcon />}
                 aria-controls="gcnEvent-content"
+                id="info-header"
+              >
+                <Typography className={styles.accordionHeading}>
+                  Event Information
+                </Typography>
+              </AccordionSummary>
+              <AccordionDetails>
+                <div className={styles.gcnEventContainer}>
+                  <Link to={`/gcn_events/${gcnEvent.dateobs}`}>
+                    <Button color="primary">
+                      {dayjs(gcnEvent.dateobs).format("YYMMDD HH:mm:ss")}
+                    </Button>
+                  </Link>
+                  ({dayjs().to(dayjs.utc(`${gcnEvent.dateobs}Z`))})
+                </div>
+                <div className={styles.eventTags}>
+                  <GcnTags gcnEvent={gcnEvent} />
+                </div>
+              </AccordionDetails>
+            </Accordion>
+          </div>
+          <div className={styles.columnItem}>
+            <Accordion defaultExpanded>
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon />}
+                aria-controls="gcnEvent-content"
                 id="analysis-header"
               >
                 <Typography className={styles.accordionHeading}>
@@ -346,29 +372,6 @@ const GcnEventPage = ({ route }) => {
         {width > 600 && (
           <Grid item xs={5}>
             <div className={styles.columnItem}>
-              <Accordion defaultExpanded>
-                <AccordionSummary
-                  expandIcon={<ExpandMoreIcon />}
-                  aria-controls="gcnEvent-content"
-                  id="info-header"
-                >
-                  <Typography className={styles.accordionHeading}>
-                    Event Information
-                  </Typography>
-                </AccordionSummary>
-                <AccordionDetails>
-                  <div className={styles.gcnEventContainer}>
-                    <Link to={`/gcn_events/${gcnEvent.dateobs}`}>
-                      <Button color="primary">
-                        {dayjs(gcnEvent.dateobs).format("YYMMDD HH:mm:ss")}
-                      </Button>
-                    </Link>
-                    ({dayjs().to(dayjs.utc(`${gcnEvent.dateobs}Z`))})
-                  </div>
-                </AccordionDetails>
-              </Accordion>
-            </div>
-            <div className={styles.columnItem}>
               <Accordion
                 defaultExpanded
                 className={styles.comments}
@@ -409,24 +412,6 @@ const GcnEventPage = ({ route }) => {
                         <img src={gcnEvent.lightcurve} alt="loading..." />
                       </div>
                     )}
-                  </div>
-                </AccordionDetails>
-              </Accordion>
-            </div>
-            <div className={styles.columnItem}>
-              <Accordion defaultExpanded>
-                <AccordionSummary
-                  expandIcon={<ExpandMoreIcon />}
-                  aria-controls="gcnEvent-content"
-                  id="eventtags-header"
-                >
-                  <Typography className={styles.accordionHeading}>
-                    Event Tags
-                  </Typography>
-                </AccordionSummary>
-                <AccordionDetails>
-                  <div className={styles.eventTags}>
-                    <GcnTags gcnEvent={gcnEvent} />
                   </div>
                 </AccordionDetails>
               </Accordion>
