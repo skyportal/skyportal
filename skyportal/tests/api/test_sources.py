@@ -2009,7 +2009,8 @@ def test_token_user_retrieving_source_with_comment_filter(
     )
     assert status == 200
     assert data["status"] == "success"
-    assert len(data["data"]["sources"]) == 2
+    # we are only currently supporting exact match
+    assert len(data["data"]["sources"]) == 1
 
     status, data = api(
         "GET",

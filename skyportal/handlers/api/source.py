@@ -724,26 +724,67 @@ def get_sources(
             raise ValueError(
                 "Invalid annotationsFilterOrigin value -- must provide at least one string value"
             )
-    if comments_filter is not None:
-        if isinstance(comments_filter, str) and "," in comments_filter:
-            comments_filter = [c.strip() for c in comments_filter.split(",")]
-        elif isinstance(comments_filter, str):
-            comments_filter = [comments_filter]
-        else:
-            raise ValueError(
-                "Invalid commentsFilter value -- must provide at least one string value"
+
+    if (
+        (comments_filter is not None)
+        or comments_filter_before
+        or comments_filter_after
+        or (comments_filter_author is not None)
+    ):
+
+        comment_query = Comment.select(session.user_or_token)
+
+        if comments_filter is not None:
+            if isinstance(comments_filter, str) and "," in comments_filter:
+                comments_filter = [c.strip() for c in comments_filter.split(",")]
+            elif isinstance(comments_filter, str):
+                comments_filter = [comments_filter]
+            else:
+                raise ValueError(
+                    "Invalid commentsFilter value -- must provide at least one string value"
+                )
+            comment_query = comment_query.where(Comment.text.in_(comments_filter))
+
+        if comments_filter_before:
+            comment_query = comment_query.where(
+                Comment.created_at <= comments_filter_before
             )
-    if comments_filter_author is not None:
-        if isinstance(comments_filter_author, str) and "," in comments_filter_author:
-            comments_filter_author = [
-                c.strip() for c in comments_filter_author.split(",")
-            ]
-        elif isinstance(comments_filter_author, str):
-            comments_filter_author = [comments_filter_author]
-        else:
-            raise ValueError(
-                "Invalid commentsFilterAuthor value -- must provide at least one string value"
+
+        if comments_filter_after:
+            comment_query = comment_query.where(
+                Comment.created_at >= comments_filter_after
             )
+
+        if comments_filter_author is not None:
+            if (
+                isinstance(comments_filter_author, str)
+                and "," in comments_filter_author
+            ):
+                comments_filter_author = [
+                    c.strip() for c in comments_filter_author.split(",")
+                ]
+            elif isinstance(comments_filter_author, str):
+                comments_filter_author = [comments_filter_author]
+            else:
+                raise ValueError(
+                    "Invalid commentsFilterAuthor value -- must provide at least one string value"
+                )
+
+            author_query = User.select(session.user_or_token).where(
+                User.username.in_(comments_filter_author)
+            )
+            author_subquery = author_query.subquery()
+
+            comment_query = comment_query.join(
+                author_subquery,
+                Comment.author_id == author_subquery.c.id,
+            )
+        comment_subquery = comment_query.subquery()
+        obj_query = obj_query.join(
+            comment_subquery,
+            Obj.id == comment_subquery.c.obj_id,
+        )
+
     if localization_dateobs is not None:
 
         # This grabs just the IDs so the more expensive localization in-out
@@ -1002,49 +1043,6 @@ def get_sources(
                             if not comp_check:
                                 passes_filter = False
                                 break
-                if not passes_filter:
-                    continue
-            if (
-                (comments_filter is not None)
-                or (comments_filter_author is not None)
-                or (comments_filter_before is not None)
-                or (comments_filter_after is not None)
-            ):
-                comments_query = Comment.query_records_accessible_by(user).filter(
-                    Comment.obj_id == obj.id
-                )
-                if comments_filter_before:
-                    comments_query = comments_query.filter(
-                        Comment.created_at <= comments_filter_before
-                    )
-                if comments_filter_after:
-                    comments_query = comments_query.filter(
-                        Comment.created_at >= comments_filter_after
-                    )
-                comments = comments_query.all()
-
-                if len(comments) > 0:
-                    passes_filter = True
-                else:
-                    passes_filter = False
-
-                if comments_filter_author is not None:
-                    author_present = [
-                        com.author.username in comments_filter_author
-                        for com in comments
-                    ]
-                    author_check = any(author_present)
-                    if not author_check:
-                        passes_filter = False
-
-                if comments_filter is not None:
-                    for com_filt in comments_filter:
-                        # check that the comment filter is present in at least one
-                        comment_present = [com_filt in com.text for com in comments]
-                        comment_check = any(comment_present)
-                        if not comment_check:
-                            passes_filter = False
-                            break
                 if not passes_filter:
                     continue
 

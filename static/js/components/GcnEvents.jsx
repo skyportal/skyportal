@@ -12,6 +12,7 @@ import {
 } from "@mui/material/styles";
 import makeStyles from "@mui/styles/makeStyles";
 import Chip from "@mui/material/Chip";
+import Grid from "@mui/material/Grid";
 import Button from "@mui/material/Button";
 import InfoIcon from "@mui/icons-material/Info";
 
@@ -21,6 +22,7 @@ import { filterOutEmptyValues } from "../API";
 import * as gcnEventsActions from "../ducks/gcnEvents";
 import Spinner from "./Spinner";
 import GcnEventsFilterForm from "./GcnEventsFilterForm";
+import NewGcnEvent from "./NewGcnEvent";
 
 const useStyles = makeStyles((theme) => ({
   container: {
@@ -280,24 +282,36 @@ const GcnEvents = () => {
   };
 
   return (
-    <div>
-      <Typography variant="h5">GCN Events</Typography>
-      {gcnEvents ? (
-        <Paper className={classes.container}>
-          <StyledEngineProvider injectFirst>
-            <ThemeProvider theme={getMuiTheme(theme)}>
-              <MUIDataTable
-                data={gcnEvents.events}
-                options={options}
-                columns={columns}
-              />
-            </ThemeProvider>
-          </StyledEngineProvider>
+    <Grid container spacing={3}>
+      <Grid item md={8} sm={12}>
+        <Paper elevation={1}>
+          <div className={classes.paperContent}>
+            <Typography variant="h5">GCN Events</Typography>
+            {gcnEvents ? (
+              <StyledEngineProvider injectFirst>
+                <ThemeProvider theme={getMuiTheme(theme)}>
+                  <MUIDataTable
+                    data={gcnEvents.events}
+                    options={options}
+                    columns={columns}
+                  />
+                </ThemeProvider>
+              </StyledEngineProvider>
+            ) : (
+              <Spinner />
+            )}
+          </div>
         </Paper>
-      ) : (
-        <Spinner />
-      )}
-    </div>
+      </Grid>
+      <Grid item md={4} sm={12}>
+        <Paper>
+          <div className={classes.paperContent}>
+            <Typography variant="h6">Add a New GcnEvent</Typography>
+            <NewGcnEvent />
+          </div>
+        </Paper>
+      </Grid>
+    </Grid>
   );
 };
 

@@ -259,7 +259,7 @@ def test_gcn_summary_sources(
 
     status, data = api(
         'GET',
-        'gcn_events/summary/2019-08-14T21:10:39',
+        'gcn_event/summary/2019-08-14T21:10:39',
         params=params,
         token=super_admin_token,
     )
@@ -415,7 +415,7 @@ def test_gcn_summary_galaxies(
 
     status, data = api(
         'GET',
-        'gcn_events/summary/2019-08-14T21:10:39',
+        'gcn_event/summary/2019-08-14T21:10:39',
         params=params,
         token=super_admin_token,
     )
@@ -681,7 +681,7 @@ def test_gcn_summary_observations(
 
     status, data = api(
         'GET',
-        'gcn_events/summary/2019-08-14T21:10:39',
+        'gcn_event/summary/2019-08-14T21:10:39',
         params=params,
         token=super_admin_token,
     )
