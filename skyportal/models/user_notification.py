@@ -7,6 +7,7 @@ from sqlalchemy.orm import relationship
 
 from sqlalchemy import event, inspect
 import arrow
+import lxml
 import requests
 
 from baselayer.app.models import Base, User, AccessibleIfUserMatches
@@ -30,6 +31,7 @@ import gcn
 from sqlalchemy import or_
 
 from skyportal.models import Shift, ShiftUser
+from skyportal.utils.gcn import get_tags
 
 _, cfg = load_env()
 
@@ -400,6 +402,7 @@ def add_user_notifications(mapper, connection, target):
 
         for user in users:
             # Only notify users who have read access to the new record in question
+            pref = user.preferences['notifications']
             if (
                 session.scalars(
                     target.__class__.select(user, mode='read').where(
@@ -409,16 +412,20 @@ def add_user_notifications(mapper, connection, target):
                 is not None
             ):
                 if is_gcnevent:
-                    if (
-                        "gcn_notice_types"
-                        in user.preferences['notifications']["gcn_events"].keys()
-                    ):
+                    if "gcn_notice_types" in pref["gcn_events"].keys():
                         if (
                             gcn.NoticeType(target.notice_type).name
-                            in user.preferences['notifications']['gcn_events'][
-                                'gcn_notice_types'
-                            ]
+                            in pref['gcn_events']['gcn_notice_types']
                         ):
+                            if "gcn_tags" in pref["gcn_events"].keys():
+                                if len(pref['gcn_events']["gcn_tags"]) > 0:
+                                    root = lxml.etree.fromstring(target.content)
+                                    tags = [text for text in get_tags(root)]
+                                    intersection = list(
+                                        set(tags) & set(pref['gcn_events']["gcn_tags"])
+                                    )
+                                    if len(intersection) == 0:
+                                        return
                             session.add(
                                 UserNotification(
                                     user=user,
@@ -491,8 +498,7 @@ def add_user_notifications(mapper, connection, target):
                     if is_classification:
                         if (
                             len(favorite_sources) > 0
-                            and "favorite_sources"
-                            in user.preferences['notifications'].keys()
+                            and "favorite_sources" in pref.keys()
                             and any(
                                 target.obj_id == source.obj_id
                                 for source in favorite_sources
@@ -506,16 +512,11 @@ def add_user_notifications(mapper, connection, target):
                                     url=f"/source/{target.obj_id}",
                                 )
                             )
-                        elif "sources" in user.preferences['notifications'].keys():
-                            if (
-                                "classifications"
-                                in user.preferences['notifications']['sources'].keys()
-                            ):
+                        elif "sources" in pref.keys():
+                            if "classifications" in pref['sources'].keys():
                                 if (
                                     target.classification
-                                    in user.preferences['notifications']['sources'][
-                                        'classifications'
-                                    ]
+                                    in pref['sources']['classifications']
                                 ):
                                     session.add(
                                         UserNotification(
@@ -528,8 +529,7 @@ def add_user_notifications(mapper, connection, target):
                     elif is_spectra:
                         if (
                             len(favorite_sources) > 0
-                            and "favorite_sources"
-                            in user.preferences["notifications"].keys()
+                            and "favorite_sources" in pref.keys()
                         ):
                             if any(
                                 target.obj_id == source.obj_id
@@ -546,8 +546,7 @@ def add_user_notifications(mapper, connection, target):
                     elif is_comment:
                         if (
                             len(favorite_sources) > 0
-                            and "favorite_sources"
-                            in user.preferences["notifications"].keys()
+                            and "favorite_sources" in pref.keys()
                         ):
                             if any(
                                 target.obj_id == source.obj_id
