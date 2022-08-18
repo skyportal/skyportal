@@ -43,7 +43,7 @@ const NewGcnEvent = () => {
       errors.ra.addError("0 <= RA < 360, please fix.");
     }
     if (formData.dec < -90 || formData.dec > 90) {
-      errors.ra.addError("-90 <= Declination <= 90, please fix.");
+      errors.dec.addError("-90 <= Declination <= 90, please fix.");
     }
     if (formData.error < 0) {
       errors.error.addError("0 < error, please fix.");
