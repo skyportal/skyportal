@@ -724,71 +724,62 @@ def get_sources(
             raise ValueError(
                 "Invalid annotationsFilterOrigin value -- must provide at least one string value"
             )
-    if comments_filter is not None:
-        if isinstance(comments_filter, str) and "," in comments_filter:
-            comments_filter = [c.strip() for c in comments_filter.split(",")]
-        elif isinstance(comments_filter, str):
-            comments_filter = [comments_filter]
-        else:
-            raise ValueError(
-                "Invalid commentsFilter value -- must provide at least one string value"
-            )
 
-        comment_query = Comment.select(session.user_or_token).where(
-            Comment.text.in_(comments_filter)
-        )
-        comment_subquery = comment_query.subquery()
-        obj_query = obj_query.join(
-            comment_subquery,
-            Obj.id == comment_subquery.c.obj_id,
-        )
-
-    if comments_filter_before:
-        comment_query = Comment.select(session.user_or_token).where(
-            Comment.created_at <= comments_filter_before
-        )
-        comment_subquery = comment_query.subquery()
-
-        obj_query = obj_query.join(
-            comment_subquery,
-            Obj.id == comment_subquery.c.obj_id,
-        )
-
-    if comments_filter_after:
-        comment_query = Comment.select(session.user_or_token).where(
-            Comment.created_at >= comments_filter_after
-        )
-        comment_subquery = comment_query.subquery()
-
-        obj_query = obj_query.join(
-            comment_subquery,
-            Obj.id == comment_subquery.c.obj_id,
-        )
-
-    if comments_filter_author is not None:
-        if isinstance(comments_filter_author, str) and "," in comments_filter_author:
-            comments_filter_author = [
-                c.strip() for c in comments_filter_author.split(",")
-            ]
-        elif isinstance(comments_filter_author, str):
-            comments_filter_author = [comments_filter_author]
-        else:
-            raise ValueError(
-                "Invalid commentsFilterAuthor value -- must provide at least one string value"
-            )
+    if (
+        (comments_filter is not None)
+        or comments_filter_before
+        or comments_filter_after
+        or (comments_filter_author is not None)
+    ):
 
         comment_query = Comment.select(session.user_or_token)
-        author_query = User.select(session.user_or_token).where(
-            User.username.in_(comments_filter_author)
-        )
-        author_subquery = author_query.subquery()
 
-        comment_query = comment_query.join(
-            author_subquery,
-            Comment.author_id == author_subquery.c.id,
-        )
+        if comments_filter is not None:
+            if isinstance(comments_filter, str) and "," in comments_filter:
+                comments_filter = [c.strip() for c in comments_filter.split(",")]
+            elif isinstance(comments_filter, str):
+                comments_filter = [comments_filter]
+            else:
+                raise ValueError(
+                    "Invalid commentsFilter value -- must provide at least one string value"
+                )
+            comment_query = comment_query.where(Comment.text.in_(comments_filter))
+
+        if comments_filter_before:
+            comment_query = comment_query.where(
+                Comment.created_at <= comments_filter_before
+            )
+
+        if comments_filter_after:
+            comment_query = comment_query.where(
+                Comment.created_at >= comments_filter_after
+            )
+
+        if comments_filter_author is not None:
+            if (
+                isinstance(comments_filter_author, str)
+                and "," in comments_filter_author
+            ):
+                comments_filter_author = [
+                    c.strip() for c in comments_filter_author.split(",")
+                ]
+            elif isinstance(comments_filter_author, str):
+                comments_filter_author = [comments_filter_author]
+            else:
+                raise ValueError(
+                    "Invalid commentsFilterAuthor value -- must provide at least one string value"
+                )
+
+            author_query = User.select(session.user_or_token).where(
+                User.username.in_(comments_filter_author)
+            )
+            author_subquery = author_query.subquery()
+
+            comment_query = comment_query.join(
+                author_subquery,
+                Comment.author_id == author_subquery.c.id,
+            )
         comment_subquery = comment_query.subquery()
-
         obj_query = obj_query.join(
             comment_subquery,
             Obj.id == comment_subquery.c.obj_id,
