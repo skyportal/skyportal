@@ -1,7 +1,7 @@
 """gcn_aliases
 
 Revision ID: 809e29e0c0c7
-Revises: fccc7e78c7aa
+Revises: 675d41c71a2b
 Create Date: 2022-07-28 15:58:41.631666
 
 """
@@ -11,7 +11,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = '809e29e0c0c7'
-down_revision = 'fccc7e78c7aa'
+down_revision = '675d41c71a2b'
 branch_labels = None
 depends_on = None
 
