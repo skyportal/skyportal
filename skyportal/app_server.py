@@ -259,7 +259,7 @@ skyportal_handlers = [
     (r'/api/observation(/[0-9]+)?', ObservationHandler),
     (r'/api/observation/ascii(/[0-9]+)?', ObservationASCIIFileHandler),
     (r'/api/observation/gcn(/[0-9]+)', ObservationGCNHandler),
-    (r'/api/gcn_events/summary(/.*)?', GcnSummaryHandler),
+    (r'/api/gcn_event/summary(/.*)?', GcnSummaryHandler),
     (r'/api/observation/simsurvey(/[0-9]+)?', ObservationSimSurveyHandler),
     (r'/api/observation/simsurvey(/[0-9]+)/plot', ObservationSimSurveyPlotHandler),
     (r'/api/observation/treasuremap(/[0-9]+)', ObservationTreasureMapHandler),
