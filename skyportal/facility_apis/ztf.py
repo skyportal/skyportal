@@ -874,6 +874,11 @@ def fetch_observations(instrument_id, client, request_str):
     job.raise_if_error()
     obstable = job.fetch_result().to_table()
     obstable = obstable.filled().to_pandas()
+    if obstable.empty:
+        log(
+            f'No observations for instrument ID {instrument_id} for request: {request_str}'
+        )
+        return
 
     obs_grouped_by_exp = obstable.groupby('expid')
     dfs = []
