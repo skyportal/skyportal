@@ -58,6 +58,8 @@ const GcnAliases = ({ gcnEvent }) => {
     );
   };
 
+  console.log("aliases", aliases);
+
   return (
     <div className={classes.root}>
       <h3 className={classes.title}>Aliases: </h3>

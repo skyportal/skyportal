@@ -1,10 +1,12 @@
 import React, { useEffect, useState, useRef } from "react";
 import PropTypes from "prop-types";
 import { useSelector, useDispatch } from "react-redux";
+import { Link } from "react-router-dom";
 
 import Accordion from "@mui/material/Accordion";
 import AccordionSummary from "@mui/material/AccordionSummary";
 import AccordionDetails from "@mui/material/AccordionDetails";
+import Button from "@mui/material/Button";
 import Chip from "@mui/material/Chip";
 import makeStyles from "@mui/styles/makeStyles";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
@@ -434,6 +436,24 @@ const GcnEventPage = ({ route }) => {
                         <DownloadXMLButton gcn_notice={gcn_notice} />
                       </li>
                     ))}
+                  </div>
+                </AccordionDetails>
+              </Accordion>
+            </div>
+            <div className={styles.columnItem}>
+              <Accordion defaultExpanded>
+                <AccordionSummary
+                  expandIcon={<ExpandMoreIcon />}
+                  aria-controls="gcnEvent-content"
+                  id="gcnnotices-header"
+                >
+                  <Typography className={styles.accordionHeading}>
+                    GCN Aliases
+                  </Typography>
+                </AccordionSummary>
+                <AccordionDetails>
+                  <div className={styles.gcnEventContainer}>
+                    <GcnAliases gcnEvent={gcnEvent} />
                   </div>
                 </AccordionDetails>
               </Accordion>
