@@ -178,7 +178,6 @@ class SourceGroupsHandler(BaseHandler):
             if active and not previously_active:
                 source.saved_by_id = self.associated_user_object.id
 
-            # TODO: replace with  self.verify_and_commit() once API refactor is complete
             # currently a single record is used for both source requests and sources
             # this should be refactored into two database models since the two
             # records have different permissions
