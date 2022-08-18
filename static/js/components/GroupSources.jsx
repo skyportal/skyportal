@@ -166,6 +166,7 @@ const GroupSources = ({ route }) => {
       ) {
         const data = {
           ...filtering,
+          group_ids: [route.id],
           pageNumber: i,
           numPerPage: savedSourcesState.numPerPage,
         };
@@ -174,7 +175,9 @@ const GroupSources = ({ route }) => {
           data.sortOrder = sorting.direction;
         }
         /* eslint-disable no-await-in-loop */
-        const result = await dispatch(sourcesActions.fetchSources(data));
+        const result = await dispatch(
+          sourcesActions.fetchSavedGroupSources(data)
+        );
         if (result && result.data && result?.status === "success") {
           sourceAll.push(...result.data.sources);
           setDownloadProgressCurrent(sourceAll.length);
