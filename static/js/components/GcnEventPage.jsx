@@ -34,6 +34,7 @@ import ObservationPlanRequestLists from "./ObservationPlanRequestLists";
 import CommentList from "./CommentList";
 import GcnTags from "./GcnTags";
 import GcnAliases from "./GcnAliases";
+import GcnCirculars from "./GcnCirculars";
 import Reminders from "./Reminders";
 
 import withRouter from "./withRouter";
@@ -418,6 +419,24 @@ const GcnEventPage = ({ route }) => {
                     <DownloadXMLButton gcn_notice={gcn_notice} />
                   </li>
                 ))}
+              </div>
+            </AccordionDetails>
+          </Accordion>
+        </div>
+        <div className={styles.columnItem}>
+          <Accordion defaultExpanded>
+            <AccordionSummary
+              expandIcon={<ExpandMoreIcon />}
+              aria-controls="gcnEvent-content"
+              id="gcncirculars-header"
+            >
+              <Typography className={styles.accordionHeading}>
+                GCN Circulars
+              </Typography>
+            </AccordionSummary>
+            <AccordionDetails>
+              <div className={styles.gcnEventContainer}>
+                <GcnCirculars gcnEvent={gcnEvent} />
               </div>
             </AccordionDetails>
           </Accordion>

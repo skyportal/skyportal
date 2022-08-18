@@ -90,6 +90,7 @@ def get_other_aliases(ids, day, original):
         "Origin": "https://heasarc.gsfc.nasa.gov",
     }
     aliases = []
+    bodies = []
     for id in ids:
         payload = {
             "query": f'''{{
@@ -106,6 +107,7 @@ def get_other_aliases(ids, day, original):
         if response.status_code == 200:
             data = response.json()
             body = data["data"]["circularBodyById"]["edges"][0]["node"]["body"]
+            bodies.append(body)
             exception = f"(?i)(?!.*{original}.*)"
             match = re.search(
                 exception + r"\b([^\s\d])+[ |-]?(" + day + r")+[^\s\d]?\b", body
@@ -116,10 +118,10 @@ def get_other_aliases(ids, day, original):
                 and match.group().replace(" ", "").upper() != original.upper()
             ):
                 aliases.append(match.group())
-    return aliases
+    return (aliases, bodies)
 
 
-def get_tach_event_aliases(id):
+def get_tach_event_aliases(id, gcn_event):
     url = "https://heasarc.gsfc.nasa.gov/wsgi-scripts/tach/gcn_v2/tach.wsgi/graphql"
     payload = {
         "query": f'''{{
@@ -167,13 +169,20 @@ def get_tach_event_aliases(id):
         if data["data"]["allCirculars"]["totalCount"] > 0:
             events = data["data"]["allCirculars"]["edges"]
             circular_ids = []
+            circular_nums = []
+            circular_subjects = []
             for event in events:
                 aliases.append(event["node"]["evtidCircular"]["event"].replace(" ", ""))
                 circular_ids.append(event["node"]["id_"])
+                circular_nums.append(event["node"]["cid"])
+                circular_subjects.append(event["node"]["subject"])
             nums = [int(x) for x in aliases[0].split() if x.isdigit()]
             day = "".join(nums)
-            other_aliases = get_other_aliases(circular_ids, day, aliases[0])
+            other_aliases, circular_bodies = get_other_aliases(
+                circular_ids, day, aliases[0]
+            )
             aliases += other_aliases
+            gcn_event.circulars = zip(circular_nums, circular_subjects, circular_bodies)
             return aliases
         else:
             return []
@@ -230,7 +239,8 @@ class GcnAliasesHandler(BaseHandler):
 
                 tags = gcn_event.tags
                 tach_id = get_tach_event_id(dateobs, tags)
-                new_gcn_aliases = get_tach_event_aliases(tach_id)
+                gcn_event.tach_id = tach_id
+                new_gcn_aliases = get_tach_event_aliases(tach_id, gcn_event)
 
                 if gcn_event.aliases is None:
                     gcn_event.aliases = new_gcn_aliases
