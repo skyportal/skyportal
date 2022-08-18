@@ -107,7 +107,6 @@ class SourceGroupsHandler(BaseHandler):
                 source.active = False
                 source.unsaved_at = datetime.datetime.utcnow()
 
-            # TODO: replace with  self.verify_and_commit() once API refactor is complete
             # currently a single record is used for both source requests and sources
             # this should be refactored into two database models since the two
             # records have different permissions
