@@ -305,7 +305,6 @@ def get_source(
         source_info["color_magnitude"] = get_color_mag(source_info["annotations"])
 
     source_info = recursive_to_dict(source_info)
-    session.commit()
     return source_info
 
 
@@ -2459,96 +2458,103 @@ class SourceOffsetsHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        source = Obj.get_if_accessible_by(obj_id, self.current_user)
-        if source is None:
-            return self.error('Source not found', status=404)
 
-        initial_pos = (source.ra, source.dec)
+        with self.Session() as session:
 
-        try:
-            best_ra, best_dec = _calculate_best_position_for_offset_stars(
-                Photometry.query_records_accessible_by(self.current_user)
-                .filter(Photometry.obj_id == source.id)
-                .all(),
-                fallback=(initial_pos[0], initial_pos[1]),
-                how="snr2",
+            source = session.scalars(
+                Obj.select(session.user_or_token).where(Obj.id == obj_id)
+            ).first()
+            if source is None:
+                return self.error('Source not found', status=404)
+
+            initial_pos = (source.ra, source.dec)
+
+            try:
+                best_ra, best_dec = _calculate_best_position_for_offset_stars(
+                    session.scalars(
+                        Photometry.select(session.user_or_token).where(
+                            Photometry.obj_id == source.id
+                        )
+                    ).all(),
+                    fallback=(initial_pos[0], initial_pos[1]),
+                    how="snr2",
+                )
+            except JSONDecodeError:
+                self.push_notification(
+                    'Source position using photometry points failed.'
+                    ' Reverting to discovery position.'
+                )
+                best_ra, best_dec = initial_pos[0], initial_pos[1]
+
+            facility = self.get_query_argument('facility', 'Keck')
+            num_offset_stars = self.get_query_argument('num_offset_stars', '3')
+            use_ztfref = self.get_query_argument('use_ztfref', True)
+
+            obstime = self.get_query_argument(
+                'obstime', datetime.datetime.utcnow().isoformat()
             )
-        except JSONDecodeError:
-            self.push_notification(
-                'Source position using photometry points failed.'
-                ' Reverting to discovery position.'
+            if not isinstance(isoparse(obstime), datetime.datetime):
+                return self.error('obstime is not valid isoformat')
+
+            if facility not in facility_parameters:
+                return self.error('Invalid facility')
+
+            radius_degrees = facility_parameters[facility]["radius_degrees"]
+            mag_limit = facility_parameters[facility]["mag_limit"]
+            min_sep_arcsec = facility_parameters[facility]["min_sep_arcsec"]
+            mag_min = facility_parameters[facility]["mag_min"]
+
+            try:
+                num_offset_stars = int(num_offset_stars)
+            except ValueError:
+                # could not handle inputs
+                return self.error('Invalid argument for `num_offset_stars`')
+
+            offset_func = functools.partial(
+                get_nearby_offset_stars,
+                best_ra,
+                best_dec,
+                obj_id,
+                how_many=num_offset_stars,
+                radius_degrees=radius_degrees,
+                mag_limit=mag_limit,
+                min_sep_arcsec=min_sep_arcsec,
+                starlist_type=facility,
+                mag_min=mag_min,
+                obstime=obstime,
+                allowed_queries=2,
+                use_ztfref=use_ztfref,
             )
-            best_ra, best_dec = initial_pos[0], initial_pos[1]
 
-        facility = self.get_query_argument('facility', 'Keck')
-        num_offset_stars = self.get_query_argument('num_offset_stars', '3')
-        use_ztfref = self.get_query_argument('use_ztfref', True)
+            try:
+                (
+                    starlist_info,
+                    query_string,
+                    queries_issued,
+                    noffsets,
+                    used_ztfref,
+                ) = await IOLoop.current().run_in_executor(None, offset_func)
+            except ValueError:
+                return self.error("Error querying for nearby offset stars")
 
-        obstime = self.get_query_argument(
-            'obstime', datetime.datetime.utcnow().isoformat()
-        )
-        if not isinstance(isoparse(obstime), datetime.datetime):
-            return self.error('obstime is not valid isoformat')
+            starlist_str = "\n".join(
+                [x["str"].replace(" ", "&nbsp;") for x in starlist_info]
+            )
 
-        if facility not in facility_parameters:
-            return self.error('Invalid facility')
-
-        radius_degrees = facility_parameters[facility]["radius_degrees"]
-        mag_limit = facility_parameters[facility]["mag_limit"]
-        min_sep_arcsec = facility_parameters[facility]["min_sep_arcsec"]
-        mag_min = facility_parameters[facility]["mag_min"]
-
-        try:
-            num_offset_stars = int(num_offset_stars)
-        except ValueError:
-            # could not handle inputs
-            return self.error('Invalid argument for `num_offset_stars`')
-
-        offset_func = functools.partial(
-            get_nearby_offset_stars,
-            best_ra,
-            best_dec,
-            obj_id,
-            how_many=num_offset_stars,
-            radius_degrees=radius_degrees,
-            mag_limit=mag_limit,
-            min_sep_arcsec=min_sep_arcsec,
-            starlist_type=facility,
-            mag_min=mag_min,
-            obstime=obstime,
-            allowed_queries=2,
-            use_ztfref=use_ztfref,
-        )
-
-        try:
-            (
-                starlist_info,
-                query_string,
-                queries_issued,
-                noffsets,
-                used_ztfref,
-            ) = await IOLoop.current().run_in_executor(None, offset_func)
-        except ValueError:
-            return self.error("Error querying for nearby offset stars")
-
-        starlist_str = "\n".join(
-            [x["str"].replace(" ", "&nbsp;") for x in starlist_info]
-        )
-
-        self.verify_and_commit()
-        return self.success(
-            data={
-                'facility': facility,
-                'starlist_str': starlist_str,
-                'starlist_info': starlist_info,
-                'ra': source.ra,
-                'dec': source.dec,
-                'noffsets': noffsets,
-                'queries_issued': queries_issued,
-                'query': query_string,
-                'used_ztfref': used_ztfref,
-            }
-        )
+            session.commit()
+            return self.success(
+                data={
+                    'facility': facility,
+                    'starlist_str': starlist_str,
+                    'starlist_info': starlist_info,
+                    'ra': source.ra,
+                    'dec': source.dec,
+                    'noffsets': noffsets,
+                    'queries_issued': queries_issued,
+                    'query': query_string,
+                    'used_ztfref': used_ztfref,
+                }
+            )
 
 
 class SourceFinderHandler(BaseHandler):
@@ -2633,103 +2639,111 @@ class SourceFinderHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        source = Obj.get_if_accessible_by(obj_id, self.current_user)
-        if source is None:
-            return self.error('Source not found', status=404)
 
-        output_type = self.get_query_argument('type', 'pdf')
-        if output_type not in ["png", "pdf"]:
-            return self.error(f'Invalid argument for `type`: {output_type}')
+        with self.Session() as session:
+            source = session.scalars(
+                Obj.select(session.user_or_token).where(Obj.id == obj_id)
+            ).first()
+            if source is None:
+                return self.error('Source not found', status=404)
 
-        imsize = self.get_query_argument('imsize', '4.0')
-        try:
-            imsize = float(imsize)
-        except ValueError:
-            # could not handle inputs
-            return self.error('Invalid argument for `imsize`')
+            output_type = self.get_query_argument('type', 'pdf')
+            if output_type not in ["png", "pdf"]:
+                return self.error(f'Invalid argument for `type`: {output_type}')
 
-        if imsize < 2.0 or imsize > 15.0:
-            return self.error('The value for `imsize` is outside the allowed range')
+            imsize = self.get_query_argument('imsize', 4.0)
+            try:
+                imsize = float(imsize)
+            except ValueError:
+                # could not handle inputs
+                return self.error('Invalid argument for `imsize`')
 
-        initial_pos = (source.ra, source.dec)
-        try:
-            best_ra, best_dec = _calculate_best_position_for_offset_stars(
-                Photometry.query_records_accessible_by(self.current_user)
-                .filter(Photometry.obj_id == source.id)
-                .all(),
-                fallback=(initial_pos[0], initial_pos[1]),
-                how="snr2",
+            if imsize < 2.0 or imsize > 15.0:
+                return self.error(
+                    'The value for `imsize` is outside the allowed range (2.0-15.0)'
+                )
+
+            initial_pos = (source.ra, source.dec)
+            try:
+                best_ra, best_dec = _calculate_best_position_for_offset_stars(
+                    session.scalars(
+                        Photometry.select(session.user_or_token).where(
+                            Photometry.obj_id == source.id
+                        )
+                    ).all(),
+                    fallback=(initial_pos[0], initial_pos[1]),
+                    how="snr2",
+                )
+            except JSONDecodeError:
+                self.push_notification(
+                    'Source position using photometry points failed.'
+                    ' Reverting to discovery position.'
+                )
+                best_ra, best_dec = initial_pos[0], initial_pos[1]
+
+            facility = self.get_query_argument('facility', 'Keck')
+            image_source = self.get_query_argument('image_source', 'ps1')
+            use_ztfref = self.get_query_argument('use_ztfref', True)
+
+            num_offset_stars = self.get_query_argument('num_offset_stars', '3')
+            try:
+                num_offset_stars = int(num_offset_stars)
+            except ValueError:
+                # could not handle inputs
+                return self.error('Invalid argument for `num_offset_stars`')
+
+            if not 0 <= num_offset_stars <= 4:
+                return self.error(
+                    'The value for `num_offset_stars` is outside the allowed range (0-4)'
+                )
+
+            obstime = self.get_query_argument(
+                'obstime', datetime.datetime.utcnow().isoformat()
             )
-        except JSONDecodeError:
+            if not isinstance(isoparse(obstime), datetime.datetime):
+                return self.error('obstime is not valid isoformat')
+
+            if facility not in facility_parameters:
+                return self.error('Invalid facility')
+
+            if image_source not in source_image_parameters:
+                return self.error('Invalid source image')
+
+            radius_degrees = facility_parameters[facility]["radius_degrees"]
+            mag_limit = facility_parameters[facility]["mag_limit"]
+            min_sep_arcsec = facility_parameters[facility]["min_sep_arcsec"]
+            mag_min = facility_parameters[facility]["mag_min"]
+
+            finder = functools.partial(
+                get_finding_chart,
+                best_ra,
+                best_dec,
+                obj_id,
+                image_source=image_source,
+                output_format=output_type,
+                imsize=imsize,
+                how_many=num_offset_stars,
+                radius_degrees=radius_degrees,
+                mag_limit=mag_limit,
+                mag_min=mag_min,
+                min_sep_arcsec=min_sep_arcsec,
+                starlist_type=facility,
+                obstime=obstime,
+                use_source_pos_in_starlist=True,
+                allowed_queries=2,
+                queries_issued=0,
+                use_ztfref=use_ztfref,
+            )
+
             self.push_notification(
-                'Source position using photometry points failed.'
-                ' Reverting to discovery position.'
+                'Finding chart generation in progress. Download will start soon.'
             )
-            best_ra, best_dec = initial_pos[0], initial_pos[1]
+            rez = await IOLoop.current().run_in_executor(None, finder)
 
-        facility = self.get_query_argument('facility', 'Keck')
-        image_source = self.get_query_argument('image_source', 'ps1')
-        use_ztfref = self.get_query_argument('use_ztfref', True)
+            filename = rez["name"]
+            data = io.BytesIO(rez["data"])
 
-        num_offset_stars = self.get_query_argument('num_offset_stars', '3')
-        try:
-            num_offset_stars = int(num_offset_stars)
-        except ValueError:
-            # could not handle inputs
-            return self.error('Invalid argument for `num_offset_stars`')
-
-        if not 0 <= num_offset_stars <= 4:
-            return self.error(
-                'The value for `num_offset_stars` is outside the allowed range'
-            )
-
-        obstime = self.get_query_argument(
-            'obstime', datetime.datetime.utcnow().isoformat()
-        )
-        if not isinstance(isoparse(obstime), datetime.datetime):
-            return self.error('obstime is not valid isoformat')
-
-        if facility not in facility_parameters:
-            return self.error('Invalid facility')
-
-        if image_source not in source_image_parameters:
-            return self.error('Invalid source image')
-
-        radius_degrees = facility_parameters[facility]["radius_degrees"]
-        mag_limit = facility_parameters[facility]["mag_limit"]
-        min_sep_arcsec = facility_parameters[facility]["min_sep_arcsec"]
-        mag_min = facility_parameters[facility]["mag_min"]
-
-        finder = functools.partial(
-            get_finding_chart,
-            best_ra,
-            best_dec,
-            obj_id,
-            image_source=image_source,
-            output_format=output_type,
-            imsize=imsize,
-            how_many=num_offset_stars,
-            radius_degrees=radius_degrees,
-            mag_limit=mag_limit,
-            mag_min=mag_min,
-            min_sep_arcsec=min_sep_arcsec,
-            starlist_type=facility,
-            obstime=obstime,
-            use_source_pos_in_starlist=True,
-            allowed_queries=2,
-            queries_issued=0,
-            use_ztfref=use_ztfref,
-        )
-
-        self.push_notification(
-            'Finding chart generation in progress. Download will start soon.'
-        )
-        rez = await IOLoop.current().run_in_executor(None, finder)
-
-        filename = rez["name"]
-        data = io.BytesIO(rez["data"])
-
-        await self.send_file(data, filename, output_type=output_type)
+            await self.send_file(data, filename, output_type=output_type)
 
 
 class SourceNotificationHandler(BaseHandler):
@@ -2810,37 +2824,40 @@ class SourceNotificationHandler(BaseHandler):
         if data.get("sourceId") is None:
             return self.error("Missing required parameter `sourceId`")
 
-        source = Obj.get_if_accessible_by(data["sourceId"], self.current_user)
-        if source is None:
-            return self.error('Source not found', status=404)
-
-        source_id = data["sourceId"]
-
-        source_group_ids = [
-            row[0]
-            for row in Source.query_records_accessible_by(
-                self.current_user, columns=[Source.group_id]
-            )
-            .filter(Source.obj_id == source_id)
-            .all()
-        ]
-
-        if bool(set(group_ids).difference(set(source_group_ids))):
-            forbidden_groups = list(set(group_ids) - set(source_group_ids))
-            return self.error(
-                "Insufficient recipient group access permissions. Not a member of "
-                f"group IDs: {forbidden_groups}."
-            )
-
-        if data.get("level") is None:
-            return self.error("Missing required parameter `level`")
-        if data["level"] not in ["soft", "hard"]:
-            return self.error(
-                "Invalid value provided for `level`: should be either 'soft' or 'hard'"
-            )
-        level = data["level"]
-
         with self.Session() as session:
+
+            source = session.scalars(
+                Obj.select(session.user_or_token).where(Obj.id == data["sourceId"])
+            ).first()
+            if source is None:
+                return self.error('Source not found', status=404)
+
+            source_id = data["sourceId"]
+
+            source_group_ids = [
+                row
+                for row in session.scalars(
+                    Source.select(
+                        session.user_or_token, columns=[Source.group_id]
+                    ).where(Source.obj_id == source_id)
+                ).all()
+            ]
+
+            if bool(set(group_ids).difference(set(source_group_ids))):
+                forbidden_groups = list(set(group_ids) - set(source_group_ids))
+                return self.error(
+                    "Insufficient recipient group access permissions. Not a member of "
+                    f"group IDs: {forbidden_groups}."
+                )
+
+            if data.get("level") is None:
+                return self.error("Missing required parameter `level`")
+            if data["level"] not in ["soft", "hard"]:
+                return self.error(
+                    "Invalid value provided for `level`: should be either 'soft' or 'hard'"
+                )
+            level = data["level"]
+
             groups = session.scalars(
                 Group.select(self.current_user).where(Group.id.in_(group_ids))
             ).all()

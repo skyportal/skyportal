@@ -6,6 +6,8 @@ from skyportal.tests import api
 from datetime import date, timedelta, datetime
 from selenium.webdriver.common.keys import Keys
 
+import pytest
+
 
 def post_and_verify_reminder(endpoint, token):
     reminder_text = str(uuid.uuid4())
@@ -184,6 +186,7 @@ def test_reminder_on_source(driver, super_admin_user, super_admin_token):
 # frontend for the reminders on spectra is not implemented yet
 
 
+@pytest.mark.flaky(reruns=3)
 def test_reminder_on_gcn(driver, super_admin_user, super_admin_token):
     datafile = f'{os.path.dirname(__file__)}/../../../data/GW190814.xml'
     with open(datafile, 'rb') as fid:

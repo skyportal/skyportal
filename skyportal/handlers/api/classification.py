@@ -1,9 +1,10 @@
 import arrow
 import sqlalchemy as sa
+from sqlalchemy import func
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
-from ...models import DBSession, Group, Classification, Taxonomy, Obj
+from ...models import Group, Classification, Taxonomy, Obj
 
 DEFAULT_CLASSIFICATIONS_PER_PAGE = 100
 MAX_CLASSIFICATIONS_PER_PAGE = 500
@@ -102,42 +103,45 @@ class ClassificationHandler(BaseHandler):
         start_date = self.get_query_argument('startDate', None)
         end_date = self.get_query_argument('endDate', None)
 
-        if classification_id is not None:
-            classification = Classification.get_if_accessible_by(
-                classification_id, self.current_user
-            )
-            if classification is None:
-                return self.error(
-                    f'Cannot find classification with ID: {classification_id}.'
+        with self.Session() as session:
+            if classification_id is not None:
+                classification = session.scalars(
+                    Classification.select(session.user_or_token).where(
+                        Classification.id == classification_id
+                    )
+                ).first()
+                if classification is None:
+                    return self.error(
+                        f'Cannot find classification with ID: {classification_id}.'
+                    )
+
+                return self.success(data=classification)
+
+            # get owned
+            classifications = Classification.select(session.user_or_token)
+
+            if start_date:
+                start_date = str(arrow.get(start_date.strip()).datetime)
+                classifications = classifications.where(
+                    Classification.created_at >= start_date
+                )
+            if end_date:
+                end_date = str(arrow.get(end_date.strip()).datetime)
+                classifications = classifications.where(
+                    Classification.created_at <= end_date
                 )
 
-            return self.success(data=classification)
-
-        # get owned
-        classifications = Classification.query_records_accessible_by(self.current_user)
-
-        if start_date:
-            start_date = str(arrow.get(start_date.strip()).datetime)
-            classifications = classifications.filter(
-                Classification.created_at >= start_date
+            count_stmt = sa.select(func.count()).select_from(classifications)
+            total_matches = session.execute(count_stmt).scalar()
+            classifications = classifications.limit(n_per_page).offset(
+                (page_number - 1) * n_per_page
             )
-        if end_date:
-            end_date = str(arrow.get(end_date.strip()).datetime)
-            classifications = classifications.filter(
-                Classification.created_at <= end_date
-            )
+            classifications = session.scalars(classifications).unique().all()
 
-        total_matches = classifications.count()
-        classifications = classifications.limit(n_per_page).offset(
-            (page_number - 1) * n_per_page
-        )
-        classifications = classifications.all()
-
-        info = {}
-        info["classifications"] = [req.to_dict() for req in classifications]
-        info["totalMatches"] = int(total_matches)
-        self.verify_and_commit()
-        return self.success(data=info)
+            info = {}
+            info["classifications"] = [req.to_dict() for req in classifications]
+            info["totalMatches"] = int(total_matches)
+            return self.success(data=info)
 
     @permissions(['Classify'])
     def post(self):
@@ -200,41 +204,44 @@ class ClassificationHandler(BaseHandler):
         data = self.get_json()
         obj_id = data['obj_id']
 
-        user_group_ids = [g.id for g in self.current_user.accessible_groups]
-        group_ids = data.pop("group_ids", user_group_ids)
+        with self.Session() as session:
 
-        author = self.associated_user_object
+            user_group_ids = [g.id for g in self.current_user.accessible_groups]
+            group_ids = data.pop("group_ids", user_group_ids)
 
-        # check the taxonomy
-        taxonomy_id = data["taxonomy_id"]
-        taxonomy = Taxonomy.get_if_accessible_by(taxonomy_id, self.current_user)
-        if taxonomy is None:
-            return self.error(f'Cannot find a taxonomy with ID: {taxonomy_id}.')
+            author = self.associated_user_object
 
-        def allowed_classes(hierarchy):
-            if "class" in hierarchy:
-                yield hierarchy["class"]
+            # check the taxonomy
+            taxonomy_id = data["taxonomy_id"]
+            taxonomy = session.scalars(
+                Taxonomy.select(session.user_or_token).where(Taxonomy.id == taxonomy_id)
+            ).first()
+            if taxonomy is None:
+                return self.error(f'Cannot find a taxonomy with ID: {taxonomy_id}.')
 
-            if "subclasses" in hierarchy:
-                for item in hierarchy.get("subclasses", []):
-                    yield from allowed_classes(item)
+            def allowed_classes(hierarchy):
+                if "class" in hierarchy:
+                    yield hierarchy["class"]
 
-        if data['classification'] not in allowed_classes(taxonomy.hierarchy):
-            return self.error(
-                f"That classification ({data['classification']}) "
-                'is not in the allowed classes for the chosen '
-                f'taxonomy (id={taxonomy_id}'
-            )
+                if "subclasses" in hierarchy:
+                    for item in hierarchy.get("subclasses", []):
+                        yield from allowed_classes(item)
 
-        probability = data.get('probability')
-        if probability is not None:
-            if probability < 0 or probability > 1:
+            if data['classification'] not in allowed_classes(taxonomy.hierarchy):
                 return self.error(
-                    f"That probability ({probability}) is outside "
-                    "the allowable range (0-1)."
+                    f"That classification ({data['classification']}) "
+                    'is not in the allowed classes for the chosen '
+                    f'taxonomy (id={taxonomy_id}'
                 )
 
-        with self.Session() as session:
+            probability = data.get('probability')
+            if probability is not None:
+                if probability < 0 or probability > 1:
+                    return self.error(
+                        f"That probability ({probability}) is outside "
+                        "the allowable range (0-1)."
+                    )
+
             groups = session.scalars(
                 Group.select(self.current_user).where(Group.id.in_(group_ids))
             ).all()
@@ -305,45 +312,55 @@ class ClassificationHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        c = Classification.get_if_accessible_by(
-            classification_id, self.current_user, mode="update"
-        )
-        if c is None:
-            return self.error(
-                f'Cannot find a classification with ID: {classification_id}.'
-            )
 
-        data = self.get_json()
-        group_ids = data.pop("group_ids", None)
-        data['id'] = classification_id
+        with self.Session() as session:
 
-        schema = Classification.__schema__()
-        try:
-            schema.load(data, partial=True)
-        except ValidationError as e:
-            return self.error(
-                'Invalid/missing parameters: ' f'{e.normalized_messages()}'
-            )
-
-        if group_ids is not None:
-            groups = Group.get_if_accessible_by(group_ids, self.current_user)
-            if groups is None:
+            c = session.scalars(
+                Classification.select(session.user_or_token, mode="update").where(
+                    Classification.id == classification_id
+                )
+            ).first()
+            if c is None:
                 return self.error(
-                    f'Cannot find one or more groups with IDs: {group_ids}.'
+                    f'Cannot find a classification with ID: {classification_id}.'
                 )
 
-            c.groups = groups
+            data = self.get_json()
+            group_ids = data.pop("group_ids", None)
+            data['id'] = classification_id
 
-        self.verify_and_commit()
-        self.push_all(
-            action='skyportal/REFRESH_SOURCE',
-            payload={'obj_key': c.obj.internal_key},
-        )
-        self.push_all(
-            action='skyportal/REFRESH_CANDIDATE',
-            payload={'id': c.obj.internal_key},
-        )
-        return self.success()
+            schema = Classification.__schema__()
+            try:
+                schema.load(data, partial=True)
+            except ValidationError as e:
+                return self.error(
+                    'Invalid/missing parameters: ' f'{e.normalized_messages()}'
+                )
+
+            for k in data:
+                setattr(c, k, data[k])
+
+            if group_ids is not None:
+                groups = session.scalars(
+                    Group.select(self.current_user).where(Group.id.in_(group_ids))
+                ).all()
+                if {g.id for g in groups} != set(group_ids):
+                    return self.error(
+                        f'Cannot find one or more groups with IDs: {group_ids}.'
+                    )
+
+                c.groups = groups
+
+            session.commit()
+            self.push_all(
+                action='skyportal/REFRESH_SOURCE',
+                payload={'obj_key': c.obj.internal_key},
+            )
+            self.push_all(
+                action='skyportal/REFRESH_CANDIDATE',
+                payload={'id': c.obj.internal_key},
+            )
+            return self.success()
 
     @permissions(['Classify'])
     def delete(self, classification_id):
@@ -364,28 +381,33 @@ class ClassificationHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        c = Classification.get_if_accessible_by(
-            classification_id, self.current_user, mode="delete"
-        )
-        if c is None:
-            return self.error(
-                f'Cannot find a classification with ID: {classification_id}.'
+
+        with self.Session() as session:
+
+            c = session.scalars(
+                Classification.select(session.user_or_token, mode="delete").where(
+                    Classification.id == classification_id
+                )
+            ).first()
+            if c is None:
+                return self.error(
+                    f'Cannot find a classification with ID: {classification_id}.'
+                )
+
+            obj_key = c.obj.internal_key
+            session.delete(c)
+            session.commit()
+
+            self.push_all(
+                action='skyportal/REFRESH_SOURCE',
+                payload={'obj_key': obj_key},
+            )
+            self.push_all(
+                action='skyportal/REFRESH_CANDIDATE',
+                payload={'id': obj_key},
             )
 
-        obj_key = c.obj.internal_key
-        DBSession().delete(c)
-        self.verify_and_commit()
-
-        self.push_all(
-            action='skyportal/REFRESH_SOURCE',
-            payload={'obj_key': obj_key},
-        )
-        self.push_all(
-            action='skyportal/REFRESH_CANDIDATE',
-            payload={'id': obj_key},
-        )
-
-        return self.success()
+            return self.success()
 
 
 class ObjClassificationHandler(BaseHandler):
@@ -414,13 +436,17 @@ class ObjClassificationHandler(BaseHandler):
                 schema: Error
         """
 
-        classifications = (
-            Classification.query_records_accessible_by(self.current_user)
-            .filter(Classification.obj_id == obj_id)
-            .all()
-        )
-        self.verify_and_commit()
-        return self.success(data=classifications)
+        with self.Session() as session:
+            classifications = (
+                session.scalars(
+                    Classification.select(session.user_or_token).where(
+                        Classification.obj_id == obj_id
+                    )
+                )
+                .unique()
+                .all()
+            )
+            return self.success(data=classifications)
 
 
 class ObjClassificationQueryHandler(BaseHandler):

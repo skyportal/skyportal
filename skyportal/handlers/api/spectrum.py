@@ -63,9 +63,9 @@ def parse_id_list(id_list, model_class, session):
         return  # silently pass through any None values
 
     try:
-        accessible_rows = session.scalars(
-            model_class.select(session.user_or_token)
-        ).all()
+        accessible_rows = (
+            session.scalars(model_class.select(session.user_or_token)).unique().all()
+        )
         validated_ids = []
         for id in id_list.split(','):
             id = int(id)
@@ -205,9 +205,13 @@ class SpectrumHandler(BaseHandler):
             if single_user_group.id not in group_ids:
                 group_ids.append(single_user_group.id)
 
-            groups = session.scalars(
-                Group.select(self.current_user).where(Group.id.in_(group_ids))
-            ).all()
+            groups = (
+                session.scalars(
+                    Group.select(self.current_user).where(Group.id.in_(group_ids))
+                )
+                .unique()
+                .all()
+            )
             if {g.id for g in groups} != set(group_ids):
                 return self.error(
                     f'Cannot find one or more groups with IDs: {group_ids}.'
@@ -708,11 +712,15 @@ class SpectrumHandler(BaseHandler):
 
             if not minimal_payload:  # add other data to each spectrum
                 for (spec, spec_dict) in zip(spectra, result_spectra):
-                    annotations = session.scalars(
-                        AnnotationOnSpectrum.select(session.user_or_token).where(
-                            AnnotationOnSpectrum.spectrum_id == spec.id
+                    annotations = (
+                        session.scalars(
+                            AnnotationOnSpectrum.select(session.user_or_token).where(
+                                AnnotationOnSpectrum.spectrum_id == spec.id
+                            )
                         )
-                    ).all()
+                        .unique()
+                        .all()
+                    )
                     spec_dict['annotations'] = recursive_to_dict(annotations)
                     external_reducer = session.scalars(
                         SpectrumReducer.select(session.user_or_token).where(
@@ -797,9 +805,13 @@ class SpectrumHandler(BaseHandler):
             spectrum = session.scalars(stmt).first()
 
             if group_ids:
-                groups = session.scalars(
-                    Group.select(self.current_user).where(Group.id.in_(group_ids))
-                ).all()
+                groups = (
+                    session.scalars(
+                        Group.select(self.current_user).where(Group.id.in_(group_ids))
+                    )
+                    .unique()
+                    .all()
+                )
                 if {g.id for g in groups} != set(group_ids):
                     return self.error(
                         f'Cannot find one or more groups with IDs: {group_ids}.'
@@ -979,15 +991,19 @@ class SpectrumASCIIFileHandler(BaseHandler, ASCIIHandler):
             elif group_ids == "all":
                 public_name = cfg['misc.public_group_name']
                 stmt = Group.select(self.current_user).where(Group.name == public_name)
-                public_groups = session.scalars(stmt).all()
+                public_groups = session.scalars(stmt).unique().all()
                 group_ids = [g.id for g in public_groups]
 
             if single_user_group.id not in group_ids:
                 group_ids.append(single_user_group.id)
 
-            groups = session.scalars(
-                Group.select(self.current_user).where(Group.id.in_(group_ids))
-            ).all()
+            groups = (
+                session.scalars(
+                    Group.select(self.current_user).where(Group.id.in_(group_ids))
+                )
+                .unique()
+                .all()
+            )
             if {g.id for g in groups} != set(group_ids):
                 return self.error(
                     f'Cannot find one or more groups with IDs: {group_ids}.'
@@ -1163,23 +1179,37 @@ class ObjSpectraHandler(BaseHandler):
             if obj is None:
                 return self.error('Invalid object ID.')
 
-            spectra = session.scalars(
-                Spectrum.select(session.user_or_token).where(Spectrum.obj_id == obj_id)
-            ).all()
+            spectra = (
+                session.scalars(
+                    Spectrum.select(session.user_or_token).where(
+                        Spectrum.obj_id == obj_id
+                    )
+                )
+                .unique()
+                .all()
+            )
 
             return_values = []
             for spec in spectra:
                 spec_dict = recursive_to_dict(spec)
-                comments = session.scalars(
-                    CommentOnSpectrum.select(session.user_or_token).where(
-                        CommentOnSpectrum.spectrum_id == spec.id
+                comments = (
+                    session.scalars(
+                        CommentOnSpectrum.select(session.user_or_token).where(
+                            CommentOnSpectrum.spectrum_id == spec.id
+                        )
                     )
-                ).all()
-                annotations = session.scalars(
-                    AnnotationOnSpectrum.select(session.user_or_token).where(
-                        AnnotationOnSpectrum.spectrum_id == spec.id
+                    .unique()
+                    .all()
+                )
+                annotations = (
+                    session.scalars(
+                        AnnotationOnSpectrum.select(session.user_or_token).where(
+                            AnnotationOnSpectrum.spectrum_id == spec.id
+                        )
                     )
-                ).all()
+                    .unique()
+                    .all()
+                )
 
                 spec_dict["comments"] = sorted(
                     (
