@@ -516,6 +516,11 @@ class GcnEventHandler(BaseHandler):
                     **event.to_dict(),
                     "tags": list(set(event.tags)),
                     "lightcurve": event.lightcurve,
+                    "localizations": sorted(
+                        (loc.to_dict() for loc in event.localizations),
+                        key=lambda x: x["created_at"],
+                        reverse=True,
+                    ),
                     "comments": sorted(
                         (
                             {
