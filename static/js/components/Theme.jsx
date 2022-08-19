@@ -13,7 +13,16 @@ import { grey } from "@mui/material/colors";
 const Theme = ({ disableTransitions, children }) => {
   const theme = useSelector((state) => state.profile.preferences.theme);
   const dark = theme === "dark";
-  const materialTheme = createTheme({
+
+  const greyTheme = createTheme({
+    palette: {
+      grey: {
+        main: grey[300],
+        dark: grey[400],
+      },
+    },
+  });
+  const materialTheme = createTheme(greyTheme, {
     palette: {
       mode: theme || "light",
       primary: {
@@ -52,6 +61,16 @@ const Theme = ({ disableTransitions, children }) => {
         },
       },
       MuiButton: {
+        variants: [
+          {
+            props: { variant: "contained", color: "grey" },
+            style: {
+              color: greyTheme.palette.getContrastText(
+                greyTheme.palette.grey[300]
+              ),
+            },
+          },
+        ],
         styleOverrides: {
           textPrimary: {
             color: dark ? "#b1dae9" : null,
