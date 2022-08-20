@@ -402,10 +402,11 @@ def add_user_notifications(mapper, connection, target):
 
         for user in users:
             # Only notify users who have read access to the new record in question
-            if user.preferences is None:
-                continue
+            if user.preferences is not None:
+                pref = user.preferences['notifications']
+            else:
+                pref = None
 
-            pref = user.preferences['notifications']
             if (
                 session.scalars(
                     target.__class__.select(user, mode='read').where(
@@ -415,7 +416,9 @@ def add_user_notifications(mapper, connection, target):
                 is not None
             ):
                 if is_gcnevent:
-                    if "gcn_notice_types" in pref["gcn_events"].keys():
+                    if (pref is not None) and "gcn_notice_types" in pref[
+                        "gcn_events"
+                    ].keys():
                         if (
                             gcn.NoticeType(target.notice_type).name
                             in pref['gcn_events']['gcn_notice_types']
@@ -497,6 +500,8 @@ def add_user_notifications(mapper, connection, target):
                         .where(Listing.obj_id == target.obj_id)
                         .where(Listing.user_id == user.id)
                     ).all()
+                    if pref is None:
+                        continue
 
                     if is_classification:
                         if (
@@ -515,7 +520,7 @@ def add_user_notifications(mapper, connection, target):
                                     url=f"/source/{target.obj_id}",
                                 )
                             )
-                        elif "sources" in pref.keys():
+                        elif (pref is not None) and "sources" in pref.keys():
                             if "classifications" in pref['sources'].keys():
                                 if (
                                     target.classification
