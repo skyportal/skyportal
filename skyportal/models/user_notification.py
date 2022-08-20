@@ -402,6 +402,9 @@ def add_user_notifications(mapper, connection, target):
 
         for user in users:
             # Only notify users who have read access to the new record in question
+            if user.preferences is None:
+                continue
+
             pref = user.preferences['notifications']
             if (
                 session.scalars(
