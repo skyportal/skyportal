@@ -147,17 +147,18 @@ class CandidateHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
-        num_c = (
-            Candidate.query_records_accessible_by(self.current_user)
-            .filter(Candidate.obj_id == obj_id)
-            .count()
-        )
-        self.verify_and_commit()
-        if num_c > 0:
-            return self.success()
-        else:
-            self.set_status(404)
-            self.finish()
+        with self.Session() as session:
+            stmt = Candidate.select(session.user_or_token).where(
+                Candidate.obj_id == obj_id
+            )
+            count_stmt = sa.select(func.count()).select_from(stmt.distinct())
+            num_c = session.execute(count_stmt).scalar()
+            if num_c > 0:
+                return self.success()
+            else:
+                return self.error(
+                    message=f"No candidate with object ID {obj_id}", status=404
+                )
 
     @auth_or_token
     def get(self, obj_id=None):
@@ -423,121 +424,127 @@ class CandidateHandler(BaseHandler):
         include_comments = self.get_query_argument("includeComments", False)
 
         if obj_id is not None:
-            query_options = [joinedload(Obj.thumbnails), joinedload(Obj.photstats)]
+            with self.Session() as session:
+                query_options = [joinedload(Obj.thumbnails), joinedload(Obj.photstats)]
 
-            c = Obj.get_if_accessible_by(
-                obj_id,
-                self.current_user,
-                options=query_options,
-            )
-            if c is None:
-                return self.error("Invalid ID")
-            accessible_candidates = (
-                Candidate.query_records_accessible_by(self.current_user)
-                .filter(Candidate.obj_id == obj_id)
-                .all()
-            )
-            filter_ids = [cand.filter_id for cand in accessible_candidates]
-
-            passing_alerts = [
-                {
-                    "filter_id": cand.filter_id,
-                    "passing_alert_id": cand.passing_alert_id,
-                    "passed_at": cand.passed_at,
-                }
-                for cand in accessible_candidates
-            ]
-
-            candidate_info = recursive_to_dict(c)
-            candidate_info["filter_ids"] = filter_ids
-            candidate_info["passing_alerts"] = passing_alerts
-            if include_comments:
-                candidate_info["comments"] = sorted(
-                    Comment.query_records_accessible_by(self.current_user)
-                    .filter(Comment.obj_id == obj_id)
-                    .all(),
-                    key=lambda x: x.created_at,
-                    reverse=True,
-                )
-
-            if include_photometry:
-                candidate_info['photometry'] = (
-                    Photometry.query_records_accessible_by(
-                        self.current_user,
-                        mode='read',
-                        options=[joinedload(Photometry.instrument)],
+                c = session.scalars(
+                    Obj.select(session.user_or_token, options=query_options).where(
+                        Obj.id == obj_id
                     )
-                    .filter(Photometry.obj_id == obj_id)
-                    .all()
-                )
-
-            if include_spectra:
-                candidate_info['spectra'] = (
-                    Spectrum.query_records_accessible_by(
-                        self.current_user,
-                        mode='read',
-                        options=[joinedload(Spectrum.instrument)],
+                ).first()
+                if c is None:
+                    return self.error("Invalid ID")
+                accessible_candidates = session.scalars(
+                    Candidate.select(session.user_or_token).where(
+                        Candidate.obj_id == obj_id
                     )
-                    .filter(Spectrum.obj_id == obj_id)
-                    .all()
-                )
+                ).all()
+                filter_ids = [cand.filter_id for cand in accessible_candidates]
 
-            candidate_info["annotations"] = sorted(
-                Annotation.query_records_accessible_by(self.current_user).filter(
-                    Annotation.obj_id == obj_id
-                ),
-                key=lambda x: x.origin,
-            )
-            candidate_info["is_source"] = (
-                Source.query_records_accessible_by(self.current_user)
-                .filter(Source.obj_id == obj_id)
-                .count()
-                > 0
-            )
-            if candidate_info["is_source"]:
-                source_subquery = (
-                    Source.query_records_accessible_by(self.current_user)
-                    .filter(Source.obj_id == obj_id)
-                    .filter(Source.active.is_(True))
-                    .subquery()
+                passing_alerts = [
+                    {
+                        "filter_id": cand.filter_id,
+                        "passing_alert_id": cand.passing_alert_id,
+                        "passed_at": cand.passed_at,
+                    }
+                    for cand in accessible_candidates
+                ]
+
+                candidate_info = recursive_to_dict(c)
+                candidate_info["filter_ids"] = filter_ids
+                candidate_info["passing_alerts"] = passing_alerts
+                if include_comments:
+                    candidate_info["comments"] = sorted(
+                        session.scalars(
+                            Comment.select(session.user_or_token).where(
+                                Comment.obj_id == obj_id
+                            )
+                        ).all(),
+                        key=lambda x: x.created_at,
+                        reverse=True,
+                    )
+
+                if include_photometry:
+                    candidate_info['photometry'] = session.scalars(
+                        Photometry.select(
+                            session.user_or_token,
+                            options=[joinedload(Photometry.instrument)],
+                        ).where(Photometry.obj_id == obj_id)
+                    ).all()
+                if include_spectra:
+                    candidate_info['spectra'] = session.scalars(
+                        Spectrum.select(
+                            session.user_or_token,
+                            options=[joinedload(Spectrum.instrument)],
+                        ).where(Spectrum.obj_id == obj_id)
+                    ).all()
+
+                candidate_info["annotations"] = sorted(
+                    session.scalars(
+                        Annotation.select(session.user_or_token).where(
+                            Annotation.obj_id == obj_id
+                        )
+                    ).all(),
+                    key=lambda x: x.origin,
                 )
-                candidate_info["saved_groups"] = (
-                    Group.query_records_accessible_by(self.current_user)
-                    .join(source_subquery, Group.id == source_subquery.c.group_id)
-                    .all()
+                stmt = Source.select(session.user_or_token).where(
+                    Source.obj_id == obj_id
                 )
-                candidate_info["classifications"] = (
-                    Classification.query_records_accessible_by(self.current_user)
-                    .filter(Classification.obj_id == obj_id)
-                    .all()
-                )
-            if len(c.photstats) > 0:
-                if c.photstats[-1].last_detected_mjd is not None:
-                    candidate_info["last_detected_at"] = Time(
-                        c.photstats[-1].last_detected_mjd, format='mjd'
-                    ).datetime
+                count_stmt = sa.select(func.count()).select_from(stmt.distinct())
+                candidate_info["is_source"] = session.execute(count_stmt).scalar()
+                if candidate_info["is_source"]:
+                    source_subquery = (
+                        Source.select(session.user_or_token)
+                        .where(Source.obj_id == obj_id)
+                        .where(Source.active.is_(True))
+                        .subquery()
+                    )
+                    candidate_info["saved_groups"] = (
+                        session.scalars(
+                            Group.select(session.user_or_token).join(
+                                source_subquery, Group.id == source_subquery.c.group_id
+                            )
+                        )
+                        .unique()
+                        .all()
+                    )
+                    candidate_info["classifications"] = (
+                        session.scalars(
+                            Classification.select(session.user_or_token).where(
+                                Classification.obj_id == obj_id
+                            )
+                        )
+                        .unique()
+                        .all()
+                    )
+                if len(c.photstats) > 0:
+                    if c.photstats[-1].last_detected_mjd is not None:
+                        candidate_info["last_detected_at"] = Time(
+                            c.photstats[-1].last_detected_mjd, format='mjd'
+                        ).datetime
+                    else:
+                        candidate_info["last_detected_at"] = None
                 else:
                     candidate_info["last_detected_at"] = None
-            else:
-                candidate_info["last_detected_at"] = None
-            candidate_info["gal_lon"] = c.gal_lon_deg
-            candidate_info["gal_lat"] = c.gal_lat_deg
-            candidate_info["luminosity_distance"] = c.luminosity_distance
-            candidate_info["dm"] = c.dm
-            candidate_info["angular_diameter_distance"] = c.angular_diameter_distance
+                candidate_info["gal_lon"] = c.gal_lon_deg
+                candidate_info["gal_lat"] = c.gal_lat_deg
+                candidate_info["luminosity_distance"] = c.luminosity_distance
+                candidate_info["dm"] = c.dm
+                candidate_info[
+                    "angular_diameter_distance"
+                ] = c.angular_diameter_distance
 
-            candidate_info = recursive_to_dict(candidate_info)
-            self.verify_and_commit()
+                candidate_info = recursive_to_dict(candidate_info)
 
-            query_size = sizeof(candidate_info)
-            if query_size >= SIZE_WARNING_THRESHOLD:
-                end = time.time()
-                duration = end - start
-                log(
-                    f'User {self.associated_user_object.id} candidate query for object {obj_id} returned {query_size} bytes in {duration} seconds'
-                )
+                query_size = sizeof(candidate_info)
+                if query_size >= SIZE_WARNING_THRESHOLD:
+                    end = time.time()
+                    duration = end - start
+                    log(
+                        f'User {self.associated_user_object.id} candidate query for object {obj_id} returned {query_size} bytes in {duration} seconds'
+                    )
 
-            return self.success(data=candidate_info)
+                return self.success(data=candidate_info)
 
         page_number = self.get_query_argument("pageNumber", None) or 1
         n_per_page = self.get_query_argument("numPerPage", None) or 25
@@ -619,386 +626,404 @@ class CandidateHandler(BaseHandler):
             return self.error("Invalid numPerPage value.")
         n_per_page = min(n_per_page, 500)
 
-        initial_candidate_filter_criteria = [Candidate.filter_id.in_(filter_ids)]
-        if start_date is not None and start_date.strip() not in [
-            "",
-            "null",
-            "undefined",
-        ]:
-            start_date = arrow.get(start_date).datetime
-            initial_candidate_filter_criteria.append(Candidate.passed_at >= start_date)
-        if end_date is not None and end_date.strip() not in ["", "null", "undefined"]:
-            end_date = arrow.get(end_date).datetime
-            initial_candidate_filter_criteria.append(Candidate.passed_at <= end_date)
-        candidate_subquery = (
-            Candidate.query_records_accessible_by(self.current_user)
-            .filter(*initial_candidate_filter_criteria)
-            .subquery()
-        )
-        # We'll join in the nested data for Obj (like photometry) later
-        q = Obj.query_records_accessible_by(self.current_user).join(
-            candidate_subquery, Obj.id == candidate_subquery.c.obj_id
-        )
-        if sort_by_origin is not None or annotation_filter_list is not None:
-            q = q.outerjoin(Annotation)
-
-        if classifications is not None:
-            if isinstance(classifications, str) and "," in classifications:
-                classifications = [c.strip() for c in classifications.split(",")]
-            elif isinstance(classifications, str):
-                classifications = [classifications]
-            else:
-                return self.error(
-                    "Invalid classifications value -- must provide at least one string value"
-                )
-            q = q.join(Classification).filter(
-                Classification.classification.in_(classifications)
+        with self.Session() as session:
+            candidate_query = Candidate.select(session.user_or_token).where(
+                Candidate.filter_id.in_(filter_ids)
             )
-        if sort_by_origin is None:
-            # Don't apply the order by just yet. Save it so we can pass it to
-            # the LIMT/OFFSET helper function down the line once other query
-            # params are set.
-            order_by = [candidate_subquery.c.passed_at.desc().nullslast(), Obj.id]
-
-        if saved_status in [
-            "savedToAllSelected",
-            "savedToAnySelected",
-            "savedToAnyAccessible",
-            "notSavedToAnyAccessible",
-            "notSavedToAnySelected",
-            "notSavedToAllSelected",
-        ]:
-            notin = False
-            active_sources = Source.query_records_accessible_by(
-                self.current_user, columns=[Source.obj_id]
-            ).filter(Source.active.is_(True))
-            if saved_status == "savedToAllSelected":
-                # Retrieve objects that have as many active saved groups that are
-                # in 'group_ids' as there are items in 'group_ids'
-                subquery = (
-                    active_sources.filter(Source.group_id.in_(group_ids))
-                    .group_by(Source.obj_id)
-                    .having(func.count(Source.group_id) == len(group_ids))
+            if start_date is not None and start_date.strip() not in [
+                "",
+                "null",
+                "undefined",
+            ]:
+                start_date = arrow.get(start_date).datetime
+                candidate_query = candidate_query.where(
+                    Candidate.passed_at >= start_date
                 )
-            elif saved_status == "savedToAnySelected":
-                subquery = active_sources.filter(Source.group_id.in_(group_ids))
-            elif saved_status == "savedToAnyAccessible":
-                subquery = active_sources.filter(
-                    Source.group_id.in_(user_accessible_group_ids)
-                )
-            elif saved_status == "notSavedToAnyAccessible":
-                subquery = active_sources.filter(
-                    Source.group_id.in_(user_accessible_group_ids)
-                )
-                notin = True
-            elif saved_status == "notSavedToAnySelected":
-                subquery = active_sources.filter(Source.group_id.in_(group_ids))
-                notin = True
-            elif saved_status == "notSavedToAllSelected":
-                # Retrieve objects that have as many active saved groups that are
-                # in 'group_ids' as there are items in 'group_ids', and select
-                # the objects not in that set
-                subquery = (
-                    active_sources.filter(Source.group_id.in_(group_ids))
-                    .group_by(Source.obj_id)
-                    .having(func.count(Source.group_id) == len(group_ids))
-                )
-                notin = True
-            q = (
-                q.filter(Obj.id.notin_(subquery))
-                if notin
-                else q.filter(Obj.id.in_(subquery))
+            if end_date is not None and end_date.strip() not in [
+                "",
+                "null",
+                "undefined",
+            ]:
+                end_date = arrow.get(end_date).datetime
+                candidate_query = candidate_query.where(Candidate.passed_at <= end_date)
+            candidate_subquery = candidate_query.subquery()
+            # We'll join in the nested data for Obj (like photometry) later
+            q = Obj.select(session.user_or_token).join(
+                candidate_subquery, Obj.id == candidate_subquery.c.obj_id
             )
-        elif saved_status != "all":
-            return self.error(
-                f"Invalid savedStatus: {saved_status}. Must be one of the enumerated options."
-            )
+            if sort_by_origin is not None or annotation_filter_list is not None:
+                q = q.outerjoin(Annotation)
 
-        if min_redshift is not None:
-            try:
-                min_redshift = float(min_redshift)
-            except ValueError:
-                return self.error(
-                    "Invalid values for minRedshift - could not convert to float"
-                )
-            q = q.filter(Obj.redshift >= min_redshift)
-        if max_redshift is not None:
-            try:
-                max_redshift = float(max_redshift)
-            except ValueError:
-                return self.error(
-                    "Invalid values for maxRedshift - could not convert to float"
-                )
-            q = q.filter(Obj.redshift <= max_redshift)
-
-        if annotation_exclude_origin is not None:
-            if annotation_exclude_date is None:
-                right = (
-                    Obj.query_records_accessible_by(self.current_user, columns=[Obj.id])
-                    .join(Annotation)
-                    .filter(Annotation.origin == annotation_exclude_origin)
-                    .subquery()
-                )
-            else:
-                expire_date = arrow.get(annotation_exclude_date).datetime
-                right = (
-                    Obj.query_records_accessible_by(self.current_user, columns=[Obj.id])
-                    .join(Annotation)
-                    .filter(
-                        Annotation.origin == annotation_exclude_origin,
-                        Annotation.modified >= expire_date,
-                    )
-                    .subquery()
-                )
-
-            q = q.outerjoin(right, Obj.id == right.c.id).filter(right.c.id.is_(None))
-
-        if list_name is not None:
-            q = q.filter(
-                Listing.list_name == list_name,
-                Listing.user_id == self.associated_user_object.id,
-            )
-        if list_name_reject is not None:
-            right = (
-                Obj.query_records_accessible_by(self.current_user, columns=[Obj.id])
-                .join(Listing)
-                .filter(
-                    Listing.list_name == list_name_reject,
-                    Listing.user_id == self.associated_user_object.id,
-                )
-                .subquery()
-            )
-
-            q = q.outerjoin(right, Obj.id == right.c.id).filter(right.c.id.is_(None))
-
-        if annotation_filter_list is not None:
-            # Parse annotation filter list objects from the query string
-            # and apply the filters to the query
-
-            for item in re.split(r",(?={)", annotation_filter_list):
-                try:
-                    new_filter = json.loads(item)
-                except json.decoder.JSONDecodeError:
-                    return self.error(
-                        "Could not parse JSON objects for annotation filtering"
-                    )
-
-                if "origin" not in new_filter:
-                    self.error(
-                        f"Invalid annotation filter list item {item}: \"origin\" is required."
-                    )
-
-                if "key" not in new_filter:
-                    self.error(
-                        f"Invalid annotation filter list item {item}: \"key\" is required."
-                    )
-
-                if "value" in new_filter:
-                    value = new_filter["value"]
-                    if isinstance(value, bool):
-                        q = q.filter(
-                            Annotation.origin == new_filter["origin"],
-                            Annotation.data[new_filter["key"]].astext.cast(Boolean)
-                            == value,
-                        )
-                    else:
-                        # Test if the value is a nested object
-                        try:
-                            value = json.loads(value)
-                            # If a nested object, we put the value through the
-                            # JSON loads/dumps pipeline to get a string formatted
-                            # like Postgres will for its JSONB ->> text operation
-                            # For some reason, for example, not doing this will
-                            # have value = { "key": "value" } (with the extra
-                            # spaces around the braces) and cause the filter to
-                            # fail.
-                            value = json.dumps(value)
-                        except json.decoder.JSONDecodeError:
-                            # If not, this is just a string field and we don't
-                            # need the string formatting above
-                            pass
-                        q = q.filter(
-                            Annotation.origin == new_filter["origin"],
-                            Annotation.data[new_filter["key"]].astext == value,
-                        )
-                elif "min" in new_filter and "max" in new_filter:
-                    try:
-                        min_value = float(new_filter["min"])
-                        max_value = float(new_filter["max"])
-                        q = q.filter(
-                            Annotation.origin == new_filter["origin"],
-                            Annotation.data[new_filter["key"]].cast(Float) >= min_value,
-                            Annotation.data[new_filter["key"]].cast(Float) <= max_value,
-                        )
-                    except ValueError:
-                        return self.error(
-                            f"Invalid annotation filter list item: {item}. The min/max provided is not a valid number."
-                        )
+            if classifications is not None:
+                if isinstance(classifications, str) and "," in classifications:
+                    classifications = [c.strip() for c in classifications.split(",")]
+                elif isinstance(classifications, str):
+                    classifications = [classifications]
                 else:
                     return self.error(
-                        f"Invalid annotation filter list item: {item}. Should have either \"value\" or \"min\" and \"max\""
+                        "Invalid classifications value -- must provide at least one string value"
                     )
+                q = q.join(Classification).where(
+                    Classification.classification.in_(classifications)
+                )
+            if sort_by_origin is None:
+                # Don't apply the order by just yet. Save it so we can pass it to
+                # the LIMT/OFFSET helper function down the line once other query
+                # params are set.
+                order_by = [candidate_subquery.c.passed_at.desc().nullslast(), Obj.id]
 
-        if sort_by_origin is not None:
-            sort_by_key = self.get_query_argument("sortByAnnotationKey", None)
-            sort_by_order = self.get_query_argument("sortByAnnotationOrder", None)
-            # Define a custom sort order to have annotations from the correct
-            # origin first, all others afterwards
-            origin_sort_order = case(
-                value=Annotation.origin,
-                whens={sort_by_origin: 1},
-                else_=None,
-            )
-            annotation_sort_criterion = (
-                Annotation.data[sort_by_key].desc().nullslast()
-                if sort_by_order == "desc"
-                else Annotation.data[sort_by_key].nullslast()
-            )
-            # Don't apply the order by just yet. Save it so we can pass it to
-            # the LIMT/OFFSET helper function.
-            order_by = [
-                origin_sort_order.nullslast(),
-                annotation_sort_criterion,
-                candidate_subquery.c.passed_at.desc().nullslast(),
-                Obj.id,
-            ]
+            if saved_status in [
+                "savedToAllSelected",
+                "savedToAnySelected",
+                "savedToAnyAccessible",
+                "notSavedToAnyAccessible",
+                "notSavedToAnySelected",
+                "notSavedToAllSelected",
+            ]:
+                notin = False
+                active_sources = Source.select(
+                    session.user_or_token, columns=[Source.obj_id]
+                ).where(Source.active.is_(True))
+                if saved_status == "savedToAllSelected":
+                    # Retrieve objects that have as many active saved groups that are
+                    # in 'group_ids' as there are items in 'group_ids'
+                    subquery = (
+                        active_sources.where(Source.group_id.in_(group_ids))
+                        .group_by(Source.obj_id)
+                        .having(func.count(Source.group_id) == len(group_ids))
+                    )
+                elif saved_status == "savedToAnySelected":
+                    subquery = active_sources.where(Source.group_id.in_(group_ids))
+                elif saved_status == "savedToAnyAccessible":
+                    subquery = active_sources.where(
+                        Source.group_id.in_(user_accessible_group_ids)
+                    )
+                elif saved_status == "notSavedToAnyAccessible":
+                    subquery = active_sources.where(
+                        Source.group_id.in_(user_accessible_group_ids)
+                    )
+                    notin = True
+                elif saved_status == "notSavedToAnySelected":
+                    subquery = active_sources.where(Source.group_id.in_(group_ids))
+                    notin = True
+                elif saved_status == "notSavedToAllSelected":
+                    # Retrieve objects that have as many active saved groups that are
+                    # in 'group_ids' as there are items in 'group_ids', and select
+                    # the objects not in that set
+                    subquery = (
+                        active_sources.where(Source.group_id.in_(group_ids))
+                        .group_by(Source.obj_id)
+                        .having(func.count(Source.group_id) == len(group_ids))
+                    )
+                    notin = True
+                q = (
+                    q.where(Obj.id.notin_(subquery))
+                    if notin
+                    else q.where(Obj.id.in_(subquery))
+                )
+            elif saved_status != "all":
+                return self.error(
+                    f"Invalid savedStatus: {saved_status}. Must be one of the enumerated options."
+                )
 
-        try:
-            query_results = grab_query_results(
-                q,
-                total_matches,
-                page,
-                n_per_page,
-                "candidates",
-                order_by=order_by,
-                query_id=query_id,
-                use_cache=True,
-                include_detection_stats=True,
-            )
-        except ValueError as e:
-            if "Page number out of range" in str(e):
-                return self.error("Page number out of range.")
-            raise
+            if min_redshift is not None:
+                try:
+                    min_redshift = float(min_redshift)
+                except ValueError:
+                    return self.error(
+                        "Invalid values for minRedshift - could not convert to float"
+                    )
+                q = q.where(Obj.redshift >= min_redshift)
+            if max_redshift is not None:
+                try:
+                    max_redshift = float(max_redshift)
+                except ValueError:
+                    return self.error(
+                        "Invalid values for maxRedshift - could not convert to float"
+                    )
+                q = q.where(Obj.redshift <= max_redshift)
 
-        matching_source_ids = (
-            Source.query_records_accessible_by(
-                self.current_user, columns=[Source.obj_id]
-            )
-            .filter(Source.obj_id.in_([obj.id for obj, in query_results["candidates"]]))
-            .all()
-        )
-        candidate_list = []
-        for (obj,) in query_results["candidates"]:
-            with DBSession().no_autoflush:
-                obj.is_source = (obj.id,) in matching_source_ids
-                if obj.is_source:
-                    source_subquery = (
-                        Source.query_records_accessible_by(self.current_user)
-                        .filter(Source.obj_id == obj.id)
-                        .filter(Source.active.is_(True))
+            if annotation_exclude_origin is not None:
+                if annotation_exclude_date is None:
+                    right = (
+                        Obj.select(session.user_or_token, columns=[Obj.id])
+                        .join(Annotation)
+                        .where(Annotation.origin == annotation_exclude_origin)
                         .subquery()
                     )
-                    obj.saved_groups = (
-                        Group.query_records_accessible_by(self.current_user)
-                        .join(source_subquery, Group.id == source_subquery.c.group_id)
-                        .all()
+                else:
+                    expire_date = arrow.get(annotation_exclude_date).datetime
+                    right = (
+                        Obj.select(session.user_or_token, columns=[Obj.id])
+                        .join(Annotation)
+                        .where(
+                            Annotation.origin == annotation_exclude_origin,
+                            Annotation.modified >= expire_date,
+                        )
+                        .subquery()
                     )
-                    obj.classifications = (
-                        Classification.query_records_accessible_by(self.current_user)
-                        .filter(Classification.obj_id == obj.id)
-                        .all()
+
+                q = q.outerjoin(right, Obj.id == right.c.id).where(right.c.id.is_(None))
+
+            if list_name is not None:
+                q = q.where(
+                    Listing.list_name == list_name,
+                    Listing.user_id == self.associated_user_object.id,
+                )
+            if list_name_reject is not None:
+                right = (
+                    Obj.select(session.user_or_token, columns=[Obj.id])
+                    .join(Listing)
+                    .filter(
+                        Listing.list_name == list_name_reject,
+                        Listing.user_id == self.associated_user_object.id,
                     )
-                obj.passing_group_ids = [
-                    f.group_id
-                    for f in (
-                        Filter.query_records_accessible_by(self.current_user).filter(
-                            Filter.id.in_(
-                                Candidate.query_records_accessible_by(
-                                    self.current_user, columns=[Candidate.filter_id]
-                                ).filter(Candidate.obj_id == obj.id)
+                    .subquery()
+                )
+
+                q = q.outerjoin(right, Obj.id == right.c.id).where(right.c.id.is_(None))
+
+            if annotation_filter_list is not None:
+                # Parse annotation filter list objects from the query string
+                # and apply the filters to the query
+
+                for item in re.split(r",(?={)", annotation_filter_list):
+                    try:
+                        new_filter = json.loads(item)
+                    except json.decoder.JSONDecodeError:
+                        return self.error(
+                            "Could not parse JSON objects for annotation filtering"
+                        )
+
+                    if "origin" not in new_filter:
+                        self.error(
+                            f"Invalid annotation filter list item {item}: \"origin\" is required."
+                        )
+
+                    if "key" not in new_filter:
+                        self.error(
+                            f"Invalid annotation filter list item {item}: \"key\" is required."
+                        )
+
+                    if "value" in new_filter:
+                        value = new_filter["value"]
+                        if isinstance(value, bool):
+                            q = q.where(
+                                Annotation.origin == new_filter["origin"],
+                                Annotation.data[new_filter["key"]].astext.cast(Boolean)
+                                == value,
                             )
-                        )
-                    )
-                ]
-                candidate_list.append(recursive_to_dict(obj))
-                if include_photometry:
-                    candidate_list[-1]["photometry"] = (
-                        Photometry.query_records_accessible_by(
-                            self.current_user,
-                            mode='read',
-                            options=[joinedload(Photometry.instrument)],
-                        )
-                        .filter(Photometry.obj_id == obj.id)
-                        .all()
-                    )
-
-                if include_spectra:
-                    candidate_list[-1]["spectra"] = (
-                        Spectrum.query_records_accessible_by(
-                            self.current_user,
-                            mode='read',
-                            options=[joinedload(Spectrum.instrument)],
-                        )
-                        .filter(Spectrum.obj_id == obj.id)
-                        .all()
-                    )
-
-                if include_comments:
-                    candidate_list[-1]["comments"] = sorted(
-                        Comment.query_records_accessible_by(self.current_user)
-                        .filter(Comment.obj_id == obj.id)
-                        .all(),
-                        key=lambda x: x.created_at,
-                        reverse=True,
-                    )
-                unordered_annotations = sorted(
-                    Annotation.query_records_accessible_by(self.current_user)
-                    .filter(Annotation.obj_id == obj.id)
-                    .all(),
-                    key=lambda x: x.origin,
-                )
-                selected_groups_annotations = []
-                other_annotations = []
-                for annotation in unordered_annotations:
-                    if set(group_ids).intersection(
-                        {group.id for group in annotation.groups}
-                    ):
-                        selected_groups_annotations.append(annotation)
+                        else:
+                            # Test if the value is a nested object
+                            try:
+                                value = json.loads(value)
+                                # If a nested object, we put the value through the
+                                # JSON loads/dumps pipeline to get a string formatted
+                                # like Postgres will for its JSONB ->> text operation
+                                # For some reason, for example, not doing this will
+                                # have value = { "key": "value" } (with the extra
+                                # spaces around the braces) and cause the filter to
+                                # fail.
+                                value = json.dumps(value)
+                            except json.decoder.JSONDecodeError:
+                                # If not, this is just a string field and we don't
+                                # need the string formatting above
+                                pass
+                            q = q.filter(
+                                Annotation.origin == new_filter["origin"],
+                                Annotation.data[new_filter["key"]].astext == value,
+                            )
+                    elif "min" in new_filter and "max" in new_filter:
+                        try:
+                            min_value = float(new_filter["min"])
+                            max_value = float(new_filter["max"])
+                            q = q.where(
+                                Annotation.origin == new_filter["origin"],
+                                Annotation.data[new_filter["key"]].cast(Float)
+                                >= min_value,
+                                Annotation.data[new_filter["key"]].cast(Float)
+                                <= max_value,
+                            )
+                        except ValueError:
+                            return self.error(
+                                f"Invalid annotation filter list item: {item}. The min/max provided is not a valid number."
+                            )
                     else:
-                        other_annotations.append(annotation)
-                candidate_list[-1]["annotations"] = (
-                    selected_groups_annotations + other_annotations
+                        return self.error(
+                            f"Invalid annotation filter list item: {item}. Should have either \"value\" or \"min\" and \"max\""
+                        )
+
+            if sort_by_origin is not None:
+                sort_by_key = self.get_query_argument("sortByAnnotationKey", None)
+                sort_by_order = self.get_query_argument("sortByAnnotationOrder", None)
+                # Define a custom sort order to have annotations from the correct
+                # origin first, all others afterwards
+                origin_sort_order = case(
+                    value=Annotation.origin,
+                    whens={sort_by_origin: 1},
+                    else_=None,
                 )
-                if len(obj.photstats) > 0:
-                    if obj.photstats[-1].last_detected_mjd is not None:
-                        candidate_list[-1]["last_detected_at"] = Time(
-                            obj.photstats[-1].last_detected_mjd, format='mjd'
-                        ).datetime
+                annotation_sort_criterion = (
+                    Annotation.data[sort_by_key].desc().nullslast()
+                    if sort_by_order == "desc"
+                    else Annotation.data[sort_by_key].nullslast()
+                )
+                # Don't apply the order by just yet. Save it so we can pass it to
+                # the LIMT/OFFSET helper function.
+                order_by = [
+                    origin_sort_order.nullslast(),
+                    annotation_sort_criterion,
+                    candidate_subquery.c.passed_at.desc().nullslast(),
+                    Obj.id,
+                ]
+
+            try:
+                query_results = grab_query_results(
+                    q,
+                    total_matches,
+                    page,
+                    n_per_page,
+                    "candidates",
+                    order_by=order_by,
+                    query_id=query_id,
+                    use_cache=True,
+                    include_detection_stats=True,
+                )
+            except ValueError as e:
+                if "Page number out of range" in str(e):
+                    return self.error("Page number out of range.")
+                raise
+
+            matching_source_ids = (
+                session.scalars(
+                    Source.select(session.user_or_token, columns=[Source.obj_id]).where(
+                        Source.obj_id.in_(
+                            [obj.id for obj, in query_results["candidates"]]
+                        )
+                    )
+                )
+                .unique()
+                .all()
+            )
+            candidate_list = []
+            for (obj,) in query_results["candidates"]:
+                with session.no_autoflush:
+                    obj.is_source = (obj.id,) in matching_source_ids
+                    if obj.is_source:
+                        source_subquery = (
+                            Source.select(session.user_or_token)
+                            .where(Source.obj_id == obj.id)
+                            .where(Source.active.is_(True))
+                            .subquery()
+                        )
+                        obj.saved_groups = session.scalars(
+                            Group.select(session.user_or_token).join(
+                                source_subquery, Group.id == source_subquery.c.group_id
+                            )
+                        ).all()
+                        obj.classifications = session.scalars(
+                            Classification.select(self.current_user).where(
+                                Classification.obj_id == obj.id
+                            )
+                        ).all()
+                    obj.passing_group_ids = [
+                        f.group_id
+                        for f in session.scalars(
+                            Filter.select(session.user_or_token).where(
+                                Filter.id.in_(
+                                    session.scalars(
+                                        Candidate.select(
+                                            session.user_or_token,
+                                            columns=[Candidate.filter_id],
+                                        ).where(Candidate.obj_id == obj.id)
+                                    ).all()
+                                )
+                            )
+                        ).all()
+                    ]
+                    candidate_list.append(recursive_to_dict(obj))
+                    if include_photometry:
+                        candidate_list[-1]["photometry"] = (
+                            session.scalars(
+                                Photometry.select(
+                                    session.user_or_token,
+                                    options=[joinedload(Photometry.instrument)],
+                                ).where(Photometry.obj_id == obj.id)
+                            )
+                            .unique()
+                            .all()
+                        )
+
+                    if include_spectra:
+                        candidate_list[-1]["spectra"] = session.scalars(
+                            Spectrum.select(
+                                session.user_or_token,
+                                options=[joinedload(Spectrum.instrument)],
+                            ).where(Spectrum.obj_id == obj.id)
+                        ).all()
+
+                    if include_comments:
+                        candidate_list[-1]["comments"] = sorted(
+                            session.scalars(
+                                Comment.select(session.user_or_token).where(
+                                    Comment.obj_id == obj.id
+                                )
+                            )
+                            .unique()
+                            .all(),
+                            key=lambda x: x.created_at,
+                            reverse=True,
+                        )
+                    unordered_annotations = sorted(
+                        session.scalars(
+                            Annotation.select(self.current_user).where(
+                                Annotation.obj_id == obj.id
+                            )
+                        ).all(),
+                        key=lambda x: x.origin,
+                    )
+                    selected_groups_annotations = []
+                    other_annotations = []
+                    for annotation in unordered_annotations:
+                        if set(group_ids).intersection(
+                            {group.id for group in annotation.groups}
+                        ):
+                            selected_groups_annotations.append(annotation)
+                        else:
+                            other_annotations.append(annotation)
+                    candidate_list[-1]["annotations"] = (
+                        selected_groups_annotations + other_annotations
+                    )
+                    if len(obj.photstats) > 0:
+                        if obj.photstats[-1].last_detected_mjd is not None:
+                            candidate_list[-1]["last_detected_at"] = Time(
+                                obj.photstats[-1].last_detected_mjd, format='mjd'
+                            ).datetime
+                        else:
+                            candidate_list[-1]["last_detected_at"] = None
                     else:
                         candidate_list[-1]["last_detected_at"] = None
-                else:
-                    candidate_list[-1]["last_detected_at"] = None
-                candidate_list[-1]["gal_lat"] = obj.gal_lat_deg
-                candidate_list[-1]["gal_lon"] = obj.gal_lon_deg
-                candidate_list[-1]["luminosity_distance"] = obj.luminosity_distance
-                candidate_list[-1]["dm"] = obj.dm
-                candidate_list[-1][
-                    "angular_diameter_distance"
-                ] = obj.angular_diameter_distance
+                    candidate_list[-1]["gal_lat"] = obj.gal_lat_deg
+                    candidate_list[-1]["gal_lon"] = obj.gal_lon_deg
+                    candidate_list[-1]["luminosity_distance"] = obj.luminosity_distance
+                    candidate_list[-1]["dm"] = obj.dm
+                    candidate_list[-1][
+                        "angular_diameter_distance"
+                    ] = obj.angular_diameter_distance
 
-        query_results["candidates"] = candidate_list
-        query_results = recursive_to_dict(query_results)
-        self.verify_and_commit()
+            query_results["candidates"] = candidate_list
+            query_results = recursive_to_dict(query_results)
+            self.verify_and_commit()
 
-        query_size = sizeof(query_results)
-        if query_size >= SIZE_WARNING_THRESHOLD:
-            end = time.time()
-            duration = end - start
-            log(
-                f'User {self.associated_user_object.id} candidate query returned {query_size} bytes in {duration} seconds'
-            )
+            query_size = sizeof(query_results)
+            if query_size >= SIZE_WARNING_THRESHOLD:
+                end = time.time()
+                duration = end - start
+                log(
+                    f'User {self.associated_user_object.id} candidate query returned {query_size} bytes in {duration} seconds'
+                )
 
-        return self.success(data=query_results)
+            return self.success(data=query_results)
 
     @permissions(["Upload data"])
     def post(self):
@@ -1154,21 +1179,22 @@ class CandidateHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        cands_to_delete = (
-            Candidate.query_records_accessible_by(self.current_user, mode="delete")
-            .filter(Candidate.obj_id == obj_id)
-            .filter(Candidate.filter_id == filter_id)
-            .all()
-        )
-        if len(cands_to_delete) == 0:
-            return self.error(
-                "Invalid (obj_id, filter_id) pairing - no matching candidates"
-            )
-        for cand in cands_to_delete:
-            DBSession().delete(cand)
-        self.verify_and_commit()
 
-        return self.success()
+        with self.Session() as session:
+            cands_to_delete = session.scalars(
+                Candidate.select(session.user_or_token, mode="delete")
+                .where(Candidate.obj_id == obj_id)
+                .where(Candidate.filter_id == filter_id)
+            ).all()
+            if len(cands_to_delete) == 0:
+                return self.error(
+                    "Invalid (obj_id, filter_id) pairing - no matching candidates"
+                )
+            for cand in cands_to_delete:
+                session.delete(cand)
+            session.commit()
+
+            return self.success()
 
 
 def get_obj_id_values(obj_ids):
