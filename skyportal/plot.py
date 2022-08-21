@@ -1673,8 +1673,8 @@ def make_photometry_panel(
         if len(period_list) > 0:
             period = period_list[0]
         else:
-            period = None
-            return None
+            # default to 1 day
+            period = 1.0
 
     imhover = HoverTool(tooltips=tooltip_format)
     imhover.renderers = []
