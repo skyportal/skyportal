@@ -879,6 +879,7 @@ class CandidateHandler(BaseHandler):
 
             try:
                 query_results = grab_query_results(
+                    session,
                     q,
                     total_matches,
                     page,
@@ -1231,6 +1232,7 @@ def get_obj_id_values(obj_ids):
 
 
 def grab_query_results(
+    session,
     q,
     total_matches,
     page,
@@ -1278,8 +1280,7 @@ def grab_query_results(
     # values here and get the corresponding n_items_per_page full Obj objects
     # at the end, I think, for minimal additional overhead.
     ids_with_row_nums = (
-        DBSession()
-        .query(full_query.c.id, full_query.c.row_num)
+        sa.select(full_query.c.id, full_query.c.row_num)
         .distinct(full_query.c.id)
         .order_by(full_query.c.id, full_query.c.row_num)
         .subquery()
@@ -1287,14 +1288,9 @@ def grab_query_results(
     # Grouping and getting the first distinct obj_id above messed up the order
     # in the query set, so re-order by the row_num we used to remember the
     # original ordering
-    ordered_ids = (
-        DBSession()
-        .query(
-            ids_with_row_nums.c.id,
-            func.count(ids_with_row_nums.c.id).over().label('total'),
-        )
-        .order_by(ids_with_row_nums.c.row_num)
-    )
+    ordered_ids = sa.select(
+        ids_with_row_nums.c.id,
+    ).order_by(ids_with_row_nums.c.row_num)
 
     if page:
         if use_cache:
@@ -1304,26 +1300,33 @@ def grab_query_results(
             else:
                 # Cache expired/removed/non-existent; create new cache file
                 query_id = str(uuid.uuid4())
-                all_ids = ordered_ids.all()
+                all_ids = session.scalars(ordered_ids).unique().all()
                 cache[query_id] = array_to_bytes(all_ids)
-
-            results = all_ids[
+            totalMatches = len(all_ids)
+            obj_ids_in_page = all_ids[
                 ((page - 1) * n_items_per_page) : (page * n_items_per_page)
             ]
             info["queryID"] = query_id
         else:
-            results = (
-                ordered_ids.limit(n_items_per_page)
-                .offset((page - 1) * n_items_per_page)
+            count_stmt = sa.select(func.count()).select_from(ordered_ids)
+            totalMatches = session.execute(count_stmt).scalar()
+            obj_ids_in_page = (
+                session.scalars(
+                    ordered_ids.limit(n_items_per_page).offset(
+                        (page - 1) * n_items_per_page
+                    )
+                )
+                .unique()
                 .all()
             )
         info["pageNumber"] = page
         info["numPerPage"] = n_items_per_page
     else:
-        results = ordered_ids.all()
+        count_stmt = sa.select(func.count()).select_from(ordered_ids)
+        totalMatches = session.execute(count_stmt).scalar()
+        obj_ids_in_page = session.execute(ordered_ids).unique().all()
 
-    obj_ids_in_page = list(map(lambda x: x[0], results))
-    info["totalMatches"] = int(results[0][1]) if len(results) > 0 else 0
+    info["totalMatches"] = totalMatches
 
     if page:
         if (
@@ -1356,8 +1359,7 @@ def grab_query_results(
         obj_ids_values = get_obj_id_values(obj_ids_in_page)
 
         items = (
-            DBSession()
-            .execute(
+            session.execute(
                 sa.select(Obj)
                 .options(*options)
                 .join(obj_ids_values, obj_ids_values.c.id == Obj.id)
