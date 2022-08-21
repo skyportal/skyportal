@@ -2,11 +2,13 @@ import uuid
 import smtplib
 import python_http_client.exceptions
 import arrow
-from baselayer.app.access import permissions, AccessError
+import sqlalchemy as sa
+from sqlalchemy import func
+
+from baselayer.app.access import permissions
 from baselayer.app.env import load_env
 from ..base import BaseHandler
 from ...models import (
-    DBSession,
     Role,
     Group,
     GroupStream,
@@ -306,38 +308,43 @@ class InvitationHandler(BaseHandler):
         except ValueError:
             return self.error("Invalid numPerPage value.")
 
-        query = Invitation.query_records_accessible_by(self.current_user, mode="read")
-        if not include_used:
-            query = query.filter(Invitation.used.is_(False))
-        if email_address is not None:
-            query = query.filter(Invitation.user_email.contains(email_address))
-        if group is not None:
-            query = query.join(GroupInvitation).join(Group).filter(Group.name == group)
-        if stream is not None:
-            query = (
-                query.join(StreamInvitation).join(Stream).filter(Stream.name == stream)
-            )
-        if invited_by is not None:
-            query = (
-                query.join(UserInvitation)
-                .join(User)
-                .filter(User.username.contains(invited_by))
-            )
+        with self.Session() as session:
+            query = Invitation.select(session.user_or_token)
+            if not include_used:
+                query = query.where(Invitation.used.is_(False))
+            if email_address is not None:
+                query = query.where(Invitation.user_email.contains(email_address))
+            if group is not None:
+                query = (
+                    query.join(GroupInvitation).join(Group).where(Group.name == group)
+                )
+            if stream is not None:
+                query = (
+                    query.join(StreamInvitation)
+                    .join(Stream)
+                    .where(Stream.name == stream)
+                )
+            if invited_by is not None:
+                query = (
+                    query.join(UserInvitation)
+                    .join(User)
+                    .where(User.username.contains(invited_by))
+                )
 
-        total_matches = query.count()
-        query = query.limit(n_per_page).offset((page_number - 1) * n_per_page)
-        invitations = query.all()
-        info = {}
-        return_data = [invitation.to_dict() for invitation in invitations]
-        for idx, invite_dict in enumerate(return_data):
-            invite_dict["streams"] = invitations[idx].streams
-            invite_dict["groups"] = invitations[idx].groups
-            invite_dict["invited_by"] = invitations[idx].invited_by
+            count_stmt = sa.select(func.count()).select_from(query)
+            total_matches = session.execute(count_stmt).scalar()
+            query = query.limit(n_per_page).offset((page_number - 1) * n_per_page)
+            invitations = session.scalars(query).unique().all()
+            info = {}
+            return_data = [invitation.to_dict() for invitation in invitations]
+            for idx, invite_dict in enumerate(return_data):
+                invite_dict["streams"] = invitations[idx].streams
+                invite_dict["groups"] = invitations[idx].groups
+                invite_dict["invited_by"] = invitations[idx].invited_by
 
-        info["invitations"] = return_data
-        info["totalMatches"] = int(total_matches)
-        self.verify_and_commit()
-        return self.success(data=info)
+            info["invitations"] = return_data
+            info["totalMatches"] = int(total_matches)
+            return self.success(data=info)
 
     @permissions(["Manage users"])
     def patch(self, invitation_id):
@@ -375,84 +382,102 @@ class InvitationHandler(BaseHandler):
                 schema: Success
         """
         data = self.get_json()
-        try:
-            invitation = Invitation.get_if_accessible_by(
-                invitation_id, self.current_user, raise_if_none=True, mode="update"
-            )
-        except AccessError as e:
-            return self.error(
-                "Insufficient permissions: Only the invitor may update an invitation. "
-                f"(Original exception: {e})"
-            )
 
-        group_ids = data.get("groupIDs")
-        stream_ids = data.get("streamIDs")
-        role_id = data.get("role")
-        user_expiration_date = data.get("userExpirationDate")
-        if (
-            group_ids is None
-            and stream_ids is None
-            and role_id is None
-            and user_expiration_date is None
-        ):
-            return self.error(
-                "At least one of `groupIDs`, `streamIDs`, `role`, or `userExpirationDate` is required."
-            )
-        if group_ids is not None:
-            group_ids = [int(gid) for gid in group_ids]
-            groups = Group.get_if_accessible_by(group_ids, self.current_user)
-            if set(group_ids).difference({g.id for g in groups}):
-                return self.error(
-                    "The following groupIDs elements are invalid: "
-                    f"{set(group_ids).difference({g.id for g in groups})}"
+        with self.Session() as session:
+            invitation = session.scalars(
+                Invitation.select(session.user_or_token, mode="update").where(
+                    Invitation.id == invitation_id
                 )
-        else:
-            groups = (
-                Group.query_records_accessible_by(self.current_user, mode="read")
-                .join(GroupInvitation)
-                .filter(GroupInvitation.invitation_id == invitation.id)
-                .all()
-            )
-        if stream_ids is not None:
-            stream_ids = [int(sid) for sid in stream_ids]
-            streams = Stream.get_if_accessible_by(stream_ids, self.current_user)
-            if set(stream_ids).difference({s.id for s in streams}):
+            ).first()
+            if invitation is None:
                 return self.error(
-                    "The following streamIDs elements are invalid: "
-                    f"{set(stream_ids).difference({s.id for s in streams})}"
+                    "Insufficient permissions: Only the invitor may update an invitation."
                 )
-        else:
-            streams = (
-                Stream.query_records_accessible_by(self.current_user, mode="read")
-                .join(StreamInvitation)
-                .filter(StreamInvitation.invitation_id == invitation.id)
-                .all()
-            )
 
-        if user_expiration_date is not None:
-            try:
-                user_expiration_date = arrow.get(user_expiration_date).datetime
-            except arrow.parser.ParserError:
-                return self.error("Unable to parse `userExpirationDate` parameter.")
+            group_ids = data.get("groupIDs")
+            stream_ids = data.get("streamIDs")
+            role_id = data.get("role")
+            user_expiration_date = data.get("userExpirationDate")
+            if (
+                group_ids is None
+                and stream_ids is None
+                and role_id is None
+                and user_expiration_date is None
+            ):
+                return self.error(
+                    "At least one of `groupIDs`, `streamIDs`, `role`, or `userExpirationDate` is required."
+                )
+            if group_ids is not None:
+                group_ids = [int(gid) for gid in group_ids]
 
-        # Ensure specified groups are covered by specified streams
-        if not all([stream in streams for group in groups for stream in group.streams]):
-            return self.error(
-                "You have attempted to invite user to group(s) that "
-                "access streams that were not specified in provided "
-                "stream IDs list. Please try again."
-            )
-        if group_ids is not None:
-            invitation.groups = groups
-        if stream_ids is not None:
-            invitation.streams = streams
-        if role_id is not None:
-            invitation.role_id = role_id
-        if user_expiration_date is not None:
-            invitation.user_expiration_date = user_expiration_date
+                groups = (
+                    session.scalars(
+                        Group.select(self.current_user).where(Group.id.in_(group_ids))
+                    )
+                    .unique()
+                    .all()
+                )
+                if set(group_ids).difference({g.id for g in groups}):
+                    return self.error(
+                        "The following groupIDs elements are invalid: "
+                        f"{set(group_ids).difference({g.id for g in groups})}"
+                    )
+            else:
+                groups = session.scalars(
+                    Group.select(session.user_or_token)
+                    .join(GroupInvitation)
+                    .where(GroupInvitation.invitation_id == invitation.id)
+                ).all()
+            if stream_ids is not None:
+                stream_ids = [int(sid) for sid in stream_ids]
+                streams = (
+                    session.scalars(
+                        Stream.select(self.current_user).where(
+                            Stream.id.in_(stream_ids)
+                        )
+                    )
+                    .unique()
+                    .all()
+                )
 
-        self.verify_and_commit()
-        return self.success()
+                if set(stream_ids).difference({s.id for s in streams}):
+                    return self.error(
+                        "The following streamIDs elements are invalid: "
+                        f"{set(stream_ids).difference({s.id for s in streams})}"
+                    )
+            else:
+                streams = session.scalars(
+                    Stream.select(session.user_or_token)
+                    .join(StreamInvitation)
+                    .where(StreamInvitation.invitation_id == invitation.id)
+                ).all()
+
+            if user_expiration_date is not None:
+                try:
+                    user_expiration_date = arrow.get(user_expiration_date).datetime
+                except arrow.parser.ParserError:
+                    return self.error("Unable to parse `userExpirationDate` parameter.")
+
+            # Ensure specified groups are covered by specified streams
+            if not all(
+                [stream in streams for group in groups for stream in group.streams]
+            ):
+                return self.error(
+                    "You have attempted to invite user to group(s) that "
+                    "access streams that were not specified in provided "
+                    "stream IDs list. Please try again."
+                )
+            if group_ids is not None:
+                invitation.groups = groups
+            if stream_ids is not None:
+                invitation.streams = streams
+            if role_id is not None:
+                invitation.role_id = role_id
+            if user_expiration_date is not None:
+                invitation.user_expiration_date = user_expiration_date
+
+            session.commit()
+            return self.success()
 
     @permissions(["Manage users"])
     def delete(self, invitation_id):
@@ -473,15 +498,17 @@ class InvitationHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        try:
-            invitation = Invitation.get_if_accessible_by(
-                invitation_id, self.current_user, raise_if_none=True, mode="delete"
-            )
-        except AccessError as e:
-            return self.error(
-                "Insufficient permissions: Only the invitor may delete an invitation. "
-                f"(Original exception: {e})"
-            )
-        DBSession().delete(invitation)
-        self.verify_and_commit()
-        return self.success()
+
+        with self.Session() as session:
+            invitation = session.scalars(
+                Invitation.select(session.user_or_token, mode="delete").where(
+                    Invitation.id == invitation_id
+                )
+            ).first()
+            if invitation is None:
+                return self.error(
+                    "Insufficient permissions: Only the invitor may delete an invitation. "
+                )
+            session.delete(invitation)
+            session.commit()
+            return self.success()

@@ -1,4 +1,5 @@
 import os
+import time
 import uuid
 import base64
 from skyportal.tests import api
@@ -25,6 +26,16 @@ def test_token_user_post_get_thumbnail(upload_data_token, public_group, ztf_came
     assert status == 200
     assert data['data']['id'] == obj_id
 
+    # wait for the thumbnails to populate
+    nretries = 0
+    thumbnails_loaded = False
+    while not thumbnails_loaded and nretries < 5:
+        thumbnails = DBSession.query(Obj).filter(Obj.id == obj_id).first().thumbnails
+        if len(thumbnails) > 0:
+            thumbnails_loaded = True
+        else:
+            nretries = nretries + 1
+            time.sleep(3)
     orig_source_thumbnail_count = len(
         DBSession.query(Obj).filter(Obj.id == obj_id).first().thumbnails
     )
