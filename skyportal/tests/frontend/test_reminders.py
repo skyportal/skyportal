@@ -2,12 +2,13 @@ import os
 import uuid
 import time
 
-from skyportal.tests import api
 from datetime import date, timedelta, datetime
 from selenium.webdriver.common.keys import Keys
 
 import pytest
-from skyportal.tests.api.test_gcn import load_gcnevent
+
+from skyportal.tests import api
+from skyportal.tests.utility_functions import load_gcnevent
 
 
 def post_and_verify_reminder(endpoint, token):

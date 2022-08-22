@@ -10,7 +10,7 @@ from skyportal.tests import api
 from skyportal.tests.frontend.sources_and_followup_etc.test_sources import (
     add_comment_and_wait_for_display,
 )
-from skyportal.tests.api.test_gcn import load_gcnevent
+from skyportal.tests.utility_functions import load_gcnevent
 
 
 def filter_for_value(driver, value, last=False):
@@ -369,7 +369,7 @@ def test_new_gcn_event_triggers_notification(driver, user, super_admin_token):
     driver.wait_for_xpath('//*[contains(text(), "Gcn notice types updated")]')
 
     datafile = f'{os.path.dirname(__file__)}/../data/GRB180116A_Fermi_GBM_Gnd_Pos.xml'
-    load_gcnevent(datafile)
+    load_gcnevent(datafile, super_admin_token)
 
     # Check that notification was created
     driver.get(f'/become_user/{user.id}')

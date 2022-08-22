@@ -1,7 +1,6 @@
 import os
 import numpy as np
 
-from skyportal.tests import api
 import time
 import uuid
 import pandas as pd
@@ -14,7 +13,9 @@ from baselayer.app.config import load_config
 from os.path import join as pjoin
 
 import pytest
-from skyportal.tests.api.test_gcn import load_gcnevent
+
+from skyportal.tests import api
+from skyportal.tests.utility_functions import load_gcnevent
 
 cfg = load_config()
 

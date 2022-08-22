@@ -8,7 +8,7 @@ import time
 import os
 import numpy as np
 
-from skyportal.tests.api.test_gcn import load_gcnevent
+from skyportal.tests.utility_functions import load_gcnevent
 
 
 @pytest.mark.flaky(reruns=2)
