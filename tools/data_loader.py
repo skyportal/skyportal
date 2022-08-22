@@ -102,7 +102,7 @@ if __name__ == "__main__":
 
     print('Testing connection...', end='')
 
-    RETRIES = 15
+    RETRIES = 30
     timeout = 3
     admin_token = None
     status = None
@@ -220,6 +220,8 @@ if __name__ == "__main__":
         else:
             return obj
 
+    ENDPOINT_RETRIES = 3
+
     for endpoint, to_post in src.items():
         # Substitute references in path
         endpoint_parts = endpoint.split('/')
@@ -262,18 +264,27 @@ if __name__ == "__main__":
                 for key in date_keys:
                     if key in obj["payload"]:
                         obj["payload"][key] = obj["payload"][key].isoformat()
-            status, response = post(endpoint, data=obj)
 
-            print('.' if status == 200 else 'X', end='')
+            ntries = 0
+            posted_success = False
+            while (ntries < ENDPOINT_RETRIES) and not posted_success:
+                status, response = post(endpoint, data=obj)
+
+                print('.' if status == 200 else 'X', end='')
+                if status != 200:
+                    ntries = ntries + 1
+                    continue
+                else:
+                    posted_success = True
+
             if status != 200:
                 error_log.append(
                     f"/{endpoint}: {response['message'] if response else None}"
                 )
-                continue
-
-            # Save all references from the response
-            for target, field in saved_fields.items():
-                references[target] = response['data'][field]
+            else:
+                # Save all references from the response
+                for target, field in saved_fields.items():
+                    references[target] = response['data'][field]
 
         print()
 
