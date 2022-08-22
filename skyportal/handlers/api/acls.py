@@ -27,8 +27,10 @@ class ACLHandler(BaseHandler):
                           description: List of all ACL IDs.
         """
         with self.Session() as session:
-            acls = session.scalars(ACL.select(session.user_or_token)).all()
-            return self.success(data=[acl.id for acl in acls])
+            acls = session.scalars(
+                ACL.select(session.user_or_token, columns=[ACL.id])
+            ).all()
+            return self.success(data=acls)
 
 
 class UserACLHandler(BaseHandler):
