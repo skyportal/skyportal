@@ -26,8 +26,11 @@ class ACLHandler(BaseHandler):
                             type: string
                           description: List of all ACL IDs.
         """
-        self.verify_and_commit()
-        return self.success(data=[acl.id for acl in ACL.query.all()])
+        with self.Session() as session:
+            acls = session.scalars(
+                ACL.select(session.user_or_token, columns=[ACL.id])
+            ).all()
+            return self.success(data=acls)
 
 
 class UserACLHandler(BaseHandler):
@@ -67,19 +70,36 @@ class UserACLHandler(BaseHandler):
         new_acl_ids = data.get("aclIds")
         if new_acl_ids is None:
             return self.error("Missing required parameter aclIds")
-        if (not isinstance(new_acl_ids, (list, tuple))) or (
-            not all([ACL.query.get(acl_id) is not None for acl_id in new_acl_ids])
-        ):
-            return self.error(
-                "Improperly formatted parameter aclIds; must be an array of strings."
+        with self.Session() as session:
+            if (not isinstance(new_acl_ids, (list, tuple))) or (
+                not all(
+                    [
+                        session.scalars(
+                            ACL.select(session.user_or_token).where(ACL.id == acl_id)
+                        ).first()
+                        is not None
+                        for acl_id in new_acl_ids
+                    ]
+                )
+            ):
+                return self.error(
+                    "Improperly formatted parameter aclIds; must be an array of strings."
+                )
+            user = session.scalars(
+                User.select(session.user_or_token).where(User.id == user_id)
+            ).first()
+            if user is None:
+                return self.error("Invalid user_id parameter.")
+            new_acls = (
+                session.scalars(
+                    ACL.select(session.user_or_token).where(ACL.id.in_(new_acl_ids))
+                )
+                .unique()
+                .all()
             )
-        user = User.query.get(user_id)
-        if user is None:
-            return self.error("Invalid user_id parameter.")
-        new_acls = ACL.query.filter(ACL.id.in_(new_acl_ids)).all()
-        user.acls = list(set(user.acls).union(set(new_acls)))
-        self.verify_and_commit()
-        return self.success()
+            user.acls = list(set(user.acls).union(set(new_acls)))
+            session.commit()
+            return self.success()
 
     @permissions(["Manage users"])
     def delete(self, user_id, acl_id):
@@ -105,16 +125,22 @@ class UserACLHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        user = User.query.get(user_id)
-        if user is None:
-            return self.error("Invalid user_id")
-        acl = ACL.query.get(acl_id)
-        if acl is None:
-            return self.error("Invalid acl_id")
-        (
-            UserACL.query.filter(UserACL.user_id == user_id)
-            .filter(UserACL.acl_id == acl_id)
-            .delete()
-        )
-        self.verify_and_commit()
-        return self.success()
+        with self.Session() as session:
+            user = session.scalars(
+                User.select(session.user_or_token).where(User.id == user_id)
+            ).first()
+            if user is None:
+                return self.error("Invalid user_id")
+            acl = session.scalars(
+                ACL.select(session.user_or_token).where(ACL.id == acl_id)
+            ).first()
+            if acl is None:
+                return self.error("Invalid acl_id")
+            user_acl = session.scalars(
+                UserACL.select(session.user_or_token, mode="delete")
+                .where(UserACL.user_id == user_id)
+                .where(UserACL.acl_id == acl_id)
+            ).first()
+            session.delete(user_acl)
+            session.commit()
+            return self.success()

@@ -1,12 +1,11 @@
 import numpy as np
 from sqlalchemy.orm import joinedload
 from marshmallow.exceptions import ValidationError
-from baselayer.app.access import permissions, auth_or_token, AccessError
+from baselayer.app.access import permissions, auth_or_token
 from baselayer.app.model_util import recursive_to_dict
 from baselayer.app.flow import Flow
 from ..base import BaseHandler
 from ...models import (
-    DBSession,
     ObservingRun,
     ClassicalAssignment,
     Obj,
@@ -82,7 +81,7 @@ class ObservingRunHandler(BaseHandler):
         """
         data = self.get_json()
 
-        with DBSession() as session:
+        with self.Session() as session:
             run_id = post_observing_run(data, self.associated_user_object.id, session)
             return self.success(data={"id": run_id})
 
@@ -123,74 +122,79 @@ class ObservingRunHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
-        if run_id is not None:
-            # These are all read=public, including Objs
-            options = [
-                joinedload(ObservingRun.assignments)
-                .joinedload(ClassicalAssignment.obj)
-                .joinedload(Obj.thumbnails),
-                joinedload(ObservingRun.assignments).joinedload(
-                    ClassicalAssignment.requester
-                ),
-                joinedload(ObservingRun.instrument).joinedload(Instrument.telescope),
-            ]
-
-            run = ObservingRun.get_if_accessible_by(
-                run_id,
-                self.current_user,
-                mode="read",
-                raise_if_none=True,
-                options=options,
-            )
-
-            # order the assignments by ra
-            assignments = sorted(run.assignments, key=lambda a: a.obj.ra)
-
-            data = ObservingRunGetWithAssignments.dump(run)
-            data["assignments"] = [a.to_dict() for a in assignments]
-
-            for a in data["assignments"]:
-                a['accessible_group_names'] = [
-                    (s.group.nickname if s.group.nickname is not None else s.group.name)
-                    for s in Source.query_records_accessible_by(
-                        self.current_user, mode="read"
-                    )
-                    .filter(Source.obj_id == a["obj"].id)
-                    .all()
+        with self.Session() as session:
+            if run_id is not None:
+                # These are all read=public, including Objs
+                options = [
+                    joinedload(ObservingRun.assignments)
+                    .joinedload(ClassicalAssignment.obj)
+                    .joinedload(Obj.thumbnails),
+                    joinedload(ObservingRun.assignments).joinedload(
+                        ClassicalAssignment.requester
+                    ),
+                    joinedload(ObservingRun.instrument).joinedload(
+                        Instrument.telescope
+                    ),
                 ]
-                del a['obj'].sources
-                del a['obj'].users
 
-            # vectorized calculation of ephemerides
+                run = session.scalars(
+                    ObservingRun.select(session.user_or_token, options=options).where(
+                        ObservingRun.id == run_id
+                    )
+                ).first()
+                if run is None:
+                    return self.error(f'Cannot find ObservingRun with ID {run_id}')
 
-            if len(data["assignments"]) > 0:
-                targets = [a['obj'].target for a in data["assignments"]]
+                # order the assignments by ra
+                assignments = sorted(run.assignments, key=lambda a: a.obj.ra)
 
-                rise_times = run.rise_time(targets).isot
-                set_times = run.set_time(targets).isot
+                data = ObservingRunGetWithAssignments.dump(run)
+                data["assignments"] = [a.to_dict() for a in assignments]
 
-                for d, rt, st in zip(data["assignments"], rise_times, set_times):
-                    d["rise_time_utc"] = rt if rt is not np.ma.masked else ''
-                    d["set_time_utc"] = st if st is not np.ma.masked else ''
+                for a in data["assignments"]:
+                    a['accessible_group_names'] = [
+                        (
+                            s.group.nickname
+                            if s.group.nickname is not None
+                            else s.group.name
+                        )
+                        for s in session.scalars(
+                            Source.select(session.user_or_token).where(
+                                Source.obj_id == a["obj"].id
+                            )
+                        ).all()
+                    ]
+                    del a['obj'].sources
+                    del a['obj'].users
 
-            data = recursive_to_dict(data)
-            self.verify_and_commit()
-            return self.success(data=data)
+                # vectorized calculation of ephemerides
 
-        runs = (
-            ObservingRun.query_records_accessible_by(self.current_user, mode="read")
-            .order_by(ObservingRun.calendar_date.asc())
-            .all()
-        )
-        runs_list = []
-        for run in runs:
-            runs_list.append(run.to_dict())
-            runs_list[-1]["run_end_utc"] = run.instrument.telescope.next_sunrise(
-                run.calendar_noon
-            ).isot
+                if len(data["assignments"]) > 0:
+                    targets = [a['obj'].target for a in data["assignments"]]
 
-        self.verify_and_commit()
-        return self.success(data=runs_list)
+                    rise_times = run.rise_time(targets).isot
+                    set_times = run.set_time(targets).isot
+
+                    for d, rt, st in zip(data["assignments"], rise_times, set_times):
+                        d["rise_time_utc"] = rt if rt is not np.ma.masked else ''
+                        d["set_time_utc"] = st if st is not np.ma.masked else ''
+
+                data = recursive_to_dict(data)
+                return self.success(data=data)
+
+            runs = session.scalars(
+                ObservingRun.select(session.user_or_token).order_by(
+                    ObservingRun.calendar_date.asc()
+                )
+            ).all()
+            runs_list = []
+            for run in runs:
+                runs_list.append(run.to_dict())
+                runs_list[-1]["run_end_utc"] = run.instrument.telescope.next_sunrise(
+                    run.calendar_noon
+                ).isot
+
+            return self.success(data=runs_list)
 
     @permissions(["Manage observing runs"])
     def put(self, run_id):
@@ -223,30 +227,30 @@ class ObservingRunHandler(BaseHandler):
         data = self.get_json()
         run_id = int(run_id)
 
-        try:
-            orun = ObservingRun.get_if_accessible_by(
-                run_id, self.current_user, mode="update", raise_if_none=True
-            )
-        except AccessError as e:
-            return self.error(
-                f"Only the owner of an observing run can modify the run. Original error: {e}"
-            )
+        with self.Session() as session:
+            orun = session.scalars(
+                ObservingRun.select(session.user_or_token, mode="update")
+            ).first()
+            if orun is None:
+                return self.error(
+                    "Only the owner of an observing run can modify the run."
+                )
 
-        try:
-            new_params = ObservingRunPost.load(data, partial=True)
-        except ValidationError as exc:
-            return self.error(
-                f"Invalid/missing parameters: {exc.normalized_messages()}"
-            )
+            try:
+                new_params = ObservingRunPost.load(data, partial=True)
+            except ValidationError as exc:
+                return self.error(
+                    f"Invalid/missing parameters: {exc.normalized_messages()}"
+                )
 
-        for param in new_params:
-            setattr(orun, param, new_params[param])
+            for param in new_params:
+                setattr(orun, param, new_params[param])
 
-        DBSession().add(orun)
-        self.verify_and_commit()
+            session.add(orun)
+            session.commit()
 
-        self.push_all(action="skyportal/FETCH_OBSERVING_RUNS")
-        return self.success()
+            self.push_all(action="skyportal/FETCH_OBSERVING_RUNS")
+            return self.success()
 
     @auth_or_token
     def delete(self, run_id):
@@ -272,17 +276,17 @@ class ObservingRunHandler(BaseHandler):
                 schema: Error
         """
         run_id = int(run_id)
-        try:
-            run = ObservingRun.get_if_accessible_by(
-                run_id, self.current_user, mode="delete", raise_if_none=True
-            )
-        except AccessError as e:
-            return self.error(
-                f"Only the owner of an observing run can delete the run. Original error: {e}"
-            )
+        with self.Session() as session:
+            orun = session.scalars(
+                ObservingRun.select(session.user_or_token, mode="delete")
+            ).first()
+            if orun is None:
+                return self.error(
+                    "Only the owner of an observing run can delete the run."
+                )
 
-        DBSession().delete(run)
-        self.verify_and_commit()
+            session.delete(orun)
+            session.commit()
 
-        self.push_all(action="skyportal/FETCH_OBSERVING_RUNS")
-        return self.success()
+            self.push_all(action="skyportal/FETCH_OBSERVING_RUNS")
+            return self.success()

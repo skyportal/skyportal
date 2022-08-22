@@ -13,7 +13,6 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import sessionmaker, scoped_session
 
 from baselayer.app.access import auth_or_token, permissions
-from baselayer.app.custom_exceptions import AccessError
 from baselayer.app.model_util import recursive_to_dict
 
 from baselayer.log import make_log
@@ -278,38 +277,45 @@ class AnalysisServiceHandler(BaseHandler):
                     )
 
         group_ids = data.pop('group_ids', None)
-        if not group_ids:
-            groups = self.current_user.accessible_groups
-        else:
-            try:
-                groups = Group.get_if_accessible_by(
-                    group_ids, self.current_user, raise_if_none=True
+        with self.Session() as session:
+            if not group_ids:
+                groups = self.current_user.accessible_groups
+            else:
+                groups = (
+                    session.scalars(
+                        Group.select(self.current_user).where(Group.id.in_(group_ids))
+                    )
+                    .unique()
+                    .all()
                 )
-            except AccessError:
-                return self.error('Could not find any accessible groups.', status=403)
+                if {g.id for g in groups} != set(group_ids):
+                    return self.error(
+                        f'Cannot find one or more groups with IDs: {group_ids}.',
+                        status=403,
+                    )
 
-        schema = AnalysisService.__schema__()
-        try:
-            analysis_service = schema.load(data)
-        except ValidationError as e:
-            return self.error(
-                "Invalid/missing parameters: " f"{e.normalized_messages()}"
-            )
+            schema = AnalysisService.__schema__()
+            try:
+                analysis_service = schema.load(data)
+            except ValidationError as e:
+                return self.error(
+                    "Invalid/missing parameters: " f"{e.normalized_messages()}"
+                )
 
-        DBSession().add(analysis_service)
-        analysis_service.groups = groups
+            session.add(analysis_service)
+            analysis_service.groups = groups
 
-        try:
-            self.verify_and_commit()
-        except IntegrityError as e:
-            return self.error(
-                f'Analysis Service with that name already exists: {str(e)}'
-            )
-        except Exception as e:
-            return self.error(f'Unexpected Error adding Analysis Service: {str(e)}')
+            try:
+                session.commit()
+            except IntegrityError as e:
+                return self.error(
+                    f'Analysis Service with that name already exists: {str(e)}'
+                )
+            except Exception as e:
+                return self.error(f'Unexpected Error adding Analysis Service: {str(e)}')
 
-        self.push_all(action='skyportal/REFRESH_ANALYSIS_SERVICES')
-        return self.success(data={"id": analysis_service.id})
+            self.push_all(action='skyportal/REFRESH_ANALYSIS_SERVICES')
+            return self.success(data={"id": analysis_service.id})
 
     @auth_or_token
     def get(self, analysis_service_id=None):
@@ -348,41 +354,46 @@ class AnalysisServiceHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
-        if analysis_service_id is not None:
-            try:
-                s = AnalysisService.get_if_accessible_by(
-                    analysis_service_id, self.current_user, raise_if_none=True
-                )
-            except AccessError:
-                return self.error('Cannot access this Analysis Service.', status=403)
+        with self.Session() as session:
+            if analysis_service_id is not None:
+                s = session.scalars(
+                    AnalysisService.select(session.user_or_token).where(
+                        AnalysisService.id == analysis_service_id
+                    )
+                ).first()
+                if s is None:
+                    return self.error(
+                        'Cannot access this Analysis Service.', status=403
+                    )
 
-            analysis_dict = recursive_to_dict(s)
-            analysis_dict["groups"] = s.groups
-            return self.success(data=analysis_dict)
+                analysis_dict = recursive_to_dict(s)
+                analysis_dict["groups"] = s.groups
+                return self.success(data=analysis_dict)
 
-        # retrieve multiple services
-        analysis_services = AnalysisService.get_records_accessible_by(self.current_user)
-        self.verify_and_commit()
+            # retrieve multiple services
+            analysis_services = session.scalars(
+                AnalysisService.select(session.user_or_token)
+            ).all()
 
-        ret_array = []
-        for a in analysis_services:
-            analysis_dict = recursive_to_dict(a)
-            analysis_dict["groups"] = a.groups
-            if isinstance(a.optional_analysis_parameters, str):
-                analysis_dict["optional_analysis_parameters"] = json.loads(
-                    a.optional_analysis_parameters
-                )
-            elif isinstance(a.optional_analysis_parameters, dict):
-                analysis_dict[
-                    "optional_analysis_parameters"
-                ] = a.optional_analysis_parameters
-            else:
-                return self.error(
-                    message='optional_analysis_parameters must be dictionary or string'
-                )
-            ret_array.append(analysis_dict)
+            ret_array = []
+            for a in analysis_services:
+                analysis_dict = recursive_to_dict(a)
+                analysis_dict["groups"] = a.groups
+                if isinstance(a.optional_analysis_parameters, str):
+                    analysis_dict["optional_analysis_parameters"] = json.loads(
+                        a.optional_analysis_parameters
+                    )
+                elif isinstance(a.optional_analysis_parameters, dict):
+                    analysis_dict[
+                        "optional_analysis_parameters"
+                    ] = a.optional_analysis_parameters
+                else:
+                    return self.error(
+                        message='optional_analysis_parameters must be dictionary or string'
+                    )
+                ret_array.append(analysis_dict)
 
-        return self.success(data=ret_array)
+            return self.success(data=ret_array)
 
     @permissions(["Manage Analysis Services"])
     def patch(self, analysis_service_id):
@@ -485,41 +496,52 @@ class AnalysisServiceHandler(BaseHandler):
         except ValueError:
             return self.error('analysis_service_id must be an int.')
 
-        # make sure we can update this analysis service
-        _ = AnalysisService.get_if_accessible_by(
-            analysis_service_id, self.current_user, mode="update", raise_if_none=True
-        )
-
-        data = self.get_json()
-        group_ids = data.pop('group_ids', None)
-
-        schema = AnalysisService.__schema__()
-        try:
-            new_analysis_service = schema.load(data, partial=True)
-        except ValidationError as e:
-            return self.error(
-                'Invalid/missing parameters: ' f'{e.normalized_messages()}'
-            )
-
-        new_analysis_service.id = analysis_service_id
-        DBSession().merge(new_analysis_service)
-
-        if group_ids is not None:
-            groups = Group.query.filter(Group.id.in_(group_ids)).all()
-            if not groups:
-                return self.error(
-                    "Invalid group_ids field. Specify at least one valid group ID."
+        with self.Session() as session:
+            s = session.scalars(
+                AnalysisService.select(session.user_or_token, mode="update").where(
+                    AnalysisService.id == analysis_service_id
                 )
-            if not all(
-                [group in self.current_user.accessible_groups for group in groups]
-            ):
-                return self.error(
-                    "Cannot change groups for Analysis Services that you are not a member of."
-                )
-            new_analysis_service.groups = groups
+            ).first()
+            if s is None:
+                return self.error('Cannot access this Analysis Service.', status=403)
 
-        self.verify_and_commit()
-        return self.success()
+            data = self.get_json()
+            group_ids = data.pop('group_ids', None)
+
+            schema = AnalysisService.__schema__()
+            try:
+                new_analysis_service = schema.load(data, partial=True)
+            except ValidationError as e:
+                return self.error(
+                    'Invalid/missing parameters: ' f'{e.normalized_messages()}'
+                )
+
+            new_analysis_service.id = analysis_service_id
+            session.merge(new_analysis_service)
+
+            if group_ids is not None:
+                groups = (
+                    session.scalars(
+                        Group.select(self.current_user).where(Group.id.in_(group_ids))
+                    )
+                    .unique()
+                    .all()
+                )
+                if {g.id for g in groups} != set(group_ids):
+                    return self.error(
+                        f'Cannot find one or more groups with IDs: {group_ids}.'
+                    )
+
+                if not all(
+                    [group in self.current_user.accessible_groups for group in groups]
+                ):
+                    return self.error(
+                        "Cannot change groups for Analysis Services that you are not a member of."
+                    )
+                new_analysis_service.groups = groups
+
+            session.commit()
+            return self.success()
 
     @permissions(["Manage Analysis Services"])
     def delete(self, analysis_service_id):
@@ -540,23 +562,20 @@ class AnalysisServiceHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        try:
-            analysis_service = AnalysisService.get_if_accessible_by(
-                analysis_service_id,
-                self.current_user,
-                mode="delete",
-                raise_if_none=True,
-            )
-        except AccessError:
-            return self.error('Cannot delete this Analysis Service.', status=403)
-        except Exception as e:
-            return self.error(f'Error deleting Analysis Service: {e}')
 
-        DBSession().delete(analysis_service)
-        self.verify_and_commit()
+        with self.Session() as session:
+            analysis_service = session.scalars(
+                AnalysisService.select(session.user_or_token, mode="delete").where(
+                    AnalysisService.id == analysis_service_id
+                )
+            ).first()
+            if analysis_service is None:
+                return self.error('Cannot delete this Analysis Service.', status=403)
+            session.delete(analysis_service)
+            session.commit()
 
-        self.push_all(action='skyportal/REFRESH_ANALYSIS_SERVICES')
-        return self.success()
+            self.push_all(action='skyportal/REFRESH_ANALYSIS_SERVICES')
+            return self.success()
 
 
 class AnalysisHandler(BaseHandler):
