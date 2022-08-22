@@ -77,11 +77,12 @@ const CompactCommentList = ({
         name={`commentDiv${(spectrum_id ? "Spectrum" : "Source") + id}`}
       >
         <ReactMarkdown
-          source={renderCommentText()}
           escapeHtml={false}
           className={commentMessageStyle}
           renderers={{ text: emojiSupport }}
-        />
+        >
+          {renderCommentText()}
+        </ReactMarkdown>
         <div className={styles.compactButtons}>
           <Tooltip
             title={dayjs().to(dayjs.utc(`${created_at}Z`))}

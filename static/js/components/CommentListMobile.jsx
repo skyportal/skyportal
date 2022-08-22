@@ -369,15 +369,16 @@ const CommentListMobile = ({
                       }`}
                     >
                       <ReactMarkdown
-                        source={renderCommentText(
+                        escapeHtml={false}
+                        className={styles.commentMessage}
+                        renderers={{ text: emojiSupport }}
+                      >
+                        {renderCommentText(
                           text,
                           spectrum_id,
                           associatedResourceType
                         )}
-                        escapeHtml={false}
-                        className={styles.commentMessage}
-                        renderers={{ text: emojiSupport }}
-                      />
+                      </ReactMarkdown>
                       <div className={styles.compactButtons}>
                         <Tooltip
                           title={dayjs().to(dayjs.utc(`${created_at}Z`))}
@@ -540,15 +541,16 @@ const CommentListMobile = ({
                         }`}
                       >
                         <ReactMarkdown
-                          source={renderCommentText(
+                          escapeHtml={false}
+                          className={styles.commentMessage}
+                          renderers={{ text: emojiSupport }}
+                        >
+                          {renderCommentText(
                             text,
                             spectrum_id,
                             associatedResourceType
                           )}
-                          escapeHtml={false}
-                          className={styles.commentMessage}
-                          renderers={{ text: emojiSupport }}
-                        />
+                        </ReactMarkdown>
                       </div>
                       <span>
                         {attachment_name &&
