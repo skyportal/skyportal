@@ -938,6 +938,7 @@ def get_sources(
     else:
         try:
             query_results = grab_query_results(
+                session,
                 query,
                 total_matches,
                 page_number,
@@ -969,23 +970,23 @@ def get_sources(
             ):
                 if annotations_filter_origin is not None:
                     annotations_query = (
-                        Annotation.query_records_accessible_by(user)
-                        .filter(Annotation.obj_id == obj.id)
-                        .filter(Annotation.origin.in_(annotations_filter_origin))
+                        Annotation.select(session.user_or_token)
+                        .where(Annotation.obj_id == obj.id)
+                        .where(Annotation.origin.in_(annotations_filter_origin))
                     )
                 else:
-                    annotations_query = Annotation.query_records_accessible_by(
-                        user
-                    ).filter(Annotation.obj_id == obj.id)
+                    annotations_query = Annotation.select(session.user_or_token).where(
+                        Annotation.obj_id == obj.id
+                    )
                 if annotations_filter_before:
-                    annotations_query = annotations_query.filter(
+                    annotations_query = annotations_query.where(
                         Annotation.created_at <= annotations_filter_before
                     )
                 if annotations_filter_after:
-                    annotations_query = annotations_query.filter(
+                    annotations_query = annotations_query.where(
                         Annotation.created_at >= annotations_filter_after
                     )
-                annotations = annotations_query.all()
+                annotations = session.scalars(annotations_query).unique().all()
 
                 if len(annotations) > 0:
                     passes_filter = True
@@ -1056,27 +1057,29 @@ def get_sources(
                             for k, v in c.to_dict().items()
                             if k != "attachment_bytes"
                         }
-                        for c in Comment.query_records_accessible_by(user)
-                        .filter(Comment.obj_id == obj.id)
-                        .all()
+                        for c in session.scalars(
+                            Comment.select(session.user_or_token).where(
+                                Comment.obj_id == obj.id
+                            )
+                        ).all()
                     ),
                     key=lambda x: x["created_at"],
                     reverse=True,
                 )
 
             if include_thumbnails and not remove_nested:
-                obj_list[-1]["thumbnails"] = (
-                    Thumbnail.query_records_accessible_by(user)
-                    .filter(Thumbnail.obj_id == obj.id)
-                    .all()
-                )
+                obj_list[-1]["thumbnails"] = session.scalars(
+                    Thumbnail.select(session.user_or_token).where(
+                        Thumbnail.obj_id == obj.id
+                    )
+                ).all()
 
             if not remove_nested:
-                readable_classifications = (
-                    Classification.query_records_accessible_by(user)
-                    .filter(Classification.obj_id == obj.id)
-                    .all()
-                )
+                readable_classifications = session.scalars(
+                    Classification.select(session.user_or_token).where(
+                        Classification.obj_id == obj.id
+                    )
+                ).all()
 
                 readable_classifications_json = []
                 for classification in readable_classifications:
@@ -1089,9 +1092,13 @@ def get_sources(
                 obj_list[-1]["classifications"] = readable_classifications_json
 
                 obj_list[-1]["annotations"] = sorted(
-                    Annotation.query_records_accessible_by(user).filter(
-                        Annotation.obj_id == obj.id
-                    ),
+                    session.scalars(
+                        Annotation.select(session.user_or_token).where(
+                            Annotation.obj_id == obj.id
+                        )
+                    )
+                    .unique()
+                    .all(),
                     key=lambda x: x.origin,
                 )
 
@@ -1102,25 +1109,27 @@ def get_sources(
             obj_list[-1]["angular_diameter_distance"] = obj.angular_diameter_distance
 
             if include_photometry_exists:
-                obj_list[-1]["photometry_exists"] = (
-                    Photometry.query_records_accessible_by(user)
-                    .filter(Photometry.obj_id == obj.id)
-                    .first()
-                    is not None
+                stmt = Photometry.select(session.user_or_token).where(
+                    Photometry.obj_id == obj.id
                 )
+                count_stmt = sa.select(func.count()).select_from(stmt.distinct())
+                total_phot = session.execute(count_stmt).scalar()
+                obj_list[-1]["photometry_exists"] = total_phot > 0
             if include_spectrum_exists:
-                obj_list[-1]["spectrum_exists"] = (
-                    len(
-                        Spectrum.query_records_accessible_by(user)
-                        .filter(Spectrum.obj_id == obj.id)
-                        .all()
-                    )
-                    > 0
+                stmt = Spectrum.select(session.user_or_token).where(
+                    Spectrum.obj_id == obj.id
                 )
+                count_stmt = sa.select(func.count()).select_from(stmt.distinct())
+                total_spectrum = session.execute(count_stmt).scalar()
+                obj_list[-1]["spectrum_exists"] = total_spectrum > 0
             if include_period_exists:
                 annotations = (
-                    Annotation.query_records_accessible_by(user)
-                    .filter(Annotation.obj_id == obj.id)
+                    session.scalars(
+                        Annotation.select(session.user_or_token).where(
+                            Annotation.obj_id == obj.id
+                        )
+                    )
+                    .unique()
                     .all()
                 )
                 period_str_options = ['period', 'Period', 'PERIOD']
@@ -1132,7 +1141,7 @@ def get_sources(
                     ]
                 )
             if not remove_nested:
-                source_query = Source.query_records_accessible_by(user).filter(
+                source_query = Source.select(session.user_or_token).where(
                     Source.obj_id == obj_list[-1]["id"]
                 )
                 source_query = apply_active_or_requested_filtering(
@@ -1140,21 +1149,23 @@ def get_sources(
                 )
                 source_subquery = source_query.subquery()
                 groups = (
-                    Group.query_records_accessible_by(user)
-                    .join(source_subquery, Group.id == source_subquery.c.group_id)
+                    session.scalars(
+                        Group.select(session.user_or_token).join(
+                            source_subquery, Group.id == source_subquery.c.group_id
+                        )
+                    )
+                    .unique()
                     .all()
                 )
                 obj_list[-1]["groups"] = [g.to_dict() for g in groups]
 
                 for group in obj_list[-1]["groups"]:
-                    source_table_row = (
-                        Source.query_records_accessible_by(user)
-                        .filter(
+                    source_table_row = session.scalars(
+                        Source.select(session.user_or_token).where(
                             Source.obj_id == obj_list[-1]["id"],
                             Source.group_id == group["id"],
                         )
-                        .first()
-                    )
+                    ).first()
                     if source_table_row is not None:
                         group["active"] = source_table_row.active
                         group["requested"] = source_table_row.requested
