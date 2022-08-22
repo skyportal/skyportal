@@ -18,6 +18,9 @@ import CircularProgress from "@mui/material/CircularProgress";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import LoadingButton from "@mui/lab/LoadingButton";
 import GetApp from "@mui/icons-material/GetApp";
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
+import relativeTime from "dayjs/plugin/relativeTime";
 
 import { showNotification } from "baselayer/components/Notifications";
 import {
@@ -27,6 +30,9 @@ import {
 import * as usersActions from "../ducks/users";
 import * as groupsActions from "../ducks/groups";
 import { getGcnEventSummary } from "../ducks/gcnEvent";
+
+dayjs.extend(relativeTime);
+dayjs.extend(utc);
 
 const useStyles = makeStyles((theme) => ({
   shortcutButtons: {
@@ -163,12 +169,13 @@ const GcnSummary = ({ dateobs }) => {
       setText(summary.join(""));
       setFetching(false);
     }
-    const default_start_date = new Date(dateobs).toISOString();
-    let default_end_date = new Date(dateobs);
-    default_end_date.setDate(default_end_date.getDate() + 7);
-    default_end_date = default_end_date.toISOString();
-    setStartDate(default_start_date.slice(0, 19));
-    setEndDate(default_end_date.slice(0, 19));
+    const defaultStartDate = dayjs.utc(dateobs).format("YYYY-MM-DD HH:mm:ss");
+    const defaultEndDate = dayjs
+      .utc(dateobs)
+      .add(7, "day")
+      .format("YYYY-MM-DD HH:mm:ss");
+    setStartDate(defaultStartDate);
+    setEndDate(defaultEndDate);
     setSubject(`Follow-up on GCN Event ${dateobs}`);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dateobs, summary, dataFetched, dispatch]);
