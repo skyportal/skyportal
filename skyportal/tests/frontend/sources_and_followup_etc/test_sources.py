@@ -68,7 +68,7 @@ def test_comment_username_autosuggestion(driver, user, public_source):
     driver.click_xpath(
         '//div[@data-testid="comments-accordion"]//*[@name="submitCommentButton"]'
     )
-    driver.wait_for_xpath(f'//p[text()="hey @{user.username} "]')
+    driver.wait_for_xpath(f'//p[text()="hey @{user.username}"]')
 
 
 def test_comment_user_last_name_autosuggestion(driver, user, public_source):
@@ -86,7 +86,7 @@ def test_comment_user_last_name_autosuggestion(driver, user, public_source):
     driver.click_xpath(
         '//div[@data-testid="comments-accordion"]//*[@name="submitCommentButton"]'
     )
-    driver.wait_for_xpath(f'//p[text()="hey @{user.username} "]')
+    driver.wait_for_xpath(f'//p[text()="hey @{user.username}"]')
 
 
 def test_comment_user_first_name_autosuggestion(driver, user, public_source):
@@ -104,7 +104,7 @@ def test_comment_user_first_name_autosuggestion(driver, user, public_source):
     driver.click_xpath(
         '//div[@data-testid="comments-accordion"]//*[@name="submitCommentButton"]'
     )
-    driver.wait_for_xpath(f'//p[text()="hey @{user.username} "]')
+    driver.wait_for_xpath(f'//p[text()="hey @{user.username}"]')
 
 
 @pytest.mark.flaky(reruns=2)
