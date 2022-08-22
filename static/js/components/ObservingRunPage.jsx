@@ -79,7 +79,10 @@ export const observingRunInfo = (
   const runDate = dayjs(observingRun?.calendar_date);
   const dt = dayjs.duration(runDate.diff(nowDate));
 
-  const result = dt.humanize(true);
+  let result = dt.humanize(true);
+  if (observingRun?.observers) {
+    result += ` / observers: ${observingRun.observers}`;
+  }
 
   return result;
 };
