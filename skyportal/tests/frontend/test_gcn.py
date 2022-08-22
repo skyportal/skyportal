@@ -14,6 +14,7 @@ from baselayer.app.config import load_config
 from os.path import join as pjoin
 
 import pytest
+from skyportal.tests.api.test_gcn import load_gcnevent
 
 cfg = load_config()
 
@@ -71,23 +72,7 @@ def test_gcn_summary_sources(
 ):
 
     datafile = f'{os.path.dirname(__file__)}/../../../data/GW190814.xml'
-    with open(datafile, 'rb') as fid:
-        payload = fid.read()
-    data = {'xml': payload}
-
-    status, data = api('POST', 'gcn_event', data=data, token=super_admin_token)
-    assert status == 200
-    assert data['status'] == 'success'
-
-    # wait for event to load
-    for n_times in range(26):
-        status, data = api(
-            'GET', "gcn_event/2019-08-14T21:10:39", token=super_admin_token
-        )
-        if data['status'] == 'success':
-            break
-        time.sleep(2)
-    assert n_times < 25
+    load_gcnevent(datafile, super_admin_token)
 
     # wait for the localization to load
     params = {"include2DMap": True}
@@ -231,23 +216,7 @@ def test_gcn_summary_galaxies(
     )
 
     datafile = f'{os.path.dirname(__file__)}/../../../data/GW190814.xml'
-    with open(datafile, 'rb') as fid:
-        payload = fid.read()
-    data = {'xml': payload}
-
-    status, data = api('POST', 'gcn_event', data=data, token=super_admin_token)
-    assert status == 200
-    assert data['status'] == 'success'
-
-    # wait for event to load
-    for n_times in range(26):
-        status, data = api(
-            'GET', "gcn_event/2019-08-14T21:10:39", token=super_admin_token
-        )
-        if data['status'] == 'success':
-            break
-        time.sleep(2)
-    assert n_times < 25
+    load_gcnevent(datafile, super_admin_token)
 
     # wait for the localization to load
     params = {"include2DMap": True}
@@ -373,25 +342,7 @@ def test_gcn_summary_observations(
     public_group,
 ):
     datafile = f'{os.path.dirname(__file__)}/../../../data/GW190814.xml'
-    with open(datafile, 'rb') as fid:
-        payload = fid.read()
-    data = {'xml': payload}
-
-    status, data = api('POST', 'gcn_event', data=data, token=super_admin_token)
-    assert status == 200
-    assert data['status'] == 'success'
-
-    gcnevent_id = data['data']['gcnevent_id']
-
-    # wait for event to load
-    for n_times in range(26):
-        status, data = api(
-            'GET', "gcn_event/2019-08-14T21:10:39", token=super_admin_token
-        )
-        if data['status'] == 'success':
-            break
-        time.sleep(2)
-    assert n_times < 25
+    gcnevent_id = load_gcnevent(datafile, super_admin_token)
 
     # wait for the localization to load
     params = {"include2DMap": True}
@@ -650,23 +601,7 @@ def test_confirm_reject_source_in_gcn(
 ):
 
     datafile = f'{os.path.dirname(__file__)}/../../../data/GW190814.xml'
-    with open(datafile, 'rb') as fid:
-        payload = fid.read()
-    data = {'xml': payload}
-
-    status, data = api('POST', 'gcn_event', data=data, token=super_admin_token)
-    assert status == 200
-    assert data['status'] == 'success'
-
-    # wait for event to load
-    for n_times in range(26):
-        status, data = api(
-            'GET', "gcn_event/2019-08-14T21:10:39", token=super_admin_token
-        )
-        if data['status'] == 'success':
-            break
-        time.sleep(2)
-    assert n_times < 25
+    load_gcnevent(datafile, super_admin_token)
 
     # wait for the localization to load
     params = {"include2DMap": True}

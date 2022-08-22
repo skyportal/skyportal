@@ -8,6 +8,8 @@ import time
 import os
 import numpy as np
 
+from skyportal.tests.api.test_gcn import load_gcnevent
+
 
 @pytest.mark.flaky(reruns=2)
 def test_shift(
@@ -378,23 +380,7 @@ def test_shift_summary(
     assert data['status'] == 'success'
 
     datafile = f'{os.path.dirname(__file__)}/../data/GRB180116A_Fermi_GBM_Gnd_Pos.xml'
-    with open(datafile, 'rb') as fid:
-        payload = fid.read()
-    data = {'xml': payload}
-
-    status, data = api('POST', 'gcn_event', data=data, token=super_admin_token)
-    assert status == 200
-    assert data['status'] == 'success'
-
-    # wait for event to load
-    for n_times in range(26):
-        status, data = api(
-            'GET', "gcn_event/2018-01-16T00:36:53", token=super_admin_token
-        )
-        if data['status'] == 'success':
-            break
-        time.sleep(2)
-    assert n_times < 25
+    load_gcnevent(datafile, super_admin_token)
 
     # wait for the localization to load
     skymap = "214.74000_28.14000_11.19000"
