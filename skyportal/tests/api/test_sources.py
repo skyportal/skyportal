@@ -1905,6 +1905,20 @@ def test_token_user_retrieving_source_with_annotation_filter(
         "GET",
         "sources",
         params={
+            'annotationsFilter': f'{annotation_name}',
+            'sortBy': 'saved_at',
+            'sortOrder': 'desc',
+        },
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data["status"] == "success"
+    assert len(data["data"]["sources"]) == 2
+
+    status, data = api(
+        "GET",
+        "sources",
+        params={
             'annotationsFilter': f'{annotation_name}:2.0:le',
             'sortBy': 'saved_at',
             'sortOrder': 'desc',
