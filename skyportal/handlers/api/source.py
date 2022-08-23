@@ -11,6 +11,8 @@ from dateutil.parser import isoparse
 import sqlalchemy as sa
 from sqlalchemy.orm import joinedload
 from sqlalchemy import func, or_, distinct
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.sql.expression import cast
 import arrow
 from marshmallow import Schema, fields
 from marshmallow.exceptions import ValidationError
@@ -306,6 +308,30 @@ def get_source(
 
     source_info = recursive_to_dict(source_info)
     return source_info
+
+
+def create_annotations_query(
+    session,
+    annotations_filter_origin=None,
+    annotations_filter_before=None,
+    annotations_filter_after=None,
+):
+
+    annotations_query = Annotation.select(session.user_or_token)
+    if annotations_filter_origin is not None:
+        annotations_query = annotations_query.where(
+            Annotation.origin.in_(annotations_filter_origin)
+        )
+    if annotations_filter_before:
+        annotations_query = annotations_query.where(
+            Annotation.created_at <= annotations_filter_before
+        )
+    if annotations_filter_after:
+        annotations_query = annotations_query.where(
+            Annotation.created_at >= annotations_filter_after
+        )
+
+    return annotations_query
 
 
 def get_sources(
@@ -726,6 +752,78 @@ def get_sources(
             )
 
     if (
+        (annotations_filter_origin is not None)
+        or (annotations_filter_before is not None)
+        or (annotations_filter_after is not None)
+        or (annotations_filter is not None)
+    ):
+        if annotations_filter is not None:
+            for ann_filt in annotations_filter:
+                ann_split = ann_filt.split(":")
+                if not (len(ann_split) == 1 or len(ann_split) == 3):
+                    raise ValueError(
+                        "Invalid annotationsFilter value -- annotation filter must have 1 or 3 values"
+                    )
+                name = ann_split[0].strip()
+
+                annotations_query = create_annotations_query(
+                    session,
+                    annotations_filter_origin=annotations_filter_origin,
+                    annotations_filter_before=annotations_filter_before,
+                    annotations_filter_after=annotations_filter_after,
+                )
+
+                if len(ann_split) == 3:
+                    value = ann_split[1].strip()
+                    try:
+                        value = float(value)
+                    except ValueError as e:
+                        raise ValueError(f"Invalid annotation filter value: {e}")
+                    op = ann_split[2].strip()
+                    op_options = ["lt", "le", "eq", "ne", "ge", "gt"]
+                    if op not in op_options:
+                        raise ValueError(f"Invalid operator: {op}")
+
+                    if op == "lt":
+                        comp_function = operator.lt
+                    elif op == "le":
+                        comp_function = operator.le
+                    elif op == "eq":
+                        comp_function = operator.eq
+                    elif op == "ne":
+                        comp_function = operator.ne
+                    elif op == "ge":
+                        comp_function = operator.ge
+                    elif op == "gt":
+                        comp_function = operator.gt
+
+                    annotations_query = annotations_query.where(
+                        comp_function(Annotation.data[name], cast(value, JSONB))
+                    )
+                else:
+                    annotations_query = annotations_query.where(
+                        Annotation.data[name].astext.is_not(None)
+                    )
+
+                annotations_subquery = annotations_query.subquery()
+                obj_query = obj_query.join(
+                    annotations_subquery,
+                    Obj.id == annotations_subquery.c.obj_id,
+                )
+        else:
+            annotations_query = create_annotations_query(
+                session,
+                annotations_filter_origin=annotations_filter_origin,
+                annotations_filter_before=annotations_filter_before,
+                annotations_filter_after=annotations_filter_after,
+            )
+            annotations_subquery = annotations_query.subquery()
+            obj_query = obj_query.join(
+                annotations_subquery,
+                Obj.id == annotations_subquery.c.obj_id,
+            )
+
+    if (
         (comments_filter is not None)
         or comments_filter_before
         or comments_filter_after
@@ -962,91 +1060,6 @@ def get_sources(
 
         for result in query_results["sources"]:
             (obj,) = result
-            if (
-                (annotations_filter is not None)
-                or (annotations_filter_origin is not None)
-                or (annotations_filter_before is not None)
-                or (annotations_filter_after is not None)
-            ):
-                if annotations_filter_origin is not None:
-                    annotations_query = (
-                        Annotation.select(session.user_or_token)
-                        .where(Annotation.obj_id == obj.id)
-                        .where(Annotation.origin.in_(annotations_filter_origin))
-                    )
-                else:
-                    annotations_query = Annotation.select(session.user_or_token).where(
-                        Annotation.obj_id == obj.id
-                    )
-                if annotations_filter_before:
-                    annotations_query = annotations_query.where(
-                        Annotation.created_at <= annotations_filter_before
-                    )
-                if annotations_filter_after:
-                    annotations_query = annotations_query.where(
-                        Annotation.created_at >= annotations_filter_after
-                    )
-                annotations = session.scalars(annotations_query).unique().all()
-
-                if len(annotations) > 0:
-                    passes_filter = True
-                else:
-                    passes_filter = False
-                if annotations_filter is not None:
-                    for ann_filt in annotations_filter:
-                        ann_split = ann_filt.split(":")
-                        if not (len(ann_split) == 1 or len(ann_split) == 3):
-                            raise ValueError(
-                                "Invalid annotationsFilter value -- annotation filter must have 1 or 3 values"
-                            )
-                        name = ann_split[0].strip()
-                        if len(ann_split) == 3:
-                            value = ann_split[1].strip()
-                            try:
-                                value = float(value)
-                            except ValueError as e:
-                                raise ValueError(
-                                    f"Invalid annotation filter value: {e}"
-                                )
-                            op = ann_split[2].strip()
-                        # first check that the name is present
-                        name_present = [
-                            isinstance(an.data, dict) and name in an.data
-                            for an in annotations
-                        ]
-                        name_check = any(name_present)
-
-                        # fails the filter if name is not present
-                        if not name_check:
-                            passes_filter = False
-                            break
-                        if len(ann_split) == 3:
-                            index = name_present.index(True)
-                            data_value = annotations[index].data[name]
-
-                            op_options = ["lt", "le", "eq", "ne", "ge", "gt"]
-                            if op not in op_options:
-                                raise ValueError(f"Invalid operator: {op}")
-
-                            if op == "lt":
-                                comp_function = operator.lt
-                            elif op == "le":
-                                comp_function = operator.le
-                            elif op == "eq":
-                                comp_function = operator.eq
-                            elif op == "ne":
-                                comp_function = operator.ne
-                            elif op == "ge":
-                                comp_function = operator.ge
-                            elif op == "gt":
-                                comp_function = operator.gt
-                            comp_check = comp_function(data_value, value)
-                            if not comp_check:
-                                passes_filter = False
-                                break
-                if not passes_filter:
-                    continue
-
             obj_list.append(obj.to_dict())
 
             if include_comments:
