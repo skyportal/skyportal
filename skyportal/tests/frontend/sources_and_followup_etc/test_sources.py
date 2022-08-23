@@ -1,6 +1,8 @@
 import os
 from os.path import join as pjoin
 import uuid
+import json
+
 from io import BytesIO
 import pytest
 from selenium.webdriver.common.action_chains import ActionChains
@@ -11,6 +13,8 @@ from PIL import Image, ImageChops
 from baselayer.app.config import load_config
 from skyportal.tests import api
 from skyportal.models import DBSession
+
+analysis_port = 6802
 
 
 cfg = load_config()
@@ -64,7 +68,7 @@ def test_comment_username_autosuggestion(driver, user, public_source):
     driver.click_xpath(
         '//div[@data-testid="comments-accordion"]//*[@name="submitCommentButton"]'
     )
-    driver.wait_for_xpath(f'//p[text()="hey @{user.username} "]')
+    driver.wait_for_xpath(f'//p[text()="hey @{user.username}"]')
 
 
 def test_comment_user_last_name_autosuggestion(driver, user, public_source):
@@ -82,7 +86,7 @@ def test_comment_user_last_name_autosuggestion(driver, user, public_source):
     driver.click_xpath(
         '//div[@data-testid="comments-accordion"]//*[@name="submitCommentButton"]'
     )
-    driver.wait_for_xpath(f'//p[text()="hey @{user.username} "]')
+    driver.wait_for_xpath(f'//p[text()="hey @{user.username}"]')
 
 
 def test_comment_user_first_name_autosuggestion(driver, user, public_source):
@@ -100,7 +104,7 @@ def test_comment_user_first_name_autosuggestion(driver, user, public_source):
     driver.click_xpath(
         '//div[@data-testid="comments-accordion"]//*[@name="submitCommentButton"]'
     )
-    driver.wait_for_xpath(f'//p[text()="hey @{user.username} "]')
+    driver.wait_for_xpath(f'//p[text()="hey @{user.username}"]')
 
 
 @pytest.mark.flaky(reruns=2)
@@ -115,6 +119,51 @@ def test_public_source_page_null_z(driver, user, public_source, public_group):
     driver.wait_for_xpath('//*[text()="Export Bold Light Curve to CSV"]', timeout=20)
     driver.wait_for_xpath('//span[contains(text(), "Fe III")]')
     driver.wait_for_xpath(f'//span[text()="{public_group.name}"]')
+
+
+@pytest.mark.flaky(reruns=3)
+def test_analysis_start(
+    driver, user, public_source, analysis_service_token, public_group
+):
+
+    name = str(uuid.uuid4())
+    optional_analysis_parameters = {}
+
+    post_data = {
+        'name': name,
+        'display_name': "test analysis service name",
+        'description': "A test analysis service description",
+        'version': "1.0",
+        'contact_name': "Vera Rubin",
+        'contact_email': "vr@ls.st",
+        # this is the URL/port of the SN analysis service that will be running during testing
+        'url': f"http://localhost:{analysis_port}/analysis/demo_analysis",
+        'optional_analysis_parameters': json.dumps(optional_analysis_parameters),
+        'authentication_type': "none",
+        'analysis_type': 'lightcurve_fitting',
+        'input_data_types': ['photometry', 'redshift'],
+        'timeout': 60,
+        'group_ids': [public_group.id],
+    }
+
+    status, data = api(
+        'POST', 'analysis_service', data=post_data, token=analysis_service_token
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    driver.get(f"/become_user/{user.id}")
+    driver.get(f"/source/{public_source.id}")
+    driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
+    driver.wait_for_xpath('//*[text()="External Analysis"]')
+
+    driver.click_xpath('//div[@data-testid="analysisServiceSelect"]')
+    driver.click_xpath(
+        '//div[@data-testid="analysis-service-request-form"]//*[@type="submit"]'
+    )
+    driver.wait_for_xpath(
+        "//*[text()='Sending data to analysis service to start the analysis.']"
+    )
 
 
 @pytest.mark.flaky(reruns=3)
@@ -381,7 +430,6 @@ def test_delete_comment(driver, user, public_source):
     comment_text_p = driver.wait_for_xpath(f'//p[text()="{comment_text}"]')
     comment_div = comment_text_p.find_element(By.XPATH, "../..")
     comment_id = comment_div.get_attribute("name").split("commentDivSource")[-1]
-    print("comment_id", comment_id)
     delete_button = comment_div.find_element(
         By.XPATH, f"//*[@name='deleteCommentButton{comment_id}']"
     )

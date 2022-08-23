@@ -181,39 +181,6 @@ const GcnSelectionForm = ({
     setIsDeletingTreasureMap(null);
   };
 
-  const handleSubmit = async ({ formData }) => {
-    setIsSubmitting(true);
-    formData.startDate = formData.startDate
-      .replace("+00:00", "")
-      .replace(".000Z", "");
-    formData.endDate = formData.endDate
-      .replace("+00:00", "")
-      .replace(".000Z", "");
-
-    if (formData.queryList.includes("sources")) {
-      await dispatch(
-        sourcesActions.fetchGcnEventSources(gcnEvent.dateobs, formData)
-      );
-      setSourceFilteringState(formData);
-    }
-    formData.includeGeoJSON = true;
-    if (formData.queryList.includes("observations")) {
-      await dispatch(
-        observationsActions.fetchGcnEventObservations(
-          gcnEvent.dateobs,
-          formData
-        )
-      );
-    }
-    if (formData.queryList.includes("galaxies")) {
-      await dispatch(
-        galaxiesActions.fetchGcnEventGalaxies(gcnEvent.dateobs, formData)
-      );
-    }
-    setFormDataState(formData);
-    setIsSubmitting(false);
-  };
-
   if (!sortedInstrumentList) {
     displayOptionsAvailable.instruments = false;
   }
@@ -283,6 +250,44 @@ const GcnSelectionForm = ({
     setSelectedLocalizationName(locLookUp[e.target.value].localization_name);
   };
 
+  const handleSubmit = async ({ formData }) => {
+    setIsSubmitting(true);
+    formData.startDate = formData.startDate
+      .replace("+00:00", "")
+      .replace(".000Z", "");
+    formData.endDate = formData.endDate
+      .replace("+00:00", "")
+      .replace(".000Z", "");
+
+    if (Object.keys(locLookUp).includes(selectedLocalizationId?.toString())) {
+      formData.localizationName =
+        locLookUp[selectedLocalizationId].localization_name;
+    }
+
+    if (formData.queryList.includes("sources")) {
+      await dispatch(
+        sourcesActions.fetchGcnEventSources(gcnEvent.dateobs, formData)
+      );
+      setSourceFilteringState(formData);
+    }
+    formData.includeGeoJSON = true;
+    if (formData.queryList.includes("observations")) {
+      await dispatch(
+        observationsActions.fetchGcnEventObservations(
+          gcnEvent.dateobs,
+          formData
+        )
+      );
+    }
+    if (formData.queryList.includes("galaxies")) {
+      await dispatch(
+        galaxiesActions.fetchGcnEventGalaxies(gcnEvent.dateobs, formData)
+      );
+    }
+    setFormDataState(formData);
+    setIsSubmitting(false);
+  };
+
   function createGcnUrl(instrumentId, queryParams) {
     let url = `/api/observation/gcn/${instrumentId}`;
     if (queryParams) {
@@ -324,6 +329,11 @@ const GcnSelectionForm = ({
         type: "string",
         title: "End Date",
         default: defaultEndDate,
+      },
+      numberDetections: {
+        type: "number",
+        title: "Minimum Number of Detections",
+        default: 2,
       },
       localizationCumprob: {
         type: "number",
@@ -397,7 +407,7 @@ const GcnSelectionForm = ({
               key={localization.id}
               className={classes.localizationSelectItem}
             >
-              {`${localization.localization_name}`}
+              {`Skymap: ${localization.localization_name} / Created: ${localization.created_at}`}
             </MenuItem>
           ))}
         </Select>

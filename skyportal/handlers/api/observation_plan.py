@@ -297,7 +297,7 @@ class ObservationPlanRequestHandler(BaseHandler):
             observation_plans = [json_data]
         combine_plans = json_data.get('combine_plans', False)
 
-        with DBSession() as session:
+        with self.Session() as session:
             ids = []
             if combine_plans:
                 ids = post_observation_plans(

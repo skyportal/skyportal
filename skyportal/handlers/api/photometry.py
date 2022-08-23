@@ -803,8 +803,11 @@ class PhotometryHandler(BaseHandler):
                 'Please break up the data into smaller sets and try again'
             )
 
+        obj_id = df['obj_id'].unique()[0]
         username = self.associated_user_object.username
-        log(f'Pending request from {username} with {len(df.index)} rows')
+        log(
+            f'Pending request from {username} for object {obj_id} with {len(df.index)} rows'
+        )
 
         # This lock ensures that the Photometry table data are not modified in any way
         # between when the query for duplicate photometry is first executed and
@@ -830,7 +833,7 @@ class PhotometryHandler(BaseHandler):
                 return self.error(traceback.format_exc())
 
             log(
-                f'Request from {username} with {len(df.index)} rows complete with upload_id {upload_id}'
+                f'Request from {username} for object {obj_id} with {len(df.index)} rows complete with upload_id {upload_id}'
             )
 
             return self.success(data={'ids': ids, 'upload_id': upload_id})
@@ -889,6 +892,18 @@ class PhotometryHandler(BaseHandler):
         except ValidationError as e:
             return self.error(e.args[0])
 
+        if len(df.index) > MAX_NUMBER_ROWS:
+            return self.error(
+                f'Maximum number of photometry rows to post exceeded: {len(df.index)} > {MAX_NUMBER_ROWS}. '
+                'Please break up the data into smaller sets and try again'
+            )
+
+        obj_id = df['obj_id'].unique()[0]
+        username = self.associated_user_object.username
+        log(
+            f'Pending request from {username} for object {obj_id} with {len(df.index)} rows'
+        )
+
         values_table, condition = get_values_table_and_condition(df)
 
         # This lock ensures that the Photometry table data are not modified
@@ -942,6 +957,9 @@ class PhotometryHandler(BaseHandler):
                         )
                         # update the corresponding photometry entry in the db
                         duplicate.groups = groups
+                        log(
+                            f'Adding groups {group_ids_update} to photometry {duplicate.id}'
+                        )
 
                     # posting to new streams?
                     if stream_ids:
@@ -954,12 +972,19 @@ class PhotometryHandler(BaseHandler):
                                         photometr_id=duplicate.id, stream_id=id
                                     )
                                 )
+                            log(
+                                f'Adding streams {stream_ids_update} to photometry {duplicate.id}'
+                            )
 
                 # now safely drop the duplicates:
                 new_photometry = df.loc[new_photometry_df_idxs]
+                log(
+                    f'Inserting {len(new_photometry.index)} '
+                    f'(out of {len(df.index)}) new photometry points'
+                )
 
                 if len(new_photometry) > 0:
-                    ids, _ = insert_new_photometry_data(
+                    ids, upload_id = insert_new_photometry_data(
                         new_photometry,
                         instrument_cache,
                         group_ids,
@@ -977,6 +1002,17 @@ class PhotometryHandler(BaseHandler):
 
                 # get ids in the correct order
                 ids = [id_map[pdidx] for pdidx, _ in df.iterrows()]
+
+                if len(new_photometry) > 0:
+                    log(
+                        f'Request from {username} for object {obj_id} with '
+                        f'{len(new_photometry.index)} rows complete with upload_id {upload_id}.'
+                    )
+                else:
+                    log(
+                        f'Request from {username} for object {obj_id} with '
+                        f'{len(new_photometry.index)} rows complete with no new photometry.'
+                    )
                 return self.success(data={'ids': ids})
 
             except Exception:

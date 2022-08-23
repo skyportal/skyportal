@@ -13,6 +13,8 @@ from selenium.webdriver.common.keys import Keys
 from baselayer.app.config import load_config
 from os.path import join as pjoin
 
+import pytest
+
 cfg = load_config()
 
 
@@ -637,6 +639,7 @@ def test_gcn_summary_observations(
         os.remove(fpath)
 
 
+@pytest.mark.flaky(reruns=3)
 def test_confirm_reject_source_in_gcn(
     driver,
     super_admin_user,
@@ -710,6 +713,28 @@ def test_confirm_reject_source_in_gcn(
             'mjd': 58709 + 1,
             'instrument_id': ztf_camera.id,
             'flux': 12.24,
+            'fluxerr': 0.031,
+            'zp': 25.0,
+            'magsys': 'ab',
+            'filter': 'ztfg',
+            "ra": 24.6258,
+            "dec": -32.9024,
+            "ra_unc": 0.01,
+            "dec_unc": 0.01,
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    status, data = api(
+        'POST',
+        'photometry',
+        data={
+            'obj_id': obj_id,
+            'mjd': 58709 + 2,
+            'instrument_id': ztf_camera.id,
+            'flux': 6.24,
             'fluxerr': 0.031,
             'zp': 25.0,
             'magsys': 'ab',

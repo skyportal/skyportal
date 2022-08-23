@@ -163,11 +163,12 @@ const NewsFeedItem = ({ item }) => {
       )}
       <div className={styles.entryContent}>
         <ReactMarkdown
-          source={item.message}
           className={styles.entryMessage}
           escapeHtml={false}
           renderers={{ text: emojiSupport }}
-        />
+        >
+          {item.message}
+        </ReactMarkdown>
         <div className={styles.entryIdent}>
           <span className={styles.entrySourceId}>
             <Link to={`/source/${item.source_id}`}>

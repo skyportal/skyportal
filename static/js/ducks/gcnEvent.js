@@ -8,6 +8,8 @@ export const REFRESH_GCNEVENT = "skyportal/REFRESH_GCNEVENT";
 export const FETCH_GCNEVENT = "skyportal/FETCH_GCNEVENT";
 export const FETCH_GCNEVENT_OK = "skyportal/FETCH_GCNEVENT_OK";
 
+export const SUBMIT_GCNEVENT = "skyportal/SUBMIT_GCNEVENT";
+
 const ADD_COMMENT_ON_GCNEVENT = "skyportal/ADD_COMMENT_ON_GCNEVENT";
 
 const DELETE_COMMENT_ON_GCNEVENT = "skyportal/DELETE_COMMENT_ON_GCNEVENT";
@@ -158,9 +160,13 @@ export function getCommentOnGcnEventAttachmentPreview(gcnEventID, commentID) {
   );
 }
 
+export function submitGcnEvent(data) {
+  return API.POST("/api/gcn_event", SUBMIT_GCNEVENT, data);
+}
+
 export function getGcnEventSummary({ dateobs, params }) {
   return API.GET(
-    `/api/gcn_events/summary/${dateobs}`,
+    `/api/gcn_event/summary/${dateobs}`,
     GET_GCNEVENT_SUMMARY,
     params
   );
