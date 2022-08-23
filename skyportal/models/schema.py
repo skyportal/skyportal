@@ -8,7 +8,7 @@
 
 from marshmallow_sqlalchemy import (
     ModelConversionError as _ModelConversionError,
-    ModelSchema as _ModelSchema,
+    SQLAlchemyAutoSchema as _SQLAlchemyAutoSchema,
 )
 
 from marshmallow import (
@@ -136,10 +136,11 @@ def setup_schema():
                     {
                         'model': class_,
                         'sqla_session': _DBSession,
+                        'load_instance': True,
                         'ordered': True,
                         'exclude': [],
                         'include_fk': True,
-                        'include_relationships': False,
+                        'include_relationships': True,
                     },
                 )
                 for exclude_attr in exclude:
@@ -150,7 +151,9 @@ def setup_schema():
                         schema_class_meta.exclude.append(exclude_attr)
 
                 schema_class = type(
-                    schema_class_name, (_ModelSchema,), {'Meta': schema_class_meta}
+                    schema_class_name,
+                    (_SQLAlchemyAutoSchema,),
+                    {'Meta': schema_class_meta},
                 )
 
                 if add_to_model:
