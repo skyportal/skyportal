@@ -338,7 +338,7 @@ def test_gcn_summary_observations(
     public_group,
     gcn_GW190814,
 ):
-    gcnevent_id = gcn_GW190814.id
+    gcnevent_id = gcn_GW190814
 
     # wait for the localization to load
     params = {"include2DMap": True}
