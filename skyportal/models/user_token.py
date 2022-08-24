@@ -148,7 +148,9 @@ User.photometric_series = relationship(
     foreign_keys="PhotometricSeries.owner_id",
 )
 User.spectra = relationship(
-    'Spectrum', doc='Spectra uploaded by this User.', back_populates='owner'
+    'Spectrum',
+    doc='Spectra uploaded by this User.',
+    back_populates='owner',
 )
 User.comments_on_spectra = relationship(
     "CommentOnSpectrum",
@@ -361,7 +363,7 @@ def isadmin(self):
 
 User.is_system_admin = isadmin
 
-UserInvitation = join_model("user_invitations", User, Invitation)
+UserInvitation = join_model("user_invitations", User, Invitation, overlaps='invited_by')
 
 
 @property
