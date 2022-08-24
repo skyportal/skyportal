@@ -292,7 +292,7 @@ class SpectrumFactory(factory.alchemy.SQLAlchemyModelFactory):
             UserFactory.teardown(observer.id)
         DBSession().delete(spectrum)
         DBSession().commit()
-        InstrumentFactory.teardown(instrument)
+        InstrumentFactory.teardown(instrument.id)
 
 
 class StreamFactory(factory.alchemy.SQLAlchemyModelFactory):
@@ -532,7 +532,7 @@ class ObjFactory(factory.alchemy.SQLAlchemyModelFactory):
         DBSession().delete(obj)
         DBSession().commit()
         for instrument in instruments:
-            InstrumentFactory.teardown(instrument)
+            InstrumentFactory.teardown(instrument.id)
 
 
 class GcnNoticeFactory(factory.alchemy.SQLAlchemyModelFactory):
@@ -612,18 +612,23 @@ class ObservingRunFactory(factory.alchemy.SQLAlchemyModelFactory):
     owner = factory.SubFactory(UserFactory)
 
     @staticmethod
-    def teardown(run):
-        if is_already_deleted(run, ObservingRun):
-            return
-
-        owner = run.owner.id
-        instrument = run.instrument
-        group = run.group.id
-        DBSession().delete(run)
-        DBSession().commit()
-        UserFactory.teardown(owner)
-        GroupFactory.teardown(group)
-        InstrumentFactory.teardown(instrument)
+    def teardown(run_id):
+        run_ = (
+            DBSession()
+            .execute(sa.select(ObservingRun).filter(ObservingRun.id == run_id))
+            .scalars()
+            .first()
+        )
+        if run_ is not None:
+            # If it is, delete it
+            owner = run_.owner.id
+            instrument = run_.instrument
+            group = run_.group.id
+            DBSession().delete(run_)
+            DBSession().commit()
+            UserFactory.teardown(owner)
+            GroupFactory.teardown(group)
+            InstrumentFactory.teardown(instrument.id)
 
 
 class ClassicalAssignmentFactory(factory.alchemy.SQLAlchemyModelFactory):
@@ -637,21 +642,29 @@ class ClassicalAssignmentFactory(factory.alchemy.SQLAlchemyModelFactory):
     priority = factory.LazyFunction(lambda: str(random.choice(range(1, 6))))
 
     @staticmethod
-    def teardown(assignment):
-        if is_already_deleted(assignment, ClassicalAssignment):
-            return
+    def teardown(assignment_id):
+        assignment_ = (
+            DBSession()
+            .execute(
+                sa.select(ClassicalAssignment).filter(
+                    ClassicalAssignment.id == assignment_id
+                )
+            )
+            .scalars()
+            .first()
+        )
+        if assignment_ is not None:
+            requester = assignment_.requester.id
+            run = assignment_.run
+            obj = assignment_.obj
+            last_modified_by = assignment_.last_modified_by.id
 
-        requester = assignment.requester.id
-        run = assignment.run
-        obj = assignment.obj
-        last_modified_by = assignment.last_modified_by.id
-
-        DBSession().delete(assignment)
-        DBSession().commit()
-        ObservingRunFactory.teardown(run)
-        ObjFactory.teardown(obj)
-        UserFactory.teardown(last_modified_by)
-        UserFactory.teardown(requester)
+            DBSession().delete(assignment_)
+            DBSession().commit()
+            ObservingRunFactory.teardown(run.id)
+            ObjFactory.teardown(obj)
+            UserFactory.teardown(last_modified_by)
+            UserFactory.teardown(requester)
 
 
 class TaxonomyFactory(factory.alchemy.SQLAlchemyModelFactory):
@@ -744,7 +757,7 @@ class AllocationFactory(factory.alchemy.SQLAlchemyModelFactory):
         DBSession().delete(allocation)
         DBSession().commit()
 
-        InstrumentFactory.teardown(instrument)
+        InstrumentFactory.teardown(instrument.id)
         GroupFactory.teardown(group)
 
 

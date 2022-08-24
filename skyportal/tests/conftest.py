@@ -640,8 +640,9 @@ def sedm(p60_telescope):
 @pytest.fixture()
 def red_transients_run(user):
     run = ObservingRunFactory(owner=user)
+    run_id = run.id
     yield run
-    ObservingRunFactory.teardown(run)
+    ObservingRunFactory.teardown(run_id)
 
 
 @pytest.fixture()
@@ -652,8 +653,9 @@ def lris_run_20201118(lris, public_group, super_admin_user):
         calendar_date='2020-11-18',
         owner=super_admin_user,
     )
+    run_id = run.id
     yield run
-    ObservingRunFactory.teardown(run)
+    ObservingRunFactory.teardown(run_id)
 
 
 @pytest.fixture()
@@ -664,8 +666,9 @@ def problematic_assignment(lris_run_20201118, public_ZTF20acgrjqm):
         requester=lris_run_20201118.owner,
         last_modified_by=lris_run_20201118.owner,
     )
+    assignment_id = assignment.id
     yield assignment
-    ClassicalAssignmentFactory.teardown(assignment)
+    ClassicalAssignmentFactory.teardown(assignment_id)
 
 
 @pytest.fixture()
@@ -673,8 +676,9 @@ def public_assignment(red_transients_run, user, public_source):
     assignment = ClassicalAssignmentFactory(
         run=red_transients_run, obj=public_source, requester=user, last_modified_by=user
     )
+    assignment_id = assignment.id
     yield assignment
-    ClassicalAssignmentFactory.teardown(assignment)
+    ClassicalAssignmentFactory.teardown(assignment_id)
 
 
 @pytest.fixture()
