@@ -1,5 +1,6 @@
 import pytest
 import uuid
+import os
 from tdtax import taxonomy, __version__
 from datetime import datetime, timezone
 from selenium.webdriver.common.action_chains import ActionChains
@@ -337,7 +338,7 @@ def test_new_classification_on_source_triggers_notification(
     driver.wait_for_xpath('//*[contains(text(), "New classification")]')
 
 
-def test_new_gcn_event_triggers_notification(driver, user, super_admin_token, gcn_GRB):
+def test_new_gcn_event_triggers_notification(driver, user, super_admin_token):
 
     driver.get(f'/become_user/{user.id}')
     driver.get("/profile")
@@ -365,6 +366,15 @@ def test_new_gcn_event_triggers_notification(driver, user, super_admin_token, gc
     )
 
     driver.wait_for_xpath('//*[contains(text(), "Gcn notice types updated")]')
+
+    datafile = f'{os.path.dirname(__file__)}/../data/GRB180116A_Fermi_GBM_Gnd_Pos.xml'
+    with open(datafile, 'rb') as fid:
+        payload = fid.read()
+    data = {'xml': payload}
+
+    status, data = api('POST', 'gcn_event', data=data, token=super_admin_token)
+    assert status == 200
+    assert data['status'] == 'success'
 
     # Check that notification was created
     driver.get(f'/become_user/{user.id}')

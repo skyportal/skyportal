@@ -188,7 +188,7 @@ def test_reminder_on_source(driver, super_admin_user, super_admin_token):
 
 @pytest.mark.flaky(reruns=3)
 def test_reminder_on_gcn(driver, super_admin_user, super_admin_token, gcn_GW190814):
-    gcn_event_id = gcn_GW190814.id
+    gcn_event_id = gcn_GW190814
 
     endpoint = f"gcn_event/{gcn_event_id}/reminders"
     reminder_text = post_and_verify_reminder(endpoint, super_admin_token)
