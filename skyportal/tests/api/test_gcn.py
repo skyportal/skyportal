@@ -3,7 +3,6 @@ import numpy as np
 import time
 
 from skyportal.tests import api
-from skyportal.tests.utility_functions import load_gcnevent
 from skyportal.utils.gcn import from_url
 
 import uuid
@@ -14,10 +13,7 @@ from astropy.table import Table
 import pytest
 
 
-def test_gcn_GW(super_admin_token, view_only_token):
-
-    datafile = f'{os.path.dirname(__file__)}/../data/GW190425_initial.xml'
-    load_gcnevent(datafile, super_admin_token)
+def test_gcn_GW(super_admin_token, view_only_token, gcn_GW190425):
 
     dateobs = "2019-04-25 08:18:05"
     status, data = api('GET', f'gcn_event/{dateobs}', token=super_admin_token)
@@ -79,11 +75,15 @@ def test_gcn_GW(super_admin_token, view_only_token):
     )
     assert status == 200
 
+    status, data = api(
+        'DELETE',
+        f'gcn_event/{dateobs}',
+        token=super_admin_token,
+    )
+    assert status == 200
 
-def test_gcn_Fermi(super_admin_token, view_only_token):
 
-    datafile = f'{os.path.dirname(__file__)}/../data/GRB180116A_Fermi_GBM_Gnd_Pos.xml'
-    load_gcnevent(datafile, super_admin_token)
+def test_gcn_Fermi(super_admin_token, view_only_token, gcn_GRB):
 
     dateobs = "2018-01-16 00:36:53"
     params = {"include2DMap": True}
@@ -151,30 +151,8 @@ def test_gcn_summary_sources(
     public_group,
     ztf_camera,
     upload_data_token,
+    gcn_GW190814,
 ):
-
-    datafile = f'{os.path.dirname(__file__)}/../../../data/GW190814.xml'
-    load_gcnevent(datafile, super_admin_token)
-
-    # wait for the localization to load
-    params = {"include2DMap": True}
-    for n_times_2 in range(26):
-        status, data = api(
-            'GET',
-            'localization/2019-08-14T21:10:39/name/LALInference.v1.fits.gz',
-            token=super_admin_token,
-            params=params,
-        )
-
-        if data['status'] == 'success':
-            data = data["data"]
-            assert data["dateobs"] == "2019-08-14T21:10:39"
-            assert data["localization_name"] == "LALInference.v1.fits.gz"
-            assert np.isclose(np.sum(data["flat_2d"]), 1)
-            break
-        else:
-            time.sleep(2)
-    assert n_times_2 < 25
 
     obj_id = str(uuid.uuid4())
     status, data = api(
@@ -288,6 +266,7 @@ def test_gcn_summary_galaxies(
     super_admin_token,
     view_only_token,
     public_group,
+    gcn_GW190814,
 ):
 
     catalog_name = 'test_galaxy_catalog'
@@ -296,29 +275,6 @@ def test_gcn_summary_galaxies(
     status, data = api(
         'DELETE', f'galaxy_catalog/{catalog_name}', token=super_admin_token
     )
-
-    datafile = f'{os.path.dirname(__file__)}/../../../data/GW190814.xml'
-    load_gcnevent(datafile, super_admin_token)
-
-    # wait for the localization to load
-    params = {"include2DMap": True}
-    for n_times_2 in range(26):
-        status, data = api(
-            'GET',
-            'localization/2019-08-14T21:10:39/name/LALInference.v1.fits.gz',
-            token=super_admin_token,
-            params=params,
-        )
-
-        if data['status'] == 'success':
-            data = data["data"]
-            assert data["dateobs"] == "2019-08-14T21:10:39"
-            assert data["localization_name"] == "LALInference.v1.fits.gz"
-            assert np.isclose(np.sum(data["flat_2d"]), 1)
-            break
-        else:
-            time.sleep(2)
-    assert n_times_2 < 25
 
     datafile = f'{os.path.dirname(__file__)}/../../../data/CLU_mini.hdf5'
     data = {
@@ -680,10 +636,8 @@ def test_confirm_reject_source_in_gcn(
     view_only_token,
     ztf_camera,
     upload_data_token,
+    gcn_GW190814,
 ):
-
-    datafile = f'{os.path.dirname(__file__)}/../../../data/GW190814.xml'
-    load_gcnevent(datafile, super_admin_token)
 
     # wait for the localization to load
     params = {"include2DMap": True}

@@ -15,7 +15,6 @@ from os.path import join as pjoin
 import pytest
 
 from skyportal.tests import api
-from skyportal.tests.utility_functions import load_gcnevent
 
 cfg = load_config()
 
@@ -70,10 +69,8 @@ def test_gcn_summary_sources(
     public_group,
     ztf_camera,
     upload_data_token,
+    gcn_GW190814,
 ):
-
-    datafile = f'{os.path.dirname(__file__)}/../../../data/GW190814.xml'
-    load_gcnevent(datafile, super_admin_token)
 
     # wait for the localization to load
     params = {"include2DMap": True}
@@ -209,15 +206,13 @@ def test_gcn_summary_galaxies(
     super_admin_token,
     view_only_token,
     public_group,
+    gcn_GW190814,
 ):
     catalog_name = 'test_galaxy_catalog'
     # in case the catalog already exists, delete it.
     status, data = api(
         'DELETE', f'galaxy_catalog/{catalog_name}', token=super_admin_token
     )
-
-    datafile = f'{os.path.dirname(__file__)}/../../../data/GW190814.xml'
-    load_gcnevent(datafile, super_admin_token)
 
     # wait for the localization to load
     params = {"include2DMap": True}
@@ -341,9 +336,9 @@ def test_gcn_summary_observations(
     super_admin_user,
     super_admin_token,
     public_group,
+    gcn_GW190814,
 ):
-    datafile = f'{os.path.dirname(__file__)}/../../../data/GW190814.xml'
-    gcnevent_id = load_gcnevent(datafile, super_admin_token)
+    gcnevent_id = gcn_GW190814.id
 
     # wait for the localization to load
     params = {"include2DMap": True}
@@ -599,10 +594,8 @@ def test_confirm_reject_source_in_gcn(
     view_only_token,
     ztf_camera,
     upload_data_token,
+    gcn_GW190814,
 ):
-
-    datafile = f'{os.path.dirname(__file__)}/../../../data/GW190814.xml'
-    load_gcnevent(datafile, super_admin_token)
 
     # wait for the localization to load
     params = {"include2DMap": True}

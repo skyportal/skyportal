@@ -145,7 +145,13 @@ class GcnEvent(Base):
 
     dateobs = sa.Column(sa.DateTime, doc='Event time', unique=True, nullable=False)
 
-    gcn_notices = relationship("GcnNotice", order_by=GcnNotice.date)
+    gcn_notices = relationship(
+        "GcnNotice",
+        order_by=GcnNotice.date,
+        backref='gcnevent',
+        cascade='delete',
+        passive_deletes=True,
+    )
 
     _tags = relationship(
         "GcnTag",
@@ -154,9 +160,14 @@ class GcnEvent(Base):
             sa.func.lower(GcnTag.text).notin_({'long', 'short'}),
             sa.func.lower(GcnTag.text).notin_({'grb', 'gw', 'transient'}),
         ),
+        backref='gcnevent',
+        cascade='delete',
+        passive_deletes=True,
     )
 
-    localizations = relationship("Localization")
+    localizations = relationship(
+        "Localization", backref='gcnevent', cascade='delete', passive_deletes=True
+    )
 
     observationplan_requests = relationship(
         'ObservationPlanRequest',

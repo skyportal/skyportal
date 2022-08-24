@@ -637,7 +637,7 @@ class GcnEventHandler(BaseHandler):
         """
         with self.Session() as session:
             event = session.scalars(
-                GcnEvent.select(session.user_or_token, model="delete").where(
+                GcnEvent.select(session.user_or_token, mode="delete").where(
                     GcnEvent.dateobs == dateobs
                 )
             ).first()

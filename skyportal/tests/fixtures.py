@@ -27,6 +27,7 @@ from skyportal.models import (
     Telescope,
     Obj,
     GcnEvent,
+    GcnNotice,
     Comment,
     CommentOnSpectrum,
     CommentOnGCN,
@@ -57,23 +58,20 @@ print("Setting test database to:", cfg["database"])
 init_db(**cfg["database"])
 
 
-def is_already_deleted(instance, table):
+def is_already_deleted(instance, table, session=DBSession()):
     """
     Helper function to check if a given ORM instance has already been deleted previously,
     either by earlier teardown functions or by a test itself through the API.
     """
     # If the instance is marked detached, that means it was deleted earlier in the
     # current transaction.
-    if instance in DBSession() and inspect(instance).detached:
+    if instance in session and inspect(instance).detached:
         return True
 
-    if instance not in DBSession() or (
-        instance in DBSession() and inspect(instance).expired
-    ):
+    if instance not in session or (instance in session and inspect(instance).expired):
         try:
             return (
-                DBSession()
-                .execute(sa.select(table).filter(table.id == instance.id))
+                session.execute(sa.select(table).filter(table.id == instance.id))
                 .scalars()
                 .first()
                 is None
@@ -533,7 +531,31 @@ class ObjFactory(factory.alchemy.SQLAlchemyModelFactory):
             InstrumentFactory.teardown(instrument)
 
 
-class GcnFactory(factory.alchemy.SQLAlchemyModelFactory):
+class GcnNoticeFactory(factory.alchemy.SQLAlchemyModelFactory):
+    class Meta(BaseMeta):
+        model = GcnNotice
+
+    sent_by = factory.SubFactory(UserFactory)
+
+    dateobs = datetime.datetime.now()
+
+    ivorn = str(uuid.uuid4())
+
+    @staticmethod
+    def teardown(gcnnotice_id):
+        gcnnotice_ = (
+            DBSession()
+            .execute(sa.select(GcnNotice).filter(GcnNotice.id == gcnnotice_id))
+            .scalars()
+            .first()
+        )
+        if gcnnotice_ is not None:
+            # If it is, delete it
+            DBSession().delete(gcnnotice_)
+            DBSession().commit()
+
+
+class GcnEventFactory(factory.alchemy.SQLAlchemyModelFactory):
     class Meta(BaseMeta):
         model = GcnEvent
 
@@ -542,14 +564,20 @@ class GcnFactory(factory.alchemy.SQLAlchemyModelFactory):
     dateobs = datetime.datetime.now()
 
     @staticmethod
-    def teardown(gcn):
-        if is_already_deleted(gcn, GcnEvent):
-            return
-
-        sent_by = gcn.sent_by.id
-        DBSession().delete(gcn)
-        DBSession().commit()
-        UserFactory.teardown(sent_by)
+    def teardown(gcnevent_id):
+        gcnevent_ = (
+            DBSession()
+            .execute(sa.select(GcnEvent).filter(GcnEvent.id == gcnevent_id))
+            .scalars()
+            .first()
+        )
+        if gcnevent_ is not None:
+            # If it is, delete it
+            gcn_notices = gcnevent_.gcn_notices
+            for gcn_notice in gcn_notices:
+                GcnNoticeFactory.teardown(gcn_notice.id)
+            DBSession().delete(gcnevent_)
+            DBSession().commit()
 
 
 class ObservingRunFactory(factory.alchemy.SQLAlchemyModelFactory):

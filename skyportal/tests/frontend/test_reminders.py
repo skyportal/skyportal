@@ -1,4 +1,3 @@
-import os
 import uuid
 import time
 
@@ -8,7 +7,6 @@ from selenium.webdriver.common.keys import Keys
 import pytest
 
 from skyportal.tests import api
-from skyportal.tests.utility_functions import load_gcnevent
 
 
 def post_and_verify_reminder(endpoint, token):
@@ -189,9 +187,8 @@ def test_reminder_on_source(driver, super_admin_user, super_admin_token):
 
 
 @pytest.mark.flaky(reruns=3)
-def test_reminder_on_gcn(driver, super_admin_user, super_admin_token):
-    datafile = f'{os.path.dirname(__file__)}/../../../data/GW190814.xml'
-    gcn_event_id = load_gcnevent(datafile, super_admin_token)
+def test_reminder_on_gcn(driver, super_admin_user, super_admin_token, gcn_GW190814):
+    gcn_event_id = gcn_GW190814.id
 
     endpoint = f"gcn_event/{gcn_event_id}/reminders"
     reminder_text = post_and_verify_reminder(endpoint, super_admin_token)

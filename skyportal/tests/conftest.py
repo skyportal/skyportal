@@ -2,6 +2,7 @@
 
 import os
 import shutil
+import time
 import uuid
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -52,9 +53,10 @@ from skyportal.tests.fixtures import (
     NotificationFactory,
     UserNotificationFactory,
     ThumbnailFactory,
-    GcnFactory,
+    GcnEventFactory,
 )
 from skyportal.tests.fixtures import TMP_DIR  # noqa: F401
+from skyportal.handlers.api.gcn import post_gcnevent_from_xml
 from skyportal.models import Obj
 
 
@@ -1383,9 +1385,9 @@ def public_group_taxonomy(public_taxonomy):
 
 @pytest.fixture()
 def gcn(user_no_groups):
-    gcn = GcnFactory()
+    gcn = GcnEventFactory()
     yield gcn
-    GcnFactory.teardown(gcn)
+    GcnEventFactory.teardown(gcn)
 
 
 @pytest.fixture()
@@ -1638,3 +1640,48 @@ def analysis_token(user):
     )
     yield token_id
     delete_token(token_id)
+
+
+@pytest.fixture()
+def gcn_GW190425():
+    datafile = f'{os.path.dirname(__file__)}/data/GW190425_initial.xml'
+
+    with open(datafile, 'rb') as fid:
+        payload = fid.read()
+
+    user_id = 1
+    with DBSession() as session:
+        event_id = post_gcnevent_from_xml(payload, user_id, session)
+        time.sleep(30)
+        yield event_id
+        GcnEventFactory.teardown(event_id)
+
+
+@pytest.fixture()
+def gcn_GW190814():
+    datafile = f'{os.path.dirname(__file__)}/../../data/GW190814.xml'
+
+    with open(datafile, 'rb') as fid:
+        payload = fid.read()
+
+    user_id = 1
+    with DBSession() as session:
+        event_id = post_gcnevent_from_xml(payload, user_id, session)
+        time.sleep(30)
+        yield event_id
+        GcnEventFactory.teardown(event_id)
+
+
+@pytest.fixture()
+def gcn_GRB():
+    datafile = f'{os.path.dirname(__file__)}/data/GRB180116A_Fermi_GBM_Gnd_Pos.xml'
+
+    with open(datafile, 'rb') as fid:
+        payload = fid.read()
+
+    user_id = 1
+    with DBSession() as session:
+        event_id = post_gcnevent_from_xml(payload, user_id, session)
+        time.sleep(30)
+        yield event_id
+        GcnEventFactory.teardown(event_id)

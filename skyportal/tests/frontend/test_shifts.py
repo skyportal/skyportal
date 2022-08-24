@@ -5,10 +5,7 @@ from selenium.webdriver.common.by import By
 from datetime import date, timedelta
 import uuid
 import time
-import os
 import numpy as np
-
-from skyportal.tests.utility_functions import load_gcnevent
 
 
 @pytest.mark.flaky(reruns=2)
@@ -337,6 +334,7 @@ def test_shift_summary(
     view_only_token,
     ztf_camera,
     driver,
+    gcn_GRB,
 ):
     # add a shift to the group, with a start day one day before today, and an end day one day after today
     shift_name_1 = str(uuid.uuid4())
@@ -378,9 +376,6 @@ def test_shift_summary(
     status, data = api('GET', f'shifts/{public_group.id}', token=super_admin_token)
     assert status == 200
     assert data['status'] == 'success'
-
-    datafile = f'{os.path.dirname(__file__)}/../data/GRB180116A_Fermi_GBM_Gnd_Pos.xml'
-    load_gcnevent(datafile, super_admin_token)
 
     # wait for the localization to load
     skymap = "214.74000_28.14000_11.19000"

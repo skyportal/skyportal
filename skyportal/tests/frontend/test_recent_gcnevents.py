@@ -1,14 +1,8 @@
-import os
 import pytest
-
-from skyportal.tests.utility_functions import load_gcnevent
 
 
 @pytest.mark.flaky(reruns=2)
-def test_recent_gcnevents(driver, user, super_admin_token):
-
-    datafile = f'{os.path.dirname(__file__)}/../data/GRB180116A_Fermi_GBM_Gnd_Pos.xml'
-    load_gcnevent(datafile, super_admin_token)
+def test_recent_gcnevents(driver, user, super_admin_token, gcn_GRB):
 
     driver.get(f'/become_user/{user.id}')
     driver.get('/')
