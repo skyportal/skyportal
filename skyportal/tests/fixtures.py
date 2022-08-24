@@ -229,7 +229,7 @@ class InstrumentFactory(factory.alchemy.SQLAlchemyModelFactory):
     def teardown(instrument_id):
         instrument_ = (
             DBSession()
-            .execute(sa.select(GcnNotice).filter(Instrument.id == instrument_id))
+            .execute(sa.select(Instrument).filter(Instrument.id == instrument_id))
             .scalars()
             .first()
         )
