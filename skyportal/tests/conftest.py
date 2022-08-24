@@ -515,8 +515,9 @@ def red_transients_group(group_admin_user, view_only_user):
 @pytest.fixture()
 def ztf_camera():
     instrument = InstrumentFactory()
+    instrument_id = instrument.id
     yield instrument
-    InstrumentFactory.teardown(instrument)
+    InstrumentFactory.teardown(instrument_id)
 
 
 @pytest.fixture()
@@ -618,7 +619,7 @@ def lris(keck1_telescope):
         ],
     )
     yield instrument
-    InstrumentFactory.teardown(instrument)
+    InstrumentFactory.teardown(instrument.id)
 
 
 @pytest.fixture()
@@ -633,7 +634,7 @@ def sedm(p60_telescope):
         listener_classname='SEDMListener',
     )
     yield instrument
-    InstrumentFactory.teardown(instrument)
+    InstrumentFactory.teardown(instrument.id)
 
 
 @pytest.fixture()

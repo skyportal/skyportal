@@ -226,14 +226,18 @@ class InstrumentFactory(factory.alchemy.SQLAlchemyModelFactory):
     filters = ['ztfg', 'ztfr', 'ztfi']
 
     @staticmethod
-    def teardown(instrument):
-        if is_already_deleted(instrument, Instrument):
-            return
-
-        telescope = instrument.telescope.id
-        DBSession().delete(instrument)
-        DBSession().commit()
-        TelescopeFactory.teardown(telescope)
+    def teardown(instrument_id):
+        instrument_ = (
+            DBSession()
+            .execute(sa.select(GcnNotice).filter(Instrument.id == instrument_id))
+            .scalars()
+            .first()
+        )
+        if instrument_ is not None:
+            telescope = instrument_.telescope.id
+            DBSession().delete(instrument_)
+            DBSession().commit()
+            TelescopeFactory.teardown(telescope)
 
 
 class PhotometryFactory(factory.alchemy.SQLAlchemyModelFactory):

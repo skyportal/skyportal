@@ -10,8 +10,6 @@ import pandas as pd
 from regions import Regions
 from astropy.table import Table
 
-import pytest
-
 
 def test_gcn_GW(super_admin_token, view_only_token, gcn_GW190425):
 
@@ -143,7 +141,7 @@ def test_gcn_from_moc(super_admin_token, view_only_token):
     assert 'IPN' in data["tags"]
 
 
-@pytest.mark.flaky(reruns=3)
+# @pytest.mark.flaky(reruns=3)
 def test_gcn_summary_sources(
     super_admin_user,
     super_admin_token,
