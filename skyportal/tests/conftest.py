@@ -1647,7 +1647,8 @@ def analysis_token(user):
     delete_token(token_id)
 
 
-@pytest.fixture(scope="function")
+# @pytest.fixture(scope="function")
+@pytest.fixture(scope="session")
 def gcn_GW190425():
     datafile = f'{os.path.dirname(__file__)}/data/GW190425_initial.xml'
 
@@ -1659,10 +1660,11 @@ def gcn_GW190425():
         event_id = post_gcnevent_from_xml(payload, user_id, session)
         time.sleep(30)
         yield event_id
-        GcnEventFactory.teardown(event_id)
+    GcnEventFactory.teardown(event_id)
 
 
-@pytest.fixture(scope="function")
+# @pytest.fixture(scope="function")
+@pytest.fixture(scope="session")
 def gcn_GW190814():
     datafile = f'{os.path.dirname(__file__)}/../../data/GW190814.xml'
 
@@ -1674,10 +1676,11 @@ def gcn_GW190814():
         event_id = post_gcnevent_from_xml(payload, user_id, session)
         time.sleep(30)
         yield event_id
-        GcnEventFactory.teardown(event_id)
+    GcnEventFactory.teardown(event_id)
 
 
-@pytest.fixture(scope="function")
+# @pytest.fixture(scope="function")
+@pytest.fixture(scope="session")
 def gcn_GRB():
     datafile = f'{os.path.dirname(__file__)}/data/GRB180116A_Fermi_GBM_Gnd_Pos.xml'
 
@@ -1689,4 +1692,4 @@ def gcn_GRB():
         event_id = post_gcnevent_from_xml(payload, user_id, session)
         time.sleep(30)
         yield event_id
-        GcnEventFactory.teardown(event_id)
+    GcnEventFactory.teardown(event_id)
