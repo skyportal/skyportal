@@ -5,6 +5,7 @@ import * as sysInfoActions from "./ducks/sysInfo";
 import * as dbInfoActions from "./ducks/dbInfo";
 import * as configActions from "./ducks/config";
 import * as defaultObservationPlansActions from "./ducks/default_observation_plans";
+import * as interferometersActions from "./ducks/interferometers";
 import * as newsFeedActions from "./ducks/newsFeed";
 import * as topSourcesActions from "./ducks/topSources";
 import * as recentSourcesActions from "./ducks/recentSources";
@@ -30,6 +31,7 @@ export default function hydrate() {
     dispatch(instrumentsActions.fetchInstruments());
     dispatch(allocationsActions.fetchAllocations());
     dispatch(instrumentsActions.fetchInstrumentForms());
+    dispatch(interferometersActions.fetchInterferometers());
     dispatch(recentSourcesActions.fetchRecentSources());
     dispatch(sourceCountsActions.fetchSourceCounts());
     dispatch(observingRunsActions.fetchObservingRuns());

@@ -126,6 +126,8 @@ app:
       component: TelescopePage
     - path: "/instruments"
       component: InstrumentPage
+    - path: "/interferometers"
+      component: InterferometerPage
     - path: "/services"
       component: AnalysisServicePage
     - path: "/shifts"
@@ -190,6 +192,10 @@ app:
         - name: Allocations
           icon: HourglassEmptyOutlined
           url: /allocations
+
+        - name: Interferometers
+          icon: Abc
+          url: /interferometers
 
         - name: Observations
           icon: ZoomInOutlined
