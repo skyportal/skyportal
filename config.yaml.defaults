@@ -44,6 +44,8 @@ app:
     host: www.swift.psu.edu
     port: 443
 
+  swift_xrt_endpoint: https://www.swift.ac.uk/user_objects
+
   ps1_endpoint: https://catalogs.mast.stsci.edu/
 
   atlas:

@@ -485,7 +485,7 @@ allocation:
     hours_allocated: 100
     group_id: =program_A
     instrument_id: =UVOTXRT
-    _altdata: '{"username": "anonymous", "secret": "anonymous"}'
+    _altdata: '{"username": "anonymous", "secret": "anonymous", "XRT_UserID": "user@swift.org"}'
   - pi: Michael Coughlin
     proposal_id: KAIT-001
     start_date: "3020-02-12T00:00:00"
