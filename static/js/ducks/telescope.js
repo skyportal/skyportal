@@ -33,7 +33,7 @@ const reducer = (
   state = {
     assignments: [],
     currentTelescopes: null,
-    currentTelescopeMenu: "New Telescope",
+    currentTelescopeMenu: "Telescope List",
   },
   action
 ) => {

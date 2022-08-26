@@ -7,7 +7,7 @@ from sqlalchemy.exc import StatementError
 from PIL import Image, UnidentifiedImageError
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
-from ...models import DBSession, Obj, Thumbnail
+from ...models import Obj, Thumbnail
 
 
 class ThumbnailHandler(BaseHandler):
@@ -61,22 +61,28 @@ class ThumbnailHandler(BaseHandler):
         if 'obj_id' not in data:
             return self.error("Missing required parameter: obj_id")
         obj_id = data['obj_id']
-        obj = Obj.get_if_accessible_by(obj_id, self.current_user)
-        if obj is None:
-            return self.error(f"Invalid obj_id: {obj_id}")
-        try:
-            t = create_thumbnail(data['data'], data['ttype'], obj_id)
-        except ValueError as e:
-            return self.error(f"Error in creating new thumbnail: invalid value(s): {e}")
-        except (LookupError, StatementError) as e:
-            if "enum" in str(e):
-                return self.error(f"Invalid ttype: {e}")
-            return self.error(f"Error creating new thumbnail: {e}")
-        except UnidentifiedImageError as e:
-            return self.error(f"Invalid file type: {e}")
-        self.verify_and_commit()
 
-        return self.success(data={"id": t.id})
+        with self.Session() as session:
+            obj = session.scalars(
+                Obj.select(session.user_or_token).where(Obj.id == obj_id)
+            ).first()
+            if obj is None:
+                return self.error(f"Invalid obj_id: {obj_id}")
+            try:
+                t = create_thumbnail(data['data'], data['ttype'], obj_id, session)
+            except ValueError as e:
+                return self.error(
+                    f"Error in creating new thumbnail: invalid value(s): {e}"
+                )
+            except (LookupError, StatementError) as e:
+                if "enum" in str(e):
+                    return self.error(f"Invalid ttype: {e}")
+                return self.error(f"Error creating new thumbnail: {e}")
+            except UnidentifiedImageError as e:
+                return self.error(f"Invalid file type: {e}")
+            session.commit()
+
+            return self.success(data={"id": t.id})
 
     @auth_or_token
     def get(self, thumbnail_id):
@@ -101,11 +107,15 @@ class ThumbnailHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        t = Thumbnail.get_if_accessible_by(
-            thumbnail_id, self.current_user, raise_if_none=True
-        )
-        self.verify_and_commit()
-        return self.success(data=t)
+        with self.Session() as session:
+            t = session.scalars(
+                Thumbnail.select(session.user_or_token).where(
+                    Thumbnail.id == thumbnail_id
+                )
+            ).first()
+            if t is None:
+                return self.error(f'Cannot find Thumbnail with ID: {thumbnail_id}')
+            return self.success(data=t)
 
     @permissions(['Manage sources'])
     def put(self, thumbnail_id):
@@ -134,23 +144,31 @@ class ThumbnailHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        Thumbnail.get_if_accessible_by(
-            thumbnail_id, self.current_user, mode="update", raise_if_none=True
-        )
+        with self.Session() as session:
+            t = session.scalars(
+                Thumbnail.select(session.user_or_token, mode="update").where(
+                    Thumbnail.id == thumbnail_id
+                )
+            ).first()
+            if t is None:
+                return self.error(f'Cannot find Thumbnail with ID: {thumbnail_id}')
 
-        data = self.get_json()
-        data['id'] = thumbnail_id
+            data = self.get_json()
+            data['id'] = thumbnail_id
 
-        schema = Thumbnail.__schema__()
-        try:
-            schema.load(data, partial=True)
-        except ValidationError as e:
-            return self.error(
-                'Invalid/missing parameters: ' f'{e.normalized_messages()}'
-            )
-        self.verify_and_commit()
+            schema = Thumbnail.__schema__()
+            try:
+                schema.load(data, partial=True)
+            except ValidationError as e:
+                return self.error(
+                    'Invalid/missing parameters: ' f'{e.normalized_messages()}'
+                )
 
-        return self.success()
+            for k in data:
+                setattr(t, k, data[k])
+
+            session.commit()
+            return self.success()
 
     @permissions(['Manage sources'])
     def delete(self, thumbnail_id):
@@ -175,16 +193,23 @@ class ThumbnailHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        t = Thumbnail.get_if_accessible_by(
-            thumbnail_id, self.current_user, mode="delete", raise_if_none=True
-        )
-        DBSession().delete(t)
-        self.verify_and_commit()
 
-        return self.success()
+        with self.Session() as session:
+            t = session.scalars(
+                Thumbnail.select(session.user_or_token, mode="delete").where(
+                    Thumbnail.id == thumbnail_id
+                )
+            ).first()
+            if t is None:
+                return self.error(f'Cannot find Thumbnail with ID: {thumbnail_id}')
+
+            session.delete(t)
+            session.commit()
+
+            return self.success()
 
 
-def create_thumbnail(thumbnail_data, thumbnail_type, obj_id):
+def create_thumbnail(thumbnail_data, thumbnail_type, obj_id, session):
     basedir = Path(os.path.dirname(__file__)) / '..' / '..'
     if os.path.abspath(basedir).endswith('skyportal/skyportal'):
         basedir = basedir / '..'
@@ -211,7 +236,7 @@ def create_thumbnail(thumbnail_data, thumbnail_type, obj_id):
     with open(file_uri, 'wb') as f:
         f.write(file_bytes)
 
-    DBSession().add(t)
-    DBSession().flush()
+    session.add(t)
+    session.flush()
 
     return t

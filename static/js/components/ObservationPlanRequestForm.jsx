@@ -259,7 +259,9 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
   const dispatch = useDispatch();
 
   const { telescopeList } = useSelector((state) => state.telescopes);
-  const { allocationList } = useSelector((state) => state.allocations);
+  const { allocationListApiObsplan } = useSelector(
+    (state) => state.allocations
+  );
 
   const { useAMPM } = useSelector((state) => state.profile.preferences);
 
@@ -298,7 +300,7 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
 
   const allocationLookUp = {};
   // eslint-disable-next-line no-unused-expressions
-  allocationList?.forEach((allocation) => {
+  allocationListApiObsplan?.forEach((allocation) => {
     allocationLookUp[allocation.id] = allocation;
   });
 
@@ -337,9 +339,7 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
       // update
 
       const result = await dispatch(
-        allocationActions.fetchAllocations({
-          apiType: "api_classname_obsplan",
-        })
+        allocationActions.fetchAllocationsApiObsplan()
       );
 
       const { data } = result;
@@ -352,11 +352,6 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
 
     dispatch(
       instrumentsActions.fetchInstrumentForms({
-        apiType: "api_classname_obsplan",
-      })
-    );
-    dispatch(
-      allocationActions.fetchAllocations({
         apiType: "api_classname_obsplan",
       })
     );
@@ -373,14 +368,14 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
 
   // need to check both of these conditions as selectedAllocationId is
   // initialized to be null and useEffect is not called on the first
-  // render to update it, so it can be null even if allocationList is not
+  // render to update it, so it can be null even if allocationListApiObsplan is not
   // empty.
   if (
-    allocationList.length === 0 ||
+    allocationListApiObsplan.length === 0 ||
     !selectedAllocationId ||
     Object.keys(instrumentFormParams).length === 0
   ) {
-    return <h3>No robotic instruments available...</h3>;
+    return <h3>No allocations with an observation plan API...</h3>;
   }
 
   if (
@@ -501,7 +496,7 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
           name="followupRequestAllocationSelect"
           className={classes.allocationSelect}
         >
-          {allocationList?.map((allocation) => (
+          {allocationListApiObsplan?.map((allocation) => (
             <MenuItem
               value={allocation.id}
               key={allocation.id}
@@ -533,7 +528,7 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
               key={localization.id}
               className={classes.SelectItem}
             >
-              {`${localization.localization_name}`}
+              {`Skymap: ${localization.localization_name} / Created: ${localization.created_at}`}
             </MenuItem>
           ))}
         </Select>

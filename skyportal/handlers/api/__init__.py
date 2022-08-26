@@ -6,7 +6,11 @@ from .analysis import (
     AnalysisProductsHandler,
 )
 from .candidate import CandidateHandler
-from .classification import ClassificationHandler, ObjClassificationHandler
+from .classification import (
+    ClassificationHandler,
+    ObjClassificationHandler,
+    ObjClassificationQueryHandler,
+)
 from .comment import CommentHandler, CommentAttachmentHandler
 from .annotation import AnnotationHandler
 from .annotation_services import (
@@ -25,11 +29,12 @@ from .followup_request import (
     AssignmentHandler,
 )
 from .facility_listener import FacilityMessageHandler
-from .galaxy import GalaxyCatalogHandler, GalaxyASCIIFileHandler
+from .galaxy import GalaxyCatalogHandler, GalaxyASCIIFileHandler, GalaxyGladeHandler
 from .gcn import (
     GcnEventHandler,
     GcnEventObservationPlanRequestsHandler,
     GcnEventSurveyEfficiencyHandler,
+    GcnEventTagsHandler,
     GcnSummaryHandler,
     LocalizationHandler,
 )
@@ -86,6 +91,7 @@ from .photometry_request import PhotometryRequestHandler
 from .public_group import PublicGroupHandler
 from .roles import RoleHandler, UserRoleHandler
 from .obj import ObjHandler
+from .reminder import ReminderHandler
 from .sharing import SharingHandler
 from .shift import ShiftHandler, ShiftUserHandler, ShiftSummary
 from .source import (
@@ -125,3 +131,7 @@ from .user import (
 from .unsourced_finder import UnsourcedFinderHandler
 from .weather import WeatherHandler
 from .webhook import AnalysisWebhookHandler
+from .sources_confirmed_in_gcn import (
+    SourcesConfirmedInGCNHandler,
+    GCNsAssociatedWithSourceHandler,
+)

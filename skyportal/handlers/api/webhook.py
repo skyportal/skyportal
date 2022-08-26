@@ -86,7 +86,7 @@ class AnalysisWebhookHandler(BaseHandler):
                 )
             if (
                 analysis.invalid_after
-                and datetime.datetime.now() > analysis.invalid_after
+                and datetime.datetime.utcnow() > analysis.invalid_after
             ):
                 analysis.status = 'timed_out'
                 analysis.status_message = f'Analysis timed out before webhook call at {str(datetime.datetime.utcnow())}'

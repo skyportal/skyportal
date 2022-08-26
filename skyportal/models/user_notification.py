@@ -7,6 +7,7 @@ from sqlalchemy.orm import relationship
 
 from sqlalchemy import event, inspect
 import arrow
+import lxml
 import requests
 
 from baselayer.app.models import Base, User, AccessibleIfUserMatches
@@ -23,12 +24,14 @@ from .spectrum import Spectrum
 from .comment import Comment
 from .listing import Listing
 from .facility_transaction import FacilityTransaction
+from .group import GroupAdmissionRequest, GroupUser, Group
 from ..email_utils import send_email
 from twilio.rest import Client as TwilioClient
 import gcn
 from sqlalchemy import or_
 
 from skyportal.models import Shift, ShiftUser
+from skyportal.utils.gcn import get_tags
 
 _, cfg = load_env()
 
@@ -96,12 +99,11 @@ def notification_resource_type(target):
 
 
 def user_preferences(target, notification_setting, resource_type):
-    if not resource_type:
+    if not isinstance(notification_setting, str):
+        return
+    if not isinstance(resource_type, str):
         return
     if not target.user:
-        return
-
-    if not target.user.preferences:
         return
 
     if notification_setting == "email":
@@ -109,12 +111,21 @@ def user_preferences(target, notification_setting, resource_type):
             return
         if not target.user.contact_email:
             return
-    elif notification_setting == "sms":
+        # this ensures that an email is sent regardless of the user's preferences
+        # this is useful for group_admission_requests, where we want the admins to always be notified by email
+        if resource_type in ['group_admission_request']:
+            return True
+
+    if not target.user.preferences:
+        return
+
+    if notification_setting == "sms":
         if client is None:
             return
         if not target.user.contact_phone:
             return
-    elif notification_setting == "slack":
+
+    if notification_setting == "slack":
         if not target.user.preferences.get('slack_integration'):
             return
         if not target.user.preferences['slack_integration'].get("active"):
@@ -122,11 +133,12 @@ def user_preferences(target, notification_setting, resource_type):
         if (
             not target.user.preferences['slack_integration']
             .get("url", "")
-            .startswith(cfg["slack.expected_url_preamble"], "https")
+            .startswith(cfg["slack.expected_url_preamble"])
         ):
             return
 
     prefs = target.user.preferences.get('notifications')
+
     if not prefs:
         return
     else:
@@ -143,6 +155,7 @@ def user_preferences(target, notification_setting, resource_type):
                 return
             if not prefs[resource_type][notification_setting].get("active", False):
                 return
+
         return prefs
 
 
@@ -165,6 +178,9 @@ def send_slack_notification(mapper, connection, target):
             slack_microservice_url,
             data=data,
             headers={'Content-Type': 'application/json'},
+        )
+        log(
+            f"Sent slack notification to user {target.user.id} at slack_url: {integration_url}, body: {target.text}, resource_type: {resource_type}"
         )
     except Exception as e:
         log(f"Error sending slack notification: {e}")
@@ -207,12 +223,19 @@ def send_email_notification(mapper, connection, target):
         subject = f"{cfg['app.title']} - User mentioned you in a comment"
         body = f'{target.text} ({get_app_base_url()}{target.url})'
 
+    elif resource_type == "group_admission_request":
+        subject = f"{cfg['app.title']} - New group admission request"
+        body = f'{target.text} ({get_app_base_url()}{target.url})'
+
     if subject and body and target.user.contact_email:
         try:
             send_email(
                 recipients=[target.user.contact_email],
                 subject=subject,
                 body=body,
+            )
+            log(
+                f"Sent email notification to user {target.user.id} at email: {target.user.contact_email}, subject: {subject}, body: {body}, resource_type: {resource_type}"
             )
         except Exception as e:
             log(f"Error sending email notification: {e}")
@@ -256,8 +279,36 @@ def send_sms_notification(mapper, connection, target):
                 from_=from_number,
                 to=target.user.contact_phone.e164,
             )
+            log(
+                f"Sent SMS notification to user {target.user.id} at phone number: {target.user.contact_phone.e164}, body: {target.text}, resource_type: {resource_type}"
+            )
         except Exception as e:
             log(f"Error sending sms notification: {e}")
+
+
+@event.listens_for(UserNotification, 'after_insert')
+def push_frontend_notification(mapper, connection, target):
+    if 'user_id' in target.__dict__:
+        user_id = target.user_id
+    elif 'user' in target.__dict__:
+        if 'id' in target.user.__dict__:
+            user_id = target.user.id
+        else:
+            user_id = None
+    else:
+        user_id = None
+
+    if user_id is None:
+        log(
+            "Error sending frontend notification: user_id or user.id not found in notification's target"
+        )
+        return
+    resource_type = notification_resource_type(target)
+    log(
+        f"Sent frontend notification to user {user_id}, body: {target.text}, resource_type: {resource_type}"
+    )
+    ws_flow = Flow()
+    ws_flow.push(user_id, "skyportal/FETCH_NOTIFICATIONS")
 
 
 @event.listens_for(Classification, 'after_insert')
@@ -265,6 +316,7 @@ def send_sms_notification(mapper, connection, target):
 @event.listens_for(Comment, 'after_insert')
 @event.listens_for(GcnNotice, 'after_insert')
 @event.listens_for(FacilityTransaction, 'after_insert')
+@event.listens_for(GroupAdmissionRequest, 'after_insert')
 def add_user_notifications(mapper, connection, target):
 
     # Add front-end user notifications
@@ -276,6 +328,9 @@ def add_user_notifications(mapper, connection, target):
         is_classification = target.__class__.__name__ == "Classification"
         is_spectra = target.__class__.__name__ == "Spectrum"
         is_comment = target.__class__.__name__ == "Comment"
+        is_group_admission_request = (
+            target.__class__.__name__ == "GroupAdmissionRequest"
+        )
 
         if is_gcnevent:
             users = session.scalars(
@@ -293,6 +348,22 @@ def add_user_notifications(mapper, connection, target):
                     .is_(True)
                 )
             ).all()
+        elif is_group_admission_request:
+            users = []
+            group_admins_gu = session.scalars(
+                sa.select(GroupUser).where(
+                    GroupUser.group_id == target.group_id,
+                    GroupUser.admin.is_(True),
+                )
+            ).all()
+            for gu in group_admins_gu:
+                group_admin = session.scalars(
+                    sa.select(User).where(User.id == gu.user_id)
+                ).first()
+
+                if group_admin is not None:
+                    users.append(group_admin)
+
         else:
 
             if is_classification:
@@ -329,10 +400,13 @@ def add_user_notifications(mapper, connection, target):
             else:
                 users = []
 
-        ws_flow = Flow()
-
         for user in users:
             # Only notify users who have read access to the new record in question
+            if user.preferences is not None:
+                pref = user.preferences['notifications']
+            else:
+                pref = None
+
             if (
                 session.scalars(
                     target.__class__.select(user, mode='read').where(
@@ -342,16 +416,22 @@ def add_user_notifications(mapper, connection, target):
                 is not None
             ):
                 if is_gcnevent:
-                    if (
-                        "gcn_notice_types"
-                        in user.preferences['notifications']["gcn_events"].keys()
-                    ):
+                    if (pref is not None) and "gcn_notice_types" in pref[
+                        "gcn_events"
+                    ].keys():
                         if (
                             gcn.NoticeType(target.notice_type).name
-                            in user.preferences['notifications']['gcn_events'][
-                                'gcn_notice_types'
-                            ]
+                            in pref['gcn_events']['gcn_notice_types']
                         ):
+                            if "gcn_tags" in pref["gcn_events"].keys():
+                                if len(pref['gcn_events']["gcn_tags"]) > 0:
+                                    root = lxml.etree.fromstring(target.content)
+                                    tags = [text for text in get_tags(root)]
+                                    intersection = list(
+                                        set(tags) & set(pref['gcn_events']["gcn_tags"])
+                                    )
+                                    if len(intersection) == 0:
+                                        return
                             session.add(
                                 UserNotification(
                                     user=user,
@@ -398,19 +478,35 @@ def add_user_notifications(mapper, connection, target):
                                 url=f"/source/{target.followup_request.obj_id}",
                             )
                         )
+                elif is_group_admission_request:
+                    user_from_request = session.scalars(
+                        sa.select(User).where(User.id == target.user_id)
+                    ).first()
+                    group_from_request = session.scalars(
+                        sa.select(Group).where(Group.id == target.group_id)
+                    ).first()
+                    session.add(
+                        UserNotification(
+                            user=user,
+                            text=f"New Group Admission Request from *@{user_from_request.username}* for Group *{group_from_request.name}*",
+                            notification_type="group_admission_request",
+                            url=f"/group/{group_from_request.id}",
+                        )
+                    )
                 else:
                     favorite_sources = session.scalars(
                         sa.select(Listing)
                         .where(Listing.list_name == 'favorites')
                         .where(Listing.obj_id == target.obj_id)
-                        .distinct(Listing.user_id)
+                        .where(Listing.user_id == user.id)
                     ).all()
+                    if pref is None:
+                        continue
 
                     if is_classification:
                         if (
                             len(favorite_sources) > 0
-                            and "favorite_sources"
-                            in user.preferences['notifications'].keys()
+                            and "favorite_sources" in pref.keys()
                             and any(
                                 target.obj_id == source.obj_id
                                 for source in favorite_sources
@@ -424,30 +520,24 @@ def add_user_notifications(mapper, connection, target):
                                     url=f"/source/{target.obj_id}",
                                 )
                             )
-                        elif "sources" in user.preferences['notifications'].keys():
-                            if (
-                                "classifications"
-                                in user.preferences['notifications']['sources'].keys()
-                            ):
+                        elif (pref is not None) and "sources" in pref.keys():
+                            if "classifications" in pref['sources'].keys():
                                 if (
                                     target.classification
-                                    in user.preferences['notifications']['sources'][
-                                        'classifications'
-                                    ]
+                                    in pref['sources']['classifications']
                                 ):
                                     session.add(
                                         UserNotification(
                                             user=user,
                                             text=f"New classification *{target.classification}* for source *{target.obj_id}*",
                                             notification_type="sources",
-                                            url=f"/sources/{target.obj_id}",
+                                            url=f"/source/{target.obj_id}",
                                         )
                                     )
                     elif is_spectra:
                         if (
                             len(favorite_sources) > 0
-                            and "favorite_sources"
-                            in user.preferences["notifications"].keys()
+                            and "favorite_sources" in pref.keys()
                         ):
                             if any(
                                 target.obj_id == source.obj_id
@@ -464,8 +554,7 @@ def add_user_notifications(mapper, connection, target):
                     elif is_comment:
                         if (
                             len(favorite_sources) > 0
-                            and "favorite_sources"
-                            in user.preferences["notifications"].keys()
+                            and "favorite_sources" in pref.keys()
                         ):
                             if any(
                                 target.obj_id == source.obj_id
@@ -479,5 +568,3 @@ def add_user_notifications(mapper, connection, target):
                                         url=f"/source/{target.obj_id}",
                                     )
                                 )
-                # >>>>>>> upstream/main
-                ws_flow.push(user.id, "skyportal/FETCH_NOTIFICATIONS")

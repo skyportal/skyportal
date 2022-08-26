@@ -407,35 +407,18 @@ def get_observations(
         )
 
         if return_statistics:
-            if telescope_name is not None and instrument_name is not None:
-                union = (
-                    sa.select(
-                        ha.func.union(InstrumentFieldTile.healpix).label('healpix')
-                    )
-                    .filter(
-                        InstrumentFieldTile.instrument_id == instrument.id,
-                        InstrumentFieldTile.instrument_field_id
-                        == Observation.instrument_field_id,
-                        Observation.obstime >= start_date,
-                        Observation.obstime <= end_date,
-                    )
-                    .distinct()
-                    .subquery()
-                )
-            else:
-                union = (
-                    sa.select(
-                        ha.func.union(InstrumentFieldTile.healpix).label('healpix')
-                    )
-                    .filter(
-                        InstrumentFieldTile.instrument_field_id
-                        == Observation.instrument_field_id,
-                        Observation.obstime >= start_date,
-                        Observation.obstime <= end_date,
-                    )
-                    .distinct()
-                    .subquery()
-                )
+            obs_subquery = obs_query.subquery()
+            fields_query = sa.select(InstrumentField.id).join(
+                obs_subquery, InstrumentField.id == obs_subquery.c.instrument_field_id
+            )
+            field_ids = session.scalars(fields_query).unique().all()
+
+            union = (
+                sa.select(ha.func.union(InstrumentFieldTile.healpix).label('healpix'))
+                .where(InstrumentFieldTile.instrument_field_id.in_(field_ids))
+                .distinct()
+                .subquery()
+            )
 
             area = sa.func.sum(union.columns.healpix.area)
             prob = sa.func.sum(
@@ -1147,6 +1130,7 @@ class ObservationExternalAPIHandler(BaseHandler):
             self.push_notification(
                 'Observation ingestion in progress. Should be available soon.'
             )
+            return self.success()
         except Exception as e:
             return self.error(f"Error in querying instrument API: {e}")
 

@@ -12,7 +12,6 @@ from baselayer.app.env import load_env
 from .photometry import serialize
 from ..base import BaseHandler
 from ...models import (
-    DBSession,
     Group,
     Obj,
     Photometry,
@@ -72,22 +71,25 @@ class TNSRobotHandler(BaseHandler):
                   schema: Error
         """
 
-        # get owned tnsrobots
-        tnsrobots = TNSRobot.query_records_accessible_by(self.current_user)
+        with self.Session() as session:
 
-        if tnsrobot_id is not None:
-            try:
-                tnsrobot_id = int(tnsrobot_id)
-            except ValueError:
-                return self.error("TNSRobot ID must be an integer.")
-            tnsrobots = tnsrobots.filter(TNSRobot.id == tnsrobot_id).all()
-            if len(tnsrobots) == 0:
-                return self.error("Could not retrieve tnsrobot.")
-            return self.success(data=tnsrobots[0])
+            # get owned tnsrobots
+            tnsrobots = TNSRobot.select(session.user_or_token)
 
-        tnsrobots = tnsrobots.all()
-        self.verify_and_commit()
-        return self.success(data=tnsrobots)
+            if tnsrobot_id is not None:
+                try:
+                    tnsrobot_id = int(tnsrobot_id)
+                except ValueError:
+                    return self.error("TNSRobot ID must be an integer.")
+                tnsrobot = session.scalars(
+                    tnsrobots.where(TNSRobot.id == tnsrobot_id)
+                ).first()
+                if tnsrobot is None:
+                    return self.error("Could not retrieve tnsrobot.")
+                return self.success(data=tnsrobot)
+
+            tnsrobots = session.scalars(tnsrobots).all()
+            return self.success(data=tnsrobots)
 
     @permissions(['Manage tnsrobots'])
     def post(self):
@@ -118,20 +120,25 @@ class TNSRobotHandler(BaseHandler):
         """
 
         data = self.get_json()
-        try:
-            tnsrobot = TNSRobot.__schema__().load(data=data)
-        except ValidationError as e:
-            return self.error(
-                f'Error parsing posted tnsrobot: "{e.normalized_messages()}"'
-            )
 
-        group = Group.get_if_accessible_by(tnsrobot.group_id, self.current_user)
-        if group is None:
-            return self.error(f'No group with specified ID: {tnsrobot.group_id}')
+        with self.Session() as session:
 
-        DBSession().add(tnsrobot)
-        self.verify_and_commit()
-        return self.success(data={"id": tnsrobot.id})
+            try:
+                tnsrobot = TNSRobot.__schema__().load(data=data)
+            except ValidationError as e:
+                return self.error(
+                    f'Error parsing posted tnsrobot: "{e.normalized_messages()}"'
+                )
+
+            group = session.scalars(
+                Group.select(session.user_or_token).where(Group.id == tnsrobot.group_id)
+            ).first()
+            if group is None:
+                return self.error(f'No group with specified ID: {tnsrobot.group_id}')
+
+            session.add(tnsrobot)
+            session.commit()
+            return self.success(data={"id": tnsrobot.id})
 
     @permissions(['Manage tnsrobots'])
     def delete(self, tnsrobot_id):
@@ -156,14 +163,18 @@ class TNSRobotHandler(BaseHandler):
             tnsrobot_id = int(tnsrobot_id)
         except ValueError:
             return self.error("TNSRobot ID must be an integer.")
-        tnsrobot = TNSRobot.get_if_accessible_by(
-            tnsrobot_id, self.current_user, mode='delete'
-        )
-        if tnsrobot is None:
-            return self.error(f'No TNS robot with ID {tnsrobot_id}')
-        DBSession().delete(tnsrobot)
-        self.verify_and_commit()
-        return self.success()
+
+        with self.Session() as session:
+            tnsrobot = session.scalars(
+                TNSRobot.select(session.user_or_token, mode='delete').where(
+                    TNSRobot.id == tnsrobot_id
+                )
+            ).first()
+            if tnsrobot is None:
+                return self.error(f'No TNS robot with ID {tnsrobot_id}')
+            session.delete(tnsrobot)
+            session.commit()
+            return self.success()
 
 
 class ObjTNSHandler(BaseHandler):
@@ -191,134 +202,141 @@ class ObjTNSHandler(BaseHandler):
                 schema: Error
         """
 
-        obj = Obj.get_if_accessible_by(
-            obj_id,
-            self.current_user,
-            mode='read',
-            raise_if_none=True,
-        )
+        with self.Session() as session:
 
-        photometry = (
-            Photometry.query_records_accessible_by(self.current_user)
-            .filter(Photometry.obj_id == obj_id)
-            .all()
-        )
-        photometry = [serialize(phot, 'ab', 'mag') for phot in photometry]
+            obj = session.scalars(
+                Obj.select(session.user_or_token).where(Obj.id == obj_id)
+            ).first()
+            if obj is None:
+                return self.error(f'No object available with ID {obj_id}')
 
-        data = self.get_json()
-        tnsrobotID = data.get('tnsrobotID')
-        reporters = data.get('reporters', '')
+            photometry = session.scalars(
+                Photometry.select(session.user_or_token).where(
+                    Photometry.obj_id == obj_id
+                )
+            ).all()
+            photometry = [serialize(phot, 'ab', 'mag') for phot in photometry]
 
-        if tnsrobotID is None:
-            return self.error('tnsrobotID is required')
+            data = self.get_json()
+            tnsrobotID = data.get('tnsrobotID')
+            reporters = data.get('reporters', '')
 
-        tnsrobot = DBSession().query(TNSRobot).filter(TNSRobot.id == tnsrobotID).one()
+            if tnsrobotID is None:
+                return self.error('tnsrobotID is required')
 
-        altdata = tnsrobot.altdata
-        if not altdata:
-            return self.error('Missing TNS information.')
+            tnsrobot = session.scalars(
+                TNSRobot.select(session.user_or_token).where(TNSRobot.id == tnsrobotID)
+            ).first()
+            if tnsrobot is None:
+                return self.error(f'No TNSRobot available with ID {tnsrobotID}')
 
-        tns_headers = {
-            'User-Agent': f'tns_marker{"tns_id":{tnsrobot.bot_id},"type":"bot", "name":"{tnsrobot.bot_name}"}'
-        }
+            altdata = tnsrobot.altdata
+            if not altdata:
+                return self.error('Missing TNS information.')
 
-        time_first = mag_first = magerr_first = filt_first = instrument_first = None
-        time_last = mag_last = magerr_last = filt_last = instrument_last = None
-        time_last_nondetection = (
-            limmag_last_nondetection
-        ) = filt_last_nondetection = instrument_last_nondetection = None
+            tns_headers = {
+                'User-Agent': f'tns_marker{"tns_id":{tnsrobot.bot_id},"type":"bot", "name":"{tnsrobot.bot_name}"}'
+            }
 
-        for phot in photometry:
-            if phot['mag'] is None:
-                if (
-                    time_last_nondetection is None
-                    or phot['mjd'] > time_last_nondetection
-                ):
-                    time_last_nondetection = phot['mjd']
-                    limmag_last_nondetection = phot['limiting_mag']
-                    filt_last_nondetection = phot['filter']
-                    instrument_last_nondetection = phot['instrument_name']
+            time_first = mag_first = magerr_first = filt_first = instrument_first = None
+            time_last = mag_last = magerr_last = filt_last = instrument_last = None
+            time_last_nondetection = (
+                limmag_last_nondetection
+            ) = filt_last_nondetection = instrument_last_nondetection = None
+
+            for phot in photometry:
+                if phot['mag'] is None:
+                    if (
+                        time_last_nondetection is None
+                        or phot['mjd'] > time_last_nondetection
+                    ):
+                        time_last_nondetection = phot['mjd']
+                        limmag_last_nondetection = phot['limiting_mag']
+                        filt_last_nondetection = phot['filter']
+                        instrument_last_nondetection = phot['instrument_name']
+                else:
+                    if time_first is None or phot['mjd'] < time_first:
+                        time_first = phot['mjd']
+                        mag_first = phot['mag']
+                        magerr_first = phot['magerr']
+                        filt_first = phot['filter']
+                        instrument_first = phot['instrument_name']
+                    if time_last is None or phot['mjd'] > time_last:
+                        time_last = phot['mjd']
+                        mag_last = phot['mag']
+                        magerr_last = phot['magerr']
+                        filt_last = phot['filter']
+                        instrument_last = phot['instrument_name']
+            if time_last_nondetection is None:
+                return self.error('Need last non-detection for TNS report')
+
+            tns_prefix, tns_name = get_IAUname(obj.id, altdata['api_key'], tns_headers)
+            if tns_name is not None:
+                return self.error(f'Already posted to TNS as {tns_name}.')
+
+            proprietary_period = {
+                "proprietary_period_value": 0,
+                "proprietary_period_units": "years",
+            }
+            non_detection = {
+                "obsdate": astropy.time.Time(time_last_nondetection, format='mjd').jd,
+                "limiting_flux": limmag_last_nondetection,
+                "flux_units": "1",
+                "filter_value": filt_last_nondetection,
+                "instrument_value": instrument_last_nondetection,
+            }
+            phot_first = {
+                "obsdate": astropy.time.Time(time_first, format='mjd').jd,
+                "flux": mag_first,
+                "flux_err": magerr_first,
+                "flux_units": "1",
+                "filter_value": filt_first,
+                "instrument_value": instrument_first,
+            }
+            phot_last = {
+                "obsdate": astropy.time.Time(time_last, format='mjd').jd,
+                "flux": mag_last,
+                "flux_err": magerr_last,
+                "flux_units": "1",
+                "filter_value": filt_last,
+                "instrument_value": instrument_last,
+            }
+
+            at_report = {
+                "ra": {"value": obj.ra},
+                "dec": {"value": obj.dec},
+                "groupid": tnsrobot.source_group_id,
+                "internal_name_format": {
+                    "prefix": instrument_first,
+                    "year_format": "YY",
+                    "postfix": "",
+                },
+                "internal_name": obj.id,
+                "reporter": reporters,
+                "discovery_datetime": astropy.time.Time(
+                    time_first, format='mjd'
+                ).datetime,
+                "at_type": 1,  # allow other options?
+                "proprietary_period_groups": [tnsrobot.source_group_id],
+                "proprietary_period": proprietary_period,
+                "non_detection": non_detection,
+                "photometry": {"photometry_group": {"0": phot_first, "1": phot_last}},
+            }
+            report = {"at_report": {"0": at_report}}
+
+            data = {
+                'api_key': altdata['api_key'],
+                'data': json.dumps(report),
+            }
+
+            r = requests.post(report_url, headers=tns_headers, data=data)
+            if r.status_code == 200:
+                tns_id = r.json()['data']['report_id']
+                return self.success(data={'tns_id': tns_id})
             else:
-                if time_first is None or phot['mjd'] < time_first:
-                    time_first = phot['mjd']
-                    mag_first = phot['mag']
-                    magerr_first = phot['magerr']
-                    filt_first = phot['filter']
-                    instrument_first = phot['instrument_name']
-                if time_last is None or phot['mjd'] > time_last:
-                    time_last = phot['mjd']
-                    mag_last = phot['mag']
-                    magerr_last = phot['magerr']
-                    filt_last = phot['filter']
-                    instrument_last = phot['instrument_name']
-        if time_last_nondetection is None:
-            return self.error('Need last non-detection for TNS report')
+                return self.error(f'{r.content}')
 
-        tns_prefix, tns_name = get_IAUname(obj.id, altdata['api_key'], tns_headers)
-        if tns_name is not None:
-            return self.error(f'Already posted to TNS as {tns_name}.')
-
-        proprietary_period = {
-            "proprietary_period_value": 0,
-            "proprietary_period_units": "years",
-        }
-        non_detection = {
-            "obsdate": astropy.time.Time(time_last_nondetection, format='mjd').jd,
-            "limiting_flux": limmag_last_nondetection,
-            "flux_units": "1",
-            "filter_value": filt_last_nondetection,
-            "instrument_value": instrument_last_nondetection,
-        }
-        phot_first = {
-            "obsdate": astropy.time.Time(time_first, format='mjd').jd,
-            "flux": mag_first,
-            "flux_err": magerr_first,
-            "flux_units": "1",
-            "filter_value": filt_first,
-            "instrument_value": instrument_first,
-        }
-        phot_last = {
-            "obsdate": astropy.time.Time(time_last, format='mjd').jd,
-            "flux": mag_last,
-            "flux_err": magerr_last,
-            "flux_units": "1",
-            "filter_value": filt_last,
-            "instrument_value": instrument_last,
-        }
-
-        at_report = {
-            "ra": {"value": obj.ra},
-            "dec": {"value": obj.dec},
-            "groupid": tnsrobot.source_group_id,
-            "internal_name_format": {
-                "prefix": instrument_first,
-                "year_format": "YY",
-                "postfix": "",
-            },
-            "internal_name": obj.id,
-            "reporter": reporters,
-            "discovery_datetime": astropy.time.Time(time_first, format='mjd').datetime,
-            "at_type": 1,  # allow other options?
-            "proprietary_period_groups": [tnsrobot.source_group_id],
-            "proprietary_period": proprietary_period,
-            "non_detection": non_detection,
-            "photometry": {"photometry_group": {"0": phot_first, "1": phot_last}},
-        }
-        report = {"at_report": {"0": at_report}}
-
-        data = {
-            'api_key': altdata['api_key'],
-            'data': json.dumps(report),
-        }
-
-        r = requests.post(report_url, headers=tns_headers, data=data)
-        if r.status_code == 200:
-            tns_id = r.json()['data']['report_id']
-            return self.success(data={'tns_id': tns_id})
-        else:
-            return self.error(f'{r.content}')
-
-        return self.success()
+            return self.success()
 
 
 class SpectrumTNSHandler(BaseHandler):
@@ -397,138 +415,144 @@ class SpectrumTNSHandler(BaseHandler):
         if tnsrobotID is None:
             return self.error('tnsrobotID is required')
 
-        tnsrobot = DBSession().query(TNSRobot).filter(TNSRobot.id == tnsrobotID).one()
+        with self.Session() as session:
+            tnsrobot = session.scalars(
+                TNSRobot.select(session.user_or_token).where(TNSRobot.id == tnsrobotID)
+            ).first()
+            if tnsrobot is None:
+                return self.error(f'No TNSRobot available with ID {tnsrobotID}')
 
-        altdata = tnsrobot.altdata
-        if not altdata:
-            return self.error('Missing TNS information.')
+            altdata = tnsrobot.altdata
+            if not altdata:
+                return self.error('Missing TNS information.')
 
-        spectrum = Spectrum.get_if_accessible_by(
-            spectrum_id,
-            self.current_user,
-        )
-        if spectrum is None:
-            return self.error(f'No spectrum with ID {spectrum_id}')
+            spectrum = session.scalars(
+                Spectrum.select(session.user_or_token).where(Spectrum.id == spectrum_id)
+            ).first()
+            if spectrum is None:
+                return self.error(f'No spectrum with ID {spectrum_id}')
 
-        spec_dict = recursive_to_dict(spectrum)
-        spec_dict["instrument_name"] = spectrum.instrument.name
-        spec_dict["groups"] = spectrum.groups
-        spec_dict["reducers"] = spectrum.reducers
-        spec_dict["observers"] = spectrum.observers
-        spec_dict["owner"] = spectrum.owner
+            spec_dict = recursive_to_dict(spectrum)
+            spec_dict["instrument_name"] = spectrum.instrument.name
+            spec_dict["groups"] = spectrum.groups
+            spec_dict["reducers"] = spectrum.reducers
+            spec_dict["observers"] = spectrum.observers
+            spec_dict["owner"] = spectrum.owner
 
-        external_reducer = (
-            DBSession()
-            .query(SpectrumReducer.external_reducer)
-            .filter(SpectrumReducer.spectr_id == spectrum_id)
-            .first()
-        )
-        if external_reducer is not None:
-            spec_dict["external_reducer"] = external_reducer[0]
+            external_reducer = session.scalars(
+                SpectrumReducer.select(session.user_or_token).where(
+                    SpectrumReducer.spectr_id == spectrum_id
+                )
+            ).first()
+            if external_reducer is not None:
+                spec_dict["external_reducer"] = external_reducer.external_reducer
 
-        external_observer = (
-            DBSession()
-            .query(SpectrumObserver.external_observer)
-            .filter(SpectrumObserver.spectr_id == spectrum_id)
-            .first()
-        )
-        if external_observer is not None:
-            spec_dict["external_observer"] = external_observer[0]
+            external_observer = session.scalars(
+                SpectrumObserver.select(session.user_or_token).where(
+                    SpectrumObserver.spectr_id == spectrum_id
+                )
+            ).first()
+            if external_observer is not None:
+                spec_dict["external_observer"] = external_observer.external_observer
 
-        tns_headers = {
-            'User-Agent': f'tns_marker{"tns_id":{tnsrobot.bot_id},"type":"bot", "name":"{tnsrobot.bot_name}"}'
-        }
+            tns_headers = {
+                'User-Agent': f'tns_marker{"tns_id":{tnsrobot.bot_id},"type":"bot", "name":"{tnsrobot.bot_name}"}'
+            }
 
-        tns_prefix, tns_name = get_IAUname(
-            spectrum.obj.id, altdata['api_key'], tns_headers
-        )
-        if tns_name is None:
-            return self.error('TNS name missing... please first post to TNS.')
+            tns_prefix, tns_name = get_IAUname(
+                spectrum.obj.id, altdata['api_key'], tns_headers
+            )
+            if tns_name is None:
+                return self.error('TNS name missing... please first post to TNS.')
 
-        if spectrum.obj.redshift:
-            redshift = spectrum.obj.redshift
+            if spectrum.obj.redshift:
+                redshift = spectrum.obj.redshift
 
-        spectype_id = ['object', 'host', 'sky', 'arcs', 'synthetic'].index(
-            spectrum_type
-        ) + 1
+            spectype_id = ['object', 'host', 'sky', 'arcs', 'synthetic'].index(
+                spectrum_type
+            ) + 1
 
-        if spec_dict["altdata"] is not None:
-            header = spec_dict["altdata"]
-            exposure_time = header['EXPTIME']
-        else:
-            exposure_time = None
-
-        wav = spec_dict['wavelengths']
-        flux = spec_dict['fluxes']
-        err = spec_dict['errors']
-
-        filename = f'{spectrum.instrument.name}.{spectrum_id}'
-        filetype = 'ascii'
-
-        with tempfile.NamedTemporaryFile(
-            prefix=filename,
-            suffix=f'.{filetype}',
-            mode='w',
-        ) as f:
-            if err is not None:
-                for i in range(len(wav)):
-                    f.write(f'{wav[i]} \t {flux[i]} \t {err[i]} \n')
+            if spec_dict["altdata"] is not None:
+                header = spec_dict["altdata"]
+                exposure_time = header['EXPTIME']
             else:
-                for i in range(len(wav)):
-                    f.write(f'{wav[i]} \t {flux[i]}\n')
-            f.flush()
+                exposure_time = None
 
-            data = {'api_key': altdata['api_key']}
+            wav = spec_dict['wavelengths']
+            flux = spec_dict['fluxes']
+            err = spec_dict['errors']
 
-            if filetype == 'ascii':
-                files = [('files[]', (filename, open(f.name), 'text/plain'))]
-            elif filetype == 'fits':
-                files = [
-                    ('files[0]', (filename, open(f.name, 'rb'), 'application/fits'))
-                ]
+            filename = f'{spectrum.instrument.name}.{spectrum_id}'
+            filetype = 'ascii'
 
-            r = requests.post(upload_url, headers=tns_headers, data=data, files=files)
-            if r.status_code != 200:
-                return self.error(f'{r.content}')
+            with tempfile.NamedTemporaryFile(
+                prefix=filename,
+                suffix=f'.{filetype}',
+                mode='w',
+            ) as f:
+                if err is not None:
+                    for i in range(len(wav)):
+                        f.write(f'{wav[i]} \t {flux[i]} \t {err[i]} \n')
+                else:
+                    for i in range(len(wav)):
+                        f.write(f'{wav[i]} \t {flux[i]}\n')
+                f.flush()
 
-            spectrumdict = {
-                'instrumentid': spectrum.instrument.tns_id,
-                'observer': spec_dict["observers"],
-                'reducer': spec_dict["reducers"],
-                'spectypeid': spectype_id,
-                'ascii_file': filename,
-                'fits_file': '',
-                'remarks': spectrum_comment,
-                'spec_proprietary_period': 0.0,
-                'obsdate': spec_dict['observed_at'],
-            }
-            if exposure_time is not None:
-                spectrumdict['exptime'] = exposure_time
+                data = {'api_key': altdata['api_key']}
 
-            classification_report = {
-                'name': tns_name,
-                'classifier': classifiers,
-                'objtypeid': classificationID,
-                'groupid': tnsrobot.source_group_id,
-                'remarks': classification_comment,
-                'spectra': {'spectra-group': {'0': spectrumdict}},
-            }
-            if redshift is not None:
-                classification_report['redshift'] = redshift
+                if filetype == 'ascii':
+                    files = [('files[]', (filename, open(f.name), 'text/plain'))]
+                elif filetype == 'fits':
+                    files = [
+                        ('files[0]', (filename, open(f.name, 'rb'), 'application/fits'))
+                    ]
 
-            classificationdict = {'classification_report': {'0': classification_report}}
+                r = requests.post(
+                    upload_url, headers=tns_headers, data=data, files=files
+                )
+                if r.status_code != 200:
+                    return self.error(f'{r.content}')
 
-            data = {
-                'api_key': altdata['api_key'],
-                'data': json.dumps(classificationdict),
-            }
+                spectrumdict = {
+                    'instrumentid': spectrum.instrument.tns_id,
+                    'observer': spec_dict["observers"],
+                    'reducer': spec_dict["reducers"],
+                    'spectypeid': spectype_id,
+                    'ascii_file': filename,
+                    'fits_file': '',
+                    'remarks': spectrum_comment,
+                    'spec_proprietary_period': 0.0,
+                    'obsdate': spec_dict['observed_at'],
+                }
+                if exposure_time is not None:
+                    spectrumdict['exptime'] = exposure_time
 
-            r = requests.post(report_url, headers=tns_headers, data=data)
-            if r.status_code == 200:
-                tns_id = r.json()['data']['report_id']
-                return self.success(data={'tns_id': tns_id})
-            else:
-                return self.error(f'{r.content}')
+                classification_report = {
+                    'name': tns_name,
+                    'classifier': classifiers,
+                    'objtypeid': classificationID,
+                    'groupid': tnsrobot.source_group_id,
+                    'remarks': classification_comment,
+                    'spectra': {'spectra-group': {'0': spectrumdict}},
+                }
+                if redshift is not None:
+                    classification_report['redshift'] = redshift
+
+                classificationdict = {
+                    'classification_report': {'0': classification_report}
+                }
+
+                data = {
+                    'api_key': altdata['api_key'],
+                    'data': json.dumps(classificationdict),
+                }
+
+                r = requests.post(report_url, headers=tns_headers, data=data)
+                if r.status_code == 200:
+                    tns_id = r.json()['data']['report_id']
+                    return self.success(data={'tns_id': tns_id})
+                else:
+                    return self.error(f'{r.content}')
 
 
 def get_IAUname(objname, api_key, headers):

@@ -274,3 +274,7 @@ def test_obj_classifications(
     assert data['data'][0]['classification'] == 'Algol'
     assert data['data'][0]['id'] == classification_id
     assert len(data['data']) == 1
+
+    status, data = api('GET', 'classification/sources', token=classification_token)
+    assert status == 200
+    assert public_source.id in data['data']

@@ -64,7 +64,11 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-const GcnSelectionForm = ({ gcnEvent, setSelectedLocalizationName }) => {
+const GcnSelectionForm = ({
+  gcnEvent,
+  setSelectedLocalizationName,
+  setSourceFilteringState,
+}) => {
   const classes = useStyles();
   const dispatch = useDispatch();
 
@@ -177,28 +181,6 @@ const GcnSelectionForm = ({ gcnEvent, setSelectedLocalizationName }) => {
     setIsDeletingTreasureMap(null);
   };
 
-  const handleSubmit = async ({ formData }) => {
-    setIsSubmitting(true);
-    formData.startDate = formData.startDate
-      .replace("+00:00", "")
-      .replace(".000Z", "");
-    formData.endDate = formData.endDate
-      .replace("+00:00", "")
-      .replace(".000Z", "");
-    await dispatch(
-      sourcesActions.fetchGcnEventSources(gcnEvent.dateobs, formData)
-    );
-    formData.includeGeoJSON = true;
-    await dispatch(
-      observationsActions.fetchGcnEventObservations(gcnEvent.dateobs, formData)
-    );
-    await dispatch(
-      galaxiesActions.fetchGcnEventGalaxies(gcnEvent.dateobs, formData)
-    );
-    setFormDataState(formData);
-    setIsSubmitting(false);
-  };
-
   if (!sortedInstrumentList) {
     displayOptionsAvailable.instruments = false;
   }
@@ -268,6 +250,44 @@ const GcnSelectionForm = ({ gcnEvent, setSelectedLocalizationName }) => {
     setSelectedLocalizationName(locLookUp[e.target.value].localization_name);
   };
 
+  const handleSubmit = async ({ formData }) => {
+    setIsSubmitting(true);
+    formData.startDate = formData.startDate
+      .replace("+00:00", "")
+      .replace(".000Z", "");
+    formData.endDate = formData.endDate
+      .replace("+00:00", "")
+      .replace(".000Z", "");
+
+    if (Object.keys(locLookUp).includes(selectedLocalizationId?.toString())) {
+      formData.localizationName =
+        locLookUp[selectedLocalizationId].localization_name;
+    }
+
+    if (formData.queryList.includes("sources")) {
+      await dispatch(
+        sourcesActions.fetchGcnEventSources(gcnEvent.dateobs, formData)
+      );
+      setSourceFilteringState(formData);
+    }
+    formData.includeGeoJSON = true;
+    if (formData.queryList.includes("observations")) {
+      await dispatch(
+        observationsActions.fetchGcnEventObservations(
+          gcnEvent.dateobs,
+          formData
+        )
+      );
+    }
+    if (formData.queryList.includes("galaxies")) {
+      await dispatch(
+        galaxiesActions.fetchGcnEventGalaxies(gcnEvent.dateobs, formData)
+      );
+    }
+    setFormDataState(formData);
+    setIsSubmitting(false);
+  };
+
   function createGcnUrl(instrumentId, queryParams) {
     let url = `/api/observation/gcn/${instrumentId}`;
     if (queryParams) {
@@ -310,13 +330,32 @@ const GcnSelectionForm = ({ gcnEvent, setSelectedLocalizationName }) => {
         title: "End Date",
         default: defaultEndDate,
       },
+      numberDetections: {
+        type: "number",
+        title: "Minimum Number of Detections",
+        default: 2,
+      },
       localizationCumprob: {
         type: "number",
         title: "Cumulative Probability",
         default: 0.95,
       },
+      maxDistance: {
+        type: "number",
+        title: "Maximum Distance [Mpc]",
+        default: 150,
+      },
+      queryList: {
+        type: "array",
+        items: {
+          type: "string",
+          enum: ["sources", "galaxies", "observations"],
+        },
+        uniqueItems: true,
+        title: "Query list",
+      },
     },
-    required: ["startDate", "endDate", "localizationCumprob"],
+    required: ["startDate", "endDate", "localizationCumprob", "queryList"],
   };
 
   if (!gcnEvent) {
@@ -368,7 +407,7 @@ const GcnSelectionForm = ({ gcnEvent, setSelectedLocalizationName }) => {
               key={localization.id}
               className={classes.localizationSelectItem}
             >
-              {`${localization.localization_name}`}
+              {`Skymap: ${localization.localization_name} / Created: ${localization.created_at}`}
             </MenuItem>
           ))}
         </Select>
@@ -491,5 +530,6 @@ GcnSelectionForm.propTypes = {
     id: PropTypes.number,
   }).isRequired,
   setSelectedLocalizationName: PropTypes.func.isRequired,
+  setSourceFilteringState: PropTypes.func.isRequired,
 };
 export default GcnSelectionForm;

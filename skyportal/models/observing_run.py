@@ -42,6 +42,7 @@ class ObservingRun(Base):
         cascade='save-update, merge, refresh-expire, expunge',
         passive_deletes=True,
         doc="The targets [Objs] for this run.",
+        overlaps='assignments, obj, run',
     )
 
     # let this be nullable to accommodate external groups' runs
@@ -75,6 +76,7 @@ class ObservingRun(Base):
         'ClassicalAssignment',
         passive_deletes=True,
         doc="The Target Assignments for this Run.",
+        overlaps='sources',
     )
     calendar_date = sa.Column(
         sa.Date, nullable=False, index=True, doc="The Local Calendar date of this Run."

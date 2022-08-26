@@ -8,6 +8,7 @@ __all__ = [
 import sqlalchemy as sa
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import relationship
+from sqlalchemy.orm import deferred
 
 from baselayer.app.models import (
     Base,
@@ -41,11 +42,15 @@ class CommentMixin:
         sa.String, nullable=True, doc="Filename of the attachment."
     )
 
-    attachment_bytes = sa.Column(
-        sa.types.LargeBinary,
-        nullable=True,
-        doc="Binary representation of the attachment.",
-    )
+    @declared_attr
+    def attachment_bytes(cls):
+        return deferred(
+            sa.Column(
+                sa.types.LargeBinary,
+                nullable=True,
+                doc="Binary representation of the attachment.",
+            )
+        )
 
     origin = sa.Column(sa.String, nullable=True, doc='Comment origin.')
 
