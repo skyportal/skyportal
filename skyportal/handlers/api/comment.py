@@ -7,6 +7,8 @@ from baselayer.log import make_log
 from ..base import BaseHandler
 import sqlalchemy as sa
 import time
+import unicodedata
+
 from ...utils.sizeof import sizeof, SIZE_WARNING_THRESHOLD
 from ...models import (
     Comment,
@@ -964,17 +966,25 @@ class CommentAttachmentHandler(BaseHandler):
             if not comment.attachment_bytes:
                 return self.error('Comment has no attachment')
 
+            # validate decoding
+            decoded_attachment = base64.b64decode(comment.attachment_bytes)
+            attachment_name = ''.join(
+                c
+                for c in unicodedata.normalize('NFD', comment.attachment_name)
+                if unicodedata.category(c) != 'Mn'
+            )
+
             if download:
                 self.set_header(
                     "Content-Disposition",
-                    "attachment; " f"filename={comment.attachment_name}",
+                    "attachment; " f"filename={attachment_name}",
                 )
                 self.set_header("Content-type", "application/octet-stream")
-                self.write(base64.b64decode(comment.attachment_bytes))
+                self.write(decoded_attachment)
             else:
                 comment_data = {
                     "commentId": int(comment_id),
-                    "attachment": base64.b64decode(comment.attachment_bytes).decode(),
+                    "attachment": decoded_attachment.decode(),
                 }
 
                 query_size = sizeof(comment_data)
