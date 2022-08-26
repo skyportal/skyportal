@@ -19,7 +19,8 @@ The vast majority of follow-up instruments will require some form of authenticat
 * LCO: A user account must be made on https://lco.global/, at which point the authentication takes the form `{"PROPOSAL_ID": "your_proposal_ID", "API_TOKEN": "testtoken"}`.
 * LT: A proposal ID, username, and password are passed as `{"username": "username", "password": "password", "LT_proposalID": "your_proposal_ID"}`.
 * SLACK: As discussed further [here](./slack.html), slack information is pass as `{"slack_workspace": "XXX", "slack_channel": "YYY", "slack_token": "ZZZ"}`.
-* SWIFT: A username and password are passed as `{"username": "username", "secret": "password"}`.
+* SWIFT Triggering: A username and password are passed as `{"username": "username", "secret": "password"}`.
+* SWIFT XRT Reductions: A user account must be made with the Swift-XRT data products API platform (see https://www.swift.ac.uk/user_objects/register.php to register). The authentication then is the email of the user `"XRT_UserID": "swift_email"}` where swift_email is the email address used upon sign up.
 * ZTF Triggering: An API token for an admin user for [Kowalski](https://github.com/dmitryduev/kowalski) can be passed as `{"access_token": "your_token"}`.
 * ZTF Forced Photometry: A user account must be made with the ZTF forced photometry service (see https://zwicky.tf/vgt). The authentication then takes the form `{"ipac_http_user": "http_user", "ipac_http_password": "http_password", "ipac_email": "email", "ipac_userpass": "password"}` where http_user and http_password are provided in the documentation and ipac_email and ipac_userpass are provided for the specific account. Note that IPAC's forced photometry database is updated once per hour, on the hour, and requests will only be available after this update.
 
