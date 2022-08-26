@@ -126,10 +126,7 @@ class XRTAPIRequest:
         MET = Time('2001-01-01 00:00:00', format='iso')
         Tdiff = (T0 - MET).jd * 86400
 
-        if "detornot" in request.payload and request.payload["detornot"]:
-            centroid = True
-        else:
-            centroid = False
+        centroid = bool(request.payload.get("detornot", False))
 
         myReq = XRTProductRequest(altdata["XRT_UserID"])
         myReq.setGlobalPars(
