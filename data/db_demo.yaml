@@ -336,7 +336,7 @@ instrument:
     =id: UVOTXRT
     telescope_id: =Swift
     type: imager
-    filters: ['bessellux']
+    filters: ['uvot::b', 'uvot::u', 'uvot::v', 'uvot::uvm2', 'uvot::uvw1', 'uvot::uvw2', 'uvot::white']
   - band: optical
     name: PS1
     telescope_id: =PS1
