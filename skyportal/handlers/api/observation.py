@@ -1124,8 +1124,7 @@ class ObservationExternalAPIHandler(BaseHandler):
                 'Submitting executed observation plan requests to this Instrument is not available.'
             )
 
-        # try:
-        if True:
+        try:
             # we now retrieve and commit to the database the
             # executed observations
             instrument.api_class_obsplan.retrieve(
@@ -1135,8 +1134,8 @@ class ObservationExternalAPIHandler(BaseHandler):
                 'Observation ingestion in progress. Should be available soon.'
             )
             return self.success()
-        # except Exception as e:
-        #    return self.error(f"Error in querying instrument API: {e}")
+        except Exception as e:
+            return self.error(f"Error in querying instrument API: {e}")
 
     @permissions(['Upload data'])
     def get(self, allocation_id):
