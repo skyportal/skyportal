@@ -337,6 +337,8 @@ instrument:
     telescope_id: =Swift
     type: imager
     filters: ['bessellux']
+    field_region:
+      file: ../data/Swift_Region.reg
   - band: optical
     name: PS1
     telescope_id: =PS1
