@@ -112,6 +112,15 @@ def get_tags(root):
     if search is not None:
         yield search.attrib['value']
 
+    # Get Instruments, if if present.
+    try:
+        value = root.find(".//Param[@name='Instruments']").attrib['value']
+    except AttributeError:
+        pass
+    else:
+        instruments = value.split(",")
+        yield from instruments
+
 
 def get_skymap(root, gcn_notice):
     mission = urlparse(root.attrib['ivorn']).path.lstrip('/')
