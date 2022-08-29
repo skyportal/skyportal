@@ -8,6 +8,8 @@ import pandas as pd
 import requests
 import sqlalchemy as sa
 from sqlalchemy.orm import sessionmaker, scoped_session
+from swifttools.swift_too import ObsQuery, UVOT_mode, Swift_TOO, Data
+from swifttools.xrt_prods import XRTProductRequest
 import tarfile
 import tempfile
 from tornado.ioloop import IOLoop
@@ -77,8 +79,6 @@ def fetch_observations(instrument_id, request_start, request_end):
         End time for the request.
     """
 
-    from swifttools.swift_too import ObsQuery, UVOT_mode
-
     oq = ObsQuery(begin=request_start.iso, end=request_end.iso)
 
     observations = []
@@ -142,8 +142,6 @@ class UVOTXRTRequest:
         """
 
         altdata = request.allocation.altdata
-
-        from swifttools.swift_too import Swift_TOO
 
         too = Swift_TOO()
         too.username = altdata["username"]
@@ -211,8 +209,6 @@ class XRTAPIRequest:
             payload for requests.
         """
 
-        from swifttools.xrt_prods import XRTProductRequest
-
         altdata = request.allocation.altdata
 
         T0 = Time(request.payload["T0"], format='iso')
@@ -273,8 +269,6 @@ class UVOTXRTBATDataRequest:
             payload for requests.
         """
 
-        from swifttools.swift_too import ObsQuery
-
         oq = ObsQuery(
             ra=request.obj.ra,
             dec=request.obj.dec,
@@ -289,7 +283,7 @@ class UVOTXRTBATDataRequest:
 def download_observations(request_id, oq):
     """Fetch data from the Swift API.
     request_id : int
-        ID for request
+        SkyPortal ID for request
     oq : swifttools.swift_too.ObsQuery
         Swift observation query
     """
@@ -300,7 +294,6 @@ def download_observations(request_id, oq):
         FollowupRequest,
         Group,
     )
-    from swifttools.swift_too import Data
 
     Session = scoped_session(sessionmaker(bind=DBSession.session_factory.kw["bind"]))
     session = Session()
