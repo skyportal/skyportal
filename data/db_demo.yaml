@@ -895,7 +895,8 @@ gcn_event:
       file: ../skyportal/tests/data/GRB180116A_Fermi_GBM_Gnd_Pos.xml
   - xml:
       file: ./GW190814.xml
-
+  - xml:
+      file: ./AMON.xml
 
 gcn_event/1/comments:
   - text: "This is a test comment"
