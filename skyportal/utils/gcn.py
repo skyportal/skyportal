@@ -112,7 +112,7 @@ def get_tags(root):
     if search is not None:
         yield search.attrib['value']
 
-    # Get Instruments, if if present.
+    # Get Instruments, if present.
     try:
         value = root.find(".//Param[@name='Instruments']").attrib['value']
     except AttributeError:
