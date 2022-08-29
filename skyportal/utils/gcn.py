@@ -64,6 +64,17 @@ def get_tags(root):
         gcn.NoticeType.LVC_RETRACTION,
     }:
         yield 'GW'
+    elif notice_type in {
+        gcn.NoticeType.ICECUBE_ASTROTRACK_GOLD,
+        gcn.NoticeType.ICECUBE_ASTROTRACK_BRONZE,
+    }:
+        yield 'Neutrino'
+        yield 'IceCube'
+
+    if notice_type == gcn.NoticeType.ICECUBE_ASTROTRACK_GOLD:
+        yield 'Gold'
+    elif notice_type == gcn.NoticeType.ICECUBE_ASTROTRACK_BRONZE:
+        yield 'Bronze'
 
     # Is this a retracted LIGO/Virgo event?
     if notice_type == gcn.NoticeType.LVC_RETRACTION:
