@@ -77,8 +77,7 @@ def fetch_observations(instrument_id, request_start, request_end):
         End time for the request.
     """
 
-    from swifttools.swift_too import ObsQuery
-    from swifttools.swift_too import UVOT_mode
+    from swifttools.swift_too import ObsQuery, UVOT_mode
 
     oq = ObsQuery(begin=request_start.iso, end=request_end.iso)
 
