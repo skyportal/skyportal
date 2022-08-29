@@ -116,7 +116,6 @@ const ExecutedObservationsTable = ({
       ra: observations[dataIndex].field.ra,
       dec: observations[dataIndex].field.dec,
     };
-    console.log("formData", formData);
     return (
       <div className={classes.actionButtons}>
         {isSaving === formData.id ? (
