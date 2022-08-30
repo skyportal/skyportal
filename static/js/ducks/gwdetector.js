@@ -12,11 +12,20 @@ const SUBMIT_GWDETECTOR = "skyportal/SUBMIT_GWDETECTOR";
 
 const CURRENT_GWDETECTORS_AND_MENU = "skyportal/CURRENT_GWDETECTORS_AND_MENU";
 
+const REFRESH_GWDETECTOR_LIST = "skyportal/REFRESH_GWDETECTORS";
+
+const FETCH_GWDETECTOR_LIST = "skyportal/FETCH_GWDETECTOR_LIST";
+const FETCH_GWDETECTOR_LIST_OK = "skyportal/FETCH_GWDETECTOR_LIST_OK";
+
 export const fetchGWDetector = (id) =>
   API.GET(`/api/gwdetector/${id}`, FETCH_GWDETECTOR);
 
 export const submitGWDetector = (run) =>
   API.POST(`/api/gwdetector`, SUBMIT_GWDETECTOR, run);
+
+// eslint-disable-next-line import/prefer-default-export
+export const fetchGWDetectors = () =>
+  API.GET("/api/gwdetector", FETCH_GWDETECTOR_LIST);
 
 // Websocket message handler
 messageHandler.add((actionType, payload, dispatch, getState) => {
@@ -27,9 +36,12 @@ messageHandler.add((actionType, payload, dispatch, getState) => {
       dispatch(fetchGWDetector(gwdetector_id));
     }
   }
+  if (actionType === REFRESH_GWDETECTOR_LIST) {
+    dispatch(fetchGWDetectors());
+  }
 });
 
-const reducer = (
+const reducer_gwdetector = (
   state = {
     assignments: [],
     currentGWDetectors: null,
@@ -47,10 +59,6 @@ const reducer = (
     }
     case CURRENT_GWDETECTORS_AND_MENU: {
       const gwdetector = {};
-      console.log(
-        "action.data.currentGWDetectorMenu",
-        action.data.currentGWDetectorMenu
-      );
       gwdetector.currentGWDetectors = action.data.currentGWDetectors;
       gwdetector.currentGWDetectorMenu = action.data.currentGWDetectorMenu;
       return {
@@ -63,4 +71,19 @@ const reducer = (
   }
 };
 
-store.injectReducer("gwdetector", reducer);
+const reducer_gwdetectors = (state = { gwdetectorList: [] }, action) => {
+  switch (action.type) {
+    case FETCH_GWDETECTOR_LIST_OK: {
+      const gwdetectorList = action.data;
+      return {
+        ...state,
+        gwdetectorList,
+      };
+    }
+    default:
+      return state;
+  }
+};
+
+store.injectReducer("gwdetector", reducer_gwdetector);
+store.injectReducer("gwdetectors", reducer_gwdetectors);

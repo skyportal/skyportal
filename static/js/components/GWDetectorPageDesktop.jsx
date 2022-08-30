@@ -73,7 +73,7 @@ export function gwdetectorInfo(gwdetector) {
   return result;
 }
 
-const GWDetectorPage = () => {
+const GWDetectorPageDesktop = () => {
   dispatch = useDispatch();
   const currentUser = useSelector((state) => state.profile);
   const { gwdetectorList } = useSelector((state) => state.gwdetectors);
@@ -152,4 +152,4 @@ const GWDetectorPage = () => {
   );
 };
 
-export default GWDetectorPage;
+export default GWDetectorPageDesktop;

@@ -84,7 +84,7 @@ const GWDetectorList = ({ gwdetectors }) => {
   );
 };
 
-const GWDetectorPage = () => {
+const GWDetectorPageMobile = () => {
   const { gwdetectorList } = useSelector((state) => state.gwdetectors);
   const currentUser = useSelector((state) => state.profile);
 
@@ -127,4 +127,4 @@ GWDetectorList.propTypes = {
   ).isRequired,
 };
 
-export default GWDetectorPage;
+export default GWDetectorPageMobile;

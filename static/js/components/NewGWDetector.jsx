@@ -3,8 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 // eslint-disable-next-line import/no-unresolved
 import Form from "@rjsf/material-ui/v5";
 import { showNotification } from "baselayer/components/Notifications";
-import { submitGWDetector } from "../ducks/gwdetector";
-import { fetchGWDetectors } from "../ducks/gwdetectors";
+import { submitGWDetector, fetchGWDetectors } from "../ducks/gwdetector";
 
 const NewGWDetector = () => {
   const { gwdetectorList } = useSelector((state) => state.gwdetectors);
@@ -12,7 +11,6 @@ const NewGWDetector = () => {
 
   const handleSubmit = async ({ formData }) => {
     const result = await dispatch(submitGWDetector(formData));
-    console.log("result", result);
     if (result.status === "success") {
       dispatch(showNotification("GWDetector saved"));
       dispatch(fetchGWDetectors());

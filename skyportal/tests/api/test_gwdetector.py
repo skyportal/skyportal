@@ -68,7 +68,7 @@ def test_token_user_update_gwdetector(super_admin_token):
     assert data['data']['lon'] == 0.0
 
     status, data = api(
-        'PUT',
+        'PATCH',
         f'gwdetector/{gwdetector_id}',
         data={
             'name': name,

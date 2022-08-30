@@ -101,7 +101,7 @@ class GWDetectorHandler(BaseHandler):
               name: name
               schema:
                 type: string
-              description: Filter by name (exact match)
+              description: Filter by name
           responses:
             200:
               content:
@@ -127,16 +127,16 @@ class GWDetectorHandler(BaseHandler):
                     )
                 return self.success(data=t)
 
-            tel_name = self.get_query_argument("name", None)
+            det_name = self.get_query_argument("name", None)
             stmt = GWDetector.select(session.user_or_token)
-            if tel_name is not None:
-                stmt = stmt.where(GWDetector.name == tel_name)
+            if det_name is not None:
+                stmt = stmt.where(GWDetector.name.contains(det_name))
 
             data = session.scalars(stmt).all()
             return self.success(data=data)
 
     @permissions(['Manage allocations'])
-    def put(self, gwdetector_id):
+    def patch(self, gwdetector_id):
         """
         ---
         description: Update gwdetector
@@ -187,8 +187,12 @@ class GWDetectorHandler(BaseHandler):
             if 'nickname' in data:
                 t.nickname = data['nickname']
             if 'lat' in data:
+                if data['lat'] < -90 or data['lat'] > 90:
+                    return self.error('Latitude must be between -90 and 90')
                 t.lat = data['lat']
             if 'lon' in data:
+                if data['lon'] < -180 or data['lon'] > 180:
+                    return self.error('Longitude between -180 and 180')
                 t.lon = data['lon']
 
             session.commit()
