@@ -42,13 +42,13 @@ class GWDetectorHandler(BaseHandler):
         with self.Session() as session:
 
             schema = GWDetector.__schema__()
-            if 'lat' not in data or 'lon' not in data:
-                return self.error('Missing latitude or longitude')
-            elif not isinstance(data['lat'], (int, float)) or not isinstance(
-                data['lon'], (int, float)
-            ):
-                return self.error('Latitude and longitude must all be numbers')
-            elif (
+            try:
+                gwdetector = schema.load(data)
+            except ValidationError as e:
+                return self.error(
+                    'Invalid/missing parameters: ' f'{e.normalized_messages()}'
+                )
+            if (
                 data['lat'] < -90
                 or data['lat'] > 90
                 or data['lon'] < -180
@@ -56,12 +56,6 @@ class GWDetectorHandler(BaseHandler):
             ):
                 return self.error(
                     'Latitude must be between -90 and 90, longitude between -180 and 180'
-                )
-            try:
-                gwdetector = schema.load(data)
-            except ValidationError as e:
-                return self.error(
-                    'Invalid/missing parameters: ' f'{e.normalized_messages()}'
                 )
             session.add(gwdetector)
             session.commit()
