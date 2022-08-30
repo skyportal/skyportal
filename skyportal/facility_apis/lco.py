@@ -48,7 +48,7 @@ class SINISTRORequest:
         # Constraints used for scheduling this observation
         constraints = {
             'max_airmass': request.payload["maximum_airmass"],
-            'min_lunar_distance': 30,
+            'min_lunar_distance': request.payload["minimum_lunar_distance"],
         }
 
         # The target of the observation
@@ -681,7 +681,7 @@ class SINISTROAPI(LCOAPI):
                 "maximum": 3,
             },
             "minimum_lunar_distance": {
-                "title": "Maximum Seeing [arcsec] (0-180)",
+                "title": "Minimum Lunar Distance [deg.] (0-180)",
                 "type": "number",
                 "default": 30.0,
                 "minimum": 0,
@@ -804,7 +804,7 @@ class SPECTRALAPI(LCOAPI):
                 "maximum": 3,
             },
             "minimum_lunar_distance": {
-                "title": "Maximum Seeing [arcsec] (0-180)",
+                "title": "Minimum Lunar Distance [deg.] (0-180)",
                 "type": "number",
                 "default": 30.0,
                 "minimum": 0,
@@ -919,7 +919,7 @@ class MUSCATAPI(LCOAPI):
                 "maximum": 3,
             },
             "minimum_lunar_distance": {
-                "title": "Maximum Seeing [arcsec] (0-180)",
+                "title": "Minimum Lunar Distance [deg.] (0-180)",
                 "type": "number",
                 "default": 30.0,
                 "minimum": 0,
@@ -1034,7 +1034,7 @@ class FLOYDSAPI(LCOAPI):
                 "maximum": 3,
             },
             "minimum_lunar_distance": {
-                "title": "Maximum Seeing [arcsec] (0-180)",
+                "title": "Minimum Lunar Distance [deg.] (0-180)",
                 "type": "number",
                 "default": 30.0,
                 "minimum": 0,
