@@ -45,6 +45,7 @@ from .group import (
     GroupUsersFromOtherGroupsHandler,
     ObjGroupsHandler,
 )
+from .gwdetector import GWDetectorHandler
 from .healpix import HealpixUpdateHandler
 from .user_obj_list import UserObjListHandler
 from .group_admission_request import GroupAdmissionRequestHandler

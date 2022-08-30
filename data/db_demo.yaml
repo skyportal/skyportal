@@ -97,6 +97,33 @@ filters:
     stream_id: =ztf_public
     =id: example_filter2
 
+gwdetector:
+  - name: LIGO Hanford Observatory
+    nickname: LHO
+    lat: 46.6475
+    lon: -119.5986
+    =id: LHO
+  - name: LIGO Livingston Observatory
+    nickname: LLO
+    lat: 30.4986
+    lon: -90.7483
+    =id: LLO
+  - name: GEO600
+    nickname: GEO
+    lat: 52.246944
+    lon: 9.80833
+    =id: GEO
+  - name: VIRGO
+    nickname: VIRGO
+    lat: 43.631389
+    lon: 10.505
+    =id: VIRGO
+  - name: Kamioka Gravitational Wave Detector
+    nickname: KAGRA
+    lat: 36.4119
+    lon: 137.3058
+    =id: KAGRA
+
 telescope:
   - name: Palomar 1.2m
     nickname: P48
