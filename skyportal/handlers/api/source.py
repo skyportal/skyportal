@@ -1088,11 +1088,15 @@ def get_sources(
                 ).all()
 
             if not remove_nested:
-                readable_classifications = session.scalars(
-                    Classification.select(session.user_or_token).where(
-                        Classification.obj_id == obj.id
+                readable_classifications = (
+                    session.scalars(
+                        Classification.select(session.user_or_token).where(
+                            Classification.obj_id == obj.id
+                        )
                     )
-                ).all()
+                    .unique()
+                    .all()
+                )
 
                 readable_classifications_json = []
                 for classification in readable_classifications:
