@@ -14,8 +14,8 @@ def test_earthquake(super_admin_token, view_only_token):
     status, data = api('POST', 'earthquake', data=data, token=super_admin_token)
     assert status == 200
     assert data['status'] == 'success'
+    event_id = data["data"]["id"]
 
-    event_id = 'quakeml:nc.anss.org-Event-NC-73446401'
     status, data = api('GET', f'earthquake/{event_id}', token=super_admin_token)
     assert status == 200
     data = data["data"]

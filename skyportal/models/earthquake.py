@@ -67,11 +67,11 @@ class EarthquakePrediction(Base):
         comment='Earthquake ID',
     )
 
-    ifo_id = sa.Column(
+    detector_id = sa.Column(
         sa.Integer,
-        sa.ForeignKey('interferometers.id'),
+        sa.ForeignKey('mmadetectors.id'),
         nullable=False,
-        comment='Interferometer id',
+        comment='Multimessenger Astronomical Detector id',
     )
 
     d = sa.Column(sa.Float, nullable=False, comment='Distance [km]')
@@ -105,11 +105,11 @@ class EarthquakeMeasured(Base):
         comment='Earthquake ID',
     )
 
-    ifo_id = sa.Column(
+    detector_id = sa.Column(
         sa.Integer,
-        sa.ForeignKey('interferometers.id'),
+        sa.ForeignKey('mmadetectors.id'),
         nullable=False,
-        comment='Interferometer id',
+        comment='Multimessenger Astronomical Detector id',
     )
 
     rfamp = sa.Column(

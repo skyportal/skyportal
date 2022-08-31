@@ -19,7 +19,7 @@ from ...models import (
     EarthquakeEvent,
     EarthquakeNotice,
     EarthquakePrediction,
-    Interferometer,
+    MMADetector,
     User,
 )
 
@@ -238,7 +238,7 @@ class EarthquakeHandler(BaseHandler):
                     data, self.associated_user_object.id, session
                 )
 
-            return self.success(data={'earthquakeevent_id': event_id})
+            return self.success(data={'id': event_id})
 
     @auth_or_token
     async def get(self, event_id=None):
@@ -329,7 +329,7 @@ class EarthquakeHandler(BaseHandler):
                             joinedload(EarthquakeEvent.comments),
                             joinedload(EarthquakeEvent.predictions),
                         ],
-                    ).where(EarthquakeEvent.event_id == event_id)
+                    ).where(EarthquakeEvent.id == event_id)
                 ).first()
                 if event is None:
                     return self.error("Earthquake event not found", status=404)
@@ -465,7 +465,7 @@ class EarthquakeHandler(BaseHandler):
 
 class EarthquakePredictionHandler(BaseHandler):
     @auth_or_token
-    async def post(self, earthquake_id, ifo_id):
+    async def post(self, earthquake_id, mma_detector_id):
         """
         ---
         description: Perform a prediction analysis for the earthquake.
@@ -478,7 +478,7 @@ class EarthquakePredictionHandler(BaseHandler):
             schema:
               type: string
           - in: path
-            name: ifo_id
+            name: mma_detector_id
             required: true
             schema:
               type: string
@@ -503,18 +503,23 @@ class EarthquakePredictionHandler(BaseHandler):
                     f'Cannot find EarthquakeEvent with ID {earthquake_id}'
                 )
 
-            ifo = session.scalars(
-                Interferometer.select(session.user_or_token).where(
-                    Interferometer.id == ifo_id
+            detector = session.scalars(
+                MMADetector.select(session.user_or_token).where(
+                    MMADetector.id == mma_detector_id
                 )
             ).first()
-            if ifo is None:
-                return self.error(f'Cannot find Interferometer with ID {ifo_id}')
+            if detector is None:
+                return self.error(f'Cannot find MMADetector with ID {mma_detector_id}')
 
             notices = event.notices
             if len(notices) == 0:
                 return self.error('Cannot make prediction with no information.')
             notice = notices[-1]
+
+            if not detector.fixed_location:
+                return self.error(
+                    'Cannot make prediction for a detector not at a fixed location.'
+                )
 
             (
                 Dist,
@@ -523,12 +528,12 @@ class EarthquakePredictionHandler(BaseHandler):
                 Rtwotime,
                 RthreePointFivetime,
                 Rfivetime,
-            ) = compute_traveltimes(notice, ifo)
+            ) = compute_traveltimes(notice, detector)
             Rfamp, Lockloss = 0.0, 0.0
 
             prediction = EarthquakePrediction(
                 event_id=event.id,
-                ifo_id=ifo.id,
+                detector_id=detector.id,
                 d=Dist,
                 p=Ptime,
                 s=Stime,
@@ -549,14 +554,23 @@ class EarthquakePredictionHandler(BaseHandler):
             return self.success()
 
 
-def compute_traveltimes(earthquake, ifo):
+def compute_traveltimes(earthquake, detector):
+    """Compute earthquake properties
+
+    Parameters
+    ----------
+    earthquake : skymodel.models.earthquake.EarthquakeEvent
+        EarthquakeEvent to compute parameters for
+    detector : skymodel.models.mmadetector.MMADetector
+        MMA Detector to compute parameters for
+    """
 
     depth = earthquake.depth
     eqtime = Time(earthquake.date, format='datetime')
     eqlat = earthquake.lat
     eqlon = earthquake.lon
-    ifolat = ifo.lat
-    ifolon = ifo.lon
+    ifolat = detector.lat
+    ifolon = detector.lon
 
     distance, fwd, back = gps2dist_azimuth(eqlat, eqlon, ifolat, ifolon)
     Dist = distance / 1000
