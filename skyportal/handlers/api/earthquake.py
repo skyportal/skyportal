@@ -195,7 +195,7 @@ class EarthquakeHandler(BaseHandler):
         requestBody:
           content:
             application/json:
-              schema: GcnHandlerPut
+              schema: EarthquakeEventNoID
         responses:
           200:
             content:
@@ -254,6 +254,15 @@ class EarthquakeHandler(BaseHandler):
               required: false
               schema:
                 type: string
+          responses:
+            200:
+              content:
+                application/json:
+                  schema: SingleEarthquakeEvent
+            400:
+              content:
+                application/json:
+                  schema: Error
         multiple:
           description: Retrieve multiple Earthquake events
           tags:
@@ -293,7 +302,7 @@ class EarthquakeHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: EarthquakeHandlerGet
+                schema: ArrayOfEarthquakeEvents
           400:
             content:
               application/json:
