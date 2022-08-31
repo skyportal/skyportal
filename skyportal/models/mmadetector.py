@@ -1,17 +1,21 @@
 __all__ = ['MMADetector']
 
 import sqlalchemy as sa
+from sqlalchemy.orm import relationship
 
 from baselayer.app.models import (
     Base,
     CustomUserAccessControl,
     DBSession,
+    join_model,
     public,
 )
 
 from ..enum_types import (
     mma_detector_types,
 )
+
+from .gcn import GcnEvent
 
 from baselayer.app.env import load_env
 
@@ -60,3 +64,16 @@ class MMADetector(Base):
         server_default='true',
         doc="Does this telescope have a fixed location (lon, lat, elev)?",
     )
+
+    events = relationship(
+        "GcnEvent",
+        secondary="gcnevents_mmadetectors",
+        back_populates="detectors",
+        cascade="save-update, merge, refresh-expire, expunge",
+        passive_deletes=True,
+        doc="GcnEvents associated with this detector.",
+    )
+
+
+GcnEventMMADetector = join_model("gcnevents_mmadetectors", GcnEvent, MMADetector)
+GcnEventMMADetector.__doc__ = "Join table mapping GcnEvents to MMADetectors."

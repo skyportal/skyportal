@@ -99,35 +99,35 @@ filters:
 
 mmadetector:
   - name: LIGO Hanford Observatory
-    nickname: LHO
+    nickname: H1
     lat: 46.6475
     lon: -119.5986
     fixed_location: true
     type: gravitational-wave
     =id: LHO
   - name: LIGO Livingston Observatory
-    nickname: LLO
+    nickname: L1
     lat: 30.4986
     lon: -90.7483
     fixed_location: true
     type: gravitational-wave
     =id: LLO
   - name: GEO600
-    nickname: GEO
+    nickname: G1
     lat: 52.246944
     lon: 9.80833
     fixed_location: true
     type: gravitational-wave
     =id: GEO
   - name: VIRGO
-    nickname: VIRGO
+    nickname: V1
     lat: 43.631389
     lon: 10.505
     fixed_location: true
     type: gravitational-wave
     =id: VIRGO
   - name: Kamioka Gravitational Wave Detector
-    nickname: KAGRA
+    nickname: K1
     lat: 36.4119
     lon: 137.3058
     fixed_location: true

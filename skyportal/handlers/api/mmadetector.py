@@ -1,3 +1,5 @@
+from sqlalchemy.orm import joinedload
+
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 
@@ -112,9 +114,9 @@ class MMADetectorHandler(BaseHandler):
 
             if mmadetector_id is not None:
                 t = session.scalars(
-                    MMADetector.select(session.user_or_token).where(
-                        MMADetector.id == int(mmadetector_id)
-                    )
+                    MMADetector.select(
+                        session.user_or_token, options=[joinedload(MMADetector.events)]
+                    ).where(MMADetector.id == int(mmadetector_id))
                 ).first()
                 if t is None:
                     return self.error(
