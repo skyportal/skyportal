@@ -337,6 +337,8 @@ instrument:
     telescope_id: =Swift
     type: imager
     filters: ['uvot::b', 'uvot::u', 'uvot::v', 'uvot::uvm2', 'uvot::uvw1', 'uvot::uvw2', 'uvot::white']
+    field_region:
+      file: ../data/Swift_Region.reg
   - band: optical
     name: PS1
     telescope_id: =PS1
