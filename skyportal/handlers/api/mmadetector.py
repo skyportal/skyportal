@@ -12,7 +12,7 @@ class MMADetectorHandler(BaseHandler):
     def post(self):
         """
         ---
-        description: Create mmadetector
+        description: Create Multimessenger Astronomical Detector (MMADetector)
         tags:
           - mmadetectors
         requestBody:
