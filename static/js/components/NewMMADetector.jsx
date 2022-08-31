@@ -27,7 +27,9 @@ const NewMMADetector = () => {
   function validate(formData, errors) {
     mmadetectorList?.forEach((mmadetector) => {
       if (formData.name === mmadetector.name) {
-        errors.name.addError("MMADetector name matches another, please change.");
+        errors.name.addError(
+          "MMADetector name matches another, please change."
+        );
       }
     });
     if (formData.lon < -180 || formData.lon > 180) {

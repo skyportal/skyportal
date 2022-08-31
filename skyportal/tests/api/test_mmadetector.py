@@ -95,6 +95,7 @@ def test_token_user_update_mmadetector(super_admin_token):
     assert data['data']['lon'] == 20.0
     assert data['data']['type'] == 'neutrino'
 
+
 def test_token_user_delete_mmadetector(super_admin_token):
     name = str(uuid.uuid4())
     status, data = api(
@@ -118,7 +119,9 @@ def test_token_user_delete_mmadetector(super_admin_token):
     assert status == 200
     assert data['status'] == 'success'
 
-    status, data = api('DELETE', f'mmadetector/{mmadetector_id}', token=super_admin_token)
+    status, data = api(
+        'DELETE', f'mmadetector/{mmadetector_id}', token=super_admin_token
+    )
     assert status == 200
     assert data['status'] == 'success'
 
