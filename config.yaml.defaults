@@ -130,6 +130,8 @@ app:
       component: TelescopePage
     - path: "/instruments"
       component: InstrumentPage
+    - path: "/mmadetectors"
+      component: MMADetectorPage
     - path: "/services"
       component: AnalysisServicePage
     - path: "/shifts"
@@ -190,6 +192,10 @@ app:
         - name: Instruments
           icon: Wifi
           url: /instruments
+
+        - name: MMADetectors
+          icon: Abc
+          url: /mmadetectors
 
         - name: Allocations
           icon: HourglassEmptyOutlined
