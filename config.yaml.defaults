@@ -128,8 +128,8 @@ app:
       component: TelescopePage
     - path: "/instruments"
       component: InstrumentPage
-    - path: "/gwdetectors"
-      component: GWDetectorPage
+    - path: "/mmadetectors"
+      component: MMADetectorPage
     - path: "/services"
       component: AnalysisServicePage
     - path: "/shifts"
@@ -191,9 +191,9 @@ app:
           icon: Wifi
           url: /instruments
 
-        - name: GWDetectors
+        - name: MMADetectors
           icon: Abc
-          url: /gwdetectors
+          url: /mmadetectors
 
         - name: Allocations
           icon: HourglassEmptyOutlined

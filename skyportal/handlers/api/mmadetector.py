@@ -2,21 +2,21 @@ from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 
 from ..base import BaseHandler
-from ...models import GWDetector
+from ...models import MMADetector
 
 
-class GWDetectorHandler(BaseHandler):
+class MMADetectorHandler(BaseHandler):
     @permissions(['Manage allocations'])
     def post(self):
         """
         ---
-        description: Create gwdetector
+        description: Create mmadetector
         tags:
-          - gwdetectors
+          - mmadetectors
         requestBody:
           content:
             application/json:
-              schema: GWDetectorNoID
+              schema: MMADetectorNoID
         responses:
           200:
             content:
@@ -31,7 +31,7 @@ class GWDetectorHandler(BaseHandler):
                           properties:
                             id:
                               type: integer
-                              description: New gwdetector ID
+                              description: New mmadetector ID
           400:
             content:
               application/json:
@@ -41,39 +41,40 @@ class GWDetectorHandler(BaseHandler):
 
         with self.Session() as session:
 
-            schema = GWDetector.__schema__()
+            schema = MMADetector.__schema__()
             try:
-                gwdetector = schema.load(data)
+                mmadetector = schema.load(data)
             except ValidationError as e:
                 return self.error(
                     'Invalid/missing parameters: ' f'{e.normalized_messages()}'
                 )
-            if (
-                data['lat'] < -90
-                or data['lat'] > 90
-                or data['lon'] < -180
-                or data['lon'] > 180
-            ):
-                return self.error(
-                    'Latitude must be between -90 and 90, longitude between -180 and 180'
-                )
-            session.add(gwdetector)
+            if data['fixed_location']:
+                if (
+                    data['lat'] < -90
+                    or data['lat'] > 90
+                    or data['lon'] < -180
+                    or data['lon'] > 180
+                ):
+                    return self.error(
+                        'Latitude must be between -90 and 90, longitude between -180 and 180'
+                    )
+            session.add(mmadetector)
             session.commit()
 
-            self.push_all(action="skyportal/REFRESH_GWDETECTORS")
-            return self.success(data={"id": gwdetector.id})
+            self.push_all(action="skyportal/REFRESH_MMADETECTORS")
+            return self.success(data={"id": mmadetector.id})
 
     @auth_or_token
-    def get(self, gwdetector_id=None):
+    def get(self, mmadetector_id=None):
         """
         ---
         single:
-          description: Retrieve a gwdetector
+          description: Retrieve a mmadetector
           tags:
-            - gwdetectors
+            - mmadetectors
           parameters:
             - in: path
-              name: gwdetector_id
+              name: mmadetector_id
               required: true
               schema:
                 type: integer
@@ -81,15 +82,15 @@ class GWDetectorHandler(BaseHandler):
             200:
               content:
                 application/json:
-                  schema: SingleGWDetector
+                  schema: SingleMMADetector
             400:
               content:
                 application/json:
                   schema: Error
         multiple:
-          description: Retrieve all gwdetectors
+          description: Retrieve all mmadetectors
           tags:
-            - gwdetectors
+            - mmadetectors
           parameters:
             - in: query
               name: name
@@ -100,7 +101,7 @@ class GWDetectorHandler(BaseHandler):
             200:
               content:
                 application/json:
-                  schema: ArrayOfGWDetectors
+                  schema: ArrayOfMMADetectors
             400:
               content:
                 application/json:
@@ -109,43 +110,43 @@ class GWDetectorHandler(BaseHandler):
 
         with self.Session() as session:
 
-            if gwdetector_id is not None:
+            if mmadetector_id is not None:
                 t = session.scalars(
-                    GWDetector.select(session.user_or_token).where(
-                        GWDetector.id == int(gwdetector_id)
+                    MMADetector.select(session.user_or_token).where(
+                        MMADetector.id == int(mmadetector_id)
                     )
                 ).first()
                 if t is None:
                     return self.error(
-                        f"Could not load GW Detector with ID {gwdetector_id}"
+                        f"Could not load MMA Detector with ID {mmadetector_id}"
                     )
                 return self.success(data=t)
 
             det_name = self.get_query_argument("name", None)
-            stmt = GWDetector.select(session.user_or_token)
+            stmt = MMADetector.select(session.user_or_token)
             if det_name is not None:
-                stmt = stmt.where(GWDetector.name.contains(det_name))
+                stmt = stmt.where(MMADetector.name.contains(det_name))
 
             data = session.scalars(stmt).all()
             return self.success(data=data)
 
     @permissions(['Manage allocations'])
-    def patch(self, gwdetector_id):
+    def patch(self, mmadetector_id):
         """
         ---
-        description: Update gwdetector
+        description: Update mmadetector
         tags:
-          - gwdetectors
+          - mmadetectors
         parameters:
           - in: path
-            name: gwdetector_id
+            name: mmadetector_id
             required: true
             schema:
               type: integer
         requestBody:
           content:
             application/json:
-              schema: GWDetectorNoID
+              schema: MMADetectorNoID
         responses:
           200:
             content:
@@ -159,16 +160,16 @@ class GWDetectorHandler(BaseHandler):
 
         with self.Session() as session:
             t = session.scalars(
-                GWDetector.select(session.user_or_token, mode="update").where(
-                    GWDetector.id == int(gwdetector_id)
+                MMADetector.select(session.user_or_token, mode="update").where(
+                    MMADetector.id == int(mmadetector_id)
                 )
             ).first()
             if t is None:
-                return self.error('Invalid GW Detector ID.')
+                return self.error('Invalid MMA Detector ID.')
             data = self.get_json()
-            data['id'] = int(gwdetector_id)
+            data['id'] = int(mmadetector_id)
 
-            schema = GWDetector.__schema__()
+            schema = MMADetector.__schema__()
             try:
                 schema.load(data)
             except ValidationError as e:
@@ -188,22 +189,26 @@ class GWDetectorHandler(BaseHandler):
                 if data['lon'] < -180 or data['lon'] > 180:
                     return self.error('Longitude between -180 and 180')
                 t.lon = data['lon']
+            if 'fixed_location' in data:
+                t.fixed_location = data['fixed_location']
+            if 'type' in data:
+                t.type = data['type']
 
             session.commit()
 
-            self.push_all(action="skyportal/REFRESH_GWDETECTORS")
+            self.push_all(action="skyportal/REFRESH_MMADETECTORS")
             return self.success()
 
     @permissions(['Manage allocations'])
-    def delete(self, gwdetector_id):
+    def delete(self, mmadetector_id):
         """
         ---
-        description: Delete a gwdetector
+        description: Delete a mmadetector
         tags:
-          - gwdetectors
+          - mmadetectors
         parameters:
           - in: path
-            name: gwdetector_id
+            name: mmadetector_id
             required: true
             schema:
               type: integer
@@ -220,13 +225,13 @@ class GWDetectorHandler(BaseHandler):
 
         with self.Session() as session:
             t = session.scalars(
-                GWDetector.select(session.user_or_token, mode="delete").where(
-                    GWDetector.id == int(gwdetector_id)
+                MMADetector.select(session.user_or_token, mode="delete").where(
+                    MMADetector.id == int(mmadetector_id)
                 )
             ).first()
             if t is None:
-                return self.error('Invalid GW Detector ID.')
+                return self.error('Invalid MMA Detector ID.')
             session.delete(t)
             session.commit()
-            self.push_all(action="skyportal/REFRESH_GWDETECTORS")
+            self.push_all(action="skyportal/REFRESH_MMADETECTORS")
             return self.success()

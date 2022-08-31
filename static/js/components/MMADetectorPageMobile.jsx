@@ -9,7 +9,7 @@ import Grid from "@mui/material/Grid";
 import makeStyles from "@mui/styles/makeStyles";
 import PropTypes from "prop-types";
 import CircularProgress from "@mui/material/CircularProgress";
-import NewGWDetector from "./NewGWDetector";
+import NewMMADetector from "./NewMMADetector";
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -29,8 +29,8 @@ const textStyles = makeStyles(() => ({
   },
 }));
 
-export function gwdetectorTitle(gwdetector) {
-  if (!gwdetector?.name) {
+export function mmadetectorTitle(mmadetector) {
+  if (!mmadetector?.name) {
     return (
       <div>
         <CircularProgress color="secondary" />
@@ -38,12 +38,12 @@ export function gwdetectorTitle(gwdetector) {
     );
   }
 
-  const result = `${gwdetector?.nickname}`;
+  const result = `${mmadetector?.nickname}`;
   return result;
 }
 
-export function gwdetectorInfo(gwdetector) {
-  if (!gwdetector?.name) {
+export function mmadetectorInfo(mmadetector) {
+  if (!mmadetector?.name) {
     return (
       <div>
         <CircularProgress color="secondary" />
@@ -52,9 +52,9 @@ export function gwdetectorInfo(gwdetector) {
   }
 
   const array = [
-    ...(gwdetector?.lat ? [`Latitude: ${gwdetector.lat}`] : []),
-    ...(gwdetector?.lon ? [`Longitude: ${gwdetector.lon}`] : []),
-    ...(gwdetector?.elevation ? [`Elevation: ${gwdetector.elevation}`] : []),
+    ...(mmadetector?.lat ? [`Latitude: ${mmadetector.lat}`] : []),
+    ...(mmadetector?.lon ? [`Longitude: ${mmadetector.lon}`] : []),
+    ...(mmadetector?.elevation ? [`Elevation: ${mmadetector.elevation}`] : []),
   ];
 
   // eslint-disable-next-line prefer-template
@@ -63,18 +63,18 @@ export function gwdetectorInfo(gwdetector) {
   return result;
 }
 
-const GWDetectorList = ({ gwdetectors }) => {
+const MMADetectorList = ({ mmadetectors }) => {
   const classes = useStyles();
   const textClasses = textStyles();
 
   return (
     <div className={classes.root}>
       <List component="nav">
-        {gwdetectors?.map((gwdetector) => (
-          <ListItem button key={gwdetector.id}>
+        {mmadetectors?.map((mmadetector) => (
+          <ListItem button key={mmadetector.id}>
             <ListItemText
-              primary={gwdetectorTitle(gwdetector)}
-              secondary={gwdetectorInfo(gwdetector)}
+              primary={mmadetectorTitle(mmadetector)}
+              secondary={mmadetectorInfo(mmadetector)}
               classes={textClasses}
             />
           </ListItem>
@@ -84,8 +84,8 @@ const GWDetectorList = ({ gwdetectors }) => {
   );
 };
 
-const GWDetectorPageMobile = () => {
-  const { gwdetectorList } = useSelector((state) => state.gwdetectors);
+const MMADetectorPageMobile = () => {
+  const { mmadetectorList } = useSelector((state) => state.mmadetectors);
   const currentUser = useSelector((state) => state.profile);
 
   const classes = useStyles();
@@ -94,8 +94,8 @@ const GWDetectorPageMobile = () => {
       <Grid item md={6} sm={12}>
         <Paper elevation={1}>
           <div className={classes.paperContent}>
-            <Typography variant="h6">List of GWDetectors</Typography>
-            <GWDetectorList gwdetectors={gwdetectorList} />
+            <Typography variant="h6">List of MMADetectors</Typography>
+            <MMADetectorList mmadetectors={mmadetectorList} />
           </div>
         </Paper>
       </Grid>
@@ -103,8 +103,8 @@ const GWDetectorPageMobile = () => {
         <Grid item md={6} sm={12}>
           <Paper>
             <div className={classes.paperContent}>
-              <Typography variant="h6">Add a New GWDetector</Typography>
-              <NewGWDetector />
+              <Typography variant="h6">Add a New MMADetector</Typography>
+              <NewMMADetector />
             </div>
           </Paper>
         </Grid>
@@ -113,8 +113,8 @@ const GWDetectorPageMobile = () => {
   );
 };
 
-GWDetectorList.propTypes = {
-  gwdetectors: PropTypes.arrayOf(
+MMADetectorList.propTypes = {
+  mmadetectors: PropTypes.arrayOf(
     PropTypes.shape({
       id: PropTypes.number.isRequired,
       name: PropTypes.string.isRequired,
@@ -127,4 +127,4 @@ GWDetectorList.propTypes = {
   ).isRequired,
 };
 
-export default GWDetectorPageMobile;
+export default MMADetectorPageMobile;

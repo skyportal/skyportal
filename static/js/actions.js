@@ -8,7 +8,7 @@ import * as defaultObservationPlansActions from "./ducks/default_observation_pla
 import * as newsFeedActions from "./ducks/newsFeed";
 import * as topSourcesActions from "./ducks/topSources";
 import * as recentSourcesActions from "./ducks/recentSources";
-import * as gwdetectorActions from "./ducks/gwdetector";
+import * as mmadetectorActions from "./ducks/mmadetector";
 import * as instrumentsActions from "./ducks/instruments";
 import * as sourceCountsActions from "./ducks/sourceCounts";
 import * as observingRunsActions from "./ducks/observingRuns";
@@ -26,7 +26,7 @@ export default function hydrate() {
     dispatch(configActions.fetchConfig());
     dispatch(profileActions.fetchUserProfile());
     dispatch(groupsActions.fetchGroups(true));
-    dispatch(gwdetectorActions.fetchGWDetectors());
+    dispatch(mmadetectorActions.fetchMMADetectors());
     dispatch(newsFeedActions.fetchNewsFeed());
     dispatch(topSourcesActions.fetchTopSources());
     dispatch(instrumentsActions.fetchInstruments());

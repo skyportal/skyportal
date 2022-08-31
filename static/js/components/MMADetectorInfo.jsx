@@ -20,7 +20,7 @@ const useStyles = makeStyles(() => ({
     justifyItems: "left",
     alignItems: "left",
   },
-  gwdetector_header: {
+  mmadetector_header: {
     display: "flex",
     flexDirection: "row",
     justifyItems: "center",
@@ -42,30 +42,30 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-const GWDetectorInfo = () => {
+const MMADetectorInfo = () => {
   const classes = useStyles();
-  const { gwdetectorList } = useSelector((state) => state.gwdetectors);
-  // return a list of gwdetectors with their information
-  return gwdetectorList ? (
+  const { mmadetectorList } = useSelector((state) => state.mmadetectors);
+  // return a list of mmadetectors with their information
+  return mmadetectorList ? (
     <List className={classes.root}>
-      {gwdetectorList.map((gwdetector) => (
-        <div key={`${gwdetector.id}_list_item`}>
+      {mmadetectorList.map((mmadetector) => (
+        <div key={`${mmadetector.id}_list_item`}>
           <ListItem
-            id={`${gwdetector.name}_info`}
+            id={`${mmadetector.name}_info`}
             className={classes.listItem}
-            key={`${gwdetector.id}_info`}
+            key={`${mmadetector.id}_info`}
           >
             <div
-              className={classes.gwdetector_header}
-              key={`${gwdetector.id}_header`}
+              className={classes.mmadetector_header}
+              key={`${mmadetector.id}_header`}
             >
               <h2 className={classes.h2}>
-                {gwdetector.name} ({gwdetector.nickname})
+                {mmadetector.name} ({mmadetector.nickname})
               </h2>
             </div>
-            <h3 className={classes.h3} key={`${gwdetector.id}_location`}>
-              Location : {gwdetector.lat ? gwdetector.lat.toFixed(4) : null},{" "}
-              {gwdetector.lon ? gwdetector.lon.toFixed(4) : null}
+            <h3 className={classes.h3} key={`${mmadetector.id}_location`}>
+              Location : {mmadetector.lat ? mmadetector.lat.toFixed(4) : null},{" "}
+              {mmadetector.lon ? mmadetector.lon.toFixed(4) : null}
             </h3>
           </ListItem>
           <Divider />
@@ -73,8 +73,8 @@ const GWDetectorInfo = () => {
       ))}
     </List>
   ) : (
-    <h2 className={classes.h2}>No gwdetector selected</h2>
+    <h2 className={classes.h2}>No mmadetector selected</h2>
   );
 };
 
-export default GWDetectorInfo;
+export default MMADetectorInfo;

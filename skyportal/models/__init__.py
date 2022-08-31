@@ -16,11 +16,11 @@ from .galaxy import *
 from .gcn import *
 from .group import *
 from .group_joins import *
-from .gwdetector import *
 from .instrument import *
 from .invitation import *
 from .listing import *
 from .localization import *
+from .mmadetector import *
 from .obj import *
 from .observation import *
 from .observation_plan import *

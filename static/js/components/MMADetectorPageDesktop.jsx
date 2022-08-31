@@ -5,10 +5,10 @@ import Grid from "@mui/material/Grid";
 import Button from "@mui/material/Button";
 import makeStyles from "@mui/styles/makeStyles";
 import CircularProgress from "@mui/material/CircularProgress";
-import NewGWDetector from "./NewGWDetector";
-import GWDetectorInfo from "./GWDetectorInfo";
-// lazy import the GWDetectorMap component
-const GWDetectorMap = lazy(() => import("./GWDetectorMap"));
+import NewMMADetector from "./NewMMADetector";
+import MMADetectorInfo from "./MMADetectorInfo";
+// lazy import the MMADetectorMap component
+const MMADetectorMap = lazy(() => import("./MMADetectorMap"));
 
 let dispatch;
 const useStyles = makeStyles((theme) => ({
@@ -39,8 +39,8 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-export function gwdetectorTitle(gwdetector) {
-  if (!gwdetector?.name) {
+export function mmadetectorTitle(mmadetector) {
+  if (!mmadetector?.name) {
     return (
       <div>
         <CircularProgress color="secondary" />
@@ -48,12 +48,12 @@ export function gwdetectorTitle(gwdetector) {
     );
   }
 
-  const result = `${gwdetector?.nickname}`;
+  const result = `${mmadetector?.nickname}`;
   return result;
 }
 
-export function gwdetectorInfo(gwdetector) {
-  if (!gwdetector?.name) {
+export function mmadetectorInfo(mmadetector) {
+  if (!mmadetector?.name) {
     return (
       <div>
         <CircularProgress color="secondary" />
@@ -62,9 +62,9 @@ export function gwdetectorInfo(gwdetector) {
   }
 
   const array = [
-    ...(gwdetector?.lat ? [`Latitude: ${gwdetector.lat}`] : []),
-    ...(gwdetector?.lon ? [`Longitude: ${gwdetector.lon}`] : []),
-    ...(gwdetector?.elevation ? [`Elevation: ${gwdetector.elevation}`] : []),
+    ...(mmadetector?.lat ? [`Latitude: ${mmadetector.lat}`] : []),
+    ...(mmadetector?.lon ? [`Longitude: ${mmadetector.lon}`] : []),
+    ...(mmadetector?.elevation ? [`Elevation: ${mmadetector.elevation}`] : []),
   ];
 
   // eslint-disable-next-line prefer-template
@@ -73,21 +73,21 @@ export function gwdetectorInfo(gwdetector) {
   return result;
 }
 
-const GWDetectorPageDesktop = () => {
+const MMADetectorPageDesktop = () => {
   dispatch = useDispatch();
   const currentUser = useSelector((state) => state.profile);
-  const { gwdetectorList } = useSelector((state) => state.gwdetectors);
-  const currentGWDetectorMenu = useSelector(
-    (state) => state.gwdetector.currentGWDetectorMenu
+  const { mmadetectorList } = useSelector((state) => state.mmadetectors);
+  const currentMMADetectorMenu = useSelector(
+    (state) => state.mmadetector.currentMMADetectorMenu
   );
 
-  function setSelectedMenu(currentSelectedGWDetectorMenu) {
-    const currentGWDetectors = null;
+  function setSelectedMenu(currentSelectedMMADetectorMenu) {
+    const currentMMADetectors = null;
     dispatch({
-      type: "skyportal/CURRENT_GWDETECTORS_AND_MENU",
+      type: "skyportal/CURRENT_MMADETECTORS_AND_MENU",
       data: {
-        currentGWDetectors,
-        currentGWDetectorMenu: currentSelectedGWDetectorMenu,
+        currentMMADetectors,
+        currentMMADetectorMenu: currentSelectedMMADetectorMenu,
       },
     });
   }
@@ -96,7 +96,7 @@ const GWDetectorPageDesktop = () => {
 
   function isMenuSelected(menu) {
     let style;
-    if (menu === currentGWDetectorMenu) {
+    if (menu === currentMMADetectorMenu) {
       style = classes.selectedMenu;
     } else {
       style = classes.nonSelectedMenu;
@@ -115,34 +115,34 @@ const GWDetectorPageDesktop = () => {
       <Grid container spacing={3}>
         <Grid item md={8} sm={12}>
           <Paper className={classes.paperContent}>
-            <GWDetectorMap gwdetectors={gwdetectorList} />
+            <MMADetectorMap mmadetectors={mmadetectorList} />
           </Paper>
         </Grid>
         <Grid item md={4} sm={12}>
           <Paper className={classes.menu}>
             <Button
-              id="gwdetector-list"
-              onClick={() => setSelectedMenu("GWDetector List")}
-              className={isMenuSelected("GWDetector List")}
+              id="mmadetector-list"
+              onClick={() => setSelectedMenu("MMADetector List")}
+              className={isMenuSelected("MMADetector List")}
             >
-              GWDetector List
+              MMADetector List
             </Button>
             {currentUser.permissions?.includes("Manage allocations") && (
               <Button
-                id="new-gwdetector"
-                onClick={() => setSelectedMenu("New GWDetector")}
-                className={isMenuSelected("New GWDetector")}
+                id="new-mmadetector"
+                onClick={() => setSelectedMenu("New MMADetector")}
+                className={isMenuSelected("New MMADetector")}
               >
-                New GWDetector
+                New MMADetector
               </Button>
             )}
           </Paper>
           <Paper className={classes.paperContent}>
-            {currentGWDetectorMenu === "GWDetector List" ? (
-              <GWDetectorInfo />
+            {currentMMADetectorMenu === "MMADetector List" ? (
+              <MMADetectorInfo />
             ) : (
               currentUser.permissions?.includes("Manage allocations") && (
-                <NewGWDetector />
+                <NewMMADetector />
               )
             )}
           </Paper>
@@ -152,4 +152,4 @@ const GWDetectorPageDesktop = () => {
   );
 };
 
-export default GWDetectorPageDesktop;
+export default MMADetectorPageDesktop;

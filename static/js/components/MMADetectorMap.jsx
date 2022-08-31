@@ -24,47 +24,47 @@ function CustomZoomableGroup({ children, ...restProps }) {
     </g>
   );
 }
-function setCurrentGWDetectors(currentGWDetectors) {
-  const currentGWDetectorMenu = "GWDetector List";
+function setCurrentMMADetectors(currentMMADetectors) {
+  const currentMMADetectorMenu = "MMADetector List";
   dispatch({
-    type: "skyportal/CURRENT_GWDETECTORS_AND_MENU",
-    data: { currentGWDetectors, currentGWDetectorMenu },
+    type: "skyportal/CURRENT_MMADETECTORS_AND_MENU",
+    data: { currentMMADetectors, currentMMADetectorMenu },
   });
 }
 
-function gwdetectorlabel(nestedGWDetector) {
-  return nestedGWDetector.gwdetectors
-    .map((gwdetector) => gwdetector.nickname)
+function mmadetectorlabel(nestedMMADetector) {
+  return nestedMMADetector.mmadetectors
+    .map((mmadetector) => mmadetector.nickname)
     .join(" / ");
 }
 
-function gwdetectorCanObserve(nestedGWDetector) {
+function mmadetectorCanObserve(nestedMMADetector) {
   let color = "#f9d71c";
-  if (nestedGWDetector.is_night_astronomical_at_least_one) {
+  if (nestedMMADetector.is_night_astronomical_at_least_one) {
     color = "#0c1445";
   }
   return color;
 }
 
-function GWDetectorMarker({ nestedGWDetector, position }) {
+function MMADetectorMarker({ nestedMMADetector, position }) {
   return (
     <Marker
-      id="gwdetector_marker"
-      key={`${nestedGWDetector.lon},${nestedGWDetector.lat}`}
-      coordinates={[nestedGWDetector.lon, nestedGWDetector.lat]}
-      onClick={() => setCurrentGWDetectors(nestedGWDetector)}
+      id="mmadetector_marker"
+      key={`${nestedMMADetector.lon},${nestedMMADetector.lat}`}
+      coordinates={[nestedMMADetector.lon, nestedMMADetector.lat]}
+      onClick={() => setCurrentMMADetectors(nestedMMADetector)}
     >
       <circle
         r={6.5 / position.k}
-        fill={gwdetectorCanObserve(nestedGWDetector)}
+        fill={mmadetectorCanObserve(nestedMMADetector)}
       />
       <text
-        id="gwdetectors_label"
+        id="mmadetectors_label"
         textAnchor="middle"
         fontSize={10 / position.k}
         y={-10 / position.k}
       >
-        {gwdetectorlabel(nestedGWDetector)}
+        {mmadetectorlabel(nestedMMADetector)}
       </text>
     </Marker>
   );
@@ -78,32 +78,38 @@ function normalizeLatitudeDiff(alpha, beta) {
   return Math.abs(alpha - beta);
 }
 
-const GWDetectorMap = ({ gwdetectors }) => {
-  const nestedGWDetectors = [];
-  for (let i = 0; i < gwdetectors.length; i += 1) {
+const MMADetectorMap = ({ mmadetectors }) => {
+  const nestedMMADetectors = [];
+  for (let i = 0; i < mmadetectors.length; i += 1) {
     if (i === 0) {
-      nestedGWDetectors.push({
-        lat: gwdetectors[i].lat,
-        lon: gwdetectors[i].lon,
-        gwdetectors: [gwdetectors[i]],
+      nestedMMADetectors.push({
+        lat: mmadetectors[i].lat,
+        lon: mmadetectors[i].lon,
+        mmadetectors: [mmadetectors[i]],
       });
     } else {
-      for (let j = 0; j < nestedGWDetectors.length; j += 1) {
+      for (let j = 0; j < nestedMMADetectors.length; j += 1) {
         if (
           Math.abs(
-            normalizeLatitudeDiff(gwdetectors[i].lat, nestedGWDetectors[j].lat)
+            normalizeLatitudeDiff(
+              mmadetectors[i].lat,
+              nestedMMADetectors[j].lat
+            )
           ) < 1 &&
           Math.abs(
-            normalizeLongitudeDiff(gwdetectors[i].lon, nestedGWDetectors[j].lon)
+            normalizeLongitudeDiff(
+              mmadetectors[i].lon,
+              nestedMMADetectors[j].lon
+            )
           ) < 2
         ) {
-          nestedGWDetectors[j].gwdetectors.push(gwdetectors[i]);
+          nestedMMADetectors[j].mmadetectors.push(mmadetectors[i]);
           break;
-        } else if (j === nestedGWDetectors.length - 1) {
-          nestedGWDetectors.push({
-            lat: gwdetectors[i].lat,
-            lon: gwdetectors[i].lon,
-            gwdetectors: [gwdetectors[i]],
+        } else if (j === nestedMMADetectors.length - 1) {
+          nestedMMADetectors.push({
+            lat: mmadetectors[i].lat,
+            lon: mmadetectors[i].lon,
+            mmadetectors: [mmadetectors[i]],
           });
           break;
         }
@@ -129,13 +135,13 @@ const GWDetectorMap = ({ gwdetectors }) => {
                 ))
               }
             </Geographies>
-            {nestedGWDetectors.map(
-              (nestedGWDetector) =>
-                nestedGWDetector.lon &&
-                nestedGWDetector.lat && (
-                  <GWDetectorMarker
-                    key={`${nestedGWDetector.lon},${nestedGWDetector.lat}`}
-                    nestedGWDetector={nestedGWDetector}
+            {nestedMMADetectors.map(
+              (nestedMMADetector) =>
+                nestedMMADetector.lon &&
+                nestedMMADetector.lat && (
+                  <MMADetectorMarker
+                    key={`${nestedMMADetector.lon},${nestedMMADetector.lat}`}
+                    nestedMMADetector={nestedMMADetector}
                     position={position}
                   />
                 )
@@ -147,8 +153,8 @@ const GWDetectorMap = ({ gwdetectors }) => {
   );
 };
 
-GWDetectorMap.propTypes = {
-  gwdetectors: PropTypes.arrayOf(
+MMADetectorMap.propTypes = {
+  mmadetectors: PropTypes.arrayOf(
     PropTypes.shape({
       id: PropTypes.number,
       name: PropTypes.string,
@@ -159,11 +165,11 @@ GWDetectorMap.propTypes = {
   ).isRequired,
 };
 
-GWDetectorMarker.propTypes = {
-  nestedGWDetector: PropTypes.shape({
+MMADetectorMarker.propTypes = {
+  nestedMMADetector: PropTypes.shape({
     lat: PropTypes.number.isRequired,
     lon: PropTypes.number.isRequired,
-    gwdetectors: PropTypes.arrayOf(
+    mmadetectors: PropTypes.arrayOf(
       PropTypes.shape({
         id: PropTypes.number.isRequired,
         name: PropTypes.string.isRequired,
@@ -182,4 +188,4 @@ CustomZoomableGroup.propTypes = {
   children: PropTypes.node.isRequired,
 };
 
-export default GWDetectorMap;
+export default MMADetectorMap;
