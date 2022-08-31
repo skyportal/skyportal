@@ -16,7 +16,10 @@ The vast majority of follow-up instruments will require some form of authenticat
 
 * ATLAS Forced Photometry: A user account must be made on https://fallingstar-data.com/forcedphot/, at which point the authentication takes the form `{"api_token": "testtoken"}`.
 * KAIT: A username and password are passed as `{"username": "username", "password": "password"}`.
-* LCO: A user account must be made on https://lco.global/, at which point the authentication takes the form `{"PROPOSAL_ID": "your_proposal_ID", "API_TOKEN": "testtoken"}`.
+* LCO: A user account must be made on https://lco.global/, at which point the authentication takes the form `{"PROPOSAL_ID": "your_proposal_ID", "API_TOKEN": "testtoken", "API_ARCHIVE_TOKEN": "testarchivetoken"}`. The submission token is available directly from https://observe.lco.global while the archive token can be aquired by API:
+ar = requests.post('https://archive-api.lco.global/api-token-auth/',
+                       data = {'username': username, 'password': password})
+ar_token = ar.json()['token']
 * LT: A proposal ID, username, and password are passed as `{"username": "username", "password": "password", "LT_proposalID": "your_proposal_ID"}`.
 * SLACK: As discussed further [here](./slack.html), slack information is pass as `{"slack_workspace": "XXX", "slack_channel": "YYY", "slack_token": "ZZZ"}`.
 * SWIFT Triggering: A username and password are passed as `{"username": "username", "secret": "password"}`.

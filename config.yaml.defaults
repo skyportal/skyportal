@@ -32,6 +32,8 @@ app:
   lco_host: observe.lco.global
   lco_port: 443
 
+  lco_archive_endpoint: https://archive-api.lco.global
+
   ztf:
     protocol: https
     host: kowalski.caltech.edu
