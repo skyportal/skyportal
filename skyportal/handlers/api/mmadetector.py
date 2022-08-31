@@ -12,7 +12,7 @@ class MMADetectorHandler(BaseHandler):
     def post(self):
         """
         ---
-        description: Create Multimessenger Astronomical Detector (MMADetector)
+        description: Create a Multimessenger Astronomical Detector (MMADetector)
         tags:
           - mmadetectors
         requestBody:
@@ -63,7 +63,7 @@ class MMADetectorHandler(BaseHandler):
             session.add(mmadetector)
             session.commit()
 
-            self.push_all(action="skyportal/REFRESH_MMADETECTORS")
+            self.push_all(action="skyportal/REFRESH_MMADETECTOR_LIST")
             return self.success(data={"id": mmadetector.id})
 
     @auth_or_token
@@ -71,7 +71,7 @@ class MMADetectorHandler(BaseHandler):
         """
         ---
         single:
-          description: Retrieve a mmadetector
+          description: Retrieve a Multimessenger Astronomical Detector (MMADetector)
           tags:
             - mmadetectors
           parameters:
@@ -90,7 +90,7 @@ class MMADetectorHandler(BaseHandler):
                 application/json:
                   schema: Error
         multiple:
-          description: Retrieve all mmadetectors
+          description: Retrieve all Multimessenger Astronomical Detectors (MMADetectors)
           tags:
             - mmadetectors
           parameters:
@@ -136,7 +136,7 @@ class MMADetectorHandler(BaseHandler):
     def patch(self, mmadetector_id):
         """
         ---
-        description: Update mmadetector
+        description: Update a Multimessenger Astronomical Detector (MMADetector)
         tags:
           - mmadetectors
         parameters:
@@ -198,14 +198,14 @@ class MMADetectorHandler(BaseHandler):
 
             session.commit()
 
-            self.push_all(action="skyportal/REFRESH_MMADETECTORS")
+            self.push_all(action="skyportal/REFRESH_MMADETECTOR_LIST")
             return self.success()
 
     @permissions(['Manage allocations'])
     def delete(self, mmadetector_id):
         """
         ---
-        description: Delete a mmadetector
+        description: Delete a Multimessenger Astronomical Detector (MMADetector)
         tags:
           - mmadetectors
         parameters:
@@ -235,5 +235,5 @@ class MMADetectorHandler(BaseHandler):
                 return self.error('Invalid MMA Detector ID.')
             session.delete(t)
             session.commit()
-            self.push_all(action="skyportal/REFRESH_MMADETECTORS")
+            self.push_all(action="skyportal/REFRESH_MMADETECTOR_LIST")
             return self.success()

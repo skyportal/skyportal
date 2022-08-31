@@ -33,7 +33,7 @@ def manage_mmadetector_access_logic(cls, user_or_token):
 
 
 class MMADetector(Base):
-    """Detector information"""
+    """Multimessenger Astronomical Detector information"""
 
     read = public
     create = update = delete = CustomUserAccessControl(manage_mmadetector_access_logic)
@@ -45,7 +45,7 @@ class MMADetector(Base):
         doc="Unabbreviated facility name (e.g., LIGO Hanford Observatory.",
     )
     nickname = sa.Column(
-        sa.String, nullable=False, doc="Abbreviated facility name (e.g., LHO)."
+        sa.String, nullable=False, doc="Abbreviated facility name (e.g., H1)."
     )
 
     type = sa.Column(
