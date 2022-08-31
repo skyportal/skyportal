@@ -193,6 +193,7 @@ def add_observations(instrument_id, obstable):
                     exposure_time=row["exposure_time"],
                     filt=row["filter"],
                     processed_fraction=row["processed_fraction"],
+                    target_name=row["target_name"],
                 )
             )
         session.add_all(observations)
@@ -603,6 +604,7 @@ class ObservationHandler(BaseHandler):
             'airmass',
             'seeing',
             'limmag',
+            'target_name',
         ]
         for key in optional_parameters:
             if key not in observation_data:
@@ -919,6 +921,7 @@ class ObservationASCIIFileHandler(BaseHandler):
             'airmass',
             'seeing',
             'limmag',
+            'target_name',
         ]
         for key in optional_parameters:
             if key not in observation_data:

@@ -97,6 +97,61 @@ filters:
     stream_id: =ztf_public
     =id: example_filter2
 
+mmadetector:
+  - name: LIGO Hanford Observatory
+    nickname: H1
+    lat: 46.6475
+    lon: -119.5986
+    fixed_location: true
+    type: gravitational-wave
+    =id: LHO
+  - name: LIGO Livingston Observatory
+    nickname: L1
+    lat: 30.4986
+    lon: -90.7483
+    fixed_location: true
+    type: gravitational-wave
+    =id: LLO
+  - name: GEO600
+    nickname: G1
+    lat: 52.246944
+    lon: 9.80833
+    fixed_location: true
+    type: gravitational-wave
+    =id: GEO
+  - name: VIRGO
+    nickname: V1
+    lat: 43.631389
+    lon: 10.505
+    fixed_location: true
+    type: gravitational-wave
+    =id: VIRGO
+  - name: Kamioka Gravitational Wave Detector
+    nickname: K1
+    lat: 36.4119
+    lon: 137.3058
+    fixed_location: true
+    type: gravitational-wave
+    =id: KAGRA
+  - name: IceCube Neutrino Observatory
+    nickname: IceCube
+    lat: -89.9900
+    lon: -63.4532
+    fixed_location: true
+    type: neutrino
+    =id: IceCube
+  - name: Fermi Gamma-Ray Burst Monitor
+    nickname: FermiGBM
+    fixed_location: false
+    type: gamma-ray-burst
+    =id: FermiGBM
+  - name: Neil Gehrels Swift Observatory
+    nickname: Swift
+    fixed_location: false
+    type: gamma-ray-burst
+    =id: SwiftGRB
+
+
 telescope:
   - name: Palomar 1.2m
     nickname: P48
@@ -337,6 +392,8 @@ instrument:
     telescope_id: =Swift
     type: imager
     filters: ['uvot::b', 'uvot::u', 'uvot::v', 'uvot::uvm2', 'uvot::uvw1', 'uvot::uvw2', 'uvot::white']
+    field_region:
+      file: ../data/Swift_Region.reg
   - band: optical
     name: PS1
     telescope_id: =PS1

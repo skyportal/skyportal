@@ -21,6 +21,7 @@ from .instrument import *
 from .invitation import *
 from .listing import *
 from .localization import *
+from .mmadetector import *
 from .obj import *
 from .observation import *
 from .observation_plan import *
