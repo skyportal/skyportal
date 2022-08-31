@@ -1,7 +1,7 @@
 """MMADetector migration
 
 Revision ID: 2c856b2845f2
-Revises: 675d41c71a2b
+Revises: 17fc6557b7ad
 Create Date: 2022-08-31 02:36:52.515380
 
 """
@@ -11,7 +11,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = '2c856b2845f2'
-down_revision = '675d41c71a2b'
+down_revision = '17fc6557b7ad'
 branch_labels = None
 depends_on = None
 
