@@ -903,6 +903,10 @@ gcn_event/1/comments:
     author_id: testadmin
     created_at: "2022-03-18 16:00:00"
 
+earthquake:
+  - xml:
+      file: ../skyportal/tests/data/quakeml.xml
+
 shifts:
   - group_id: =program_A
     start_date: "2022-03-18 8:00:00"

@@ -20,6 +20,11 @@ from .annotation_services import (
     DatalabQueryHandler,
 )
 from .db_stats import StatsHandler
+from .earthquake import (
+    EarthquakeHandler,
+    EarthquakePredictionHandler,
+    EarthquakeStatusHandler,
+)
 from .enum_types import EnumTypesHandler
 from .filter import FilterHandler
 from .followup_request import (
