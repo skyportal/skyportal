@@ -61,7 +61,7 @@ THUMBNAIL_TYPES = (
     'sub_gz',
 )
 INSTRUMENT_TYPES = ('imager', 'spectrograph', 'imaging spectrograph')
-MMA_DETECTOR_TYPES = ('gravitational-wave', 'neutrino', 'gamma-ray-burst') 
+MMA_DETECTOR_TYPES = ('gravitational-wave', 'neutrino', 'gamma-ray-burst')
 FOLLOWUP_PRIORITIES = ('1', '2', '3', '4', '5')
 FOLLOWUP_HTTP_REQUEST_ORIGINS = ('remote', 'skyportal')
 LISTENER_CLASSNAMES = [
@@ -135,9 +135,9 @@ thumbnail_types = sa.Enum(
 instrument_types = sa.Enum(
     *INSTRUMENT_TYPES, name='instrument_types', validate_strings=True
 )
-mma_detector_types = sa.Enum( 
+mma_detector_types = sa.Enum(
     *MMA_DETECTOR_TYPES, name='mma_detector_types', validate_strings=True
-) 
+)
 followup_priorities = sa.Enum(
     *FOLLOWUP_PRIORITIES, name='followup_priorities', validate_strings=True
 )
