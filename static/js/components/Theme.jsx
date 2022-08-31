@@ -46,7 +46,9 @@ const Theme = ({ disableTransitions, children }) => {
       error: {
         main: "#e63946",
       },
-      background: dark ? { default: "#303030" } : { default: "#f0f2f5" },
+      background: dark
+        ? { default: "#303030", paper: "#808080" }
+        : { default: "#f0f2f5", paper: "#808080" },
     },
     plotFontSizes: {
       titleFontSize: 15,
@@ -139,6 +141,8 @@ const Theme = ({ disableTransitions, children }) => {
       },
     }),
   });
+
+  console.log("materialTheme", materialTheme);
 
   return (
     <StyledEngineProvider injectFirst>
