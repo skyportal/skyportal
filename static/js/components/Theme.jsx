@@ -142,8 +142,6 @@ const Theme = ({ disableTransitions, children }) => {
     }),
   });
 
-  console.log("materialTheme", materialTheme);
-
   return (
     <StyledEngineProvider injectFirst>
       <ThemeProvider theme={materialTheme}>
