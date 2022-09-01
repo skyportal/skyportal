@@ -46,7 +46,9 @@ const Theme = ({ disableTransitions, children }) => {
       error: {
         main: "#e63946",
       },
-      background: dark ? { default: "#303030" } : { default: "#f0f2f5" },
+      background: dark
+        ? { default: "#303030", paper: "#808080" }
+        : { default: "#f0f2f5", paper: "#f0f2f5" },
     },
     plotFontSizes: {
       titleFontSize: 15,
