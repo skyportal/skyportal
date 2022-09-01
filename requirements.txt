@@ -66,5 +66,5 @@ corner==2.2.1
 selenium==4.3.0
 selenium-requests==2.0.0
 afterglowpy==0.7.3
-gcn-kafka==0.1.2
+gcn-kafka==0.2.3
 iminuit==2.15.2
