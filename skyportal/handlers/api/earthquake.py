@@ -12,6 +12,7 @@ from sqlalchemy.orm import sessionmaker, scoped_session
 import obspy
 
 from baselayer.app.access import auth_or_token
+from baselayer.app.custom_exceptions import AccessError
 from baselayer.log import make_log
 from ..base import BaseHandler
 from ...models import (
@@ -88,7 +89,7 @@ def post_earthquake_from_xml(payload, user_id, session):
         session.add(event)
     else:
         if not event.is_accessible_by(user, mode="update"):
-            raise ValueError(
+            raise AccessError(
                 "Insufficient permissions: Earthquake event can only be updated by original poster"
             )
 
@@ -111,7 +112,7 @@ def post_earthquake_from_xml(payload, user_id, session):
 def post_earthquake_from_dictionary(payload, user_id, session):
     """Post Earthquake to database from dictionary.
     payload: dict
-        Dictionary containing date and skymap
+        Dictionary containing date, location, and magnitude information
     user_id : int
         SkyPortal ID of User posting the Earthquake
     session: sqlalchemy.Session
@@ -250,10 +251,10 @@ class EarthquakeHandler(BaseHandler):
             - earthquakeevents
           parameters:
             - in: path
-              name: date
+              name: event_id
               required: false
               schema:
-                type: string
+                type: integer
           responses:
             200:
               content:
@@ -298,6 +299,20 @@ class EarthquakeHandler(BaseHandler):
                 type: string
               description: |
                 Earthquake Status to filter out
+            - in: query
+              name: numPerPage
+              nullable: true
+              schema:
+                type: integer
+              description: |
+                Number of earthquakes. Defaults to 100.
+            - in: query
+              name: pageNumber
+              nullable: true
+              schema:
+                type: integer
+              description: Page number for iterating through all earthquakes. Defaults to 1
+
         responses:
           200:
             content:
@@ -538,6 +553,8 @@ class EarthquakePredictionHandler(BaseHandler):
                 RthreePointFivetime,
                 Rfivetime,
             ) = compute_traveltimes(notice, detector)
+
+            # FIXME : Add code for amplitude and lockloss prediction
             Rfamp, Lockloss = 0.0, 0.0
 
             prediction = EarthquakePrediction(

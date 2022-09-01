@@ -23,14 +23,14 @@ class EarthquakeNotice(Base):
         sa.ForeignKey('users.id', ondelete='CASCADE'),
         nullable=False,
         index=True,
-        doc="The ID of the User who created this GcnEvent.",
+        doc="The ID of the User who created this EarthquakeEvent.",
     )
 
     sent_by = relationship(
         "User",
         foreign_keys=sent_by_id,
         back_populates="earthquakenotices",
-        doc="The user that saved this GcnEvent",
+        doc="The user that saved this EarthquakeEvent",
     )
 
     content = deferred(
@@ -48,7 +48,11 @@ class EarthquakeNotice(Base):
 
     lon = sa.Column(sa.Float, nullable=False, comment='Longitude')
 
-    depth = sa.Column(sa.Float, nullable=False, comment='Depth')
+    depth = sa.Column(
+        sa.Float,
+        nullable=False,
+        comment='Depth relative to sea level (positive values as depth increases) [m]',
+    )
 
     magnitude = sa.Column(sa.Float, nullable=False, comment='Magnitude', index=True)
 

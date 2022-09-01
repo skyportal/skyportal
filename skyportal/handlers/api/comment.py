@@ -169,7 +169,7 @@ class CommentHandler(BaseHandler):
                     comments = (
                         session.scalars(
                             CommentOnEarthquake.select(self.current_user).where(
-                                CommentOnEarthquake.gcn_id == resource_id
+                                CommentOnEarthquake.earthquake_id == resource_id
                             )
                         )
                         .unique()
@@ -447,7 +447,7 @@ class CommentHandler(BaseHandler):
                 ).first()
                 if earthquake is None:
                     return self.error(
-                        f'Could not find any accessible gcn events with ID {gcnevent_id}.'
+                        f'Could not find any accessible earthquakes with ID {earthquake_id}.'
                     )
                 comment = CommentOnEarthquake(
                     text=comment_text,
@@ -748,17 +748,17 @@ class CommentHandler(BaseHandler):
             elif isinstance(c, CommentOnGCN):  # also update the gcn
                 self.push_all(
                     action='skyportal/REFRESH_SOURCE_GCN',
-                    payload={'obj_internal_key': c.obj.internal_key},
+                    payload={'gcnEvent_dateobs': c.gcn.dateobs},
                 )
             elif isinstance(c, CommentOnEarthquake):  # also update the earthquake
                 self.push_all(
                     action='skyportal/REFRESH_EARTHQUAKE',
-                    payload={'obj_internal_key': c.obj.internal_key},
+                    payload={'earthquake_id': c.earthquake.event_id},
                 )
             elif isinstance(c, CommentOnShift):  # also update the shift
                 self.push_all(
                     action='skyportal/REFRESH_SHIFT',
-                    payload={'obj_internal_key': c.obj.internal_key},
+                    payload={'shift_id': c.shift_id},
                 )
 
             return self.success()
@@ -853,7 +853,7 @@ class CommentHandler(BaseHandler):
                     return self.error(
                         'Could not find any accessible comments.', status=403
                     )
-                comment_resource_id_str = str(c.gcn_id)
+                comment_resource_id_str = str(c.earthquake_id)
             elif associated_resource_type.lower() == "shift":
                 c = session.scalars(
                     CommentOnShift.select(self.current_user, mode="delete").where(
@@ -874,6 +874,8 @@ class CommentHandler(BaseHandler):
 
             if isinstance(c, CommentOnGCN):
                 gcnevent_dateobs = c.gcn.dateobs
+            elif isinstance(c, CommentOnEarthquake):
+                event_id = c.earthquake.event_id
             elif not isinstance(c, CommentOnShift):
                 obj_key = c.obj.internal_key
 
@@ -899,7 +901,7 @@ class CommentHandler(BaseHandler):
             elif isinstance(c, CommentOnEarthquake):  # also update the earthquake
                 self.push_all(
                     action='skyportal/REFRESH_EARTHQUAKE',
-                    payload={'obj_internal_key': obj_key},
+                    payload={'earthquake_event_id': event_id},
                 )
             elif isinstance(c, CommentOnSpectrum):  # also update the spectrum
                 self.push_all(
