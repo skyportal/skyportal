@@ -1,3 +1,6 @@
+from astropy.time import Time
+import numpy as np
+import os
 import uuid
 
 from skyportal.tests import api
@@ -127,3 +130,83 @@ def test_token_user_delete_mmadetector(super_admin_token):
 
     status, data = api('GET', f'mmadetector/{mmadetector_id}', token=super_admin_token)
     assert status == 400
+
+
+def test_mmadetector_spectrum(super_admin_token):
+
+    datafile = f'{os.path.dirname(__file__)}/../data/aligo_O4high.txt'
+    data_out = np.loadtxt(datafile)
+    frequencies = data_out[:, 0]
+    amplitudes = data_out[:, 1]
+
+    start_time = Time('2023-03-01T00:00:00', format='isot')
+    end_time = Time('2024-06-01T00:00:00', format='isot')
+
+    name = str(uuid.uuid4())
+    status, data = api(
+        'POST',
+        'mmadetector',
+        data={
+            'name': name,
+            'nickname': name,
+            'type': 'gravitational-wave',
+            'fixed_location': True,
+            'lat': 0.0,
+            'lon': 0.0,
+        },
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    detector_id = data['data']['id']
+
+    data = {
+        'frequencies': frequencies.tolist(),
+        'amplitudes': amplitudes.tolist(),
+        'start_time': start_time.isot,
+        'end_time': end_time.isot,
+        'detector_id': detector_id,
+    }
+
+    status, data = api(
+        'POST',
+        'mmadetector/spectra',
+        data=data,
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+    spectrum_id = data['data']['id']
+
+    status, data = api(
+        'GET', f'mmadetector/spectra/{spectrum_id}', token=super_admin_token
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    assert np.array_equal(frequencies, data['data']['frequencies'])
+    assert np.array_equal(amplitudes, data['data']['amplitudes'])
+    assert start_time == Time(data['data']['start_time'], format='isot')
+    assert end_time == Time(data['data']['end_time'], format='isot')
+
+    status, data = api('GET', 'mmadetector/spectra', token=super_admin_token)
+    assert status == 200
+    assert data['status'] == 'success'
+    data = data['data'][0]
+
+    assert np.array_equal(frequencies, data['frequencies'])
+    assert np.array_equal(amplitudes, data['amplitudes'])
+    assert start_time == Time(data['start_time'], format='isot')
+    assert end_time == Time(data['end_time'], format='isot')
+
+    status, data = api(
+        'DELETE', f'mmadetector/spectra/{spectrum_id}', token=super_admin_token
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    status, data = api(
+        'GET', f'mmadetector/spectra/{spectrum_id}', token=super_admin_token
+    )
+    assert status == 403
