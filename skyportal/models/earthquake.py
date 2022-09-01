@@ -54,7 +54,9 @@ class EarthquakeNotice(Base):
         comment='Depth relative to sea level (positive values as depth increases) [m]',
     )
 
-    magnitude = sa.Column(sa.Float, nullable=False, comment='Magnitude', index=True)
+    magnitude = sa.Column(
+        sa.Float, nullable=False, comment='Earthquake (Moment) Magnitude', index=True
+    )
 
     date = sa.Column(
         sa.DateTime, nullable=False, comment='UTC event timestamp', index=True
