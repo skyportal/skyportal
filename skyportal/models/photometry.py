@@ -268,7 +268,7 @@ class Photometry(conesearch_alchemy.Point, Base):
                         cls.ref_flux > 0,
                         cls.ref_fluxerr > 0,
                     ),  # noqa: E711
-                    2.5 / sa.func.ln(10) * cls.ref_fluxerr / cls.ref_flux,
+                    (2.5 / sa.func.ln(10)) * (cls.ref_fluxerr / cls.ref_flux),
                 )
             ],
             else_=None,
