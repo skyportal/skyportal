@@ -94,7 +94,7 @@ GcnEventMMADetector.__doc__ = "Join table mapping GcnEvents to MMADetectors."
 
 
 class MMADetectorSpectrum(Base):
-    """Wavelength-dependent measurement of the sensitivity the detector."""
+    """Frequency-dependent measurement of the sensitivity the detector."""
 
     read = public
     update = delete = accessible_by_owner
