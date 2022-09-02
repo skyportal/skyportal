@@ -86,10 +86,6 @@ def post_earthquake_from_xml(payload, user_id, session):
         event = EarthquakeEvent(
             event_id=event_id, event_uri=event_uri, sent_by_id=user.id
         )
-        if not event.is_accessible_by(user, mode="create"):
-            raise AccessError(
-                "Insufficient permissions: Insufficient permissions for earthquake creation."
-            )
         session.add(event)
     else:
         if not event.is_accessible_by(user, mode="update"):
@@ -138,10 +134,6 @@ def post_earthquake_from_dictionary(payload, user_id, session):
 
     if event is None:
         event = EarthquakeEvent(event_id=event_id, sent_by_id=user.id)
-        if not event.is_accessible_by(user, mode="create"):
-            raise AccessError(
-                "Insufficient permissions: Insufficient permissions for earthquake creation."
-            )
         session.add(event)
     else:
         if not event.is_accessible_by(user, mode="update"):
