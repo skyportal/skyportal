@@ -32,6 +32,8 @@ app:
   lco_host: observe.lco.global
   lco_port: 443
 
+  lco_archive_endpoint: https://archive-api.lco.global
+
   ztf:
     protocol: https
     host: kowalski.caltech.edu
@@ -43,6 +45,8 @@ app:
     protocol: https
     host: www.swift.psu.edu
     port: 443
+
+  swift_xrt_endpoint: https://www.swift.ac.uk/user_objects
 
   ps1_endpoint: https://catalogs.mast.stsci.edu/
 
@@ -126,6 +130,8 @@ app:
       component: TelescopePage
     - path: "/instruments"
       component: InstrumentPage
+    - path: "/mmadetectors"
+      component: MMADetectorPage
     - path: "/services"
       component: AnalysisServicePage
     - path: "/shifts"
@@ -186,6 +192,10 @@ app:
         - name: Instruments
           icon: Wifi
           url: /instruments
+
+        - name: MMADetectors
+          icon: Abc
+          url: /mmadetectors
 
         - name: Allocations
           icon: HourglassEmptyOutlined

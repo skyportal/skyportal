@@ -30,7 +30,7 @@ class ExecutedObservation(Base):
     )
 
     observation_id = sa.Column(
-        sa.Integer, primary_key=True, doc='Observation ID supplied by instrument'
+        sa.BigInteger, primary_key=True, doc='Observation ID supplied by instrument'
     )
 
     obstime = sa.Column(
@@ -50,6 +50,8 @@ class ExecutedObservation(Base):
     seeing = sa.Column(sa.Float, doc='Seeing')
 
     limmag = sa.Column(sa.Float, doc='Limiting magnitude')
+
+    target_name = sa.Column(sa.String, doc='Name of target for observation')
 
     processed_fraction = sa.Column(
         sa.Float, nullable=False, comment='fraction of image processed successfully'

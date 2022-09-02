@@ -52,6 +52,7 @@ class Invitation(Base):
         cascade="save-update, merge, refresh-expire, expunge",
         passive_deletes=True,
         uselist=False,
+        overlaps='users',
     )
     used = sa.Column(sa.Boolean, nullable=False, default=False)
     user_expiration_date = sa.Column(sa.DateTime, nullable=True)

@@ -7,12 +7,16 @@ from ...models import (
     DBSession,
     User,
     CronJobRun,
+    Filter,
+    Instrument,
     Obj,
     Source,
     Candidate,
     Token,
+    GcnEvent,
     Group,
     Spectrum,
+    Telescope,
 )
 
 
@@ -104,6 +108,18 @@ class StatsHandler(BaseHandler):
             )
             data["Number of tokens"] = session.scalar(
                 sa.select(sa.func.count()).select_from(Token)
+            )
+            data["Number of filters"] = session.scalar(
+                sa.select(sa.func.count()).select_from(Filter)
+            )
+            data["Number of telescopes"] = session.scalar(
+                sa.select(sa.func.count()).select_from(Telescope)
+            )
+            data["Number of instruments"] = session.scalar(
+                sa.select(sa.func.count()).select_from(Instrument)
+            )
+            data["Number of GCN events"] = session.scalar(
+                sa.select(sa.func.count()).select_from(GcnEvent)
             )
             cand = session.scalars(
                 sa.select(Candidate).order_by(Candidate.created_at)

@@ -51,6 +51,7 @@ from .group_admission_request import GroupAdmissionRequestHandler
 from .instrument import InstrumentHandler
 from .invalid import InvalidEndpointHandler
 from .invitations import InvitationHandler
+from .mmadetector import MMADetectorHandler
 from .news_feed import NewsFeedHandler
 from .observation import (
     ObservationASCIIFileHandler,

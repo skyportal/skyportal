@@ -235,6 +235,7 @@ class InstrumentField(Base):
         "Instrument",
         foreign_keys=instrument_id,
         doc="The Instrument that this field belongs to",
+        overlaps='fields',
     )
 
     field_id = sa.Column(
@@ -347,6 +348,7 @@ class InstrumentFieldTile(Base):
         "Instrument",
         foreign_keys=instrument_id,
         doc="The Instrument that this tile belongs to",
+        overlaps='tiles',
     )
 
     instrument_field_id = sa.Column(
@@ -359,6 +361,7 @@ class InstrumentFieldTile(Base):
         "InstrumentField",
         foreign_keys=instrument_field_id,
         doc="The Field that this tile belongs to",
+        overlaps='tiles',
     )
 
     healpix = sa.Column(healpix_alchemy.Tile, primary_key=True, index=True)

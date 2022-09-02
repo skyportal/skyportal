@@ -203,6 +203,15 @@ class GcnEvent(Base):
         doc="Reminders about this GCN event.",
     )
 
+    detectors = relationship(
+        "MMADetector",
+        secondary="gcnevents_mmadetectors",
+        back_populates="events",
+        cascade="save-update, merge, refresh-expire, expunge",
+        passive_deletes=True,
+        doc="MMA Detectors that contributed this event.",
+    )
+
     @hybrid_property
     def tags(self):
         """List of tags."""

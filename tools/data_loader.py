@@ -139,7 +139,7 @@ if __name__ == "__main__":
                 time.sleep(timeout)
                 continue
 
-            if status == 200:
+            if status == 200 and data['status'] == 'success':
                 break
             else:
                 if i == RETRIES - 1:
@@ -171,7 +171,7 @@ if __name__ == "__main__":
         sys.exit(-1)
 
     status, response = get('groups/public')
-    if status != 200:
+    if status != 200 or response['status'] != 'success':
         print('Error: no public group found; aborting')
         sys.exit(-1)
     public_group_id = response['data']['id']
