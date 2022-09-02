@@ -710,7 +710,7 @@ def get_sources(
                 Classification.classification,
             )
             .join(Taxonomy)
-            .where(Classification.classification.notin_(nonclassifications))
+            .where(Classification.classification.in_(nonclassifications))
             .where(Taxonomy.name.in_(taxonomy_names))
         )
         nonclassification_subquery = nonclassification_query.subquery()
@@ -721,7 +721,7 @@ def get_sources(
         # strategies)
         obj_query = obj_query.join(
             nonclassification_subquery,
-            Obj.id == nonclassification_subquery.c.obj_id,
+            Obj.id != nonclassification_subquery.c.obj_id,
         )
         obj_query = obj_query.join(
             classification_accessible_subquery,
