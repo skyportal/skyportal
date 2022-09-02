@@ -1,7 +1,6 @@
 from skyportal.tests import api
 from datetime import date, timedelta
 import uuid
-import os
 import time
 import numpy as np
 
@@ -55,6 +54,7 @@ def test_shift_summary(
     public_group,
     super_admin_token,
     super_admin_user,
+    gcn_GRB,
 ):
     # add a shift to the group, with a start day one day before today,
     # and an end day one day after today
@@ -98,16 +98,7 @@ def test_shift_summary(
     assert status == 200
     assert data['status'] == 'success'
 
-    datafile = f'{os.path.dirname(__file__)}/../data/GRB180116A_Fermi_GBM_Gnd_Pos.xml'
-    with open(datafile, 'rb') as fid:
-        payload = fid.read()
-    data = {'xml': payload}
-
-    status, data = api('POST', 'gcn_event', data=data, token=super_admin_token)
-    assert status in [200, 500]
-    assert data['status'] == 'success'
     # wait for event to load
-
     for n_times in range(16):
         status, data = api(
             'GET', "gcn_event/2018-01-16T00:36:53", token=super_admin_token

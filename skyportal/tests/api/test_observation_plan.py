@@ -12,18 +12,15 @@ from skyportal.tests import api
 
 @pytest.mark.flaky(reruns=2)
 def test_observation_plan_tiling(
-    user, super_admin_token, upload_data_token, view_only_token, public_group
+    user,
+    super_admin_token,
+    upload_data_token,
+    view_only_token,
+    public_group,
+    gcn_GW190425,
 ):
 
-    datafile = f'{os.path.dirname(__file__)}/../data/GW190425_initial.xml'
-    with open(datafile, 'rb') as fid:
-        payload = fid.read()
-    data = {'xml': payload}
-
-    status, data = api('POST', 'gcn_event', data=data, token=super_admin_token)
-    assert status in [200, 500]
-    assert data['status'] == 'success'
-    gcnevent_id = data['data']['gcnevent_id']
+    gcnevent_id = gcn_GW190425
 
     dateobs = "2019-04-25 08:18:05"
     skymap = "bayestar.fits.gz"
