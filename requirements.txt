@@ -9,7 +9,7 @@ pytest-randomly==3.11.0
 factory-boy==3.2.1
 astropy==5.1
 aplpy==2.1.0
-distributed==2022.8.1
+distributed==2022.7.1
 reproject==0.8
 avro-python3==1.10.2
 fastavro==1.4.12
