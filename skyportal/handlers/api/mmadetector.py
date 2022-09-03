@@ -10,7 +10,7 @@ from baselayer.app.custom_exceptions import AccessError
 
 from .spectrum import parse_id_list
 from ..base import BaseHandler
-from ...models import MMADetector, MMADetectorSpectrum, Group
+from ...models import MMADetector, MMADetectorSpectrum, MMADetectorSegment, Group
 
 from ...models.schema import (
     MMADetectorSpectrumPost,
@@ -424,7 +424,7 @@ class MMADetectorSpectrumHandler(BaseHandler):
         # multiple spectra
         observed_before = self.get_query_argument('observedBefore', None)
         observed_after = self.get_query_argument('observedAfter', None)
-        detector_ids = self.get_query_argument('instrumentIDs', None)
+        detector_ids = self.get_query_argument('detectorIDs', None)
         group_ids = self.get_query_argument('groupIDs', None)
 
         # validate inputs
@@ -591,10 +591,13 @@ class MMADetectorSpectrumHandler(BaseHandler):
         """
         with self.Session() as session:
             spectrum = session.scalars(
-                MMADetectorSpectrum.select(self.current_user).where(
+                MMADetectorSpectrum.select(self.current_user, mode="delete").where(
                     MMADetectorSpectrum.id == spectrum_id
                 )
             ).first()
+            if spectrum is None:
+                return self.error(f'Cannot find spectrum with ID {spectrum_id}')
+
             detector_id = spectrum.detector.id
             session.delete(spectrum)
             session.commit()
@@ -606,6 +609,402 @@ class MMADetectorSpectrumHandler(BaseHandler):
 
             self.push_all(
                 action='skyportal/REFRESH_MMADETECTOR_SPECTRA',
+                payload={'detector_id': detector_id},
+            )
+
+            return self.success()
+
+
+class MMADetectorSegmentHandler(BaseHandler):
+    @permissions(['Upload data'])
+    def post(self):
+        """
+        ---
+        description: Upload a Multimessenger Astronomical Detector (MMADetector) segment(s)
+        tags:
+          - mmadetector_segments
+        requestBody:
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/MMADetectorSegmentPost'
+                  - type: object
+                    properties:
+                      group_ids:
+                        type: array
+                        items:
+                          type: integer
+                        description: |
+                          List of associated group IDs. If not specified, all of the
+                          user or token's groups will be used.
+        responses:
+          200:
+            content:
+              application/json:
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              description: New mmadetector data segment ID
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        json = self.get_json()
+
+        if 'segments' in json:
+            segments = json['segments']
+        elif 'segment' in json:
+            segments = [json['segment']]
+        else:
+            return self.error('segment or segments required in json')
+
+        if 'detector_id' not in json:
+            return self.error('detector_id required in json')
+
+        with self.Session() as session:
+            stmt = MMADetector.select(self.current_user).where(
+                MMADetector.id == json['detector_id']
+            )
+            mmadetector = session.scalars(stmt).first()
+            if mmadetector is None:
+                return self.error(
+                    f'Cannot find mmadetector with ID: {json["detector_id"]}'
+                )
+
+            owner_id = self.associated_user_object.id
+
+            # always append the single user group
+            single_user_group = self.associated_user_object.single_user_group
+
+            group_ids = json.pop("group_ids", None)
+            if group_ids == [] or group_ids is None:
+                group_ids = [single_user_group.id]
+            elif group_ids == "all":
+                group_ids = [g.id for g in self.current_user.accessible_groups]
+
+            if single_user_group.id not in group_ids:
+                group_ids.append(single_user_group.id)
+
+            groups = (
+                session.scalars(
+                    Group.select(self.current_user).where(Group.id.in_(group_ids))
+                )
+                .unique()
+                .all()
+            )
+            if {g.id for g in groups} != set(group_ids):
+                return self.error(
+                    f'Cannot find one or more groups with IDs: {group_ids}.'
+                )
+
+            segment_list = []
+            for segment in segments:
+                data = {'segment': segment, 'detector_id': json['detector_id']}
+
+                segment = MMADetectorSegment(**data)
+                segment.mmadetector = mmadetector
+                segment.groups = groups
+                segment.owner_id = owner_id
+                segment_list.append(segment)
+
+            session.add_all(segment_list)
+            session.commit()
+
+            self.push_all(
+                action='skyportal/REFRESH_MMASEGMENT',
+                payload={'detector_id': segment.detector.id},
+            )
+
+            self.push_all(
+                action='skyportal/REFRESH_MMASEGMENT_SEGMENTS',
+                payload={'detector_id': segment.detector.id},
+            )
+
+            return self.success(data={"ids": [segment.id for segment in segment_list]})
+
+    @auth_or_token
+    def get(self, segment_id=None):
+        """
+        ---
+        single:
+          description: Retrieve an mmadetector segment
+          tags:
+            - mmadetector_segments
+          parameters:
+            - in: path
+              name: segment_id
+              required: true
+              schema:
+                type: integer
+          responses:
+            200:
+              content:
+                application/json:
+                  schema: SingleMMADetectorSegment
+            403:
+              content:
+                application/json:
+                  schema: Error
+        multiple:
+          description: Retrieve multiple segments with given criteria
+          tags:
+            - mmadetector_segments
+          parameters:
+            - in: query
+              name: observedBefore
+              nullable: true
+              schema:
+                type: string
+              description: |
+                Arrow-parseable date string (e.g. 2020-01-01). If provided,
+                return only segment observed before this time.
+            - in: query
+              name: observedAfter
+              nullable: true
+              schema:
+                type: string
+              description: |
+                Arrow-parseable date string (e.g. 2020-01-01). If provided,
+                return only segment observed after this time.
+            - in: query
+              name: detectorIDs
+              nullable: true
+              type: list
+              items:
+                type: integer
+              description: |
+                If provided, filter only segments observed with one of these mmadetector IDs.
+            - in: query
+              name: groupIDs
+              nullable: true
+              schema:
+                type: list
+                items:
+                  type: integer
+              description: |
+                If provided, filter only segment saved to one of these group IDs.
+        """
+        if segment_id is not None:
+            with self.Session() as session:
+                segment = session.scalars(
+                    MMADetectorSegment.select(session.user_or_token).where(
+                        MMADetectorSegment.id == segment_id
+                    )
+                ).first()
+                if segment is None:
+                    return self.error(
+                        f'Could not access segment {segment_id}.', status=403
+                    )
+                seg = segment.segment
+                data = {
+                    'id': segment.id,
+                    'segment': [seg.lower, seg.upper],
+                    'owner': segment.owner,
+                    'groups': segment.groups,
+                    'detector': segment.detector,
+                }
+                return self.success(data=data)
+
+        # multiple segment
+        observed_before = self.get_query_argument('observedBefore', None)
+        observed_after = self.get_query_argument('observedAfter', None)
+        detector_ids = self.get_query_argument('detectorIDs', None)
+        group_ids = self.get_query_argument('groupIDs', None)
+
+        # validate inputs
+        try:
+            observed_before = (
+                arrow.get(observed_before).datetime if observed_before else None
+            )
+        except (TypeError, ParserError):
+            return self.error(f'Cannot parse time input value "{observed_before}".')
+
+        try:
+            observed_after = (
+                arrow.get(observed_after).datetime if observed_after else None
+            )
+        except (TypeError, ParserError):
+            return self.error(f'Cannot parse time input value "{observed_after}".')
+
+        with self.Session() as session:
+
+            try:
+                detector_ids = parse_id_list(detector_ids, MMADetector, session)
+                group_ids = parse_id_list(group_ids, Group, session)
+            except (ValueError, AccessError) as e:
+                return self.error(str(e))
+
+            # filter the segment
+            segment_query = MMADetectorSegment.select(session.user_or_token)
+            if detector_ids:
+                segment_query = segment_query.where(
+                    MMADetectorSegment.detector_id.in_(detector_ids)
+                )
+
+            if group_ids:
+                segment_query = segment_query.where(
+                    or_(
+                        *[
+                            MMADetectorSegment.groups.any(Group.id == gid)
+                            for gid in group_ids
+                        ]
+                    )
+                )
+
+            if observed_before:
+                segment_query = segment_query.where(
+                    MMADetectorSegment.end_time <= observed_before
+                )
+
+            if observed_after:
+                segment_query = segment_query.where(
+                    MMADetectorSegment.start_time >= observed_after
+                )
+
+            segments = session.scalars(segment_query).unique().all()
+            data = []
+            for segment in segments:
+                seg = segment.segment
+                data.append(
+                    {
+                        'id': segment.id,
+                        'segment': [seg.lower, seg.upper],
+                        'owner': segment.owner,
+                        'groups': segment.groups,
+                        'detector': segment.detector,
+                    }
+                )
+            return self.success(data=data)
+
+    @permissions(['Upload data'])
+    def patch(self, segment_id):
+        """
+        ---
+        description: Update mmadetector segment
+        tags:
+          - mmadetector_segments
+        parameters:
+          - in: path
+            name: segment_id
+            required: true
+            schema:
+              type: integer
+        requestBody:
+          content:
+            application/json:
+              schema: MMADetectorSegmentPost
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+
+        try:
+            segment_id = int(segment_id)
+        except TypeError:
+            return self.error('Could not convert segment id to int.')
+
+        data = self.get_json()
+        group_ids = data.pop("group_ids", None)
+        if group_ids == 'all':
+            group_ids = [g.id for g in self.current_user.accessible_groups]
+
+        with self.Session() as session:
+            stmt = MMADetectorSegment.select(self.current_user).where(
+                MMADetectorSegment.id == segment_id
+            )
+            segment = session.scalars(stmt).first()
+
+            if group_ids:
+                groups = (
+                    session.scalars(
+                        Group.select(self.current_user).where(Group.id.in_(group_ids))
+                    )
+                    .unique()
+                    .all()
+                )
+                if {g.id for g in groups} != set(group_ids):
+                    return self.error(
+                        f'Cannot find one or more groups with IDs: {group_ids}.'
+                    )
+
+                if groups:
+                    segment.groups = segment.groups + groups
+
+            if 'segment' in data:
+                setattr(segment, 'segment', data['segment'])
+
+            session.commit()
+
+            self.push_all(
+                action='skyportal/REFRESH_MMADETECTOR',
+                payload={'detector_id': segment.detector.id},
+            )
+
+            self.push_all(
+                action='skyportal/REFRESH_MMADETECTOR_SEGMENT',
+                payload={'detector_id': segment.detector.id},
+            )
+
+            return self.success()
+
+    @permissions(['Upload data'])
+    def delete(self, segment_id):
+        """
+        ---
+        description: Delete an mmadetector segment
+        tags:
+          - mmadetector_segments
+        parameters:
+          - in: path
+            name: segment_id
+            required: true
+            schema:
+              type: integer
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        with self.Session() as session:
+            segment = session.scalars(
+                MMADetectorSegment.select(self.current_user, mode="delete").where(
+                    MMADetectorSegment.id == segment_id
+                )
+            ).first()
+            if segment is None:
+                return self.error(f'Cannot find segment with ID {segment_id}')
+
+            detector_id = segment.detector.id
+            session.delete(segment)
+            session.commit()
+
+            self.push_all(
+                action='skyportal/REFRESH_MMADETECTOR',
+                payload={'detector_id': detector_id},
+            )
+
+            self.push_all(
+                action='skyportal/REFRESH_MMADETECTOR_SEGMENTS',
                 payload={'detector_id': detector_id},
             )
 

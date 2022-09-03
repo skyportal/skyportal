@@ -210,3 +210,104 @@ def test_mmadetector_spectrum(super_admin_token):
         'GET', f'mmadetector/spectra/{spectrum_id}', token=super_admin_token
     )
     assert status == 403
+
+
+def test_mmadetector_segments(super_admin_token):
+
+    datafile = f'{os.path.dirname(__file__)}/../data/H1L1_O3_segments.txt'
+    data_out = np.loadtxt(datafile)
+    segments = []
+    for row in data_out:
+        start_time = Time(row[1], format='gps')
+        end_time = Time(row[2], format='gps')
+        segments.append([start_time.isot, end_time.isot])
+
+    test_segment = segments[0]
+    test_segment = [seg.replace(".000", "") for seg in test_segment]
+    test_segment_2 = segments[1]
+    test_segment_2 = [seg.replace(".000", "") for seg in test_segment_2]
+
+    name = str(uuid.uuid4())
+    status, data = api(
+        'POST',
+        'mmadetector',
+        data={
+            'name': name,
+            'nickname': name,
+            'type': 'gravitational-wave',
+            'fixed_location': True,
+            'lat': 0.0,
+            'lon': 0.0,
+        },
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    detector_id = data['data']['id']
+
+    data = {
+        'segments': segments,
+        'detector_id': detector_id,
+    }
+
+    status, data = api(
+        'POST',
+        'mmadetector/segments',
+        data=data,
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+    segment_ids = data["data"]["ids"]
+
+    segment_id = segment_ids[0]
+    status, data = api(
+        'GET', f'mmadetector/segments/{segment_id}', token=super_admin_token
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+    assert data['data']['segment'] == test_segment
+
+    params = {'detectorIDs': [detector_id]}
+    status, data = api(
+        'GET', 'mmadetector/segments', params=params, token=super_admin_token
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+    assert any([seg['segment'] == test_segment for seg in data['data']])
+    assert all([seg['id'] in segment_ids for seg in data['data']])
+
+    data = {
+        'segment': segments[1],
+        'detector_id': detector_id,
+    }
+
+    status, data = api(
+        'PATCH',
+        f'mmadetector/segments/{segment_id}',
+        data=data,
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    segment_id = segment_ids[0]
+    status, data = api(
+        'GET', f'mmadetector/segments/{segment_id}', token=super_admin_token
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+    assert data['data']['segment'] == test_segment_2
+
+    for segment_id in segment_ids:
+        status, data = api(
+            'DELETE', f'mmadetector/segments/{segment_id}', token=super_admin_token
+        )
+        assert status == 200
+        assert data['status'] == 'success'
+
+        status, data = api(
+            'GET', f'mmadetector/segments/{segment_id}', token=super_admin_token
+        )
+        assert status == 403

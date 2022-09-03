@@ -365,6 +365,15 @@ class Group(Base):
         doc='The MMADetector spectra visible to this group.',
     )
 
+    mmadetector_segments = relationship(
+        "MMADetectorSegment",
+        secondary="group_mmadetector_segments",
+        back_populates="groups",
+        cascade="save-update, merge, refresh-expire, expunge",
+        passive_deletes=True,
+        doc='The MMADetector segments visible to this group.',
+    )
+
     single_user_group = sa.Column(
         sa.Boolean,
         default=False,

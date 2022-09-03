@@ -4,6 +4,7 @@ __all__ = [
     'GroupAnnotation',
     'GroupClassification',
     'GroupMMADetectorSpectrum',
+    'GroupMMADetectorSegment',
     'GroupPhotometry',
     'GroupPhotometricSeries',
     'GroupSpectrum',
@@ -32,7 +33,7 @@ from .taxonomy import Taxonomy
 from .comment import Comment, CommentOnSpectrum, CommentOnGCN, CommentOnShift
 from .annotation import Annotation
 from .classification import Classification
-from .mmadetector import MMADetectorSpectrum
+from .mmadetector import MMADetectorSpectrum, MMADetectorSegment
 from .spectrum import Spectrum
 from .annotation import AnnotationOnSpectrum
 from .reminder import Reminder, ReminderOnGCN, ReminderOnSpectrum, ReminderOnShift
@@ -130,6 +131,14 @@ GroupMMADetectorSpectrum = join_model(
 GroupMMADetectorSpectrum.__doc__ = 'Join table mapping Groups to MMADetectorSpectra.'
 GroupMMADetectorSpectrum.update = GroupMMADetectorSpectrum.delete = (
     accessible_by_group_admins & GroupMMADetectorSpectrum.read
+)
+
+GroupMMADetectorSegment = join_model(
+    "group_mmadetector_segments", Group, MMADetectorSegment
+)
+GroupMMADetectorSegment.__doc__ = 'Join table mapping Groups to MMADetectorSpectra.'
+GroupMMADetectorSegment.update = GroupMMADetectorSegment.delete = (
+    accessible_by_group_admins & GroupMMADetectorSegment.read
 )
 
 GroupSpectrum = join_model("group_spectra", Group, Spectrum)

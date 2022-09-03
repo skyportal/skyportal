@@ -164,7 +164,7 @@ def setup_schema():
             schema_class_name = class_.__name__
             add_schema(
                 schema_class_name,
-                exclude=['healpix', 'created_at', 'modified'],
+                exclude=['segment', 'healpix', 'created_at', 'modified'],
                 add_to_model=True,
             )
             add_schema(
@@ -176,6 +176,7 @@ def setup_schema():
                     'owner_id',
                     'last_modified_by_id',
                     'healpix',
+                    'segment',
                 ],
             )
             if schema_class_name == "Obj":

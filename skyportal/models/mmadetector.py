@@ -1,8 +1,9 @@
-__all__ = ['MMADetector', 'MMADetectorSpectrum']
+__all__ = ['MMADetector', 'MMADetectorSpectrum', 'MMADetectorSegment']
 
 import numpy as np
 import sqlalchemy as sa
 from sqlalchemy.orm import relationship
+from sqlalchemy_utils import DateTimeRangeType
 
 from baselayer.app.models import (
     Base,
@@ -86,6 +87,16 @@ class MMADetector(Base):
         passive_deletes=True,
         order_by="MMADetectorSpectrum.start_time",
         doc="MMADetectorSpectra of the object.",
+    )
+
+    segments = relationship(
+        'MMADetectorSegment',
+        back_populates='detector',
+        cascade='save-update, merge, refresh-expire, expunge, delete',
+        single_parent=True,
+        passive_deletes=True,
+        order_by="MMADetectorSegment.segment",
+        doc="MMADetectorSegment of the object.",
     )
 
 
@@ -261,3 +272,50 @@ class MMADetectorSpectrum(Base):
             end_time=end_time,
             **spec_data,
         )
+
+
+class MMADetectorSegment(Base):
+    """Data segment for the detector."""
+
+    read = public
+    update = delete = accessible_by_owner
+
+    detector_id = sa.Column(
+        sa.ForeignKey('mmadetectors.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+        doc="ID of the MMADetector that acquired the Spectrum.",
+    )
+
+    detector = relationship(
+        'MMADetector',
+        back_populates='segments',
+        doc="The MMADetector that acquired the Spectrum.",
+    )
+
+    groups = relationship(
+        "Group",
+        secondary="group_mmadetector_segments",
+        back_populates="mmadetector_segments",
+        cascade="save-update, merge, refresh-expire, expunge",
+        passive_deletes=True,
+        doc='Groups that can view this detector spectrum.',
+    )
+
+    owner_id = sa.Column(
+        sa.ForeignKey('users.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+        doc="ID of the User who uploaded the detector segment.",
+    )
+    owner = relationship(
+        'User',
+        back_populates='mmadetector_segments',
+        foreign_keys=[owner_id],
+        cascade='save-update, merge, refresh-expire, expunge',
+        doc="The User who uploaded the detector segment.",
+    )
+
+    segment = sa.Column(
+        DateTimeRangeType, doc="The time segment [start, end] of detector data."
+    )
