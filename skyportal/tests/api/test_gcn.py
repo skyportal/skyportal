@@ -10,6 +10,8 @@ import pandas as pd
 from regions import Regions
 from astropy.table import Table
 
+import pytest
+
 
 def test_gcn_GW(super_admin_token, view_only_token, gcn_GW190425):
 
@@ -163,7 +165,7 @@ def test_gcn_from_moc(super_admin_token, view_only_token):
     assert "2022-06-18T18:31:12" in [event["dateobs"] for event in data["events"]]
 
 
-# @pytest.mark.flaky(reruns=3)
+@pytest.mark.flaky(reruns=3)
 def test_gcn_summary_sources(
     super_admin_user,
     super_admin_token,
@@ -389,18 +391,10 @@ def test_gcn_summary_observations(
     super_admin_user,
     super_admin_token,
     public_group,
+    gcn_GW190814,
 ):
 
-    datafile = f'{os.path.dirname(__file__)}/../../../data/GW190814.xml'
-    with open(datafile, 'rb') as fid:
-        payload = fid.read()
-    data = {'xml': payload}
-
-    status, data = api('POST', 'gcn_event', data=data, token=super_admin_token)
-    assert status == 200
-    assert data['status'] == 'success'
-
-    gcnevent_id = data['data']['gcnevent_id']
+    gcnevent_id = gcn_GW190814
 
     # wait for event to load
     for n_times in range(26):
