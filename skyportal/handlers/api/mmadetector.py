@@ -626,18 +626,7 @@ class MMADetectorSegmentHandler(BaseHandler):
         requestBody:
           content:
             application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/MMADetectorSegmentPost'
-                  - type: object
-                    properties:
-                      group_ids:
-                        type: array
-                        items:
-                          type: integer
-                        description: |
-                          List of associated group IDs. If not specified, all of the
-                          user or token's groups will be used.
+              schema: MMADetectorSegmentNoID
         responses:
           200:
             content:
@@ -901,7 +890,7 @@ class MMADetectorSegmentHandler(BaseHandler):
         requestBody:
           content:
             application/json:
-              schema: MMADetectorSegmentPost
+              schema: MMADetectorSegmentNoID
         responses:
           200:
             content:
