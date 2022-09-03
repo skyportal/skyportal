@@ -7,14 +7,23 @@ Create Date: 2022-09-01 12:07:44.450979
 """
 from alembic import op
 import sqlalchemy as sa
-
-from skyportal.models.spectrum import NumpyArray
+from sqlalchemy.dialects import postgresql as psql
+import numpy as np
 
 # revision identifiers, used by Alembic.
 revision = '4822ff118a4f'
 down_revision = '2c856b2845f2'
 branch_labels = None
 depends_on = None
+
+
+class NumpyArray(sa.types.TypeDecorator):
+    """SQLAlchemy representation of a NumPy array."""
+
+    impl = psql.ARRAY(sa.Float)
+
+    def process_result_value(self, value, dialect):
+        return np.array(value)
 
 
 def upgrade():
