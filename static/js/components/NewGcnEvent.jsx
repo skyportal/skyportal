@@ -32,6 +32,13 @@ const NewGcnEvent = () => {
         error: formData.error,
       };
     }
+    if (Object.keys(formData).includes("polygon")) {
+      // eslint-disable-next-line prefer-destructuring
+      formData.skymap = {
+        localization_name: formData.localization_name,
+        polygon: formData.polygon,
+      };
+    }
     const result = await dispatch(submitGcnEvent(formData));
     if (result.status === "success") {
       dispatch(showNotification("GCN Event saved"));
@@ -49,55 +56,71 @@ const NewGcnEvent = () => {
       errors.error.addError("0 < error, please fix.");
     }
     if (!formData.xml) {
-      if (
-        !formData.dateobs ||
-        !formData.ra ||
-        !formData.dec ||
-        !formData.error
-      ) {
-        errors.dateobs.addError(
-          "dateobs, ra, dec, and error must be defined if not uploading VOEvent"
-        );
+      if (!formData.polygon) {
+        if (
+          !formData.dateobs ||
+          !formData.ra ||
+          !formData.dec ||
+          !formData.error
+        ) {
+          errors.dateobs.addError(
+            "dateobs, ra, dec, and error (or polygon) must be defined if not uploading VOEvent"
+          );
+        }
       }
     }
     return errors;
   }
 
+  const properties = {
+    dateobs: {
+      type: "string",
+      title: "Observation date [i.e. 2022-05-14T12:24:25]",
+    },
+    ra: {
+      type: "number",
+      title: "Right Ascension [deg]",
+    },
+    dec: {
+      type: "number",
+      title: "Declination [deg]",
+    },
+    error: {
+      type: "number",
+      title: "1-sigma Error [deg]",
+    },
+    localization_name: {
+      type: "string",
+      title: "Localization name",
+    },
+    polygon: {
+      type: "string",
+      title:
+        "Polygon [i.e. [(30.0, 60.0), (40.0, 60.0), (40.0, 70.0), (30.0, 70.0)] ]",
+    },
+    xml: {
+      type: "string",
+      format: "data-url",
+      title: "VOEvent XML File",
+      description: "VOEvent XML file",
+    },
+  };
+
+  if (gcnTags.length > 0) {
+    properties.tags = {
+      type: "array",
+      items: {
+        type: "string",
+        enum: gcnTags,
+      },
+      uniqueItems: true,
+      title: "Tags list",
+    };
+  }
+
   const gcnEventFormSchema = {
     type: "object",
-    properties: {
-      dateobs: {
-        type: "string",
-        title: "Observation date [i.e. 2022-05-14T12:24:25]",
-      },
-      ra: {
-        type: "number",
-        title: "Right Ascension [deg]",
-      },
-      dec: {
-        type: "number",
-        title: "Declination [deg]",
-      },
-      error: {
-        type: "number",
-        title: "1-sigma Error [deg]",
-      },
-      tags: {
-        type: "array",
-        items: {
-          type: "string",
-          enum: gcnTags,
-        },
-        uniqueItems: true,
-        title: "Tags list",
-      },
-      xml: {
-        type: "string",
-        format: "data-url",
-        title: "VOEvent XML File",
-        description: "VOEvent XML file",
-      },
-    },
+    properties,
   };
 
   return (
