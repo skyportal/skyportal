@@ -17,6 +17,7 @@ from baselayer.log import make_log
 
 from ..app_utils import get_app_base_url
 from .allocation import Allocation
+from .analysis import ObjAnalysis
 from .classification import Classification
 from .gcn import GcnNotice
 from .localization import Localization
@@ -99,6 +100,7 @@ def notification_resource_type(target):
 
 
 def user_preferences(target, notification_setting, resource_type):
+
     if not isinstance(notification_setting, str):
         return
     if not isinstance(resource_type, str):
@@ -138,7 +140,6 @@ def user_preferences(target, notification_setting, resource_type):
             return
 
     prefs = target.user.preferences.get('notifications')
-
     if not prefs:
         return
     else:
@@ -148,6 +149,7 @@ def user_preferences(target, notification_setting, resource_type):
             'gcn_events',
             'facility_transactions',
             'mention',
+            'analysis_services',
         ]:
             if not prefs.get(resource_type, False):
                 return
@@ -190,6 +192,7 @@ def send_slack_notification(mapper, connection, target):
 def send_email_notification(mapper, connection, target):
     resource_type = notification_resource_type(target)
     prefs = user_preferences(target, "email", resource_type)
+
     if not prefs:
         return
 
@@ -207,7 +210,9 @@ def send_email_notification(mapper, connection, target):
     elif resource_type == "facility_transactions":
         subject = f"{cfg['app.title']} - New facility transaction"
         body = f'{target.text} ({get_app_base_url()}{target.url})'
-
+    elif resource_type == "analysis_services":
+        subject = f"{cfg['app.title']} - New completed analysis service"
+        body = f'{target.text} ({get_app_base_url()}{target.url})'
     elif resource_type == "favorite_sources":
         if target.notification_type == "favorite_sources_new_classification":
             subject = f"{cfg['app.title']} - New classification on a favorite source"
@@ -317,6 +322,7 @@ def push_frontend_notification(mapper, connection, target):
 @event.listens_for(GcnNotice, 'after_insert')
 @event.listens_for(FacilityTransaction, 'after_insert')
 @event.listens_for(GroupAdmissionRequest, 'after_insert')
+@event.listens_for(ObjAnalysis, 'after_update')
 def add_user_notifications(mapper, connection, target):
 
     # Add front-end user notifications
@@ -331,6 +337,7 @@ def add_user_notifications(mapper, connection, target):
         is_group_admission_request = (
             target.__class__.__name__ == "GroupAdmissionRequest"
         )
+        is_analysis_service = target.__class__.__name__ == "ObjAnalysis"
 
         if is_gcnevent:
             users = session.scalars(
@@ -344,6 +351,14 @@ def add_user_notifications(mapper, connection, target):
             users = session.scalars(
                 sa.select(User).where(
                     User.preferences["notifications"]["facility_transactions"]["active"]
+                    .astext.cast(sa.Boolean)
+                    .is_(True)
+                )
+            ).all()
+        elif is_analysis_service:
+            users = session.scalars(
+                sa.select(User).where(
+                    User.preferences["notifications"]["analysis_services"]["active"]
                     .astext.cast(sa.Boolean)
                     .is_(True)
                 )
@@ -476,6 +491,16 @@ def add_user_notifications(mapper, connection, target):
                                 text=f"New Follow-up submission for object *{target.followup_request.obj_id}* by *{instrument.name}*",
                                 notification_type="facility_transactions",
                                 url=f"/source/{target.followup_request.obj_id}",
+                            )
+                        )
+                elif is_analysis_service:
+                    if target.status == "completed":
+                        session.add(
+                            UserNotification(
+                                user=user,
+                                text=f"New completed analysis service for object *{target.obj_id}* with name *{target.analysis_service.name}*",
+                                notification_type="analysis_services",
+                                url=f"/source/{target.obj_id}",
                             )
                         )
                 elif is_group_admission_request:
