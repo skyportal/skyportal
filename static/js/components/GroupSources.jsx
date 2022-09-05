@@ -69,7 +69,7 @@ const GroupSources = ({ route }) => {
     );
   }, [route.id, dispatch]);
 
-  if (!savedSourcesState.sources && !pendingSourcesState.sources) {
+  if (!savedSourcesState.sources || !pendingSourcesState.sources) {
     return (
       <div>
         <CircularProgress color="secondary" />
