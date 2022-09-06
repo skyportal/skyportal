@@ -1,21 +1,11 @@
-import os
-
 from skyportal.tests import api
 
 
 def test_add_and_retrieve_comment_group_id(
-    comment_token, upload_data_token, public_group, super_admin_token
+    comment_token, upload_data_token, public_group, super_admin_token, gcn_GW190425
 ):
 
-    datafile = f'{os.path.dirname(__file__)}/../data/GW190425_initial.xml'
-    with open(datafile, 'rb') as fid:
-        payload = fid.read()
-    data = {'xml': payload}
-
-    status, data = api('POST', 'gcn_event', data=data, token=super_admin_token)
-    assert status == 200
-    assert data['status'] == 'success'
-    gcnevent_id = data['data']['gcnevent_id']
+    gcnevent_id = gcn_GW190425
 
     status, data = api(
         'POST',
@@ -37,17 +27,9 @@ def test_add_and_retrieve_comment_group_id(
     assert data['data']['text'] == 'Comment text'
 
 
-def test_delete_comment(comment_token, public_group, super_admin_token):
+def test_delete_comment(comment_token, public_group, super_admin_token, gcn_GW190425):
 
-    datafile = f'{os.path.dirname(__file__)}/../data/GW190425_initial.xml'
-    with open(datafile, 'rb') as fid:
-        payload = fid.read()
-    data = {'xml': payload}
-
-    status, data = api('POST', 'gcn_event', data=data, token=super_admin_token)
-    assert status == 200
-    assert data['status'] == 'success'
-    gcnevent_id = data['data']['gcnevent_id']
+    gcnevent_id = gcn_GW190425
 
     status, data = api(
         'POST',

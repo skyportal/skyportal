@@ -27,6 +27,7 @@ from skyportal.models import (
     Telescope,
     Obj,
     GcnEvent,
+    GcnNotice,
     Comment,
     CommentOnSpectrum,
     CommentOnGCN,
@@ -57,23 +58,20 @@ print("Setting test database to:", cfg["database"])
 init_db(**cfg["database"])
 
 
-def is_already_deleted(instance, table):
+def is_already_deleted(instance, table, session=DBSession()):
     """
     Helper function to check if a given ORM instance has already been deleted previously,
     either by earlier teardown functions or by a test itself through the API.
     """
     # If the instance is marked detached, that means it was deleted earlier in the
     # current transaction.
-    if instance in DBSession() and inspect(instance).detached:
+    if instance in session and inspect(instance).detached:
         return True
 
-    if instance not in DBSession() or (
-        instance in DBSession() and inspect(instance).expired
-    ):
+    if instance not in session or (instance in session and inspect(instance).expired):
         try:
             return (
-                DBSession()
-                .execute(sa.select(table).filter(table.id == instance.id))
+                session.execute(sa.select(table).filter(table.id == instance.id))
                 .scalars()
                 .first()
                 is None
@@ -228,14 +226,18 @@ class InstrumentFactory(factory.alchemy.SQLAlchemyModelFactory):
     filters = ['ztfg', 'ztfr', 'ztfi']
 
     @staticmethod
-    def teardown(instrument):
-        if is_already_deleted(instrument, Instrument):
-            return
-
-        telescope = instrument.telescope.id
-        DBSession().delete(instrument)
-        DBSession().commit()
-        TelescopeFactory.teardown(telescope)
+    def teardown(instrument_id):
+        instrument_ = (
+            DBSession()
+            .execute(sa.select(Instrument).filter(Instrument.id == instrument_id))
+            .scalars()
+            .first()
+        )
+        if instrument_ is not None:
+            telescope = instrument_.telescope.id
+            DBSession().delete(instrument_)
+            DBSession().commit()
+            TelescopeFactory.teardown(telescope)
 
 
 class PhotometryFactory(factory.alchemy.SQLAlchemyModelFactory):
@@ -290,7 +292,7 @@ class SpectrumFactory(factory.alchemy.SQLAlchemyModelFactory):
             UserFactory.teardown(observer.id)
         DBSession().delete(spectrum)
         DBSession().commit()
-        InstrumentFactory.teardown(instrument)
+        InstrumentFactory.teardown(instrument.id)
 
 
 class StreamFactory(factory.alchemy.SQLAlchemyModelFactory):
@@ -530,10 +532,34 @@ class ObjFactory(factory.alchemy.SQLAlchemyModelFactory):
         DBSession().delete(obj)
         DBSession().commit()
         for instrument in instruments:
-            InstrumentFactory.teardown(instrument)
+            InstrumentFactory.teardown(instrument.id)
 
 
-class GcnFactory(factory.alchemy.SQLAlchemyModelFactory):
+class GcnNoticeFactory(factory.alchemy.SQLAlchemyModelFactory):
+    class Meta(BaseMeta):
+        model = GcnNotice
+
+    sent_by = factory.SubFactory(UserFactory)
+
+    dateobs = datetime.datetime.now()
+
+    ivorn = str(uuid.uuid4())
+
+    @staticmethod
+    def teardown(gcnnotice_id):
+        gcnnotice_ = (
+            DBSession()
+            .execute(sa.select(GcnNotice).filter(GcnNotice.id == gcnnotice_id))
+            .scalars()
+            .first()
+        )
+        if gcnnotice_ is not None:
+            # If it is, delete it
+            DBSession().delete(gcnnotice_)
+            DBSession().commit()
+
+
+class GcnEventFactory(factory.alchemy.SQLAlchemyModelFactory):
     class Meta(BaseMeta):
         model = GcnEvent
 
@@ -542,14 +568,20 @@ class GcnFactory(factory.alchemy.SQLAlchemyModelFactory):
     dateobs = datetime.datetime.now()
 
     @staticmethod
-    def teardown(gcn):
-        if is_already_deleted(gcn, GcnEvent):
-            return
-
-        sent_by = gcn.sent_by.id
-        DBSession().delete(gcn)
-        DBSession().commit()
-        UserFactory.teardown(sent_by)
+    def teardown(gcnevent_id):
+        gcnevent_ = (
+            DBSession()
+            .execute(sa.select(GcnEvent).filter(GcnEvent.id == gcnevent_id))
+            .scalars()
+            .first()
+        )
+        if gcnevent_ is not None:
+            # If it is, delete it
+            gcn_notices = gcnevent_.gcn_notices
+            for gcn_notice in gcn_notices:
+                GcnNoticeFactory.teardown(gcn_notice.id)
+            DBSession().delete(gcnevent_)
+            DBSession().commit()
 
 
 class ObservingRunFactory(factory.alchemy.SQLAlchemyModelFactory):
@@ -580,18 +612,23 @@ class ObservingRunFactory(factory.alchemy.SQLAlchemyModelFactory):
     owner = factory.SubFactory(UserFactory)
 
     @staticmethod
-    def teardown(run):
-        if is_already_deleted(run, ObservingRun):
-            return
-
-        owner = run.owner.id
-        instrument = run.instrument
-        group = run.group.id
-        DBSession().delete(run)
-        DBSession().commit()
-        UserFactory.teardown(owner)
-        GroupFactory.teardown(group)
-        InstrumentFactory.teardown(instrument)
+    def teardown(run_id):
+        run_ = (
+            DBSession()
+            .execute(sa.select(ObservingRun).filter(ObservingRun.id == run_id))
+            .scalars()
+            .first()
+        )
+        if run_ is not None:
+            # If it is, delete it
+            owner = run_.owner.id
+            instrument = run_.instrument
+            group = run_.group.id
+            DBSession().delete(run_)
+            DBSession().commit()
+            UserFactory.teardown(owner)
+            GroupFactory.teardown(group)
+            InstrumentFactory.teardown(instrument.id)
 
 
 class ClassicalAssignmentFactory(factory.alchemy.SQLAlchemyModelFactory):
@@ -605,21 +642,29 @@ class ClassicalAssignmentFactory(factory.alchemy.SQLAlchemyModelFactory):
     priority = factory.LazyFunction(lambda: str(random.choice(range(1, 6))))
 
     @staticmethod
-    def teardown(assignment):
-        if is_already_deleted(assignment, ClassicalAssignment):
-            return
+    def teardown(assignment_id):
+        assignment_ = (
+            DBSession()
+            .execute(
+                sa.select(ClassicalAssignment).filter(
+                    ClassicalAssignment.id == assignment_id
+                )
+            )
+            .scalars()
+            .first()
+        )
+        if assignment_ is not None:
+            requester = assignment_.requester.id
+            run = assignment_.run
+            obj = assignment_.obj
+            last_modified_by = assignment_.last_modified_by.id
 
-        requester = assignment.requester.id
-        run = assignment.run
-        obj = assignment.obj
-        last_modified_by = assignment.last_modified_by.id
-
-        DBSession().delete(assignment)
-        DBSession().commit()
-        ObservingRunFactory.teardown(run)
-        ObjFactory.teardown(obj)
-        UserFactory.teardown(last_modified_by)
-        UserFactory.teardown(requester)
+            DBSession().delete(assignment_)
+            DBSession().commit()
+            ObservingRunFactory.teardown(run.id)
+            ObjFactory.teardown(obj)
+            UserFactory.teardown(last_modified_by)
+            UserFactory.teardown(requester)
 
 
 class TaxonomyFactory(factory.alchemy.SQLAlchemyModelFactory):
@@ -712,7 +757,7 @@ class AllocationFactory(factory.alchemy.SQLAlchemyModelFactory):
         DBSession().delete(allocation)
         DBSession().commit()
 
-        InstrumentFactory.teardown(instrument)
+        InstrumentFactory.teardown(instrument.id)
         GroupFactory.teardown(group)
 
 

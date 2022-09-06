@@ -2,6 +2,7 @@
 
 import os
 import shutil
+import time
 import uuid
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -52,9 +53,10 @@ from skyportal.tests.fixtures import (
     NotificationFactory,
     UserNotificationFactory,
     ThumbnailFactory,
-    GcnFactory,
+    GcnEventFactory,
 )
 from skyportal.tests.fixtures import TMP_DIR  # noqa: F401
+from skyportal.handlers.api.gcn import post_gcnevent_from_xml
 from skyportal.models import Obj
 
 
@@ -513,8 +515,9 @@ def red_transients_group(group_admin_user, view_only_user):
 @pytest.fixture()
 def ztf_camera():
     instrument = InstrumentFactory()
+    instrument_id = instrument.id
     yield instrument
-    InstrumentFactory.teardown(instrument)
+    InstrumentFactory.teardown(instrument_id)
 
 
 @pytest.fixture()
@@ -616,7 +619,7 @@ def lris(keck1_telescope):
         ],
     )
     yield instrument
-    InstrumentFactory.teardown(instrument)
+    InstrumentFactory.teardown(instrument.id)
 
 
 @pytest.fixture()
@@ -631,14 +634,15 @@ def sedm(p60_telescope):
         listener_classname='SEDMListener',
     )
     yield instrument
-    InstrumentFactory.teardown(instrument)
+    InstrumentFactory.teardown(instrument.id)
 
 
 @pytest.fixture()
 def red_transients_run(user):
     run = ObservingRunFactory(owner=user)
+    run_id = run.id
     yield run
-    ObservingRunFactory.teardown(run)
+    ObservingRunFactory.teardown(run_id)
 
 
 @pytest.fixture()
@@ -649,8 +653,9 @@ def lris_run_20201118(lris, public_group, super_admin_user):
         calendar_date='2020-11-18',
         owner=super_admin_user,
     )
+    run_id = run.id
     yield run
-    ObservingRunFactory.teardown(run)
+    ObservingRunFactory.teardown(run_id)
 
 
 @pytest.fixture()
@@ -661,8 +666,9 @@ def problematic_assignment(lris_run_20201118, public_ZTF20acgrjqm):
         requester=lris_run_20201118.owner,
         last_modified_by=lris_run_20201118.owner,
     )
+    assignment_id = assignment.id
     yield assignment
-    ClassicalAssignmentFactory.teardown(assignment)
+    ClassicalAssignmentFactory.teardown(assignment_id)
 
 
 @pytest.fixture()
@@ -670,8 +676,9 @@ def public_assignment(red_transients_run, user, public_source):
     assignment = ClassicalAssignmentFactory(
         run=red_transients_run, obj=public_source, requester=user, last_modified_by=user
     )
+    assignment_id = assignment.id
     yield assignment
-    ClassicalAssignmentFactory.teardown(assignment)
+    ClassicalAssignmentFactory.teardown(assignment_id)
 
 
 @pytest.fixture()
@@ -1383,9 +1390,9 @@ def public_group_taxonomy(public_taxonomy):
 
 @pytest.fixture()
 def gcn(user_no_groups):
-    gcn = GcnFactory()
+    gcn = GcnEventFactory()
     yield gcn
-    GcnFactory.teardown(gcn)
+    GcnEventFactory.teardown(gcn)
 
 
 @pytest.fixture()
@@ -1638,3 +1645,48 @@ def analysis_token(user):
     )
     yield token_id
     delete_token(token_id)
+
+
+@pytest.fixture(scope="session")
+def gcn_GW190425():
+    datafile = f'{os.path.dirname(__file__)}/data/GW190425_initial.xml'
+
+    with open(datafile, 'rb') as fid:
+        payload = fid.read()
+
+    user_id = 1
+    with DBSession() as session:
+        event_id = post_gcnevent_from_xml(payload, user_id, session)
+        time.sleep(30)
+        yield event_id
+    GcnEventFactory.teardown(event_id)
+
+
+@pytest.fixture(scope="session")
+def gcn_GW190814():
+    datafile = f'{os.path.dirname(__file__)}/../../data/GW190814.xml'
+
+    with open(datafile, 'rb') as fid:
+        payload = fid.read()
+
+    user_id = 1
+    with DBSession() as session:
+        event_id = post_gcnevent_from_xml(payload, user_id, session)
+        time.sleep(30)
+        yield event_id
+    GcnEventFactory.teardown(event_id)
+
+
+@pytest.fixture(scope="session")
+def gcn_GRB():
+    datafile = f'{os.path.dirname(__file__)}/data/GRB180116A_Fermi_GBM_Gnd_Pos.xml'
+
+    with open(datafile, 'rb') as fid:
+        payload = fid.read()
+
+    user_id = 1
+    with DBSession() as session:
+        event_id = post_gcnevent_from_xml(payload, user_id, session)
+        time.sleep(30)
+        yield event_id
+    GcnEventFactory.teardown(event_id)

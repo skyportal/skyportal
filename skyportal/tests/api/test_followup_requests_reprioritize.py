@@ -1,20 +1,13 @@
-import os
-
 from skyportal.tests import api
 
 
 def test_reprioritize_followup_request(
-    public_group_sedm_allocation, public_source, upload_data_token, super_admin_token
+    public_group_sedm_allocation,
+    public_source,
+    upload_data_token,
+    super_admin_token,
+    gcn_GW190425,
 ):
-
-    datafile = f'{os.path.dirname(__file__)}/../data/GW190425_initial.xml'
-    with open(datafile, 'rb') as fid:
-        payload = fid.read()
-    data = {'xml': payload}
-
-    status, data = api('POST', 'gcn_event', data=data, token=super_admin_token)
-    assert status == 200
-    assert data['status'] == 'success'
 
     dateobs = "2019-04-25 08:18:05"
     params = {"include2DMap": True}
