@@ -48,6 +48,7 @@ if account_sid and auth_token and from_number:
 email = False
 if cfg["email_service"] == "sendgrid" or cfg["email_service"] == "smtp":
     email = True
+email = True
 
 
 class UserNotification(Base):
@@ -418,7 +419,7 @@ def add_user_notifications(mapper, connection, target):
         for user in users:
             # Only notify users who have read access to the new record in question
             if user.preferences is not None:
-                pref = user.preferences['notifications']
+                pref = user.preferences.get('notifications', None)
             else:
                 pref = None
 
