@@ -48,7 +48,6 @@ if account_sid and auth_token and from_number:
 email = False
 if cfg["email_service"] == "sendgrid" or cfg["email_service"] == "smtp":
     email = True
-email = True
 
 
 class UserNotification(Base):
