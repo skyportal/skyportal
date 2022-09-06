@@ -966,3 +966,25 @@ def test_confirm_reject_source_in_gcn(
     assert status == 200
     data = data["data"]
     assert len(data) == 0
+
+
+def test_gcn_from_polygon(super_admin_token, view_only_token):
+
+    localization_name = str(uuid.uuid4())
+    dateobs = '2022-09-03T14:44:12'
+    polygon = [(30.0, 60.0), (40.0, 60.0), (40.0, 70.0), (30.0, 70.0)]
+    tags = ['IPN', 'GRB']
+    skymap = {'polygon': polygon, 'localization_name': localization_name}
+
+    data = {'dateobs': dateobs, 'skymap': skymap, 'tags': tags}
+
+    status, data = api('POST', 'gcn_event', data=data, token=super_admin_token)
+    assert status == 200
+    assert data['status'] == 'success'
+
+    dateobs = "2022-09-03 14:44:12"
+    status, data = api('GET', f'gcn_event/{dateobs}', token=super_admin_token)
+    assert status == 200
+    data = data["data"]
+    assert data["dateobs"] == "2022-09-03T14:44:12"
+    assert 'IPN' in data["tags"]
