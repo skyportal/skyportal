@@ -1,5 +1,6 @@
 # Inspired by https://github.com/growth-astro/growth-too-marshal/blob/main/growth/too/gcn.py
 
+import ast
 import os
 import gcn
 import lxml
@@ -10,7 +11,6 @@ import arrow
 import astropy
 import humanize
 import sqlalchemy as sa
-from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm import sessionmaker, scoped_session
 from marshmallow import Schema
@@ -37,6 +37,7 @@ from ...models import (
     GcnTag,
     Localization,
     LocalizationTile,
+    MMADetector,
     ObservationPlanRequest,
     User,
     Instrument,
@@ -49,6 +50,7 @@ from ...utils.gcn import (
     get_contour,
     from_url,
     from_cone,
+    from_polygon,
 )
 
 log = make_log('api/gcn_event')
@@ -115,9 +117,17 @@ def post_gcnevent_from_xml(payload, user_id, session):
         sent_by_id=user.id,
     )
 
+    detectors = []
     for tag in tags:
         session.add(tag)
+
+        mma_detector = session.scalars(
+            MMADetector.select(user).where(MMADetector.nickname == tag.text)
+        ).first()
+        if mma_detector is not None:
+            detectors.append(mma_detector)
     session.add(gcn_notice)
+    event.detectors = detectors
 
     skymap = get_skymap(root, gcn_notice)
     if skymap is None:
@@ -127,18 +137,13 @@ def post_gcnevent_from_xml(payload, user_id, session):
     skymap["dateobs"] = event.dateobs
     skymap["sent_by_id"] = user.id
 
-    try:
-        localization = (
-            Localization.query_records_accessible_by(
-                user,
-            )
-            .filter_by(
-                dateobs=dateobs,
-                localization_name=skymap["localization_name"],
-            )
-            .one()
+    localization = session.scalars(
+        Localization.select(user).where(
+            Localization.dateobs == dateobs,
+            Localization.localization_name == skymap["localization_name"],
         )
-    except NoResultFound:
+    ).first()
+    if localization is None:
         localization = Localization(**skymap)
         session.add(localization)
         session.commit()
@@ -187,8 +192,16 @@ def post_gcnevent_from_dictionary(payload, user_id, session):
         for text in payload.get('tags', [])
     ]
 
+    detectors = []
     for tag in tags:
         session.add(tag)
+
+        mma_detector = session.scalars(
+            MMADetector.select(user).where(MMADetector.nickname == tag.text)
+        ).first()
+        if mma_detector is not None:
+            detectors.append(mma_detector)
+    event.detectors = detectors
 
     skymap = payload.get('skymap', None)
     if skymap is None:
@@ -199,27 +212,30 @@ def post_gcnevent_from_dictionary(payload, user_id, session):
         required_keys = {'localization_name', 'uniq', 'probdensity'}
         if not required_keys.issubset(set(skymap.keys())):
             required_cone_keys = {'ra', 'dec', 'error'}
-            if not required_cone_keys.issubset(set(skymap.keys())):
+            required_polygon_keys = {'localization_name', 'polygon'}
+            if required_cone_keys.issubset(set(skymap.keys())):
+                skymap = from_cone(skymap['ra'], skymap['dec'], skymap['error'])
+            elif required_polygon_keys.issubset(set(skymap.keys())):
+                if type(skymap['polygon']) == str:
+                    polygon = ast.literal_eval(skymap['polygon'])
+                else:
+                    polygon = skymap['polygon']
+                skymap = from_polygon(skymap['localization_name'], polygon)
+            else:
                 raise ValueError("ra, dec, and error must be in skymap to parse")
-            skymap = from_cone(skymap['ra'], skymap['dec'], skymap['error'])
     else:
         skymap = from_url(skymap)
 
     skymap["dateobs"] = event.dateobs
     skymap["sent_by_id"] = user.id
 
-    try:
-        localization = (
-            Localization.query_records_accessible_by(
-                user,
-            )
-            .filter_by(
-                dateobs=dateobs,
-                localization_name=skymap["localization_name"],
-            )
-            .one()
+    localization = session.scalars(
+        Localization.select(user).where(
+            Localization.dateobs == dateobs,
+            Localization.localization_name == skymap["localization_name"],
         )
-    except NoResultFound:
+    ).first()
+    if localization is None:
         localization = Localization(**skymap)
         session.add(localization)
         session.commit()
@@ -412,6 +428,8 @@ class GcnEventHandler(BaseHandler):
                     data, self.associated_user_object.id, session
                 )
 
+            self.push(action='skyportal/REFRESH_GCN_EVENTS')
+
             return self.success(data={'gcnevent_id': event_id})
 
     @auth_or_token
@@ -506,6 +524,7 @@ class GcnEventHandler(BaseHandler):
                             .joinedload(ObservationPlanRequest.allocation)
                             .joinedload(Allocation.instrument),
                             joinedload(GcnEvent.comments),
+                            joinedload(GcnEvent.detectors),
                         ],
                     ).where(GcnEvent.dateobs == dateobs)
                 ).first()

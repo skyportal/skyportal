@@ -135,9 +135,24 @@ def test_gcn_Fermi(super_admin_token, view_only_token):
 
 def test_gcn_from_moc(super_admin_token, view_only_token):
 
+    name = str(uuid.uuid4())
+    post_data = {
+        'name': name,
+        'nickname': name,
+        'type': 'gravitational-wave',
+        'fixed_location': True,
+        'lat': 0.0,
+        'lon': 0.0,
+    }
+
+    status, data = api('POST', 'mmadetector', data=post_data, token=super_admin_token)
+    assert status == 200
+    assert data['status'] == 'success'
+    mmadetector_id = data['data']['id']
+
     skymap = f'{os.path.dirname(__file__)}/../data/GRB220617A_IPN_map_hpx.fits.gz'
     dateobs = '2022-06-18T18:31:12'
-    tags = ['IPN', 'GRB']
+    tags = ['IPN', 'GRB', name]
     skymap = from_url(skymap)
 
     data = {'dateobs': dateobs, 'skymap': skymap, 'tags': tags}
@@ -152,6 +167,13 @@ def test_gcn_from_moc(super_admin_token, view_only_token):
     data = data["data"]
     assert data["dateobs"] == "2022-06-18T18:31:12"
     assert 'IPN' in data["tags"]
+    assert name in [detector["name"] for detector in data["detectors"]]
+
+    status, data = api('GET', f'mmadetector/{mmadetector_id}', token=super_admin_token)
+    assert status == 200
+    assert data['status'] == 'success'
+    data = data["data"]
+    assert "2022-06-18T18:31:12" in [event["dateobs"] for event in data["events"]]
 
 
 @pytest.mark.flaky(reruns=3)
@@ -944,3 +966,25 @@ def test_confirm_reject_source_in_gcn(
     assert status == 200
     data = data["data"]
     assert len(data) == 0
+
+
+def test_gcn_from_polygon(super_admin_token, view_only_token):
+
+    localization_name = str(uuid.uuid4())
+    dateobs = '2022-09-03T14:44:12'
+    polygon = [(30.0, 60.0), (40.0, 60.0), (40.0, 70.0), (30.0, 70.0)]
+    tags = ['IPN', 'GRB']
+    skymap = {'polygon': polygon, 'localization_name': localization_name}
+
+    data = {'dateobs': dateobs, 'skymap': skymap, 'tags': tags}
+
+    status, data = api('POST', 'gcn_event', data=data, token=super_admin_token)
+    assert status == 200
+    assert data['status'] == 'success'
+
+    dateobs = "2022-09-03 14:44:12"
+    status, data = api('GET', f'gcn_event/{dateobs}', token=super_admin_token)
+    assert status == 200
+    data = data["data"]
+    assert data["dateobs"] == "2022-09-03T14:44:12"
+    assert 'IPN' in data["tags"]

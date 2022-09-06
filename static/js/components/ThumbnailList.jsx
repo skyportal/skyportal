@@ -180,6 +180,12 @@ const ThumbnailList = ({
     thumbnail_order.indexOf(a.type) < thumbnail_order.indexOf(b.type) ? -1 : 1
   );
 
+  const thumbnail_display = Object.fromEntries(
+    thumbnail_order.map((x) => [x, x])
+  );
+  thumbnail_display.dr8 = "Legacy Survey DR8";
+  thumbnail_display.ps1 = "PanSTARRS DR2";
+
   if (useGrid) {
     return (
       <Grid container direction="row" spacing={3}>
@@ -189,7 +195,7 @@ const ThumbnailList = ({
               key={`thumb_${t.type}`}
               ra={ra}
               dec={dec}
-              name={t.type}
+              name={thumbnail_display[t.type]}
               url={t.public_url}
               size={size}
               grayscale={t.is_grayscale}

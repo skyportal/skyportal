@@ -898,6 +898,7 @@ def fetch_observations(instrument_id, client, request_str):
         },
         inplace=True,
     )
+    obstable['target_name'] = None
 
     from skyportal.handlers.api.observation import add_observations
 

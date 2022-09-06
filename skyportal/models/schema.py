@@ -1598,6 +1598,44 @@ class SpectrumHead(_Schema):
     )
 
 
+class MMADetectorSpectrumPost(_Schema):
+
+    frequencies = fields.List(
+        fields.Float,
+        required=True,
+        metadata={'description': "Frequencies of the spectrum [Hz]."},
+    )
+
+    amplitudes = fields.List(
+        fields.Float,
+        required=True,
+        metadata={'description': "Amplitude of the Spectrum [1/sqrt(Hz)."},
+    )
+
+    start_time = fields.DateTime(
+        metadata={'description': 'The ISO UTC start time the spectrum was taken.'},
+        required=True,
+    )
+
+    end_time = fields.DateTime(
+        metadata={'description': 'The ISO UTC end time the spectrum was taken.'},
+        required=True,
+    )
+
+    detector_id = fields.Integer(
+        required=True,
+        metadata={'description': "ID of the MMADetector that acquired the Spectrum."},
+    )
+
+    group_ids = fields.Field(
+        load_default=[],
+        metadata={
+            'description': 'IDs of the Groups to share this spectrum with. Set to "all"'
+            ' to make this spectrum visible to all users.'
+        },
+    )
+
+
 class GroupIDList(_Schema):
 
     group_ids = fields.List(fields.Integer, required=True)
@@ -1639,6 +1677,7 @@ Error = Error()
 Success = success('Success')
 SinglePhotometryFlux = success('SinglePhotometryFlux', PhotometryFlux)
 SinglePhotometryMag = success('SinglePhotometryMag', PhotometryMag)
+MMADetectorSpectrumPost = MMADetectorSpectrumPost()
 PhotometryFlux = PhotometryFlux()
 PhotometryMag = PhotometryMag()
 PhotMagFlexible = PhotMagFlexible()

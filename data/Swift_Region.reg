@@ -1,0 +1,3 @@
+# Region file format: DS9 astropy/regions
+icrs
+box(0.00000000,0.00000000,0.28335400,0.28335400,0.00000000)

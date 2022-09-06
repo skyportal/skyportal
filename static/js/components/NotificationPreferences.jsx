@@ -86,7 +86,8 @@ const NotificationPreferences = () => {
       event.target.name === "gcn_events" ||
       event.target.name === "mention" ||
       event.target.name === "favorite_sources" ||
-      event.target.name === "facility_transactions"
+      event.target.name === "facility_transactions" ||
+      event.target.name === "analysis_services"
     ) {
       prefs.notifications[event.target.name] = {
         active: event.target.checked,
@@ -254,6 +255,32 @@ const NotificationPreferences = () => {
         </FormGroup>
         {profile?.notifications?.facility_transactions?.active === true && (
           <NotificationSettingsSelect notificationResourceType="facility_transactions" />
+        )}
+      </div>
+      <div className={classes.pref}>
+        <FormGroup row className={classes.form_group}>
+          <FormControlLabel
+            control={
+              <Switch
+                checked={
+                  profile?.notifications?.analysis_services?.active === true
+                }
+                name="analysis_services"
+                onChange={prefToggled}
+              />
+            }
+            label="Analysis Services"
+          />
+          <Tooltip
+            title="This allows you to be notified for all completed analysis services."
+            placement="right"
+            classes={{ tooltip: classes.tooltip }}
+          >
+            <HelpOutlineOutlinedIcon />
+          </Tooltip>
+        </FormGroup>
+        {profile?.notifications?.analysis_services?.active === true && (
+          <NotificationSettingsSelect notificationResourceType="analysis_services" />
         )}
       </div>
       <div className={classes.pref}>
