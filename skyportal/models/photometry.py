@@ -214,7 +214,7 @@ class Photometry(conesearch_alchemy.Point, Base):
             else_=None,
         )
 
-    @property
+    @hybrid_property
     def magref(self):
         """
         Reference magnitude, e.g.,
@@ -274,7 +274,7 @@ class Photometry(conesearch_alchemy.Point, Base):
             else_=None,
         )
 
-    @property
+    @hybrid_property
     def magtot(self):
         """
         Total magnitude, e.g.,
