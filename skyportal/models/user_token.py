@@ -152,6 +152,11 @@ User.spectra = relationship(
     doc='Spectra uploaded by this User.',
     back_populates='owner',
 )
+User.mmadetector_spectra = relationship(
+    'MMADetectorSpectrum',
+    doc='MMADetectorSpectra uploaded by this User.',
+    back_populates='owner',
+)
 User.comments_on_spectra = relationship(
     "CommentOnSpectrum",
     back_populates="author",

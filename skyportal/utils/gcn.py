@@ -3,6 +3,7 @@
 import os
 import numpy as np
 import scipy
+import healpy as hp
 import gcn
 from urllib.parse import urlparse
 
@@ -203,6 +204,31 @@ def from_cone(ra, dec, error):
     probdensity = np.exp(
         -0.5 * np.square(distance / radius).to_value(u.dimensionless_unscaled)
     )
+    probdensity /= probdensity.sum() * hpx.pixel_area.to_value(u.steradian)
+
+    skymap = {
+        'localization_name': localization_name,
+        'uniq': uniq.tolist(),
+        'probdensity': probdensity.tolist(),
+    }
+
+    return skymap
+
+
+def from_polygon(localization_name, polygon):
+
+    xyz = [hp.ang2vec(r, d, lonlat=True) for r, d in polygon]
+    hpx = HEALPix(1024, 'nested', frame=ICRS())
+    ipix = hp.query_polygon(hpx.nside, np.array(xyz), nest=True)
+
+    # Convert to multi-resolution pixel indices and sort.
+    uniq = ligo.skymap.moc.nest2uniq(nside_to_level(hpx.nside), ipix.astype(np.int64))
+    i = np.argsort(uniq)
+    ipix = ipix[i]
+    uniq = uniq[i]
+
+    # Evaluate Gaussian.
+    probdensity = 1.0 * np.ones(ipix.shape)
     probdensity /= probdensity.sum() * hpx.pixel_area.to_value(u.steradian)
 
     skymap = {
