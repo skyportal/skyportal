@@ -275,7 +275,7 @@ class MMADetectorSpectrum(Base):
 
 
 class MMADetectorSegment(Base):
-    """Data segment for the detector."""
+    """Data segment (in time) for the detector. Useful for tracking the on/off state for multi-messenger detectors."""
 
     read = public
     update = delete = accessible_by_owner
