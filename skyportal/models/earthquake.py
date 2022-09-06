@@ -3,6 +3,7 @@ __all__ = ['EarthquakeEvent', 'EarthquakeNotice', 'EarthquakePrediction']
 import sqlalchemy as sa
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm import deferred
+from sqlalchemy_utils import URLType
 
 from baselayer.app.models import (
     Base,
@@ -39,7 +40,7 @@ class EarthquakeNotice(Base):
 
     event_id = sa.Column(
         sa.String,
-        sa.ForeignKey("earthquakeevents.event_id"),
+        sa.ForeignKey("earthquakeevents.event_id", ondelete="CASCADE"),
         nullable=False,
         comment='Earthquake ID',
     )
@@ -68,14 +69,14 @@ class EarthquakePrediction(Base):
 
     event_id = sa.Column(
         sa.Integer,
-        sa.ForeignKey("earthquakeevents.id"),
+        sa.ForeignKey("earthquakeevents.id", ondelete='CASCADE'),
         nullable=False,
         comment='Earthquake ID',
     )
 
     detector_id = sa.Column(
         sa.Integer,
-        sa.ForeignKey('mmadetectors.id'),
+        sa.ForeignKey('mmadetectors.id', ondelete='CASCADE'),
         nullable=False,
         comment='Multimessenger Astronomical Detector id',
     )
@@ -97,7 +98,9 @@ class EarthquakePrediction(Base):
     )
 
     lockloss = sa.Column(
-        sa.INT, nullable=False, comment='Earthquake lockloss prediction'
+        sa.Float,
+        nullable=False,
+        comment='Earthquake lockloss prediction, between 0 (no lockloss) and 1 (lockloss)',
     )
 
 
@@ -106,14 +109,14 @@ class EarthquakeMeasured(Base):
 
     event_id = sa.Column(
         sa.Integer,
-        sa.ForeignKey("earthquakeevents.id"),
+        sa.ForeignKey("earthquakeevents.id", ondelete='CASCADE'),
         nullable=False,
         comment='Earthquake ID',
     )
 
     detector_id = sa.Column(
         sa.Integer,
-        sa.ForeignKey('mmadetectors.id'),
+        sa.ForeignKey('mmadetectors.id', ondelete='CASCADE'),
         nullable=False,
         comment='Multimessenger Astronomical Detector id',
     )
@@ -122,7 +125,11 @@ class EarthquakeMeasured(Base):
         sa.Float, nullable=False, comment='Earthquake amplitude measured [m/s]'
     )
 
-    lockloss = sa.Column(sa.INT, nullable=False, comment='Earthquake lockloss measured')
+    lockloss = sa.Column(
+        sa.INT,
+        nullable=False,
+        comment='Earthquake lockloss measured, should be 0 (no lockloss) or 1 (lockloss)',
+    )
 
 
 class EarthquakeEvent(Base):
@@ -148,7 +155,7 @@ class EarthquakeEvent(Base):
         sa.String, unique=True, nullable=False, comment='Earthquake ID'
     )
 
-    event_uri = sa.Column(sa.String, nullable=True, comment='Earthquake URI')
+    event_uri = sa.Column(URLType, nullable=True, comment='Earthquake URI')
 
     status = sa.Column(
         sa.String(),
@@ -158,11 +165,29 @@ class EarthquakeEvent(Base):
         doc="The status of the earthquake event.",
     )
 
-    notices = relationship("EarthquakeNotice", order_by=EarthquakeNotice.created_at)
+    notices = relationship(
+        "EarthquakeNotice",
+        cascade='save-update, merge, refresh-expire, expunge, delete',
+        passive_deletes=True,
+        order_by=EarthquakeNotice.created_at,
+        doc="Notices associated with this Earthquake event.",
+    )
 
-    predictions = relationship("EarthquakePrediction")
+    predictions = relationship(
+        "EarthquakePrediction",
+        cascade='save-update, merge, refresh-expire, expunge, delete',
+        passive_deletes=True,
+        order_by=EarthquakePrediction.created_at,
+        doc="Notices associated with this Earthquake event.",
+    )
 
-    measurements = relationship("EarthquakeMeasured")
+    measurements = relationship(
+        "EarthquakeMeasured",
+        cascade='save-update, merge, refresh-expire, expunge, delete',
+        passive_deletes=True,
+        order_by=EarthquakeMeasured.created_at,
+        doc="Notices associated with this Earthquake event.",
+    )
 
     comments = relationship(
         'CommentOnEarthquake',

@@ -205,7 +205,7 @@ skyportal_handlers = [
     (r'/api/galaxy_catalog/ascii', GalaxyASCIIFileHandler),
     (r'/api/galaxy_catalog(/[0-9A-Za-z-_\.\+]+)?', GalaxyCatalogHandler),
     (
-        r'/api/earthquake/([0-9A-Za-z-_\.\+]+)/ifo/([0-9A-Za-z-_\.\+]+)/predictions',
+        r'/api/earthquake/([0-9A-Za-z-_\.\+]+)/mmadetector/([0-9A-Za-z-_\.\+]+)/predictions',
         EarthquakePredictionHandler,
     ),
     (

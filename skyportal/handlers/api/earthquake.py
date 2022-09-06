@@ -14,6 +14,7 @@ import obspy
 from baselayer.app.access import auth_or_token
 from baselayer.app.custom_exceptions import AccessError
 from baselayer.log import make_log
+
 from ..base import BaseHandler
 from ...models import (
     DBSession,
@@ -450,7 +451,7 @@ class EarthquakeHandler(BaseHandler):
             return self.success(data=query_results)
 
     @auth_or_token
-    def delete(self, date):
+    def delete(self, event_id):
         """
         ---
         description: Delete an Earthquake event
@@ -458,10 +459,10 @@ class EarthquakeHandler(BaseHandler):
           - earthquakeevents
         parameters:
           - in: path
-            name: date
+            name: event_id
             required: true
             schema:
-              type: date
+              type: integer
         responses:
           200:
             content:
@@ -474,8 +475,8 @@ class EarthquakeHandler(BaseHandler):
         """
         with self.Session() as session:
             event = session.scalars(
-                EarthquakeEvent.select(session.user_or_token, model="delete").where(
-                    EarthquakeEvent.date == date
+                EarthquakeEvent.select(session.user_or_token, mode="delete").where(
+                    EarthquakeEvent.id == event_id
                 )
             ).first()
             if event is None:
