@@ -508,8 +508,8 @@ class GcnEventHandler(BaseHandler):
               explode: false
               style: simple
               description: |
-                Comma-separated string of "property: value: operator" triplet(s) to filter for events matching
-                that/those property(ies), i.e. "BNS: 0.5: lt"
+                Comma-separated string of "property: value: operator" single(s) or triplet(s) to filter for events matching
+                that/those property(ies), i.e. "BNS" or "BNS: 0.5: lt"
         responses:
           200:
             content:
@@ -644,7 +644,7 @@ class GcnEventHandler(BaseHandler):
                     prop_split = prop_filt.split(":")
                     if not (len(prop_split) == 1 or len(prop_split) == 3):
                         raise ValueError(
-                            "Invalid propertiesFilter value -- propotation filter must have 1 or 3 values"
+                            "Invalid propertiesFilter value -- property filter must have 1 or 3 values"
                         )
                     name = prop_split[0].strip()
 
@@ -659,19 +659,7 @@ class GcnEventHandler(BaseHandler):
                         op_options = ["lt", "le", "eq", "ne", "ge", "gt"]
                         if op not in op_options:
                             raise ValueError(f"Invalid operator: {op}")
-
-                        if op == "lt":
-                            comp_function = operator.lt
-                        elif op == "le":
-                            comp_function = operator.le
-                        elif op == "eq":
-                            comp_function = operator.eq
-                        elif op == "ne":
-                            comp_function = operator.ne
-                        elif op == "ge":
-                            comp_function = operator.ge
-                        elif op == "gt":
-                            comp_function = operator.gt
+                        comp_function = getattr(operator, op)
 
                         properties_query = properties_query.where(
                             comp_function(GcnProperty.data[name], cast(value, JSONB))
