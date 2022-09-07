@@ -3,7 +3,6 @@ import { useDispatch } from "react-redux";
 import { Link } from "react-router-dom";
 
 import PropTypes from "prop-types";
-import Button from "@mui/material/Button";
 import Accordion from "@mui/material/Accordion";
 import AccordionSummary from "@mui/material/AccordionSummary";
 import AccordionDetails from "@mui/material/AccordionDetails";
@@ -29,6 +28,8 @@ import makeStyles from "@mui/styles/makeStyles";
 import MUIDataTable from "mui-datatables";
 
 import * as sourceActions from "../ducks/source";
+
+import Button from "./Button";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
@@ -150,7 +151,7 @@ const AnalysisList = ({ obj_id }) => {
         <div className={classes.infoButton}>
           <Tooltip title="Link to analysis page" placement="top">
             <Link to={`/source/${obj_id}/analysis/${analysis.id}`} role="link">
-              <Button variant="contained" size="small">
+              <Button primary size="small">
                 {analysis.id}
               </Button>
             </Link>
@@ -234,7 +235,7 @@ const AnalysisList = ({ obj_id }) => {
       return (
         <Button
           size="small"
-          color="primary"
+          primary
           type="button"
           name={`deleteAnalysisButton${dataIndex}`}
           onClick={() => deleteAnalysis(analysis.id)}
@@ -272,9 +273,8 @@ const AnalysisList = ({ obj_id }) => {
             <Button
               href={`/api/obj/analysis/${analysis.id}/plots/0`}
               size="small"
-              color="primary"
+              primary
               type="submit"
-              variant="outlined"
               data-testid={`analysis_plots_${analysis.id}`}
             >
               Download Plot
@@ -297,11 +297,10 @@ const AnalysisList = ({ obj_id }) => {
         <div>
           {analysis?.status === "completed" && (
             <Button
+              primary
               href={`/api/obj/analysis/${analysis.id}/corner`}
               size="small"
-              color="primary"
               type="submit"
-              variant="outlined"
               data-testid={`analysis_cornerplots_${analysis.id}`}
             >
               Download Corner Plot
@@ -324,11 +323,10 @@ const AnalysisList = ({ obj_id }) => {
         <div>
           {analysis?.status === "completed" && (
             <Button
+              primary
               href={`/api/obj/analysis/${analysis.id}/results`}
               size="small"
-              color="primary"
               type="submit"
-              variant="outlined"
               data-testid={`analysis_results_${analysis.id}`}
             >
               Download Results

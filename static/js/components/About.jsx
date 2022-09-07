@@ -7,13 +7,13 @@ import makeStyles from "@mui/styles/makeStyles";
 import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
 import CardActions from "@mui/material/CardActions";
-import Button from "@mui/material/Button";
 import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
 import Paper from "@mui/material/Paper";
 
 import clsx from "clsx";
 import dayjs from "dayjs";
+import Button from "./Button";
 
 const useStyles = makeStyles((theme) => ({
   root: {

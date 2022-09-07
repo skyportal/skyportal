@@ -227,7 +227,7 @@ const NotificationSettingsSelect = ({ notificationResourceType }) => {
         classes={{ tooltip: classes.tooltip }}
       >
         <Button
-          variant="contained"
+          secondary
           name={`notification_settings_button_${notificationResourceType}`}
           className={classes.button}
           onClick={() => {

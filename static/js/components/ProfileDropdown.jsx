@@ -9,10 +9,10 @@ import makeStyles from "@mui/styles/makeStyles";
 import Box from "@mui/material/Box";
 import Popover from "@mui/material/Popover";
 import Typography from "@mui/material/Typography";
-import Button from "@mui/material/Button";
 
 import IconButton from "@mui/material/IconButton";
 import Divider from "@mui/material/Divider";
+import Button from "./Button";
 import UserAvatar from "./UserAvatar";
 
 const useStyles = makeStyles((theme) => ({

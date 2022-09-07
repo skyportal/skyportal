@@ -10,7 +10,6 @@ import Typography from "@mui/material/Typography";
 import Accordion from "@mui/material/Accordion";
 import Grid from "@mui/material/Grid";
 import Paper from "@mui/material/Paper";
-import Button from "@mui/material/Button";
 import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
 import makeStyles from "@mui/styles/makeStyles";
 import CircularProgress from "@mui/material/CircularProgress";
@@ -22,6 +21,7 @@ import { showNotification } from "baselayer/components/Notifications";
 import AccordionSummary from "@mui/material/AccordionSummary";
 import AccordionDetails from "@mui/material/AccordionDetails";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import Button from "./Button";
 
 import { HtmlTooltip } from "./UploadPhotometry";
 import withRouter from "./withRouter";
@@ -625,12 +625,7 @@ const UploadSpectrumForm = ({ route }) => {
             key={formKey}
           >
             <div className={classes.bottomRow}>
-              <Button
-                type="submit"
-                variant="contained"
-                color="primary"
-                className={classes.submitButton}
-              >
+              <Button secondary type="submit" className={classes.submitButton}>
                 Preview
               </Button>
               <HtmlTooltip
@@ -688,11 +683,7 @@ const UploadSpectrumForm = ({ route }) => {
               </AccordionDetails>
             </Accordion>
             <div className={classes.bottomRow}>
-              <Button
-                onClick={uploadSpectrum}
-                variant="contained"
-                color="primary"
-              >
+              <Button secondary onClick={uploadSpectrum}>
                 Upload Spectrum
               </Button>
             </div>

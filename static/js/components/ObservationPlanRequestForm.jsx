@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import Button from "@mui/material/Button";
 import Checkbox from "@mui/material/Checkbox";
 import Chip from "@mui/material/Chip";
 import FormControlLabel from "@mui/material/FormControlLabel";
@@ -21,6 +20,7 @@ import GeoPropTypes from "geojson-prop-types";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
+import Button from "./Button";
 
 import * as gcnEventActions from "../ducks/gcnEvent";
 import * as allocationActions from "../ducks/allocations";
@@ -560,12 +560,7 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
             onSubmit={handleQueueSubmit}
             disabled={isSubmitting}
           >
-            <Button
-              size="small"
-              color="primary"
-              type="submit"
-              variant="outlined"
-            >
+            <Button secondary size="small" type="submit">
               Add to Queue
             </Button>
           </Form>
@@ -591,13 +586,7 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
       <div>
         {planQueues.length !== 0 && (
           <>
-            <Button
-              size="small"
-              color="primary"
-              type="submit"
-              variant="outlined"
-              onClick={handleSubmit}
-            >
+            <Button secondary size="small" type="submit" onClick={handleSubmit}>
               Generate Observation Plans
             </Button>
             <FormControlLabel
@@ -622,15 +611,14 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
       </div>
       <div>
         <Button
+          secondary
           href={`/api/localization/${selectedLocalizationId}/airmass/${
             instLookUp[allocationLookUp[selectedAllocationId].instrument_id]
               .telescope_id
           }`}
           download={`airmassChartRequest-${selectedAllocationId}`}
           size="small"
-          color="primary"
           type="submit"
-          variant="outlined"
           data-testid={`airmassChartRequest_${selectedAllocationId}`}
         >
           Airmass Chart

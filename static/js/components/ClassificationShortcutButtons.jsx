@@ -1,7 +1,7 @@
 import React from "react";
 import PropTypes from "prop-types";
 import { useSelector } from "react-redux";
-import Button from "@mui/material/Button";
+import Button from "./Button";
 
 const ClassificationShortcutButtons = ({
   selectedClassifications,
@@ -22,7 +22,7 @@ const ClassificationShortcutButtons = ({
         Object.entries(classificationShortcuts)?.map(
           ([shortcutName, shortcutClassifications]) => (
             <Button
-              variant="outlined"
+              secondary
               key={shortcutName}
               data-testid={inDialog ? `${shortcutName}_inDialog` : shortcutName}
               onClick={() =>

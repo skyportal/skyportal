@@ -5,7 +5,6 @@ import PropTypes from "prop-types";
 
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Checkbox from "@mui/material/Checkbox";
-import Button from "@mui/material/Button";
 import DateTimePicker from "@mui/lab/DateTimePicker";
 import AdapterDateFns from "@mui/lab/AdapterDateFns";
 import LocalizationProvider from "@mui/lab/LocalizationProvider";
@@ -22,6 +21,7 @@ import makeStyles from "@mui/styles/makeStyles";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
+import Button from "./Button";
 
 import * as candidatesActions from "../ducks/candidates";
 import Responsive from "./Responsive";

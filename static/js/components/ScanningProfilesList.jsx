@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import PropTypes from "prop-types";
 
-import Button from "@mui/material/Button";
 import Checkbox from "@mui/material/Checkbox";
 import Paper from "@mui/material/Paper";
 import Chip from "@mui/material/Chip";
@@ -21,6 +20,7 @@ import {
 import makeStyles from "@mui/styles/makeStyles";
 
 import MUIDataTable from "mui-datatables";
+import Button from "./Button";
 import * as profileActions from "../ducks/profile";
 
 import CandidatesPreferencesForm from "./CandidatesPreferencesForm";
@@ -283,15 +283,11 @@ const ScanningProfilesList = ({
 
   const renderActions = (dataIndex) => (
     <div className={classes.actionButtons}>
-      <Button
-        variant="contained"
-        size="small"
-        onClick={() => deleteProfile(dataIndex)}
-      >
+      <Button secondary size="small" onClick={() => deleteProfile(dataIndex)}>
         Delete
       </Button>
       <Button
-        variant="contained"
+        secondary
         size="small"
         onClick={() => editProfile(profiles[dataIndex])}
       >
