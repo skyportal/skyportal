@@ -388,10 +388,11 @@ instrument:
   - band: optical
     name: UVOTXRT
     api_classname: UVOTXRTAPI
+    api_classname_obsplan: UVOTXRTMMAAPI
     =id: UVOTXRT
     telescope_id: =Swift
     type: imager
-    filters: ['uvot::b', 'uvot::u', 'uvot::v', 'uvot::uvm2', 'uvot::uvw1', 'uvot::uvw2', 'uvot::white']
+    filters: ['uvot::b', 'uvot::u', 'uvot::v', 'uvot::uvm2', 'uvot::uvw1', 'uvot::uvw2', 'uvot::white', 'swiftxrt']
     field_region:
       file: ../data/Swift_Region.reg
   - band: optical

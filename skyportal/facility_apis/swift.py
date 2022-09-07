@@ -89,6 +89,8 @@ def fetch_observations(instrument_id, request_start, request_end):
         # each observation actually cycles through filters
         # we will leave the download for a query from an
         # individual source page
+        if (row.ra_object is None) or (row.dec_object is None):
+            continue
         filt = f'uvot::{mode.entries[0].filter_name}'
         observation = {
             "observation_id": int(row.obsid),
