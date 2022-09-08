@@ -10,7 +10,7 @@ from baselayer.app.custom_exceptions import AccessError
 
 from .spectrum import parse_id_list
 from ..base import BaseHandler
-from ...models import MMADetector, MMADetectorSpectrum, MMADetectorSegment, Group
+from ...models import MMADetector, MMADetectorSpectrum, MMADetectorTimeInterval, Group
 
 from ...models.schema import (
     MMADetectorSpectrumPost,
@@ -626,7 +626,7 @@ class MMADetectorTimeIntervalHandler(BaseHandler):
         requestBody:
           content:
             application/json:
-              schema: MMADetectorSegmentNoID
+              schema: MMADetectorTimeIntervalNoID
         responses:
           200:
             content:
@@ -702,7 +702,7 @@ class MMADetectorTimeIntervalHandler(BaseHandler):
                     'detector_id': json['detector_id'],
                 }
 
-                time_interval = MMADetectorSegment(**data)
+                time_interval = MMADetectorTimeInterval(**data)
                 time_interval.mmadetector = mmadetector
                 time_interval.groups = groups
                 time_interval.owner_id = owner_id
@@ -743,7 +743,7 @@ class MMADetectorTimeIntervalHandler(BaseHandler):
             200:
               content:
                 application/json:
-                  schema: SingleMMADetectorSegment
+                  schema: SingleMMADetectorTimeInterval
             403:
               content:
                 application/json:
@@ -790,8 +790,8 @@ class MMADetectorTimeIntervalHandler(BaseHandler):
         if time_interval_id is not None:
             with self.Session() as session:
                 time_interval = session.scalars(
-                    MMADetectorSegment.select(session.user_or_token).where(
-                        MMADetectorSegment.id == time_interval_id
+                    MMADetectorTimeInterval.select(session.user_or_token).where(
+                        MMADetectorTimeInterval.id == time_interval_id
                     )
                 ).first()
                 if time_interval is None:
@@ -839,17 +839,17 @@ class MMADetectorTimeIntervalHandler(BaseHandler):
                 return self.error(str(e))
 
             # filter the time_interval
-            time_interval_query = MMADetectorSegment.select(session.user_or_token)
+            time_interval_query = MMADetectorTimeInterval.select(session.user_or_token)
             if detector_ids:
                 time_interval_query = time_interval_query.where(
-                    MMADetectorSegment.detector_id.in_(detector_ids)
+                    MMADetectorTimeInterval.detector_id.in_(detector_ids)
                 )
 
             if group_ids:
                 time_interval_query = time_interval_query.where(
                     or_(
                         *[
-                            MMADetectorSegment.groups.any(Group.id == gid)
+                            MMADetectorTimeInterval.groups.any(Group.id == gid)
                             for gid in group_ids
                         ]
                     )
@@ -857,12 +857,12 @@ class MMADetectorTimeIntervalHandler(BaseHandler):
 
             if observed_before:
                 time_interval_query = time_interval_query.where(
-                    MMADetectorSegment.end_time <= observed_before
+                    MMADetectorTimeInterval.end_time <= observed_before
                 )
 
             if observed_after:
                 time_interval_query = time_interval_query.where(
-                    MMADetectorSegment.start_time >= observed_after
+                    MMADetectorTimeInterval.start_time >= observed_after
                 )
 
             time_intervals = session.scalars(time_interval_query).unique().all()
@@ -896,7 +896,7 @@ class MMADetectorTimeIntervalHandler(BaseHandler):
         requestBody:
           content:
             application/json:
-              schema: MMADetectorSegmentNoID
+              schema: MMADetectorTimeIntervalNoID
         responses:
           200:
             content:
@@ -919,8 +919,8 @@ class MMADetectorTimeIntervalHandler(BaseHandler):
             group_ids = [g.id for g in self.current_user.accessible_groups]
 
         with self.Session() as session:
-            stmt = MMADetectorSegment.select(self.current_user).where(
-                MMADetectorSegment.id == time_interval_id
+            stmt = MMADetectorTimeInterval.select(self.current_user).where(
+                MMADetectorTimeInterval.id == time_interval_id
             )
             time_interval = session.scalars(stmt).first()
 
@@ -982,8 +982,8 @@ class MMADetectorTimeIntervalHandler(BaseHandler):
         """
         with self.Session() as session:
             time_interval = session.scalars(
-                MMADetectorSegment.select(self.current_user, mode="delete").where(
-                    MMADetectorSegment.id == time_interval_id
+                MMADetectorTimeInterval.select(self.current_user, mode="delete").where(
+                    MMADetectorTimeInterval.id == time_interval_id
                 )
             ).first()
             if time_interval is None:

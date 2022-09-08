@@ -176,7 +176,7 @@ def setup_schema():
                     'owner_id',
                     'last_modified_by_id',
                     'healpix',
-                    'segment',
+                    'time_interval',
                 ],
             )
             if schema_class_name == "Obj":

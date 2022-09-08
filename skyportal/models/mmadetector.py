@@ -89,13 +89,13 @@ class MMADetector(Base):
         doc="MMADetectorSpectra of the object.",
     )
 
-    segments = relationship(
+    time_intervals = relationship(
         'MMADetectorTimeInterval',
         back_populates='detector',
         cascade='save-update, merge, refresh-expire, expunge, delete',
         single_parent=True,
         passive_deletes=True,
-        order_by="MMADetectorTimeInterval.segment",
+        order_by="MMADetectorTimeInterval.time_interval",
         doc="MMADetectorTimeInterval of the object.",
     )
 
@@ -317,5 +317,5 @@ class MMADetectorTimeInterval(Base):
     )
 
     time_interval = sa.Column(
-        DateTimeRangeType, doc="The time segment [start, end] of detector data."
+        DateTimeRangeType, doc="The time interval [start, end] of detector data."
     )
