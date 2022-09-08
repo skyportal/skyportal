@@ -39,7 +39,8 @@ class SwiftLSXPSQueryHandler(BaseHandler):
         """
         ---
         description: |
-            get Swift LSXPS objects and post them as sources
+            Get Swift LSXPS objects and post them as sources.
+            Repeated posting will skip the existing source.
         requestBody:
           content:
             application/json:
