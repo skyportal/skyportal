@@ -344,6 +344,7 @@ class EarthquakeHandler(BaseHandler):
 
         if event_id is not None:
             with self.Session() as session:
+                print(event_id)
                 event = session.scalars(
                     EarthquakeEvent.select(
                         session.user_or_token,
@@ -354,7 +355,7 @@ class EarthquakeHandler(BaseHandler):
                             joinedload(EarthquakeEvent.comments),
                             joinedload(EarthquakeEvent.predictions),
                         ],
-                    ).where(EarthquakeEvent.id == event_id)
+                    ).where(EarthquakeEvent.event_id == event_id)
                 ).first()
                 if event is None:
                     return self.error("Earthquake event not found", status=404)
@@ -521,7 +522,7 @@ class EarthquakePredictionHandler(BaseHandler):
                     options=[
                         joinedload(EarthquakeEvent.notices),
                     ],
-                ).where(EarthquakeEvent.id == earthquake_id)
+                ).where(EarthquakeEvent.event_id == earthquake_id)
             ).first()
             if event is None:
                 return self.error(
@@ -575,7 +576,7 @@ class EarthquakePredictionHandler(BaseHandler):
 
             self.push(
                 action="skyportal/REFRESH_EARTHQUAKE",
-                payload={"earthquake_id": event.id},
+                payload={"earthquake_event_id": event.event_id},
             )
 
             return self.success()
