@@ -54,7 +54,7 @@ from .invitations import InvitationHandler
 from .mmadetector import (
     MMADetectorHandler,
     MMADetectorSpectrumHandler,
-    MMADetectorSegmentHandler,
+    MMADetectorTimeIntervalHandler,
 )
 from .news_feed import NewsFeedHandler
 from .observation import (

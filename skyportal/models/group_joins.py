@@ -4,7 +4,7 @@ __all__ = [
     'GroupAnnotation',
     'GroupClassification',
     'GroupMMADetectorSpectrum',
-    'GroupMMADetectorSegment',
+    'GroupMMADetectorTimeInterval',
     'GroupPhotometry',
     'GroupPhotometricSeries',
     'GroupSpectrum',
@@ -33,7 +33,7 @@ from .taxonomy import Taxonomy
 from .comment import Comment, CommentOnSpectrum, CommentOnGCN, CommentOnShift
 from .annotation import Annotation
 from .classification import Classification
-from .mmadetector import MMADetectorSpectrum, MMADetectorSegment
+from .mmadetector import MMADetectorSpectrum, MMADetectorTimeInterval
 from .spectrum import Spectrum
 from .annotation import AnnotationOnSpectrum
 from .reminder import Reminder, ReminderOnGCN, ReminderOnSpectrum, ReminderOnShift
@@ -133,12 +133,14 @@ GroupMMADetectorSpectrum.update = GroupMMADetectorSpectrum.delete = (
     accessible_by_group_admins & GroupMMADetectorSpectrum.read
 )
 
-GroupMMADetectorSegment = join_model(
-    "group_mmadetector_segments", Group, MMADetectorSegment
+GroupMMADetectorTimeInterval = join_model(
+    "group_mmadetector_time_intervals", Group, MMADetectorTimeInterval
 )
-GroupMMADetectorSegment.__doc__ = 'Join table mapping Groups to MMADetectorSpectra.'
-GroupMMADetectorSegment.update = GroupMMADetectorSegment.delete = (
-    accessible_by_group_admins & GroupMMADetectorSegment.read
+GroupMMADetectorTimeInterval.__doc__ = (
+    'Join table mapping Groups to MMADetectorTimeInterval.'
+)
+GroupMMADetectorTimeInterval.update = GroupMMADetectorTimeInterval.delete = (
+    accessible_by_group_admins & GroupMMADetectorTimeInterval.read
 )
 
 GroupSpectrum = join_model("group_spectra", Group, Spectrum)

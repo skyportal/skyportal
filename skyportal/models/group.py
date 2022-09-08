@@ -365,13 +365,13 @@ class Group(Base):
         doc='The MMADetector spectra visible to this group.',
     )
 
-    mmadetector_segments = relationship(
-        "MMADetectorSegment",
-        secondary="group_mmadetector_segments",
+    mmadetector_time_intervals = relationship(
+        "MMADetectorTimeInterval",
+        secondary="group_mmadetector_time_intervals",
         back_populates="groups",
         cascade="save-update, merge, refresh-expire, expunge",
         passive_deletes=True,
-        doc='The MMADetector segments visible to this group.',
+        doc='The MMADetector time intervals visible to this group.',
     )
 
     single_user_group = sa.Column(

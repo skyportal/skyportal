@@ -1,4 +1,4 @@
-__all__ = ['MMADetector', 'MMADetectorSpectrum', 'MMADetectorSegment']
+__all__ = ['MMADetector', 'MMADetectorSpectrum', 'MMADetectorTimeInterval']
 
 import numpy as np
 import sqlalchemy as sa
@@ -90,13 +90,13 @@ class MMADetector(Base):
     )
 
     segments = relationship(
-        'MMADetectorSegment',
+        'MMADetectorTimeInterval',
         back_populates='detector',
         cascade='save-update, merge, refresh-expire, expunge, delete',
         single_parent=True,
         passive_deletes=True,
-        order_by="MMADetectorSegment.segment",
-        doc="MMADetectorSegment of the object.",
+        order_by="MMADetectorTimeInterval.segment",
+        doc="MMADetectorTimeInterval of the object.",
     )
 
 
@@ -274,8 +274,8 @@ class MMADetectorSpectrum(Base):
         )
 
 
-class MMADetectorSegment(Base):
-    """Data segment (in time) for the detector. Useful for tracking the on/off state for multi-messenger detectors."""
+class MMADetectorTimeInterval(Base):
+    """Data time interval for the detector. Useful for tracking the on/off state for multi-messenger detectors."""
 
     read = public
     update = delete = accessible_by_owner
@@ -284,19 +284,19 @@ class MMADetectorSegment(Base):
         sa.ForeignKey('mmadetectors.id', ondelete='CASCADE'),
         nullable=False,
         index=True,
-        doc="ID of the MMADetector that acquired the Spectrum.",
+        doc="ID of the MMADetector that acquired the Time Interval.",
     )
 
     detector = relationship(
         'MMADetector',
-        back_populates='segments',
-        doc="The MMADetector that acquired the Spectrum.",
+        back_populates='time_intervals',
+        doc="The MMADetector that acquired the Time Interval.",
     )
 
     groups = relationship(
         "Group",
-        secondary="group_mmadetector_segments",
-        back_populates="mmadetector_segments",
+        secondary="group_mmadetector_time_intervals",
+        back_populates="mmadetector_time_intervals",
         cascade="save-update, merge, refresh-expire, expunge",
         passive_deletes=True,
         doc='Groups that can view this detector spectrum.',
@@ -306,16 +306,16 @@ class MMADetectorSegment(Base):
         sa.ForeignKey('users.id', ondelete='CASCADE'),
         nullable=False,
         index=True,
-        doc="ID of the User who uploaded the detector segment.",
+        doc="ID of the User who uploaded the detector time interval.",
     )
     owner = relationship(
         'User',
-        back_populates='mmadetector_segments',
+        back_populates='mmadetector_time_intervals',
         foreign_keys=[owner_id],
         cascade='save-update, merge, refresh-expire, expunge',
-        doc="The User who uploaded the detector segment.",
+        doc="The User who uploaded the detector time interval.",
     )
 
-    segment = sa.Column(
+    time_interval = sa.Column(
         DateTimeRangeType, doc="The time segment [start, end] of detector data."
     )

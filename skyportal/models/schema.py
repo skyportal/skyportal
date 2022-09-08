@@ -164,7 +164,7 @@ def setup_schema():
             schema_class_name = class_.__name__
             add_schema(
                 schema_class_name,
-                exclude=['segment', 'healpix', 'created_at', 'modified'],
+                exclude=['time_interval', 'healpix', 'created_at', 'modified'],
                 add_to_model=True,
             )
             add_schema(

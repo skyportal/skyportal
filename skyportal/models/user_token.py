@@ -157,9 +157,9 @@ User.mmadetector_spectra = relationship(
     doc='MMADetectorSpectra uploaded by this User.',
     back_populates='owner',
 )
-User.mmadetector_segments = relationship(
-    'MMADetectorSegment',
-    doc='MMADetectorSegment uploaded by this User.',
+User.mmadetector_time_intervals = relationship(
+    'MMADetectorTimeInterval',
+    doc='MMADetectorTimeInterval uploaded by this User.',
     back_populates='owner',
 )
 User.comments_on_spectra = relationship(

@@ -615,14 +615,14 @@ class MMADetectorSpectrumHandler(BaseHandler):
             return self.success()
 
 
-class MMADetectorSegmentHandler(BaseHandler):
+class MMADetectorTimeIntervalHandler(BaseHandler):
     @permissions(['Upload data'])
     def post(self):
         """
         ---
-        description: Upload a Multimessenger Astronomical Detector (MMADetector) segment(s)
+        description: Upload a Multimessenger Astronomical Detector (MMADetector) time_interval(s)
         tags:
-          - mmadetector_segments
+          - mmadetector_time_intervals
         requestBody:
           content:
             application/json:
@@ -641,7 +641,7 @@ class MMADetectorSegmentHandler(BaseHandler):
                           properties:
                             id:
                               type: integer
-                              description: New mmadetector data segment ID
+                              description: New mmadetector data time_interval ID
           400:
             content:
               application/json:
@@ -649,12 +649,12 @@ class MMADetectorSegmentHandler(BaseHandler):
         """
         json = self.get_json()
 
-        if 'segments' in json:
-            segments = json['segments']
-        elif 'segment' in json:
-            segments = [json['segment']]
+        if 'time_intervals' in json:
+            time_intervals = json['time_intervals']
+        elif 'time_interval' in json:
+            time_intervals = [json['time_interval']]
         else:
-            return self.error('segment or segments required in json')
+            return self.error('time_interval or time_intervals required in json')
 
         if 'detector_id' not in json:
             return self.error('detector_id required in json')
@@ -695,42 +695,47 @@ class MMADetectorSegmentHandler(BaseHandler):
                     f'Cannot find one or more groups with IDs: {group_ids}.'
                 )
 
-            segment_list = []
-            for segment in segments:
-                data = {'segment': segment, 'detector_id': json['detector_id']}
+            time_interval_list = []
+            for time_interval in time_intervals:
+                data = {
+                    'time_interval': time_interval,
+                    'detector_id': json['detector_id'],
+                }
 
-                segment = MMADetectorSegment(**data)
-                segment.mmadetector = mmadetector
-                segment.groups = groups
-                segment.owner_id = owner_id
-                segment_list.append(segment)
+                time_interval = MMADetectorSegment(**data)
+                time_interval.mmadetector = mmadetector
+                time_interval.groups = groups
+                time_interval.owner_id = owner_id
+                time_interval_list.append(time_interval)
 
-            session.add_all(segment_list)
+            session.add_all(time_interval_list)
             session.commit()
 
             self.push_all(
                 action='skyportal/REFRESH_MMASEGMENT',
-                payload={'detector_id': segment.detector.id},
+                payload={'detector_id': time_interval.detector.id},
             )
 
             self.push_all(
                 action='skyportal/REFRESH_MMASEGMENT_SEGMENTS',
-                payload={'detector_id': segment.detector.id},
+                payload={'detector_id': time_interval.detector.id},
             )
 
-            return self.success(data={"ids": [segment.id for segment in segment_list]})
+            return self.success(
+                data={"ids": [time_interval.id for time_interval in time_interval_list]}
+            )
 
     @auth_or_token
-    def get(self, segment_id=None):
+    def get(self, time_interval_id=None):
         """
         ---
         single:
-          description: Retrieve an mmadetector segment
+          description: Retrieve an mmadetector time_interval
           tags:
-            - mmadetector_segments
+            - mmadetector_time_intervals
           parameters:
             - in: path
-              name: segment_id
+              name: time_interval_id
               required: true
               schema:
                 type: integer
@@ -744,9 +749,9 @@ class MMADetectorSegmentHandler(BaseHandler):
                 application/json:
                   schema: Error
         multiple:
-          description: Retrieve multiple segments with given criteria
+          description: Retrieve multiple time_intervals with given criteria
           tags:
-            - mmadetector_segments
+            - mmadetector_time_intervals
           parameters:
             - in: query
               name: observedBefore
@@ -755,7 +760,7 @@ class MMADetectorSegmentHandler(BaseHandler):
                 type: string
               description: |
                 Arrow-parseable date string (e.g. 2020-01-01). If provided,
-                return only segment observed before this time.
+                return only time_interval observed before this time.
             - in: query
               name: observedAfter
               nullable: true
@@ -763,7 +768,7 @@ class MMADetectorSegmentHandler(BaseHandler):
                 type: string
               description: |
                 Arrow-parseable date string (e.g. 2020-01-01). If provided,
-                return only segment observed after this time.
+                return only time_interval observed after this time.
             - in: query
               name: detectorIDs
               nullable: true
@@ -771,7 +776,7 @@ class MMADetectorSegmentHandler(BaseHandler):
               items:
                 type: integer
               description: |
-                If provided, filter only segments observed with one of these mmadetector IDs.
+                If provided, filter only time_intervals observed with one of these mmadetector IDs.
             - in: query
               name: groupIDs
               nullable: true
@@ -780,30 +785,31 @@ class MMADetectorSegmentHandler(BaseHandler):
                 items:
                   type: integer
               description: |
-                If provided, filter only segment saved to one of these group IDs.
+                If provided, filter only time_interval saved to one of these group IDs.
         """
-        if segment_id is not None:
+        if time_interval_id is not None:
             with self.Session() as session:
-                segment = session.scalars(
+                time_interval = session.scalars(
                     MMADetectorSegment.select(session.user_or_token).where(
-                        MMADetectorSegment.id == segment_id
+                        MMADetectorSegment.id == time_interval_id
                     )
                 ).first()
-                if segment is None:
+                if time_interval is None:
                     return self.error(
-                        f'Could not access segment {segment_id}.', status=403
+                        f'Could not access time_interval {time_interval_id}.',
+                        status=403,
                     )
-                seg = segment.segment
+                seg = time_interval.time_interval
                 data = {
-                    'id': segment.id,
-                    'segment': [seg.lower, seg.upper],
-                    'owner': segment.owner,
-                    'groups': segment.groups,
-                    'detector': segment.detector,
+                    'id': time_interval.id,
+                    'time_interval': [seg.lower, seg.upper],
+                    'owner': time_interval.owner,
+                    'groups': time_interval.groups,
+                    'detector': time_interval.detector,
                 }
                 return self.success(data=data)
 
-        # multiple segment
+        # multiple time_interval
         observed_before = self.get_query_argument('observedBefore', None)
         observed_after = self.get_query_argument('observedAfter', None)
         detector_ids = self.get_query_argument('detectorIDs', None)
@@ -832,15 +838,15 @@ class MMADetectorSegmentHandler(BaseHandler):
             except (ValueError, AccessError) as e:
                 return self.error(str(e))
 
-            # filter the segment
-            segment_query = MMADetectorSegment.select(session.user_or_token)
+            # filter the time_interval
+            time_interval_query = MMADetectorSegment.select(session.user_or_token)
             if detector_ids:
-                segment_query = segment_query.where(
+                time_interval_query = time_interval_query.where(
                     MMADetectorSegment.detector_id.in_(detector_ids)
                 )
 
             if group_ids:
-                segment_query = segment_query.where(
+                time_interval_query = time_interval_query.where(
                     or_(
                         *[
                             MMADetectorSegment.groups.any(Group.id == gid)
@@ -850,40 +856,40 @@ class MMADetectorSegmentHandler(BaseHandler):
                 )
 
             if observed_before:
-                segment_query = segment_query.where(
+                time_interval_query = time_interval_query.where(
                     MMADetectorSegment.end_time <= observed_before
                 )
 
             if observed_after:
-                segment_query = segment_query.where(
+                time_interval_query = time_interval_query.where(
                     MMADetectorSegment.start_time >= observed_after
                 )
 
-            segments = session.scalars(segment_query).unique().all()
+            time_intervals = session.scalars(time_interval_query).unique().all()
             data = []
-            for segment in segments:
-                seg = segment.segment
+            for time_interval in time_intervals:
+                seg = time_interval.time_interval
                 data.append(
                     {
-                        'id': segment.id,
-                        'segment': [seg.lower, seg.upper],
-                        'owner': segment.owner,
-                        'groups': segment.groups,
-                        'detector': segment.detector,
+                        'id': time_interval.id,
+                        'time_interval': [seg.lower, seg.upper],
+                        'owner': time_interval.owner,
+                        'groups': time_interval.groups,
+                        'detector': time_interval.detector,
                     }
                 )
             return self.success(data=data)
 
     @permissions(['Upload data'])
-    def patch(self, segment_id):
+    def patch(self, time_interval_id):
         """
         ---
-        description: Update mmadetector segment
+        description: Update mmadetector time_interval
         tags:
-          - mmadetector_segments
+          - mmadetector_time_intervals
         parameters:
           - in: path
-            name: segment_id
+            name: time_interval_id
             required: true
             schema:
               type: integer
@@ -903,9 +909,9 @@ class MMADetectorSegmentHandler(BaseHandler):
         """
 
         try:
-            segment_id = int(segment_id)
+            time_interval_id = int(time_interval_id)
         except TypeError:
-            return self.error('Could not convert segment id to int.')
+            return self.error('Could not convert time_interval id to int.')
 
         data = self.get_json()
         group_ids = data.pop("group_ids", None)
@@ -914,9 +920,9 @@ class MMADetectorSegmentHandler(BaseHandler):
 
         with self.Session() as session:
             stmt = MMADetectorSegment.select(self.current_user).where(
-                MMADetectorSegment.id == segment_id
+                MMADetectorSegment.id == time_interval_id
             )
-            segment = session.scalars(stmt).first()
+            time_interval = session.scalars(stmt).first()
 
             if group_ids:
                 groups = (
@@ -932,35 +938,35 @@ class MMADetectorSegmentHandler(BaseHandler):
                     )
 
                 if groups:
-                    segment.groups = segment.groups + groups
+                    time_interval.groups = time_interval.groups + groups
 
-            if 'segment' in data:
-                setattr(segment, 'segment', data['segment'])
+            if 'time_interval' in data:
+                setattr(time_interval, 'time_interval', data['time_interval'])
 
             session.commit()
 
             self.push_all(
                 action='skyportal/REFRESH_MMADETECTOR',
-                payload={'detector_id': segment.detector.id},
+                payload={'detector_id': time_interval.detector.id},
             )
 
             self.push_all(
                 action='skyportal/REFRESH_MMADETECTOR_SEGMENT',
-                payload={'detector_id': segment.detector.id},
+                payload={'detector_id': time_interval.detector.id},
             )
 
             return self.success()
 
     @permissions(['Upload data'])
-    def delete(self, segment_id):
+    def delete(self, time_interval_id):
         """
         ---
-        description: Delete an mmadetector segment
+        description: Delete an mmadetector time_interval
         tags:
-          - mmadetector_segments
+          - mmadetector_time_intervals
         parameters:
           - in: path
-            name: segment_id
+            name: time_interval_id
             required: true
             schema:
               type: integer
@@ -975,16 +981,18 @@ class MMADetectorSegmentHandler(BaseHandler):
                 schema: Error
         """
         with self.Session() as session:
-            segment = session.scalars(
+            time_interval = session.scalars(
                 MMADetectorSegment.select(self.current_user, mode="delete").where(
-                    MMADetectorSegment.id == segment_id
+                    MMADetectorSegment.id == time_interval_id
                 )
             ).first()
-            if segment is None:
-                return self.error(f'Cannot find segment with ID {segment_id}')
+            if time_interval is None:
+                return self.error(
+                    f'Cannot find time_interval with ID {time_interval_id}'
+                )
 
-            detector_id = segment.detector.id
-            session.delete(segment)
+            detector_id = time_interval.detector.id
+            session.delete(time_interval)
             session.commit()
 
             self.push_all(
