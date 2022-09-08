@@ -50,7 +50,7 @@ class SwiftLSXPSQueryHandler(BaseHandler):
                     required: false
                     type: integer
                     description: |
-                      Name of telescope to assign this catalog too
+                      Name of telescope to assign this catalog to
 
         responses:
           200:
