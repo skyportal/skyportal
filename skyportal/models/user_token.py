@@ -192,6 +192,20 @@ User.reminders_on_gcns = relationship(
     cascade="delete",
     passive_deletes=True,
 )
+User.comments_on_earthquakes = relationship(
+    "CommentOnEarthquake",
+    back_populates="author",
+    foreign_keys="CommentOnEarthquake.author_id",
+    cascade="delete",
+    passive_deletes=True,
+)
+User.reminders_on_earthquakes = relationship(
+    "ReminderOnEarthquake",
+    back_populates="user",
+    foreign_keys="ReminderOnEarthquake.user_id",
+    cascade="delete",
+    passive_deletes=True,
+)
 User.default_observationplan_requests = relationship(
     'DefaultObservationPlanRequest',
     back_populates='requester',
@@ -278,6 +292,18 @@ User.gcntags = relationship(
     back_populates='sent_by',
     passive_deletes=True,
     doc='The gcntags saved by this user',
+)
+User.earthquakeevents = relationship(
+    'EarthquakeEvent',
+    back_populates='sent_by',
+    passive_deletes=True,
+    doc='The EarthquakeEvents saved by this user',
+)
+User.earthquakenotices = relationship(
+    'EarthquakeNotice',
+    back_populates='sent_by',
+    passive_deletes=True,
+    doc='The EarthquakeNotices saved by this user',
 )
 User.listings = relationship(
     'Listing',
