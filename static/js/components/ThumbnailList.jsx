@@ -211,10 +211,11 @@ const ThumbnailList = ({
                 key="thumbPlaceHolder"
                 ra={ra}
                 dec={dec}
-                name="PS1: Loading..."
+                name="PanSTARRS DR2: Loading..."
                 url="#"
                 size={size}
                 grayscale={false}
+                header="PanSTARRS DR2"
               />
             </Grid>
           )}
@@ -231,6 +232,7 @@ const ThumbnailList = ({
         url={t.public_url}
         size={size}
         grayscale={t.is_grayscale}
+        header={thumbnail_display[t.type]}
       />
     </Grid>
   ));
