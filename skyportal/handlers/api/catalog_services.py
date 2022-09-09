@@ -51,7 +51,10 @@ class SwiftLSXPSQueryHandler(BaseHandler):
                     required: false
                     type: integer
                     description: |
-                      Name of telescope to assign this catalog to
+                      Name of telescope to assign this catalog to.
+                      Use the same name as your nickname
+                      for the Neil Gehrels Swift Observatory.
+                      Defaults to Swift.
 
         responses:
           200:
