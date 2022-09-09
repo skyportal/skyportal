@@ -345,7 +345,6 @@ class EarthquakeHandler(BaseHandler):
 
         if event_id is not None:
             with self.Session() as session:
-                print(event_id)
                 event = session.scalars(
                     EarthquakeEvent.select(
                         session.user_or_token,
@@ -673,7 +672,7 @@ class EarthquakeMeasurementHandler(BaseHandler):
             event = session.scalars(
                 EarthquakeEvent.select(
                     session.user_or_token,
-                ).where(EarthquakeEvent.id == earthquake_id)
+                ).where(EarthquakeEvent.event_id == earthquake_id)
             ).first()
             if event is None:
                 return self.error(
@@ -690,7 +689,7 @@ class EarthquakeMeasurementHandler(BaseHandler):
 
             measurement = session.scalars(
                 EarthquakeMeasured.select(session.user_or_token).where(
-                    EarthquakeMeasured.event_id == event.id,
+                    EarthquakeMeasured.id == event.id,
                     EarthquakeMeasured.detector_id == detector.id,
                 )
             ).first()
@@ -744,9 +743,19 @@ class EarthquakeMeasurementHandler(BaseHandler):
         """
 
         with self.Session() as session:
+            event = session.scalars(
+                EarthquakeEvent.select(
+                    session.user_or_token,
+                ).where(EarthquakeEvent.event_id == earthquake_id)
+            ).first()
+            if event is None:
+                return self.error(
+                    f'Cannot find EarthquakeEvent with ID {earthquake_id}'
+                )
+
             measurement = session.scalars(
                 EarthquakeMeasured.select(session.user_or_token).where(
-                    EarthquakeMeasured.event_id == earthquake_id,
+                    EarthquakeMeasured.event_id == event.id,
                     EarthquakeMeasured.detector_id == mma_detector_id,
                 )
             ).first()
@@ -789,9 +798,19 @@ class EarthquakeMeasurementHandler(BaseHandler):
             )
 
         with self.Session() as session:
+            event = session.scalars(
+                EarthquakeEvent.select(
+                    session.user_or_token,
+                ).where(EarthquakeEvent.event_id == earthquake_id)
+            ).first()
+            if event is None:
+                return self.error(
+                    f'Cannot find EarthquakeEvent with ID {earthquake_id}'
+                )
+
             measurement = session.scalars(
                 EarthquakeMeasured.select(session.user_or_token, mode='update').where(
-                    EarthquakeMeasured.event_id == earthquake_id,
+                    EarthquakeMeasured.event_id == event.id,
                     EarthquakeMeasured.detector_id == mma_detector_id,
                 )
             ).first()
@@ -844,9 +863,19 @@ class EarthquakeMeasurementHandler(BaseHandler):
         """
 
         with self.Session() as session:
+            event = session.scalars(
+                EarthquakeEvent.select(
+                    session.user_or_token,
+                ).where(EarthquakeEvent.event_id == earthquake_id)
+            ).first()
+            if event is None:
+                return self.error(
+                    f'Cannot find EarthquakeEvent with ID {earthquake_id}'
+                )
+
             measurement = session.scalars(
                 EarthquakeMeasured.select(session.user_or_token, mode='delete').where(
-                    EarthquakeMeasured.event_id == earthquake_id,
+                    EarthquakeMeasured.event_id == event.id,
                     EarthquakeMeasured.detector_id == mma_detector_id,
                 )
             ).first()

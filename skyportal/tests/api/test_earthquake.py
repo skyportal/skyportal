@@ -73,7 +73,6 @@ def test_earthquake_predictions_and_measurements(super_admin_token, view_only_to
         token=super_admin_token,
         data=measurement_data,
     )
-    print(data)
     assert status == 200
     assert data['status'] == 'success'
 
