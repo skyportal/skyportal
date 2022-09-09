@@ -3,7 +3,6 @@ import { useDispatch, useSelector } from "react-redux";
 import { useForm, Controller } from "react-hook-form";
 
 import TextField from "@mui/material/TextField";
-import Button from "@mui/material/Button";
 import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
 import Typography from "@mui/material/Typography";
@@ -18,6 +17,7 @@ import Autocomplete, { createFilterOptions } from "@mui/material/Autocomplete";
 import makeStyles from "@mui/styles/makeStyles";
 
 import { showNotification } from "baselayer/components/Notifications";
+import Button from "./Button";
 
 import * as ProfileActions from "../ducks/profile";
 
@@ -234,7 +234,7 @@ const UpdateProfileForm = () => {
             </Grid>
             <br />
             <Button
-              variant="contained"
+              secondary
               type="submit"
               id="updateProfileButton"
               disabled={isSubmitting}

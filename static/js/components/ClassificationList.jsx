@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
-import { Button } from "@mui/material";
 import Tooltip from "@mui/material/Tooltip";
 import GroupIcon from "@mui/icons-material/Group";
 import ListItem from "@mui/material/ListItem";
@@ -10,6 +9,7 @@ import { FixedSizeList } from "react-window";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import utc from "dayjs/plugin/utc";
+import Button from "./Button";
 
 import * as sourceActions from "../ducks/source";
 
@@ -169,8 +169,6 @@ const ClassificationList = () => {
                   : { visibility: "hidden", display: "block", margin: "1%" }
               }
               size="small"
-              variant="outlined"
-              color="primary"
               type="button"
               name={`deleteClassificationButton${id}`}
               onClick={() => {

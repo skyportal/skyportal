@@ -4,12 +4,12 @@ import { useDispatch, useSelector } from "react-redux";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
-import Button from "@mui/material/Button";
 import { showNotification } from "baselayer/components/Notifications";
 import { useForm } from "react-hook-form";
 import ClassificationSelect from "./ClassificationSelect";
 import * as Actions from "../ducks/source";
 import { allowedClasses } from "./ClassificationForm";
+import Button from "./Button";
 
 const AddClassificationsScanningPage = ({ obj_id }) => {
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -55,7 +55,7 @@ const AddClassificationsScanningPage = ({ obj_id }) => {
   return (
     <>
       <Button
-        variant="contained"
+        primary
         size="small"
         onClick={openDialog}
         data-testid={`addClassificationsButton_${obj_id}`}
@@ -77,7 +77,7 @@ const AddClassificationsScanningPage = ({ obj_id }) => {
               inDialog
             />
             <Button
-              variant="contained"
+              primary
               type="submit"
               data-testid="addClassificationsButtonInDialog"
             >

@@ -14,7 +14,9 @@ from ...models import (
     Comment,
     CommentOnSpectrum,
     CommentOnGCN,
+    CommentOnEarthquake,
     CommentOnShift,
+    EarthquakeEvent,
     Spectrum,
     GcnEvent,
     Shift,
@@ -163,6 +165,16 @@ class CommentHandler(BaseHandler):
                         .unique()
                         .all()
                     )
+                elif associated_resource_type.lower() == "earthquake":
+                    comments = (
+                        session.scalars(
+                            CommentOnEarthquake.select(self.current_user).where(
+                                CommentOnEarthquake.earthquake_id == resource_id
+                            )
+                        )
+                        .unique()
+                        .all()
+                    )
                 elif associated_resource_type.lower() == "shift":
                     comments = (
                         session.scalars(
@@ -220,6 +232,17 @@ class CommentHandler(BaseHandler):
                 comment = session.scalars(
                     CommentOnGCN.select(self.current_user).where(
                         CommentOnGCN.id == comment_id
+                    )
+                ).first()
+                if comment is None:
+                    return self.error(
+                        'Could not find any accessible comments.', status=403
+                    )
+                comment_resource_id_str = str(comment.gcn_id)
+            elif associated_resource_type.lower() == "earthquake":
+                comment = session.scalars(
+                    CommentOnEarthquake.select(self.current_user).where(
+                        CommentOnEarthquake.id == comment_id
                     )
                 ).first()
                 if comment is None:
@@ -415,6 +438,26 @@ class CommentHandler(BaseHandler):
                     groups=groups,
                     bot=is_bot_request,
                 )
+            elif associated_resource_type.lower() == "earthquake":
+                earthquake_id = resource_id
+                earthquake = session.scalars(
+                    EarthquakeEvent.select(self.current_user).where(
+                        EarthquakeEvent.id == earthquake_id
+                    )
+                ).first()
+                if earthquake is None:
+                    return self.error(
+                        f'Could not find any accessible earthquakes with ID {earthquake_id}.'
+                    )
+                comment = CommentOnEarthquake(
+                    text=comment_text,
+                    earthquake_id=earthquake.id,
+                    attachment_bytes=attachment_bytes,
+                    attachment_name=attachment_name,
+                    author=author,
+                    groups=groups,
+                    bot=is_bot_request,
+                )
             elif associated_resource_type.lower() == "shift":
                 shift_id = resource_id
                 try:
@@ -450,6 +493,9 @@ class CommentHandler(BaseHandler):
             elif associated_resource_type.lower() == "shift":
                 text_to_send = f"*@{self.associated_user_object.username}* mentioned you in a comment on *shift {shift_id}*"
                 url_endpoint = "/shifts"
+            elif associated_resource_type.lower() == "earthquake":
+                text_to_send = f"*@{self.associated_user_object.username}* mentioned you in a comment on *{earthquake_id}*"
+                url_endpoint = f"/earthquakes/{earthquake_id}"
             else:
                 return self.error(
                     f'Unknown resource type "{associated_resource_type}".'
@@ -486,6 +532,11 @@ class CommentHandler(BaseHandler):
                 self.push_all(
                     action='skyportal/REFRESH_GCNEVENT',
                     payload={'gcnEvent_dateobs': comment.gcn.dateobs},
+                )
+            elif isinstance(comment, CommentOnEarthquake):
+                self.push_all(
+                    action='skyportal/REFRESH_EARTHQUAKE',
+                    payload={'earthquake_event_id': comment.earthquake.event_id},
                 )
             elif isinstance(comment, CommentOnSpectrum):
                 self.push_all(
@@ -604,6 +655,18 @@ class CommentHandler(BaseHandler):
                         'Could not find any accessible comments.', status=403
                     )
                 comment_resource_id_str = str(c.gcn_id)
+            elif associated_resource_type.lower() == "earthquake":
+                schema = CommentOnEarthquake.__schema__()
+                c = session.scalars(
+                    CommentOnEarthquake.select(self.current_user, mode="update").where(
+                        CommentOnEarthquake.id == comment_id
+                    )
+                ).first()
+                if c is None:
+                    return self.error(
+                        'Could not find any accessible comments.', status=403
+                    )
+                comment_resource_id_str = str(c.gcn_id)
             elif associated_resource_type.lower() == "shift":
                 schema = CommentOnShift.__schema__()
                 c = session.scalars(
@@ -685,12 +748,17 @@ class CommentHandler(BaseHandler):
             elif isinstance(c, CommentOnGCN):  # also update the gcn
                 self.push_all(
                     action='skyportal/REFRESH_SOURCE_GCN',
-                    payload={'obj_internal_key': c.obj.internal_key},
+                    payload={'gcnEvent_dateobs': c.gcn.dateobs},
+                )
+            elif isinstance(c, CommentOnEarthquake):  # also update the earthquake
+                self.push_all(
+                    action='skyportal/REFRESH_EARTHQUAKE',
+                    payload={'earthquake_id': c.earthquake.event_id},
                 )
             elif isinstance(c, CommentOnShift):  # also update the shift
                 self.push_all(
                     action='skyportal/REFRESH_SHIFT',
-                    payload={'obj_internal_key': c.obj.internal_key},
+                    payload={'shift_id': c.shift_id},
                 )
 
             return self.success()
@@ -775,6 +843,17 @@ class CommentHandler(BaseHandler):
                         'Could not find any accessible comments.', status=403
                     )
                 comment_resource_id_str = str(c.gcn_id)
+            elif associated_resource_type.lower() == "earthquake":
+                c = session.scalars(
+                    CommentOnEarthquake.select(self.current_user, mode="delete").where(
+                        CommentOnEarthquake.id == comment_id
+                    )
+                ).first()
+                if c is None:
+                    return self.error(
+                        'Could not find any accessible comments.', status=403
+                    )
+                comment_resource_id_str = str(c.earthquake_id)
             elif associated_resource_type.lower() == "shift":
                 c = session.scalars(
                     CommentOnShift.select(self.current_user, mode="delete").where(
@@ -795,6 +874,8 @@ class CommentHandler(BaseHandler):
 
             if isinstance(c, CommentOnGCN):
                 gcnevent_dateobs = c.gcn.dateobs
+            elif isinstance(c, CommentOnEarthquake):
+                event_id = c.earthquake.event_id
             elif not isinstance(c, CommentOnShift):
                 obj_key = c.obj.internal_key
 
@@ -816,6 +897,11 @@ class CommentHandler(BaseHandler):
                 self.push_all(
                     action='skyportal/REFRESH_GCNEVENT',
                     payload={'gcnEvent_dateobs': gcnevent_dateobs},
+                )
+            elif isinstance(c, CommentOnEarthquake):  # also update the earthquake
+                self.push_all(
+                    action='skyportal/REFRESH_EARTHQUAKE',
+                    payload={'earthquake_event_id': event_id},
                 )
             elif isinstance(c, CommentOnSpectrum):  # also update the spectrum
                 self.push_all(
@@ -940,6 +1026,17 @@ class CommentAttachmentHandler(BaseHandler):
                         'Could not find any accessible comments.', status=403
                     )
                 comment_resource_id_str = str(comment.gcn_id)
+            elif associated_resource_type.lower() == "earthquake":
+                comment = session.scalars(
+                    CommentOnEarthquake.select(self.current_user).where(
+                        CommentOnEarthquake.id == comment_id
+                    )
+                ).first()
+                if comment is None:
+                    return self.error(
+                        'Could not find any accessible comments.', status=403
+                    )
+                comment_resource_id_str = str(comment.earthquake_id)
             elif associated_resource_type.lower() == "shift":
                 comment = session.scalars(
                     CommentOnShift.select(self.current_user).where(

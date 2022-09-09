@@ -11,7 +11,6 @@ import {
 } from "@mui/material/styles";
 import { withStyles, makeStyles } from "@mui/styles";
 import CircularProgress from "@mui/material/CircularProgress";
-import Button from "@mui/material/Button";
 import DeleteIcon from "@mui/icons-material/Delete";
 import MUIDataTable from "mui-datatables";
 
@@ -30,6 +29,7 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
 import { showNotification } from "baselayer/components/Notifications";
+import Button from "./Button";
 
 import * as Actions from "../ducks/reminders";
 

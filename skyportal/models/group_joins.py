@@ -4,15 +4,18 @@ __all__ = [
     'GroupAnnotation',
     'GroupClassification',
     'GroupMMADetectorSpectrum',
+    'GroupMMADetectorTimeInterval',
     'GroupPhotometry',
     'GroupPhotometricSeries',
     'GroupSpectrum',
     'GroupCommentOnSpectrum',
     'GroupCommentOnGCN',
+    'GroupCommentOnEarthquake',
     'GroupCommentOnShift',
     'GroupReminder',
     'GroupReminderOnSpectrum',
     'GroupReminderOnGCN',
+    'GroupReminderOnEarthquake',
     'GroupReminderOnShift',
     'GroupAnnotationOnSpectrum',
     'GroupInvitation',
@@ -29,13 +32,25 @@ from baselayer.app.models import join_model, User, AccessibleIfUserMatches
 from baselayer.app.models import DBSession, restricted, CustomUserAccessControl
 from .photometry import Photometry, PhotometricSeries
 from .taxonomy import Taxonomy
-from .comment import Comment, CommentOnSpectrum, CommentOnGCN, CommentOnShift
+from .comment import (
+    Comment,
+    CommentOnSpectrum,
+    CommentOnGCN,
+    CommentOnShift,
+    CommentOnEarthquake,
+)
 from .annotation import Annotation
 from .classification import Classification
-from .mmadetector import MMADetectorSpectrum
+from .mmadetector import MMADetectorSpectrum, MMADetectorTimeInterval
 from .spectrum import Spectrum
 from .annotation import AnnotationOnSpectrum
-from .reminder import Reminder, ReminderOnGCN, ReminderOnSpectrum, ReminderOnShift
+from .reminder import (
+    Reminder,
+    ReminderOnGCN,
+    ReminderOnSpectrum,
+    ReminderOnShift,
+    ReminderOnEarthquake,
+)
 from .invitation import Invitation
 from .source_notification import SourceNotification
 from .filter import Filter
@@ -132,6 +147,16 @@ GroupMMADetectorSpectrum.update = GroupMMADetectorSpectrum.delete = (
     accessible_by_group_admins & GroupMMADetectorSpectrum.read
 )
 
+GroupMMADetectorTimeInterval = join_model(
+    "group_mmadetector_time_intervals", Group, MMADetectorTimeInterval
+)
+GroupMMADetectorTimeInterval.__doc__ = (
+    'Join table mapping Groups to MMADetectorTimeInterval.'
+)
+GroupMMADetectorTimeInterval.update = GroupMMADetectorTimeInterval.delete = (
+    accessible_by_group_admins & GroupMMADetectorTimeInterval.read
+)
+
 GroupSpectrum = join_model("group_spectra", Group, Spectrum)
 GroupSpectrum.__doc__ = 'Join table mapping Groups to Spectra.'
 GroupSpectrum.update = GroupSpectrum.delete = (
@@ -184,6 +209,22 @@ GroupReminderOnShift = join_model("group_reminders_on_shifts", Group, ReminderOn
 GroupReminderOnShift.__doc__ = "Join table mapping Groups to ReminderOnShift."
 GroupReminderOnShift.delete = GroupReminderOnShift.update = (
     accessible_by_group_admins & GroupReminderOnShift.read
+)
+
+GroupCommentOnEarthquake = join_model(
+    "group_comments_on_earthquakes", Group, CommentOnEarthquake
+)
+GroupCommentOnEarthquake.__doc__ = "Join table mapping Groups to CommentOnEarthquake."
+GroupCommentOnEarthquake.delete = GroupCommentOnEarthquake.update = (
+    accessible_by_group_admins & GroupCommentOnEarthquake.read
+)
+
+GroupReminderOnEarthquake = join_model(
+    "group_reminders_on_earthquakes", Group, ReminderOnEarthquake
+)
+GroupReminderOnEarthquake.__doc__ = "Join table mapping Groups to ReminderOnEarthquake."
+GroupReminderOnEarthquake.delete = GroupReminderOnEarthquake.update = (
+    accessible_by_group_admins & GroupReminderOnEarthquake.read
 )
 
 GroupInvitation = join_model('group_invitations', Group, Invitation)

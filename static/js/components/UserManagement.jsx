@@ -7,7 +7,6 @@ import Paper from "@mui/material/Paper";
 import Chip from "@mui/material/Chip";
 import Typography from "@mui/material/Typography";
 import Autocomplete, { createFilterOptions } from "@mui/material/Autocomplete";
-import Button from "@mui/material/Button";
 import TextField from "@mui/material/TextField";
 import AddCircleIcon from "@mui/icons-material/AddCircle";
 import HelpIcon from "@mui/icons-material/Help";
@@ -33,6 +32,7 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
 import { showNotification } from "baselayer/components/Notifications";
+import Button from "./Button";
 
 import FormValidationError from "./FormValidationError";
 import UserInvitations from "./UserInvitations";
@@ -883,7 +883,7 @@ const UserManagement = () => {
             <br />
             <div>
               <Button
-                variant="contained"
+                primary
                 type="submit"
                 name="submitAddFromGroupsButton"
                 data-testid="submitAddFromGroupsButton"
@@ -946,7 +946,7 @@ const UserManagement = () => {
             <br />
             <div>
               <Button
-                variant="contained"
+                primary
                 type="submit"
                 name="submitAddStreamsButton"
                 data-testid="submitAddStreamsButton"
@@ -1006,7 +1006,7 @@ const UserManagement = () => {
             <br />
             <div>
               <Button
-                variant="contained"
+                primary
                 type="submit"
                 name="submitAddACLsButton"
                 data-testid="submitAddACLsButton"
@@ -1085,7 +1085,7 @@ const UserManagement = () => {
             <br />
             <div>
               <Button
-                variant="contained"
+                primary
                 type="submit"
                 name="submitAddAffiliationsButton"
                 data-testid="submitAddAffilitiationsButton"
@@ -1145,7 +1145,7 @@ const UserManagement = () => {
             <br />
             <div>
               <Button
-                variant="contained"
+                primary
                 type="submit"
                 name="submitAddRolesButton"
                 data-testid="submitAddRolesButton"
@@ -1190,8 +1190,7 @@ const UserManagement = () => {
             <br />
             <div className={classes.submitButton}>
               <Button
-                variant="contained"
-                color="primary"
+                primary
                 type="submit"
                 name="submitExpirationDateButton"
                 data-testid="submitExpirationDateButton"

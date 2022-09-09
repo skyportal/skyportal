@@ -7,7 +7,6 @@ import Paper from "@mui/material/Paper";
 import Typography from "@mui/material/Typography";
 import DragHandleIcon from "@mui/icons-material/DragHandle";
 import CardActions from "@mui/material/CardActions";
-import Button from "@mui/material/Button";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
@@ -15,6 +14,7 @@ import MenuItem from "@mui/material/MenuItem";
 import Menu from "@mui/material/Menu";
 import IconButton from "@mui/material/IconButton";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
+import Button from "./Button";
 
 import * as profileActions from "../ducks/profile";
 import * as weatherActions from "../ducks/weather";
@@ -124,14 +124,14 @@ const WeatherView = ({ weather }) => {
         <CardActions className={styles.weatherLinks}>
           {weather?.weather_link && (
             <a href={weather.weather_link} rel="noreferrer" target="_blank">
-              <Button size="small" color="secondary">
+              <Button secondary size="small">
                 Forecast
               </Button>
             </a>
           )}
           {weather?.skycam_link && (
             <a href={weather.skycam_link} rel="noreferrer" target="_blank">
-              <Button size="small" color="secondary">
+              <Button secondary size="small">
                 Webcam
               </Button>
             </a>
