@@ -22,6 +22,7 @@ from .annotation_services import (
 from .db_stats import StatsHandler
 from .earthquake import (
     EarthquakeHandler,
+    EarthquakeMeasurementHandler,
     EarthquakePredictionHandler,
     EarthquakeStatusHandler,
 )

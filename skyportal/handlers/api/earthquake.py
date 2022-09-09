@@ -19,6 +19,7 @@ from ..base import BaseHandler
 from ...models import (
     DBSession,
     EarthquakeEvent,
+    EarthquakeMeasured,
     EarthquakeNotice,
     EarthquakePrediction,
     MMADetector,
@@ -353,6 +354,7 @@ class EarthquakeHandler(BaseHandler):
                             ),
                             joinedload(EarthquakeEvent.comments),
                             joinedload(EarthquakeEvent.predictions),
+                            joinedload(EarthquakeEvent.measurements),
                         ],
                     ).where(EarthquakeEvent.id == event_id)
                 ).first()
@@ -568,7 +570,7 @@ class EarthquakePredictionHandler(BaseHandler):
                 r3p5=RthreePointFivetime,
                 r5p0=Rfivetime,
                 rfamp=Rfamp,
-                lockloss=int(Lockloss),
+                lockloss=Lockloss,
             )
             session.add(prediction)
             session.commit()
@@ -632,3 +634,232 @@ def compute_traveltimes(earthquake, detector):
         RthreePointFivetime.datetime,
         Rfivetime.datetime,
     )
+
+
+class EarthquakeMeasurementHandler(BaseHandler):
+    @auth_or_token
+    async def post(self, earthquake_id, mma_detector_id):
+        """
+        ---
+        description: Provide a ground velocity measurement for the earthquake.
+        tags:
+          - earthquakeevents
+        parameters:
+          - in: path
+            name: earthquake_id
+            required: true
+            schema:
+              type: string
+          - in: path
+            name: mma_detector_id
+            required: true
+            schema:
+              type: string
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+        """
+
+        data = self.get_json()
+        if 'rfamp' not in data and 'lockloss' not in data:
+            return self.error(
+                'Need to provide at least one of rfamp or lockloss measurement'
+            )
+
+        with self.Session() as session:
+            event = session.scalars(
+                EarthquakeEvent.select(
+                    session.user_or_token,
+                ).where(EarthquakeEvent.id == earthquake_id)
+            ).first()
+            if event is None:
+                return self.error(
+                    f'Cannot find EarthquakeEvent with ID {earthquake_id}'
+                )
+
+            detector = session.scalars(
+                MMADetector.select(session.user_or_token).where(
+                    MMADetector.id == mma_detector_id
+                )
+            ).first()
+            if detector is None:
+                return self.error(f'Cannot find MMADetector with ID {mma_detector_id}')
+
+            measurement = session.scalars(
+                EarthquakeMeasured.select(session.user_or_token).where(
+                    EarthquakeMeasured.event_id == event.id,
+                    EarthquakeMeasured.detector_id == detector.id,
+                )
+            ).first()
+            if measurement is not None:
+                return self.error(
+                    'Measurement for this earthquake and detector already exists. Please patch that measurement if an update is required'
+                )
+
+            rfamp = data.get('rfamp', None)
+            lockloss = data.get('lockloss', None)
+
+            measurement = EarthquakeMeasured(
+                event_id=event.id,
+                detector_id=detector.id,
+                rfamp=rfamp,
+                lockloss=lockloss,
+            )
+            session.add(measurement)
+            session.commit()
+
+            self.push(
+                action="skyportal/REFRESH_EARTHQUAKE",
+                payload={"earthquake_id": earthquake_id},
+            )
+
+            return self.success()
+
+    @auth_or_token
+    async def get(self, earthquake_id, mma_detector_id):
+        """
+        ---
+        description: Retrieve a ground velocity measurement for the earthquake.
+        tags:
+          - earthquakeevents
+        parameters:
+          - in: path
+            name: earthquake_id
+            required: true
+            schema:
+              type: string
+          - in: path
+            name: mma_detector_id
+            required: true
+            schema:
+              type: string
+        responses:
+          200:
+            content:
+              application/json:
+                schema: SingleEarthquakeMeasured
+        """
+
+        with self.Session() as session:
+            measurement = session.scalars(
+                EarthquakeMeasured.select(session.user_or_token).where(
+                    EarthquakeMeasured.event_id == earthquake_id,
+                    EarthquakeMeasured.detector_id == mma_detector_id,
+                )
+            ).first()
+            if measurement is None:
+                return self.error(
+                    'Measurement for this earthquake and detector not found.'
+                )
+
+            return self.success(data=measurement)
+
+    @auth_or_token
+    async def patch(self, earthquake_id, mma_detector_id):
+        """
+        ---
+        description: Update a ground velocity measurement for the earthquake.
+        tags:
+          - earthquakeevents
+        parameters:
+          - in: path
+            name: earthquake_id
+            required: true
+            schema:
+              type: string
+          - in: path
+            name: mma_detector_id
+            required: true
+            schema:
+              type: string
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+        """
+
+        data = self.get_json()
+        if 'rfamp' not in data and 'lockloss' not in data:
+            return self.error(
+                'Need to provide at least one of rfamp or lockloss measurement'
+            )
+
+        with self.Session() as session:
+            measurement = session.scalars(
+                EarthquakeMeasured.select(session.user_or_token, mode='update').where(
+                    EarthquakeMeasured.event_id == earthquake_id,
+                    EarthquakeMeasured.detector_id == mma_detector_id,
+                )
+            ).first()
+            if measurement is None:
+                return self.error(
+                    'Measurement for this earthquake and detector not found.'
+                )
+
+            rfamp = data.get('rfamp', None)
+            lockloss = data.get('lockloss', None)
+
+            if rfamp is not None:
+                measurement.rfamp = rfamp
+            if lockloss is not None:
+                measurement.lockloss = lockloss
+
+            session.add(measurement)
+            session.commit()
+
+            self.push(
+                action="skyportal/REFRESH_EARTHQUAKE",
+                payload={"earthquake_id": earthquake_id},
+            )
+
+            return self.success()
+
+    @auth_or_token
+    async def delete(self, earthquake_id, mma_detector_id):
+        """
+        ---
+        description: Delete a ground velocity measurement for the earthquake.
+        tags:
+          - earthquakeevents
+        parameters:
+          - in: path
+            name: earthquake_id
+            required: true
+            schema:
+              type: string
+          - in: path
+            name: mma_detector_id
+            required: true
+            schema:
+              type: string
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+        """
+
+        with self.Session() as session:
+            measurement = session.scalars(
+                EarthquakeMeasured.select(session.user_or_token, mode='delete').where(
+                    EarthquakeMeasured.event_id == earthquake_id,
+                    EarthquakeMeasured.detector_id == mma_detector_id,
+                )
+            ).first()
+            if measurement is None:
+                return self.error(
+                    'Measurement for this earthquake and detector not found.'
+                )
+
+            session.delete(measurement)
+            session.commit()
+
+            self.push(
+                action="skyportal/REFRESH_EARTHQUAKE",
+                payload={"earthquake_id": earthquake_id},
+            )
+
+            return self.success()
