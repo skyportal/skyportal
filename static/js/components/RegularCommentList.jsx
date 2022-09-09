@@ -24,6 +24,7 @@ const RegularCommentList = ({
   associatedResourceType = "object",
   objID = null,
   gcnEventID = null,
+  earthquakeID = null,
   styles = {},
   id = null,
   author = {},
@@ -96,6 +97,7 @@ const RegularCommentList = ({
               associatedResourceType={associatedResourceType}
               objID={objID}
               gcnEventID={gcnEventID}
+              earthquakeID={earthquakeID}
               spectrum_id={spectrum_id}
               shift_id={shift_id}
               hoverID={hoverID}
@@ -142,6 +144,14 @@ const RegularCommentList = ({
               associatedResourceType="shift"
             />
           )}
+          {attachment_name && associatedResourceType === "earthquake" && (
+            <CommentAttachmentPreview
+              filename={attachment_name}
+              earthquakeID={earthquakeID}
+              commentId={id}
+              associatedResourceType="earthquake"
+            />
+          )}
         </span>
       </div>
     </>
@@ -151,6 +161,7 @@ const RegularCommentList = ({
 RegularCommentList.propTypes = {
   objID: PropTypes.string,
   gcnEventID: PropTypes.number,
+  earthquakeID: PropTypes.string,
   associatedResourceType: PropTypes.string,
   styles: PropTypes.shape({}),
   id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
@@ -167,6 +178,7 @@ RegularCommentList.propTypes = {
 RegularCommentList.defaultProps = {
   objID: null,
   gcnEventID: null,
+  earthquakeID: null,
   associatedResourceType: "object",
   styles: {},
   id: null,

@@ -107,7 +107,7 @@ def post_earthquake_from_xml(payload, user_id, session):
     session.add(earthquake_notice)
     session.commit()
 
-    return event.id
+    return event_id
 
 
 def post_earthquake_from_dictionary(payload, user_id, session):
@@ -154,7 +154,7 @@ def post_earthquake_from_dictionary(payload, user_id, session):
     session.add(earthquake_notice)
     session.commit()
 
-    return event.id
+    return event_id
 
 
 class EarthquakeStatusHandler(BaseHandler):
@@ -344,6 +344,7 @@ class EarthquakeHandler(BaseHandler):
 
         if event_id is not None:
             with self.Session() as session:
+                print(event_id)
                 event = session.scalars(
                     EarthquakeEvent.select(
                         session.user_or_token,
@@ -354,7 +355,7 @@ class EarthquakeHandler(BaseHandler):
                             joinedload(EarthquakeEvent.comments),
                             joinedload(EarthquakeEvent.predictions),
                         ],
-                    ).where(EarthquakeEvent.id == event_id)
+                    ).where(EarthquakeEvent.event_id == event_id)
                 ).first()
                 if event is None:
                     return self.error("Earthquake event not found", status=404)
@@ -476,7 +477,7 @@ class EarthquakeHandler(BaseHandler):
         with self.Session() as session:
             event = session.scalars(
                 EarthquakeEvent.select(session.user_or_token, mode="delete").where(
-                    EarthquakeEvent.id == event_id
+                    EarthquakeEvent.event_id == event_id
                 )
             ).first()
             if event is None:
@@ -521,7 +522,7 @@ class EarthquakePredictionHandler(BaseHandler):
                     options=[
                         joinedload(EarthquakeEvent.notices),
                     ],
-                ).where(EarthquakeEvent.id == earthquake_id)
+                ).where(EarthquakeEvent.event_id == earthquake_id)
             ).first()
             if event is None:
                 return self.error(
@@ -575,7 +576,7 @@ class EarthquakePredictionHandler(BaseHandler):
 
             self.push(
                 action="skyportal/REFRESH_EARTHQUAKE",
-                payload={"earthquake_id": event.id},
+                payload={"earthquake_event_id": event.event_id},
             )
 
             return self.success()

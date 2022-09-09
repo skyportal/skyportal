@@ -132,6 +132,10 @@ app:
       component: InstrumentPage
     - path: "/mmadetectors"
       component: MMADetectorPage
+    - path: "/earthquakes"
+      component: EarthquakesPage
+    - path: "/earthquakes/:event_id"
+      component: EarthquakePage
     - path: "/services"
       component: AnalysisServicePage
     - path: "/shifts"
@@ -204,6 +208,10 @@ app:
         - name: Observations
           icon: ZoomInOutlined
           url: /observations
+
+        - name: Earthquakes
+          icon: PieChart
+          url: /earthquakes
 
         - name: Galaxies
           icon: TornadoOutlined

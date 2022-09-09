@@ -3,6 +3,7 @@ import * as groupsActions from "./ducks/groups";
 import * as profileActions from "./ducks/profile";
 import * as sysInfoActions from "./ducks/sysInfo";
 import * as dbInfoActions from "./ducks/dbInfo";
+import * as earthquakeActions from "./ducks/earthquake";
 import * as configActions from "./ducks/config";
 import * as defaultObservationPlansActions from "./ducks/default_observation_plans";
 import * as newsFeedActions from "./ducks/newsFeed";
@@ -24,6 +25,7 @@ export default function hydrate() {
     dispatch(sysInfoActions.fetchSystemInfo());
     dispatch(dbInfoActions.fetchDBInfo());
     dispatch(configActions.fetchConfig());
+    dispatch(earthquakeActions.fetchEarthquakes());
     dispatch(profileActions.fetchUserProfile());
     dispatch(groupsActions.fetchGroups(true));
     dispatch(mmadetectorActions.fetchMMADetectors());
