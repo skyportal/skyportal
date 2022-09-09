@@ -1,7 +1,7 @@
 """GCN properties migration
 
 Revision ID: 2510cf8ad164
-Revises: 4822ff118a4f
+Revises: 99de544181a3
 Create Date: 2022-09-07 16:24:44.397567
 
 """
