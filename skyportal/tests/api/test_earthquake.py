@@ -183,5 +183,3 @@ def test_earthquake_dictionary(super_admin_token, view_only_token):
     assert data['status'] == 'success'
 
     status, data = api('GET', f'earthquake/{event_id}', token=super_admin_token)
-    print(data)
-    print(status)
