@@ -276,7 +276,7 @@ def send_sms_notification(mapper, connection, target):
                 ):
                     sending = True
             else:
-                if current_time.hour <= timeslot[0] or current_time.hour >= timeslot[1]:
+                if current_time.hour <= timeslot[1] or current_time.hour >= timeslot[0]:
                     sending = True
     if sending:
         try:
@@ -321,7 +321,7 @@ def send_phone_notification(mapper, connection, target):
                 ):
                     sending = True
             else:
-                if current_time.hour <= timeslot[0] or current_time.hour >= timeslot[1]:
+                if current_time.hour <= timeslot[1] or current_time.hour >= timeslot[0]:
                     sending = True
     if sending:
         try:
