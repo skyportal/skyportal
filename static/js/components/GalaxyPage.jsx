@@ -166,13 +166,12 @@ const GalaxyPage = () => {
   }, [dispatch]);
 
   useEffect(() => {
-    handlePageChange(0, fetchParams.numPerPage)
-  }, [])
+    handlePageChange(0, fetchParams.numPerPage);
+  }, []);
 
   if (!galaxies) {
     return <p>No galaxies available...</p>;
   }
-
 
   const handleTableChange = (action, tableState) => {
     if (action === "changePage" || action === "changeRowsPerPage") {
