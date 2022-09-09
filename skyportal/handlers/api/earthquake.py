@@ -107,7 +107,7 @@ def post_earthquake_from_xml(payload, user_id, session):
     session.add(earthquake_notice)
     session.commit()
 
-    return event.id
+    return event_id
 
 
 def post_earthquake_from_dictionary(payload, user_id, session):
@@ -154,7 +154,7 @@ def post_earthquake_from_dictionary(payload, user_id, session):
     session.add(earthquake_notice)
     session.commit()
 
-    return event.id
+    return event_id
 
 
 class EarthquakeStatusHandler(BaseHandler):
@@ -477,7 +477,7 @@ class EarthquakeHandler(BaseHandler):
         with self.Session() as session:
             event = session.scalars(
                 EarthquakeEvent.select(session.user_or_token, mode="delete").where(
-                    EarthquakeEvent.id == event_id
+                    EarthquakeEvent.event_id == event_id
                 )
             ).first()
             if event is None:
