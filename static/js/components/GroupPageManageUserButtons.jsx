@@ -3,7 +3,6 @@ import PropTypes from "prop-types";
 
 import { useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
-import Button from "@mui/material/Button";
 import DeleteIcon from "@mui/icons-material/Delete";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
@@ -14,6 +13,7 @@ import DialogContentText from "@mui/material/DialogContentText";
 import DialogActions from "@mui/material/DialogActions";
 
 import { showNotification } from "baselayer/components/Notifications";
+import Button from "./Button";
 
 import * as groupActions from "../ducks/group";
 import * as groupsActions from "../ducks/groups";
@@ -161,11 +161,15 @@ const ManageUserButtons = ({ group, loadedId, user, isAdmin, currentUser }) => {
             )}
 
             <DialogActions>
-              <Button autoFocus onClick={() => setConfirmDeleteOpen(false)}>
+              <Button
+                secondary
+                autoFocus
+                onClick={() => setConfirmDeleteOpen(false)}
+              >
                 Dismiss
               </Button>
               <Button
-                color="primary"
+                primary
                 onClick={handleDelete}
                 data-testid={`confirm-delete-${user.username}`}
               >

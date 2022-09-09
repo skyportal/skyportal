@@ -3,7 +3,6 @@ import { useNavigate, useParams, Link } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { useTheme } from "@mui/material/styles";
 import makeStyles from "@mui/styles/makeStyles";
-import Button from "@mui/material/Button";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 
 import Accordion from "@mui/material/Accordion";
@@ -18,6 +17,7 @@ import DialogContentText from "@mui/material/DialogContentText";
 import DialogTitle from "@mui/material/DialogTitle";
 
 import CircularProgress from "@mui/material/CircularProgress";
+import Button from "./Button";
 
 import GroupUsers from "./GroupUsers";
 import GroupFiltersStreams from "./GroupFiltersStreams";
@@ -173,7 +173,7 @@ const Group = () => {
         </AccordionSummary>
         <AccordionDetails className={classes.accordion_details}>
           <Link to={`/group_sources/${group.id}`} key={group.id}>
-            <Button variant="contained">Group sources</Button>
+            <Button secondary>Group sources</Button>
           </Link>
         </AccordionDetails>
       </Accordion>
@@ -193,11 +193,7 @@ const Group = () => {
         theme={theme}
       />
       {isAdmin(currentUser) && (
-        <Button
-          variant="contained"
-          color="secondary"
-          onClick={() => setConfirmDeleteOpen(true)}
-        >
+        <Button secondary onClick={() => setConfirmDeleteOpen(true)}>
           Delete Group
         </Button>
       )}
@@ -217,10 +213,14 @@ const Group = () => {
         </DialogContent>
 
         <DialogActions>
-          <Button autoFocus onClick={() => setConfirmDeleteOpen(false)}>
+          <Button
+            secondary
+            autoFocus
+            onClick={() => setConfirmDeleteOpen(false)}
+          >
             Dismiss
           </Button>
-          <Button color="primary" onClick={handleDeleteGroup}>
+          <Button primary onClick={handleDeleteGroup}>
             Confirm
           </Button>
         </DialogActions>

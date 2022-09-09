@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { Link } from "react-router-dom";
 import {
-  Button,
   Dialog,
   DialogContent,
   DialogTitle,
@@ -23,6 +22,7 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import duration from "dayjs/plugin/duration";
 import relativeTime from "dayjs/plugin/relativeTime";
+import Button from "./Button";
 
 import { observingRunTitle } from "./AssignmentForm";
 import NewObservingRun from "./NewObservingRun";
@@ -129,10 +129,10 @@ const DeleteObservingRunDialog = ({ run, deletePermission }) => {
           Are you sure you want to delete this observing run?
         </DialogContent>
         <DialogActions>
-          <Button autoFocus onClick={closeDialog}>
+          <Button secondary autoFocus onClick={closeDialog}>
             Dismiss
           </Button>
-          <Button color="primary" onClick={() => deleteObservingRun(run)}>
+          <Button primary onClick={() => deleteObservingRun(run)}>
             Confirm
           </Button>
         </DialogActions>
@@ -175,9 +175,9 @@ const ObservingRunList = ({ observingRuns, deletePermission }) => {
     <div className={classes.root}>
       <List component="nav">
         <Button
+          secondary
           onClick={toggleDisplayAllCheckbox}
           data-testid="observationRunButton"
-          variant="contained"
         >
           {displayAll
             ? "Show only upcoming observing runs"

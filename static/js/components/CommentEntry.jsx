@@ -7,8 +7,8 @@ import TextField from "@mui/material/TextField";
 import makeStyles from "@mui/styles/makeStyles";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Typography from "@mui/material/Typography";
-import Button from "@mui/material/Button";
 import Box from "@mui/material/Box";
+import Button from "./Button";
 
 import FormValidationError from "./FormValidationError";
 import UsernameTrie from "../usernameTrie";
@@ -263,12 +263,7 @@ const CommentEntry = ({ addComment }) => {
         </Box>
       </div>
       <div className={styles.inputDiv}>
-        <Button
-          variant="contained"
-          color="primary"
-          type="submitComment"
-          name="submitCommentButton"
-        >
+        <Button primary type="submitComment" name="submitCommentButton">
           Add Comment
         </Button>
       </div>
