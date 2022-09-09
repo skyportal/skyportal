@@ -18,6 +18,9 @@ from skyportal.handlers.api import (
     ClassificationHandler,
     CommentHandler,
     CommentAttachmentHandler,
+    EarthquakeHandler,
+    EarthquakePredictionHandler,
+    EarthquakeStatusHandler,
     EnumTypesHandler,
     AnnotationHandler,
     GaiaQueryHandler,
@@ -202,22 +205,26 @@ skyportal_handlers = [
     (r'/api/galaxy_catalog/ascii', GalaxyASCIIFileHandler),
     (r'/api/galaxy_catalog(/[0-9A-Za-z-_\.\+]+)?', GalaxyCatalogHandler),
     (
-        r'/api/(sources|spectra|gcn_event|shift)/([0-9A-Za-z-_\.\+]+)/comments',
+        r'/api/earthquake/([0-9A-Za-z-_\.\+]+)/mmadetector/([0-9A-Za-z-_\.\+]+)/predictions',
+        EarthquakePredictionHandler,
+    ),
+    (
+        r'/api/(sources|spectra|gcn_event|shift|earthquake)/([0-9A-Za-z-_\.\+]+)/comments',
         CommentHandler,
     ),
     (
-        r'/api/(sources|spectra|gcn_event|shift)/([0-9A-Za-z-_\.\+]+)/comments(/[0-9]+)?',
+        r'/api/(sources|spectra|gcn_event|shift|earthquake)/([0-9A-Za-z-_\.\+]+)/comments(/[0-9]+)?',
         CommentHandler,
     ),
     (
-        r'/api/(sources|spectra|gcn_event|shift)(/[0-9A-Za-z-_\.\+]+)/comments(/[0-9]+)/attachment',
+        r'/api/(sources|spectra|gcn_event|shift|earthquake)(/[0-9A-Za-z-_\.\+]+)/comments(/[0-9]+)/attachment',
         CommentAttachmentHandler,
     ),
     # Allow the '.pdf' suffix for the attachment route, as the
     # react-file-previewer package expects URLs ending with '.pdf' to
     # load PDF files.
     (
-        r'/api/(sources|spectra|gcn_event|shift)/([0-9A-Za-z-_\.\+]+)/comments(/[0-9]+)/attachment.pdf',
+        r'/api/(sources|spectra|gcn_event|shift|earthquake)/([0-9A-Za-z-_\.\+]+)/comments(/[0-9]+)/attachment.pdf',
         CommentAttachmentHandler,
     ),
     (
@@ -232,6 +239,8 @@ skyportal_handlers = [
         r'/api/(source|spectra|gcn_event|shift)/([0-9A-Za-z-_\.\+]+)/reminders(/[0-9]+)?',
         ReminderHandler,
     ),
+    (r'/api/earthquake/status', EarthquakeStatusHandler),
+    (r'/api/earthquake(/.*)?', EarthquakeHandler),
     (r'/api/gcn_event/summary(/.*)?', GcnSummaryHandler),
     (r'/api/gcn_event/tags', GcnEventTagsHandler),
     (r'/api/gcn_event(/.*)?', GcnEventHandler),
