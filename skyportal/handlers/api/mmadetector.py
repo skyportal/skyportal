@@ -941,7 +941,7 @@ class MMADetectorTimeIntervalHandler(BaseHandler):
                     time_interval.groups = time_interval.groups + groups
 
             if 'time_interval' in data:
-                setattr(time_interval, 'time_interval', data['time_interval'])
+                time_interval.time_interval = data['time_interval']
 
             session.commit()
 
