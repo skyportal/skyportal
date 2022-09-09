@@ -5,7 +5,6 @@ import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
 import Checkbox from "@mui/material/Checkbox";
-import Button from "@mui/material/Button";
 import ButtonGroup from "@mui/material/ButtonGroup";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
@@ -16,6 +15,7 @@ import Popper from "@mui/material/Popper";
 import MenuItem from "@mui/material/MenuItem";
 import MenuList from "@mui/material/MenuList";
 import { useForm, Controller } from "react-hook-form";
+import Button from "./Button";
 
 import * as sourceActions from "../ducks/source";
 import FormValidationError from "./FormValidationError";
@@ -226,7 +226,7 @@ const SaveCandidateButton = ({ candidate, userGroups, filterGroups }) => {
             <br />
             <div style={{ textAlign: "center" }}>
               <Button
-                variant="contained"
+                secondary
                 type="submit"
                 name={`finalSaveCandidateButton${candidate.id}`}
               >

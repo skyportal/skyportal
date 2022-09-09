@@ -9,7 +9,6 @@ import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogActions from "@mui/material/DialogActions";
 import MuiDialogTitle from "@mui/material/DialogTitle";
-import Button from "@mui/material/Button";
 import CloudDownloadIcon from "@mui/icons-material/CloudDownload";
 import IconButton from "@mui/material/IconButton";
 import CloseIcon from "@mui/icons-material/Close";
@@ -19,6 +18,7 @@ import FilePreviewer, { FilePreviewerThumbnail } from "react-file-previewer";
 
 import ReactJson from "react-json-view";
 import { grey } from "@mui/material/colors";
+import Button from "./Button";
 
 import * as sourceActions from "../ducks/source";
 import * as gcnEventActions from "../ducks/gcnEvent";
@@ -260,7 +260,7 @@ const CommentAttachmentPreview = ({
           <DialogActions>
             <div>
               <Button
-                color="primary"
+                primary
                 size="large"
                 endIcon={<CloudDownloadIcon />}
                 href={url}

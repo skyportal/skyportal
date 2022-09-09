@@ -2,8 +2,8 @@ import React, { useState } from "react";
 import PropTypes from "prop-types";
 import { useDispatch } from "react-redux";
 
-import Button from "@mui/material/Button";
 import CircularProgress from "@mui/material/CircularProgress";
+import Button from "./Button";
 
 import * as sourceActions from "../ducks/source";
 
@@ -50,13 +50,12 @@ const SourceAnnotationButtons = ({ source }) => {
         </div>
       ) : (
         <Button
+          secondary
           onClick={() => {
             handleAnnotationGaia(source.id);
           }}
           size="small"
-          color="primary"
           type="submit"
-          variant="outlined"
           data-testid={`gaiaRequest_${source.id}`}
         >
           Gaia
@@ -68,13 +67,12 @@ const SourceAnnotationButtons = ({ source }) => {
         </div>
       ) : (
         <Button
+          secondary
           onClick={() => {
             handleAnnotationWise(source.id);
           }}
           size="small"
-          color="primary"
           type="submit"
-          variant="outlined"
           data-testid={`wiseRequest_${source.id}`}
         >
           WISE Colors
@@ -86,13 +84,12 @@ const SourceAnnotationButtons = ({ source }) => {
         </div>
       ) : (
         <Button
+          secondary
           onClick={() => {
             handleAnnotationVizier(source.id);
           }}
           size="small"
-          color="primary"
           type="submit"
-          variant="outlined"
           data-testid={`vizierRequest_${source.id}`}
         >
           Million Quasar
@@ -104,13 +101,12 @@ const SourceAnnotationButtons = ({ source }) => {
         </div>
       ) : (
         <Button
+          secondary
           onClick={() => {
             handleAnnotationPhotoz(source.id);
           }}
           size="small"
-          color="primary"
           type="submit"
-          variant="outlined"
           data-testid={`photozRequest_${source.id}`}
         >
           Photoz

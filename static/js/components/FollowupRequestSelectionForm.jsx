@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import Button from "@mui/material/Button";
 // eslint-disable-next-line import/no-unresolved
 import Form from "@rjsf/material-ui/v5";
 import Select from "@mui/material/Select";
@@ -15,6 +14,7 @@ import utc from "dayjs/plugin/utc";
 import { filterOutEmptyValues } from "../API";
 import * as followupRequestActions from "../ducks/followup_requests";
 import * as instrumentActions from "../ducks/instruments";
+import Button from "./Button";
 
 dayjs.extend(utc);
 
@@ -266,23 +266,21 @@ const FollowupRequestSelectionForm = () => {
           </MenuItem>
         </Select>
         <Button
+          primary
           href={`${scheduleUrl}`}
           download={`scheduleRequest-${selectedInstrumentId}`}
           size="small"
-          color="primary"
           type="submit"
-          variant="outlined"
           data-testid={`scheduleRequest_${selectedInstrumentId}`}
         >
           Download
         </Button>
         <Button
+          primary
           href={`${reportUrl}`}
           download={`reportRequest-${selectedInstrumentId}`}
           size="small"
-          color="primary"
           type="submit"
-          variant="outlined"
           data-testid={`reportRequest_${selectedInstrumentId}`}
         >
           Instrument Allocation Analysis

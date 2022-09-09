@@ -1,7 +1,6 @@
 import React from "react";
 import PropTypes from "prop-types";
 import { useSelector } from "react-redux";
-import Button from "@mui/material/Button";
 import Accordion from "@mui/material/Accordion";
 import AccordionSummary from "@mui/material/AccordionSummary";
 import AccordionDetails from "@mui/material/AccordionDetails";
@@ -16,6 +15,7 @@ import {
 } from "@mui/material/styles";
 import makeStyles from "@mui/styles/makeStyles";
 import MUIDataTable from "mui-datatables";
+import Button from "./Button";
 
 const useStyles = makeStyles(() => ({
   observationplanRequestTable: {
@@ -204,11 +204,10 @@ const SurveyEfficiencyLists = ({ survey_efficiency_analyses }) => {
       return (
         <div>
           <Button
+            primary
             href={`/api/observation/simsurvey/${analysis.id}/plot`}
             size="small"
-            color="primary"
             type="submit"
-            variant="outlined"
             data-testid={`simsurvey_${analysis.id}`}
           >
             Download Skymap

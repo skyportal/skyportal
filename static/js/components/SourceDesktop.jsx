@@ -5,7 +5,6 @@ import { Link } from "react-router-dom";
 
 import makeStyles from "@mui/styles/makeStyles";
 import Grid from "@mui/material/Grid";
-import Button from "@mui/material/Button";
 import Chip from "@mui/material/Chip";
 import Tooltip from "@mui/material/Tooltip";
 import Box from "@mui/material/Box";
@@ -18,6 +17,7 @@ import Typography from "@mui/material/Typography";
 import { log10, abs, ceil } from "mathjs";
 import CircularProgress from "@mui/material/CircularProgress";
 import HelpOutlineOutlinedIcon from "@mui/icons-material/HelpOutlineOutlined";
+import Button from "./Button";
 
 import CommentList from "./CommentList";
 import ClassificationList from "./ClassificationList";
@@ -287,6 +287,7 @@ const SourceDesktop = ({ source }) => {
           </div>
           {!rightPaneVisible && (
             <Button
+              secondary
               onClick={() => setRightPaneVisible(true)}
               data-testid="show-right-pane-button"
             >
@@ -405,8 +406,8 @@ const SourceDesktop = ({ source }) => {
           <div className={classes.infoLine}>
             <div className={classes.infoButton}>
               <Button
+                secondary
                 size="small"
-                variant="contained"
                 onClick={() => setShowStarList(!showStarList)}
               >
                 {showStarList ? "Hide Starlist" : "Show Starlist"}
@@ -414,7 +415,7 @@ const SourceDesktop = ({ source }) => {
             </div>
             <div className={classes.infoButton}>
               <Link to={`/observability/${source.id}`} role="link">
-                <Button size="small" variant="contained">
+                <Button secondary size="small">
                   Observability
                 </Button>
               </Link>
@@ -506,15 +507,13 @@ const SourceDesktop = ({ source }) => {
                 </div>
                 <div className={classes.buttonContainer}>
                   <Link to={`/upload_photometry/${source.id}`} role="link">
-                    <Button variant="contained">
-                      Upload additional photometry
-                    </Button>
+                    <Button secondary>Upload additional photometry</Button>
                   </Link>
                   <Link to={`/manage_data/${source.id}`} role="link">
-                    <Button variant="contained">Manage data</Button>
+                    <Button secondary>Manage data</Button>
                   </Link>
                   <Button
-                    variant="contained"
+                    secondary
                     onClick={() => {
                       setShowPhotometry(true);
                     }}
@@ -524,7 +523,7 @@ const SourceDesktop = ({ source }) => {
                   </Button>
                   {photometry && (
                     <Link to={`/source/${source.id}/periodogram`} role="link">
-                      <Button variant="contained">Periodogram Analysis</Button>
+                      <Button secondary>Periodogram Analysis</Button>
                     </Link>
                   )}
                 </div>
@@ -568,12 +567,10 @@ const SourceDesktop = ({ source }) => {
                 </div>
                 <div className={classes.buttonContainer}>
                   <Link to={`/upload_spectrum/${source.id}`} role="link">
-                    <Button variant="contained">
-                      Upload additional spectroscopy
-                    </Button>
+                    <Button secondary>Upload additional spectroscopy</Button>
                   </Link>
                   <Link to={`/manage_data/${source.id}`} role="link">
-                    <Button variant="contained">Manage data</Button>
+                    <Button secondary>Manage data</Button>
                   </Link>
                 </div>
               </Grid>
@@ -627,8 +624,10 @@ const SourceDesktop = ({ source }) => {
       <Grid item xs={5}>
         {rightPaneVisible && (
           <Button
+            secondary
             onClick={() => setRightPaneVisible(false)}
             data-testid="hide-right-pane-button"
+            style={{ marginBottom: "1rem" }}
           >
             Hide right pane
           </Button>
