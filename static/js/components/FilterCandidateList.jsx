@@ -21,7 +21,6 @@ import makeStyles from "@mui/styles/makeStyles";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
-import Button from "./Button";
 
 import * as candidatesActions from "../ducks/candidates";
 import Responsive from "./Responsive";
@@ -30,6 +29,7 @@ import CandidatesPreferences from "./CandidatesPreferences";
 import FormValidationError from "./FormValidationError";
 import { allowedClasses } from "./ClassificationForm";
 import ClassificationSelect from "./ClassificationSelect";
+import Button from "./Button";
 
 dayjs.extend(utc);
 
@@ -652,12 +652,7 @@ const FilterCandidateList = ({
             />
             <div>
               <Tooltip title="Search results are cached between pagination requests, and are re-computed each time this Search button is clicked">
-                <Button
-                  variant="contained"
-                  type="submit"
-                  endIcon={<SearchIcon />}
-                  color="primary"
-                >
+                <Button primary type="submit" endIcon={<SearchIcon />}>
                   Search
                 </Button>
               </Tooltip>
