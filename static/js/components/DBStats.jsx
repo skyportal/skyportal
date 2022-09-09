@@ -10,9 +10,9 @@ import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
 import Box from "@mui/material/Box";
-import Button from "@mui/material/Button";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
+import Button from "./Button";
 
 import * as dbStatsActions from "../ducks/dbStats";
 
@@ -64,7 +64,7 @@ const DBStats = () => {
                           {item.output && (
                             <>
                               <Button
-                                variant="contained"
+                                secondary
                                 size="small"
                                 style={{ marginLeft: "1rem" }}
                                 onClick={() =>

@@ -8,7 +8,6 @@ import MuiDialogTitle from "@mui/material/DialogTitle";
 import IconButton from "@mui/material/IconButton";
 import Close from "@mui/icons-material/Close";
 import Typography from "@mui/material/Typography";
-import Button from "@mui/material/Button";
 import grey from "@mui/material/colors/grey";
 import TextField from "@mui/material/TextField";
 import Grid from "@mui/material/Grid";
@@ -30,6 +29,7 @@ import {
 import * as usersActions from "../ducks/users";
 import * as groupsActions from "../ducks/groups";
 import { getGcnEventSummary } from "../ducks/gcnEvent";
+import Button from "./Button";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
@@ -288,11 +288,7 @@ const GcnSummary = ({ dateobs }) => {
 
   return (
     <>
-      <Button
-        variant="outlined"
-        name="gcn_summary"
-        onClick={() => setOpen(true)}
-      >
+      <Button secondary name="gcn_summary" onClick={() => setOpen(true)}>
         Summary
       </Button>
       {open && dataFetched && (
@@ -412,7 +408,8 @@ const GcnSummary = ({ dateobs }) => {
                       Get Summary
                     </LoadingButton>
                     <Button
-                      startIcon={<GetApp />}
+                      secondary
+                      endIcon={<GetApp />}
                       disabled={!summary || summary?.length === 0}
                       onClick={() => {
                         const blob = new Blob([text], { type: "text/plain" });
@@ -422,7 +419,6 @@ const GcnSummary = ({ dateobs }) => {
                         link.download = `${title}_${dateobs}.txt`;
                         link.click();
                       }}
-                      variant="contained"
                       className={classes.button}
                     >
                       Download

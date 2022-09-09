@@ -3,12 +3,12 @@ import PropTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
 import TextField from "@mui/material/TextField";
 import Autocomplete, { createFilterOptions } from "@mui/material/Autocomplete";
-import Button from "@mui/material/Button";
 import Typography from "@mui/material/Typography";
 import CircularProgress from "@mui/material/CircularProgress";
 import makeStyles from "@mui/styles/makeStyles";
 
 import { showNotification } from "baselayer/components/Notifications";
+import Button from "./Button";
 
 import * as groupsActions from "../ducks/groups";
 import * as usersActions from "../ducks/users";
@@ -111,13 +111,7 @@ const NewGroupUserForm = ({ group_id }) => {
         data-testid="adminCheckbox"
       />
       Group Admin &nbsp;&nbsp;
-      <Button
-        onClick={handleClickSubmit}
-        variant="contained"
-        size="small"
-        color="primary"
-        disableElevation
-      >
+      <Button primary onClick={handleClickSubmit} size="small" disableElevation>
         Add user to group
       </Button>
     </div>

@@ -2,7 +2,6 @@ import React, { useEffect } from "react";
 import PropTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
 import Paper from "@mui/material/Paper";
-import Button from "@mui/material/Button";
 import ButtonGroup from "@mui/material/ButtonGroup";
 import TextField from "@mui/material/TextField";
 import makeStyles from "@mui/styles/makeStyles";
@@ -10,6 +9,7 @@ import Typography from "@mui/material/Typography";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
 import { useForm, Controller } from "react-hook-form";
+import Button from "./Button";
 
 import * as gcnTagsActions from "../ducks/gcnTags";
 
@@ -220,14 +220,10 @@ const GcnEventsFilterForm = ({ handleFilterSubmit }) => {
             color="primary"
             aria-label="contained primary button group"
           >
-            <Button variant="contained" color="primary" type="submit">
+            <Button primary type="submit">
               Submit
             </Button>
-            <Button
-              variant="contained"
-              color="primary"
-              onClick={handleClickReset}
-            >
+            <Button primary onClick={handleClickReset}>
               Reset
             </Button>
           </ButtonGroup>

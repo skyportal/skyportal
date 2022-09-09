@@ -6,8 +6,8 @@ import PropTypes from "prop-types";
 import IconButton from "@mui/material/IconButton";
 import StarIcon from "@mui/icons-material/Star";
 import StarBorderIcon from "@mui/icons-material/StarBorder";
-import Button from "@mui/material/Button";
 import Tooltip from "@mui/material/Tooltip";
+import Button from "./Button";
 
 import * as Actions from "../ducks/favorites";
 
@@ -22,9 +22,9 @@ const ButtonInclude = (sourceID, textMode) => {
   if (textMode) {
     return (
       <Button
+        secondary
         onClick={handleSubmit}
         disabled={isSubmitting}
-        variant="contained"
         data-testid={`favorites-text-include_${sourceID}`}
       >
         Remove favorite
@@ -56,9 +56,9 @@ const ButtonExclude = (sourceID, textMode) => {
   if (textMode) {
     return (
       <Button
+        secondary
         onClick={handleSubmit}
         disabled={isSubmitting}
-        variant="contained"
         data-testid={`favorites-text-exclude_${sourceID}`}
       >
         Add favorite
@@ -93,6 +93,7 @@ const FavoritesButton = ({ sourceID, textMode }) => {
 
 FavoritesButton.propTypes = {
   sourceID: PropTypes.string.isRequired,
+  textMode: PropTypes.bool.isRequired,
 };
 
 export default FavoritesButton;
