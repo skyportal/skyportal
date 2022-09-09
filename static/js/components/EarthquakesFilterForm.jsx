@@ -117,7 +117,7 @@ const EarthquakesFilterForm = ({ handleFilterSubmit }) => {
   return (
     <Paper className={classes.paper} variant="outlined">
       <div>
-        <h4> Filter Gcn Events By</h4>
+        <h4> Filter Earthquakes By</h4>
       </div>
       <form
         className={classes.root}

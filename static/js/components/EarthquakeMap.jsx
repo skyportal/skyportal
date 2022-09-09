@@ -38,9 +38,9 @@ function earthquakelabel(nestedEarthquake) {
     .join(" / ");
 }
 
-function earthquakeCanObserve(nestedEarthquake) {
+function earthquakeStatus(nestedEarthquake) {
   let color = "#f9d71c";
-  if (nestedEarthquake.is_night_astronomical_at_least_one) {
+  if (nestedEarthquake.status === "canceled") {
     color = "#0c1445";
   }
   return color;
@@ -54,10 +54,7 @@ function EarthquakeMarker({ nestedEarthquake, position }) {
       coordinates={[nestedEarthquake.lon, nestedEarthquake.lat]}
       onClick={() => setCurrentEarthquakes(nestedEarthquake)}
     >
-      <circle
-        r={6.5 / position.k}
-        fill={earthquakeCanObserve(nestedEarthquake)}
-      />
+      <circle r={6.5 / position.k} fill={earthquakeStatus(nestedEarthquake)} />
       <text
         id="earthquakes_label"
         textAnchor="middle"
