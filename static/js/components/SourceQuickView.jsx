@@ -9,7 +9,6 @@ import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogActions from "@mui/material/DialogActions";
 import MuiDialogTitle from "@mui/material/DialogTitle";
-import Button from "@mui/material/Button";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import KeyboardArrowRightIcon from "@mui/icons-material/KeyboardArrowRight";
 import Chip from "@mui/material/Chip";
@@ -18,6 +17,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import Typography from "@mui/material/Typography";
 import CircularProgress from "@mui/material/CircularProgress";
 import { grey } from "@mui/material/colors";
+import Button from "./Button";
 
 import ThumbnailList from "./ThumbnailList";
 import ShowClassification from "./ShowClassification";
@@ -201,11 +201,10 @@ const SourceQuickView = ({ sourceId, className }) => {
         data-testid={`quickViewButton_${source.obj_id}`}
       >
         <Button
-          color="primary"
-          variant="outlined"
+          primary
           size="small"
           onClick={handleClickOpen}
-          startIcon={<VisibilityIcon />}
+          endIcon={<VisibilityIcon />}
           style={{ marginBottom: "10px" }}
         >
           QUICK VIEW
@@ -232,7 +231,7 @@ const SourceQuickView = ({ sourceId, className }) => {
                 onClick={handleClose}
               >
                 <Button
-                  color="primary"
+                  secondary
                   size="large"
                   endIcon={<KeyboardArrowRightIcon />}
                   style={{ marginBottom: "10px" }}
@@ -250,11 +249,10 @@ const SourceQuickView = ({ sourceId, className }) => {
   return (
     <div className={className} data-testid={`quickViewButton_${source.obj_id}`}>
       <Button
-        color="primary"
-        variant="outlined"
+        primary
         size="small"
         onClick={handleClickOpen}
-        startIcon={<VisibilityIcon />}
+        endIcon={<VisibilityIcon />}
         style={{ marginBottom: "10px" }}
       >
         QUICK VIEW

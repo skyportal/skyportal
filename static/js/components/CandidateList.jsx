@@ -12,7 +12,6 @@ import {
 } from "@mui/material/styles";
 import makeStyles from "@mui/styles/makeStyles";
 import useMediaQuery from "@mui/material/useMediaQuery";
-import Button from "@mui/material/Button";
 import IconButton from "@mui/material/IconButton";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import ArrowUpward from "@mui/icons-material/ArrowUpward";
@@ -41,6 +40,7 @@ import RejectButton from "./RejectButton";
 import VegaPhotometry from "./VegaPhotometry";
 import Spinner from "./Spinner";
 import AddClassificationsScanningPage from "./AddClassificationsScanningPage";
+import Button from "./Button";
 
 const useStyles = makeStyles((theme) => ({
   candidateListContainer: {
@@ -570,9 +570,9 @@ const CandidateList = () => {
         />
         {!hasPS1 && (
           <Button
+            primary
             disabled={ps1GenerationInProgressList.includes(candidateObj.id)}
             size="small"
-            variant="contained"
             onClick={() => {
               generatePS1Thumbnail(candidateObj.id);
             }}
@@ -601,12 +601,7 @@ const CandidateList = () => {
             data-testid={candidateObj.id}
             rel="noreferrer"
           >
-            <Button
-              variant="contained"
-              size="small"
-              color="primary"
-              className={classes.idButton}
-            >
+            <Button primary size="small" className={classes.idButton}>
               {candidateObj.id}&nbsp;
               <OpenInNewIcon fontSize="inherit" />
             </Button>
@@ -1129,7 +1124,7 @@ const CandidateList = () => {
       <div className={classes.pages}>
         <div>
           <Button
-            variant="contained"
+            primary
             onClick={() => {
               window.scrollTo({ top: 0 });
             }}

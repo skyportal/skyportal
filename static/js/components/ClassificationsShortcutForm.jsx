@@ -3,7 +3,8 @@ import { useSelector, useDispatch } from "react-redux";
 import { useForm } from "react-hook-form";
 import InputLabel from "@mui/material/InputLabel";
 import makeStyles from "@mui/styles/makeStyles";
-import { Button, TextField } from "@mui/material";
+import { TextField } from "@mui/material";
+import Button from "./Button";
 import UserPreferencesHeader from "./UserPreferencesHeader";
 import * as profileActions from "../ducks/profile";
 import ClassificationSelect from "./ClassificationSelect";
@@ -92,11 +93,7 @@ const ClassificationsShortcutForm = () => {
               />
             </div>
           </div>
-          <Button
-            variant="contained"
-            type="submit"
-            data-testid="addShortcutButton"
-          >
+          <Button primary type="submit" data-testid="addShortcutButton">
             Add Shortcut
           </Button>
         </form>

@@ -13,10 +13,10 @@ import {
 import makeStyles from "@mui/styles/makeStyles";
 import Chip from "@mui/material/Chip";
 import Grid from "@mui/material/Grid";
-import Button from "@mui/material/Button";
 import InfoIcon from "@mui/icons-material/Info";
 
 import MUIDataTable from "mui-datatables";
+import Button from "./Button";
 
 import { filterOutEmptyValues } from "../API";
 import * as gcnEventsActions from "../ducks/gcnEvents";

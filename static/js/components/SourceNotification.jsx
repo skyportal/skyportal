@@ -15,10 +15,10 @@ import Input from "@mui/material/Input";
 import InputLabel from "@mui/material/InputLabel";
 import Chip from "@mui/material/Chip";
 import TextField from "@mui/material/TextField";
-import Button from "@mui/material/Button";
 import MenuItem from "@mui/material/MenuItem";
 
 import { showNotification } from "baselayer/components/Notifications";
+import Button from "./Button";
 import FormValidationError from "./FormValidationError";
 import * as Actions from "../ducks/source";
 
@@ -188,10 +188,9 @@ const SourceNotification = ({ sourceId }) => {
             inputRef={register}
           />
           <Button
+            primary
             type="submit"
             name="sendNotificationButton"
-            variant="contained"
-            color="primary"
             data-testid="sendNotificationButton"
           >
             Send Notification

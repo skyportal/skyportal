@@ -9,7 +9,6 @@ import Typography from "@mui/material/Typography";
 import TextareaAutosize from "@mui/material/TextareaAutosize";
 import Box from "@mui/material/Box";
 import Autocomplete from "@mui/material/Autocomplete";
-import Button from "@mui/material/Button";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
 import TextField from "@mui/material/TextField";
@@ -38,6 +37,7 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
 import { showNotification } from "baselayer/components/Notifications";
+import Button from "./Button";
 
 import FormValidationError from "./FormValidationError";
 import * as invitationsActions from "../ducks/invitations";
@@ -305,8 +305,8 @@ const UserInvitations = () => {
     const invitation = invitations[dataIndex];
     return (
       <Button
+        secondary
         data-testid={`deleteInvitation_${invitation.user_email}`}
-        variant="contained"
         onClick={() => {
           handleDeleteInvitation(invitation.id);
         }}
@@ -661,8 +661,8 @@ const UserInvitations = () => {
         </Box>
         <Box pl={5} pb={5}>
           <Button
+            secondary
             data-testid="bulkAddUsersButton"
-            variant="contained"
             onClick={handleClickAddUsers}
           >
             Add Users
@@ -721,7 +721,7 @@ const UserInvitations = () => {
             <br />
             <div>
               <Button
-                variant="contained"
+                primary
                 type="submit"
                 name="submitAddInvitationGroupsButton"
                 data-testid="submitAddInvitationGroupsButton"
@@ -784,7 +784,7 @@ const UserInvitations = () => {
             <br />
             <div>
               <Button
-                variant="contained"
+                primary
                 type="submit"
                 name="submitAddInvitationStreamsButton"
                 data-testid="submitAddInvitationStreamsButton"
@@ -828,7 +828,7 @@ const UserInvitations = () => {
             <br />
             <div>
               <Button
-                variant="contained"
+                primary
                 type="submit"
                 name="submitEditRoleButton"
                 data-testid="submitEditRoleButton"
@@ -871,8 +871,7 @@ const UserInvitations = () => {
             <br />
             <div className={classes.submitButton}>
               <Button
-                variant="contained"
-                color="primary"
+                primary
                 type="submit"
                 name="submitExpirationDateButton"
                 data-testid="submitExpirationDateButton"

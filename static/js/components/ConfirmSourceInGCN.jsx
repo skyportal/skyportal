@@ -3,7 +3,6 @@ import PropTypes from "prop-types";
 import { useSelector, useDispatch } from "react-redux";
 import Paper from "@mui/material/Paper";
 import { withStyles, makeStyles } from "@mui/styles";
-import Button from "@mui/material/Button";
 
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
@@ -17,6 +16,7 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
 import { showNotification } from "baselayer/components/Notifications";
+import Button from "./Button";
 
 import * as SourceInGcnAction from "../ducks/confirmedsourcesingcn";
 
