@@ -6,7 +6,6 @@ import { Link } from "react-router-dom";
 import Accordion from "@mui/material/Accordion";
 import AccordionSummary from "@mui/material/AccordionSummary";
 import AccordionDetails from "@mui/material/AccordionDetails";
-import Button from "@mui/material/Button";
 import Chip from "@mui/material/Chip";
 import makeStyles from "@mui/styles/makeStyles";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
@@ -21,6 +20,7 @@ import GeoPropTypes from "geojson-prop-types";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
+import Button from "./Button";
 
 import * as gcnEventActions from "../ducks/gcnEvent";
 import * as sourcesActions from "../ducks/sources";
@@ -311,7 +311,7 @@ const GcnEventPage = ({ route }) => {
               <AccordionDetails>
                 <div className={styles.gcnEventContainer}>
                   <Link to={`/gcn_events/${gcnEvent.dateobs}`}>
-                    <Button color="primary">
+                    <Button>
                       {dayjs(gcnEvent.dateobs).format("YYMMDD HH:mm:ss")}
                     </Button>
                   </Link>

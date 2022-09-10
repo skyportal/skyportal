@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
-import { Button } from "@mui/material";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
 import ListItemText from "@mui/material/ListItemText";
@@ -10,6 +9,7 @@ import Grid from "@mui/material/Grid";
 import makeStyles from "@mui/styles/makeStyles";
 import { showNotification } from "baselayer/components/Notifications";
 import PropTypes from "prop-types";
+import Button from "./Button";
 
 import GalaxyTable from "./GalaxyTable";
 import NewGalaxy from "./NewGalaxy";
@@ -142,6 +142,17 @@ const GalaxyPage = () => {
     numPerPage: defaultNumPerPage,
   });
 
+  const handlePageChange = async (page, numPerPage) => {
+    const params = {
+      ...fetchParams,
+      numPerPage,
+      pageNumber: page + 1,
+    };
+    // Save state for future
+    setFetchParams(params);
+    await dispatch(galaxiesActions.fetchGalaxies(params));
+  };
+
   useEffect(() => {
     dispatch(galaxiesActions.fetchGalaxies());
   }, [dispatch]);
@@ -154,20 +165,13 @@ const GalaxyPage = () => {
     fetchCatalogs();
   }, [dispatch]);
 
+  useEffect(() => {
+    handlePageChange(0, fetchParams.numPerPage);
+  }, []);
+
   if (!galaxies) {
     return <p>No galaxies available...</p>;
   }
-
-  const handlePageChange = async (page, numPerPage) => {
-    const params = {
-      ...fetchParams,
-      numPerPage,
-      pageNumber: page + 1,
-    };
-    // Save state for future
-    setFetchParams(params);
-    await dispatch(galaxiesActions.fetchGalaxies(params));
-  };
 
   const handleTableChange = (action, tableState) => {
     if (action === "changePage" || action === "changeRowsPerPage") {

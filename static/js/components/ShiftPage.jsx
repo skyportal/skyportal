@@ -4,9 +4,9 @@ import PropTypes from "prop-types";
 import makeStyles from "@mui/styles/makeStyles";
 import Paper from "@mui/material/Paper";
 import Grid from "@mui/material/Grid";
-import Button from "@mui/material/Button";
 import CircularProgress from "@mui/material/CircularProgress";
 import { showNotification } from "baselayer/components/Notifications";
+import Button from "./Button";
 import NewShift from "./NewShift";
 import MyCalendar from "./ShiftCalendar";
 import { CurrentShiftMenu, CommentOnShift } from "./ShiftManagement";
@@ -139,6 +139,7 @@ const ShiftPage = ({ route }) => {
           <Paper>
             <div className={classes.paperContent}>
               <Button
+                primary
                 name="add_shift_button"
                 onClick={() => setShow((prev) => !prev)}
               >
