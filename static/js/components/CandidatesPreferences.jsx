@@ -5,7 +5,6 @@ import PropTypes from "prop-types";
 import IconButton from "@mui/material/IconButton";
 import Typography from "@mui/material/Typography";
 import CloseIcon from "@mui/icons-material/Close";
-import Button from "@mui/material/Button";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import Toolbar from "@mui/material/Toolbar";
@@ -17,6 +16,7 @@ import makeStyles from "@mui/styles/makeStyles";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
+import Button from "./Button";
 
 import * as candidatesActions from "../ducks/candidates";
 import { allowedClasses } from "./ClassificationForm";
@@ -80,7 +80,7 @@ const CandidatesPreferences = ({
       <div>
         <Tooltip title="Save and load pre-set search options">
           <Button
-            variant="contained"
+            primary
             data-testid="manageScanningProfilesButton"
             onClick={() => {
               setAddDialogOpen(true);

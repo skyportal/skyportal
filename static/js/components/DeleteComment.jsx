@@ -3,8 +3,8 @@ import { useDispatch } from "react-redux";
 
 import PropTypes from "prop-types";
 
-import { Button } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
+import Button from "./Button";
 
 import * as sourceActions from "../ducks/source";
 import * as gcnEventActions from "../ducks/gcnEvent";
@@ -60,6 +60,7 @@ const DeleteComment = ({
   return (
     <>
       <Button
+        primary
         style={
           hoverID === id
             ? {
@@ -71,7 +72,6 @@ const DeleteComment = ({
             : { display: "none" }
         }
         size="small"
-        color="primary"
         type="button"
         name={`deleteCommentButton${id}`}
         onClick={() => deleteComment(associatedResourceType)}

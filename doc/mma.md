@@ -43,3 +43,13 @@ where observation_id (the ID of the observations, does not need to be unique), t
 As part of the `ObservationPlanRequest` API, it is possible to retrieve `ExecutedObservation`s. We briefly describe the authentication form the available telescopes take below:
 
 * ZTF: Login information for IRSA, which takes the form: {"tap_service": "https://irsa.ipac.caltech.edu/TAP", "tap_username": "your_password", "tap_password": "your_password"}
+
+
+## Earthquake Ingestion
+
+The most important environmental effect on detectors in the IGWN remains teleseismic earthquakes. For this reason, we enable ingestion of earthquakes using the USGS' [PDL client](https://github.com/usgs/pdl).
+
+In order to deploy the service, one must:
+* Email Michelle Guy (mguy@usgs.gov) with the static IP address of the server and explain the tool's usage
+* Download the [Product Client](https://github.com/usgs/pdl/releases/download/2.7.10/ProductClient.jar) and place it in the services/pdl_service/ directory.
+* Deploy the Product Client from within services/pdl_service/ by running: ./init.sh start

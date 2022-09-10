@@ -388,10 +388,11 @@ instrument:
   - band: optical
     name: UVOTXRT
     api_classname: UVOTXRTAPI
+    api_classname_obsplan: UVOTXRTMMAAPI
     =id: UVOTXRT
     telescope_id: =Swift
     type: imager
-    filters: ['uvot::b', 'uvot::u', 'uvot::v', 'uvot::uvm2', 'uvot::uvw1', 'uvot::uvw2', 'uvot::white']
+    filters: ['uvot::b', 'uvot::u', 'uvot::v', 'uvot::uvm2', 'uvot::uvw1', 'uvot::uvw2', 'uvot::white', 'swiftxrt']
     field_region:
       file: ../data/Swift_Region.reg
   - band: optical
@@ -959,6 +960,10 @@ gcn_event/1/comments:
   - text: "This is a test comment"
     author_id: testadmin
     created_at: "2022-03-18 16:00:00"
+
+earthquake:
+  - xml:
+      file: ../skyportal/tests/data/quakeml.xml
 
 shifts:
   - group_id: =program_A

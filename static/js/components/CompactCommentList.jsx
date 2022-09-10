@@ -22,6 +22,7 @@ const CompactCommentList = ({
   associatedResourceType = "object",
   objID = null,
   gcnEventID = null,
+  earthquakeID = null,
   styles = {},
   id = null,
   author = {},
@@ -95,6 +96,7 @@ const CompactCommentList = ({
               associatedResourceType={associatedResourceType}
               objID={objID}
               gcnEventID={gcnEventID}
+              earthquakeID={earthquakeID}
               spectrum_id={spectrum_id}
               shift_id={shift_id}
               hoverID={hoverID}
@@ -110,6 +112,7 @@ const CompactCommentList = ({
 CompactCommentList.propTypes = {
   objID: PropTypes.string,
   gcnEventID: PropTypes.number,
+  earthquakeID: PropTypes.number,
   associatedResourceType: PropTypes.string,
   styles: PropTypes.shape({}),
   id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
@@ -124,6 +127,7 @@ CompactCommentList.propTypes = {
 CompactCommentList.defaultProps = {
   objID: null,
   gcnEventID: null,
+  earthquakeID: null,
   associatedResourceType: "object",
   styles: {},
   id: null,

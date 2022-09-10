@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import PropTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
-import Button from "@mui/material/Button";
 import CircularProgress from "@mui/material/CircularProgress";
 import Accordion from "@mui/material/Accordion";
 import AccordionSummary from "@mui/material/AccordionSummary";
@@ -17,6 +16,7 @@ import {
 } from "@mui/material/styles";
 import makeStyles from "@mui/styles/makeStyles";
 import MUIDataTable from "mui-datatables";
+import Button from "./Button";
 
 import * as Actions from "../ducks/gcnEvent";
 import { GET } from "../API";
@@ -144,7 +144,7 @@ const ObservationPlanGlobe = ({ observationplanRequest, loc }) => {
             width={300}
           />
           <Button
-            variant="contained"
+            secondary
             onClick={() => handleDeleteObservationPlanFields(obsList)}
           >
             Delete selected fields from observation plan
@@ -418,7 +418,7 @@ const ObservationPlanRequestLists = ({ gcnEvent }) => {
         <div>
           {!isSubmitting ? (
             <div>
-              <Button onClick={handleSubmit} variant="outlined" size="small">
+              <Button secondary onClick={handleSubmit} size="small">
                 Generate Statistics
               </Button>
             </div>
@@ -452,13 +452,12 @@ const ObservationPlanRequestLists = ({ gcnEvent }) => {
           ) : (
             <div>
               <Button
+                primary
                 onClick={() => {
                   handleDelete(observationplanRequest.id);
                 }}
                 size="small"
-                color="primary"
                 type="submit"
-                variant="outlined"
                 data-testid={`deleteRequest_${observationplanRequest.id}`}
               >
                 Delete
@@ -467,12 +466,11 @@ const ObservationPlanRequestLists = ({ gcnEvent }) => {
           )}
           <div>
             <Button
+              secondary
               href={`/api/observation_plan/${observationplanRequest.id}/gcn`}
               download={`observation-plan-gcn-${observationplanRequest.id}`}
               size="small"
-              color="primary"
               type="submit"
-              variant="outlined"
               data-testid={`gcnRequest_${observationplanRequest.id}`}
             >
               GCN
@@ -480,12 +478,11 @@ const ObservationPlanRequestLists = ({ gcnEvent }) => {
           </div>
           <div>
             <Button
+              secondary
               href={`/api/observation_plan/${observationplanRequest.id}?includePlannedObservations=True`}
               download={`observation-plan-${observationplanRequest.id}`}
               size="small"
-              color="primary"
               type="submit"
-              variant="outlined"
               data-testid={`downloadRequest_${observationplanRequest.id}`}
             >
               Download
@@ -493,12 +490,11 @@ const ObservationPlanRequestLists = ({ gcnEvent }) => {
           </div>
           <div>
             <Button
+              secondary
               href={`/api/observation_plan/${observationplanRequest.id}/movie`}
               download={`observation-plan-movie-${observationplanRequest.id}`}
               size="small"
-              color="primary"
               type="submit"
-              variant="outlined"
               data-testid={`movieRequest_${observationplanRequest.id}`}
             >
               GIF
@@ -512,13 +508,12 @@ const ObservationPlanRequestLists = ({ gcnEvent }) => {
             ) : (
               <div>
                 <Button
+                  secondary
                   onClick={() => {
                     handleCreateObservingRun(observationplanRequest.id);
                   }}
                   size="small"
-                  color="primary"
                   type="submit"
-                  variant="outlined"
                   data-testid={`observingRunRequest_${observationplanRequest.id}`}
                 >
                   Create Observing Run
@@ -556,13 +551,12 @@ const ObservationPlanRequestLists = ({ gcnEvent }) => {
             ) : (
               <div>
                 <Button
+                  primary
                   onClick={() => {
                     handleSend(observationplanRequest.id);
                   }}
                   size="small"
-                  color="primary"
                   type="submit"
-                  variant="outlined"
                   data-testid={`sendRequest_${observationplanRequest.id}`}
                 >
                   Send to Queue
@@ -576,13 +570,12 @@ const ObservationPlanRequestLists = ({ gcnEvent }) => {
             ) : (
               <div>
                 <Button
+                  secondary
                   onClick={() => {
                     handleRemove(observationplanRequest.id);
                   }}
                   size="small"
-                  color="primary"
                   type="submit"
-                  variant="outlined"
                   data-testid={`removeRequest_${observationplanRequest.id}`}
                 >
                   Remove from Queue
@@ -613,13 +606,12 @@ const ObservationPlanRequestLists = ({ gcnEvent }) => {
           ) : (
             <div>
               <Button
+                secondary
                 onClick={() => {
                   handleSubmitTreasureMap(observationplanRequest.id);
                 }}
                 size="small"
-                color="primary"
                 type="submit"
-                variant="outlined"
                 data-testid={`treasuremapRequest_${observationplanRequest.id}`}
               >
                 Send to Treasure Map
@@ -633,13 +625,12 @@ const ObservationPlanRequestLists = ({ gcnEvent }) => {
           ) : (
             <div>
               <Button
+                secondary
                 onClick={() => {
                   handleDeleteTreasureMap(observationplanRequest.id);
                 }}
                 size="small"
-                color="primary"
                 type="submit"
-                variant="outlined"
                 data-testid={`treasuremapDelete_${observationplanRequest.id}`}
               >
                 Retract from Treasure Map

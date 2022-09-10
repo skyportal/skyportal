@@ -6,12 +6,12 @@ import PropTypes from "prop-types";
 import Paper from "@mui/material/Paper";
 import Typography from "@mui/material/Typography";
 import DragHandleIcon from "@mui/icons-material/DragHandle";
-import Button from "@mui/material/Button";
 import makeStyles from "@mui/styles/makeStyles";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
+import Button from "./Button";
 
 import * as profileActions from "../ducks/profile";
 import * as recentGcnEventsActions from "../ducks/recentGcnEvents";
@@ -100,7 +100,7 @@ const RecentGcnEvents = ({ classes }) => {
                 <div className={styles.eventNameContainer}>
                   &nbsp; -&nbsp;
                   <Link to={`/gcn_events/${gcnEvent.dateobs}`}>
-                    <Button color="primary">
+                    <Button>
                       {dayjs(gcnEvent.dateobs).format("YYMMDD HH:mm:ss")}
                     </Button>
                   </Link>

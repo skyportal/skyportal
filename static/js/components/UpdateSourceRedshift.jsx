@@ -5,7 +5,6 @@ import EditIcon from "@mui/icons-material/Edit";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
-import Button from "@mui/material/Button";
 import makeStyles from "@mui/styles/makeStyles";
 import SaveIcon from "@mui/icons-material/Save";
 import ClearIcon from "@mui/icons-material/Clear";
@@ -13,6 +12,7 @@ import Tooltip from "@mui/material/Tooltip";
 import TextField from "@mui/material/TextField";
 
 import { showNotification } from "baselayer/components/Notifications";
+import Button from "./Button";
 import FormValidationError from "./FormValidationError";
 import * as sourceActions from "../ducks/source";
 
@@ -132,11 +132,11 @@ const UpdateSourceRedshift = ({ source }) => {
           </div>
           <div className={classes.saveButton}>
             <Button
-              color="primary"
+              secondary
               onClick={() => {
                 handleSubmit(state);
               }}
-              startIcon={<SaveIcon />}
+              endIcon={<SaveIcon />}
               size="large"
               data-testid="updateRedshiftSubmitButton"
               disabled={isSubmitting || invalid}
@@ -147,11 +147,11 @@ const UpdateSourceRedshift = ({ source }) => {
           <div className={classes.saveButton}>
             <Tooltip title="Clear source redshift value (set to null)">
               <Button
-                color="primary"
+                primary
                 onClick={() => {
                   handleSubmit({ redshift: null, redshift_error: null });
                 }}
-                startIcon={<ClearIcon />}
+                endIcon={<ClearIcon />}
                 size="large"
                 data-testid="nullifyRedshiftButton"
                 disabled={isSubmitting || source.redshift === null}

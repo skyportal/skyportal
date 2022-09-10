@@ -1,8 +1,9 @@
-__all__ = ['MMADetector', 'MMADetectorSpectrum']
+__all__ = ['MMADetector', 'MMADetectorSpectrum', 'MMADetectorTimeInterval']
 
 import numpy as np
 import sqlalchemy as sa
 from sqlalchemy.orm import relationship
+from sqlalchemy_utils import DateTimeRangeType
 
 from baselayer.app.models import (
     Base,
@@ -86,6 +87,16 @@ class MMADetector(Base):
         passive_deletes=True,
         order_by="MMADetectorSpectrum.start_time",
         doc="MMADetectorSpectra of the object.",
+    )
+
+    time_intervals = relationship(
+        'MMADetectorTimeInterval',
+        back_populates='detector',
+        cascade='save-update, merge, refresh-expire, expunge, delete',
+        single_parent=True,
+        passive_deletes=True,
+        order_by="MMADetectorTimeInterval.time_interval",
+        doc="MMADetectorTimeInterval of the object.",
     )
 
 
@@ -261,3 +272,50 @@ class MMADetectorSpectrum(Base):
             end_time=end_time,
             **spec_data,
         )
+
+
+class MMADetectorTimeInterval(Base):
+    """Data time interval for the detector. Useful for tracking the on/off state for multi-messenger detectors."""
+
+    read = public
+    update = delete = accessible_by_owner
+
+    detector_id = sa.Column(
+        sa.ForeignKey('mmadetectors.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+        doc="ID of the MMADetector that acquired the Time Interval.",
+    )
+
+    detector = relationship(
+        'MMADetector',
+        back_populates='time_intervals',
+        doc="The MMADetector that acquired the Time Interval.",
+    )
+
+    groups = relationship(
+        "Group",
+        secondary="group_mmadetector_time_intervals",
+        back_populates="mmadetector_time_intervals",
+        cascade="save-update, merge, refresh-expire, expunge",
+        passive_deletes=True,
+        doc='Groups that can view this detector spectrum.',
+    )
+
+    owner_id = sa.Column(
+        sa.ForeignKey('users.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+        doc="ID of the User who uploaded the detector time interval.",
+    )
+    owner = relationship(
+        'User',
+        back_populates='mmadetector_time_intervals',
+        foreign_keys=[owner_id],
+        cascade='save-update, merge, refresh-expire, expunge',
+        doc="The User who uploaded the detector time interval.",
+    )
+
+    time_interval = sa.Column(
+        DateTimeRangeType, doc="The time interval [start, end] of detector data."
+    )

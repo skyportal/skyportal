@@ -210,3 +210,108 @@ def test_mmadetector_spectrum(super_admin_token):
         'GET', f'mmadetector/spectra/{spectrum_id}', token=super_admin_token
     )
     assert status == 403
+
+
+def test_mmadetector_time_intervals(super_admin_token):
+
+    datafile = f'{os.path.dirname(__file__)}/../data/H1L1_O3_time_intervals.txt'
+    data_out = np.loadtxt(datafile)
+    time_intervals = []
+    for row in data_out:
+        start_time = Time(row[1], format='gps')
+        end_time = Time(row[2], format='gps')
+        time_intervals.append([start_time.isot, end_time.isot])
+
+    test_time_interval = time_intervals[0]
+    test_time_interval = [seg.replace(".000", "") for seg in test_time_interval]
+    test_time_interval_2 = time_intervals[1]
+    test_time_interval_2 = [seg.replace(".000", "") for seg in test_time_interval_2]
+
+    name = str(uuid.uuid4())
+    status, data = api(
+        'POST',
+        'mmadetector',
+        data={
+            'name': name,
+            'nickname': name,
+            'type': 'gravitational-wave',
+            'fixed_location': True,
+            'lat': 0.0,
+            'lon': 0.0,
+        },
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    detector_id = data['data']['id']
+
+    data = {
+        'time_intervals': time_intervals,
+        'detector_id': detector_id,
+    }
+
+    status, data = api(
+        'POST',
+        'mmadetector/time_intervals',
+        data=data,
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+    time_interval_ids = data["data"]["ids"]
+
+    time_interval_id = time_interval_ids[0]
+    status, data = api(
+        'GET', f'mmadetector/time_intervals/{time_interval_id}', token=super_admin_token
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+    assert data['data']['time_interval'] == test_time_interval
+
+    params = {'detectorIDs': [detector_id]}
+    status, data = api(
+        'GET', 'mmadetector/time_intervals', params=params, token=super_admin_token
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+    assert any([seg['time_interval'] == test_time_interval for seg in data['data']])
+    assert all([seg['id'] in time_interval_ids for seg in data['data']])
+
+    data = {
+        'time_interval': time_intervals[1],
+        'detector_id': detector_id,
+    }
+
+    status, data = api(
+        'PATCH',
+        f'mmadetector/time_intervals/{time_interval_id}',
+        data=data,
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    time_interval_id = time_interval_ids[0]
+    status, data = api(
+        'GET', f'mmadetector/time_intervals/{time_interval_id}', token=super_admin_token
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+    assert data['data']['time_interval'] == test_time_interval_2
+
+    for time_interval_id in time_interval_ids:
+        status, data = api(
+            'DELETE',
+            f'mmadetector/time_intervals/{time_interval_id}',
+            token=super_admin_token,
+        )
+        assert status == 200
+        assert data['status'] == 'success'
+
+        status, data = api(
+            'GET',
+            f'mmadetector/time_intervals/{time_interval_id}',
+            token=super_admin_token,
+        )
+        assert status == 403
