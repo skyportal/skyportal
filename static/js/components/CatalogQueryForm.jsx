@@ -12,9 +12,9 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
 
-import * as surveyEfficiencyObservationsActions from "../ducks/survey_efficiency_observations";
-import * as surveyEfficiencyObservationPlansActions from "../ducks/survey_efficiency_observation_plans";
-import * as instrumentsActions from "../ducks/instruments";
+import * as allocationActions from "../ducks/allocations";
+
+import * as catalogQueryActions from "../ducks/catalog_query";
 import GroupShareSelect from "./GroupShareSelect";
 
 import "react-datepicker/dist/react-datepicker-cssmodules.css";
@@ -55,19 +55,22 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-const SourceQueryForm = ({ gcnevent, observationplanRequest }) => {
+const CatalogQueryForm = ({ gcnevent }) => {
   const classes = useStyles();
   const dispatch = useDispatch();
 
   const { telescopeList } = useSelector((state) => state.telescopes);
+  const { allocationList } = useSelector((state) => state.allocations);
 
   const allGroups = useSelector((state) => state.groups.all);
-  const [selectedInstrumentId, setSelectedInstrumentId] = useState(null);
   const [selectedGroupIds, setSelectedGroupIds] = useState([]);
   const [selectedLocalizationId, setSelectedLocalizationId] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { instrumentList } = useSelector((state) => state.instruments);
+  const { allocationListApiObsplan } = useSelector(
+    (state) => state.allocations
+  );
 
   const defaultStartDate = dayjs(gcnevent?.dateobs).format(
     "YYYY-MM-DDTHH:mm:ssZ"
@@ -88,6 +91,18 @@ const SourceQueryForm = ({ gcnevent, observationplanRequest }) => {
     telLookUp[tel.id] = tel;
   });
 
+  const allocationLookUp = {};
+  // eslint-disable-next-line no-unused-expressions
+  allocationList?.forEach((allocation) => {
+    allocationLookUp[allocation.id] = allocation;
+  });
+
+  const instLookUp = {};
+  // eslint-disable-next-line no-unused-expressions
+  instrumentList?.forEach((instrumentObj) => {
+    instLookUp[instrumentObj.id] = instrumentObj;
+  });
+
   const locLookUp = {};
   // eslint-disable-next-line no-unused-expressions
   gcnevent.localizations?.forEach((loc) => {
@@ -95,24 +110,21 @@ const SourceQueryForm = ({ gcnevent, observationplanRequest }) => {
   });
 
   useEffect(() => {
-    const getInstruments = async () => {
+    const getAllocations = async () => {
       // Wait for the allocations to update before setting
       // the new default form fields, so that the instruments list can
       // update
 
-      const result = await dispatch(instrumentsActions.fetchInstruments());
-
-      const { data } = result;
-      setSelectedInstrumentId(data[0]?.id);
+      await dispatch(allocationActions.fetchAllocationsApiObsplan());
       setSelectedLocalizationId(gcnevent.localizations[0]?.id);
     };
 
-    getInstruments();
+    getAllocations();
 
     // Don't want to reset everytime the component rerenders and
     // the defaultStartDate is updated, so ignore ESLint here
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dispatch, setSelectedInstrumentId, setSelectedLocalizationId, gcnevent]);
+  }, [dispatch, setSelectedLocalizationId, gcnevent]);
 
   if (
     !allGroups ||
@@ -127,55 +139,35 @@ const SourceQueryForm = ({ gcnevent, observationplanRequest }) => {
     );
   }
 
+  if (allocationListApiObsplan.length === 0) {
+    return <h3>No allocations with an observation plan API...</h3>;
+  }
+
   const handleSelectedLocalizationChange = (e) => {
     setSelectedLocalizationId(e.target.value);
   };
 
   const handleSubmit = async ({ formData }) => {
     setIsSubmitting(true);
-    formData.startDate = formData.startDate
-      .replace("+00:00", "")
-      .replace(".000Z", "");
-    formData.endDate = formData.endDate
-      .replace("+00:00", "")
-      .replace(".000Z", "");
-    formData.localizationDateobs = locLookUp[selectedLocalizationId].dateobs;
-    formData.localizationName =
-      locLookUp[selectedLocalizationId].localization_name;
 
-    const optionalInjectionParameters = {};
-    if (Object.keys(formData).includes("log10_E0")) {
-      optionalInjectionParameters.log10_E0 = formData.log10_E0;
-      delete formData.log10_E0;
-    }
-    if (Object.keys(formData).includes("mag")) {
-      optionalInjectionParameters.mag = formData.mag;
-      delete formData.mag;
-    }
-    if (Object.keys(formData).includes("dmag")) {
-      optionalInjectionParameters.dmag = formData.dmag;
-      delete formData.dmag;
-    }
+    const payload = {
+      gcnevent_id: gcnevent.id,
+      startDate: formData.startDate.replace("+00:00", "").replace(".000Z", ""),
+      endDate: formData.endDate.replace("+00:00", "").replace(".000Z", ""),
+      localizationDateobs: locLookUp[selectedLocalizationId].dateobs,
+      localizationName: locLookUp[selectedLocalizationId].localization_name,
+      localizationCumprob: formData.localizationCumprob,
+      catalogName: formData.catalogName,
+    };
+    delete formData.startDate;
+    delete formData.endDate;
+    delete formData.localizationCumprob;
+    delete formData.catalogName;
 
-    formData.optionalInjectionParameters = JSON.stringify(
-      optionalInjectionParameters
-    );
+    formData.payload = payload;
+    formData.target_group_ids = selectedGroupIds;
 
-    if (!observationplanRequest) {
-      await dispatch(
-        surveyEfficiencyObservationsActions.submitSurveyEfficiencyObservations(
-          selectedInstrumentId,
-          formData
-        )
-      );
-    } else {
-      await dispatch(
-        surveyEfficiencyObservationPlansActions.submitSurveyEfficiencyObservationPlan(
-          observationplanRequest.id,
-          formData
-        )
-      );
-    }
+    await dispatch(catalogQueryActions.submitCatalogQuery(formData));
 
     setIsSubmitting(false);
   };
@@ -189,21 +181,10 @@ const SourceQueryForm = ({ gcnevent, observationplanRequest }) => {
       errors.start_date.addError("Start Date must come before End Date");
     }
 
-    const maxInjections = 100000;
-    if (formData.numberInjections > maxInjections) {
-      errors.numberInjections.addError(
-        `Number of injections must be less than ${maxInjections}`
-      );
-    }
-
     return errors;
   };
 
-  const handleSelectedInstrumentChange = (e) => {
-    setSelectedInstrumentId(e.target.value);
-  };
-
-  const SimSurveySelectionFormSchema = {
+  const CatalogQueryFormSchema = {
     type: "object",
     properties: {
       startDate: {
@@ -223,78 +204,30 @@ const SourceQueryForm = ({ gcnevent, observationplanRequest }) => {
         title: "Cumulative Probability",
         default: 0.95,
       },
-      numberInjections: {
-        type: "integer",
-        title: "Number of Injections",
-        default: 1000,
-      },
-      numberDetections: {
-        type: "integer",
-        title: "Number of Detections",
-        default: 1,
-      },
-      detectionThreshold: {
-        type: "number",
-        title: "Detection Threshold [sigma]",
-        default: 5.0,
-      },
-      minimumPhase: {
-        type: "number",
-        title: "Minimum Phase [days]",
-        default: 0.0,
-      },
-      maximumPhase: {
-        type: "number",
-        title: "Maximum Phase [days]",
-        default: 3.0,
-      },
-      modelName: {
+      catalogName: {
         type: "string",
         oneOf: [
-          { enum: ["kilonova"], title: "Kilonova [GW170817-like]" },
-          { enum: ["afterglow"], title: "GRB Afterglow" },
-          { enum: ["linear"], title: "Linear model" },
+          { enum: ["LSXPS"], title: "Swift LSXPS catalog" },
+          { enum: ["ZTF-Kowalski"], title: "ZTF Kowalski" },
         ],
-        default: "kilonova",
-        title: "Model",
+        default: "LSXPS",
+        title: "Catalog",
+      },
+      allocation_id: {
+        type: "integer",
+        oneOf: allocationListApiObsplan.map((allocation) => ({
+          enum: [allocation.id],
+          title: `${
+            telLookUp[instLookUp[allocation.instrument_id].telescope_id].name
+          } / ${instLookUp[allocation.instrument_id].name} - ${
+            groupLookUp[allocation.group_id]?.name
+          } (PI ${allocation.pi})`,
+        })),
+        title: "Allocation",
+        default: allocationListApiObsplan[0]?.id,
       },
     },
-    required: ["startDate", "endDate", "localizationCumprob"],
-    dependencies: {
-      modelName: {
-        oneOf: [
-          {
-            properties: {
-              modelName: {
-                enum: ["afterglow"],
-              },
-              log10_E0: {
-                type: "number",
-                title: "log10(Energy [erg/s])",
-                default: 53.0,
-              },
-            },
-          },
-          {
-            properties: {
-              modelName: {
-                enum: ["linear"],
-              },
-              mag: {
-                type: "number",
-                title: "Peak magnitude",
-                default: -16.0,
-              },
-              dmag: {
-                type: "number",
-                title: "Magnitude decay [1/day]",
-                default: 1.0,
-              },
-            },
-          },
-        ],
-      },
-    },
+    required: ["startDate", "endDate", "allocation_id", "catalogName"],
   };
 
   return (
@@ -320,38 +253,15 @@ const SourceQueryForm = ({ gcnevent, observationplanRequest }) => {
           ))}
         </Select>
       </div>
-      <div>
-        <InputLabel id="instrumentSelectLabel">Instrument</InputLabel>
-        <Select
-          inputProps={{ MenuProps: { disableScrollLock: true } }}
-          labelId="instrumentSelectLabel"
-          value={selectedInstrumentId || ""}
-          onChange={handleSelectedInstrumentChange}
-          name="gcnPageInstrumentSelect"
-          className={classes.instrumentSelect}
-        >
-          {instrumentList?.map((instrument) => (
-            <MenuItem
-              value={instrument.id}
-              key={instrument.id}
-              className={classes.instrumentSelectItem}
-            >
-              {`${telLookUp[instrument.telescope_id]?.name} / ${
-                instrument.name
-              }`}
-            </MenuItem>
-          ))}
-        </Select>
-      </div>
       <GroupShareSelect
         groupList={allGroups}
         setGroupIDs={setSelectedGroupIds}
         groupIDs={selectedGroupIds}
       />
-      <div data-testid="observationplan-request-form">
+      <div data-testid="sourcequery-request-form">
         <div>
           <Form
-            schema={SimSurveySelectionFormSchema}
+            schema={CatalogQueryFormSchema}
             onSubmit={handleSubmit}
             // eslint-disable-next-line react/jsx-no-bind
             validate={validate}
@@ -369,7 +279,7 @@ const SourceQueryForm = ({ gcnevent, observationplanRequest }) => {
   );
 };
 
-SourceQueryForm.propTypes = {
+CatalogQueryForm.propTypes = {
   gcnevent: PropTypes.shape({
     dateobs: PropTypes.string,
     localizations: PropTypes.arrayOf(
@@ -385,8 +295,8 @@ SourceQueryForm.propTypes = {
   }),
 };
 
-SourceQueryForm.defaultProps = {
+CatalogQueryForm.defaultProps = {
   observationplanRequest: null,
 };
 
-export default SourceQueryForm;
+export default CatalogQueryForm;

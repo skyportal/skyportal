@@ -7,6 +7,7 @@ from .analysis import *
 from .annotation import *
 from .assignment import *
 from .candidate import *
+from .catalog import *
 from .classification import *
 from .comment import *
 from .earthquake import *

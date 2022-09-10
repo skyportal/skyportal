@@ -50,6 +50,12 @@ class Allocation(Base):
         doc='The default observing plan requests for this allocation.',
         passive_deletes=True,
     )
+    catalog_queries = relationship(
+        'CatalogQuery',
+        back_populates='allocation',
+        doc='The catalog queries for this allocation.',
+        passive_deletes=True,
+    )
     observation_plans = relationship(
         'ObservationPlanRequest',
         back_populates='allocation',
