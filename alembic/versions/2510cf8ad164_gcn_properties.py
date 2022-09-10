@@ -1,7 +1,7 @@
 """GCN properties migration
 
 Revision ID: 2510cf8ad164
-Revises: 44a7408c38a3
+Revises: c589cb7d70ec
 Create Date: 2022-09-07 16:24:44.397567
 
 """
@@ -11,7 +11,7 @@ from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision = '2510cf8ad164'
-down_revision = '44a7408c38a3'
+down_revision = 'c589cb7d70ec'
 branch_labels = None
 depends_on = None
 
