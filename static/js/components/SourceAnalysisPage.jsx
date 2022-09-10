@@ -7,7 +7,6 @@ import dayjs from "dayjs";
 import calendar from "dayjs/plugin/calendar";
 import Chip from "@mui/material/Chip";
 import Tooltip from "@mui/material/Tooltip";
-import Button from "@mui/material/Button";
 import Accordion from "@mui/material/Accordion";
 import AccordionSummary from "@mui/material/AccordionSummary";
 import AccordionDetails from "@mui/material/AccordionDetails";
@@ -17,6 +16,7 @@ import DownloadIcon from "@mui/icons-material/Download";
 import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
 import Typography from "@mui/material/Typography";
+import Button from "./Button";
 import withRouter from "./withRouter";
 
 import * as sourceActions from "../ducks/source";
@@ -194,9 +194,9 @@ const SourceAnalysisPage = ({ route }) => {
                     </CardContent>
                   </Card>
                   <Button
+                    primary
                     href={`/api/obj/analysis/${analysis.id}/results`}
                     size="small"
-                    color="primary"
                     type="submit"
                     target="_blank"
                     data-testid={`analysis_results_${analysis.id}`}
@@ -232,9 +232,9 @@ const SourceAnalysisPage = ({ route }) => {
                   </CardContent>
                 </Card>
                 <Button
+                  primary
                   href={`/api/obj/analysis/${analysis.id}/corner`}
                   size="small"
-                  color="primary"
                   type="submit"
                   target="_blank"
                   data-testid={`corner_${analysis.id}`}
@@ -273,9 +273,9 @@ const SourceAnalysisPage = ({ route }) => {
                             loading="lazy"
                           />
                           <Button
+                            primary
                             href={`/api/obj/analysis/${analysis.id}/plots/${i}`}
                             size="small"
-                            color="primary"
                             type="submit"
                             target="_blank"
                             data-testid={`plot_${analysis.id}_${i}`}

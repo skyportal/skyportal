@@ -132,6 +132,10 @@ app:
       component: InstrumentPage
     - path: "/mmadetectors"
       component: MMADetectorPage
+    - path: "/earthquakes"
+      component: EarthquakesPage
+    - path: "/earthquakes/:event_id"
+      component: EarthquakePage
     - path: "/services"
       component: AnalysisServicePage
     - path: "/shifts"
@@ -204,6 +208,10 @@ app:
         - name: Observations
           icon: ZoomInOutlined
           url: /observations
+
+        - name: Earthquakes
+          icon: PieChart
+          url: /earthquakes
 
         - name: Galaxies
           icon: TornadoOutlined
@@ -549,7 +557,7 @@ cross_match:
 # length that defines the full Quantum Efficiency at each wavelength.
 # must have at least two elements in the arrays
 # `wavelength` and `transmission`.
-# additional_bandpasses:
+additional_bandpasses:
 #  - name: 'atlasc'
 #    filterset: 'atlas'
 #    wavelength: [4150, 4157, 6556, 6560]
@@ -560,6 +568,11 @@ cross_match:
 #    wavelength: [5580, 5582, 8249, 8250]
 #    transmission: [0, 1, 1, 0]
 #    description: "basic ATLAS O filter - tophat transmission"
+  - name: 'swiftxrt'
+    filterset: 'xrt'
+    wavelength: [0.1, 1, 62, 100]
+    transmission: [0, 1, 1, 0]
+    description: "basic XRT filter - tophat transmission"
 
 user:
   default_role: 'Full user'

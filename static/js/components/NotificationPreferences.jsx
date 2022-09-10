@@ -2,7 +2,6 @@ import React, { useEffect, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { useForm } from "react-hook-form";
 import { makeStyles } from "@mui/styles";
-import Button from "@mui/material/Button";
 import { showNotification } from "baselayer/components/Notifications";
 
 import FormGroup from "@mui/material/FormGroup";
@@ -10,6 +9,7 @@ import FormControlLabel from "@mui/material/FormControlLabel";
 import Switch from "@mui/material/Switch";
 import Tooltip from "@mui/material/Tooltip";
 import HelpOutlineOutlinedIcon from "@mui/icons-material/HelpOutlineOutlined";
+import Button from "./Button";
 
 import UserPreferencesHeader from "./UserPreferencesHeader";
 import ClassificationSelect from "./ClassificationSelect";
@@ -172,7 +172,7 @@ const NotificationPreferences = () => {
                   setSelectedClassifications={setSelectedClassifications}
                 />
                 <Button
-                  variant="contained"
+                  secondary
                   type="submit"
                   data-testid="addShortcutButton"
                   className={classes.button}
@@ -218,7 +218,7 @@ const NotificationPreferences = () => {
                   setSelectedGcnTags={setSelectedGcnTags}
                 />
                 <Button
-                  variant="contained"
+                  secondary
                   type="submit"
                   data-testid="addShortcutButton"
                   className={classes.button}

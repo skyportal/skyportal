@@ -9,13 +9,13 @@ import {
   StyledEngineProvider,
   useTheme,
 } from "@mui/material/styles";
-import Button from "@mui/material/Button";
 import makeStyles from "@mui/styles/makeStyles";
 import CircularProgress from "@mui/material/CircularProgress";
 
 import MUIDataTable from "mui-datatables";
 
 import { showNotification } from "baselayer/components/Notifications";
+import Button from "./Button";
 
 import { saveSource, checkSource } from "../ducks/source";
 
@@ -125,13 +125,12 @@ const ExecutedObservationsTable = ({
         ) : (
           <div>
             <Button
+              primary
               onClick={() => {
                 handleSave(formData);
               }}
               size="small"
-              color="primary"
               type="submit"
-              variant="outlined"
               data-testid={`saveObservation_${formData.id}`}
             >
               Save Source

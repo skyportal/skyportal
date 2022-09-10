@@ -9,8 +9,8 @@ import Grid from "@mui/material/Grid";
 import makeStyles from "@mui/styles/makeStyles";
 import PropTypes from "prop-types";
 import { showNotification } from "baselayer/components/Notifications";
-import { Button } from "@mui/material";
 import CircularProgress from "@mui/material/CircularProgress";
+import Button from "./Button";
 import NewAnalysisService from "./NewAnalysisService";
 
 import * as analysisServicesActions from "../ducks/analysis_services";

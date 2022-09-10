@@ -1315,7 +1315,11 @@ def post_source(data, user_id, session):
     session.commit()
 
     if not obj_already_exists:
-        IOLoop.current().run_in_executor(
+        try:
+            loop = IOLoop.current()
+        except RuntimeError:
+            loop = IOLoop(make_current=True).current()
+        loop.run_in_executor(
             None,
             lambda: add_linked_thumbnails_and_push_ws_msg(obj.id, user_id),
         )

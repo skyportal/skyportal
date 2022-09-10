@@ -1,7 +1,6 @@
 import React from "react";
 import { useSelector, useDispatch } from "react-redux";
 import makeStyles from "@mui/styles/makeStyles";
-import Button from "@mui/material/Button";
 import OutlinedInput from "@mui/material/OutlinedInput";
 import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
@@ -15,6 +14,7 @@ import Tooltip from "@mui/material/Tooltip";
 import PropTypes from "prop-types";
 
 import { showNotification } from "baselayer/components/Notifications";
+import Button from "./Button";
 import * as shiftActions from "../ducks/shift";
 import {
   addShiftUser,
@@ -284,9 +284,8 @@ export function CurrentShiftMenu({ currentShift }) {
           button = (
             <Tooltip title="Adds selected users to shift">
               <Button
+                primary
                 id="add-users-button"
-                variant="contained"
-                color="primary"
                 className={classes.activatedButton}
                 onClick={() => {
                   addUsersToShift(usersToAdd);
@@ -301,9 +300,8 @@ export function CurrentShiftMenu({ currentShift }) {
           button = (
             <Tooltip title="All the users you selected are already in the shift">
               <Button
+                primary
                 id="deactivated-add-users-button"
-                variant="contained"
-                color="secondary"
                 className={classes.deactivatedButton}
               >
                 Add
@@ -315,9 +313,8 @@ export function CurrentShiftMenu({ currentShift }) {
         button = (
           <Tooltip title="No users selected, select users to add them to the shift">
             <Button
+              primary
               id="deactivated-add-users-button"
-              variant="contained"
-              color="secondary"
               className={classes.deactivatedButton}
             >
               Add
@@ -344,9 +341,8 @@ export function CurrentShiftMenu({ currentShift }) {
           button = (
             <Tooltip title="Removes selected users from shift">
               <Button
+                secondary
                 id="remove-users-button"
-                variant="contained"
-                color="primary"
                 className={classes.activatedButton}
                 onClick={() => {
                   removeUsersFromShift(usersToRemove);
@@ -361,9 +357,8 @@ export function CurrentShiftMenu({ currentShift }) {
           button = (
             <Tooltip title="None of the users you selected are in the shift">
               <Button
+                secondary
                 id="deactivated-remove-users-button"
-                variant="contained"
-                color="secondary"
                 className={classes.deactivatedButton}
               >
                 Remove
@@ -375,9 +370,8 @@ export function CurrentShiftMenu({ currentShift }) {
         button = (
           <Tooltip title="No users selected, select users to remove them from the shift">
             <Button
+              secondary
               id="deactivated-remove-users-button"
-              variant="contained"
-              color="secondary"
               className={classes.deactivatedButton}
             >
               Remove
@@ -520,9 +514,8 @@ export function CurrentShiftMenu({ currentShift }) {
         button = (
           <Tooltip title="Replace selected users">
             <Button
+              primary
               id="replace-users-button"
-              variant="contained"
-              color="primary"
               className={classes.activatedButton}
               onClick={() => {
                 replaceUserInShift(selectedToReplace);
@@ -537,9 +530,8 @@ export function CurrentShiftMenu({ currentShift }) {
         button = (
           <Tooltip title="No users selected, select users to replace them">
             <Button
+              secondary
               id="deactivated-replace-users-button"
-              variant="contained"
-              color="secondary"
               className={classes.deactivatedButton}
             >
               Replace
@@ -561,9 +553,8 @@ export function CurrentShiftMenu({ currentShift }) {
           button = (
             <Tooltip title="Ask for someone to replace you. All users from the group associated to the Shift will be notified">
               <Button
+                primary
                 id="ask-for-replacement-button"
-                variant="contained"
-                color="primary"
                 className={classes.replacementButton}
                 onClick={() => {
                   const shift_id = parseInt(currentShift.id, 10);
@@ -794,6 +785,7 @@ export function CurrentShiftMenu({ currentShift }) {
               currentUserIsAdminOfGroup ||
               currentUser?.permissions.includes("System admin")) && (
               <Button
+                secondary
                 id="delete_button"
                 onClick={() => deleteShift(currentShift)}
               >

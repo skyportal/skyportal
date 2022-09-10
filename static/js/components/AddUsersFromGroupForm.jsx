@@ -4,7 +4,6 @@ import { useSelector, useDispatch } from "react-redux";
 import Typography from "@mui/material/Typography";
 import { useForm, Controller } from "react-hook-form";
 import Autocomplete from "@mui/material/Autocomplete";
-import Button from "@mui/material/Button";
 import TextField from "@mui/material/TextField";
 import makeStyles from "@mui/styles/makeStyles";
 
@@ -12,6 +11,7 @@ import { showNotification } from "baselayer/components/Notifications";
 
 import * as groupsActions from "../ducks/groups";
 import FormValidationError from "./FormValidationError";
+import Button from "./Button";
 
 const useStyles = makeStyles(() => ({
   groupSelect: {
@@ -92,12 +92,11 @@ const AddUsersFromGroupForm = ({ groupID }) => {
         />
         <div>
           <Button
-            variant="contained"
+            primary
             type="submit"
             name="submitAddFromGroupsButton"
             data-testid="submitAddFromGroupsButton"
             size="small"
-            color="primary"
             disableElevation
           >
             Add users
