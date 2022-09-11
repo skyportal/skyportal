@@ -39,6 +39,7 @@ import { ra_to_hours, dec_to_dms } from "../units";
 import RejectButton from "./RejectButton";
 import VegaPhotometry from "./VegaPhotometry";
 import Spinner from "./Spinner";
+import TNSInfo from "./TNSInfo";
 import AddClassificationsScanningPage from "./AddClassificationsScanningPage";
 import Button from "./Button";
 
@@ -361,6 +362,8 @@ const CandidateList = () => {
     queryID,
     selectedAnnotationSortOptions,
   } = useSelector((state) => state.candidates);
+
+  const kowalski_status = useSelector((state) => state.kowalski_status);
 
   const [sortOrder, setSortOrder] = useState(
     selectedAnnotationSortOptions ? selectedAnnotationSortOptions.order : null
@@ -725,6 +728,12 @@ const CandidateList = () => {
             {candidateObj.gal_lat.toFixed(3)}
           </span>
         </div>
+        {kowalski_status.kowalski && (
+          <div className={classes.infoItem}>
+            <b>TNS:&nbsp;</b>
+            <TNSInfo objID={candidateObj.id} />
+          </div>
+        )}
         {candidateObj.classifications && recentClassification && (
           <div className={classes.infoItemPadded}>
             <b>Classification: </b>

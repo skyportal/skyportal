@@ -46,6 +46,10 @@ import SourceAnnotationButtons from "./SourceAnnotationButtons";
 import TNSATForm from "./TNSATForm";
 import Reminders from "./Reminders";
 
+import TNSInfo from "./TNSInfo";
+import AlertsSearchButton from "./AlertsSearchButton";
+import ArchiveSearchButton from "./ArchiveSearchButton";
+
 import * as spectraActions from "../ducks/spectra";
 import * as sourceActions from "../ducks/source";
 
@@ -209,6 +213,9 @@ const SourceDesktop = ({ source }) => {
   const [rightPaneVisible, setRightPaneVisible] = useState(true);
   const plotWidth = rightPaneVisible ? 800 : 1200;
 
+  const kowalski_status = useSelector((state) => state.kowalski_status);
+  const kowalski_or_gloria = kowalski_status.kowalski || kowalski_status.gloria;
+
   const { instrumentList, instrumentFormParams } = useSelector(
     (state) => state.instruments
   );
@@ -355,6 +362,30 @@ const SourceDesktop = ({ source }) => {
                     <Button size="small">{dupID}</Button>
                   </Link>
                 ))}
+              </div>
+            </div>
+          )}
+          {kowalski_or_gloria && (
+            <div>
+              <div className={classes.infoLine}>
+                {kowalski_status.kowalski && (
+                  <div className={classes.infoButton}>
+                    <AlertsSearchButton ra={source.ra} dec={source.dec} />
+                  </div>
+                )}
+                {kowalski_status.gloria && (
+                  <div className={classes.infoButton}>
+                    <ArchiveSearchButton ra={source.ra} dec={source.dec} />
+                  </div>
+                )}
+              </div>
+              <div className={classes.infoLine}>
+                {kowalski_status.kowalski && (
+                  <div className={classes.sourceInfo}>
+                    <b>TNS:&nbsp;</b>
+                    <TNSInfo objID={source.id} />
+                  </div>
+                )}
               </div>
             </div>
           )}

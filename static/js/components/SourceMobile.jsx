@@ -53,6 +53,10 @@ import FavoritesButton from "./FavoritesButton";
 import SourceAnnotationButtons from "./SourceAnnotationButtons";
 import TNSATForm from "./TNSATForm";
 
+import TNSInfo from "./TNSInfo";
+import AlertsSearchButton from "./AlertsSearchButton";
+import ArchiveSearchButton from "./ArchiveSearchButton";
+
 import * as spectraActions from "../ducks/spectra";
 
 const VegaHR = React.lazy(() => import("./VegaHR"));
@@ -243,6 +247,10 @@ const SourceMobile = WidthProvider(
     const centroidPlotSize = matches ? "21.875rem" : "17rem";
     const hrDiagramSize = matches ? 300 : 200;
 
+    const kowalski_status = useSelector((state) => state.kowalski_status);
+    const kowalski_or_gloria =
+      kowalski_status.kowalski || kowalski_status.gloria;
+
     const classes = useSourceStyles();
 
     const [showStarList, setShowStarList] = useState(false);
@@ -345,6 +353,36 @@ const SourceMobile = WidthProvider(
                       </div>
                     </div>
                   </div>
+                  {kowalski_or_gloria && (
+                    <div>
+                      <div className={classes.infoLine}>
+                        {kowalski_status.kowalski && (
+                          <div className={classes.infoButton}>
+                            <AlertsSearchButton
+                              ra={source.ra}
+                              dec={source.dec}
+                            />
+                          </div>
+                        )}
+                        {kowalski_status.gloria && (
+                          <div className={classes.infoButton}>
+                            <ArchiveSearchButton
+                              ra={source.ra}
+                              dec={source.dec}
+                            />
+                          </div>
+                        )}
+                      </div>
+                      <div className={classes.infoLine}>
+                        {kowalski_status.kowalski && (
+                          <div className={classes.sourceInfo}>
+                            <b>TNS:&nbsp;</b>
+                            <TNSInfo objID={source.id} />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
                   <div className={classes.infoLine}>
                     <div className={classes.redshiftInfo}>
                       <b>Redshift: &nbsp;</b>

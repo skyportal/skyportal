@@ -8,6 +8,7 @@ from .plot import (
 )
 from .token import TokenHandler
 from .dbinfo import DBInfoHandler
+from .kowalski_status import KowalskiStatusHandler
 from .profile import ProfileHandler
 from .source_views import SourceViewsHandler
 from .recent_sources import RecentSourcesHandler

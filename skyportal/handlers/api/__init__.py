@@ -1,9 +1,24 @@
 from .acls import ACLHandler, UserACLHandler
 from .allocation import AllocationHandler, AllocationReportHandler
+from .alert import (
+    AlertHandler,
+    AlertAuxHandler,
+    AlertCutoutHandler,
+)
 from .analysis import (
     AnalysisServiceHandler,
     AnalysisHandler,
     AnalysisProductsHandler,
+)
+from .analysis import (
+    AnalysisServiceHandler,
+    AnalysisHandler,
+    AnalysisProductsHandler,
+)
+from .archive import (
+    ArchiveCatalogsHandler,
+    ArchiveHandler,
+    CrossMatchHandler,
 )
 from .candidate import CandidateHandler
 from .classification import (
@@ -62,6 +77,7 @@ from .mmadetector import (
     MMADetectorSpectrumHandler,
     MMADetectorTimeIntervalHandler,
 )
+from .kowalski_filter import KowalskiFilterHandler
 from .news_feed import NewsFeedHandler
 from .observation import (
     ObservationASCIIFileHandler,
@@ -132,6 +148,7 @@ from .config_handler import ConfigHandler
 from .taxonomy import TaxonomyHandler
 from .telescope import TelescopeHandler
 from .tns import ObjTNSHandler, SpectrumTNSHandler, TNSRobotHandler
+from .tns_info import TNSInfoHandler
 from .thumbnail import ThumbnailHandler
 from .user import (
     UserHandler,

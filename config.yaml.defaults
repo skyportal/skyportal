@@ -21,6 +21,12 @@ app:
   observation_plan:
     default_filters: ['ztfg', 'ztfr', 'ztfi']
 
+  kowalski:
+    enabled: False
+
+  gloria:
+    enabled: False
+
   # this endpoint does not actually do anything -- it is just for testing
   sedm_endpoint: http://minar.caltech.edu/add_fritz
   sedmv2_endpoint:
@@ -114,6 +120,12 @@ app:
       component: GroupSources
     - path: "/user_management"
       component: UserManagement
+    - path: "/alerts"
+      component: Alerts
+    - path: "/alerts/ztf/:id"
+      component: ZTFAlert
+    - path: "/archive"
+      component: Archive
     - path: "/upload_spectrum/:id"
       component: UploadSpectrum
     - path: "/observability/:id"
@@ -142,6 +154,7 @@ app:
       component: ShiftNoId
     - path: "/shifts/:id"
       component: ShiftWithId
+
 
   sidebar:
     # See https://material-ui.com/components/material-icons/
