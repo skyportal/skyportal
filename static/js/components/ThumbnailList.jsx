@@ -79,9 +79,9 @@ const Thumbnail = ({ ra, dec, name, url, size, grayscale, header }) => {
       alt = "Link to SDSS Navigate tool";
       link = `https://skyserver.sdss.org/dr16/en/tools/chart/navi.aspx?opt=G&ra=${ra}&dec=${dec}&scale=0.25`;
       break;
-    case "dr8":
-      alt = "Link to DESI DR8 Image Access";
-      link = `https://www.legacysurvey.org/viewer?ra=${ra}&dec=${dec}&layer=ls-dr8&zoom=16&mark=${ra},${dec}`;
+    case "dr9":
+      alt = "Link to DESI DR9 Image Access";
+      link = `https://www.legacysurvey.org/viewer?ra=${ra}&dec=${dec}&layer=ls-dr9&photoz-dr9&zoom=16&mark=${ra},${dec}`;
       break;
     case "ps1":
       alt = "Link to PanSTARRS-1 Image Access";
