@@ -13,7 +13,7 @@ from ...models import Obj, Thumbnail, User
 
 
 def post_thumbnail(data, user_id, session):
-    """Post source to database.
+    """Post thumbnail to database.
     data: dict
         Thumbnail dictionary
     user_id : int
@@ -29,18 +29,46 @@ def post_thumbnail(data, user_id, session):
     if obj is None:
         raise AttributeError(f"Invalid obj_id: {data['obj_id']}")
 
+    basedir = Path(os.path.dirname(__file__)) / '..' / '..'
+    if os.path.abspath(basedir).endswith('skyportal/skyportal'):
+        basedir = basedir / '..'
+    file_uri = os.path.abspath(
+        basedir / f'static/thumbnails/{data["obj_id"]}_{data["ttype"]}.png'
+    )
+    if not os.path.exists(os.path.dirname(file_uri)):
+        (basedir / 'static/thumbnails').mkdir(parents=True)
+
+    file_bytes = base64.b64decode(data['data'])
     try:
-        t = create_thumbnail(data['data'], data['ttype'], data["obj_id"], session)
-    except ValueError as e:
-        raise ValueError(f"Error in creating new thumbnail: invalid value(s): {e}")
+        im = Image.open(io.BytesIO(file_bytes))
+    except UnidentifiedImageError as e:
+        raise UnidentifiedImageError(f"Invalid file type: {e}")
+
+    if im.format != 'PNG':
+        raise ValueError('Invalid thumbnail image type. Only PNG are supported.')
+    if not all(16 <= x <= 500 for x in im.size):
+        raise ValueError(
+            'Invalid thumbnail size. Only thumbnails '
+            'between (16, 16) and (500, 500) allowed.'
+        )
+    try:
+        t = Thumbnail(
+            obj_id=data["obj_id"],
+            type=data["ttype"],
+            file_uri=file_uri,
+            public_url=f'/static/thumbnails/{data["obj_id"]}_{data["ttype"]}.png',
+        )
+        with open(file_uri, 'wb') as f:
+            f.write(file_bytes)
+
+        session.add(t)
+        session.flush()
+        session.commit()
+
     except (LookupError, StatementError) as e:
         if "enum" in str(e):
             raise LookupError(f"Invalid ttype: {e}")
         raise StatementError(f"Error creating new thumbnail: {e}")
-    except UnidentifiedImageError as e:
-        raise UnidentifiedImageError(f"Invalid file type: {e}")
-
-    session.commit()
 
     return t.id
 
@@ -226,36 +254,3 @@ class ThumbnailHandler(BaseHandler):
             session.commit()
 
             return self.success()
-
-
-def create_thumbnail(thumbnail_data, thumbnail_type, obj_id, session):
-    basedir = Path(os.path.dirname(__file__)) / '..' / '..'
-    if os.path.abspath(basedir).endswith('skyportal/skyportal'):
-        basedir = basedir / '..'
-    file_uri = os.path.abspath(
-        basedir / f'static/thumbnails/{obj_id}_{thumbnail_type}.png'
-    )
-    if not os.path.exists(os.path.dirname(file_uri)):
-        (basedir / 'static/thumbnails').mkdir(parents=True)
-    file_bytes = base64.b64decode(thumbnail_data)
-    im = Image.open(io.BytesIO(file_bytes))
-    if im.format != 'PNG':
-        raise ValueError('Invalid thumbnail image type. Only PNG are supported.')
-    if not all(16 <= x <= 500 for x in im.size):
-        raise ValueError(
-            'Invalid thumbnail size. Only thumbnails '
-            'between (16, 16) and (500, 500) allowed.'
-        )
-    t = Thumbnail(
-        obj_id=obj_id,
-        type=thumbnail_type,
-        file_uri=file_uri,
-        public_url=f'/static/thumbnails/{obj_id}_{thumbnail_type}.png',
-    )
-    with open(file_uri, 'wb') as f:
-        f.write(file_bytes)
-
-    session.add(t)
-    session.flush()
-
-    return t
