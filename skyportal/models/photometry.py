@@ -70,6 +70,19 @@ class Photometry(conesearch_alchemy.Point, Base):
     ra_unc = sa.Column(sa.Float, doc="Uncertainty of ra position [arcsec]")
     dec_unc = sa.Column(sa.Float, doc="Uncertainty of dec position [arcsec]")
 
+    ref_flux = sa.Column(
+        sa.Float,
+        nullable=True,
+        index=True,
+        doc="Reference flux. E.g., "
+        "of the source before transient started, "
+        "or the mean flux of a variable source.",
+    )
+
+    ref_fluxerr = sa.Column(
+        sa.Float, nullable=True, doc="Uncertainty on the reference flux."
+    )
+
     original_user_data = sa.Column(
         JSONB,
         doc='Original data passed by the user '
@@ -196,6 +209,145 @@ class Photometry(conesearch_alchemy.Point, Base):
                         cls.flux != 'NaN', cls.flux > 0, cls.fluxerr > 0
                     ),  # noqa: E711
                     2.5 / sa.func.ln(10) * cls.fluxerr / cls.flux,
+                )
+            ],
+            else_=None,
+        )
+
+    @hybrid_property
+    def magref(self):
+        """
+        Reference magnitude, e.g.,
+        the mean magnitude of a variable source,
+        or the magnitude of a source before a transient started.
+        """
+        if self.ref_flux is not None and self.ref_flux > 0:
+            return -2.5 * np.log10(self.ref_flux) + PHOT_ZP
+        else:
+            return None
+
+    @hybrid_property
+    def e_magref(self):
+        """The error on the reference magnitude."""
+        if (
+            self.ref_flux is not None
+            and self.ref_flux > 0
+            and self.ref_fluxerr is not None
+            and self.ref_fluxerr > 0
+        ):
+            return (2.5 / np.log(10)) * (self.ref_fluxerr / self.ref_flux)
+        else:
+            return None
+
+    @magref.expression
+    def magref(cls):
+        """The magnitude of the photometry point in the AB system."""
+        return sa.case(
+            [
+                (
+                    sa.and_(
+                        cls.ref_flux != None,  # noqa: E711
+                        cls.ref_flux != 'NaN',
+                        cls.ref_flux > 0,
+                    ),
+                    -2.5 * sa.func.log(cls.ref_flux) + PHOT_ZP,
+                )
+            ],
+            else_=None,
+        )
+
+    @e_magref.expression
+    def e_magref(cls):
+        """The error on the magnitude of the photometry point."""
+        return sa.case(
+            [
+                (
+                    sa.and_(
+                        cls.ref_flux != None,  # noqa: E711
+                        cls.ref_flux != 'NaN',
+                        cls.ref_flux > 0,
+                        cls.ref_fluxerr > 0,
+                    ),  # noqa: E711
+                    (2.5 / sa.func.ln(10)) * (cls.ref_fluxerr / cls.ref_flux),
+                )
+            ],
+            else_=None,
+        )
+
+    @hybrid_property
+    def magtot(self):
+        """
+        Total magnitude, e.g.,
+        the combined magnitude of a variable source,
+        as opposed to the regular magnitude which may come
+        from subtraction images, etc.
+        """
+        if self.ref_flux is not None and self.ref_flux > 0 and self.flux > 0:
+            return -2.5 * np.log10(self.ref_flux + self.flux) + PHOT_ZP
+        else:
+            return None
+
+    @hybrid_property
+    def e_magtot(self):
+        """The error on the total magnitude."""
+        if (
+            self.ref_flux is not None
+            and self.ref_flux > 0
+            and self.ref_fluxerr is not None
+            and self.ref_fluxerr > 0
+            and self.flux > 0
+            and self.fluxerr > 0
+        ):
+            return (
+                2.5
+                / np.log(10)
+                * np.sqrt(self.ref_fluxerr**2 + self.fluxerr**2)
+                / (self.ref_flux + self.flux)
+            )
+        else:
+            return None
+
+    @magtot.expression
+    def magtot(cls):
+        """The total magnitude of the photometry point in the AB system."""
+        return sa.case(
+            [
+                (
+                    sa.and_(
+                        cls.ref_flux != None,  # noqa: E711
+                        cls.ref_flux != 'NaN',
+                        cls.ref_flux > 0,
+                        cls.flux != 'NaN',
+                        cls.flux > 0,
+                    ),  # noqa
+                    -2.5 * sa.func.log(cls.ref_flux + cls.flux) + PHOT_ZP,
+                )
+            ],
+            else_=None,
+        )
+
+    @e_magtot.expression
+    def e_magtot(cls):
+        """The error on the total magnitude of the photometry point."""
+        return sa.case(
+            [
+                (
+                    sa.and_(
+                        cls.ref_flux != None,  # noqa: E711
+                        cls.ref_flux != 'NaN',
+                        cls.ref_flux > 0,
+                        cls.ref_fluxerr > 0,
+                        cls.flux != None,
+                        cls.flux != 'NaN',
+                        cls.flux > 0,
+                        cls.fluxerr > 0,
+                    ),  # noqa: E711
+                    2.5
+                    / sa.func.ln(10)
+                    * sa.func.sqrt(
+                        sa.func.pow(cls.ref_fluxerr, 2) + sa.func.pow(cls.fluxerr, 2)
+                    )
+                    / (cls.ref_flux + cls.flux),
                 )
             ],
             else_=None,

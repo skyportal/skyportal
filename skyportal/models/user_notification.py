@@ -28,6 +28,7 @@ from .facility_transaction import FacilityTransaction
 from .group import GroupAdmissionRequest, GroupUser, Group
 from ..email_utils import send_email
 from twilio.rest import Client as TwilioClient
+from twilio.twiml.voice_response import Say, VoiceResponse
 import gcn
 from sqlalchemy import or_
 
@@ -121,7 +122,7 @@ def user_preferences(target, notification_setting, resource_type):
     if not target.user.preferences:
         return
 
-    if notification_setting == "sms":
+    if notification_setting in ["sms", "phone"]:
         if client is None:
             return
         if not target.user.contact_phone:
@@ -275,7 +276,7 @@ def send_sms_notification(mapper, connection, target):
                 ):
                     sending = True
             else:
-                if current_time.hour <= timeslot[0] or current_time.hour >= timeslot[1]:
+                if current_time.hour <= timeslot[1] or current_time.hour >= timeslot[0]:
                     sending = True
     if sending:
         try:
@@ -289,6 +290,52 @@ def send_sms_notification(mapper, connection, target):
             )
         except Exception as e:
             log(f"Error sending sms notification: {e}")
+
+
+@event.listens_for(UserNotification, 'after_insert')
+def send_phone_notification(mapper, connection, target):
+    resource_type = notification_resource_type(target)
+    prefs = user_preferences(target, "phone", resource_type)
+    if not prefs:
+        return
+
+    sending = False
+    if prefs[resource_type]['phone'].get("on_shift", False):
+        current_shift = (
+            Shift.query.join(ShiftUser)
+            .filter(ShiftUser.user_id == target.user.id)
+            .filter(Shift.start_date <= arrow.utcnow().datetime)
+            .filter(Shift.end_date >= arrow.utcnow().datetime)
+            .first()
+        )
+        if current_shift is not None:
+            sending = True
+    else:
+        timeslot = prefs[resource_type]['phone'].get("time_slot", [])
+        if len(timeslot) > 0:
+            current_time = arrow.utcnow().datetime
+            if timeslot[0] < timeslot[1]:
+                if (
+                    current_time.hour >= timeslot[0]
+                    and current_time.hour <= timeslot[1]
+                ):
+                    sending = True
+            else:
+                if current_time.hour <= timeslot[1] or current_time.hour >= timeslot[0]:
+                    sending = True
+    if sending:
+        try:
+            message = f"Greetings. This is the SkyPortal robot. {target.text}"
+            client.calls.create(
+                twiml=VoiceResponse().append(Say(message=message)),
+                from_=from_number,
+                to=target.user.contact_phone.e164,
+            )
+            log(
+                f"Sent Phone Call notification to user {target.user.id} at phone number: {target.user.contact_phone.e164}, message: {message}, resource_type: {resource_type}"
+            )
+        except Exception as e:
+            log(f"Error sending phone call notification: {e}")
 
 
 @event.listens_for(UserNotification, 'after_insert')
