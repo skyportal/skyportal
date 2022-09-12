@@ -97,7 +97,10 @@ class ThumbnailHandler(BaseHandler):
             return self.error("Missing required parameter: obj_id")
 
         with self.Session() as session:
-            obj_id = post_thumbnail(data, self.associated_user_object.id, session)
+            try:
+                obj_id = post_thumbnail(data, self.associated_user_object.id, session)
+            except Exception as e:
+                return self.error(f'Thumbnail failed to post: {str(e)}')
             return self.success(data={"id": obj_id})
 
     @auth_or_token
