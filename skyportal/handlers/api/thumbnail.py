@@ -3,11 +3,46 @@ import io
 import base64
 from pathlib import Path
 from marshmallow.exceptions import ValidationError
+import sqlalchemy as sa
 from sqlalchemy.exc import StatementError
 from PIL import Image, UnidentifiedImageError
+
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
-from ...models import Obj, Thumbnail
+from ...models import Obj, Thumbnail, User
+
+
+def post_thumbnail(data, user_id, session):
+    """Post source to database.
+    data: dict
+        Thumbnail dictionary
+    user_id : int
+        SkyPortal ID of User posting the Thumbnail
+    session: sqlalchemy.Session
+        Database session for this transaction
+    """
+
+    user = session.scalar(sa.select(User).where(User.id == user_id))
+
+    obj = session.scalars(Obj.select(user).where(Obj.id == data["obj_id"])).first()
+
+    if obj is None:
+        raise AttributeError(f"Invalid obj_id: {data['obj_id']}")
+
+    try:
+        t = create_thumbnail(data['data'], data['ttype'], data["obj_id"], session)
+    except ValueError as e:
+        raise ValueError(f"Error in creating new thumbnail: invalid value(s): {e}")
+    except (LookupError, StatementError) as e:
+        if "enum" in str(e):
+            raise LookupError(f"Invalid ttype: {e}")
+        raise StatementError(f"Error creating new thumbnail: {e}")
+    except UnidentifiedImageError as e:
+        raise UnidentifiedImageError(f"Invalid file type: {e}")
+
+    session.commit()
+
+    return t.id
 
 
 class ThumbnailHandler(BaseHandler):
@@ -60,29 +95,10 @@ class ThumbnailHandler(BaseHandler):
         data = self.get_json()
         if 'obj_id' not in data:
             return self.error("Missing required parameter: obj_id")
-        obj_id = data['obj_id']
 
         with self.Session() as session:
-            obj = session.scalars(
-                Obj.select(session.user_or_token).where(Obj.id == obj_id)
-            ).first()
-            if obj is None:
-                return self.error(f"Invalid obj_id: {obj_id}")
-            try:
-                t = create_thumbnail(data['data'], data['ttype'], obj_id, session)
-            except ValueError as e:
-                return self.error(
-                    f"Error in creating new thumbnail: invalid value(s): {e}"
-                )
-            except (LookupError, StatementError) as e:
-                if "enum" in str(e):
-                    return self.error(f"Invalid ttype: {e}")
-                return self.error(f"Error creating new thumbnail: {e}")
-            except UnidentifiedImageError as e:
-                return self.error(f"Invalid file type: {e}")
-            session.commit()
-
-            return self.success(data={"id": t.id})
+            obj_id = post_thumbnail(data, self.associated_user_object.id, session)
+            return self.success(data={"id": obj_id})
 
     @auth_or_token
     def get(self, thumbnail_id):
