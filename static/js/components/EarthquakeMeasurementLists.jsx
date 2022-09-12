@@ -127,7 +127,6 @@ const EarthquakeMeasurementLists = ({ earthquake }) => {
     rowsPerPageOptions: [1, 10, 15],
   };
 
-  console.log("analysesGroupedByMMADetectorId", analysesGroupedByMMADetectorId);
 
   return (
     <div className={classes.container}>
