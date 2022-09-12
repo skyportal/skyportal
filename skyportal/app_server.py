@@ -19,6 +19,7 @@ from skyportal.handlers.api import (
     CommentHandler,
     CommentAttachmentHandler,
     EarthquakeHandler,
+    EarthquakeMeasurementHandler,
     EarthquakePredictionHandler,
     EarthquakeStatusHandler,
     EnumTypesHandler,
@@ -210,6 +211,10 @@ skyportal_handlers = [
     (
         r'/api/earthquake/([0-9A-Za-z-_\.\+]+)/mmadetector/([0-9A-Za-z-_\.\+]+)/predictions',
         EarthquakePredictionHandler,
+    ),
+    (
+        r'/api/earthquake/([0-9A-Za-z-_\.\+]+)/mmadetector/([0-9A-Za-z-_\.\+]+)/measurements',
+        EarthquakeMeasurementHandler,
     ),
     (
         r'/api/(sources|spectra|gcn_event|shift|earthquake)/([0-9A-Za-z-_\.\+]+)/comments',
