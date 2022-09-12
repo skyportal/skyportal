@@ -178,6 +178,35 @@ def get_skymap(root, gcn_notice):
     return from_cone(ra, dec, error)
 
 
+def get_properties(root):
+
+    property_names = [
+        "HasNS",
+        "HasRemnant",
+        "FAR",
+        "BNS",
+        "NSBH",
+        "BBH",
+        "MassGap",
+        "Terrestrial",
+        "Burst_Signif",
+        "signalness",
+        "energy",
+    ]
+    property_dict = {}
+    for property_name in property_names:
+        path = f".//Param[@name='{property_name}']"
+        elem = root.find(path)
+        if elem is None:
+            continue
+        value = elem.attrib.get('value', None)
+        if value is not None:
+            value = float(value)
+            property_dict[property_name] = value
+
+    return property_dict
+
+
 def from_cone(ra, dec, error):
     localization_name = f"{ra:.5f}_{dec:.5f}_{error:.5f}"
 

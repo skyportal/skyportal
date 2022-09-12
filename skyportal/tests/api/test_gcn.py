@@ -30,6 +30,17 @@ def test_gcn_GW(super_admin_token, view_only_token):
     data = data["data"]
     assert data["dateobs"] == "2019-04-25T08:18:05"
     assert 'GW' in data["tags"]
+    property_dict = {
+        'BBH': 0.0,
+        'BNS': 0.999402567114,
+        'FAR': 4.53764787126e-13,
+        'NSBH': 0.0,
+        'HasNS': 1.0,
+        'MassGap': 0.0,
+        'HasRemnant': 1.0,
+        'Terrestrial': 0.00059743288626,
+    }
+    assert data["properties"][0]["data"] == property_dict
 
     params = {
         'startDate': "2019-04-25T00:00:00",
@@ -154,8 +165,14 @@ def test_gcn_from_moc(super_admin_token, view_only_token):
     dateobs = '2022-06-18T18:31:12'
     tags = ['IPN', 'GRB', name]
     skymap = from_url(skymap)
+    properties = {'BNS': 0.9, 'NSBH': 0.1}
 
-    data = {'dateobs': dateobs, 'skymap': skymap, 'tags': tags}
+    data = {
+        'dateobs': dateobs,
+        'skymap': skymap,
+        'tags': tags,
+        'properties': properties,
+    }
 
     status, data = api('POST', 'gcn_event', data=data, token=super_admin_token)
     assert status == 200
@@ -168,12 +185,26 @@ def test_gcn_from_moc(super_admin_token, view_only_token):
     assert data["dateobs"] == "2022-06-18T18:31:12"
     assert 'IPN' in data["tags"]
     assert name in [detector["name"] for detector in data["detectors"]]
+    properties_dict = data["properties"][0]
+    assert properties_dict["data"] == properties
 
     status, data = api('GET', f'mmadetector/{mmadetector_id}', token=super_admin_token)
     assert status == 200
     assert data['status'] == 'success'
     data = data["data"]
     assert "2022-06-18T18:31:12" in [event["dateobs"] for event in data["events"]]
+
+    params = {'propertiesFilter': 'BNS: 0.5: gt, NSBH: 0.5: lt'}
+    status, data = api('GET', 'gcn_event', token=super_admin_token, params=params)
+    assert status == 200
+    data = data["data"]
+    assert "2022-06-18T18:31:12" in [event["dateobs"] for event in data['events']]
+
+    params = {'propertiesFilter': 'BNS: 0.5: lt, NSBH: 0.5: lt'}
+    status, data = api('GET', 'gcn_event', token=super_admin_token, params=params)
+    assert status == 200
+    data = data["data"]
+    assert "2022-06-18T18:31:12" not in [event["dateobs"] for event in data['events']]
 
 
 @pytest.mark.flaky(reruns=3)

@@ -298,6 +298,12 @@ User.gcntags = relationship(
     passive_deletes=True,
     doc='The gcntags saved by this user',
 )
+User.gcnproperties = relationship(
+    'GcnProperty',
+    back_populates='sent_by',
+    passive_deletes=True,
+    doc='The gcnproperties saved by this user',
+)
 User.earthquakeevents = relationship(
     'EarthquakeEvent',
     back_populates='sent_by',
