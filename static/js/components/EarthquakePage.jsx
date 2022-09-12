@@ -28,6 +28,7 @@ import Spinner from "./Spinner";
 
 import EarthquakePredictionForm from "./EarthquakePredictionForm";
 import EarthquakePredictionLists from "./EarthquakePredictionLists";
+import EarthquakeMeasurementLists from "./EarthquakeMeasurementLists";
 
 import CommentList from "./CommentList";
 import Reminders from "./Reminders";
@@ -177,6 +178,24 @@ const EarthquakePage = ({ route }) => {
                     action="createNew"
                   />
                   <EarthquakePredictionLists earthquake={earthquake} />
+                </div>
+              </AccordionDetails>
+            </Accordion>
+          </div>
+          <div className={styles.columnItem}>
+            <Accordion>
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon />}
+                aria-controls="earthquake-content"
+                id="measurement-header"
+              >
+                <Typography className={styles.accordionHeading}>
+                  Measurements
+                </Typography>
+              </AccordionSummary>
+              <AccordionDetails>
+                <div className={styles.earthquakeContainer}>
+                  <EarthquakeMeasurementLists earthquake={earthquake} />
                 </div>
               </AccordionDetails>
             </Accordion>

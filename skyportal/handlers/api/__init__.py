@@ -23,6 +23,7 @@ from .catalog_services import SwiftLSXPSQueryHandler
 from .db_stats import StatsHandler
 from .earthquake import (
     EarthquakeHandler,
+    EarthquakeMeasurementHandler,
     EarthquakePredictionHandler,
     EarthquakeStatusHandler,
 )
