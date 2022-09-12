@@ -11,6 +11,13 @@ env, cfg = load_env()
 
 
 def tesselation_spiral(FOV, scale=0.80):
+    """Tile the sphere using circles, returning the center of those circles.
+    FOV : float
+        Radius of the circle with which to tile the sphere
+    scale : float
+        Degree of overlap between the circles tiling the sphere
+    """
+
     FOV = np.pi * FOV * FOV * scale
 
     area_of_sphere = 4 * np.pi * (180 / np.pi) ** 2
@@ -32,6 +39,14 @@ def tesselation_spiral(FOV, scale=0.80):
 
 
 def get_conesearch_centers(skymap, radius=1.0, level=0.95):
+    """Return pointings for a set of cone searches inside a localization region.
+    skymap : numpy.array
+        Flattened 2D healpix skymap
+    radius : float
+        Radius of the circle with which to tile the sphere
+    level : float
+        Cumulative probability up to which to include points
+    """
 
     ras, decs = tesselation_spiral(radius, scale=0.80)
     coords_dict_list = list({"ra": r, "dec": d} for r, d in zip(ras, decs))
@@ -43,6 +58,14 @@ def get_conesearch_centers(skymap, radius=1.0, level=0.95):
 
 
 def select_sources_in_level(sources, skymap, level=0.95):
+    """Return sources inside a localization region.
+    sources : list of dict
+        Sources to test for inside skymap
+    skymap : numpy.array
+        Flattened 2D healpix skymap
+    level : float
+        Cumulative probability up to which to include points
+    """
 
     i = np.flipud(np.argsort(skymap))
     sorted_credible_levels = np.cumsum(skymap[i])
@@ -50,9 +73,9 @@ def select_sources_in_level(sources, skymap, level=0.95):
     credible_levels[i] = sorted_credible_levels
     npix = len(skymap)
     nside = hp.npix2nside(npix)
-    sources_within = list(
-        s
-        for s in sources
+
+    sources_within = []
+    for s in sources:
         if (
             credible_levels[
                 hp.ang2pix(
@@ -60,37 +83,10 @@ def select_sources_in_level(sources, skymap, level=0.95):
                 )
             ]
             <= level
-        )
-    )
+        ):
+            sources_within.append(s)
 
     return sources_within
-
-
-def select_sources_in_contour(sources, skymap, level=90):
-    """Check that the selected sources lie within a given integrated
-    probability of the skymap usinng the pixels directly"""
-
-    skymap_prob = skymap.flat_2d
-    sort_idx = np.argsort(skymap_prob)[::-1]
-    csm = np.empty(len(skymap_prob))
-    csm[sort_idx] = np.cumsum(skymap_prob[sort_idx])
-    ipix_keep = sort_idx[np.where(csm <= level / 100.0)[0]]
-    nside = hp.pixelfunc.get_nside(skymap_prob)
-    sources_contour = list(
-        s
-        for s in sources
-        if ("ra" in s)
-        and (
-            hp.ang2pix(
-                nside,
-                0.5 * np.pi - np.deg2rad(s["dec"].value),
-                np.deg2rad(s["ra"].value),
-            )
-            in ipix_keep
-        )
-    )
-
-    return sources_contour
 
 
 def query_kowalski(
@@ -107,7 +103,34 @@ def query_kowalski(
     after_trigger=True,
     verbose=True,
 ):
-    '''Query kowalski and apply the selection criteria'''
+    """Query kowalski and apply the selection criteria
+    token : str
+        Kowalski token
+    jd_trigger : float
+        Time of the event (in JD)
+    ra_center : list of float
+        Right ascensions (in degrees) to use for cone search(es)
+    dec_center : list of float
+        Declinations (in degrees) to use for cone search(es)
+    radius : float
+        Radius (in arcminutes) for the cone search. Defaults to 60.
+    min_days : float
+        Time in days after trigger for first detection. Defaults to 0.
+    max_days : float
+        Time in days after trigger for final detection. Defaults to 7.
+    slices : int
+        Number of slices for parallelizing the cone search. Defaults to 10.
+    ndethist_min : int
+        Minimum number of detections for an object. Defaults to 2.
+    within_days : float
+        The number of days to check for detections. Defaults to 7.
+    after_trigger : bool
+        Check for detections only after the trigger. Defaults to True.
+    verbose : bool
+        Kowalski verbosity. Defaults to False.
+    level : float
+        Cumulative probability up to which to include points
+    """
 
     TIMEOUT = 180
     k = Kowalski(
@@ -115,7 +138,7 @@ def query_kowalski(
         protocol=cfg['app.ztf.protocol'],
         host=cfg['app.ztf.host'],
         port=cfg['app.ztf.port'],
-        verbose=False,
+        verbose=verbose,
         timeout=TIMEOUT,
     )
     # Initialize a set for the results
@@ -312,35 +335,14 @@ def query_kowalski(
 
                 objectId_list.append(info['objectId'])
 
-        set_objectId = set(objectId_list)
+        set_objectId = (
+            set(objectId_list)
+            - set(with_neg_sub)
+            - set(stellar_list)
+            - set(old)
+            - set(out_of_time_window)
+        )
 
-        # Remove those objects with negative subtraction
-        for n in set(with_neg_sub):
-            try:
-                set_objectId.remove(n)
-            except (ValueError, KeyError):
-                pass
-
-        # Remove stellar objects
-        for n in set(stellar_list):
-            try:
-                set_objectId.remove(n)
-            except (ValueError, KeyError):
-                pass
-
-        # Remove those objects considered old
-        for n in set(old):
-            try:
-                set_objectId.remove(n)
-            except (ValueError, KeyError):
-                pass
-
-        # Remove those objects whole alerts go bejond jd_trigger+max_days
-        for n in set(out_of_time_window):
-            try:
-                set_objectId.remove(n)
-            except (ValueError, KeyError):
-                pass
         set_objectId_all = set_objectId_all | set_objectId
 
     q = {

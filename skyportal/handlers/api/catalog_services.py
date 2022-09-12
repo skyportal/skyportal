@@ -187,6 +187,8 @@ def fetch_transients(allocation_id, user_id, group_ids, payload):
                 raise AttributeError(f'Expected a Telescope named {telescope_name}')
             instrument = telescope.instruments[0]
             obj_ids = fetch_swift_transients(instrument.id, user_id)
+        else:
+            return AttributeError(f"Catalog name {payload['catalogName']} unknown")
 
         if len(obj_ids) == 0:
             catalog_query.status = 'completed: No new objects'
