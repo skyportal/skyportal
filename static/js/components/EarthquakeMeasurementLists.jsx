@@ -127,7 +127,6 @@ const EarthquakeMeasurementLists = ({ earthquake }) => {
     rowsPerPageOptions: [1, 10, 15],
   };
 
-
   return (
     <div className={classes.container}>
       {Object.keys(analysesGroupedByMMADetectorId).map((mmadetector_id) => (
