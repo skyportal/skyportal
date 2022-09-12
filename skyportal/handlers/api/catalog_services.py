@@ -16,8 +16,16 @@ from baselayer.app.access import auth_or_token
 from baselayer.app.env import load_env
 from baselayer.log import make_log
 
+try:
+    from .alert import post_alert
+
+    alert_available = True
+except Exception:
+    alert_available = False
+
 from .source import post_source
 from .photometry import add_external_photometry
+
 from ..base import BaseHandler
 from ...models import (
     Allocation,
@@ -118,7 +126,8 @@ def fetch_transients(allocation_id, user_id, group_ids, payload):
     session = Session()
     obj_ids = []
 
-    try:
+    # try:
+    if True:
         user = session.scalar(sa.select(User).where(User.id == user_id))
         allocation = session.scalar(
             sa.select(Allocation).where(Allocation.id == allocation_id)
@@ -160,6 +169,15 @@ def fetch_transients(allocation_id, user_id, group_ids, payload):
             if not altdata:
                 raise ValueError('Missing allocation information.')
 
+            # allow access to public data only by default
+            program_id_selector = {1}
+
+            for stream in user.streams:
+                if "ztf" in stream.name.lower():
+                    program_id_selector.update(set(stream.altdata.get("selector", [])))
+
+            program_id_selector = list(program_id_selector)
+
             # Query kowalski
             sources = query_kowalski(
                 altdata['access_token'],
@@ -177,6 +195,16 @@ def fetch_transients(allocation_id, user_id, group_ids, payload):
                 if s is None:
                     obj_id = post_source(source, user_id, session)
                     obj_ids.append(obj_id)
+
+                if alert_available:
+                    post_alert(
+                        source['id'],
+                        None,
+                        group_ids,
+                        program_id_selector,
+                        user.id,
+                        session,
+                    )
 
         elif payload['catalogName'] == 'LSXPS':
             telescope_name = 'Swift'
@@ -196,8 +224,8 @@ def fetch_transients(allocation_id, user_id, group_ids, payload):
             catalog_query.status = f'completed: Added {",".join(obj_ids)}'
         session.commit()
 
-    except Exception as e:
-        return log(f"Unable to commit transient catalog: {e}")
+    # except Exception as e:
+    #    return log(f"Unable to commit transient catalog: {e}")
 
 
 class SwiftLSXPSQueryHandler(BaseHandler):
