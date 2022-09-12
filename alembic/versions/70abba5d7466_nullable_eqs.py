@@ -1,7 +1,7 @@
 """Nullable EQs migration
 
 Revision ID: 70abba5d7466
-Revises: 44a7408c38a3
+Revises: fff290c02ef8
 Create Date: 2022-09-09 22:06:29.519271
 
 """
@@ -11,7 +11,7 @@ from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision = '70abba5d7466'
-down_revision = '44a7408c38a3'
+down_revision = 'fff290c02ef8'
 branch_labels = None
 depends_on = None
 
