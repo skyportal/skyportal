@@ -62,7 +62,6 @@ def post_thumbnail(data, user_id, session):
             f.write(file_bytes)
 
         session.add(t)
-        session.flush()
         session.commit()
 
     except (LookupError, StatementError) as e:
