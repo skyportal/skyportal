@@ -13,7 +13,7 @@ env, cfg = load_env()
 def tesselation_spiral(FOV, scale=0.80):
     """Tile the sphere using circles, returning the center of those circles.
     FOV : float
-        Radius of the circle with which to tile the sphere
+        Radius of the circle (in degrees) with which to tile the sphere
     scale : float
         Degree of overlap between the circles tiling the sphere
     """
@@ -43,7 +43,7 @@ def get_conesearch_centers(skymap, radius=1.0, level=0.95):
     skymap : numpy.array
         Flattened 2D healpix skymap
     radius : float
-        Radius of the circle with which to tile the sphere
+        Radius of the circle (in degrees) with which to tile the sphere
     level : float
         Cumulative probability up to which to include points
     """
@@ -76,14 +76,10 @@ def select_sources_in_level(sources, skymap, level=0.95):
 
     sources_within = []
     for s in sources:
-        if (
-            credible_levels[
-                hp.ang2pix(
-                    nside, 0.5 * np.pi - np.deg2rad(s["dec"]), np.deg2rad(s["ra"])
-                )
-            ]
-            <= level
-        ):
+        ipix = hp.ang2pix(
+            nside, 0.5 * np.pi - np.deg2rad(s["dec"]), np.deg2rad(s["ra"])
+        )
+        if credible_levels[ipix] <= level:
             sources_within.append(s)
 
     return sources_within

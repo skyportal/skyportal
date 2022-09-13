@@ -126,8 +126,7 @@ def fetch_transients(allocation_id, user_id, group_ids, payload):
     session = Session()
     obj_ids = []
 
-    # try:
-    if True:
+    try:
         user = session.scalar(sa.select(User).where(User.id == user_id))
         allocation = session.scalar(
             sa.select(Allocation).where(Allocation.id == allocation_id)
@@ -224,8 +223,8 @@ def fetch_transients(allocation_id, user_id, group_ids, payload):
             catalog_query.status = f'completed: Added {",".join(obj_ids)}'
         session.commit()
 
-    # except Exception as e:
-    #    return log(f"Unable to commit transient catalog: {e}")
+    except Exception as e:
+        return log(f"Unable to commit transient catalog: {e}")
 
 
 class SwiftLSXPSQueryHandler(BaseHandler):

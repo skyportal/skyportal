@@ -1,7 +1,7 @@
 """catalog query migration
 
 Revision ID: 5466bd5ce2e5
-Revises: c589cb7d70ec
+Revises: 2510cf8ad164
 Create Date: 2022-09-10 22:42:16.319996
 
 """
@@ -11,7 +11,7 @@ from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision = '5466bd5ce2e5'
-down_revision = 'c589cb7d70ec'
+down_revision = '2510cf8ad164'
 branch_labels = None
 depends_on = None
 
