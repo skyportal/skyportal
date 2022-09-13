@@ -9,7 +9,7 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 120
 
     services:
       postgres:
@@ -76,11 +76,11 @@ jobs:
 
       - name: Install system dependencies
         run: |
-          curl -sL https://deb.nodesource.com/setup_17.x | sudo -E bash -
+          curl -sL https://deb.nodesource.com/setup_18.x | sudo -E bash -
 
           sudo apt install -y wget nodejs unzip firefox nginx libcurl4-gnutls-dev libgnutls28-dev
 
-          pip install pip==21.3.1
+          pip install pip==22.2.2
           pip install wheel numpy
 
           export NPM_PACKAGES="${HOME}/.npm-packages"

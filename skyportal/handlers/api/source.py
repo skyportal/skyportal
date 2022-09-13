@@ -11,6 +11,8 @@ from dateutil.parser import isoparse
 import sqlalchemy as sa
 from sqlalchemy.orm import joinedload
 from sqlalchemy import func, or_, distinct
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.sql.expression import cast
 import arrow
 from marshmallow import Schema, fields
 from marshmallow.exceptions import ValidationError
@@ -306,6 +308,30 @@ def get_source(
 
     source_info = recursive_to_dict(source_info)
     return source_info
+
+
+def create_annotations_query(
+    session,
+    annotations_filter_origin=None,
+    annotations_filter_before=None,
+    annotations_filter_after=None,
+):
+
+    annotations_query = Annotation.select(session.user_or_token)
+    if annotations_filter_origin is not None:
+        annotations_query = annotations_query.where(
+            Annotation.origin.in_(annotations_filter_origin)
+        )
+    if annotations_filter_before:
+        annotations_query = annotations_query.where(
+            Annotation.created_at <= annotations_filter_before
+        )
+    if annotations_filter_after:
+        annotations_query = annotations_query.where(
+            Annotation.created_at >= annotations_filter_after
+        )
+
+    return annotations_query
 
 
 def get_sources(
@@ -684,7 +710,7 @@ def get_sources(
                 Classification.classification,
             )
             .join(Taxonomy)
-            .where(Classification.classification.notin_(nonclassifications))
+            .where(Classification.classification.in_(nonclassifications))
             .where(Taxonomy.name.in_(taxonomy_names))
         )
         nonclassification_subquery = nonclassification_query.subquery()
@@ -695,7 +721,7 @@ def get_sources(
         # strategies)
         obj_query = obj_query.join(
             nonclassification_subquery,
-            Obj.id == nonclassification_subquery.c.obj_id,
+            Obj.id != nonclassification_subquery.c.obj_id,
         )
         obj_query = obj_query.join(
             classification_accessible_subquery,
@@ -723,6 +749,66 @@ def get_sources(
         else:
             raise ValueError(
                 "Invalid annotationsFilterOrigin value -- must provide at least one string value"
+            )
+
+    if (
+        (annotations_filter_origin is not None)
+        or (annotations_filter_before is not None)
+        or (annotations_filter_after is not None)
+        or (annotations_filter is not None)
+    ):
+        if annotations_filter is not None:
+            for ann_filt in annotations_filter:
+                ann_split = ann_filt.split(":")
+                if not (len(ann_split) == 1 or len(ann_split) == 3):
+                    raise ValueError(
+                        "Invalid annotationsFilter value -- annotation filter must have 1 or 3 values"
+                    )
+                name = ann_split[0].strip()
+
+                annotations_query = create_annotations_query(
+                    session,
+                    annotations_filter_origin=annotations_filter_origin,
+                    annotations_filter_before=annotations_filter_before,
+                    annotations_filter_after=annotations_filter_after,
+                )
+
+                if len(ann_split) == 3:
+                    value = ann_split[1].strip()
+                    try:
+                        value = float(value)
+                    except ValueError as e:
+                        raise ValueError(f"Invalid annotation filter value: {e}")
+                    op = ann_split[2].strip()
+                    op_options = ["lt", "le", "eq", "ne", "ge", "gt"]
+                    if op not in op_options:
+                        raise ValueError(f"Invalid operator: {op}")
+                    comp_function = getattr(operator, op)
+
+                    annotations_query = annotations_query.where(
+                        comp_function(Annotation.data[name], cast(value, JSONB))
+                    )
+                else:
+                    annotations_query = annotations_query.where(
+                        Annotation.data[name].astext.is_not(None)
+                    )
+
+                annotations_subquery = annotations_query.subquery()
+                obj_query = obj_query.join(
+                    annotations_subquery,
+                    Obj.id == annotations_subquery.c.obj_id,
+                )
+        else:
+            annotations_query = create_annotations_query(
+                session,
+                annotations_filter_origin=annotations_filter_origin,
+                annotations_filter_before=annotations_filter_before,
+                annotations_filter_after=annotations_filter_after,
+            )
+            annotations_subquery = annotations_query.subquery()
+            obj_query = obj_query.join(
+                annotations_subquery,
+                Obj.id == annotations_subquery.c.obj_id,
             )
 
     if (
@@ -938,6 +1024,7 @@ def get_sources(
     else:
         try:
             query_results = grab_query_results(
+                session,
                 query,
                 total_matches,
                 page_number,
@@ -961,91 +1048,6 @@ def get_sources(
 
         for result in query_results["sources"]:
             (obj,) = result
-            if (
-                (annotations_filter is not None)
-                or (annotations_filter_origin is not None)
-                or (annotations_filter_before is not None)
-                or (annotations_filter_after is not None)
-            ):
-                if annotations_filter_origin is not None:
-                    annotations_query = (
-                        Annotation.query_records_accessible_by(user)
-                        .filter(Annotation.obj_id == obj.id)
-                        .filter(Annotation.origin.in_(annotations_filter_origin))
-                    )
-                else:
-                    annotations_query = Annotation.query_records_accessible_by(
-                        user
-                    ).filter(Annotation.obj_id == obj.id)
-                if annotations_filter_before:
-                    annotations_query = annotations_query.filter(
-                        Annotation.created_at <= annotations_filter_before
-                    )
-                if annotations_filter_after:
-                    annotations_query = annotations_query.filter(
-                        Annotation.created_at >= annotations_filter_after
-                    )
-                annotations = annotations_query.all()
-
-                if len(annotations) > 0:
-                    passes_filter = True
-                else:
-                    passes_filter = False
-                if annotations_filter is not None:
-                    for ann_filt in annotations_filter:
-                        ann_split = ann_filt.split(":")
-                        if not (len(ann_split) == 1 or len(ann_split) == 3):
-                            raise ValueError(
-                                "Invalid annotationsFilter value -- annotation filter must have 1 or 3 values"
-                            )
-                        name = ann_split[0].strip()
-                        if len(ann_split) == 3:
-                            value = ann_split[1].strip()
-                            try:
-                                value = float(value)
-                            except ValueError as e:
-                                raise ValueError(
-                                    f"Invalid annotation filter value: {e}"
-                                )
-                            op = ann_split[2].strip()
-                        # first check that the name is present
-                        name_present = [
-                            isinstance(an.data, dict) and name in an.data
-                            for an in annotations
-                        ]
-                        name_check = any(name_present)
-
-                        # fails the filter if name is not present
-                        if not name_check:
-                            passes_filter = False
-                            break
-                        if len(ann_split) == 3:
-                            index = name_present.index(True)
-                            data_value = annotations[index].data[name]
-
-                            op_options = ["lt", "le", "eq", "ne", "ge", "gt"]
-                            if op not in op_options:
-                                raise ValueError(f"Invalid operator: {op}")
-
-                            if op == "lt":
-                                comp_function = operator.lt
-                            elif op == "le":
-                                comp_function = operator.le
-                            elif op == "eq":
-                                comp_function = operator.eq
-                            elif op == "ne":
-                                comp_function = operator.ne
-                            elif op == "ge":
-                                comp_function = operator.ge
-                            elif op == "gt":
-                                comp_function = operator.gt
-                            comp_check = comp_function(data_value, value)
-                            if not comp_check:
-                                passes_filter = False
-                                break
-                if not passes_filter:
-                    continue
-
             obj_list.append(obj.to_dict())
 
             if include_comments:
@@ -1056,25 +1058,31 @@ def get_sources(
                             for k, v in c.to_dict().items()
                             if k != "attachment_bytes"
                         }
-                        for c in Comment.query_records_accessible_by(user)
-                        .filter(Comment.obj_id == obj.id)
-                        .all()
+                        for c in session.scalars(
+                            Comment.select(session.user_or_token).where(
+                                Comment.obj_id == obj.id
+                            )
+                        ).all()
                     ),
                     key=lambda x: x["created_at"],
                     reverse=True,
                 )
 
             if include_thumbnails and not remove_nested:
-                obj_list[-1]["thumbnails"] = (
-                    Thumbnail.query_records_accessible_by(user)
-                    .filter(Thumbnail.obj_id == obj.id)
-                    .all()
-                )
+                obj_list[-1]["thumbnails"] = session.scalars(
+                    Thumbnail.select(session.user_or_token).where(
+                        Thumbnail.obj_id == obj.id
+                    )
+                ).all()
 
             if not remove_nested:
                 readable_classifications = (
-                    Classification.query_records_accessible_by(user)
-                    .filter(Classification.obj_id == obj.id)
+                    session.scalars(
+                        Classification.select(session.user_or_token).where(
+                            Classification.obj_id == obj.id
+                        )
+                    )
+                    .unique()
                     .all()
                 )
 
@@ -1089,9 +1097,13 @@ def get_sources(
                 obj_list[-1]["classifications"] = readable_classifications_json
 
                 obj_list[-1]["annotations"] = sorted(
-                    Annotation.query_records_accessible_by(user).filter(
-                        Annotation.obj_id == obj.id
-                    ),
+                    session.scalars(
+                        Annotation.select(session.user_or_token).where(
+                            Annotation.obj_id == obj.id
+                        )
+                    )
+                    .unique()
+                    .all(),
                     key=lambda x: x.origin,
                 )
 
@@ -1102,25 +1114,27 @@ def get_sources(
             obj_list[-1]["angular_diameter_distance"] = obj.angular_diameter_distance
 
             if include_photometry_exists:
-                obj_list[-1]["photometry_exists"] = (
-                    Photometry.query_records_accessible_by(user)
-                    .filter(Photometry.obj_id == obj.id)
-                    .first()
-                    is not None
+                stmt = Photometry.select(session.user_or_token).where(
+                    Photometry.obj_id == obj.id
                 )
+                count_stmt = sa.select(func.count()).select_from(stmt.distinct())
+                total_phot = session.execute(count_stmt).scalar()
+                obj_list[-1]["photometry_exists"] = total_phot > 0
             if include_spectrum_exists:
-                obj_list[-1]["spectrum_exists"] = (
-                    len(
-                        Spectrum.query_records_accessible_by(user)
-                        .filter(Spectrum.obj_id == obj.id)
-                        .all()
-                    )
-                    > 0
+                stmt = Spectrum.select(session.user_or_token).where(
+                    Spectrum.obj_id == obj.id
                 )
+                count_stmt = sa.select(func.count()).select_from(stmt.distinct())
+                total_spectrum = session.execute(count_stmt).scalar()
+                obj_list[-1]["spectrum_exists"] = total_spectrum > 0
             if include_period_exists:
                 annotations = (
-                    Annotation.query_records_accessible_by(user)
-                    .filter(Annotation.obj_id == obj.id)
+                    session.scalars(
+                        Annotation.select(session.user_or_token).where(
+                            Annotation.obj_id == obj.id
+                        )
+                    )
+                    .unique()
                     .all()
                 )
                 period_str_options = ['period', 'Period', 'PERIOD']
@@ -1132,7 +1146,7 @@ def get_sources(
                     ]
                 )
             if not remove_nested:
-                source_query = Source.query_records_accessible_by(user).filter(
+                source_query = Source.select(session.user_or_token).where(
                     Source.obj_id == obj_list[-1]["id"]
                 )
                 source_query = apply_active_or_requested_filtering(
@@ -1140,21 +1154,23 @@ def get_sources(
                 )
                 source_subquery = source_query.subquery()
                 groups = (
-                    Group.query_records_accessible_by(user)
-                    .join(source_subquery, Group.id == source_subquery.c.group_id)
+                    session.scalars(
+                        Group.select(session.user_or_token).join(
+                            source_subquery, Group.id == source_subquery.c.group_id
+                        )
+                    )
+                    .unique()
                     .all()
                 )
                 obj_list[-1]["groups"] = [g.to_dict() for g in groups]
 
                 for group in obj_list[-1]["groups"]:
-                    source_table_row = (
-                        Source.query_records_accessible_by(user)
-                        .filter(
+                    source_table_row = session.scalars(
+                        Source.select(session.user_or_token).where(
                             Source.obj_id == obj_list[-1]["id"],
                             Source.group_id == group["id"],
                         )
-                        .first()
-                    )
+                    ).first()
                     if source_table_row is not None:
                         group["active"] = source_table_row.active
                         group["requested"] = source_table_row.requested
@@ -1299,7 +1315,11 @@ def post_source(data, user_id, session):
     session.commit()
 
     if not obj_already_exists:
-        IOLoop.current().run_in_executor(
+        try:
+            loop = IOLoop.current()
+        except RuntimeError:
+            loop = IOLoop(make_current=True).current()
+        loop.run_in_executor(
             None,
             lambda: add_linked_thumbnails_and_push_ws_msg(obj.id, user_id),
         )

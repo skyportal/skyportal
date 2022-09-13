@@ -92,6 +92,11 @@ def service():
 
                     event_id = post_gcnevent_from_xml(payload, user_id, session)
                     event = session.query(GcnEvent).get(event_id)
+                    localizations = sorted(
+                        (loc.to_dict() for loc in event.localizations),
+                        key=lambda x: x["created_at"],
+                        reverse=True,
+                    )
 
                     start_date = str(datetime.utcnow()).replace("T", "")
                     end_date = str(datetime.utcnow() + timedelta(days=1)).replace(
@@ -116,7 +121,7 @@ def service():
                                 'payload': payload,
                                 'allocation_id': allocation.id,
                                 'gcnevent_id': event.id,
-                                'localization_id': event.localizations[-1].id,
+                                'localization_id': localizations[0]["id"],
                             }
 
                             post_observation_plan(plan, user_id, session)

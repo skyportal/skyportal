@@ -135,6 +135,7 @@ class FollowupRequest(Base):
         secondary='request_groups',
         passive_deletes=True,
         doc='Groups to share the resulting data from this request with.',
+        overlaps='groups',
     )
 
     photometry = relationship('Photometry', back_populates='followup_request')
@@ -148,7 +149,9 @@ class FollowupRequest(Base):
         return self.allocation.instrument
 
 
-FollowupRequestTargetGroup = join_model('request_groups', FollowupRequest, Group)
+FollowupRequestTargetGroup = join_model(
+    'request_groups', FollowupRequest, Group, overlaps='target_groups'
+)
 FollowupRequestTargetGroup.create = (
     FollowupRequestTargetGroup.update
 ) = FollowupRequestTargetGroup.delete = (

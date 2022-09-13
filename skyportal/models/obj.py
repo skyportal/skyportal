@@ -249,15 +249,6 @@ class Obj(Base, conesearch_alchemy.Point):
         doc="Internal key used for secure websocket messaging.",
     )
 
-    candidates = relationship(
-        'Candidate',
-        back_populates='obj',
-        cascade='save-update, merge, refresh-expire, expunge, delete',
-        passive_deletes=True,
-        order_by="Candidate.passed_at",
-        doc="Candidates associated with the object.",
-    )
-
     comments = relationship(
         'Comment',
         back_populates='obj',

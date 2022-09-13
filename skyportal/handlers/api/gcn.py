@@ -1,5 +1,6 @@
 # Inspired by https://github.com/growth-astro/growth-too-marshal/blob/main/growth/too/gcn.py
 
+import ast
 import os
 import gcn
 import lxml
@@ -10,11 +11,13 @@ import arrow
 import astropy
 import humanize
 import sqlalchemy as sa
-from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm import sessionmaker, scoped_session
+from sqlalchemy.sql.expression import cast
+from sqlalchemy.dialects.postgresql import JSONB
 from marshmallow import Schema
 from marshmallow.exceptions import ValidationError
+import operator  # noqa: F401
 
 from skyportal.models.photometry import Photometry
 
@@ -34,9 +37,11 @@ from ...models import (
     Allocation,
     GcnEvent,
     GcnNotice,
+    GcnProperty,
     GcnTag,
     Localization,
     LocalizationTile,
+    MMADetector,
     ObservationPlanRequest,
     User,
     Instrument,
@@ -44,11 +49,13 @@ from ...models import (
 )
 from ...utils.gcn import (
     get_dateobs,
+    get_properties,
     get_tags,
     get_skymap,
     get_contour,
     from_url,
     from_cone,
+    from_polygon,
 )
 
 log = make_log('api/gcn_event')
@@ -96,6 +103,12 @@ def post_gcnevent_from_xml(payload, user_id, session):
                 "Insufficient permissions: GCN event can only be updated by original poster"
             )
 
+    properties_dict = get_properties(root)
+    properties = GcnProperty(
+        dateobs=event.dateobs, sent_by_id=user.id, data=properties_dict
+    )
+    session.add(properties)
+
     tags = [
         GcnTag(
             dateobs=event.dateobs,
@@ -115,9 +128,17 @@ def post_gcnevent_from_xml(payload, user_id, session):
         sent_by_id=user.id,
     )
 
+    detectors = []
     for tag in tags:
         session.add(tag)
+
+        mma_detector = session.scalars(
+            MMADetector.select(user).where(MMADetector.nickname == tag.text)
+        ).first()
+        if mma_detector is not None:
+            detectors.append(mma_detector)
     session.add(gcn_notice)
+    event.detectors = detectors
 
     skymap = get_skymap(root, gcn_notice)
     if skymap is None:
@@ -127,18 +148,13 @@ def post_gcnevent_from_xml(payload, user_id, session):
     skymap["dateobs"] = event.dateobs
     skymap["sent_by_id"] = user.id
 
-    try:
-        localization = (
-            Localization.query_records_accessible_by(
-                user,
-            )
-            .filter_by(
-                dateobs=dateobs,
-                localization_name=skymap["localization_name"],
-            )
-            .one()
+    localization = session.scalars(
+        Localization.select(user).where(
+            Localization.dateobs == dateobs,
+            Localization.localization_name == skymap["localization_name"],
         )
-    except NoResultFound:
+    ).first()
+    if localization is None:
         localization = Localization(**skymap)
         session.add(localization)
         session.commit()
@@ -178,6 +194,12 @@ def post_gcnevent_from_dictionary(payload, user_id, session):
                 "Insufficient permissions: GCN event can only be updated by original poster"
             )
 
+    if "properties" in payload:
+        properties = GcnProperty(
+            dateobs=event.dateobs, sent_by_id=user.id, data=payload["properties"]
+        )
+        session.add(properties)
+
     tags = [
         GcnTag(
             dateobs=event.dateobs,
@@ -187,8 +209,16 @@ def post_gcnevent_from_dictionary(payload, user_id, session):
         for text in payload.get('tags', [])
     ]
 
+    detectors = []
     for tag in tags:
         session.add(tag)
+
+        mma_detector = session.scalars(
+            MMADetector.select(user).where(MMADetector.nickname == tag.text)
+        ).first()
+        if mma_detector is not None:
+            detectors.append(mma_detector)
+    event.detectors = detectors
 
     skymap = payload.get('skymap', None)
     if skymap is None:
@@ -199,27 +229,30 @@ def post_gcnevent_from_dictionary(payload, user_id, session):
         required_keys = {'localization_name', 'uniq', 'probdensity'}
         if not required_keys.issubset(set(skymap.keys())):
             required_cone_keys = {'ra', 'dec', 'error'}
-            if not required_cone_keys.issubset(set(skymap.keys())):
+            required_polygon_keys = {'localization_name', 'polygon'}
+            if required_cone_keys.issubset(set(skymap.keys())):
+                skymap = from_cone(skymap['ra'], skymap['dec'], skymap['error'])
+            elif required_polygon_keys.issubset(set(skymap.keys())):
+                if type(skymap['polygon']) == str:
+                    polygon = ast.literal_eval(skymap['polygon'])
+                else:
+                    polygon = skymap['polygon']
+                skymap = from_polygon(skymap['localization_name'], polygon)
+            else:
                 raise ValueError("ra, dec, and error must be in skymap to parse")
-            skymap = from_cone(skymap['ra'], skymap['dec'], skymap['error'])
     else:
         skymap = from_url(skymap)
 
     skymap["dateobs"] = event.dateobs
     skymap["sent_by_id"] = user.id
 
-    try:
-        localization = (
-            Localization.query_records_accessible_by(
-                user,
-            )
-            .filter_by(
-                dateobs=dateobs,
-                localization_name=skymap["localization_name"],
-            )
-            .one()
+    localization = session.scalars(
+        Localization.select(user).where(
+            Localization.dateobs == dateobs,
+            Localization.localization_name == skymap["localization_name"],
         )
-    except NoResultFound:
+    ).first()
+    if localization is None:
         localization = Localization(**skymap)
         session.add(localization)
         session.commit()
@@ -412,6 +445,8 @@ class GcnEventHandler(BaseHandler):
                     data, self.associated_user_object.id, session
                 )
 
+            self.push(action='skyportal/REFRESH_GCN_EVENTS')
+
             return self.success(data={'gcnevent_id': event_id})
 
     @auth_or_token
@@ -463,6 +498,18 @@ class GcnEventHandler(BaseHandler):
                 type: string
               description: |
                 Gcn Tag to filter out
+            - in: query
+              name: propertiesFilter
+              nullable: true
+              schema:
+                type: array
+                items:
+                  type: string
+              explode: false
+              style: simple
+              description: |
+                Comma-separated string of "property: value: operator" single(s) or triplet(s) to filter for events matching
+                that/those property(ies), i.e. "BNS" or "BNS: 0.5: lt"
         responses:
           200:
             content:
@@ -493,6 +540,17 @@ class GcnEventHandler(BaseHandler):
         end_date = self.get_query_argument('endDate', None)
         tag_keep = self.get_query_argument('tagKeep', None)
         tag_remove = self.get_query_argument('tagRemove', None)
+        properties_filter = self.get_query_argument("propertiesFilter", None)
+
+        if properties_filter is not None:
+            if isinstance(properties_filter, str) and "," in properties_filter:
+                properties_filter = [c.strip() for c in properties_filter.split(",")]
+            elif isinstance(properties_filter, str):
+                properties_filter = [properties_filter]
+            else:
+                raise ValueError(
+                    "Invalid propertiesFilter value -- must provide at least one string value"
+                )
 
         if dateobs is not None:
             with self.Session() as session:
@@ -506,6 +564,8 @@ class GcnEventHandler(BaseHandler):
                             .joinedload(ObservationPlanRequest.allocation)
                             .joinedload(Allocation.instrument),
                             joinedload(GcnEvent.comments),
+                            joinedload(GcnEvent.detectors),
+                            joinedload(GcnEvent.properties),
                         ],
                     ).where(GcnEvent.dateobs == dateobs)
                 ).first()
@@ -516,6 +576,11 @@ class GcnEventHandler(BaseHandler):
                     **event.to_dict(),
                     "tags": list(set(event.tags)),
                     "lightcurve": event.lightcurve,
+                    "localizations": sorted(
+                        (loc.to_dict() for loc in event.localizations),
+                        key=lambda x: x["created_at"],
+                        reverse=True,
+                    ),
                     "comments": sorted(
                         (
                             {
@@ -573,6 +638,42 @@ class GcnEventHandler(BaseHandler):
                 query = query.join(
                     tag_subquery, GcnEvent.dateobs != tag_subquery.c.dateobs
                 )
+
+            if properties_filter is not None:
+                for prop_filt in properties_filter:
+                    prop_split = prop_filt.split(":")
+                    if not (len(prop_split) == 1 or len(prop_split) == 3):
+                        raise ValueError(
+                            "Invalid propertiesFilter value -- property filter must have 1 or 3 values"
+                        )
+                    name = prop_split[0].strip()
+
+                    properties_query = GcnProperty.select(session.user_or_token)
+                    if len(prop_split) == 3:
+                        value = prop_split[1].strip()
+                        try:
+                            value = float(value)
+                        except ValueError as e:
+                            raise ValueError(f"Invalid propotation filter value: {e}")
+                        op = prop_split[2].strip()
+                        op_options = ["lt", "le", "eq", "ne", "ge", "gt"]
+                        if op not in op_options:
+                            raise ValueError(f"Invalid operator: {op}")
+                        comp_function = getattr(operator, op)
+
+                        properties_query = properties_query.where(
+                            comp_function(GcnProperty.data[name], cast(value, JSONB))
+                        )
+                    else:
+                        properties_query = properties_query.where(
+                            GcnProperty.data[name].astext.is_not(None)
+                        )
+
+                    properties_subquery = properties_query.subquery()
+                    query = query.join(
+                        properties_subquery,
+                        GcnEvent.dateobs == properties_subquery.c.dateobs,
+                    )
 
             total_matches = session.scalar(
                 sa.select(sa.func.count()).select_from(query)

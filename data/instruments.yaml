@@ -173,7 +173,7 @@
   telescope_id: =Swift
   type: imager
   # todo: add the rest of the swift filters
-  filters: ['bessellux']
+  filters: ['uvot::b', 'uvot::u', 'uvot::v', 'uvot::uvm2', 'uvot::uvw1', 'uvot::uvw2', 'uvot::white']
 - =id: IMACS
   band: optical
   name: IMACS

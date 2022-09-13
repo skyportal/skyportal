@@ -148,7 +148,19 @@ User.photometric_series = relationship(
     foreign_keys="PhotometricSeries.owner_id",
 )
 User.spectra = relationship(
-    'Spectrum', doc='Spectra uploaded by this User.', back_populates='owner'
+    'Spectrum',
+    doc='Spectra uploaded by this User.',
+    back_populates='owner',
+)
+User.mmadetector_spectra = relationship(
+    'MMADetectorSpectrum',
+    doc='MMADetectorSpectra uploaded by this User.',
+    back_populates='owner',
+)
+User.mmadetector_time_intervals = relationship(
+    'MMADetectorTimeInterval',
+    doc='MMADetectorTimeInterval uploaded by this User.',
+    back_populates='owner',
 )
 User.comments_on_spectra = relationship(
     "CommentOnSpectrum",
@@ -182,6 +194,20 @@ User.reminders_on_gcns = relationship(
     "ReminderOnGCN",
     back_populates="user",
     foreign_keys="ReminderOnGCN.user_id",
+    cascade="delete",
+    passive_deletes=True,
+)
+User.comments_on_earthquakes = relationship(
+    "CommentOnEarthquake",
+    back_populates="author",
+    foreign_keys="CommentOnEarthquake.author_id",
+    cascade="delete",
+    passive_deletes=True,
+)
+User.reminders_on_earthquakes = relationship(
+    "ReminderOnEarthquake",
+    back_populates="user",
+    foreign_keys="ReminderOnEarthquake.user_id",
     cascade="delete",
     passive_deletes=True,
 )
@@ -272,6 +298,24 @@ User.gcntags = relationship(
     passive_deletes=True,
     doc='The gcntags saved by this user',
 )
+User.gcnproperties = relationship(
+    'GcnProperty',
+    back_populates='sent_by',
+    passive_deletes=True,
+    doc='The gcnproperties saved by this user',
+)
+User.earthquakeevents = relationship(
+    'EarthquakeEvent',
+    back_populates='sent_by',
+    passive_deletes=True,
+    doc='The EarthquakeEvents saved by this user',
+)
+User.earthquakenotices = relationship(
+    'EarthquakeNotice',
+    back_populates='sent_by',
+    passive_deletes=True,
+    doc='The EarthquakeNotices saved by this user',
+)
 User.listings = relationship(
     'Listing',
     back_populates='user',
@@ -361,7 +405,7 @@ def isadmin(self):
 
 User.is_system_admin = isadmin
 
-UserInvitation = join_model("user_invitations", User, Invitation)
+UserInvitation = join_model("user_invitations", User, Invitation, overlaps='invited_by')
 
 
 @property

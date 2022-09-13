@@ -2,7 +2,8 @@ import React, { useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { makeStyles } from "@mui/styles";
 import { useForm } from "react-hook-form";
-import { Button, TextField } from "@mui/material";
+import { TextField } from "@mui/material";
+import Button from "./Button";
 import FilterSelect from "./FilterSelect";
 import OriginSelect from "./OriginSelect";
 import UserPreferencesHeader from "./UserPreferencesHeader";
@@ -113,7 +114,7 @@ const PhotometryButtonsForm = () => {
             />
           </div>
           <Button
-            variant="contained"
+            primary
             type="submit"
             className={classes.submitButton}
             id="addPhotometryButtonButton"

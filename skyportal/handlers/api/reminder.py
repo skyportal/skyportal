@@ -9,7 +9,9 @@ from ...models import (
     Reminder,
     ReminderOnSpectrum,
     ReminderOnGCN,
+    ReminderOnEarthquake,
     ReminderOnShift,
+    EarthquakeEvent,
     Spectrum,
     GcnEvent,
     Shift,
@@ -122,6 +124,28 @@ def post_reminder(
                 )
             )
         resource_name = gcn_event.dateobs
+    elif associated_resource_type.lower() == "earthquake":
+        earthquake = session.scalars(
+            EarthquakeEvent.select(session.user_or_token).where(
+                EarthquakeEvent.id == resource_id
+            )
+        ).first()
+        if not earthquake:
+            raise ValueError(f'Could not find EarthquakeEvent {resource_id}.')
+        for user in users:
+            reminders.append(
+                ReminderOnEarthquake(
+                    text=reminder_text,
+                    earthquake_id=earthquake.id,
+                    groups=groups,
+                    bot=is_bot_reminder,
+                    next_reminder=next_reminder,
+                    reminder_delay=reminder_delay,
+                    number_of_reminders=number_of_reminders,
+                    user=user,
+                )
+            )
+        resource_name = earthquake.event_id
     elif associated_resource_type.lower() == "shift":
         shift = session.scalars(
             Shift.select(session.user_or_token).where(Shift.id == resource_id)
@@ -165,10 +189,10 @@ class ReminderHandler(BaseHandler):
               required: true
               schema:
                 type: string
-                enum: [source, spectra, gcn_event, shift]
+                enum: [source, spectra, gcn_event, shift, earthquake]
               description: |
                 What underlying data the reminder is on:
-                "sources" or "spectra" or "gcn_event" or "shift".
+                "sources" or "spectra" or "gcn_event" or "shift" or "earthquake"
             - in: path
               name: resource_id
               required: true
@@ -201,6 +225,7 @@ class ReminderHandler(BaseHandler):
             - spectra
             - sources
             - gcn_event
+            - earthquake
           parameters:
             - in: path
               name: associated_resource_type
@@ -210,7 +235,7 @@ class ReminderHandler(BaseHandler):
                 enum: [source, spectra, gcn_event, shift]
               description: |
                 What underlying data the reminder is on:
-                "sources" or "spectra" or "gcn_event" or "shift".
+                "sources" or "spectra" or "gcn_event" or "shift" or "earthquake".
             - in: path
               name: resource_id
               required: true
@@ -244,6 +269,10 @@ class ReminderHandler(BaseHandler):
                     elif associated_resource_type.lower() == "gcn_event":
                         stmt = ReminderOnGCN.select(session.user_or_token).where(
                             ReminderOnGCN.gcn_id == resource_id
+                        )
+                    elif associated_resource_type.lower() == "earthquake":
+                        stmt = ReminderOnEarthquake.select(session.user_or_token).where(
+                            ReminderOnEarthquake.earthquake_id == resource_id
                         )
                     elif associated_resource_type.lower() == "shift":
                         stmt = ReminderOnShift.select(session.user_or_token).where(
@@ -284,6 +313,10 @@ class ReminderHandler(BaseHandler):
                         stmt = ReminderOnGCN.select(session.user_or_token).where(
                             ReminderOnGCN.id == reminder_id
                         )
+                    elif associated_resource_type.lower() == "earthquake":
+                        stmt = ReminderOnEarthquake.select(session.user_or_token).where(
+                            ReminderOnEarthquake.id == reminder_id
+                        )
                     elif associated_resource_type.lower() == "shift":
                         stmt = ReminderOnShift.select(session.user_or_token).where(
                             ReminderOnShift.id == reminder_id
@@ -303,6 +336,8 @@ class ReminderHandler(BaseHandler):
                         reminder_resource_id_str = str(reminder.obj_id)
                     elif associated_resource_type.lower() == "gcn_event":
                         reminder_resource_id_str = str(reminder.gcn_id)
+                    elif associated_resource_type.lower() == "earthquake":
+                        reminder_resource_id_str = str(reminder.earthquake_id)
                     elif associated_resource_type.lower() == "shift":
                         reminder_resource_id_str = str(reminder.shift_id)
 
@@ -459,6 +494,12 @@ class ReminderHandler(BaseHandler):
                     action = 'skyportal/REFRESH_REMINDER_SHIFT'
                     payload = {'id': resource_id}
                     notification_type = 'reminder_shift'
+                elif associated_resource_type.lower() == "earthquake":
+                    text_to_send = f"*@{self.associated_user_object.username}* created a reminder on earthquake *{resource_name}*"
+                    url_endpoint = f"/earthquakes/{resource_name}"
+                    action = 'skyportal/REFRESH_REMINDER_EARTHQUAKE'
+                    payload = {'id': resource_id}
+                    notification_type = 'reminder_earthquake'
                 else:
                     return self.error(
                         f'Unknown resource type "{associated_resource_type}".'
@@ -628,6 +669,20 @@ class ReminderHandler(BaseHandler):
                             ReminderOnGCN.id == reminder_id
                         )
                     ).first()
+                elif associated_resource_type.lower() == "earthquake":
+                    earthquake = session.scalars(
+                        EarthquakeEvent.select(session.user_or_token).where(
+                            EarthquakeEvent.id == resource_id
+                        )
+                    )
+                    if not earthquake:
+                        raise AccessError(f"Could not find earthquake {resource_id}")
+                    schema = ReminderOnEarthquake.__schema__()
+                    reminder = session.scalars(
+                        ReminderOnEarthquake.select(session.user_or_token).where(
+                            ReminderOnEarthquake.id == reminder_id
+                        )
+                    ).first()
                 elif associated_resource_type.lower() == "shift":
                     shift = session.scalars(
                         Shift.select(session.user_or_token).where(
@@ -657,6 +712,8 @@ class ReminderHandler(BaseHandler):
                     reminder_resource_id_str = str(reminder.gcn_id)
                 elif associated_resource_type.lower() == "shift":
                     reminder_resource_id_str = str(reminder.shift_id)
+                elif associated_resource_type.lower() == "earthquake":
+                    reminder_resource_id_str = str(reminder.earthquake_id)
 
                 if reminder_resource_id_str != resource_id:
                     return self.error(
@@ -686,6 +743,11 @@ class ReminderHandler(BaseHandler):
                     self.push_all(
                         action='skyportal/REFRESH_REMINDER_GCNEVENT',
                         payload={'id': reminder.gcn_id},
+                    )
+                elif isinstance(reminder, ReminderOnEarthquake):
+                    self.push_all(
+                        action='skyportal/REFRESH_REMINDER_EARTHQUAKE',
+                        payload={'id': reminder.earthquake_id},
                     )
                 elif isinstance(reminder, ReminderOnShift):
                     self.push_all(
@@ -785,6 +847,20 @@ class ReminderHandler(BaseHandler):
                         )
                     ).first()
 
+                elif associated_resource_type.lower() == "earthquake":
+                    earthquake = session.scalars(
+                        EarthquakeEvent.select(session.user_or_token).where(
+                            EarthquakeEvent.id == resource_id
+                        )
+                    )
+                    if not earthquake:
+                        raise AccessError(f"Could not find gcn event {resource_id}")
+                    reminder = session.scalars(
+                        ReminderOnEarthquake.select(session.user_or_token).where(
+                            ReminderOnEarthquake.id == reminder_id
+                        )
+                    ).first()
+
                 elif associated_resource_type.lower() == "shift":
                     shift = session.scalars(
                         Shift.select(session.user_or_token).where(
@@ -813,6 +889,8 @@ class ReminderHandler(BaseHandler):
                     reminder_resource_id_str = str(reminder.gcn_id)
                 elif associated_resource_type.lower() == "shift":
                     reminder_resource_id_str = str(reminder.shift_id)
+                elif associated_resource_type.lower() == "earthquake":
+                    reminder_resource_id_str = str(reminder.earthquake_id)
 
                 if reminder_resource_id_str != resource_id:
                     return self.error(
@@ -841,6 +919,11 @@ class ReminderHandler(BaseHandler):
                     self.push_all(
                         action='skyportal/REFRESH_REMINDER_SHIFT',
                         payload={'id': reminder.shift_id},
+                    )
+                elif isinstance(reminder, ReminderOnEarthquake):
+                    self.push_all(
+                        action='skyportal/REFRESH_REMINDER_EARTHQUAKE',
+                        payload={'id': reminder.earthquake_id},
                     )
 
                 return self.success()

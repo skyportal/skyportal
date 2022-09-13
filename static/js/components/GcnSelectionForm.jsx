@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { PropTypes } from "prop-types";
-import Button from "@mui/material/Button";
 // eslint-disable-next-line import/no-unresolved
 import Form from "@rjsf/material-ui/v5";
 import Select from "@mui/material/Select";
@@ -16,6 +15,7 @@ import makeStyles from "@mui/styles/makeStyles";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
+import Button from "./Button";
 
 import { filterOutEmptyValues } from "../API";
 import * as sourcesActions from "../ducks/sources";
@@ -57,7 +57,7 @@ const useStyles = makeStyles(() => ({
     marginBottom: "1rem",
   },
   buttons: {
-    marginTop: "1rem",
+    margin: "1rem 0 1rem 0",
     display: "grid",
     gridGap: "1rem",
     gridTemplateColumns: "repeat(auto-fit, minmax(5rem, 1fr))",
@@ -467,12 +467,11 @@ const GcnSelectionForm = ({
         <GcnSummary dateobs={gcnEvent.dateobs} />
         <AddSurveyEfficiencyObservationsPage gcnevent={gcnEvent} />
         <Button
+          secondary
           href={`${gcnUrl}`}
           download={`observationGcn-${selectedInstrumentId}`}
           size="small"
-          color="primary"
           type="submit"
-          variant="outlined"
           data-testid={`observationGcn_${selectedInstrumentId}`}
         >
           GCN
@@ -483,12 +482,11 @@ const GcnSelectionForm = ({
           </div>
         ) : (
           <Button
+            secondary
             onClick={() => {
               handleSubmitTreasureMap(selectedInstrumentId, formDataState);
             }}
-            color="primary"
             type="submit"
-            variant="outlined"
             size="small"
             data-testid={`treasuremapRequest_${selectedInstrumentId}`}
           >
@@ -501,12 +499,11 @@ const GcnSelectionForm = ({
           </div>
         ) : (
           <Button
+            secondary
             onClick={() => {
               handleDeleteTreasureMap(selectedInstrumentId, formDataState);
             }}
-            color="primary"
             type="submit"
-            variant="outlined"
             size="small"
             data-testid={`treasuremapDelete_${selectedInstrumentId}`}
           >

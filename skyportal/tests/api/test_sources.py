@@ -1877,14 +1877,15 @@ def test_token_user_retrieving_source_with_annotation_filter(
     super_admin_token, public_source, public_source_two_groups, annotation_token
 ):
 
-    annotation_name = str(uuid.uuid4())
+    annotation_name_1 = str(uuid.uuid4())
+    annotation_name_2 = str(uuid.uuid4())
 
     status, data = api(
         'POST',
         f'sources/{public_source.id}/annotations',
         data={
             'origin': 'kowalski',
-            'data': {annotation_name: 1.5},
+            'data': {annotation_name_1: 1.5, annotation_name_2: 0.0},
         },
         token=annotation_token,
     )
@@ -1895,7 +1896,7 @@ def test_token_user_retrieving_source_with_annotation_filter(
         f'sources/{public_source_two_groups.id}/annotations',
         data={
             'origin': 'gloria',
-            'data': {annotation_name: 1.5},
+            'data': {annotation_name_1: 1.5, annotation_name_2: 1.0},
         },
         token=annotation_token,
     )
@@ -1905,7 +1906,7 @@ def test_token_user_retrieving_source_with_annotation_filter(
         "GET",
         "sources",
         params={
-            'annotationsFilter': f'{annotation_name}:2.0:le',
+            'annotationsFilter': f'{annotation_name_1}',
             'sortBy': 'saved_at',
             'sortOrder': 'desc',
         },
@@ -1919,7 +1920,21 @@ def test_token_user_retrieving_source_with_annotation_filter(
         "GET",
         "sources",
         params={
-            'annotationsFilter': f'{annotation_name}:2.0:le',
+            'annotationsFilter': f'{annotation_name_1}:2.0:le',
+            'sortBy': 'saved_at',
+            'sortOrder': 'desc',
+        },
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data["status"] == "success"
+    assert len(data["data"]["sources"]) == 2
+
+    status, data = api(
+        "GET",
+        "sources",
+        params={
+            'annotationsFilter': f'{annotation_name_1}:2.0:le',
             'annotationsFilterOrigin': 'kowalski',
             'sortBy': 'saved_at',
             'sortOrder': 'desc',
@@ -1934,7 +1949,7 @@ def test_token_user_retrieving_source_with_annotation_filter(
         "GET",
         "sources",
         params={
-            'annotationsFilter': f'{annotation_name}:2.0:ge',
+            'annotationsFilter': f'{annotation_name_1}:2.0:ge',
             'sortBy': 'saved_at',
             'sortOrder': 'desc',
         },
@@ -1943,6 +1958,20 @@ def test_token_user_retrieving_source_with_annotation_filter(
     assert status == 200
     assert data["status"] == "success"
     assert len(data["data"]["sources"]) == 0
+
+    status, data = api(
+        "GET",
+        "sources",
+        params={
+            'annotationsFilter': f'{annotation_name_1}:2.0:le,{annotation_name_2}:0.5:le',
+            'sortBy': 'saved_at',
+            'sortOrder': 'desc',
+        },
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data["status"] == "success"
+    assert len(data["data"]["sources"]) == 1
 
 
 def test_add_source_redshift_origin(upload_data_token, view_only_token, public_group):

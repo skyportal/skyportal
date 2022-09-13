@@ -8,7 +8,7 @@
 
 from marshmallow_sqlalchemy import (
     ModelConversionError as _ModelConversionError,
-    ModelSchema as _ModelSchema,
+    SQLAlchemyAutoSchema as _SQLAlchemyAutoSchema,
 )
 
 from marshmallow import (
@@ -136,10 +136,11 @@ def setup_schema():
                     {
                         'model': class_,
                         'sqla_session': _DBSession,
+                        'load_instance': True,
                         'ordered': True,
                         'exclude': [],
                         'include_fk': True,
-                        'include_relationships': False,
+                        'include_relationships': True,
                     },
                 )
                 for exclude_attr in exclude:
@@ -150,7 +151,9 @@ def setup_schema():
                         schema_class_meta.exclude.append(exclude_attr)
 
                 schema_class = type(
-                    schema_class_name, (_ModelSchema,), {'Meta': schema_class_meta}
+                    schema_class_name,
+                    (_SQLAlchemyAutoSchema,),
+                    {'Meta': schema_class_meta},
                 )
 
                 if add_to_model:
@@ -161,7 +164,7 @@ def setup_schema():
             schema_class_name = class_.__name__
             add_schema(
                 schema_class_name,
-                exclude=['healpix', 'created_at', 'modified'],
+                exclude=['time_interval', 'healpix', 'created_at', 'modified'],
                 add_to_model=True,
             )
             add_schema(
@@ -173,6 +176,7 @@ def setup_schema():
                     'owner_id',
                     'last_modified_by_id',
                     'healpix',
+                    'time_interval',
                 ],
             )
             if schema_class_name == "Obj":
@@ -249,7 +253,7 @@ class PhotBaseFlexible:
             'description': 'ID of the classical assignment which generated the photometry'
         },
         required=False,
-        missing=None,
+        load_default=None,
     )
 
     ra = fields.Field(
@@ -263,7 +267,7 @@ class PhotBaseFlexible:
             )
         },
         required=False,
-        missing=None,
+        load_default=None,
     )
 
     dec = fields.Field(
@@ -277,7 +281,7 @@ class PhotBaseFlexible:
             )
         },
         required=False,
-        missing=None,
+        load_default=None,
     )
 
     ra_unc = fields.Field(
@@ -288,7 +292,7 @@ class PhotBaseFlexible:
             'given as lists. Null values allowed.'
         },
         required=False,
-        missing=None,
+        load_default=None,
     )
 
     dec_unc = fields.Field(
@@ -299,7 +303,7 @@ class PhotBaseFlexible:
             'given as lists. Null values allowed.'
         },
         required=False,
-        missing=None,
+        load_default=None,
     )
 
     origin = fields.Field(
@@ -309,7 +313,7 @@ class PhotBaseFlexible:
             "groups or streams list will be updated (other data assumed "
             "identical). Defaults to None."
         },
-        missing=None,
+        load_default=None,
     )
 
     group_ids = fields.Field(
@@ -319,7 +323,7 @@ class PhotBaseFlexible:
             "who can view associated source)."
         },
         required=False,
-        missing=[],
+        load_default=[],
     )
 
     stream_ids = fields.Field(
@@ -327,7 +331,7 @@ class PhotBaseFlexible:
             'description': "List of stream IDs to which photometry points will be visible."
         },
         required=False,
-        missing=[],
+        load_default=[],
     )
 
     altdata = fields.Field(
@@ -340,7 +344,7 @@ class PhotBaseFlexible:
                 "dicts or a single dict which will be broadcast to all values."
             )
         },
-        missing=None,
+        load_default=None,
         default=None,
         required=False,
     )
@@ -393,7 +397,7 @@ class PhotFluxFlexible(_Schema, PhotBaseFlexible):
             ),
         },
         required=False,
-        missing=None,
+        load_default=None,
     )
 
     fluxerr = fields.Field(
@@ -458,7 +462,7 @@ class PhotMagFlexible(_Schema, PhotBaseFlexible):
             '`magerr` must also be null.'
         },
         required=False,
-        missing=None,
+        load_default=None,
     )
 
     magerr = fields.Field(
@@ -472,7 +476,7 @@ class PhotMagFlexible(_Schema, PhotBaseFlexible):
             'must also be null.'
         },
         required=False,
-        missing=None,
+        load_default=None,
     )
 
     limiting_mag = fields.Field(
@@ -494,7 +498,7 @@ class PhotMagFlexible(_Schema, PhotBaseFlexible):
             f'not allowed. Default = {PHOT_DETECTION_THRESHOLD}.'
         },
         required=False,
-        missing=PHOT_DETECTION_THRESHOLD,
+        load_default=PHOT_DETECTION_THRESHOLD,
     )
 
 
@@ -544,7 +548,7 @@ class PhotBase:
             'description': 'ID of the classical assignment which generated the photometry'
         },
         required=False,
-        missing=None,
+        load_default=None,
     )
 
     origin = fields.Field(
@@ -556,7 +560,7 @@ class PhotBase:
                 "identical). Defaults to None."
             )
         },
-        missing=None,
+        load_default=None,
     )
 
     ra = fields.Number(
@@ -566,7 +570,7 @@ class PhotBase:
                 'of the photometric aperture [deg].'
             )
         },
-        missing=None,
+        load_default=None,
         default=None,
     )
     dec = fields.Number(
@@ -574,19 +578,19 @@ class PhotBase:
             'description': 'ICRS Declination of the centroid '
             'of the photometric aperture [deg].'
         },
-        missing=None,
+        load_default=None,
         default=None,
     )
 
     ra_unc = fields.Number(
         metadata={'description': 'Uncertainty on RA [arcsec].'},
-        missing=None,
+        load_default=None,
         default=None,
     )
 
     dec_unc = fields.Number(
         metadata={'description': 'Uncertainty on dec [arcsec].'},
-        missing=None,
+        load_default=None,
         default=None,
     )
 
@@ -599,7 +603,7 @@ class PhotBase:
                 "identical). Defaults to None."
             )
         },
-        missing=None,
+        load_default=None,
         default=None,
     )
 
@@ -612,7 +616,7 @@ class PhotBase:
                 "'method_reference': 'Masci et al. (2015)'}`"
             )
         },
-        missing=None,
+        load_default=None,
         default=None,
     )
 
@@ -641,7 +645,7 @@ class PhotometryFlux(_Schema, PhotBase):
             'limiting magnitude.'
         },
         required=False,
-        missing=None,
+        load_default=None,
         default=None,
     )
 
@@ -738,7 +742,7 @@ class PhotometryMag(_Schema, PhotBase):
             'in the case of a non-detection.'
         },
         required=False,
-        missing=None,
+        load_default=None,
         default=None,
     )
     magerr = fields.Number(
@@ -748,7 +752,7 @@ class PhotometryMag(_Schema, PhotBase):
             'null in the case of a non-detection.'
         },
         required=False,
-        missing=None,
+        load_default=None,
         default=None,
     )
     limiting_mag = fields.Number(
@@ -981,7 +985,7 @@ class FollowupRequestPost(_Schema):
     )
 
     status = fields.String(
-        missing="pending submission",
+        load_default="pending submission",
         metadata={'description': "The status of the request."},
         required=False,
     )
@@ -1015,7 +1019,7 @@ class ObservationPlanPost(_Schema):
     )
 
     status = fields.String(
-        missing="pending submission",
+        load_default="pending submission",
         metadata={'description': "The status of the request."},
         required=False,
     )
@@ -1093,7 +1097,7 @@ class PhotometryRangeQuery(_Schema):
             )
         },
         required=False,
-        missing=None,
+        load_default=None,
         default=None,
     )
 
@@ -1106,7 +1110,7 @@ class PhotometryRangeQuery(_Schema):
                 'open-ended interval use `None`.'
             )
         },
-        missing=None,
+        load_default=None,
         default=None,
     )
 
@@ -1119,7 +1123,7 @@ class PhotometryRangeQuery(_Schema):
                 'open-ended interval use `None`.'
             )
         },
-        missing=None,
+        load_default=None,
         default=None,
     )
 
@@ -1127,7 +1131,7 @@ class PhotometryRangeQuery(_Schema):
 class SpectrumAsciiFileParseJSON(_Schema):
 
     wave_column = fields.Integer(
-        missing=0,
+        load_default=0,
         metadata={
             'description': (
                 "The 0-based index of the ASCII column corresponding "
@@ -1136,7 +1140,7 @@ class SpectrumAsciiFileParseJSON(_Schema):
         },
     )
     flux_column = fields.Integer(
-        missing=1,
+        load_default=1,
         metadata={
             'description': (
                 "The 0-based index of the ASCII column corresponding to "
@@ -1145,7 +1149,7 @@ class SpectrumAsciiFileParseJSON(_Schema):
         },
     )
     fluxerr_column = fields.Integer(
-        missing=None,
+        load_default=None,
         metadata={
             'description': (
                 "The 0-based index of the ASCII column corresponding to the flux "
@@ -1333,13 +1337,13 @@ class SpectrumAsciiFilePostJSON(SpectrumAsciiFileParseJSON):
         metadata={
             'description': "IDs of the Users who reduced this Spectrum, or to use as points of contact given an external reducer."
         },
-        missing=[],
+        load_default=[],
     )
 
     external_reducer = fields.String(
         metadata={'description': "Free text provided as an external reducer"},
         required=False,
-        missing=None,
+        load_default=None,
     )
 
     observed_by = fields.List(
@@ -1347,13 +1351,13 @@ class SpectrumAsciiFilePostJSON(SpectrumAsciiFileParseJSON):
         metadata={
             'description': "IDs of the Users who observed this Spectrum, or to use as points of contact given an external observer."
         },
-        missing=[],
+        load_default=[],
     )
 
     external_observer = fields.String(
         metadata={'description': "Free text provided as an external observer"},
         required=False,
-        missing=None,
+        load_default=None,
     )
 
     followup_request_id = fields.Integer(
@@ -1418,13 +1422,13 @@ class SpectrumPost(_Schema):
         metadata={
             'description': "IDs of the Users who reduced this Spectrum, or to use as points of contact given an external reducer."
         },
-        missing=[],
+        load_default=[],
     )
 
     external_reducer = fields.String(
         metadata={'description': "Free text provided as an external reducer"},
         required=False,
-        missing=None,
+        load_default=None,
     )
 
     observed_by = fields.List(
@@ -1432,13 +1436,13 @@ class SpectrumPost(_Schema):
         metadata={
             'description': "IDs of the Users who observed this Spectrum, or to use as points of contact given an external observer."
         },
-        missing=[],
+        load_default=[],
     )
 
     external_observer = fields.String(
         metadata={'description': "Free text provided as an external observer"},
         required=False,
-        missing=None,
+        load_default=None,
     )
 
     origin = fields.String(
@@ -1467,7 +1471,7 @@ class SpectrumPost(_Schema):
     )
 
     group_ids = fields.Field(
-        missing=[],
+        load_default=[],
         metadata={
             'description': 'IDs of the Groups to share this spectrum with. Set to "all"'
             ' to make this spectrum visible to all users.'
@@ -1513,13 +1517,13 @@ class SpectrumHead(_Schema):
             'description': "IDs of the Users who reduced this Spectrum, "
             "or to use as points of contact given an external reducer."
         },
-        missing=[],
+        load_default=[],
     )
 
     external_reducer = fields.String(
         metadata={'description': "Free text provided as an external reducer"},
         required=False,
-        missing=None,
+        load_default=None,
     )
 
     observers = fields.List(
@@ -1528,13 +1532,13 @@ class SpectrumHead(_Schema):
             'description': "IDs of the Users who observed this Spectrum, "
             "or to use as points of contact given an external observer."
         },
-        missing=[],
+        load_default=[],
     )
 
     external_observer = fields.String(
         metadata={'description': "Free text provided as an external observer"},
         required=False,
-        missing=None,
+        load_default=None,
     )
 
     origin = fields.String(
@@ -1567,7 +1571,7 @@ class SpectrumHead(_Schema):
     )
 
     group_ids = fields.Field(
-        missing=[],
+        load_default=[],
         metadata={
             'description': 'IDs of the Groups to share this spectrum with. Set to "all"'
             ' to make this spectrum visible to all users.'
@@ -1592,6 +1596,44 @@ class SpectrumHead(_Schema):
 
     altdata = fields.Field(
         metadata={'description': 'Miscellaneous alternative metadata.'}
+    )
+
+
+class MMADetectorSpectrumPost(_Schema):
+
+    frequencies = fields.List(
+        fields.Float,
+        required=True,
+        metadata={'description': "Frequencies of the spectrum [Hz]."},
+    )
+
+    amplitudes = fields.List(
+        fields.Float,
+        required=True,
+        metadata={'description': "Amplitude of the Spectrum [1/sqrt(Hz)."},
+    )
+
+    start_time = fields.DateTime(
+        metadata={'description': 'The ISO UTC start time the spectrum was taken.'},
+        required=True,
+    )
+
+    end_time = fields.DateTime(
+        metadata={'description': 'The ISO UTC end time the spectrum was taken.'},
+        required=True,
+    )
+
+    detector_id = fields.Integer(
+        required=True,
+        metadata={'description': "ID of the MMADetector that acquired the Spectrum."},
+    )
+
+    group_ids = fields.Field(
+        load_default=[],
+        metadata={
+            'description': 'IDs of the Groups to share this spectrum with. Set to "all"'
+            ' to make this spectrum visible to all users.'
+        },
     )
 
 
@@ -1636,6 +1678,7 @@ Error = Error()
 Success = success('Success')
 SinglePhotometryFlux = success('SinglePhotometryFlux', PhotometryFlux)
 SinglePhotometryMag = success('SinglePhotometryMag', PhotometryMag)
+MMADetectorSpectrumPost = MMADetectorSpectrumPost()
 PhotometryFlux = PhotometryFlux()
 PhotometryMag = PhotometryMag()
 PhotMagFlexible = PhotMagFlexible()

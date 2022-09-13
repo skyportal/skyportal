@@ -1,11 +1,11 @@
 import React from "react";
 import PropTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
-import Button from "@mui/material/Button";
 import MUIDataTable from "mui-datatables";
 import CircularProgress from "@mui/material/CircularProgress";
 
 import { showNotification } from "baselayer/components/Notifications";
+import Button from "./Button";
 
 import * as groupAdmissionRequestsActions from "../ducks/groupAdmissionRequests";
 
@@ -60,8 +60,8 @@ const NonMemberGroupList = ({ groups }) => {
           <em>Request pending...</em>
           <br />
           <Button
+            secondary
             size="small"
-            variant="contained"
             onClick={() => handleDeleteAdmissionRequest(admissionRequestID)}
             data-testid={`deleteAdmissionRequestButton${group.id}`}
           >
@@ -72,8 +72,8 @@ const NonMemberGroupList = ({ groups }) => {
     }
     return (
       <Button
+        secondary
         size="small"
-        variant="contained"
         onClick={() => handleRequestAdmission(group.id)}
         data-testid={`requestAdmissionButton${group.id}`}
       >

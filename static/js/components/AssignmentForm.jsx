@@ -5,7 +5,6 @@ import { useForm, Controller } from "react-hook-form";
 import Select from "@mui/material/Select";
 import InputLabel from "@mui/material/InputLabel";
 import TextField from "@mui/material/TextField";
-import Button from "@mui/material/Button";
 import FormControl from "@mui/material/FormControl";
 import CircularProgress from "@mui/material/CircularProgress";
 import MenuItem from "@mui/material/MenuItem";
@@ -16,6 +15,7 @@ import utc from "dayjs/plugin/utc";
 import * as Actions from "../ducks/source";
 
 import "react-datepicker/dist/react-datepicker-cssmodules.css";
+import Button from "./Button";
 
 dayjs.extend(utc);
 
@@ -183,11 +183,10 @@ const AssignmentForm = ({ obj_id, observingRunList }) => {
             inputRef={register}
           />
           <Button
+            primary
             type="submit"
             name="assignmentSubmitButton"
             data-testid="assignmentSubmitButton"
-            variant="contained"
-            color="primary"
             className={classes.submitButton}
           >
             Submit

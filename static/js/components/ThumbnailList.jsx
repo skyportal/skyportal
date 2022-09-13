@@ -53,7 +53,7 @@ const useStyles = makeStyles((theme) => ({
   }),
 }));
 
-const Thumbnail = ({ ra, dec, name, url, size, grayscale }) => {
+const Thumbnail = ({ ra, dec, name, url, size, grayscale, header }) => {
   // convert mjd to unix timestamp *in ms*. 40587 is the mjd of the
   // unix timestamp epoch (1970-01-01).
 
@@ -81,7 +81,7 @@ const Thumbnail = ({ ra, dec, name, url, size, grayscale }) => {
       break;
     case "dr8":
       alt = "Link to DESI DR8 Image Access";
-      link = `https://www.legacysurvey.org/viewer?ra=${ra}&dec=${dec}&layer=ls-dr8&zoom=16&mark=radeg,decdeg`;
+      link = `https://www.legacysurvey.org/viewer?ra=${ra}&dec=${dec}&layer=ls-dr8&zoom=16&mark=${ra},${dec}`;
       break;
     case "ps1":
       alt = "Link to PanSTARRS-1 Image Access";
@@ -101,7 +101,7 @@ const Thumbnail = ({ ra, dec, name, url, size, grayscale }) => {
       <CardContent className={classes.cardTitle}>
         <Typography className={classes.title} color="textSecondary">
           <a href={link} target="_blank" rel="noreferrer">
-            {name.toUpperCase()}
+            {header.toUpperCase()}
           </a>
         </Typography>
       </CardContent>
@@ -144,6 +144,7 @@ Thumbnail.propTypes = {
   url: PropTypes.string.isRequired,
   size: PropTypes.string.isRequired,
   grayscale: PropTypes.bool.isRequired,
+  header: PropTypes.string.isRequired,
 };
 
 const sortThumbnailsByDate = (a, b) => {
@@ -180,6 +181,12 @@ const ThumbnailList = ({
     thumbnail_order.indexOf(a.type) < thumbnail_order.indexOf(b.type) ? -1 : 1
   );
 
+  const thumbnail_display = Object.fromEntries(
+    thumbnail_order.map((x) => [x, x])
+  );
+  thumbnail_display.dr8 = "Legacy Survey DR8";
+  thumbnail_display.ps1 = "PanSTARRS DR2";
+
   if (useGrid) {
     return (
       <Grid container direction="row" spacing={3}>
@@ -193,6 +200,7 @@ const ThumbnailList = ({
               url={t.public_url}
               size={size}
               grayscale={t.is_grayscale}
+              header={thumbnail_display[t.type]}
             />
           </Grid>
         ))}
@@ -203,10 +211,11 @@ const ThumbnailList = ({
                 key="thumbPlaceHolder"
                 ra={ra}
                 dec={dec}
-                name="PS1: Loading..."
+                name="PanSTARRS DR2: Loading..."
                 url="#"
                 size={size}
                 grayscale={false}
+                header="PanSTARRS DR2"
               />
             </Grid>
           )}
@@ -223,6 +232,7 @@ const ThumbnailList = ({
         url={t.public_url}
         size={size}
         grayscale={t.is_grayscale}
+        header={thumbnail_display[t.type]}
       />
     </Grid>
   ));

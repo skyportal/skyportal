@@ -104,11 +104,16 @@ class DefaultObservationPlanRequest(Base):
         secondary='default_observationplan_groups',
         passive_deletes=True,
         doc='Groups to share the resulting data from this default request with.',
+        overlaps='groups',
     )
 
 
 DefaultObservationPlanRequestTargetGroup = join_model(
-    'default_observationplan_groups', DefaultObservationPlanRequest, Group
+    'default_observationplan_groups',
+    DefaultObservationPlanRequest,
+    Group,
+    new_name='DefaultObservationPlanRequestTargetGroup',
+    overlaps='target_groups',
 )
 DefaultObservationPlanRequestTargetGroup.create = (
     DefaultObservationPlanRequestTargetGroup.update
@@ -233,7 +238,11 @@ class ObservationPlanRequest(Base):
 
 
 ObservationPlanRequestTargetGroup = join_model(
-    'observationplan_groups', ObservationPlanRequest, Group
+    'observationplan_groups',
+    ObservationPlanRequest,
+    Group,
+    new_name='ObservationPlanRequestTargetGroup',
+    overlaps='target_groups',
 )
 ObservationPlanRequestTargetGroup.create = (
     ObservationPlanRequestTargetGroup.update
@@ -257,6 +266,7 @@ class EventObservationPlan(Base):
         "ObservationPlanRequest",
         foreign_keys=observation_plan_request_id,
         doc="The request that this observation plan belongs to",
+        overlaps='observation_plans',
     )
 
     instrument_id = sa.Column(
@@ -269,6 +279,7 @@ class EventObservationPlan(Base):
         "Instrument",
         foreign_keys=instrument_id,
         doc="The Instrument that this observation plan belongs to",
+        overlaps='plans',
     )
 
     dateobs = sa.Column(
@@ -313,6 +324,7 @@ class EventObservationPlan(Base):
         cascade='delete',
         passive_deletes=True,
         doc="Survey efficiency analyses of the event.",
+        overlaps='observation_plan',
     )
 
     @property
@@ -498,6 +510,7 @@ class PlannedObservation(Base):
         "EventObservationPlan",
         foreign_keys=observation_plan_id,
         doc="The EventObservationPlan that this planned observation belongs to",
+        overlaps='planned_observations',
     )
 
     instrument_id = sa.Column(

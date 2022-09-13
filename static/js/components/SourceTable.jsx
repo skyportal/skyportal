@@ -6,7 +6,6 @@ import { Link, useNavigate } from "react-router-dom";
 import TableCell from "@mui/material/TableCell";
 import TableRow from "@mui/material/TableRow";
 import IconButton from "@mui/material/IconButton";
-import Button from "@mui/material/Button";
 import Grid from "@mui/material/Grid";
 import Chip from "@mui/material/Chip";
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
@@ -35,6 +34,7 @@ import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 
 import { isMobileOnly } from "react-device-detect";
+import Button from "./Button";
 
 import { ra_to_hours, dec_to_dms, mjd_to_utc } from "../units";
 import ThumbnailList from "./ThumbnailList";
@@ -763,8 +763,8 @@ const SourceTable = ({
     return (
       <>
         <Button
+          secondary
           size="small"
-          variant="contained"
           onClick={() => {
             handleSaveSource(source.id);
           }}
@@ -774,8 +774,8 @@ const SourceTable = ({
         </Button>
         &nbsp;
         <Button
+          secondary
           size="small"
-          variant="contained"
           onClick={() => {
             handleIgnoreSource(source.id);
           }}

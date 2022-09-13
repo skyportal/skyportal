@@ -2,7 +2,6 @@ import React, { useEffect, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { useForm } from "react-hook-form";
 import { makeStyles } from "@mui/styles";
-import Button from "@mui/material/Button";
 import { showNotification } from "baselayer/components/Notifications";
 
 import FormGroup from "@mui/material/FormGroup";
@@ -10,6 +9,7 @@ import FormControlLabel from "@mui/material/FormControlLabel";
 import Switch from "@mui/material/Switch";
 import Tooltip from "@mui/material/Tooltip";
 import HelpOutlineOutlinedIcon from "@mui/icons-material/HelpOutlineOutlined";
+import Button from "./Button";
 
 import UserPreferencesHeader from "./UserPreferencesHeader";
 import ClassificationSelect from "./ClassificationSelect";
@@ -86,7 +86,8 @@ const NotificationPreferences = () => {
       event.target.name === "gcn_events" ||
       event.target.name === "mention" ||
       event.target.name === "favorite_sources" ||
-      event.target.name === "facility_transactions"
+      event.target.name === "facility_transactions" ||
+      event.target.name === "analysis_services"
     ) {
       prefs.notifications[event.target.name] = {
         active: event.target.checked,
@@ -171,7 +172,7 @@ const NotificationPreferences = () => {
                   setSelectedClassifications={setSelectedClassifications}
                 />
                 <Button
-                  variant="contained"
+                  secondary
                   type="submit"
                   data-testid="addShortcutButton"
                   className={classes.button}
@@ -217,7 +218,7 @@ const NotificationPreferences = () => {
                   setSelectedGcnTags={setSelectedGcnTags}
                 />
                 <Button
-                  variant="contained"
+                  secondary
                   type="submit"
                   data-testid="addShortcutButton"
                   className={classes.button}
@@ -254,6 +255,32 @@ const NotificationPreferences = () => {
         </FormGroup>
         {profile?.notifications?.facility_transactions?.active === true && (
           <NotificationSettingsSelect notificationResourceType="facility_transactions" />
+        )}
+      </div>
+      <div className={classes.pref}>
+        <FormGroup row className={classes.form_group}>
+          <FormControlLabel
+            control={
+              <Switch
+                checked={
+                  profile?.notifications?.analysis_services?.active === true
+                }
+                name="analysis_services"
+                onChange={prefToggled}
+              />
+            }
+            label="Analysis Services"
+          />
+          <Tooltip
+            title="This allows you to be notified for all completed analysis services."
+            placement="right"
+            classes={{ tooltip: classes.tooltip }}
+          >
+            <HelpOutlineOutlinedIcon />
+          </Tooltip>
+        </FormGroup>
+        {profile?.notifications?.analysis_services?.active === true && (
+          <NotificationSettingsSelect notificationResourceType="analysis_services" />
         )}
       </div>
       <div className={classes.pref}>
