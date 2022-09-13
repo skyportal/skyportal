@@ -28,7 +28,6 @@ alter table "public"."thumbnails" alter column type type "public"."thumbnail_typ
 drop type "public"."thumbnail_types__old_version_to_be_dropped";
 """
     )
-    pass
     # ### end Alembic commands ###
 
 
