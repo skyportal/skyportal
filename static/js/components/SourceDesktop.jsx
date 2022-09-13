@@ -46,6 +46,8 @@ import SourceAnnotationButtons from "./SourceAnnotationButtons";
 import TNSATForm from "./TNSATForm";
 import Reminders from "./Reminders";
 
+import SourcePlugins from "./SourcePlugins";
+
 import * as spectraActions from "../ducks/spectra";
 import * as sourceActions from "../ducks/source";
 
@@ -358,6 +360,9 @@ const SourceDesktop = ({ source }) => {
               </div>
             </div>
           )}
+          <div>
+            <SourcePlugins source={source} />
+          </div>
           <div className={classes.infoLine}>
             <div className={classes.redshiftInfo}>
               <b>Redshift: &nbsp;</b>
