@@ -423,6 +423,46 @@ class PhotFluxFlexible(_Schema, PhotBaseFlexible):
         required=True,
     )
 
+    ref_flux = fields.Field(
+        metadata={
+            'description': (
+                'Flux of the reference image in counts. '
+                'Can be given as a scalar or a 1D list. '
+                'If a scalar, will be broadcast to all values '
+                'given as lists. '
+                'Null values allowed if no reference is given. '
+            ),
+        },
+        required=False,
+        load_default=None,
+    )
+
+    ref_fluxerr = fields.Field(
+        metadata={
+            'description': 'Gaussian error on the reference flux in counts. '
+            'Can be given as a scalar or a 1D list. '
+            'If a scalar, will be broadcast to all values '
+            'given as lists. Null values allowed.'
+        },
+        required=False,
+        load_default=None,
+        validate=validate_fluxerr,
+    )
+
+    ref_zp = fields.Field(
+        metadata={
+            'description': 'Magnitude zeropoint for the reference flux, '
+            'given by `zp` in the '
+            'equation `m = -2.5 log10(flux) + zp`. '
+            '`m` is the magnitude of the object in the '
+            'magnitude system `magsys`. '
+            'Can be given as a scalar or a 1D list. '
+            'If Null or not given, will be set to the '
+            'default zeropoint of 23.9. '
+        },
+        required=False,
+    )
+
 
 class PhotMagFlexible(_Schema, PhotBaseFlexible):
     """This is one of two classes used for rendering the
@@ -467,7 +507,7 @@ class PhotMagFlexible(_Schema, PhotBaseFlexible):
 
     magerr = fields.Field(
         metadata={
-            'description': 'Magnitude of the observation in the '
+            'description': 'Error on the magnitude in the '
             'magnitude system `magsys`. '
             'Can be given as a scalar or a 1D list. '
             'If a scalar, will be broadcast to all values '
@@ -499,6 +539,32 @@ class PhotMagFlexible(_Schema, PhotBaseFlexible):
         },
         required=False,
         load_default=PHOT_DETECTION_THRESHOLD,
+    )
+
+    magref = fields.Field(
+        metadata={
+            'description': (
+                'Magnitude of the reference image. '
+                'in the magnitude system `magsys`. '
+                'Can be given as a scalar or a 1D list. '
+                'If a scalar, will be broadcast to all values '
+                'given as lists. '
+                'Null values allowed if no reference is given. '
+            ),
+        },
+        required=False,
+        load_default=None,
+    )
+
+    e_magref = fields.Field(
+        metadata={
+            'description': 'Gaussian error on the reference magnitude. '
+            'Can be given as a scalar or a 1D list. '
+            'If a scalar, will be broadcast to all values '
+            'given as lists. Null values allowed.'
+        },
+        required=False,
+        load_default=None,
     )
 
 
@@ -663,6 +729,32 @@ class PhotometryFlux(_Schema, PhotBase):
         required=True,
     )
 
+    ref_flux = fields.Field(
+        metadata={
+            'description': (
+                'Flux of the reference image in counts. '
+                'Can be given as a scalar or a 1D list. '
+                'If a scalar, will be broadcast to all values '
+                'given as lists. '
+                'Null values allowed if no reference is given. '
+            ),
+        },
+        required=False,
+        load_default=None,
+    )
+
+    ref_fluxerr = fields.Field(
+        metadata={
+            'description': 'Gaussian error on the reference flux in counts. '
+            'Can be given as a scalar or a 1D list. '
+            'If a scalar, will be broadcast to all values '
+            'given as lists. Null values allowed.'
+        },
+        required=False,
+        load_default=None,
+        validate=validate_fluxerr,
+    )
+
     @post_load
     def parse_flux(self, data, **kwargs):
         """Return a `Photometry` object from a `PhotometryFlux` marshmallow
@@ -762,6 +854,31 @@ class PhotometryMag(_Schema, PhotBase):
         },
         required=True,
     )
+    magref = fields.Field(
+        metadata={
+            'description': (
+                'Magnitude of the reference image. '
+                'in the magnitude system `magsys`. '
+                'Can be given as a scalar or a 1D list. '
+                'If a scalar, will be broadcast to all values '
+                'given as lists. '
+                'Null values allowed if no reference is given. '
+            ),
+        },
+        required=False,
+        load_default=None,
+    )
+
+    e_magref = fields.Field(
+        metadata={
+            'description': 'Gaussian error on the reference magnitude. '
+            'Can be given as a scalar or a 1D list. '
+            'If a scalar, will be broadcast to all values '
+            'given as lists. Null values allowed.'
+        },
+        required=False,
+        load_default=None,
+    )
 
     @post_load
     def parse_mag(self, data, **kwargs):
@@ -823,6 +940,11 @@ class PhotometryMag(_Schema, PhotBase):
             flux = None
             fluxerr = nsigflux / PHOT_DETECTION_THRESHOLD
 
+        if 'ref_flux' in data and data['ref_flux'] is not None:
+            ref_flux = data['ref_flux']
+        if 'ref_fluxerr' in data and data['ref_fluxerr'] is not None:
+            ref_fluxerr = data['ref_fluxerr']
+
         # convert flux to microJanskies.
         table = Table(
             [
@@ -844,6 +966,25 @@ class PhotometryMag(_Schema, PhotBase):
         # conversion happens here
         photdata = PhotometricData(table).normalized(zp=PHOT_ZP, zpsys=PHOT_SYS)
 
+        if ref_flux is not None:
+            ref_table = Table(
+                [
+                    {
+                        'flux': ref_flux,
+                        'fluxerr': ref_fluxerr,
+                        'magsys': data['magsys'],
+                        'zp': PHOT_ZP,
+                        'filter': data['filter'],
+                        'mjd': data['mjd'],
+                    }
+                ]
+            )
+
+            # conversion of reference flux happens here
+            ref_photdata = PhotometricData(ref_table).normalized(
+                zp=PHOT_ZP, zpsys=PHOT_SYS
+            )
+
         # replace with null if needed
         final_flux = None if flux is None else photdata.flux[0]
 
@@ -852,6 +993,8 @@ class PhotometryMag(_Schema, PhotBase):
             mjd=data['mjd'],
             flux=final_flux,
             fluxerr=photdata.fluxerr[0],
+            ref_flux=ref_photdata.flux[0],
+            ref_fluxerr=ref_photdata.fluxerr[0],
             instrument_id=data['instrument_id'],
             assignment_id=data['assignment_id'],
             filter=data['filter'],

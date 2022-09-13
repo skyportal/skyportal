@@ -115,6 +115,16 @@ def serialize(phot, outsys, format):
         'groups': phot.groups,
         'altdata': phot.altdata,
     }
+    if phot.ref_flux is not None:
+        return_value['ref_flux'] = phot.ref_flux
+        return_value['tot_flux'] = phot.ref_flux + phot.flux
+        return_value['magref'] = phot.magref
+        return_value['magtot'] = phot.magtot
+    if phot.ref_fluxerr is not None:
+        return_value['ref_fluxerr'] = phot.ref_fluxerr
+        return_value['tot_fluxerr'] = np.sqrt(phot.ref_fluxerr**2 + phot.fluxerr**2)
+        return_value['e_magref'] = phot.e_magref
+        return_value['e_magtot'] = phot.e_magtot
 
     filter = phot.filter
 
@@ -134,6 +144,12 @@ def serialize(phot, outsys, format):
         # this is the zeropoint for fluxes in the database that is tied
         # to the new magnitude system
         corrected_db_zp = PHOT_ZP + db_correction
+
+        if format not in ['mag', 'flux', 'both']:
+            raise ValueError(
+                'Invalid output format specified. Must be one of '
+                f"['flux', 'mag', 'both'], got '{format}'."
+            )
 
         if format in ['mag', 'both']:
             if (
@@ -163,15 +179,23 @@ def serialize(phot, outsys, format):
                     'limiting_mag': maglimit_out,
                 }
             )
-            if format == "both":
+            if phot.ref_flux is not None:
                 return_value.update(
                     {
-                        'flux': nan_to_none(phot.flux),
-                        'fluxerr': phot.fluxerr,
-                        'zp': corrected_db_zp,
+                        'ref_flux': phot.ref_flux,
+                        'tot_flux': phot.ref_flux + phot.flux,
                     }
                 )
-        elif format == 'flux':
+            if phot.ref_fluxerr is not None:
+                return_value.update(
+                    {
+                        'ref_fluxerr': phot.ref_fluxerr,
+                        'tot_fluxerr': np.sqrt(
+                            phot.ref_fluxerr**2 + phot.fluxerr**2
+                        ),
+                    }
+                )
+        if format in ['flux', 'both']:
             return_value.update(
                 {
                     'flux': nan_to_none(phot.flux),
@@ -180,11 +204,20 @@ def serialize(phot, outsys, format):
                     'fluxerr': phot.fluxerr,
                 }
             )
-        else:
-            raise ValueError(
-                'Invalid output format specified. Must be one of '
-                f"['flux', 'mag', 'both'], got '{format}'."
-            )
+            if phot.ref_flux is not None:
+                return_value.update(
+                    {
+                        'magref': phot.magref,
+                        'magtot': phot.magtot,
+                    }
+                )
+            if phot.ref_fluxerr is not None:
+                return_value.update(
+                    {
+                        'e_magref': phot.e_magref,
+                        'e_magtot': phot.e_magtot,
+                    }
+                )
     except ValueError as e:
         raise ValueError(
             f"Could not serialize phot_id: {phot.id} "
@@ -376,12 +409,28 @@ def standardize_photometry_data(data):
         phot_table['flux'] = df['flux'].fillna(np.nan)
         phot_table['fluxerr'] = df['fluxerr'].fillna(np.nan)
 
+        if "ref_flux" in df.columns:
+            ref_phot_table = Table.from_pandas(df[['mjd', 'magsys', 'filter']])
+            ref_phot_table['flux'] = df['ref_flux'].fillna(np.nan)
+            ref_phot_table['fluxerr'] = df['ref_fluxerr'].fillna(np.nan)
+            if 'ref_zp' in df.columns:
+                ref_phot_table['zp'] = df['ref_zp'].fillna(np.nan)
+            else:
+                ref_phot_table['zp'] = PHOT_ZP
+
     # convert to microjanskies, AB for DB storage as a vectorized operation
     pdata = PhotometricData(phot_table)
     standardized = pdata.normalized(zp=PHOT_ZP, zpsys='ab')
 
     df['standardized_flux'] = standardized.flux
     df['standardized_fluxerr'] = standardized.fluxerr
+
+    # convert the reference flux to microjanskies, AB
+    if "ref_flux" in df.columns:
+        ref_pdata = PhotometricData(ref_phot_table)
+        ref_standardized = ref_pdata.normalized(zp=PHOT_ZP, zpsys='ab')
+        df['ref_standardized_flux'] = ref_standardized.flux
+        df['ref_standardized_fluxerr'] = ref_standardized.fluxerr
 
     instrument_cache = {}
     for iid in df['instrument_id'].unique():
@@ -545,6 +594,13 @@ def insert_new_photometry_data(
             modified=utcnow,
         )
 
+        if 'ref_standardized_flux' in packet:
+            phot['ref_flux'] = packet.pop('ref_standardized_flux')
+            phot['ref_fluxerr'] = packet.pop('ref_standardized_fluxerr')
+        else:
+            phot['ref_flux'] = None
+            phot['ref_fluxerr'] = None
+
         params.append(phot)
 
         for group_id in group_ids:
@@ -590,6 +646,8 @@ def insert_new_photometry_data(
                 'owner_id',
                 'created_at',
                 'modified',
+                'ref_flux',
+                'ref_fluxerr',
             ),
         )
 
