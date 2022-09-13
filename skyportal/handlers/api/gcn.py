@@ -35,6 +35,7 @@ from ..base import BaseHandler
 from ...models import (
     DBSession,
     Allocation,
+    CatalogQuery,
     GcnEvent,
     GcnNotice,
     GcnProperty,
@@ -423,6 +424,37 @@ class GcnEventObservationPlanRequestsHandler(BaseHandler):
                 request_data.append(dat)
 
             return self.success(data=request_data)
+
+
+class GcnEventCatalogQueryHandler(BaseHandler):
+    @auth_or_token
+    async def get(self, gcnevent_id):
+        """
+        ---
+        description: Get catalog queries of the GcnEvent.
+        tags:
+          - gcnevents
+        parameters:
+          - in: path
+            name: gcnevent_id
+            required: true
+            schema:
+              type: string
+        responses:
+          200:
+            content:
+              application/json:
+                schema: ArrayOfCatalogQuerys
+        """
+
+        with self.Session() as session:
+            queries = session.scalars(
+                CatalogQuery.select(
+                    session.user_or_token,
+                ).where(CatalogQuery.payload['gcnevent_id'] == gcnevent_id)
+            ).all()
+
+            return self.success(data=queries)
 
 
 class GcnEventHandler(BaseHandler):

@@ -1,10 +1,8 @@
 from baselayer.app.access import permissions, auth_or_token
 from baselayer.log import make_log
 import arrow
-import astropy
 import functools
 import healpix_alchemy as ha
-import humanize
 import json
 from marshmallow.exceptions import ValidationError
 import numpy as np
@@ -940,137 +938,6 @@ class ObservationASCIIFileHandler(BaseHandler):
         )
 
         return self.success()
-
-
-class ObservationGCNHandler(BaseHandler):
-    @auth_or_token
-    async def get(self, instrument_id):
-        """
-        ---
-          description: Get a GCN-izable summary of the observations.
-          tags:
-            - observations
-          parameters:
-            - in: path
-              name: instrument_id
-              required: true
-              schema:
-                type: string
-              description: |
-                ID for the instrument to submit
-            - in: query
-              name: startDate
-              required: true
-              schema:
-                type: string
-              description: Filter by start date
-            - in: query
-              name: endDate
-              required: true
-              schema:
-                type: string
-              description: Filter by end date
-            - in: query
-              name: localizationDateobs
-              schema:
-                type: string
-              description: |
-                Event time in ISO 8601 format (`YYYY-MM-DDTHH:MM:SS.sss`).
-                Each localization is associated with a specific GCNEvent by
-                the date the event happened, and this date is used as a unique
-                identifier. It can be therefore found as Localization.dateobs,
-                queried from the /api/localization endpoint or dateobs in the
-                GcnEvent page table.
-            - in: query
-              name: localizationName
-              schema:
-                type: string
-              description: |
-                Name of localization / skymap to use.
-                Can be found in Localization.localization_name queried from
-                /api/localization endpoint or skymap name in GcnEvent page
-                table.
-            - in: query
-              name: localizationCumprob
-              schema:
-                type: number
-              description: |
-                Cumulative probability up to which to include fields.
-                Defaults to 0.95.
-          responses:
-            200:
-              content:
-                application/json:
-                  schema: ArrayOfExecutedObservations
-            400:
-              content:
-                application/json:
-                  schema: Error
-        """
-
-        start_date = self.get_query_argument('startDate')
-        end_date = self.get_query_argument('endDate')
-        localization_dateobs = self.get_query_argument('localizationDateobs', None)
-        localization_name = self.get_query_argument('localizationName', None)
-        localization_cumprob = self.get_query_argument("localizationCumprob", 0.95)
-
-        if start_date is None:
-            return self.error(message="Missing start_date")
-
-        if end_date is None:
-            return self.error(message="Missing end_date")
-
-        start_date = arrow.get(start_date.strip()).datetime
-        end_date = arrow.get(end_date.strip()).datetime
-
-        with self.Session() as session:
-
-            stmt = Instrument.select(self.current_user).where(
-                Instrument.id == instrument_id
-            )
-            instrument = session.scalars(stmt).first()
-
-            if instrument is None:
-                return self.error(message=f"Invalid instrument ID {instrument_id}")
-
-            data = get_observations(
-                session,
-                start_date,
-                end_date,
-                telescope_name=instrument.telescope.name,
-                instrument_name=instrument.name,
-                localization_dateobs=localization_dateobs,
-                localization_name=localization_name,
-                localization_cumprob=localization_cumprob,
-            )
-
-            observations = data["observations"]
-            num_observations = len(observations)
-            if num_observations == 0:
-                return self.error('Need at least one observation to produce a GCN')
-
-            start_observation = astropy.time.Time(
-                min(obs["obstime"] for obs in observations), format='datetime'
-            )
-            unique_filters = list({obs["filt"] for obs in observations})
-            total_time = sum(obs["exposure_time"] for obs in observations)
-            probability = data["probability"]
-            area = data["area"]
-
-            stmt = GcnEvent.select(self.current_user).where(
-                GcnEvent.dateobs == localization_dateobs
-            )
-            event = session.scalars(stmt).first()
-            trigger_time = astropy.time.Time(event.dateobs, format='datetime')
-            dt = start_observation.datetime - event.dateobs
-
-            content = f"""
-                SUBJECT: Follow-up of {event.gcn_notices[0].stream} trigger {trigger_time.isot} with {instrument.name}.
-
-                We observed the localization region of {event.gcn_notices[0].stream} trigger {trigger_time.isot} UTC with {instrument.name} on the {instrument.telescope.name}. We obtained a total of {num_observations} images covering {",".join(unique_filters)} bands for a total of {total_time} seconds. The observations covered {area:.1f} square degrees beginning at {start_observation.isot} ({humanize.naturaldelta(dt)} after the burst trigger time) corresponding to ~{int(100 * probability)}% of the probability enclosed in the localization region.
-                """
-
-            return self.success(data=content)
 
 
 class ObservationExternalAPIHandler(BaseHandler):
