@@ -21,7 +21,7 @@ def upgrade():
         """
 alter type "public"."thumbnail_types" rename to "thumbnail_types__old_version_to_be_dropped";
 
-create type "public"."thumbnail_types" as enum ('new', 'ref', 'sub', 'sdss', 'dr8', 'dr9', 'ps1', 'new_gz', 'ref_gz', 'sub_gz');
+create type "public"."thumbnail_types" as enum ('new', 'ref', 'sub', 'sdss', 'dr8', 'ls', 'ps1', 'new_gz', 'ref_gz', 'sub_gz');
 
 alter table "public"."thumbnails" alter column type type "public"."thumbnail_types" using type::text::"public"."thumbnail_types";
 
