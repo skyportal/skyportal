@@ -406,7 +406,7 @@ class Obj(Base, conesearch_alchemy.Point):
         """Determine the URLs of the SDSS and DESI DR8 thumbnails of the object,
         insert them into the Thumbnails table, and link them to the object."""
         sdss_thumb = Thumbnail(obj=self, public_url=self.sdss_url, type='sdss')
-        ls_thumb = Thumbnail(obj=self, public_url=self.legacysurvey_dr9_url, type='dr9')
+        ls_thumb = Thumbnail(obj=self, public_url=self.legacysurvey_dr9_url, type='ls')
         session.add_all([sdss_thumb, ls_thumb])
         session.commit()
 
