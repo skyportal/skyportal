@@ -40,6 +40,7 @@ from .galaxy import GalaxyCatalogHandler, GalaxyASCIIFileHandler, GalaxyGladeHan
 from .gcn import (
     GcnEventHandler,
     GcnEventObservationPlanRequestsHandler,
+    GcnEventPropertiesHandler,
     GcnEventSurveyEfficiencyHandler,
     GcnEventTagsHandler,
     GcnSummaryHandler,

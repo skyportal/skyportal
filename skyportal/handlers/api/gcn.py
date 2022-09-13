@@ -289,6 +289,36 @@ class GcnEventTagsHandler(BaseHandler):
             return self.success(data=tags)
 
 
+class GcnEventPropertiesHandler(BaseHandler):
+    @auth_or_token
+    def get(self):
+        """
+        ---
+        description: Get all GCN Event properties
+        tags:
+          - photometry
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+
+        with self.Session() as session:
+            properties = (
+                session.scalars(
+                    sa.select(sa.func.jsonb_object_keys(GcnProperty.data)).distinct()
+                )
+                .unique()
+                .all()
+            )
+            return self.success(data=sorted(properties))
+
+
 class GcnEventSurveyEfficiencyHandler(BaseHandler):
     @auth_or_token
     async def get(self, gcnevent_id):
