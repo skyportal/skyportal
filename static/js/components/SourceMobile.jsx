@@ -53,6 +53,8 @@ import FavoritesButton from "./FavoritesButton";
 import SourceAnnotationButtons from "./SourceAnnotationButtons";
 import TNSATForm from "./TNSATForm";
 
+import SourcePlugins from "./SourcePlugins";
+
 import * as spectraActions from "../ducks/spectra";
 
 const VegaHR = React.lazy(() => import("./VegaHR"));
@@ -344,6 +346,9 @@ const SourceMobile = WidthProvider(
                         {source.gal_lat.toFixed(6)})
                       </div>
                     </div>
+                  </div>
+                  <div>
+                    <SourcePlugins source={source} />
                   </div>
                   <div className={classes.infoLine}>
                     <div className={classes.redshiftInfo}>
