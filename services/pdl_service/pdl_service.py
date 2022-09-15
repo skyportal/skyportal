@@ -1,3 +1,4 @@
+import os
 from watchdog.observers import Observer
 from watchdog.events import LoggingEventHandler
 
@@ -22,6 +23,10 @@ def service():
         try:
             user_id = 1
             path = "services/pdlclient_service/data/receiver_storage/origin"
+
+            if not os.path.isdir(path):
+                os.makedirs(path)
+
             with DBSession() as session:
 
                 class Event(LoggingEventHandler):
