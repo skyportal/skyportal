@@ -5,6 +5,7 @@ from .sedm import SEDMAPI, SEDMListener
 from .sedmv2 import SEDMV2API
 from .lt import IOOAPI, IOIAPI, SPRATAPI
 from .lco import SINISTROAPI, SPECTRALAPI, FLOYDSAPI, MUSCATAPI
+from .nicer import NICERAPI
 from .observation_plan import MMAAPI
 from .ps1 import PS1API
 from .slack import SLACKAPI
