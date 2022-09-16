@@ -42,6 +42,8 @@ import Spinner from "./Spinner";
 import AddClassificationsScanningPage from "./AddClassificationsScanningPage";
 import Button from "./Button";
 
+import CandidatePlugins from "./CandidatePlugins";
+
 const useStyles = makeStyles((theme) => ({
   candidateListContainer: {
     padding: "1rem",
@@ -724,6 +726,9 @@ const CandidateList = () => {
             {candidateObj.gal_lon.toFixed(3)}&nbsp;&nbsp;
             {candidateObj.gal_lat.toFixed(3)}
           </span>
+        </div>
+        <div className={classes.infoItem}>
+          <CandidatePlugins candidate={candidateObj} />
         </div>
         {candidateObj.classifications && recentClassification && (
           <div className={classes.infoItemPadded}>

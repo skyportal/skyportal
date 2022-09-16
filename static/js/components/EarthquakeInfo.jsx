@@ -237,7 +237,7 @@ const Earthquake = () => {
       <Grid item md={12} sm={12}>
         <Paper elevation={1}>
           <div className={classes.paperContent}>
-            <Typography variant="h5">GCN Events</Typography>
+            <Typography variant="h5">Earthquake Events</Typography>
             {earthquakes ? (
               <StyledEngineProvider injectFirst>
                 <ThemeProvider theme={getMuiTheme(theme)}>

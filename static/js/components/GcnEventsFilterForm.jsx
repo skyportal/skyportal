@@ -12,6 +12,7 @@ import { useForm, Controller } from "react-hook-form";
 import Button from "./Button";
 
 import * as gcnTagsActions from "../ducks/gcnTags";
+import * as gcnPropertiesActions from "../ducks/gcnProperties";
 
 const useStyles = makeStyles((theme) => ({
   paperDiv: {
@@ -106,6 +107,25 @@ const GcnEventsFilterForm = ({ handleFilterSubmit }) => {
     dispatch(gcnTagsActions.fetchGcnTags());
   }, [dispatch]);
 
+  let gcnProperties = [];
+  gcnProperties = gcnProperties.concat(
+    useSelector((state) => state.gcnProperties)
+  );
+  gcnProperties.sort();
+
+  const comparators = {
+    lt: "<",
+    le: "<=",
+    eq: "=",
+    ne: "!=",
+    ge: ">",
+    gt: ">=",
+  };
+
+  useEffect(() => {
+    dispatch(gcnPropertiesActions.fetchGcnProperties());
+  }, [dispatch]);
+
   const { handleSubmit, register, control, reset, getValues } = useForm();
 
   const handleClickReset = () => {
@@ -121,7 +141,7 @@ const GcnEventsFilterForm = ({ handleFilterSubmit }) => {
         className={classes.root}
         onSubmit={handleSubmit(handleFilterSubmit)}
       >
-        <div className={classes.formItemRightColumn}>
+        <div className={classes.formItem}>
           <Typography variant="subtitle2" className={classes.title}>
             Time Detected (UTC)
           </Typography>
@@ -138,6 +158,82 @@ const GcnEventsFilterForm = ({ handleFilterSubmit }) => {
             name="endDate"
             inputRef={register}
             placeholder="2012-08-30T00:00:00"
+          />
+        </div>
+        <div className={classes.formItemRightColumn}>
+          <Typography variant="subtitle2" className={classes.title}>
+            GCN Property Filtering
+          </Typography>
+          <div className={classes.selectItems}>
+            <Controller
+              render={({ value }) => (
+                <Select
+                  inputProps={{ MenuProps: { disableScrollLock: true } }}
+                  labelId="gcnPropertySelectLabel"
+                  value={value || ""}
+                  onChange={(event) => {
+                    reset({
+                      ...getValues(),
+                      property:
+                        event.target.value === -1 ? "" : event.target.value,
+                    });
+                  }}
+                  className={classes.select}
+                >
+                  {gcnProperties?.map((gcnProperty) => (
+                    <MenuItem
+                      value={gcnProperty}
+                      key={gcnProperty}
+                      className={classes.selectItem}
+                    >
+                      {`${gcnProperty}`}
+                    </MenuItem>
+                  ))}
+                </Select>
+              )}
+              name="property"
+              control={control}
+              defaultValue=""
+            />
+          </div>
+          <div className={classes.selectItems}>
+            <Controller
+              render={({ value }) => (
+                <Select
+                  inputProps={{ MenuProps: { disableScrollLock: true } }}
+                  labelId="gcnPropertyComparatorSelectLabel"
+                  value={value || ""}
+                  onChange={(event) => {
+                    reset({
+                      ...getValues(),
+                      propertyComparator:
+                        event.target.value === -1 ? "" : event.target.value,
+                    });
+                  }}
+                  className={classes.select}
+                >
+                  {Object.keys(comparators)?.map((key) => (
+                    <MenuItem
+                      value={key}
+                      key={key}
+                      className={classes.selectItem}
+                    >
+                      {`${comparators[key]}`}
+                    </MenuItem>
+                  ))}
+                </Select>
+              )}
+              name="propertyComparator"
+              control={control}
+              defaultValue="="
+            />
+          </div>
+          <TextField
+            size="small"
+            label="Property Comparator Value"
+            name="propertyComparatorValue"
+            inputRef={register}
+            placeholder="0.0"
           />
         </div>
         <div className={classes.formItemRightColumn}>

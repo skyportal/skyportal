@@ -1,4 +1,9 @@
-__all__ = ['EarthquakeEvent', 'EarthquakeNotice', 'EarthquakePrediction']
+__all__ = [
+    'EarthquakeEvent',
+    'EarthquakeMeasured',
+    'EarthquakeNotice',
+    'EarthquakePrediction',
+]
 
 import sqlalchemy as sa
 from sqlalchemy.orm import relationship
@@ -122,12 +127,12 @@ class EarthquakeMeasured(Base):
     )
 
     rfamp = sa.Column(
-        sa.Float, nullable=False, comment='Earthquake amplitude measured [m/s]'
+        sa.Float, nullable=True, comment='Earthquake amplitude measured [m/s]'
     )
 
     lockloss = sa.Column(
         sa.INT,
-        nullable=False,
+        nullable=True,
         comment='Earthquake lockloss measured, should be 0 (no lockloss) or 1 (lockloss)',
     )
 

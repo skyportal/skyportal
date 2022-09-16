@@ -13,8 +13,11 @@ import humanize
 import sqlalchemy as sa
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm import sessionmaker, scoped_session
+from sqlalchemy.sql.expression import cast
+from sqlalchemy.dialects.postgresql import JSONB
 from marshmallow import Schema
 from marshmallow.exceptions import ValidationError
+import operator  # noqa: F401
 
 from skyportal.models.photometry import Photometry
 
@@ -32,8 +35,10 @@ from ..base import BaseHandler
 from ...models import (
     DBSession,
     Allocation,
+    CatalogQuery,
     GcnEvent,
     GcnNotice,
+    GcnProperty,
     GcnTag,
     Localization,
     LocalizationTile,
@@ -45,6 +50,7 @@ from ...models import (
 )
 from ...utils.gcn import (
     get_dateobs,
+    get_properties,
     get_tags,
     get_skymap,
     get_contour,
@@ -97,6 +103,12 @@ def post_gcnevent_from_xml(payload, user_id, session):
             raise ValueError(
                 "Insufficient permissions: GCN event can only be updated by original poster"
             )
+
+    properties_dict = get_properties(root)
+    properties = GcnProperty(
+        dateobs=event.dateobs, sent_by_id=user.id, data=properties_dict
+    )
+    session.add(properties)
 
     tags = [
         GcnTag(
@@ -182,6 +194,12 @@ def post_gcnevent_from_dictionary(payload, user_id, session):
             raise ValueError(
                 "Insufficient permissions: GCN event can only be updated by original poster"
             )
+
+    if "properties" in payload:
+        properties = GcnProperty(
+            dateobs=event.dateobs, sent_by_id=user.id, data=payload["properties"]
+        )
+        session.add(properties)
 
     tags = [
         GcnTag(
@@ -270,6 +288,36 @@ class GcnEventTagsHandler(BaseHandler):
         with self.Session() as session:
             tags = session.scalars(sa.select(GcnTag.text).distinct()).unique().all()
             return self.success(data=tags)
+
+
+class GcnEventPropertiesHandler(BaseHandler):
+    @auth_or_token
+    def get(self):
+        """
+        ---
+        description: Get all GCN Event properties
+        tags:
+          - photometry
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+
+        with self.Session() as session:
+            properties = (
+                session.scalars(
+                    sa.select(sa.func.jsonb_object_keys(GcnProperty.data)).distinct()
+                )
+                .unique()
+                .all()
+            )
+            return self.success(data=sorted(properties))
 
 
 class GcnEventSurveyEfficiencyHandler(BaseHandler):
@@ -378,6 +426,37 @@ class GcnEventObservationPlanRequestsHandler(BaseHandler):
             return self.success(data=request_data)
 
 
+class GcnEventCatalogQueryHandler(BaseHandler):
+    @auth_or_token
+    async def get(self, gcnevent_id):
+        """
+        ---
+        description: Get catalog queries of the GcnEvent.
+        tags:
+          - gcnevents
+        parameters:
+          - in: path
+            name: gcnevent_id
+            required: true
+            schema:
+              type: string
+        responses:
+          200:
+            content:
+              application/json:
+                schema: ArrayOfCatalogQuerys
+        """
+
+        with self.Session() as session:
+            queries = session.scalars(
+                CatalogQuery.select(
+                    session.user_or_token,
+                ).where(CatalogQuery.payload['gcnevent_id'] == gcnevent_id)
+            ).all()
+
+            return self.success(data=queries)
+
+
 class GcnEventHandler(BaseHandler):
     @auth_or_token
     def post(self):
@@ -481,6 +560,18 @@ class GcnEventHandler(BaseHandler):
                 type: string
               description: |
                 Gcn Tag to filter out
+            - in: query
+              name: propertiesFilter
+              nullable: true
+              schema:
+                type: array
+                items:
+                  type: string
+              explode: false
+              style: simple
+              description: |
+                Comma-separated string of "property: value: operator" single(s) or triplet(s) to filter for events matching
+                that/those property(ies), i.e. "BNS" or "BNS: 0.5: lt"
         responses:
           200:
             content:
@@ -511,6 +602,17 @@ class GcnEventHandler(BaseHandler):
         end_date = self.get_query_argument('endDate', None)
         tag_keep = self.get_query_argument('tagKeep', None)
         tag_remove = self.get_query_argument('tagRemove', None)
+        properties_filter = self.get_query_argument("propertiesFilter", None)
+
+        if properties_filter is not None:
+            if isinstance(properties_filter, str) and "," in properties_filter:
+                properties_filter = [c.strip() for c in properties_filter.split(",")]
+            elif isinstance(properties_filter, str):
+                properties_filter = [properties_filter]
+            else:
+                raise ValueError(
+                    "Invalid propertiesFilter value -- must provide at least one string value"
+                )
 
         if dateobs is not None:
             with self.Session() as session:
@@ -525,6 +627,7 @@ class GcnEventHandler(BaseHandler):
                             .joinedload(Allocation.instrument),
                             joinedload(GcnEvent.comments),
                             joinedload(GcnEvent.detectors),
+                            joinedload(GcnEvent.properties),
                         ],
                     ).where(GcnEvent.dateobs == dateobs)
                 ).first()
@@ -597,6 +700,42 @@ class GcnEventHandler(BaseHandler):
                 query = query.join(
                     tag_subquery, GcnEvent.dateobs != tag_subquery.c.dateobs
                 )
+
+            if properties_filter is not None:
+                for prop_filt in properties_filter:
+                    prop_split = prop_filt.split(":")
+                    if not (len(prop_split) == 1 or len(prop_split) == 3):
+                        raise ValueError(
+                            "Invalid propertiesFilter value -- property filter must have 1 or 3 values"
+                        )
+                    name = prop_split[0].strip()
+
+                    properties_query = GcnProperty.select(session.user_or_token)
+                    if len(prop_split) == 3:
+                        value = prop_split[1].strip()
+                        try:
+                            value = float(value)
+                        except ValueError as e:
+                            raise ValueError(f"Invalid propotation filter value: {e}")
+                        op = prop_split[2].strip()
+                        op_options = ["lt", "le", "eq", "ne", "ge", "gt"]
+                        if op not in op_options:
+                            raise ValueError(f"Invalid operator: {op}")
+                        comp_function = getattr(operator, op)
+
+                        properties_query = properties_query.where(
+                            comp_function(GcnProperty.data[name], cast(value, JSONB))
+                        )
+                    else:
+                        properties_query = properties_query.where(
+                            GcnProperty.data[name].astext.is_not(None)
+                        )
+
+                    properties_subquery = properties_query.subquery()
+                    query = query.join(
+                        properties_subquery,
+                        GcnEvent.dateobs == properties_subquery.c.dateobs,
+                    )
 
             total_matches = session.scalar(
                 sa.select(sa.func.count()).select_from(query)

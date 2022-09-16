@@ -17,7 +17,6 @@ import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
 import Button from "./Button";
 
-import { filterOutEmptyValues } from "../API";
 import * as sourcesActions from "../ducks/sources";
 import * as observationsActions from "../ducks/observations";
 import * as galaxiesActions from "../ducks/galaxies";
@@ -26,6 +25,7 @@ import * as instrumentActions from "../ducks/instrument";
 import LocalizationPlot from "./LocalizationPlot";
 import GcnSummary from "./GcnSummary";
 import AddSurveyEfficiencyObservationsPage from "./AddSurveyEfficiencyObservationsPage";
+import AddCatalogQueryPage from "./AddCatalogQueryPage";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
@@ -288,16 +288,6 @@ const GcnSelectionForm = ({
     setIsSubmitting(false);
   };
 
-  function createGcnUrl(instrumentId, queryParams) {
-    let url = `/api/observation/gcn/${instrumentId}`;
-    if (queryParams) {
-      const filteredQueryParams = filterOutEmptyValues(queryParams);
-      const queryString = new URLSearchParams(filteredQueryParams).toString();
-      url += `?${queryString}`;
-    }
-    return url;
-  }
-
   function validate(formData, errors) {
     if (formData.start_date > formData.end_date) {
       errors.start_date.addError(
@@ -314,8 +304,6 @@ const GcnSelectionForm = ({
     }
     return errors;
   }
-
-  const gcnUrl = createGcnUrl(selectedInstrumentId, formDataState);
 
   const GcnSourceSelectionFormSchema = {
     type: "object",
@@ -466,16 +454,7 @@ const GcnSelectionForm = ({
       <div className={classes.buttons}>
         <GcnSummary dateobs={gcnEvent.dateobs} />
         <AddSurveyEfficiencyObservationsPage gcnevent={gcnEvent} />
-        <Button
-          secondary
-          href={`${gcnUrl}`}
-          download={`observationGcn-${selectedInstrumentId}`}
-          size="small"
-          type="submit"
-          data-testid={`observationGcn_${selectedInstrumentId}`}
-        >
-          GCN
-        </Button>
+        <AddCatalogQueryPage gcnevent={gcnEvent} />
         {isSubmittingTreasureMap === selectedInstrumentId ? (
           <div>
             <CircularProgress />
