@@ -244,9 +244,6 @@ telescope:
     fixed_location: false
     =id: Swift
   - diameter: 1.0
-    elevation: 1.0
-    lat: 1.0
-    lon: 1.0
     nickname: NICER
     name: Neutron Star Interior Composition Explorer
     skycam_link: null
