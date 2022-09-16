@@ -57,8 +57,6 @@ class NICERRequest:
             'RPS_BEGIN': '',
             'COVER': '',
             'RPS_CLOSED_3': '',
-            'RPS_VERIFY.x': 49,
-            'RPS_VERIFY.y': 15,
             'RPS_END': '',
             'Urgency': request.payload["Urgency"],
             'NICER Proposal Number': request.payload.get("ProposalNumber", None),
@@ -168,7 +166,6 @@ class NICERAPI(FollowUpAPI):
 
         data_verify = {**data, 'RPS_VERIFY.x': 49, 'RPS_VERIFY.y': 15}
         r = requests.post(url=NICER_URL, data=data_verify, headers=headers)
-
         if 'Attempted verification detected' in r.text:
             error_message = re.sub(
                 CLEANR,
@@ -177,8 +174,14 @@ class NICERAPI(FollowUpAPI):
             ).replace("\n", " ")
             request.status = f'rejected: {error_message}'
         elif 'Form verified successfully' in r.text:
-            # data_submit = {**data, 'RPS_SUBMIT': ''}
-            # r = requests.post(url=NICER_URL, data=data_submit, headers=headers)
+            data_submit = {
+                **data,
+                'RPS_VERIFIED': '',
+                'RPS_SUBMIT.x': 45,
+                'RPS_SUBMIT.y': 4,
+                'RPS_OPENED_3': '',
+            }
+            r = requests.post(url=NICER_URL, data=data_submit, headers=headers)
             request.status = 'submitted'
 
         transaction = FacilityTransaction(
