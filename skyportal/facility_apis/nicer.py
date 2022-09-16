@@ -121,7 +121,6 @@ class NICERAPI(FollowUpAPI):
 
     """An interface to NICER operations."""
 
-    # subclasses *must* implement the method below
     @staticmethod
     def submit(request, session):
 
