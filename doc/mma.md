@@ -21,6 +21,7 @@ ar = requests.post('https://archive-api.lco.global/api-token-auth/',
                        data = {'username': username, 'password': password})
 ar_token = ar.json()['token']
 * LT: A proposal ID, username, and password are passed as `{"username": "username", "password": "password", "LT_proposalID": "your_proposal_ID"}`.
+* NICER: A username and password (as entered at https://heasarc.gsfc.nasa.gov/ark/nicertoo/) are passed as `{"username": "username", "password": "password"}`.
 * SLACK: As discussed further [here](./slack.html), slack information is pass as `{"slack_workspace": "XXX", "slack_channel": "YYY", "slack_token": "ZZZ"}`.
 * SWIFT Triggering: A username and password are passed as `{"username": "username", "secret": "password"}`.
 * SWIFT XRT Reductions: A user account must be made with the Swift-XRT data products API platform (see https://www.swift.ac.uk/user_objects/register.php to register). The authentication then is the email of the user `"XRT_UserID": "swift_email"}` where swift_email is the email address used upon sign up.
