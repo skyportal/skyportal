@@ -220,8 +220,7 @@ def fetch_transients(allocation_id, user_id, group_ids, payload):
 
             obj_ids = []
             for source in sources:
-                df = source['data']
-                del source['data']
+                df = source.pop('data')
 
                 data_out = {
                     'obj_id': source['id'],
