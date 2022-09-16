@@ -24,8 +24,7 @@ def service():
             user_id = 1
             path = "services/pdlclient_service/data/receiver_storage/origin"
 
-            if not os.path.isdir(path):
-                os.makedirs(path)
+            os.makedirs(path, exist_ok=True)
 
             with DBSession() as session:
 
