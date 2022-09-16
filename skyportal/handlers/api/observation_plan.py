@@ -110,7 +110,9 @@ def post_observation_plans(plans, user_id, session):
             Allocation.select(user).where(Allocation.id == data['allocation_id'])
         ).first()
         if allocation is None:
-            raise AttributeError(f"Missing allocation with ID: {data['allocation_id']}")
+            raise AttributeError(
+                f"Cannot access allocation with ID: {data['allocation_id']}"
+            )
 
         instrument = allocation.instrument
         if instrument.api_classname_obsplan is None:
@@ -125,7 +127,7 @@ def post_observation_plans(plans, user_id, session):
         for group_id in data.pop('target_group_ids', []):
             g = session.scalars(Group.select(user).where(Group.id == group_id)).first()
             if g is None:
-                raise AttributeError(f"Missing group with ID: {group_id}")
+                raise AttributeError(f"Cannot access group with ID: {group_id}")
             target_groups.append(g)
 
         try:
@@ -199,7 +201,9 @@ def post_observation_plan(plan, user_id, session):
         Allocation.select(user).where(Allocation.id == data['allocation_id'])
     ).first()
     if allocation is None:
-        raise AttributeError(f"Missing allocation with ID: {data['allocation_id']}")
+        raise AttributeError(
+            f"Cannot access allocation with ID: {data['allocation_id']}"
+        )
 
     instrument = allocation.instrument
     if instrument.api_classname_obsplan is None:
@@ -214,7 +218,7 @@ def post_observation_plan(plan, user_id, session):
     for group_id in data.pop('target_group_ids', []):
         g = session.scalars(Group.select(user).where(Group.id == group_id)).first()
         if g is None:
-            raise AttributeError(f"Missing group with ID: {group_id}")
+            raise AttributeError(f"Cannot access group with ID: {group_id}")
         target_groups.append(g)
 
     try:
@@ -1394,7 +1398,7 @@ class ObservationPlanCreateObservingRunHandler(BaseHandler):
             ).first()
             if observation_plan_request is None:
                 raise self.error(
-                    f'Cannot find ObservationPlanRequest with ID {observation_plan_request_id}'
+                    f'Cannot access ObservationPlanRequest with ID {observation_plan_request_id}'
                 )
 
             allocation = session.scalars(
@@ -2120,7 +2124,7 @@ class ObservationPlanSimSurveyPlotHandler(BaseHandler):
             ).first()
             if survey_efficiency_analysis is None:
                 return self.error(
-                    f'Missing survey_efficiency_analysis for id {survey_efficiency_analysis_id}'
+                    f'Cannot access survey_efficiency_analysis for id {survey_efficiency_analysis_id}'
                 )
 
             if survey_efficiency_analysis.lightcurves is None:
@@ -2187,7 +2191,8 @@ class DefaultObservationPlanRequestHandler(BaseHandler):
             allocation = session.scalars(stmt).first()
             if allocation is None:
                 return self.error(
-                    f"Missing allocation with ID: {data['allocation_id']}", status=403
+                    f"Cannot access allocation with ID: {data['allocation_id']}",
+                    status=403,
                 )
 
             instrument = allocation.instrument
