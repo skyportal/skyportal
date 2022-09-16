@@ -500,15 +500,8 @@ def query_fink_photometry(objectId):
     df['filter'] = [inv_bands[int(filt)] for filt in df['filter']]
     df['mjd'] = [Time(jd, format='jd').mjd for jd in df['jd']]
 
-    drop_columns = list(
-        set(df.columns.values)
-        - {'mjd', 'ra', 'dec', 'mag', 'magerr', 'limiting_mag', 'filter'}
-    )
-
-    df.drop(
-        columns=drop_columns,
-        inplace=True,
-    )
+    columns_to_keep = ['mjd', 'ra', 'dec', 'mag', 'magerr', 'limiting_mag', 'filter']
+    df = df[columns_to_keep]
     df['magsys'] = 'ab'
 
     return df
