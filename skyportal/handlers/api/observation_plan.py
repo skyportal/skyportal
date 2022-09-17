@@ -106,13 +106,13 @@ def post_observation_plans(plans, user_id, session):
         data['allocation_id'] = int(data['allocation_id'])
         data['localization_id'] = int(data['localization_id'])
 
-        allocation = Allocation.get_if_accessible_by(
-            data['allocation_id'],
-            user,
-            raise_if_none=False,
-        )
+        allocation = session.scalars(
+            Allocation.select(user).where(Allocation.id == data['allocation_id'])
+        ).first()
         if allocation is None:
-            raise AttributeError(f"Missing allocation with ID: {data['allocation_id']}")
+            raise AttributeError(
+                f"Cannot access allocation with ID: {data['allocation_id']}"
+            )
 
         instrument = allocation.instrument
         if instrument.api_classname_obsplan is None:
@@ -125,9 +125,9 @@ def post_observation_plans(plans, user_id, session):
 
         target_groups = []
         for group_id in data.pop('target_group_ids', []):
-            g = Group.get_if_accessible_by(group_id, user, raise_if_none=False)
+            g = session.scalars(Group.select(user).where(Group.id == group_id)).first()
             if g is None:
-                raise AttributeError(f"Missing group with ID: {group_id}")
+                raise AttributeError(f"Cannot access group with ID: {group_id}")
             target_groups.append(g)
 
         try:
@@ -197,13 +197,13 @@ def post_observation_plan(plan, user_id, session):
     data['allocation_id'] = int(data['allocation_id'])
     data['localization_id'] = int(data['localization_id'])
 
-    allocation = Allocation.get_if_accessible_by(
-        data['allocation_id'],
-        user,
-        raise_if_none=False,
-    )
+    allocation = session.scalars(
+        Allocation.select(user).where(Allocation.id == data['allocation_id'])
+    ).first()
     if allocation is None:
-        raise AttributeError(f"Missing allocation with ID: {data['allocation_id']}")
+        raise AttributeError(
+            f"Cannot access allocation with ID: {data['allocation_id']}"
+        )
 
     instrument = allocation.instrument
     if instrument.api_classname_obsplan is None:
@@ -216,9 +216,9 @@ def post_observation_plan(plan, user_id, session):
 
     target_groups = []
     for group_id in data.pop('target_group_ids', []):
-        g = Group.get_if_accessible_by(group_id, user, raise_if_none=False)
+        g = session.scalars(Group.select(user).where(Group.id == group_id)).first()
         if g is None:
-            raise AttributeError(f"Missing group with ID: {group_id}")
+            raise AttributeError(f"Cannot access group with ID: {group_id}")
         target_groups.append(g)
 
     try:
@@ -1385,36 +1385,40 @@ class ObservationPlanCreateObservingRunHandler(BaseHandler):
                 schema: Error
         """
 
-        options = [
-            joinedload(ObservationPlanRequest.observation_plans)
-            .joinedload(EventObservationPlan.planned_observations)
-            .joinedload(PlannedObservation.field)
-        ]
-
-        observation_plan_request = ObservationPlanRequest.get_if_accessible_by(
-            observation_plan_request_id,
-            self.current_user,
-            mode="read",
-            raise_if_none=True,
-            options=options,
-        )
-        self.verify_and_commit()
-
-        allocation = Allocation.get_if_accessible_by(
-            observation_plan_request.allocation_id,
-            self.current_user,
-            raise_if_none=True,
-        )
-
-        instrument = allocation.instrument
-
-        observation_plan = observation_plan_request.observation_plans[0]
-        planned_observations = observation_plan.planned_observations
-
-        if len(planned_observations) == 0:
-            return self.error('Cannot create observing run with no observations.')
-
         with self.Session() as session:
+            observation_plan_request = session.scalars(
+                ObservationPlanRequest.select(
+                    session.user_or_token,
+                    options=[
+                        joinedload(ObservationPlanRequest.observation_plans)
+                        .joinedload(EventObservationPlan.planned_observations)
+                        .joinedload(PlannedObservation.field)
+                    ],
+                ).where(ObservationPlanRequest.id == observation_plan_request_id),
+            ).first()
+            if observation_plan_request is None:
+                raise self.error(
+                    f'Cannot access ObservationPlanRequest with ID {observation_plan_request_id}'
+                )
+
+            allocation = session.scalars(
+                Allocation.select(session.user_or_token).where(
+                    Allocation.id == observation_plan_request.allocation_id
+                )
+            ).first()
+
+            if allocation is None:
+                raise self.error(
+                    f'Cannot find Allocation with ID {observation_plan_request.allocation_id}'
+                )
+
+            instrument = allocation.instrument
+
+            observation_plan = observation_plan_request.observation_plans[0]
+            planned_observations = observation_plan.planned_observations
+
+            if len(planned_observations) == 0:
+                return self.error('Cannot create observing run with no observations.')
 
             observing_run = {
                 'instrument_id': instrument.id,
@@ -2111,38 +2115,39 @@ class ObservationPlanSimSurveyPlotHandler(BaseHandler):
                 schema: Success
         """
 
-        survey_efficiency_analysis = (
-            SurveyEfficiencyForObservationPlan.get_if_accessible_by(
-                survey_efficiency_analysis_id, self.current_user
+        with self.Session() as session:
+            survey_efficiency_analysis = session.scalars(
+                SurveyEfficiencyForObservationPlan.select(session.user_or_token).where(
+                    SurveyEfficiencyForObservationPlan.id
+                    == survey_efficiency_analysis_id
+                )
+            ).first()
+            if survey_efficiency_analysis is None:
+                return self.error(
+                    f'Cannot access survey_efficiency_analysis for id {survey_efficiency_analysis_id}'
+                )
+
+            if survey_efficiency_analysis.lightcurves is None:
+                return self.error(
+                    f'survey_efficiency_analysis for id {survey_efficiency_analysis_id} not complete'
+                )
+
+            output_format = 'pdf'
+            simsurvey_analysis = functools.partial(
+                observation_simsurvey_plot,
+                lcs=json.loads(survey_efficiency_analysis.lightcurves),
+                output_format=output_format,
             )
-        )
 
-        if survey_efficiency_analysis is None:
-            return self.error(
-                f'Missing survey_efficiency_analysis for id {survey_efficiency_analysis_id}'
+            self.push_notification(
+                'Simsurvey analysis in progress. Should be available soon.'
             )
+            rez = await IOLoop.current().run_in_executor(None, simsurvey_analysis)
 
-        if survey_efficiency_analysis.lightcurves is None:
-            return self.error(
-                f'survey_efficiency_analysis for id {survey_efficiency_analysis_id} not complete'
-            )
+            filename = rez["name"]
+            data = io.BytesIO(rez["data"])
 
-        output_format = 'pdf'
-        simsurvey_analysis = functools.partial(
-            observation_simsurvey_plot,
-            lcs=json.loads(survey_efficiency_analysis.lightcurves),
-            output_format=output_format,
-        )
-
-        self.push_notification(
-            'Simsurvey analysis in progress. Should be available soon.'
-        )
-        rez = await IOLoop.current().run_in_executor(None, simsurvey_analysis)
-
-        filename = rez["name"]
-        data = io.BytesIO(rez["data"])
-
-        await self.send_file(data, filename, output_type=output_format)
+            await self.send_file(data, filename, output_type=output_format)
 
 
 class DefaultObservationPlanRequestHandler(BaseHandler):
@@ -2186,7 +2191,8 @@ class DefaultObservationPlanRequestHandler(BaseHandler):
             allocation = session.scalars(stmt).first()
             if allocation is None:
                 return self.error(
-                    f"Missing allocation with ID: {data['allocation_id']}", status=403
+                    f"Cannot access allocation with ID: {data['allocation_id']}",
+                    status=403,
                 )
 
             instrument = allocation.instrument
@@ -2271,26 +2277,33 @@ class DefaultObservationPlanRequestHandler(BaseHandler):
                   schema: Error
         """
 
-        if default_observation_plan_id is not None:
-            default_observation_plan_request = (
-                DefaultObservationPlanRequest.get_if_accessible_by(
-                    default_observation_plan_id,
-                    self.current_user,
-                    raise_if_none=True,
-                    options=[joinedload(DefaultObservationPlanRequest.allocation)],
-                )
-            )
-            self.verify_and_commit()
-            return self.success(data=default_observation_plan_request)
+        with self.Session() as session:
+            if default_observation_plan_id is not None:
+                default_observation_plan_request = session.scalars(
+                    DefaultObservationPlanRequest.select(
+                        session.user_or_token,
+                        options=[joinedload(DefaultObservationPlanRequest.allocation)],
+                    ).where(
+                        DefaultObservationPlanRequest.id == default_observation_plan_id
+                    )
+                ).first()
+                if default_observation_plan_request is None:
+                    return self.error(
+                        f'Cannot find DefaultObservationPlanRequest with ID {default_observation_plan_id}'
+                    )
+                return self.success(data=default_observation_plan_request)
 
-        default_observation_plan_requests = (
-            DefaultObservationPlanRequest.get_records_accessible_by(
-                self.current_user,
-                options=[joinedload(DefaultObservationPlanRequest.allocation)],
+            default_observation_plan_requests = (
+                session.scalars(
+                    DefaultObservationPlanRequest.select(
+                        session.user_or_token,
+                        options=[joinedload(DefaultObservationPlanRequest.allocation)],
+                    )
+                )
+                .unique()
+                .all()
             )
-        )
-        self.verify_and_commit()
-        return self.success(data=default_observation_plan_requests)
+            return self.success(data=default_observation_plan_requests)
 
     @auth_or_token
     def delete(self, default_observation_plan_id):

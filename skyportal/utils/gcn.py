@@ -181,6 +181,7 @@ def get_skymap(root, gcn_notice):
 def get_properties(root):
 
     property_names = [
+        # Gravitational waves
         "HasNS",
         "HasRemnant",
         "FAR",
@@ -189,7 +190,22 @@ def get_properties(root):
         "BBH",
         "MassGap",
         "Terrestrial",
+        # GRBs
         "Burst_Signif",
+        "Data_Signif",
+        "Det_Signif",
+        "Image_Signif",
+        "Rate_Signif",
+        "Trig_Signif",
+        "Burst_Inten",
+        "Burst_Peak",
+        "Data_Timescale",
+        "Data_Integ",
+        "Integ_Time",
+        "Trig_Timescale",
+        "Trig_Dur",
+        "Hardness_Ratio",
+        # Neutrinos
         "signalness",
         "energy",
     ]
