@@ -33,13 +33,14 @@ from ...models import (
     Comment,
     DBSession,
     Group,
+    Instrument,
     Localization,
     Obj,
     Telescope,
     User,
 )
 from ...models.schema import CatalogQueryPost
-from ...utils.catalog import get_conesearch_centers, query_kowalski
+from ...utils.catalog import get_conesearch_centers, query_kowalski, query_fink
 
 _, cfg = load_env()
 
@@ -204,6 +205,42 @@ def fetch_transients(allocation_id, user_id, group_ids, payload):
                         user.id,
                         session,
                     )
+
+        elif payload['catalogName'] == 'ZTF-Fink':
+
+            instrument = session.scalars(
+                Instrument.select(user).where(Instrument.name == 'ZTF')
+            ).first()
+            if instrument is None:
+                raise ValueError('Expected an Instrument named ZTF')
+
+            sources = query_fink(
+                jd_trigger, ra_center, dec_center, max_days=dt, within_days=dt
+            )
+
+            obj_ids = []
+            for source in sources:
+                df = source.pop('data')
+
+                data_out = {
+                    'obj_id': source['id'],
+                    'instrument_id': instrument.id,
+                    'group_ids': [g.id for g in groups],
+                    **df.to_dict(orient='list'),
+                }
+
+                s = session.scalars(
+                    Obj.select(user).where(Obj.id == source['id'])
+                ).first()
+                if s is None:
+                    obj_id = post_source(source, user_id, session)
+                    obj_ids.append(obj_id)
+
+                if len(df.index) > 0:
+                    add_external_photometry(data_out, user)
+                    log(f"Photometry committed to database for {source['id']}")
+                else:
+                    log(f"No photometry to commit to database for {source['id']}")
 
         elif payload['catalogName'] == 'LSXPS':
             telescope_name = 'Swift'

@@ -43,6 +43,8 @@ app:
 
   ztf_forced_endpoint: https://ztfweb.ipac.caltech.edu
 
+  fink_endpoint: https://fink-portal.org
+
   swift:
     protocol: https
     host: www.swift.psu.edu
