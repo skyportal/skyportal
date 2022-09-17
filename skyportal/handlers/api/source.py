@@ -180,7 +180,7 @@ def get_source(
             )
         if (
             "sdss" not in existing_thumbnail_types
-            or "dr8" not in existing_thumbnail_types
+            or "ls" not in existing_thumbnail_types
         ):
             IOLoop.current().run_in_executor(
                 None,

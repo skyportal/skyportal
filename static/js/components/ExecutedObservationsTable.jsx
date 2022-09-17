@@ -112,10 +112,13 @@ const ExecutedObservationsTable = ({
 
   const renderSaveSource = (dataIndex) => {
     const formData = {
-      id: observations[dataIndex].target_name.replace(/ /g, "_"),
+      id: observations[dataIndex].target_name?.replace(/ /g, "_"),
       ra: observations[dataIndex].field.ra,
       dec: observations[dataIndex].field.dec,
     };
+    if (!observations[dataIndex].target_name) {
+      return <div />;
+    }
     return (
       <div className={classes.actionButtons}>
         {isSaving === formData.id ? (
