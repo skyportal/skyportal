@@ -2280,9 +2280,11 @@ class DefaultObservationPlanRequestHandler(BaseHandler):
         with self.Session() as session:
             if default_observation_plan_id is not None:
                 default_observation_plan_request = session.scalars(
-                    DefaultObservationPlanRequest.select(session.user_or_token).where(
-                        DefaultObservationPlanRequest.id == default_observation_plan_id,
+                    DefaultObservationPlanRequest.select(
+                        session.user_or_token,
                         options=[joinedload(DefaultObservationPlanRequest.allocation)],
+                    ).where(
+                        DefaultObservationPlanRequest.id == default_observation_plan_id
                     )
                 ).first()
                 if default_observation_plan_request is None:
