@@ -1087,8 +1087,7 @@ class GcnSummaryHandler(BaseHandler):
         start_date = validated['start_date']
         end_date = validated['end_date']
 
-        # try:
-        if True:
+        try:
             if not no_text:
                 if title is None:
                     return self.error("Title is required")
@@ -1514,6 +1513,6 @@ class GcnSummaryHandler(BaseHandler):
                     if len(observations_text) > 0 and not no_text:
                         observations_text = ["\nObservations:"] + observations_text
                         contents.extend(observations_text)
-        # except Exception as e:
-        #    return self.error(f"Error generating summary: {e}")
+        except Exception as e:
+            return self.error(f"Error generating summary: {e}")
         return self.success(data=contents)
