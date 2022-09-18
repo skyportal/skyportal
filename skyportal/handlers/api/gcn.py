@@ -17,6 +17,7 @@ from sqlalchemy.sql.expression import cast
 from sqlalchemy.dialects.postgresql import JSONB
 from marshmallow import Schema
 from marshmallow.exceptions import ValidationError
+import numpy as np
 import operator  # noqa: F401
 
 from skyportal.models.photometry import Photometry
@@ -1086,7 +1087,8 @@ class GcnSummaryHandler(BaseHandler):
         start_date = validated['start_date']
         end_date = validated['end_date']
 
-        try:
+        # try:
+        if True:
             if not no_text:
                 if title is None:
                     return self.error("Title is required")
@@ -1254,9 +1256,7 @@ class GcnSummaryHandler(BaseHandler):
                                 sources_text.append(
                                     f"""\nPhotometry for source {source['id']}:\n"""
                                 ) if not no_text else None
-                                mjds, ras, decs, mags, filters, origins, instruments = (
-                                    [],
-                                    [],
+                                mjds, mags, filters, origins, instruments = (
                                     [],
                                     [],
                                     [],
@@ -1266,21 +1266,24 @@ class GcnSummaryHandler(BaseHandler):
                                 for phot in photometry:
                                     phot = serialize(phot, 'ab', 'mag')
                                     mjds.append(phot['mjd'] if 'mjd' in phot else None)
-                                    ras.append(
-                                        f"{round(phot['ra'],2)}±{round(phot['ra_unc'],2)}"
-                                        if ('ra' in phot and 'ra_unc' in phot)
-                                        else None
-                                    )
-                                    decs.append(
-                                        f"{round(phot['dec'],2)}±{round(phot['dec_unc'],2)}"
-                                        if ('dec' in phot and 'dec_unc' in phot)
-                                        else None
-                                    )
-                                    mags.append(
-                                        f"{round(phot['mag'],2)}±{round(phot['magerr'],2)}"
-                                        if ('mag' in phot and 'magerr' in phot)
-                                        else None
-                                    )
+                                    if (
+                                        'mag' in phot
+                                        and 'magerr' in phot
+                                        and phot['mag'] is not None
+                                        and phot['magerr'] is not None
+                                    ):
+                                        mags.append(
+                                            f"{np.round(phot['mag'],2)}±{np.round(phot['magerr'],2)}"
+                                        )
+                                    elif (
+                                        'limiting_mag' in phot
+                                        and phot['limiting_mag'] is not None
+                                    ):
+                                        mags.append(
+                                            f"< {np.round(phot['limiting_mag'])}"
+                                        )
+                                    else:
+                                        mags.append(None)
                                     filters.append(
                                         phot['filter'] if 'filter' in phot else None
                                     )
@@ -1295,8 +1298,6 @@ class GcnSummaryHandler(BaseHandler):
                                 df_phot = pd.DataFrame(
                                     {
                                         "mjd": mjds,
-                                        "ra": ras,
-                                        "dec": decs,
                                         "mag±err (ab)": mags,
                                         "filter": filters,
                                         "origin": origins,
@@ -1315,6 +1316,7 @@ class GcnSummaryHandler(BaseHandler):
                                         headers='keys',
                                         tablefmt='psql',
                                         showindex=False,
+                                        floatfmt=".5f",
                                     )
                                     + "\n"
                                 )
@@ -1442,11 +1444,8 @@ class GcnSummaryHandler(BaseHandler):
                             )
                             for obs in observations:
                                 t0s.append(
-                                    round(
-                                        (obs["obstime"] - event.dateobs)
-                                        / datetime.timedelta(hours=1),
-                                        2,
-                                    )
+                                    (obs["obstime"] - event.dateobs)
+                                    / datetime.timedelta(hours=1)
                                     if "obstime" in obs
                                     else None
                                 )
@@ -1500,12 +1499,21 @@ class GcnSummaryHandler(BaseHandler):
                                     headers='keys',
                                     tablefmt='psql',
                                     showindex=False,
+                                    floatfmt=(
+                                        ".2f",
+                                        ".5f",
+                                        ".5f",
+                                        ".5f",
+                                        "%s",
+                                        "%d",
+                                        ".2f",
+                                    ),
                                 )
                                 + "\n"
                             )
                     if len(observations_text) > 0 and not no_text:
                         observations_text = ["\nObservations:"] + observations_text
                         contents.extend(observations_text)
-        except Exception as e:
-            return self.error(f"Error generating summary: {e}")
+        # except Exception as e:
+        #    return self.error(f"Error generating summary: {e}")
         return self.success(data=contents)
