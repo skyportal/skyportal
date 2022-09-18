@@ -46,6 +46,34 @@ As part of the `ObservationPlanRequest` API, it is possible to retrieve `Execute
 * ZTF: Login information for IRSA, which takes the form: {"tap_service": "https://irsa.ipac.caltech.edu/TAP", "tap_username": "your_password", "tap_password": "your_password"}
 
 
+## GCN Event Ingestion
+
+We use [gcn-kafka](https://github.com/nasa-gcn/gcn-kafka-python) to ingest multi-messenger events distributed by the [General Coordinates Network (GCN)](https://gcn.nasa.gov/) within SkyPortal.
+
+For configuration, one requires a client_id and client_secret at https://gcn.nasa.gov/quickstart. Once that is available, the configuration file (discuss with your administrators if someone else is deploying will be edited as the below).
+
+```
+gcn:
+  server: gcn.nasa.gov
+  client_id:
+  client_secret:
+  notice_types:
+    - FERMI_GBM_FLT_POS
+    - FERMI_GBM_GND_POS
+    - FERMI_GBM_FIN_POS
+    - FERMI_GBM_SUBTHRESH
+    - LVC_PRELIMINARY
+    - LVC_INITIAL
+    - LVC_UPDATE
+    - LVC_RETRACTION
+    - AMON_ICECUBE_COINC
+    - AMON_ICECUBE_HESE
+    - ICECUBE_ASTROTRACK_GOLD
+    - ICECUBE_ASTROTRACK_BRONZE
+```
+
+where notice types are also available from the GCN quickstart guide linked above.
+
 ## Earthquake Ingestion
 
 The most important environmental effect on detectors in the IGWN remains teleseismic earthquakes. For this reason, we enable ingestion of earthquakes using the USGS' [PDL client](https://github.com/usgs/pdl).
