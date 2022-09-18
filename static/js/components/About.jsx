@@ -69,7 +69,7 @@ const About = () => {
     },
     {
       name: "Theophile Jegou du Laz",
-      src: "/static/images/developers/skyportal.jpg",
+      src: "/static/images/developers/laz.jpeg",
     },
     {
       name: "Mansi Kasliwal",
