@@ -61,15 +61,14 @@ const NewGcnEvent = () => {
           "dateobs must be defined if not uploading VOEvent"
         );
       }
-      if (!formData.polygon) {
-        if (
-          !formData.skymap &&
-          (!formData.ra || !formData.dec || !formData.error)
-        ) {
-          errors.dateobs.addError(
-            "Either (i) ra, dec, and error or (ii) polygon or (iii) skymap must be defined if not uploading VOEvent"
-          );
-        }
+      if (
+        !formData.polygon &&
+        !formData.skymap &&
+        (!formData.ra || !formData.dec || !formData.error)
+      ) {
+        errors.skymap.addError(
+          "Either (i) ra, dec, and error or (ii) polygon or (iii) skymap must be defined if not uploading VOEvent"
+        );
       }
     }
     return errors;
