@@ -296,7 +296,7 @@ def from_bytes(arr):
         else:
             return col.tolist()
 
-    with tempfile.NamedTemporaryFile(suffix=".fits.gz", mode="wb", delete=False) as f:
+    with tempfile.NamedTemporaryFile(suffix=".fits.gz", mode="wb") as f:
         arrSplit = arr.split('base64,')
         filename = arrSplit[0].split("name=")[-1].replace(";", "")
         f.write(base64.b64decode(arrSplit[-1]))
