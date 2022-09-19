@@ -78,7 +78,7 @@ const getCirclePoints = (delRaGroup, delDecGroup) => {
   const medianRA = d3.median(delRaGroup);
   const medianDec = d3.median(delDecGroup);
 
-  const points = thetas.map((theta) => {
+  const points = thetas?.map((theta) => {
     const xx = medianRA + C * Math.cos(theta);
     const yy = medianDec + C * Math.sin(theta);
     return { xx, yy, theta };
@@ -242,11 +242,6 @@ const spec = (inputData, textColor) => ({
             titleColor: textColor,
           },
         },
-        // shape: {
-        //   field: "filter",
-        //   type: "nominal",
-        //   scale: { range: ["circle", "square", "triangle"] },
-        // },
         size: { value: 40 },
         fillOpacity: { value: 1.0 },
         strokeOpacity: { value: 1.0 },
@@ -452,7 +447,7 @@ const processData = (photometry, crossMatches) => {
       const distances = crossMatchesAsArray
         .filter((source) => source.catalog === catalog)
         .map((source) => source.offsetFromReference);
-      
+
       return distances.length
         ? { catalog, minDistance: Math.min(...distances) }
         : null;
