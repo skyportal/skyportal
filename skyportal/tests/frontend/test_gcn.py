@@ -205,11 +205,7 @@ def test_gcn_summary_sources(
         # source phot
         assert any("Photometry for source" in line for line in data)
         assert any(
-            "mjd" in line
-            and "ra" in line
-            and "dec" in line
-            and "mag±err (ab)" in line
-            and "filter" in line
+            "mjd" in line and "mag±err (ab)" in line and "filter" in line
             for line in data
         )
     finally:

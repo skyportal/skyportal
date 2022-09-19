@@ -151,7 +151,6 @@ mmadetector:
     type: gamma-ray-burst
     =id: SwiftGRB
 
-
 telescope:
   - name: Palomar 1.2m
     nickname: P48
@@ -244,6 +243,12 @@ telescope:
     skycam_link: null
     fixed_location: false
     =id: Swift
+  - diameter: 1.0
+    nickname: NICER
+    name: Neutron Star Interior Composition Explorer
+    skycam_link: null
+    fixed_location: false
+    =id: NICER
   - diameter: 1.8
     elevation: 4215.0
     lat: 19.825
@@ -395,6 +400,13 @@ instrument:
     filters: ['uvot::b', 'uvot::u', 'uvot::v', 'uvot::uvm2', 'uvot::uvw1', 'uvot::uvw2', 'uvot::white', 'swiftxrt']
     field_region:
       file: ../data/Swift_Region.reg
+  - band: X-ray
+    name: XTI
+    api_classname: NICERAPI
+    =id: XTI
+    telescope_id: =NICER
+    type: imaging spectrograph
+    filters: ['nicerxti']
   - band: optical
     name: PS1
     telescope_id: =PS1
@@ -544,6 +556,13 @@ allocation:
     group_id: =program_A
     instrument_id: =UVOTXRT
     _altdata: '{"username": "anonymous", "secret": "anonymous", "XRT_UserID": "user@swift.org"}'
+  - pi: Michael Coughlin
+    proposal_id: NICER-001
+    start_date: "3020-02-12T00:00:00"
+    end_date: "3020-07-12T00:00:00"
+    hours_allocated: 100
+    group_id: =program_A
+    instrument_id: =XTI
   - pi: Michael Coughlin
     proposal_id: KAIT-001
     start_date: "3020-02-12T00:00:00"

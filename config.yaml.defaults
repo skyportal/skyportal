@@ -21,6 +21,8 @@ app:
   observation_plan:
     default_filters: ['ztfg', 'ztfr', 'ztfi']
 
+  heasarc_endpoint: https://heasarc.gsfc.nasa.gov
+
   # this endpoint does not actually do anything -- it is just for testing
   sedm_endpoint: http://minar.caltech.edu/add_fritz
   sedmv2_endpoint:
@@ -40,6 +42,8 @@ app:
     port: 443
 
   ztf_forced_endpoint: https://ztfweb.ipac.caltech.edu
+
+  fink_endpoint: https://fink-portal.org
 
   swift:
     protocol: https
@@ -573,6 +577,11 @@ additional_bandpasses:
     wavelength: [0.1, 1, 62, 100]
     transmission: [0, 1, 1, 0]
     description: "basic XRT filter - tophat transmission"
+  - name: 'nicerxti'
+    filterset: 'xti'
+    wavelength: [0.1, 1.2, 41, 100]
+    transmission: [0, 1, 1, 0]
+    description: "basic XTI filter - tophat transmission"
 
 user:
   default_role: 'Full user'

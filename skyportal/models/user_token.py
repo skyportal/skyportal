@@ -16,6 +16,7 @@ from baselayer.app.models import (
     CustomUserAccessControl,
 )
 
+from .catalog import CatalogQuery
 from .group import Group, GroupUser
 from .followup_request import FollowupRequest
 from .observation_plan import DefaultObservationPlanRequest, ObservationPlanRequest
@@ -218,6 +219,13 @@ User.default_observationplan_requests = relationship(
     doc="The default observation plan requests this User has made.",
     foreign_keys=[DefaultObservationPlanRequest.requester_id],
 )
+User.catalog_queries = relationship(
+    'CatalogQuery',
+    back_populates='requester',
+    passive_deletes=True,
+    doc="The catalog queries this User has made.",
+    foreign_keys=[CatalogQuery.requester_id],
+)
 User.comments_on_shifts = relationship(
     "CommentOnShift",
     back_populates="author",
@@ -297,6 +305,12 @@ User.gcntags = relationship(
     back_populates='sent_by',
     passive_deletes=True,
     doc='The gcntags saved by this user',
+)
+User.gcnproperties = relationship(
+    'GcnProperty',
+    back_populates='sent_by',
+    passive_deletes=True,
+    doc='The gcnproperties saved by this user',
 )
 User.earthquakeevents = relationship(
     'EarthquakeEvent',
