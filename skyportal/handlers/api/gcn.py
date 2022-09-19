@@ -1115,12 +1115,6 @@ class GcnSummaryHandler(BaseHandler):
             if group_id is None:
                 return self.error("Group ID is required")
 
-        if start_date is None:
-            return self.error(message="Missing start_date")
-
-        if end_date is None:
-            return self.error(message="Missing end_date")
-
         start_date_mjd = Time(arrow.get(start_date).datetime).mjd
         end_date_mjd = Time(arrow.get(end_date).datetime).mjd
 
