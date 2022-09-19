@@ -39,6 +39,13 @@ observation_id,field_id,obstime,seeing,limmag,exposure_time,filter,processed_fra
 
 where observation_id (the ID of the observations, does not need to be unique), the field_id, the observation time (in JD or otherwise any unambigious format as specified in the astropy docs such as iso or isot: https://docs.astropy.org/en/stable/time/index.html), the seeing (in arcseconds), the limiting magnitude, the exposure time (in seconds), the filter, and the "processed_fraction" (what fraction of the image was successfully processed) are potential columns. We note that only observation_id, field_id, obstime, filter, and exposure_time required.
 
+It is also possible to upload by right ascension and declination in cases where field IDs are not available. In this case, observation_id is replaced by the columns RA and Dec, i.e.
+
+observation_id,RA,Dec,obstime,seeing,limmag,exposure_time,filter,processed_fraction
+94434604,0.0,-89.05,2458598.8460417003,1.5741500000,20.4070500000,30,ztfr,1.00000
+94434651,0.0,-89.05,2458598.8465162003,1.5812000000,20.4940500000,30,ztfr,1.00000
+94434696,0.0,-89.05,2458598.8469676003,1.6499500000,20.5603000000,30,ztfr,1.00000
+
 ## Executed Observations API Upload
 
 As part of the `ObservationPlanRequest` API, it is possible to retrieve `ExecutedObservation`s. We briefly describe the authentication form the available telescopes take below:
