@@ -1203,6 +1203,31 @@ const SourceTable = ({
         });
         return classifications.join(";");
       };
+      const renderDownloadProbability = (source) => {
+        const classifications = [];
+        source?.classifications.forEach((x) => {
+          classifications.push(x.probability);
+        });
+        return classifications.join(";");
+      };
+      const renderDownloadAnnotationKey = (source) => {
+        const annotationKeys = [];
+        source?.annotations.forEach((x) => {
+          Object.entries(x.data).forEach((keyValuePair) => {
+            annotationKeys.push(keyValuePair[0]);
+          });
+        });
+        return annotationKeys.join(";");
+      };
+      const renderDownloadAnnotationValue = (source) => {
+        const annotationValues = [];
+        source?.annotations.forEach((x) => {
+          Object.entries(x.data).forEach((keyValuePair) => {
+            annotationValues.push(keyValuePair[1]);
+          });
+        });
+        return annotationValues.join(";");
+      };
       const renderDownloadGroups = (source) => {
         const groups = [];
         source?.groups.forEach((x) => {
@@ -1251,6 +1276,18 @@ const SourceTable = ({
                 download: true,
               },
               {
+                name: "probability",
+                download: true,
+              },
+              {
+                name: "annotation key",
+                download: true,
+              },
+              {
+                name: "annotation value",
+                download: true,
+              },
+              {
                 name: "groups",
                 download: true,
               },
@@ -1280,6 +1317,9 @@ const SourceTable = ({
                   x.dec,
                   x.redshift,
                   renderDownloadClassification(x),
+                  renderDownloadProbability(x),
+                  renderDownloadAnnotationKey(x),
+                  renderDownloadAnnotationValue(x),
                   renderDownloadGroups(x),
                   renderDownloadDateSaved(x),
                   renderDownloadAlias(x),
@@ -1357,6 +1397,16 @@ SourceTable.propTypes = {
       origin: PropTypes.string,
       alias: PropTypes.arrayOf(PropTypes.string),
       redshift: PropTypes.number,
+      annotations: PropTypes.arrayOf(
+        PropTypes.shape({
+          origin: PropTypes.string.isRequired,
+          data: PropTypes.object.isRequired, // eslint-disable-line react/forbid-prop-types
+          author: PropTypes.shape({
+            username: PropTypes.string.isRequired,
+          }).isRequired,
+          created_at: PropTypes.string.isRequired,
+        })
+      ).isRequired,
       classifications: PropTypes.arrayOf(
         PropTypes.shape({
           id: PropTypes.number,

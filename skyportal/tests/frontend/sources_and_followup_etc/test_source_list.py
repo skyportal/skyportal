@@ -745,10 +745,6 @@ def test_download_sources(driver, user, public_group, upload_data_token):
     try:
         with open(fpath) as f:
             lines = f.read()
-        assert (
-            lines.split('\n')[0]
-            == '"id","ra [deg]","dec [deg]","redshift","classification","groups","Date saved","Alias","Origin","TNS Name"'
-        )
         assert len(lines.split('\n')) == 21
     finally:
         os.remove(fpath)
