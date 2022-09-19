@@ -139,6 +139,7 @@ const GcnSummary = ({ dateobs }) => {
   const [showGalaxies, setShowGalaxies] = useState(false);
   const [showObservations, setShowObservations] = useState(false);
   const [noText, setNoText] = useState(false);
+  const [photometryInWindow, setPhotometryInWindow] = useState(false);
 
   const [fetching, setFetching] = useState(false);
 
@@ -273,6 +274,7 @@ const GcnSummary = ({ dateobs }) => {
         showGalaxies,
         showObservations,
         noText,
+        photometryInWindow,
       };
       if (nb !== "") {
         params.number = nb;
@@ -395,6 +397,18 @@ const GcnSummary = ({ dateobs }) => {
                         />
                       }
                       label="No Text"
+                    />
+                    <FormControlLabel
+                      control={
+                        <Checkbox
+                          label="Photometry in Window"
+                          checked={photometryInWindow}
+                          onChange={(e) =>
+                            setPhotometryInWindow(e.target.checked)
+                          }
+                        />
+                      }
+                      label="Photometry in Window"
                     />
                   </div>
                   <div className={classes.buttons}>
