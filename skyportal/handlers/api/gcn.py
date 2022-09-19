@@ -1,6 +1,7 @@
 # Inspired by https://github.com/growth-astro/growth-too-marshal/blob/main/growth/too/gcn.py
 
 import ast
+import binascii
 import os
 import gcn
 import lxml
@@ -55,6 +56,7 @@ from ...utils.gcn import (
     get_skymap,
     get_contour,
     from_url,
+    from_bytes,
     from_cone,
     from_polygon,
 )
@@ -242,7 +244,10 @@ def post_gcnevent_from_dictionary(payload, user_id, session):
             else:
                 raise ValueError("ra, dec, and error must be in skymap to parse")
     else:
-        skymap = from_url(skymap)
+        try:
+            skymap = from_bytes(skymap)
+        except binascii.Error:
+            skymap = from_url(skymap)
 
     skymap["dateobs"] = event.dateobs
     skymap["sent_by_id"] = user.id
