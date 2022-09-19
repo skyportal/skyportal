@@ -452,7 +452,7 @@ const processData = (photometry, crossMatches) => {
       const distances = crossMatchesAsArray
         .filter((source) => source.catalog === catalog)
         .map((source) => source.offsetFromReference);
-      // console.log(distances);
+      
       return distances.length
         ? { catalog, minDistance: Math.min(...distances) }
         : null;
