@@ -19,7 +19,7 @@ const useStyles = makeStyles(() => ({
     height: props.height,
   }),
   infoLine: {
-    // Get it's own line
+    // Get its own line
     flexBasis: "100%",
     display: "flex",
     flexFlow: "row wrap",
