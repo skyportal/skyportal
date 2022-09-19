@@ -116,7 +116,7 @@ const Thumbnail = ({ ra, dec, name, url, size, grayscale, header }) => {
             onError={(e) => {
               if (url !== "#") {
                 e.target.onerror = null;
-                if (name === "dr8") {
+                if (name === "ls") {
                   e.target.src = "/static/images/outside_survey.png";
                 } else {
                   e.target.src = "/static/images/currently_unavailable.png";
@@ -165,7 +165,7 @@ const ThumbnailList = ({
   thumbnails,
   useGrid = true,
   size = "13rem",
-  displayTypes = ["new", "ref", "sub", "sdss", "dr8", "ps1"],
+  displayTypes = ["new", "ref", "sub", "sdss", "ls", "ps1"],
 }) => {
   thumbnails
     ?.filter((thumbnail) => displayTypes.includes(thumbnail.type))
@@ -175,7 +175,7 @@ const ThumbnailList = ({
     ?.map((type) => thumbnails.find((thumbnail) => thumbnail.type === type))
     ?.filter((thumbnail) => thumbnail !== undefined);
 
-  const thumbnail_order = ["new", "ref", "sub", "sdss", "dr8", "ps1"];
+  const thumbnail_order = ["new", "ref", "sub", "sdss", "ls", "ps1"];
   // Sort thumbnails by order of appearance in `thumbnail_order`
   latestThumbnails?.sort((a, b) =>
     thumbnail_order.indexOf(a.type) < thumbnail_order.indexOf(b.type) ? -1 : 1
@@ -249,7 +249,7 @@ ThumbnailList.propTypes = {
 
 ThumbnailList.defaultProps = {
   size: "13rem",
-  displayTypes: ["new", "ref", "sub", "sdss", "dr8", "ps1"],
+  displayTypes: ["new", "ref", "sub", "sdss", "ls", "ps1"],
   useGrid: true,
 };
 
