@@ -1279,7 +1279,7 @@ class GcnSummaryHandler(BaseHandler):
                                         and phot['limiting_mag'] is not None
                                     ):
                                         mags.append(
-                                            f"< {np.round(phot['limiting_mag'])}"
+                                            f"< {np.round(phot['limiting_mag'], 1)}"
                                         )
                                     else:
                                         mags.append(None)
