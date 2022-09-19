@@ -1,6 +1,7 @@
 # Inspired by https://github.com/growth-astro/growth-too-marshal/blob/main/growth/too/gcn.py
 
 import ast
+from astropy.time import Time
 import os
 import gcn
 import lxml
@@ -1036,6 +1037,11 @@ class GcnSummaryHandler(BaseHandler):
               schema:
                 type: bool
               description: Do not include text in the summary, only tables.
+            - in: query
+              name: photometryInWindow
+              schema:
+                type: bool
+              description: Limit photometry to that within startDate and endDate.
           responses:
             200:
               content:
@@ -1067,6 +1073,7 @@ class GcnSummaryHandler(BaseHandler):
         show_galaxies = self.get_query_argument('showGalaxies', False)
         show_observations = self.get_query_argument('showObservations', False)
         no_text = self.get_query_argument('noText', False)
+        photometry_in_window = self.get_query_argument('photometryInWindow', False)
 
         class Validator(Schema):
             start_date = UTCTZnaiveDateTime(required=False, missing=None)
@@ -1087,34 +1094,37 @@ class GcnSummaryHandler(BaseHandler):
         start_date = validated['start_date']
         end_date = validated['end_date']
 
+        if not no_text:
+            if title is None:
+                return self.error("Title is required")
+            if number is not None:
+                try:
+                    number = int(number)
+                except ValueError:
+                    return self.error("Number must be an integer")
+            if subject is None:
+                return self.error("Subject is required")
+            if user_ids is not None:
+                user_ids = [int(user_id) for user_id in user_ids.split(",")]
+                try:
+                    user_ids = [int(user_id) for user_id in user_ids]
+                except ValueError:
+                    return self.error("User IDs must be integers")
+            else:
+                user_ids = []
+            if group_id is None:
+                return self.error("Group ID is required")
+
+        if start_date is None:
+            return self.error(message="Missing start_date")
+
+        if end_date is None:
+            return self.error(message="Missing end_date")
+
+        start_date_mjd = Time(arrow.get(start_date).datetime).mjd
+        end_date_mjd = Time(arrow.get(end_date).datetime).mjd
+
         try:
-            if not no_text:
-                if title is None:
-                    return self.error("Title is required")
-                if number is not None:
-                    try:
-                        number = int(number)
-                    except ValueError:
-                        return self.error("Number must be an integer")
-                if subject is None:
-                    return self.error("Subject is required")
-                if user_ids is not None:
-                    user_ids = [int(user_id) for user_id in user_ids.split(",")]
-                    try:
-                        user_ids = [int(user_id) for user_id in user_ids]
-                    except ValueError:
-                        return self.error("User IDs must be integers")
-                else:
-                    user_ids = []
-                if group_id is None:
-                    return self.error("Group ID is required")
-
-            if start_date is None:
-                return self.error(message="Missing start_date")
-
-            if end_date is None:
-                return self.error(message="Missing end_date")
-
             with self.Session() as session:
                 contents = []
                 stmt = GcnEvent.select(session.user_or_token).where(
@@ -1250,6 +1260,11 @@ class GcnSummaryHandler(BaseHandler):
                             stmt = Photometry.select(session.user_or_token).where(
                                 Photometry.obj_id == source['id']
                             )
+                            if photometry_in_window:
+                                stmt = stmt.where(
+                                    Photometry.mjd >= start_date_mjd,
+                                    Photometry.mjd <= end_date_mjd,
+                                )
                             photometry = session.scalars(stmt).all()
                             if len(photometry) > 0:
                                 sources_text.append(
