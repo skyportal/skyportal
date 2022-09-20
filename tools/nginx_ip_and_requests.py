@@ -110,7 +110,7 @@ def create_ip_chart(filenames, outfile='requests.pdf', verb_to_report='ALL'):
         request_lengths = []
         for value in request:
             try:
-                request_lengths.append(int(value) / 1e6)
+                request_lengths.append(int(value.replace("rl=", "")) / 1e6)
             except ValueError:
                 continue
         hist, bin_edges = np.histogram(request_lengths, bins=bins)
