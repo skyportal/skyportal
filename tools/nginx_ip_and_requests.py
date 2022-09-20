@@ -114,9 +114,9 @@ def create_ip_chart(filenames, outfile='requests.pdf', verb_to_report='ALL'):
             except ValueError:
                 continue
         hist, bin_edges = np.histogram(request_lengths, bins=bins)
-        bin_edges = (bin_edges[1:] + bin_edges[:-1]) / 2.0
+        bin_centers = (bin_edges[1:] + bin_edges[:-1]) / 2.0
         hist = hist / np.sum(hist)
-        ax3.step(bin_edges, hist, label=name)
+        ax3.step(bin_centers, hist, label=name)
     ax3.set_xscale('log')
     ax3.set_xlabel('Request Size [MB]', fontsize=36)
     ax3.legend(loc='upper right')
