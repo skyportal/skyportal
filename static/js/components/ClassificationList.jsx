@@ -100,7 +100,6 @@ const ClassificationList = () => {
     a.created_at > b.created_at ? -1 : 1
   );
 
-  const usedClassifications = [];
   const items = sorted_classifications.map(
     ({
       id,
@@ -117,10 +116,6 @@ const ClassificationList = () => {
       } else {
         taxname = "Unknown taxonomy";
       }
-      if (usedClassifications.includes(classification)) {
-        return <></>;
-      }
-      usedClassifications.push(classification);
       return (
         <ListItem
           key={id}
