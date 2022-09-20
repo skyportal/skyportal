@@ -101,30 +101,29 @@ function ShowClassification({ classifications, taxonomyList, shortened }) {
     a.created_at > b.created_at ? -1 : 1
   );
 
-  const classificationsGroupedTaxonomyId = sorted_classifications.reduce(
-    (r, a) => {
-      r[a.taxonomy_id] = [...(r[a.taxonomy_id] || []), a];
-      return r;
-    },
-    {}
-  );
+  const classificationsGrouped = sorted_classifications.reduce((r, a) => {
+    r[a.classification] = [...(r[a.classification] || []), a];
+    return r;
+  }, {});
 
-  const keys = Object.keys(classificationsGroupedTaxonomyId);
+  const keys = Object.keys(classificationsGrouped);
   keys.forEach((key) => {
-    classificationsGroupedTaxonomyId[key].forEach((item, index) => {
+    classificationsGrouped[key].forEach((item, index) => {
       let taxname = taxonomyList.filter(
-        (i) => i.id === classificationsGroupedTaxonomyId[key][index].taxonomy_id
+        (i) => i.id === classificationsGrouped[key][index].taxonomy_id
       );
       if (taxname.length > 0) {
         taxname = taxname[0].name;
       } else {
         taxname = "Unknown taxonomy";
       }
-      classificationsGroupedTaxonomyId[key][index].taxname = taxname;
+      classificationsGrouped[key][index].taxname = taxname;
     });
   });
 
   const title = shortened ? "" : <b>Classification: </b>;
+
+  console.log("classificationsGrouped", classificationsGrouped);
 
   return (
     <div>
@@ -132,7 +131,7 @@ function ShowClassification({ classifications, taxonomyList, shortened }) {
       {keys.map((key) => (
         <ClassificationRow
           key={key}
-          classifications={classificationsGroupedTaxonomyId[key]}
+          classifications={classificationsGrouped[key]}
         />
       ))}
     </div>
