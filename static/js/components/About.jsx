@@ -104,7 +104,7 @@ const About = () => {
     },
     {
       name: "Thomas Culino",
-      src: "/static/images/developers/skyportal.jpg",
+      src: "/static/images/developers/culino.jpg",
     },
     {
       name: "Dmitry Duev",
