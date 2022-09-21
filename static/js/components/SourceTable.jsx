@@ -1204,11 +1204,11 @@ const SourceTable = ({
         return classifications.join(";");
       };
       const renderDownloadProbability = (source) => {
-        const classifications = [];
+        const probabilities = [];
         source?.classifications.forEach((x) => {
-          classifications.push(x.probability);
+          probabilities.push(x.probability);
         });
-        return classifications.join(";");
+        return probabilities.join(";");
       };
       const renderDownloadAnnotationKey = (source) => {
         const annotationKeys = [];
@@ -1218,6 +1218,13 @@ const SourceTable = ({
           });
         });
         return annotationKeys.join(";");
+      };
+      const renderDownloadAnnotationOrigin = (source) => {
+        const annotationOrigins = [];
+        source?.annotations.forEach((x) => {
+          annotationOrigins.push(x.origin);
+        });
+        return annotationOrigins.join(";");
       };
       const renderDownloadAnnotationValue = (source) => {
         const annotationValues = [];
@@ -1280,6 +1287,10 @@ const SourceTable = ({
                 download: true,
               },
               {
+                name: "annotation origin",
+                download: true,
+              },
+              {
                 name: "annotation key",
                 download: true,
               },
@@ -1318,6 +1329,7 @@ const SourceTable = ({
                   x.redshift,
                   renderDownloadClassification(x),
                   renderDownloadProbability(x),
+                  renderDownloadAnnotationOrigin(x),
                   renderDownloadAnnotationKey(x),
                   renderDownloadAnnotationValue(x),
                   renderDownloadGroups(x),
