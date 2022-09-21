@@ -28,8 +28,17 @@ def create_ip_chart(filenames, outfile='requests.pdf', verb_to_report='ALL'):
             fn,
             sep=r'\s(?=(?:[^"]*"[^"]*")*[^"]*$)(?![^\[]*\])',
             engine='python',
-            usecols=[0, 4, 5, 6, 7, 8, 9],
-            names=['ip', 'time', 'request', 'status', 'size', 'referer', 'user_agent'],
+            usecols=[0, 4, 5, 6, 7, 8, 9, 10],
+            names=[
+                'ip',
+                'time',
+                'request',
+                'status',
+                'size',
+                'request_length',
+                'referer',
+                'user_agent',
+            ],
             na_values='-',
             header=None,
         )
@@ -75,14 +84,17 @@ def create_ip_chart(filenames, outfile='requests.pdf', verb_to_report='ALL'):
     df_group = df_all.groupby(['ip'])
     labels = []
     values = []
+    requests = []
     for name, group in df_group:
         labels.append(name)
         values.append(group.count()['ip'])
+        requests.append(group['request_length'])
 
     labels = [x for _, x in sorted(zip(values, labels), key=lambda pair: pair[0])]
+    requests = [x for _, x in sorted(zip(values, requests), key=lambda pair: pair[0])]
     values = sorted(values)
 
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(60, 30))
+    fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(90, 30))
     ax1.pie(
         values,
         labels=labels,
@@ -92,6 +104,22 @@ def create_ip_chart(filenames, outfile='requests.pdf', verb_to_report='ALL'):
     )
     ax1.axis('equal')
     ax1.set_title('IP Addresses')
+
+    bins = np.logspace(-6, 3, 20)
+    for name, request in zip(labels[:10], requests[:10]):
+        request_lengths = []
+        for value in request:
+            try:
+                request_lengths.append(int(value.replace("rl=", "")) / 1e6)
+            except ValueError:
+                continue
+        hist, bin_edges = np.histogram(request_lengths, bins=bins)
+        bin_centers = (bin_edges[1:] + bin_edges[:-1]) / 2.0
+        hist = hist / np.sum(hist)
+        ax3.step(bin_centers, hist, label=name)
+    ax3.set_xscale('log')
+    ax3.set_xlabel('Request Size [MB]', fontsize=36)
+    ax3.legend(loc='upper right')
 
     df_group = df_all.groupby(['request_parsed'])
     labels = []

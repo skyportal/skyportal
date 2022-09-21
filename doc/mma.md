@@ -37,7 +37,14 @@ observation_id,field_id,obstime,seeing,limmag,exposure_time,filter,processed_fra
 84434651,1,2458598.8465162003,1.5812000000,20.4940500000,30,ztfr,1.00000
 84434696,1,2458598.8469676003,1.6499500000,20.5603000000,30,ztfr,1.00000
 
-where observation_id (the ID of the observations, does not need to be unique), the field_id, the observation time (in JD or otherwise any unambigious format as specified in the astropy docs such as iso or isot: https://docs.astropy.org/en/stable/time/index.html), the seeing (in arcseconds), the limiting magnitude, the exposure time (in seconds), the filter, and the "processed_fraction" (what fraction of the image was successfully processed) are potential columns. We note that only observation_id, field_id, obstime, filter, and exposure_time required.
+where observation_id (the ID of the observations, does not need to be unique), the field_id, the observation time (in JD or otherwise any unambigious format as specified in the astropy docs such as iso or isot: https://docs.astropy.org/en/stable/time/index.html), the seeing (in arcseconds), the limiting magnitude, the exposure time (in seconds), the filter, and the "processed_fraction" (what fraction of the image was successfully processed) are potential columns. We note that only observation_id, field_id, obstime, filter, and exposure_time are required.
+
+It is also possible to upload by right ascension and declination in cases where field IDs are not available. In this case, field_id is replaced by the columns RA and Dec, i.e.
+
+observation_id,RA,Dec,obstime,seeing,limmag,exposure_time,filter,processed_fraction
+94434604,30.0,60.0,2458598.8460417003,1.5741500000,20.4070500000,30,ztfr,1.00000
+94434651,45.0,45.0,2458598.8465162003,1.5812000000,20.4940500000,30,ztfr,1.00000
+94434696,60.0,30.0,2458598.8469676003,1.6499500000,20.5603000000,30,ztfr,1.00000
 
 ## Executed Observations API Upload
 
@@ -45,6 +52,34 @@ As part of the `ObservationPlanRequest` API, it is possible to retrieve `Execute
 
 * ZTF: Login information for IRSA, which takes the form: {"tap_service": "https://irsa.ipac.caltech.edu/TAP", "tap_username": "your_password", "tap_password": "your_password"}
 
+
+## GCN Event Ingestion
+
+We use [gcn-kafka](https://github.com/nasa-gcn/gcn-kafka-python) to ingest multi-messenger events distributed by the [General Coordinates Network (GCN)](https://gcn.nasa.gov/) within SkyPortal.
+
+For configuration, one requires a client_id and client_secret at https://gcn.nasa.gov/quickstart. Once that is available, the configuration file should contain the following information (discuss with your administrators if someone else is deploying will be edited as the below).
+
+```
+gcn:
+  server: gcn.nasa.gov
+  client_id:
+  client_secret:
+  notice_types:
+    - FERMI_GBM_FLT_POS
+    - FERMI_GBM_GND_POS
+    - FERMI_GBM_FIN_POS
+    - FERMI_GBM_SUBTHRESH
+    - LVC_PRELIMINARY
+    - LVC_INITIAL
+    - LVC_UPDATE
+    - LVC_RETRACTION
+    - AMON_ICECUBE_COINC
+    - AMON_ICECUBE_HESE
+    - ICECUBE_ASTROTRACK_GOLD
+    - ICECUBE_ASTROTRACK_BRONZE
+```
+
+where notice types are also available from the GCN quickstart guide linked above.
 
 ## Earthquake Ingestion
 

@@ -559,8 +559,8 @@ const CandidateList = () => {
       ?.map((t) => t.type)
       ?.includes("ps1");
     const displayTypes = hasPS1
-      ? ["new", "ref", "sub", "sdss", "dr8", "ps1"]
-      : ["new", "ref", "sub", "sdss", "dr8"];
+      ? ["new", "ref", "sub", "sdss", "ls", "ps1"]
+      : ["new", "ref", "sub", "sdss", "ls"];
     return (
       <div className={classes.thumbnails}>
         <ThumbnailList

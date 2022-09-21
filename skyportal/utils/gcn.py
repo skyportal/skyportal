@@ -1,10 +1,12 @@
 # Inspired by https://github.com/growth-astro/growth-too-marshal/blob/main/growth/too/gcn.py
 
+import base64
 import os
 import numpy as np
 import scipy
 import healpy as hp
 import gcn
+import tempfile
 from urllib.parse import urlparse
 
 import astropy.units as u
@@ -281,6 +283,35 @@ def from_polygon(localization_name, polygon):
         'uniq': uniq.tolist(),
         'probdensity': probdensity.tolist(),
     }
+
+    return skymap
+
+
+def from_bytes(arr):
+    def get_col(m, name):
+        try:
+            col = m[name]
+        except KeyError:
+            return None
+        else:
+            return col.tolist()
+
+    with tempfile.NamedTemporaryFile(suffix=".fits.gz", mode="wb") as f:
+        arrSplit = arr.split('base64,')
+        filename = arrSplit[0].split("name=")[-1].replace(";", "")
+        f.write(base64.b64decode(arrSplit[-1]))
+        f.flush()
+
+        skymap = ligo.skymap.io.read_sky_map(f.name, moc=True)
+
+        skymap = {
+            'localization_name': filename,
+            'uniq': get_col(skymap, 'UNIQ'),
+            'probdensity': get_col(skymap, 'PROBDENSITY'),
+            'distmu': get_col(skymap, 'DISTMU'),
+            'distsigma': get_col(skymap, 'DISTSIGMA'),
+            'distnorm': get_col(skymap, 'DISTNORM'),
+        }
 
     return skymap
 
