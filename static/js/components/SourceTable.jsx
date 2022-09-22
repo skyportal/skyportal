@@ -1226,6 +1226,15 @@ const SourceTable = ({
         });
         return annotationOrigins.join(";");
       };
+      const renderDownloadAnnotationOriginKeyValuePairCount = (source) => {
+        const annotationOriginsKeyValuePairCount = [];
+        source?.annotations.forEach((x) => {
+          annotationOriginsKeyValuePairCount.push(
+            Object.entries(x.data).length
+          );
+        });
+        return annotationOriginsKeyValuePairCount.join(";");
+      };
       const renderDownloadAnnotationValue = (source) => {
         const annotationValues = [];
         source?.annotations.forEach((x) => {
@@ -1291,6 +1300,10 @@ const SourceTable = ({
                 download: true,
               },
               {
+                name: "annotation origin key-value pair count",
+                download: true,
+              },
+              {
                 name: "annotation key",
                 download: true,
               },
@@ -1330,6 +1343,7 @@ const SourceTable = ({
                   renderDownloadClassification(x),
                   renderDownloadProbability(x),
                   renderDownloadAnnotationOrigin(x),
+                  renderDownloadAnnotationOriginKeyValuePairCount(x),
                   renderDownloadAnnotationKey(x),
                   renderDownloadAnnotationValue(x),
                   renderDownloadGroups(x),
