@@ -3,6 +3,58 @@ import uuid
 from skyportal.tests import api
 
 
+def test_get_telescope_longitude_longitude_box(super_admin_token):
+    name = str(uuid.uuid4())
+    post_data = {
+        'name': name,
+        'nickname': name,
+        'lat': 0.0,
+        'lon': 0.0,
+        'elevation': 0.0,
+        'diameter': 10.0,
+        'skycam_link': 'http://www.lulin.ncu.edu.tw/wea/cur_sky.jpg',
+        'robotic': True,
+    }
+
+    status, data = api('POST', 'telescope', data=post_data, token=super_admin_token)
+    assert status == 200
+    assert data['status'] == 'success'
+
+    telescope_id_1 = data['data']['id']
+
+    name = str(uuid.uuid4())
+    post_data = {
+        'name': name,
+        'nickname': name,
+        'lat': -30.0,
+        'lon': 60.0,
+        'elevation': 0.0,
+        'diameter': 10.0,
+        'skycam_link': 'http://www.lulin.ncu.edu.tw/wea/cur_sky.jpg',
+        'robotic': True,
+    }
+
+    status, data = api('POST', 'telescope', data=post_data, token=super_admin_token)
+    assert status == 200
+    assert data['status'] == 'success'
+
+    telescope_id_2 = data['data']['id']
+
+    params = {
+        "latitudeMin": -45.0,
+        "latitudeMax": -15.0,
+        "longitudeMin": 45.0,
+        "longitudeMax": 75.0,
+    }
+
+    status, data = api('GET', 'telescope', token=super_admin_token, params=params)
+    assert status == 200
+    assert data['status'] == 'success'
+
+    assert telescope_id_2 in [tel['id'] for tel in data['data']]
+    assert telescope_id_1 not in [tel['id'] for tel in data['data']]
+
+
 def test_token_user_post_get_telescope(super_admin_token):
     name = str(uuid.uuid4())
     post_data = {
