@@ -123,7 +123,6 @@ function ShowClassification({ classifications, taxonomyList, shortened }) {
 
   const title = shortened ? "" : <b>Classification: </b>;
 
-
   return (
     <div>
       {title}
