@@ -1526,8 +1526,7 @@ def make_photometry_panel(
 
     Returns
     -------
-    bokeh Panel object or None if the panel should
-    not be added to the plot (i.e. no period plot)
+    bokeh Panel object
     """
 
     # get marker for each unique instrument
@@ -1734,7 +1733,6 @@ def make_photometry_panel(
         column(
             make_show_and_hide_photometry_buttons(model_dict, user, device), spinner
         ),
-        # width=width,
     )
     add_widgets(
         panel_name,
@@ -1841,11 +1839,9 @@ def photometry_plot(obj_id, user_id, session, width=600, device="browser"):
         panel = make_photometry_panel(
             panel_name, device, width, user, data, obj_id, spectra, session
         )
-        if panel:
-            panels.append(panel)
+        panels.append(panel)
     tabs = Tabs(
         tabs=panels,
-        # width=width,
     )
     try:
         return bokeh_embed.json_item(tabs)
@@ -1853,7 +1849,7 @@ def photometry_plot(obj_id, user_id, session, width=600, device="browser"):
         with pd.option_context('display.max_rows', None, 'display.max_columns', None):
             print('PHOTOMETRY PLOT FAILED ON THIS DATASET')
             print(data)
-        return Tabs()
+        raise Exception("Invalid data")
 
 
 def smoothing_function(values, window_size):

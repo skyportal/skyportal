@@ -692,6 +692,14 @@ sources:
       - =program_A
       - =program_B
     redshift: 0.7481
+  - id: badsource
+    ra: 6.7856144
+    dec: 34.027306
+    group_ids:
+      - =public_group_id
+      - =program_A
+      - =program_B
+    redshift: 0.7481
 
 sources/ZTF21aaqjmps/comments:
   - obj_id: ZTF21aaqjmps
@@ -845,6 +853,12 @@ photometry:
     stream_ids:
       - =ztf_public
       - =ztf_partnership
+  - obj_id: badsource
+    instrument_id: =SEDM
+    assignment_id: 2
+    file: badsource.csv
+    group_ids:
+      - =program_A
 
 followup_request:
   - obj_id: ZTFrlh6cyjh
