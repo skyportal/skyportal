@@ -44,9 +44,7 @@ const Plot = (props) => {
   }, [plotData, dispatch, url]);
 
   if (error) {
-    return (
-      <p className={classes.error}>Error fetching photometry plot data...</p>
-    );
+    return <p className={classes.error}>Error fetching plot data...</p>;
   }
   if (!plotData) {
     return (
