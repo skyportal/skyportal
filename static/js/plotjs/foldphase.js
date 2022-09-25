@@ -118,9 +118,6 @@ for (let i = 0; i < n_labels; i++) {
       }
     }
     foldb.data.mag = bmag_sort_smooth_reordered;
-
-    console.log("folda", folda.data);
-    console.log("foldaerr", foldaerr.data);
   }
 
   folda.change.emit();
