@@ -755,6 +755,21 @@ class PhotometryFlux(_Schema, PhotBase):
         validate=validate_fluxerr,
     )
 
+    ref_zp = fields.Field(
+        metadata={
+            'description': 'Magnitude zeropoint of the reference image, '
+            'given by `ZP` in the equation m = -2.5 log10(flux) + `ZP`. '
+            'm is the magnitude of the object in the '
+            'magnitude system `magsys`. '
+            'Can be given as a scalar or a 1D list. '
+            'If a scalar, will be broadcast to all values '
+            'given as lists. Null values assume the '
+            'standard zero point of 23.9. '
+        },
+        required=False,
+        load_default=None,
+    )
+
     @post_load
     def parse_flux(self, data, **kwargs):
         """Return a `Photometry` object from a `PhotometryFlux` marshmallow
@@ -802,6 +817,38 @@ class PhotometryFlux(_Schema, PhotBase):
         # replace with null if needed
         final_flux = None if data['flux'] is None else photdata.flux[0]
 
+        if data.get('ref_flux') is not None and data.get('ref_fluxerr') is not None:
+            ref_flux = data['ref_flux']
+            ref_fluxerr = data['ref_fluxerr']
+
+            if 'ref_zp' in data and data['ref_zp'] is not None:
+                ref_zp = data['ref_zp']
+            else:
+                ref_zp = PHOT_ZP
+
+            ref_table = Table(
+                [
+                    {
+                        'flux': ref_flux,
+                        'fluxerr': ref_fluxerr,
+                        'magsys': data['magsys'],
+                        'zp': ref_zp,
+                        'filter': data['filter'],
+                        'mjd': data['mjd'],
+                    }
+                ]
+            )
+
+            # conversion of reference flux happens here
+            ref_photdata = PhotometricData(ref_table).normalized(
+                zp=PHOT_ZP, zpsys=PHOT_SYS
+            )
+            ref_flux = ref_photdata.flux[0]
+            ref_fluxerr = ref_photdata.fluxerr[0]
+        else:
+            ref_flux = None
+            ref_fluxerr = None
+
         p = Photometry(
             obj_id=data['obj_id'],
             mjd=data['mjd'],
@@ -814,6 +861,8 @@ class PhotometryFlux(_Schema, PhotBase):
             dec=data['dec'],
             ra_unc=data['ra_unc'],
             dec_unc=data['dec_unc'],
+            ref_flux=ref_flux,
+            ref_fluxerr=ref_fluxerr,
         )
         if 'alert_id' in data and data['alert_id'] is not None:
             p.alert_id = data['alert_id']
@@ -929,21 +978,13 @@ class PhotometryMag(_Schema, PhotBase):
                 f"Instrument {instrument.name} has no filter " f"{data['filter']}."
             )
 
-        # determine if this is a limit or a measurement
-        hasmag = data['mag'] is not None
-
-        if hasmag:
+        if data['mag'] is not None:  # measurement
             flux = 10 ** (-0.4 * (data['mag'] - PHOT_ZP))
             fluxerr = data['magerr'] / (2.5 / np.log(10)) * flux
-        else:
+        else:  # upper limit
             nsigflux = 10 ** (-0.4 * (data['limiting_mag'] - PHOT_ZP))
             flux = None
             fluxerr = nsigflux / PHOT_DETECTION_THRESHOLD
-
-        if 'ref_flux' in data and data['ref_flux'] is not None:
-            ref_flux = data['ref_flux']
-        if 'ref_fluxerr' in data and data['ref_fluxerr'] is not None:
-            ref_fluxerr = data['ref_fluxerr']
 
         # convert flux to microJanskies.
         table = Table(
@@ -966,7 +1007,10 @@ class PhotometryMag(_Schema, PhotBase):
         # conversion happens here
         photdata = PhotometricData(table).normalized(zp=PHOT_ZP, zpsys=PHOT_SYS)
 
-        if ref_flux is not None:
+        if data.get('magref') is not None and data.get('e_magref') is not None:
+            ref_flux = 10 ** (-0.4 * (data['magref'] - PHOT_ZP))
+            ref_fluxerr = data['e_magref'] * ref_flux * np.log(10) / 2.5
+
             ref_table = Table(
                 [
                     {
@@ -984,6 +1028,12 @@ class PhotometryMag(_Schema, PhotBase):
             ref_photdata = PhotometricData(ref_table).normalized(
                 zp=PHOT_ZP, zpsys=PHOT_SYS
             )
+            ref_flux = ref_photdata.flux[0]
+            ref_fluxerr = ref_photdata.fluxerr[0]
+
+        else:
+            ref_flux = None
+            ref_fluxerr = None
 
         # replace with null if needed
         final_flux = None if flux is None else photdata.flux[0]
@@ -993,8 +1043,8 @@ class PhotometryMag(_Schema, PhotBase):
             mjd=data['mjd'],
             flux=final_flux,
             fluxerr=photdata.fluxerr[0],
-            ref_flux=ref_photdata.flux[0],
-            ref_fluxerr=ref_photdata.fluxerr[0],
+            ref_flux=ref_flux,
+            ref_fluxerr=ref_fluxerr,
             instrument_id=data['instrument_id'],
             assignment_id=data['assignment_id'],
             filter=data['filter'],

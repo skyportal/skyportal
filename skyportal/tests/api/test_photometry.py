@@ -106,13 +106,13 @@ def test_ref_flux(upload_data_token, public_source, public_group, ztf_camera):
     assert np.isclose(
         data['data']['magtot'], -2.5 * np.log10(8.01 + corrected_flux) + 23.9
     )
-    assert np.isclose(
-        data['data']['e_magtot'],
+    total_mag_error_expected = (
         2.5
         / np.log(10)
         * np.sqrt(corrected_fluxerr**2 + 0.01**2)
-        / (8.01 + corrected_flux),
+        / (8.01 + corrected_flux)
     )
+    assert np.isclose(data['data']['e_magtot'], total_mag_error_expected)
 
     status, data = api(
         'DELETE', f'photometry/{photometry_id}?format=both', token=upload_data_token
@@ -164,6 +164,15 @@ def test_ref_flux(upload_data_token, public_source, public_group, ztf_camera):
         'PATCH',
         f'photometry/{photometry_id}',
         data={
+            'obj_id': str(public_source.id),
+            'mjd': 58003.0,
+            'instrument_id': ztf_camera.id,
+            'flux': 12.24,
+            'fluxerr': 0.031,
+            'zp': 25.0,
+            'magsys': 'ab',
+            'filter': 'ztfg',
+            'group_ids': [public_group.id],
             'ref_flux': 9.02,
             'ref_fluxerr': 0.03,
             'ref_zp': 27.0,  # same zeropoint
@@ -185,6 +194,209 @@ def test_ref_flux(upload_data_token, public_source, public_group, ztf_camera):
         data['data']['tot_fluxerr'],
         np.sqrt(corrected_fluxerr**2 + corrected_ref_fluxerr**2),
     )
+
+
+def test_ref_mag(upload_data_token, public_source, public_group, ztf_camera):
+    status, data = api(
+        'POST',
+        'photometry',
+        data={
+            'obj_id': str(public_source.id),
+            'mjd': 58003.0,
+            'instrument_id': ztf_camera.id,
+            'mag': 19.24,
+            'limiting_mag': 20.5,
+            'magerr': 0.123,
+            'magref': 17.01,
+            'e_magref': 0.01,
+            'magsys': 'ab',
+            'filter': 'ztfg',
+            'group_ids': [public_group.id],
+            'altdata': {'some_key': 'some_value'},
+        },
+        token=upload_data_token,
+    )
+    assert_api(status, data)
+
+    photometry_id = data['data']['ids'][0]
+    status, data = api(
+        'GET', f'photometry/{photometry_id}?format=both', token=upload_data_token
+    )
+    assert_api(status, data)
+
+    assert data['data']['altdata'] == {'some_key': 'some_value'}
+
+    expected_flux = 10 ** (-0.4 * (19.24 - 23.9))
+    expected_fluxerr = 0.123 / 2.5 * np.log(10) * expected_flux
+    assert np.isclose(data['data']['flux'], expected_flux)
+    assert np.isclose(data['data']['fluxerr'], expected_fluxerr)
+    assert np.isclose(data['data']['mag'], 19.24)
+    assert np.isclose(data['data']['magerr'], 0.123)
+    assert np.isclose(data['data']['magref'], 17.01)
+    assert np.isclose(data['data']['e_magref'], 0.01)
+
+    expected_ref_flux = 10 ** (-0.4 * (17.01 - 23.9))
+    expected_ref_fluxerr = 0.01 / 2.5 * np.log(10) * expected_ref_flux
+    assert np.isclose(data['data']['ref_flux'], expected_ref_flux)
+    assert np.isclose(data['data']['ref_fluxerr'], expected_ref_fluxerr)
+    assert np.isclose(data['data']['tot_flux'], expected_ref_flux + expected_flux)
+    assert np.isclose(
+        data['data']['tot_fluxerr'],
+        np.sqrt(expected_fluxerr**2 + expected_ref_fluxerr**2),
+    )
+
+    assert np.isclose(
+        data['data']['magtot'],
+        -2.5 * np.log10(expected_ref_flux + expected_flux) + 23.9,
+    )
+
+    expected_mag_error = (
+        2.5 / np.log(10) * data['data']['tot_fluxerr'] / data['data']['tot_flux']
+    )
+    assert np.isclose(data['data']['e_magtot'], expected_mag_error)
+
+    # patch the reference mag
+    status, data = api(
+        'PATCH',
+        f'photometry/{photometry_id}',
+        data={
+            'obj_id': str(public_source.id),
+            'mjd': 58003.0,
+            'instrument_id': ztf_camera.id,
+            'mag': 19.24,
+            'limiting_mag': 20.5,
+            'magerr': 0.123,
+            'magref': 18.01,
+            'e_magref': 0.02,
+            'magsys': 'ab',
+            'filter': 'ztfg',
+            'group_ids': [public_group.id],
+            'altdata': {'some_key': 'some_value'},
+        },
+        token=upload_data_token,
+    )
+    assert_api(status, data)
+    status, data = api(
+        'GET', f'photometry/{photometry_id}?format=both', token=upload_data_token
+    )
+    assert_api(status, data)
+
+    expected_ref_flux = 10 ** (-0.4 * (18.01 - 23.9))
+    expected_ref_fluxerr = 0.02 / 2.5 * np.log(10) * expected_ref_flux
+    assert np.isclose(data['data']['ref_flux'], expected_ref_flux)
+    assert np.isclose(data['data']['ref_fluxerr'], expected_ref_fluxerr)
+    assert np.isclose(data['data']['tot_flux'], expected_ref_flux + expected_flux)
+    assert np.isclose(
+        data['data']['tot_fluxerr'],
+        np.sqrt(expected_fluxerr**2 + expected_ref_fluxerr**2),
+    )
+    assert np.isclose(data['data']['magref'], 18.01)
+    assert np.isclose(data['data']['e_magref'], 0.02)
+
+
+def test_multiple_mag_ref(upload_data_token, public_source, public_group, ztf_camera):
+    status, data = api(
+        'POST',
+        'photometry',
+        data={
+            'obj_id': str(public_source.id),
+            'instrument_id': ztf_camera.id,
+            "mjd": [59410, 59411, 59412],
+            "mag": [19.2, 19.3, np.random.uniform(19, 20)],
+            "magerr": [0.05, 0.06, np.random.uniform(0.01, 0.1)],
+            "magref": [18.1, 18.2, np.random.uniform(18, 19)],
+            "e_magref": [0.01, 0.02, np.random.uniform(0.01, 0.1)],
+            "limiting_mag": [20.0, 20.1, 20.2],
+            "magsys": ["ab", "ab", "ab"],
+            "filter": ["ztfr", "ztfg", "ztfr"],
+            "ra": [42.01, 42.01, 42.02],
+            "dec": [42.02, 42.01, 42.03],
+            "origin": [None, "lol", "lol"],
+            'group_ids': [public_group.id],
+            "altdata": {"key1": "value1"},
+        },
+        token=upload_data_token,
+    )
+    assert_api(status, data)
+
+    ids = data["data"]["ids"]
+    assert len(ids) == 3
+
+    # check the first point is correct
+    status, data = api(
+        'GET', f'photometry/{ids[0]}?format=flux', token=upload_data_token
+    )
+    assert_api(status, data)
+    assert data['data']['magref'] == 18.1
+    assert data['data']['e_magref'] == 0.01
+    flux_trans1 = 10 ** (-0.4 * (19.2 - 23.9))
+    fluxerr_trans1 = 0.05 / 2.5 * np.log(10) * flux_trans1
+    assert np.isclose(data['data']['flux'], flux_trans1)
+    assert np.isclose(data['data']['fluxerr'], fluxerr_trans1)
+    flux_ref1 = 10 ** (-0.4 * (18.1 - 23.9))
+    fluxerr_ref1 = 0.01 / 2.5 * np.log(10) * flux_ref1
+    assert np.isclose(data['data']['ref_flux'], flux_ref1)
+    assert np.isclose(data['data']['ref_fluxerr'], fluxerr_ref1)
+
+    assert np.isclose(data['data']['tot_flux'], flux_trans1 + flux_ref1)
+    assert np.isclose(
+        data['data']['tot_fluxerr'],
+        np.sqrt(fluxerr_trans1**2 + fluxerr_ref1**2),
+    )
+
+    # check the second point is correct
+    status, data = api(
+        'GET', f'photometry/{ids[1]}?format=flux', token=upload_data_token
+    )
+    assert_api(status, data)
+    assert data['data']['magref'] == 18.2
+    assert data['data']['e_magref'] == 0.02
+
+    flux_ref2 = 10 ** (-0.4 * (18.2 - 23.9))
+    fluxerr_ref2 = 0.02 / 2.5 * np.log(10) * flux_ref2
+    assert np.isclose(data['data']['ref_flux'], flux_ref2)
+    assert np.isclose(data['data']['ref_fluxerr'], fluxerr_ref2)
+
+    # see if we can filter points by ref flux
+    # ref_flux_midpoint = (flux_ref1 + flux_ref2) / 2
+    # status, data = api('GET', 'photometry', params={})
+    # need some way to query photometry by ref flux or tot flux
+    # currently we don't filter on photometry data at all
+
+
+def test_ref_mag_vector(upload_data_token, public_source, public_group, ztf_camera):
+    status, data = api(
+        'POST',
+        'photometry',
+        data={
+            'obj_id': str(public_source.id),
+            'instrument_id': ztf_camera.id,
+            "mjd": [59410, 59411, 59412],
+            "mag": [19.2, 19.3, np.random.uniform(19, 20)],
+            "magerr": [0.05, 0.06, np.random.uniform(0.01, 0.1)],
+            "limiting_mag": [20.0, 20.1, 20.2],
+            "magsys": ["ab", "ab", "ab"],
+            "filter": ["ztfr", "ztfg", "ztfr"],
+            "ra": [42.01, 42.01, 42.02],
+            "dec": [42.02, 42.01, 42.03],
+            "origin": [None, "lol", "lol"],
+            'group_ids': [public_group.id],
+            "altdata": {"key1": "value1"},
+        },
+        token=upload_data_token,
+    )
+    assert_api(status, data)
+
+    ids = data["data"]["ids"]
+    assert len(ids) == 3
+
+    for id in ids:
+        status, data = api(
+            'GET', f'photometry/{id}?format=flux', token=upload_data_token
+        )
+        assert status == 200
+        assert data['status'] == 'success'
+        assert data["data"]["altdata"] == {"key1": "value1"}
 
 
 def test_post_multiple_photometry_vector_altdata(
