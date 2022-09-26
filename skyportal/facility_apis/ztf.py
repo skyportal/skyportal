@@ -900,6 +900,9 @@ def fetch_observations(instrument_id, client, request_str):
     )
     obstable['target_name'] = None
 
+    # engineering data is ipac_gid = -1 and we do not want to save that
+    obstable = obstable[obstable['ipac_gid'] >= 1.0]
+
     from skyportal.handlers.api.observation import add_observations
 
     add_observations(instrument_id, obstable)

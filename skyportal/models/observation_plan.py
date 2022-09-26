@@ -19,46 +19,15 @@ from baselayer.app.models import (
     DBSession,
     join_model,
     User,
-    public,
     AccessibleIfRelatedRowsAreAccessible,
     AccessibleIfUserMatches,
     CustomUserAccessControl,
 )
 
 from .group import Group
-from .instrument import Instrument, InstrumentField, InstrumentFieldTile
-from .allocation import Allocation
+from .instrument import InstrumentField, InstrumentFieldTile
 from .localization import LocalizationTile
-
-
-def updatable_by_token_with_listener_acl(cls, user_or_token):
-    if user_or_token.is_admin:
-        return public.query_accessible_rows(cls, user_or_token)
-
-    instruments_with_apis = (
-        Instrument.query_records_accessible_by(user_or_token)
-        .filter(Instrument.listener_classname.isnot(None))
-        .all()
-    )
-
-    api_map = {
-        instrument.id: instrument.listener_class.get_acl_id()
-        for instrument in instruments_with_apis
-    }
-
-    accessible_instrument_ids = [
-        instrument_id
-        for instrument_id, acl_id in api_map.items()
-        if acl_id in user_or_token.permissions
-    ]
-
-    return (
-        DBSession()
-        .query(cls)
-        .join(Allocation)
-        .join(Instrument)
-        .filter(Instrument.id.in_(accessible_instrument_ids))
-    )
+from .followup_request import updatable_by_token_with_listener_acl
 
 
 class DefaultObservationPlanRequest(Base):

@@ -42,6 +42,8 @@ import Spinner from "./Spinner";
 import AddClassificationsScanningPage from "./AddClassificationsScanningPage";
 import Button from "./Button";
 
+import CandidatePlugins from "./CandidatePlugins";
+
 const useStyles = makeStyles((theme) => ({
   candidateListContainer: {
     padding: "1rem",
@@ -557,8 +559,8 @@ const CandidateList = () => {
       ?.map((t) => t.type)
       ?.includes("ps1");
     const displayTypes = hasPS1
-      ? ["new", "ref", "sub", "sdss", "dr8", "ps1"]
-      : ["new", "ref", "sub", "sdss", "dr8"];
+      ? ["new", "ref", "sub", "sdss", "ls", "ps1"]
+      : ["new", "ref", "sub", "sdss", "ls"];
     return (
       <div className={classes.thumbnails}>
         <ThumbnailList
@@ -724,6 +726,9 @@ const CandidateList = () => {
             {candidateObj.gal_lon.toFixed(3)}&nbsp;&nbsp;
             {candidateObj.gal_lat.toFixed(3)}
           </span>
+        </div>
+        <div className={classes.infoItem}>
+          <CandidatePlugins candidate={candidateObj} />
         </div>
         {candidateObj.classifications && recentClassification && (
           <div className={classes.infoItemPadded}>

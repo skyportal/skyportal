@@ -1,10 +1,12 @@
 # Inspired by https://github.com/growth-astro/growth-too-marshal/blob/main/growth/too/gcn.py
 
+import base64
 import os
 import numpy as np
 import scipy
 import healpy as hp
 import gcn
+import tempfile
 from urllib.parse import urlparse
 
 import astropy.units as u
@@ -178,6 +180,51 @@ def get_skymap(root, gcn_notice):
     return from_cone(ra, dec, error)
 
 
+def get_properties(root):
+
+    property_names = [
+        # Gravitational waves
+        "HasNS",
+        "HasRemnant",
+        "FAR",
+        "BNS",
+        "NSBH",
+        "BBH",
+        "MassGap",
+        "Terrestrial",
+        # GRBs
+        "Burst_Signif",
+        "Data_Signif",
+        "Det_Signif",
+        "Image_Signif",
+        "Rate_Signif",
+        "Trig_Signif",
+        "Burst_Inten",
+        "Burst_Peak",
+        "Data_Timescale",
+        "Data_Integ",
+        "Integ_Time",
+        "Trig_Timescale",
+        "Trig_Dur",
+        "Hardness_Ratio",
+        # Neutrinos
+        "signalness",
+        "energy",
+    ]
+    property_dict = {}
+    for property_name in property_names:
+        path = f".//Param[@name='{property_name}']"
+        elem = root.find(path)
+        if elem is None:
+            continue
+        value = elem.attrib.get('value', None)
+        if value is not None:
+            value = float(value)
+            property_dict[property_name] = value
+
+    return property_dict
+
+
 def from_cone(ra, dec, error):
     localization_name = f"{ra:.5f}_{dec:.5f}_{error:.5f}"
 
@@ -236,6 +283,35 @@ def from_polygon(localization_name, polygon):
         'uniq': uniq.tolist(),
         'probdensity': probdensity.tolist(),
     }
+
+    return skymap
+
+
+def from_bytes(arr):
+    def get_col(m, name):
+        try:
+            col = m[name]
+        except KeyError:
+            return None
+        else:
+            return col.tolist()
+
+    with tempfile.NamedTemporaryFile(suffix=".fits.gz", mode="wb") as f:
+        arrSplit = arr.split('base64,')
+        filename = arrSplit[0].split("name=")[-1].replace(";", "")
+        f.write(base64.b64decode(arrSplit[-1]))
+        f.flush()
+
+        skymap = ligo.skymap.io.read_sky_map(f.name, moc=True)
+
+        skymap = {
+            'localization_name': filename,
+            'uniq': get_col(skymap, 'UNIQ'),
+            'probdensity': get_col(skymap, 'PROBDENSITY'),
+            'distmu': get_col(skymap, 'DISTMU'),
+            'distsigma': get_col(skymap, 'DISTSIGMA'),
+            'distnorm': get_col(skymap, 'DISTNORM'),
+        }
 
     return skymap
 

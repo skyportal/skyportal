@@ -55,6 +55,7 @@ THUMBNAIL_TYPES = (
     'sub',
     'sdss',
     'dr8',
+    'ls',
     'ps1',
     "new_gz",
     'ref_gz',

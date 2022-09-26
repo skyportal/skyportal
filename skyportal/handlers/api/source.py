@@ -180,7 +180,7 @@ def get_source(
             )
         if (
             "sdss" not in existing_thumbnail_types
-            or "dr8" not in existing_thumbnail_types
+            or "ls" not in existing_thumbnail_types
         ):
             IOLoop.current().run_in_executor(
                 None,
@@ -783,19 +783,7 @@ def get_sources(
                     op_options = ["lt", "le", "eq", "ne", "ge", "gt"]
                     if op not in op_options:
                         raise ValueError(f"Invalid operator: {op}")
-
-                    if op == "lt":
-                        comp_function = operator.lt
-                    elif op == "le":
-                        comp_function = operator.le
-                    elif op == "eq":
-                        comp_function = operator.eq
-                    elif op == "ne":
-                        comp_function = operator.ne
-                    elif op == "ge":
-                        comp_function = operator.ge
-                    elif op == "gt":
-                        comp_function = operator.gt
+                    comp_function = getattr(operator, op)
 
                     annotations_query = annotations_query.where(
                         comp_function(Annotation.data[name], cast(value, JSONB))

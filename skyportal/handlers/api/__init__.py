@@ -19,10 +19,11 @@ from .annotation_services import (
     VizierQueryHandler,
     DatalabQueryHandler,
 )
-from .catalog_services import SwiftLSXPSQueryHandler
+from .catalog_services import CatalogQueryHandler, SwiftLSXPSQueryHandler
 from .db_stats import StatsHandler
 from .earthquake import (
     EarthquakeHandler,
+    EarthquakeMeasurementHandler,
     EarthquakePredictionHandler,
     EarthquakeStatusHandler,
 )
@@ -39,7 +40,9 @@ from .galaxy import GalaxyCatalogHandler, GalaxyASCIIFileHandler, GalaxyGladeHan
 from .gcn import (
     GcnEventHandler,
     GcnEventObservationPlanRequestsHandler,
+    GcnEventPropertiesHandler,
     GcnEventSurveyEfficiencyHandler,
+    GcnEventCatalogQueryHandler,
     GcnEventTagsHandler,
     GcnSummaryHandler,
     LocalizationHandler,
@@ -66,7 +69,6 @@ from .news_feed import NewsFeedHandler
 from .observation import (
     ObservationASCIIFileHandler,
     ObservationHandler,
-    ObservationGCNHandler,
     ObservationTreasureMapHandler,
     ObservationExternalAPIHandler,
     ObservationSimSurveyHandler,

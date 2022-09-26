@@ -79,9 +79,9 @@ const Thumbnail = ({ ra, dec, name, url, size, grayscale, header }) => {
       alt = "Link to SDSS Navigate tool";
       link = `https://skyserver.sdss.org/dr16/en/tools/chart/navi.aspx?opt=G&ra=${ra}&dec=${dec}&scale=0.25`;
       break;
-    case "dr8":
-      alt = "Link to DESI DR8 Image Access";
-      link = `https://www.legacysurvey.org/viewer?ra=${ra}&dec=${dec}&layer=ls-dr8&zoom=16&mark=${ra},${dec}`;
+    case "ls":
+      alt = "Link to Legacy Survey DR9 Image Access";
+      link = `https://www.legacysurvey.org/viewer?ra=${ra}&dec=${dec}&layer=ls-dr9&photoz-dr9&zoom=16&mark=${ra},${dec}`;
       break;
     case "ps1":
       alt = "Link to PanSTARRS-1 Image Access";
@@ -116,7 +116,7 @@ const Thumbnail = ({ ra, dec, name, url, size, grayscale, header }) => {
             onError={(e) => {
               if (url !== "#") {
                 e.target.onerror = null;
-                if (name === "dr8") {
+                if (name === "ls") {
                   e.target.src = "/static/images/outside_survey.png";
                 } else {
                   e.target.src = "/static/images/currently_unavailable.png";
@@ -165,7 +165,7 @@ const ThumbnailList = ({
   thumbnails,
   useGrid = true,
   size = "13rem",
-  displayTypes = ["new", "ref", "sub", "sdss", "dr8", "ps1"],
+  displayTypes = ["new", "ref", "sub", "sdss", "ls", "ps1"],
 }) => {
   thumbnails
     ?.filter((thumbnail) => displayTypes.includes(thumbnail.type))
@@ -175,7 +175,7 @@ const ThumbnailList = ({
     ?.map((type) => thumbnails.find((thumbnail) => thumbnail.type === type))
     ?.filter((thumbnail) => thumbnail !== undefined);
 
-  const thumbnail_order = ["new", "ref", "sub", "sdss", "dr8", "ps1"];
+  const thumbnail_order = ["new", "ref", "sub", "sdss", "ls", "ps1"];
   // Sort thumbnails by order of appearance in `thumbnail_order`
   latestThumbnails?.sort((a, b) =>
     thumbnail_order.indexOf(a.type) < thumbnail_order.indexOf(b.type) ? -1 : 1
@@ -184,7 +184,7 @@ const ThumbnailList = ({
   const thumbnail_display = Object.fromEntries(
     thumbnail_order.map((x) => [x, x])
   );
-  thumbnail_display.dr8 = "Legacy Survey DR8";
+  thumbnail_display.ls = "Legacy Survey DR9";
   thumbnail_display.ps1 = "PanSTARRS DR2";
 
   if (useGrid) {
@@ -249,7 +249,7 @@ ThumbnailList.propTypes = {
 
 ThumbnailList.defaultProps = {
   size: "13rem",
-  displayTypes: ["new", "ref", "sub", "sdss", "dr8", "ps1"],
+  displayTypes: ["new", "ref", "sub", "sdss", "ls", "ps1"],
   useGrid: true,
 };
 
