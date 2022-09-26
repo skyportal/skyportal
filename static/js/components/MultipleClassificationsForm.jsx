@@ -351,11 +351,14 @@ const MultipleClassificationsForm = ({
               min={0}
               max={1.0}
             />
-            {renderSliders(
-              classification.subclasses,
-              depth + 1,
-              [classification.class].concat(path)
-            )}
+            {classification.class in formState[selectedTaxonomy.id] &&
+              formState[selectedTaxonomy.id][classification.class]
+                ?.probability !== 0 &&
+              renderSliders(
+                classification.subclasses,
+                depth + 1,
+                [classification.class].concat(path)
+              )}
           </div>
         ) : (
           <Paper variant="outlined" className={styles.sliderDiv}>
@@ -379,11 +382,14 @@ const MultipleClassificationsForm = ({
               min={0}
               max={1.0}
             />
-            {renderSliders(
-              classification.subclasses,
-              depth + 1,
-              [classification.class].concat(path)
-            )}
+            {classification.class in formState[selectedTaxonomy.id] &&
+              formState[selectedTaxonomy.id][classification.class]
+                ?.probability !== 0 &&
+              renderSliders(
+                classification.subclasses,
+                depth + 1,
+                [classification.class].concat(path)
+              )}
           </Paper>
         )
       );
