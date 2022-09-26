@@ -56,17 +56,19 @@ const NewGcnEvent = () => {
       errors.error.addError("0 < error, please fix.");
     }
     if (!formData.xml) {
-      if (!formData.polygon) {
-        if (
-          !formData.dateobs ||
-          !formData.ra ||
-          !formData.dec ||
-          !formData.error
-        ) {
-          errors.dateobs.addError(
-            "dateobs, ra, dec, and error (or polygon) must be defined if not uploading VOEvent"
-          );
-        }
+      if (!formData.dateobs) {
+        errors.dateobs.addError(
+          "dateobs must be defined if not uploading VOEvent"
+        );
+      }
+      if (
+        !formData.polygon &&
+        !formData.skymap &&
+        (!formData.ra || !formData.dec || !formData.error)
+      ) {
+        errors.skymap.addError(
+          "Either (i) ra, dec, and error or (ii) polygon or (iii) skymap must be defined if not uploading VOEvent"
+        );
       }
     }
     return errors;
@@ -103,6 +105,12 @@ const NewGcnEvent = () => {
       format: "data-url",
       title: "VOEvent XML File",
       description: "VOEvent XML file",
+    },
+    skymap: {
+      type: "string",
+      format: "data-url",
+      title: "Skymap File",
+      description: "Skymap Fits file",
     },
   };
 
