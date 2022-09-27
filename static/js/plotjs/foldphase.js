@@ -22,6 +22,32 @@ const smoothing_func = (values, window_size) => {
   return output;
 };
 
+const sort_and_smooth = (list, binsize) => {
+  let l;
+  let k;
+
+  list.sort((a, b) =>
+    // eslint-disable-next-line no-nested-ternary
+    a.mjd_fold < b.mjd_fold ? -1 : a.mjd_fold === b.mjd_fold ? 0 : 1
+  );
+  const mag_sort = [];
+  for (l = 0; l < list.length; l += 1) {
+    mag_sort[l] = list[l].mag;
+  }
+  const mag_sort_smooth = smoothing_func(mag_sort, binsize);
+  const mag_sort_smooth_reordered = [];
+  for (l = 0; l < list.length; l += 1) {
+    for (k = 0; k < list.length; k += 1) {
+      if (l === list[k].index) {
+        mag_sort_smooth_reordered.push(mag_sort_smooth[k]);
+        break;
+      }
+    }
+  }
+
+  return mag_sort_smooth_reordered;
+};
+
 // callback inputs: model_dict, n_labels, checkbox, input, slider
 slider.value = input.value;
 
@@ -53,71 +79,32 @@ for (let i = 0; i < n_labels; i++) {
 
   if (binsize > 1) {
     var j;
-    var k;
 
     var alist = [];
     for (j = 0; j < folda.data.mjd_folda.length; j++) {
       alist.push({
         index: j,
-        mjd_folda: folda.data.mjd_folda[j],
+        mjd_fold: folda.data.mjd_folda[j],
         mag: folda.data.mag[j],
       });
     }
-    alist.sort(function (a, b) {
-      return a.mjd_folda < b.mjd_folda
-        ? -1
-        : a.mjd_folda == b.mjd_folda
-        ? 0
-        : 1;
-    });
-    const amag_sort = [];
+    folda.data.mag = sort_and_smooth(alist, binsize);
     for (j = 0; j < alist.length; j++) {
-      amag_sort[j] = alist[j].mag;
+      foldaerr.data.ys[j] = [folda.data.mag[j], folda.data.mag[j]];
     }
-    const amag_sort_smooth = smoothing_func(amag_sort, binsize);
-    const amag_sort_smooth_reordered = [];
-    for (var j = 0; j < folda.data.mjd_folda.length; j++) {
-      for (var k = 0; k < folda.data.mjd_folda.length; k++) {
-        if (j == alist[k].index) {
-          amag_sort_smooth_reordered.push(amag_sort_smooth[k]);
-          foldaerr.data.ys[j] = [amag_sort_smooth[k], amag_sort_smooth[k]];
-          break;
-        }
-      }
-    }
-    folda.data.mag = amag_sort_smooth_reordered;
 
     var blist = [];
-    for (j = 0; j < folda.data.mjd_folda.length; j++) {
+    for (j = 0; j < foldb.data.mjd_foldb.length; j++) {
       blist.push({
         index: j,
-        mjd_foldb: foldb.data.mjd_foldb[j],
+        mjd_fold: foldb.data.mjd_foldb[j],
         mag: foldb.data.mag[j],
       });
     }
-    blist.sort(function (a, b) {
-      return a.mjd_foldb < b.mjd_foldb
-        ? -1
-        : a.mjd_foldb == b.mjd_foldb
-        ? 0
-        : 1;
-    });
-    const bmag_sort = [];
+    foldb.data.mag = sort_and_smooth(blist, binsize);
     for (j = 0; j < blist.length; j++) {
-      bmag_sort[j] = blist[j].mag;
+      foldberr.data.ys[j] = [foldb.data.mag[j], foldb.data.mag[j]];
     }
-    const bmag_sort_smooth = smoothing_func(bmag_sort, binsize);
-    const bmag_sort_smooth_reordered = [];
-    for (j = 0; j < foldb.data.mjd_folda.length; j++) {
-      for (k = 0; k < foldb.data.mjd_folda.length; k++) {
-        if (j == blist[k].index) {
-          bmag_sort_smooth_reordered.push(bmag_sort_smooth[k]);
-          foldberr.data.ys[j] = [bmag_sort_smooth[k], bmag_sort_smooth[k]];
-          break;
-        }
-      }
-    }
-    foldb.data.mag = bmag_sort_smooth_reordered;
   }
 
   folda.change.emit();
