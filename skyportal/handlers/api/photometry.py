@@ -115,11 +115,17 @@ def serialize(phot, outsys, format):
         'groups': phot.groups,
         'altdata': phot.altdata,
     }
-    if phot.ref_flux is not None and phot.ref_fluxerr is not None:
+    if (
+        phot.ref_flux is not None
+        and not np.isnan(phot.ref_flux)
+        and phot.ref_fluxerr is not None
+        and not np.isnan(phot.ref_fluxerr)
+    ):
+        print(f'adding ref and tot fluxes. ref flux is {phot.ref_flux}')
         return_value['ref_flux'] = phot.ref_flux
-        return_value['tot_flux'] = phot.ref_flux + phot.flux
+        return_value['tot_flux'] = phot.tot_flux
         return_value['ref_fluxerr'] = phot.ref_fluxerr
-        return_value['tot_fluxerr'] = np.sqrt(phot.ref_fluxerr**2 + phot.fluxerr**2)
+        return_value['tot_fluxerr'] = phot.tot_fluxerr
         return_value['magref'] = phot.magref
         return_value['magtot'] = phot.magtot
         return_value['e_magref'] = phot.e_magref
@@ -178,7 +184,12 @@ def serialize(phot, outsys, format):
                     'limiting_mag': maglimit_out,
                 }
             )
-            if phot.ref_flux is not None and phot.ref_fluxerr is not None:
+            if (
+                phot.ref_flux is not None
+                and not np.isnan(phot.ref_flux)
+                and phot.ref_fluxerr is not None
+                and not np.isnan(phot.ref_fluxerr)
+            ):
                 return_value.update(
                     {
                         'magref': phot.magref + db_correction
@@ -199,15 +210,18 @@ def serialize(phot, outsys, format):
                     'fluxerr': phot.fluxerr,
                 }
             )
-            if phot.ref_flux is not None and phot.ref_fluxerr is not None:
+            if (
+                phot.ref_flux is not None
+                and not np.isnan(phot.ref_flux)
+                and phot.ref_fluxerr is not None
+                and not np.isnan(phot.ref_fluxerr)
+            ):
                 return_value.update(
                     {
                         'ref_flux': phot.ref_flux,
-                        'tot_flux': phot.ref_flux + phot.flux,
+                        'tot_flux': phot.tot_flux,
                         'ref_fluxerr': phot.ref_fluxerr,
-                        'tot_fluxerr': np.sqrt(
-                            phot.ref_fluxerr**2 + phot.fluxerr**2
-                        ),
+                        'tot_fluxerr': phot.tot_fluxerr,
                     }
                 )
     except ValueError as e:
