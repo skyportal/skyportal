@@ -563,7 +563,6 @@ def fetch_gaia_transients(instrument_id, user_id, payload):
 
     lightcurve_url = "https://gsaweb.ast.cam.ac.uk/alerts/alert"
     alert_url = "http://gsaweb.ast.cam.ac.uk/alerts/alerts.csv"
-    # alert_url = "./alerts.csv"
 
     try:
         file_read = False
