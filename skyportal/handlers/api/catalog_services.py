@@ -496,12 +496,12 @@ class GaiaPhotometricAlertsQueryHandler(BaseHandler):
                       for Gaia. Defaults to Gaia.
                   startDate:
                     required: false
-                    type: float
-                    description: Filter by start date
+                    type: str
+                    description: Arrow parsable string. Filter by start date.
                   endDate:
                     required: false
-                    type: float
-                    description: Filter by end date
+                    type: str
+                    description: Arrow parsable string. Filter by end date.
         responses:
           200:
             content:
