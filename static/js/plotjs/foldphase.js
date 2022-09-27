@@ -30,13 +30,19 @@ const sort_and_smooth = (list, binsize) => {
     // eslint-disable-next-line no-nested-ternary
     a.mjd_fold < b.mjd_fold ? -1 : a.mjd_fold === b.mjd_fold ? 0 : 1
   );
-  const mag_sort = list.map(a => a.mag);
+  const mag_sort = list.map((a) => a.mag);
   const mag_sort_smooth = smoothing_func(mag_sort, binsize);
-  // sort the array back into the same order as "list_indices"
-  const list_indices = list.map(a => a.index);
-  mag_sort_smooth.sort((a,b) => list.indexOf(a.index) - list.indexOf(b.index));
-  
-  return mag_sort_smooth;
+  const mag_sort_smooth_reordered = [];
+  for (l = 0; l < list.length; l += 1) {
+    for (k = 0; k < list.length; k += 1) {
+      if (l === list[k].index) {
+        mag_sort_smooth_reordered.push(mag_sort_smooth[k]);
+        break;
+      }
+    }
+  }
+
+  return mag_sort_smooth_reordered;
 };
 
 // callback inputs: model_dict, n_labels, checkbox, input, slider
