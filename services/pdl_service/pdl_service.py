@@ -22,7 +22,7 @@ def service():
     while True:
         try:
             user_id = 1
-            path = "services/pdlclient_service/data/receiver_storage/origin"
+            path = "services/pdl_service/data/receiver_storage/origin"
 
             os.makedirs(path, exist_ok=True)
 
