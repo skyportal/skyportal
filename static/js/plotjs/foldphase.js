@@ -30,10 +30,7 @@ const sort_and_smooth = (list, binsize) => {
     // eslint-disable-next-line no-nested-ternary
     a.mjd_fold < b.mjd_fold ? -1 : a.mjd_fold === b.mjd_fold ? 0 : 1
   );
-  const mag_sort = [];
-  for (l = 0; l < list.length; l += 1) {
-    mag_sort[l] = list[l].mag;
-  }
+  const mag_sort = list.map(a => a.mag);
   const mag_sort_smooth = smoothing_func(mag_sort, binsize);
   const mag_sort_smooth_reordered = [];
   for (l = 0; l < list.length; l += 1) {
