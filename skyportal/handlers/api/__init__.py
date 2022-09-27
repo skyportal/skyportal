@@ -19,7 +19,11 @@ from .annotation_services import (
     VizierQueryHandler,
     DatalabQueryHandler,
 )
-from .catalog_services import CatalogQueryHandler, SwiftLSXPSQueryHandler
+from .catalog_services import (
+    CatalogQueryHandler,
+    SwiftLSXPSQueryHandler,
+    GaiaPhotometricAlertsQueryHandler,
+)
 from .db_stats import StatsHandler
 from .earthquake import (
     EarthquakeHandler,

@@ -249,6 +249,12 @@ telescope:
     skycam_link: null
     fixed_location: false
     =id: NICER
+  - diameter: 0.94
+    nickname: Gaia
+    name: Gaia
+    skycam_link: null
+    fixed_location: false
+    =id: Gaia
   - diameter: 1.8
     elevation: 4215.0
     lat: 19.825
@@ -407,6 +413,12 @@ instrument:
     telescope_id: =NICER
     type: imaging spectrograph
     filters: ['nicerxti']
+  - band: Optical
+    name: Gaia
+    =id: Gaia
+    telescope_id: =Gaia
+    type: imaging spectrograph
+    filters: ['gaia::gbp', 'gaia::g', 'gaia::grp', 'gaia::grvs']
   - band: optical
     name: PS1
     telescope_id: =PS1
