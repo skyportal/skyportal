@@ -489,7 +489,7 @@ class GaiaPhotometricAlertsQueryHandler(BaseHandler):
                 properties:
                   telescope_name:
                     required: false
-                    type: integer
+                    type: string
                     description: |
                       Name of telescope to assign this catalog to.
                       Use the same name as your nickname
