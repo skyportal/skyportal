@@ -576,7 +576,7 @@ def fetch_gaia_transients(instrument_id, user_id, payload):
                 nretries = nretries + 1
                 time.sleep(10)
         if not file_read:
-            log('Failed to read Gaia catalog')
+            log('Failed to read Gaia alert catalog')
             return
 
         start_date = payload.get('start_date', None)
