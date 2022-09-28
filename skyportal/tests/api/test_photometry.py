@@ -1,12 +1,15 @@
 import math
 
 import numpy as np
+import uuid
+
+import sqlalchemy as sa
 import sncosmo
 
 from baselayer.app.env import load_env
 from skyportal.models import DBSession, Token
 from skyportal.tests import api, assert_api
-
+from skyportal.models.photometry import Photometry
 
 _, cfg = load_env()
 PHOT_DETECTION_THRESHOLD = cfg["misc.photometry_detection_threshold_nsigma"]
@@ -294,24 +297,25 @@ def test_ref_mag(upload_data_token, public_source, public_group, ztf_camera):
     assert np.isclose(data['data']['e_magref'], 0.02)
 
 
-def test_multiple_mag_ref(upload_data_token, public_source, public_group, ztf_camera):
+def test_query_magnitudes(upload_data_token, public_source, public_group, ztf_camera):
+    origin = str(uuid.uuid4())
     status, data = api(
         'POST',
         'photometry',
         data={
-            'obj_id': str(public_source.id),
+            'obj_id': public_source.id,
             'instrument_id': ztf_camera.id,
             "mjd": [59410, 59411, 59412],
-            "mag": [19.2, 19.3, np.random.uniform(19, 20)],
+            "mag": [19.2, 19.3, np.random.uniform(19.3, 20)],
             "magerr": [0.05, 0.06, np.random.uniform(0.01, 0.1)],
-            "magref": [18.1, 18.2, np.random.uniform(18, 19)],
+            "magref": [18.1, 18.2, np.random.uniform(18.2, 19)],
             "e_magref": [0.01, 0.02, np.random.uniform(0.01, 0.1)],
             "limiting_mag": [20.0, 20.1, 20.2],
             "magsys": ["ab", "ab", "ab"],
             "filter": ["ztfr", "ztfg", "ztfr"],
             "ra": [42.01, 42.01, 42.02],
             "dec": [42.02, 42.01, 42.03],
-            "origin": [None, "lol", "lol"],
+            "origin": origin,
             'group_ids': [public_group.id],
             "altdata": {"key1": "value1"},
         },
@@ -358,10 +362,60 @@ def test_multiple_mag_ref(upload_data_token, public_source, public_group, ztf_ca
     assert np.isclose(data['data']['ref_fluxerr'], fluxerr_ref2)
 
     # see if we can filter points by ref flux
-    # ref_flux_midpoint = (flux_ref1 + flux_ref2) / 2
-    # status, data = api('GET', 'photometry', params={})
-    # need some way to query photometry by ref flux or tot flux
-    # currently we don't filter on photometry data at all
+    mag_midpoint = (19.3 + 19.2) / 2
+    flux_midpoint = 10 ** (-0.4 * (mag_midpoint - 23.9))
+    ref_flux_midpoint = (flux_ref1 + flux_ref2) / 2
+    ref_mag_midpoint = -2.5 * np.log10(ref_flux_midpoint) + 23.9
+    tot_flux_midpoint = flux_midpoint + ref_flux_midpoint
+    tot_mag_midpoint = -2.5 * np.log10(tot_flux_midpoint) + 23.9
+
+    def get_photometry_points(*query_params):
+        return (
+            DBSession()
+            .scalars(
+                sa.select(Photometry).where(Photometry.origin == origin, *query_params)
+            )
+            .all()
+        )
+
+    phot = get_photometry_points()
+    assert len(phot) == 3
+
+    # now look only for those with mag above midpoint
+    phot = get_photometry_points(Photometry.mag > mag_midpoint)
+    assert len(phot) == 2
+    phot = get_photometry_points(Photometry.mag < mag_midpoint)
+    assert len(phot) == 1
+
+    # now look only for those with ref mag above midpoint
+    phot = get_photometry_points(Photometry.magref > ref_mag_midpoint)
+    assert len(phot) == 2
+    phot = get_photometry_points(Photometry.magref < ref_mag_midpoint)
+    assert len(phot) == 1
+
+    # now look only for those with tot mag above midpoint
+    phot = get_photometry_points(Photometry.magtot > tot_mag_midpoint)
+    assert len(phot) == 2
+    phot = get_photometry_points(Photometry.magtot < tot_mag_midpoint)
+    assert len(phot) == 1
+
+    # check for fluxes above/below midpoint
+    phot = get_photometry_points(Photometry.flux > flux_midpoint)
+    assert len(phot) == 1
+    phot = get_photometry_points(Photometry.flux < flux_midpoint)
+    assert len(phot) == 2
+
+    # check for ref fluxes above/below midpoint
+    phot = get_photometry_points(Photometry.ref_flux > ref_flux_midpoint)
+    assert len(phot) == 1
+    phot = get_photometry_points(Photometry.ref_flux < ref_flux_midpoint)
+    assert len(phot) == 2
+
+    # check for tot fluxes above/below midpoint
+    phot = get_photometry_points(Photometry.tot_flux > tot_flux_midpoint)
+    assert len(phot) == 1
+    phot = get_photometry_points(Photometry.tot_flux < tot_flux_midpoint)
+    assert len(phot) == 2
 
 
 def test_ref_mag_vector(upload_data_token, public_source, public_group, ztf_camera):
