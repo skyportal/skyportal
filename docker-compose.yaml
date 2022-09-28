@@ -7,6 +7,9 @@ services:
       - "9000:5000"
       - "9001:5001"
     volumes:
+      # allow the data files to be mounted across containers
+      # if need be with the :z flag
+      # cf. https://stackoverflow.com/a/35222815
       - thumbnails:/skyportal/static/thumbnails:z
       - persistentdata:/skyportal/persistentdata:z
 
