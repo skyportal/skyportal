@@ -56,12 +56,12 @@ def service():
         log('No notice_types configured to poll gcn events (config: gcn.notice_types')
         return
 
-    group_id = cfg['gcn.group_id']
-    if group_id is None or group_id == '':
-        group_id = str(uuid.uuid4())
+    client_group_id = cfg.get('gcn.client_group_id')
+    if client_group_id is None or client_group_id == '':
+        client_group_id = str(uuid.uuid4())
 
     config = {
-        'group.id': group_id,
+        'group.id': client_group_id,
         'auto.offset.reset': 'earliest',
         'enable.auto.commit': False,
     }
