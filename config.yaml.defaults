@@ -594,6 +594,8 @@ ports:
 gcn:
   server: gcn.nasa.gov
   # you can obtain a client_id and client_secret at https://gcn.nasa.gov/quickstart
+  # you can set a group_id to remember the last GCN the app ingested from the stream
+  group_id:
   client_id:
   client_secret:
   notice_types:
