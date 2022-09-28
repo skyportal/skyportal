@@ -21,25 +21,64 @@ function isDailyShift(shiftName) {
 const NewShift = () => {
   const groups = useSelector((state) => state.groups.userAccessible);
   const dispatch = useDispatch();
-  const nowDate = dayjs().utc().format("YYYY-MM-DDTHH:mm:ssZ");
-  const defaultStartDate = dayjs().utc().format("YYYY-MM-DDTHH:mm:ssZ");
+
+  const nowDate = dayjs().local().format("YYYY-MM-DDTHH:mm:ss");
+  const defaultStartDate = dayjs().local().format("YYYY-MM-DDTHH:mm:ss");
   const defaultEndDate = dayjs()
     .add(1, "day")
+    .local()
+    .format("YYYY-MM-DDTHH:mm:ss");
+  const timezoneString = dayjs()
+    .local()
+    .format("YYYY-MM-DDTHH:mm:ssZ")
+    .slice(-6);
+
+  const nowDateUTC = dayjs
     .utc()
-    .format("YYYY-MM-DDTHH:mm:ssZ");
+    .utcOffset(0, true)
+    .format("YYYY-MM-DDTHH:mm:ss");
+  const defaultStartDateUTC = dayjs
+    .utc()
+    .utcOffset(0, true)
+    .format("YYYY-MM-DDTHH:mm:ss");
+  const defaultEndDateUTC = dayjs
+    .utc()
+    .add(1, "day")
+    .utcOffset(0, true)
+    .format("YYYY-MM-DDTHH:mm:ss");
 
   if (!groups) {
     return <CircularProgress />;
   }
 
   const handleSubmit = async ({ formData }) => {
+    const { localTime } = formData;
+    delete formData.localTime;
+
     if (!formData.repeatsDaily) {
-      formData.start_date = formData.start_date
-        .replace("+00:00", "")
-        .replace(".000Z", "");
-      formData.end_date = formData.end_date
-        .replace("+00:00", "")
-        .replace(".000Z", "");
+      if (localTime === "local") {
+        formData.start_date = dayjs(
+          formData.start_date_local.concat("", timezoneString)
+        )
+          .utc()
+          .format("YYYY-MM-DDTHH:mm:ss")
+          .replace("+00:00", "")
+          .replace(".000Z", "");
+        formData.end_date = dayjs(
+          formData.end_date_local.concat("", timezoneString)
+        )
+          .utc()
+          .format("YYYY-MM-DDTHH:mm:ss")
+          .replace("+00:00", "")
+          .replace(".000Z", "");
+      } else if (localTime === "UTC") {
+        formData.start_date = formData.start_date_utc;
+        formData.end_date = formData.end_date_utc;
+      }
+      delete formData.start_date_local;
+      delete formData.end_date_local;
+      delete formData.start_date_utc;
+      delete formData.end_date_utc;
       delete formData.repeatsDaily;
       const result = await dispatch(submitShift(formData));
       if (result.status === "success") {
@@ -48,6 +87,32 @@ const NewShift = () => {
       }
     } else {
       delete formData.repeatsDaily;
+
+      if (localTime === "local") {
+        formData.start_date = dayjs(
+          formData.start_date_local.concat("", timezoneString)
+        )
+          .utc()
+          .format("YYYY-MM-DDTHH:mm:ss")
+          .replace("+00:00", "")
+          .replace(".000Z", "");
+        formData.end_date = dayjs(
+          formData.end_date_local.concat("", timezoneString)
+        )
+          .utc()
+          .format("YYYY-MM-DDTHH:mm:ss")
+          .replace("+00:00", "")
+          .replace(".000Z", "");
+      } else if (localTime === "UTC") {
+        formData.start_date = formData.start_date_utc;
+        formData.end_date = formData.end_date_utc;
+      }
+
+      delete formData.start_date_local;
+      delete formData.end_date_local;
+      delete formData.start_date_utc;
+      delete formData.end_date_utc;
+
       const startDate = dayjs(formData.start_date).utc();
       const endDate = dayjs(formData.end_date).utc();
       const days = endDate.diff(startDate, "days");
@@ -79,15 +144,28 @@ const NewShift = () => {
         'Shift name cannot contain "number/number" at the end of the name, please fix.'
       );
     }
-    if (nowDate > formData.end_date) {
-      errors.end_date.addError(
-        "End date must be after current date, please fix."
-      );
-    }
-    if (formData.start_date > formData.end_date) {
-      errors.start_date.addError(
-        "Start date must be before end date, please fix."
-      );
+    if (formData.localTime === "local") {
+      if (nowDate > formData.end_date_local) {
+        errors.end_date_local.addError(
+          "End date must be after current date, please fix."
+        );
+      }
+      if (formData.start_date_local > formData.end_date_local) {
+        errors.start_date_local.addError(
+          "Start date must be before end date, please fix."
+        );
+      }
+    } else if (formData.localTime === "UTC") {
+      if (nowDateUTC > formData.end_date_utc) {
+        errors.end_date_utc.addError(
+          "End date must be after current date, please fix."
+        );
+      }
+      if (formData.start_date_utc > formData.end_date_utc) {
+        errors.start_date_utc.addError(
+          "Start date must be before end date, please fix."
+        );
+      }
     }
     return errors;
   }
@@ -115,18 +193,6 @@ const NewShift = () => {
         type: "string",
         title: "Shift name (ie. the Night Shift)",
       },
-      start_date: {
-        type: "string",
-        format: "date-time",
-        title: "Start Date (Local Time)",
-        default: defaultStartDate,
-      },
-      end_date: {
-        type: "string",
-        format: "date-time",
-        title: "End Date (Local Time)",
-        default: defaultEndDate,
-      },
       required_users_number: {
         type: "integer",
         title: "Number of users required in the shift (optional)",
@@ -141,8 +207,57 @@ const NewShift = () => {
         description:
           "If checked, shifts will be created for each day between start and end date, each of them starting at the start time and ending at the end time.",
       },
+      localTime: {
+        type: "string",
+        oneOf: [
+          { enum: ["local"], title: "Local Time" },
+          { enum: ["UTC"], title: "UTC Time" },
+        ],
+        default: "local",
+        title: "Use local or UTC time?",
+      },
     },
-    required: ["group_id", "name", "start_date", "end_date"],
+    required: ["group_id", "name"],
+    dependencies: {
+      localTime: {
+        oneOf: [
+          {
+            properties: {
+              localTime: {
+                enum: ["local"],
+              },
+              start_date_local: {
+                type: "string",
+                title: "Start Date (Local Time)",
+                default: defaultStartDate,
+              },
+              end_date_local: {
+                type: "string",
+                title: "End Date (Local Time)",
+                default: defaultEndDate,
+              },
+            },
+          },
+          {
+            properties: {
+              localTime: {
+                enum: ["UTC"],
+              },
+              start_date_utc: {
+                type: "string",
+                title: "Start Date (UTC Time)",
+                default: defaultStartDateUTC,
+              },
+              end_date_utc: {
+                type: "string",
+                title: "End Date (UTC Time)",
+                default: defaultEndDateUTC,
+              },
+            },
+          },
+        ],
+      },
+    },
   };
 
   return (
