@@ -1300,6 +1300,7 @@ def make_period_controls(
     device,
     width,
     layout,
+    obj_id,
 ):
     """Makes period controls to be used in a period photometry panel.
 
@@ -1323,6 +1324,8 @@ def make_period_controls(
         The width of the plot.
     layout : bokeh Layout object
         The layout object.
+    obj_id : str
+        ID of the object
 
     Returns
     -------
@@ -1330,10 +1333,61 @@ def make_period_controls(
     """
     model_dict = transformed_model_dict(model_dict)
     period_selection = RadioGroup(labels=period_labels, active=0)
-
     phase_selection = RadioGroup(labels=["One phase", "Two phases"], active=1)
     period_title = Div(text="Period (days): ")
     period_textinput = TextInput(value=str(period if period is not None else 0.0))
+
+    smooth_checkbox = CheckboxGroup(
+        labels=["smoothing"],
+        active=[],
+    )
+    smooth_slider = Slider(
+        start=0.0,
+        end=100.0,
+        value=0.0,
+        step=1.0,
+        show_value=False,
+        max_width=350,
+        # margin=(4, 10, 0, 10),
+    )
+    smooth_input = NumericInput(value=1)
+    smooth_callback = CustomJS(
+        args={
+            'textinput': period_textinput,
+            'numphases': phase_selection,
+            'n_labels': len(grouped_data),
+            'p': plot,
+            'checkbox': smooth_checkbox,
+            'input': smooth_input,
+            'slider': smooth_slider,
+            **model_dict,
+        },
+        code=open(
+            os.path.join(
+                os.path.dirname(__file__), '../static/js/plotjs', 'foldphase.js'
+            )
+        ).read(),
+    )
+    smooth_slider.js_on_change(
+        'value',
+        CustomJS(
+            args={'slider': smooth_slider, 'input': smooth_input},
+            code="""
+                    input.value = slider.value;
+                    input.change.emit();
+                """,
+        ),
+    )
+    smooth_checkbox.js_on_click(smooth_callback)
+    smooth_input.js_on_change('value', smooth_callback)
+    smooth_column = column(
+        smooth_checkbox,
+        smooth_slider,
+        smooth_input,
+        width=width if "mobile" in device else int(width * 1 / 5) - 20,
+        margin=(4, 10, 0, 10),
+    )
+
     period_textinput.js_on_change(
         'value',
         CustomJS(
@@ -1342,6 +1396,9 @@ def make_period_controls(
                 'numphases': phase_selection,
                 'n_labels': len(grouped_data),
                 'p': plot,
+                'checkbox': smooth_checkbox,
+                'input': smooth_input,
+                'slider': smooth_slider,
                 **model_dict,
             },
             code=open(
@@ -1397,6 +1454,28 @@ def make_period_controls(
             ).read(),
         )
     )
+
+    period_annotation_title = Div(text="Annotation Origin: ")
+    period_annotation_textinput = TextInput()
+    period_annotation = Button(label='Create')
+    period_annotation.js_on_click(
+        CustomJS(
+            args={
+                'period': period_textinput,
+                'origin': period_annotation_textinput,
+            },
+            code=open(
+                os.path.join(
+                    os.path.dirname(__file__),
+                    '../static/js/plotjs',
+                    'post_annotation.js',
+                )
+            )
+            .read()
+            .replace('objname', obj_id),
+        ),
+    )
+
     if device == "mobile_portrait":
         period_controls = column(
             row(
@@ -1409,6 +1488,7 @@ def make_period_controls(
             ),
             phase_selection,
             period_selection,
+            smooth_column,
             width=width,
         )
     else:
@@ -1422,7 +1502,13 @@ def make_period_controls(
                 width=width,
                 sizing_mode="scale_width",
             ),
+            row(
+                period_annotation_title,
+                period_annotation_textinput,
+                period_annotation,
+            ),
             period_selection,
+            smooth_column,
             margin=10,
         )
     return period_controls
@@ -1493,6 +1579,7 @@ def add_widgets(
             device,
             width,
             layout,
+            obj_id,
         )
         layout.children.insert(2, period_controls)
     else:
