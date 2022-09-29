@@ -7,7 +7,9 @@ from sqlalchemy.exc import IntegrityError
 
 from baselayer.app.access import auth_or_token
 from baselayer.app.config import recursive_update
+
 from ...base import BaseHandler
+from ....utils.sizeof import sizeof
 from ....models import User
 
 
@@ -219,6 +221,15 @@ class ProfileHandler(BaseHandler):
                 ]
             if "photometryButtons" in preferences:
                 user_prefs["photometryButtons"] = preferences["photometryButtons"]
+            if "avatar" in preferences:
+                check_types = ["image/jpeg", "image/png"]
+                appropriate_type = any(
+                    check_type in preferences['avatar'] for check_type in check_types
+                )
+                if not appropriate_type:
+                    return self.error('Avatar must be jpeg or png')
+                if sizeof(preferences['avatar']) > 1e6:
+                    return self.error('Avatar must be less than 1 MB')
             user_prefs = recursive_update(user_prefs, preferences)
         user.preferences = user_prefs
 

@@ -71,7 +71,7 @@ const CompactCommentList = ({
           lastName={author.last_name}
           username={author.username}
           gravatarUrl={author.gravatar_url}
-          avatar={author?.avatar}
+          avatar={author.avatar}
         />
       </div>
       <div
