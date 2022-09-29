@@ -29,13 +29,15 @@ def basic_user_display_info(user):
         field: getattr(user, field)
         for field in ('username', 'first_name', 'last_name', 'gravatar_url')
     }
-    if 'avatar' in user.preferences:
+    if getattr(user, 'preferences') and ('avatar' in user.preferences):
         user_info['avatar'] = user.preferences['avatar']
+    else:
+        user_info['avatar'] = None
     return user_info
 
 
 def user_avatar(user):
-    if 'avatar' in user.preferences:
+    if getattr(user, 'preferences') and ('avatar' in user.preferences):
         return user.preferences['avatar']
     else:
         return None
