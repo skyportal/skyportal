@@ -361,7 +361,7 @@ const FilterCandidateList = ({
                   <DateTimePicker
                     value={value}
                     onChange={(newValue) => onChange(newValue)}
-                    label="Start (UTC)"
+                    label="Start Time"
                     showTodayButton={false}
                     ampm={useAMPM}
                     renderInput={(params) => (
@@ -383,7 +383,7 @@ const FilterCandidateList = ({
                   <DateTimePicker
                     value={value}
                     onChange={(newValue) => onChange(newValue)}
-                    label="End (UTC)"
+                    label="End Time"
                     showTodayButton={false}
                     ampm={useAMPM}
                     renderInput={(props) => (
