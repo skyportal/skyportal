@@ -99,7 +99,7 @@ def test_calculate_position_with_evil_inputs(
     ra_calc_err, dec_calc_err = _calculate_best_position_for_offset_stars(
         phot_list, fallback=(ra, dec), how="invvar", max_offset=0.5, sigma_clip=4.0
     )
-    # make sure we get back a the median position
+    # make sure we get back a median position
     npt.assert_almost_equal(ra_calc_err, med_ra, decimal=10)
     npt.assert_almost_equal(dec_calc_err, med_dec, decimal=10)
 

@@ -354,6 +354,68 @@ class Photometry(conesearch_alchemy.Point, Base):
         )
 
     @hybrid_property
+    def tot_flux(self):
+        """Total flux, e.g., the combined flux of a variable source."""
+        if self.ref_flux is not None and self.ref_flux > 0 and self.flux > 0:
+            return self.ref_flux + self.flux
+        else:
+            return None
+
+    @hybrid_property
+    def tot_fluxerr(self):
+        """The error on the total flux."""
+        if (
+            self.ref_fluxerr is not None
+            and self.ref_fluxerr > 0
+            and self.fluxerr is not None
+            and self.fluxerr > 0
+        ):
+            return np.sqrt(self.ref_fluxerr**2 + self.fluxerr**2)
+        else:
+            return None
+
+    @tot_flux.expression
+    def tot_flux(cls):
+        """The total flux of the photometry point."""
+        return sa.case(
+            [
+                (
+                    sa.and_(
+                        cls.ref_flux != None,  # noqa: E711
+                        cls.ref_flux != 'NaN',
+                        cls.ref_flux > 0,
+                        cls.flux != 'NaN',
+                        cls.flux > 0,
+                    ),  # noqa
+                    cls.ref_flux + cls.flux,
+                )
+            ],
+            else_=None,
+        )
+
+    @tot_fluxerr.expression
+    def tot_fluxerr(cls):
+        """The error on the total flux of the photometry point."""
+        return sa.case(
+            [
+                (
+                    sa.and_(
+                        cls.ref_fluxerr != None,  # noqa: E711
+                        cls.ref_fluxerr != 'NaN',
+                        cls.ref_fluxerr > 0,
+                        cls.fluxerr != None,  # noqa: E711
+                        cls.fluxerr != 'NaN',
+                        cls.fluxerr > 0,
+                    ),  # noqa
+                    sa.func.sqrt(
+                        sa.func.pow(cls.ref_fluxerr, 2) + sa.func.pow(cls.fluxerr, 2)
+                    ),
+                )
+            ],
+            else_=None,
+        )
+
+    @hybrid_property
     def jd(self):
         """Julian Date of the exposure that produced this Photometry."""
         return self.mjd + 2_400_000.5
