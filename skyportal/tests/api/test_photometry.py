@@ -230,7 +230,7 @@ def test_ref_mag(upload_data_token, public_source, public_group, ztf_camera):
     assert data['data']['altdata'] == {'some_key': 'some_value'}
 
     expected_flux = 10 ** (-0.4 * (19.24 - 23.9))
-    expected_fluxerr = 0.123 / 2.5 * np.log(10) * expected_flux
+    expected_fluxerr = 0.123 * (np.log(10) / 2.5) * expected_flux
     assert np.isclose(data['data']['flux'], expected_flux)
     assert np.isclose(data['data']['fluxerr'], expected_fluxerr)
     assert np.isclose(data['data']['mag'], 19.24)
@@ -239,7 +239,7 @@ def test_ref_mag(upload_data_token, public_source, public_group, ztf_camera):
     assert np.isclose(data['data']['e_magref'], 0.01)
 
     expected_ref_flux = 10 ** (-0.4 * (17.01 - 23.9))
-    expected_ref_fluxerr = 0.01 / 2.5 * np.log(10) * expected_ref_flux
+    expected_ref_fluxerr = 0.01 * (np.log(10) / 2.5) * expected_ref_flux
     assert np.isclose(data['data']['ref_flux'], expected_ref_flux)
     assert np.isclose(data['data']['ref_fluxerr'], expected_ref_fluxerr)
     assert np.isclose(data['data']['tot_flux'], expected_ref_flux + expected_flux)
@@ -285,7 +285,7 @@ def test_ref_mag(upload_data_token, public_source, public_group, ztf_camera):
     assert_api(status, data)
 
     expected_ref_flux = 10 ** (-0.4 * (18.01 - 23.9))
-    expected_ref_fluxerr = 0.02 / 2.5 * np.log(10) * expected_ref_flux
+    expected_ref_fluxerr = 0.02 * (np.log(10) / 2.5) * expected_ref_flux
     assert np.isclose(data['data']['ref_flux'], expected_ref_flux)
     assert np.isclose(data['data']['ref_fluxerr'], expected_ref_fluxerr)
     assert np.isclose(data['data']['tot_flux'], expected_ref_flux + expected_flux)

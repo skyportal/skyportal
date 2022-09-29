@@ -121,7 +121,6 @@ def serialize(phot, outsys, format):
         and phot.ref_fluxerr is not None
         and not np.isnan(phot.ref_fluxerr)
     ):
-        print(f'adding ref and tot fluxes. ref flux is {phot.ref_flux}')
         return_value['ref_flux'] = phot.ref_flux
         return_value['tot_flux'] = phot.tot_flux
         return_value['ref_fluxerr'] = phot.ref_fluxerr
