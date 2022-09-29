@@ -1,3 +1,4 @@
+confluent_kafka==1.9.2
 numpy==1.22.3
 scipy==1.9.0
 pandas==1.4.3
