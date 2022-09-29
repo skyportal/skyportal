@@ -34,6 +34,7 @@ from baselayer.log import make_log
 
 from ..base import BaseHandler
 from ...models import (
+    user_avatar,
     Allocation,
     Annotation,
     Comment,
@@ -207,6 +208,7 @@ def get_source(
                     "author": {
                         **c.author.to_dict(),
                         "gravatar_url": c.author.gravatar_url,
+                        "avatar": user_avatar(c.author),
                     },
                 }
                 for c in comments

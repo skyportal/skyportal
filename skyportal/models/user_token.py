@@ -25,10 +25,20 @@ from .invitation import Invitation
 
 
 def basic_user_display_info(user):
-    return {
+    user_info = {
         field: getattr(user, field)
         for field in ('username', 'first_name', 'last_name', 'gravatar_url')
     }
+    if 'avatar' in user.preferences:
+        user_info['avatar'] = user.preferences['avatar']
+    return user_info
+
+
+def user_avatar(user):
+    if 'avatar' in user.preferences:
+        return user.preferences['avatar']
+    else:
+        return None
 
 
 def user_to_dict(self):

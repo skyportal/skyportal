@@ -111,6 +111,7 @@ const NewsFeedItem = ({ item }) => {
           lastName={item.author_info.last_name}
           username={item.author_info.username}
           gravatarUrl={item.author_info.gravatar_url}
+          avatar={item.author_info?.avatar}
         />
       );
       entryTitle = null;
@@ -236,6 +237,7 @@ NewsFeedItem.propTypes = {
       first_name: PropTypes.string,
       last_name: PropTypes.string,
       gravatar_url: PropTypes.string.isRequired,
+      avatar: PropTypes.string,
     }),
   }).isRequired,
 };

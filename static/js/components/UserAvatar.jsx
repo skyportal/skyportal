@@ -37,7 +37,14 @@ const getInitials = (firstName, lastName) => {
   return `${firstName?.charAt(0)}${lastName?.charAt(0)}`;
 };
 
-const UserAvatar = ({ size, firstName, lastName, username, gravatarUrl }) => {
+const UserAvatar = ({
+  size,
+  firstName,
+  lastName,
+  username,
+  gravatarUrl,
+  avatar,
+}) => {
   // use the hash of the username (which is in the gravatarUrl) to
   // select a unique color for this user
   function bgcolor() {
@@ -67,15 +74,29 @@ const UserAvatar = ({ size, firstName, lastName, username, gravatarUrl }) => {
 
   return (
     <Tooltip title={tooltipText} arrow placement="top-start">
-      <Avatar
-        alt={backUpLetters}
-        src={`${gravatarUrl}&s=${size}`}
-        size={size}
-        classes={{
-          root: classes.avatar,
-          img: classes.avatarImg,
-        }}
-      />
+      <div>
+        {avatar ? (
+          <Avatar
+            alt={backUpLetters}
+            src={avatar}
+            size={size}
+            classes={{
+              root: classes.avatar,
+              img: classes.avatarImg,
+            }}
+          />
+        ) : (
+          <Avatar
+            alt={backUpLetters}
+            src={`${gravatarUrl}&s=${size}`}
+            size={size}
+            classes={{
+              root: classes.avatar,
+              img: classes.avatarImg,
+            }}
+          />
+        )}
+      </div>
     </Tooltip>
   );
 };
@@ -86,11 +107,13 @@ UserAvatar.propTypes = {
   lastName: PropTypes.string,
   username: PropTypes.string.isRequired,
   gravatarUrl: PropTypes.string.isRequired,
+  avatar: PropTypes.string,
 };
 
 UserAvatar.defaultProps = {
   firstName: null,
   lastName: null,
+  avatar: null,
 };
 
 export default UserAvatar;

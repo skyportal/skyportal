@@ -8,6 +8,7 @@ import Box from "@mui/material/Box";
 import PropTypes from "prop-types";
 
 import UserAvatar, { isAllKoreanCharacters } from "./UserAvatar";
+import UserAvatarUpload from "./UserAvatarUpload";
 
 export const UserContactInfo = ({ user }) => {
   let contact_string = "";
@@ -56,6 +57,8 @@ const getUserAffiliations = (affiliations) => (
 
 const UserProfileInfo = () => {
   const profile = useSelector((state) => state.profile);
+  const preferences = useSelector((state) => state.profile.preferences);
+  const avatar = preferences?.avatar || null;
 
   return (
     <Card>
@@ -74,7 +77,9 @@ const UserProfileInfo = () => {
             lastName={profile.last_name}
             username={profile.username}
             gravatarUrl={profile.gravatar_url}
+            avatar={avatar}
           />
+          <UserAvatarUpload />
           &nbsp;&nbsp;
           <div style={{ display: "flex", flexDirection: "column" }}>
             <h2

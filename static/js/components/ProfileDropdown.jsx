@@ -47,6 +47,8 @@ const useStyles = makeStyles((theme) => ({
 
 const ProfileDropdown = () => {
   const profile = useSelector((state) => state.profile);
+  const preferences = useSelector((state) => state.profile.preferences);
+  const avatar = preferences?.avatar || null;
 
   const classes = useStyles();
   const [anchorEl, setAnchorEl] = React.useState(null);
@@ -78,6 +80,7 @@ const ProfileDropdown = () => {
           lastName={profile.last_name}
           username={profile.username}
           gravatarUrl={profile.gravatar_url}
+          avatar={avatar}
         />
       </IconButton>
 
