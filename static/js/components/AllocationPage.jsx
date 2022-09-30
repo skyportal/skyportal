@@ -1,5 +1,6 @@
-import React from "react";
+import React, { useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
+import DeleteIcon from "@mui/icons-material/Delete";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
 import ListItemText from "@mui/material/ListItemText";
@@ -16,6 +17,7 @@ import NewDefaultObservationPlan from "./NewDefaultObservationPlan";
 import * as defaultObservationPlansActions from "../ducks/default_observation_plans";
 import * as allocationActions from "../ducks/allocation";
 import Button from "./Button";
+import ConfirmDeletionDialog from "./ConfirmDeletionDialog";
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -142,12 +144,23 @@ const AllocationList = ({ allocations, deletePermission }) => {
   const { instrumentList } = useSelector((state) => state.instruments);
   const { telescopeList } = useSelector((state) => state.telescopes);
   const groups = useSelector((state) => state.groups.all);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [allocationToDelete, setAllocationToDelete] = useState(null);
+  const openDialog = (id) => {
+    setDialogOpen(true);
+    setAllocationToDelete(id);
+  };
+  const closeDialog = () => {
+    setDialogOpen(false);
+    setAllocationToDelete(null);
+  };
 
-  const deleteAllocation = (allocation) => {
-    dispatch(allocationActions.deleteAllocation(allocation.id)).then(
+  const deleteAllocation = () => {
+    dispatch(allocationActions.deleteAllocation(allocationToDelete)).then(
       (result) => {
         if (result.status === "success") {
           dispatch(showNotification("Allocation deleted"));
+          closeDialog();
         }
       }
     );
@@ -174,11 +187,17 @@ const AllocationList = ({ allocations, deletePermission }) => {
                 root: classes.allocationDelete,
                 disabled: classes.allocationDeleteDisabled,
               }}
-              onClick={() => deleteAllocation(allocation)}
+              onClick={() => openDialog(allocation.id)}
               disabled={!deletePermission}
             >
-              &times;
+              <DeleteIcon />
             </Button>
+            <ConfirmDeletionDialog
+              deleteFunction={deleteAllocation}
+              dialogOpen={dialogOpen}
+              closeDialog={closeDialog}
+              resourceName="allocation"
+            />
           </ListItem>
         ))}
       </List>
@@ -197,14 +216,27 @@ const DefaultObservationPlanList = ({
   const { telescopeList } = useSelector((state) => state.telescopes);
   const groups = useSelector((state) => state.groups.all);
 
-  const deleteDefaultObservationPlan = (default_observation_plan) => {
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [defaultObservationPlanToDelete, setDefaultObservationPlanToDelete] =
+    useState(null);
+  const openDialog = (id) => {
+    setDialogOpen(true);
+    setDefaultObservationPlanToDelete(id);
+  };
+  const closeDialog = () => {
+    setDialogOpen(false);
+    setDefaultObservationPlanToDelete(null);
+  };
+
+  const deleteDefaultObservationPlan = () => {
     dispatch(
       defaultObservationPlansActions.deleteDefaultObservationPlan(
-        default_observation_plan.id
+        defaultObservationPlanToDelete
       )
     ).then((result) => {
       if (result.status === "success") {
         dispatch(showNotification("Default observation plan deleted"));
+        closeDialog();
       }
     });
   };
@@ -233,13 +265,17 @@ const DefaultObservationPlanList = ({
                 root: classes.defaultObservationPlanDelete,
                 disabled: classes.defaultObservationPlanDeleteDisabled,
               }}
-              onClick={() =>
-                deleteDefaultObservationPlan(default_observation_plan)
-              }
+              onClick={() => openDialog(default_observation_plan.id)}
               disabled={!deletePermission}
             >
-              &times;
+              <DeleteIcon />
             </Button>
+            <ConfirmDeletionDialog
+              deleteFunction={deleteDefaultObservationPlan}
+              dialogOpen={dialogOpen}
+              closeDialog={closeDialog}
+              resourceName="default observation plan"
+            />
           </ListItem>
         ))}
       </List>
