@@ -74,15 +74,14 @@ for (let i = 0; i < n_labels; i++) {
     foldberr.data.xs[m] = [foldb.data.mjd_foldb[m], foldb.data.mjd_foldb[m]];
   }
 
+  var j;
   if (binsize > 1) {
-    var j;
-
     var alist = [];
     for (j = 0; j < folda.data.mjd_folda.length; j++) {
       alist.push({
         index: j,
         mjd_fold: folda.data.mjd_folda[j],
-        mag: folda.data.mag[j],
+        mag: folda.data.mag_unsmoothed[j],
       });
     }
     folda.data.mag = sort_and_smooth(alist, binsize);
@@ -95,12 +94,27 @@ for (let i = 0; i < n_labels; i++) {
       blist.push({
         index: j,
         mjd_fold: foldb.data.mjd_foldb[j],
-        mag: foldb.data.mag[j],
+        mag: foldb.data.mag_unsmoothed[j],
       });
     }
     foldb.data.mag = sort_and_smooth(blist, binsize);
     for (j = 0; j < blist.length; j++) {
       foldberr.data.ys[j] = [foldb.data.mag[j], foldb.data.mag[j]];
+    }
+  } else {
+    folda.data.mag = folda.data.mag_unsmoothed;
+    for (j = 0; j < folda.data.mag_unsmoothed.length; j++) {
+      foldaerr.data.ys[j] = [
+        folda.data.mag_unsmoothed[j],
+        folda.data.mag_unsmoothed[j],
+      ];
+    }
+    foldb.data.mag = foldb.data.mag_unsmoothed;
+    for (j = 0; j < foldb.data.mag_unsmoothed.length; j++) {
+      foldberr.data.ys[j] = [
+        foldb.data.mag_unsmoothed[j],
+        foldb.data.mag_unsmoothed[j],
+      ];
     }
   }
 
