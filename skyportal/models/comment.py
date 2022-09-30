@@ -190,7 +190,6 @@ class CommentMixin:
                 if parent_dir.is_dir():
                     for file_name in os.listdir(parent_dir):
                         file = str(parent_dir) + '/' + file_name
-                        print("delete_data file", file)
                         if os.path.isfile(file):
                             os.remove(file)
                     parent_dir.rmdir()
