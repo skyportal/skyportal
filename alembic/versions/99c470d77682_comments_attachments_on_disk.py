@@ -1,7 +1,7 @@
 """comments_attachments_on_disk
 
 Revision ID: 99c470d77682
-Revises: fccc7e78c7aa
+Revises: 0fe39d624f51
 Create Date: 2022-08-08 10:22:22.235085
 
 """
@@ -11,7 +11,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = '99c470d77682'
-down_revision = 'fccc7e78c7aa'
+down_revision = '0fe39d624f51'
 branch_labels = None
 depends_on = None
 
