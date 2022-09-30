@@ -2,7 +2,6 @@ import React, { useEffect } from "react";
 import PropTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
 import Paper from "@mui/material/Paper";
-import Button from "@mui/material/Button";
 import ButtonGroup from "@mui/material/ButtonGroup";
 import TextField from "@mui/material/TextField";
 import makeStyles from "@mui/styles/makeStyles";
@@ -10,8 +9,10 @@ import Typography from "@mui/material/Typography";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
 import { useForm, Controller } from "react-hook-form";
+import Button from "./Button";
 
 import * as gcnTagsActions from "../ducks/gcnTags";
+import * as gcnPropertiesActions from "../ducks/gcnProperties";
 
 const useStyles = makeStyles((theme) => ({
   paperDiv: {
@@ -106,6 +107,25 @@ const GcnEventsFilterForm = ({ handleFilterSubmit }) => {
     dispatch(gcnTagsActions.fetchGcnTags());
   }, [dispatch]);
 
+  let gcnProperties = [];
+  gcnProperties = gcnProperties.concat(
+    useSelector((state) => state.gcnProperties)
+  );
+  gcnProperties.sort();
+
+  const comparators = {
+    lt: "<",
+    le: "<=",
+    eq: "=",
+    ne: "!=",
+    ge: ">",
+    gt: ">=",
+  };
+
+  useEffect(() => {
+    dispatch(gcnPropertiesActions.fetchGcnProperties());
+  }, [dispatch]);
+
   const { handleSubmit, register, control, reset, getValues } = useForm();
 
   const handleClickReset = () => {
@@ -121,7 +141,7 @@ const GcnEventsFilterForm = ({ handleFilterSubmit }) => {
         className={classes.root}
         onSubmit={handleSubmit(handleFilterSubmit)}
       >
-        <div className={classes.formItemRightColumn}>
+        <div className={classes.formItem}>
           <Typography variant="subtitle2" className={classes.title}>
             Time Detected (UTC)
           </Typography>
@@ -142,7 +162,83 @@ const GcnEventsFilterForm = ({ handleFilterSubmit }) => {
         </div>
         <div className={classes.formItemRightColumn}>
           <Typography variant="subtitle2" className={classes.title}>
-            GCN Tag
+            GCN Property Filtering
+          </Typography>
+          <div className={classes.selectItems}>
+            <Controller
+              render={({ value }) => (
+                <Select
+                  inputProps={{ MenuProps: { disableScrollLock: true } }}
+                  labelId="gcnPropertySelectLabel"
+                  value={value || ""}
+                  onChange={(event) => {
+                    reset({
+                      ...getValues(),
+                      property:
+                        event.target.value === -1 ? "" : event.target.value,
+                    });
+                  }}
+                  className={classes.select}
+                >
+                  {gcnProperties?.map((gcnProperty) => (
+                    <MenuItem
+                      value={gcnProperty}
+                      key={gcnProperty}
+                      className={classes.selectItem}
+                    >
+                      {`${gcnProperty}`}
+                    </MenuItem>
+                  ))}
+                </Select>
+              )}
+              name="property"
+              control={control}
+              defaultValue=""
+            />
+          </div>
+          <div className={classes.selectItems}>
+            <Controller
+              render={({ value }) => (
+                <Select
+                  inputProps={{ MenuProps: { disableScrollLock: true } }}
+                  labelId="gcnPropertyComparatorSelectLabel"
+                  value={value || ""}
+                  onChange={(event) => {
+                    reset({
+                      ...getValues(),
+                      propertyComparator:
+                        event.target.value === -1 ? "" : event.target.value,
+                    });
+                  }}
+                  className={classes.select}
+                >
+                  {Object.keys(comparators)?.map((key) => (
+                    <MenuItem
+                      value={key}
+                      key={key}
+                      className={classes.selectItem}
+                    >
+                      {`${comparators[key]}`}
+                    </MenuItem>
+                  ))}
+                </Select>
+              )}
+              name="propertyComparator"
+              control={control}
+              defaultValue="="
+            />
+          </div>
+          <TextField
+            size="small"
+            label="Property Comparator Value"
+            name="propertyComparatorValue"
+            inputRef={register}
+            placeholder="0.0"
+          />
+        </div>
+        <div className={classes.formItemRightColumn}>
+          <Typography variant="subtitle2" className={classes.title}>
+            GCN Tag to Keep
           </Typography>
           <div className={classes.selectItems}>
             <Controller
@@ -154,7 +250,8 @@ const GcnEventsFilterForm = ({ handleFilterSubmit }) => {
                   onChange={(event) => {
                     reset({
                       ...getValues(),
-                      tag: event.target.value === -1 ? "" : event.target.value,
+                      tagKeep:
+                        event.target.value === -1 ? "" : event.target.value,
                     });
                   }}
                   className={classes.select}
@@ -170,7 +267,44 @@ const GcnEventsFilterForm = ({ handleFilterSubmit }) => {
                   ))}
                 </Select>
               )}
-              name="tag"
+              name="tagKeep"
+              control={control}
+              defaultValue=""
+            />
+          </div>
+        </div>
+        <div className={classes.formItemRightColumn}>
+          <Typography variant="subtitle2" className={classes.title}>
+            GCN Tag to Filter Out
+          </Typography>
+          <div className={classes.selectItems}>
+            <Controller
+              render={({ value }) => (
+                <Select
+                  inputProps={{ MenuProps: { disableScrollLock: true } }}
+                  labelId="gcnTagRemoveLabel"
+                  value={value || ""}
+                  onChange={(event) => {
+                    reset({
+                      ...getValues(),
+                      tagRemove:
+                        event.target.value === -1 ? "" : event.target.value,
+                    });
+                  }}
+                  className={classes.select}
+                >
+                  {gcnTags?.map((gcnTag) => (
+                    <MenuItem
+                      value={gcnTag}
+                      key={gcnTag}
+                      className={classes.selectItem}
+                    >
+                      {`${gcnTag}`}
+                    </MenuItem>
+                  ))}
+                </Select>
+              )}
+              name="tagRemove"
               control={control}
               defaultValue=""
             />
@@ -182,14 +316,10 @@ const GcnEventsFilterForm = ({ handleFilterSubmit }) => {
             color="primary"
             aria-label="contained primary button group"
           >
-            <Button variant="contained" color="primary" type="submit">
+            <Button primary type="submit">
               Submit
             </Button>
-            <Button
-              variant="contained"
-              color="primary"
-              onClick={handleClickReset}
-            >
+            <Button primary onClick={handleClickReset}>
               Reset
             </Button>
           </ButtonGroup>

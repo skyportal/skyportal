@@ -68,7 +68,7 @@ class TaxonomyHandler(BaseHandler):
                     )
                 )
             )
-            return self.success(data=query.all())
+            return self.success(data=query.unique().all())
 
     @permissions(['Post taxonomy'])
     def post(self):

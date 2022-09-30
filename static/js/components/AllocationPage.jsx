@@ -9,13 +9,13 @@ import Grid from "@mui/material/Grid";
 import makeStyles from "@mui/styles/makeStyles";
 import PropTypes from "prop-types";
 import { showNotification } from "baselayer/components/Notifications";
-import { Button } from "@mui/material";
 import CircularProgress from "@mui/material/CircularProgress";
 import NewAllocation from "./NewAllocation";
 import NewDefaultObservationPlan from "./NewDefaultObservationPlan";
 
 import * as defaultObservationPlansActions from "../ducks/default_observation_plans";
 import * as allocationActions from "../ducks/allocation";
+import Button from "./Button";
 
 const useStyles = makeStyles((theme) => ({
   root: {

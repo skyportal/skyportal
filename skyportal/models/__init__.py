@@ -9,6 +9,7 @@ from .assignment import *
 from .candidate import *
 from .classification import *
 from .comment import *
+from .earthquake import *
 from .facility_transaction import *
 from .filter import *
 from .followup_request import *
@@ -20,6 +21,7 @@ from .instrument import *
 from .invitation import *
 from .listing import *
 from .localization import *
+from .mmadetector import *
 from .obj import *
 from .observation import *
 from .observation_plan import *

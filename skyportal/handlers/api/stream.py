@@ -3,7 +3,6 @@ from marshmallow.exceptions import ValidationError
 from baselayer.app.access import auth_or_token, permissions
 from ..base import BaseHandler
 from ...models import (
-    DBSession,
     Stream,
     StreamUser,
 )
@@ -47,14 +46,16 @@ class StreamHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
-        if stream_id is not None:
-            s = Stream.get_if_accessible_by(
-                stream_id, self.current_user, raise_if_none=True
-            )
-            return self.success(data=s)
-        streams = Stream.get_records_accessible_by(self.current_user)
-        self.verify_and_commit()
-        return self.success(data=streams)
+        with self.Session() as session:
+            if stream_id is not None:
+                s = session.scalars(
+                    Stream.select(session.user_or_token).where(Stream.id == stream_id)
+                ).first()
+                if s is None:
+                    return self.error(f"Could not retrieve stream with ID {stream_id}.")
+                return self.success(data=s)
+            streams = session.scalars(Stream.select(session.user_or_token)).all()
+            return self.success(data=streams)
 
     @permissions(["System admin"])
     def post(self):
@@ -92,17 +93,18 @@ class StreamHandler(BaseHandler):
                               description: New stream ID
         """
         data = self.get_json()
-        schema = Stream.__schema__()
-        try:
-            stream = schema.load(data)
-        except ValidationError as e:
-            return self.error(
-                "Invalid/missing parameters: " f"{e.normalized_messages()}"
-            )
-        DBSession().add(stream)
-        self.verify_and_commit()
+        with self.Session() as session:
+            schema = Stream.__schema__()
+            try:
+                stream = schema.load(data)
+            except ValidationError as e:
+                return self.error(
+                    "Invalid/missing parameters: " f"{e.normalized_messages()}"
+                )
+            session.add(stream)
+            session.commit()
 
-        return self.success(data={"id": stream.id})
+            return self.success(data={"id": stream.id})
 
     @permissions(["System admin"])
     def patch(self, stream_id):
@@ -139,15 +141,27 @@ class StreamHandler(BaseHandler):
         """
         data = self.get_json()
         data["id"] = stream_id
-        schema = Stream.__schema__()
-        try:
-            schema.load(data)
-        except ValidationError as e:
-            return self.error(
-                'Invalid/missing parameters: ' f'{e.normalized_messages()}'
-            )
-        self.verify_and_commit()
-        return self.success()
+        with self.Session() as session:
+            s = session.scalars(
+                Stream.select(session.user_or_token, mode="update").where(
+                    Stream.id == stream_id
+                )
+            ).first()
+            if s is None:
+                return self.error(f"Could not retrieve stream with ID {stream_id}.")
+
+            schema = Stream.__schema__()
+            try:
+                schema.load(data)
+            except ValidationError as e:
+                return self.error(
+                    'Invalid/missing parameters: ' f'{e.normalized_messages()}'
+                )
+            for k in data:
+                setattr(s, k, data[k])
+
+            session.commit()
+            return self.success()
 
     @permissions(["System admin"])
     def delete(self, stream_id):
@@ -168,13 +182,18 @@ class StreamHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        stream = Stream.get_if_accessible_by(
-            stream_id, self.current_user, mode="delete", raise_if_none=True
-        )
-        DBSession().delete(stream)
-        self.verify_and_commit()
+        with self.Session() as session:
+            stream = session.scalars(
+                Stream.select(session.user_or_token, mode="delete").where(
+                    Stream.id == stream_id
+                )
+            ).first()
+            if stream is None:
+                return self.error(f"Could not retrieve stream with ID {stream_id}.")
+            session.delete(stream)
+            session.commit()
 
-        return self.success()
+            return self.success()
 
 
 class StreamUserHandler(BaseHandler):
@@ -228,19 +247,19 @@ class StreamUserHandler(BaseHandler):
             return self.error("User ID must be specified")
 
         stream_id = int(stream_id)
-        su = (
-            StreamUser.query_records_accessible_by(self.current_user)
-            .filter(StreamUser.stream_id == stream_id)
-            .filter(StreamUser.user_id == user_id)
-            .first()
-        )
-        if su is None:
-            DBSession.add(StreamUser(stream_id=stream_id, user_id=user_id))
-        else:
-            return self.error("Specified user already has access to this stream.")
-        self.verify_and_commit()
+        with self.Session() as session:
+            su = session.scalars(
+                StreamUser.select(session.user_or_token)
+                .where(StreamUser.stream_id == stream_id)
+                .where(StreamUser.user_id == user_id)
+            ).first()
+            if su is None:
+                session.add(StreamUser(stream_id=stream_id, user_id=user_id))
+            else:
+                return self.error("Specified user already has access to this stream.")
+            session.commit()
 
-        return self.success(data={'stream_id': stream_id, 'user_id': user_id})
+            return self.success(data={'stream_id': stream_id, 'user_id': user_id})
 
     @permissions(["System admin"])
     def delete(self, stream_id, user_id):
@@ -267,14 +286,14 @@ class StreamUserHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        su = (
-            StreamUser.query_records_accessible_by(self.current_user, mode="delete")
-            .filter(StreamUser.stream_id == stream_id)
-            .filter(StreamUser.user_id == user_id)
-            .first()
-        )
-        if su is None:
-            return self.error("Stream user does not exist.")
-        DBSession().delete(su)
-        self.verify_and_commit()
-        return self.success()
+        with self.Session() as session:
+            su = session.scalars(
+                StreamUser.select(session.user_or_token, mode="delete")
+                .where(StreamUser.stream_id == stream_id)
+                .where(StreamUser.user_id == user_id)
+            ).first()
+            if su is None:
+                return self.error("Stream user does not exist.")
+            session.delete(su)
+            session.commit()
+            return self.success()

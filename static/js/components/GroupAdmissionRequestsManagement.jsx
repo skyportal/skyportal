@@ -1,10 +1,10 @@
 import React, { useEffect } from "react";
 import PropTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
-import Button from "@mui/material/Button";
 import MUIDataTable from "mui-datatables";
 
 import { showNotification } from "baselayer/components/Notifications";
+import Button from "./Button";
 
 import * as groupAdmissionRequestsActions from "../ducks/groupAdmissionRequests";
 import * as groupsActions from "../ducks/groups";
@@ -78,8 +78,8 @@ const GroupAdmissionRequestsManagement = ({ groupID }) => {
       return (
         <>
           <Button
+            primary
             size="small"
-            variant="contained"
             onClick={() =>
               handleAcceptRequest({
                 requestID: request.id,
@@ -91,8 +91,8 @@ const GroupAdmissionRequestsManagement = ({ groupID }) => {
             Accept
           </Button>
           <Button
+            secondary
             size="small"
-            variant="contained"
             onClick={() => handleDeclineRequest({ requestID: request.id })}
             data-testid={`declineRequestButton${request.user_id}`}
           >
@@ -104,8 +104,8 @@ const GroupAdmissionRequestsManagement = ({ groupID }) => {
     if (request.status === "declined") {
       return (
         <Button
+          primary
           size="small"
-          variant="contained"
           onClick={() =>
             handleAcceptRequest({
               requestID: request.id,

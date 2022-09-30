@@ -1300,6 +1300,7 @@ def make_period_controls(
     device,
     width,
     layout,
+    obj_id,
 ):
     """Makes period controls to be used in a period photometry panel.
 
@@ -1323,6 +1324,8 @@ def make_period_controls(
         The width of the plot.
     layout : bokeh Layout object
         The layout object.
+    obj_id : str
+        ID of the object
 
     Returns
     -------
@@ -1330,10 +1333,61 @@ def make_period_controls(
     """
     model_dict = transformed_model_dict(model_dict)
     period_selection = RadioGroup(labels=period_labels, active=0)
-
     phase_selection = RadioGroup(labels=["One phase", "Two phases"], active=1)
     period_title = Div(text="Period (days): ")
     period_textinput = TextInput(value=str(period if period is not None else 0.0))
+
+    smooth_checkbox = CheckboxGroup(
+        labels=["smoothing"],
+        active=[],
+    )
+    smooth_slider = Slider(
+        start=0.0,
+        end=100.0,
+        value=0.0,
+        step=1.0,
+        show_value=False,
+        max_width=350,
+        # margin=(4, 10, 0, 10),
+    )
+    smooth_input = NumericInput(value=1)
+    smooth_callback = CustomJS(
+        args={
+            'textinput': period_textinput,
+            'numphases': phase_selection,
+            'n_labels': len(grouped_data),
+            'p': plot,
+            'checkbox': smooth_checkbox,
+            'input': smooth_input,
+            'slider': smooth_slider,
+            **model_dict,
+        },
+        code=open(
+            os.path.join(
+                os.path.dirname(__file__), '../static/js/plotjs', 'foldphase.js'
+            )
+        ).read(),
+    )
+    smooth_slider.js_on_change(
+        'value',
+        CustomJS(
+            args={'slider': smooth_slider, 'input': smooth_input},
+            code="""
+                    input.value = slider.value;
+                    input.change.emit();
+                """,
+        ),
+    )
+    smooth_checkbox.js_on_click(smooth_callback)
+    smooth_input.js_on_change('value', smooth_callback)
+    smooth_column = column(
+        smooth_checkbox,
+        smooth_slider,
+        smooth_input,
+        width=width if "mobile" in device else int(width * 1 / 5) - 20,
+        margin=(4, 10, 0, 10),
+    )
+
     period_textinput.js_on_change(
         'value',
         CustomJS(
@@ -1342,6 +1396,9 @@ def make_period_controls(
                 'numphases': phase_selection,
                 'n_labels': len(grouped_data),
                 'p': plot,
+                'checkbox': smooth_checkbox,
+                'input': smooth_input,
+                'slider': smooth_slider,
                 **model_dict,
             },
             code=open(
@@ -1397,6 +1454,28 @@ def make_period_controls(
             ).read(),
         )
     )
+
+    period_annotation_title = Div(text="Annotation Origin: ")
+    period_annotation_textinput = TextInput()
+    period_annotation = Button(label='Create')
+    period_annotation.js_on_click(
+        CustomJS(
+            args={
+                'period': period_textinput,
+                'origin': period_annotation_textinput,
+            },
+            code=open(
+                os.path.join(
+                    os.path.dirname(__file__),
+                    '../static/js/plotjs',
+                    'post_annotation.js',
+                )
+            )
+            .read()
+            .replace('objname', obj_id),
+        ),
+    )
+
     if device == "mobile_portrait":
         period_controls = column(
             row(
@@ -1409,6 +1488,7 @@ def make_period_controls(
             ),
             phase_selection,
             period_selection,
+            smooth_column,
             width=width,
         )
     else:
@@ -1422,7 +1502,13 @@ def make_period_controls(
                 width=width,
                 sizing_mode="scale_width",
             ),
+            row(
+                period_annotation_title,
+                period_annotation_textinput,
+                period_annotation,
+            ),
             period_selection,
+            smooth_column,
             margin=10,
         )
     return period_controls
@@ -1493,6 +1579,7 @@ def add_widgets(
             device,
             width,
             layout,
+            obj_id,
         )
         layout.children.insert(2, period_controls)
     else:
@@ -1526,8 +1613,7 @@ def make_photometry_panel(
 
     Returns
     -------
-    bokeh Panel object or None if the panel should
-    not be added to the plot (i.e. no period plot)
+    bokeh Panel object
     """
 
     # get marker for each unique instrument
@@ -1673,8 +1759,8 @@ def make_photometry_panel(
         if len(period_list) > 0:
             period = period_list[0]
         else:
-            period = None
-            return None
+            # default to 1 day
+            period = 1.0
 
     imhover = HoverTool(tooltips=tooltip_format)
     imhover.renderers = []
@@ -1734,7 +1820,6 @@ def make_photometry_panel(
         column(
             make_show_and_hide_photometry_buttons(model_dict, user, device), spinner
         ),
-        # width=width,
     )
     add_widgets(
         panel_name,
@@ -1841,11 +1926,9 @@ def photometry_plot(obj_id, user_id, session, width=600, device="browser"):
         panel = make_photometry_panel(
             panel_name, device, width, user, data, obj_id, spectra, session
         )
-        if panel:
-            panels.append(panel)
+        panels.append(panel)
     tabs = Tabs(
         tabs=panels,
-        # width=width,
     )
     try:
         return bokeh_embed.json_item(tabs)
@@ -1853,7 +1936,7 @@ def photometry_plot(obj_id, user_id, session, width=600, device="browser"):
         with pd.option_context('display.max_rows', None, 'display.max_columns', None):
             print('PHOTOMETRY PLOT FAILED ON THIS DATASET')
             print(data)
-        return Tabs()
+        raise Exception("Invalid data")
 
 
 def smoothing_function(values, window_size):

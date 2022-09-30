@@ -12,7 +12,6 @@ import {
 } from "@mui/material/styles";
 import makeStyles from "@mui/styles/makeStyles";
 import useMediaQuery from "@mui/material/useMediaQuery";
-import Button from "@mui/material/Button";
 import IconButton from "@mui/material/IconButton";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import ArrowUpward from "@mui/icons-material/ArrowUpward";
@@ -41,6 +40,9 @@ import RejectButton from "./RejectButton";
 import VegaPhotometry from "./VegaPhotometry";
 import Spinner from "./Spinner";
 import AddClassificationsScanningPage from "./AddClassificationsScanningPage";
+import Button from "./Button";
+
+import CandidatePlugins from "./CandidatePlugins";
 
 const useStyles = makeStyles((theme) => ({
   candidateListContainer: {
@@ -557,8 +559,8 @@ const CandidateList = () => {
       ?.map((t) => t.type)
       ?.includes("ps1");
     const displayTypes = hasPS1
-      ? ["new", "ref", "sub", "sdss", "dr8", "ps1"]
-      : ["new", "ref", "sub", "sdss", "dr8"];
+      ? ["new", "ref", "sub", "sdss", "ls", "ps1"]
+      : ["new", "ref", "sub", "sdss", "ls"];
     return (
       <div className={classes.thumbnails}>
         <ThumbnailList
@@ -570,9 +572,9 @@ const CandidateList = () => {
         />
         {!hasPS1 && (
           <Button
+            primary
             disabled={ps1GenerationInProgressList.includes(candidateObj.id)}
             size="small"
-            variant="contained"
             onClick={() => {
               generatePS1Thumbnail(candidateObj.id);
             }}
@@ -601,12 +603,7 @@ const CandidateList = () => {
             data-testid={candidateObj.id}
             rel="noreferrer"
           >
-            <Button
-              variant="contained"
-              size="small"
-              color="primary"
-              className={classes.idButton}
-            >
+            <Button primary size="small" className={classes.idButton}>
               {candidateObj.id}&nbsp;
               <OpenInNewIcon fontSize="inherit" />
             </Button>
@@ -729,6 +726,9 @@ const CandidateList = () => {
             {candidateObj.gal_lon.toFixed(3)}&nbsp;&nbsp;
             {candidateObj.gal_lat.toFixed(3)}
           </span>
+        </div>
+        <div className={classes.infoItem}>
+          <CandidatePlugins candidate={candidateObj} />
         </div>
         {candidateObj.classifications && recentClassification && (
           <div className={classes.infoItemPadded}>
@@ -1129,7 +1129,7 @@ const CandidateList = () => {
       <div className={classes.pages}>
         <div>
           <Button
-            variant="contained"
+            primary
             onClick={() => {
               window.scrollTo({ top: 0 });
             }}

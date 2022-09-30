@@ -3,7 +3,6 @@ import ReactMarkdown from "react-markdown";
 import PropTypes from "prop-types";
 import { useSelector, useDispatch } from "react-redux";
 
-import { Button } from "@mui/material";
 import Tooltip from "@mui/material/Tooltip";
 import GroupIcon from "@mui/icons-material/Group";
 import makeStyles from "@mui/styles/makeStyles";
@@ -22,6 +21,7 @@ import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
 import emoji from "emoji-dictionary";
 import { grey } from "@mui/material/colors";
+import Button from "./Button";
 
 import * as sourceActions from "../ducks/source";
 import * as gcnEventActions from "../ducks/gcnEvent";
@@ -369,15 +369,16 @@ const CommentListMobile = ({
                       }`}
                     >
                       <ReactMarkdown
-                        source={renderCommentText(
+                        escapeHtml={false}
+                        className={styles.commentMessage}
+                        renderers={{ text: emojiSupport }}
+                      >
+                        {renderCommentText(
                           text,
                           spectrum_id,
                           associatedResourceType
                         )}
-                        escapeHtml={false}
-                        className={styles.commentMessage}
-                        renderers={{ text: emojiSupport }}
-                      />
+                      </ReactMarkdown>
                       <div className={styles.compactButtons}>
                         <Tooltip
                           title={dayjs().to(dayjs.utc(`${created_at}Z`))}
@@ -388,6 +389,7 @@ const CommentListMobile = ({
                         <div className={styles.spacer}>
                           {associatedResourceType === "gcn_event" && (
                             <Button
+                              primary
                               style={
                                 hoverID === id
                                   ? {
@@ -399,7 +401,6 @@ const CommentListMobile = ({
                                   : { display: "none" }
                               }
                               size="small"
-                              color="primary"
                               type="button"
                               name={`deleteCommentButtonGcnEvent${id}`}
                               onClick={() =>
@@ -413,6 +414,7 @@ const CommentListMobile = ({
                           {(associatedResourceType === "object" ||
                             associatedResourceType === "spectra") && (
                             <Button
+                              primary
                               style={
                                 hoverID === id
                                   ? {
@@ -424,7 +426,6 @@ const CommentListMobile = ({
                                   : { display: "none" }
                               }
                               size="small"
-                              color="primary"
                               name={`deleteCommentButton${
                                 (spectrum_id ? "Spectrum" : "Source") + id
                               }`}
@@ -480,6 +481,7 @@ const CommentListMobile = ({
                         <div className={styles.defaultCommentDelete}>
                           {associatedResourceType === "gcn_event" && (
                             <Button
+                              primary
                               style={
                                 hoverID === id
                                   ? {
@@ -491,7 +493,6 @@ const CommentListMobile = ({
                                   : { display: "none" }
                               }
                               size="small"
-                              color="primary"
                               type="button"
                               name={`deleteCommentButtonGcnEvent${id}`}
                               onClick={() =>
@@ -505,6 +506,7 @@ const CommentListMobile = ({
                           {(associatedResourceType === "object" ||
                             associatedResourceType === "spectra") && (
                             <Button
+                              primary
                               style={
                                 hoverID === id
                                   ? {
@@ -516,7 +518,6 @@ const CommentListMobile = ({
                                   : { display: "none" }
                               }
                               size="small"
-                              color="primary"
                               type="button"
                               name={`deleteCommentButton${
                                 (spectrum_id ? "Spectrum" : "Source") + id
@@ -540,15 +541,16 @@ const CommentListMobile = ({
                         }`}
                       >
                         <ReactMarkdown
-                          source={renderCommentText(
+                          escapeHtml={false}
+                          className={styles.commentMessage}
+                          renderers={{ text: emojiSupport }}
+                        >
+                          {renderCommentText(
                             text,
                             spectrum_id,
                             associatedResourceType
                           )}
-                          escapeHtml={false}
-                          className={styles.commentMessage}
-                          renderers={{ text: emojiSupport }}
-                        />
+                        </ReactMarkdown>
                       </div>
                       <span>
                         {attachment_name &&
@@ -582,10 +584,9 @@ const CommentListMobile = ({
       </div>
       <div className={styles.dialogButton}>
         <Button
-          color="primary"
-          variant="outlined"
+          primary
           onClick={handleClickOpen}
-          startIcon={<ChatBubbleOutlineIcon />}
+          endIcon={<ChatBubbleOutlineIcon />}
         >
           Add & see more comments
         </Button>

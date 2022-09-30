@@ -16,6 +16,7 @@ def test_group_admission_read_access(
     upload_data_token,
     upload_data_token_group2,
     manage_sources_token,
+    view_only_token,
 ):
     # Have user_group2 request access to public_group
     request_data = {"groupID": public_group.id, "userID": user_group2.id}
@@ -51,10 +52,10 @@ def test_group_admission_read_access(
     status, data = api(
         "GET",
         f"group_admission_requests/{request_id}",
-        token=upload_data_token,
+        token=view_only_token,
     )
     assert_api_fail(
-        status, data, 400, "Could not find an admission request with the ID"
+        status, data, 400, "User must be group admin or requester to see request"
     )
 
 
@@ -112,7 +113,7 @@ def test_group_admission_patch_permissions(
         token=upload_data_token,
     )
     assert status == 400
-    assert "Cannot find GroupAdmissionRequest with id" in data["message"]
+    assert "Insufficient permissions for operation" in data["message"]
 
     # Nor can the requesting user do so
     status, data = api(
@@ -122,7 +123,10 @@ def test_group_admission_patch_permissions(
         token=upload_data_token_group2,
     )
     assert status == 400
-    assert "Cannot find GroupAdmissionRequest with id" in data["message"]
+    assert (
+        "Insufficient permissions: group admission request status can only be changed by group admins."
+        in data["message"]
+    )
 
     # The group admin can approve the request
     status, data = api(
@@ -164,7 +168,10 @@ def test_group_admission_delete_permissions(
         token=upload_data_token,
     )
     assert status == 400
-    assert "Cannot find GroupAdmissionRequest with id" in data["message"]
+    assert (
+        "Insufficient permissions: only the requester can delete a group admission request."
+        in data["message"]
+    )
 
     # Nor can the group admin do so
     status, data = api(
@@ -174,7 +181,10 @@ def test_group_admission_delete_permissions(
         token=group_admin_token,
     )
     assert status == 400
-    assert "Cannot find GroupAdmissionRequest with id" in data["message"]
+    assert (
+        "Insufficient permissions: only the requester can delete a group admission request."
+        in data["message"]
+    )
 
     # The requester can approve the request
     status, data = api(

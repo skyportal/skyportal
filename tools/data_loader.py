@@ -102,7 +102,7 @@ if __name__ == "__main__":
 
     print('Testing connection...', end='')
 
-    RETRIES = 15
+    RETRIES = 30
     timeout = 3
     admin_token = None
     status = None
@@ -139,7 +139,7 @@ if __name__ == "__main__":
                 time.sleep(timeout)
                 continue
 
-            if status == 200:
+            if status == 200 and data['status'] == 'success':
                 break
             else:
                 if i == RETRIES - 1:
@@ -171,7 +171,7 @@ if __name__ == "__main__":
         sys.exit(-1)
 
     status, response = get('groups/public')
-    if status != 200:
+    if status != 200 or response['status'] != 'success':
         print('Error: no public group found; aborting')
         sys.exit(-1)
     public_group_id = response['data']['id']
@@ -220,6 +220,8 @@ if __name__ == "__main__":
         else:
             return obj
 
+    ENDPOINT_RETRIES = 3
+
     for endpoint, to_post in src.items():
         # Substitute references in path
         endpoint_parts = endpoint.split('/')
@@ -262,18 +264,27 @@ if __name__ == "__main__":
                 for key in date_keys:
                     if key in obj["payload"]:
                         obj["payload"][key] = obj["payload"][key].isoformat()
-            status, response = post(endpoint, data=obj)
 
-            print('.' if status == 200 else 'X', end='')
+            ntries = 0
+            posted_success = False
+            while (ntries < ENDPOINT_RETRIES) and not posted_success:
+                status, response = post(endpoint, data=obj)
+
+                print('.' if status == 200 else 'X', end='')
+                if status != 200:
+                    ntries = ntries + 1
+                    continue
+                else:
+                    posted_success = True
+
             if status != 200:
                 error_log.append(
                     f"/{endpoint}: {response['message'] if response else None}"
                 )
-                continue
-
-            # Save all references from the response
-            for target, field in saved_fields.items():
-                references[target] = response['data'][field]
+            else:
+                # Save all references from the response
+                for target, field in saved_fields.items():
+                    references[target] = response['data'][field]
 
         print()
 

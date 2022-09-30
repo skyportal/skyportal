@@ -1,4 +1,3 @@
-import os
 import uuid
 import time
 
@@ -182,36 +181,3 @@ def test_reminder_on_source(driver, super_admin_user, super_admin_token):
 
 
 # frontend for the reminders on spectra is not implemented yet
-
-
-def test_reminder_on_gcn(driver, super_admin_user, super_admin_token):
-    datafile = f'{os.path.dirname(__file__)}/../../../data/GW190814.xml'
-    with open(datafile, 'rb') as fid:
-        payload = fid.read()
-    data = {'xml': payload}
-
-    status, data = api('POST', 'gcn_event', data=data, token=super_admin_token)
-    assert status == 200
-    assert data['status'] == 'success'
-
-    # wait for event to load
-    for n_times in range(26):
-        status, data = api(
-            'GET', "gcn_event/2019-08-14T21:10:39", token=super_admin_token
-        )
-        if data['status'] == 'success':
-            break
-        time.sleep(2)
-    assert n_times < 25
-    gcn_event_id = data['data']['id']
-
-    endpoint = f"gcn_event/{gcn_event_id}/reminders"
-    reminder_text = post_and_verify_reminder(endpoint, super_admin_token)
-    driver.get(f"/become_user/{super_admin_user.id}")
-    driver.get("/gcn_events/2019-08-14T21:10:39")
-    driver.wait_for_xpath('//*[contains(.,"190814 21:10:39")]', timeout=30)
-    driver.click_xpath('//*[@data-testid="NotificationsOutlinedIcon"]')
-    driver.wait_for_xpath('//*[@href="/gcn_events/2019-08-14T21:10:39"]')
-    driver.click_xpath('//*[@data-testid="NotificationsOutlinedIcon"]')
-
-    post_and_verify_reminder_frontend(driver, reminder_text)

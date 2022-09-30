@@ -6,7 +6,6 @@ import { Link, useNavigate } from "react-router-dom";
 import TableCell from "@mui/material/TableCell";
 import TableRow from "@mui/material/TableRow";
 import IconButton from "@mui/material/IconButton";
-import Button from "@mui/material/Button";
 import Grid from "@mui/material/Grid";
 import Chip from "@mui/material/Chip";
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
@@ -35,6 +34,7 @@ import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 
 import { isMobileOnly } from "react-device-detect";
+import Button from "./Button";
 
 import { ra_to_hours, dec_to_dms, mjd_to_utc } from "../units";
 import ThumbnailList from "./ThumbnailList";
@@ -763,8 +763,8 @@ const SourceTable = ({
     return (
       <>
         <Button
+          secondary
           size="small"
-          variant="contained"
           onClick={() => {
             handleSaveSource(source.id);
           }}
@@ -774,8 +774,8 @@ const SourceTable = ({
         </Button>
         &nbsp;
         <Button
+          secondary
           size="small"
-          variant="contained"
           onClick={() => {
             handleIgnoreSource(source.id);
           }}
@@ -1203,6 +1203,47 @@ const SourceTable = ({
         });
         return classifications.join(";");
       };
+      const renderDownloadProbability = (source) => {
+        const probabilities = [];
+        source?.classifications.forEach((x) => {
+          probabilities.push(x.probability);
+        });
+        return probabilities.join(";");
+      };
+      const renderDownloadAnnotationKey = (source) => {
+        const annotationKeys = [];
+        source?.annotations.forEach((x) => {
+          Object.entries(x.data).forEach((keyValuePair) => {
+            annotationKeys.push(keyValuePair[0]);
+          });
+        });
+        return annotationKeys.join(";");
+      };
+      const renderDownloadAnnotationOrigin = (source) => {
+        const annotationOrigins = [];
+        source?.annotations.forEach((x) => {
+          annotationOrigins.push(x.origin);
+        });
+        return annotationOrigins.join(";");
+      };
+      const renderDownloadAnnotationOriginKeyValuePairCount = (source) => {
+        const annotationOriginsKeyValuePairCount = [];
+        source?.annotations.forEach((x) => {
+          annotationOriginsKeyValuePairCount.push(
+            Object.entries(x.data).length
+          );
+        });
+        return annotationOriginsKeyValuePairCount.join(";");
+      };
+      const renderDownloadAnnotationValue = (source) => {
+        const annotationValues = [];
+        source?.annotations.forEach((x) => {
+          Object.entries(x.data).forEach((keyValuePair) => {
+            annotationValues.push(keyValuePair[1]);
+          });
+        });
+        return annotationValues.join(";");
+      };
       const renderDownloadGroups = (source) => {
         const groups = [];
         source?.groups.forEach((x) => {
@@ -1251,6 +1292,26 @@ const SourceTable = ({
                 download: true,
               },
               {
+                name: "probability",
+                download: true,
+              },
+              {
+                name: "annotation origin",
+                download: true,
+              },
+              {
+                name: "annotation origin key-value pair count",
+                download: true,
+              },
+              {
+                name: "annotation key",
+                download: true,
+              },
+              {
+                name: "annotation value",
+                download: true,
+              },
+              {
                 name: "groups",
                 download: true,
               },
@@ -1280,6 +1341,11 @@ const SourceTable = ({
                   x.dec,
                   x.redshift,
                   renderDownloadClassification(x),
+                  renderDownloadProbability(x),
+                  renderDownloadAnnotationOrigin(x),
+                  renderDownloadAnnotationOriginKeyValuePairCount(x),
+                  renderDownloadAnnotationKey(x),
+                  renderDownloadAnnotationValue(x),
                   renderDownloadGroups(x),
                   renderDownloadDateSaved(x),
                   renderDownloadAlias(x),
@@ -1357,6 +1423,16 @@ SourceTable.propTypes = {
       origin: PropTypes.string,
       alias: PropTypes.arrayOf(PropTypes.string),
       redshift: PropTypes.number,
+      annotations: PropTypes.arrayOf(
+        PropTypes.shape({
+          origin: PropTypes.string.isRequired,
+          data: PropTypes.object.isRequired, // eslint-disable-line react/forbid-prop-types
+          author: PropTypes.shape({
+            username: PropTypes.string.isRequired,
+          }).isRequired,
+          created_at: PropTypes.string.isRequired,
+        })
+      ).isRequired,
       classifications: PropTypes.arrayOf(
         PropTypes.shape({
           id: PropTypes.number,

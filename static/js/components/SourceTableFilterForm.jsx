@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import PropTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
 import Paper from "@mui/material/Paper";
-import Button from "@mui/material/Button";
 import ButtonGroup from "@mui/material/ButtonGroup";
 import Checkbox from "@mui/material/Checkbox";
 import FormControlLabel from "@mui/material/FormControlLabel";
@@ -17,6 +16,7 @@ import MenuItem from "@mui/material/MenuItem";
 import { useForm, Controller } from "react-hook-form";
 
 import { showNotification } from "baselayer/components/Notifications";
+import Button from "./Button";
 
 import { allowedClasses } from "./ClassificationForm";
 
@@ -779,19 +779,11 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
           </div>
         </div>
         <div className={classes.formButtons}>
-          <ButtonGroup
-            variant="contained"
-            color="primary"
-            aria-label="contained primary button group"
-          >
-            <Button variant="contained" color="primary" type="submit">
+          <ButtonGroup primary aria-label="contained primary button group">
+            <Button primary type="submit">
               Submit
             </Button>
-            <Button
-              variant="contained"
-              color="primary"
-              onClick={handleClickReset}
-            >
+            <Button primary onClick={handleClickReset}>
               Reset
             </Button>
           </ButtonGroup>

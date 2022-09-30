@@ -13,6 +13,64 @@ export const useStyles = makeStyles((theme) => ({
   },
 }));
 
+const ClassificationRow = ({ classifications }) => {
+  const classes = useStyles();
+
+  const classification = classifications[0];
+  return (
+    <div>
+      <Tooltip
+        key={`${classification.modified}tt`}
+        disableFocusListener
+        disableTouchListener
+        title={
+          <div>
+            {classifications.map((cls) => (
+              <>
+                P=
+                {cls.probability} ({cls.taxname})
+                <br />
+                <i>{cls.author_name}</i>
+                <br />
+              </>
+            ))}
+          </div>
+        }
+      >
+        <Chip
+          label={
+            classification.probability < 0.1
+              ? `${classification.classification}?`
+              : classification.classification
+          }
+          key={`${classification.modified}tb`}
+          size="small"
+          className={classes.chip}
+        />
+      </Tooltip>
+    </div>
+  );
+};
+
+ClassificationRow.propTypes = {
+  classifications: PropTypes.arrayOf(
+    PropTypes.shape({
+      id: PropTypes.number,
+      classification: PropTypes.string,
+      created_at: PropTypes.string,
+      author_name: PropTypes.string,
+      modified: PropTypes.string,
+      probability: PropTypes.number,
+      groups: PropTypes.arrayOf(
+        PropTypes.shape({
+          id: PropTypes.number,
+          name: PropTypes.string,
+        })
+      ),
+    })
+  ).isRequired,
+};
+
 const groupBy = (array, key) =>
   array.reduce((result, cv) => {
     // if we've seen this key before, add the value, else generate
@@ -37,57 +95,45 @@ export const getSortedClasses = (classifications) => {
 };
 
 function ShowClassification({ classifications, taxonomyList, shortened }) {
-  const classes = useStyles();
+  const filteredClasses = classifications.filter((i) => i.probability > 0);
 
-  const sortedClasses = getSortedClasses(classifications);
+  const sorted_classifications = filteredClasses.sort((a, b) =>
+    a.created_at > b.created_at ? -1 : 1
+  );
+
+  const classificationsGrouped = sorted_classifications.reduce((r, a) => {
+    r[a.classification] = [...(r[a.classification] || []), a];
+    return r;
+  }, {});
+
+  const keys = Object.keys(classificationsGrouped);
+  keys.forEach((key) => {
+    classificationsGrouped[key].forEach((item, index) => {
+      let taxname = taxonomyList.filter(
+        (i) => i.id === classificationsGrouped[key][index].taxonomy_id
+      );
+      if (taxname.length > 0) {
+        taxname = taxname[0].name;
+      } else {
+        taxname = "Unknown taxonomy";
+      }
+      classificationsGrouped[key][index].taxname = taxname;
+    });
+  });
 
   const title = shortened ? "" : <b>Classification: </b>;
 
-  if (sortedClasses.length > 0) {
-    return (
-      <div>
-        {title}
-        {sortedClasses.map((classesGroup) => {
-          let name = taxonomyList.filter(
-            (i) => i.id === classesGroup[0]?.taxonomy_id
-          );
-          if (name.length > 0) {
-            name = name[0].name;
-          }
-          return classesGroup.map((cls) => (
-            // generate the tooltip for this classification, with an informative
-            // hover over.
-            <Tooltip
-              key={`${cls.modified}tt`}
-              disableFocusListener
-              disableTouchListener
-              title={
-                <>
-                  P=
-                  {cls.probability} ({name}
-                  )
-                  <br />
-                  <i>{cls.author_name}</i>
-                </>
-              }
-            >
-              <Chip
-                label={
-                  cls.probability < 0.1
-                    ? `${cls.classification}?`
-                    : cls.classification
-                }
-                key={`${cls.modified}tb`}
-                size="small"
-                className={classes.chip}
-              />
-            </Tooltip>
-          ));
-        })}
-      </div>
-    );
-  }
-  return <span />;
+  return (
+    <div>
+      {title}
+      {keys.map((key) => (
+        <ClassificationRow
+          key={key}
+          classifications={classificationsGrouped[key]}
+        />
+      ))}
+    </div>
+  );
 }
 
 ShowClassification.propTypes = {

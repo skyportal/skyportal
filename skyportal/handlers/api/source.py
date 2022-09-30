@@ -11,6 +11,8 @@ from dateutil.parser import isoparse
 import sqlalchemy as sa
 from sqlalchemy.orm import joinedload
 from sqlalchemy import func, or_, distinct
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.sql.expression import cast
 import arrow
 from marshmallow import Schema, fields
 from marshmallow.exceptions import ValidationError
@@ -178,7 +180,7 @@ def get_source(
             )
         if (
             "sdss" not in existing_thumbnail_types
-            or "dr8" not in existing_thumbnail_types
+            or "ls" not in existing_thumbnail_types
         ):
             IOLoop.current().run_in_executor(
                 None,
@@ -305,8 +307,31 @@ def get_source(
         source_info["color_magnitude"] = get_color_mag(source_info["annotations"])
 
     source_info = recursive_to_dict(source_info)
-    session.commit()
     return source_info
+
+
+def create_annotations_query(
+    session,
+    annotations_filter_origin=None,
+    annotations_filter_before=None,
+    annotations_filter_after=None,
+):
+
+    annotations_query = Annotation.select(session.user_or_token)
+    if annotations_filter_origin is not None:
+        annotations_query = annotations_query.where(
+            Annotation.origin.in_(annotations_filter_origin)
+        )
+    if annotations_filter_before:
+        annotations_query = annotations_query.where(
+            Annotation.created_at <= annotations_filter_before
+        )
+    if annotations_filter_after:
+        annotations_query = annotations_query.where(
+            Annotation.created_at >= annotations_filter_after
+        )
+
+    return annotations_query
 
 
 def get_sources(
@@ -346,6 +371,7 @@ def get_sources(
     max_peak_magnitude=None,
     min_latest_magnitude=None,
     max_latest_magnitude=None,
+    number_of_detections=None,
     classifications=None,
     nonclassifications=None,
     annotations_filter=None,
@@ -427,6 +453,15 @@ def get_sources(
         photstat_subquery = (
             PhotStat.select(user)
             .where(PhotStat.last_detected_mjd <= Time(last_detected_date).mjd)
+            .subquery()
+        )
+        obj_query = obj_query.join(
+            photstat_subquery, Obj.id == photstat_subquery.c.obj_id
+        )
+    if number_of_detections:
+        photstat_subquery = (
+            PhotStat.select(user)
+            .where(PhotStat.num_det_global >= number_of_detections)
             .subquery()
         )
         obj_query = obj_query.join(
@@ -675,7 +710,7 @@ def get_sources(
                 Classification.classification,
             )
             .join(Taxonomy)
-            .where(Classification.classification.notin_(nonclassifications))
+            .where(Classification.classification.in_(nonclassifications))
             .where(Taxonomy.name.in_(taxonomy_names))
         )
         nonclassification_subquery = nonclassification_query.subquery()
@@ -686,7 +721,7 @@ def get_sources(
         # strategies)
         obj_query = obj_query.join(
             nonclassification_subquery,
-            Obj.id == nonclassification_subquery.c.obj_id,
+            Obj.id != nonclassification_subquery.c.obj_id,
         )
         obj_query = obj_query.join(
             classification_accessible_subquery,
@@ -715,26 +750,127 @@ def get_sources(
             raise ValueError(
                 "Invalid annotationsFilterOrigin value -- must provide at least one string value"
             )
-    if comments_filter is not None:
-        if isinstance(comments_filter, str) and "," in comments_filter:
-            comments_filter = [c.strip() for c in comments_filter.split(",")]
-        elif isinstance(comments_filter, str):
-            comments_filter = [comments_filter]
+
+    if (
+        (annotations_filter_origin is not None)
+        or (annotations_filter_before is not None)
+        or (annotations_filter_after is not None)
+        or (annotations_filter is not None)
+    ):
+        if annotations_filter is not None:
+            for ann_filt in annotations_filter:
+                ann_split = ann_filt.split(":")
+                if not (len(ann_split) == 1 or len(ann_split) == 3):
+                    raise ValueError(
+                        "Invalid annotationsFilter value -- annotation filter must have 1 or 3 values"
+                    )
+                name = ann_split[0].strip()
+
+                annotations_query = create_annotations_query(
+                    session,
+                    annotations_filter_origin=annotations_filter_origin,
+                    annotations_filter_before=annotations_filter_before,
+                    annotations_filter_after=annotations_filter_after,
+                )
+
+                if len(ann_split) == 3:
+                    value = ann_split[1].strip()
+                    try:
+                        value = float(value)
+                    except ValueError as e:
+                        raise ValueError(f"Invalid annotation filter value: {e}")
+                    op = ann_split[2].strip()
+                    op_options = ["lt", "le", "eq", "ne", "ge", "gt"]
+                    if op not in op_options:
+                        raise ValueError(f"Invalid operator: {op}")
+                    comp_function = getattr(operator, op)
+
+                    annotations_query = annotations_query.where(
+                        comp_function(Annotation.data[name], cast(value, JSONB))
+                    )
+                else:
+                    annotations_query = annotations_query.where(
+                        Annotation.data[name].astext.is_not(None)
+                    )
+
+                annotations_subquery = annotations_query.subquery()
+                obj_query = obj_query.join(
+                    annotations_subquery,
+                    Obj.id == annotations_subquery.c.obj_id,
+                )
         else:
-            raise ValueError(
-                "Invalid commentsFilter value -- must provide at least one string value"
+            annotations_query = create_annotations_query(
+                session,
+                annotations_filter_origin=annotations_filter_origin,
+                annotations_filter_before=annotations_filter_before,
+                annotations_filter_after=annotations_filter_after,
             )
-    if comments_filter_author is not None:
-        if isinstance(comments_filter_author, str) and "," in comments_filter_author:
-            comments_filter_author = [
-                c.strip() for c in comments_filter_author.split(",")
-            ]
-        elif isinstance(comments_filter_author, str):
-            comments_filter_author = [comments_filter_author]
-        else:
-            raise ValueError(
-                "Invalid commentsFilterAuthor value -- must provide at least one string value"
+            annotations_subquery = annotations_query.subquery()
+            obj_query = obj_query.join(
+                annotations_subquery,
+                Obj.id == annotations_subquery.c.obj_id,
             )
+
+    if (
+        (comments_filter is not None)
+        or comments_filter_before
+        or comments_filter_after
+        or (comments_filter_author is not None)
+    ):
+
+        comment_query = Comment.select(session.user_or_token)
+
+        if comments_filter is not None:
+            if isinstance(comments_filter, str) and "," in comments_filter:
+                comments_filter = [c.strip() for c in comments_filter.split(",")]
+            elif isinstance(comments_filter, str):
+                comments_filter = [comments_filter]
+            else:
+                raise ValueError(
+                    "Invalid commentsFilter value -- must provide at least one string value"
+                )
+            comment_query = comment_query.where(Comment.text.in_(comments_filter))
+
+        if comments_filter_before:
+            comment_query = comment_query.where(
+                Comment.created_at <= comments_filter_before
+            )
+
+        if comments_filter_after:
+            comment_query = comment_query.where(
+                Comment.created_at >= comments_filter_after
+            )
+
+        if comments_filter_author is not None:
+            if (
+                isinstance(comments_filter_author, str)
+                and "," in comments_filter_author
+            ):
+                comments_filter_author = [
+                    c.strip() for c in comments_filter_author.split(",")
+                ]
+            elif isinstance(comments_filter_author, str):
+                comments_filter_author = [comments_filter_author]
+            else:
+                raise ValueError(
+                    "Invalid commentsFilterAuthor value -- must provide at least one string value"
+                )
+
+            author_query = User.select(session.user_or_token).where(
+                User.username.in_(comments_filter_author)
+            )
+            author_subquery = author_query.subquery()
+
+            comment_query = comment_query.join(
+                author_subquery,
+                Comment.author_id == author_subquery.c.id,
+            )
+        comment_subquery = comment_query.subquery()
+        obj_query = obj_query.join(
+            comment_subquery,
+            Obj.id == comment_subquery.c.obj_id,
+        )
+
     if localization_dateobs is not None:
 
         # This grabs just the IDs so the more expensive localization in-out
@@ -888,6 +1024,7 @@ def get_sources(
     else:
         try:
             query_results = grab_query_results(
+                session,
                 query,
                 total_matches,
                 page_number,
@@ -911,134 +1048,6 @@ def get_sources(
 
         for result in query_results["sources"]:
             (obj,) = result
-            if (
-                (annotations_filter is not None)
-                or (annotations_filter_origin is not None)
-                or (annotations_filter_before is not None)
-                or (annotations_filter_after is not None)
-            ):
-                if annotations_filter_origin is not None:
-                    annotations_query = (
-                        Annotation.query_records_accessible_by(user)
-                        .filter(Annotation.obj_id == obj.id)
-                        .filter(Annotation.origin.in_(annotations_filter_origin))
-                    )
-                else:
-                    annotations_query = Annotation.query_records_accessible_by(
-                        user
-                    ).filter(Annotation.obj_id == obj.id)
-                if annotations_filter_before:
-                    annotations_query = annotations_query.filter(
-                        Annotation.created_at <= annotations_filter_before
-                    )
-                if annotations_filter_after:
-                    annotations_query = annotations_query.filter(
-                        Annotation.created_at >= annotations_filter_after
-                    )
-                annotations = annotations_query.all()
-
-                if len(annotations) > 0:
-                    passes_filter = True
-                else:
-                    passes_filter = False
-                if annotations_filter is not None:
-                    for ann_filt in annotations_filter:
-                        ann_split = ann_filt.split(":")
-                        if not (len(ann_split) == 1 or len(ann_split) == 3):
-                            raise ValueError(
-                                "Invalid annotationsFilter value -- annotation filter must have 1 or 3 values"
-                            )
-                        name = ann_split[0].strip()
-                        if len(ann_split) == 3:
-                            value = ann_split[1].strip()
-                            try:
-                                value = float(value)
-                            except ValueError as e:
-                                raise ValueError(
-                                    f"Invalid annotation filter value: {e}"
-                                )
-                            op = ann_split[2].strip()
-                        # first check that the name is present
-                        name_present = [
-                            isinstance(an.data, dict) and name in an.data
-                            for an in annotations
-                        ]
-                        name_check = any(name_present)
-
-                        # fails the filter if name is not present
-                        if not name_check:
-                            passes_filter = False
-                            break
-                        if len(ann_split) == 3:
-                            index = name_present.index(True)
-                            data_value = annotations[index].data[name]
-
-                            op_options = ["lt", "le", "eq", "ne", "ge", "gt"]
-                            if op not in op_options:
-                                raise ValueError(f"Invalid operator: {op}")
-
-                            if op == "lt":
-                                comp_function = operator.lt
-                            elif op == "le":
-                                comp_function = operator.le
-                            elif op == "eq":
-                                comp_function = operator.eq
-                            elif op == "ne":
-                                comp_function = operator.ne
-                            elif op == "ge":
-                                comp_function = operator.ge
-                            elif op == "gt":
-                                comp_function = operator.gt
-                            comp_check = comp_function(data_value, value)
-                            if not comp_check:
-                                passes_filter = False
-                                break
-                if not passes_filter:
-                    continue
-            if (
-                (comments_filter is not None)
-                or (comments_filter_author is not None)
-                or (comments_filter_before is not None)
-                or (comments_filter_after is not None)
-            ):
-                comments_query = Comment.query_records_accessible_by(user).filter(
-                    Comment.obj_id == obj.id
-                )
-                if comments_filter_before:
-                    comments_query = comments_query.filter(
-                        Comment.created_at <= comments_filter_before
-                    )
-                if comments_filter_after:
-                    comments_query = comments_query.filter(
-                        Comment.created_at >= comments_filter_after
-                    )
-                comments = comments_query.all()
-
-                if len(comments) > 0:
-                    passes_filter = True
-                else:
-                    passes_filter = False
-
-                if comments_filter_author is not None:
-                    author_present = [
-                        com.author.username in comments_filter_author
-                        for com in comments
-                    ]
-                    author_check = any(author_present)
-                    if not author_check:
-                        passes_filter = False
-
-                if comments_filter is not None:
-                    for com_filt in comments_filter:
-                        # check that the comment filter is present in at least one
-                        comment_present = [com_filt in com.text for com in comments]
-                        comment_check = any(comment_present)
-                        if not comment_check:
-                            passes_filter = False
-                            break
-                if not passes_filter:
-                    continue
-
             obj_list.append(obj.to_dict())
 
             if include_comments:
@@ -1049,25 +1058,31 @@ def get_sources(
                             for k, v in c.to_dict().items()
                             if k != "attachment_bytes"
                         }
-                        for c in Comment.query_records_accessible_by(user)
-                        .filter(Comment.obj_id == obj.id)
-                        .all()
+                        for c in session.scalars(
+                            Comment.select(session.user_or_token).where(
+                                Comment.obj_id == obj.id
+                            )
+                        ).all()
                     ),
                     key=lambda x: x["created_at"],
                     reverse=True,
                 )
 
             if include_thumbnails and not remove_nested:
-                obj_list[-1]["thumbnails"] = (
-                    Thumbnail.query_records_accessible_by(user)
-                    .filter(Thumbnail.obj_id == obj.id)
-                    .all()
-                )
+                obj_list[-1]["thumbnails"] = session.scalars(
+                    Thumbnail.select(session.user_or_token).where(
+                        Thumbnail.obj_id == obj.id
+                    )
+                ).all()
 
             if not remove_nested:
                 readable_classifications = (
-                    Classification.query_records_accessible_by(user)
-                    .filter(Classification.obj_id == obj.id)
+                    session.scalars(
+                        Classification.select(session.user_or_token).where(
+                            Classification.obj_id == obj.id
+                        )
+                    )
+                    .unique()
                     .all()
                 )
 
@@ -1082,9 +1097,13 @@ def get_sources(
                 obj_list[-1]["classifications"] = readable_classifications_json
 
                 obj_list[-1]["annotations"] = sorted(
-                    Annotation.query_records_accessible_by(user).filter(
-                        Annotation.obj_id == obj.id
-                    ),
+                    session.scalars(
+                        Annotation.select(session.user_or_token).where(
+                            Annotation.obj_id == obj.id
+                        )
+                    )
+                    .unique()
+                    .all(),
                     key=lambda x: x.origin,
                 )
 
@@ -1095,25 +1114,27 @@ def get_sources(
             obj_list[-1]["angular_diameter_distance"] = obj.angular_diameter_distance
 
             if include_photometry_exists:
-                obj_list[-1]["photometry_exists"] = (
-                    Photometry.query_records_accessible_by(user)
-                    .filter(Photometry.obj_id == obj.id)
-                    .first()
-                    is not None
+                stmt = Photometry.select(session.user_or_token).where(
+                    Photometry.obj_id == obj.id
                 )
+                count_stmt = sa.select(func.count()).select_from(stmt.distinct())
+                total_phot = session.execute(count_stmt).scalar()
+                obj_list[-1]["photometry_exists"] = total_phot > 0
             if include_spectrum_exists:
-                obj_list[-1]["spectrum_exists"] = (
-                    len(
-                        Spectrum.query_records_accessible_by(user)
-                        .filter(Spectrum.obj_id == obj.id)
-                        .all()
-                    )
-                    > 0
+                stmt = Spectrum.select(session.user_or_token).where(
+                    Spectrum.obj_id == obj.id
                 )
+                count_stmt = sa.select(func.count()).select_from(stmt.distinct())
+                total_spectrum = session.execute(count_stmt).scalar()
+                obj_list[-1]["spectrum_exists"] = total_spectrum > 0
             if include_period_exists:
                 annotations = (
-                    Annotation.query_records_accessible_by(user)
-                    .filter(Annotation.obj_id == obj.id)
+                    session.scalars(
+                        Annotation.select(session.user_or_token).where(
+                            Annotation.obj_id == obj.id
+                        )
+                    )
+                    .unique()
                     .all()
                 )
                 period_str_options = ['period', 'Period', 'PERIOD']
@@ -1125,7 +1146,7 @@ def get_sources(
                     ]
                 )
             if not remove_nested:
-                source_query = Source.query_records_accessible_by(user).filter(
+                source_query = Source.select(session.user_or_token).where(
                     Source.obj_id == obj_list[-1]["id"]
                 )
                 source_query = apply_active_or_requested_filtering(
@@ -1133,21 +1154,23 @@ def get_sources(
                 )
                 source_subquery = source_query.subquery()
                 groups = (
-                    Group.query_records_accessible_by(user)
-                    .join(source_subquery, Group.id == source_subquery.c.group_id)
+                    session.scalars(
+                        Group.select(session.user_or_token).join(
+                            source_subquery, Group.id == source_subquery.c.group_id
+                        )
+                    )
+                    .unique()
                     .all()
                 )
                 obj_list[-1]["groups"] = [g.to_dict() for g in groups]
 
                 for group in obj_list[-1]["groups"]:
-                    source_table_row = (
-                        Source.query_records_accessible_by(user)
-                        .filter(
+                    source_table_row = session.scalars(
+                        Source.select(session.user_or_token).where(
                             Source.obj_id == obj_list[-1]["id"],
                             Source.group_id == group["id"],
                         )
-                        .first()
-                    )
+                    ).first()
                     if source_table_row is not None:
                         group["active"] = source_table_row.active
                         group["requested"] = source_table_row.requested
@@ -1292,7 +1315,11 @@ def post_source(data, user_id, session):
     session.commit()
 
     if not obj_already_exists:
-        IOLoop.current().run_in_executor(
+        try:
+            loop = IOLoop.current()
+        except RuntimeError:
+            loop = IOLoop(make_current=True).current()
+        loop.run_in_executor(
             None,
             lambda: add_linked_thumbnails_and_push_ws_msg(obj.id, user_id),
         )
@@ -1839,6 +1866,13 @@ class SourceHandler(BaseHandler):
             description: |
               If provided, return only sources whose latest photometry magnitude is at most this value
           - in: query
+            name: numberDetections
+            nullable: true
+            schema:
+              type: number
+            description: |
+              If provided, return only sources who have at least numberDetections detections.
+          - in: query
             name: hasSpectrum
             nullable: true
             schema:
@@ -1978,6 +2012,7 @@ class SourceHandler(BaseHandler):
         created_or_modified_after = self.get_query_argument(
             "createdOrModifiedAfter", None
         )
+        number_of_detections = self.get_query_argument("numberDetections", None)
 
         localization_dateobs = self.get_query_argument("localizationDateobs", None)
         localization_name = self.get_query_argument("localizationName", None)
@@ -2143,6 +2178,7 @@ class SourceHandler(BaseHandler):
                     max_peak_magnitude=max_peak_magnitude,
                     min_latest_magnitude=min_latest_magnitude,
                     max_latest_magnitude=max_latest_magnitude,
+                    number_of_detections=number_of_detections,
                     classifications=classifications,
                     nonclassifications=nonclassifications,
                     annotations_filter=annotations_filter,
@@ -2440,96 +2476,103 @@ class SourceOffsetsHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        source = Obj.get_if_accessible_by(obj_id, self.current_user)
-        if source is None:
-            return self.error('Source not found', status=404)
 
-        initial_pos = (source.ra, source.dec)
+        with self.Session() as session:
 
-        try:
-            best_ra, best_dec = _calculate_best_position_for_offset_stars(
-                Photometry.query_records_accessible_by(self.current_user)
-                .filter(Photometry.obj_id == source.id)
-                .all(),
-                fallback=(initial_pos[0], initial_pos[1]),
-                how="snr2",
+            source = session.scalars(
+                Obj.select(session.user_or_token).where(Obj.id == obj_id)
+            ).first()
+            if source is None:
+                return self.error('Source not found', status=404)
+
+            initial_pos = (source.ra, source.dec)
+
+            try:
+                best_ra, best_dec = _calculate_best_position_for_offset_stars(
+                    session.scalars(
+                        Photometry.select(session.user_or_token).where(
+                            Photometry.obj_id == source.id
+                        )
+                    ).all(),
+                    fallback=(initial_pos[0], initial_pos[1]),
+                    how="snr2",
+                )
+            except JSONDecodeError:
+                self.push_notification(
+                    'Source position using photometry points failed.'
+                    ' Reverting to discovery position.'
+                )
+                best_ra, best_dec = initial_pos[0], initial_pos[1]
+
+            facility = self.get_query_argument('facility', 'Keck')
+            num_offset_stars = self.get_query_argument('num_offset_stars', '3')
+            use_ztfref = self.get_query_argument('use_ztfref', True)
+
+            obstime = self.get_query_argument(
+                'obstime', datetime.datetime.utcnow().isoformat()
             )
-        except JSONDecodeError:
-            self.push_notification(
-                'Source position using photometry points failed.'
-                ' Reverting to discovery position.'
+            if not isinstance(isoparse(obstime), datetime.datetime):
+                return self.error('obstime is not valid isoformat')
+
+            if facility not in facility_parameters:
+                return self.error('Invalid facility')
+
+            radius_degrees = facility_parameters[facility]["radius_degrees"]
+            mag_limit = facility_parameters[facility]["mag_limit"]
+            min_sep_arcsec = facility_parameters[facility]["min_sep_arcsec"]
+            mag_min = facility_parameters[facility]["mag_min"]
+
+            try:
+                num_offset_stars = int(num_offset_stars)
+            except ValueError:
+                # could not handle inputs
+                return self.error('Invalid argument for `num_offset_stars`')
+
+            offset_func = functools.partial(
+                get_nearby_offset_stars,
+                best_ra,
+                best_dec,
+                obj_id,
+                how_many=num_offset_stars,
+                radius_degrees=radius_degrees,
+                mag_limit=mag_limit,
+                min_sep_arcsec=min_sep_arcsec,
+                starlist_type=facility,
+                mag_min=mag_min,
+                obstime=obstime,
+                allowed_queries=2,
+                use_ztfref=use_ztfref,
             )
-            best_ra, best_dec = initial_pos[0], initial_pos[1]
 
-        facility = self.get_query_argument('facility', 'Keck')
-        num_offset_stars = self.get_query_argument('num_offset_stars', '3')
-        use_ztfref = self.get_query_argument('use_ztfref', True)
+            try:
+                (
+                    starlist_info,
+                    query_string,
+                    queries_issued,
+                    noffsets,
+                    used_ztfref,
+                ) = await IOLoop.current().run_in_executor(None, offset_func)
+            except ValueError:
+                return self.error("Error querying for nearby offset stars")
 
-        obstime = self.get_query_argument(
-            'obstime', datetime.datetime.utcnow().isoformat()
-        )
-        if not isinstance(isoparse(obstime), datetime.datetime):
-            return self.error('obstime is not valid isoformat')
+            starlist_str = "\n".join(
+                [x["str"].replace(" ", "&nbsp;") for x in starlist_info]
+            )
 
-        if facility not in facility_parameters:
-            return self.error('Invalid facility')
-
-        radius_degrees = facility_parameters[facility]["radius_degrees"]
-        mag_limit = facility_parameters[facility]["mag_limit"]
-        min_sep_arcsec = facility_parameters[facility]["min_sep_arcsec"]
-        mag_min = facility_parameters[facility]["mag_min"]
-
-        try:
-            num_offset_stars = int(num_offset_stars)
-        except ValueError:
-            # could not handle inputs
-            return self.error('Invalid argument for `num_offset_stars`')
-
-        offset_func = functools.partial(
-            get_nearby_offset_stars,
-            best_ra,
-            best_dec,
-            obj_id,
-            how_many=num_offset_stars,
-            radius_degrees=radius_degrees,
-            mag_limit=mag_limit,
-            min_sep_arcsec=min_sep_arcsec,
-            starlist_type=facility,
-            mag_min=mag_min,
-            obstime=obstime,
-            allowed_queries=2,
-            use_ztfref=use_ztfref,
-        )
-
-        try:
-            (
-                starlist_info,
-                query_string,
-                queries_issued,
-                noffsets,
-                used_ztfref,
-            ) = await IOLoop.current().run_in_executor(None, offset_func)
-        except ValueError:
-            return self.error("Error querying for nearby offset stars")
-
-        starlist_str = "\n".join(
-            [x["str"].replace(" ", "&nbsp;") for x in starlist_info]
-        )
-
-        self.verify_and_commit()
-        return self.success(
-            data={
-                'facility': facility,
-                'starlist_str': starlist_str,
-                'starlist_info': starlist_info,
-                'ra': source.ra,
-                'dec': source.dec,
-                'noffsets': noffsets,
-                'queries_issued': queries_issued,
-                'query': query_string,
-                'used_ztfref': used_ztfref,
-            }
-        )
+            session.commit()
+            return self.success(
+                data={
+                    'facility': facility,
+                    'starlist_str': starlist_str,
+                    'starlist_info': starlist_info,
+                    'ra': source.ra,
+                    'dec': source.dec,
+                    'noffsets': noffsets,
+                    'queries_issued': queries_issued,
+                    'query': query_string,
+                    'used_ztfref': used_ztfref,
+                }
+            )
 
 
 class SourceFinderHandler(BaseHandler):
@@ -2614,103 +2657,111 @@ class SourceFinderHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        source = Obj.get_if_accessible_by(obj_id, self.current_user)
-        if source is None:
-            return self.error('Source not found', status=404)
 
-        output_type = self.get_query_argument('type', 'pdf')
-        if output_type not in ["png", "pdf"]:
-            return self.error(f'Invalid argument for `type`: {output_type}')
+        with self.Session() as session:
+            source = session.scalars(
+                Obj.select(session.user_or_token).where(Obj.id == obj_id)
+            ).first()
+            if source is None:
+                return self.error('Source not found', status=404)
 
-        imsize = self.get_query_argument('imsize', '4.0')
-        try:
-            imsize = float(imsize)
-        except ValueError:
-            # could not handle inputs
-            return self.error('Invalid argument for `imsize`')
+            output_type = self.get_query_argument('type', 'pdf')
+            if output_type not in ["png", "pdf"]:
+                return self.error(f'Invalid argument for `type`: {output_type}')
 
-        if imsize < 2.0 or imsize > 15.0:
-            return self.error('The value for `imsize` is outside the allowed range')
+            imsize = self.get_query_argument('imsize', 4.0)
+            try:
+                imsize = float(imsize)
+            except ValueError:
+                # could not handle inputs
+                return self.error('Invalid argument for `imsize`')
 
-        initial_pos = (source.ra, source.dec)
-        try:
-            best_ra, best_dec = _calculate_best_position_for_offset_stars(
-                Photometry.query_records_accessible_by(self.current_user)
-                .filter(Photometry.obj_id == source.id)
-                .all(),
-                fallback=(initial_pos[0], initial_pos[1]),
-                how="snr2",
+            if imsize < 2.0 or imsize > 15.0:
+                return self.error(
+                    'The value for `imsize` is outside the allowed range (2.0-15.0)'
+                )
+
+            initial_pos = (source.ra, source.dec)
+            try:
+                best_ra, best_dec = _calculate_best_position_for_offset_stars(
+                    session.scalars(
+                        Photometry.select(session.user_or_token).where(
+                            Photometry.obj_id == source.id
+                        )
+                    ).all(),
+                    fallback=(initial_pos[0], initial_pos[1]),
+                    how="snr2",
+                )
+            except JSONDecodeError:
+                self.push_notification(
+                    'Source position using photometry points failed.'
+                    ' Reverting to discovery position.'
+                )
+                best_ra, best_dec = initial_pos[0], initial_pos[1]
+
+            facility = self.get_query_argument('facility', 'Keck')
+            image_source = self.get_query_argument('image_source', 'ps1')
+            use_ztfref = self.get_query_argument('use_ztfref', True)
+
+            num_offset_stars = self.get_query_argument('num_offset_stars', '3')
+            try:
+                num_offset_stars = int(num_offset_stars)
+            except ValueError:
+                # could not handle inputs
+                return self.error('Invalid argument for `num_offset_stars`')
+
+            if not 0 <= num_offset_stars <= 4:
+                return self.error(
+                    'The value for `num_offset_stars` is outside the allowed range (0-4)'
+                )
+
+            obstime = self.get_query_argument(
+                'obstime', datetime.datetime.utcnow().isoformat()
             )
-        except JSONDecodeError:
+            if not isinstance(isoparse(obstime), datetime.datetime):
+                return self.error('obstime is not valid isoformat')
+
+            if facility not in facility_parameters:
+                return self.error('Invalid facility')
+
+            if image_source not in source_image_parameters:
+                return self.error('Invalid source image')
+
+            radius_degrees = facility_parameters[facility]["radius_degrees"]
+            mag_limit = facility_parameters[facility]["mag_limit"]
+            min_sep_arcsec = facility_parameters[facility]["min_sep_arcsec"]
+            mag_min = facility_parameters[facility]["mag_min"]
+
+            finder = functools.partial(
+                get_finding_chart,
+                best_ra,
+                best_dec,
+                obj_id,
+                image_source=image_source,
+                output_format=output_type,
+                imsize=imsize,
+                how_many=num_offset_stars,
+                radius_degrees=radius_degrees,
+                mag_limit=mag_limit,
+                mag_min=mag_min,
+                min_sep_arcsec=min_sep_arcsec,
+                starlist_type=facility,
+                obstime=obstime,
+                use_source_pos_in_starlist=True,
+                allowed_queries=2,
+                queries_issued=0,
+                use_ztfref=use_ztfref,
+            )
+
             self.push_notification(
-                'Source position using photometry points failed.'
-                ' Reverting to discovery position.'
+                'Finding chart generation in progress. Download will start soon.'
             )
-            best_ra, best_dec = initial_pos[0], initial_pos[1]
+            rez = await IOLoop.current().run_in_executor(None, finder)
 
-        facility = self.get_query_argument('facility', 'Keck')
-        image_source = self.get_query_argument('image_source', 'ps1')
-        use_ztfref = self.get_query_argument('use_ztfref', True)
+            filename = rez["name"]
+            data = io.BytesIO(rez["data"])
 
-        num_offset_stars = self.get_query_argument('num_offset_stars', '3')
-        try:
-            num_offset_stars = int(num_offset_stars)
-        except ValueError:
-            # could not handle inputs
-            return self.error('Invalid argument for `num_offset_stars`')
-
-        if not 0 <= num_offset_stars <= 4:
-            return self.error(
-                'The value for `num_offset_stars` is outside the allowed range'
-            )
-
-        obstime = self.get_query_argument(
-            'obstime', datetime.datetime.utcnow().isoformat()
-        )
-        if not isinstance(isoparse(obstime), datetime.datetime):
-            return self.error('obstime is not valid isoformat')
-
-        if facility not in facility_parameters:
-            return self.error('Invalid facility')
-
-        if image_source not in source_image_parameters:
-            return self.error('Invalid source image')
-
-        radius_degrees = facility_parameters[facility]["radius_degrees"]
-        mag_limit = facility_parameters[facility]["mag_limit"]
-        min_sep_arcsec = facility_parameters[facility]["min_sep_arcsec"]
-        mag_min = facility_parameters[facility]["mag_min"]
-
-        finder = functools.partial(
-            get_finding_chart,
-            best_ra,
-            best_dec,
-            obj_id,
-            image_source=image_source,
-            output_format=output_type,
-            imsize=imsize,
-            how_many=num_offset_stars,
-            radius_degrees=radius_degrees,
-            mag_limit=mag_limit,
-            mag_min=mag_min,
-            min_sep_arcsec=min_sep_arcsec,
-            starlist_type=facility,
-            obstime=obstime,
-            use_source_pos_in_starlist=True,
-            allowed_queries=2,
-            queries_issued=0,
-            use_ztfref=use_ztfref,
-        )
-
-        self.push_notification(
-            'Finding chart generation in progress. Download will start soon.'
-        )
-        rez = await IOLoop.current().run_in_executor(None, finder)
-
-        filename = rez["name"]
-        data = io.BytesIO(rez["data"])
-
-        await self.send_file(data, filename, output_type=output_type)
+            await self.send_file(data, filename, output_type=output_type)
 
 
 class SourceNotificationHandler(BaseHandler):
@@ -2791,37 +2842,40 @@ class SourceNotificationHandler(BaseHandler):
         if data.get("sourceId") is None:
             return self.error("Missing required parameter `sourceId`")
 
-        source = Obj.get_if_accessible_by(data["sourceId"], self.current_user)
-        if source is None:
-            return self.error('Source not found', status=404)
-
-        source_id = data["sourceId"]
-
-        source_group_ids = [
-            row[0]
-            for row in Source.query_records_accessible_by(
-                self.current_user, columns=[Source.group_id]
-            )
-            .filter(Source.obj_id == source_id)
-            .all()
-        ]
-
-        if bool(set(group_ids).difference(set(source_group_ids))):
-            forbidden_groups = list(set(group_ids) - set(source_group_ids))
-            return self.error(
-                "Insufficient recipient group access permissions. Not a member of "
-                f"group IDs: {forbidden_groups}."
-            )
-
-        if data.get("level") is None:
-            return self.error("Missing required parameter `level`")
-        if data["level"] not in ["soft", "hard"]:
-            return self.error(
-                "Invalid value provided for `level`: should be either 'soft' or 'hard'"
-            )
-        level = data["level"]
-
         with self.Session() as session:
+
+            source = session.scalars(
+                Obj.select(session.user_or_token).where(Obj.id == data["sourceId"])
+            ).first()
+            if source is None:
+                return self.error('Source not found', status=404)
+
+            source_id = data["sourceId"]
+
+            source_group_ids = [
+                row
+                for row in session.scalars(
+                    Source.select(
+                        session.user_or_token, columns=[Source.group_id]
+                    ).where(Source.obj_id == source_id)
+                ).all()
+            ]
+
+            if bool(set(group_ids).difference(set(source_group_ids))):
+                forbidden_groups = list(set(group_ids) - set(source_group_ids))
+                return self.error(
+                    "Insufficient recipient group access permissions. Not a member of "
+                    f"group IDs: {forbidden_groups}."
+                )
+
+            if data.get("level") is None:
+                return self.error("Missing required parameter `level`")
+            if data["level"] not in ["soft", "hard"]:
+                return self.error(
+                    "Invalid value provided for `level`: should be either 'soft' or 'hard'"
+                )
+            level = data["level"]
+
             groups = session.scalars(
                 Group.select(self.current_user).where(Group.id.in_(group_ids))
             ).all()

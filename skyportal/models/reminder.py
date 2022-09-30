@@ -2,6 +2,7 @@ __all__ = [
     'Reminder',
     'ReminderOnSpectrum',
     'ReminderOnGCN',
+    'ReminderOnEarthquake',
     'ReminderOnShift',
 ]
 
@@ -68,6 +69,8 @@ class ReminderMixin:
             return 'reminders_on_gcns'
         if cls.__name__ == 'ReminderOnShift':
             return 'reminders_on_shifts'
+        if cls.__name__ == 'ReminderOnEarthquake':
+            return 'reminders_on_earthquakes'
 
     @declared_attr
     def user(cls):
@@ -186,6 +189,31 @@ class ReminderOnGCN(Base, ReminderMixin):
         'GcnEvent',
         back_populates='reminders',
         doc="The GcnEvent referred to by this reminder.",
+    )
+
+
+class ReminderOnEarthquake(Base, ReminderMixin):
+
+    __tablename__ = 'reminders_on_earthquakes'
+
+    create = AccessibleIfRelatedRowsAreAccessible(earthquake='read')
+
+    read = accessible_by_groups_members & AccessibleIfRelatedRowsAreAccessible(
+        earthquake='read',
+    )
+
+    update = delete = AccessibleIfUserMatches('user')
+
+    earthquake_id = sa.Column(
+        sa.ForeignKey('earthquakeevents.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+        doc="ID of the Reminder's Earthquake.",
+    )
+    earthquake = relationship(
+        'EarthquakeEvent',
+        back_populates='reminders',
+        doc="The Earthquake referred to by this reminder.",
     )
 
 

@@ -1,6 +1,7 @@
 __all__ = [
     'Comment',
     'CommentOnSpectrum',
+    'CommentOnEarthquake',
     'CommentOnGCN',
     'CommentOnShift',
 ]
@@ -91,6 +92,8 @@ class CommentMixin:
             return 'comments_on_gcns'
         if cls.__name__ == 'CommentOnShift':
             return 'comments_on_shifts'
+        if cls.__name__ == 'CommentOnEarthquake':
+            return 'comments_on_earthquakes'
 
     @declared_attr
     def author(cls):
@@ -284,6 +287,31 @@ class CommentOnGCN(Base, CommentMixin):
         'GcnEvent',
         back_populates='comments',
         doc="The GcnEvent referred to by this comment.",
+    )
+
+
+class CommentOnEarthquake(Base, CommentMixin):
+
+    __tablename__ = 'comments_on_earthquakes'
+
+    create = AccessibleIfRelatedRowsAreAccessible(earthquake='read')
+
+    read = accessible_by_groups_members & AccessibleIfRelatedRowsAreAccessible(
+        earthquake='read',
+    )
+
+    update = delete = AccessibleIfUserMatches('author')
+
+    earthquake_id = sa.Column(
+        sa.ForeignKey('earthquakeevents.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+        doc="ID of the Comment's Earthquake.",
+    )
+    earthquake = relationship(
+        'EarthquakeEvent',
+        back_populates='comments',
+        doc="The Earthquake referred to by this comment.",
     )
 
 

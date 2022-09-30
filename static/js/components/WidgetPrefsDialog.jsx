@@ -6,7 +6,6 @@ import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
 import SettingsIcon from "@mui/icons-material/Settings";
-import Button from "@mui/material/Button";
 import Checkbox from "@mui/material/Checkbox";
 import makeStyles from "@mui/styles/makeStyles";
 import SaveIcon from "@mui/icons-material/Save";
@@ -14,6 +13,7 @@ import TextField from "@mui/material/TextField";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Typography from "@mui/material/Typography";
 import Tooltip from "@mui/material/Tooltip";
+import Button from "./Button";
 
 const useStyles = makeStyles(() => ({
   saveButton: {
@@ -150,12 +150,7 @@ const WidgetPrefsDialog = ({
               return <div key={key} />;
             })}
             <div className={classes.saveButton}>
-              <Button
-                color="primary"
-                variant="contained"
-                type="submit"
-                startIcon={<SaveIcon />}
-              >
+              <Button secondary type="submit" endIcon={<SaveIcon />}>
                 Save
               </Button>
             </div>

@@ -16,7 +16,6 @@ import Accordion from "@mui/material/Accordion";
 import AccordionSummary from "@mui/material/AccordionSummary";
 import AccordionDetails from "@mui/material/AccordionDetails";
 import Typography from "@mui/material/Typography";
-import Button from "@mui/material/Button";
 import useMediaQuery from "@mui/material/useMediaQuery";
 
 import Dialog from "@mui/material/Dialog";
@@ -31,6 +30,7 @@ import FormHelperText from "@mui/material/FormHelperText";
 import FormControl from "@mui/material/FormControl";
 import Select from "@mui/material/Select";
 import { showNotification } from "baselayer/components/Notifications";
+import Button from "./Button";
 
 import * as filterActions from "../ducks/filter";
 import * as groupActions from "../ducks/group";
@@ -188,8 +188,7 @@ const GroupFiltersStreams = ({
                 streams?.length > 0 &&
                 group?.streams?.length < streams?.length && (
                   <Button
-                    variant="contained"
-                    color="primary"
+                    primary
                     className={classes.button_add}
                     onClick={handleAddStreamOpen}
                     style={{ marginRight: 10 }}
@@ -200,8 +199,7 @@ const GroupFiltersStreams = ({
 
               {isAdmin(currentUser) && group?.streams?.length > 0 && (
                 <Button
-                  variant="contained"
-                  color="primary"
+                  primary
                   className={classes.button_add}
                   onClick={handleAddFilterDialogOpen}
                 >
@@ -250,15 +248,14 @@ const GroupFiltersStreams = ({
           </DialogContent>
           <DialogActions>
             <Button
+              primary
               type="submit"
-              variant="contained"
-              color="primary"
               className={classes.button_add}
               data-testid="add-stream-dialog-submit"
             >
               Add
             </Button>
-            <Button autoFocus onClick={handleAddStreamClose} color="primary">
+            <Button secondary autoFocus onClick={handleAddStreamClose}>
               Dismiss
             </Button>
           </DialogActions>
@@ -319,19 +316,14 @@ const GroupFiltersStreams = ({
           </DialogContent>
           <DialogActions>
             <Button
-              variant="contained"
-              color="primary"
+              primary
               className={classes.button_add}
               type="submit"
               data-testid="add-filter-dialog-submit"
             >
               Add
             </Button>
-            <Button
-              autoFocus
-              onClick={handleAddFilterDialogClose}
-              color="primary"
-            >
+            <Button secondary autoFocus onClick={handleAddFilterDialogClose}>
               Dismiss
             </Button>
           </DialogActions>

@@ -117,11 +117,13 @@ class Spectrum(Base):
         "User",
         secondary="spectrum_reducers",
         doc="Users that reduced this spectrum, or users to serve as points of contact given an external reducer.",
+        overlaps='observers, owner',
     )
     observers = relationship(
         "User",
         secondary="spectrum_observers",
         doc="Users that observed this spectrum, or users to serve as points of contact given an external observer.",
+        overlaps='reducers, owner',
     )
 
     followup_request_id = sa.Column(
@@ -385,8 +387,16 @@ class Spectrum(Base):
         )
 
 
-SpectrumReducer = join_model("spectrum_reducers", Spectrum, User)
-SpectrumObserver = join_model("spectrum_observers", Spectrum, User)
+SpectrumReducer = join_model(
+    "spectrum_reducers", Spectrum, User, new_name='SpectrumReducer', overlaps='reducers'
+)
+SpectrumObserver = join_model(
+    "spectrum_observers",
+    Spectrum,
+    User,
+    new_name='SpectrumObserver',
+    overlaps='observers',
+)
 SpectrumReducer.create = (
     SpectrumReducer.delete
 ) = SpectrumReducer.update = AccessibleIfUserMatches('spectrum.owner')
