@@ -1,12 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import DeleteIcon from "@mui/icons-material/Delete";
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-  DialogActions,
-} from "@mui/material";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
 import ListItemText from "@mui/material/ListItemText";
@@ -17,6 +11,7 @@ import makeStyles from "@mui/styles/makeStyles";
 import { showNotification } from "baselayer/components/Notifications";
 import PropTypes from "prop-types";
 import Button from "./Button";
+import ConfirmDeletionDialog from "./ConfirmDeletionDialog";
 
 import GalaxyTable from "./GalaxyTable";
 import NewGalaxy from "./NewGalaxy";
@@ -122,20 +117,12 @@ const GalaxyList = ({ catalogs, deletePermission, setCatalogs }) => {
             >
               <DeleteIcon />
             </Button>
-            <Dialog open={dialogOpen} onClose={closeDialog}>
-              <DialogTitle>Delete Catalog?</DialogTitle>
-              <DialogContent>
-                Are you sure you want to delete this catalog?
-              </DialogContent>
-              <DialogActions>
-                <Button secondary autoFocus onClick={closeDialog}>
-                  Dismiss
-                </Button>
-                <Button primary onClick={() => deleteCatalog()}>
-                  Confirm
-                </Button>
-              </DialogActions>
-            </Dialog>
+            <ConfirmDeletionDialog
+              deleteFunction={deleteCatalog}
+              dialogOpen={dialogOpen}
+              closeDialog={closeDialog}
+              resourceName="galaxy catalog"
+            />
           </ListItem>
         ))}
       </List>

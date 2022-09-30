@@ -1,12 +1,6 @@
 import React, { useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import DeleteIcon from "@mui/icons-material/Delete";
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-  DialogActions,
-} from "@mui/material";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
 import ListItemText from "@mui/material/ListItemText";
@@ -276,20 +270,12 @@ const DefaultObservationPlanList = ({
             >
               <DeleteIcon />
             </Button>
-            <Dialog open={dialogOpen} onClose={closeDialog}>
-              <DialogTitle>Delete default observation plan?</DialogTitle>
-              <DialogContent>
-                Are you sure you want to delete this default observation plan?
-              </DialogContent>
-              <DialogActions>
-                <Button secondary autoFocus onClick={closeDialog}>
-                  Dismiss
-                </Button>
-                <Button primary onClick={() => deleteDefaultObservationPlan()}>
-                  Confirm
-                </Button>
-              </DialogActions>
-            </Dialog>
+            <ConfirmDeletionDialog
+              deleteFunction={deleteDefaultObservationPlan}
+              dialogOpen={dialogOpen}
+              closeDialog={closeDialog}
+              resourceName="default observation plan"
+            />
           </ListItem>
         ))}
       </List>

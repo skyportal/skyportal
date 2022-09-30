@@ -1,18 +1,13 @@
 import React, { useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import DeleteIcon from "@mui/icons-material/Delete";
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-  DialogActions,
-  Divider,
-} from "@mui/material";
+import { Divider } from "@mui/material";
 import makeStyles from "@mui/styles/makeStyles";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
 import { showNotification } from "baselayer/components/Notifications";
 import Button from "./Button";
+import ConfirmDeletionDialog from "./ConfirmDeletionDialog";
 
 import * as telescopeActions from "../ducks/telescope";
 
@@ -229,20 +224,12 @@ const TelescopeInfo = () => {
             >
               <DeleteIcon />
             </Button>
-            <Dialog open={dialogOpen} onClose={closeDialog}>
-              <DialogTitle>Delete Telescope?</DialogTitle>
-              <DialogContent>
-                Are you sure you want to delete this telescope?
-              </DialogContent>
-              <DialogActions>
-                <Button secondary autoFocus onClick={closeDialog}>
-                  Dismiss
-                </Button>
-                <Button primary onClick={() => deleteTelescope()}>
-                  Confirm
-                </Button>
-              </DialogActions>
-            </Dialog>
+            <ConfirmDeletionDialog
+              deleteFunction={deleteTelescope}
+              dialogOpen={dialogOpen}
+              closeDialog={closeDialog}
+              resourceName="telescope"
+            />
           </ListItem>
           <Divider />
         </div>

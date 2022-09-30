@@ -1,12 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import DeleteIcon from "@mui/icons-material/Delete";
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-  DialogActions,
-} from "@mui/material";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
 import ListItemText from "@mui/material/ListItemText";
@@ -18,6 +12,7 @@ import PropTypes from "prop-types";
 import { showNotification } from "baselayer/components/Notifications";
 import CircularProgress from "@mui/material/CircularProgress";
 import Button from "./Button";
+import ConfirmDeletionDialog from "./ConfirmDeletionDialog";
 import NewAnalysisService from "./NewAnalysisService";
 
 import * as analysisServicesActions from "../ducks/analysis_services";
@@ -140,20 +135,12 @@ const AnalysisServiceList = ({ analysisServices, deletePermission }) => {
             >
               <DeleteIcon />
             </Button>
-            <Dialog open={dialogOpen} onClose={closeDialog}>
-              <DialogTitle>Delete Analysis Service?</DialogTitle>
-              <DialogContent>
-                Are you sure you want to delete this analysis service?
-              </DialogContent>
-              <DialogActions>
-                <Button secondary autoFocus onClick={closeDialog}>
-                  Dismiss
-                </Button>
-                <Button primary onClick={() => deleteAnalysisService()}>
-                  Confirm
-                </Button>
-              </DialogActions>
-            </Dialog>
+            <ConfirmDeletionDialog
+              deleteFunction={deleteAnalysisService}
+              dialogOpen={dialogOpen}
+              closeDialog={closeDialog}
+              resourceName="analysis service"
+            />
           </ListItem>
         ))}
       </List>

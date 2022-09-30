@@ -1,12 +1,6 @@
 import React, { useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import DeleteIcon from "@mui/icons-material/Delete";
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-  DialogActions,
-} from "@mui/material";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
 import ListItemText from "@mui/material/ListItemText";
@@ -21,6 +15,7 @@ import NewInstrument from "./NewInstrument";
 // eslint-disable-next-line import/no-cycle
 import ModifyInstrument from "./ModifyInstrument";
 import Button from "./Button";
+import ConfirmDeletionDialog from "./ConfirmDeletionDialog";
 
 import * as instrumentActions from "../ducks/instrument";
 
@@ -158,20 +153,12 @@ const InstrumentList = ({ instruments, telescopes, deletePermission }) => {
             >
               <DeleteIcon />
             </Button>
-            <Dialog open={dialogOpen} onClose={closeDialog}>
-              <DialogTitle>Delete Instrument?</DialogTitle>
-              <DialogContent>
-                Are you sure you want to delete this instrument?
-              </DialogContent>
-              <DialogActions>
-                <Button secondary autoFocus onClick={closeDialog}>
-                  Dismiss
-                </Button>
-                <Button primary onClick={() => deleteInstrument()}>
-                  Confirm
-                </Button>
-              </DialogActions>
-            </Dialog>
+            <ConfirmDeletionDialog
+              deleteFunction={deleteInstrument}
+              dialogOpen={dialogOpen}
+              closeDialog={closeDialog}
+              resourceName="instrument"
+            />
           </ListItem>
         ))}
       </List>
