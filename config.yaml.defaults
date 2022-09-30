@@ -606,4 +606,4 @@ analysis_services:
   sn_analysis_service:
     port: 6801
 
-comment_folder: comment_data
+comment_folder: persistentdata/comments
