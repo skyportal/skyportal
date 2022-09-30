@@ -176,6 +176,7 @@ def fetch_transients(allocation_id, user_id, group_ids, payload):
 
             program_id_selector = list(program_id_selector)
 
+            log("Querying kowalski for sources")
             # Query kowalski
             sources = query_kowalski(
                 altdata['access_token'],
@@ -186,7 +187,9 @@ def fetch_transients(allocation_id, user_id, group_ids, payload):
                 within_days=dt,
             )
             obj_ids = []
+            log("Looping over sources")
             for source in sources:
+                log(f"Retrieving {source['id']}")
                 s = session.scalars(
                     Obj.select(user).where(Obj.id == source['id'])
                 ).first()
@@ -203,6 +206,7 @@ def fetch_transients(allocation_id, user_id, group_ids, payload):
                         user.id,
                         session,
                     )
+            log("Finished querying Kowalski for sources")
 
         elif payload['catalogName'] == 'ZTF-Fink':
 
@@ -212,13 +216,16 @@ def fetch_transients(allocation_id, user_id, group_ids, payload):
             if instrument is None:
                 raise ValueError('Expected an Instrument named ZTF')
 
+            log("Querying Fink for sources")
             sources = query_fink(
                 jd_trigger, ra_center, dec_center, max_days=dt, within_days=dt
             )
 
             obj_ids = []
+            log("Looping over sources")
             for source in sources:
                 df = source.pop('data')
+                log(f"Retrieving {source['id']}")
 
                 data_out = {
                     'obj_id': source['id'],
@@ -239,6 +246,7 @@ def fetch_transients(allocation_id, user_id, group_ids, payload):
                     log(f"Photometry committed to database for {source['id']}")
                 else:
                     log(f"No photometry to commit to database for {source['id']}")
+            log("Finished querying Fink for sources")
 
         elif payload['catalogName'] == 'LSXPS':
             telescope_name = 'Swift'
@@ -248,7 +256,9 @@ def fetch_transients(allocation_id, user_id, group_ids, payload):
             if telescope is None:
                 raise AttributeError(f'Expected a Telescope named {telescope_name}')
             instrument = telescope.instruments[0]
+            log("Querying Swift for sources")
             obj_ids = fetch_swift_transients(instrument.id, user_id)
+            log("Finished querying Swift for sources")
 
         elif payload['catalogName'] == 'Gaia':
             telescope_name = 'Gaia'
@@ -258,10 +268,11 @@ def fetch_transients(allocation_id, user_id, group_ids, payload):
             if telescope is None:
                 raise AttributeError(f'Expected a Telescope named {telescope_name}')
             instrument = telescope.instruments[0]
+            log("Querying Gaia for sources")
             obj_ids = fetch_gaia_transients(
                 instrument.id, user_id, {'start_date': start_date, 'end_date': end_date}
             )
-
+            log("Finished querying fink for sources")
         else:
             return AttributeError(f"Catalog name {payload['catalogName']} unknown")
 
