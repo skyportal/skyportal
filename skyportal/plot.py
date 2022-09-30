@@ -60,7 +60,7 @@ from .enum_types import ALLOWED_SPECTRUM_TYPES
 # use the full registry from the enum_types import of sykportal
 # which may have custom bandpasses
 from .enum_types import sncosmo as snc
-
+from skyportal.handlers.api.photometry import serialize
 
 _, cfg = load_env()
 # The minimum signal-to-noise ratio to consider a photometry point as detected
@@ -1870,9 +1870,10 @@ def photometry_plot(obj_id, user_id, session, width=600, device="browser"):
     for p in data:
         telescope = p.instrument.telescope.nickname
         instrument = p.instrument.name
-        result = p.to_dict()
+        result = serialize(p, 'ab', 'both')
         result['telescope'] = telescope
         result['instrument'] = instrument
+        result['groups'] = [g.to_dict() for g in result['groups']]
         query_result.append(result)
 
     data = pd.DataFrame.from_dict(query_result)
@@ -1882,6 +1883,20 @@ def photometry_plot(obj_id, user_id, session, width=600, device="browser"):
     user = session.scalars(
         User.select(session.user_or_token).where(User.id == user_id)
     ).first()
+
+    if (
+        user.preferences
+        and 'useRefMag' in user.preferences
+        and user.preferences['useRefMag']
+    ):
+        if 'magtot' in data:
+            data['mag'] = data['magtot']
+        if 'e_magtot' in data:
+            data['magerr'] = data['e_magtot']
+        if 'tot_flux' in data:
+            data['flux'] = data['tot_flux']
+        if 'tot_fluxerr' in data:
+            data['fluxerr'] = data['tot_fluxerr']
 
     spectra = (
         session.scalars(
@@ -1911,10 +1926,6 @@ def photometry_plot(obj_id, user_id, session, width=600, device="browser"):
     data['lim_mag'] = (
         -2.5 * np.log10(data['fluxerr'] * PHOT_DETECTION_THRESHOLD) + data['zp']
     )
-
-    # Passing a dictionary to a bokeh datasource causes the frontend to die,
-    # deleting the dictionary column fixes that
-    del data['original_user_data']
 
     # keep track of things that are only upper limits
     data['hasflux'] = ~data['flux'].isna()
