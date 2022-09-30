@@ -355,6 +355,7 @@ class InstrumentFieldTile(Base):
         sa.ForeignKey('instrumentfields.id', ondelete="CASCADE"),
         nullable=False,
         doc='Instrument Field ID',
+        index=True,
     )
 
     field = relationship(
