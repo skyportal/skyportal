@@ -1,5 +1,6 @@
 import React, { useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
+import DeleteIcon from "@mui/icons-material/Delete";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
 import ListItemText from "@mui/material/ListItemText";
@@ -120,7 +121,7 @@ const AnalysisServiceList = ({ analysisServices, deletePermission }) => {
               onClick={() => deleteAnalysisService(analysisService)}
               disabled={!deletePermission}
             >
-              &times;
+              <DeleteIcon />
             </Button>
           </ListItem>
         ))}

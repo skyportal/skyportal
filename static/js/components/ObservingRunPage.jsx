@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { Link } from "react-router-dom";
+import DeleteIcon from "@mui/icons-material/Delete";
 import {
   Dialog,
   DialogContent,
@@ -121,7 +122,7 @@ const DeleteObservingRunDialog = ({ run, deletePermission }) => {
         disabled={!deletePermission}
         size="small"
       >
-        &times;
+        <DeleteIcon />
       </Button>
       <Dialog open={dialogOpen} onClose={closeDialog}>
         <DialogTitle>Delete Observing Run?</DialogTitle>

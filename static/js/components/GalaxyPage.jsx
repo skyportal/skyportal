@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
+import DeleteIcon from "@mui/icons-material/Delete";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
 import ListItemText from "@mui/material/ListItemText";
@@ -104,7 +105,7 @@ const GalaxyList = ({ catalogs, deletePermission, setCatalogs }) => {
               onClick={() => deleteCatalog(catalog)}
               disabled={!deletePermission}
             >
-              &times;
+              <DeleteIcon />
             </Button>
           </ListItem>
         ))}

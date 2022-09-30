@@ -1,5 +1,6 @@
 import React from "react";
 import { useSelector, useDispatch } from "react-redux";
+import DeleteIcon from "@mui/icons-material/Delete";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
 import ListItemText from "@mui/material/ListItemText";
@@ -177,7 +178,7 @@ const AllocationList = ({ allocations, deletePermission }) => {
               onClick={() => deleteAllocation(allocation)}
               disabled={!deletePermission}
             >
-              &times;
+              <DeleteIcon />
             </Button>
           </ListItem>
         ))}
@@ -238,7 +239,7 @@ const DefaultObservationPlanList = ({
               }
               disabled={!deletePermission}
             >
-              &times;
+              <DeleteIcon />
             </Button>
           </ListItem>
         ))}
