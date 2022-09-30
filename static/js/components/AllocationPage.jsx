@@ -23,6 +23,7 @@ import NewDefaultObservationPlan from "./NewDefaultObservationPlan";
 import * as defaultObservationPlansActions from "../ducks/default_observation_plans";
 import * as allocationActions from "../ducks/allocation";
 import Button from "./Button";
+import ConfirmDeletionDialog from "./ConfirmDeletionDialog";
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -197,20 +198,12 @@ const AllocationList = ({ allocations, deletePermission }) => {
             >
               <DeleteIcon />
             </Button>
-            <Dialog open={dialogOpen} onClose={closeDialog}>
-              <DialogTitle>Delete Allocation?</DialogTitle>
-              <DialogContent>
-                Are you sure you want to delete this allocation?
-              </DialogContent>
-              <DialogActions>
-                <Button secondary autoFocus onClick={closeDialog}>
-                  Dismiss
-                </Button>
-                <Button primary onClick={() => deleteAllocation()}>
-                  Confirm
-                </Button>
-              </DialogActions>
-            </Dialog>
+            <ConfirmDeletionDialog
+              deleteFunction={deleteAllocation}
+              dialogOpen={dialogOpen}
+              closeDialog={closeDialog}
+              resourceName="allocation"
+            />
           </ListItem>
         ))}
       </List>
