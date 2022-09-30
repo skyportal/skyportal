@@ -1,6 +1,7 @@
 import os
 import io
 import base64
+import hashlib
 from pathlib import Path
 from marshmallow.exceptions import ValidationError
 import sqlalchemy as sa
@@ -30,13 +31,15 @@ def post_thumbnail(data, user_id, session):
         raise AttributeError(f"Invalid obj_id: {data['obj_id']}")
 
     basedir = Path(os.path.dirname(__file__)) / '..' / '..'
+    hash = hashlib.sha256(data['obj_id'].encode('utf-8')).hexdigest()
+    subfolders = f'{hash[0:2]}/{hash[2:4]}'
     if os.path.abspath(basedir).endswith('skyportal/skyportal'):
         basedir = basedir / '..'
     file_uri = os.path.abspath(
-        basedir / f'static/thumbnails/{data["obj_id"]}_{data["ttype"]}.png'
+        basedir / f'static/thumbnails/{subfolders}/{data["obj_id"]}_{data["ttype"]}.png'
     )
     if not os.path.exists(os.path.dirname(file_uri)):
-        (basedir / 'static/thumbnails').mkdir(parents=True)
+        Path(os.path.dirname(file_uri)).mkdir(parents=True)
 
     file_bytes = base64.b64decode(data['data'])
     try:
