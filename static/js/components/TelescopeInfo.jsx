@@ -1,10 +1,16 @@
-import React from "react";
+import React, { useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import DeleteIcon from "@mui/icons-material/Delete";
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  DialogActions,
+  Divider,
+} from "@mui/material";
 import makeStyles from "@mui/styles/makeStyles";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
-import { Divider } from "@mui/material";
 import { showNotification } from "baselayer/components/Notifications";
 import Button from "./Button";
 
@@ -98,13 +104,26 @@ const TelescopeInfo = () => {
   const currentUser = useSelector((state) => state.profile);
 
   const permission = currentUser.permissions?.includes("System admin");
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [telescopeToDelete, setTelescopeToDelete] = useState(null);
+  const openDialog = (id) => {
+    setDialogOpen(true);
+    setTelescopeToDelete(id);
+  };
+  const closeDialog = () => {
+    setDialogOpen(false);
+    setTelescopeToDelete(null);
+  };
 
-  const deleteTelescope = (telescope) => {
-    dispatch(telescopeActions.deleteTelescope(telescope.id)).then((result) => {
-      if (result.status === "success") {
-        dispatch(showNotification("Telescope deleted"));
+  const deleteTelescope = () => {
+    dispatch(telescopeActions.deleteTelescope(telescopeToDelete)).then(
+      (result) => {
+        if (result.status === "success") {
+          dispatch(showNotification("Telescope deleted"));
+          closeDialog();
+        }
       }
-    });
+    );
   };
 
   // return a list of telescopes with their information
@@ -205,11 +224,25 @@ const TelescopeInfo = () => {
                 root: classes.telescopeDelete,
                 disabled: classes.telescopeDeleteDisabled,
               }}
-              onClick={() => deleteTelescope(telescope)}
+              onClick={() => openDialog(telescope.id)}
               disabled={!permission}
             >
               <DeleteIcon />
             </Button>
+            <Dialog open={dialogOpen} onClose={closeDialog}>
+              <DialogTitle>Delete Telescope?</DialogTitle>
+              <DialogContent>
+                Are you sure you want to delete this telescope?
+              </DialogContent>
+              <DialogActions>
+                <Button secondary autoFocus onClick={closeDialog}>
+                  Dismiss
+                </Button>
+                <Button primary onClick={() => deleteTelescope()}>
+                  Confirm
+                </Button>
+              </DialogActions>
+            </Dialog>
           </ListItem>
           <Divider />
         </div>

@@ -1,6 +1,12 @@
-import React from "react";
+import React, { useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import DeleteIcon from "@mui/icons-material/Delete";
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  DialogActions,
+} from "@mui/material";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
 import ListItemText from "@mui/material/ListItemText";
@@ -108,12 +114,23 @@ const InstrumentList = ({ instruments, telescopes, deletePermission }) => {
   const dispatch = useDispatch();
   const classes = useStyles();
   const textClasses = textStyles();
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [instrumentToDelete, setInstrumentToDelete] = useState(null);
+  const openDialog = (id) => {
+    setDialogOpen(true);
+    setInstrumentToDelete(id);
+  };
+  const closeDialog = () => {
+    setDialogOpen(false);
+    setInstrumentToDelete(null);
+  };
 
-  const deleteInstrument = (instrument) => {
-    dispatch(instrumentActions.deleteInstrument(instrument.id)).then(
+  const deleteInstrument = () => {
+    dispatch(instrumentActions.deleteInstrument(instrumentToDelete)).then(
       (result) => {
         if (result.status === "success") {
           dispatch(showNotification("Instrument deleted"));
+          closeDialog();
         }
       }
     );
@@ -136,11 +153,25 @@ const InstrumentList = ({ instruments, telescopes, deletePermission }) => {
                 root: classes.instrumentDelete,
                 disabled: classes.instrumentDeleteDisabled,
               }}
-              onClick={() => deleteInstrument(instrument)}
+              onClick={() => openDialog(instrument.id)}
               disabled={!deletePermission}
             >
               <DeleteIcon />
             </Button>
+            <Dialog open={dialogOpen} onClose={closeDialog}>
+              <DialogTitle>Delete Instrument?</DialogTitle>
+              <DialogContent>
+                Are you sure you want to delete this instrument?
+              </DialogContent>
+              <DialogActions>
+                <Button secondary autoFocus onClick={closeDialog}>
+                  Dismiss
+                </Button>
+                <Button primary onClick={() => deleteInstrument()}>
+                  Confirm
+                </Button>
+              </DialogActions>
+            </Dialog>
           </ListItem>
         ))}
       </List>
@@ -153,7 +184,9 @@ const InstrumentPage = () => {
   const { telescopeList } = useSelector((state) => state.telescopes);
   const currentUser = useSelector((state) => state.profile);
 
-  const permission = currentUser.permissions?.includes("System admin");
+  const permission =
+    currentUser.permissions?.includes("Manage allocations") ||
+    currentUser.permissions?.includes("System admin");
 
   const classes = useStyles();
   return (
@@ -170,7 +203,7 @@ const InstrumentPage = () => {
           </div>
         </Paper>
       </Grid>
-      {currentUser.permissions?.includes("Manage allocations") && (
+      {permission && (
         <Grid item md={6} sm={12}>
           <Paper>
             <div className={classes.paperContent}>

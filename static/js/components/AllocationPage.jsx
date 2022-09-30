@@ -1,6 +1,12 @@
-import React from "react";
+import React, { useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import DeleteIcon from "@mui/icons-material/Delete";
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  DialogActions,
+} from "@mui/material";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
 import ListItemText from "@mui/material/ListItemText";
@@ -143,12 +149,23 @@ const AllocationList = ({ allocations, deletePermission }) => {
   const { instrumentList } = useSelector((state) => state.instruments);
   const { telescopeList } = useSelector((state) => state.telescopes);
   const groups = useSelector((state) => state.groups.all);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [allocationToDelete, setAllocationToDelete] = useState(null);
+  const openDialog = (id) => {
+    setDialogOpen(true);
+    setAllocationToDelete(id);
+  };
+  const closeDialog = () => {
+    setDialogOpen(false);
+    setAllocationToDelete(null);
+  };
 
-  const deleteAllocation = (allocation) => {
-    dispatch(allocationActions.deleteAllocation(allocation.id)).then(
+  const deleteAllocation = () => {
+    dispatch(allocationActions.deleteAllocation(allocationToDelete)).then(
       (result) => {
         if (result.status === "success") {
           dispatch(showNotification("Allocation deleted"));
+          closeDialog();
         }
       }
     );
@@ -175,11 +192,25 @@ const AllocationList = ({ allocations, deletePermission }) => {
                 root: classes.allocationDelete,
                 disabled: classes.allocationDeleteDisabled,
               }}
-              onClick={() => deleteAllocation(allocation)}
+              onClick={() => openDialog(allocation.id)}
               disabled={!deletePermission}
             >
               <DeleteIcon />
             </Button>
+            <Dialog open={dialogOpen} onClose={closeDialog}>
+              <DialogTitle>Delete Allocation?</DialogTitle>
+              <DialogContent>
+                Are you sure you want to delete this allocation?
+              </DialogContent>
+              <DialogActions>
+                <Button secondary autoFocus onClick={closeDialog}>
+                  Dismiss
+                </Button>
+                <Button primary onClick={() => deleteAllocation()}>
+                  Confirm
+                </Button>
+              </DialogActions>
+            </Dialog>
           </ListItem>
         ))}
       </List>
@@ -198,14 +229,27 @@ const DefaultObservationPlanList = ({
   const { telescopeList } = useSelector((state) => state.telescopes);
   const groups = useSelector((state) => state.groups.all);
 
-  const deleteDefaultObservationPlan = (default_observation_plan) => {
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [defaultObservationPlanToDelete, setDefaultObservationPlanToDelete] =
+    useState(null);
+  const openDialog = (id) => {
+    setDialogOpen(true);
+    setDefaultObservationPlanToDelete(id);
+  };
+  const closeDialog = () => {
+    setDialogOpen(false);
+    setDefaultObservationPlanToDelete(null);
+  };
+
+  const deleteDefaultObservationPlan = () => {
     dispatch(
       defaultObservationPlansActions.deleteDefaultObservationPlan(
-        default_observation_plan.id
+        defaultObservationPlanToDelete
       )
     ).then((result) => {
       if (result.status === "success") {
         dispatch(showNotification("Default observation plan deleted"));
+        closeDialog();
       }
     });
   };
@@ -234,13 +278,25 @@ const DefaultObservationPlanList = ({
                 root: classes.defaultObservationPlanDelete,
                 disabled: classes.defaultObservationPlanDeleteDisabled,
               }}
-              onClick={() =>
-                deleteDefaultObservationPlan(default_observation_plan)
-              }
+              onClick={() => openDialog(default_observation_plan.id)}
               disabled={!deletePermission}
             >
               <DeleteIcon />
             </Button>
+            <Dialog open={dialogOpen} onClose={closeDialog}>
+              <DialogTitle>Delete default observation plan?</DialogTitle>
+              <DialogContent>
+                Are you sure you want to delete this default observation plan?
+              </DialogContent>
+              <DialogActions>
+                <Button secondary autoFocus onClick={closeDialog}>
+                  Dismiss
+                </Button>
+                <Button primary onClick={() => deleteDefaultObservationPlan()}>
+                  Confirm
+                </Button>
+              </DialogActions>
+            </Dialog>
           </ListItem>
         ))}
       </List>
