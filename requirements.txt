@@ -58,7 +58,7 @@ typing-extensions>=4.0.1  # astropy v5.0 needs this, but does not correctly spec
 swifttools==3.0.2
 pip==22.2.2
 gwemopt==0.0.76
-humanize==4.3.0
+humanize==4.4.0
 xarray>=21.1
 simsurvey==0.7.5
 noaodatalab==2.20.0
