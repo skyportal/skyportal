@@ -38,7 +38,7 @@
     "imports-loader": "4.0.0",
     "material-ui-phone-number": "2.2.6",
     "mathjax-full": "3.2.0",
-    "mathjs": "10.0.2",
+    "mathjs": "11.2.1",
     "moment": "2.29.3",
     "mui-datatables": "4.2.2",
     "npm-check": "5.9.2",
