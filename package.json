@@ -71,7 +71,7 @@
     "react-to-print": "2.14.4",
     "react-transition-group": "4.4.5",
     "react-window": "1.8.7",
-    "redoc": "2.0.0-rc.56",
+    "redoc": "2.0.0",
     "redoc-cli": "0.13.20",
     "redux": "4.2.0",
     "redux-logger": "3.0.6",
