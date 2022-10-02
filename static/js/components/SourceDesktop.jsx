@@ -456,14 +456,6 @@ const SourceDesktop = ({ source }) => {
         />
         <SourceSaveHistory groups={source.groups} />
         <div className={classes.columnItem}>
-          <ThumbnailList
-            ra={source.ra}
-            dec={source.dec}
-            thumbnails={source.thumbnails}
-            size="12.875rem"
-          />
-        </div>
-        <div className={classes.columnItem}>
           <Accordion defaultExpanded>
             <AccordionSummary
               expandIcon={<ExpandMoreIcon />}
@@ -582,7 +574,29 @@ const SourceDesktop = ({ source }) => {
             </AccordionDetails>
           </Accordion>
         </div>
-
+        <div>
+          <Accordion defaultExpanded>
+            <AccordionSummary
+              expandIcon={<ExpandMoreIcon />}
+              aria-controls="thumbnail-content"
+              id="thumbnail-header"
+            >
+              <Typography className={classes.accordionHeading}>
+                Thumbnails
+              </Typography>
+            </AccordionSummary>
+            <AccordionDetails>
+              <div className={classes.columnItem}>
+                <ThumbnailList
+                  ra={source.ra}
+                  dec={source.dec}
+                  thumbnails={source.thumbnails}
+                  size="12.875rem"
+                />
+              </div>
+            </AccordionDetails>
+          </Accordion>
+        </div>
         {/* TODO 1) check for dead links; 2) simplify link formatting if possible */}
         <div className={classes.columnItem}>
           <Accordion defaultExpanded>

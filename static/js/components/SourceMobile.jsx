@@ -457,14 +457,6 @@ const SourceMobile = WidthProvider(
                 />
                 <SourceSaveHistory groups={source.groups} />
               </div>
-              <div className={classes.thumbnails}>
-                <ThumbnailList
-                  ra={source.ra}
-                  dec={source.dec}
-                  thumbnails={source.thumbnails}
-                  size="10rem"
-                />
-              </div>
             </div>
             <Paper className={classes.comments} variant="outlined">
               <Typography className={classes.accordionHeading}>
@@ -647,6 +639,29 @@ const SourceMobile = WidthProvider(
                     </Link>
                   </div>
                 </Grid>
+              </AccordionDetails>
+            </Accordion>
+          </div>
+          <div>
+            <Accordion defaultExpanded>
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon />}
+                aria-controls="thumbnail-content"
+                id="thumbnail-header"
+              >
+                <Typography className={classes.accordionHeading}>
+                  Thumbnails
+                </Typography>
+              </AccordionSummary>
+              <AccordionDetails>
+                <div className={classes.thumbnails}>
+                  <ThumbnailList
+                    ra={source.ra}
+                    dec={source.dec}
+                    thumbnails={source.thumbnails}
+                    size="10rem"
+                  />
+                </div>
               </AccordionDetails>
             </Accordion>
           </div>
