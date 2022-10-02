@@ -97,6 +97,7 @@ User Guide
    query_analysis
    permissions
    slack
+   followup
    mma
    advanced_usage
    analysis
