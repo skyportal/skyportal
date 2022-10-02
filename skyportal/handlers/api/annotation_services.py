@@ -438,10 +438,17 @@ class VizierQueryHandler(BaseHandler):
             if len(tl) > 1:
                 return self.error("Should only have one table from that query.")
             df = tl[0].filled(fill_value=-99).to_pandas()
-            keys = [
-                'Qpct',
-                'z',
-            ]
+
+            if catalog == "VII/290":
+                keys = [
+                    'Qpct',
+                    'z',
+                ]
+            elif catalog == "II/335/galex_ais":
+                keys = ['FUVmag', 'e_FUVmag', 'NUVmag', 'e_NUVmag']
+            else:
+                keys = df.columns
+
             annotations = []
             for index, row in df.iterrows():
                 annotation_data = {
@@ -464,7 +471,7 @@ class VizierQueryHandler(BaseHandler):
 
             session.add_all(annotations)
             try:
-                self.verify_and_commit()
+                session.commit()
             except IntegrityError:
                 return self.error("Annotation already posted.")
 
