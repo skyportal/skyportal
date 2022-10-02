@@ -1,5 +1,6 @@
-import React from "react";
-import { useSelector } from "react-redux";
+import React, { useState } from "react";
+import { useSelector, useDispatch } from "react-redux";
+import DeleteIcon from "@mui/icons-material/Delete";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
 import ListItemText from "@mui/material/ListItemText";
@@ -8,10 +9,15 @@ import Paper from "@mui/material/Paper";
 import Grid from "@mui/material/Grid";
 import makeStyles from "@mui/styles/makeStyles";
 import PropTypes from "prop-types";
+import { showNotification } from "baselayer/components/Notifications";
 import CircularProgress from "@mui/material/CircularProgress";
 import NewInstrument from "./NewInstrument";
 // eslint-disable-next-line import/no-cycle
 import ModifyInstrument from "./ModifyInstrument";
+import Button from "./Button";
+import ConfirmDeletionDialog from "./ConfirmDeletionDialog";
+
+import * as instrumentActions from "../ducks/instrument";
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -21,6 +27,17 @@ const useStyles = makeStyles((theme) => ({
   },
   paperContent: {
     padding: "1rem",
+  },
+  instrumentDelete: {
+    cursor: "pointer",
+    fontSize: "2em",
+    position: "absolute",
+    padding: 0,
+    right: 0,
+    top: 0,
+  },
+  instrumentDeleteDisabled: {
+    opacity: 0,
   },
 }));
 
@@ -88,9 +105,31 @@ export function instrumentInfo(instrument, telescopeList) {
   return result;
 }
 
-const InstrumentList = ({ instruments, telescopes }) => {
+const InstrumentList = ({ instruments, telescopes, deletePermission }) => {
+  const dispatch = useDispatch();
   const classes = useStyles();
   const textClasses = textStyles();
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [instrumentToDelete, setInstrumentToDelete] = useState(null);
+  const openDialog = (id) => {
+    setDialogOpen(true);
+    setInstrumentToDelete(id);
+  };
+  const closeDialog = () => {
+    setDialogOpen(false);
+    setInstrumentToDelete(null);
+  };
+
+  const deleteInstrument = () => {
+    dispatch(instrumentActions.deleteInstrument(instrumentToDelete)).then(
+      (result) => {
+        if (result.status === "success") {
+          dispatch(showNotification("Instrument deleted"));
+          closeDialog();
+        }
+      }
+    );
+  };
 
   return (
     <div className={classes.root}>
@@ -101,6 +140,24 @@ const InstrumentList = ({ instruments, telescopes }) => {
               primary={instrumentTitle(instrument, telescopes)}
               secondary={instrumentInfo(instrument, telescopes)}
               classes={textClasses}
+            />
+            <Button
+              key={instrument.id}
+              id="delete_button"
+              classes={{
+                root: classes.instrumentDelete,
+                disabled: classes.instrumentDeleteDisabled,
+              }}
+              onClick={() => openDialog(instrument.id)}
+              disabled={!deletePermission}
+            >
+              <DeleteIcon />
+            </Button>
+            <ConfirmDeletionDialog
+              deleteFunction={deleteInstrument}
+              dialogOpen={dialogOpen}
+              closeDialog={closeDialog}
+              resourceName="instrument"
             />
           </ListItem>
         ))}
@@ -114,6 +171,10 @@ const InstrumentPage = () => {
   const { telescopeList } = useSelector((state) => state.telescopes);
   const currentUser = useSelector((state) => state.profile);
 
+  const permission =
+    currentUser.permissions?.includes("Manage allocations") ||
+    currentUser.permissions?.includes("System admin");
+
   const classes = useStyles();
   return (
     <Grid container spacing={3}>
@@ -124,11 +185,12 @@ const InstrumentPage = () => {
             <InstrumentList
               instruments={instrumentList}
               telescopes={telescopeList}
+              deletePermission={permission}
             />
           </div>
         </Paper>
       </Grid>
-      {currentUser.permissions?.includes("Manage allocations") && (
+      {permission && (
         <Grid item md={6} sm={12}>
           <Paper>
             <div className={classes.paperContent}>
@@ -151,6 +213,7 @@ const InstrumentPage = () => {
 InstrumentList.propTypes = {
   instruments: PropTypes.arrayOf(PropTypes.any).isRequired, // eslint-disable-line react/forbid-prop-types
   telescopes: PropTypes.arrayOf(PropTypes.any).isRequired, // eslint-disable-line react/forbid-prop-types
+  deletePermission: PropTypes.bool.isRequired,
 };
 
 export default InstrumentPage;
