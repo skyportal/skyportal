@@ -352,12 +352,14 @@ def get_sources(
     last_detected_date=None,
     has_tns_name=False,
     has_spectrum=False,
+    has_followup_request=False,
     sourceID=None,
     ra=None,
     dec=None,
     radius=None,
     has_spectrum_before=None,
     has_spectrum_after=None,
+    followup_request_status=None,
     saved_before=None,
     saved_after=None,
     created_or_modified_after=None,
@@ -538,6 +540,16 @@ def get_sources(
         spectrum_subquery = Spectrum.select(user).subquery()
         obj_query = obj_query.join(
             spectrum_subquery, Obj.id == spectrum_subquery.c.obj_id
+        )
+    if has_followup_request:
+        followup_request = FollowupRequest.select(user)
+        if followup_request_status:
+            followup_request = followup_request.where(
+                FollowupRequest.status.contains(followup_request_status.strip())
+            )
+        followup_request_subquery = followup_request.subquery()
+        obj_query = obj_query.join(
+            followup_request_subquery, Obj.id == followup_request_subquery.c.obj_id
         )
     if min_redshift is not None:
         try:
@@ -1879,6 +1891,19 @@ class SourceHandler(BaseHandler):
               type: boolean
             description: If true, return only those matches with at least one associated spectrum
           - in: query
+            name: hasFollowupRequest
+            nullable: true
+            schema:
+              type: boolean
+            description: If true, return only those matches with at least one associated followup request
+          - in: query
+            name: followupRequestStatus
+            nullable: true
+            schema:
+              type: string
+            description: |
+              If provided, string to match status of followup_request against
+          - in: query
             name: createdOrModifiedAfter
             nullable: true
             schema:
@@ -2009,6 +2034,9 @@ class SourceHandler(BaseHandler):
         has_spectrum = self.get_query_argument("hasSpectrum", False)
         has_spectrum_after = self.get_query_argument("hasSpectrumAfter", None)
         has_spectrum_before = self.get_query_argument("hasSpectrumBefore", None)
+        has_followup_request = self.get_query_argument("hasFollowupRequest", False)
+        followup_request_status = self.get_query_argument("followupRequestStatus", None)
+
         created_or_modified_after = self.get_query_argument(
             "createdOrModifiedAfter", None
         )
@@ -2172,6 +2200,8 @@ class SourceHandler(BaseHandler):
                     origin=origin,
                     has_tns_name=has_tns_name,
                     has_spectrum=has_spectrum,
+                    has_followup_request=has_followup_request,
+                    followup_request_status=followup_request_status,
                     min_redshift=min_redshift,
                     max_redshift=max_redshift,
                     min_peak_magnitude=min_peak_magnitude,
