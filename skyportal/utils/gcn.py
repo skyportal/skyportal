@@ -20,6 +20,21 @@ import ligo.skymap.postprocess
 import ligo.skymap.moc
 
 
+def get_trigger(root):
+    """Get the trigger ID from a GCN notice."""
+
+    property_name = "TrigID"
+    path = f".//Param[@name='{property_name}']"
+    elem = root.find(path)
+    if elem is None:
+        return None
+    value = elem.attrib.get('value', None)
+    if value is not None:
+        value = int(value)
+
+    return value
+
+
 def get_dateobs(root):
     """Get the UTC event time from a GCN notice, rounded to the nearest second,
     as a datetime.datetime object."""

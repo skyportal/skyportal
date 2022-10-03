@@ -55,6 +55,7 @@ from ...utils.gcn import (
     get_dateobs,
     get_properties,
     get_tags,
+    get_trigger,
     get_skymap,
     get_contour,
     from_url,
@@ -94,13 +95,19 @@ def post_gcnevent_from_xml(payload, user_id, session):
         raise ValueError("xml file is not valid VOEvent")
 
     dateobs = get_dateobs(root)
+    trigger_id = get_trigger(root)
 
-    event = session.scalars(
-        GcnEvent.select(user).where(GcnEvent.dateobs == dateobs)
-    ).first()
+    if trigger_id is not None:
+        event = session.scalars(
+            GcnEvent.select(user).where(GcnEvent.trigger_id == trigger_id)
+        ).first()
+    else:
+        event = session.scalars(
+            GcnEvent.select(user).where(GcnEvent.dateobs == dateobs)
+        ).first()
 
     if event is None:
-        event = GcnEvent(dateobs=dateobs, sent_by_id=user.id)
+        event = GcnEvent(dateobs=dateobs, sent_by_id=user.id, trigger_id=trigger_id)
         session.add(event)
     else:
         if not event.is_accessible_by(user, mode="update"):
