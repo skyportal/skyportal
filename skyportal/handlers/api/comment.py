@@ -1089,7 +1089,7 @@ class CommentAttachmentHandler(BaseHandler):
                 ):
                     try:
                         attachment = get_fits_preview(io.BytesIO(decoded_attachment))
-                        attachment_name = attachment_name.split(".fit")[0] + ".png"
+                        attachment_name = os.path.splitext(attachment_name)[0] + ".png"
                     except Exception as e:
                         log(f'Cannot render {attachment_name} as image: {str(e)}')
 
