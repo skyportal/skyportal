@@ -101,6 +101,7 @@ def post_and_verify_reminder_frontend(driver, reminder_text):
         next_reminder = (datetime.now() + timedelta(days=1)).strftime(
             "%m/%d/%YT%I:%M %p"
         )
+    driver.wait_for_xpath('//*[@id="root_next_reminder"]').clear()
     driver.wait_for_xpath('//*[@id="root_next_reminder"]').send_keys(
         next_reminder[0:11]
     )
