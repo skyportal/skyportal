@@ -1,15 +1,19 @@
 import string
 import base64
+import io
 from marshmallow.exceptions import ValidationError
-from baselayer.app.custom_exceptions import AccessError
-from baselayer.app.access import permissions, auth_or_token
-from baselayer.log import make_log
-from ..base import BaseHandler
+import os
 import sqlalchemy as sa
 import time
 import unicodedata
 
+from baselayer.app.custom_exceptions import AccessError
+from baselayer.app.access import permissions, auth_or_token
+from baselayer.log import make_log
+
+from ..base import BaseHandler
 from ...utils.sizeof import sizeof, SIZE_WARNING_THRESHOLD
+from ...utils.fits_display import get_fits_preview
 from ...models import (
     Comment,
     CommentOnSpectrum,
@@ -956,6 +960,12 @@ class CommentAttachmentHandler(BaseHandler):
             schema:
               type: boolean
               description: If true, download the attachment; else return file data as text. True by default.
+          - in: query
+            name: preview
+            nullable: True
+            schema:
+              type: boolean
+              description: If true, return an attachment preview. False by default.
         responses:
           200:
             content:
@@ -990,6 +1000,7 @@ class CommentAttachmentHandler(BaseHandler):
             return self.error("Must provide a valid (scalar integer) comment ID. ")
 
         download = self.get_query_argument('download', True)
+        preview = self.get_query_argument('preview', False)
 
         with self.Session() as session:
 
@@ -1072,12 +1083,21 @@ class CommentAttachmentHandler(BaseHandler):
             )
 
             if download:
+                attachment = decoded_attachment
+
+                if preview and attachment_name.lower().endswith(("fit", "fits")):
+                    try:
+                        attachment = get_fits_preview(io.BytesIO(decoded_attachment))
+                        attachment_name = os.path.splitext(attachment_name)[0] + ".png"
+                    except Exception as e:
+                        log(f'Cannot render {attachment_name} as image: {str(e)}')
+
                 self.set_header(
                     "Content-Disposition",
                     "attachment; " f"filename={attachment_name}",
                 )
                 self.set_header("Content-type", "application/octet-stream")
-                self.write(decoded_attachment)
+                self.write(attachment)
             else:
                 comment_data = {
                     "commentId": int(comment_id),
