@@ -1085,7 +1085,7 @@ class CommentAttachmentHandler(BaseHandler):
                 attachment = decoded_attachment
 
                 if preview and (
-                    attachment_name.endswith("fit") or attachment_name.endswith("fits")
+                    attachment_name.lower().endswith(("fit", "fits"))
                 ):
                     try:
                         attachment = get_fits_preview(io.BytesIO(decoded_attachment))
