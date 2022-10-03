@@ -2,6 +2,7 @@ import string
 import base64
 import io
 from marshmallow.exceptions import ValidationError
+import os
 import sqlalchemy as sa
 import time
 import unicodedata
@@ -1084,9 +1085,7 @@ class CommentAttachmentHandler(BaseHandler):
             if download:
                 attachment = decoded_attachment
 
-                if preview and (
-                    attachment_name.lower().endswith(("fit", "fits"))
-                ):
+                if preview and attachment_name.lower().endswith(("fit", "fits")):
                     try:
                         attachment = get_fits_preview(io.BytesIO(decoded_attachment))
                         attachment_name = os.path.splitext(attachment_name)[0] + ".png"

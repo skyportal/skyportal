@@ -259,7 +259,7 @@ const CommentAttachmentPreview = ({
                 // preview with no way to edit it without losing resolution due
                 // to hard-coded in-line styling, so use the FilePreviewer
                 // component for PDF
-                <FilePreviewer file={{ url: previewUrl }} hideControls />
+                <FilePreviewer file={{ url }} hideControls />
               )}
               {supportedType && fileType === "json" && (
                 <ReactJson
