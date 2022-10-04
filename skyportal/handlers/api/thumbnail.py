@@ -5,6 +5,7 @@ import hashlib
 from pathlib import Path
 from marshmallow.exceptions import ValidationError
 import sqlalchemy as sa
+from sqlalchemy import func
 from sqlalchemy.exc import StatementError
 from PIL import Image, UnidentifiedImageError
 
@@ -32,7 +33,14 @@ def post_thumbnail(data, user_id, session):
 
     basedir = Path(os.path.dirname(__file__)) / '..' / '..'
     hash = hashlib.sha256(data['obj_id'].encode('utf-8')).hexdigest()
-    subfolders = f'{hash[0:2]}/{hash[2:4]}'
+
+    # can someday make this a configurable parameter
+    required_depth = 2
+    subfolders = []
+    for i in range(required_depth):
+        subfolders.append(hash[i * 2 : (i + 1) * 2])
+    subfolders = '/'.join(subfolders)
+
     if os.path.abspath(basedir).endswith('skyportal/skyportal'):
         basedir = basedir / '..'
     file_uri = os.path.abspath(
@@ -59,7 +67,7 @@ def post_thumbnail(data, user_id, session):
             obj_id=data["obj_id"],
             type=data["ttype"],
             file_uri=file_uri,
-            public_url=f'/static/thumbnails/{data["obj_id"]}_{data["ttype"]}.png',
+            public_url=f'/static/thumbnails/{subfolders}/{data["obj_id"]}_{data["ttype"]}.png',
         )
         with open(file_uri, 'wb') as f:
             f.write(file_bytes)
@@ -256,3 +264,302 @@ class ThumbnailHandler(BaseHandler):
             session.commit()
 
             return self.success()
+
+
+class ThumbnailPathHandler(BaseHandler):
+    @permissions(['System admin'])
+    def get(self):
+        """
+        ---
+        description: |
+          Get information on thumbnails that are
+          or are not in the correct folder/path.
+        tags:
+          - thumbnails
+        parameters:
+          - in: query
+            name: types
+            required: false
+            default: ['new', 'ref', 'sub']
+            schema:
+              type: array
+              items:
+                type: string
+            description: types of thumbnails to check
+          - in: query
+            name: requiredDepth
+            required: false
+            default: 2
+            schema:
+              type: integer
+            description: |
+              number of subdirectories that are desired for
+              thumbnails. For example if requiredDepth is 2,
+                then thumbnails will be stored in a folder like
+                /skyportal/static/thumbnails/ab/cd/<source_name>_<type>.png
+                where "ab" and "cd" are the first characters of the
+                hash of the source name.
+                If requiredDepth is 0, then thumbnails are expected
+                to be all in one folder under /skyportal/static/thumbnails.
+        responses:
+          200:
+            content:
+              application/json:
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          type: object
+                          properties:
+                            totalMatches:
+                              type: integer
+                            inCorrectFolder:
+                              type: integer
+                            inWrongFolder:
+                              type: integer
+
+        """
+        types = self.get_query_argument('types', ['new', 'ref', 'sub'])
+        required_depth = self.get_query_argument('requiredDepth', 2)
+        try:
+            required_depth = int(required_depth)
+        except ValueError:
+            return self.error('requiredDepth must be an integer')
+
+        if required_depth < 0 or required_depth > 32:
+            return self.error('requiredDepth must be between 0 and 32')
+
+        good_like = f"%thumbnails{'/__' * required_depth}/%"
+        bad_like = f"%thumbnails{'/__' * (required_depth + 1)}/%"
+
+        with self.Session() as session:
+            stmt = sa.select(Thumbnail).where(Thumbnail.type.in_(types))
+            count_stmt = sa.select(func.count()).select_from(stmt)
+            total_matches = session.execute(count_stmt).scalar()
+            good_stmt = stmt.where(
+                Thumbnail.file_uri.like(good_like), ~Thumbnail.file_uri.like(bad_like)
+            )
+            good_matches = session.execute(
+                sa.select(func.count()).select_from(good_stmt)
+            ).scalar()
+            bad_stmt = stmt.where(
+                sa.or_(
+                    ~Thumbnail.file_uri.like(good_like),
+                    Thumbnail.file_uri.like(bad_like),
+                )
+            )
+            bad_matches = session.execute(
+                sa.select(func.count()).select_from(bad_stmt)
+            ).scalar()
+
+        return self.success(
+            data={
+                'totalMatches': total_matches,
+                'inCorrectFolder': good_matches,
+                'inWrongFolder': bad_matches,
+            }
+        )
+
+    @permissions(['System admin'])
+    def patch(self):
+        """
+        ---
+        description: |
+          Update the file path and file_uri of the database rows
+          of thumbnails that are not in the correct folder/path.
+        tags:
+          - thumbnails
+        parameters:
+          - in: query
+            name: types
+            required: false
+            default: ['new', 'ref', 'sub']
+            schema:
+              type: array
+              items:
+                type: string
+            description: types of thumbnails to check
+          - in: query
+            name: requiredDepth
+            required: false
+            default: 2
+            schema:
+              type: integer
+            description: |
+              number of subdirectories that are desired for
+              thumbnails. For example if requiredDepth is 2,
+                then thumbnails will be stored in a folder like
+                /skyportal/static/thumbnails/ab/cd/<source_name>_<type>.png
+                where "ab" and "cd" are the first characters of the
+                hash of the source name.
+                If requiredDepth is 0, then thumbnails are expected
+                to be all in one folder under /skyportal/static/thumbnails.
+          - in: query
+            name: numPerPage
+            nullable: true
+            schema:
+              type: integer
+            description: |
+              Number of sources to check for updates. Defaults to 100. Max 500.
+          - in: query
+            name: pageNumber
+            nullable: true
+            schema:
+              type: integer
+            description: Page number for iterating through all sources. Defaults to 1
+        responses:
+          200:
+            content:
+              application/json:
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          type: object
+                          properties:
+                            totalMatches:
+                              type: integer
+                            inCorrectFolder:
+                              type: integer
+                            inWrongFolder:
+                              type: integer
+
+        """
+        types = self.get_query_argument('types', ['new', 'ref', 'sub'])
+        required_depth = self.get_query_argument('requiredDepth', 2)
+        try:
+            required_depth = int(required_depth)
+        except ValueError:
+            return self.error('requiredDepth must be an integer')
+
+        if required_depth < 0 or required_depth > 32:
+            return self.error('requiredDepth must be between 0 and 32')
+        try:
+            page_number = int(self.get_query_argument('pageNumber', 1))
+            num_per_page = min(
+                int(self.get_query_argument("numPerPage", 100)),
+                1000,
+            )
+        except ValueError:
+            return self.error(
+                f'Cannot parse inputs pageNumber ({page_number}) '
+                f'or numPerPage ({num_per_page}) as an integers.'
+            )
+
+        good_like = f"%thumbnails{'/__' * required_depth}/%"
+        bad_like = f"%thumbnails{'/__' * (required_depth + 1)}/%"
+
+        num_moved = 0
+        with self.Session() as session:
+            stmt = sa.select(Thumbnail).where(Thumbnail.type.in_(types))
+            stmt = stmt.where(
+                sa.or_(
+                    ~Thumbnail.file_uri.like(good_like),
+                    Thumbnail.file_uri.like(bad_like),
+                )
+            )
+            stmt = stmt.offset((page_number - 1) * num_per_page)
+            stmt = stmt.limit(num_per_page)
+            thumbnails = session.execute(stmt).scalars().unique().all()
+            for t in thumbnails:
+                if t.file_uri is None:
+                    continue
+
+                hash = hashlib.sha256(t.obj_id.encode('utf-8')).hexdigest()
+                subfolders = []
+                for i in range(required_depth):
+                    subfolders.append(hash[i * 2 : (i + 1) * 2])
+                subfolders = '/'.join(subfolders)
+                path = (
+                    'thumbnails'.join(t.file_uri.split('thumbnails')[:-1])
+                    + 'thumbnails'
+                )
+                filename = os.path.basename(t.file_uri)
+                new_file_uri = os.path.join(path, subfolders, filename)
+                new_public_url = os.path.join(
+                    '/static/thumbnails', subfolders, filename
+                )
+                old_file_uri = t.file_uri
+
+                try:
+                    os.makedirs(os.path.dirname(new_file_uri), exist_ok=True)
+                    os.rename(old_file_uri, new_file_uri)
+                except Exception as e:
+                    return self.error(
+                        f'Could not move {old_file_uri} to {new_file_uri}: {e}'
+                    )
+
+                try:
+                    t.file_uri = new_file_uri
+                    t.public_url = new_public_url
+                    session.add(t)
+                    session.commit()
+                except Exception as e:
+                    session.rollback()
+                    # make sure to move the files back as well
+                    os.rename(new_file_uri, old_file_uri)
+                    return self.error(f'Could not update database row: {e}')
+
+                num_moved += 1
+
+            stmt = sa.select(Thumbnail).where(Thumbnail.type.in_(types))
+            count_stmt = sa.select(func.count()).select_from(stmt)
+            total_matches = session.execute(count_stmt).scalar()
+            good_stmt = stmt.where(
+                Thumbnail.file_uri.like(good_like), ~Thumbnail.file_uri.like(bad_like)
+            )
+            good_matches = session.execute(
+                sa.select(func.count()).select_from(good_stmt)
+            ).scalar()
+            bad_stmt = stmt.where(
+                sa.or_(
+                    ~Thumbnail.file_uri.like(good_like),
+                    Thumbnail.file_uri.like(bad_like),
+                )
+            )
+            bad_matches = session.execute(
+                sa.select(func.count()).select_from(bad_stmt)
+            ).scalar()
+
+        return self.success(
+            data={
+                'totalMatches': total_matches,
+                'inCorrectFolder': good_matches,
+                'inWrongFolder': bad_matches,
+                'numMoved': num_moved,
+            }
+        )
+
+    @permissions(['System admin'])
+    def delete(self):
+        """
+        ---
+        description: |
+          Delete all empty subfolders under "thumbnails".
+          These can be left over if moving thumbnails to a
+          different folder structure.
+
+        tags:
+          - thumbnails
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+        """
+        basepath = os.path.join(
+            os.path.dirname(__file__), '../../../', 'static', 'thumbnails'
+        )
+        basepath = os.path.abspath(basepath)
+        for root, dirs, files in os.walk(basepath, topdown=False):
+            for d in dirs:
+                try:
+                    os.removedirs(os.path.join(root, d))
+                except OSError:
+                    pass  # not empty, skipping
+
+        return self.success()
