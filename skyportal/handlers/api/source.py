@@ -1048,6 +1048,7 @@ def get_sources(
                 include_thumbnails=False,
                 # include detection stats here as it is a query column,
                 include_detection_stats=include_detection_stats,
+                use_cache=True,
                 current_user=user,
             )
         except ValueError as e:
