@@ -5,6 +5,7 @@ import datetime
 import warnings
 from functools import wraps
 import re
+import time
 
 import pandas as pd
 import requests
@@ -31,7 +32,7 @@ from astropy.io import fits
 from astropy.visualization import ImageNormalize, ZScaleInterval
 from reproject import reproject_adaptive
 import pyvo as vo
-from pyvo.dal.exceptions import DALQueryError
+from pyvo.dal.exceptions import DALQueryError, DALServiceError
 
 from .cache import Cache
 
@@ -118,9 +119,14 @@ class GaiaQuery:
             rez = job.get_results()
             return rez
         else:
-            # native return type is pyvo.dal.tap.TAPResults
-            job = self.connection.search(q)
-            return self._standardize_table(job.to_table())
+            try:
+                # native return type is pyvo.dal.tap.TAPResults
+                job = self.connection.search(q)
+                return self._standardize_table(job.to_table())
+            except DALServiceError:
+                log("Warning: backup TAP+ server failed")
+                self.connection = None
+                raise HTTPError("GaiaQuery failed on backup database.")
 
     def _standardize_table(self, tab):
 
@@ -751,8 +757,24 @@ def get_nearby_offset_stars(
                            {radius_degrees}))
                 """
 
-    g = GaiaQuery()
-    r = g.query(query_string)
+    try:
+        g = GaiaQuery()
+        r = g.query(query_string)
+    except Exception as e:
+        log(f"Gaia query failed: {e}. Trying again")
+        time.sleep(1)
+        try:
+            g = GaiaQuery()
+            r = g.query(query_string)
+        except Exception as e:
+            log(f"Gaia query failed again: {e}")
+            return (
+                [],
+                query_string.replace("\n", " "),
+                queries_issued,
+                0,
+                False,
+            )
 
     # we need to filter here to get around the new Gaia archive slowdown
     # when SQL filtering on different columns
