@@ -64,10 +64,4 @@ Settings for extensions can be specified in the `config.yaml`. Taking fritz as a
     host: kowalski.caltech.edu
     port: 443
     token: YOUR_TOKEN_HERE
-
-  gloria:
-    protocol: https
-    host: gloria.caltech.edu
-    port: 443
-    token: YOUR_TOKEN_HERE
 ```
