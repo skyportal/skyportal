@@ -54,7 +54,9 @@ and then those handlers are added to the baseline app:
     app.add_handlers(r".*", fritz_handlers)  # match any host
 ```
 
-This is known as the "app factory", and is configured in the config.yaml as follows.
+This is known as the "app factory", which is a function used to create the Tornado application. This is often needed to add additional routes, or do certain setup procedures before the application is run.
+
+To add accessible routes to the web interface, one configures the config.yaml as follows.
 
 ```
     routes:
@@ -65,6 +67,8 @@ This is known as the "app factory", and is configured in the config.yaml as foll
       - path: "/archive"
         component: Archive
 ```
+
+where each path in the browser is tied to a specific React.js component as rendered.
 
 For certain Javascript components we also have "Plugins", through which functionality can be added to extend those pages. These are currently available on the Source (`SourcePlugins.jsx`), Candidates (`CandidatePlugins.jsx`), Filters (`FilterPlugins.jsx`), and About (`AboutPlugins.jsx`) pages.
 
