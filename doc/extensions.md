@@ -12,7 +12,7 @@ For the APIs in particular, a dedicated app_server.py needs to be created. To de
 
 ```from skyportal.app_server import make_app```
 
-specific handlers are added like (taking Fritz as an example):
+Custom handlers are added as follows (taking Fritz as an example):
 
 ```
 from skyportal.handlers.api.alert import (
