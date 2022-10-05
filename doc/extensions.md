@@ -3,7 +3,7 @@
 It is common for specific instances of SkyPortal to employ "extensions", which use added components and APIs not available in the baseline app, usually because of particular forms of data access and distribution. Some examples include [Fritz](https://github.com/fritz-marshal/fritz) or [SkyPortal-GRANDMA](https://github.com/grandma-collaboration/icare).
 
 For the APIs, they will have a folder: extensions/skyportal/skyportal/handlers/api
-For the ducks, they will have a folder: extensions/skyportal/static/js/ducks
+For redux, they will have a folder: extensions/skyportal/static/js/ducks
 For the components, they will have a folder: extensions/skyportal/static/js/components
 
 When deploying, each of these folders are copied into skyportal in their corresponding folder.
