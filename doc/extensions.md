@@ -54,6 +54,18 @@ and then those handlers are added to the baseline app:
     app.add_handlers(r".*", fritz_handlers)  # match any host
 ```
 
+This is known as the "app factory", and is configured in the config.yaml as follows.
+
+```
+    routes:
+      - path: "/alerts"
+        component: Alerts
+      - path: "/alerts/ztf/:id"
+        component: ZTFAlert
+      - path: "/archive"
+        component: Archive
+```
+
 For certain Javascript components we also have "Plugins", through which functionality can be added to extend those pages. These are currently available on the Source (`SourcePlugins.jsx`), Candidates (`CandidatePlugins.jsx`), Filters (`FilterPlugins.jsx`), and About (`AboutPlugins.jsx`) pages.
 
 Settings for extensions can be specified in the `config.yaml`. Taking fritz as an example again, here is a segment that configures `kowalski`:
@@ -64,3 +76,17 @@ Settings for extensions can be specified in the `config.yaml`. Taking fritz as a
     host: kowalski.caltech.edu
     port: 443
     token: YOUR_TOKEN_HERE
+```
+
+Your extension can read the configuration as follows:
+
+
+```
+  from baselayer.app.env import load_env
+  env, cfg = load_env()
+```
+
+and then access specific entries with calls like:
+
+```
+  protocol = cfg["app.kowalski.protocol"]
