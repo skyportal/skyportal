@@ -54,7 +54,7 @@ and then those handlers are added to the baseline app:
     app.add_handlers(r".*", fritz_handlers)  # match any host
 ```
 
-For the components, we also have specific ``Plug Ins,'' where specific components can be added to extend individual pages. These are currently available on the Source Page (SourcePlugins.jsx), Candidates Page (CandidatePlugins.jsx), Filters Page (FilterPlugins.jsx) and About Page (AboutPlugins.jsx).
+For certain Javascript components we also have "Plugins", through which functionality can be added to extend those pages. These are currently available on the Source (`SourcePlugins.jsx`), Candidates (`CandidatePlugins.jsx`), Filters (`FilterPlugins.jsx`), and About (`AboutPlugins.jsx`) pages.
 
 Finally, extra entries can be added directly in the config.yaml as needed for these extensions. Taking fritz as an example again, access information for kowalski and gloria is added to the config:
 
