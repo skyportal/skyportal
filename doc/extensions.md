@@ -8,7 +8,7 @@ For the components, they will have a folder: extensions/skyportal/static/js/comp
 
 When deploying, files are copied into each of these SkyPortal folders from your repository.
 
-For the APIs in particular, a dedicated app_server.py needs to be created. To deploy, it will take a form similar to [this](https://github.com/fritz-marshal/fritz/blob/main/extensions/skyportal/skyportal/app_server_fritz.py), where in addition to the baseline application loaded with
+For APIs in particular, a dedicated `app_server.py` needs to be created. To deploy, it will take a form similar to [this](https://github.com/fritz-marshal/fritz/blob/main/extensions/skyportal/skyportal/app_server_fritz.py), where in addition to the baseline application loaded with
 
 ```from skyportal.app_server import make_app```
 
