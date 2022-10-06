@@ -415,6 +415,9 @@ def get_astrometry_backup_from_ztf(
     """
     # get the ZTF catalog data and make it look like a Gaia Query result
     ztf_astrometry = get_ztfcatalog(ra, dec, as_astropy_table=True)
+    if len(ztf_astrometry) == 0:
+        return ztf_astrometry
+
     ztf_astrometry.rename_column('sourceid', 'source_id')
     ztf_astrometry.rename_column('mag', 'phot_rp_mean_mag')
     ztf_astrometry["phot_rp_mean_mag"].fill_value = 20.0
@@ -479,6 +482,10 @@ def get_ztfcatalog(
     cache = Cache(cache_dir=cache_dir, max_items=cache_max_items)
 
     refurl = get_ztfref_url(ra, dec, imsize=5)
+    if refurl is None or refurl == '':
+        log("Empty ZTF reference image URL. Returning empty table.")
+        return Table()
+
     # the catalog data is in the same directory as the reference images
     caturl = refurl.replace("_refimg.fits", "_refpsfcat.fits")
     catname = os.path.basename(caturl)
@@ -513,7 +520,7 @@ def get_ztfcatalog(
         catalog = SkyCoord.guess_from_table(ztftable)
         return catalog
     except ValueError:
-        return None
+        return Table()
 
 
 @warningfilter(action="ignore", category=RuntimeWarning)
@@ -871,7 +878,7 @@ def get_nearby_offset_stars(
             use_ztfref = True
         else:
             return default_return
-    if len(r) == 0:
+    if r is None or len(r) == 0:
         return default_return
 
     # we need to filter here to get around the new Gaia archive slowdown
@@ -911,7 +918,7 @@ def get_nearby_offset_stars(
     catalog = SkyCoord.guess_from_table(r)
     if use_ztfref:
         ztfcatalog = get_ztfcatalog(source_ra, source_dec)
-        if ztfcatalog is None:
+        if ztfcatalog is None or len(ztfcatalog) == 0:
             log(
                 'Warning: Could not find the ZTF reference catalog'
                 f' at position {source_ra} {source_dec}'
