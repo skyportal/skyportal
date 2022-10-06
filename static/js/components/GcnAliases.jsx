@@ -46,23 +46,8 @@ const GcnAliases = ({ gcnEvent }) => {
     aliases = [...new Set(aliases)];
   }
 
-  const handleClick = () => {
-    dispatch(gcnEventActions.postGcnAliases(gcnEvent.dateobs)).then(
-      (response) => {
-        if (response.status === "success") {
-          dispatch(showNotification("Aliases updated successfully"));
-        } else {
-          dispatch(showNotification("Error updating aliases", "error"));
-        }
-      }
-    );
-  };
-
-  console.log("aliases", aliases);
-
   return (
     <div className={classes.root}>
-      <h3 className={classes.title}>Aliases: </h3>
       <div className={classes.chips} name="aliases-chips">
         {aliases.map((alias) => (
           <Chip
@@ -78,19 +63,6 @@ const GcnAliases = ({ gcnEvent }) => {
             }}
           />
         ))}
-        {permission && (
-          <Chip
-            className={classes.addIcon}
-            size="small"
-            label="+"
-            key="add-aliases"
-            name="add-aliases"
-            clickable
-            onClick={() => {
-              handleClick();
-            }}
-          />
-        )}
       </div>
     </div>
   );

@@ -1,10 +1,19 @@
+from datetime import date
 import arrow
 import requests
 import re
+from tornado.ioloop import IOLoop
 from ..base import BaseHandler
 from baselayer.app.access import permissions
-from ...models import GcnEvent
+from ...models import GcnEvent, DBSession
 from astropy.time import Time
+
+from baselayer.log import make_log
+
+log = make_log('api/gcn_aliases')
+
+from sqlalchemy.orm import sessionmaker, scoped_session
+Session = scoped_session(sessionmaker(bind=DBSession.session_factory.kw["bind"]))
 
 
 def get_tach_event_id(dateobs, tags):
@@ -84,7 +93,7 @@ def get_tach_event_id(dateobs, tags):
 
 
 def get_other_aliases(ids, day, original):
-    url = "https://heasarc.gsfc.nasa.gov/wsgi-scripts/tach/gcn_v2/tach.wsgi/graphql"
+    url = "https://heasarc.gsfc.nasa.gov/wsgi-scripts/tach/gcn_v2/tach.wsgi/graphql_fast"
     headers = {
         "Content-Type": "application/json",
         "Origin": "https://heasarc.gsfc.nasa.gov",
@@ -103,21 +112,27 @@ def get_other_aliases(ids, day, original):
                 }}
             }}'''
         }
+        log(f"requesting circular body:{id}")
         response = requests.request("POST", url, json=payload, headers=headers)
         if response.status_code == 200:
             data = response.json()
-            body = data["data"]["circularBodyById"]["edges"][0]["node"]["body"]
-            bodies.append(body)
-            exception = f"(?i)(?!.*{original}.*)"
-            match = re.search(
-                exception + r"\b([^\s\d])+[ |-]?(" + day + r")+[^\s\d]?\b", body
-            )
-            if (
-                match
-                and len(match.group()) < 20
-                and match.group().replace(" ", "").upper() != original.upper()
-            ):
-                aliases.append(match.group())
+            if len(data["data"]["circularBodyById"]["edges"]) > 0:
+                body = data["data"]["circularBodyById"]["edges"][0]["node"]["body"]
+                bodies.append(body)
+                exception = f"(?i)(?!.*{original}.*)"
+                pattern = rf"{exception}\b([^\s\d])+[ |-]?({day})+[^\s\d]?\b"
+                log(f"pattern:{pattern}")
+                match = re.search(
+                    pattern, body
+                )
+                log(str(match))
+                if (
+                    match
+                    and len(match.group()) < 20
+                    and match.group().replace(" ", "").upper() != original.upper()
+                ):
+                    log(str(match.group()))
+                    aliases.append(match.group())
     return (aliases, bodies)
 
 
@@ -163,6 +178,7 @@ def get_tach_event_aliases(id, gcn_event):
     }
 
     response = requests.request("POST", url, json=payload, headers=headers)
+    log(str(response.status_code))
     aliases = []
     if response.status_code == 200:
         data = response.json()
@@ -176,11 +192,17 @@ def get_tach_event_aliases(id, gcn_event):
                 circular_ids.append(event["node"]["id_"])
                 circular_nums.append(event["node"]["cid"])
                 circular_subjects.append(event["node"]["subject"])
+            log('finished looping over events')
+            log(str(circular_ids))
+            log(str(circular_nums))
+            log(str(circular_subjects))
             nums = [int(x) for x in aliases[0].split() if x.isdigit()]
             day = "".join(nums)
+            log(str(day))
             other_aliases, circular_bodies = get_other_aliases(
                 circular_ids, day, aliases[0]
             )
+            log('CIRCULAR BODIES')
             aliases += other_aliases
             gcn_event.circulars = zip(circular_nums, circular_subjects, circular_bodies)
             return aliases
@@ -188,6 +210,32 @@ def get_tach_event_aliases(id, gcn_event):
             return []
     return []
 
+def post_aliases(dateobs, tach_id, user, push_all):
+    with Session() as session:
+        stmt = GcnEvent.select(user).where(
+            GcnEvent.dateobs == dateobs)
+        gcn_event = session.scalars(stmt).first()
+        if gcn_event is None:
+            return
+        gcn_event.tach_id = tach_id
+        new_gcn_aliases = get_tach_event_aliases(tach_id, gcn_event)
+        log('GOT THE NEW ALIASES')
+        log(str(new_gcn_aliases))
+
+        if gcn_event.aliases is None:
+            gcn_event.aliases = new_gcn_aliases
+        else:
+            gcn_aliases = [alias.upper() for alias in gcn_event.aliases]
+            for new_gcn_alias in new_gcn_aliases:
+                if new_gcn_alias.upper() not in gcn_aliases:
+                    gcn_aliases.append(new_gcn_alias)
+            gcn_event.aliases = gcn_aliases
+        session.commit()
+
+    push_all(
+            action='skyportal/REFRESH_GCNEVENT',
+            payload={'gcnEvent_dateobs': dateobs},
+        )
 
 class GcnAliasesHandler(BaseHandler):
     @permissions(["Manage GCNs"])
@@ -224,9 +272,11 @@ class GcnAliasesHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+        log('SHEEEEESH')
         try:
             arrow.get(dateobs).datetime
         except Exception:
+            log(f'Invalid dateobs: {dateobs}')
             return self.error(f'Invalid dateobs: {dateobs}')
         try:
             with self.Session() as session:
@@ -239,23 +289,23 @@ class GcnAliasesHandler(BaseHandler):
 
                 tags = gcn_event.tags
                 tach_id = get_tach_event_id(dateobs, tags)
-                gcn_event.tach_id = tach_id
-                new_gcn_aliases = get_tach_event_aliases(tach_id, gcn_event)
-
-                if gcn_event.aliases is None:
-                    gcn_event.aliases = new_gcn_aliases
-                else:
-                    gcn_aliases = [alias.upper() for alias in gcn_event.aliases]
-                    for new_gcn_alias in new_gcn_aliases:
-                        if new_gcn_alias.upper() not in gcn_aliases:
-                            gcn_aliases.append(new_gcn_alias)
-                    gcn_event.aliases = gcn_aliases
-                session.commit()
+                log('GOT THE TACH ID')
+                log(str(tach_id))
+                log('SET THE TACH ID')
                 gcn_event_id = gcn_event.id
+
+                log("POSTING ALIASES")
+
+                IOLoop.current().run_in_executor(
+                    None,
+                    lambda: post_aliases(
+                        dateobs, tach_id, session.user_or_token, self.push_all
+                    ),
+                )
+
+                log("RUNNING IN EXECUTOR")
+                
         except Exception as e:
+            log(f'Error scraping GCN aliases: {e}')
             return self.error(f'Error: {e}')
-        self.push_all(
-            action='skyportal/REFRESH_GCNEVENT',
-            payload={'gcnEvent_dateobs': dateobs},
-        )
         return self.success(data={'id': gcn_event_id})

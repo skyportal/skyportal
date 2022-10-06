@@ -248,10 +248,6 @@ skyportal_handlers = [
         GcnEventSurveyEfficiencyHandler,
     ),
     (
-        r'/api/gcn_event(/.*)/aliases',
-        GcnAliasesHandler,
-    ),
-    (
         r'/api/gcn_event(/[0-9A-Za-z-_\.\+]+)/catalog_query',
         GcnEventCatalogQueryHandler,
     ),
@@ -261,6 +257,7 @@ skyportal_handlers = [
     ),
     (r'/api/earthquake/status', EarthquakeStatusHandler),
     (r'/api/earthquake(/.*)?', EarthquakeHandler),
+    (r'/api/gcn_event(/.*)/aliases', GcnAliasesHandler),
     (r'/api/gcn_event/summary(/.*)?', GcnSummaryHandler),
     (r'/api/gcn_event/tags', GcnEventTagsHandler),
     (r'/api/gcn_event/properties', GcnEventPropertiesHandler),

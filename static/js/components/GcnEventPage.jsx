@@ -258,6 +258,10 @@ const GcnEventPage = ({ route }) => {
     endDate: null,
     localizationCumprob: null,
   });
+  const currentUser = useSelector((state) => state.profile);
+  const permission =
+    currentUser.permissions?.includes("System admin") ||
+    currentUser.permissions?.includes("Manage GCNs");
 
   const gcnEventSources = useSelector(
     (state) => state?.sources?.gcnEventSources
@@ -295,6 +299,18 @@ const GcnEventPage = ({ route }) => {
   if (width < 600) {
     xs = 14;
   }
+
+  const handleUpdateAliasesCirculars = () => {
+    dispatch(gcnEventActions.postGcnAliases(gcnEvent.dateobs)).then(
+      (response) => {
+        if (response.status === "success") {
+          dispatch(showNotification("Aliases updated successfully"));
+        } else {
+          dispatch(showNotification("Error updating aliases", "error"));
+        }
+      }
+    );
+  };
 
   return (
     <div ref={ref}>
@@ -474,6 +490,15 @@ const GcnEventPage = ({ route }) => {
                   <div className={styles.gcnEventContainer}>
                     <GcnAliases gcnEvent={gcnEvent} />
                   </div>
+                  {permission && (
+                    <Button
+                      secondary
+                      onClick={() => handleUpdateAliasesCirculars()}
+                      data-testid="update-aliases"
+                    >
+                      Update
+                    </Button>
+                  )}
                 </AccordionDetails>
               </Accordion>
             </div>
@@ -492,6 +517,15 @@ const GcnEventPage = ({ route }) => {
                   <div className={styles.gcnEventContainer}>
                     <GcnCirculars gcnEvent={gcnEvent} />
                   </div>
+                  {permission && (
+                    <Button
+                      secondary
+                      onClick={() => handleUpdateAliasesCirculars()}
+                      data-testid="update-circulars"
+                    >
+                      Update
+                    </Button>
+                  )}
                 </AccordionDetails>
               </Accordion>
             </div>
