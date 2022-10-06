@@ -403,11 +403,12 @@ class Obj(Base, conesearch_alchemy.Point):
     )
 
     def add_linked_thumbnails(self, session=DBSession):
-        """Determine the URLs of the SDSS and DESI DR8 thumbnails of the object,
+        """Determine the URLs of the SDSS and Legacy Survey DR9
+        thumbnails of the object,
         insert them into the Thumbnails table, and link them to the object."""
         sdss_thumb = Thumbnail(obj=self, public_url=self.sdss_url, type='sdss')
-        dr8_thumb = Thumbnail(obj=self, public_url=self.desi_dr8_url, type='dr8')
-        session.add_all([sdss_thumb, dr8_thumb])
+        ls_thumb = Thumbnail(obj=self, public_url=self.legacysurvey_dr9_url, type='ls')
+        session.add_all([sdss_thumb, ls_thumb])
         session.commit()
 
     def add_ps1_thumbnail(self, session=DBSession):
@@ -425,11 +426,11 @@ class Obj(Base, conesearch_alchemy.Point):
         )
 
     @property
-    def desi_dr8_url(self):
-        """Construct URL for public DESI DR8 cutout."""
+    def legacysurvey_dr9_url(self):
+        """Construct URL for public Legacy Survey DR9 cutout."""
         return (
             f"https://www.legacysurvey.org/viewer/jpeg-cutout?ra={self.ra}"
-            f"&dec={self.dec}&size=200&layer=dr8&pixscale=0.262&bands=grz"
+            f"&dec={self.dec}&size=200&layer=dr9&pixscale=0.262&bands=grz"
         )
 
     @property

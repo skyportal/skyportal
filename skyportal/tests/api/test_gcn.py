@@ -355,8 +355,6 @@ def test_gcn_summary_sources(
         len(source_table) >= 6
     )  # other photometry have probably been added in previous tests
     assert "mjd" in source_table[1]
-    assert "ra" in source_table[1]
-    assert "dec" in source_table[1]
     assert "mag±err (ab)" in source_table[1]
     assert "filter" in source_table[1]
     assert "origin" in source_table[1]

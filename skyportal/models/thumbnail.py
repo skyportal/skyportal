@@ -25,7 +25,7 @@ class Thumbnail(Base):
 
     # TODO delete file after deleting row
     type = sa.Column(
-        thumbnail_types, doc='Thumbnail type (e.g., ref, new, sub, dr8, ps1, ...)'
+        thumbnail_types, doc='Thumbnail type (e.g., ref, new, sub, ls, ps1, ...)'
     )
     file_uri = sa.Column(
         sa.String(),

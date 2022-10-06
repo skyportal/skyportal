@@ -128,6 +128,10 @@ const GcnEvents = () => {
       params.endDate = filterData.endDate;
       params.tagKeep = filterData.tagKeep;
       params.tagRemove = filterData.tagRemove;
+
+      if ("property" in filterData) {
+        params.propertiesFilter = `${filterData.property}: ${filterData.propertyComparatorValue}: ${filterData.propertyComparator}`;
+      }
     }
     // Save state for future
     setFetchParams(params);
@@ -147,7 +151,9 @@ const GcnEvents = () => {
 
   const handleFilterSubmit = async (formData) => {
     const data = filterOutEmptyValues(formData);
-
+    if ("property" in data) {
+      data.propertiesFilter = `${data.property}: ${data.propertyComparatorValue}: ${data.propertyComparator}`;
+    }
     handleTableFilter(1, defaultNumPerPage, data);
     setFilterFormSubmitted(true);
   };

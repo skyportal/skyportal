@@ -1,6 +1,8 @@
 # Inspired by https://github.com/growth-astro/growth-too-marshal/blob/main/growth/too/gcn.py
 
 import ast
+from astropy.time import Time
+import binascii
 import os
 import gcn
 import lxml
@@ -17,6 +19,7 @@ from sqlalchemy.sql.expression import cast
 from sqlalchemy.dialects.postgresql import JSONB
 from marshmallow import Schema
 from marshmallow.exceptions import ValidationError
+import numpy as np
 import operator  # noqa: F401
 
 from skyportal.models.photometry import Photometry
@@ -35,6 +38,7 @@ from ..base import BaseHandler
 from ...models import (
     DBSession,
     Allocation,
+    CatalogQuery,
     GcnEvent,
     GcnNotice,
     GcnProperty,
@@ -54,6 +58,7 @@ from ...utils.gcn import (
     get_skymap,
     get_contour,
     from_url,
+    from_bytes,
     from_cone,
     from_polygon,
 )
@@ -241,7 +246,10 @@ def post_gcnevent_from_dictionary(payload, user_id, session):
             else:
                 raise ValueError("ra, dec, and error must be in skymap to parse")
     else:
-        skymap = from_url(skymap)
+        try:
+            skymap = from_bytes(skymap)
+        except binascii.Error:
+            skymap = from_url(skymap)
 
     skymap["dateobs"] = event.dateobs
     skymap["sent_by_id"] = user.id
@@ -287,6 +295,36 @@ class GcnEventTagsHandler(BaseHandler):
         with self.Session() as session:
             tags = session.scalars(sa.select(GcnTag.text).distinct()).unique().all()
             return self.success(data=tags)
+
+
+class GcnEventPropertiesHandler(BaseHandler):
+    @auth_or_token
+    def get(self):
+        """
+        ---
+        description: Get all GCN Event properties
+        tags:
+          - photometry
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+
+        with self.Session() as session:
+            properties = (
+                session.scalars(
+                    sa.select(sa.func.jsonb_object_keys(GcnProperty.data)).distinct()
+                )
+                .unique()
+                .all()
+            )
+            return self.success(data=sorted(properties))
 
 
 class GcnEventSurveyEfficiencyHandler(BaseHandler):
@@ -393,6 +431,37 @@ class GcnEventObservationPlanRequestsHandler(BaseHandler):
                 request_data.append(dat)
 
             return self.success(data=request_data)
+
+
+class GcnEventCatalogQueryHandler(BaseHandler):
+    @auth_or_token
+    async def get(self, gcnevent_id):
+        """
+        ---
+        description: Get catalog queries of the GcnEvent.
+        tags:
+          - gcnevents
+        parameters:
+          - in: path
+            name: gcnevent_id
+            required: true
+            schema:
+              type: string
+        responses:
+          200:
+            content:
+              application/json:
+                schema: ArrayOfCatalogQuerys
+        """
+
+        with self.Session() as session:
+            queries = session.scalars(
+                CatalogQuery.select(
+                    session.user_or_token,
+                ).where(CatalogQuery.payload['gcnevent_id'] == gcnevent_id)
+            ).all()
+
+            return self.success(data=queries)
 
 
 class GcnEventHandler(BaseHandler):
@@ -973,6 +1042,11 @@ class GcnSummaryHandler(BaseHandler):
               schema:
                 type: bool
               description: Do not include text in the summary, only tables.
+            - in: query
+              name: photometryInWindow
+              schema:
+                type: bool
+              description: Limit photometry to that within startDate and endDate.
           responses:
             200:
               content:
@@ -1004,6 +1078,7 @@ class GcnSummaryHandler(BaseHandler):
         show_galaxies = self.get_query_argument('showGalaxies', False)
         show_observations = self.get_query_argument('showObservations', False)
         no_text = self.get_query_argument('noText', False)
+        photometry_in_window = self.get_query_argument('photometryInWindow', False)
 
         class Validator(Schema):
             start_date = UTCTZnaiveDateTime(required=False, missing=None)
@@ -1024,34 +1099,31 @@ class GcnSummaryHandler(BaseHandler):
         start_date = validated['start_date']
         end_date = validated['end_date']
 
+        if not no_text:
+            if title is None:
+                return self.error("Title is required")
+            if number is not None:
+                try:
+                    number = int(number)
+                except ValueError:
+                    return self.error("Number must be an integer")
+            if subject is None:
+                return self.error("Subject is required")
+            if user_ids is not None:
+                user_ids = [int(user_id) for user_id in user_ids.split(",")]
+                try:
+                    user_ids = [int(user_id) for user_id in user_ids]
+                except ValueError:
+                    return self.error("User IDs must be integers")
+            else:
+                user_ids = []
+            if group_id is None:
+                return self.error("Group ID is required")
+
+        start_date_mjd = Time(arrow.get(start_date).datetime).mjd
+        end_date_mjd = Time(arrow.get(end_date).datetime).mjd
+
         try:
-            if not no_text:
-                if title is None:
-                    return self.error("Title is required")
-                if number is not None:
-                    try:
-                        number = int(number)
-                    except ValueError:
-                        return self.error("Number must be an integer")
-                if subject is None:
-                    return self.error("Subject is required")
-                if user_ids is not None:
-                    user_ids = [int(user_id) for user_id in user_ids.split(",")]
-                    try:
-                        user_ids = [int(user_id) for user_id in user_ids]
-                    except ValueError:
-                        return self.error("User IDs must be integers")
-                else:
-                    user_ids = []
-                if group_id is None:
-                    return self.error("Group ID is required")
-
-            if start_date is None:
-                return self.error(message="Missing start_date")
-
-            if end_date is None:
-                return self.error(message="Missing end_date")
-
             with self.Session() as session:
                 contents = []
                 stmt = GcnEvent.select(session.user_or_token).where(
@@ -1187,14 +1259,17 @@ class GcnSummaryHandler(BaseHandler):
                             stmt = Photometry.select(session.user_or_token).where(
                                 Photometry.obj_id == source['id']
                             )
+                            if photometry_in_window:
+                                stmt = stmt.where(
+                                    Photometry.mjd >= start_date_mjd,
+                                    Photometry.mjd <= end_date_mjd,
+                                )
                             photometry = session.scalars(stmt).all()
                             if len(photometry) > 0:
                                 sources_text.append(
                                     f"""\nPhotometry for source {source['id']}:\n"""
                                 ) if not no_text else None
-                                mjds, ras, decs, mags, filters, origins, instruments = (
-                                    [],
-                                    [],
+                                mjds, mags, filters, origins, instruments = (
                                     [],
                                     [],
                                     [],
@@ -1204,21 +1279,24 @@ class GcnSummaryHandler(BaseHandler):
                                 for phot in photometry:
                                     phot = serialize(phot, 'ab', 'mag')
                                     mjds.append(phot['mjd'] if 'mjd' in phot else None)
-                                    ras.append(
-                                        f"{round(phot['ra'],2)}±{round(phot['ra_unc'],2)}"
-                                        if ('ra' in phot and 'ra_unc' in phot)
-                                        else None
-                                    )
-                                    decs.append(
-                                        f"{round(phot['dec'],2)}±{round(phot['dec_unc'],2)}"
-                                        if ('dec' in phot and 'dec_unc' in phot)
-                                        else None
-                                    )
-                                    mags.append(
-                                        f"{round(phot['mag'],2)}±{round(phot['magerr'],2)}"
-                                        if ('mag' in phot and 'magerr' in phot)
-                                        else None
-                                    )
+                                    if (
+                                        'mag' in phot
+                                        and 'magerr' in phot
+                                        and phot['mag'] is not None
+                                        and phot['magerr'] is not None
+                                    ):
+                                        mags.append(
+                                            f"{np.round(phot['mag'],2)}±{np.round(phot['magerr'],2)}"
+                                        )
+                                    elif (
+                                        'limiting_mag' in phot
+                                        and phot['limiting_mag'] is not None
+                                    ):
+                                        mags.append(
+                                            f"< {np.round(phot['limiting_mag'], 1)}"
+                                        )
+                                    else:
+                                        mags.append(None)
                                     filters.append(
                                         phot['filter'] if 'filter' in phot else None
                                     )
@@ -1233,8 +1311,6 @@ class GcnSummaryHandler(BaseHandler):
                                 df_phot = pd.DataFrame(
                                     {
                                         "mjd": mjds,
-                                        "ra": ras,
-                                        "dec": decs,
                                         "mag±err (ab)": mags,
                                         "filter": filters,
                                         "origin": origins,
@@ -1253,6 +1329,7 @@ class GcnSummaryHandler(BaseHandler):
                                         headers='keys',
                                         tablefmt='psql',
                                         showindex=False,
+                                        floatfmt=".5f",
                                     )
                                     + "\n"
                                 )
@@ -1380,11 +1457,8 @@ class GcnSummaryHandler(BaseHandler):
                             )
                             for obs in observations:
                                 t0s.append(
-                                    round(
-                                        (obs["obstime"] - event.dateobs)
-                                        / datetime.timedelta(hours=1),
-                                        2,
-                                    )
+                                    (obs["obstime"] - event.dateobs)
+                                    / datetime.timedelta(hours=1)
                                     if "obstime" in obs
                                     else None
                                 )
@@ -1438,6 +1512,15 @@ class GcnSummaryHandler(BaseHandler):
                                     headers='keys',
                                     tablefmt='psql',
                                     showindex=False,
+                                    floatfmt=(
+                                        ".2f",
+                                        ".5f",
+                                        ".5f",
+                                        ".5f",
+                                        "%s",
+                                        "%d",
+                                        ".2f",
+                                    ),
                                 )
                                 + "\n"
                             )

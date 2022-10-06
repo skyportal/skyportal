@@ -1045,6 +1045,35 @@ class ObservationPlanPost(_Schema):
     )
 
 
+class CatalogQueryPost(_Schema):
+
+    payload = fields.Field(
+        required=False,
+        metadata={'description': "Content of the catalog query request."},
+    )
+
+    status = fields.String(
+        load_default="pending submission",
+        metadata={'description': "The status of the request."},
+        required=False,
+    )
+
+    allocation_id = fields.Integer(
+        required=True,
+        metadata={'description': "Catalog query request allocation ID."},
+    )
+
+    target_group_ids = fields.List(
+        fields.Integer,
+        required=False,
+        metadata={
+            'description': (
+                'IDs of groups to share the results of the observation plan request with.'
+            )
+        },
+    )
+
+
 class DefaultObservationPlanPost(_Schema):
 
     payload = fields.Field(
@@ -1678,6 +1707,7 @@ Error = Error()
 Success = success('Success')
 SinglePhotometryFlux = success('SinglePhotometryFlux', PhotometryFlux)
 SinglePhotometryMag = success('SinglePhotometryMag', PhotometryMag)
+CatalogQueryPost = CatalogQueryPost()
 MMADetectorSpectrumPost = MMADetectorSpectrumPost()
 PhotometryFlux = PhotometryFlux()
 PhotometryMag = PhotometryMag()
