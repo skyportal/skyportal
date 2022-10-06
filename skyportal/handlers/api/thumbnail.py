@@ -442,8 +442,8 @@ class ThumbnailPathHandler(BaseHandler):
         except ValueError:
             return self.error('requiredDepth must be an integer')
 
-        if required_depth < 0 or required_depth > 32:
-            return self.error('requiredDepth must be between 0 and 32')
+        if required_depth <= 0 or required_depth > 32:
+            return self.error('requiredDepth must be at least 0 and no bigger than 31.')
         try:
             page_number = int(self.get_query_argument('pageNumber', 1))
             num_per_page = min(
