@@ -12,6 +12,8 @@ const SUBMIT_INSTRUMENT = "skyportal/SUBMIT_INSTRUMENT";
 
 const MODIFY_INSTRUMENT = "skyportal/MODIFY_INSTRUMENT";
 
+const DELETE_INSTRUMENT = "skyportal/DELETE_INSTRUMENT";
+
 const FETCH_INSTRUMENT_SKYMAP = "skyportal/FETCH_INSTRUMENT_SKYMAP";
 
 export const fetchInstrument = (id) =>
@@ -22,6 +24,10 @@ export const submitInstrument = (run) =>
 
 export const modifyInstrument = (id, params) =>
   API.PUT(`/api/instrument/${id}`, MODIFY_INSTRUMENT, params);
+
+export function deleteInstrument(id) {
+  return API.DELETE(`/api/instrument/${id}`, DELETE_INSTRUMENT);
+}
 
 export function fetchInstrumentSkymap(id, localization, airmassTime = null) {
   if (airmassTime) {

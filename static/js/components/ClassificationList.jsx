@@ -1,22 +1,25 @@
 import React, { useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
+import DeleteIcon from "@mui/icons-material/Delete";
 import Tooltip from "@mui/material/Tooltip";
 import GroupIcon from "@mui/icons-material/Group";
 import ListItem from "@mui/material/ListItem";
 import makeStyles from "@mui/styles/makeStyles";
 import { FixedSizeList } from "react-window";
+import { showNotification } from "baselayer/components/Notifications";
 
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import utc from "dayjs/plugin/utc";
 import Button from "./Button";
+import ConfirmDeletionDialog from "./ConfirmDeletionDialog";
 
 import * as sourceActions from "../ducks/source";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles(() => ({
   classification: {
     fontSize: "90%",
     display: "flex",
@@ -27,9 +30,6 @@ const useStyles = makeStyles((theme) => ({
     alignItems: "start",
     justifyContent: "space-between",
     overflowAnchor: "none",
-    "&:hover": {
-      backgroundColor: theme.palette.action.hover,
-    },
   },
   classificationHeader: {
     flexGrow: "4",
@@ -69,21 +69,6 @@ const useStyles = makeStyles((theme) => ({
 
 const ClassificationList = () => {
   const styles = useStyles();
-  const [hoverID, setHoverID] = useState(null);
-
-  const handleMouseHover = (id, userProfile, author) => {
-    if (
-      userProfile.permissions.includes("System admin") ||
-      userProfile.permissions.includes("Manage groups") ||
-      userProfile.username === author
-    ) {
-      setHoverID(id);
-    }
-  };
-
-  const handleMouseLeave = () => {
-    setHoverID(null);
-  };
 
   const dispatch = useDispatch();
   const { taxonomyList } = useSelector((state) => state.taxonomies);
@@ -92,6 +77,28 @@ const ClassificationList = () => {
   const userProfile = useSelector((state) => state.profile);
   // const acls = useSelector((state) => state.profile.acls);
   let { classifications } = obj;
+
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [classificationToDelete, setClassificationToDelete] = useState(null);
+  const openDialog = (id) => {
+    setDialogOpen(true);
+    setClassificationToDelete(id);
+  };
+  const closeDialog = () => {
+    setDialogOpen(false);
+    setClassificationToDelete(null);
+  };
+
+  const deleteClassification = () => {
+    dispatch(sourceActions.deleteClassification(classificationToDelete)).then(
+      (result) => {
+        if (result.status === "success") {
+          dispatch(showNotification("Classification deleted"));
+          closeDialog();
+        }
+      }
+    );
+  };
 
   classifications = classifications || [];
 
@@ -116,16 +123,12 @@ const ClassificationList = () => {
       } else {
         taxname = "Unknown taxonomy";
       }
+      const permission =
+        userProfile.permissions.includes("System admin") ||
+        userProfile.permissions.includes("Manage groups") ||
+        userProfile.username === author_name;
       return (
-        <ListItem
-          key={id}
-          className={styles.classification}
-          style={{ alignItems: "start" }}
-          onMouseOver={() => handleMouseHover(id, userProfile, author_name)}
-          onMouseOut={() => handleMouseLeave()}
-          onFocus={() => handleMouseHover(id, userProfile, author_name)}
-          onBlur={() => handleMouseLeave()}
-        >
+        <ListItem key={id} className={styles.classification}>
           <div className={styles.classificationHeader}>
             <span className={styles.classificationUser}>
               <span>{author_name}</span>
@@ -152,32 +155,24 @@ const ClassificationList = () => {
                 <i>{taxname}</i>
               </div>
             </div>
-            <div
-              style={{
-                width: "60px",
-                marginLeft: "0",
-                marginRight: "auto",
-                background: "none",
-                height: "70px",
-                display: "inline-block",
-              }}
-            />
+          </div>
+          <div>
             <Button
-              style={
-                hoverID === id
-                  ? { visibility: "visible", display: "block", margin: "1%" }
-                  : { visibility: "hidden", display: "block", margin: "1%" }
-              }
               size="small"
               type="button"
               name={`deleteClassificationButton${id}`}
-              onClick={() => {
-                dispatch(sourceActions.deleteClassification(id));
-              }}
+              onClick={() => openDialog(id)}
+              disabled={!permission}
               className={styles.classificationDelete}
             >
-              🗑
+              <DeleteIcon />
             </Button>
+            <ConfirmDeletionDialog
+              deleteFunction={deleteClassification}
+              dialogOpen={dialogOpen}
+              closeDialog={closeDialog}
+              resourceName="classification"
+            />
           </div>
         </ListItem>
       );
@@ -193,9 +188,9 @@ const ClassificationList = () => {
     >
       <FixedSizeList
         className={styles.classifications}
-        height={Math.min(360, parseInt(classifications.length * 120, 10))}
+        height={Math.min(360, parseInt(classifications.length * 100, 10))}
         width={350}
-        itemSize={80}
+        itemSize={150}
         itemCount={items.length}
       >
         {Row}

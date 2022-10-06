@@ -34,6 +34,8 @@ from ...utils.UTCTZnaiveDateTime import UTCTZnaiveDateTime
 
 from baselayer.app.access import auth_or_token
 from baselayer.log import make_log
+
+from .source import post_source
 from ..base import BaseHandler
 from ...models import (
     DBSession,
@@ -55,6 +57,7 @@ from ...utils.gcn import (
     get_dateobs,
     get_properties,
     get_tags,
+    get_trigger,
     get_skymap,
     get_contour,
     from_url,
@@ -67,6 +70,8 @@ log = make_log('api/gcn_event')
 
 
 Session = scoped_session(sessionmaker(bind=DBSession.session_factory.kw["bind"]))
+
+SOURCE_RADIUS_THRESHOLD = 5 / 60.0
 
 
 def post_gcnevent_from_xml(payload, user_id, session):
@@ -94,13 +99,19 @@ def post_gcnevent_from_xml(payload, user_id, session):
         raise ValueError("xml file is not valid VOEvent")
 
     dateobs = get_dateobs(root)
+    trigger_id = get_trigger(root)
 
-    event = session.scalars(
-        GcnEvent.select(user).where(GcnEvent.dateobs == dateobs)
-    ).first()
+    if trigger_id is not None:
+        event = session.scalars(
+            GcnEvent.select(user).where(GcnEvent.trigger_id == trigger_id)
+        ).first()
+    else:
+        event = session.scalars(
+            GcnEvent.select(user).where(GcnEvent.dateobs == dateobs)
+        ).first()
 
     if event is None:
-        event = GcnEvent(dateobs=dateobs, sent_by_id=user.id)
+        event = GcnEvent(dateobs=dateobs, sent_by_id=user.id, trigger_id=trigger_id)
         session.add(event)
     else:
         if not event.is_accessible_by(user, mode="update"):
@@ -152,6 +163,18 @@ def post_gcnevent_from_xml(payload, user_id, session):
 
     skymap["dateobs"] = event.dateobs
     skymap["sent_by_id"] = user.id
+
+    try:
+        ra, dec, error = (float(val) for val in skymap["localization_name"].split("_"))
+        if error < SOURCE_RADIUS_THRESHOLD:
+            source = {
+                'id': Time(event.dateobs).isot.replace(":", "-"),
+                'ra': ra,
+                'dec': dec,
+            }
+            post_source(source, user_id, session)
+    except Exception:
+        pass
 
     localization = session.scalars(
         Localization.select(user).where(
@@ -253,6 +276,18 @@ def post_gcnevent_from_dictionary(payload, user_id, session):
 
     skymap["dateobs"] = event.dateobs
     skymap["sent_by_id"] = user.id
+
+    try:
+        ra, dec, error = (float(val) for val in skymap["localization_name"].split("_"))
+        if error < SOURCE_RADIUS_THRESHOLD:
+            source = {
+                'id': Time(event.dateobs).isot.replace(":", "-"),
+                'ra': ra,
+                'dec': dec,
+            }
+            post_source(source, user_id, session)
+    except Exception:
+        pass
 
     localization = session.scalars(
         Localization.select(user).where(
