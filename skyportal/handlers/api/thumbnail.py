@@ -13,6 +13,15 @@ from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
 from ...models import Obj, Thumbnail, User
 
+# this part will only work on fritz
+# (or any extension of skyportal with alerts)
+try:
+    from .alert import post_alert
+
+    alert_available = True
+except Exception:
+    alert_available = False
+
 
 def post_thumbnail(data, user_id, session):
     """Post thumbnail to database.
@@ -469,6 +478,11 @@ class ThumbnailPathHandler(BaseHandler):
                 if t.file_uri is None:
                     continue
 
+                if alert_available:
+                    # check file exists and non empty
+                    # if not, delete and repost thumbnail from alerts
+                    check_thumbnail_file(t, self.current_user.id, session)
+
                 hash = hashlib.sha256(t.obj_id.encode('utf-8')).hexdigest()
                 subfolders = []
                 for i in range(required_depth):
@@ -534,6 +548,10 @@ class ThumbnailPathHandler(BaseHandler):
             }
         )
 
+    # TODO: add a POST that only checks each thumbnail
+    # for missing or empty files, outside of the context
+    # of moving them to the correct folder
+
     @permissions(['System admin'])
     def delete(self):
         """
@@ -563,3 +581,37 @@ class ThumbnailPathHandler(BaseHandler):
                     pass  # not empty, skipping
 
         return self.success()
+
+
+def check_thumbnail_file(thumbnail, user_id, session):
+    """
+    Check if a thumbnail file exists on disk
+    and if not, delete the thumbnail and
+    post a new one from alerts.
+    Should NOT BE CALLED if alerts are not available.
+
+    """
+
+    if not alert_available:
+        raise RuntimeError('Cannot recreate thumbnails without alerts!')
+
+    if (
+        not os.path.isfile(thumbnail.file_uri)
+        or os.stat(thumbnail.file_uri).st_size == 0
+    ):
+        # Thumbnail file is missing or empty, delete the thumbnail
+        try:
+            os.remove(thumbnail.file_uri)
+        finally:
+            session.delete(thumbnail)
+
+        # Post a new one from alerts
+        post_alert(
+            obj_id=thumbnail.obj_id,
+            candid=0,
+            groups='all',
+            program_id_selector={1},
+            user_id=user_id,
+            session=session,
+            thumbnails_only=True,
+        )
