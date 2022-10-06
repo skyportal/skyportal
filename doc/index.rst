@@ -101,6 +101,7 @@ User Guide
    mma
    advanced_usage
    analysis
+   extensions
 
 Contributing
 ------------
