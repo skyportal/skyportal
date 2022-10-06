@@ -868,6 +868,7 @@ def get_nearby_offset_stars(
     if r is None:
         if use_ztfref_as_gaia_backup:
             r = get_astrometry_backup_from_ztf(source_ra, source_dec)
+            use_ztfref = True
         else:
             return default_return
     if len(r) == 0:
