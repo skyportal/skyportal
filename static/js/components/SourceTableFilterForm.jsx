@@ -683,6 +683,25 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
                 />
               }
             />
+            <FormControlLabel
+              label="FollowupRequest"
+              labelPlacement="start"
+              control={
+                <Controller
+                  render={({ onChange, value }) => (
+                    <Checkbox
+                      color="primary"
+                      type="checkbox"
+                      onChange={(event) => onChange(event.target.checked)}
+                      checked={value}
+                    />
+                  )}
+                  name="hasFollowupRequest"
+                  control={control}
+                  defaultValue={false}
+                />
+              }
+            />
           </div>
         </div>
         <div className={classes.formItem}>
@@ -704,6 +723,18 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
             data-testid="hasSpectrumBeforeTest"
             inputRef={register}
             placeholder="2021-01-01T00:00:00"
+          />
+        </div>
+        <div className={classes.formItem}>
+          <Typography variant="subtitle2" className={classes.title}>
+            Followup Request Status
+          </Typography>
+          <TextField
+            size="small"
+            label="Followup Request Status"
+            name="followupRequestStatus"
+            data-testid="hasFollowupRequestStatusTest"
+            inputRef={register}
           />
         </div>
         <div className={classes.formItemRightColumn}>

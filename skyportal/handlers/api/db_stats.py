@@ -6,6 +6,8 @@ from ..base import BaseHandler
 from ...models import (
     DBSession,
     User,
+    Annotation,
+    Comment,
     CronJobRun,
     Filter,
     Instrument,
@@ -16,7 +18,9 @@ from ...models import (
     GcnEvent,
     Group,
     Spectrum,
+    SourceView,
     Telescope,
+    Thumbnail,
 )
 
 
@@ -94,6 +98,9 @@ class StatsHandler(BaseHandler):
             data["Number of sources"] = session.scalar(
                 sa.select(sa.func.count()).select_from(Source)
             )
+            data["Number of source views"] = session.scalar(
+                sa.select(sa.func.count()).select_from(SourceView)
+            )
             data["Number of objs"] = session.scalar(
                 sa.select(sa.func.count()).select_from(Obj)
             )
@@ -117,6 +124,15 @@ class StatsHandler(BaseHandler):
             )
             data["Number of instruments"] = session.scalar(
                 sa.select(sa.func.count()).select_from(Instrument)
+            )
+            data["Number of comments"] = session.scalar(
+                sa.select(sa.func.count()).select_from(Comment)
+            )
+            data["Number of annotations"] = session.scalar(
+                sa.select(sa.func.count()).select_from(Annotation)
+            )
+            data["Number of thumbnails"] = session.scalar(
+                sa.select(sa.func.count()).select_from(Thumbnail)
             )
             data["Number of GCN events"] = session.scalar(
                 sa.select(sa.func.count()).select_from(GcnEvent)

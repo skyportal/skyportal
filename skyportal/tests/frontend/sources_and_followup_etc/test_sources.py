@@ -249,6 +249,7 @@ def test_classifications(driver, user, taxonomy_token, public_group, public_sour
 
     del_button_xpath = "//button[starts-with(@name, 'deleteClassificationButton')]"
     driver.click_xpath(del_button_xpath, wait_clickable=False)
+    driver.click_xpath("//*[text()='Confirm']", wait_clickable=False)
     driver.wait_for_xpath_to_disappear("//*[contains(text(), '(P=1)')]")
     driver.wait_for_xpath_to_disappear(f"//i[text()='{tax_name}']")
     driver.wait_for_xpath_to_disappear(

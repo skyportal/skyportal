@@ -116,6 +116,26 @@ class TelescopeHandler(BaseHandler):
               schema:
                 type: string
               description: Filter by name (exact match)
+            - in: query
+              name: latitudeMin
+              schema:
+                type: number
+              description: Filter by latitude >= latitudeMin
+            - in: query
+              name: latitudeMax
+              schema:
+                type: number
+              description: Filter by latitude <= latitudeMax
+            - in: query
+              name: longitudeMin
+              schema:
+                type: number
+              description: Filter by longitude >= longitudeMin
+            - in: query
+              name: longitudeMax
+              schema:
+                type: number
+              description: Filter by longitude <= longitudeMax
           responses:
             200:
               content:
@@ -126,6 +146,12 @@ class TelescopeHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
+
+        tel_name = self.get_query_argument("name", None)
+        latitude_min = self.get_query_argument("latitudeMin", None)
+        latitude_max = self.get_query_argument("latitudeMax", None)
+        longitude_min = self.get_query_argument("longitudeMin", None)
+        longitude_max = self.get_query_argument("longitudeMax", None)
 
         with self.Session() as session:
 
@@ -141,10 +167,17 @@ class TelescopeHandler(BaseHandler):
                     )
                 return self.success(data=t)
 
-            tel_name = self.get_query_argument("name", None)
             stmt = Telescope.select(session.user_or_token)
             if tel_name is not None:
                 stmt = stmt.where(Telescope.name == tel_name)
+            if latitude_min is not None:
+                stmt = stmt.where(Telescope.lat >= latitude_min)
+            if latitude_max is not None:
+                stmt = stmt.where(Telescope.lat <= latitude_max)
+            if longitude_min is not None:
+                stmt = stmt.where(Telescope.lon >= longitude_min)
+            if longitude_max is not None:
+                stmt = stmt.where(Telescope.lon <= longitude_max)
 
             data = session.scalars(stmt).all()
             telescopes = []

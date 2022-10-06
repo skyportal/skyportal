@@ -249,6 +249,12 @@ telescope:
     skycam_link: null
     fixed_location: false
     =id: NICER
+  - diameter: 0.94
+    nickname: Gaia
+    name: Gaia
+    skycam_link: null
+    fixed_location: false
+    =id: Gaia
   - diameter: 1.8
     elevation: 4215.0
     lat: 19.825
@@ -407,6 +413,12 @@ instrument:
     telescope_id: =NICER
     type: imaging spectrograph
     filters: ['nicerxti']
+  - band: Optical
+    name: Gaia
+    =id: Gaia
+    telescope_id: =Gaia
+    type: imaging spectrograph
+    filters: ['gaia::gbp', 'gaia::g', 'gaia::grp', 'gaia::grvs']
   - band: optical
     name: PS1
     telescope_id: =PS1
@@ -692,6 +704,14 @@ sources:
       - =program_A
       - =program_B
     redshift: 0.7481
+  - id: badsource
+    ra: 6.7856144
+    dec: 34.027306
+    group_ids:
+      - =public_group_id
+      - =program_A
+      - =program_B
+    redshift: 0.7481
 
 sources/ZTF21aaqjmps/comments:
   - obj_id: ZTF21aaqjmps
@@ -845,6 +865,12 @@ photometry:
     stream_ids:
       - =ztf_public
       - =ztf_partnership
+  - obj_id: badsource
+    instrument_id: =SEDM
+    assignment_id: 2
+    file: badsource.csv
+    group_ids:
+      - =program_A
 
 followup_request:
   - obj_id: ZTFrlh6cyjh

@@ -1,12 +1,7 @@
 import React, { useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { Link } from "react-router-dom";
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-  DialogActions,
-} from "@mui/material";
+import DeleteIcon from "@mui/icons-material/Delete";
 import CircularProgress from "@mui/material/CircularProgress";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
@@ -23,6 +18,7 @@ import utc from "dayjs/plugin/utc";
 import duration from "dayjs/plugin/duration";
 import relativeTime from "dayjs/plugin/relativeTime";
 import Button from "./Button";
+import ConfirmDeletionDialog from "./ConfirmDeletionDialog";
 
 import { observingRunTitle } from "./AssignmentForm";
 import NewObservingRun from "./NewObservingRun";
@@ -91,15 +87,18 @@ const DeleteObservingRunDialog = ({ run, deletePermission }) => {
   const classes = useStyles();
   const dispatch = useDispatch();
   const [dialogOpen, setDialogOpen] = useState(false);
-  const openDialog = () => {
+  const [observingRunToDelete, setObservingRunToDelete] = useState(null);
+  const openDialog = (id) => {
     setDialogOpen(true);
+    setObservingRunToDelete(id);
   };
 
   const closeDialog = () => {
     setDialogOpen(false);
+    setObservingRunToDelete(null);
   };
-  const deleteObservingRun = (observingRun) => {
-    dispatch(observingRunActions.deleteObservingRun(observingRun.id)).then(
+  const deleteObservingRun = () => {
+    dispatch(observingRunActions.deleteObservingRun(observingRunToDelete)).then(
       (result) => {
         if (result.status === "success") {
           dispatch(showNotification("Observing run deleted"));
@@ -117,26 +116,18 @@ const DeleteObservingRunDialog = ({ run, deletePermission }) => {
           root: classes.observingRunDelete,
           disabled: classes.observingRunDeleteDisabled,
         }}
-        onClick={openDialog}
+        onClick={() => openDialog(run.id)}
         disabled={!deletePermission}
         size="small"
       >
-        &times;
+        <DeleteIcon />
       </Button>
-      <Dialog open={dialogOpen} onClose={closeDialog}>
-        <DialogTitle>Delete Observing Run?</DialogTitle>
-        <DialogContent>
-          Are you sure you want to delete this observing run?
-        </DialogContent>
-        <DialogActions>
-          <Button secondary autoFocus onClick={closeDialog}>
-            Dismiss
-          </Button>
-          <Button primary onClick={() => deleteObservingRun(run)}>
-            Confirm
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <ConfirmDeletionDialog
+        deleteFunction={deleteObservingRun}
+        dialogOpen={dialogOpen}
+        closeDialog={closeDialog}
+        resourceName="observing run"
+      />
     </div>
   );
 };

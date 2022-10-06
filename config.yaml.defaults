@@ -594,6 +594,8 @@ ports:
 gcn:
   server: gcn.nasa.gov
   # you can obtain a client_id and client_secret at https://gcn.nasa.gov/quickstart
+  # you can set a group_id to remember the last GCN the app ingested from the stream
+  client_group_id:
   client_id:
   client_secret:
   notice_types:
@@ -601,6 +603,8 @@ gcn:
     - FERMI_GBM_GND_POS
     - FERMI_GBM_FIN_POS
     - FERMI_GBM_SUBTHRESH
+    - SWIFT_BAT_GRB_POS_ACK
+    - SWIFT_XRT_POSITION
     # - LVC_PRELIMINARY
     # - LVC_INITIAL
     # - LVC_UPDATE
@@ -634,6 +638,6 @@ health_monitor:
   startup_grace_seconds: 30
 
 analysis_services:
-  analysis_folder: analysis_data
+  analysis_folder: persistentdata/analysis
   sn_analysis_service:
     port: 6801

@@ -208,6 +208,7 @@ const CatalogQueryForm = ({ gcnevent }) => {
         type: "string",
         oneOf: [
           { enum: ["LSXPS"], title: "Swift LSXPS catalog" },
+          { enum: ["Gaia"], title: "Gaia" },
           { enum: ["ZTF-Kowalski"], title: "ZTF Kowalski" },
           { enum: ["ZTF-Fink"], title: "ZTF Fink" },
         ],

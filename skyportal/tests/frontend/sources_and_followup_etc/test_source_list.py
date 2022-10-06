@@ -689,7 +689,9 @@ def test_hr_diagram(
     driver.wait_for_xpath(f'//div[@data-testid="hr_diagram_{source_id}"]')
 
 
-def test_download_sources(driver, user, public_group, upload_data_token):
+def test_download_sources(
+    driver, user, public_group, upload_data_token, annotation_token
+):
     # generate a list of 20 source ids:
     source_ids = [str(uuid.uuid4()) for i in range(20)]
     origin = str(uuid.uuid4())
@@ -710,6 +712,35 @@ def test_download_sources(driver, user, public_group, upload_data_token):
                 "group_ids": [public_group.id],
             },
             token=upload_data_token,
+        )
+        assert status == 200
+
+    for source_id in source_ids:
+        status, data = api(
+            'POST',
+            f'sources/{source_id}/annotations',
+            data={
+                'origin': 'kowalski',
+                'data': {'offset_from_host_galaxy': 1.5},
+                'group_ids': [public_group.id],
+            },
+            token=annotation_token,
+        )
+        assert status == 200
+
+    for source_id in source_ids:
+        status, data = api(
+            'POST',
+            f'sources/{source_id}/annotations',
+            data={
+                'origin': 'other_origin',
+                'data': {
+                    'offset_from_host_galaxy': 1.5,
+                    'some_boolean': True,
+                },
+                'group_ids': [public_group.id],
+            },
+            token=annotation_token,
         )
         assert status == 200
 
@@ -745,10 +776,8 @@ def test_download_sources(driver, user, public_group, upload_data_token):
     try:
         with open(fpath) as f:
             lines = f.read()
-        assert (
-            lines.split('\n')[0]
-            == '"id","ra [deg]","dec [deg]","redshift","classification","groups","Date saved","Alias","Origin","TNS Name"'
-        )
         assert len(lines.split('\n')) == 21
+        assert lines.split('\n')[1].find("kowalski;other_origin") != -1
+        assert lines.split('\n')[1].find("offset_from_host_galaxy;some_boolean") != -1
     finally:
         os.remove(fpath)

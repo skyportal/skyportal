@@ -329,8 +329,10 @@ export const fetchGaia = (sourceID) =>
 export const fetchWise = (sourceID) =>
   API.POST(`/api/sources/${sourceID}/annotations/irsa`, FETCH_WISE);
 
-export const fetchVizier = (sourceID) =>
-  API.POST(`/api/sources/${sourceID}/annotations/vizier`, FETCH_VIZIER);
+export const fetchVizier = (sourceID, catalog = "VII/290") =>
+  API.POST(`/api/sources/${sourceID}/annotations/vizier`, FETCH_VIZIER, {
+    catalog,
+  });
 
 export const fetchPhotoz = (sourceID) =>
   API.POST(`/api/sources/${sourceID}/annotations/datalab`, FETCH_PHOTOZ);

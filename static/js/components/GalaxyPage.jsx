@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
+import DeleteIcon from "@mui/icons-material/Delete";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
 import ListItemText from "@mui/material/ListItemText";
@@ -10,6 +11,7 @@ import makeStyles from "@mui/styles/makeStyles";
 import { showNotification } from "baselayer/components/Notifications";
 import PropTypes from "prop-types";
 import Button from "./Button";
+import ConfirmDeletionDialog from "./ConfirmDeletionDialog";
 
 import GalaxyTable from "./GalaxyTable";
 import NewGalaxy from "./NewGalaxy";
@@ -67,17 +69,26 @@ const GalaxyList = ({ catalogs, deletePermission, setCatalogs }) => {
   const dispatch = useDispatch();
   const classes = useStyles();
   const textClasses = textStyles();
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [catalogToDelete, setCatalogToDelete] = useState(null);
+  const openDialog = (id) => {
+    setDialogOpen(true);
+    setCatalogToDelete(id);
+  };
+  const closeDialog = () => {
+    setDialogOpen(false);
+    setCatalogToDelete(null);
+  };
 
-  const deleteCatalog = (catalog) => {
-    dispatch(galaxiesActions.deleteCatalog(catalog.catalog_name)).then(
-      (result) => {
-        if (result.status === "success") {
-          dispatch(showNotification("Catalog deleted"));
-          const cat = dispatch(galaxiesActions.fetchCatalogs());
-          setCatalogs(cat.data);
-        }
+  const deleteCatalog = () => {
+    dispatch(galaxiesActions.deleteCatalog(catalogToDelete)).then((result) => {
+      if (result.status === "success") {
+        dispatch(showNotification("Catalog deleted"));
+        const cat = dispatch(galaxiesActions.fetchCatalogs());
+        setCatalogs(cat.data);
+        closeDialog();
       }
-    );
+    });
   };
 
   if (!Array.isArray(catalogs)) {
@@ -101,11 +112,17 @@ const GalaxyList = ({ catalogs, deletePermission, setCatalogs }) => {
                 root: classes.catalogDelete,
                 disabled: classes.catalogDeleteDisabled,
               }}
-              onClick={() => deleteCatalog(catalog)}
+              onClick={() => openDialog(catalog.catalog_name)}
               disabled={!deletePermission}
             >
-              &times;
+              <DeleteIcon />
             </Button>
+            <ConfirmDeletionDialog
+              deleteFunction={deleteCatalog}
+              dialogOpen={dialogOpen}
+              closeDialog={closeDialog}
+              resourceName="galaxy catalog"
+            />
           </ListItem>
         ))}
       </List>

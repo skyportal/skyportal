@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import PropTypes from "prop-types";
 import { useSelector, useDispatch } from "react-redux";
 
@@ -6,28 +6,46 @@ import CircularProgress from "@mui/material/CircularProgress";
 
 import * as Bokeh from "@bokeh/bokehjs";
 
+import { makeStyles } from "@mui/styles";
 import * as Models from "./BokehModels";
 import * as Actions from "../ducks/plots";
 
 Bokeh.Models.register_models(Models);
 
+const useStyles = makeStyles(() => ({
+  error: {
+    color: "red",
+  },
+}));
+
 const Plot = (props) => {
+  const classes = useStyles();
   const { url, className } = props;
   const dispatch = useDispatch();
 
   const plotData = useSelector((state) => state.plots.plotData[url]);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
-    if (plotData === undefined) {
-      dispatch(Actions.fetchPlotData(url));
-    } else {
-      const { bokehJSON } = plotData;
-      window.Bokeh = Bokeh;
-      // eslint-disable-next-line no-new-func
-      Bokeh.embed.embed_item(bokehJSON, `bokeh-${bokehJSON.root_id}`);
-    }
+    const fetchPlotData = async () => {
+      if (plotData === undefined) {
+        const res = await dispatch(Actions.fetchPlotData(url));
+        if (res.status === "error") {
+          setError(true);
+        }
+      } else {
+        const { bokehJSON } = plotData;
+        window.Bokeh = Bokeh;
+        // eslint-disable-next-line no-new-func
+        Bokeh.embed.embed_item(bokehJSON, `bokeh-${bokehJSON.root_id}`);
+      }
+    };
+    fetchPlotData();
   }, [plotData, dispatch, url]);
 
+  if (error) {
+    return <p className={classes.error}>Error fetching plot data...</p>;
+  }
   if (!plotData) {
     return (
       <div>

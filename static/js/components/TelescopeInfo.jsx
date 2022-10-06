@@ -1,9 +1,15 @@
-import React from "react";
-import { useSelector } from "react-redux";
+import React, { useState } from "react";
+import { useSelector, useDispatch } from "react-redux";
+import DeleteIcon from "@mui/icons-material/Delete";
+import { Divider } from "@mui/material";
 import makeStyles from "@mui/styles/makeStyles";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
-import { Divider } from "@mui/material";
+import { showNotification } from "baselayer/components/Notifications";
+import Button from "./Button";
+import ConfirmDeletionDialog from "./ConfirmDeletionDialog";
+
+import * as telescopeActions from "../ducks/telescope";
 
 const useStyles = makeStyles(() => ({
   root: {
@@ -70,13 +76,51 @@ const useStyles = makeStyles(() => ({
     justifyItems: "left",
     alignItems: "left",
   },
+  telescopeDelete: {
+    cursor: "pointer",
+    fontSize: "2em",
+    position: "absolute",
+    padding: 0,
+    right: 0,
+    top: 0,
+  },
+  telescopeDeleteDisabled: {
+    opacity: 0,
+  },
 }));
 
 const TelescopeInfo = () => {
   const classes = useStyles();
+  const dispatch = useDispatch();
   const currentTelescopes = useSelector(
     (state) => state.telescope.currentTelescopes
   );
+
+  const currentUser = useSelector((state) => state.profile);
+
+  const permission = currentUser.permissions?.includes("System admin");
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [telescopeToDelete, setTelescopeToDelete] = useState(null);
+  const openDialog = (id) => {
+    setDialogOpen(true);
+    setTelescopeToDelete(id);
+  };
+  const closeDialog = () => {
+    setDialogOpen(false);
+    setTelescopeToDelete(null);
+  };
+
+  const deleteTelescope = () => {
+    dispatch(telescopeActions.deleteTelescope(telescopeToDelete)).then(
+      (result) => {
+        if (result.status === "success") {
+          dispatch(showNotification("Telescope deleted"));
+          closeDialog();
+        }
+      }
+    );
+  };
+
   // return a list of telescopes with their information
   return currentTelescopes ? (
     <List className={classes.root}>
@@ -168,6 +212,24 @@ const TelescopeInfo = () => {
                 skycam link
               </a>
             )}
+            <Button
+              key={telescope.id}
+              id="delete_button"
+              classes={{
+                root: classes.telescopeDelete,
+                disabled: classes.telescopeDeleteDisabled,
+              }}
+              onClick={() => openDialog(telescope.id)}
+              disabled={!permission}
+            >
+              <DeleteIcon />
+            </Button>
+            <ConfirmDeletionDialog
+              deleteFunction={deleteTelescope}
+              dialogOpen={dialogOpen}
+              closeDialog={closeDialog}
+              resourceName="telescope"
+            />
           </ListItem>
           <Divider />
         </div>

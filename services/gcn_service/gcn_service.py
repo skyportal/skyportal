@@ -1,6 +1,7 @@
 from gcn_kafka import Consumer
 from datetime import datetime, timedelta
 import sqlalchemy as sa
+import uuid
 
 from baselayer.log import make_log
 from baselayer.app.models import init_db
@@ -27,6 +28,7 @@ notice_types = [
 config_gcn_observation_plans_all = [
     observation_plan for observation_plan in cfg["gcn.observation_plans"]
 ]
+
 log = make_log('gcnserver')
 
 with DBSession() as session:
@@ -53,9 +55,22 @@ def service():
     if notice_types is None or notice_types == '' or notice_types == []:
         log('No notice_types configured to poll gcn events (config: gcn.notice_types')
         return
+
+    client_group_id = cfg.get('gcn.client_group_id')
+    if client_group_id is None or client_group_id == '':
+        client_group_id = str(uuid.uuid4())
+
+    config = {
+        'group.id': client_group_id,
+        'auto.offset.reset': 'earliest',
+        'enable.auto.commit': False,
+    }
     try:
         consumer = Consumer(
-            client_id=client_id, client_secret=client_secret, domain=cfg['gcn.server']
+            config=config,
+            client_id=client_id,
+            client_secret=client_secret,
+            domain=cfg['gcn.server'],
         )
     except Exception as e:
         log(f'Failed to initiate consumer to poll gcn events: {e}')
@@ -69,6 +84,7 @@ def service():
         try:
             for message in consumer.consume():
                 payload = message.value()
+                consumer.commit(message)
                 user_id = 1
                 with DBSession() as session:
                     default_observation_plans = session.query(
@@ -127,6 +143,7 @@ def service():
                             post_observation_plan(plan, user_id, session)
                         else:
                             log(f'No allocation with allocation_id {allocation_id}')
+
         except Exception as e:
             log(f'Failed to consume gcn event: {e}')
 

@@ -26,12 +26,20 @@ const SourceAnnotationButtons = ({ source }) => {
     setIsSubmittingAnnotationWise(null);
   };
 
-  const [isSubmittingAnnotationVizier, setIsSubmittingAnnotationVizier] =
+  const [isSubmittingAnnotationQuasar, setIsSubmittingAnnotationQuasar] =
     useState(null);
-  const handleAnnotationVizier = async (id) => {
-    setIsSubmittingAnnotationVizier(id);
-    await dispatch(sourceActions.fetchVizier(id));
-    setIsSubmittingAnnotationVizier(null);
+  const handleAnnotationQuasar = async (id) => {
+    setIsSubmittingAnnotationQuasar(id);
+    await dispatch(sourceActions.fetchVizier(id, "VII/290"));
+    setIsSubmittingAnnotationQuasar(null);
+  };
+
+  const [isSubmittingAnnotationGalex, setIsSubmittingAnnotationGalex] =
+    useState(null);
+  const handleAnnotationGalex = async (id) => {
+    setIsSubmittingAnnotationGalex(id);
+    await dispatch(sourceActions.fetchVizier(id, "II/335/galex_ais"));
+    setIsSubmittingAnnotationGalex(null);
   };
 
   const [isSubmittingAnnotationPhotoz, setIsSubmittingAnnotationPhotoz] =
@@ -78,7 +86,7 @@ const SourceAnnotationButtons = ({ source }) => {
           WISE Colors
         </Button>
       )}
-      {isSubmittingAnnotationVizier === source.id ? (
+      {isSubmittingAnnotationQuasar === source.id ? (
         <div>
           <CircularProgress />
         </div>
@@ -86,13 +94,30 @@ const SourceAnnotationButtons = ({ source }) => {
         <Button
           secondary
           onClick={() => {
-            handleAnnotationVizier(source.id);
+            handleAnnotationQuasar(source.id);
           }}
           size="small"
           type="submit"
-          data-testid={`vizierRequest_${source.id}`}
+          data-testid={`quasarRequest_${source.id}`}
         >
           Million Quasar
+        </Button>
+      )}
+      {isSubmittingAnnotationGalex === source.id ? (
+        <div>
+          <CircularProgress />
+        </div>
+      ) : (
+        <Button
+          secondary
+          onClick={() => {
+            handleAnnotationGalex(source.id);
+          }}
+          size="small"
+          type="submit"
+          data-testid={`galexRequest_${source.id}`}
+        >
+          GALEX
         </Button>
       )}
       {isSubmittingAnnotationPhotoz === source.id ? (
