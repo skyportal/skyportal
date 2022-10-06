@@ -330,7 +330,8 @@ const UploadPhotometryForm = () => {
                       as={
                         <Select labelId="instrumentSelectLabel">
                           <MenuItem value="multiple" key={0}>
-                            Use instrument_id column
+                            Use instrument_id column (for one or more
+                            instruments)
                           </MenuItem>
                           {sortedInstrumentList.map((instrument) => (
                             <MenuItem value={instrument.id} key={instrument.id}>
