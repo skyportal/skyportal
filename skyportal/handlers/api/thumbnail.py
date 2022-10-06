@@ -294,7 +294,10 @@ class ThumbnailPathHandler(BaseHandler):
               type: array
               items:
                 type: string
-            description: types of thumbnails to check
+            description: |
+              types of thumbnails to check
+              The default is ['new', 'ref', 'sub'] which
+              are all the thumbnail types stored locally.
           - in: query
             name: requiredDepth
             required: false
@@ -340,28 +343,19 @@ class ThumbnailPathHandler(BaseHandler):
         if required_depth < 0 or required_depth > 32:
             return self.error('requiredDepth must be between 0 and 32')
 
+        # a string glob to match the required depth:
+        # e.g., if required_depth is 2, then a good match is:
+        # skyportal/static/thumbnails/ab/cd/ZTF20aabcde_new.png
+        # This will accept anything with AT LEAST the number of
+        # subfolders but will also match too many subfolders.
         good_like = f"%thumbnails{'/__' * required_depth}/%"
+        # anything that matches with too many subfolders is rejected.
         bad_like = f"%thumbnails{'/__' * (required_depth + 1)}/%"
 
         with self.Session() as session:
-            stmt = sa.select(Thumbnail).where(Thumbnail.type.in_(types))
-            count_stmt = sa.select(func.count()).select_from(stmt)
-            total_matches = session.execute(count_stmt).scalar()
-            good_stmt = stmt.where(
-                Thumbnail.file_uri.like(good_like), ~Thumbnail.file_uri.like(bad_like)
+            total_matches, good_matches, bad_matches = count_thumbnails_in_folders(
+                session, types, good_like, bad_like
             )
-            good_matches = session.execute(
-                sa.select(func.count()).select_from(good_stmt)
-            ).scalar()
-            bad_stmt = stmt.where(
-                sa.or_(
-                    ~Thumbnail.file_uri.like(good_like),
-                    Thumbnail.file_uri.like(bad_like),
-                )
-            )
-            bad_matches = session.execute(
-                sa.select(func.count()).select_from(bad_stmt)
-            ).scalar()
 
         return self.success(
             data={
@@ -389,7 +383,10 @@ class ThumbnailPathHandler(BaseHandler):
               type: array
               items:
                 type: string
-            description: types of thumbnails to check
+            description: |
+              types of thumbnails to check
+              The default is ['new', 'ref', 'sub'] which
+              are all the thumbnail types stored locally.
           - in: query
             name: requiredDepth
             required: false
@@ -459,7 +456,13 @@ class ThumbnailPathHandler(BaseHandler):
                 f'or numPerPage ({num_per_page}) as an integers.'
             )
 
+        # a string glob to match the required depth:
+        # e.g., if required_depth is 2, then a good match is:
+        # skyportal/static/thumbnails/ab/cd/ZTF20aabcde_new.png
+        # This will accept anything with AT LEAST the number of
+        # subfolders but will also match too many subfolders.
         good_like = f"%thumbnails{'/__' * required_depth}/%"
+        # anything that matches with too many subfolders is rejected.
         bad_like = f"%thumbnails{'/__' * (required_depth + 1)}/%"
 
         num_moved = 0
@@ -479,7 +482,7 @@ class ThumbnailPathHandler(BaseHandler):
                     continue
 
                 if alert_available:
-                    # check file exists and non empty
+                    # check file exists and non-empty
                     # if not, delete and repost thumbnail from alerts
                     check_thumbnail_file(t, self.current_user.id, session)
 
@@ -520,24 +523,9 @@ class ThumbnailPathHandler(BaseHandler):
 
                 num_moved += 1
 
-            stmt = sa.select(Thumbnail).where(Thumbnail.type.in_(types))
-            count_stmt = sa.select(func.count()).select_from(stmt)
-            total_matches = session.execute(count_stmt).scalar()
-            good_stmt = stmt.where(
-                Thumbnail.file_uri.like(good_like), ~Thumbnail.file_uri.like(bad_like)
+            total_matches, good_matches, bad_matches = count_thumbnails_in_folders(
+                session, types, good_like, bad_like
             )
-            good_matches = session.execute(
-                sa.select(func.count()).select_from(good_stmt)
-            ).scalar()
-            bad_stmt = stmt.where(
-                sa.or_(
-                    ~Thumbnail.file_uri.like(good_like),
-                    Thumbnail.file_uri.like(bad_like),
-                )
-            )
-            bad_matches = session.execute(
-                sa.select(func.count()).select_from(bad_stmt)
-            ).scalar()
 
         return self.success(
             data={
@@ -581,6 +569,52 @@ class ThumbnailPathHandler(BaseHandler):
                     pass  # not empty, skipping
 
         return self.success()
+
+
+def count_thumbnails_in_folders(session, types, good_like, bad_like):
+    """
+    Count the number of thumbnails in the correct and incorrect folders.
+
+    Parameters
+    ----------
+    session : `sqlalchemy.orm.session.Session`
+        The database session.
+    types : list of str
+        The types of thumbnails to count.
+        Usually this is ['new', 'ref', 'sub']
+        for all the thumbnail types stored locally.
+
+    Returns
+    -------
+    total_matches : int
+        The total number of thumbnails in the database
+        of the types specified.
+    good_matches : int
+        The number of thumbnails in the correct folder.
+    bad_matches : int
+        The number of thumbnails in the incorrect folder.
+
+    """
+    stmt = sa.select(Thumbnail).where(Thumbnail.type.in_(types))
+    count_stmt = sa.select(func.count()).select_from(stmt)
+    total_matches = session.execute(count_stmt).scalar()
+    good_stmt = stmt.where(
+        Thumbnail.file_uri.like(good_like), ~Thumbnail.file_uri.like(bad_like)
+    )
+    good_matches = session.execute(
+        sa.select(func.count()).select_from(good_stmt)
+    ).scalar()
+    bad_stmt = stmt.where(
+        sa.or_(
+            ~Thumbnail.file_uri.like(good_like),
+            Thumbnail.file_uri.like(bad_like),
+        )
+    )
+    bad_matches = session.execute(
+        sa.select(func.count()).select_from(bad_stmt)
+    ).scalar()
+
+    return total_matches, good_matches, bad_matches
 
 
 def check_thumbnail_file(thumbnail, user_id, session):
