@@ -137,26 +137,6 @@ class StatsHandler(BaseHandler):
             data["Number of GCN events"] = session.scalar(
                 sa.select(sa.func.count()).select_from(GcnEvent)
             )
-            cand = session.scalars(
-                sa.select(Candidate).order_by(Candidate.created_at)
-            ).first()
-            data["Oldest candidate creation datetime"] = (
-                cand.created_at if cand is not None else None
-            )
-            cand = session.scalars(
-                sa.select(Candidate).order_by(Candidate.created_at.desc())
-            ).first()
-            data["Newest candidate creation datetime"] = (
-                cand.created_at if cand is not None else None
-            )
-            cand = session.scalars(
-                sa.select(Candidate)
-                .where(Candidate.obj_id.notin_(sa.select(Source.obj_id).subquery()))
-                .order_by(Candidate.created_at)
-            ).first()
-            data["Oldest unsaved candidate creation datetime"] = (
-                cand.created_at if cand is not None else None
-            )
             data["Latest cron job run times & statuses"] = []
             cron_job_scripts = session.execute(
                 sa.select(CronJobRun.script).distinct()
