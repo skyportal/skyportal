@@ -102,7 +102,7 @@ class TokenHandler(BaseHandler):
             - tokens
           parameters:
             - in: query
-              name: userId
+              name: userID
               schema:
                 type: int
               description: Filter by user ID
@@ -117,7 +117,7 @@ class TokenHandler(BaseHandler):
                   schema: Error
         """
 
-        user_id = self.get_query_argument("userId", None)
+        user_id = self.get_query_argument("userID", None)
 
         with self.Session() as session:
 
