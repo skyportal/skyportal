@@ -80,7 +80,7 @@ class TokenHandler(BaseHandler):
         single:
           description: Retrieve a token
           tags:
-            - telescopes
+            - tokens
           parameters:
             - in: path
               name: token_id
