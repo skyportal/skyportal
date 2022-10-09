@@ -38,7 +38,7 @@ class NotificationHandler(BaseHandler):
 
         with self.Session() as session:
             notification = session.scalars(
-                UserNotification.select(session.user_or_token, mode="update").select(
+                UserNotification.select(session.user_or_token, mode="update").where(
                     UserNotification.id == notification_id
                 )
             ).first()
@@ -68,7 +68,7 @@ class NotificationHandler(BaseHandler):
 
         with self.Session() as session:
             notification = session.scalars(
-                UserNotification.select(session.user_or_token, mode="delete").select(
+                UserNotification.select(session.user_or_token, mode="delete").where(
                     UserNotification.id == notification_id
                 )
             ).first()
