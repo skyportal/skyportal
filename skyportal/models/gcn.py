@@ -206,7 +206,7 @@ class GcnEvent(Base):
     @hybrid_property
     def tags(self):
         """List of tags."""
-        return [tag.text for tag in self._tags]
+        return [tag.text for tag in set(self._tags)]
 
     @tags.expression
     def tags(cls):

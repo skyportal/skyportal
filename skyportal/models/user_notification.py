@@ -4,6 +4,7 @@ import json
 
 import sqlalchemy as sa
 from sqlalchemy.orm import relationship
+from sqlalchemy import func
 
 from sqlalchemy import event, inspect
 import arrow
@@ -34,6 +35,8 @@ from sqlalchemy import or_
 
 from skyportal.models import Shift, ShiftUser
 from skyportal.utils.gcn import get_tags
+
+from skyportal.utils.gcn import gcn_slack_notification
 
 _, cfg = load_env()
 
@@ -173,10 +176,25 @@ def send_slack_notification(mapper, connection, target):
     slack_microservice_url = f'http://127.0.0.1:{cfg["slack.microservice_port"]}'
 
     app_url = get_app_base_url()
-    data = json.dumps(
-        {"url": integration_url, "text": f'{target.text} ({app_url}{target.url})'}
-    )
+
     try:
+        if resource_type == 'gcn_events':
+            data = json.dumps(
+                {
+                    "url": integration_url,
+                    "blocks": gcn_slack_notification(
+                        session=inspect(target).session, target=target, app_url=app_url
+                    ),
+                }
+            )
+        else:
+            data = json.dumps(
+                {
+                    "url": integration_url,
+                    "text": f'{target.text} ({app_url}{target.url})',
+                }
+            )
+
         requests.post(
             slack_microservice_url,
             data=data,
@@ -202,39 +220,35 @@ def send_email_notification(mapper, connection, target):
 
     if resource_type == "sources":
         subject = f"{cfg['app.title']} - New followed classification on a source"
-        body = f'{target.text} ({get_app_base_url()}{target.url})'
 
     elif resource_type == "gcn_events":
         subject = f"{cfg['app.title']} - New GCN Event with followed notice type"
-        body = f'{target.text} ({get_app_base_url()}{target.url})'
 
     elif resource_type == "facility_transactions":
         subject = f"{cfg['app.title']} - New facility transaction"
-        body = f'{target.text} ({get_app_base_url()}{target.url})'
+
     elif resource_type == "analysis_services":
         subject = f"{cfg['app.title']} - New completed analysis service"
-        body = f'{target.text} ({get_app_base_url()}{target.url})'
+
     elif resource_type == "favorite_sources":
         if target.notification_type == "favorite_sources_new_classification":
             subject = f"{cfg['app.title']} - New classification on a favorite source"
-            body = f'{target.text} ({get_app_base_url()}{target.url})'
+
         elif target.notification_type == "favorite_sources_new_spectrum":
             subject = f"{cfg['app.title']} - New spectrum on a favorite source"
-            body = f'{target.text} ({get_app_base_url()}{target.url})'
+
         elif target.notification_type == "favorite_sources_new_comment":
             subject = f"{cfg['app.title']} - New comment on a favorite source"
-            body = f'{target.text} ({get_app_base_url()}{target.url})'
 
     elif resource_type == "mention":
         subject = f"{cfg['app.title']} - User mentioned you in a comment"
-        body = f'{target.text} ({get_app_base_url()}{target.url})'
 
     elif resource_type == "group_admission_request":
         subject = f"{cfg['app.title']} - New group admission request"
-        body = f'{target.text} ({get_app_base_url()}{target.url})'
 
-    if subject and body and target.user.contact_email:
+    if subject and target.user.contact_email:
         try:
+            body = f'{target.text} ({get_app_base_url()}{target.url})'
             send_email(
                 recipients=[target.user.contact_email],
                 subject=subject,
@@ -494,14 +508,30 @@ def add_user_notifications(mapper, connection, target):
                                     )
                                     if len(intersection) == 0:
                                         return
-                            session.add(
-                                UserNotification(
-                                    user=user,
-                                    text=f"New GcnEvent *{target.dateobs}* with Notice Type *{gcn.NoticeType(target.notice_type).name}*",
-                                    notification_type="gcn_events",
-                                    url=f"/gcn_events/{str(target.dateobs).replace(' ','T')}",
-                                )
+
+                            stmt = sa.select(GcnNotice).where(
+                                GcnNotice.dateobs == target.dateobs
                             )
+                            count_stmt = sa.select(func.count()).select_from(stmt)
+                            count_notices = session.execute(count_stmt).scalar()
+                            if count_notices > 1:
+                                session.add(
+                                    UserNotification(
+                                        user=user,
+                                        text=f"New Notice for GCN Event *{target.dateobs}*, with Notice Type *{gcn.NoticeType(target.notice_type).name}*",
+                                        notification_type="gcn_events",
+                                        url=f"/gcn_events/{str(target.dateobs).replace(' ','T')}",
+                                    )
+                                )
+                            else:
+                                session.add(
+                                    UserNotification(
+                                        user=user,
+                                        text=f"New GCN Event *{target.dateobs}*, with Notice Type *{gcn.NoticeType(target.notice_type).name}*",
+                                        notification_type="gcn_events",
+                                        url=f"/gcn_events/{str(target.dateobs).replace(' ','T')}",
+                                    )
+                                )
 
                 elif is_facility_transaction:
                     if "observation_plan_request" in target.to_dict():
