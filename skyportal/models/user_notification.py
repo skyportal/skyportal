@@ -38,7 +38,9 @@ from skyportal.utils.gcn import get_tags
 
 from skyportal.utils.notifications import (
     gcn_slack_notification,
+    gcn_email_notification,
     source_slack_notification,
+    source_email_notification,
 )
 
 _, cfg = load_env()
@@ -230,47 +232,61 @@ def send_email_notification(mapper, connection, target):
     subject = None
     body = None
 
-    if resource_type == "sources":
-        subject = f"{cfg['app.title']} - New followed classification on a source"
+    app_url = get_app_base_url()
 
-    elif resource_type == "gcn_events":
-        subject = f"{cfg['app.title']} - New GCN Event with followed notice type"
+    try:
 
-    elif resource_type == "facility_transactions":
-        subject = f"{cfg['app.title']} - New facility transaction"
-
-    elif resource_type == "analysis_services":
-        subject = f"{cfg['app.title']} - New completed analysis service"
-
-    elif resource_type == "favorite_sources":
-        if target.notification_type == "favorite_sources_new_classification":
-            subject = f"{cfg['app.title']} - New classification on a favorite source"
-
-        elif target.notification_type == "favorite_sources_new_spectrum":
-            subject = f"{cfg['app.title']} - New spectrum on a favorite source"
-
-        elif target.notification_type == "favorite_sources_new_comment":
-            subject = f"{cfg['app.title']} - New comment on a favorite source"
-
-    elif resource_type == "mention":
-        subject = f"{cfg['app.title']} - User mentioned you in a comment"
-
-    elif resource_type == "group_admission_request":
-        subject = f"{cfg['app.title']} - New group admission request"
-
-    if subject and target.user.contact_email:
-        try:
-            body = f'{target.text} ({get_app_base_url()}{target.url})'
-            send_email(
-                recipients=[target.user.contact_email],
-                subject=subject,
-                body=body,
+        if resource_type == "sources":
+            subject, body = source_email_notification(
+                session=inspect(target).session, target=target, app_url=app_url
             )
-            log(
-                f"Sent email notification to user {target.user.id} at email: {target.user.contact_email}, subject: {subject}, body: {body}, resource_type: {resource_type}"
+
+        elif resource_type == "gcn_events":
+            subject, body = gcn_email_notification(
+                session=inspect(target).session, target=target, app_url=app_url
             )
-        except Exception as e:
-            log(f"Error sending email notification: {e}")
+
+        elif resource_type == "facility_transactions":
+            subject = f"{cfg['app.title']} - New facility transaction"
+
+        elif resource_type == "analysis_services":
+            subject = f"{cfg['app.title']} - New completed analysis service"
+
+        elif resource_type == "favorite_sources":
+            if target.notification_type == "favorite_sources_new_classification":
+                subject = (
+                    f"{cfg['app.title']} - New classification on a favorite source"
+                )
+
+            elif target.notification_type == "favorite_sources_new_spectrum":
+                subject = f"{cfg['app.title']} - New spectrum on a favorite source"
+
+            elif target.notification_type == "favorite_sources_new_comment":
+                subject = f"{cfg['app.title']} - New comment on a favorite source"
+
+        elif resource_type == "mention":
+            subject = f"{cfg['app.title']} - User mentioned you in a comment"
+
+        elif resource_type == "group_admission_request":
+            subject = f"{cfg['app.title']} - New group admission request"
+
+        if subject and target.user.contact_email:
+            try:
+                if body is None:
+                    body = f'{target.text} ({app_url}{target.url})'
+                send_email(
+                    recipients=[target.user.contact_email],
+                    subject=subject,
+                    body=body,
+                )
+                log(
+                    f"Sent email notification to user {target.user.id} at email: {target.user.contact_email}, subject: {subject}, body: {body}, resource_type: {resource_type}"
+                )
+            except Exception as e:
+                log(f"Error sending email notification: {e}")
+
+    except Exception as e:
+        log(f"Error sending email notification: {e}")
 
 
 @event.listens_for(UserNotification, 'after_insert')
