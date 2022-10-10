@@ -36,7 +36,10 @@ from sqlalchemy import or_
 from skyportal.models import Shift, ShiftUser
 from skyportal.utils.gcn import get_tags
 
-from skyportal.utils.gcn import gcn_slack_notification
+from skyportal.utils.notifications import (
+    gcn_slack_notification,
+    source_slack_notification,
+)
 
 _, cfg = load_env()
 
@@ -183,6 +186,15 @@ def send_slack_notification(mapper, connection, target):
                 {
                     "url": integration_url,
                     "blocks": gcn_slack_notification(
+                        session=inspect(target).session, target=target, app_url=app_url
+                    ),
+                }
+            )
+        elif resource_type == 'sources':
+            data = json.dumps(
+                {
+                    "url": integration_url,
+                    "blocks": source_slack_notification(
                         session=inspect(target).session, target=target, app_url=app_url
                     ),
                 }

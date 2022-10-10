@@ -11,6 +11,8 @@ import lxml
 
 from baselayer.app.models import Base, DBSession, AccessibleIfUserMatches
 
+SOURCE_RADIUS_THRESHOLD = 5 / 60.0  # 5 arcmin in degrees
+
 
 class GcnNotice(Base):
     """Records of ingested GCN notices"""
