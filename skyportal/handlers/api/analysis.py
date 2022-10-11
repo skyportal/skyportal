@@ -583,7 +583,7 @@ class AnalysisHandler(BaseHandler):
     def generic_serialize(self, row, columns):
         return {
             c: getattr(row, c).tolist()
-            if type(getattr(row, c)) == np.ndarray
+            if isinstance(getattr(row, c), np.ndarray)
             else getattr(row, c)
             for c in columns
         }
