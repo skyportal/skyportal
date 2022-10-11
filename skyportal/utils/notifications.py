@@ -27,12 +27,6 @@ def gcn_notification_content(session, target, app_url):
 
     tags = gcn_event.tags
 
-    if 'GRB' in tags:
-        # we want the name to be like GRB YYMMDD.HHMM
-        source_name = f"GRB{dateobs_txt[2:4]}{dateobs_txt[5:7]}{dateobs_txt[8:10]}.{dateobs_txt[11:13]}{dateobs_txt[14:16]}{dateobs_txt[17:19]}"
-    elif 'GW' in tags:
-        source_name = f"GW{dateobs_txt[2:4]}{dateobs_txt[5:7]}{dateobs_txt[8:10]}.{dateobs_txt[11:13]}{dateobs_txt[14:16]}{dateobs_txt[17:19]}"
-
     time_since_dateobs = datetime.datetime.utcnow() - gcn_event.dateobs
     # remove the microseconds from the timedelta
     time_since_dateobs = time_since_dateobs - datetime.timedelta(
@@ -42,6 +36,16 @@ def gcn_notification_content(session, target, app_url):
     # get the most recent notice for this event
     last_gcn_notice = gcn_event.gcn_notices[-1]
     notice_content = lxml.etree.fromstring(last_gcn_notice.content)
+
+    name = notice_content.find('./Why/Inference/Name')
+
+    if name is not None:
+        source_name = (name.text).replace(" ", "")
+    elif 'GRB' in tags:
+        # we want the name to be like GRB YYMMDD.HHMM
+        source_name = f"GRB{dateobs_txt[2:4]}{dateobs_txt[5:7]}{dateobs_txt[8:10]}.{dateobs_txt[11:13]}{dateobs_txt[14:16]}{dateobs_txt[17:19]}"
+    elif 'GW' in tags:
+        source_name = f"GW{dateobs_txt[2:4]}{dateobs_txt[5:7]}{dateobs_txt[8:10]}.{dateobs_txt[11:13]}{dateobs_txt[14:16]}{dateobs_txt[17:19]}"
 
     loc = notice_content.find('./WhereWhen/ObsDataLocation/ObservationLocation')
     ra = loc.find('./AstroCoords/Position2D/Value2/C1')

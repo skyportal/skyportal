@@ -167,7 +167,14 @@ def post_gcnevent_from_xml(payload, user_id, session):
     try:
         ra, dec, error = (float(val) for val in skymap["localization_name"].split("_"))
         if error < SOURCE_RADIUS_THRESHOLD:
-            if any([True if 'GRB' in tag.text.upper() else False for tag in tags]):
+            name = root.find('./Why/Inference/Name')
+            if name is not None:
+                source = {
+                    'id': (name.text).replace(' ', ''),
+                    'ra': ra,
+                    'dec': dec,
+                }
+            elif any([True if 'GRB' in tag.text.upper() else False for tag in tags]):
                 dateobs_txt = Time(dateobs).isot
                 source_name = f"GRB{dateobs_txt[2:4]}{dateobs_txt[5:7]}{dateobs_txt[8:10]}.{dateobs_txt[11:13]}{dateobs_txt[14:16]}{dateobs_txt[17:19]}"
                 source = {
