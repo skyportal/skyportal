@@ -446,6 +446,9 @@ def get_astrometry_backup_from_ztf(
     filter_mask = ztf_astrometry["dist"] <= max_offset_arcsec * u.arcsec
     ztf_astrometry = ztf_astrometry[filter_mask]
 
+    if len(ztf_astrometry) == 0:
+        return ztf_astrometry
+
     # add the extra columns
     for k, v in extra_backup_ztf_columns.items():
         ztf_astrometry[k] = v[0]

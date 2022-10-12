@@ -1,4 +1,5 @@
 import datetime
+import sqlalchemy as sa
 from sqlalchemy import func
 from baselayer.app.access import auth_or_token
 from ...base import BaseHandler
@@ -20,10 +21,12 @@ class SourceCountHandler(BaseHandler):
             datetime.datetime.now() - datetime.timedelta(days=since_days_ago)
         ).isoformat()
 
-        q = Source.query_records_accessible_by(
-            self.current_user, columns=[func.count(Source.obj_id).label('count')]
-        ).filter(Source.created_at >= cutoff_day)
-        result = q.first()[0]
-        data = {"count": result, "sinceDaysAgo": since_days_ago}
-        self.verify_and_commit()
-        return self.success(data=data)
+        with self.Session() as session:
+
+            stmt = Source.select(session.user_or_token).where(
+                Source.created_at >= cutoff_day
+            )
+            count_stmt = sa.select(func.count()).select_from(stmt.distinct())
+            result = session.execute(count_stmt).scalar()
+            data = {"count": result, "sinceDaysAgo": since_days_ago}
+            return self.success(data=data)
