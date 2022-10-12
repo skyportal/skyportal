@@ -3,6 +3,7 @@ from urllib.parse import urlparse, urljoin
 import datetime
 import functools
 
+import numpy as np
 import pandas as pd
 import requests
 from requests_oauthlib import OAuth1
@@ -580,7 +581,12 @@ class AnalysisServiceHandler(BaseHandler):
 
 class AnalysisHandler(BaseHandler):
     def generic_serialize(self, row, columns):
-        return {c: getattr(row, c) for c in columns}
+        return {
+            c: getattr(row, c).tolist()
+            if isinstance(getattr(row, c), np.ndarray)
+            else getattr(row, c)
+            for c in columns
+        }
 
     def get_associated_obj_resource(self, associated_resource_type):
         """
