@@ -428,7 +428,7 @@
   type: imager
 - =id: WNTR
   band: NIR
-  filters: ['cspjs', 'cspys', 'csphs']
+  filters: ['2massj', '2massh', '2massks']
   name: WNTR
   telescope_id: =WINTER
   type: imager
