@@ -12,15 +12,7 @@ from PIL import Image, UnidentifiedImageError
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
 from ...models import Obj, Thumbnail, User
-
-# this part will only work on fritz
-# (or any extension of skyportal with alerts)
-try:
-    from .alert import post_alert
-
-    alert_available = True
-except Exception:
-    alert_available = False
+from .alert import post_alert, alert_available
 
 
 def post_thumbnail(data, user_id, session):
