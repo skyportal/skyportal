@@ -34,8 +34,6 @@ class SourceViewsHandler(BaseHandler):
             .limit(max_num_sources)
         ).all()
 
-        print(results)
-
         return results
 
     @auth_or_token

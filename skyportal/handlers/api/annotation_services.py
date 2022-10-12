@@ -103,7 +103,9 @@ class GaiaQueryHandler(BaseHandler):
                 Obj.select(self.current_user).where(Obj.id == obj_id)
             ).first()
             if obj is None:
-                return self.error(f'Cannot find source with id "{obj_id}". ')
+                return self.error(
+                    f'Cannot find source with id "{obj_id}". ', status=403
+                )
 
             data = self.get_json()
 
@@ -174,7 +176,7 @@ class GaiaQueryHandler(BaseHandler):
 
             if {g.id for g in groups} != set(group_ids):
                 return self.error(
-                    f'Cannot find one or more groups with IDs: {group_ids}.'
+                    f'Cannot find one or more groups with IDs: {group_ids}.', status=403
                 )
 
             annotations = []
@@ -277,7 +279,9 @@ class IRSAQueryWISEHandler(BaseHandler):
                 Obj.select(self.current_user).where(Obj.id == obj_id)
             ).first()
             if obj is None:
-                return self.error(f'Cannot find source with id "{obj_id}". ')
+                return self.error(
+                    f'Cannot find source with id "{obj_id}". ', status=403
+                )
 
             group_ids = data.pop('group_ids', None)
 
@@ -289,7 +293,7 @@ class IRSAQueryWISEHandler(BaseHandler):
 
             if {g.id for g in groups} != set(group_ids):
                 return self.error(
-                    f'Cannot find one or more groups with IDs: {group_ids}.'
+                    f'Cannot find one or more groups with IDs: {group_ids}.', status=403
                 )
 
             author = self.associated_user_object
@@ -413,7 +417,9 @@ class VizierQueryHandler(BaseHandler):
                 Obj.select(self.current_user).where(Obj.id == obj_id)
             ).first()
             if obj is None:
-                return self.error(f'Cannot find source with id "{obj_id}". ')
+                return self.error(
+                    f'Cannot find source with id "{obj_id}". ', status=403
+                )
 
             group_ids = data.pop('group_ids', None)
 
@@ -425,7 +431,7 @@ class VizierQueryHandler(BaseHandler):
 
             if {g.id for g in groups} != set(group_ids):
                 return self.error(
-                    f'Cannot find one or more groups with IDs: {group_ids}.'
+                    f'Cannot find one or more groups with IDs: {group_ids}.', status=403
                 )
 
             author = self.associated_user_object
@@ -550,7 +556,9 @@ class DatalabQueryHandler(BaseHandler):
                 Obj.select(self.current_user).where(Obj.id == obj_id)
             ).first()
             if obj is None:
-                return self.error(f'Cannot find source with id "{obj_id}". ')
+                return self.error(
+                    f'Cannot find source with id "{obj_id}". ', status=403
+                )
 
             group_ids = data.pop('group_ids', None)
 
@@ -562,7 +570,7 @@ class DatalabQueryHandler(BaseHandler):
 
             if {g.id for g in groups} != set(group_ids):
                 return self.error(
-                    f'Cannot find one or more groups with IDs: {group_ids}.'
+                    f'Cannot find one or more groups with IDs: {group_ids}.', status=403
                 )
 
             author = self.associated_user_object
