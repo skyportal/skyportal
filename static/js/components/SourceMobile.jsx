@@ -240,10 +240,11 @@ export const useSourceStyles = makeStyles((theme) => ({
 }));
 
 const SourceMobile = WidthProvider(
-  withOrientationChange(({ source, isLandscape, width }) => {
+  withOrientationChange(({ source, isLandscape }) => {
     const matches = useMediaQuery("(min-width: 475px)");
     const centroidPlotSize = matches ? "21.875rem" : "17rem";
     const hrDiagramSize = matches ? 300 : 200;
+    const plotWidth = matches ? 800 : 300;
 
     const classes = useSourceStyles();
 
@@ -294,8 +295,6 @@ const SourceMobile = WidthProvider(
     } else if (isTablet) {
       device = isLandscape ? "tablet_landscape" : "tablet_portrait";
     }
-
-    const plotWidth = isBrowser ? 800 : width - 100;
 
     return (
       <div className={classes.source}>

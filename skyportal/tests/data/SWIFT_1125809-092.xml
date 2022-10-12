@@ -1,0 +1,149 @@
+<?xml version = '1.0' encoding = 'UTF-8'?>
+<voe:VOEvent
+      ivorn="ivo://nasa.gsfc.gcn/SWIFT#BAT_GRB_Pos_1125809-092"
+      role="observation" version="2.0"
+      xmlns:voe="http://www.ivoa.net/xml/VOEvent/v2.0"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:schemaLocation="http://www.ivoa.net/xml/VOEvent/v2.0  http://www.ivoa.net/xml/VOEvent/VOEvent-v2.0.xsd" >
+  <Who>
+    <AuthorIVORN>ivo://nasa.gsfc.tan/gcn</AuthorIVORN>
+    <Author>
+      <shortName>VO-GCN</shortName>
+      <contactName>Scott Barthelmy</contactName>
+      <contactPhone>+1-301-286-3106</contactPhone>
+      <contactEmail>scott.barthelmy@nasa.gov</contactEmail>
+    </Author>
+    <Date>2022-09-30T11:12:15</Date>
+    <Description>This VOEvent message was created with GCN VOE version: 15.08 17jun22</Description>
+  </Who>
+  <What>
+    <Param name="Packet_Type"  value="61" />
+    <Param name="Pkt_Ser_Num"  value="4" />
+    <Param name="TrigID"       value="1125809" ucd="meta.id" />
+    <Param name="Segment_Num"  value="0" ucd="meta.id.part" />
+    <Param name="Burst_TJD"    value="19852" unit="days" ucd="time" />
+    <Param name="Burst_SOD"    value="40312.12" unit="sec" ucd="time" />
+    <Param name="Burst_Inten"  value="3062" unit="cts" ucd="phot.count;em.gamma.soft" />
+    <Param name="Burst_Peak"   value="101" unit="cts" ucd="phot.count;em.gamma.soft" />
+    <Param name="Integ_Time"   value="1.024" unit="sec" ucd="time.interval" />
+    <Param name="Phi"          value="15.89" unit="deg" ucd="pos.az.azi" />
+    <Param name="Theta"        value="50.57" unit="deg" ucd="pos.az.zd" />
+    <Param name="Trig_Index"   value="155" />
+    <Param name="Soln_Status"  value="0x3" />
+    <Param name="Misc_flags"   value="0x0" />
+    <Param name="Cat_Num"      value="0" />
+    <Param name="Rate_Signif"  value="41.20" unit="sigma" ucd="stat.snr" />
+    <Param name="Image_Signif" value="7.33" unit="sigma" ucd="stat.snr" />
+    <Param name="Bkg_Inten"    value="11016" unit="cts" ucd="phot.count" />
+    <Param name="Bkg_Time"     value="11:11:38.04" ucd="time.start" />
+    <Param name="Bkg_Dur"      value="8.00" unit="sec" ucd="time.duration" />
+    <Param name="SC_Long"      value="212.84" unit="deg" ucd="pos.earth.lon" />
+    <Param name="SC_Lat"        value="20.28" unit="deg" ucd="pos.earth.lat" />
+    <Group name="Merit_Values" >
+      <Param name="Merit_Val0" value="1" unit="dn" />
+      <Param name="Merit_Val1" value="0" unit="dn" />
+      <Param name="Merit_Val2" value="0" unit="dn" />
+      <Param name="Merit_Val3" value="0" unit="dn" />
+      <Param name="Merit_Val4" value="3" unit="dn" />
+      <Param name="Merit_Val5" value="-3" unit="dn" />
+      <Param name="Merit_Val6" value="0" unit="dn" />
+      <Param name="Merit_Val7" value="0" unit="dn" />
+      <Param name="Merit_Val8" value="52" unit="dn" />
+      <Param name="Merit_Val9" value="0" unit="dn" />
+    </Group>
+    <Group name="Solution_Status" >
+      <Param name="Point_Source"             value="true" />
+      <Param name="GRB_Identified"           value="true" />
+      <Param name="Target_of_Interest"       value="false" />
+      <Param name="Target_Imag_Trig"         value="false" />
+      <Param name="Target_Rate_Trig"         value="true" />
+      <Param name="Def_NOT_a_GRB"            value="false" />
+      <Param name="Hi_Bkg_Level"             value="false" />
+      <Param name="Neg_Bkg_Slope"            value="false" />
+      <Param name="Lo_Image_Signif"          value="false" />
+      <Param name="VERY_Lo_Image_Signif"     value="false" />
+      <Param name="Target_in_Flt_Catalog"    value="false" />
+      <Param name="Target_in_Gnd_Catalog"    value="false" />
+      <Param name="Target_in_Blk_Catalog"    value="false" />
+      <Param name="StarTrack_Lost_Lock"      value="false" />
+      <Param name="Near_Bright_Star"         value="false" />
+      <Param name="Src_Removed_from_OnBoard" value="false" />
+      <Param name="Converted_SubThresh"      value="false" />
+      <Param name="Spatial_Prox_Match"       value="false" />
+      <Param name="Temporal_Prox_Match"      value="false" />
+      <Param name="Test_Submission"          value="false" />
+    </Group>
+    <Group name="Misc_Flags" >
+      <Param name="Values_Out_of_Range"        value="false" />
+      <Param name="Already_Observing_Position" value="false" />
+      <Param name="Near_Bright_Star"           value="false" />
+      <Param name="Err_Circle_in_Galaxy"       value="false" />
+      <Param name="Galaxy_in_Err_Circle"       value="false" />
+      <Param name="ImTrig_during_ST_LoL"       value="false" />
+      <Param name="TOO_Generated"              value="false" />
+      <Param name="Trig_time_is_SecHdrTime"    value="false" />
+      <Param name="Delayed_Transmission"       value="false" />
+      <Param name="Updated_Notice"             value="false" />
+      <Param name="Flt_Generated"              value="true" />
+      <Param name="Gnd_Generated"              value="false" />
+      <Param name="SERS_Generated"             value="false" />
+      <Param name="Other_Generated"            value="false" />
+      <Param name="CRC_Error"                  value="false" />
+    </Group>
+    <Param name="Coords_Type"   value="1" unit="dn" />
+    <Param name="Coords_String" value="source_object" />
+    <Group name="Obs_Support_Info" >
+      <Description>The Sun and Moon values are valid at the time the VOEvent XML message was created.</Description>
+      <Param name="Sun_RA"        value="186.68" unit="deg" ucd="pos.eq.ra" />
+      <Param name="Sun_Dec"       value="-2.89" unit="deg" ucd="pos.eq.dec" />
+      <Param name="Sun_Distance"  value="121.41" unit="deg" ucd="pos.angDistance" />
+      <Param name="Sun_Hr_Angle"  value="8.11" unit="hr" />
+      <Param name="Moon_RA"       value="241.84" unit="deg" ucd="pos.eq.ra" />
+      <Param name="Moon_Dec"      value="-22.73" unit="deg" ucd="pos.eq.dec" />
+      <Param name="MOON_Distance" value="170.19" unit="deg" ucd="pos.angDistance" />
+      <Param name="Moon_Illum"    value="22.82" unit="%" ucd="arith.ratio" />
+      <Param name="Galactic_Long" value="180.87" unit="deg" ucd="pos.galactic.lon" />
+      <Param name="Galactic_Lat"  value="-25.42" unit="deg" ucd="pos.galactic.lat" />
+      <Param name="Ecliptic_Long" value="65.21" unit="deg" ucd="pos.ecliptic.lon" />
+      <Param name="Ecliptic_Lat"  value="-7.94" unit="deg" ucd="pos.ecliptic.lat" />
+    </Group>
+    <Description>Type=61: The Swift-BAT instrument position notice.</Description>
+  </What>
+  <WhereWhen>
+    <ObsDataLocation>
+      <ObservatoryLocation id="GEOLUN" />
+      <ObservationLocation>
+        <AstroCoordSystem id="UTC-FK5-GEO" />
+        <AstroCoords coord_system_id="UTC-FK5-GEO">
+          <Time unit="s">
+            <TimeInstant>
+              <ISOTime>2022-09-30T11:11:52.12</ISOTime>
+            </TimeInstant>
+          </Time>
+          <Position2D unit="deg">
+            <Name1>RA</Name1>
+            <Name2>Dec</Name2>
+            <Value2>
+              <C1>64.7373</C1>
+              <C2>13.3517</C2>
+            </Value2>
+            <Error2Radius>0.0500</Error2Radius>
+          </Position2D>
+        </AstroCoords>
+      </ObservationLocation>
+    </ObsDataLocation>
+  <Description>The RA,Dec coordinates are of the type: source_object.</Description>
+  </WhereWhen>
+  <How>
+    <Description>Swift Satellite, BAT Instrument</Description>
+    <Reference uri="http://gcn.gsfc.nasa.gov/swift.html" type="url" />
+  </How>
+  <Why importance="0.90">
+    <Inference probability="0.90">
+      <Name>GRB 220930</Name>
+      <Concept>process.variation.burst;em.gamma</Concept>
+    </Inference>
+  </Why>
+  <Description>
+  </Description>
+</voe:VOEvent>

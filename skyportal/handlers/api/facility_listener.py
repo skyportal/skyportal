@@ -16,40 +16,44 @@ class FacilityMessageHandler(BaseHandler):
         if 'followup_request_id' not in data:
             return self.error('Missing required key "followup_request_id".')
 
-        request = FollowupRequest.get_if_accessible_by(
-            int(data['followup_request_id']),
-            self.current_user,
-            raise_if_none=True,
-            mode='update',
-        )
-        instrument = (
-            Instrument.query_records_accessible_by(self.current_user)
-            .join(Allocation)
-            .join(FollowupRequest)
-            .filter(FollowupRequest.id == request.id)
-            .first()
-        )
+        with self.Session() as session:
+            request = session.scalars(
+                FollowupRequest.select(session.user_or_token, mode='update').where(
+                    FollowupRequest.id == int(data['followup_request_id'])
+                )
+            ).first()
+            if request is None:
+                return self.error(
+                    f"Cannot find FollowupRequest with ID: {data['followup_request_id']}"
+                )
 
-        if instrument.listener_classname is None:
-            return self.error(
-                'The instrument associated with this request does not have a Listener API.'
+            instrument = session.scalars(
+                Instrument.select(session.user_or_token)
+                .join(Allocation)
+                .join(FollowupRequest)
+                .where(FollowupRequest.id == request.id)
+            ).first()
+
+            if instrument.listener_classname is None:
+                return self.error(
+                    'The instrument associated with this request does not have a Listener API.'
+                )
+
+            acl_id = instrument.listener_class.get_acl_id()
+
+            if acl_id not in user.permissions and acl_id is not None:
+                return self.error('Insufficient permissions.')
+
+            jsonschema.validate(data, instrument.listener_class.complete_schema())
+            instrument.listener_class.process_message(self, session)
+            session.commit()
+
+            self.push_all(
+                action="skyportal/REFRESH_SOURCE",
+                payload={"obj_key": request.obj.internal_key},
             )
 
-        acl_id = instrument.listener_class.get_acl_id()
-
-        if acl_id not in user.permissions and acl_id is not None:
-            return self.error('Insufficient permissions.')
-
-        jsonschema.validate(data, instrument.listener_class.complete_schema())
-        instrument.listener_class.process_message(self)
-        self.verify_and_commit()
-
-        self.push_all(
-            action="skyportal/REFRESH_SOURCE",
-            payload={"obj_key": request.obj.internal_key},
-        )
-
-        return self.success()
+            return self.success()
 
     allowed_schemas = [
         iclass.complete_schema()

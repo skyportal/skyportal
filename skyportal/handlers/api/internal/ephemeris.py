@@ -68,41 +68,47 @@ class EphemerisHandler(BaseHandler):
 
         ephemerides = None
 
-        if telescope_id is not None:
-            try:
-                telescope_id = int(telescope_id)
-            except ValueError as e:
-                return self.error(f'Invalid value for Telescope id: {e.args[0]}')
-            telescope = Telescope.query.filter(Telescope.id == telescope_id).first()
-            if telescope is None:
-                return self.error('No Telescope with this id')
-            else:
-                if telescope.fixed_location is not True:
-                    return self.error('Telescope is not fixed')
-                else:
-                    ephemerides = telescope.ephemeris(time)
-        else:
-            telescope_ids = self.get_query_argument('telescopeIds', None)
-            if telescope_ids is not None:
+        with self.Session() as session:
+            if telescope_id is not None:
                 try:
-                    telescope_ids = [int(t) for t in telescope_ids.split(',')]
+                    telescope_id = int(telescope_id)
                 except ValueError as e:
-                    return self.error(f'Invalid telescopeIds format: {e.args[0]}')
-
-                if len(telescope_ids) > MAX_TELESCOPES_TO_DISPLAY:
-                    telescope_ids = telescope_ids[:MAX_TELESCOPES_TO_DISPLAY]
-
-                telescopes = Telescope.query.filter(
-                    Telescope.id.in_(telescope_ids)
-                ).all()
+                    return self.error(f'Invalid value for Telescope id: {e.args[0]}')
+                telescope = session.scalars(
+                    Telescope.select(session.user_or_token).where(
+                        Telescope.id == telescope_id
+                    )
+                ).first()
+                if telescope is None:
+                    return self.error('No Telescope with this id')
+                else:
+                    if telescope.fixed_location is not True:
+                        return self.error('Telescope is not fixed')
+                    else:
+                        ephemerides = telescope.ephemeris(time)
             else:
-                telescopes = Telescope.query.all()
-                if len(telescopes) > MAX_TELESCOPES_TO_DISPLAY:
-                    telescopes = telescopes[:MAX_TELESCOPES_TO_DISPLAY]
+                telescope_ids = self.get_query_argument('telescopeIds', None)
+                if telescope_ids is not None:
+                    try:
+                        telescope_ids = [int(t) for t in telescope_ids.split(',')]
+                    except ValueError as e:
+                        return self.error(f'Invalid telescopeIds format: {e.args[0]}')
 
-            ephemerides = {
-                telescope.id: telescope.ephemeris(time) for telescope in telescopes
-            }
+                    if len(telescope_ids) > MAX_TELESCOPES_TO_DISPLAY:
+                        telescope_ids = telescope_ids[:MAX_TELESCOPES_TO_DISPLAY]
 
-        self.verify_and_commit()
-        return self.success(data=ephemerides)
+                    telescopes = session.scalars(
+                        Telescope.select(session.user_or_token).where(
+                            Telescope.id.in_(telescope_ids)
+                        )
+                    ).all()
+                else:
+                    telescopes = Telescope.query.all()
+                    if len(telescopes) > MAX_TELESCOPES_TO_DISPLAY:
+                        telescopes = telescopes[:MAX_TELESCOPES_TO_DISPLAY]
+
+                ephemerides = {
+                    telescope.id: telescope.ephemeris(time) for telescope in telescopes
+                }
+
+            return self.success(data=ephemerides)

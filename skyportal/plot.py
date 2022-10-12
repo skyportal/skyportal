@@ -1898,6 +1898,10 @@ def photometry_plot(obj_id, user_id, session, width=600, device="browser"):
         if 'tot_fluxerr' in data:
             data['fluxerr'] = data['tot_fluxerr']
 
+    # placeholders for unsmoothed timeseries
+    data['mag_unsmoothed'] = data['mag']
+    data['flux_unsmoothed'] = data['flux']
+
     spectra = (
         session.scalars(
             Spectrum.select(session.user_or_token).where(Spectrum.obj_id == obj_id)

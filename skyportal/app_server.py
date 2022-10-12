@@ -427,7 +427,7 @@ skyportal_handlers = [
         r'/api/webhook/(obj)_analysis/([0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})?',
         AnalysisWebhookHandler,
     ),
-    (r'/api/internal/tokens(/.*)?', TokenHandler),
+    (r'/api/internal/tokens(/[0-9A-Za-z-]+)?', TokenHandler),
     (r"/api/internal/profile(/[0-9]+)?", ProfileHandler),
     (r'/api/internal/dbinfo', DBInfoHandler),
     (r'/api/internal/source_views(/.*)?', SourceViewsHandler),

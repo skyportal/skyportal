@@ -44,11 +44,14 @@ class PhotStatHandler(BaseHandler):
                   schema: Error
 
         """
-        obj = Obj.get_if_accessible_by(obj_id, self.current_user)
-        if obj is None:
-            return self.error(f'Cannot find source with id "{obj_id}". ')
 
         with self.Session() as session:
+            obj = session.scalars(
+                Obj.select(self.current_user).where(Obj.id == obj_id)
+            ).first()
+            if obj is None:
+                return self.error(f'Cannot find source with id "{obj_id}". ')
+
             stmt = sa.select(PhotStat).where(PhotStat.obj_id == obj_id)
             phot_stat = session.scalars(stmt).first()
 
@@ -99,11 +102,13 @@ class PhotStatHandler(BaseHandler):
                   schema: Error
 
         """
-        obj = Obj.get_if_accessible_by(obj_id, self.current_user)
-        if obj is None:
-            return self.error(f'Cannot find source with id "{obj_id}". ')
-
         with self.Session() as session:
+            obj = session.scalars(
+                Obj.select(self.current_user).where(Obj.id == obj_id)
+            ).first()
+            if obj is None:
+                return self.error(f'Cannot find source with id "{obj_id}". ')
+
             stmt = sa.select(PhotStat).where(PhotStat.obj_id == obj_id)
             phot_stat = session.scalars(stmt).first()
             if phot_stat is not None:
@@ -147,11 +152,14 @@ class PhotStatHandler(BaseHandler):
                   schema: Error
 
         """
-        obj = Obj.get_if_accessible_by(obj_id, self.current_user)
-        if obj is None:
-            return self.error(f'Cannot find source with id "{obj_id}". ')
 
         with self.Session() as session:
+            obj = session.scalars(
+                Obj.select(self.current_user).where(Obj.id == obj_id)
+            ).first()
+            if obj is None:
+                return self.error(f'Cannot find source with id "{obj_id}". ')
+
             stmt = sa.select(PhotStat).where(PhotStat.obj_id == obj_id)
             phot_stat = session.scalars(stmt).first()
             if phot_stat is None:
@@ -190,11 +198,13 @@ class PhotStatHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
-        obj = Obj.get_if_accessible_by(obj_id, self.current_user)
-        if obj is None:
-            return self.error(f'Cannot find source with id "{obj_id}". ')
-
         with self.Session() as session:
+            obj = session.scalars(
+                Obj.select(self.current_user).where(Obj.id == obj_id)
+            ).first()
+            if obj is None:
+                return self.error(f'Cannot find source with id "{obj_id}". ')
+
             stmt = sa.select(PhotStat).where(PhotStat.obj_id == obj_id)
             phot_stats = session.scalars(stmt).all()
             if phot_stats is None:
