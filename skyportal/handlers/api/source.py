@@ -1538,7 +1538,7 @@ class SourceHandler(BaseHandler):
             nullable: true
             schema:
               type: str
-            description: Comma-separated string of IDs to reject on
+            description: Comma-separated string of object IDs not to be returned, useful in cases where you are looking for new sources passing a query.
           - in: query
             name: simbadClass
             nullable: true
