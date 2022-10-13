@@ -354,6 +354,7 @@ def get_sources(
     has_spectrum=False,
     has_followup_request=False,
     sourceID=None,
+    rejectedSourceIDs=None,
     ra=None,
     dec=None,
     radius=None,
@@ -423,6 +424,9 @@ def get_sources(
         obj_query = obj_query.where(
             func.lower(Obj.id).contains(func.lower(sourceID.strip()))
         )
+    if rejectedSourceIDs:
+        obj_query = obj_query.where(Obj.id.notin_(rejectedSourceIDs))
+
     if any([ra, dec, radius]):
         if not all([ra, dec, radius]):
             raise ValueError(
@@ -1530,6 +1534,12 @@ class SourceHandler(BaseHandler):
               type: string
             description: Portion of ID to filter on
           - in: query
+            name: rejectedSourceIDs
+            nullable: true
+            schema:
+              type: str
+            description: Comma-separated string of object IDs not to be returned, useful in cases where you are looking for new sources passing a query.
+          - in: query
             name: simbadClass
             nullable: true
             schema:
@@ -1988,6 +1998,7 @@ class SourceHandler(BaseHandler):
         last_detected_date = self.get_query_argument('endDate', None)
         list_name = self.get_query_argument('listName', None)
         sourceID = self.get_query_argument('sourceID', None)  # Partial ID to match
+        rejectedSourceIDs = self.get_query_argument('rejectedSourceIDs', None)
         include_photometry = self.get_query_argument("includePhotometry", False)
         include_color_mag = self.get_query_argument("includeColorMagnitude", False)
         include_requested = self.get_query_argument("includeRequested", False)
@@ -2117,6 +2128,9 @@ class SourceHandler(BaseHandler):
                     "startDate and endDate must be less than a month apart when filtering by localizationDateobs or localizationName",
                 )
 
+        if rejectedSourceIDs:
+            rejectedSourceIDs = rejectedSourceIDs.split(",")
+
         # parse the group ids:
         group_ids = self.get_query_argument('group_ids', None)
         if group_ids is not None:
@@ -2187,6 +2201,7 @@ class SourceHandler(BaseHandler):
                     first_detected_date=first_detected_date,
                     last_detected_date=last_detected_date,
                     sourceID=sourceID,
+                    rejectedSourceIDs=rejectedSourceIDs,
                     ra=ra,
                     dec=dec,
                     radius=radius,
