@@ -864,7 +864,7 @@ def test_sources_filter_by_name_or_id(upload_data_token, view_only_token, public
     status, data = api(
         "GET",
         "sources",
-        params={"nonsourceIDs": obj_id2, "group_ids": f"{public_group.id}"},
+        params={"rejectedSourceIDs": obj_id2, "group_ids": f"{public_group.id}"},
         token=view_only_token,
     )
     assert status == 200
@@ -876,7 +876,7 @@ def test_sources_filter_by_name_or_id(upload_data_token, view_only_token, public
         "GET",
         "sources",
         params={
-            "nonsourceIDs": f"{obj_id1},{obj_id2}",
+            "rejectedSourceIDs": f"{obj_id1},{obj_id2}",
             "group_ids": f"{public_group.id}",
         },
         token=view_only_token,
