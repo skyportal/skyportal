@@ -12,7 +12,6 @@ from PIL import Image, UnidentifiedImageError
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
 from ...models import Obj, Thumbnail, User
-from .alert import post_alert, alert_available
 
 
 def post_thumbnail(data, user_id, session):
@@ -427,6 +426,10 @@ class ThumbnailPathHandler(BaseHandler):
                               type: integer
 
         """
+
+        # avoid circular import (alert.py imports this file)
+        from .alert import alert_available
+
         types = self.get_query_argument('types', ['new', 'ref', 'sub'])
         required_depth = self.get_query_argument('requiredDepth', 2)
         try:
@@ -617,6 +620,8 @@ def check_thumbnail_file(thumbnail, user_id, session):
     Should NOT BE CALLED if alerts are not available.
 
     """
+    # avoid circular import (alert.py imports this file)
+    from .alert import post_alert, alert_available
 
     if not alert_available:
         raise RuntimeError('Cannot recreate thumbnails without alerts!')
