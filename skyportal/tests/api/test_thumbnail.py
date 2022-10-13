@@ -363,7 +363,6 @@ def test_change_thumbnail_folder(upload_data_token, super_admin_token, public_gr
     assert_api(status, data)
     assert data['data']['type'] == ttype
 
-    # thumbnail = DBSession.query(Thumbnail).filter(Thumbnail.id == thumbnail_id).first()
     status, data = api('GET', f'thumbnail/{thumbnail_id}', token=upload_data_token)
     assert_api(status, data)
     thumbnail = data['data']
