@@ -425,7 +425,6 @@ def get_sources(
             func.lower(Obj.id).contains(func.lower(sourceID.strip()))
         )
     if nonsourceIDs:
-        print(nonsourceIDs)
         obj_query = obj_query.where(Obj.id.notin_(nonsourceIDs))
 
     if any([ra, dec, radius]):
