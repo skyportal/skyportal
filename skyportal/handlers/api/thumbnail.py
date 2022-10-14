@@ -639,9 +639,9 @@ def check_thumbnail_file(thumbnail, user_id, session):
 
         # Post a new one from alerts
         post_alert(
-            obj_id=thumbnail.obj_id,
+            object_id=thumbnail.obj_id,
             candid=0,
-            groups='all',
+            group_ids='all',
             program_id_selector={1},
             user_id=user_id,
             session=session,
