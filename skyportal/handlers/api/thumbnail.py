@@ -478,7 +478,7 @@ class ThumbnailPathHandler(BaseHandler):
                 if alert_available:
                     # check file exists and non-empty
                     # if not, delete and repost thumbnail from alerts
-                    check_thumbnail_file(t, self.current_user.id, session)
+                    check_thumbnail_file(t, self.associated_user_object.id, session)
 
                 hash = hashlib.sha256(t.obj_id.encode('utf-8')).hexdigest()
                 subfolders = []
@@ -642,7 +642,7 @@ def check_thumbnail_file(thumbnail, user_id, session):
             object_id=thumbnail.obj_id,
             candid=0,
             group_ids='all',
-            program_id_selector={1},
+            program_id_selector=[1],
             user_id=user_id,
             session=session,
             thumbnails_only=True,
