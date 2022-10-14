@@ -221,6 +221,8 @@ def get_observations(
     observation_status='executed',
     n_per_page=100,
     page_number=1,
+    sort_order=None,
+    sort_by=None,
 ):
     f"""Query for list of observations
 
@@ -335,6 +337,16 @@ def get_observations(
             return ValueError(f"Missing instrument {instrument_name}")
 
         obs_query = obs_query.where(Observation.instrument_id == instrument.id)
+    elif instrument_name is not None:
+        instrument = session.scalars(
+            Instrument.select(
+                session.user_or_token, options=[joinedload(Instrument.fields)]
+            ).where(Instrument.name == instrument_name)
+        ).first()
+        if instrument is None:
+            return ValueError(f"Missing instrument {instrument_name}")
+
+        obs_query = obs_query.where(Observation.instrument_id == instrument.id)
 
     # optional: slice by GcnEvent localization
     if localization_dateobs is not None:
@@ -443,6 +455,78 @@ def get_observations(
                 intarea = 0.0
 
     total_matches = session.scalar(sa.select(sa.func.count()).select_from(obs_query))
+
+    order_by = None
+    if sort_by is not None:
+        if sort_by == "obstime":
+            order_by = (
+                [Observation.obstime]
+                if sort_order == "asc"
+                else [Observation.obstime.desc()]
+            )
+        elif sort_by == "observation_id":
+            order_by = (
+                [Observation.observation_id]
+                if sort_order == "asc"
+                else [Observation.observation_id.desc()]
+            )
+        elif sort_by == "exposure_time":
+            order_by = (
+                [Observation.exposure_time]
+                if sort_order == "asc"
+                else [Observation.exposure_time.desc()]
+            )
+        elif sort_by == "seeing":
+            order_by = (
+                [Observation.seeing]
+                if sort_order == "asc"
+                else [Observation.seeing.desc()]
+            )
+        elif sort_by == "airmass":
+            order_by = (
+                [Observation.airmass]
+                if sort_order == "asc"
+                else [Observation.airmass.desc()]
+            )
+        elif sort_by == "limmag":
+            order_by = (
+                [Observation.limmag]
+                if sort_order == "asc"
+                else [Observation.limmag.desc()]
+            )
+        elif sort_by == "filt":
+            order_by = (
+                [Observation.filt] if sort_order == "asc" else [Observation.filt.desc()]
+            )
+        elif sort_by == "instrument_name":
+            order_by = (
+                [Observation.instrument_id]
+                if sort_order == "asc"
+                else [Observation.instrument_id.desc()]
+            )
+        elif sort_by == "queue_name":
+            order_by = (
+                [Observation.queue_name]
+                if sort_order == "asc"
+                else [Observation.queue_name.desc()]
+            )
+        elif sort_by == "validity_window_start":
+            order_by = (
+                [Observation.validity_window_start]
+                if sort_order == "asc"
+                else [Observation.validity_window_start.desc()]
+            )
+        elif sort_by == "validity_window_end":
+            order_by = (
+                [Observation.validity_window_end]
+                if sort_order == "asc"
+                else [Observation.validity_window_end.desc()]
+            )
+
+    if order_by is None:
+        order_by = [Observation.instrument_id.desc()]
+    obs_query = obs_query.order_by(*order_by)
+
     if n_per_page is not None:
         obs_query = (
             obs_query.distinct()
@@ -716,6 +800,20 @@ class ObservationHandler(BaseHandler):
               schema:
                 type: integer
               description: Page number for paginated query results. Defaults to 1
+            - in: query
+              name: sortBy
+              nullable: true
+              schema:
+                type: string
+              description: |
+                The field to sort by.
+            - in: query
+              name: sortOrder
+              nullable: true
+              schema:
+                type: string
+              description: |
+                The sort order - either "asc" or "desc". Defaults to "asc"
           responses:
             200:
               content:
@@ -739,6 +837,9 @@ class ObservationHandler(BaseHandler):
         observation_status = self.get_query_argument("observationStatus", 'executed')
         page_number = self.get_query_argument("pageNumber", 1)
         n_per_page = self.get_query_argument("numPerPage", 100)
+
+        sort_by = self.get_query_argument("sortBy", None)
+        sort_order = self.get_query_argument("sortOrder", "asc")
 
         try:
             page_number = int(page_number)
@@ -778,6 +879,8 @@ class ObservationHandler(BaseHandler):
                 observation_status=observation_status,
                 n_per_page=n_per_page,
                 page_number=page_number,
+                sort_by=sort_by,
+                sort_order=sort_order,
             )
 
             return self.success(data=data)
