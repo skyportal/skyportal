@@ -9,6 +9,7 @@ from sqlalchemy import func
 from sqlalchemy import event, inspect
 import arrow
 import lxml
+import operator  # noqa: F401
 import requests
 
 from baselayer.app.models import Base, User, AccessibleIfUserMatches
@@ -34,7 +35,7 @@ import gcn
 from sqlalchemy import or_
 
 from skyportal.models import Shift, ShiftUser
-from skyportal.utils.gcn import get_tags
+from skyportal.utils.gcn import get_tags, get_properties
 
 from skyportal.utils.notifications import (
     gcn_slack_notification,
@@ -527,6 +528,7 @@ def add_user_notifications(mapper, connection, target):
                             gcn.NoticeType(target.notice_type).name
                             in pref['gcn_events']['gcn_notice_types']
                         ):
+                            send_notification = True
                             if "gcn_tags" in pref["gcn_events"].keys():
                                 if len(pref['gcn_events']["gcn_tags"]) > 0:
                                     root = lxml.etree.fromstring(target.content)
@@ -535,31 +537,74 @@ def add_user_notifications(mapper, connection, target):
                                         set(tags) & set(pref['gcn_events']["gcn_tags"])
                                     )
                                     if len(intersection) == 0:
-                                        return
+                                        send_notification = False
+                                        break
 
-                            stmt = sa.select(GcnNotice).where(
-                                GcnNotice.dateobs == target.dateobs
-                            )
-                            count_stmt = sa.select(func.count()).select_from(stmt)
-                            count_notices = session.execute(count_stmt).scalar()
-                            if count_notices > 1:
-                                session.add(
-                                    UserNotification(
-                                        user=user,
-                                        text=f"New Notice for GCN Event *{target.dateobs}*, with Notice Type *{gcn.NoticeType(target.notice_type).name}*",
-                                        notification_type="gcn_events",
-                                        url=f"/gcn_events/{str(target.dateobs).replace(' ','T')}",
-                                    )
+                            if "gcn_properties" in pref["gcn_events"].keys():
+                                if len(pref['gcn_events']["gcn_properties"]) > 0:
+                                    root = lxml.etree.fromstring(target.content)
+                                    properties_dict = get_properties(root)
+
+                                    for prop_filt in pref['gcn_events'][
+                                        "gcn_properties"
+                                    ]:
+                                        prop_split = prop_filt.split(":")
+                                        if not len(prop_split) == 3:
+                                            raise ValueError(
+                                                "Invalid propertiesFilter value -- property filter must have 3 values"
+                                            )
+                                        name = prop_split[0].strip()
+                                        if name in properties_dict:
+                                            value = prop_split[1].strip()
+                                            try:
+                                                value = float(value)
+                                            except ValueError as e:
+                                                raise ValueError(
+                                                    f"Invalid propotation filter value: {e}"
+                                                )
+                                            op = prop_split[2].strip()
+                                            op_options = [
+                                                "lt",
+                                                "le",
+                                                "eq",
+                                                "ne",
+                                                "ge",
+                                                "gt",
+                                            ]
+                                            if op not in op_options:
+                                                raise ValueError(
+                                                    f"Invalid operator: {op}"
+                                                )
+                                            comp_function = getattr(operator, op)
+                                            if not comp_function(
+                                                properties_dict[name], value
+                                            ):
+                                                send_notification = False
+                                                break
+                            if send_notification:
+                                stmt = sa.select(GcnNotice).where(
+                                    GcnNotice.dateobs == target.dateobs
                                 )
-                            else:
-                                session.add(
-                                    UserNotification(
-                                        user=user,
-                                        text=f"New GCN Event *{target.dateobs}*, with Notice Type *{gcn.NoticeType(target.notice_type).name}*",
-                                        notification_type="gcn_events",
-                                        url=f"/gcn_events/{str(target.dateobs).replace(' ','T')}",
+                                count_stmt = sa.select(func.count()).select_from(stmt)
+                                count_notices = session.execute(count_stmt).scalar()
+                                if count_notices > 1:
+                                    session.add(
+                                        UserNotification(
+                                            user=user,
+                                            text=f"New Notice for GCN Event *{target.dateobs}*, with Notice Type *{gcn.NoticeType(target.notice_type).name}*",
+                                            notification_type="gcn_events",
+                                            url=f"/gcn_events/{str(target.dateobs).replace(' ','T')}",
+                                        )
                                     )
-                                )
+                                else:
+                                    session.add(
+                                        UserNotification(
+                                            user=user,
+                                            text=f"New GCN Event *{target.dateobs}*, with Notice Type *{gcn.NoticeType(target.notice_type).name}*",
+                                            notification_type="gcn_events",
+                                            url=f"/gcn_events/{str(target.dateobs).replace(' ','T')}",
+                                        )
+                                    )
 
                 elif is_facility_transaction:
                     if "observation_plan_request" in target.to_dict():
