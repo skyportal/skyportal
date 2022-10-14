@@ -632,6 +632,8 @@ def check_thumbnail_file(thumbnail, user_id, session):
         # Thumbnail file is missing or empty, delete the thumbnail
         try:
             os.remove(thumbnail.file_uri)
+        except Exception:
+            pass  # if the file isn't there, don't worry about it
         finally:
             session.delete(thumbnail)
 
