@@ -78,12 +78,10 @@ def run_ngsf_model(data_dict):
 
     fix_z = analysis_parameters.get("fix_z") in [True, "True", "t", "true"]
 
-    # this example analysis service expects the photometry to be in
-    # a csv file (at data_dict["inputs"]["photometry"]) with the following columns
-    # - filter: the name of the bandpass
-    # - mjd: the modified Julian date of the observation
-    # - magsys: the mag system (e.g. ab) of the observations
-    # - flux: the flux of the observation
+    # this example analysis service expects the spectroscopy to be in
+    # a csv file (at data_dict["inputs"]["spectroscopy"]) with the following columns
+    # - wavelengths: wavelengths of the spectrum
+    # - fluxes: fluxes of the spectrum
     #
     # the following code transforms these inputs from SkyPortal
     # to the format expected by Next Generation SuperFit.
