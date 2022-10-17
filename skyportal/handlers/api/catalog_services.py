@@ -200,11 +200,10 @@ def fetch_transients(allocation_id, user_id, group_ids, payload):
                 if alert_available:
                     post_alert(
                         source['id'],
-                        None,
                         group_ids,
-                        program_id_selector,
                         user.id,
                         session,
+                        program_id_selector=program_id_selector,
                     )
             log("Finished querying Kowalski for sources")
 
