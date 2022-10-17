@@ -59,7 +59,7 @@ def post_classification(data, user_id, session):
                 f"That probability ({probability}) is outside "
                 "the allowable range (0-1)."
             )
-    # If not specified, set probability at 1.0       
+    # If not specified, set probability at 1.0
     else:
         probability = 1.0
 
