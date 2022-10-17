@@ -54,7 +54,7 @@ def upload_analysis_results(results, data_dict, request_timeout=60):
     except requests.exceptions.Timeout:
         # If we timeout here then it's precisely because
         # we cannot write back to the SkyPortal instance.
-        # So returning something doengsf't make sense in this case.
+        # So returning something doesn't make sense in this case.
         # Just log it and move on...
         log("Callback URL timedout. Skipping.")
     except Exception as e:
@@ -63,7 +63,7 @@ def upload_analysis_results(results, data_dict, request_timeout=60):
 
 def run_ngsf_model(data_dict):
     """
-    Use `ngsf` to fit data to a model with name `source_name`.
+    Use Next Generation SuperFit (`ngsf`) to fit data to a model with name `source_name`.
 
     For this analysis, we expect the `inputs` dictionary to have the following keys:
        - source: the name of the model to fit to the data
@@ -86,7 +86,7 @@ def run_ngsf_model(data_dict):
     # - flux: the flux of the observation
     #
     # the following code transforms these inputs from SkyPortal
-    # to the format expected by ngsfcosmo.
+    # to the format expected by Next Generation SuperFit.
     #
 
     rez = {"status": "failure", "message": "", "analysis": {}}
@@ -138,10 +138,9 @@ def run_ngsf_model(data_dict):
             SPECFILE = f'{SUPERFIT_DATA_PATH}/{filebase}.dat'
             wavelengths = np.array(ast.literal_eval(row['wavelengths']))
             fluxes = np.array(ast.literal_eval(row['fluxes']))
-            fid = open(SPECFILE, 'w')
-            for w, f in zip(wavelengths.tolist(), fluxes.tolist()):
-                fid.write(f'{w} {f}\n')
-            fid.close()
+            with open(SPECFILE, 'w') as fid:
+                for w, f in zip(wavelengths.tolist(), fluxes.tolist()):
+                    fid.write(f'{w} {f}\n')
 
             params = json.loads(open(SUPERFIT_PARAMETERS_JSON).read())
             params['object_to_fit'] = f'data/{filebase}.dat'
