@@ -641,3 +641,5 @@ analysis_services:
   analysis_folder: persistentdata/analysis
   sn_analysis_service:
     port: 6801
+  ngsf_analysis_service:
+    port: 7001
