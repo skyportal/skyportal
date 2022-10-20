@@ -385,7 +385,7 @@ skyportal_handlers = [
         r'/api/(sources|spectra)(/[0-9A-Za-z-_\.\+]+)/annotations(/[0-9]+)?',
         AnnotationHandler,
     ),
-    (r'/api/sources(/.*)?', SourceHandler),
+    (r'/api/sources(/[^/]*)?', SourceHandler),
     (r'/api/source_exists(/.*)?', SourceExistsHandler),
     (r'/api/source_notifications', SourceNotificationHandler),
     (r'/api/source_groups(/.*)?', SourceGroupsHandler),

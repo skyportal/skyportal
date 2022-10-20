@@ -673,8 +673,8 @@ def check_thumbnail_file(thumbnail, user_id, stream_ids, session):
             object_id=thumbnail.obj_id,
             candid=None,
             group_ids='all',
-            program_id_selector=stream_ids,
             user_id=user_id,
+            program_id_selector=stream_ids,
             session=session,
             thumbnails_only=True,
         )
