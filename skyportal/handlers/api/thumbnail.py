@@ -478,9 +478,9 @@ class ThumbnailPathHandler(BaseHandler):
                 if alert_available:
                     # check file exists and non-empty
                     # if not, delete and repost thumbnail from alerts
-                    user = self.associated_user_object
-                    stream_ids = [s.id for s in user.streams]
-                    ok = check_thumbnail_file(t, user.id, stream_ids, session)
+                    ok = check_thumbnail_file(
+                        t, self.associated_user_object.id, session
+                    )
                     if not ok:
                         # the delete is committed in check_thumbnail_file
                         continue
@@ -623,7 +623,7 @@ def count_thumbnails_in_folders(session, types, good_like, bad_like):
     return total_matches, good_matches, bad_matches
 
 
-def check_thumbnail_file(thumbnail, user_id, stream_ids, session):
+def check_thumbnail_file(thumbnail, user_id, session):
     """
     Check if a thumbnail file exists on disk
     and if not, delete the thumbnail and
@@ -636,8 +636,6 @@ def check_thumbnail_file(thumbnail, user_id, stream_ids, session):
         The thumbnail to check.
     user_id : int
         The ID of the user to post the new thumbnail as.
-    stream_ids : list of int
-        The stream IDs to post the new thumbnail to.
     session : `sqlalchemy.orm.session.Session`
         The database session.
 
@@ -674,7 +672,6 @@ def check_thumbnail_file(thumbnail, user_id, stream_ids, session):
             candid=None,
             group_ids='all',
             user_id=user_id,
-            program_id_selector=stream_ids,
             session=session,
             thumbnails_only=True,
         )
