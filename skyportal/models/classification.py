@@ -33,8 +33,9 @@ class Classification(Base):
     probability = sa.Column(
         sa.Float,
         doc='User-assigned probability of belonging to this class',
-        nullable=True,
+        nullable=False,
         index=True,
+        default=1.0,
     )
 
     author_id = sa.Column(
