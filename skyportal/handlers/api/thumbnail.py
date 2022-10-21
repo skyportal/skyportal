@@ -478,8 +478,12 @@ class ThumbnailPathHandler(BaseHandler):
                 if alert_available:
                     # check file exists and non-empty
                     # if not, delete and repost thumbnail from alerts
-                    check_thumbnail_file(t, self.current_user.id, session)
-
+                    ok = check_thumbnail_file(
+                        t, self.associated_user_object.id, session
+                    )
+                    if not ok:
+                        # the delete is committed in check_thumbnail_file
+                        continue
                 hash = hashlib.sha256(t.obj_id.encode('utf-8')).hexdigest()
                 subfolders = []
                 for i in range(required_depth):
@@ -498,12 +502,20 @@ class ThumbnailPathHandler(BaseHandler):
 
                 try:
                     os.makedirs(os.path.dirname(new_file_uri), exist_ok=True)
-                    os.rename(old_file_uri, new_file_uri)
+                    if os.path.isfile(old_file_uri):
+                        os.rename(old_file_uri, new_file_uri)
                 except Exception as e:
                     return self.error(
                         f'Could not move {old_file_uri} to {new_file_uri}: {e}'
                     )
 
+                # in case the old file is missing but also the new...
+                if not os.path.isfile(new_file_uri):
+                    return self.error(f'File {new_file_uri} does not exist!')
+
+                # only if the move was successful
+                # (or the file already existed)
+                # do we change the thumbnail's file_uri
                 try:
                     t.file_uri = new_file_uri
                     t.public_url = new_public_url
@@ -618,6 +630,22 @@ def check_thumbnail_file(thumbnail, user_id, session):
     post a new one from alerts.
     Should NOT BE CALLED if alerts are not available.
 
+    Parameters
+    ----------
+    thumbnail : `baselayer.app.models.Thumbnail`
+        The thumbnail to check.
+    user_id : int
+        The ID of the user to post the new thumbnail as.
+    session : `sqlalchemy.orm.session.Session`
+        The database session.
+
+    Returns
+    -------
+    bool:
+    True if the thumbnail file was ok.
+    False if the thumbnail was deleted and a new one was posted.
+
+
     """
     # need to import this here because alert.py might import this file
     from .alert import post_alert, alert_available
@@ -636,12 +664,18 @@ def check_thumbnail_file(thumbnail, user_id, session):
             pass  # if the file isn't there, don't worry about it
         finally:
             session.delete(thumbnail)
+            session.commit()
 
         # Post a new one from alerts
         post_alert(
-            thumbnail.obj_id,
-            'all',
-            user_id,
-            session,
+            object_id=thumbnail.obj_id,
+            candid=None,
+            group_ids='all',
+            user_id=user_id,
+            session=session,
             thumbnails_only=True,
         )
+
+        return False
+
+    return True

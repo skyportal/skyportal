@@ -6,5 +6,5 @@
 alert_available = False
 
 
-def post_alert():
+def post_alert(*args, **kwargs):
     pass

@@ -1064,9 +1064,9 @@ def make_legend_items_and_detection_lines(
             }
             for name, values in plotting_dict[panel_name]['scatter'].items():
                 if name == 'unobs':
-                    markers = ['inverted_triangle']
+                    markers = ['inverted_triangle'] * len(instruments)
                 else:
-                    markers = ['circle']
+                    markers = ['circle'] * len(instruments)
                 make_scatter(
                     plot,
                     model_dict,
