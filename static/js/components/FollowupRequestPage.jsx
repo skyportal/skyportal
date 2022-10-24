@@ -8,12 +8,16 @@ import Select from "@mui/material/Select";
 import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
 import makeStyles from "@mui/styles/makeStyles";
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
 import FollowupRequestLists from "./FollowupRequestLists";
 import FollowupRequestSelectionForm from "./FollowupRequestSelectionForm";
 import FollowupRequestPrioritizationForm from "./FollowupRequestPrioritizationForm";
 
 import * as followupRequestActions from "../ducks/followup_requests";
 import * as instrumentActions from "../ducks/instruments";
+
+dayjs.extend(utc);
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -40,10 +44,18 @@ const FollowupRequestPage = () => {
   const classes = useStyles();
   const dispatch = useDispatch();
 
+  const defaultStartDate = dayjs().utc().format("YYYY-MM-DDTHH:mm:ssZ");
+  const defaultEndDate = dayjs()
+    .add(1, "day")
+    .utc()
+    .format("YYYY-MM-DDTHH:mm:ssZ");
+
   const [selectedInstrumentId, setSelectedInstrumentId] = useState(null);
   const [fetchParams, setFetchParams] = useState({
     pageNumber: 1,
     numPerPage: defaultNumPerPage,
+    observationStartDate: defaultStartDate,
+    observationEndDate: defaultEndDate,
   });
 
   useEffect(() => {
@@ -187,7 +199,10 @@ const FollowupRequestPage = () => {
         <Paper>
           <div className={classes.paperContent}>
             <Typography variant="h6">Filter Followup Requests</Typography>
-            <FollowupRequestSelectionForm />
+            <FollowupRequestSelectionForm
+              fetchParams={fetchParams}
+              setFetchParams={setFetchParams}
+            />
           </div>
         </Paper>
         <Paper>
