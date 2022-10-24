@@ -31,7 +31,7 @@ def upgrade():
         'probability',
         existing_type=postgresql.DOUBLE_PRECISION(precision=53),
         nullable=False,
-        server_default=1.0,
+        default=1.0,
     )
     # ### end Alembic commands ###
 
