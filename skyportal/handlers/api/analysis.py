@@ -1,3 +1,4 @@
+import io
 import json
 from urllib.parse import urlparse, urljoin
 import datetime
@@ -835,7 +836,6 @@ class AnalysisHandler(BaseHandler):
                             for row in input_data
                         ]
                         df = pd.DataFrame(input_data)
-
                     inputs[input_type] = df.to_csv(index=False)
 
                 invalid_after = datetime.datetime.utcnow() + datetime.timedelta(
@@ -1194,6 +1194,10 @@ class AnalysisProductsHandler(BaseHandler):
               schema:
                 type: object
                 properties:
+                  download:
+                    type: bool
+                    description: |
+                        Download the results as a file
                   plot_kwargs:
                     type: object
                     additionalProperties:
@@ -1203,7 +1207,7 @@ class AnalysisProductsHandler(BaseHandler):
                         if new plots are to be generated (e.g. with corner plots)
         responses:
           200:
-            description: PNG finding chart file
+            description: Requested analysis file
             content:
                 oneOf:
                     - image/png:
@@ -1253,7 +1257,23 @@ class AnalysisProductsHandler(BaseHandler):
                             return self.error(
                                 "No results data found for this Analysis.", status=404
                             )
-                        return self.success(data=analysis.serialize_results_data())
+
+                        result = analysis.serialize_results_data()
+                        if result:
+                            download = self.get_query_argument("download", False)
+                            if download:
+                                filename = f"analysis_{analysis.obj_id}.json"
+                                buf = io.BytesIO()
+                                buf.write(result.encode('utf-8'))
+                                buf.seek(0)
+
+                                await self.send_file(buf, filename, output_type='json')
+                            else:
+                                return self.success(data=result)
+                        else:
+                            return self.error(
+                                "No results data found for this Analysis.", status=404
+                            )
                     elif product_type.lower() == "plots":
                         if not analysis.has_plot_data:
                             return self.error(

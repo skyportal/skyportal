@@ -1,5 +1,6 @@
 import ast
 from astropy.table import Table
+import joblib
 import io
 import os
 import functools
@@ -156,14 +157,19 @@ def run_ngsf_model(data_dict):
 
             results_path = os.path.join(SUPERFIT_PATH, f"{filebase}.csv")
             results = pd.read_csv(results_path)
+            results.sort_values(by=['CHI2/dof'], inplace=True)
 
             plot_file = os.path.join(SUPERFIT_DATA_PATH, f'{filebase}.png')
-            plt.figure(figsize=(40, 10))
+            plt.figure(figsize=(20, 10))
             ax = plt.gca()
             y_pos = np.arange(len(results['SN']))
             ax.barh(y_pos, results['CHI2/dof'], align='center')
             ax.set_yticks(y_pos, labels=results['SN'])
             ax.set_xlabel('CHI2/dof')
+            ax.set_xscale('log')
+            ax.set_xlim(
+                [np.min(results['CHI2/dof']) - 0.5, np.max(results['CHI2/dof']) + 0.5]
+            )
             plt.savefig(plot_file, bbox_inches='tight')
             plt.close()
 
@@ -185,8 +191,17 @@ def run_ngsf_model(data_dict):
             plot_data.append({"format": "png", "data": plot_data_1})
             plot_data.append({"format": "png", "data": plot_data_2})
 
+            f = tempfile.NamedTemporaryFile(
+                suffix=".joblib", prefix="results_", delete=False
+            )
+            f.close()
+            joblib.dump(results.to_json(orient="index"), f.name, compress=3)
+            result_data = base64.b64encode(open(f.name, "rb").read())
+            local_temp_files.append(f.name)
+
         analysis_results = {
             "plots": plot_data,
+            "results": {"format": "joblib", "data": result_data},
         }
         rez.update(
             {
