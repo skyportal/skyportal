@@ -381,7 +381,7 @@ def test_new_gcn_event_triggers_notification(driver, user, super_admin_token):
     driver.get("/")
     driver.wait_for_xpath("//span[text()='1']")
     driver.click_xpath('//*[@data-testid="notificationsButton"]')
-    driver.wait_for_xpath('//*[contains(text(), "New GcnEvent")]')
+    driver.wait_for_xpath('//*[contains(text(), "New GCN Event")]')
 
 
 def test_new_facility_request_triggers_notification(

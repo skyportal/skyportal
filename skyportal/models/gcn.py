@@ -11,6 +11,8 @@ import lxml
 
 from baselayer.app.models import Base, DBSession, AccessibleIfUserMatches
 
+SOURCE_RADIUS_THRESHOLD = 5 / 60.0  # 5 arcmin in degrees
+
 
 class GcnNotice(Base):
     """Records of ingested GCN notices"""
@@ -135,6 +137,10 @@ class GcnEvent(Base):
 
     dateobs = sa.Column(sa.DateTime, doc='Event time', unique=True, nullable=False)
 
+    trigger_id = sa.Column(
+        sa.BigInteger, unique=True, doc='Trigger ID supplied by instrument'
+    )
+
     gcn_notices = relationship("GcnNotice", order_by=GcnNotice.date)
 
     properties = relationship(
@@ -202,7 +208,7 @@ class GcnEvent(Base):
     @hybrid_property
     def tags(self):
         """List of tags."""
-        return [tag.text for tag in self._tags]
+        return [tag.text for tag in set(self._tags)]
 
     @tags.expression
     def tags(cls):

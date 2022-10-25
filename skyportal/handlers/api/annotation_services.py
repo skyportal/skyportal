@@ -97,71 +97,75 @@ class GaiaQueryHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        obj = Obj.get_if_accessible_by(obj_id, self.current_user)
-        if obj is None:
-            return self.error('Invalid object id.')
 
-        data = self.get_json()
-
-        author = self.associated_user_object
-
-        catalog = data.pop('catalog', "gaiadr3.gaia_source")
-        radius_arcsec = data.pop('crossmatchRadius', cfg['cross_match.gaia.radius'])
-        limmag = data.pop('crossmatchLimmag', cfg['cross_match.gaia.limmag'])
-        num_matches = data.pop('crossmatchNumber', cfg['cross_match.gaia.number'])
-        candidate_coord = SkyCoord(ra=obj.ra * u.deg, dec=obj.dec * u.deg)
-
-        df = (
-            GaiaClass()
-            .cone_search(
-                candidate_coord,
-                radius_arcsec * u.arcsec,
-                table_name=catalog,
-            )
-            .get_data()
-            .to_pandas()
-        )
-
-        # first remove rows that have faint magnitudes
-        if limmag:  # do not remove if limmag is None or zero
-            df = df[df['phot_g_mean_mag'] < limmag]
-
-        # propagate the stars using Gaia proper motion
-        # then choose the closest match
-        if len(df) > 1:
-            df['adjusted_dist'] = np.nan  # new column
-            for index, row in df.iterrows():
-                c = SkyCoord(
-                    ra=row['ra'] * u.deg,
-                    dec=row['dec'] * u.deg,
-                    pm_ra_cosdec=row['pmra'] * u.mas / u.yr,
-                    pm_dec=row['pmdec'] * u.mas / u.yr,
-                    frame='icrs',
-                    distance=min(abs(1 / row['parallax']), 10) * u.kpc,
-                    obstime=Time(row['ref_epoch'], format='jyear'),
-                )
-                new_dist = c.separation(candidate_coord).deg
-                df.at[index, 'adjusted_dist'] = new_dist
-
-            df.sort_values(by=['adjusted_dist'], inplace=True)
-            df = df.head(num_matches)
-
-        columns = {
-            'ra': 'ra',
-            'dec': 'dec',
-            'pm_ra': 'pmra',
-            'pm_dec': 'pmdec',
-            'Mag_G': 'phot_g_mean_mag',
-            'Mag_BP': 'phot_bp_mean_mag',
-            'Mag_RP': 'phot_rp_mean_mag',
-            'Plx': 'parallax',
-            'Plx_err': 'parallax_error',
-            'A_G': 'a_g_val',
-            'RUWE': 'ruwe',
-        }
-
-        # TODO: convert the above code to the new SQLA 2.0 methods
         with self.Session() as session:
+            obj = session.scalars(
+                Obj.select(self.current_user).where(Obj.id == obj_id)
+            ).first()
+            if obj is None:
+                return self.error(
+                    f'Cannot find source with id "{obj_id}". ', status=403
+                )
+
+            data = self.get_json()
+
+            author = self.associated_user_object
+
+            catalog = data.pop('catalog', "gaiadr3.gaia_source")
+            radius_arcsec = data.pop('crossmatchRadius', cfg['cross_match.gaia.radius'])
+            limmag = data.pop('crossmatchLimmag', cfg['cross_match.gaia.limmag'])
+            num_matches = data.pop('crossmatchNumber', cfg['cross_match.gaia.number'])
+            candidate_coord = SkyCoord(ra=obj.ra * u.deg, dec=obj.dec * u.deg)
+
+            df = (
+                GaiaClass()
+                .cone_search(
+                    candidate_coord,
+                    radius_arcsec * u.arcsec,
+                    table_name=catalog,
+                )
+                .get_data()
+                .to_pandas()
+            )
+
+            # first remove rows that have faint magnitudes
+            if limmag:  # do not remove if limmag is None or zero
+                df = df[df['phot_g_mean_mag'] < limmag]
+
+            # propagate the stars using Gaia proper motion
+            # then choose the closest match
+            if len(df) > 1:
+                df['adjusted_dist'] = np.nan  # new column
+                for index, row in df.iterrows():
+                    c = SkyCoord(
+                        ra=row['ra'] * u.deg,
+                        dec=row['dec'] * u.deg,
+                        pm_ra_cosdec=row['pmra'] * u.mas / u.yr,
+                        pm_dec=row['pmdec'] * u.mas / u.yr,
+                        frame='icrs',
+                        distance=min(abs(1 / row['parallax']), 10) * u.kpc,
+                        obstime=Time(row['ref_epoch'], format='jyear'),
+                    )
+                    new_dist = c.separation(candidate_coord).deg
+                    df.at[index, 'adjusted_dist'] = new_dist
+
+                df.sort_values(by=['adjusted_dist'], inplace=True)
+                df = df.head(num_matches)
+
+            columns = {
+                'ra': 'ra',
+                'dec': 'dec',
+                'pm_ra': 'pmra',
+                'pm_dec': 'pmdec',
+                'Mag_G': 'phot_g_mean_mag',
+                'Mag_BP': 'phot_bp_mean_mag',
+                'Mag_RP': 'phot_rp_mean_mag',
+                'Plx': 'parallax',
+                'Plx_err': 'parallax_error',
+                'A_G': 'a_g_val',
+                'RUWE': 'ruwe',
+            }
+
             group_ids = data.pop('group_ids', None)
 
             if not group_ids:
@@ -172,7 +176,7 @@ class GaiaQueryHandler(BaseHandler):
 
             if {g.id for g in groups} != set(group_ids):
                 return self.error(
-                    f'Cannot find one or more groups with IDs: {group_ids}.'
+                    f'Cannot find one or more groups with IDs: {group_ids}.', status=403
                 )
 
             annotations = []
@@ -267,12 +271,18 @@ class IRSAQueryWISEHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        obj = Obj.get_if_accessible_by(obj_id, self.current_user)
-        if obj is None:
-            return self.error('Invalid object id.')
 
         data = self.get_json()
         with self.Session() as session:
+
+            obj = session.scalars(
+                Obj.select(self.current_user).where(Obj.id == obj_id)
+            ).first()
+            if obj is None:
+                return self.error(
+                    f'Cannot find source with id "{obj_id}". ', status=403
+                )
+
             group_ids = data.pop('group_ids', None)
 
             if not group_ids:
@@ -283,7 +293,7 @@ class IRSAQueryWISEHandler(BaseHandler):
 
             if {g.id for g in groups} != set(group_ids):
                 return self.error(
-                    f'Cannot find one or more groups with IDs: {group_ids}.'
+                    f'Cannot find one or more groups with IDs: {group_ids}.', status=403
                 )
 
             author = self.associated_user_object
@@ -338,11 +348,11 @@ class IRSAQueryWISEHandler(BaseHandler):
             except IntegrityError:
                 return self.error("Annotation already posted.")
 
-        self.push_all(
-            action='skyportal/REFRESH_SOURCE',
-            payload={'obj_key': obj.internal_key},
-        )
-        return self.success()
+            self.push_all(
+                action='skyportal/REFRESH_SOURCE',
+                payload={'obj_key': obj.internal_key},
+            )
+            return self.success()
 
 
 class VizierQueryHandler(BaseHandler):
@@ -400,13 +410,17 @@ class VizierQueryHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        obj = Obj.get_if_accessible_by(obj_id, self.current_user)
-        if obj is None:
-            return self.error('Invalid object id.')
-
         data = self.get_json()
 
         with self.Session() as session:
+            obj = session.scalars(
+                Obj.select(self.current_user).where(Obj.id == obj_id)
+            ).first()
+            if obj is None:
+                return self.error(
+                    f'Cannot find source with id "{obj_id}". ', status=403
+                )
+
             group_ids = data.pop('group_ids', None)
 
             if not group_ids:
@@ -417,7 +431,7 @@ class VizierQueryHandler(BaseHandler):
 
             if {g.id for g in groups} != set(group_ids):
                 return self.error(
-                    f'Cannot find one or more groups with IDs: {group_ids}.'
+                    f'Cannot find one or more groups with IDs: {group_ids}.', status=403
                 )
 
             author = self.associated_user_object
@@ -438,10 +452,17 @@ class VizierQueryHandler(BaseHandler):
             if len(tl) > 1:
                 return self.error("Should only have one table from that query.")
             df = tl[0].filled(fill_value=-99).to_pandas()
-            keys = [
-                'Qpct',
-                'z',
-            ]
+
+            if catalog == "VII/290":
+                keys = [
+                    'Qpct',
+                    'z',
+                ]
+            elif catalog == "II/335/galex_ais":
+                keys = ['FUVmag', 'e_FUVmag', 'NUVmag', 'e_NUVmag']
+            else:
+                keys = df.columns
+
             annotations = []
             for index, row in df.iterrows():
                 annotation_data = {
@@ -464,15 +485,15 @@ class VizierQueryHandler(BaseHandler):
 
             session.add_all(annotations)
             try:
-                self.verify_and_commit()
+                session.commit()
             except IntegrityError:
                 return self.error("Annotation already posted.")
 
-        self.push_all(
-            action='skyportal/REFRESH_SOURCE',
-            payload={'obj_key': obj.internal_key},
-        )
-        return self.success()
+            self.push_all(
+                action='skyportal/REFRESH_SOURCE',
+                payload={'obj_key': obj.internal_key},
+            )
+            return self.success()
 
 
 class DatalabQueryHandler(BaseHandler):
@@ -528,13 +549,17 @@ class DatalabQueryHandler(BaseHandler):
 
     @auth_or_token
     def post(self, obj_id):
-        obj = Obj.get_if_accessible_by(obj_id, self.current_user)
-        if obj is None:
-            return self.error('Invalid object id.')
-
         data = self.get_json()
 
         with self.Session() as session:
+            obj = session.scalars(
+                Obj.select(self.current_user).where(Obj.id == obj_id)
+            ).first()
+            if obj is None:
+                return self.error(
+                    f'Cannot find source with id "{obj_id}". ', status=403
+                )
+
             group_ids = data.pop('group_ids', None)
 
             if not group_ids:
@@ -545,7 +570,7 @@ class DatalabQueryHandler(BaseHandler):
 
             if {g.id for g in groups} != set(group_ids):
                 return self.error(
-                    f'Cannot find one or more groups with IDs: {group_ids}.'
+                    f'Cannot find one or more groups with IDs: {group_ids}.', status=403
                 )
 
             author = self.associated_user_object
@@ -588,8 +613,8 @@ class DatalabQueryHandler(BaseHandler):
             except IntegrityError:
                 return self.error("Annotation already posted.")
 
-        self.push_all(
-            action='skyportal/REFRESH_SOURCE',
-            payload={'obj_key': obj.internal_key},
-        )
-        return self.success()
+            self.push_all(
+                action='skyportal/REFRESH_SOURCE',
+                payload={'obj_key': obj.internal_key},
+            )
+            return self.success()

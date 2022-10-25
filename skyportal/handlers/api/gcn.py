@@ -34,6 +34,8 @@ from ...utils.UTCTZnaiveDateTime import UTCTZnaiveDateTime
 
 from baselayer.app.access import auth_or_token
 from baselayer.log import make_log
+
+from .source import post_source
 from ..base import BaseHandler
 from ...models import (
     DBSession,
@@ -55,6 +57,7 @@ from ...utils.gcn import (
     get_dateobs,
     get_properties,
     get_tags,
+    get_trigger,
     get_skymap,
     get_contour,
     from_url,
@@ -62,6 +65,8 @@ from ...utils.gcn import (
     from_cone,
     from_polygon,
 )
+
+from skyportal.models.gcn import SOURCE_RADIUS_THRESHOLD
 
 log = make_log('api/gcn_event')
 
@@ -94,13 +99,19 @@ def post_gcnevent_from_xml(payload, user_id, session):
         raise ValueError("xml file is not valid VOEvent")
 
     dateobs = get_dateobs(root)
+    trigger_id = get_trigger(root)
 
-    event = session.scalars(
-        GcnEvent.select(user).where(GcnEvent.dateobs == dateobs)
-    ).first()
+    if trigger_id is not None:
+        event = session.scalars(
+            GcnEvent.select(user).where(GcnEvent.trigger_id == trigger_id)
+        ).first()
+    else:
+        event = session.scalars(
+            GcnEvent.select(user).where(GcnEvent.dateobs == dateobs)
+        ).first()
 
     if event is None:
-        event = GcnEvent(dateobs=dateobs, sent_by_id=user.id)
+        event = GcnEvent(dateobs=dateobs, sent_by_id=user.id, trigger_id=trigger_id)
         session.add(event)
     else:
         if not event.is_accessible_by(user, mode="update"):
@@ -152,6 +163,42 @@ def post_gcnevent_from_xml(payload, user_id, session):
 
     skymap["dateobs"] = event.dateobs
     skymap["sent_by_id"] = user.id
+
+    try:
+        ra, dec, error = (float(val) for val in skymap["localization_name"].split("_"))
+        if error < SOURCE_RADIUS_THRESHOLD:
+            name = root.find('./Why/Inference/Name')
+            if name is not None:
+                source = {
+                    'id': (name.text).replace(' ', ''),
+                    'ra': ra,
+                    'dec': dec,
+                }
+            elif any([True if 'GRB' in tag.text.upper() else False for tag in tags]):
+                dateobs_txt = Time(dateobs).isot
+                source_name = f"GRB{dateobs_txt[2:4]}{dateobs_txt[5:7]}{dateobs_txt[8:10]}.{dateobs_txt[11:13]}{dateobs_txt[14:16]}{dateobs_txt[17:19]}"
+                source = {
+                    'id': source_name,
+                    'ra': ra,
+                    'dec': dec,
+                }
+            elif any([True if 'GW' in tag.text.upper() else False for tag in tags]):
+                dateobs_txt = Time(dateobs).isot
+                source_name = f"GW{dateobs_txt[2:4]}{dateobs_txt[5:7]}{dateobs_txt[8:10]}.{dateobs_txt[11:13]}{dateobs_txt[14:16]}{dateobs_txt[17:19]}"
+                source = {
+                    'id': source_name,
+                    'ra': ra,
+                    'dec': dec,
+                }
+            else:
+                source = {
+                    'id': Time(event.dateobs).isot.replace(":", "-"),
+                    'ra': ra,
+                    'dec': dec,
+                }
+            post_source(source, user_id, session)
+    except Exception:
+        pass
 
     localization = session.scalars(
         Localization.select(user).where(
@@ -253,6 +300,18 @@ def post_gcnevent_from_dictionary(payload, user_id, session):
 
     skymap["dateobs"] = event.dateobs
     skymap["sent_by_id"] = user.id
+
+    try:
+        ra, dec, error = (float(val) for val in skymap["localization_name"].split("_"))
+        if error < SOURCE_RADIUS_THRESHOLD:
+            source = {
+                'id': Time(event.dateobs).isot.replace(":", "-"),
+                'ra': ra,
+                'dec': dec,
+            }
+            post_source(source, user_id, session)
+    except Exception:
+        pass
 
     localization = session.scalars(
         Localization.select(user).where(

@@ -162,9 +162,16 @@ const CommentAttachmentPreview = ({
   };
 
   const fileType = filename.includes(".") ? filename.split(".").pop() : "";
-  const supportedType = ["png", "jpg", "jpeg", "pdf", "gif", "json"].includes(
-    fileType.toLowerCase()
-  );
+  const supportedType = [
+    "png",
+    "jpg",
+    "jpeg",
+    "pdf",
+    "gif",
+    "json",
+    "fit",
+    "fits",
+  ].includes(fileType.toLowerCase());
 
   let jsonFile = {};
   try {
@@ -216,6 +223,7 @@ const CommentAttachmentPreview = ({
   } else {
     baseUrl = `/api/${associatedResourceType}/${objectID}/comments/${commentId}/attachment`;
   }
+  const previewUrl = `${baseUrl}?preview=True`;
   const url = fileType === "pdf" ? `${baseUrl}.pdf` : baseUrl;
 
   return (
@@ -261,7 +269,10 @@ const CommentAttachmentPreview = ({
                 />
               )}
               {supportedType && fileType !== "pdf" && fileType !== "json" && (
-                <FilePreviewerThumbnail file={{ url }} hideControls />
+                <FilePreviewerThumbnail
+                  file={{ url: previewUrl }}
+                  hideControls
+                />
               )}
               {!supportedType && (
                 <div className={classes.unsupportedType}>

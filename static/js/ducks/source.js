@@ -19,6 +19,8 @@ const ADD_SOURCE_TNS = "skyportal/ADD_SOURCE_TNS";
 
 const ADD_COMMENT = "skyportal/ADD_COMMENT";
 
+const DELETE_ANNOTATION = "skyportal/DELETE_ANNOTATION";
+
 const DELETE_COMMENT = "skyportal/DELETE_COMMENT";
 const DELETE_COMMENT_ON_SPECTRUM = "skyportal/DELETE_COMMENT_ON_SPECTRUM";
 
@@ -204,6 +206,13 @@ export function addComment(formData) {
   );
 }
 
+export function deleteAnnotation(sourceID, annotationID) {
+  return API.DELETE(
+    `/api/sources/${sourceID}/annotations/${annotationID}`,
+    DELETE_ANNOTATION
+  );
+}
+
 export function deleteComment(sourceID, commentID) {
   return API.DELETE(
     `/api/sources/${sourceID}/comments/${commentID}`,
@@ -329,8 +338,10 @@ export const fetchGaia = (sourceID) =>
 export const fetchWise = (sourceID) =>
   API.POST(`/api/sources/${sourceID}/annotations/irsa`, FETCH_WISE);
 
-export const fetchVizier = (sourceID) =>
-  API.POST(`/api/sources/${sourceID}/annotations/vizier`, FETCH_VIZIER);
+export const fetchVizier = (sourceID, catalog = "VII/290") =>
+  API.POST(`/api/sources/${sourceID}/annotations/vizier`, FETCH_VIZIER, {
+    catalog,
+  });
 
 export const fetchPhotoz = (sourceID) =>
   API.POST(`/api/sources/${sourceID}/annotations/datalab`, FETCH_PHOTOZ);

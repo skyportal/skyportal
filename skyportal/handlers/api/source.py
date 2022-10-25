@@ -352,12 +352,15 @@ def get_sources(
     last_detected_date=None,
     has_tns_name=False,
     has_spectrum=False,
+    has_followup_request=False,
     sourceID=None,
+    rejectedSourceIDs=None,
     ra=None,
     dec=None,
     radius=None,
     has_spectrum_before=None,
     has_spectrum_after=None,
+    followup_request_status=None,
     saved_before=None,
     saved_after=None,
     created_or_modified_after=None,
@@ -421,6 +424,9 @@ def get_sources(
         obj_query = obj_query.where(
             func.lower(Obj.id).contains(func.lower(sourceID.strip()))
         )
+    if rejectedSourceIDs:
+        obj_query = obj_query.where(Obj.id.notin_(rejectedSourceIDs))
+
     if any([ra, dec, radius]):
         if not all([ra, dec, radius]):
             raise ValueError(
@@ -538,6 +544,16 @@ def get_sources(
         spectrum_subquery = Spectrum.select(user).subquery()
         obj_query = obj_query.join(
             spectrum_subquery, Obj.id == spectrum_subquery.c.obj_id
+        )
+    if has_followup_request:
+        followup_request = FollowupRequest.select(user)
+        if followup_request_status:
+            followup_request = followup_request.where(
+                FollowupRequest.status.contains(followup_request_status.strip())
+            )
+        followup_request_subquery = followup_request.subquery()
+        obj_query = obj_query.join(
+            followup_request_subquery, Obj.id == followup_request_subquery.c.obj_id
         )
     if min_redshift is not None:
         try:
@@ -1036,6 +1052,7 @@ def get_sources(
                 include_thumbnails=False,
                 # include detection stats here as it is a query column,
                 include_detection_stats=include_detection_stats,
+                use_cache=True,
                 current_user=user,
             )
         except ValueError as e:
@@ -1517,6 +1534,12 @@ class SourceHandler(BaseHandler):
               type: string
             description: Portion of ID to filter on
           - in: query
+            name: rejectedSourceIDs
+            nullable: true
+            schema:
+              type: str
+            description: Comma-separated string of object IDs not to be returned, useful in cases where you are looking for new sources passing a query.
+          - in: query
             name: simbadClass
             nullable: true
             schema:
@@ -1879,6 +1902,19 @@ class SourceHandler(BaseHandler):
               type: boolean
             description: If true, return only those matches with at least one associated spectrum
           - in: query
+            name: hasFollowupRequest
+            nullable: true
+            schema:
+              type: boolean
+            description: If true, return only those matches with at least one associated followup request
+          - in: query
+            name: followupRequestStatus
+            nullable: true
+            schema:
+              type: string
+            description: |
+              If provided, string to match status of followup_request against
+          - in: query
             name: createdOrModifiedAfter
             nullable: true
             schema:
@@ -1962,6 +1998,7 @@ class SourceHandler(BaseHandler):
         last_detected_date = self.get_query_argument('endDate', None)
         list_name = self.get_query_argument('listName', None)
         sourceID = self.get_query_argument('sourceID', None)  # Partial ID to match
+        rejectedSourceIDs = self.get_query_argument('rejectedSourceIDs', None)
         include_photometry = self.get_query_argument("includePhotometry", False)
         include_color_mag = self.get_query_argument("includeColorMagnitude", False)
         include_requested = self.get_query_argument("includeRequested", False)
@@ -2009,6 +2046,9 @@ class SourceHandler(BaseHandler):
         has_spectrum = self.get_query_argument("hasSpectrum", False)
         has_spectrum_after = self.get_query_argument("hasSpectrumAfter", None)
         has_spectrum_before = self.get_query_argument("hasSpectrumBefore", None)
+        has_followup_request = self.get_query_argument("hasFollowupRequest", False)
+        followup_request_status = self.get_query_argument("followupRequestStatus", None)
+
         created_or_modified_after = self.get_query_argument(
             "createdOrModifiedAfter", None
         )
@@ -2088,6 +2128,9 @@ class SourceHandler(BaseHandler):
                     "startDate and endDate must be less than a month apart when filtering by localizationDateobs or localizationName",
                 )
 
+        if rejectedSourceIDs:
+            rejectedSourceIDs = rejectedSourceIDs.split(",")
+
         # parse the group ids:
         group_ids = self.get_query_argument('group_ids', None)
         if group_ids is not None:
@@ -2158,6 +2201,7 @@ class SourceHandler(BaseHandler):
                     first_detected_date=first_detected_date,
                     last_detected_date=last_detected_date,
                     sourceID=sourceID,
+                    rejectedSourceIDs=rejectedSourceIDs,
                     ra=ra,
                     dec=dec,
                     radius=radius,
@@ -2172,6 +2216,8 @@ class SourceHandler(BaseHandler):
                     origin=origin,
                     has_tns_name=has_tns_name,
                     has_spectrum=has_spectrum,
+                    has_followup_request=has_followup_request,
+                    followup_request_status=followup_request_status,
                     min_redshift=min_redshift,
                     max_redshift=max_redshift,
                     min_peak_magnitude=min_peak_magnitude,

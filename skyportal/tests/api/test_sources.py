@@ -860,6 +860,30 @@ def test_sources_filter_by_name_or_id(upload_data_token, view_only_token, public
     assert len(data["data"]["sources"]) == 1
     assert data["data"]["sources"][0]["id"] == obj_id1
 
+    # Filter for obj 1 only, rejecting object 2
+    status, data = api(
+        "GET",
+        "sources",
+        params={"rejectedSourceIDs": obj_id2, "group_ids": f"{public_group.id}"},
+        token=view_only_token,
+    )
+    assert status == 200
+    assert len(data["data"]["sources"]) == 1
+    assert data["data"]["sources"][0]["id"] == obj_id1
+
+    # Reject object 1 and 2
+    status, data = api(
+        "GET",
+        "sources",
+        params={
+            "rejectedSourceIDs": f"{obj_id1},{obj_id2}",
+            "group_ids": f"{public_group.id}",
+        },
+        token=view_only_token,
+    )
+    assert status == 200
+    assert len(data["data"]["sources"]) == 0
+
 
 def test_sources_filter_by_position(upload_data_token, view_only_token, public_group):
     obj_id1 = str(uuid.uuid4())
@@ -2098,3 +2122,47 @@ def test_patch_healpix(upload_data_token, view_only_token, public_group):
     assert status == 200
     assert data["data"]["id"] == obj_id
     assert data["data"]["healpix"] == 3126137476541327364
+
+
+def test_filter_followup_request(
+    upload_data_token, view_only_token, public_group, public_group_sedm_allocation
+):
+    obj_id = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "sources",
+        data={
+            "id": obj_id,
+            "ra": 234.22,
+            "dec": -22.33,
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    status, data = api("GET", f"sources/{obj_id}", token=view_only_token)
+    assert status == 200
+    assert data["data"]["id"] == obj_id
+
+    request_data = {
+        'allocation_id': public_group_sedm_allocation.id,
+        'obj_id': obj_id,
+        'payload': {
+            'priority': 5,
+            'start_date': '3020-09-01',
+            'end_date': '3022-09-01',
+            'observation_type': 'IFU',
+        },
+    }
+
+    status, data = api(
+        'POST', 'followup_request', data=request_data, token=upload_data_token
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    params = {
+        'hasFollowupRequest': True,
+    }
+    status, data = api("GET", "sources", token=view_only_token, params=params)
+    assert status == 200
+    assert any(obj["id"] == obj_id for obj in data["data"]["sources"])
