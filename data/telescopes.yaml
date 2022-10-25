@@ -540,3 +540,13 @@
   weather_link: https://www.cleardarksky.com/c/PalomarObkey.html
   =id: PGIR
   robotic: true
+- diameter: 1.0
+  elevation: 1870.0
+  lat: 33.3633675
+  lon: -116.8361345
+  nickname: WINTER
+  name: WINTER
+  skycam_link: http://algol.palomar.caltech.edu/instruments/allsky/AllSkyCurrentImage.JPG
+  weather_link: https://www.cleardarksky.com/c/PalomarObkey.html
+  =id: WINTER
+  robotic: true

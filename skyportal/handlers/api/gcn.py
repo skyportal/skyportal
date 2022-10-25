@@ -66,12 +66,12 @@ from ...utils.gcn import (
     from_polygon,
 )
 
+from skyportal.models.gcn import SOURCE_RADIUS_THRESHOLD
+
 log = make_log('api/gcn_event')
 
 
 Session = scoped_session(sessionmaker(bind=DBSession.session_factory.kw["bind"]))
-
-SOURCE_RADIUS_THRESHOLD = 5 / 60.0
 
 
 def post_gcnevent_from_xml(payload, user_id, session):
@@ -167,11 +167,35 @@ def post_gcnevent_from_xml(payload, user_id, session):
     try:
         ra, dec, error = (float(val) for val in skymap["localization_name"].split("_"))
         if error < SOURCE_RADIUS_THRESHOLD:
-            source = {
-                'id': Time(event.dateobs).isot.replace(":", "-"),
-                'ra': ra,
-                'dec': dec,
-            }
+            name = root.find('./Why/Inference/Name')
+            if name is not None:
+                source = {
+                    'id': (name.text).replace(' ', ''),
+                    'ra': ra,
+                    'dec': dec,
+                }
+            elif any([True if 'GRB' in tag.text.upper() else False for tag in tags]):
+                dateobs_txt = Time(dateobs).isot
+                source_name = f"GRB{dateobs_txt[2:4]}{dateobs_txt[5:7]}{dateobs_txt[8:10]}.{dateobs_txt[11:13]}{dateobs_txt[14:16]}{dateobs_txt[17:19]}"
+                source = {
+                    'id': source_name,
+                    'ra': ra,
+                    'dec': dec,
+                }
+            elif any([True if 'GW' in tag.text.upper() else False for tag in tags]):
+                dateobs_txt = Time(dateobs).isot
+                source_name = f"GW{dateobs_txt[2:4]}{dateobs_txt[5:7]}{dateobs_txt[8:10]}.{dateobs_txt[11:13]}{dateobs_txt[14:16]}{dateobs_txt[17:19]}"
+                source = {
+                    'id': source_name,
+                    'ra': ra,
+                    'dec': dec,
+                }
+            else:
+                source = {
+                    'id': Time(event.dateobs).isot.replace(":", "-"),
+                    'ra': ra,
+                    'dec': dec,
+                }
             post_source(source, user_id, session)
     except Exception:
         pass

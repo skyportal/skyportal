@@ -33,17 +33,21 @@ class RecentGcnEventsHandler(BaseHandler):
             if 'maxNumEvents' in recent_events_prefs
             else 5
         )
-        q = (
-            GcnEvent.query_records_accessible_by(
-                self.current_user,
-                options=[joinedload(GcnEvent.localizations)],
+        with self.Session() as session:
+            q = (
+                session.scalars(
+                    GcnEvent.select(
+                        session.user_or_token,
+                        options=[joinedload(GcnEvent.localizations)],
+                    )
+                    .order_by(GcnEvent.dateobs.desc())
+                    .limit(max_num_events)
+                )
+                .unique()
+                .all()
             )
-            .order_by(GcnEvent.dateobs.desc())
-            .limit(max_num_events)
-        )
+            events = []
+            for event in q:
+                events.append({**event.to_dict(), "tags": event.tags})
 
-        events = []
-        for event in q.all():
-            events.append({**event.to_dict(), "tags": event.tags})
-
-        return self.success(data=events)
+            return self.success(data=events)

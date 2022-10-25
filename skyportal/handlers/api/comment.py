@@ -7,7 +7,6 @@ import sqlalchemy as sa
 import time
 import unicodedata
 
-from baselayer.app.custom_exceptions import AccessError
 from baselayer.app.access import permissions, auth_or_token
 from baselayer.log import make_log
 
@@ -407,7 +406,9 @@ class CommentHandler(BaseHandler):
             elif associated_resource_type.lower() == "spectra":
                 spectrum_id = resource_id
                 spectrum = session.scalars(
-                    Spectrum.select(self.current_user).where(Spectrum.id == spectrum_id)
+                    Spectrum.select(session.user_or_token).where(
+                        Spectrum.id == spectrum_id
+                    )
                 ).first()
                 if spectrum is None:
                     return self.error(
@@ -427,7 +428,9 @@ class CommentHandler(BaseHandler):
             elif associated_resource_type.lower() == "gcn_event":
                 gcnevent_id = resource_id
                 gcn_event = session.scalars(
-                    GcnEvent.select(self.current_user).where(GcnEvent.id == gcnevent_id)
+                    GcnEvent.select(session.user_or_token).where(
+                        GcnEvent.id == gcnevent_id
+                    )
                 ).first()
                 if gcn_event is None:
                     return self.error(
@@ -445,7 +448,7 @@ class CommentHandler(BaseHandler):
             elif associated_resource_type.lower() == "earthquake":
                 earthquake_id = resource_id
                 earthquake = session.scalars(
-                    EarthquakeEvent.select(self.current_user).where(
+                    EarthquakeEvent.select(session.user_or_token).where(
                         EarthquakeEvent.id == earthquake_id
                     )
                 ).first()
@@ -464,11 +467,10 @@ class CommentHandler(BaseHandler):
                 )
             elif associated_resource_type.lower() == "shift":
                 shift_id = resource_id
-                try:
-                    shift = Shift.get_if_accessible_by(
-                        shift_id, self.current_user, raise_if_none=True
-                    )
-                except AccessError:
+                shift = session.scalars(
+                    Shift.select(session.user_or_token).where(Shift.id == shift_id)
+                ).first()
+                if shift is None:
                     return self.error(f'Could not access Shift {shift.id}.', status=403)
                 comment = CommentOnShift(
                     text=comment_text,

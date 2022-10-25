@@ -860,6 +860,30 @@ def test_sources_filter_by_name_or_id(upload_data_token, view_only_token, public
     assert len(data["data"]["sources"]) == 1
     assert data["data"]["sources"][0]["id"] == obj_id1
 
+    # Filter for obj 1 only, rejecting object 2
+    status, data = api(
+        "GET",
+        "sources",
+        params={"rejectedSourceIDs": obj_id2, "group_ids": f"{public_group.id}"},
+        token=view_only_token,
+    )
+    assert status == 200
+    assert len(data["data"]["sources"]) == 1
+    assert data["data"]["sources"][0]["id"] == obj_id1
+
+    # Reject object 1 and 2
+    status, data = api(
+        "GET",
+        "sources",
+        params={
+            "rejectedSourceIDs": f"{obj_id1},{obj_id2}",
+            "group_ids": f"{public_group.id}",
+        },
+        token=view_only_token,
+    )
+    assert status == 200
+    assert len(data["data"]["sources"]) == 0
+
 
 def test_sources_filter_by_position(upload_data_token, view_only_token, public_group):
     obj_id1 = str(uuid.uuid4())

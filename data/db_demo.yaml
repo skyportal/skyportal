@@ -1055,3 +1055,17 @@ analysis_service:
     group_ids:
       - =program_A
       - =program_B
+  - name: "NGSF_Analysis"
+    display_name: "NGSF analysis"
+    description: "Use NGSF to fit spectra"
+    version: "1.0"
+    contact_name: "Michael Coughlin"
+    url: "http://localhost:7001/analysis/ngsf_analysis"
+    authentication_type: "header_token"
+    _authinfo: '{"header_token": {"Authorization": "Bearer MY_TOKEN"}}'
+    analysis_type: "spectrum_fitting"
+    input_data_types: ["spectra", "redshift"]
+    optional_analysis_parameters: '{"fix_z": ["True", "False"]}'
+    group_ids:
+      - =program_A
+      - =program_B

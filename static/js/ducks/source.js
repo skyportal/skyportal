@@ -19,6 +19,8 @@ const ADD_SOURCE_TNS = "skyportal/ADD_SOURCE_TNS";
 
 const ADD_COMMENT = "skyportal/ADD_COMMENT";
 
+const DELETE_ANNOTATION = "skyportal/DELETE_ANNOTATION";
+
 const DELETE_COMMENT = "skyportal/DELETE_COMMENT";
 const DELETE_COMMENT_ON_SPECTRUM = "skyportal/DELETE_COMMENT_ON_SPECTRUM";
 
@@ -211,6 +213,13 @@ export function addComment(formData) {
     `/api/sources/${formData.obj_id}/comments`,
     ADD_COMMENT,
     formData
+  );
+}
+
+export function deleteAnnotation(sourceID, annotationID) {
+  return API.DELETE(
+    `/api/sources/${sourceID}/annotations/${annotationID}`,
+    DELETE_ANNOTATION
   );
 }
 

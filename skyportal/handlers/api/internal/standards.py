@@ -136,5 +136,4 @@ class StandardsHandler(BaseHandler):
             show_first_line=show_first_line,
         )
 
-        self.verify_and_commit()
         return self.success(data=data)
