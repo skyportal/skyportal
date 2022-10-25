@@ -5,7 +5,6 @@ import PropTypes from "prop-types";
 
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Checkbox from "@mui/material/Checkbox";
-import Button from "@mui/material/Button";
 import DateTimePicker from "@mui/lab/DateTimePicker";
 import AdapterDateFns from "@mui/lab/AdapterDateFns";
 import LocalizationProvider from "@mui/lab/LocalizationProvider";
@@ -30,6 +29,7 @@ import CandidatesPreferences from "./CandidatesPreferences";
 import FormValidationError from "./FormValidationError";
 import { allowedClasses } from "./ClassificationForm";
 import ClassificationSelect from "./ClassificationSelect";
+import Button from "./Button";
 
 dayjs.extend(utc);
 
@@ -361,7 +361,7 @@ const FilterCandidateList = ({
                   <DateTimePicker
                     value={value}
                     onChange={(newValue) => onChange(newValue)}
-                    label="Start (UTC)"
+                    label="Start (Local Time)"
                     showTodayButton={false}
                     ampm={useAMPM}
                     renderInput={(params) => (
@@ -383,7 +383,7 @@ const FilterCandidateList = ({
                   <DateTimePicker
                     value={value}
                     onChange={(newValue) => onChange(newValue)}
-                    label="End (UTC)"
+                    label="End (Local Time)"
                     showTodayButton={false}
                     ampm={useAMPM}
                     renderInput={(props) => (
@@ -652,12 +652,7 @@ const FilterCandidateList = ({
             />
             <div>
               <Tooltip title="Search results are cached between pagination requests, and are re-computed each time this Search button is clicked">
-                <Button
-                  variant="contained"
-                  type="submit"
-                  endIcon={<SearchIcon />}
-                  color="primary"
-                >
+                <Button primary type="submit" endIcon={<SearchIcon />}>
                   Search
                 </Button>
               </Tooltip>

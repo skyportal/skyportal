@@ -9,7 +9,6 @@ import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogActions from "@mui/material/DialogActions";
 import MuiDialogTitle from "@mui/material/DialogTitle";
-import Button from "@mui/material/Button";
 import CloudDownloadIcon from "@mui/icons-material/CloudDownload";
 import IconButton from "@mui/material/IconButton";
 import CloseIcon from "@mui/icons-material/Close";
@@ -19,10 +18,12 @@ import FilePreviewer, { FilePreviewerThumbnail } from "react-file-previewer";
 
 import ReactJson from "react-json-view";
 import { grey } from "@mui/material/colors";
+import Button from "./Button";
 
 import * as sourceActions from "../ducks/source";
 import * as gcnEventActions from "../ducks/gcnEvent";
 import * as shiftActions from "../ducks/shift";
+import * as earthquakeActions from "../ducks/earthquake";
 
 const useStyles = makeStyles((theme) => ({
   linkButton: {
@@ -124,6 +125,7 @@ const CommentAttachmentPreview = ({
   objectID = null,
   gcnEventID = null,
   shiftID = null,
+  earthquakeID = null,
 }) => {
   const classes = useStyles();
   const theme = useTheme();
@@ -135,6 +137,8 @@ const CommentAttachmentPreview = ({
       type = state.gcnEvent.commentAttachment;
     } else if (associatedResourceType === "shift") {
       type = state.shift.commentAttachment;
+    } else if (associatedResourceType === "earthquake") {
+      type = state.earthquake.commentAttachment;
     } else {
       type = state.source.commentAttachment;
     }
@@ -158,9 +162,16 @@ const CommentAttachmentPreview = ({
   };
 
   const fileType = filename.includes(".") ? filename.split(".").pop() : "";
-  const supportedType = ["png", "jpg", "jpeg", "pdf", "gif", "json"].includes(
-    fileType.toLowerCase()
-  );
+  const supportedType = [
+    "png",
+    "jpg",
+    "jpeg",
+    "pdf",
+    "gif",
+    "json",
+    "fit",
+    "fits",
+  ].includes(fileType.toLowerCase());
 
   let jsonFile = {};
   try {
@@ -187,6 +198,13 @@ const CommentAttachmentPreview = ({
           commentId
         )
       );
+    } else if (associatedResourceType === "earthquake") {
+      dispatch(
+        earthquakeActions.getCommentOnEarthquakeAttachmentPreview(
+          earthquakeID,
+          commentId
+        )
+      );
     } else if (associatedResourceType === "shift") {
       dispatch(
         shiftActions.getCommentOnShiftAttachmentPreview(shiftID, commentId)
@@ -200,9 +218,12 @@ const CommentAttachmentPreview = ({
     baseUrl = `/api/${associatedResourceType}/${gcnEventID}/comments/${commentId}/attachment`;
   } else if (associatedResourceType === "shift") {
     baseUrl = `/api/${associatedResourceType}/${shiftID}/comments/${commentId}/attachment`;
+  } else if (associatedResourceType === "earthquake") {
+    baseUrl = `/api/${associatedResourceType}/${earthquakeID}/comments/${commentId}/attachment`;
   } else {
     baseUrl = `/api/${associatedResourceType}/${objectID}/comments/${commentId}/attachment`;
   }
+  const previewUrl = `${baseUrl}?preview=True`;
   const url = fileType === "pdf" ? `${baseUrl}.pdf` : baseUrl;
 
   return (
@@ -248,7 +269,10 @@ const CommentAttachmentPreview = ({
                 />
               )}
               {supportedType && fileType !== "pdf" && fileType !== "json" && (
-                <FilePreviewerThumbnail file={{ url }} hideControls />
+                <FilePreviewerThumbnail
+                  file={{ url: previewUrl }}
+                  hideControls
+                />
               )}
               {!supportedType && (
                 <div className={classes.unsupportedType}>
@@ -260,7 +284,7 @@ const CommentAttachmentPreview = ({
           <DialogActions>
             <div>
               <Button
-                color="primary"
+                primary
                 size="large"
                 endIcon={<CloudDownloadIcon />}
                 href={url}
@@ -284,6 +308,7 @@ CommentAttachmentPreview.propTypes = {
   filename: PropTypes.string.isRequired,
   objectID: PropTypes.string,
   gcnEventID: PropTypes.number,
+  earthquakeID: PropTypes.string,
   shiftID: PropTypes.number,
   commentId: PropTypes.number.isRequired,
   associatedResourceType: PropTypes.string.isRequired,
@@ -292,6 +317,7 @@ CommentAttachmentPreview.propTypes = {
 CommentAttachmentPreview.defaultProps = {
   objectID: null,
   gcnEventID: null,
+  earthquakeID: null,
   shiftID: null,
 };
 

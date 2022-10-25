@@ -5,7 +5,6 @@ import MUIDataTable from "mui-datatables";
 import TextareaAutosize from "@mui/material/TextareaAutosize";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
-import Button from "@mui/material/Button";
 import InputLabel from "@mui/material/InputLabel";
 import FormControl from "@mui/material/FormControl";
 import Chip from "@mui/material/Chip";
@@ -22,6 +21,7 @@ import makeStyles from "@mui/styles/makeStyles";
 import withStyles from "@mui/styles/withStyles";
 import { useForm, Controller } from "react-hook-form";
 import PapaParse from "papaparse";
+import Button from "./Button";
 
 import FormValidationError from "./FormValidationError";
 import * as Actions from "../ducks/source";
@@ -330,7 +330,8 @@ const UploadPhotometryForm = () => {
                       as={
                         <Select labelId="instrumentSelectLabel">
                           <MenuItem value="multiple" key={0}>
-                            Multiple (requires instrument_id column below)
+                            Use instrument_id column (for one or more
+                            instruments)
                           </MenuItem>
                           {sortedInstrumentList.map((instrument) => (
                             <MenuItem value={instrument.id} key={instrument.id}>
@@ -454,14 +455,14 @@ const UploadPhotometryForm = () => {
             <Box m={1}>
               <Box component="span" m={1}>
                 <FormControl>
-                  <Button variant="contained" type="submit">
+                  <Button secondary type="submit">
                     Preview in Tabular Form
                   </Button>
                 </FormControl>
               </Box>
               <Box component="span" m={1}>
                 <FormControl>
-                  <Button variant="contained" onClick={handleReset}>
+                  <Button secondary onClick={handleReset}>
                     Clear Form
                   </Button>
                 </FormControl>
@@ -494,7 +495,7 @@ const UploadPhotometryForm = () => {
           </Card>
           <br />
           <Box component="span" m={1}>
-            <Button variant="contained" onClick={handleClickSubmit}>
+            <Button secondary onClick={handleClickSubmit}>
               Upload Photometry
             </Button>
           </Box>

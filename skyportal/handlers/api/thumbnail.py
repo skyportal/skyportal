@@ -3,11 +3,73 @@ import io
 import base64
 from pathlib import Path
 from marshmallow.exceptions import ValidationError
+import sqlalchemy as sa
 from sqlalchemy.exc import StatementError
 from PIL import Image, UnidentifiedImageError
+
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
-from ...models import DBSession, Obj, Thumbnail
+from ...models import Obj, Thumbnail, User
+
+
+def post_thumbnail(data, user_id, session):
+    """Post thumbnail to database.
+    data: dict
+        Thumbnail dictionary
+    user_id : int
+        SkyPortal ID of User posting the Thumbnail
+    session: sqlalchemy.Session
+        Database session for this transaction
+    """
+
+    user = session.scalar(sa.select(User).where(User.id == user_id))
+
+    obj = session.scalars(Obj.select(user).where(Obj.id == data["obj_id"])).first()
+
+    if obj is None:
+        raise AttributeError(f"Invalid obj_id: {data['obj_id']}")
+
+    basedir = Path(os.path.dirname(__file__)) / '..' / '..'
+    if os.path.abspath(basedir).endswith('skyportal/skyportal'):
+        basedir = basedir / '..'
+    file_uri = os.path.abspath(
+        basedir / f'static/thumbnails/{data["obj_id"]}_{data["ttype"]}.png'
+    )
+    if not os.path.exists(os.path.dirname(file_uri)):
+        (basedir / 'static/thumbnails').mkdir(parents=True)
+
+    file_bytes = base64.b64decode(data['data'])
+    try:
+        im = Image.open(io.BytesIO(file_bytes))
+    except UnidentifiedImageError as e:
+        raise UnidentifiedImageError(f"Invalid file type: {e}")
+
+    if im.format != 'PNG':
+        raise ValueError('Invalid thumbnail image type. Only PNG are supported.')
+    if not all(16 <= x <= 500 for x in im.size):
+        raise ValueError(
+            'Invalid thumbnail size. Only thumbnails '
+            'between (16, 16) and (500, 500) allowed.'
+        )
+    try:
+        t = Thumbnail(
+            obj_id=data["obj_id"],
+            type=data["ttype"],
+            file_uri=file_uri,
+            public_url=f'/static/thumbnails/{data["obj_id"]}_{data["ttype"]}.png',
+        )
+        with open(file_uri, 'wb') as f:
+            f.write(file_bytes)
+
+        session.add(t)
+        session.commit()
+
+    except (LookupError, StatementError) as e:
+        if "enum" in str(e):
+            raise LookupError(f"Invalid ttype: {e}")
+        raise StatementError(f"Error creating new thumbnail: {e}")
+
+    return t.id
 
 
 class ThumbnailHandler(BaseHandler):
@@ -60,23 +122,13 @@ class ThumbnailHandler(BaseHandler):
         data = self.get_json()
         if 'obj_id' not in data:
             return self.error("Missing required parameter: obj_id")
-        obj_id = data['obj_id']
-        obj = Obj.get_if_accessible_by(obj_id, self.current_user)
-        if obj is None:
-            return self.error(f"Invalid obj_id: {obj_id}")
-        try:
-            t = create_thumbnail(data['data'], data['ttype'], obj_id)
-        except ValueError as e:
-            return self.error(f"Error in creating new thumbnail: invalid value(s): {e}")
-        except (LookupError, StatementError) as e:
-            if "enum" in str(e):
-                return self.error(f"Invalid ttype: {e}")
-            return self.error(f"Error creating new thumbnail: {e}")
-        except UnidentifiedImageError as e:
-            return self.error(f"Invalid file type: {e}")
-        self.verify_and_commit()
 
-        return self.success(data={"id": t.id})
+        with self.Session() as session:
+            try:
+                obj_id = post_thumbnail(data, self.associated_user_object.id, session)
+            except Exception as e:
+                return self.error(f'Thumbnail failed to post: {str(e)}')
+            return self.success(data={"id": obj_id})
 
     @auth_or_token
     def get(self, thumbnail_id):
@@ -101,11 +153,15 @@ class ThumbnailHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        t = Thumbnail.get_if_accessible_by(
-            thumbnail_id, self.current_user, raise_if_none=True
-        )
-        self.verify_and_commit()
-        return self.success(data=t)
+        with self.Session() as session:
+            t = session.scalars(
+                Thumbnail.select(session.user_or_token).where(
+                    Thumbnail.id == thumbnail_id
+                )
+            ).first()
+            if t is None:
+                return self.error(f'Cannot find Thumbnail with ID: {thumbnail_id}')
+            return self.success(data=t)
 
     @permissions(['Manage sources'])
     def put(self, thumbnail_id):
@@ -134,23 +190,31 @@ class ThumbnailHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        Thumbnail.get_if_accessible_by(
-            thumbnail_id, self.current_user, mode="update", raise_if_none=True
-        )
+        with self.Session() as session:
+            t = session.scalars(
+                Thumbnail.select(session.user_or_token, mode="update").where(
+                    Thumbnail.id == thumbnail_id
+                )
+            ).first()
+            if t is None:
+                return self.error(f'Cannot find Thumbnail with ID: {thumbnail_id}')
 
-        data = self.get_json()
-        data['id'] = thumbnail_id
+            data = self.get_json()
+            data['id'] = thumbnail_id
 
-        schema = Thumbnail.__schema__()
-        try:
-            schema.load(data, partial=True)
-        except ValidationError as e:
-            return self.error(
-                'Invalid/missing parameters: ' f'{e.normalized_messages()}'
-            )
-        self.verify_and_commit()
+            schema = Thumbnail.__schema__()
+            try:
+                schema.load(data, partial=True)
+            except ValidationError as e:
+                return self.error(
+                    'Invalid/missing parameters: ' f'{e.normalized_messages()}'
+                )
 
-        return self.success()
+            for k in data:
+                setattr(t, k, data[k])
+
+            session.commit()
+            return self.success()
 
     @permissions(['Manage sources'])
     def delete(self, thumbnail_id):
@@ -175,43 +239,17 @@ class ThumbnailHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        t = Thumbnail.get_if_accessible_by(
-            thumbnail_id, self.current_user, mode="delete", raise_if_none=True
-        )
-        DBSession().delete(t)
-        self.verify_and_commit()
 
-        return self.success()
+        with self.Session() as session:
+            t = session.scalars(
+                Thumbnail.select(session.user_or_token, mode="delete").where(
+                    Thumbnail.id == thumbnail_id
+                )
+            ).first()
+            if t is None:
+                return self.error(f'Cannot find Thumbnail with ID: {thumbnail_id}')
 
+            session.delete(t)
+            session.commit()
 
-def create_thumbnail(thumbnail_data, thumbnail_type, obj_id):
-    basedir = Path(os.path.dirname(__file__)) / '..' / '..'
-    if os.path.abspath(basedir).endswith('skyportal/skyportal'):
-        basedir = basedir / '..'
-    file_uri = os.path.abspath(
-        basedir / f'static/thumbnails/{obj_id}_{thumbnail_type}.png'
-    )
-    if not os.path.exists(os.path.dirname(file_uri)):
-        (basedir / 'static/thumbnails').mkdir(parents=True)
-    file_bytes = base64.b64decode(thumbnail_data)
-    im = Image.open(io.BytesIO(file_bytes))
-    if im.format != 'PNG':
-        raise ValueError('Invalid thumbnail image type. Only PNG are supported.')
-    if not all(16 <= x <= 500 for x in im.size):
-        raise ValueError(
-            'Invalid thumbnail size. Only thumbnails '
-            'between (16, 16) and (500, 500) allowed.'
-        )
-    t = Thumbnail(
-        obj_id=obj_id,
-        type=thumbnail_type,
-        file_uri=file_uri,
-        public_url=f'/static/thumbnails/{obj_id}_{thumbnail_type}.png',
-    )
-    with open(file_uri, 'wb') as f:
-        f.write(file_bytes)
-
-    DBSession().add(t)
-    DBSession().flush()
-
-    return t
+            return self.success()

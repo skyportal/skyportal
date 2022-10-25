@@ -13,7 +13,16 @@ import { grey } from "@mui/material/colors";
 const Theme = ({ disableTransitions, children }) => {
   const theme = useSelector((state) => state.profile.preferences.theme);
   const dark = theme === "dark";
-  const materialTheme = createTheme({
+
+  const greyTheme = createTheme({
+    palette: {
+      grey: {
+        main: grey[300],
+        dark: grey[400],
+      },
+    },
+  });
+  const materialTheme = createTheme(greyTheme, {
     palette: {
       mode: theme || "light",
       primary: {
@@ -37,7 +46,9 @@ const Theme = ({ disableTransitions, children }) => {
       error: {
         main: "#e63946",
       },
-      background: dark ? { default: "#303030" } : { default: "#f0f2f5" },
+      background: dark
+        ? { default: "#303030", paper: "#808080" }
+        : { default: "#f0f2f5", paper: "#f0f2f5" },
     },
     plotFontSizes: {
       titleFontSize: 15,
@@ -52,6 +63,16 @@ const Theme = ({ disableTransitions, children }) => {
         },
       },
       MuiButton: {
+        variants: [
+          {
+            props: { variant: "contained", color: "grey" },
+            style: {
+              color: greyTheme.palette.getContrastText(
+                greyTheme.palette.grey[300]
+              ),
+            },
+          },
+        ],
         styleOverrides: {
           textPrimary: {
             color: dark ? "#b1dae9" : null,

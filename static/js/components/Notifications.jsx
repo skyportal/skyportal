@@ -9,8 +9,8 @@ import makeStyles from "@mui/styles/makeStyles";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
 import Divider from "@mui/material/Divider";
-import Button from "@mui/material/Button";
 import ReactMarkdown from "react-markdown";
+import Button from "./Button";
 
 import * as userNotificationsActions from "../ducks/userNotifications";
 
@@ -147,10 +147,9 @@ const Notifications = () => {
                     }}
                     data-testid={`notification${notification.id}`}
                   >
-                    <ReactMarkdown
-                      source={notification.text}
-                      escapeHtml={false}
-                    />
+                    <ReactMarkdown escapeHtml={false}>
+                      {notification.text}
+                    </ReactMarkdown>
                   </ListItem>
                   <ListItem className={classes.centered}>
                     {!notification.viewed && (

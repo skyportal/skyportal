@@ -1,5 +1,8 @@
 # Inspired by https://github.com/growth-astro/growth-too-marshal/blob/main/growth/too/gcn.py
 
+import ast
+from astropy.time import Time
+import binascii
 import os
 import gcn
 import lxml
@@ -9,11 +12,15 @@ from tornado.ioloop import IOLoop
 import arrow
 import astropy
 import humanize
-from sqlalchemy.orm.exc import NoResultFound
+import sqlalchemy as sa
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm import sessionmaker, scoped_session
+from sqlalchemy.sql.expression import cast
+from sqlalchemy.dialects.postgresql import JSONB
 from marshmallow import Schema
 from marshmallow.exceptions import ValidationError
+import numpy as np
+import operator  # noqa: F401
 
 from skyportal.models.photometry import Photometry
 
@@ -27,15 +34,20 @@ from ...utils.UTCTZnaiveDateTime import UTCTZnaiveDateTime
 
 from baselayer.app.access import auth_or_token
 from baselayer.log import make_log
+
+from .source import post_source
 from ..base import BaseHandler
 from ...models import (
     DBSession,
     Allocation,
+    CatalogQuery,
     GcnEvent,
     GcnNotice,
+    GcnProperty,
     GcnTag,
     Localization,
     LocalizationTile,
+    MMADetector,
     ObservationPlanRequest,
     User,
     Instrument,
@@ -43,17 +55,23 @@ from ...models import (
 )
 from ...utils.gcn import (
     get_dateobs,
+    get_properties,
     get_tags,
+    get_trigger,
     get_skymap,
     get_contour,
     from_url,
+    from_bytes,
     from_cone,
+    from_polygon,
 )
 
 log = make_log('api/gcn_event')
 
 
 Session = scoped_session(sessionmaker(bind=DBSession.session_factory.kw["bind"]))
+
+SOURCE_RADIUS_THRESHOLD = 5 / 60.0
 
 
 def post_gcnevent_from_xml(payload, user_id, session):
@@ -81,19 +99,31 @@ def post_gcnevent_from_xml(payload, user_id, session):
         raise ValueError("xml file is not valid VOEvent")
 
     dateobs = get_dateobs(root)
+    trigger_id = get_trigger(root)
 
-    event = session.scalars(
-        GcnEvent.select(user).where(GcnEvent.dateobs == dateobs)
-    ).first()
+    if trigger_id is not None:
+        event = session.scalars(
+            GcnEvent.select(user).where(GcnEvent.trigger_id == trigger_id)
+        ).first()
+    else:
+        event = session.scalars(
+            GcnEvent.select(user).where(GcnEvent.dateobs == dateobs)
+        ).first()
 
     if event is None:
-        event = GcnEvent(dateobs=dateobs, sent_by_id=user.id)
+        event = GcnEvent(dateobs=dateobs, sent_by_id=user.id, trigger_id=trigger_id)
         session.add(event)
     else:
         if not event.is_accessible_by(user, mode="update"):
             raise ValueError(
                 "Insufficient permissions: GCN event can only be updated by original poster"
             )
+
+    properties_dict = get_properties(root)
+    properties = GcnProperty(
+        dateobs=event.dateobs, sent_by_id=user.id, data=properties_dict
+    )
+    session.add(properties)
 
     tags = [
         GcnTag(
@@ -114,9 +144,17 @@ def post_gcnevent_from_xml(payload, user_id, session):
         sent_by_id=user.id,
     )
 
+    detectors = []
     for tag in tags:
         session.add(tag)
+
+        mma_detector = session.scalars(
+            MMADetector.select(user).where(MMADetector.nickname == tag.text)
+        ).first()
+        if mma_detector is not None:
+            detectors.append(mma_detector)
     session.add(gcn_notice)
+    event.detectors = detectors
 
     skymap = get_skymap(root, gcn_notice)
     if skymap is None:
@@ -127,17 +165,24 @@ def post_gcnevent_from_xml(payload, user_id, session):
     skymap["sent_by_id"] = user.id
 
     try:
-        localization = (
-            Localization.query_records_accessible_by(
-                user,
-            )
-            .filter_by(
-                dateobs=dateobs,
-                localization_name=skymap["localization_name"],
-            )
-            .one()
+        ra, dec, error = (float(val) for val in skymap["localization_name"].split("_"))
+        if error < SOURCE_RADIUS_THRESHOLD:
+            source = {
+                'id': Time(event.dateobs).isot.replace(":", "-"),
+                'ra': ra,
+                'dec': dec,
+            }
+            post_source(source, user_id, session)
+    except Exception:
+        pass
+
+    localization = session.scalars(
+        Localization.select(user).where(
+            Localization.dateobs == dateobs,
+            Localization.localization_name == skymap["localization_name"],
         )
-    except NoResultFound:
+    ).first()
+    if localization is None:
         localization = Localization(**skymap)
         session.add(localization)
         session.commit()
@@ -177,6 +222,12 @@ def post_gcnevent_from_dictionary(payload, user_id, session):
                 "Insufficient permissions: GCN event can only be updated by original poster"
             )
 
+    if "properties" in payload:
+        properties = GcnProperty(
+            dateobs=event.dateobs, sent_by_id=user.id, data=payload["properties"]
+        )
+        session.add(properties)
+
     tags = [
         GcnTag(
             dateobs=event.dateobs,
@@ -186,8 +237,16 @@ def post_gcnevent_from_dictionary(payload, user_id, session):
         for text in payload.get('tags', [])
     ]
 
+    detectors = []
     for tag in tags:
         session.add(tag)
+
+        mma_detector = session.scalars(
+            MMADetector.select(user).where(MMADetector.nickname == tag.text)
+        ).first()
+        if mma_detector is not None:
+            detectors.append(mma_detector)
+    event.detectors = detectors
 
     skymap = payload.get('skymap', None)
     if skymap is None:
@@ -198,27 +257,45 @@ def post_gcnevent_from_dictionary(payload, user_id, session):
         required_keys = {'localization_name', 'uniq', 'probdensity'}
         if not required_keys.issubset(set(skymap.keys())):
             required_cone_keys = {'ra', 'dec', 'error'}
-            if not required_cone_keys.issubset(set(skymap.keys())):
+            required_polygon_keys = {'localization_name', 'polygon'}
+            if required_cone_keys.issubset(set(skymap.keys())):
+                skymap = from_cone(skymap['ra'], skymap['dec'], skymap['error'])
+            elif required_polygon_keys.issubset(set(skymap.keys())):
+                if type(skymap['polygon']) == str:
+                    polygon = ast.literal_eval(skymap['polygon'])
+                else:
+                    polygon = skymap['polygon']
+                skymap = from_polygon(skymap['localization_name'], polygon)
+            else:
                 raise ValueError("ra, dec, and error must be in skymap to parse")
-            skymap = from_cone(skymap['ra'], skymap['dec'], skymap['error'])
     else:
-        skymap = from_url(skymap)
+        try:
+            skymap = from_bytes(skymap)
+        except binascii.Error:
+            skymap = from_url(skymap)
 
     skymap["dateobs"] = event.dateobs
     skymap["sent_by_id"] = user.id
 
     try:
-        localization = (
-            Localization.query_records_accessible_by(
-                user,
-            )
-            .filter_by(
-                dateobs=dateobs,
-                localization_name=skymap["localization_name"],
-            )
-            .one()
+        ra, dec, error = (float(val) for val in skymap["localization_name"].split("_"))
+        if error < SOURCE_RADIUS_THRESHOLD:
+            source = {
+                'id': Time(event.dateobs).isot.replace(":", "-"),
+                'ra': ra,
+                'dec': dec,
+            }
+            post_source(source, user_id, session)
+    except Exception:
+        pass
+
+    localization = session.scalars(
+        Localization.select(user).where(
+            Localization.dateobs == dateobs,
+            Localization.localization_name == skymap["localization_name"],
         )
-    except NoResultFound:
+    ).first()
+    if localization is None:
         localization = Localization(**skymap)
         session.add(localization)
         session.commit()
@@ -229,6 +306,60 @@ def post_gcnevent_from_dictionary(payload, user_id, session):
         IOLoop.current().run_in_executor(None, lambda: add_contour(localization.id))
 
     return event.id
+
+
+class GcnEventTagsHandler(BaseHandler):
+    @auth_or_token
+    def get(self):
+        """
+        ---
+        description: Get all GCN Event tags
+        tags:
+          - photometry
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+
+        with self.Session() as session:
+            tags = session.scalars(sa.select(GcnTag.text).distinct()).unique().all()
+            return self.success(data=tags)
+
+
+class GcnEventPropertiesHandler(BaseHandler):
+    @auth_or_token
+    def get(self):
+        """
+        ---
+        description: Get all GCN Event properties
+        tags:
+          - photometry
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+
+        with self.Session() as session:
+            properties = (
+                session.scalars(
+                    sa.select(sa.func.jsonb_object_keys(GcnProperty.data)).distinct()
+                )
+                .unique()
+                .all()
+            )
+            return self.success(data=sorted(properties))
 
 
 class GcnEventSurveyEfficiencyHandler(BaseHandler):
@@ -252,28 +383,29 @@ class GcnEventSurveyEfficiencyHandler(BaseHandler):
                 schema: ArrayOfSurveyEfficiencyForObservationss
         """
 
-        event = (
-            GcnEvent.query_records_accessible_by(
-                self.current_user,
-                options=[joinedload(GcnEvent.survey_efficiency_analyses)],
-            )
-            .filter(GcnEvent.id == gcnevent_id)
-            .first()
-        )
+        with self.Session() as session:
+            event = session.scalars(
+                GcnEvent.select(
+                    session.user_or_token,
+                    options=[joinedload(GcnEvent.survey_efficiency_analyses)],
+                ).where(GcnEvent.id == gcnevent_id)
+            ).first()
+            if event is None:
+                return self.error("GCN event not found", status=404)
 
-        analysis_data = []
-        for analysis in event.survey_efficiency_analyses:
-            analysis_data.append(
-                {
-                    **analysis.to_dict(),
-                    'number_of_transients': analysis.number_of_transients,
-                    'number_in_covered': analysis.number_in_covered,
-                    'number_detected': analysis.number_detected,
-                    'efficiency': analysis.efficiency,
-                }
-            )
+            analysis_data = []
+            for analysis in event.survey_efficiency_analyses:
+                analysis_data.append(
+                    {
+                        **analysis.to_dict(),
+                        'number_of_transients': analysis.number_of_transients,
+                        'number_in_covered': analysis.number_in_covered,
+                        'number_detected': analysis.number_detected,
+                        'efficiency': analysis.efficiency,
+                    }
+                )
 
-        return self.success(data=analysis_data)
+            return self.success(data=analysis_data)
 
 
 class GcnEventObservationPlanRequestsHandler(BaseHandler):
@@ -297,44 +429,74 @@ class GcnEventObservationPlanRequestsHandler(BaseHandler):
                 schema: ArrayOfObservationPlanRequests
         """
 
-        event = (
-            GcnEvent.query_records_accessible_by(
-                self.current_user,
-                options=[
-                    joinedload(GcnEvent.observationplan_requests)
-                    .joinedload(ObservationPlanRequest.allocation)
-                    .joinedload(Allocation.instrument),
-                    joinedload(GcnEvent.observationplan_requests)
-                    .joinedload(ObservationPlanRequest.allocation)
-                    .joinedload(Allocation.group),
-                    joinedload(GcnEvent.observationplan_requests).joinedload(
-                        ObservationPlanRequest.requester
-                    ),
-                    joinedload(GcnEvent.observationplan_requests).joinedload(
-                        ObservationPlanRequest.observation_plans
-                    ),
-                ],
-            )
-            .filter(GcnEvent.id == gcnevent_id)
-            .first()
-        )
+        with self.Session() as session:
+            event = session.scalars(
+                GcnEvent.select(
+                    session.user_or_token,
+                    options=[
+                        joinedload(GcnEvent.observationplan_requests)
+                        .joinedload(ObservationPlanRequest.allocation)
+                        .joinedload(Allocation.instrument),
+                        joinedload(GcnEvent.observationplan_requests)
+                        .joinedload(ObservationPlanRequest.allocation)
+                        .joinedload(Allocation.group),
+                        joinedload(GcnEvent.observationplan_requests).joinedload(
+                            ObservationPlanRequest.requester
+                        ),
+                        joinedload(GcnEvent.observationplan_requests).joinedload(
+                            ObservationPlanRequest.observation_plans
+                        ),
+                    ],
+                ).where(GcnEvent.id == gcnevent_id)
+            ).first()
 
-        # go through some pain to get probability and area included
-        # as these are properties
-        request_data = []
-        for ii, req in enumerate(event.observationplan_requests):
-            dat = req.to_dict()
-            plan_data = []
-            for plan in dat["observation_plans"]:
-                plan_dict = {
-                    **plan.to_dict(),
-                }
-                plan_data.append(plan_dict)
+            # go through some pain to get probability and area included
+            # as these are properties
+            request_data = []
+            for ii, req in enumerate(event.observationplan_requests):
+                dat = req.to_dict()
+                plan_data = []
+                for plan in dat["observation_plans"]:
+                    plan_dict = {
+                        **plan.to_dict(),
+                    }
+                    plan_data.append(plan_dict)
 
-            dat["observation_plans"] = plan_data
-            request_data.append(dat)
+                dat["observation_plans"] = plan_data
+                request_data.append(dat)
 
-        return self.success(data=request_data)
+            return self.success(data=request_data)
+
+
+class GcnEventCatalogQueryHandler(BaseHandler):
+    @auth_or_token
+    async def get(self, gcnevent_id):
+        """
+        ---
+        description: Get catalog queries of the GcnEvent.
+        tags:
+          - gcnevents
+        parameters:
+          - in: path
+            name: gcnevent_id
+            required: true
+            schema:
+              type: string
+        responses:
+          200:
+            content:
+              application/json:
+                schema: ArrayOfCatalogQuerys
+        """
+
+        with self.Session() as session:
+            queries = session.scalars(
+                CatalogQuery.select(
+                    session.user_or_token,
+                ).where(CatalogQuery.payload['gcnevent_id'] == gcnevent_id)
+            ).all()
+
+            return self.success(data=queries)
 
 
 class GcnEventHandler(BaseHandler):
@@ -387,15 +549,71 @@ class GcnEventHandler(BaseHandler):
                     data, self.associated_user_object.id, session
                 )
 
+            self.push(action='skyportal/REFRESH_GCN_EVENTS')
+
             return self.success(data={'gcnevent_id': event_id})
 
     @auth_or_token
     async def get(self, dateobs=None):
         """
         ---
-        description: Retrieve GCN events
-        tags:
-          - gcnevents
+        single:
+          description: Retrieve a GCN event
+          tags:
+            - gcnevents
+          parameters:
+            - in: path
+              name: dateobs
+              required: false
+              schema:
+                type: string
+        multiple:
+          description: Retrieve multiple GCN events
+          tags:
+            - gcnevents
+          parameters:
+            - in: query
+              name: startDate
+              nullable: true
+              schema:
+                type: string
+              description: |
+                Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
+                dateobs >= startDate
+            - in: query
+              name: endDate
+              nullable: true
+              schema:
+                type: string
+              description: |
+                Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
+                dateobs <= endDate
+            - in: query
+              name: tagKeep
+              nullable: true
+              schema:
+                type: string
+              description: |
+                Gcn Tag to match against
+            - in: query
+              name: tagRemove
+              nullable: true
+              schema:
+                type: string
+              description: |
+                Gcn Tag to filter out
+            - in: query
+              name: propertiesFilter
+              nullable: true
+              schema:
+                type: array
+                items:
+                  type: string
+              explode: false
+              style: simple
+              description: |
+                Comma-separated string of "property: value: operator" single(s) or triplet(s) to filter for events matching
+                that/those property(ies), i.e. "BNS" or "BNS: 0.5: lt"
         responses:
           200:
             content:
@@ -422,90 +640,177 @@ class GcnEventHandler(BaseHandler):
         sort_by = self.get_query_argument("sortBy", None)
         sort_order = self.get_query_argument("sortOrder", "asc")
 
+        start_date = self.get_query_argument('startDate', None)
+        end_date = self.get_query_argument('endDate', None)
+        tag_keep = self.get_query_argument('tagKeep', None)
+        tag_remove = self.get_query_argument('tagRemove', None)
+        properties_filter = self.get_query_argument("propertiesFilter", None)
+
+        if properties_filter is not None:
+            if isinstance(properties_filter, str) and "," in properties_filter:
+                properties_filter = [c.strip() for c in properties_filter.split(",")]
+            elif isinstance(properties_filter, str):
+                properties_filter = [properties_filter]
+            else:
+                raise ValueError(
+                    "Invalid propertiesFilter value -- must provide at least one string value"
+                )
+
         if dateobs is not None:
-            event = (
-                GcnEvent.query_records_accessible_by(
-                    self.current_user,
-                    options=[
-                        joinedload(GcnEvent.localizations),
-                        joinedload(GcnEvent.gcn_notices),
-                        joinedload(GcnEvent.observationplan_requests)
-                        .joinedload(ObservationPlanRequest.allocation)
-                        .joinedload(Allocation.instrument),
-                        joinedload(GcnEvent.comments),
-                    ],
-                )
-                .filter_by(dateobs=dateobs)
-                .first()
-            )
-            if event is None:
-                return self.error("GCN event not found", status=404)
+            with self.Session() as session:
+                event = session.scalars(
+                    GcnEvent.select(
+                        session.user_or_token,
+                        options=[
+                            joinedload(GcnEvent.localizations),
+                            joinedload(GcnEvent.gcn_notices),
+                            joinedload(GcnEvent.observationplan_requests)
+                            .joinedload(ObservationPlanRequest.allocation)
+                            .joinedload(Allocation.instrument),
+                            joinedload(GcnEvent.comments),
+                            joinedload(GcnEvent.detectors),
+                            joinedload(GcnEvent.properties),
+                        ],
+                    ).where(GcnEvent.dateobs == dateobs)
+                ).first()
+                if event is None:
+                    return self.error("GCN event not found", status=404)
 
-            data = {
-                **event.to_dict(),
-                "tags": list(set(event.tags)),
-                "lightcurve": event.lightcurve,
-                "comments": sorted(
-                    (
-                        {
-                            **{
-                                k: v
-                                for k, v in c.to_dict().items()
-                                if k != "attachment_bytes"
-                            },
-                            "author": {
-                                **c.author.to_dict(),
-                                "gravatar_url": c.author.gravatar_url,
-                            },
-                        }
-                        for c in event.comments
+                data = {
+                    **event.to_dict(),
+                    "tags": list(set(event.tags)),
+                    "lightcurve": event.lightcurve,
+                    "localizations": sorted(
+                        (loc.to_dict() for loc in event.localizations),
+                        key=lambda x: x["created_at"],
+                        reverse=True,
                     ),
-                    key=lambda x: x["created_at"],
-                    reverse=True,
-                ),
-            }
+                    "comments": sorted(
+                        (
+                            {
+                                **{
+                                    k: v
+                                    for k, v in c.to_dict().items()
+                                    if k != "attachment_bytes"
+                                },
+                                "author": {
+                                    **c.author.to_dict(),
+                                    "gravatar_url": c.author.gravatar_url,
+                                },
+                            }
+                            for c in event.comments
+                        ),
+                        key=lambda x: x["created_at"],
+                        reverse=True,
+                    ),
+                }
 
-            return self.success(data=data)
+                return self.success(data=data)
 
-        query = GcnEvent.query_records_accessible_by(
-            self.current_user,
-            options=[
-                joinedload(GcnEvent.localizations),
-                joinedload(GcnEvent.gcn_notices),
-                joinedload(GcnEvent.observationplan_requests),
-            ],
-        )
+        with self.Session() as session:
 
-        total_matches = query.count()
-
-        order_by = None
-        if sort_by is not None:
-            if sort_by == "dateobs":
-                order_by = (
-                    [GcnEvent.dateobs]
-                    if sort_order == "asc"
-                    else [GcnEvent.dateobs.desc()]
-                )
-
-        if order_by is None:
-            order_by = [GcnEvent.dateobs.desc()]
-
-        query = query.order_by(*order_by)
-
-        if n_per_page is not None:
-            query = (
-                query.distinct()
-                .limit(n_per_page)
-                .offset((page_number - 1) * n_per_page)
+            query = GcnEvent.select(
+                session.user_or_token,
+                options=[
+                    joinedload(GcnEvent.localizations),
+                    joinedload(GcnEvent.gcn_notices),
+                    joinedload(GcnEvent.observationplan_requests),
+                ],
             )
 
-        events = []
-        for event in query.all():
-            events.append({**event.to_dict(), "tags": list(set(event.tags))})
+            if start_date:
+                start_date = arrow.get(start_date.strip()).datetime
+                query = query.where(GcnEvent.dateobs >= start_date)
+            if end_date:
+                end_date = arrow.get(end_date.strip()).datetime
+                query = query.where(GcnEvent.dateobs <= end_date)
+            if tag_keep:
+                tag_subquery = (
+                    GcnTag.select(session.user_or_token)
+                    .where(GcnTag.text.contains(tag_keep))
+                    .subquery()
+                )
+                query = query.join(
+                    tag_subquery, GcnEvent.dateobs == tag_subquery.c.dateobs
+                )
+            if tag_remove:
+                tag_subquery = (
+                    GcnTag.select(session.user_or_token)
+                    .where(GcnTag.text.contains(tag_remove))
+                    .subquery()
+                )
+                query = query.join(
+                    tag_subquery, GcnEvent.dateobs != tag_subquery.c.dateobs
+                )
 
-        query_results = {"events": events, "totalMatches": int(total_matches)}
+            if properties_filter is not None:
+                for prop_filt in properties_filter:
+                    prop_split = prop_filt.split(":")
+                    if not (len(prop_split) == 1 or len(prop_split) == 3):
+                        raise ValueError(
+                            "Invalid propertiesFilter value -- property filter must have 1 or 3 values"
+                        )
+                    name = prop_split[0].strip()
 
-        return self.success(data=query_results)
+                    properties_query = GcnProperty.select(session.user_or_token)
+                    if len(prop_split) == 3:
+                        value = prop_split[1].strip()
+                        try:
+                            value = float(value)
+                        except ValueError as e:
+                            raise ValueError(f"Invalid propotation filter value: {e}")
+                        op = prop_split[2].strip()
+                        op_options = ["lt", "le", "eq", "ne", "ge", "gt"]
+                        if op not in op_options:
+                            raise ValueError(f"Invalid operator: {op}")
+                        comp_function = getattr(operator, op)
+
+                        properties_query = properties_query.where(
+                            comp_function(GcnProperty.data[name], cast(value, JSONB))
+                        )
+                    else:
+                        properties_query = properties_query.where(
+                            GcnProperty.data[name].astext.is_not(None)
+                        )
+
+                    properties_subquery = properties_query.subquery()
+                    query = query.join(
+                        properties_subquery,
+                        GcnEvent.dateobs == properties_subquery.c.dateobs,
+                    )
+
+            total_matches = session.scalar(
+                sa.select(sa.func.count()).select_from(query)
+            )
+
+            order_by = None
+            if sort_by is not None:
+                if sort_by == "dateobs":
+                    order_by = (
+                        [GcnEvent.dateobs]
+                        if sort_order == "asc"
+                        else [GcnEvent.dateobs.desc()]
+                    )
+
+            if order_by is None:
+                order_by = [GcnEvent.dateobs.desc()]
+
+            query = query.order_by(*order_by)
+
+            if n_per_page is not None:
+                query = (
+                    query.distinct()
+                    .limit(n_per_page)
+                    .offset((page_number - 1) * n_per_page)
+                )
+
+            events = []
+            for event in session.scalars(query).unique().all():
+                events.append({**event.to_dict(), "tags": list(set(event.tags))})
+
+            query_results = {"events": events, "totalMatches": int(total_matches)}
+
+            return self.success(data=query_results)
 
     @auth_or_token
     def delete(self, dateobs):
@@ -530,19 +835,19 @@ class GcnEventHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        event = GcnEvent.query.filter_by(dateobs=dateobs).first()
-        if event is None:
-            return self.error("GCN event not found", status=404)
+        with self.Session() as session:
+            event = session.scalars(
+                GcnEvent.select(session.user_or_token, model="delete").where(
+                    GcnEvent.dateobs == dateobs
+                )
+            ).first()
+            if event is None:
+                return self.error("GCN event not found", status=404)
 
-        if not event.is_accessible_by(self.current_user, mode="delete"):
-            return self.error(
-                "Insufficient permissions: GCN event can only be deleted by original poster"
-            )
+            session.delete(event)
+            session.commit()
 
-        DBSession().delete(event)
-        self.verify_and_commit()
-
-        return self.success()
+            return self.success()
 
 
 def add_tiles(localization_id):
@@ -626,29 +931,28 @@ class LocalizationHandler(BaseHandler):
 
         include_2D_map = self.get_query_argument("include2DMap", False)
 
-        localization = (
-            Localization.query_records_accessible_by(self.current_user)
-            .filter(
-                Localization.dateobs == dateobs,
-                Localization.localization_name == localization_name,
-            )
-            .first()
-        )
-        if localization is None:
-            return self.error("Localization not found", status=404)
+        with self.Session() as session:
+            localization = session.scalars(
+                Localization.select(session.user_or_token).where(
+                    Localization.dateobs == dateobs,
+                    Localization.localization_name == localization_name,
+                )
+            ).first()
+            if localization is None:
+                return self.error("Localization not found", status=404)
 
-        if include_2D_map:
-            data = {
-                **localization.to_dict(),
-                "flat_2d": localization.flat_2d,
-                "contour": localization.contour,
-            }
-        else:
-            data = {
-                **localization.to_dict(),
-                "contour": localization.contour,
-            }
-        return self.success(data=data)
+            if include_2D_map:
+                data = {
+                    **localization.to_dict(),
+                    "flat_2d": localization.flat_2d,
+                    "contour": localization.contour,
+                }
+            else:
+                data = {
+                    **localization.to_dict(),
+                    "contour": localization.contour,
+                }
+            return self.success(data=data)
 
     @auth_or_token
     def delete(self, dateobs, localization_name):
@@ -679,22 +983,21 @@ class LocalizationHandler(BaseHandler):
                 schema: Error
         """
 
-        localization = Localization.query.filter_by(
-            dateobs=dateobs, localization_name=localization_name
-        ).first()
+        with self.Session() as session:
+            localization = session.scalars(
+                Localization.select(session.user_or_token, mode="delete").where(
+                    Localization.dateobs == dateobs,
+                    Localization.localization_name == localization_name,
+                )
+            ).first()
 
-        if localization is None:
-            return self.error("Localization not found", status=404)
+            if localization is None:
+                return self.error("Localization not found", status=404)
 
-        if not localization.is_accessible_by(self.current_user, mode="delete"):
-            return self.error(
-                "Insufficient permissions: Localization can only be deleted by original poster"
-            )
+            session.delete(localization)
+            session.commit()
 
-        DBSession().delete(localization)
-        self.verify_and_commit()
-
-        return self.success()
+            return self.success()
 
 
 class GcnSummaryHandler(BaseHandler):
@@ -774,6 +1077,11 @@ class GcnSummaryHandler(BaseHandler):
               schema:
                 type: bool
               description: Do not include text in the summary, only tables.
+            - in: query
+              name: photometryInWindow
+              schema:
+                type: bool
+              description: Limit photometry to that within startDate and endDate.
           responses:
             200:
               content:
@@ -805,6 +1113,7 @@ class GcnSummaryHandler(BaseHandler):
         show_galaxies = self.get_query_argument('showGalaxies', False)
         show_observations = self.get_query_argument('showObservations', False)
         no_text = self.get_query_argument('noText', False)
+        photometry_in_window = self.get_query_argument('photometryInWindow', False)
 
         class Validator(Schema):
             start_date = UTCTZnaiveDateTime(required=False, missing=None)
@@ -825,34 +1134,31 @@ class GcnSummaryHandler(BaseHandler):
         start_date = validated['start_date']
         end_date = validated['end_date']
 
+        if not no_text:
+            if title is None:
+                return self.error("Title is required")
+            if number is not None:
+                try:
+                    number = int(number)
+                except ValueError:
+                    return self.error("Number must be an integer")
+            if subject is None:
+                return self.error("Subject is required")
+            if user_ids is not None:
+                user_ids = [int(user_id) for user_id in user_ids.split(",")]
+                try:
+                    user_ids = [int(user_id) for user_id in user_ids]
+                except ValueError:
+                    return self.error("User IDs must be integers")
+            else:
+                user_ids = []
+            if group_id is None:
+                return self.error("Group ID is required")
+
+        start_date_mjd = Time(arrow.get(start_date).datetime).mjd
+        end_date_mjd = Time(arrow.get(end_date).datetime).mjd
+
         try:
-            if not no_text:
-                if title is None:
-                    return self.error("Title is required")
-                if number is not None:
-                    try:
-                        number = int(number)
-                    except ValueError:
-                        return self.error("Number must be an integer")
-                if subject is None:
-                    return self.error("Subject is required")
-                if user_ids is not None:
-                    user_ids = [int(user_id) for user_id in user_ids.split(",")]
-                    try:
-                        user_ids = [int(user_id) for user_id in user_ids]
-                    except ValueError:
-                        return self.error("User IDs must be integers")
-                else:
-                    user_ids = []
-                if group_id is None:
-                    return self.error("Group ID is required")
-
-            if start_date is None:
-                return self.error(message="Missing start_date")
-
-            if end_date is None:
-                return self.error(message="Missing end_date")
-
             with self.Session() as session:
                 contents = []
                 stmt = GcnEvent.select(session.user_or_token).where(
@@ -988,14 +1294,17 @@ class GcnSummaryHandler(BaseHandler):
                             stmt = Photometry.select(session.user_or_token).where(
                                 Photometry.obj_id == source['id']
                             )
+                            if photometry_in_window:
+                                stmt = stmt.where(
+                                    Photometry.mjd >= start_date_mjd,
+                                    Photometry.mjd <= end_date_mjd,
+                                )
                             photometry = session.scalars(stmt).all()
                             if len(photometry) > 0:
                                 sources_text.append(
                                     f"""\nPhotometry for source {source['id']}:\n"""
                                 ) if not no_text else None
-                                mjds, ras, decs, mags, filters, origins, instruments = (
-                                    [],
-                                    [],
+                                mjds, mags, filters, origins, instruments = (
                                     [],
                                     [],
                                     [],
@@ -1005,21 +1314,24 @@ class GcnSummaryHandler(BaseHandler):
                                 for phot in photometry:
                                     phot = serialize(phot, 'ab', 'mag')
                                     mjds.append(phot['mjd'] if 'mjd' in phot else None)
-                                    ras.append(
-                                        f"{round(phot['ra'],2)}±{round(phot['ra_unc'],2)}"
-                                        if ('ra' in phot and 'ra_unc' in phot)
-                                        else None
-                                    )
-                                    decs.append(
-                                        f"{round(phot['dec'],2)}±{round(phot['dec_unc'],2)}"
-                                        if ('dec' in phot and 'dec_unc' in phot)
-                                        else None
-                                    )
-                                    mags.append(
-                                        f"{round(phot['mag'],2)}±{round(phot['magerr'],2)}"
-                                        if ('mag' in phot and 'magerr' in phot)
-                                        else None
-                                    )
+                                    if (
+                                        'mag' in phot
+                                        and 'magerr' in phot
+                                        and phot['mag'] is not None
+                                        and phot['magerr'] is not None
+                                    ):
+                                        mags.append(
+                                            f"{np.round(phot['mag'],2)}±{np.round(phot['magerr'],2)}"
+                                        )
+                                    elif (
+                                        'limiting_mag' in phot
+                                        and phot['limiting_mag'] is not None
+                                    ):
+                                        mags.append(
+                                            f"< {np.round(phot['limiting_mag'], 1)}"
+                                        )
+                                    else:
+                                        mags.append(None)
                                     filters.append(
                                         phot['filter'] if 'filter' in phot else None
                                     )
@@ -1034,8 +1346,6 @@ class GcnSummaryHandler(BaseHandler):
                                 df_phot = pd.DataFrame(
                                     {
                                         "mjd": mjds,
-                                        "ra": ras,
-                                        "dec": decs,
                                         "mag±err (ab)": mags,
                                         "filter": filters,
                                         "origin": origins,
@@ -1054,6 +1364,7 @@ class GcnSummaryHandler(BaseHandler):
                                         headers='keys',
                                         tablefmt='psql',
                                         showindex=False,
+                                        floatfmt=".5f",
                                     )
                                     + "\n"
                                 )
@@ -1181,11 +1492,8 @@ class GcnSummaryHandler(BaseHandler):
                             )
                             for obs in observations:
                                 t0s.append(
-                                    round(
-                                        (obs["obstime"] - event.dateobs)
-                                        / datetime.timedelta(hours=1),
-                                        2,
-                                    )
+                                    (obs["obstime"] - event.dateobs)
+                                    / datetime.timedelta(hours=1)
                                     if "obstime" in obs
                                     else None
                                 )
@@ -1239,6 +1547,15 @@ class GcnSummaryHandler(BaseHandler):
                                     headers='keys',
                                     tablefmt='psql',
                                     showindex=False,
+                                    floatfmt=(
+                                        ".2f",
+                                        ".5f",
+                                        ".5f",
+                                        ".5f",
+                                        "%s",
+                                        "%d",
+                                        ".2f",
+                                    ),
                                 )
                                 + "\n"
                             )

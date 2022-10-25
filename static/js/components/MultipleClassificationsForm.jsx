@@ -13,13 +13,13 @@ import Accordion from "@mui/material/Accordion";
 import AccordionSummary from "@mui/material/AccordionSummary";
 import AccordionDetails from "@mui/material/AccordionDetails";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import Button from "@mui/material/Button";
 import Paper from "@mui/material/Paper";
 import Chip from "@mui/material/Chip";
 import makeStyles from "@mui/styles/makeStyles";
 import withStyles from "@mui/styles/withStyles";
 
 import { showNotification } from "baselayer/components/Notifications";
+import Button from "./Button";
 import { getSortedClasses } from "./ShowClassification";
 import * as Actions from "../ducks/source";
 import * as ClassificationsActions from "../ducks/classifications";
@@ -351,11 +351,14 @@ const MultipleClassificationsForm = ({
               min={0}
               max={1.0}
             />
-            {renderSliders(
-              classification.subclasses,
-              depth + 1,
-              [classification.class].concat(path)
-            )}
+            {classification.class in formState[selectedTaxonomy.id] &&
+              formState[selectedTaxonomy.id][classification.class]
+                ?.probability !== 0 &&
+              renderSliders(
+                classification.subclasses,
+                depth + 1,
+                [classification.class].concat(path)
+              )}
           </div>
         ) : (
           <Paper variant="outlined" className={styles.sliderDiv}>
@@ -379,11 +382,14 @@ const MultipleClassificationsForm = ({
               min={0}
               max={1.0}
             />
-            {renderSliders(
-              classification.subclasses,
-              depth + 1,
-              [classification.class].concat(path)
-            )}
+            {classification.class in formState[selectedTaxonomy.id] &&
+              formState[selectedTaxonomy.id][classification.class]
+                ?.probability !== 0 &&
+              renderSliders(
+                classification.subclasses,
+                depth + 1,
+                [classification.class].concat(path)
+              )}
           </Paper>
         )
       );
@@ -529,8 +535,7 @@ const MultipleClassificationsForm = ({
       ))}
       <div className={classes.submitButton}>
         <Button
-          variant="contained"
-          color="primary"
+          primary
           type="submit"
           name="submitClassificationsButton"
           disabled={submissionRequestInProcess}

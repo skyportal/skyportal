@@ -85,6 +85,8 @@ const START_ANALYSIS_FOR_OBJ = "skyportal/START_SERVICE_FOR_OBJ";
 const DELETE_ANALYSIS = "skyportal/DELETE_ANALYSIS";
 
 const FETCH_ANALYSES_FOR_OBJ = "skyportal/FETCH_ANALYSES_FOR_OBJ";
+const FETCH_ANALYSIS_FOR_OBJ = "skyportal/FETCH_ANALYSIS_FOR_OBJ";
+const FETCH_ANALYSIS_RESULTS_FOR_OBJ = "skyportal/FETCH_ANALYSIS_FOR_OBJ";
 
 const SUBMIT_IMAGE_ANALYSIS = "skyportal/SUBMIT_IMAGE_ANALYSIS";
 
@@ -129,6 +131,30 @@ export function fetchAnalyses(analysis_resource_type = "obj", params = {}) {
   return API.GET(
     `/api/${analysis_resource_type}/analysis`,
     FETCH_ANALYSES_FOR_OBJ,
+    params
+  );
+}
+
+export function fetchAnalysis(
+  analysis_id,
+  analysis_resource_type = "obj",
+  params = {}
+) {
+  return API.GET(
+    `/api/${analysis_resource_type}/analysis/${analysis_id}`,
+    FETCH_ANALYSIS_FOR_OBJ,
+    params
+  );
+}
+
+export function fetchAnalysisResults(
+  analysis_id,
+  analysis_resource_type = "obj",
+  params = {}
+) {
+  return API.GET(
+    `/api/${analysis_resource_type}/analysis/${analysis_id}/results`,
+    FETCH_ANALYSIS_RESULTS_FOR_OBJ,
     params
   );
 }
@@ -313,8 +339,10 @@ export const fetchGaia = (sourceID) =>
 export const fetchWise = (sourceID) =>
   API.POST(`/api/sources/${sourceID}/annotations/irsa`, FETCH_WISE);
 
-export const fetchVizier = (sourceID) =>
-  API.POST(`/api/sources/${sourceID}/annotations/vizier`, FETCH_VIZIER);
+export const fetchVizier = (sourceID, catalog = "VII/290") =>
+  API.POST(`/api/sources/${sourceID}/annotations/vizier`, FETCH_VIZIER, {
+    catalog,
+  });
 
 export const fetchPhotoz = (sourceID) =>
   API.POST(`/api/sources/${sourceID}/annotations/datalab`, FETCH_PHOTOZ);

@@ -8,7 +8,6 @@ import MuiDialogTitle from "@mui/material/DialogTitle";
 import IconButton from "@mui/material/IconButton";
 import Close from "@mui/icons-material/Close";
 import Typography from "@mui/material/Typography";
-import Button from "@mui/material/Button";
 import grey from "@mui/material/colors/grey";
 import TextField from "@mui/material/TextField";
 import Grid from "@mui/material/Grid";
@@ -18,6 +17,9 @@ import CircularProgress from "@mui/material/CircularProgress";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import LoadingButton from "@mui/lab/LoadingButton";
 import GetApp from "@mui/icons-material/GetApp";
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
+import relativeTime from "dayjs/plugin/relativeTime";
 
 import { showNotification } from "baselayer/components/Notifications";
 import {
@@ -27,6 +29,10 @@ import {
 import * as usersActions from "../ducks/users";
 import * as groupsActions from "../ducks/groups";
 import { getGcnEventSummary } from "../ducks/gcnEvent";
+import Button from "./Button";
+
+dayjs.extend(relativeTime);
+dayjs.extend(utc);
 
 const useStyles = makeStyles((theme) => ({
   shortcutButtons: {
@@ -133,6 +139,7 @@ const GcnSummary = ({ dateobs }) => {
   const [showGalaxies, setShowGalaxies] = useState(false);
   const [showObservations, setShowObservations] = useState(false);
   const [noText, setNoText] = useState(false);
+  const [photometryInWindow, setPhotometryInWindow] = useState(false);
 
   const [fetching, setFetching] = useState(false);
 
@@ -163,12 +170,13 @@ const GcnSummary = ({ dateobs }) => {
       setText(summary.join(""));
       setFetching(false);
     }
-    const default_start_date = new Date(dateobs).toISOString();
-    let default_end_date = new Date(dateobs);
-    default_end_date.setDate(default_end_date.getDate() + 7);
-    default_end_date = default_end_date.toISOString();
-    setStartDate(default_start_date.slice(0, 19));
-    setEndDate(default_end_date.slice(0, 19));
+    const defaultStartDate = dayjs.utc(dateobs).format("YYYY-MM-DD HH:mm:ss");
+    const defaultEndDate = dayjs
+      .utc(dateobs)
+      .add(7, "day")
+      .format("YYYY-MM-DD HH:mm:ss");
+    setStartDate(defaultStartDate);
+    setEndDate(defaultEndDate);
     setSubject(`Follow-up on GCN Event ${dateobs}`);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dateobs, summary, dataFetched, dispatch]);
@@ -266,6 +274,7 @@ const GcnSummary = ({ dateobs }) => {
         showGalaxies,
         showObservations,
         noText,
+        photometryInWindow,
       };
       if (nb !== "") {
         params.number = nb;
@@ -281,11 +290,7 @@ const GcnSummary = ({ dateobs }) => {
 
   return (
     <>
-      <Button
-        variant="outlined"
-        name="gcn_summary"
-        onClick={() => setOpen(true)}
-      >
+      <Button secondary name="gcn_summary" onClick={() => setOpen(true)}>
         Summary
       </Button>
       {open && dataFetched && (
@@ -393,6 +398,18 @@ const GcnSummary = ({ dateobs }) => {
                       }
                       label="No Text"
                     />
+                    <FormControlLabel
+                      control={
+                        <Checkbox
+                          label="Photometry in Window"
+                          checked={photometryInWindow}
+                          onChange={(e) =>
+                            setPhotometryInWindow(e.target.checked)
+                          }
+                        />
+                      }
+                      label="Photometry in Window"
+                    />
                   </div>
                   <div className={classes.buttons}>
                     <LoadingButton
@@ -405,7 +422,8 @@ const GcnSummary = ({ dateobs }) => {
                       Get Summary
                     </LoadingButton>
                     <Button
-                      startIcon={<GetApp />}
+                      secondary
+                      endIcon={<GetApp />}
                       disabled={!summary || summary?.length === 0}
                       onClick={() => {
                         const blob = new Blob([text], { type: "text/plain" });
@@ -415,7 +433,6 @@ const GcnSummary = ({ dateobs }) => {
                         link.download = `${title}_${dateobs}.txt`;
                         link.click();
                       }}
-                      variant="contained"
                       className={classes.button}
                     >
                       Download

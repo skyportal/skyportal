@@ -131,6 +131,7 @@ class Shift(Base):
         cascade='save-update, merge, refresh-expire, expunge',
         passive_deletes=True,
         doc='Elements of a join table mapping Users to Shifts.',
+        overlaps='shifts, users',
     )
 
     comments = relationship(
@@ -140,6 +141,15 @@ class Shift(Base):
         passive_deletes=True,
         order_by="CommentOnShift.created_at",
         doc="Comments posted about this Shift.",
+    )
+
+    reminders = relationship(
+        'ReminderOnShift',
+        back_populates='shift',
+        cascade='save-update, merge, refresh-expire, expunge, delete',
+        passive_deletes=True,
+        order_by="ReminderOnShift.created_at",
+        doc="Reminders about this Shift.",
     )
 
     required_users_number = sa.Column(

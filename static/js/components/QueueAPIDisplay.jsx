@@ -2,13 +2,13 @@ import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 // eslint-disable-next-line import/no-unresolved
 import makeStyles from "@mui/styles/makeStyles";
-import Button from "@mui/material/Button";
 import Select from "@mui/material/Select";
 import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
+import Button from "./Button";
 
 import * as queuedObservationActions from "../ducks/queued_observations";
 import * as allocationActions from "../ducks/allocations";

@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import PropTypes from "prop-types";
 import { useDispatch } from "react-redux";
 import TextField from "@mui/material/TextField";
-import Button from "@mui/material/Button";
 import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
@@ -24,6 +23,7 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
 import { showNotification } from "baselayer/components/Notifications";
+import Button from "./Button";
 import * as invitationsActions from "../ducks/invitations";
 
 dayjs.extend(utc);
@@ -214,9 +214,9 @@ const InviteNewGroupUserForm = ({ group_id }) => {
         </>
       )}
       <Button
+        secondary
         data-testid="inviteNewUserButton"
         onClick={() => setConfirmDialogOpen(true)}
-        variant="contained"
         size="small"
         disableElevation
       >
@@ -248,12 +248,12 @@ const InviteNewGroupUserForm = ({ group_id }) => {
             Cancel
           </Button>
           <Button
+            primary
             data-testid="confirmNewUserButton"
             onClick={() => {
               setConfirmDialogOpen(false);
               handleClickSubmit();
             }}
-            color="primary"
             autoFocus
           >
             Confirm

@@ -6,7 +6,6 @@ import { Link } from "react-router-dom";
 import makeStyles from "@mui/styles/makeStyles";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import Grid from "@mui/material/Grid";
-import Button from "@mui/material/Button";
 import Chip from "@mui/material/Chip";
 import Tooltip from "@mui/material/Tooltip";
 import Accordion from "@mui/material/Accordion";
@@ -28,6 +27,7 @@ import {
 } from "react-device-detect";
 import { WidthProvider } from "react-grid-layout";
 import { log10, abs, ceil } from "mathjs";
+import Button from "./Button";
 
 import CommentListMobile from "./CommentListMobile";
 import ClassificationList from "./ClassificationList";
@@ -52,6 +52,8 @@ import PhotometryTable from "./PhotometryTable";
 import FavoritesButton from "./FavoritesButton";
 import SourceAnnotationButtons from "./SourceAnnotationButtons";
 import TNSATForm from "./TNSATForm";
+
+import SourcePlugins from "./SourcePlugins";
 
 import * as spectraActions from "../ducks/spectra";
 
@@ -345,6 +347,9 @@ const SourceMobile = WidthProvider(
                       </div>
                     </div>
                   </div>
+                  <div>
+                    <SourcePlugins source={source} />
+                  </div>
                   <div className={classes.infoLine}>
                     <div className={classes.redshiftInfo}>
                       <b>Redshift: &nbsp;</b>
@@ -408,8 +413,8 @@ const SourceMobile = WidthProvider(
                   <div className={classes.infoLine}>
                     <div className={classes.infoButton}>
                       <Button
+                        secondary
                         size="small"
-                        variant="contained"
                         onClick={() => setShowStarList(!showStarList)}
                       >
                         {showStarList ? "Hide Starlist" : "Show Starlist"}
@@ -417,7 +422,7 @@ const SourceMobile = WidthProvider(
                     </div>
                     <div className={classes.infoButton}>
                       <Link to={`/observability/${source.id}`} role="link">
-                        <Button size="small" variant="contained">
+                        <Button secondary size="small">
                           Observability
                         </Button>
                       </Link>
@@ -543,16 +548,14 @@ const SourceMobile = WidthProvider(
                   <div className={classes.plotButtons}>
                     {isBrowser && (
                       <Link to={`/upload_photometry/${source.id}`} role="link">
-                        <Button variant="contained">
-                          Upload additional photometry
-                        </Button>
+                        <Button secondary>Upload additional photometry</Button>
                       </Link>
                     )}
                     <Link to={`/manage_data/${source.id}`} role="link">
-                      <Button variant="contained">Manage data</Button>
+                      <Button secondary>Manage data</Button>
                     </Link>
                     <Button
-                      variant="contained"
+                      secondary
                       onClick={() => {
                         setShowPhotometry(true);
                       }}
@@ -634,13 +637,13 @@ const SourceMobile = WidthProvider(
                   <div className={classes.plotButtons}>
                     {isBrowser && (
                       <Link to={`/upload_spectrum/${source.id}`} role="link">
-                        <Button variant="contained">
+                        <Button secondary>
                           Upload additional spectroscopy
                         </Button>
                       </Link>
                     )}
                     <Link to={`/manage_data/${source.id}`} role="link">
-                      <Button variant="contained">Manage data</Button>
+                      <Button secondary>Manage data</Button>
                     </Link>
                   </div>
                 </Grid>

@@ -4,8 +4,8 @@ import { useDispatch } from "react-redux";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
-import Button from "@mui/material/Button";
 
+import Button from "./Button";
 import SurveyEfficiencyForm from "./SurveyEfficiencyForm";
 import SurveyEfficiencyObservationsLists from "./SurveyEfficiencyObservationsLists";
 
@@ -41,7 +41,7 @@ const AddSurveyEfficiencyObservationsPage = ({ gcnevent }) => {
   return (
     <>
       <Button
-        variant="outlined"
+        secondary
         size="small"
         onClick={openDialog}
         data-testid={`addSimSurveyButton_${gcnevent.id}`}

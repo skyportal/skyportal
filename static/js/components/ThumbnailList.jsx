@@ -53,7 +53,7 @@ const useStyles = makeStyles((theme) => ({
   }),
 }));
 
-const Thumbnail = ({ ra, dec, name, url, size, grayscale }) => {
+const Thumbnail = ({ ra, dec, name, url, size, grayscale, header }) => {
   // convert mjd to unix timestamp *in ms*. 40587 is the mjd of the
   // unix timestamp epoch (1970-01-01).
 
@@ -79,9 +79,9 @@ const Thumbnail = ({ ra, dec, name, url, size, grayscale }) => {
       alt = "Link to SDSS Navigate tool";
       link = `https://skyserver.sdss.org/dr16/en/tools/chart/navi.aspx?opt=G&ra=${ra}&dec=${dec}&scale=0.25`;
       break;
-    case "dr8":
-      alt = "Link to DESI DR8 Image Access";
-      link = `https://www.legacysurvey.org/viewer?ra=${ra}&dec=${dec}&layer=ls-dr8&zoom=16&mark=radeg,decdeg`;
+    case "ls":
+      alt = "Link to Legacy Survey DR9 Image Access";
+      link = `https://www.legacysurvey.org/viewer?ra=${ra}&dec=${dec}&layer=ls-dr9&photoz-dr9&zoom=16&mark=${ra},${dec}`;
       break;
     case "ps1":
       alt = "Link to PanSTARRS-1 Image Access";
@@ -101,7 +101,7 @@ const Thumbnail = ({ ra, dec, name, url, size, grayscale }) => {
       <CardContent className={classes.cardTitle}>
         <Typography className={classes.title} color="textSecondary">
           <a href={link} target="_blank" rel="noreferrer">
-            {name.toUpperCase()}
+            {header.toUpperCase()}
           </a>
         </Typography>
       </CardContent>
@@ -116,7 +116,7 @@ const Thumbnail = ({ ra, dec, name, url, size, grayscale }) => {
             onError={(e) => {
               if (url !== "#") {
                 e.target.onerror = null;
-                if (name === "dr8") {
+                if (name === "ls") {
                   e.target.src = "/static/images/outside_survey.png";
                 } else {
                   e.target.src = "/static/images/currently_unavailable.png";
@@ -144,6 +144,7 @@ Thumbnail.propTypes = {
   url: PropTypes.string.isRequired,
   size: PropTypes.string.isRequired,
   grayscale: PropTypes.bool.isRequired,
+  header: PropTypes.string.isRequired,
 };
 
 const sortThumbnailsByDate = (a, b) => {
@@ -164,7 +165,7 @@ const ThumbnailList = ({
   thumbnails,
   useGrid = true,
   size = "13rem",
-  displayTypes = ["new", "ref", "sub", "sdss", "dr8", "ps1"],
+  displayTypes = ["new", "ref", "sub", "sdss", "ls", "ps1"],
 }) => {
   thumbnails
     ?.filter((thumbnail) => displayTypes.includes(thumbnail.type))
@@ -174,11 +175,17 @@ const ThumbnailList = ({
     ?.map((type) => thumbnails.find((thumbnail) => thumbnail.type === type))
     ?.filter((thumbnail) => thumbnail !== undefined);
 
-  const thumbnail_order = ["new", "ref", "sub", "sdss", "dr8", "ps1"];
+  const thumbnail_order = ["new", "ref", "sub", "sdss", "ls", "ps1"];
   // Sort thumbnails by order of appearance in `thumbnail_order`
   latestThumbnails?.sort((a, b) =>
     thumbnail_order.indexOf(a.type) < thumbnail_order.indexOf(b.type) ? -1 : 1
   );
+
+  const thumbnail_display = Object.fromEntries(
+    thumbnail_order.map((x) => [x, x])
+  );
+  thumbnail_display.ls = "Legacy Survey DR9";
+  thumbnail_display.ps1 = "PanSTARRS DR2";
 
   if (useGrid) {
     return (
@@ -193,6 +200,7 @@ const ThumbnailList = ({
               url={t.public_url}
               size={size}
               grayscale={t.is_grayscale}
+              header={thumbnail_display[t.type]}
             />
           </Grid>
         ))}
@@ -203,10 +211,11 @@ const ThumbnailList = ({
                 key="thumbPlaceHolder"
                 ra={ra}
                 dec={dec}
-                name="PS1: Loading..."
+                name="PanSTARRS DR2: Loading..."
                 url="#"
                 size={size}
                 grayscale={false}
+                header="PanSTARRS DR2"
               />
             </Grid>
           )}
@@ -223,6 +232,7 @@ const ThumbnailList = ({
         url={t.public_url}
         size={size}
         grayscale={t.is_grayscale}
+        header={thumbnail_display[t.type]}
       />
     </Grid>
   ));
@@ -239,7 +249,7 @@ ThumbnailList.propTypes = {
 
 ThumbnailList.defaultProps = {
   size: "13rem",
-  displayTypes: ["new", "ref", "sub", "sdss", "dr8", "ps1"],
+  displayTypes: ["new", "ref", "sub", "sdss", "ls", "ps1"],
   useGrid: true,
 };
 

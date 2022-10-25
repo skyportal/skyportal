@@ -12,6 +12,7 @@ import relativeTime from "dayjs/plugin/relativeTime";
 import * as sourceActions from "../ducks/source";
 import * as gcnEventActions from "../ducks/gcnEvent";
 import * as shiftActions from "../ducks/shift";
+import * as earthquakeActions from "../ducks/earthquake";
 
 import CommentEntry from "./CommentEntry";
 import CompactCommentList from "./CompactCommentList";
@@ -176,6 +177,7 @@ const CommentList = ({
   objID = null,
   spectrumID = null,
   gcnEventID = null,
+  earthquakeID = null,
   includeCommentsOnAllResourceTypes = true,
 }) => {
   const styles = useStyles();
@@ -200,6 +202,7 @@ const CommentList = ({
   const obj = isCandidate ? candidate : source;
   const spectra = useSelector((state) => state.spectra);
   const gcnEvent = useSelector((state) => state.gcnEvent);
+  const earthquake = useSelector((state) => state.earthquake);
   const userProfile = useSelector((state) => state.profile);
   const permissions = useSelector((state) => state.profile.permissions);
   const compactComments = useSelector(
@@ -218,6 +221,9 @@ const CommentList = ({
   if (currentShift) {
     shift_id = currentShift.id;
   }
+  if (!earthquake && earthquake) {
+    earthquakeID = earthquake.id;
+  }
 
   const addComment = (formData) => {
     dispatch(
@@ -233,6 +239,15 @@ const CommentList = ({
     dispatch(
       gcnEventActions.addCommentOnGcnEvent({
         gcnevent_id: gcnEventID,
+        ...formData,
+      })
+    );
+  };
+
+  const addEarthquakeComment = (formData) => {
+    dispatch(
+      earthquakeActions.addCommentOnEarthquake({
+        earthquake_id: earthquakeID,
         ...formData,
       })
     );
@@ -280,6 +295,13 @@ const CommentList = ({
       throw new Error("Must specify a shiftID for comments on shift");
     }
     comments = currentShift?.comments;
+  } else if (associatedResourceType === "earthquake") {
+    if (earthquakeID === null) {
+      throw new Error(
+        "Must specify an earthquakeID for comments on earthquake"
+      );
+    }
+    comments = earthquake.comments;
   } else {
     throw new Error(`Illegal input ${associatedResourceType} to CommentList. `);
   }
@@ -324,6 +346,7 @@ const CommentList = ({
                   id={id}
                   objID={objID}
                   gcnEventID={gcnEventID}
+                  earthquakeID={earthquakeID}
                   author={author}
                   created_at={created_at}
                   text={text}
@@ -338,6 +361,7 @@ const CommentList = ({
                   id={id}
                   objID={objID}
                   gcnEventID={gcnEventID}
+                  earthquakeID={earthquakeID}
                   author={author}
                   created_at={created_at}
                   text={text}
@@ -368,6 +392,11 @@ const CommentList = ({
         associatedResourceType === "shift" && (
           <CommentEntry addComment={addShiftComment} />
         )}
+      {permissions.indexOf("Comment") >= 0 &&
+        earthquakeID &&
+        associatedResourceType === "earthquake" && (
+          <CommentEntry addComment={addEarthquakeComment} />
+        )}
     </div>
   );
 };
@@ -376,6 +405,7 @@ CommentList.propTypes = {
   isCandidate: PropTypes.bool,
   objID: PropTypes.string,
   gcnEventID: PropTypes.number,
+  earthquakeID: PropTypes.string,
   associatedResourceType: PropTypes.string,
   spectrumID: PropTypes.number,
   includeCommentsOnAllResourceTypes: PropTypes.bool,
@@ -385,6 +415,7 @@ CommentList.defaultProps = {
   isCandidate: false,
   objID: null,
   gcnEventID: null,
+  earthquakeID: null,
   associatedResourceType: "object",
   spectrumID: null,
   includeCommentsOnAllResourceTypes: true,

@@ -122,7 +122,8 @@ const NotificationSettingsSelect = ({ notificationResourceType }) => {
       notificationResourceType === "sources" ||
       notificationResourceType === "favorite_sources" ||
       notificationResourceType === "facility_transactions" ||
-      notificationResourceType === "mention"
+      notificationResourceType === "mention" ||
+      notificationResourceType === "analysis_services"
     ) {
       const prefs = {
         notifications: {
@@ -160,7 +161,8 @@ const NotificationSettingsSelect = ({ notificationResourceType }) => {
       notificationResourceType === "sources" ||
       notificationResourceType === "favorite_sources" ||
       notificationResourceType === "facility_transactions" ||
-      notificationResourceType === "mention"
+      notificationResourceType === "mention" ||
+      notificationResourceType === "analysis_services"
     ) {
       const prefs = {
         notifications: {
@@ -203,7 +205,8 @@ const NotificationSettingsSelect = ({ notificationResourceType }) => {
       notificationResourceType === "sources" ||
       notificationResourceType === "favorite_sources" ||
       notificationResourceType === "facility_transactions" ||
-      notificationResourceType === "mention"
+      notificationResourceType === "mention" ||
+      notificationResourceType === "analysis_services"
     ) {
       const prefs = {
         notifications: {
@@ -227,7 +230,7 @@ const NotificationSettingsSelect = ({ notificationResourceType }) => {
         classes={{ tooltip: classes.tooltip }}
       >
         <Button
-          variant="contained"
+          secondary
           name={`notification_settings_button_${notificationResourceType}`}
           className={classes.button}
           onClick={() => {
@@ -303,6 +306,27 @@ const NotificationSettingsSelect = ({ notificationResourceType }) => {
                   />
                   <Tooltip
                     title="Click here to receive notifications by SMS about the selected notification type. You also need to set your phone number in your user profile. Two options will appear, please select at least one."
+                    placement="right"
+                    classes={{ tooltip: classes.tooltip }}
+                  >
+                    <HelpOutlineOutlinedIcon />
+                  </Tooltip>
+                </FormGroup>
+              </div>
+              <div className={classes.pref}>
+                <FormGroup row className={classes.form_group}>
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={handleChecked("phone")}
+                        name="phone"
+                        onChange={prefToggled}
+                      />
+                    }
+                    label=" By Phone Call"
+                  />
+                  <Tooltip
+                    title="Click here to receive notifications by phone call about the selected notification type. You also need to set your phone number in your user profile. Two options will appear, please select at least one."
                     placement="right"
                     classes={{ tooltip: classes.tooltip }}
                   >

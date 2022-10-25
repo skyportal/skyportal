@@ -1,16 +1,25 @@
+import base64
+import functools
 import json
 import requests
 from datetime import datetime, timedelta
+import sqlalchemy as sa
+from sqlalchemy.orm import sessionmaker, scoped_session
+from tornado.ioloop import IOLoop
+import urllib
 
 from . import FollowUpAPI
 from baselayer.app.env import load_env
+from baselayer.log import make_log
 
 from ..utils import http
 
 env, cfg = load_env()
 
-
 requestpath = f"{cfg['app.lco_protocol']}://{cfg['app.lco_host']}:{cfg['app.lco_port']}/api/requestgroups/"
+archivepath = f"{cfg['app.lco_archive_endpoint']}/frames/"
+
+log = make_log('facility_apis/lco')
 
 
 class SINISTRORequest:
@@ -48,7 +57,7 @@ class SINISTRORequest:
         # Constraints used for scheduling this observation
         constraints = {
             'max_airmass': request.payload["maximum_airmass"],
-            'min_lunar_distance': 30,
+            'min_lunar_distance': request.payload["minimum_lunar_distance"],
         }
 
         # The target of the observation
@@ -99,7 +108,7 @@ class SINISTRORequest:
             'proposal': altdata["PROPOSAL_ID"],
             'ipp_value': request.payload["priority"],
             'operator': 'SINGLE',
-            'observation_type': 'NORMAL',
+            'observation_type': request.payload["observation_mode"],
             'requests': [
                 {
                     'configurations': configurations,
@@ -201,7 +210,7 @@ class SPECTRALRequest:
             'proposal': altdata["PROPOSAL_ID"],
             'ipp_value': request.payload["priority"],
             'operator': 'SINGLE',
-            'observation_type': 'NORMAL',
+            'observation_type': request.payload["observation_mode"],
             'requests': [
                 {
                     'configurations': configurations,
@@ -310,7 +319,7 @@ class MUSCATRequest:
             'proposal': altdata["PROPOSAL_ID"],
             'ipp_value': request.payload["priority"],
             'operator': 'SINGLE',
-            'observation_type': 'NORMAL',
+            'observation_type': request.payload["observation_mode"],
             'requests': [
                 {
                     'configurations': configurations,
@@ -472,7 +481,7 @@ class FLOYDSRequest:
             'proposal': altdata["PROPOSAL_ID"],
             'ipp_value': request.payload["priority"],
             'operator': 'SINGLE',
-            'observation_type': 'NORMAL',
+            'observation_type': request.payload["observation_mode"],
             'requests': [
                 {
                     'configurations': configurations,
@@ -483,6 +492,53 @@ class FLOYDSRequest:
         }
 
         return requestgroup
+
+
+def download_observations(request_id, ar):
+    """Fetch data from the LCO API.
+    request_id : int
+        SkyPortal ID for request
+    ar : requests.Response
+        LCO archive response query
+    """
+
+    from ..models import (
+        Comment,
+        DBSession,
+        FollowupRequest,
+        Group,
+    )
+
+    Session = scoped_session(sessionmaker(bind=DBSession.session_factory.kw["bind"]))
+    session = Session()
+
+    try:
+        req = session.scalars(
+            sa.select(FollowupRequest).where(FollowupRequest.id == request_id)
+        ).first()
+
+        group_ids = [g.id for g in req.requester.accessible_groups]
+        groups = session.scalars(
+            Group.select(req.requester).where(Group.id.in_(group_ids))
+        ).all()
+        for image in ar.json()['results']:
+            attachment_name = image['filename']
+            with urllib.request.urlopen(image['url']) as f:
+                attachment_bytes = base64.b64encode(f.read())
+            comment = Comment(
+                text=f'LCO: {attachment_name}',
+                obj_id=req.obj.id,
+                attachment_bytes=attachment_bytes,
+                attachment_name=attachment_name,
+                author=req.requester,
+                groups=groups,
+                bot=False,
+            )
+            session.add(comment)
+        req.status = f'{ar.json()["count"]} images posted as comment'
+        session.commit()
+    except Exception as e:
+        return log(f"Unable to post data for {request_id}: {e}")
 
 
 class LCOAPI(FollowUpAPI):
@@ -531,9 +587,9 @@ class LCOAPI(FollowUpAPI):
         session.add(transaction)
 
     @staticmethod
-    def update(request, session):
+    def get(request, session):
 
-        """Update a follow-up request from LCO queue (all instruments).
+        """Get a follow-up request from LCO queue (all instruments).
 
         Parameters
         ----------
@@ -543,16 +599,10 @@ class LCOAPI(FollowUpAPI):
             Database session for this transaction
         """
 
-        from ..models import FollowupRequest, FacilityTransaction
+        from ..models import FacilityTransaction
 
-        # this happens for failed submissions
-        # just go ahead and delete
         if len(request.transactions) == 0:
-            session.query(FollowupRequest).filter(
-                FollowupRequest.id == request.id
-            ).delete()
-            session.commit()
-            return
+            raise ValueError('No transaction information.')
 
         altdata = request.allocation.altdata
         if not altdata:
@@ -561,9 +611,10 @@ class LCOAPI(FollowUpAPI):
         content = request.transactions[0].response["content"]
         content = json.loads(content)
         uid = content["id"]
+        request_id = content["requests"][0]["id"]
 
         r = requests.get(
-            f"{requestpath}{uid}/",
+            f"{requestpath}{request_id}/",
             headers={"Authorization": f'Token {altdata["API_TOKEN"]}'},
         )
 
@@ -572,8 +623,30 @@ class LCOAPI(FollowUpAPI):
         content = request.transactions[0].response["content"]
         content = json.loads(content)
 
+        content["state"] = "COMPLETED"
         if content["state"] == "COMPLETED":
             request.status = "complete"
+
+            archive_headers = {'Authorization': f'Token {altdata["API_ARCHIVE_TOKEN"]}'}
+            ar = requests.get(
+                f'{archivepath}?REQNUM={uid}&start=2014-01-01&RLEVEL=91',
+                headers=archive_headers,
+            )
+            if ar.status_code == 200:
+                download_obs = functools.partial(
+                    download_observations,
+                    request.id,
+                    ar,
+                )
+                IOLoop.current().run_in_executor(None, download_obs)
+            else:
+                if "non_field_errors" in ar.json():
+                    error_message = r.json()["non_field_errors"]
+                else:
+                    error_message = r.content.decode()
+                request.status = error_message
+        elif content["state"] == "PENDING":
+            request.status = "pending"
 
         transaction = FacilityTransaction(
             request=http.serialize_requests_request(r.request),
@@ -583,6 +656,7 @@ class LCOAPI(FollowUpAPI):
         )
 
         session.add(transaction)
+        session.commit()
 
 
 class SINISTROAPI(LCOAPI):
@@ -617,12 +691,15 @@ class SINISTROAPI(LCOAPI):
             headers={"Authorization": f'Token {altdata["API_TOKEN"]}'},
             json=requestgroup,  # Make sure you use json!
         )
-        r.raise_for_status()
 
         if r.status_code == 201:
             request.status = 'submitted'
         else:
-            request.status = f'rejected: {r.content}'
+            if "non_field_errors" in r.json():
+                error_message = r.json()["non_field_errors"]
+            else:
+                error_message = r.content.decode()
+            request.status = error_message
 
         transaction = FacilityTransaction(
             request=http.serialize_requests_request(r.request),
@@ -636,6 +713,11 @@ class SINISTROAPI(LCOAPI):
     form_json_schema = {
         "type": "object",
         "properties": {
+            "observation_mode": {
+                "type": "string",
+                "enum": ["NORMAL", "RAPID_RESPONSE", "TIME_CRITICAL"],
+                "default": "NORMAL",
+            },
             "observation_choices": {
                 "type": "array",
                 "title": "Desired Observations",
@@ -673,7 +755,7 @@ class SINISTROAPI(LCOAPI):
                 "maximum": 3,
             },
             "minimum_lunar_distance": {
-                "title": "Maximum Seeing [arcsec] (0-180)",
+                "title": "Minimum Lunar Distance [deg.] (0-180)",
                 "type": "number",
                 "default": 30.0,
                 "minimum": 0,
@@ -733,12 +815,14 @@ class SPECTRALAPI(LCOAPI):
             json=requestgroup,  # Make sure you use json!
         )
 
-        r.raise_for_status()
-
         if r.status_code == 201:
             request.status = 'submitted'
         else:
-            request.status = f'rejected: {r.content}'
+            if "non_field_errors" in r.json():
+                error_message = r.json()["non_field_errors"]
+            else:
+                error_message = r.content.decode()
+            request.status = error_message
 
         transaction = FacilityTransaction(
             request=http.serialize_requests_request(r.request),
@@ -752,6 +836,11 @@ class SPECTRALAPI(LCOAPI):
     form_json_schema = {
         "type": "object",
         "properties": {
+            "observation_mode": {
+                "type": "string",
+                "enum": ["NORMAL", "RAPID_RESPONSE", "TIME_CRITICAL"],
+                "default": "NORMAL",
+            },
             "observation_choices": {
                 "type": "array",
                 "title": "Desired Observations",
@@ -789,7 +878,7 @@ class SPECTRALAPI(LCOAPI):
                 "maximum": 3,
             },
             "minimum_lunar_distance": {
-                "title": "Maximum Seeing [arcsec] (0-180)",
+                "title": "Minimum Lunar Distance [deg.] (0-180)",
                 "type": "number",
                 "default": 30.0,
                 "minimum": 0,
@@ -847,12 +936,15 @@ class MUSCATAPI(LCOAPI):
             headers={"Authorization": f'Token {altdata["API_TOKEN"]}'},
             json=requestgroup,  # Make sure you use json!
         )
-        r.raise_for_status()
 
         if r.status_code == 201:
             request.status = 'submitted'
         else:
-            request.status = f'rejected: {r.content}'
+            if "non_field_errors" in r.json():
+                error_message = r.json()["non_field_errors"]
+            else:
+                error_message = r.content.decode()
+            request.status = error_message
 
         transaction = FacilityTransaction(
             request=http.serialize_requests_request(r.request),
@@ -866,6 +958,11 @@ class MUSCATAPI(LCOAPI):
     form_json_schema = {
         "type": "object",
         "properties": {
+            "observation_mode": {
+                "type": "string",
+                "enum": ["NORMAL", "RAPID_RESPONSE", "TIME_CRITICAL"],
+                "default": "NORMAL",
+            },
             "exposure_time": {
                 "title": "Exposure Time [s]",
                 "type": "number",
@@ -896,7 +993,7 @@ class MUSCATAPI(LCOAPI):
                 "maximum": 3,
             },
             "minimum_lunar_distance": {
-                "title": "Maximum Seeing [arcsec] (0-180)",
+                "title": "Minimum Lunar Distance [deg.] (0-180)",
                 "type": "number",
                 "default": 30.0,
                 "minimum": 0,
@@ -955,12 +1052,14 @@ class FLOYDSAPI(LCOAPI):
             json=requestgroup,  # Make sure you use json!
         )
 
-        r.raise_for_status()
-
         if r.status_code == 201:
             request.status = 'submitted'
         else:
-            request.status = f'rejected: {r.content}'
+            if "non_field_errors" in r.json():
+                error_message = r.json()["non_field_errors"]
+            else:
+                error_message = r.content.decode()
+            request.status = error_message
 
         transaction = FacilityTransaction(
             request=http.serialize_requests_request(r.request),
@@ -974,6 +1073,11 @@ class FLOYDSAPI(LCOAPI):
     form_json_schema = {
         "type": "object",
         "properties": {
+            "observation_mode": {
+                "type": "string",
+                "enum": ["NORMAL", "RAPID_RESPONSE", "TIME_CRITICAL"],
+                "default": "NORMAL",
+            },
             "exposure_time": {
                 "title": "Exposure Time [s]",
                 "type": "number",
@@ -1004,7 +1108,7 @@ class FLOYDSAPI(LCOAPI):
                 "maximum": 3,
             },
             "minimum_lunar_distance": {
-                "title": "Maximum Seeing [arcsec] (0-180)",
+                "title": "Minimum Lunar Distance [deg.] (0-180)",
                 "type": "number",
                 "default": 30.0,
                 "minimum": 0,

@@ -12,12 +12,17 @@ import {
 } from "@mui/material/styles";
 import makeStyles from "@mui/styles/makeStyles";
 import Chip from "@mui/material/Chip";
-import Button from "@mui/material/Button";
+import Grid from "@mui/material/Grid";
+import InfoIcon from "@mui/icons-material/Info";
 
 import MUIDataTable from "mui-datatables";
+import Button from "./Button";
 
+import { filterOutEmptyValues } from "../API";
 import * as gcnEventsActions from "../ducks/gcnEvents";
 import Spinner from "./Spinner";
+import GcnEventsFilterForm from "./GcnEventsFilterForm";
+import NewGcnEvent from "./NewGcnEvent";
 
 const useStyles = makeStyles((theme) => ({
   container: {
@@ -80,6 +85,8 @@ const GcnEvents = () => {
   const theme = useTheme();
   const dispatch = useDispatch();
   const gcnEvents = useSelector((state) => state.gcnEvents);
+  const [filterFormSubmitted, setFilterFormSubmitted] = useState(false);
+
   const [fetchParams, setFetchParams] = useState({
     pageNumber: 1,
     numPerPage: defaultNumPerPage,
@@ -110,6 +117,27 @@ const GcnEvents = () => {
     await dispatch(gcnEventsActions.fetchGcnEvents(params));
   };
 
+  const handleTableFilter = async (pageNumber, numPerPage, filterData) => {
+    const params = {
+      ...fetchParams,
+      pageNumber,
+      numPerPage,
+    };
+    if (filterData && Object.keys(filterData).length > 0) {
+      params.startDate = filterData.startDate;
+      params.endDate = filterData.endDate;
+      params.tagKeep = filterData.tagKeep;
+      params.tagRemove = filterData.tagRemove;
+
+      if ("property" in filterData) {
+        params.propertiesFilter = `${filterData.property}: ${filterData.propertyComparatorValue}: ${filterData.propertyComparator}`;
+      }
+    }
+    // Save state for future
+    setFetchParams(params);
+    await dispatch(gcnEventsActions.fetchGcnEvents(params));
+  };
+
   const handleTableSorting = async (sortData) => {
     const params = {
       ...fetchParams,
@@ -119,6 +147,15 @@ const GcnEvents = () => {
     };
     setFetchParams(params);
     await dispatch(gcnEventsActions.fetchGcnEvents(params));
+  };
+
+  const handleFilterSubmit = async (formData) => {
+    const data = filterOutEmptyValues(formData);
+    if ("property" in data) {
+      data.propertiesFilter = `${data.property}: ${data.propertyComparatorValue}: ${data.propertyComparator}`;
+    }
+    handleTableFilter(1, defaultNumPerPage, data);
+    setFilterFormSubmitted(true);
   };
 
   const handleTableChange = (action, tableState) => {
@@ -179,6 +216,15 @@ const GcnEvents = () => {
     </Link>
   );
 
+  const customFilterDisplay = () =>
+    filterFormSubmitted ? (
+      <div className={classes.filterAlert}>
+        <InfoIcon /> &nbsp; Filters submitted to server!
+      </div>
+    ) : (
+      <GcnEventsFilterForm handleFilterSubmit={handleFilterSubmit} />
+    );
+
   const columns = [
     {
       name: "dateobs",
@@ -223,28 +269,41 @@ const GcnEvents = () => {
     onTableChange: handleTableChange,
     search: false, // Disable search for now (not implemented yet)
     download: false, // Disable download button for now (not implemented yet)
-    filter: false, // Disable filter button for now (not implemented yet)
+    filter: true,
+    customFilterDialogFooter: customFilterDisplay,
   };
 
   return (
-    <div>
-      <Typography variant="h5">GCN Events</Typography>
-      {gcnEvents ? (
-        <Paper className={classes.container}>
-          <StyledEngineProvider injectFirst>
-            <ThemeProvider theme={getMuiTheme(theme)}>
-              <MUIDataTable
-                data={gcnEvents.events}
-                options={options}
-                columns={columns}
-              />
-            </ThemeProvider>
-          </StyledEngineProvider>
+    <Grid container spacing={3}>
+      <Grid item md={8} sm={12}>
+        <Paper elevation={1}>
+          <div className={classes.paperContent}>
+            <Typography variant="h5">GCN Events</Typography>
+            {gcnEvents ? (
+              <StyledEngineProvider injectFirst>
+                <ThemeProvider theme={getMuiTheme(theme)}>
+                  <MUIDataTable
+                    data={gcnEvents.events}
+                    options={options}
+                    columns={columns}
+                  />
+                </ThemeProvider>
+              </StyledEngineProvider>
+            ) : (
+              <Spinner />
+            )}
+          </div>
         </Paper>
-      ) : (
-        <Spinner />
-      )}
-    </div>
+      </Grid>
+      <Grid item md={4} sm={12}>
+        <Paper>
+          <div className={classes.paperContent}>
+            <Typography variant="h6">Add a New GcnEvent</Typography>
+            <NewGcnEvent />
+          </div>
+        </Paper>
+      </Grid>
+    </Grid>
   );
 };
 

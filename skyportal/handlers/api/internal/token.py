@@ -1,13 +1,11 @@
 from ...base import BaseHandler
 from baselayer.app.access import auth_or_token
-from ....models import Token, DBSession
+from ....models import Token, User
 from ....model_util import create_token
-
-import tornado.web
 
 
 class TokenHandler(BaseHandler):
-    @tornado.web.authenticated
+    @auth_or_token
     def post(self):
         """
         ---
@@ -34,33 +32,108 @@ class TokenHandler(BaseHandler):
         """
         data = self.get_json()
 
-        user = self.associated_user_object
-        token_acls = set(data['acls'])
-        if not all([acl_id in user.permissions for acl_id in token_acls]):
-            return self.error(
-                "User has attempted to grant token ACLs they do not have "
-                "access to. Please try again."
+        with self.Session() as session:
+            if 'user_id' in data:
+                user_id = data['user_id']
+                user = session.scalars(
+                    User.select(session.user_or_token).where(User.id == user_id)
+                ).first()
+            else:
+                user = self.associated_user_object
+                user_id = user.id
+
+            token_acls = set(data['acls'])
+            if not all([acl_id in user.permissions for acl_id in token_acls]):
+                return self.error(
+                    "User has attempted to grant token ACLs they do not have "
+                    "access to. Please try again."
+                )
+            existing_tokens = session.scalars(
+                Token.select(session.user_or_token).where(
+                    Token.created_by_id == user_id
+                )
+            ).all()
+            if len(existing_tokens) > 0 and not self.associated_user_object.is_admin:
+                return self.error(
+                    "You have reached the maximum number of tokens "
+                    "allowed for your account type."
+                )
+            token_name = data['name']
+            if session.scalars(
+                Token.select(session.user_or_token).where(Token.name == token_name)
+            ).first():
+                return self.error("Duplicate token name.")
+            token_id = create_token(ACLs=token_acls, user_id=user_id, name=token_name)
+            session.commit()
+            self.push(
+                action='baselayer/SHOW_NOTIFICATION',
+                payload={'note': f'Token "{token_name}" created.', 'type': 'info'},
             )
-        existing_tokens = (
-            DBSession().query(Token).filter(Token.created_by_id == user.id).all()
-        )
-        if len(existing_tokens) > 0 and not user.is_admin:
-            return self.error(
-                "You have reached the maximum number of tokens "
-                "allowed for your account type."
+            return self.success(
+                data={'token_id': token_id}, action='skyportal/FETCH_USER_PROFILE'
             )
-        token_name = data['name']
-        if Token.query.filter(Token.name == token_name).first():
-            return self.error("Duplicate token name.")
-        token_id = create_token(ACLs=token_acls, user_id=user.id, name=token_name)
-        self.verify_and_commit()
-        self.push(
-            action='baselayer/SHOW_NOTIFICATION',
-            payload={'note': f'Token "{token_name}" created.', 'type': 'info'},
-        )
-        return self.success(
-            data={'token_id': token_id}, action='skyportal/FETCH_USER_PROFILE'
-        )
+
+    @auth_or_token
+    def get(self, token_id=None):
+        """
+        ---
+        single:
+          description: Retrieve a token
+          tags:
+            - tokens
+          parameters:
+            - in: path
+              name: token_id
+              required: true
+              schema:
+                type: integer
+          responses:
+            200:
+              content:
+                application/json:
+                  schema: SingleToken
+            400:
+              content:
+                application/json:
+                  schema: Error
+        multiple:
+          description: Retrieve all tokens
+          tags:
+            - tokens
+          parameters:
+            - in: query
+              name: userID
+              schema:
+                type: int
+              description: Filter by user ID
+          responses:
+            200:
+              content:
+                application/json:
+                  schema: ArrayOfTokens
+            400:
+              content:
+                application/json:
+                  schema: Error
+        """
+
+        user_id = self.get_query_argument("userID", None)
+
+        with self.Session() as session:
+
+            if token_id is not None:
+                t = session.scalars(
+                    Token.select(session.user_or_token).where(Token.id == token_id)
+                ).first()
+                if t is None:
+                    return self.error(f"Could not load token with ID {token_id}")
+                return self.success(data=t)
+
+            stmt = Token.select(session.user_or_token)
+            if user_id is not None:
+                stmt = stmt.where(Token.created_by == user_id)
+            data = session.scalars(stmt).all()
+            return self.success(data=data)
 
     @auth_or_token
     def delete(self, token_id):
@@ -83,19 +156,25 @@ class TokenHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        token = Token.get_if_accessible_by(token_id, self.current_user, mode="delete")
-        if token is not None:
-            DBSession.delete(token)
-            self.verify_and_commit()
+
+        with self.Session() as session:
+            token = session.scalars(
+                Token.select(session.user_or_token, mode="delete").where(
+                    Token.id == token_id
+                )
+            ).first()
+            if token is None:
+                return self.error(
+                    'Either the specified token does not exist, '
+                    'or the user does not have the necessary '
+                    'permissions to delete it.'
+                )
+
+            session.delete(token)
+            session.commit()
 
             self.push(
                 action='baselayer/SHOW_NOTIFICATION',
                 payload={'note': f'Token "{token.name}" deleted.', 'type': 'info'},
             )
             return self.success(action='skyportal/FETCH_USER_PROFILE')
-        else:
-            return self.error(
-                'Either the specified token does not exist, '
-                'or the user does not have the necessary '
-                'permissions to delete it.'
-            )

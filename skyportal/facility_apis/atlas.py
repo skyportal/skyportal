@@ -246,6 +246,9 @@ class ATLASAPI(FollowUpAPI):
 
         r = requests.post(facility_microservice_url, json=request_body)
         log(f'Response for request {request.id}: {r.text}')
+        data_out = r.json()
+        if 'message' in data_out:
+            request.status = data_out['message']
 
         transaction = FacilityTransaction(
             request=http.serialize_requests_request(r.request),

@@ -1,8 +1,9 @@
-__all__ = ['GcnNotice', 'GcnTag', 'GcnEvent']
+__all__ = ['GcnNotice', 'GcnTag', 'GcnEvent', 'GcnProperty']
 
 import sqlalchemy as sa
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm import deferred
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.hybrid import hybrid_property
 
 import gcn
@@ -56,44 +57,33 @@ class GcnNotice(Base):
         sa.Column(sa.LargeBinary, nullable=False, doc='Raw VOEvent content')
     )
 
-    def _get_property(self, property_name, value=None):
-        root = lxml.etree.fromstring(self.content)
-        path = f".//Param[@name='{property_name}']"
-        elem = root.find(path)
-        value = float(elem.attrib.get('value', '')) * 100
-        return value
 
-    @property
-    def has_ns(self):
-        return self._get_property(property_name="HasNS")
+class GcnProperty(Base):
+    """Store properties for events."""
 
-    @property
-    def has_remnant(self):
-        return self._get_property(property_name="HasRemnant")
+    update = delete = AccessibleIfUserMatches('sent_by')
 
-    @property
-    def far(self):
-        return self._get_property(property_name="FAR")
+    sent_by_id = sa.Column(
+        sa.ForeignKey('users.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+        doc="The ID of the User who created this GcnTag.",
+    )
 
-    @property
-    def bns(self):
-        return self._get_property(property_name="BNS")
+    sent_by = relationship(
+        "User",
+        foreign_keys=sent_by_id,
+        back_populates="gcnproperties",
+        doc="The user that saved this GcnProperty",
+    )
 
-    @property
-    def nsbh(self):
-        return self._get_property(property_name="NSBH")
+    dateobs = sa.Column(
+        sa.ForeignKey('gcnevents.dateobs', ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
 
-    @property
-    def bbh(self):
-        return self._get_property(property_name="BBH")
-
-    @property
-    def mass_gap(self):
-        return self._get_property(property_name="MassGap")
-
-    @property
-    def noise(self):
-        return self._get_property(property_name="Terrestrial")
+    data = sa.Column(JSONB, doc="Event properties in JSON format.")
 
 
 class GcnTag(Base):
@@ -145,7 +135,19 @@ class GcnEvent(Base):
 
     dateobs = sa.Column(sa.DateTime, doc='Event time', unique=True, nullable=False)
 
+    trigger_id = sa.Column(
+        sa.BigInteger, unique=True, doc='Trigger ID supplied by instrument'
+    )
+
     gcn_notices = relationship("GcnNotice", order_by=GcnNotice.date)
+
+    properties = relationship(
+        'GcnProperty',
+        cascade='save-update, merge, refresh-expire, expunge, delete',
+        passive_deletes=True,
+        order_by="GcnProperty.created_at",
+        doc="Properties associated with this GCN event.",
+    )
 
     _tags = relationship(
         "GcnTag",
@@ -181,6 +183,24 @@ class GcnEvent(Base):
         passive_deletes=True,
         order_by="CommentOnGCN.created_at",
         doc="Comments posted about this GCN event.",
+    )
+
+    reminders = relationship(
+        'ReminderOnGCN',
+        back_populates='gcn',
+        cascade='save-update, merge, refresh-expire, expunge, delete',
+        passive_deletes=True,
+        order_by="ReminderOnGCN.created_at",
+        doc="Reminders about this GCN event.",
+    )
+
+    detectors = relationship(
+        "MMADetector",
+        secondary="gcnevents_mmadetectors",
+        back_populates="events",
+        cascade="save-update, merge, refresh-expire, expunge",
+        passive_deletes=True,
+        doc="MMA Detectors that contributed this event.",
     )
 
     @hybrid_property

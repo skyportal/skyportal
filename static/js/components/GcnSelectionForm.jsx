@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { PropTypes } from "prop-types";
-import Button from "@mui/material/Button";
 // eslint-disable-next-line import/no-unresolved
 import Form from "@rjsf/material-ui/v5";
 import Select from "@mui/material/Select";
@@ -16,8 +15,8 @@ import makeStyles from "@mui/styles/makeStyles";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
+import Button from "./Button";
 
-import { filterOutEmptyValues } from "../API";
 import * as sourcesActions from "../ducks/sources";
 import * as observationsActions from "../ducks/observations";
 import * as galaxiesActions from "../ducks/galaxies";
@@ -26,6 +25,7 @@ import * as instrumentActions from "../ducks/instrument";
 import LocalizationPlot from "./LocalizationPlot";
 import GcnSummary from "./GcnSummary";
 import AddSurveyEfficiencyObservationsPage from "./AddSurveyEfficiencyObservationsPage";
+import AddCatalogQueryPage from "./AddCatalogQueryPage";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
@@ -57,7 +57,7 @@ const useStyles = makeStyles(() => ({
     marginBottom: "1rem",
   },
   buttons: {
-    marginTop: "1rem",
+    margin: "1rem 0 1rem 0",
     display: "grid",
     gridGap: "1rem",
     gridTemplateColumns: "repeat(auto-fit, minmax(5rem, 1fr))",
@@ -181,39 +181,6 @@ const GcnSelectionForm = ({
     setIsDeletingTreasureMap(null);
   };
 
-  const handleSubmit = async ({ formData }) => {
-    setIsSubmitting(true);
-    formData.startDate = formData.startDate
-      .replace("+00:00", "")
-      .replace(".000Z", "");
-    formData.endDate = formData.endDate
-      .replace("+00:00", "")
-      .replace(".000Z", "");
-
-    if (formData.queryList.includes("sources")) {
-      await dispatch(
-        sourcesActions.fetchGcnEventSources(gcnEvent.dateobs, formData)
-      );
-      setSourceFilteringState(formData);
-    }
-    formData.includeGeoJSON = true;
-    if (formData.queryList.includes("observations")) {
-      await dispatch(
-        observationsActions.fetchGcnEventObservations(
-          gcnEvent.dateobs,
-          formData
-        )
-      );
-    }
-    if (formData.queryList.includes("galaxies")) {
-      await dispatch(
-        galaxiesActions.fetchGcnEventGalaxies(gcnEvent.dateobs, formData)
-      );
-    }
-    setFormDataState(formData);
-    setIsSubmitting(false);
-  };
-
   if (!sortedInstrumentList) {
     displayOptionsAvailable.instruments = false;
   }
@@ -283,15 +250,43 @@ const GcnSelectionForm = ({
     setSelectedLocalizationName(locLookUp[e.target.value].localization_name);
   };
 
-  function createGcnUrl(instrumentId, queryParams) {
-    let url = `/api/observation/gcn/${instrumentId}`;
-    if (queryParams) {
-      const filteredQueryParams = filterOutEmptyValues(queryParams);
-      const queryString = new URLSearchParams(filteredQueryParams).toString();
-      url += `?${queryString}`;
+  const handleSubmit = async ({ formData }) => {
+    setIsSubmitting(true);
+    formData.startDate = formData.startDate
+      .replace("+00:00", "")
+      .replace(".000Z", "");
+    formData.endDate = formData.endDate
+      .replace("+00:00", "")
+      .replace(".000Z", "");
+
+    if (Object.keys(locLookUp).includes(selectedLocalizationId?.toString())) {
+      formData.localizationName =
+        locLookUp[selectedLocalizationId].localization_name;
     }
-    return url;
-  }
+
+    if (formData.queryList.includes("sources")) {
+      await dispatch(
+        sourcesActions.fetchGcnEventSources(gcnEvent.dateobs, formData)
+      );
+      setSourceFilteringState(formData);
+    }
+    formData.includeGeoJSON = true;
+    if (formData.queryList.includes("observations")) {
+      await dispatch(
+        observationsActions.fetchGcnEventObservations(
+          gcnEvent.dateobs,
+          formData
+        )
+      );
+    }
+    if (formData.queryList.includes("galaxies")) {
+      await dispatch(
+        galaxiesActions.fetchGcnEventGalaxies(gcnEvent.dateobs, formData)
+      );
+    }
+    setFormDataState(formData);
+    setIsSubmitting(false);
+  };
 
   function validate(formData, errors) {
     if (formData.start_date > formData.end_date) {
@@ -310,8 +305,6 @@ const GcnSelectionForm = ({
     return errors;
   }
 
-  const gcnUrl = createGcnUrl(selectedInstrumentId, formDataState);
-
   const GcnSourceSelectionFormSchema = {
     type: "object",
     properties: {
@@ -324,6 +317,11 @@ const GcnSelectionForm = ({
         type: "string",
         title: "End Date",
         default: defaultEndDate,
+      },
+      numberDetections: {
+        type: "number",
+        title: "Minimum Number of Detections",
+        default: 2,
       },
       localizationCumprob: {
         type: "number",
@@ -397,7 +395,7 @@ const GcnSelectionForm = ({
               key={localization.id}
               className={classes.localizationSelectItem}
             >
-              {`${localization.localization_name}`}
+              {`Skymap: ${localization.localization_name} / Created: ${localization.created_at}`}
             </MenuItem>
           ))}
         </Select>
@@ -456,29 +454,18 @@ const GcnSelectionForm = ({
       <div className={classes.buttons}>
         <GcnSummary dateobs={gcnEvent.dateobs} />
         <AddSurveyEfficiencyObservationsPage gcnevent={gcnEvent} />
-        <Button
-          href={`${gcnUrl}`}
-          download={`observationGcn-${selectedInstrumentId}`}
-          size="small"
-          color="primary"
-          type="submit"
-          variant="outlined"
-          data-testid={`observationGcn_${selectedInstrumentId}`}
-        >
-          GCN
-        </Button>
+        <AddCatalogQueryPage gcnevent={gcnEvent} />
         {isSubmittingTreasureMap === selectedInstrumentId ? (
           <div>
             <CircularProgress />
           </div>
         ) : (
           <Button
+            secondary
             onClick={() => {
               handleSubmitTreasureMap(selectedInstrumentId, formDataState);
             }}
-            color="primary"
             type="submit"
-            variant="outlined"
             size="small"
             data-testid={`treasuremapRequest_${selectedInstrumentId}`}
           >
@@ -491,12 +478,11 @@ const GcnSelectionForm = ({
           </div>
         ) : (
           <Button
+            secondary
             onClick={() => {
               handleDeleteTreasureMap(selectedInstrumentId, formDataState);
             }}
-            color="primary"
             type="submit"
-            variant="outlined"
             size="small"
             data-testid={`treasuremapDelete_${selectedInstrumentId}`}
           >

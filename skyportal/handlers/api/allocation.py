@@ -1,5 +1,6 @@
 from marshmallow.exceptions import ValidationError
 import sqlalchemy as sa
+from sqlalchemy import func
 import io
 import matplotlib
 import matplotlib.pyplot as plt
@@ -8,7 +9,7 @@ import numpy as np
 from baselayer.app.access import auth_or_token, permissions
 
 from ..base import BaseHandler
-from ...models import DBSession, FollowupRequest, Group, Allocation, Instrument
+from ...models import FollowupRequest, Group, Allocation, Instrument
 
 
 class AllocationHandler(BaseHandler):
@@ -110,7 +111,7 @@ class AllocationHandler(BaseHandler):
                         f"apitype can only be api_classname or api_classname_obsplan, not {apitype}"
                     )
 
-            allocations = session.scalars(allocations).all()
+            allocations = session.scalars(allocations).unique().all()
             return self.success(data=allocations)
 
     @permissions(['Manage allocations'])
@@ -142,27 +143,38 @@ class AllocationHandler(BaseHandler):
         """
 
         data = self.get_json()
-        try:
-            allocation = Allocation.__schema__().load(data=data)
-        except ValidationError as e:
-            return self.error(
-                f'Error parsing posted allocation: "{e.normalized_messages()}"'
-            )
 
-        group = Group.get_if_accessible_by(allocation.group_id, self.current_user)
-        if group is None:
-            return self.error(f'No group with specified ID: {allocation.group_id}')
+        with self.Session() as session:
 
-        instrument = Instrument.get_if_accessible_by(
-            allocation.instrument_id, self.current_user
-        )
-        if instrument is None:
-            return self.error(f'No group with specified ID: {allocation.instrument_id}')
+            try:
+                allocation = Allocation.__schema__().load(data=data)
+            except ValidationError as e:
+                return self.error(
+                    f'Error parsing posted allocation: "{e.normalized_messages()}"'
+                )
 
-        DBSession().add(allocation)
-        self.verify_and_commit()
-        self.push_all(action='skyportal/REFRESH_ALLOCATIONS')
-        return self.success(data={"id": allocation.id})
+            group = session.scalars(
+                Group.select(session.user_or_token).where(
+                    Group.id == allocation.group_id
+                )
+            ).first()
+            if group is None:
+                return self.error(f'No group with specified ID: {allocation.group_id}')
+
+            instrument = session.scalars(
+                Instrument.select(session.user_or_token).where(
+                    Instrument.id == allocation.instrument_id
+                )
+            ).first()
+            if instrument is None:
+                return self.error(
+                    f'No group with specified ID: {allocation.instrument_id}'
+                )
+
+            session.add(allocation)
+            session.commit()
+            self.push_all(action='skyportal/REFRESH_ALLOCATIONS')
+            return self.success(data={"id": allocation.id})
 
     @permissions(['Manage allocations'])
     def put(self, allocation_id):
@@ -191,26 +203,33 @@ class AllocationHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        allocation = Allocation.get_if_accessible_by(
-            int(allocation_id), self.current_user, mode="update"
-        )
 
-        if allocation is None:
-            return self.error('No such allocation')
+        with self.Session() as session:
+            allocation = session.scalars(
+                Allocation.select(session.user_or_token, mode="update").where(
+                    Allocation.id == int(allocation_id)
+                )
+            ).first()
+            if allocation is None:
+                return self.error('No such allocation')
 
-        data = self.get_json()
-        data['id'] = allocation_id
+            data = self.get_json()
+            data['id'] = allocation_id
 
-        schema = Allocation.__schema__()
-        try:
-            schema.load(data, partial=True)
-        except ValidationError as e:
-            return self.error(
-                'Invalid/missing parameters: ' f'{e.normalized_messages()}'
-            )
-        self.verify_and_commit()
-        self.push_all(action='skyportal/REFRESH_ALLOCATIONS')
-        return self.success()
+            schema = Allocation.__schema__()
+            try:
+                schema.load(data, partial=True)
+            except ValidationError as e:
+                return self.error(
+                    'Invalid/missing parameters: ' f'{e.normalized_messages()}'
+                )
+
+            for k in data:
+                setattr(allocation, k, data[k])
+
+            session.commit()
+            self.push_all(action='skyportal/REFRESH_ALLOCATIONS')
+            return self.success()
 
     @permissions(['Manage allocations'])
     def delete(self, allocation_id):
@@ -231,13 +250,20 @@ class AllocationHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        allocation = Allocation.get_if_accessible_by(
-            int(allocation_id), self.current_user, mode='delete'
-        )
-        DBSession().delete(allocation)
-        self.verify_and_commit()
-        self.push_all(action='skyportal/REFRESH_ALLOCATIONS')
-        return self.success()
+
+        with self.Session() as session:
+            allocation = session.scalars(
+                Allocation.select(session.user_or_token, mode="delete").where(
+                    Allocation.id == int(allocation_id)
+                )
+            ).first()
+            if allocation is None:
+                return self.error('No such allocation')
+
+            session.delete(allocation)
+            session.commit()
+            self.push_all(action='skyportal/REFRESH_ALLOCATIONS')
+            return self.success()
 
 
 class AllocationReportHandler(BaseHandler):
@@ -276,85 +302,89 @@ class AllocationReportHandler(BaseHandler):
         if output_format not in ["pdf", "png"]:
             return self.error('output_format must be png or pdf')
 
-        # get owned allocations
-        allocations = Allocation.query_records_accessible_by(self.current_user)
-        allocations = allocations.filter(
-            Allocation.instrument_id == instrument_id
-        ).all()
+        with self.Session() as session:
 
-        if len(allocations) == 0:
-            return self.error('Need at least one allocation for analysis')
+            # get owned allocations
+            stmt = Allocation.select(session.user_or_token)
+            stmt = stmt.where(Allocation.instrument_id == instrument_id)
+            allocations = session.scalars(stmt).unique().all()
 
-        instrument = allocations[0].instrument
+            if len(allocations) == 0:
+                return self.error('Need at least one allocation for analysis')
 
-        labels = [a.proposal_id for a in allocations]
-        values = [a.hours_allocated for a in allocations]
+            instrument = allocations[0].instrument
 
-        def make_autopct(values, label="Hours"):
-            def my_autopct(pct):
-                total = sum(values)
-                if np.isnan(pct):
-                    val = 0
-                else:
-                    val = int(round(pct * total / 100.0))
-                return f'{pct:.0f}%  ({val:d} {label})'
+            labels = [a.proposal_id for a in allocations]
+            values = [a.hours_allocated for a in allocations]
 
-            return my_autopct
+            def make_autopct(values, label="Hours"):
+                def my_autopct(pct):
+                    total = sum(values)
+                    if np.isnan(pct):
+                        val = 0
+                    else:
+                        val = int(round(pct * total / 100.0))
+                    return f'{pct:.0f}%  ({val:d} {label})'
 
-        matplotlib.use("Agg")
-        fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(12, 6))
-        ax1.pie(
-            values,
-            labels=labels,
-            shadow=True,
-            startangle=90,
-            autopct=make_autopct(values, label="Hours"),
-        )
-        ax1.axis('equal')
-        ax1.set_title('Time Allocated')
+                return my_autopct
 
-        values = [len(a.requests) for a in allocations]
-        if sum(values) > 0:
-            ax2.pie(
+            matplotlib.use("Agg")
+            fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(12, 6))
+            ax1.pie(
                 values,
                 labels=labels,
                 shadow=True,
                 startangle=90,
-                autopct=make_autopct(values, label="Requests"),
+                autopct=make_autopct(values, label="Hours"),
             )
-            ax2.axis('equal')
-            ax2.set_title('Requests Made')
-        else:
-            ax2.remove()
+            ax1.axis('equal')
+            ax1.set_title('Time Allocated')
 
-        values = []
-        for a in allocations:
-            followup_requests = (
-                FollowupRequest.query_records_accessible_by(self.current_user)
-                .where(FollowupRequest.allocation_id == a.id)
-                .where(FollowupRequest.status.contains('Complete'))
-            )
-            values.append(len(followup_requests.all()))
+            values = [len(a.requests) for a in allocations]
+            if sum(values) > 0:
+                ax2.pie(
+                    values,
+                    labels=labels,
+                    shadow=True,
+                    startangle=90,
+                    autopct=make_autopct(values, label="Requests"),
+                )
+                ax2.axis('equal')
+                ax2.set_title('Requests Made')
+            else:
+                ax2.remove()
 
-        if sum(values) > 0:
-            ax3.pie(
-                values,
-                labels=labels,
-                shadow=True,
-                startangle=90,
-                autopct=make_autopct(values, label="Observations"),
-            )
-            ax3.axis('equal')
-            ax3.set_title('Requests Completed')
-        else:
-            ax3.remove()
+            values = []
+            for a in allocations:
+                stmt = (
+                    FollowupRequest.select(session.user_or_token)
+                    .where(FollowupRequest.allocation_id == a.id)
+                    .where(FollowupRequest.status.contains('Complete'))
+                )
+                total_matches = session.execute(
+                    sa.select(func.count()).select_from(stmt)
+                ).scalar()
+                values.append(total_matches)
 
-        buf = io.BytesIO()
-        fig.savefig(buf, format=output_format)
-        plt.close(fig)
-        buf.seek(0)
+            if sum(values) > 0:
+                ax3.pie(
+                    values,
+                    labels=labels,
+                    shadow=True,
+                    startangle=90,
+                    autopct=make_autopct(values, label="Observations"),
+                )
+                ax3.axis('equal')
+                ax3.set_title('Requests Completed')
+            else:
+                ax3.remove()
 
-        data = io.BytesIO(buf.read())
-        filename = f"allocations_{instrument.name}.{output_format}"
+            buf = io.BytesIO()
+            fig.savefig(buf, format=output_format)
+            plt.close(fig)
+            buf.seek(0)
 
-        await self.send_file(data, filename, output_type=output_format)
+            data = io.BytesIO(buf.read())
+            filename = f"allocations_{instrument.name}.{output_format}"
+
+            await self.send_file(data, filename, output_type=output_format)

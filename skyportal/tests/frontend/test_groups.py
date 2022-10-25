@@ -302,4 +302,4 @@ def test_cannot_add_stream_group_users_cant_access(
 
     driver.click_xpath(f'//li[contains(.,"{public_stream2.name}")]', scroll_parent=True)
     driver.click_xpath('//button[@data-testid="add-stream-dialog-submit"]')
-    driver.wait_for_xpath('//*[contains(.,"Insufficient permissions")]')
+    driver.wait_for_xpath('//*[contains(.,"Not all users have stream access with")]')

@@ -10,6 +10,8 @@ import pandas as pd
 from regions import Regions
 from astropy.table import Table
 
+import pytest
+
 
 def test_gcn_GW(super_admin_token, view_only_token):
 
@@ -23,14 +25,49 @@ def test_gcn_GW(super_admin_token, view_only_token):
     assert data['status'] == 'success'
 
     dateobs = "2019-04-25 08:18:05"
-    params = {"include2DMap": True}
-
     status, data = api('GET', f'gcn_event/{dateobs}', token=super_admin_token)
     assert status == 200
     data = data["data"]
     assert data["dateobs"] == "2019-04-25T08:18:05"
     assert 'GW' in data["tags"]
+    property_dict = {
+        'BBH': 0.0,
+        'BNS': 0.999402567114,
+        'FAR': 4.53764787126e-13,
+        'NSBH': 0.0,
+        'HasNS': 1.0,
+        'MassGap': 0.0,
+        'HasRemnant': 1.0,
+        'Terrestrial': 0.00059743288626,
+    }
+    assert data["properties"][0]["data"] == property_dict
 
+    params = {
+        'startDate': "2019-04-25T00:00:00",
+        'endDate': "2019-04-26T00:00:00",
+        'tagKeep': 'GW',
+    }
+
+    status, data = api('GET', 'gcn_event', token=super_admin_token, params=params)
+    assert status == 200
+    data = data["data"]
+    assert len(data['events']) > 0
+    data = data['events'][0]
+    assert data["dateobs"] == "2019-04-25T08:18:05"
+    assert 'GW' in data["tags"]
+
+    params = {
+        'startDate': "2019-04-25T00:00:00",
+        'endDate': "2019-04-26T00:00:00",
+        'tagKeep': 'Fermi',
+    }
+
+    status, data = api('GET', 'gcn_event', token=super_admin_token, params=params)
+    assert status == 200
+    data = data["data"]
+    assert len(data['events']) == 0
+
+    params = {"include2DMap": True}
     skymap = "bayestar.fits.gz"
     status, data = api(
         'GET',
@@ -49,7 +86,7 @@ def test_gcn_GW(super_admin_token, view_only_token):
         f'localization/{dateobs}/name/{skymap}',
         token=view_only_token,
     )
-    assert status == 400
+    assert status == 404
 
     status, data = api(
         'DELETE',
@@ -97,7 +134,7 @@ def test_gcn_Fermi(super_admin_token, view_only_token):
         f'localization/{dateobs}/name/{skymap}',
         token=view_only_token,
     )
-    assert status == 400
+    assert status == 404
 
     status, data = api(
         'DELETE',
@@ -107,45 +144,35 @@ def test_gcn_Fermi(super_admin_token, view_only_token):
     assert status == 200
 
 
-def test_gcn_IPN(super_admin_token):
+def test_gcn_from_moc(super_admin_token, view_only_token):
 
-    skymap = f'{os.path.dirname(__file__)}/../data/GRB220617A_IPN_map_hpx.fits.gz'
-    dateobs = '2022-06-17T18:31:12'
-    tags = ['IPN', 'GRB']
+    name = str(uuid.uuid4())
+    post_data = {
+        'name': name,
+        'nickname': name,
+        'type': 'gravitational-wave',
+        'fixed_location': True,
+        'lat': 0.0,
+        'lon': 0.0,
+    }
 
-    data = {'dateobs': dateobs, 'skymap': skymap, 'tags': tags}
-
-    nretries = 0
-    posted = False
-    while nretries < 10 and not posted:
-        status, data = api('POST', 'gcn_event', data=data, token=super_admin_token)
-        if status == 200:
-            posted = True
-        else:
-            nretries += 1
-            time.sleep(3)
-
-    assert nretries < 10
-    assert posted is True
+    status, data = api('POST', 'mmadetector', data=post_data, token=super_admin_token)
     assert status == 200
     assert data['status'] == 'success'
-
-    dateobs = "2022-06-17 18:31:12"
-    status, data = api('GET', f'gcn_event/{dateobs}', token=super_admin_token)
-    assert status == 200
-    data = data["data"]
-    assert data["dateobs"] == "2022-06-17T18:31:12"
-    assert 'IPN' in data["tags"]
-
-
-def test_gcn_from_moc(super_admin_token, view_only_token):
+    mmadetector_id = data['data']['id']
 
     skymap = f'{os.path.dirname(__file__)}/../data/GRB220617A_IPN_map_hpx.fits.gz'
     dateobs = '2022-06-18T18:31:12'
-    tags = ['IPN', 'GRB']
+    tags = ['IPN', 'GRB', name]
     skymap = from_url(skymap)
+    properties = {'BNS': 0.9, 'NSBH': 0.1}
 
-    data = {'dateobs': dateobs, 'skymap': skymap, 'tags': tags}
+    data = {
+        'dateobs': dateobs,
+        'skymap': skymap,
+        'tags': tags,
+        'properties': properties,
+    }
 
     status, data = api('POST', 'gcn_event', data=data, token=super_admin_token)
     assert status == 200
@@ -157,8 +184,30 @@ def test_gcn_from_moc(super_admin_token, view_only_token):
     data = data["data"]
     assert data["dateobs"] == "2022-06-18T18:31:12"
     assert 'IPN' in data["tags"]
+    assert name in [detector["name"] for detector in data["detectors"]]
+    properties_dict = data["properties"][0]
+    assert properties_dict["data"] == properties
+
+    status, data = api('GET', f'mmadetector/{mmadetector_id}', token=super_admin_token)
+    assert status == 200
+    assert data['status'] == 'success'
+    data = data["data"]
+    assert "2022-06-18T18:31:12" in [event["dateobs"] for event in data["events"]]
+
+    params = {'propertiesFilter': 'BNS: 0.5: gt, NSBH: 0.5: lt'}
+    status, data = api('GET', 'gcn_event', token=super_admin_token, params=params)
+    assert status == 200
+    data = data["data"]
+    assert "2022-06-18T18:31:12" in [event["dateobs"] for event in data['events']]
+
+    params = {'propertiesFilter': 'BNS: 0.5: lt, NSBH: 0.5: lt'}
+    status, data = api('GET', 'gcn_event', token=super_admin_token, params=params)
+    assert status == 200
+    data = data["data"]
+    assert "2022-06-18T18:31:12" not in [event["dateobs"] for event in data['events']]
 
 
+@pytest.mark.flaky(reruns=3)
 def test_gcn_summary_sources(
     super_admin_user,
     super_admin_token,
@@ -263,7 +312,7 @@ def test_gcn_summary_sources(
 
     status, data = api(
         'GET',
-        'gcn_events/summary/2019-08-14T21:10:39',
+        'gcn_event/summary/2019-08-14T21:10:39',
         params=params,
         token=super_admin_token,
     )
@@ -306,8 +355,6 @@ def test_gcn_summary_sources(
         len(source_table) >= 6
     )  # other photometry have probably been added in previous tests
     assert "mjd" in source_table[1]
-    assert "ra" in source_table[1]
-    assert "dec" in source_table[1]
     assert "mag±err (ab)" in source_table[1]
     assert "filter" in source_table[1]
     assert "origin" in source_table[1]
@@ -419,7 +466,7 @@ def test_gcn_summary_galaxies(
 
     status, data = api(
         'GET',
-        'gcn_events/summary/2019-08-14T21:10:39',
+        'gcn_event/summary/2019-08-14T21:10:39',
         params=params,
         token=super_admin_token,
     )
@@ -685,7 +732,7 @@ def test_gcn_summary_observations(
 
     status, data = api(
         'GET',
-        'gcn_events/summary/2019-08-14T21:10:39',
+        'gcn_event/summary/2019-08-14T21:10:39',
         params=params,
         token=super_admin_token,
     )
@@ -948,3 +995,65 @@ def test_confirm_reject_source_in_gcn(
     assert status == 200
     data = data["data"]
     assert len(data) == 0
+
+
+def test_gcn_from_polygon(super_admin_token, view_only_token):
+
+    localization_name = str(uuid.uuid4())
+    dateobs = '2022-09-03T14:44:12'
+    polygon = [(30.0, 60.0), (40.0, 60.0), (40.0, 70.0), (30.0, 70.0)]
+    tags = ['IPN', 'GRB']
+    skymap = {'polygon': polygon, 'localization_name': localization_name}
+
+    data = {'dateobs': dateobs, 'skymap': skymap, 'tags': tags}
+
+    status, data = api('POST', 'gcn_event', data=data, token=super_admin_token)
+    assert status == 200
+    assert data['status'] == 'success'
+
+    dateobs = "2022-09-03 14:44:12"
+    status, data = api('GET', f'gcn_event/{dateobs}', token=super_admin_token)
+    assert status == 200
+    data = data["data"]
+    assert data["dateobs"] == "2022-09-03T14:44:12"
+    assert 'IPN' in data["tags"]
+
+
+def test_gcn_Swift(super_admin_token, view_only_token):
+
+    datafile = f'{os.path.dirname(__file__)}/../data/SWIFT_1125809-092.xml'
+    with open(datafile, 'rb') as fid:
+        payload = fid.read()
+    data = {'xml': payload}
+
+    status, data = api('POST', 'gcn_event', data=data, token=super_admin_token)
+    assert status == 200
+    assert data['status'] == 'success'
+
+    datafile = f'{os.path.dirname(__file__)}/../data/SWIFT_1125809-104.xml'
+    with open(datafile, 'rb') as fid:
+        payload = fid.read()
+    data = {'xml': payload}
+
+    status, data = api('POST', 'gcn_event', data=data, token=super_admin_token)
+    assert status == 200
+    assert data['status'] == 'success'
+
+    dateobs = "2022-09-30 11:11:52"
+
+    status, data = api('GET', f'gcn_event/{dateobs}', token=super_admin_token)
+    assert status == 200
+    data = data["data"]
+    assert data["dateobs"] == "2022-09-30T11:11:52"
+    assert any(
+        [
+            loc['localization_name'] == '64.71490_13.35000_0.00130'
+            for loc in data["localizations"]
+        ]
+    )
+    assert any(
+        [
+            loc['localization_name'] == '64.73730_13.35170_0.05000'
+            for loc in data["localizations"]
+        ]
+    )

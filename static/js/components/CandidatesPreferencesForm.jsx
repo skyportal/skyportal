@@ -6,7 +6,6 @@ import PropTypes from "prop-types";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
 import Typography from "@mui/material/Typography";
-import Button from "@mui/material/Button";
 import Input from "@mui/material/Input";
 import InputLabel from "@mui/material/InputLabel";
 import TextField from "@mui/material/TextField";
@@ -18,6 +17,7 @@ import makeStyles from "@mui/styles/makeStyles";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
+import Button from "./Button";
 
 import * as candidatesActions from "../ducks/candidates";
 import * as profileActions from "../ducks/profile";
@@ -531,11 +531,10 @@ const CandidatesPreferencesForm = ({
         </div>
         <div className={classes.saveButton}>
           <Button
-            variant="contained"
+            primary
             type="submit"
             endIcon={<SaveIcon />}
             data-testid="saveScanningProfileButton"
-            color="primary"
           >
             Save
           </Button>

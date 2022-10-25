@@ -12,7 +12,7 @@ def establish_cosmology(cfg=cfg):
     user_cosmo = cfg['misc']['cosmology']
 
     if user_cosmo in cosmology.realizations.available:
-        cosmo = cosmology.default_cosmology.get_cosmology_from_string(user_cosmo)
+        cosmo = getattr(cosmology, user_cosmo)
 
     elif isinstance(user_cosmo, dict):
         try:

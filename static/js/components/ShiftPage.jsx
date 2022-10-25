@@ -4,13 +4,14 @@ import PropTypes from "prop-types";
 import makeStyles from "@mui/styles/makeStyles";
 import Paper from "@mui/material/Paper";
 import Grid from "@mui/material/Grid";
-import Button from "@mui/material/Button";
 import CircularProgress from "@mui/material/CircularProgress";
 import { showNotification } from "baselayer/components/Notifications";
+import Button from "./Button";
 import NewShift from "./NewShift";
 import MyCalendar from "./ShiftCalendar";
 import { CurrentShiftMenu, CommentOnShift } from "./ShiftManagement";
 import ShiftSummary from "./ShiftSummary";
+import Reminders from "./Reminders";
 
 import { getShiftsSummary } from "../ducks/shift";
 import * as shiftsActions from "../ducks/shifts";
@@ -138,6 +139,7 @@ const ShiftPage = ({ route }) => {
           <Paper>
             <div className={classes.paperContent}>
               <Button
+                primary
                 name="add_shift_button"
                 onClick={() => setShow((prev) => !prev)}
               >
@@ -148,12 +150,20 @@ const ShiftPage = ({ route }) => {
           </Paper>
         )}
         <Paper elevation={1}>
-          {shiftList && !show && currentShift ? (
+          {shiftList && !show && currentShift?.id ? (
             <CurrentShiftMenu currentShift={currentShift} />
           ) : null}
         </Paper>
         <Paper elevation={1}>
-          {shiftList && !show && currentShift ? <CommentOnShift /> : null}
+          {shiftList && !show && currentShift?.id ? <CommentOnShift /> : null}
+        </Paper>
+        <Paper elevation={1}>
+          {shiftList && !show && currentShift?.id ? (
+            <Reminders
+              resourceId={currentShift.id.toString()}
+              resourceType="shift"
+            />
+          ) : null}
         </Paper>
       </Grid>
       <Grid item md={12} sm={12}>

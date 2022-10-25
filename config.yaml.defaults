@@ -21,6 +21,8 @@ app:
   observation_plan:
     default_filters: ['ztfg', 'ztfr', 'ztfi']
 
+  heasarc_endpoint: https://heasarc.gsfc.nasa.gov
+
   # this endpoint does not actually do anything -- it is just for testing
   sedm_endpoint: http://minar.caltech.edu/add_fritz
   sedmv2_endpoint:
@@ -32,6 +34,8 @@ app:
   lco_host: observe.lco.global
   lco_port: 443
 
+  lco_archive_endpoint: https://archive-api.lco.global
+
   ztf:
     protocol: https
     host: kowalski.caltech.edu
@@ -39,10 +43,14 @@ app:
 
   ztf_forced_endpoint: https://ztfweb.ipac.caltech.edu
 
+  fink_endpoint: https://fink-portal.org
+
   swift:
     protocol: https
     host: www.swift.psu.edu
     port: 443
+
+  swift_xrt_endpoint: https://www.swift.ac.uk/user_objects
 
   ps1_endpoint: https://catalogs.mast.stsci.edu/
 
@@ -90,6 +98,8 @@ app:
       component: About
     - path: "/run/:id"
       component: RunSummary
+    - path: "/source/:obj_id/analysis/:analysis_id"
+      component: SourceAnalysisPage
     - path: "/manage_data/:id"
       component: ManageDataForm
     - path: "/filter/:fid"
@@ -126,6 +136,12 @@ app:
       component: TelescopePage
     - path: "/instruments"
       component: InstrumentPage
+    - path: "/mmadetectors"
+      component: MMADetectorPage
+    - path: "/earthquakes"
+      component: EarthquakesPage
+    - path: "/earthquakes/:event_id"
+      component: EarthquakePage
     - path: "/services"
       component: AnalysisServicePage
     - path: "/shifts"
@@ -187,6 +203,10 @@ app:
           icon: Wifi
           url: /instruments
 
+        - name: MMADetectors
+          icon: Abc
+          url: /mmadetectors
+
         - name: Allocations
           icon: HourglassEmptyOutlined
           url: /allocations
@@ -194,6 +214,10 @@ app:
         - name: Observations
           icon: ZoomInOutlined
           url: /observations
+
+        - name: Earthquakes
+          icon: PieChart
+          url: /earthquakes
 
         - name: Galaxies
           icon: TornadoOutlined
@@ -539,7 +563,7 @@ cross_match:
 # length that defines the full Quantum Efficiency at each wavelength.
 # must have at least two elements in the arrays
 # `wavelength` and `transmission`.
-# additional_bandpasses:
+additional_bandpasses:
 #  - name: 'atlasc'
 #    filterset: 'atlas'
 #    wavelength: [4150, 4157, 6556, 6560]
@@ -550,6 +574,16 @@ cross_match:
 #    wavelength: [5580, 5582, 8249, 8250]
 #    transmission: [0, 1, 1, 0]
 #    description: "basic ATLAS O filter - tophat transmission"
+  - name: 'swiftxrt'
+    filterset: 'xrt'
+    wavelength: [0.1, 1, 62, 100]
+    transmission: [0, 1, 1, 0]
+    description: "basic XRT filter - tophat transmission"
+  - name: 'nicerxti'
+    filterset: 'xti'
+    wavelength: [0.1, 1.2, 41, 100]
+    transmission: [0, 1, 1, 0]
+    description: "basic XTI filter - tophat transmission"
 
 user:
   default_role: 'Full user'
@@ -562,6 +596,8 @@ ports:
 gcn:
   server: gcn.nasa.gov
   # you can obtain a client_id and client_secret at https://gcn.nasa.gov/quickstart
+  # you can set a group_id to remember the last GCN the app ingested from the stream
+  client_group_id:
   client_id:
   client_secret:
   notice_types:
@@ -569,6 +605,8 @@ gcn:
     - FERMI_GBM_GND_POS
     - FERMI_GBM_FIN_POS
     - FERMI_GBM_SUBTHRESH
+    - SWIFT_BAT_GRB_POS_ACK
+    - SWIFT_XRT_POSITION
     # - LVC_PRELIMINARY
     # - LVC_INITIAL
     # - LVC_UPDATE
@@ -602,7 +640,7 @@ health_monitor:
   startup_grace_seconds: 30
 
 analysis_services:
-  analysis_folder: analysis_data
+  analysis_folder: persistentdata/analysis
   sn_analysis_service:
     port: 6801
 

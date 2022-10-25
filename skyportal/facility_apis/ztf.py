@@ -874,6 +874,11 @@ def fetch_observations(instrument_id, client, request_str):
     job.raise_if_error()
     obstable = job.fetch_result().to_table()
     obstable = obstable.filled().to_pandas()
+    if obstable.empty:
+        log(
+            f'No observations for instrument ID {instrument_id} for request: {request_str}'
+        )
+        return
 
     obs_grouped_by_exp = obstable.groupby('expid')
     dfs = []
@@ -893,6 +898,10 @@ def fetch_observations(instrument_id, client, request_str):
         },
         inplace=True,
     )
+    obstable['target_name'] = None
+
+    # engineering data is ipac_gid = -1 and we do not want to save that
+    obstable = obstable[obstable['ipac_gid'] >= 1.0]
 
     from skyportal.handlers.api.observation import add_observations
 

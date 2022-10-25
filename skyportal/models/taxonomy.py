@@ -39,7 +39,7 @@ def taxonomy_update_delete_logic(cls, user_or_token):
     )
 
 
-def get_taxonomy_usable_by_user(taxonomy_id, user_or_token):
+def get_taxonomy_usable_by_user(taxonomy_id, user_or_token, session):
     """Query the database and return the requested Taxonomy if it is accessible
     to the requesting User or Token owner. If the Taxonomy is not accessible or
     if it does not exist, return an empty list.
@@ -50,6 +50,8 @@ def get_taxonomy_usable_by_user(taxonomy_id, user_or_token):
        The ID of the requested Taxonomy.
     user_or_token : `baselayer.app.models.User` or `baselayer.app.models.Token`
        The requesting `User` or `Token` object.
+    session: sqlalchemy.Session
+        Database session for this transaction
 
     Returns
     -------
@@ -57,15 +59,15 @@ def get_taxonomy_usable_by_user(taxonomy_id, user_or_token):
        The requested Taxonomy.
     """
 
-    return (
-        Taxonomy.query.filter(Taxonomy.id == taxonomy_id)
-        .filter(
+    return session.scalars(
+        Taxonomy.select(session.user_or_token)
+        .where(Taxonomy.id == taxonomy_id)
+        .where(
             Taxonomy.groups.any(
                 Group.id.in_([g.id for g in user_or_token.accessible_groups])
             )
         )
-        .all()
-    )
+    ).all()
 
 
 # To create or read a classification, you must have read access to the
