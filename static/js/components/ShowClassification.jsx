@@ -95,9 +95,7 @@ export const getSortedClasses = (classifications) => {
 };
 
 function ShowClassification({ classifications, taxonomyList, shortened }) {
-  const filteredClasses = classifications.filter((i) => i.probability > 0);
-
-  const sorted_classifications = filteredClasses.sort((a, b) =>
+  const sorted_classifications = classifications.sort((a, b) =>
     a.created_at > b.created_at ? -1 : 1
   );
 
