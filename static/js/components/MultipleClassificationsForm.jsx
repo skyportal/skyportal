@@ -164,20 +164,22 @@ const MultipleClassificationsForm = ({
     return node;
   };
 
-  const sumChildren = (node, newFormState) => {
-    // Sum the probabilities of the children
+  const listChildren = (node, newFormState) => {
+    // List the probabilities of the children
     const children = node?.subclasses;
-    let sum = 0;
+    const list = [];
     children?.forEach((subclass) => {
-      sum +=
-        newFormState[selectedTaxonomy.id][subclass.class]?.probability || 0;
+      list.push(
+        newFormState[selectedTaxonomy.id][subclass.class]?.probability || 0
+      );
     });
-
-    return sum;
+    return list;
   };
 
+  /*
   const updateChildren = (classification, newValue, newFormState, depth) => {
-    const totalProbabilityOfSubclasses = sumChildren(
+    const totalProbabilityOfSubclasses = listChildren(
+      // listProbabilityOfSubclasses
       classification,
       newFormState
     );
@@ -187,7 +189,7 @@ const MultipleClassificationsForm = ({
       // New probability is the new parent probability scaled by the
       // proportion of the total children probability this child has currently
       // Note: "|| 0" used to handle cases where totalProbabilityOfSubclasses === 0
-      const newProbability =
+      const newProbability = // Math.min(newValue, currentProbability);
         parseFloat(
           (
             (newValue * currentProbability) /
@@ -201,6 +203,7 @@ const MultipleClassificationsForm = ({
       updateChildren(subclass, newProbability, newFormState, depth + 1);
     });
   };
+  */
 
   const handleChange = (newValue, classification, path) => {
     const newFormState = { ...formState };
@@ -212,104 +215,22 @@ const MultipleClassificationsForm = ({
     // Probability normalization
     if (normalizeProbabilitiesChecked) {
       // Update higher-level classification probabilities to be
-      // the sum of the subclasses' probabilities.
+      // the max of the subclasses' probabilities.
       path?.forEach((ancestor, i) => {
+        console.log(ancestor);
         const subpath = path.slice(i + 1);
-        const probabilityOfSubclasses = Math.min(
-          sumChildren(getNode(ancestor, subpath), newFormState),
-          1
+        const probabilityOfSubclasses = Math.max(
+          ...listChildren(getNode(ancestor, subpath), newFormState),
+          0
         );
+        const probabilityOfAncestor =
+          formState[selectedTaxonomy.id][ancestor]?.probability || 0;
+        console.log("probabilityOfAncestor", probabilityOfAncestor);
         newFormState[selectedTaxonomy.id][ancestor] = {
           depth: subpath.length,
-          probability: probabilityOfSubclasses,
+          probability: Math.max(probabilityOfSubclasses, probabilityOfAncestor),
         };
-
-        // Update siblings of the ancestor to respect cap of parent
-        if (subpath.length > 0) {
-          const parent = getNode(subpath[0], subpath);
-          const remainingProbability =
-            newFormState[selectedTaxonomy.id][parent.class]?.probability -
-            newFormState[selectedTaxonomy.id][ancestor].probability;
-
-          const siblings = parent.subclasses?.filter(
-            (sibling) => sibling.class !== ancestor
-          );
-          let currentTotalOfSiblings = 0;
-          siblings?.forEach((sibling) => {
-            currentTotalOfSiblings +=
-              newFormState[selectedTaxonomy.id][sibling.class]?.probability ||
-              0;
-          });
-          siblings?.forEach((sibling) => {
-            const currentProbability =
-              newFormState[selectedTaxonomy.id][sibling.class]?.probability ||
-              0;
-            // Scale the siblings' probabilities based on the proportion they had
-            // previously of the parent's probability.
-            // Note: "|| 0" used to handle cases where currentTotalOfSiblings === 0
-            const newProbability =
-              parseFloat(
-                (
-                  remainingProbability *
-                  (currentProbability / currentTotalOfSiblings)
-                ).toFixed(3)
-              ) || 0;
-            newFormState[selectedTaxonomy.id][sibling.class] = {
-              depth: subpath.length,
-              probability: newProbability,
-            };
-          });
-        }
       });
-
-      // Update siblings of actual node to respect cap of parent
-      if (path.length > 0) {
-        const parent = getNode(path[0], path.slice(1));
-        const remainingProbability =
-          newFormState[selectedTaxonomy.id][parent.class]?.probability -
-          newValue;
-
-        const siblings = parent.subclasses?.filter(
-          (sibling) => sibling.class !== classification
-        );
-        let currentTotalOfSiblings = 0;
-        siblings?.forEach((sibling) => {
-          currentTotalOfSiblings +=
-            newFormState[selectedTaxonomy.id][sibling.class]?.probability || 0;
-        });
-        siblings?.forEach((sibling) => {
-          const currentProbability =
-            newFormState[selectedTaxonomy.id][sibling.class]?.probability || 0;
-          // Scale the siblings' probabilities based on the proportion they had
-          // previously of the parent's probability.
-          // Note: "|| 0" used to handle cases where currentTotalOfSiblings === 0
-          const newProbability =
-            parseFloat(
-              (
-                remainingProbability *
-                (currentProbability / currentTotalOfSiblings)
-              ).toFixed(3)
-            ) || 0;
-          newFormState[selectedTaxonomy.id][sibling.class] = {
-            depth: path.length,
-            // Scale the siblings' probabilities based on the proportion they had
-            // previously of the parent's probability.
-            probability: newProbability,
-          };
-          updateChildren(
-            sibling,
-            newProbability,
-            newFormState,
-            path.length + 1
-          );
-        });
-      }
-    }
-
-    // Update subclasses' probabilities
-    if (normalizeProbabilitiesChecked) {
-      const node = getNode(classification, path);
-      updateChildren(node, newValue, newFormState, path.length + 1);
     }
     setFormState(newFormState);
   };
