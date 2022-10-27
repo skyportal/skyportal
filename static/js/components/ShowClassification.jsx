@@ -17,6 +17,9 @@ const ClassificationRow = ({ classifications }) => {
   const classes = useStyles();
 
   const classification = classifications[0];
+  const clsProb = classification.probability
+    ? classification.probability
+    : "null";
   return (
     <div>
       <Tooltip
@@ -28,7 +31,7 @@ const ClassificationRow = ({ classifications }) => {
             {classifications.map((cls) => (
               <>
                 P=
-                {cls.probability} ({cls.taxname})
+                {clsProb} ({cls.taxname})
                 <br />
                 <i>{cls.author_name}</i>
                 <br />
@@ -95,9 +98,7 @@ export const getSortedClasses = (classifications) => {
 };
 
 function ShowClassification({ classifications, taxonomyList, shortened }) {
-  const filteredClasses = classifications.filter((i) => i.probability > 0);
-
-  const sorted_classifications = filteredClasses.sort((a, b) =>
+  const sorted_classifications = classifications.sort((a, b) =>
     a.created_at > b.created_at ? -1 : 1
   );
 
