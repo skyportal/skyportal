@@ -47,6 +47,7 @@ import CandidatePlugins from "./CandidatePlugins";
 const useStyles = makeStyles((theme) => ({
   candidateListContainer: {
     padding: "1rem",
+    color: "#eeeeee",
   },
   table: {
     marginTop: "1rem",

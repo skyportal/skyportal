@@ -6,6 +6,7 @@ import makeStyles from "@mui/styles/makeStyles";
 
 import Typography from "@mui/material/Typography";
 import CircularProgress from "@mui/material/CircularProgress";
+import greyTheme from "./Theme";
 import SourceTable from "./SourceTable";
 
 import * as sourcesActions from "../ducks/sources";
@@ -14,7 +15,9 @@ const useStyles = makeStyles((theme) => ({
   chip: {
     margin: theme.spacing(0.5),
   },
-  source: {},
+  source: {
+    color: greyTheme.dark ? "pink" : "white",
+  },
   commentListContainer: {
     height: "15rem",
     overflowY: "scroll",

@@ -8,7 +8,7 @@ import {
   StyledEngineProvider,
 } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
-import { grey } from "@mui/material/colors";
+import { grey, purple } from "@mui/material/colors";
 
 const Theme = ({ disableTransitions, children }) => {
   const theme = useSelector((state) => state.profile.preferences.theme);
@@ -17,8 +17,8 @@ const Theme = ({ disableTransitions, children }) => {
   const greyTheme = createTheme({
     palette: {
       grey: {
-        main: grey[300],
-        dark: grey[400],
+        main: grey[500],
+        dark: purple[600],
       },
     },
   });
@@ -34,7 +34,7 @@ const Theme = ({ disableTransitions, children }) => {
       secondary: {
         main: "#b1dae9",
         light: "#b1dae9",
-        dark: "#76aace",
+        dark: "#b3bbbb",
         contrastText: "#fff",
       },
       info: {
@@ -47,8 +47,8 @@ const Theme = ({ disableTransitions, children }) => {
         main: "#e63946",
       },
       background: dark
-        ? { default: "#303030", paper: "#808080" }
-        : { default: "#f0f2f5", paper: "#f0f2f5" },
+        ? { default: "rgba(23,23,23,0.96)", paper: "#343434" }
+        : { default: "#e7e7e7", paper: "#e7e6e6" },
     },
     plotFontSizes: {
       titleFontSize: 15,
@@ -58,27 +58,27 @@ const Theme = ({ disableTransitions, children }) => {
       MuiTypography: {
         styleOverrides: {
           body1: {
-            color: dark ? grey[50] : null,
+            color: dark ? grey[300] : null,
           },
         },
       },
       MuiButton: {
         variants: [
           {
-            props: { variant: "contained", color: "grey" },
+            props: { variant: "contained", color: "white" },
             style: {
               color: greyTheme.palette.getContrastText(
-                greyTheme.palette.grey[300]
+                greyTheme.palette.grey[100]
               ),
             },
           },
         ],
         styleOverrides: {
           textPrimary: {
-            color: dark ? "#b1dae9" : null,
+            color: dark ? "#c4c4c4" : null,
           },
           outlinedPrimary: {
-            color: dark ? "#b1dae9" : null,
+            color: dark ? "#d2e4ea" : null,
           },
         },
       },
