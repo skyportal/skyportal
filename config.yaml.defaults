@@ -419,6 +419,9 @@ server:
   # frontend only (i.e., no token authorized API requests)
   dedicated_frontend_processes: 2
 
+  # The max size of a request body in megabytes (M)
+  max_body_size: 10
+
   # Rate limit: number of requests per second (see https://www.nginx.com/blog/rate-limiting-nginx/)
   rate_limit: 5
   # Rate limit burst size (https://www.nginx.com/blog/rate-limiting-nginx/#bursts)
