@@ -17,6 +17,9 @@ const ClassificationRow = ({ classifications }) => {
   const classes = useStyles();
 
   const classification = classifications[0];
+  const clsProb = classification.probability
+    ? classification.probability
+    : "null";
   return (
     <div>
       <Tooltip
@@ -28,7 +31,7 @@ const ClassificationRow = ({ classifications }) => {
             {classifications.map((cls) => (
               <>
                 P=
-                {cls.probability} ({cls.taxname})
+                {clsProb} ({cls.taxname})
                 <br />
                 <i>{cls.author_name}</i>
                 <br />
