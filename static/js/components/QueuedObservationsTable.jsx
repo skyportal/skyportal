@@ -12,6 +12,7 @@ import makeStyles from "@mui/styles/makeStyles";
 import CircularProgress from "@mui/material/CircularProgress";
 
 import MUIDataTable from "mui-datatables";
+import ObservationFilterForm from "./ObservationFilterForm";
 
 const useStyles = makeStyles((theme) => ({
   container: {
@@ -65,6 +66,7 @@ const QueuedObservationsTable = ({
   observations,
   totalMatches,
   handleTableChange = false,
+  handleFilterSubmit = false,
   pageNumber = 1,
   numPerPage = 10,
   serverSide = true,
@@ -84,6 +86,10 @@ const QueuedObservationsTable = ({
 
     return <div>{instrument ? instrument.name : ""}</div>;
   };
+
+  const customFilterDisplay = () => (
+    <ObservationFilterForm handleFilterSubmit={handleFilterSubmit} />
+  );
 
   const columns = [
     {
@@ -143,6 +149,8 @@ const QueuedObservationsTable = ({
     serverSide,
     pagination: true,
     count: totalMatches,
+    filter: true,
+    customFilterDialogFooter: customFilterDisplay,
   };
   if (typeof handleTableChange === "function") {
     options.onTableChange = handleTableChange;
@@ -174,6 +182,7 @@ QueuedObservationsTable.propTypes = {
   // eslint-disable-next-line react/forbid-prop-types
   observations: PropTypes.arrayOf(PropTypes.any).isRequired,
   handleTableChange: PropTypes.func.isRequired,
+  handleFilterSubmit: PropTypes.func.isRequired,
   pageNumber: PropTypes.number,
   totalMatches: PropTypes.number,
   numPerPage: PropTypes.number,

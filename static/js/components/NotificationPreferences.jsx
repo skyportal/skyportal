@@ -15,6 +15,7 @@ import UserPreferencesHeader from "./UserPreferencesHeader";
 import ClassificationSelect from "./ClassificationSelect";
 import GcnNoticeTypesSelect from "./GcnNoticeTypesSelect";
 import GcnTagsSelect from "./GcnTagsSelect";
+import GcnPropertiesSelect from "./GcnPropertiesSelect";
 import NotificationSettingsSelect from "./NotificationSettingsSelect";
 import * as profileActions from "../ducks/profile";
 
@@ -67,6 +68,10 @@ const NotificationPreferences = () => {
     profile?.notications?.gcn_events?.gcn_tags || []
   );
 
+  const [selectedGcnProperties, setSelectedGcnProperties] = useState(
+    profile?.notications?.gcn_events?.gcn_properties || []
+  );
+
   useEffect(() => {
     setSelectedClassifications(
       profile?.notifications?.sources?.classifications || []
@@ -75,6 +80,9 @@ const NotificationPreferences = () => {
       profile?.notifications?.gcn_events?.gcn_notice_types || []
     );
     setSelectedGcnTags(profile?.notifications?.gcn_events?.gcn_tags || []);
+    setSelectedGcnProperties(
+      profile?.notifications?.gcn_events?.gcn_properties || []
+    );
   }, [profile]);
 
   const prefToggled = (event) => {
@@ -128,12 +136,14 @@ const NotificationPreferences = () => {
         gcn_events: {
           gcn_notice_types: [...new Set(selectedGcnNoticeTypes)],
           gcn_tags: [...new Set(selectedGcnTags)],
+          gcn_properties: [...new Set(selectedGcnProperties)],
         },
       },
     };
     dispatch(profileActions.updateUserPreferences(prefs));
     setSelectedGcnNoticeTypes([...new Set(selectedGcnNoticeTypes)]);
     setSelectedGcnTags([...new Set(selectedGcnTags)]);
+    setSelectedGcnProperties([...new Set(selectedGcnProperties)]);
     dispatch(showNotification("Gcn notice types updated"));
   };
 
@@ -216,6 +226,10 @@ const NotificationPreferences = () => {
                 <GcnTagsSelect
                   selectedGcnTags={selectedGcnTags}
                   setSelectedGcnTags={setSelectedGcnTags}
+                />
+                <GcnPropertiesSelect
+                  selectedGcnProperties={selectedGcnProperties}
+                  setSelectedGcnProperties={setSelectedGcnProperties}
                 />
                 <Button
                   secondary

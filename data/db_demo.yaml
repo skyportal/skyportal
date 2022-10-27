@@ -340,6 +340,7 @@ instrument:
     telescope_id: =P60
     filters: ["sdssu", "sdssg", "sdssr", "sdssi"]
     api_classname: SEDMAPI
+    listener_classname: SEDMListener
     =id: SEDM
   - name: IOO
     type: imager
@@ -1052,6 +1053,20 @@ analysis_service:
     input_data_types: ["photometry", "redshift", "spectra", "annotations", "classifications", "comments"]
     # `source` is the model kw name defined in SNcosmo (https://sncosmo.readthedocs.io/en/stable/source-list.html)
     optional_analysis_parameters: '{"source": ["nugent-sn2p", "salt3", "v19-1998bw", "mlcs2k2", "nugent-sn2n"], "fix_z": ["True", "False"]}'
+    group_ids:
+      - =program_A
+      - =program_B
+  - name: "NGSF_Analysis"
+    display_name: "NGSF analysis"
+    description: "Use NGSF to fit spectra"
+    version: "1.0"
+    contact_name: "Michael Coughlin"
+    url: "http://localhost:7001/analysis/ngsf_analysis"
+    authentication_type: "header_token"
+    _authinfo: '{"header_token": {"Authorization": "Bearer MY_TOKEN"}}'
+    analysis_type: "spectrum_fitting"
+    input_data_types: ["spectra", "redshift"]
+    optional_analysis_parameters: '{"fix_z": ["True", "False"]}'
     group_ids:
       - =program_A
       - =program_B

@@ -377,23 +377,23 @@ class ObservationPlanRequestHandler(BaseHandler):
         else:
             options = [joinedload(ObservationPlanRequest.observation_plans)]
 
-        if observation_plan_request_id is not None:
-            observation_plan_request = ObservationPlanRequest.get_if_accessible_by(
-                observation_plan_request_id,
-                self.current_user,
-                mode="read",
-                raise_if_none=True,
-                options=options,
-            )
-            return self.success(data=observation_plan_request)
+        with self.Session() as session:
+            if observation_plan_request_id is not None:
+                observation_plan_request = session.scalars(
+                    ObservationPlanRequest.select(
+                        session.user_or_token, options=options
+                    ).where(ObservationPlanRequest.id == observation_plan_request_id)
+                ).first()
+                if observation_plan_request is None:
+                    return self.error(
+                        f'Cannot find ObservationPlanRequest with ID: {observation_plan_request_id}'
+                    )
+                return self.success(data=observation_plan_request)
 
-        query = ObservationPlanRequest.query_records_accessible_by(
-            self.current_user, mode="read", options=options
-        )
-        observation_plan_requests = query.all()
-
-        self.verify_and_commit()
-        return self.success(data=observation_plan_requests)
+            observation_plan_requests = session.scalars(
+                ObservationPlanRequest.select(session.user_or_token, options=options)
+            ).all()
+            return self.success(data=observation_plan_requests)
 
     @auth_or_token
     def delete(self, observation_plan_request_id):
@@ -414,29 +414,36 @@ class ObservationPlanRequestHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        observation_plan_request = ObservationPlanRequest.get_if_accessible_by(
-            observation_plan_request_id,
-            self.current_user,
-            mode="delete",
-            raise_if_none=True,
-        )
-        dateobs = observation_plan_request.gcnevent.dateobs
+        with self.Session() as session:
+            observation_plan_request = session.scalars(
+                ObservationPlanRequest.select(
+                    session.user_or_token, mode="delete"
+                ).where(ObservationPlanRequest.id == observation_plan_request_id)
+            ).first()
+            if observation_plan_request is None:
+                return self.error(
+                    f'Cannot find ObservationPlanRequest with ID: {observation_plan_request_id}'
+                )
 
-        api = observation_plan_request.instrument.api_class_obsplan
-        if not api.implements()['delete']:
-            return self.error('Cannot delete observation plans on this instrument.')
+            dateobs = observation_plan_request.gcnevent.dateobs
 
-        observation_plan_request.last_modified_by_id = self.associated_user_object.id
-        api.delete(observation_plan_request.id)
+            api = observation_plan_request.instrument.api_class_obsplan
+            if not api.implements()['delete']:
+                return self.error('Cannot delete observation plans on this instrument.')
 
-        self.verify_and_commit()
+            observation_plan_request.last_modified_by_id = (
+                self.associated_user_object.id
+            )
+            api.delete(observation_plan_request.id)
 
-        self.push_all(
-            action="skyportal/REFRESH_GCNEVENT",
-            payload={"gcnEvent_dateobs": dateobs},
-        )
+            session.commit()
 
-        return self.success()
+            self.push_all(
+                action="skyportal/REFRESH_GCNEVENT",
+                payload={"gcnEvent_dateobs": dateobs},
+            )
+
+            return self.success()
 
 
 class ObservationPlanSubmitHandler(BaseHandler):
@@ -466,35 +473,38 @@ class ObservationPlanSubmitHandler(BaseHandler):
             .joinedload(PlannedObservation.field)
         ]
 
-        observation_plan_request = ObservationPlanRequest.get_if_accessible_by(
-            observation_plan_request_id,
-            self.current_user,
-            mode="read",
-            raise_if_none=True,
-            options=options,
-        )
+        with self.Session() as session:
+            observation_plan_request = session.scalars(
+                ObservationPlanRequest.select(
+                    session.user_or_token, options=options
+                ).where(ObservationPlanRequest.id == observation_plan_request_id)
+            ).first()
+            if observation_plan_request is None:
+                return self.error(
+                    f'Cannot find ObservationPlanRequest with ID: {observation_plan_request_id}'
+                )
 
-        api = observation_plan_request.instrument.api_class_obsplan
-        if not api.implements()['send']:
-            return self.error('Cannot send observation plans on this instrument.')
+            api = observation_plan_request.instrument.api_class_obsplan
+            if not api.implements()['send']:
+                return self.error('Cannot send observation plans on this instrument.')
 
-        try:
-            api.send(observation_plan_request)
-        except Exception as e:
-            observation_plan_request.status = 'failed to send'
-            return self.error(
-                f'Error sending observation plan to telescope: {e.args[0]}'
+            try:
+                api.send(observation_plan_request)
+            except Exception as e:
+                observation_plan_request.status = 'failed to send'
+                return self.error(
+                    f'Error sending observation plan to telescope: {e.args[0]}'
+                )
+            finally:
+                session.commit()
+            self.push_all(
+                action="skyportal/REFRESH_GCNEVENT",
+                payload={"gcnEvent_dateobs": observation_plan_request.gcnevent.dateobs},
             )
-        finally:
-            self.verify_and_commit()
-        self.push_all(
-            action="skyportal/REFRESH_GCNEVENT",
-            payload={"gcnEvent_dateobs": observation_plan_request.gcnevent.dateobs},
-        )
 
-        self.verify_and_commit()
+            session.commit()
 
-        return self.success(data=observation_plan_request)
+            return self.success(data=observation_plan_request)
 
     @auth_or_token
     def delete(self, observation_plan_request_id):
@@ -516,36 +526,40 @@ class ObservationPlanSubmitHandler(BaseHandler):
                 schema: Success
         """
 
-        observation_plan_request = ObservationPlanRequest.get_if_accessible_by(
-            observation_plan_request_id,
-            self.current_user,
-            mode="read",
-            raise_if_none=True,
-        )
+        with self.Session() as session:
+            observation_plan_request = session.scalars(
+                ObservationPlanRequest.select(
+                    session.user_or_token, mode="delete"
+                ).where(ObservationPlanRequest.id == observation_plan_request_id)
+            ).first()
+            if observation_plan_request is None:
+                return self.error(
+                    f'Cannot find ObservationPlanRequest with ID: {observation_plan_request_id}'
+                )
 
-        api = observation_plan_request.instrument.api_class_obsplan
-        if not api.implements()['remove']:
-            return self.error(
-                'Cannot remove observation plans from the queue of this instrument.'
+            api = observation_plan_request.instrument.api_class_obsplan
+            if not api.implements()['remove']:
+                return self.error(
+                    'Cannot remove observation plans from the queue of this instrument.'
+                )
+
+            try:
+                api.remove(observation_plan_request)
+            except Exception as e:
+                observation_plan_request.status = 'failed to remove from queue'
+                return self.error(
+                    f'Error removing observation plan from telescope: {e.args[0]}'
+                )
+            finally:
+                session.commit()
+            self.push_all(
+                action="skyportal/REFRESH_GCNEVENT",
+                payload={"gcnEvent_dateobs": observation_plan_request.gcnevent.dateobs},
             )
 
-        try:
-            api.remove(observation_plan_request)
-        except Exception as e:
-            observation_plan_request.status = 'failed to remove from queue'
-            return self.error(
-                f'Error removing observation plan from telescope: {e.args[0]}'
-            )
-        finally:
-            self.verify_and_commit()
-        self.push_all(
-            action="skyportal/REFRESH_GCNEVENT",
-            payload={"gcnEvent_dateobs": observation_plan_request.gcnevent.dateobs},
-        )
+            session.commit()
 
-        self.verify_and_commit()
-
-        return self.success(data=observation_plan_request)
+            return self.success(data=observation_plan_request)
 
 
 class ObservationPlanSummaryStatisticsHandler(BaseHandler):

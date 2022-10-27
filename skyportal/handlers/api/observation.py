@@ -221,6 +221,8 @@ def get_observations(
     observation_status='executed',
     n_per_page=100,
     page_number=1,
+    sort_order=None,
+    sort_by=None,
 ):
     f"""Query for list of observations
 
@@ -335,6 +337,16 @@ def get_observations(
             return ValueError(f"Missing instrument {instrument_name}")
 
         obs_query = obs_query.where(Observation.instrument_id == instrument.id)
+    elif instrument_name is not None:
+        instrument = session.scalars(
+            Instrument.select(
+                session.user_or_token, options=[joinedload(Instrument.fields)]
+            ).where(Instrument.name == instrument_name)
+        ).first()
+        if instrument is None:
+            return ValueError(f"Missing instrument {instrument_name}")
+
+        obs_query = obs_query.where(Observation.instrument_id == instrument.id)
 
     # optional: slice by GcnEvent localization
     if localization_dateobs is not None:
@@ -443,6 +455,82 @@ def get_observations(
                 intarea = 0.0
 
     total_matches = session.scalar(sa.select(sa.func.count()).select_from(obs_query))
+
+    order_by = None
+    if sort_by is not None:
+        if sort_by == "obstime":
+            order_by = (
+                Observation.obstime
+                if sort_order == "asc"
+                else Observation.obstime.desc()
+            )
+        elif sort_by == "observation_id":
+            order_by = (
+                Observation.observation_id
+                if sort_order == "asc"
+                else Observation.observation_id.desc()
+            )
+        elif sort_by == "exposure_time":
+            order_by = (
+                Observation.exposure_time
+                if sort_order == "asc"
+                else Observation.exposure_time.desc()
+            )
+        elif sort_by == "seeing":
+            order_by = (
+                Observation.seeing if sort_order == "asc" else Observation.seeing.desc()
+            )
+        elif sort_by == "airmass":
+            order_by = (
+                Observation.airmass
+                if sort_order == "asc"
+                else Observation.airmass.desc()
+            )
+        elif sort_by == "limmag":
+            order_by = (
+                Observation.limmag if sort_order == "asc" else Observation.limmag.desc()
+            )
+        elif sort_by == "filt":
+            order_by = (
+                Observation.filt if sort_order == "asc" else Observation.filt.desc()
+            )
+        elif sort_by == "instrument_name":
+            order_by = (
+                Observation.instrument_id
+                if sort_order == "asc"
+                else Observation.instrument_id.desc()
+            )
+        elif sort_by == "target_name":
+            order_by = (
+                Observation.target_name
+                if sort_order == "asc"
+                else Observation.target_name.desc()
+            )
+        elif sort_by == "queue_name":
+            order_by = (
+                Observation.queue_name
+                if sort_order == "asc"
+                else Observation.queue_name.desc()
+            )
+        elif sort_by == "validity_window_start":
+            order_by = (
+                Observation.validity_window_start
+                if sort_order == "asc"
+                else Observation.validity_window_start.desc()
+            )
+        elif sort_by == "validity_window_end":
+            order_by = (
+                Observation.validity_window_end
+                if sort_order == "asc"
+                else Observation.validity_window_end.desc()
+            )
+        else:
+            raise ValueError(f'Sort column {sort_by} not known.')
+
+    if order_by is None:
+        order_by = Observation.instrument_id.desc()
+    obs_query = obs_query.order_by(order_by)
+
     if n_per_page is not None:
         obs_query = (
             obs_query.distinct()
@@ -716,6 +804,20 @@ class ObservationHandler(BaseHandler):
               schema:
                 type: integer
               description: Page number for paginated query results. Defaults to 1
+            - in: query
+              name: sortBy
+              nullable: true
+              schema:
+                type: string
+              description: |
+                The field to sort by.
+            - in: query
+              name: sortOrder
+              nullable: true
+              schema:
+                type: string
+              description: |
+                The sort order - either "asc" or "desc". Defaults to "asc"
           responses:
             200:
               content:
@@ -739,6 +841,9 @@ class ObservationHandler(BaseHandler):
         observation_status = self.get_query_argument("observationStatus", 'executed')
         page_number = self.get_query_argument("pageNumber", 1)
         n_per_page = self.get_query_argument("numPerPage", 100)
+
+        sort_by = self.get_query_argument("sortBy", None)
+        sort_order = self.get_query_argument("sortOrder", "asc")
 
         try:
             page_number = int(page_number)
@@ -778,6 +883,8 @@ class ObservationHandler(BaseHandler):
                 observation_status=observation_status,
                 n_per_page=n_per_page,
                 page_number=page_number,
+                sort_by=sort_by,
+                sort_order=sort_order,
             )
 
             return self.success(data=data)
@@ -978,31 +1085,39 @@ class ObservationExternalAPIHandler(BaseHandler):
         data['start_date'] = arrow.get(data['start_date'].strip()).datetime
         data['end_date'] = arrow.get(data['end_date'].strip()).datetime
 
-        allocation = Allocation.get_if_accessible_by(
-            data['allocation_id'], self.current_user, raise_if_none=True
-        )
-        instrument = allocation.instrument
+        with self.Session() as session:
 
-        if instrument.api_classname_obsplan is None:
-            return self.error('Instrument has no remote observation plan API.')
+            allocation = session.scalars(
+                Allocation.select(session.user_or_token).where(
+                    Allocation.id == data['allocation_id']
+                )
+            ).first()
+            if allocation is None:
+                return self.error(
+                    f"Cannot find Allocation with ID: {data['allocation_id']}"
+                )
+            instrument = allocation.instrument
 
-        if not instrument.api_class_obsplan.implements()['retrieve']:
-            return self.error(
-                'Submitting executed observation plan requests to this Instrument is not available.'
-            )
+            if instrument.api_classname_obsplan is None:
+                return self.error('Instrument has no remote observation plan API.')
 
-        try:
-            # we now retrieve and commit to the database the
-            # executed observations
-            instrument.api_class_obsplan.retrieve(
-                allocation, data['start_date'], data['end_date']
-            )
-            self.push_notification(
-                'Observation ingestion in progress. Should be available soon.'
-            )
-            return self.success()
-        except Exception as e:
-            return self.error(f"Error in querying instrument API: {e}")
+            if not instrument.api_class_obsplan.implements()['retrieve']:
+                return self.error(
+                    'Submitting executed observation plan requests to this Instrument is not available.'
+                )
+
+            try:
+                # we now retrieve and commit to the database the
+                # executed observations
+                instrument.api_class_obsplan.retrieve(
+                    allocation, data['start_date'], data['end_date']
+                )
+                self.push_notification(
+                    'Observation ingestion in progress. Should be available soon.'
+                )
+                return self.success()
+            except Exception as e:
+                return self.error(f"Error in querying instrument API: {e}")
 
     @permissions(['Upload data'])
     def get(self, allocation_id):
@@ -1069,35 +1184,43 @@ class ObservationExternalAPIHandler(BaseHandler):
         data['start_date'] = start_date
         data['end_date'] = end_date
 
-        allocation = Allocation.get_if_accessible_by(
-            data['allocation_id'], self.current_user, raise_if_none=True
-        )
-        instrument = allocation.instrument
-
-        if instrument.api_classname_obsplan is None:
-            return self.error('Instrument has no remote observation plan API.')
-
-        if not instrument.api_class_obsplan.implements()['queued']:
-            return self.error(
-                'Submitting executed observation plan requests to this Instrument is not available.'
-            )
-
-        try:
-            # we now retrieve and commit to the database the
-            # executed observations
-            queue_names = instrument.api_class_obsplan.queued(
-                allocation,
-                data['start_date'],
-                data['end_date'],
-                queues_only=queues_only,
-            )
-            if not queues_only:
-                self.push_notification(
-                    'Planned observation ingestion in progress. Should be available soon.'
+        with self.Session() as session:
+            allocation = session.scalars(
+                Allocation.select(session.user_or_token).where(
+                    Allocation.id == data['allocation_id']
                 )
-            return self.success(data={'queue_names': queue_names})
-        except Exception as e:
-            return self.error(f"Error in querying instrument API: {e}")
+            ).first()
+            if allocation is None:
+                return self.error(
+                    f"Cannot find Allocation with ID: {data['allocation_id']}"
+                )
+
+            instrument = allocation.instrument
+
+            if instrument.api_classname_obsplan is None:
+                return self.error('Instrument has no remote observation plan API.')
+
+            if not instrument.api_class_obsplan.implements()['queued']:
+                return self.error(
+                    'Submitting executed observation plan requests to this Instrument is not available.'
+                )
+
+            try:
+                # we now retrieve and commit to the database the
+                # executed observations
+                queue_names = instrument.api_class_obsplan.queued(
+                    allocation,
+                    data['start_date'],
+                    data['end_date'],
+                    queues_only=queues_only,
+                )
+                if not queues_only:
+                    self.push_notification(
+                        'Planned observation ingestion in progress. Should be available soon.'
+                    )
+                return self.success(data={'queue_names': queue_names})
+            except Exception as e:
+                return self.error(f"Error in querying instrument API: {e}")
 
     @permissions(['Upload data'])
     def delete(self, allocation_id):
@@ -1141,25 +1264,33 @@ class ObservationExternalAPIHandler(BaseHandler):
         data["last_modified_by_id"] = self.associated_user_object.id
         data['allocation_id'] = allocation_id
 
-        allocation = Allocation.get_if_accessible_by(
-            data['allocation_id'], self.current_user, raise_if_none=True
-        )
-        instrument = allocation.instrument
+        with self.Session() as session:
+            allocation = session.scalars(
+                Allocation.select(session.user_or_token).where(
+                    Allocation.id == data['allocation_id']
+                )
+            ).first()
+            if allocation is None:
+                return self.error(
+                    f"Cannot find Allocation with ID: {data['allocation_id']}"
+                )
 
-        if instrument.api_classname_obsplan is None:
-            return self.error('Instrument has no remote observation plan API.')
+            instrument = allocation.instrument
 
-        if not instrument.api_class_obsplan.implements()['remove_queue']:
-            return self.error('Cannot delete queues from this Instrument.')
+            if instrument.api_classname_obsplan is None:
+                return self.error('Instrument has no remote observation plan API.')
 
-        try:
-            # we now retrieve and commit to the database the
-            # executed observations
-            instrument.api_class_obsplan.remove_queue(
-                allocation, queue_name, self.associated_user_object.username
-            )
-        except Exception as e:
-            return self.error(f"Error in querying instrument API: {e}")
+            if not instrument.api_class_obsplan.implements()['remove_queue']:
+                return self.error('Cannot delete queues from this Instrument.')
+
+            try:
+                # we now retrieve and commit to the database the
+                # executed observations
+                instrument.api_class_obsplan.remove_queue(
+                    allocation, queue_name, self.associated_user_object.username
+                )
+            except Exception as e:
+                return self.error(f"Error in querying instrument API: {e}")
 
 
 class ObservationTreasureMapHandler(BaseHandler):
@@ -1840,35 +1971,35 @@ class ObservationSimSurveyPlotHandler(BaseHandler):
                 schema: Success
         """
 
-        survey_efficiency_analysis = (
-            SurveyEfficiencyForObservations.get_if_accessible_by(
-                survey_efficiency_analysis_id, self.current_user
+        with self.Session() as session:
+            survey_efficiency_analysis = session.scalars(
+                SurveyEfficiencyForObservations.select(session.user_or_token).where(
+                    SurveyEfficiencyForObservations.id == survey_efficiency_analysis_id
+                )
+            ).first()
+            if survey_efficiency_analysis is None:
+                return self.error(
+                    f'Missing survey_efficiency_analysis for id {survey_efficiency_analysis_id}'
+                )
+
+            if survey_efficiency_analysis.lightcurves is None:
+                return self.error(
+                    f'survey_efficiency_analysis for id {survey_efficiency_analysis_id} not complete'
+                )
+
+            output_format = 'pdf'
+            simsurvey_analysis = functools.partial(
+                observation_simsurvey_plot,
+                lcs=json.loads(survey_efficiency_analysis.lightcurves),
+                output_format=output_format,
             )
-        )
 
-        if survey_efficiency_analysis is None:
-            return self.error(
-                f'Missing survey_efficiency_analysis for id {survey_efficiency_analysis_id}'
+            self.push_notification(
+                'Simsurvey analysis in progress. Should be available soon.'
             )
+            rez = await IOLoop.current().run_in_executor(None, simsurvey_analysis)
 
-        if survey_efficiency_analysis.lightcurves is None:
-            return self.error(
-                f'survey_efficiency_analysis for id {survey_efficiency_analysis_id} not complete'
-            )
+            filename = rez["name"]
+            data = io.BytesIO(rez["data"])
 
-        output_format = 'pdf'
-        simsurvey_analysis = functools.partial(
-            observation_simsurvey_plot,
-            lcs=json.loads(survey_efficiency_analysis.lightcurves),
-            output_format=output_format,
-        )
-
-        self.push_notification(
-            'Simsurvey analysis in progress. Should be available soon.'
-        )
-        rez = await IOLoop.current().run_in_executor(None, simsurvey_analysis)
-
-        filename = rez["name"]
-        data = io.BytesIO(rez["data"])
-
-        await self.send_file(data, filename, output_type=output_format)
+            await self.send_file(data, filename, output_type=output_format)

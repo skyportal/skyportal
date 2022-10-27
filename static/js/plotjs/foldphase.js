@@ -100,10 +100,16 @@ for (let i = 0; i < n_labels; i++) {
   }
 
   for (j = 0; j < folda.data.mag.length; j++) {
-    foldaerr.data.ys[j] = [folda.data.mag[j], folda.data.mag[j]];
+    foldaerr.data.ys[j] = [
+      folda.data.mag[j] - folda.data.magerr[j],
+      folda.data.mag[j] + folda.data.magerr[j],
+    ];
   }
   for (j = 0; j < foldb.data.mag.length; j++) {
-    foldberr.data.ys[j] = [foldb.data.mag[j], foldb.data.mag[j]];
+    foldberr.data.ys[j] = [
+      foldb.data.mag[j] - foldb.data.magerr[j],
+      foldb.data.mag[j] + foldb.data.magerr[j],
+    ];
   }
 
   folda.change.emit();

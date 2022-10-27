@@ -966,22 +966,25 @@ class SpectrumASCIIFileHandler(BaseHandler, ASCIIHandler):
 
         filename = json.pop('filename')
 
-        obj_check = Obj.get_if_accessible_by(
-            json['obj_id'], self.current_user, raise_if_none=False
-        )
-        if obj_check is None:
-            return self.error(f'Cannot find object with ID: {json["obj_id"]}')
-
-        inst_check = Instrument.get_if_accessible_by(
-            json['instrument_id'], self.current_user, raise_if_none=False
-        )
-
-        if inst_check is None:
-            return self.error(
-                f'Cannot find instrument with ID: {json["instrument_id"]}'
-            )
-
         with self.Session() as session:
+            obj_check = session.scalars(
+                Obj.select(session.user_or_token).where(Obj.id == json['obj_id'])
+            ).first()
+
+            if obj_check is None:
+                return self.error(f'Cannot find object with ID: {json["obj_id"]}')
+
+            inst_check = session.scalars(
+                Instrument.select(session.user_or_token).where(
+                    Instrument.id == json['instrument_id']
+                )
+            ).first()
+
+            if inst_check is None:
+                return self.error(
+                    f'Cannot find instrument with ID: {json["instrument_id"]}'
+                )
+
             # always add the single user group
             single_user_group = self.associated_user_object.single_user_group
 
