@@ -1,7 +1,7 @@
 from baselayer.app.access import auth_or_token
 from baselayer.app.env import load_env
 from baselayer.log import make_log
-
+import os
 import arrow
 from astropy.io import fits
 from astropy.wcs import WCS
@@ -25,7 +25,7 @@ from ...models import Instrument, User, DBSession
 
 _, cfg = load_env()
 
-log = make_log('api/image_analysis')
+log = make_log('image_analysis')
 
 try:
     if cfg['image_analysis'] is True:
@@ -316,8 +316,6 @@ def reduce_image(
             'filter': [filt],
         }
 
-        print(df, obj_id, [g.id for g in user.accessible_groups])
-
         data_out = {
             'obj_id': obj_id,
             'instrument_id': instrument.id,
@@ -326,7 +324,9 @@ def reduce_image(
         }
 
         add_external_photometry(data_out, user)
+        os.remove(filename)
     except Exception as e:
+        os.remove(filename)
         raise e
 
 
@@ -382,15 +382,22 @@ class ImageAnalysisHandler(BaseHandler):
             filt = data.get("filter")
             obstime = data.get("obstime")
             obstime = Time(arrow.get(obstime.strip()).datetime)
+            image_data = image_data.split('base64,')
+            image_name = image_data[0].split('name=')[1].split(';')[0]
+            # if image name contains (.fz) then it is a compressed file
+            if image_name.endswith('.fz'):
+                suffix = '.fits.fz'
+            else:
+                suffix = '.fits'
             with tempfile.NamedTemporaryFile(
-                suffix=".fits.fz", mode="wb", delete=False
+                suffix=suffix, mode="wb", delete=False
             ) as f:
-                image_data = base64.b64decode(image_data.split('base64,')[-1])
+                image_data = base64.b64decode(image_data[-1])
                 f.write(image_data)
                 f.flush()
                 hdul = fits.open(f.name)
-                header = hdul[1].header
-                image_data = hdul[1].data.astype(np.double)
+                header = hdul[0].header
+                image_data = hdul[0].data.astype(np.double)
                 header['FILTER'] = filt
                 header['DATE-OBS'] = obstime.isot
                 try:
@@ -406,8 +413,10 @@ class ImageAnalysisHandler(BaseHandler):
                         ),
                     )
                 except Exception as e:
+                    log(e)
                     return self.error(str(e))
 
                 return self.success()
         except Exception as e:
+            log(e)
             return self.error(str(e))
