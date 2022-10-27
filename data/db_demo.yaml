@@ -340,6 +340,7 @@ instrument:
     telescope_id: =P60
     filters: ["sdssu", "sdssg", "sdssr", "sdssi"]
     api_classname: SEDMAPI
+    listener_classname: SEDMListener
     =id: SEDM
   - name: IOO
     type: imager
