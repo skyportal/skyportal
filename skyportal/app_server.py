@@ -499,17 +499,18 @@ def make_app(cfg, baselayer_handlers, baselayer_settings, process=None, env=None
 
     if cfg['image_analysis'] is True:
         missing_bins = []
-        for exe in ['scamp', 'sextractor', 'psfex']:
+        for exe in ['scamp', 'psfex']:
             bin = shutil.which(exe)
             if bin is None:
                 missing_bins.append(exe)
 
         if len(missing_bins) > 0:
-            print('!' * 80)
-            print(
+            log('!' * 80)
+            log(
                 f"  Can't run image analysis. Missing dependencies: {', '.join(missing_bins)}"
             )
-            print('!' * 80)
+            log('!' * 80)
+            return
 
     handlers = baselayer_handlers + skyportal_handlers
 

@@ -3,7 +3,6 @@ from baselayer.app.env import load_env
 from baselayer.log import make_log
 
 import arrow
-import astroscrappy
 from astropy.io import fits
 from astropy.wcs import WCS
 from astropy.table import vstack
@@ -20,18 +19,6 @@ from tqdm.auto import tqdm
 from tornado.ioloop import IOLoop
 import shutil
 
-from stdpipe import (
-    astrometry,
-    photometry,
-    catalogs,
-    cutouts,
-    templates,
-    plots,
-    pipeline,
-    psf,
-    utils,
-)
-
 from .photometry import add_external_photometry
 from ..base import BaseHandler
 from ...models import Instrument, User, DBSession
@@ -39,6 +26,23 @@ from ...models import Instrument, User, DBSession
 _, cfg = load_env()
 
 log = make_log('api/image_analysis')
+
+try:
+    if cfg['image_analysis'] is True:
+        import astroscrappy
+        from stdpipe import (
+            astrometry,
+            photometry,
+            catalogs,
+            cutouts,
+            templates,
+            plots,
+            pipeline,
+            psf,
+            utils,
+        )
+except Exception as e:
+    log(e)
 
 
 def spherical_match(ra1, dec1, ra2, dec2, sr=1 / 3600):
@@ -353,7 +357,7 @@ class ImageAnalysisHandler(BaseHandler):
                 return self.error('Image analysis is not enabled')
 
             missing_bins = []
-            for exe in ['scamp', 'sextractor', 'psfex']:
+            for exe in ['scamp', 'psfex']:
                 bin = shutil.which(exe)
                 if bin is None:
                     missing_bins.append(exe)
