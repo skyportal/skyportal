@@ -58,7 +58,7 @@ const Theme = ({ disableTransitions, children }) => {
       MuiTypography: {
         styleOverrides: {
           body1: {
-            color: dark ? grey[300] : null,
+            color: dark ? grey[200] : null,
           },
         },
       },
@@ -68,14 +68,14 @@ const Theme = ({ disableTransitions, children }) => {
             props: { variant: "contained", color: "white" },
             style: {
               color: greyTheme.palette.getContrastText(
-                greyTheme.palette.grey[100]
+                greyTheme.palette.grey[200]
               ),
             },
           },
         ],
         styleOverrides: {
           textPrimary: {
-            color: dark ? "#c4c4c4" : null,
+            color: dark ? "#a4a4a4" : null,
           },
           outlinedPrimary: {
             color: dark ? "#d2e4ea" : null,

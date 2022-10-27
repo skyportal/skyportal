@@ -6,7 +6,6 @@ import makeStyles from "@mui/styles/makeStyles";
 
 import Typography from "@mui/material/Typography";
 import CircularProgress from "@mui/material/CircularProgress";
-import greyTheme from "./Theme";
 import SourceTable from "./SourceTable";
 
 import * as sourcesActions from "../ducks/sources";
@@ -16,7 +15,7 @@ const useStyles = makeStyles((theme) => ({
     margin: theme.spacing(0.5),
   },
   source: {
-    color: greyTheme.dark ? "pink" : "white",
+    color: theme.palette.mode === "dark" ? "#b7b7b7" : "#2a2a2a",
   },
   commentListContainer: {
     height: "15rem",
