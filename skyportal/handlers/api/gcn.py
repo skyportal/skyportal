@@ -1211,8 +1211,19 @@ class GcnSummaryHandler(BaseHandler):
                     )
                     now_date = astropy.time.Time.now()
                     header_text.append(f"""DATE: {now_date}\n""")
+
+                    if (
+                        self.associated_user_object.affiliations is not None
+                        and len(self.associated_user_object.affiliations) > 0
+                    ):
+                        affiliations = ", ".join(
+                            self.associated_user_object.affiliations
+                        )
+                    else:
+                        affiliations = "..."
+
                     # add a "FROM full name and affiliation"
-                    from_str = f"""FROM:  {self.associated_user_object.first_name} {self.associated_user_object.last_name} at Affiliation"""
+                    from_str = f"""FROM:  {self.associated_user_object.first_name} {self.associated_user_object.last_name} at {affiliations}"""
                     if self.associated_user_object.contact_email is not None:
                         from_str += (
                             f""" <{self.associated_user_object.contact_email}>\n"""
@@ -1234,8 +1245,16 @@ class GcnSummaryHandler(BaseHandler):
                                 user.first_name is not None
                                 and user.last_name is not None
                             ):
+                                if (
+                                    user.affiliations is not None
+                                    and len(user.affiliations) > 0
+                                ):
+                                    affiliations = ", ".join(user.affiliations)
+                                else:
+                                    affiliations = "..."
+
                                 users_txt.append(
-                                    f"""{user.first_name[0].upper()}. {user.last_name} (Affiliation)"""  # hardcoded affiliation as it is not implemented yet
+                                    f"""{user.first_name[0].upper()}. {user.last_name} ({affiliations})"""
                                 )
                         # create a string of all users, with 5 users per line
                         users_txt = "\n".join(
