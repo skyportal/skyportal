@@ -443,6 +443,7 @@ MyCalendar.propTypes = {
           id: PropTypes.number,
           first_name: PropTypes.string,
           last_name: PropTypes.string,
+          affiliations: PropTypes.arrayOf(PropTypes.string),
         })
       ),
     }).isRequired
