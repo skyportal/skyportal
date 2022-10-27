@@ -1220,7 +1220,7 @@ class GcnSummaryHandler(BaseHandler):
                             self.associated_user_object.affiliations
                         )
                     else:
-                        affiliations = "Affiliation"
+                        affiliations = "..."
 
                     # add a "FROM full name and affiliation"
                     from_str = f"""FROM:  {self.associated_user_object.first_name} {self.associated_user_object.last_name} at {affiliations}"""
@@ -1251,7 +1251,7 @@ class GcnSummaryHandler(BaseHandler):
                                 ):
                                     affiliations = ", ".join(user.affiliations)
                                 else:
-                                    affiliations = "Affiliation"
+                                    affiliations = "..."
 
                                 users_txt.append(
                                     f"""{user.first_name[0].upper()}. {user.last_name} ({affiliations})"""
