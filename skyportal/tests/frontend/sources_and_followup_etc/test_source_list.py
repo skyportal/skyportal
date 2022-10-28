@@ -264,7 +264,7 @@ def test_filter_by_classification(
     driver.click_xpath(
         f"//li[@data-value='{taxonomy_name}: Algol']", scroll_parent=True
     )
-    driver.click_xpath("//button[text()='Submit']")
+    driver.click_xpath("//button[text()='Submit']", scroll_parent=True)
 
     # Should see the posted source
     driver.wait_for_xpath(f'//a[@data-testid="{source_id}"]')
@@ -276,7 +276,7 @@ def test_filter_by_classification(
         scroll_parent=True,
     )
     driver.click_xpath(f"//li[@data-value='{taxonomy_name}: AGN']", scroll_parent=True)
-    driver.click_xpath("//button[text()='Submit']")
+    driver.click_xpath("//button[text()='Submit']", scroll_parent=True)
     # Should no longer see the source
     driver.wait_for_xpath_to_disappear(f'//a[@data-testid="{source_id}"]')
 
