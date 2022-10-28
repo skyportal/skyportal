@@ -110,17 +110,17 @@ const MultipleClassificationsForm = ({
   });
   const sortedClassifications = getSortedClasses(currentClassifications);
 
-  const normalizeProbabilities = useSelector(
-    (state) => state.classifications.normalizeProbabilities
+  const scaleProbabilities = useSelector(
+    (state) => state.classifications.scaleProbabilities
   );
 
-  const [normalizeProbabilitiesChecked, setNormalizeProbabilitiesChecked] =
-    useState(normalizeProbabilities);
+  const [scaleProbabilitiesChecked, setScaleProbabilitiesChecked] =
+    useState(scaleProbabilities);
 
-  const handleNormalizeProbabilitiesSwitchChange = (event) => {
-    setNormalizeProbabilitiesChecked(event.target.checked);
+  const handleScaleProbabilitiesSwitchChange = (event) => {
+    setScaleProbabilitiesChecked(event.target.checked);
     dispatch(
-      ClassificationsActions.setNormalizeProbabilities(event.target.checked)
+      ClassificationsActions.setScaleProbabilities(event.target.checked)
     );
   };
 
@@ -182,7 +182,6 @@ const MultipleClassificationsForm = ({
         newFormState[selectedTaxonomy.id][subclass.class]?.probability || 0;
       // New probability is the min of the parent and child probabilities
       // No child probabilities may be greater than the parent probability
-      console.log("currentProbability", currentProbability);
       const newProbability = Math.min(newValue, currentProbability) || 0;
 
       newFormState[selectedTaxonomy.id][subclass.class] = {
@@ -201,7 +200,7 @@ const MultipleClassificationsForm = ({
     };
 
     // Probability normalization
-    if (normalizeProbabilitiesChecked) {
+    if (scaleProbabilitiesChecked) {
       // Update higher-level classification probabilities to be
       // the max of the subclasses' probabilities.
       path?.forEach((ancestor, i) => {
@@ -413,12 +412,12 @@ const MultipleClassificationsForm = ({
         <FormControlLabel
           control={
             <Switch
-              checked={normalizeProbabilities || false}
-              onChange={handleNormalizeProbabilitiesSwitchChange}
+              checked={scaleProbabilities || false}
+              onChange={handleScaleProbabilitiesSwitchChange}
               inputProps={{ "aria-label": "controlled" }}
             />
           }
-          label="Normalize probabilities"
+          label="Scale parent/child probabilities"
         />
       </div>
       {selectedTaxonomy?.hierarchy?.subclasses?.map((category) => (
