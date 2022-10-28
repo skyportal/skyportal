@@ -176,26 +176,15 @@ const MultipleClassificationsForm = ({
     return list;
   };
 
-  /*
   const updateChildren = (classification, newValue, newFormState, depth) => {
-    const totalProbabilityOfSubclasses = listChildren(
-      // listProbabilityOfSubclasses
-      classification,
-      newFormState
-    );
     classification?.subclasses?.forEach((subclass) => {
       const currentProbability =
         newFormState[selectedTaxonomy.id][subclass.class]?.probability || 0;
-      // New probability is the new parent probability scaled by the
-      // proportion of the total children probability this child has currently
-      // Note: "|| 0" used to handle cases where totalProbabilityOfSubclasses === 0
-      const newProbability = // Math.min(newValue, currentProbability);
-        parseFloat(
-          (
-            (newValue * currentProbability) /
-            totalProbabilityOfSubclasses
-          ).toFixed(3)
-        ) || 0;
+      // New probability is the min of the parent and child probabilities
+      // No child probabilities may be greater than the parent probability
+      console.log("currentProbability", currentProbability);
+      const newProbability = Math.min(newValue, currentProbability) || 0;
+
       newFormState[selectedTaxonomy.id][subclass.class] = {
         depth,
         probability: newProbability,
@@ -203,7 +192,6 @@ const MultipleClassificationsForm = ({
       updateChildren(subclass, newProbability, newFormState, depth + 1);
     });
   };
-  */
 
   const handleChange = (newValue, classification, path) => {
     const newFormState = { ...formState };
@@ -217,7 +205,6 @@ const MultipleClassificationsForm = ({
       // Update higher-level classification probabilities to be
       // the max of the subclasses' probabilities.
       path?.forEach((ancestor, i) => {
-        console.log(ancestor);
         const subpath = path.slice(i + 1);
         const probabilityOfSubclasses = Math.max(
           ...listChildren(getNode(ancestor, subpath), newFormState),
@@ -225,12 +212,14 @@ const MultipleClassificationsForm = ({
         );
         const probabilityOfAncestor =
           formState[selectedTaxonomy.id][ancestor]?.probability || 0;
-        console.log("probabilityOfAncestor", probabilityOfAncestor);
         newFormState[selectedTaxonomy.id][ancestor] = {
           depth: subpath.length,
           probability: Math.max(probabilityOfSubclasses, probabilityOfAncestor),
         };
       });
+      // Update children to be ≤ parent probability
+      const node = getNode(classification, path);
+      updateChildren(node, newValue, newFormState, path.length + 1);
     }
     setFormState(newFormState);
   };
