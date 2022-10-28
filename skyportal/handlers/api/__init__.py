@@ -86,6 +86,7 @@ from .observation_plan import (
     ObservationPlanGCNHandler,
     ObservationPlanSubmitHandler,
     ObservationPlanMovieHandler,
+    ObservationPlanObservabilityPlotHandler,
     ObservationPlanSimSurveyHandler,
     ObservationPlanSimSurveyPlotHandler,
     ObservationPlanSummaryStatisticsHandler,

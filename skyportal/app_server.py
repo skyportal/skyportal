@@ -68,6 +68,7 @@ from skyportal.handlers.api import (
     ObservationPlanGCNHandler,
     ObservationPlanSubmitHandler,
     ObservationPlanMovieHandler,
+    ObservationPlanObservabilityPlotHandler,
     ObservationPlanSimSurveyHandler,
     ObservationPlanSimSurveyPlotHandler,
     ObservationPlanGeoJSONHandler,
@@ -266,6 +267,10 @@ skyportal_handlers = [
     (r'/api/sources_in_gcn/(.*)/(.*)', SourcesConfirmedInGCNHandler),
     (r'/api/sources_in_gcn/(.*)', SourcesConfirmedInGCNHandler),
     (r'/api/associated_gcns/(.*)', GCNsAssociatedWithSourceHandler),
+    (
+        r'/api/localization(/[0-9]+)/observability',
+        ObservationPlanObservabilityPlotHandler,
+    ),
     (
         r'/api/localization(/[0-9]+)/airmass(/[0-9]+)?',
         ObservationPlanAirmassChartHandler,
