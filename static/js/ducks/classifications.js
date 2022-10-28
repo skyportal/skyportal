@@ -1,7 +1,7 @@
 import store from "../store";
 
 const SET_TAXONOMY = "skyportal/SET_TAXONOMY";
-const SET_NORMALIZE_PROBABILITIES = "skyportal/SET_NORMALIZE_PROBABILITIES";
+const SET_SCALE_PROBABILITIES = "skyportal/SET_SCALE_PROBABILITIES";
 
 // eslint-disable-next-line import/prefer-default-export
 export const setTaxonomy = (taxonomy) => ({
@@ -10,9 +10,9 @@ export const setTaxonomy = (taxonomy) => ({
 });
 
 // eslint-disable-next-line import/prefer-default-export
-export const setNormalizeProbabilities = (normalizeProbabilities) => ({
-  type: SET_NORMALIZE_PROBABILITIES,
-  normalizeProbabilities,
+export const setScaleProbabilities = (scaleProbabilities) => ({
+  type: SET_SCALE_PROBABILITIES,
+  scaleProbabilities,
 });
 
 const reducer = (state = { rotateLogo: false }, action) => {
@@ -24,11 +24,11 @@ const reducer = (state = { rotateLogo: false }, action) => {
         taxonomy,
       };
     }
-    case SET_NORMALIZE_PROBABILITIES: {
-      const { normalizeProbabilities } = action;
+    case SET_SCALE_PROBABILITIES: {
+      const { scaleProbabilities } = action;
       return {
         ...state,
-        normalizeProbabilities,
+        scaleProbabilities,
       };
     }
     default:
