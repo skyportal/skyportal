@@ -430,7 +430,7 @@ class Obj(Base, conesearch_alchemy.Point):
         """Construct URL for public Legacy Survey DR9 cutout."""
         return (
             f"https://www.legacysurvey.org/viewer/jpeg-cutout?ra={self.ra}"
-            f"&dec={self.dec}&size=200&layer=dr9&pixscale=0.262&bands=grz"
+            f"&dec={self.dec}&size=200&layer=ls-dr9&pixscale=0.262&bands=grz"
         )
 
     @property
