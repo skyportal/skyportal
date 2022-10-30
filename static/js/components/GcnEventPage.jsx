@@ -306,7 +306,7 @@ const GcnEventPage = ({ route }) => {
     dispatch(gcnEventActions.postGcnAliases(gcnEvent.dateobs)).then(
       (response) => {
         if (response.status === "success") {
-          dispatch(showNotification("Aliases updated successfully"));
+          dispatch(showNotification("Aliases update started. Please wait..."));
         } else {
           dispatch(showNotification("Error updating aliases", "error"));
         }

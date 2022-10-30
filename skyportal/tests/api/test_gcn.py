@@ -1055,7 +1055,7 @@ def test_gcn_aliases(
     view_only_token,
 ):
 
-    datafile = f'{os.path.dirname(__file__)}/../../../data/GW190814.xml'
+    datafile = f'{os.path.dirname(__file__)}/../data/GRB180116A_Fermi_GBM_Gnd_Pos.xml'
     with open(datafile, 'rb') as fid:
         payload = fid.read()
     data = {'xml': payload}
@@ -1066,7 +1066,7 @@ def test_gcn_aliases(
 
     for n_times in range(26):
         status, data = api(
-            'GET', "gcn_event/2019-08-14T21:10:39", token=super_admin_token
+            'GET', "gcn_event/2018-01-16T00:36:53", token=super_admin_token
         )
         if data['status'] == 'success':
             break
@@ -1077,18 +1077,28 @@ def test_gcn_aliases(
     assert len(data['aliases']) == 0
 
     status, data = api(
-        'POST', 'gcn_event/2019-08-14T21:10:39/aliases', token=view_only_token
+        'POST', 'gcn_event/2018-01-16T00:36:53/aliases', token=view_only_token
     )
     assert status == 401
 
+    time.sleep(15)
+
     status, data = api(
-        'POST', 'gcn_event/2019-08-14T21:10:39/aliases', token=super_admin_token
+        'POST', 'gcn_event/2018-01-16T00:36:53/aliases', token=super_admin_token
     )
     assert status == 200
     assert data['status'] == 'success'
 
-    status, data = api('GET', "gcn_event/2019-08-14T21:10:39", token=super_admin_token)
-    assert status == 200
-    data = data['data']
-    assert len(data['aliases']) == 1
-    assert 'S190814BV' in data['aliases']
+    for n_times in range(30):
+        status, data = api(
+            'GET', "gcn_event/2018-01-16T00:36:53", token=super_admin_token
+        )
+        if data['status'] == 'success':
+            if len(data['data']['aliases']) > 0:
+                aliases = data['data']['aliases']
+                break
+            time.sleep(1)
+
+    assert n_times < 29
+    assert len(aliases) == 1
+    assert 'GRB180116A' in aliases

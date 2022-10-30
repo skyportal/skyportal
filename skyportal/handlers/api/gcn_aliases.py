@@ -128,6 +128,7 @@ def get_other_aliases(ids, day, original):
                     match
                     and len(match.group()) < 20
                     and match.group().replace(" ", "").upper() != original.upper()
+                    and match.group().replace(" ", "").upper() != "TITLE"
                 ):
                     aliases.append(match.group())
     return (aliases, bodies)
@@ -219,6 +220,7 @@ def post_aliases(dateobs, tach_id, user, push_all):
                 if new_gcn_alias.upper() not in gcn_aliases:
                     gcn_aliases.append(new_gcn_alias)
             gcn_event.aliases = gcn_aliases
+
         session.commit()
 
     push_all(

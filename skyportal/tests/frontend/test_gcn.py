@@ -639,10 +639,9 @@ def test_gcn_aliases(
     driver,
     super_admin_user,
     super_admin_token,
-    view_only_token,
 ):
 
-    datafile = f'{os.path.dirname(__file__)}/../../../data/GW190814.xml'
+    datafile = f'{os.path.dirname(__file__)}/../data/GRB180116A_Fermi_GBM_Gnd_Pos.xml'
     with open(datafile, 'rb') as fid:
         payload = fid.read()
     data = {'xml': payload}
@@ -654,7 +653,7 @@ def test_gcn_aliases(
     # wait for event to load
     for n_times in range(26):
         status, data = api(
-            'GET', "gcn_event/2019-08-14T21:10:39", token=super_admin_token
+            'GET', "gcn_event/2018-01-16T00:36:53", token=super_admin_token
         )
         if data['status'] == 'success':
             break
@@ -662,8 +661,8 @@ def test_gcn_aliases(
     assert n_times < 25
 
     driver.get(f'/become_user/{super_admin_user.id}')
-    driver.get('/gcn_events/2019-08-14T21:10:39')
-    driver.wait_for_xpath('//*[@name="add-aliases"]')
-    driver.click_xpath('//*[@name="add-aliases"]')
-    driver.wait_for_xpath('//*[contains(., "S190814BV")]')
-    assert len(driver.find_elements(By.XPATH, '//*[@name="aliases-chips"]/*')) == 2
+    driver.get('/gcn_events/2018-01-16T00:36:53')
+    driver.wait_for_xpath('//*[@data-testid="update-aliases"]')
+    driver.click_xpath('//*[@data-testid="update-aliases"]')
+    driver.wait_for_xpath('//*[contains(., "GRB180116A")]', timeout=30)
+    assert len(driver.find_elements(By.XPATH, '//*[@name="aliases-chips"]/*')) == 1
