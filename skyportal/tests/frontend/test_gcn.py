@@ -634,6 +634,7 @@ def test_gcn_summary_observations(
     finally:
         os.remove(fpath)
 
+
 def test_gcn_aliases(
     driver,
     super_admin_user,

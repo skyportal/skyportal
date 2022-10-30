@@ -1018,6 +1018,7 @@ def test_gcn_from_polygon(super_admin_token, view_only_token):
     assert data["dateobs"] == "2022-09-03T14:44:12"
     assert 'IPN' in data["tags"]
 
+
 def test_gcn_Swift(super_admin_token, view_only_token):
 
     datafile = f'{os.path.dirname(__file__)}/../data/SWIFT_1125809-092.xml'
@@ -1047,6 +1048,7 @@ def test_gcn_Swift(super_admin_token, view_only_token):
             for loc in data["localizations"]
         ]
     )
+
 
 def test_gcn_aliases(
     super_admin_token,
