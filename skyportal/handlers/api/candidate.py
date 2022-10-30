@@ -909,7 +909,7 @@ class CandidateHandler(BaseHandler):
             candidate_list = []
             for (obj,) in query_results["candidates"]:
                 with session.no_autoflush:
-                    obj.is_source = (obj.id,) in matching_source_ids
+                    obj.is_source = obj.id in matching_source_ids
                     if obj.is_source:
                         source_subquery = (
                             Source.select(session.user_or_token)
