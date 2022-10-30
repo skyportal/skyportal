@@ -1,8 +1,8 @@
 """GCN aliases migration
 
 Revision ID: 82e469da5fe9
-Revises: 675d41c71a2b
-Create Date: 2022-08-18 22:08:40.357878
+Revises: 065726baac98
+Create Date: 2022-10-30 10:30:00.357878
 
 """
 from alembic import op
@@ -11,7 +11,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = '82e469da5fe9'
-down_revision = '675d41c71a2b'
+down_revision = '065726baac98'
 branch_labels = None
 depends_on = None
 

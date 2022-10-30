@@ -13,6 +13,7 @@ import IconButton from "@mui/material/IconButton";
 import GetAppIcon from "@mui/icons-material/GetApp";
 import Grid from "@mui/material/Grid";
 import Typography from "@mui/material/Typography";
+import { showNotification } from "baselayer/components/Notifications";
 import { useTheme } from "@mui/material/styles";
 
 // eslint-disable-next-line
@@ -245,7 +246,8 @@ const sidebarWidth = 190;
 const GcnEventPage = ({ route }) => {
   const ref = useRef(null);
   const theme = useTheme();
-  const initialWidth = window.innerWidth - sidebarWidth - 2 * theme.spacing(2);
+  const initialWidth =
+    window.innerWidth - sidebarWidth - 2 * parseInt(theme.spacing(2), 10);
   const [width, setWidth] = useState(initialWidth);
 
   const gcnEvent = useSelector((state) => state.gcnEvent);
