@@ -1,11 +1,7 @@
 import React from "react";
-import { useSelector, useDispatch } from "react-redux";
 import Chip from "@mui/material/Chip";
 import PropTypes from "prop-types";
 import makeStyles from "@mui/styles/makeStyles";
-import { showNotification } from "baselayer/components/Notifications";
-
-import * as gcnEventActions from "../ducks/gcnEvent";
 
 const useStyles = makeStyles(() => ({
   root: {
@@ -31,12 +27,6 @@ const useStyles = makeStyles(() => ({
 
 const GcnAliases = ({ gcnEvent }) => {
   const classes = useStyles();
-  const dispatch = useDispatch();
-  const currentUser = useSelector((state) => state.profile);
-
-  const permission =
-    currentUser.permissions?.includes("System admin") ||
-    currentUser.permissions?.includes("Manage GCNs");
 
   let aliases = [];
   if (gcnEvent.aliases?.length > 0) {
