@@ -381,9 +381,16 @@ class ObservationPlanRequestHandler(BaseHandler):
                 joinedload(ObservationPlanRequest.observation_plans)
                 .joinedload(EventObservationPlan.planned_observations)
                 .joinedload(PlannedObservation.field),
+                joinedload(ObservationPlanRequest.observation_plans).joinedload(
+                    EventObservationPlan.statistics
+                ),
             ]
         else:
-            options = [joinedload(ObservationPlanRequest.observation_plans)]
+            options = [
+                joinedload(ObservationPlanRequest.observation_plans).joinedload(
+                    EventObservationPlan.statistics
+                )
+            ]
 
         with self.Session() as session:
             if observation_plan_request_id is not None:
@@ -702,20 +709,20 @@ class ObservationPlanGCNHandler(BaseHandler):
             instrument = allocation.instrument
 
             observation_plan = observation_plan_request.observation_plans[0]
-            num_observations = observation_plan.num_observations
-            if num_observations == 0:
-                return self.error('Need at least one observation to produce a GCN')
+            statistics = observation_plan.statistics
+            if len(statistics) == 0:
+                return self.error('Need statistics computed to produce a GCN')
+            statistics = statistics[0].statistics
 
-            start_observation = Time(
-                observation_plan.start_observation, format='datetime'
-            )
-            unique_filters = observation_plan.unique_filters
-            total_time = observation_plan.total_time
-            probability = observation_plan.probability
-            area = observation_plan.area
+            start_observation = Time(statistics["start_observation"], format='isot')
+            num_observations = statistics["num_observations"]
+            unique_filters = statistics["unique_filters"]
+            total_time = statistics["total_time"]
+            probability = statistics["probability"]
+            area = statistics["area"]
+            dt = statistics["dt"]
 
             trigger_time = Time(event.dateobs, format='datetime')
-            dt = observation_plan.start_observation - event.dateobs
 
             content = f"""
             SUBJECT: Follow-up of {event.gcn_notices[0].stream} trigger {trigger_time.isot} with {instrument.name}.
@@ -908,7 +915,7 @@ class ObservationPlanMovieHandler(BaseHandler):
                 )
 
             observation_plan = observation_plan_request.observation_plans[0]
-            num_observations = observation_plan.num_observations
+            num_observations = len(observation_plan.planned_observations)
             if num_observations == 0:
                 return self.error('Need at least one observation to produce a movie')
 
@@ -1153,10 +1160,6 @@ class ObservationPlanSurveyEfficiencyHandler(BaseHandler):
                 )
 
             observation_plan = observation_plan_request.observation_plans[0]
-            num_observations = observation_plan.num_observations
-            if num_observations == 0:
-                return self.error('Need at least one observation to produce a GCN')
-
             analysis_data = []
             for analysis in observation_plan.survey_efficiency_analyses:
                 analysis_data.append(

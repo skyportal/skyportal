@@ -41,6 +41,7 @@ from ...models import (
     DBSession,
     Allocation,
     CatalogQuery,
+    EventObservationPlan,
     GcnEvent,
     GcnNotice,
     GcnProperty,
@@ -467,9 +468,9 @@ class GcnEventObservationPlanRequestsHandler(BaseHandler):
                         joinedload(GcnEvent.observationplan_requests).joinedload(
                             ObservationPlanRequest.requester
                         ),
-                        joinedload(GcnEvent.observationplan_requests).joinedload(
-                            ObservationPlanRequest.observation_plans
-                        ),
+                        joinedload(GcnEvent.observationplan_requests)
+                        .joinedload(ObservationPlanRequest.observation_plans)
+                        .joinedload(EventObservationPlan.statistics),
                     ],
                 ).where(GcnEvent.id == gcnevent_id)
             ).first()
@@ -481,9 +482,10 @@ class GcnEventObservationPlanRequestsHandler(BaseHandler):
                 dat = req.to_dict()
                 plan_data = []
                 for plan in dat["observation_plans"]:
-                    plan_dict = {
-                        **plan.to_dict(),
-                    }
+                    plan_dict = plan.to_dict()
+                    plan_dict['statistics'] = [
+                        statistics.to_dict() for statistics in plan_dict['statistics']
+                    ]
                     plan_data.append(plan_dict)
 
                 dat["observation_plans"] = plan_data
