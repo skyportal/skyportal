@@ -10,7 +10,7 @@ import numpy as np
 from skyportal.tests import api
 
 
-@pytest.mark.flaky(reruns=2)
+# @pytest.mark.flaky(reruns=2)
 def test_observation_plan_tiling(
     user, super_admin_token, upload_data_token, view_only_token, public_group
 ):

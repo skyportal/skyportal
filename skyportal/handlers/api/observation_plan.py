@@ -577,82 +577,6 @@ class ObservationPlanSubmitHandler(BaseHandler):
             return self.success(data=observation_plan_request)
 
 
-class ObservationPlanSummaryStatisticsHandler(BaseHandler):
-    @auth_or_token
-    def get(self, observation_plan_request_id):
-        """
-        ---
-        description: Get summary statistics for the observation plan.
-        tags:
-          - observation_plan_requests
-        parameters:
-          - in: path
-            name: observation_plan_id
-            required: true
-            schema:
-              type: string
-        responses:
-          200:
-            content:
-              application/json:
-                schema: SingleObservationPlanRequest
-        """
-
-        with self.Session() as session:
-
-            stmt = (
-                ObservationPlanRequest.select(session.user_or_token)
-                .where(ObservationPlanRequest.id == observation_plan_request_id)
-                .options(
-                    joinedload(ObservationPlanRequest.observation_plans)
-                    .joinedload(EventObservationPlan.planned_observations)
-                    .joinedload(PlannedObservation.field)
-                )
-            )
-            observation_plan_request = session.scalars(stmt).first()
-
-            if observation_plan_request is None:
-                return self.error(
-                    f'Could not find observation_plan_request with ID {observation_plan_request_id}'
-                )
-
-            event = session.scalars(
-                GcnEvent.select(
-                    session.user_or_token, options=[joinedload(GcnEvent.gcn_notices)]
-                ).where(GcnEvent.id == observation_plan_request.gcnevent_id)
-            ).first()
-            if event is None:
-                return self.error(
-                    message=f"Invalid GcnEvent ID: {observation_plan_request.gcnevent_id}"
-                )
-
-            observation_plan = observation_plan_request.observation_plans[0]
-            num_observations = observation_plan.num_observations
-            if num_observations == 0:
-                return self.error('Need at least one observation to produce a GCN')
-
-            start_observation = Time(
-                observation_plan.start_observation, format='datetime'
-            )
-            unique_filters = observation_plan.unique_filters
-            total_time = observation_plan.total_time
-            probability = observation_plan.probability
-            area = observation_plan.area
-
-            dt = observation_plan.start_observation - event.dateobs
-            data = {
-                'num_observations': num_observations,
-                'start_observation': start_observation.isot,
-                'unique_filters': unique_filters,
-                'total_time': total_time,
-                'probability': probability,
-                'area': area,
-                'dt': humanize.naturaldelta(dt),
-            }
-
-            return self.success(data=data)
-
-
 class ObservationPlanGCNHandler(BaseHandler):
     @auth_or_token
     def get(self, observation_plan_request_id):
@@ -2144,7 +2068,7 @@ class ObservationPlanSimSurveyHandler(BaseHandler):
 
             observation_plan = observation_plan_request.observation_plans[0]
             planned_observations = observation_plan.planned_observations
-            num_observations = observation_plan.num_observations
+            num_observations = len(observation_plan.planned_observations)
             if num_observations == 0:
                 self.push_notification(
                     'Need at least one observation to evaluate efficiency',
@@ -2154,7 +2078,12 @@ class ObservationPlanSimSurveyHandler(BaseHandler):
                     'Need at least one observation to evaluate efficiency'
                 )
 
-            unique_filters = observation_plan.unique_filters
+            unique_filters = list(
+                {
+                    planned_observation.filt
+                    for planned_observation in observation_plan.planned_observations
+                }
+            )
 
             if not set(unique_filters).issubset(
                 set(instrument.sensitivity_data.keys())

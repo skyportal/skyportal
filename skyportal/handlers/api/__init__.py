@@ -89,7 +89,6 @@ from .observation_plan import (
     ObservationPlanObservabilityPlotHandler,
     ObservationPlanSimSurveyHandler,
     ObservationPlanSimSurveyPlotHandler,
-    ObservationPlanSummaryStatisticsHandler,
     ObservationPlanSurveyEfficiencyHandler,
     ObservationPlanGeoJSONHandler,
     ObservationPlanAirmassChartHandler,
