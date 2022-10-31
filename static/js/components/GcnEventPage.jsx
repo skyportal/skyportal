@@ -289,6 +289,7 @@ const GcnEventPage = ({ route }) => {
   useEffect(() => {
     const fetchGcnEvent = async (dateobs) => {
       await dispatch(gcnEventActions.fetchGcnEvent(dateobs));
+      await dispatch(gcnEventActions.fetchGcnTach(dateobs));
     };
     fetchGcnEvent(route.dateobs);
   }, [route, dispatch]);
@@ -303,15 +304,25 @@ const GcnEventPage = ({ route }) => {
   }
 
   const handleUpdateAliasesCirculars = () => {
-    dispatch(gcnEventActions.postGcnAliases(gcnEvent.dateobs)).then(
-      (response) => {
-        if (response.status === "success") {
-          dispatch(showNotification("Aliases update started. Please wait..."));
-        } else {
-          dispatch(showNotification("Error updating aliases", "error"));
+    dispatch(gcnEventActions.postGcnTach(gcnEvent.dateobs)).then((response) => {
+      if (response.status === "success") {
+        dispatch(
+          showNotification(
+            "Aliases and Circulars update started. Please wait..."
+          )
+        );
+        if (gcnEvent?.aliases?.length === 0) {
+          dispatch(
+            showNotification(
+              "This has never been done for this event before. It may take few minutes.",
+              "warning"
+            )
+          );
         }
+      } else {
+        dispatch(showNotification("Error updating aliases", "error"));
       }
-    );
+    });
   };
 
   return (

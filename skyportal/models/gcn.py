@@ -196,16 +196,17 @@ class GcnEvent(Base):
 
     tach_id = sa.Column(
         sa.String,
-        nullable=False,
-        server_default="{}",
+        nullable=True,
         doc="TACH id associated with a GCN event",
     )
 
-    circulars = sa.Column(
-        sa.ARRAY(sa.String),
-        nullable=False,
-        server_default="{}",
-        doc="List of circulars associated with an event. Contains number, subject, and body",
+    circulars = deferred(
+        sa.Column(
+            JSONB,
+            nullable=False,
+            server_default="{}",
+            doc="List of circulars associated with a GCN event. Keys are circulars ids, values are circular titles.",
+        )
     )
 
     reminders = relationship(

@@ -1,26 +1,16 @@
 import React from "react";
-import Accordion from "@mui/material/Accordion";
-import AccordionSummary from "@mui/material/AccordionSummary";
-import AccordionDetails from "@mui/material/AccordionDetails";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import Typography from "@mui/material/Typography";
+import { Divider, List, ListItem, Typography } from "@mui/material";
 
 import PropTypes from "prop-types";
 import makeStyles from "@mui/styles/makeStyles";
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles(() => ({
   root: {
     margin: "0",
     padding: "0",
   },
-  accordionHeading: {
-    fontSize: "1.25rem",
-    fontWeight: theme.typography.fontWeightRegular,
-  },
-  circularBody: {
-    display: "flex",
-    overflow: "auto",
-    flexDirection: "column",
+  header: {
+    fontSize: "1rem",
   },
 }));
 
@@ -28,34 +18,31 @@ const GcnCirculars = ({ gcnEvent }) => {
   const classes = useStyles();
   const styles = useStyles();
 
-  let circulars = [];
-  if (gcnEvent.circulars?.length > 0) {
-    gcnEvent.circulars?.forEach((circular) => {
-      circulars.push(circular);
-    });
-    circulars = [...new Set(circulars)];
-  }
-
   return (
     <div className={classes.root}>
-      {circulars.map((circular) => (
-        <Accordion key={circular}>
-          <AccordionSummary
-            expandIcon={<ExpandMoreIcon />}
-            aria-controls="circular-content"
-            id="circular-header"
-          >
-            <Typography className={styles.accordionHeading}>
-              {circular[0]} - {circular[1]}
-            </Typography>
-          </AccordionSummary>
-          <AccordionDetails>
-            <div className={styles.circularBody}>
-              <pre>{circular[2]}</pre>
-            </div>
-          </AccordionDetails>
-        </Accordion>
-      ))}
+      {gcnEvent.circulars && Object.keys(gcnEvent.circulars)?.length > 0 ? (
+        <List>
+          {gcnEvent?.circulars &&
+            Object.keys(gcnEvent.circulars).map((id) => (
+              <>
+                <Divider component="li" />
+                <ListItem key={id}>
+                  <a
+                    href={`https://heasarc.gsfc.nasa.gov/wsgi-scripts/tach/gcn_v2/tach.wsgi/?circular=${id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {gcnEvent.circulars[id]}
+                  </a>
+                </ListItem>
+              </>
+            ))}
+        </List>
+      ) : (
+        <Typography className={styles.header}>
+          No circulars available for this event yet
+        </Typography>
+      )}
     </div>
   );
 };

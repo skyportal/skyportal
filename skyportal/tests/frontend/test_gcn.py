@@ -635,7 +635,7 @@ def test_gcn_summary_observations(
         os.remove(fpath)
 
 
-def test_gcn_aliases(
+def test_gcn_tach(
     driver,
     super_admin_user,
     super_admin_token,
@@ -666,3 +666,5 @@ def test_gcn_aliases(
     driver.click_xpath('//*[@data-testid="update-aliases"]')
     driver.wait_for_xpath('//*[contains(., "GRB180116A")]', timeout=30)
     assert len(driver.find_elements(By.XPATH, '//*[@name="aliases-chips"]/*')) == 1
+
+    driver.wait_for_xpath('//a[contains(text(), "GRB 180116A: Fermi GBM Detection")]')

@@ -7,6 +7,7 @@ Create Date: 2022-10-30 10:30:00.357878
 """
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
 
 
 # revision identifiers, used by Alembic.
@@ -26,12 +27,15 @@ def upgrade():
     )
     op.add_column(
         'gcnevents',
-        sa.Column('tach_id', sa.String(), server_default='{}', nullable=False),
+        sa.Column('tach_id', sa.String(), nullable=True),
     )
     op.add_column(
         'gcnevents',
         sa.Column(
-            'circulars', sa.ARRAY(sa.String()), server_default='{}', nullable=False
+            'circulars',
+            postgresql.JSONB(astext_type=sa.Text()),
+            server_default='{}',
+            nullable=False,
         ),
     )
     # ### end Alembic commands ###

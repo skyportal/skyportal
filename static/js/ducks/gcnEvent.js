@@ -50,7 +50,9 @@ const DELETE_OBSERVATION_PLAN_FIELDS =
 const GET_GCNEVENT_SUMMARY = "skyportal/FETCH_GCNEVENT_SUMMARY";
 const GET_GCNEVENT_SUMMARY_OK = "skyportal/FETCH_GCNEVENT_SUMMARY_OK";
 
-const POST_GCN_ALIASES = "skyportal/POST_GCN_ALIASES";
+const POST_GCN_TACH = "skyportal/POST_GCN_TACH";
+const FETCH_GCN_TACH = "skyportal/FETCH_GCN_TACH";
+const FETCH_GCN_TACH_OK = "skyportal/FETCH_GCN_TACH_OK";
 
 export const fetchGcnEvent = (dateobs) =>
   API.GET(`/api/gcn_event/${dateobs}`, FETCH_GCNEVENT);
@@ -174,21 +176,33 @@ export function getGcnEventSummary({ dateobs, params }) {
   );
 }
 
-export function postGcnAliases(dateobs) {
-  return API.POST(`/api/gcn_event/${dateobs}/aliases`, POST_GCN_ALIASES);
+export function postGcnTach(dateobs) {
+  return API.POST(`/api/gcn_event/${dateobs}/tach`, POST_GCN_TACH);
+}
+
+export function fetchGcnTach(dateobs) {
+  return API.GET(`/api/gcn_event/${dateobs}/tach`, FETCH_GCN_TACH);
 }
 
 // Websocket message handler
 messageHandler.add((actionType, payload, dispatch, getState) => {
   const { gcnEvent } = getState();
   if (actionType === FETCH_GCNEVENT) {
-    dispatch(fetchGcnEvent(gcnEvent.dateobs));
+    dispatch(fetchGcnEvent(gcnEvent.dateobs)).then((response) => {
+      if (response.status === "success") {
+        dispatch(fetchGcnTach(gcnEvent.dateobs));
+      }
+    });
   }
   if (actionType === REFRESH_GCNEVENT) {
     const loaded_gcnevent_key = gcnEvent?.dateobs;
 
     if (loaded_gcnevent_key === payload.gcnEvent_dateobs) {
-      dispatch(fetchGcnEvent(gcnEvent.dateobs));
+      dispatch(fetchGcnEvent(gcnEvent.dateobs)).then((response) => {
+        if (response.status === "success") {
+          dispatch(fetchGcnTach(gcnEvent.dateobs));
+        }
+      });
     }
   }
 });
@@ -226,6 +240,12 @@ const reducer = (state = null, action) => {
       return {
         ...state,
         summary: action.data,
+      };
+    }
+    case FETCH_GCN_TACH_OK: {
+      return {
+        ...state,
+        circulars: action.data.circulars,
       };
     }
     default:

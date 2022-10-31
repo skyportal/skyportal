@@ -51,7 +51,7 @@ from .gcn import (
     GcnSummaryHandler,
     LocalizationHandler,
 )
-from .gcn_aliases import GcnAliasesHandler
+from .gcn_tach import GcnTachHandler
 from .group import (
     GroupHandler,
     GroupUserHandler,

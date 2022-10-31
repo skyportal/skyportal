@@ -1059,7 +1059,7 @@ def test_gcn_Swift(super_admin_token, view_only_token):
     )
 
 
-def test_gcn_aliases(
+def test_gcn_tach(
     super_admin_token,
     view_only_token,
 ):
@@ -1086,14 +1086,14 @@ def test_gcn_aliases(
     assert len(data['aliases']) == 0
 
     status, data = api(
-        'POST', 'gcn_event/2018-01-16T00:36:53/aliases', token=view_only_token
+        'POST', 'gcn_event/2018-01-16T00:36:53/tach', token=view_only_token
     )
     assert status == 401
 
     time.sleep(15)
 
     status, data = api(
-        'POST', 'gcn_event/2018-01-16T00:36:53/aliases', token=super_admin_token
+        'POST', 'gcn_event/2018-01-16T00:36:53/tach', token=super_admin_token
     )
     assert status == 200
     assert data['status'] == 'success'
@@ -1111,3 +1111,14 @@ def test_gcn_aliases(
     assert n_times < 29
     assert len(aliases) == 1
     assert 'GRB180116A' in aliases
+
+    status, data = api(
+        'GET', "gcn_event/2018-01-16T00:36:53/tach", token=super_admin_token
+    )
+
+    assert status == 200
+    assert data['status'] == 'success'
+    data = data['data']
+    assert len(data['aliases']) == 1
+    assert len(data['circulars']) == 3
+    assert data['tach_id'] is not None
