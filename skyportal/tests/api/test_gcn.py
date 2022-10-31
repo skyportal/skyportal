@@ -1030,6 +1030,15 @@ def test_gcn_Swift(super_admin_token, view_only_token):
     assert status == 200
     assert data['status'] == 'success'
 
+    datafile = f'{os.path.dirname(__file__)}/../data/SWIFT_1125809-104.xml'
+    with open(datafile, 'rb') as fid:
+        payload = fid.read()
+    data = {'xml': payload}
+
+    status, data = api('POST', 'gcn_event', data=data, token=super_admin_token)
+    assert status == 200
+    assert data['status'] == 'success'
+
     dateobs = "2022-09-30 11:11:52"
 
     status, data = api('GET', f'gcn_event/{dateobs}', token=super_admin_token)
