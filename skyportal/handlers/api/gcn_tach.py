@@ -7,6 +7,7 @@ from baselayer.app.access import auth_or_token, permissions
 from ...models import GcnEvent, DBSession
 from astropy.time import Time
 
+from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
 
@@ -14,7 +15,7 @@ from sqlalchemy.orm import sessionmaker, scoped_session
 
 Session = scoped_session(sessionmaker(bind=DBSession.session_factory.kw["bind"]))
 
-log = make_log('api/gcn_aliases')
+log = make_log('api/gcn_tach')
 
 
 def get_tach_event_id(dateobs, tags):
@@ -186,7 +187,6 @@ def get_tach_event_aliases(id, gcn_event):
             aliases.append(events[0]["node"]["evtidCircular"]["event"].replace(" ", ""))
             new_circulars = {}
             for event in events:
-                #     aliases.append(event["node"]["evtidCircular"]["event"].replace(" ", ""))
                 if event["node"]["id_"] not in circulars.keys():
                     new_circulars[event["node"]["id_"]] = event["node"]["subject"]
             day = re.sub(r'\D', '', aliases[0])
@@ -197,7 +197,8 @@ def get_tach_event_aliases(id, gcn_event):
     return [], {}
 
 
-def post_aliases(dateobs, tach_id, user, push_all):
+def post_aliases(dateobs, tach_id, user):
+    flow = Flow()
     with Session() as session:
         stmt = GcnEvent.select(user).where(GcnEvent.dateobs == dateobs)
         gcn_event = session.scalars(stmt).first()
@@ -225,8 +226,9 @@ def post_aliases(dateobs, tach_id, user, push_all):
 
         session.commit()
 
-    push_all(
-        action='skyportal/REFRESH_GCNEVENT',
+    flow.push(
+        user_id='*',
+        action_type='skyportal/REFRESH_GCNEVENT',
         payload={'gcnEvent_dateobs': dateobs},
     )
 
@@ -294,15 +296,14 @@ class GcnTachHandler(BaseHandler):
 
                 IOLoop.current().run_in_executor(
                     None,
-                    lambda: post_aliases(
-                        dateobs, tach_id, session.user_or_token, self.push_all
-                    ),
+                    lambda: post_aliases(dateobs, tach_id, session.user_or_token),
                 )
+
+                return self.success(data={'id': gcn_event_id})
 
         except Exception as e:
             log(f'Error scraping GCN aliases: {e}')
             return self.error(f'Error: {e}')
-        return self.success(data={'id': gcn_event_id})
 
     @auth_or_token
     def get(self, dateobs):
