@@ -1,7 +1,7 @@
 """GCN aliases migration
 
 Revision ID: 82e469da5fe9
-Revises: 065726baac98
+Revises: 765363c68b5b
 Create Date: 2022-10-30 10:30:00.357878
 
 """
@@ -12,7 +12,7 @@ from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision = '82e469da5fe9'
-down_revision = '065726baac98'
+down_revision = '765363c68b5b'
 branch_labels = None
 depends_on = None
 
