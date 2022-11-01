@@ -23,13 +23,13 @@ from bokeh.models import (
     LegendItem,
     Dropdown,
     Spinner,
+    TabPanel,
+    Tabs,
 )
 from bokeh.models.widgets import (
     CheckboxGroup,
     TextInput,
     NumericInput,
-    Panel,
-    Tabs,
     Div,
 )
 from bokeh.plotting import figure, ColumnDataSource
@@ -1162,7 +1162,7 @@ def make_legend_items_and_detection_lines(
                     show_all_origins,
                 )
         else:
-            raise ValueError("Panel name should be one of mag, flux, and period.")
+            raise ValueError("TabPanel name should be one of mag, flux, and period.")
         if panel_name == 'mag' or panel_name == 'flux':
             mark_detections(
                 plot,
@@ -1378,7 +1378,7 @@ def make_period_controls(
                 """,
         ),
     )
-    smooth_checkbox.js_on_click(smooth_callback)
+    smooth_checkbox.js_on_change('button_click', smooth_callback)
     smooth_input.js_on_change('value', smooth_callback)
     smooth_column = column(
         smooth_checkbox,
@@ -1430,15 +1430,17 @@ def make_period_controls(
         )
     )
     # a way to select the period
-    period_selection.js_on_click(
+    period_selection.js_on_change(
+        'button_click',
         CustomJS(
             args={'textinput': period_textinput, 'periods': period_list},
             code="""
             textinput.value = parseFloat(periods[this.active]).toFixed(9);
             """,
-        )
+        ),
     )
-    phase_selection.js_on_click(
+    phase_selection.js_on_change(
+        'button_click',
         CustomJS(
             args={
                 'textinput': period_textinput,
@@ -1452,7 +1454,7 @@ def make_period_controls(
                     os.path.dirname(__file__), '../static/js/plotjs', 'foldphase.js'
                 )
             ).read(),
-        )
+        ),
     )
 
     period_annotation_title = Div(text="Annotation Origin: ")
@@ -1583,7 +1585,7 @@ def add_widgets(
         )
         layout.children.insert(2, period_controls)
     else:
-        raise ValueError("Panel name should be one of mag, flux, and period.")
+        raise ValueError("TabPanel name should be one of mag, flux, and period.")
 
 
 def make_photometry_panel(
@@ -1613,7 +1615,7 @@ def make_photometry_panel(
 
     Returns
     -------
-    bokeh Panel object
+    bokeh TabPanel object
     """
 
     # get marker for each unique instrument
@@ -1834,7 +1836,7 @@ def make_photometry_panel(
         device,
         width,
     )
-    return Panel(child=layout, title=panel_name.capitalize())
+    return TabPanel(child=layout, title=panel_name.capitalize())
 
 
 def photometry_plot(obj_id, user_id, session, width=600, device="browser"):
@@ -2101,7 +2103,7 @@ def spectroscopy_plot(
         panels = []
         spectrum_types = [s for s in spectra_by_type]
         for i, layout in enumerate(layouts):
-            panels.append(Panel(child=layout, title=spectrum_types[i]))
+            panels.append(TabPanel(child=layout, title=spectrum_types[i]))
 
         height = None
         for layout in layouts:
