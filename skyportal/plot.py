@@ -28,6 +28,7 @@ from bokeh.models import (
 )
 from bokeh.models.widgets import (
     CheckboxGroup,
+    # CheckboxButtonGroup,
     TextInput,
     NumericInput,
     Div,
@@ -1378,7 +1379,8 @@ def make_period_controls(
                 """,
         ),
     )
-    smooth_checkbox.js_on_change('button_click', smooth_callback)
+
+    smooth_checkbox.js_on_event('button_click', smooth_callback)
     smooth_input.js_on_change('value', smooth_callback)
     smooth_column = column(
         smooth_checkbox,
@@ -1429,8 +1431,9 @@ def make_period_controls(
                     """,
         )
     )
+
     # a way to select the period
-    period_selection.js_on_change(
+    period_selection.js_on_event(
         'button_click',
         CustomJS(
             args={'textinput': period_textinput, 'periods': period_list},
@@ -1439,7 +1442,7 @@ def make_period_controls(
             """,
         ),
     )
-    phase_selection.js_on_change(
+    phase_selection.js_on_event(
         'button_click',
         CustomJS(
             args={
@@ -2317,7 +2320,7 @@ def make_spectrum_layout(
         )
         renderers.append(model_dict[f'l{i}'])
 
-        legend_items.append(LegendItem(label=label, renderers=renderers, id=s.id))
+        legend_items.append(LegendItem(label=label, renderers=renderers))
     plot.xaxis.axis_label = 'Wavelength (Å)'
     plot.yaxis.axis_label = 'Flux'
     plot.toolbar.logo = None
@@ -2369,7 +2372,7 @@ def make_spectrum_layout(
             )
         ).read(),
     )
-    smooth_checkbox.js_on_click(smooth_callback)
+    smooth_checkbox.js_on_event('button_click', smooth_callback)
     smooth_input.js_on_change('value', smooth_callback)
     smooth_slider.js_on_change(
         'value',
@@ -2602,6 +2605,9 @@ def make_spectrum_layout(
         column_checkboxes = CheckboxWithLegendGroup(
             labels=labels, active=[], colors=colors, width=width // (columns + 1)
         )
+        # column_checkboxes = CheckboxButtonGroup(
+        #    labels=labels, active=[], width=width // (columns + 1)
+        # )
         all_column_checkboxes.append(column_checkboxes)
 
         callback_toggle_lines = CustomJS(
@@ -2614,7 +2620,7 @@ def make_spectrum_layout(
                     }}
                 """,
         )
-        column_checkboxes.js_on_click(callback_toggle_lines)
+        column_checkboxes.js_on_event('button_click', callback_toggle_lines)
 
     hide_all_spectra = Button(
         name="Hide All Spectra", label="Hide All Spectra", width_policy="min"

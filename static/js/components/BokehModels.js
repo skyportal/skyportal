@@ -2,9 +2,9 @@
 
 import { input, label, div, span } from "bokehjs/core/dom";
 import { includes } from "bokehjs/core/util/array";
-import * as p from "bokehjs/core/properties";
+import * as types from "bokehjs/core/types";
 import * as inputs from "bokehjs/styles/widgets/inputs.css";
-import { InputGroupView } from "bokehjs/models/widgets/input_group";
+import { ToggleInputGroupView } from "bokehjs/models/widgets/toggle_input_group";
 import {
   CheckboxGroup,
   CheckboxGroupView,
@@ -12,7 +12,7 @@ import {
 
 export class CheckboxWithLegendGroupView extends CheckboxGroupView {
   render() {
-    InputGroupView.prototype.render.call(this);
+    ToggleInputGroupView.prototype.render.call(this);
     const group = div({
       class: [inputs.input_group, this.model.inline ? inputs.inline : null],
     });
@@ -42,7 +42,7 @@ export class CheckboxWithLegendGroup extends CheckboxGroup {
   static init_CheckboxWithLegendGroup() {
     this.prototype.default_view = CheckboxWithLegendGroupView;
     this.define({
-      colors: [p.Array, []],
+      colors: [types.ColorArray, []],
     });
   }
 }
