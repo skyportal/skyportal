@@ -324,11 +324,14 @@ class GcnTachHandler(BaseHandler):
                 tach_id = gcn_event.tach_id
                 aliases = gcn_event.aliases
                 circulars = gcn_event.circulars
+                return self.success(
+                    data={
+                        'tach_id': tach_id,
+                        'aliases': aliases,
+                        'circulars': circulars,
+                    }
+                )
 
         except Exception as e:
             log(f'Error scraping GCN aliases: {e}')
             return self.error(f'Error: {e}')
-
-        return self.success(
-            data={'tach_id': tach_id, 'aliases': aliases, 'circulars': circulars}
-        )
