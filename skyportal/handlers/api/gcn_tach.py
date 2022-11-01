@@ -321,14 +321,12 @@ class GcnTachHandler(BaseHandler):
                 gcn_event = session.scalars(stmt).first()
                 if gcn_event is None:
                     return self.error(f'No GCN event found for {dateobs}')
-                tach_id = gcn_event.tach_id
-                aliases = gcn_event.aliases
-                circulars = gcn_event.circulars
+
                 return self.success(
                     data={
-                        'tach_id': tach_id,
-                        'aliases': aliases,
-                        'circulars': circulars,
+                        'tach_id': gcn_event.tach_id,
+                        'aliases': gcn_event.aliases,
+                        'circulars': gcn_event.circulars,
                     }
                 )
 
