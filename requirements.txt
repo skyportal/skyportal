@@ -13,7 +13,7 @@ aplpy==2.1.0
 distributed==2022.9.2
 reproject==0.9
 avro-python3==1.10.2
-fastavro==1.4.12
+fastavro==1.7.0
 tqdm>=4.27,<4.65
 matplotlib==3.6.0
 astroquery==0.4.6
