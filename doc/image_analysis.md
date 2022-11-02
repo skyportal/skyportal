@@ -1,6 +1,6 @@
 # Image Analysis
 
-This feature allows user to upload FITS images from observations of a source, and then use STDPipe to **extract the photometry from the image**.
+This feature allows users to upload FITS images from observations of a source, and then use STDPipe to **extract the photometry from the image**.
 As this feature requires additional system dependencies, we choose to make it optional.
 
 ## Installing System Dependencies required by STDpipe (Debian-based Linux and WSL)
