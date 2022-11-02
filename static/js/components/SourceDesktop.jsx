@@ -220,6 +220,8 @@ const SourceDesktop = ({ source }) => {
   const { observingRunList } = useSelector((state) => state.observingRuns);
   const { taxonomyList } = useSelector((state) => state.taxonomies);
 
+  const currentUser = useSelector((state) => state.profile);
+
   const groups = (useSelector((state) => state.groups.all) || []).filter(
     (g) => !g.single_user_group
   );
@@ -531,9 +533,14 @@ const SourceDesktop = ({ source }) => {
                       <Button secondary>Periodogram Analysis</Button>
                     </Link>
                   )}
-                  <Link to={`/source/${source.id}/image_analysis`} role="link">
-                    <Button variant="contained">Image Analysis</Button>
-                  </Link>
+                  {currentUser?.permissions?.includes("Upload data") && (
+                    <Link
+                      to={`/source/${source.id}/image_analysis`}
+                      role="link"
+                    >
+                      <Button variant="contained">Image Analysis</Button>
+                    </Link>
+                  )}
                 </div>
               </Grid>
             </AccordionDetails>

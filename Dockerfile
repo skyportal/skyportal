@@ -2,7 +2,7 @@ FROM ubuntu:20.04
 
 ARG DEBIAN_FRONTEND=noninteractive
 
-# lines to comment out if you want to use the image analysis feature
+# lines to uncomment if you want to use the image analysis feature
 # RUN apt-get update && \
 #     apt-get install -y sextractor scamp psfex
 
@@ -25,7 +25,7 @@ RUN python3 -m venv /skyportal_env && \
     pip install --upgrade pip==22.2.2 wheel numpy"
 
 
-# lines to comment out if you want to use the image analysis feature
+# lines to uncomment if you want to use the image analysis feature
 # RUN python3 -m venv /skyportal_env && \
 #     \
 #     bash -c "source /skyportal_env/bin/activate && \

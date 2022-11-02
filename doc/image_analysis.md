@@ -1,6 +1,6 @@
 # Image Analysis
 
-This feature allows user to upload FITS images from observations a source, and then use STDPipe to **extract the photometry from the image**.
+This feature allows user to upload FITS images from observations of a source, and then use STDPipe to **extract the photometry from the image**.
 As this feature requires additional system dependencies, we choose to make it optional.
 
 ## Installing System Dependencies required by STDpipe (Debian-based Linux and WSL)
@@ -33,9 +33,9 @@ pip install -e .
 ## Configuration file
 
 By default, the app allows a maximum request size of 10MB (from the client). This is not enough for someone to upload most .fits files (compressed or not).
-To increase the maximum request size, change the `max_body_size: 10` parameter in the `config.yaml` file to a larger value, like a `100` (in MB).
+To increase the maximum request size, change the `max_body_size: 10` parameter in the `config.yaml` file to a larger value, like `100` (in MB).
 
-Also, as mentionned earlier, you need to set `image_analysis` to `True` in the `config.yaml` file. By default, it is set to `False`.
+Also, as mentioned earlier, you need to set `image_analysis` to `True` in the `config.yaml` file. By default, it is set to `False`.
 
 **If you are deploying SkyPortal using Docker, don't forget to add the same changes to the `docker.yaml` file as well.**
 
@@ -59,7 +59,7 @@ and
 #     pip install astroscrappy"
 ```
 
-Again, add the same lines mentionned in the previous section to the `docker.yaml` file.
+Again, add the same lines mentioned in the previous section to the `docker.yaml` file.
 
 ## Usage
 

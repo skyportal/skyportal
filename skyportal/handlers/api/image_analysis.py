@@ -1,4 +1,4 @@
-from baselayer.app.access import auth_or_token
+from baselayer.app.access import permissions
 from baselayer.app.env import load_env
 from baselayer.log import make_log
 import os
@@ -44,6 +44,15 @@ try:
 except Exception as e:
     log(e)
 
+try:
+    if cfg['image_analysis'] is True:
+        # remove any temp dir starting with 'sex'
+        for dir in os.listdir('/tmp'):
+            if dir.startswith('sex') or dir.startswith('psfex'):
+                shutil.rmtree(os.path.join('/tmp', dir))
+except Exception as e:
+    log(e)
+
 
 def spherical_match(ra1, dec1, ra2, dec2, sr=1 / 3600):
     """Positional match on the sphere for two lists of coordinates.
@@ -85,10 +94,12 @@ def spherical_distance(ra1, dec1, ra2, dec2):
         raise e
 
 
-def reduce_image(
-    filename, image, header, obj_id, instrument_id, user_id, detect_cosmics=False
-):
+def reduce_image(image, header, obj_id, instrument_id, user_id, detect_cosmics=False):
+
     try:
+        workdir_sextractor_obj = tempfile.mkdtemp(prefix='sex')
+        workdir_sextractor_obj1 = tempfile.mkdtemp(prefix='sex1')
+        workdir_psfex = tempfile.mkdtemp(prefix='psfex')
         Session = scoped_session(
             sessionmaker(bind=DBSession.session_factory.kw["bind"])
         )
@@ -119,7 +130,10 @@ def reduce_image(
         # edge argument : control the rejection of objects detected too close to frame edge
 
         # Astropy Table, ordered by the object brightness
-        obj = photometry.get_objects_sextractor(image, gain=gain, aper=3.0, edge=10)
+        obj = photometry.get_objects_sextractor(
+            image, gain=gain, aper=3.0, edge=10, _workdir=workdir_sextractor_obj
+        )
+
         if obj is None:
             raise ValueError(
                 'No objects detected. If this is unexpected, check source extractor installation.'
@@ -148,9 +162,9 @@ def reduce_image(
         # ## Astrometric calibration
         # Getting the center position, size and pixel scale for the image
         center_ra, center_dec, center_sr = astrometry.get_frame_center(
-            filename=filename, width=image.shape[1], height=image.shape[0]
+            header=header, width=image.shape[1], height=image.shape[0]
         )
-        pixscale = astrometry.get_pixscale(filename=filename)
+        pixscale = astrometry.get_pixscale(header=header)
 
         log(
             f'Frame center is {center_ra} {center_dec} radius {center_sr} deg, {pixscale*3600} arcsec/pixel'
@@ -246,7 +260,12 @@ def reduce_image(
         log(f'Effective gain is {np.median(bg/rms**2)}')
 
         psf_model, psf_snapshots = psf.run_psfex(
-            image, mask=mask, checkimages=['SNAPSHOTS'], order=0, verbose=True
+            image,
+            mask=mask,
+            checkimages=['SNAPSHOTS'],
+            order=0,
+            verbose=True,
+            _workdir=workdir_psfex,
         )
 
         sims = []
@@ -282,7 +301,9 @@ def reduce_image(
                 gain=gain,
                 minarea=3,
                 sn=5,
+                _workdir=workdir_sextractor_obj1,
             )
+
             obj1['mag_calib'] = obj1['mag'] + zero_fn(obj1['x'], obj1['y'])
 
             # Positional match within FWHM/2 radius
@@ -323,15 +344,26 @@ def reduce_image(
             **df,
         }
 
+        shutil.rmtree(workdir_sextractor_obj)
+        shutil.rmtree(workdir_psfex)
+        shutil.rmtree(workdir_sextractor_obj1)
+
         add_external_photometry(data_out, user)
-        os.remove(filename)
     except Exception as e:
-        os.remove(filename)
+        try:
+            if workdir_sextractor_obj is not None:
+                shutil.rmtree(workdir_sextractor_obj)
+            if workdir_psfex is not None:
+                shutil.rmtree(workdir_psfex)
+            if workdir_sextractor_obj1 is not None:
+                shutil.rmtree(workdir_sextractor_obj1)
+        except Exception as e2:
+            log(e2)
         raise e
 
 
 class ImageAnalysisHandler(BaseHandler):
-    @auth_or_token
+    @permissions(["Upload data"])
     def post(self, obj_id):
         """
         ---
@@ -375,47 +407,44 @@ class ImageAnalysisHandler(BaseHandler):
                 instrument_id, self.current_user, raise_if_none=True, mode="read"
             )
 
-            image_data = data.get("image_data")
-            if image_data is None:
+            if instrument is None:
+                return self.error(
+                    message=f'Found no instrument with id {instrument_id}'
+                )
+
+            file_data = data.get("image_data")
+            if file_data is None:
                 return self.error(message='Missing image data')
 
             filt = data.get("filter")
             obstime = data.get("obstime")
             obstime = Time(arrow.get(obstime.strip()).datetime)
-            image_data = image_data.split('base64,')
-            image_name = image_data[0].split('name=')[1].split(';')[0]
+
+            file_data = file_data.split('base64,')
+            file_name = file_data[0].split('name=')[1].split(';')[0]
             # if image name contains (.fz) then it is a compressed file
-            if image_name.endswith('.fz'):
+            if file_name.endswith('.fz'):
                 suffix = '.fits.fz'
             else:
                 suffix = '.fits'
             with tempfile.NamedTemporaryFile(
-                suffix=suffix, mode="wb", delete=False
+                suffix=suffix, mode="wb", delete=True
             ) as f:
-                image_data = base64.b64decode(image_data[-1])
-                f.write(image_data)
+                file_data = base64.b64decode(file_data[-1])
+                f.write(file_data)
                 f.flush()
                 hdul = fits.open(f.name)
                 header = hdul[0].header
                 image_data = hdul[0].data.astype(np.double)
                 header['FILTER'] = filt
                 header['DATE-OBS'] = obstime.isot
-                try:
-                    IOLoop.current().run_in_executor(
-                        None,
-                        lambda: reduce_image(
-                            f.name,
-                            image_data,
-                            header,
-                            obj_id,
-                            instrument.id,
-                            self.associated_user_object.id,
-                        ),
-                    )
-                except Exception as e:
-                    log(e)
-                    return self.error(str(e))
-
+                # now lets get the file data again, so we can save it later as another file
+                IOLoop.current().run_in_executor(
+                    None,
+                    lambda: reduce_image(
+                        image_data, header, obj_id, instrument.id, self.current_user.id
+                    ),
+                )
                 return self.success()
         except Exception as e:
             log(e)
