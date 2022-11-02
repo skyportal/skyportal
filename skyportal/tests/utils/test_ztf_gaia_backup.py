@@ -9,7 +9,7 @@ def test_get_astrometry_backup_from_ztf():
     rez.sort("dist")
     # We should find a number of sources, with the first one being near
     # the known source
-    assert rez["dist"][0] < 0.1 / 3600.0
+    assert rez["dist"][0] < 1.0 / 3600.0
 
 
 def test_get_astrometry_outside_footprint():
