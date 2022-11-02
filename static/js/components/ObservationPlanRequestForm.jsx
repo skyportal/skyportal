@@ -612,6 +612,16 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
       <div>
         <Button
           secondary
+          href={`/api/localization/${selectedLocalizationId}/observability`}
+          download={`observabilityChartRequest-${selectedLocalizationId}`}
+          size="small"
+          type="submit"
+          data-testid={`observabilityChartRequest_${selectedLocalizationId}`}
+        >
+          Observability Chart
+        </Button>
+        <Button
+          secondary
           href={`/api/localization/${selectedLocalizationId}/airmass/${
             instLookUp[allocationLookUp[selectedAllocationId].instrument_id]
               .telescope_id

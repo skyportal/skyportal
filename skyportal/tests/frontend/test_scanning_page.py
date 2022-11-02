@@ -156,9 +156,13 @@ def test_save_candidate_quick_save(
         f'//button[@name="initialSaveCandidateButton{public_candidate.id}"]'
     )
     driver.scroll_to_element_and_click(save_button)
-    driver.wait_for_xpath_to_disappear(
-        f'//button[@name="initialSaveCandidateButton{public_candidate.id}"]'
+    driver.get("/candidates")
+    driver.click_xpath(
+        f'//*[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]',
+        wait_clickable=False,
     )
+    driver.click_xpath('//button[text()="Search"]', wait_clickable=False)
+    driver.wait_for_xpath(f'//a[@data-testid="{public_candidate.id}"]')
     driver.wait_for_xpath('//span[text()="Previously Saved"]')
 
 
@@ -193,9 +197,12 @@ def test_save_candidate_select_groups(
         f'//button[@name="finalSaveCandidateButton{public_candidate.id}"]'
     )
     second_save_button.click()
-    driver.wait_for_xpath_to_disappear(
-        f'//button[@name="initialSaveCandidateButton{public_candidate.id}"]'
+    driver.get("/candidates")
+    driver.click_xpath(
+        f'//*[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]',
+        wait_clickable=False,
     )
+    driver.click_xpath('//button[text()="Search"]')
     driver.wait_for_xpath('//span[text()="Previously Saved"]')
 
 
@@ -804,6 +811,14 @@ def test_add_classification_on_scanning_page(
         f'//button[@data-testid="saveCandidateButton_{candidate_id}"]'
     )
     driver.scroll_to_element_and_click(save_button)
+
+    driver.get("/candidates")
+    group_checkbox = driver.wait_for_xpath(
+        f'//*[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]'
+    )
+    driver.scroll_to_element_and_click(group_checkbox)
+    submit_button = driver.wait_for_xpath('//button[text()="Search"]')
+    driver.scroll_to_element_and_click(submit_button)
 
     add_classifications_button = driver.wait_for_xpath(
         f'//button[@data-testid="addClassificationsButton_{candidate_id}"]'
