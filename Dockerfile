@@ -3,9 +3,8 @@ FROM ubuntu:20.04
 ARG DEBIAN_FRONTEND=noninteractive
 
 # lines to comment out if you want to use the image analysis feature
-# To use that feature, you also need to set it to True in the config.yaml file
-RUN apt-get update && \
-    apt-get install -y sextractor scamp psfex
+# RUN apt-get update && \
+#     apt-get install -y sextractor scamp psfex
 
 RUN apt-get update && \
     apt-get install -y curl build-essential software-properties-common && \
@@ -27,13 +26,12 @@ RUN python3 -m venv /skyportal_env && \
 
 
 # lines to comment out if you want to use the image analysis feature
-# To use that feature, you also need to set it to True in the config.yaml file
-RUN python3 -m venv /skyportal_env && \
-    \
-    bash -c "source /skyportal_env/bin/activate && \
-    git clone https://github.com/karpov-sv/stdpipe.git && \
-    cd stdpipe && pip install -e . && \
-    pip install astroscrappy"
+# RUN python3 -m venv /skyportal_env && \
+#     \
+#     bash -c "source /skyportal_env/bin/activate && \
+#     git clone https://github.com/karpov-sv/stdpipe.git && \
+#     cd stdpipe && pip install -e . && \
+#     pip install astroscrappy"
 
 ENV LC_ALL=C.UTF-8
 ENV LANG=C.UTF-8

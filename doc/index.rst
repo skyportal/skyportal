@@ -101,6 +101,7 @@ User Guide
    mma
    advanced_usage
    analysis
+   image_analysis
    extensions
 
 Contributing
