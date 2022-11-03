@@ -71,6 +71,17 @@ class DefaultObservationPlanRequest(Base):
         overlaps='groups',
     )
 
+    default_plan_name = sa.Column(
+        sa.String, unique=True, nullable=False, doc='Default plan name'
+    )
+
+    default_survey_efficiencies = relationship(
+        'DefaultSurveyEfficiencyRequest',
+        back_populates='default_observationplan_request',
+        doc='The default survey efficiency requests for this default plan.',
+        passive_deletes=True,
+    )
+
 
 DefaultObservationPlanRequestTargetGroup = join_model(
     'default_observationplan_groups',

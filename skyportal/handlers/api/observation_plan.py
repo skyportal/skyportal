@@ -42,6 +42,7 @@ from ligo.skymap import plot  # noqa: F401 F811
 import random
 import afterglowpy
 import sncosmo
+import time
 
 from baselayer.app.access import auth_or_token
 from baselayer.app.env import load_env
@@ -82,6 +83,136 @@ TREASUREMAP_URL = cfg['app.treasuremap_endpoint']
 Session = scoped_session(sessionmaker(bind=DBSession.session_factory.kw["bind"]))
 
 log = make_log('api/observation_plan')
+
+
+def post_survey_efficiency_analysis(
+    survey_efficiency_analysis, plan_id, user_id, session
+):
+    """Post survey efficiency analysis to database.
+
+    Parameters
+    ----------
+    survey_efficiency_analysis: dict
+        Dictionary describing survey efficiency analysis
+    plan_id: int
+        SkyPortal ID of Observation plan request
+    user_id : int
+        SkyPortal ID of User posting the GcnEvent
+    session: sqlalchemy.Session
+        Database session for this transaction
+    """
+
+    status_complete = False
+    while not status_complete:
+        observation_plan_request = (
+            session.query(ObservationPlanRequest)
+            .options(
+                joinedload(ObservationPlanRequest.observation_plans)
+                .joinedload(EventObservationPlan.planned_observations)
+                .joinedload(PlannedObservation.field)
+            )
+            .get(plan_id)
+        )
+        status_complete = observation_plan_request.status == "complete"
+
+        if not status_complete:
+            time.sleep(30)
+
+    allocation = session.query(Allocation).get(observation_plan_request.allocation_id)
+    localization = session.query(Localization).get(
+        observation_plan_request.localization_id
+    )
+
+    instrument = allocation.instrument
+
+    observation_plan = observation_plan_request.observation_plans[0]
+    planned_observations = observation_plan.planned_observations
+    num_observations = len(observation_plan.planned_observations)
+    if num_observations == 0:
+        raise ValueError('Need at least one observation to evaluate efficiency')
+
+    unique_filters = list(
+        {
+            planned_observation.filt
+            for planned_observation in observation_plan.planned_observations
+        }
+    )
+
+    if not set(unique_filters).issubset(set(instrument.sensitivity_data.keys())):
+        raise ValueError('Need sensitivity_data for all filters present')
+
+    for filt in unique_filters:
+        if not {'exposure_time', 'limiting_magnitude', 'zeropoint'}.issubset(
+            set(list(instrument.sensitivity_data[filt].keys()))
+        ):
+            raise ValueError(
+                f'Sensitivity_data dictionary missing keys for filter {filt}'
+            )
+
+    payload = survey_efficiency_analysis["payload"]
+    payload["optionalInjectionParameters"] = json.loads(
+        payload["optionalInjectionParameters"]
+    )
+    payload["optionalInjectionParameters"] = get_simsurvey_parameters(
+        payload["modelName"], payload["optionalInjectionParameters"]
+    )
+
+    survey_efficiency_analysis = SurveyEfficiencyForObservationPlan(
+        requester_id=user_id,
+        observation_plan_id=observation_plan.id,
+        payload=payload,
+        groups=observation_plan_request.target_groups,
+        status='running',
+    )
+    session.add(survey_efficiency_analysis)
+    session.commit()
+
+    observations = []
+    for ii, o in enumerate(planned_observations):
+        obs_dict = o.to_dict()
+        obs_dict['field'] = obs_dict['field'].to_dict()
+        observations.append(obs_dict)
+
+        if ii == 0:
+            field = (
+                session.query(InstrumentField)
+                .options(undefer(InstrumentField.contour_summary))
+                .get(obs_dict["field"]["id"])
+            )
+            if field is None:
+                raise ValueError(
+                    f'Missing field {obs_dict["field"]["id"]} required to estimate field size'
+                )
+            contour_summary = field.contour_summary["features"][0]
+            coordinates = np.array(contour_summary["geometry"]["coordinates"])
+            width = np.max(coordinates[:, 0]) - np.min(coordinates[:, 0])
+            height = np.max(coordinates[:, 1]) - np.min(coordinates[:, 1])
+
+    log(
+        f'Simsurvey analysis in progress for ID {survey_efficiency_analysis.id}. Should be available soon.'
+    )
+
+    simsurvey_analysis = functools.partial(
+        observation_simsurvey,
+        observations,
+        localization.id,
+        instrument.id,
+        survey_efficiency_analysis.id,
+        "SurveyEfficiencyForObservationPlan",
+        width=width,
+        height=height,
+        number_of_injections=payload['numberInjections'],
+        number_of_detections=payload['numberDetections'],
+        detection_threshold=payload['detectionThreshold'],
+        minimum_phase=payload['minimumPhase'],
+        maximum_phase=payload['maximumPhase'],
+        model_name=payload['modelName'],
+        optional_injection_parameters=payload['optionalInjectionParameters'],
+    )
+
+    IOLoop.current().run_in_executor(None, simsurvey_analysis)
+
+    return survey_efficiency_analysis.id
 
 
 def post_observation_plans(plans, user_id, session):
@@ -2133,7 +2264,7 @@ class ObservationPlanSimSurveyHandler(BaseHandler):
                     field = session.scalars(stmt).first()
                     if field is None:
                         return self.error(
-                            message='Missing field {obs_dict["field"]["id"]} required to estimate field size'
+                            message=f'Missing field {obs_dict["field"]["id"]} required to estimate field size'
                         )
                     contour_summary = field.to_dict()["contour_summary"]["features"][0]
                     coordinates = np.array(contour_summary["geometry"]["coordinates"])
@@ -2141,7 +2272,7 @@ class ObservationPlanSimSurveyHandler(BaseHandler):
                     height = np.max(coordinates[:, 1]) - np.min(coordinates[:, 1])
 
             self.push_notification(
-                'Simsurvey analysis in progress. Should be available soon.'
+                f'Simsurvey analysis in progress for ID {survey_efficiency_analysis.id}. Should be available soon.'
             )
             simsurvey_analysis = functools.partial(
                 observation_simsurvey,
@@ -2375,7 +2506,17 @@ class DefaultObservationPlanRequestHandler(BaseHandler):
                 .unique()
                 .all()
             )
-            return self.success(data=default_observation_plan_requests)
+
+            default_observation_plan_data = []
+            for request in default_observation_plan_requests:
+                default_observation_plan_data.append(
+                    {
+                        **request.to_dict(),
+                        'allocation': request.allocation.to_dict(),
+                    }
+                )
+
+            return self.success(data=default_observation_plan_data)
 
     @auth_or_token
     def delete(self, default_observation_plan_id):
