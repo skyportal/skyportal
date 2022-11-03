@@ -2,6 +2,7 @@ import astropy
 from astroplan.moon import moon_phase_angle
 from marshmallow.exceptions import ValidationError
 import sqlalchemy as sa
+from sqlalchemy.orm import joinedload
 from sqlalchemy import func
 import io
 import matplotlib
@@ -70,12 +71,35 @@ class AllocationHandler(BaseHandler):
                     allocation_id = int(allocation_id)
                 except ValueError:
                     return self.error("Allocation ID must be an integer.")
+                allocations = Allocation.select(
+                    self.current_user, options=[joinedload(Allocation.requests)]
+                )
+
                 allocations = allocations.where(Allocation.id == allocation_id)
                 allocation = session.scalars(allocations).first()
                 if allocation is None:
                     return self.error("Could not retrieve allocation.")
-                return self.success(data=allocation)
 
+                allocation_data = allocation.to_dict()
+                requests = []
+                for request in allocation_data['requests']:
+                    request_data = request.to_dict()
+                    request_data['requester'] = request.requester.to_dict()
+                    request_data['obj'] = request.obj.to_dict()
+                    request_data['obj']['thumbnails'] = [
+                        thumbnail.to_dict() for thumbnail in request.obj.thumbnails
+                    ]
+                    request_data['set_time_utc'] = request.set_time().iso
+                    request_data['rise_time_utc'] = request.rise_time().iso
+                    requests.append(request_data)
+                allocation_data['requests'] = requests
+                allocation_data[
+                    'ephemeris'
+                ] = allocation.instrument.telescope.ephemeris(astropy.time.Time.now())
+                allocation_data['telescope'] = allocation.instrument.telescope.to_dict()
+                return self.success(data=allocation_data)
+
+            allocations = Allocation.select(self.current_user)
             instrument_id = self.get_query_argument('instrument_id', None)
             if instrument_id is not None:
                 allocations = allocations.where(

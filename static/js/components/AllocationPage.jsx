@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import DeleteIcon from "@mui/icons-material/Delete";
+import { Link } from "react-router-dom";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
 import ListItemText from "@mui/material/ListItemText";
@@ -50,6 +51,12 @@ const useStyles = makeStyles((theme) => ({
   },
   defaultObservationPlanDeleteDisabled: {
     opacity: 0,
+  },
+  hover: {
+    "&:hover": {
+      textDecoration: "underline",
+    },
+    color: theme.palette.mode === "dark" ? "#fafafa !important" : null,
   },
 }));
 
@@ -172,11 +179,15 @@ const AllocationList = ({ allocations, deletePermission }) => {
         {allocations?.map((allocation) => (
           <ListItem button key={allocation.id}>
             <ListItemText
-              primary={allocationTitle(
-                allocation,
-                instrumentList,
-                telescopeList
-              )}
+              primary={
+                <Link
+                  to={`/allocation/${allocation.id}`}
+                  role="link"
+                  className={classes.hover}
+                >
+                  {allocationTitle(allocation, instrumentList, telescopeList)}
+                </Link>
+              }
               secondary={allocationInfo(allocation, groups)}
               classes={textClasses}
             />
