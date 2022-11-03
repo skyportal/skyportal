@@ -80,13 +80,17 @@ const UpdateProfileForm = () => {
     setIsSubmitting(false);
   };
 
+  const fontColor = "rgb(128,128,128)";
+
   return (
     <div>
-      <Typography variant="h5">Update User Profile</Typography>
-      <Card>
-        <CardContent>
+      <Typography style={{ color: fontColor }} variant="h5">
+        Update User Profile
+      </Typography>
+      <Card style={{ color: fontColor }}>
+        <CardContent style={{ color: fontColor }}>
           <h2>Username</h2>
-          <form onSubmit={handleSubmit(onSubmit)}>
+          <form style={{ color: fontColor }} onSubmit={handleSubmit(onSubmit)}>
             <InputLabel htmlFor="usernameInput">
               Username (normalized upon save)
             </InputLabel>
