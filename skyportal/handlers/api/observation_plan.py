@@ -105,23 +105,37 @@ def post_survey_efficiency_analysis(
     status_complete = False
     while not status_complete:
         observation_plan_request = (
-            session.query(ObservationPlanRequest)
-            .options(
-                joinedload(ObservationPlanRequest.observation_plans)
-                .joinedload(EventObservationPlan.planned_observations)
-                .joinedload(PlannedObservation.field)
+            session.scalars(
+                sa.select(ObservationPlanRequest)
+                .options(
+                    joinedload(ObservationPlanRequest.observation_plans)
+                    .joinedload(EventObservationPlan.planned_observations)
+                    .joinedload(PlannedObservation.field)
+                )
+                .where(ObservationPlanRequest.id == plan_id)
             )
-            .get(plan_id)
+            .unique()
+            .all()
         )
         status_complete = observation_plan_request.status == "complete"
 
         if not status_complete:
             time.sleep(30)
 
-    allocation = session.query(Allocation).get(observation_plan_request.allocation_id)
-    localization = session.query(Localization).get(
-        observation_plan_request.localization_id
-    )
+    allocation = (
+        session.scalars(
+            sa.select(Allocation).where(
+                Allocation.id == observation_plan_request.allocation_id
+            )
+        )
+    ).first()
+    localization = (
+        session.scalars(
+            sa.select(Localization).where(
+                Localization.id == observation_plan_request.localization_id
+            )
+        )
+    ).first()
 
     instrument = allocation.instrument
 
