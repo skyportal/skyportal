@@ -257,7 +257,7 @@ def get_source(
     source_info["luminosity_distance"] = s.luminosity_distance
     source_info["dm"] = s.dm
     source_info["angular_diameter_distance"] = s.angular_diameter_distance
-    source_info["ebminusv"] = s.ebminusv
+    source_info["ebv"] = s.ebv
 
     if include_photometry:
         photometry = session.scalars(

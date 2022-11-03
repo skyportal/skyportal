@@ -631,7 +631,7 @@ class Obj(Base, conesearch_alchemy.Point):
         return telescope.observer.altaz(time, self.target).alt
 
     @property
-    def ebminusv(self):
+    def ebv(self):
         """E(B-V) extinction for the object"""
 
         coord = ap_coord.SkyCoord(self.ra, self.dec, unit='deg')

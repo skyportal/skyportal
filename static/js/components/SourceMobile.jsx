@@ -345,7 +345,7 @@ const SourceMobile = WidthProvider(
                         {source.gal_lat.toFixed(6)})
                       </div>
                       <div>
-                        <i>E(B-V)</i>={source.ebminusv.toFixed(2)}
+                        <i>E(B-V)</i>={source.ebv.toFixed(2)}
                       </div>
                     </div>
                   </div>
