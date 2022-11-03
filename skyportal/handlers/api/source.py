@@ -257,6 +257,7 @@ def get_source(
     source_info["luminosity_distance"] = s.luminosity_distance
     source_info["dm"] = s.dm
     source_info["angular_diameter_distance"] = s.angular_diameter_distance
+    source_info["ebminusv"] = s.ebminusv
 
     if include_photometry:
         photometry = session.scalars(
@@ -2161,7 +2162,8 @@ class SourceHandler(BaseHandler):
 
         if obj_id is not None:
             with self.Session() as session:
-                try:
+                # try:
+                if True:
                     source_info = get_source(
                         obj_id,
                         self.associated_user_object.id,
@@ -2178,8 +2180,8 @@ class SourceHandler(BaseHandler):
                         requested_only=requested_only,
                         include_color_mag=include_color_mag,
                     )
-                except Exception as e:
-                    return self.error(f'Cannot retrieve source: {str(e)}')
+                # except Exception as e:
+                #    return self.error(f'Cannot retrieve source: {str(e)}')
 
                 query_size = sizeof(source_info)
                 if query_size >= SIZE_WARNING_THRESHOLD:

@@ -343,6 +343,9 @@ const SourceDesktop = ({ source }) => {
                 <i>l</i>,<i>b</i>={source.gal_lon.toFixed(6)}, &nbsp;
                 {source.gal_lat.toFixed(6)})
               </div>
+              <div>
+                <i>E(B-V)</i>={source.ebminusv.toFixed(2)}
+              </div>
             </div>
           </div>
           {source.duplicates && (
@@ -843,6 +846,7 @@ SourceDesktop.propTypes = {
     gal_lon: PropTypes.number,
     gal_lat: PropTypes.number,
     dm: PropTypes.number,
+    ebminusv: PropTypes.number,
     luminosity_distance: PropTypes.number,
     annotations: PropTypes.arrayOf(
       PropTypes.shape({
