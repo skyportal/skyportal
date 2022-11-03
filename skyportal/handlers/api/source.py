@@ -2162,8 +2162,7 @@ class SourceHandler(BaseHandler):
 
         if obj_id is not None:
             with self.Session() as session:
-                # try:
-                if True:
+                try:
                     source_info = get_source(
                         obj_id,
                         self.associated_user_object.id,
@@ -2180,8 +2179,8 @@ class SourceHandler(BaseHandler):
                         requested_only=requested_only,
                         include_color_mag=include_color_mag,
                     )
-                # except Exception as e:
-                #    return self.error(f'Cannot retrieve source: {str(e)}')
+                except Exception as e:
+                    return self.error(f'Cannot retrieve source: {str(e)}')
 
                 query_size = sizeof(source_info)
                 if query_size >= SIZE_WARNING_THRESHOLD:
