@@ -1290,6 +1290,19 @@ class DefaultObservationPlanPost(_Schema):
     )
 
 
+class DefaultSurveyEfficiencyPost(_Schema):
+
+    payload = fields.Field(
+        required=False,
+        metadata={'description': "Content of the default survey efficiency analysis."},
+    )
+
+    default_observationplan_request_id = fields.Integer(
+        required=True,
+        metadata={'description': "Default observation plan request ID."},
+    )
+
+
 class ObservingRunGet(ObservingRunPost):
     owner_id = fields.Integer(
         metadata={'description': 'The User ID of the owner of this run.'}
