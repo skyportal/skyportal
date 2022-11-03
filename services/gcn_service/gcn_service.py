@@ -47,7 +47,7 @@ with DBSession() as session:
         ).first()
         if allocation is not None:
             config_gcn_observation_plan["allocation_id"] = allocation.id
-            config_gcn_observation_plan["urvey_efficiencies"] = []
+            config_gcn_observation_plan["survey_efficiencies"] = []
             config_gcn_observation_plans.append(config_gcn_observation_plan)
 
 

@@ -245,7 +245,7 @@ class DefaultSurveyEfficiencyRequestHandler(BaseHandler):
                 application/json:
                   schema: Error
         multiple:
-          description: Retrieve all default survey efficiencys
+          description: Retrieve all default survey efficiencies
           tags:
             - filters
           responses:
