@@ -13,8 +13,10 @@ import PropTypes from "prop-types";
 import { showNotification } from "baselayer/components/Notifications";
 import CircularProgress from "@mui/material/CircularProgress";
 import NewAllocation from "./NewAllocation";
+import NewDefaultSurveyEfficiency from "./NewDefaultSurveyEfficiency";
 import NewDefaultObservationPlan from "./NewDefaultObservationPlan";
 
+import * as defaultSurveyEfficienciesActions from "../ducks/default_survey_efficiencies";
 import * as defaultObservationPlansActions from "../ducks/default_observation_plans";
 import * as allocationActions from "../ducks/allocation";
 import Button from "./Button";
@@ -58,6 +60,17 @@ const useStyles = makeStyles((theme) => ({
     },
     color: theme.palette.mode === "dark" ? "#fafafa !important" : null,
   },
+  defaultSurveyEfficiencyDelete: {
+    cursor: "pointer",
+    fontSize: "2em",
+    position: "absolute",
+    padding: 0,
+    right: 0,
+    top: 0,
+  },
+  defaultSurveyEfficiencyDeleteDisabled: {
+    opacity: 0,
+  },
 }));
 
 const textStyles = makeStyles(() => ({
@@ -66,6 +79,31 @@ const textStyles = makeStyles(() => ({
     fontSize: "110%",
   },
 }));
+
+export function observationPlanTitle(
+  default_observation_plan,
+  instrumentList,
+  telescopeList
+) {
+  const { allocation, default_plan_name } = default_observation_plan;
+  const { instrument_id } = allocation;
+  const instrument = instrumentList?.filter((i) => i.id === instrument_id)[0];
+
+  const telescope_id = instrument?.telescope_id;
+  const telescope = telescopeList?.filter((t) => t.id === telescope_id)[0];
+
+  if (!(instrument?.name && telescope?.name)) {
+    return (
+      <div>
+        <CircularProgress color="secondary" />
+      </div>
+    );
+  }
+
+  const result = `${instrument?.name}/${telescope?.nickname} - ${default_plan_name}`;
+
+  return result;
+}
 
 export function allocationTitle(allocation, instrumentList, telescopeList) {
   const { instrument_id } = allocation;
@@ -126,6 +164,19 @@ export function allocationInfo(allocation, groups) {
       result += ` / Default Share Groups: ${share_groups.join(", ")}`;
     }
     result += ")";
+  }
+
+  return result;
+}
+
+export function defaultSurveyEfficiencyInfo(default_survey_efficiency) {
+  let result = "";
+  if (default_survey_efficiency?.payload) {
+    result += `Payload: ${JSON.stringify(
+      default_survey_efficiency?.payload,
+      null,
+      " "
+    )}`;
   }
 
   return result;
@@ -216,6 +267,81 @@ const AllocationList = ({ allocations, deletePermission }) => {
   );
 };
 
+const DefaultSurveyEfficiencyList = ({
+  default_survey_efficiencies,
+  deletePermission,
+}) => {
+  const dispatch = useDispatch();
+  const classes = useStyles();
+  const textClasses = textStyles();
+  const groups = useSelector((state) => state.groups.all);
+
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [defaultSurveyEfficiencyToDelete, setDefaultSurveyEfficiencyToDelete] =
+    useState(null);
+  const openDialog = (id) => {
+    setDialogOpen(true);
+    setDefaultSurveyEfficiencyToDelete(id);
+  };
+  const closeDialog = () => {
+    setDialogOpen(false);
+    setDefaultSurveyEfficiencyToDelete(null);
+  };
+
+  const deleteDefaultSurveyEfficiency = () => {
+    dispatch(
+      defaultSurveyEfficienciesActions.deleteDefaultSurveyEfficiency(
+        defaultSurveyEfficiencyToDelete
+      )
+    ).then((result) => {
+      if (result.status === "success") {
+        dispatch(showNotification("Default survey efficiency deleted"));
+        closeDialog();
+      }
+    });
+  };
+
+  return (
+    <div className={classes.root}>
+      <List component="nav">
+        {default_survey_efficiencies?.map((default_survey_efficiency) => (
+          <ListItem button key={default_survey_efficiency.id}>
+            <ListItemText
+              primary={
+                default_survey_efficiency.default_observationplan_request
+                  .default_plan_name
+              }
+              secondary={defaultSurveyEfficiencyInfo(
+                default_survey_efficiency,
+                groups
+              )}
+              classes={textClasses}
+            />
+            <Button
+              key={default_survey_efficiency.id}
+              id="delete_button"
+              classes={{
+                root: classes.defaultSurveyEfficiencyDelete,
+                disabled: classes.defaultSurveyEfficiencyDeleteDisabled,
+              }}
+              onClick={() => openDialog(default_survey_efficiency.id)}
+              disabled={!deletePermission}
+            >
+              <DeleteIcon />
+            </Button>
+            <ConfirmDeletionDialog
+              deleteFunction={deleteDefaultSurveyEfficiency}
+              dialogOpen={dialogOpen}
+              closeDialog={closeDialog}
+              resourceName="default survey efficiency"
+            />
+          </ListItem>
+        ))}
+      </List>
+    </div>
+  );
+};
+
 const DefaultObservationPlanList = ({
   default_observation_plans,
   deletePermission,
@@ -258,8 +384,8 @@ const DefaultObservationPlanList = ({
         {default_observation_plans?.map((default_observation_plan) => (
           <ListItem button key={default_observation_plan.id}>
             <ListItemText
-              primary={allocationTitle(
-                default_observation_plan.allocation,
+              primary={observationPlanTitle(
+                default_observation_plan,
                 instrumentList,
                 telescopeList
               )}
@@ -299,6 +425,9 @@ const AllocationPage = () => {
   const { defaultObservationPlanList } = useSelector(
     (state) => state.default_observation_plans
   );
+  const { defaultSurveyEfficiencyList } = useSelector(
+    (state) => state.default_survey_efficiencies
+  );
   const currentUser = useSelector((state) => state.profile);
   const classes = useStyles();
 
@@ -329,6 +458,17 @@ const AllocationPage = () => {
             />
           </div>
         </Paper>
+        <Paper elevation={1}>
+          <div className={classes.paperContent}>
+            <Typography variant="h6">
+              List of Default Survey Efficiencies
+            </Typography>
+            <DefaultSurveyEfficiencyList
+              default_survey_efficiencies={defaultSurveyEfficiencyList}
+              deletePermission={permission}
+            />
+          </div>
+        </Paper>
       </Grid>
       {permission && (
         <>
@@ -348,6 +488,14 @@ const AllocationPage = () => {
                 <NewDefaultObservationPlan />
               </div>
             </Paper>
+            <Paper>
+              <div className={classes.paperContent}>
+                <Typography variant="h6">
+                  Add a New Default Survey Efficiency
+                </Typography>
+                <NewDefaultSurveyEfficiency />
+              </div>
+            </Paper>
           </Grid>
         </>
       )}
@@ -364,6 +512,12 @@ AllocationList.propTypes = {
 DefaultObservationPlanList.propTypes = {
   // eslint-disable-next-line react/forbid-prop-types
   default_observation_plans: PropTypes.arrayOf(PropTypes.any).isRequired,
+  deletePermission: PropTypes.bool.isRequired,
+};
+
+DefaultSurveyEfficiencyList.propTypes = {
+  // eslint-disable-next-line react/forbid-prop-types
+  default_survey_efficiencies: PropTypes.arrayOf(PropTypes.any).isRequired,
   deletePermission: PropTypes.bool.isRequired,
 };
 
