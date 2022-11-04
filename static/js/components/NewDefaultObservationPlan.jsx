@@ -137,10 +137,13 @@ const NewDefaultObservationPlan = () => {
   };
 
   const handleSubmit = async ({ formData }) => {
+    const { default_plan_name } = formData;
+    delete formData.default_plan_name;
     const json = {
       allocation_id: selectedAllocationId,
       target_group_ids: selectedGroupIds,
       payload: formData,
+      default_plan_name,
     };
     await dispatch(
       defaultObservationPlansActions.submitDefaultObservationPlan(json)
@@ -149,7 +152,7 @@ const NewDefaultObservationPlan = () => {
 
   const { formSchema, uiSchema } =
     instrumentFormParams[allocationLookUp[selectedAllocationId].instrument_id];
-  formSchema.properties.plan_name = {
+  formSchema.properties.default_plan_name = {
     default: "DEFAULT-PLAN-NAME",
     type: "string",
   };
