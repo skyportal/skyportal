@@ -345,7 +345,7 @@ const SourceDesktop = ({ source }) => {
               </div>
               {source.ebv ? (
                 <div>
-                  <i>E(B-V)</i>={source.ebv.toFixed(2)}
+                  <i> E(B-V)</i>={source.ebv.toFixed(2)}
                 </div>
               ) : null}
             </div>
