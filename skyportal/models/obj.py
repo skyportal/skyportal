@@ -52,7 +52,10 @@ if any(
         for required_file in required_files
     ]
 ):
-    dustmaps.sfd.fetch()
+    try:
+        dustmaps.sfd.fetch()
+    except requests.exceptions.HTTPError:
+        pass
 
 
 def delete_obj_if_all_data_owned(cls, user_or_token):
@@ -635,7 +638,10 @@ class Obj(Base, conesearch_alchemy.Point):
         """E(B-V) extinction for the object"""
 
         coord = ap_coord.SkyCoord(self.ra, self.dec, unit='deg')
-        return float(dustmaps.sfd.SFDQuery()(coord))
+        try:
+            return float(dustmaps.sfd.SFDQuery()(coord))
+        except Exception:
+            return None
 
 
 Obj.candidates = relationship(
