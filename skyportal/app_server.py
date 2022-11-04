@@ -31,6 +31,7 @@ from skyportal.handlers.api import (
     VizierQueryHandler,
     DatalabQueryHandler,
     DefaultObservationPlanRequestHandler,
+    DefaultSurveyEfficiencyRequestHandler,
     FilterHandler,
     FollowupRequestHandler,
     FollowupRequestSchedulerHandler,
@@ -203,6 +204,10 @@ skyportal_handlers = [
     (
         r'/api/default_observation_plan(/[0-9A-Za-z-_\.\+]+)?',
         DefaultObservationPlanRequestHandler,
+    ),
+    (
+        r'/api/default_survey_efficiency(/[0-9A-Za-z-_\.\+]+)?',
+        DefaultSurveyEfficiencyRequestHandler,
     ),
     (r'/api/facility', FacilityMessageHandler),
     (r'/api/filters(/.*)?', FilterHandler),

@@ -458,6 +458,9 @@ misc:
   cosmology: Planck18
   #cosmology: {H0: "65.0", Om0: 0.3, Ode0: 0.7, name: 'skyportal_user_cosmo'}
 
+  dustmap: sfd
+  dustmap_folder: persistentdata/dustmap
+
   # The minimum signal-to-noise ratio/ n-sigma for lim mag cacluations to
   # consider a photometry point as a detection
   photometry_detection_threshold_nsigma: 3.0

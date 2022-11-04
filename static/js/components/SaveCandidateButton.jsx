@@ -60,6 +60,12 @@ const SaveCandidateButton = ({ candidate, userGroups, filterGroups }) => {
     }
   }, [filterGroups]);
 
+  const groupLookUp = {};
+  // eslint-disable-next-line no-unused-expressions
+  userGroups?.forEach((group) => {
+    groupLookUp[group.id] = group;
+  });
+
   const handleClickOpenDialog = () => {
     setDialogOpen(true);
   };
@@ -79,10 +85,18 @@ const SaveCandidateButton = ({ candidate, userGroups, filterGroups }) => {
     const groupIDs = userGroups.map((g) => g.id);
     const selectedGroupIDs = groupIDs?.filter((ID, idx) => data.group_ids[idx]);
     data.group_ids = selectedGroupIDs;
+    const selectedGroupNames = [];
+    data.group_ids?.forEach((id) => {
+      selectedGroupNames.push(groupLookUp[id].name);
+    });
     data.refresh_source = false;
     const result = await dispatch(sourceActions.saveSource(data));
     if (result.status === "success") {
-      dispatch(showNotification("Candidate successfully saved."));
+      dispatch(
+        showNotification(
+          `Candidate successfully saved to groups: ${selectedGroupNames.join()}.`
+        )
+      );
       reset();
       setDialogOpen(false);
     }
@@ -106,9 +120,17 @@ const SaveCandidateButton = ({ candidate, userGroups, filterGroups }) => {
         group_ids: filterGroups.map((g) => g.id),
         refresh_source: false,
       };
+      const selectedGroupNames = [];
+      data.group_ids?.forEach((id) => {
+        selectedGroupNames.push(groupLookUp[id].name);
+      });
       const result = await dispatch(sourceActions.saveSource(data));
       if (result.status === "success") {
-        dispatch(showNotification("Candidate successfully saved."));
+        dispatch(
+          showNotification(
+            `Candidate successfully saved to groups: ${selectedGroupNames.join()}.`
+          )
+        );
       }
       setIsSubmitting(false);
     } else if (selectedIndex === 1) {

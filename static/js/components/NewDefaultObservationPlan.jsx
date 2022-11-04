@@ -149,6 +149,10 @@ const NewDefaultObservationPlan = () => {
 
   const { formSchema, uiSchema } =
     instrumentFormParams[allocationLookUp[selectedAllocationId].instrument_id];
+  formSchema.properties.plan_name = {
+    default: "DEFAULT-PLAN-NAME",
+    type: "string",
+  };
 
   const keys_to_remove = ["start_date", "end_date", "queue_name"];
   keys_to_remove.forEach((key) => {
