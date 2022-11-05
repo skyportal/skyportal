@@ -28,7 +28,7 @@ from bokeh.models import (
 )
 from bokeh.models.widgets import (
     CheckboxGroup,
-    # CheckboxButtonGroup,
+    CheckboxButtonGroup,
     TextInput,
     NumericInput,
     Div,
@@ -2605,9 +2605,12 @@ def make_spectrum_layout(
         column_checkboxes = CheckboxWithLegendGroup(
             labels=labels, active=[], colors=colors, width=width // (columns + 1)
         )
-        # column_checkboxes = CheckboxButtonGroup(
-        #    labels=labels, active=[], width=width // (columns + 1)
-        # )
+        column_checkboxes = CheckboxButtonGroup(
+            labels=labels,
+            orientation='vertical',
+            active=[],
+            width=width // (columns + 1),
+        )
         all_column_checkboxes.append(column_checkboxes)
 
         callback_toggle_lines = CustomJS(
@@ -2616,7 +2619,7 @@ def make_spectrum_layout(
                     for (let i = 0; i < {len(labels)}; i = i + 1) {{
                         let el_idx = i * {columns} + {column_idx};
                         let el = eval("element_" + el_idx);
-                        el.visible = (column_checkboxes.active.includes(i))
+                        el.visible = (column_checkboxes.active.includes(i));
                     }}
                 """,
         )
