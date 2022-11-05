@@ -344,6 +344,11 @@ const SourceMobile = WidthProvider(
                         <i>l</i>,<i>b</i>={source.gal_lon.toFixed(6)}, &nbsp;
                         {source.gal_lat.toFixed(6)})
                       </div>
+                      {source.ebv ? (
+                        <div>
+                          <i> E(B-V)</i>={source.ebv.toFixed(2)}
+                        </div>
+                      ) : null}
                     </div>
                   </div>
                   <div>

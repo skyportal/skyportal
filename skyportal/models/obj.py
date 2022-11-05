@@ -16,6 +16,8 @@ import astroplan
 import conesearch_alchemy
 import healpix_alchemy
 import numpy as np
+import dustmaps.sfd
+from dustmaps.config import config
 
 from baselayer.app.env import load_env
 from baselayer.app.models import (
@@ -40,6 +42,20 @@ log = make_log('models.obj')
 PHOT_DETECTION_THRESHOLD = cfg["misc.photometry_detection_threshold_nsigma"]
 
 PS1_CUTOUT_TIMEOUT = 10
+
+# download dustmap if required
+config['data_dir'] = cfg['misc.dustmap_folder']
+required_files = ['sfd/SFD_dust_4096_ngp.fits', 'sfd/SFD_dust_4096_sgp.fits']
+if any(
+    [
+        not os.path.isfile(os.path.join(config['data_dir'], required_file))
+        for required_file in required_files
+    ]
+):
+    try:
+        dustmaps.sfd.fetch()
+    except requests.exceptions.HTTPError:
+        pass
 
 
 def delete_obj_if_all_data_owned(cls, user_or_token):
@@ -616,6 +632,16 @@ class Obj(Base, conesearch_alchemy.Point):
         """
 
         return telescope.observer.altaz(time, self.target).alt
+
+    @property
+    def ebv(self):
+        """E(B-V) extinction for the object"""
+
+        coord = ap_coord.SkyCoord(self.ra, self.dec, unit='deg')
+        try:
+            return float(dustmaps.sfd.SFDQuery()(coord))
+        except Exception:
+            return None
 
 
 Obj.candidates = relationship(

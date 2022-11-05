@@ -68,7 +68,16 @@ def get_tags(root):
         pass
     else:
         if value == 'process.variation.burst;em.gamma':
-            yield 'GRB'
+            # Is this a GRB at all?
+            try:
+                value = root.find(".//Param[@name='GRB_Identified']").attrib['value']
+            except AttributeError:
+                yield 'GRB'
+            else:
+                if value == 'false':
+                    yield 'Not GRB'
+                else:
+                    yield 'GRB'
         elif value == 'process.variation.trans;em.gamma':
             yield 'transient'
 
