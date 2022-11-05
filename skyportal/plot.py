@@ -2723,12 +2723,6 @@ def make_spectrum_layout(
             args={'model_dict': model_dict, 'legend_dict': legend_dict},
             code="""
             for (const[key, value] of Object.entries(model_dict)) {
-                if (!key.startsWith('element_')) {
-                console.log('key', key);
-                console.log('value', value);
-                console.log('key.charAt', key.charAt(key.length - 1));
-                console.log('this', this);
-                }
                 if (!key.startsWith('element_') && (this.item in legend_dict) && (key.charAt(key.length - 1) === legend_dict[this.item].toString())) {
                     value.level = 'glyph'
                 }
