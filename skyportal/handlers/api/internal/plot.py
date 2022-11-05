@@ -58,7 +58,8 @@ class PlotSpectroscopyHandler(BaseHandler):
         spec_id = self.get_query_argument("spectrumID", None)
 
         with self.Session() as session:
-            try:
+            # try:
+            if True:
                 json = plot.spectroscopy_plot(
                     obj_id=obj_id,
                     session=session,
@@ -68,8 +69,8 @@ class PlotSpectroscopyHandler(BaseHandler):
                     smoothing=smoothing,
                     smooth_number=smooth_number,
                 )
-            except Exception as e:
-                return self.error(f'Exception in spectroscopy plot: {e}')
+            # except Exception as e:
+            #    return self.error(f'Exception in spectroscopy plot: {e}')
 
             self.success(data={'bokehJSON': json, 'url': self.request.uri})
 

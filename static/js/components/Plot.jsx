@@ -5,13 +5,9 @@ import { useSelector, useDispatch } from "react-redux";
 import CircularProgress from "@mui/material/CircularProgress";
 
 import * as Bokeh from "@bokeh/bokehjs";
-import { register_models } from "bokehjs/base";
 
 import { makeStyles } from "@mui/styles";
-import * as Models from "./BokehModels";
 import * as Actions from "../ducks/plots";
-
-register_models(Models);
 
 const useStyles = makeStyles(() => ({
   error: {

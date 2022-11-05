@@ -295,7 +295,7 @@ SPEC_LINES = {
 }
 
 
-class CheckboxWithLegendGroup(CheckboxGroup):
+class CheckboxButtonWithLegendGroup(CheckboxButtonGroup):
     colors = List(String, help="List of legend colors")
 
     __implementation__ = ""
@@ -2284,6 +2284,7 @@ def make_spectrum_layout(
     model_dict = {}
     legend_items = []
     label_dict = {}
+    legend_dict = {}
     for i, (key, df) in enumerate(split):
 
         renderers = []
@@ -2320,7 +2321,10 @@ def make_spectrum_layout(
         )
         renderers.append(model_dict[f'l{i}'])
 
-        legend_items.append(LegendItem(label=label, renderers=renderers))
+        legend_item = LegendItem(label=label, renderers=renderers)
+        legend_items.append(legend_item)
+        legend_dict[legend_item.id] = s.id
+
     plot.xaxis.axis_label = 'Wavelength (Å)'
     plot.yaxis.axis_label = 'Flux'
     plot.toolbar.logo = None
@@ -2577,7 +2581,7 @@ def make_spectrum_layout(
     elif device == "mobile_landscape":
         columns = 5
     else:
-        columns = 7
+        columns = 6
 
     # Create columns from a list.
     #
@@ -2598,32 +2602,31 @@ def make_spectrum_layout(
     plot_height += nb_rows * 60
 
     all_column_checkboxes = []
+    line_checkboxes = []
     for column_idx, element_dict in enumerate(element_dicts):
         element_dict = [e for e in element_dict if e is not None]
-        labels = [name for name, _ in element_dict]
-        colors = [color for name, (wavelengths, color) in element_dict]
-        column_checkboxes = CheckboxWithLegendGroup(
-            labels=labels, active=[], colors=colors, width=width // (columns + 1)
-        )
-        column_checkboxes = CheckboxButtonGroup(
-            labels=labels,
-            orientation='vertical',
-            active=[],
-            width=width // (columns + 1),
-        )
-        all_column_checkboxes.append(column_checkboxes)
+        checkboxes = []
+        for row_idx, (name, (wavelengths, color)) in enumerate(element_dict):
+            column_checkboxes = CheckboxButtonGroup(
+                labels=[name],
+                orientation='vertical',
+                active=[],
+                width=width // (columns + 1),
+                styles={'border-left': f'12px solid {color}', 'padding-left': '0.3em'},
+            )
+            all_column_checkboxes.append(column_checkboxes)
 
-        callback_toggle_lines = CustomJS(
-            args={'column_checkboxes': column_checkboxes, **model_dict},
-            code=f"""
-                    for (let i = 0; i < {len(labels)}; i = i + 1) {{
-                        let el_idx = i * {columns} + {column_idx};
+            callback_toggle_lines = CustomJS(
+                args={'column_checkboxes': column_checkboxes, **model_dict},
+                code=f"""
+                        let el_idx = {row_idx} * {columns} + {column_idx};
                         let el = eval("element_" + el_idx);
-                        el.visible = (column_checkboxes.active.includes(i));
-                    }}
-                """,
-        )
-        column_checkboxes.js_on_event('button_click', callback_toggle_lines)
+                        el.visible = (column_checkboxes.active.includes(0));
+                    """,
+            )
+            column_checkboxes.js_on_event('button_click', callback_toggle_lines)
+            checkboxes.append(column_checkboxes)
+        line_checkboxes.append(row(checkboxes))
 
     hide_all_spectra = Button(
         name="Hide All Spectra", label="Hide All Spectra", width_policy="min"
@@ -2659,12 +2662,12 @@ def make_spectrum_layout(
         name="Reset Checkboxes", label="Reset Checkboxes", width_policy="min"
     )
     callback_reset_specs = CustomJS(
-        args={
-            'all_column_checkboxes': all_column_checkboxes,
-        },
+        args={'all_column_checkboxes': all_column_checkboxes, **model_dict},
         code=f"""
             for (let i = 0; i < {len(all_column_checkboxes)}; i++) {{
                 all_column_checkboxes[i].active = [];
+                let el = eval("element_" + i);
+                el.visible = false;
             }}
         """,
     )
@@ -2724,10 +2727,16 @@ def make_spectrum_layout(
     on_top_spectra_dropdown.js_on_event(
         "menu_item_click",
         CustomJS(
-            args={'model_dict': model_dict, 'label_dict': label_dict},
+            args={'model_dict': model_dict, 'legend_dict': legend_dict},
             code="""
             for (const[key, value] of Object.entries(model_dict)) {
-                if (!key.startsWith('element_') && (key.charAt(key.length - 1) === label_dict[this.item].toString())) {
+                if (!key.startsWith('element_')) {
+                console.log('key', key);
+                console.log('value', value);
+                console.log('key.charAt', key.charAt(key.length - 1));
+                console.log('this', this);
+                }
+                if (!key.startsWith('element_') && (this.item in legend_dict) && (key.charAt(key.length - 1) === legend_dict[this.item].toString())) {
                     value.level = 'glyph'
                 }
                 else {
@@ -2738,7 +2747,6 @@ def make_spectrum_layout(
         ),
     )
 
-    row1 = row(all_column_checkboxes)
     row2 = (
         column(
             on_top_spectra_dropdown,
@@ -2762,7 +2770,7 @@ def make_spectrum_layout(
     row4 = row(w)
     return column(
         plot,
-        row1,
+        *line_checkboxes,
         row2,
         row3,
         row4,
