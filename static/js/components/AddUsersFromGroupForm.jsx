@@ -27,7 +27,14 @@ const useStyles = makeStyles(() => ({
 const AddUsersFromGroupForm = ({ groupID }) => {
   const dispatch = useDispatch();
   let { all: groups } = useSelector((state) => state.groups);
-  const { handleSubmit, errors, reset, control, getValues } = useForm();
+  const {
+    handleSubmit,
+    reset,
+    control,
+    getValues,
+
+    formState: { errors },
+  } = useForm();
   const classes = useStyles();
   groups = groups?.filter((g) => g.id !== groupID) || [];
 

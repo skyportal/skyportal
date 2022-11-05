@@ -236,7 +236,14 @@ const ManageDataForm = ({ route }) => {
   const photometry = useSelector((state) => state.photometry);
   const spectra = useSelector((state) => state.spectra);
 
-  const { handleSubmit, errors, reset, control, getValues } = useForm();
+  const {
+    handleSubmit,
+    reset,
+    control,
+    getValues,
+
+    formState: { errors },
+  } = useForm();
 
   useEffect(() => {
     dispatch(photometryActions.fetchSourcePhotometry(route.id));

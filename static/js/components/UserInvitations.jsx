@@ -115,7 +115,14 @@ const UserInvitations = () => {
   const [clickedInvitation, setClickedInvitation] = useState(null);
   const [dataFetched, setDataFetched] = useState(false);
 
-  const { handleSubmit, errors, reset, control, getValues } = useForm();
+  const {
+    handleSubmit,
+    reset,
+    control,
+    getValues,
+
+    formState: { errors },
+  } = useForm();
 
   useEffect(() => {
     const fetchData = () => {

@@ -28,7 +28,14 @@ const SaveCandidateButton = ({ candidate, userGroups, filterGroups }) => {
   const dispatch = useDispatch();
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  const { handleSubmit, errors, reset, control, getValues } = useForm();
+  const {
+    handleSubmit,
+    reset,
+    control,
+    getValues,
+
+    formState: { errors },
+  } = useForm();
 
   useEffect(() => {
     reset({

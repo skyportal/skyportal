@@ -57,7 +57,8 @@ const CommentEntry = ({ addComment }) => {
     getValues,
     setValue,
     control,
-    errors,
+
+    formState: { errors },
   } = useForm();
 
   // The file input needs to be registered here, not in the input tag below

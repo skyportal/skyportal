@@ -116,7 +116,14 @@ const UserManagement = () => {
   const [clickedUser, setClickedUser] = useState(null);
   const [dataFetched, setDataFetched] = useState(false);
 
-  const { handleSubmit, errors, reset, control, getValues } = useForm();
+  const {
+    handleSubmit,
+    reset,
+    control,
+    getValues,
+
+    formState: { errors },
+  } = useForm();
 
   const filter = createFilterOptions();
 

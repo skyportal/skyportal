@@ -35,8 +35,14 @@ const WidgetPrefsDialog = ({
   const dispatch = useDispatch();
   const [open, setOpen] = useState(false);
 
-  const { handleSubmit, register, errors, reset, control } =
-    useForm(initialValues);
+  const {
+    handleSubmit,
+    register,
+    reset,
+    control,
+
+    formState: { errors },
+  } = useForm(initialValues);
 
   useEffect(() => {
     reset(initialValues);
@@ -138,7 +144,7 @@ const WidgetPrefsDialog = ({
                       data-testid={key}
                       size="small"
                       label={key}
-                      inputRef={register({ required: true })}
+                      inputRef={register("input", { required: true })}
                       name={key}
                       error={!!errors[key]}
                       helperText={errors[key] ? "Required" : ""}
