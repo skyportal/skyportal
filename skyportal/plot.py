@@ -8,7 +8,6 @@ import numpy as np
 import pandas as pd
 from sqlalchemy.orm import joinedload
 
-from bokeh.core.properties import List, String
 from bokeh.layouts import row, column
 from bokeh.models import (
     CustomJS,
@@ -293,12 +292,6 @@ SPEC_LINES = {
         '#6dcff6',
     ),
 }
-
-
-class CheckboxButtonWithLegendGroup(CheckboxButtonGroup):
-    colors = List(String, help="List of legend colors")
-
-    __implementation__ = ""
 
 
 tooltip_format = [
