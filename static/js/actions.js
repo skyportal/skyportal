@@ -6,6 +6,7 @@ import * as dbInfoActions from "./ducks/dbInfo";
 import * as earthquakeActions from "./ducks/earthquake";
 import * as configActions from "./ducks/config";
 import * as defaultObservationPlansActions from "./ducks/default_observation_plans";
+import * as defaultSurveyEfficienciesActions from "./ducks/default_survey_efficiencies";
 import * as newsFeedActions from "./ducks/newsFeed";
 import * as topSourcesActions from "./ducks/topSources";
 import * as recentSourcesActions from "./ducks/recentSources";
@@ -44,5 +45,6 @@ export default function hydrate() {
     dispatch(tnsrobotsActions.fetchTNSRobots());
     dispatch(enumTypesActions.fetchEnumTypes());
     dispatch(defaultObservationPlansActions.fetchDefaultObservationPlans());
+    dispatch(defaultSurveyEfficienciesActions.fetchDefaultSurveyEfficiencies());
   };
 }
