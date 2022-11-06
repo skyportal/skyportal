@@ -455,7 +455,7 @@ class TestCommentHandler(BaseHandler):
         with self.Session() as session:
             comment = TestComment(
                 text=comment_text,
-                user_id=session.user_or_token.id,
+                user_id=self.associated_user_object.id,
             )
             session.add(comment)
             session.commit()
@@ -546,12 +546,12 @@ class TestComment(Base):
         doc="The User that submitted the comment",
     )
 
-    User.test_comments = relationship(
-        "TestComment",
-        back_populates="user",
-        passive_deletes=True,
-        doc="Comments submitted by this User",
-    )
+User.test_comments = relationship(
+    "TestComment",
+    back_populates="user",
+    passive_deletes=True,
+    doc="Comments submitted by this User",
+)
 
 ```
 
