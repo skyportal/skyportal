@@ -455,7 +455,7 @@ class TestCommentHandler(BaseHandler):
         with self.Session() as session:
             comment = TestComment(
                 text=comment_text,
-                author_id=session.user_or_token.id,
+                user_id=session.user_or_token.id,
             )
             session.add(comment)
             session.commit()
