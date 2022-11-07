@@ -82,6 +82,18 @@ const SpectrumAnalysisForm = ({ obj_id }) => {
         title: "Spectrum Date [UTC]",
         default: defaultDate,
       },
+      centroid_x: {
+        type: "number",
+        title: "X position of centroid",
+      },
+      centroid_y: {
+        type: "number",
+        title: "Y position of centroid",
+      },
+      spaxel_buffer: {
+        type: "number",
+        title: "Radius in spaxels",
+      },
       image_data: {
         type: "string",
         format: "data-url",

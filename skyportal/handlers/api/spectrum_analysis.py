@@ -21,7 +21,7 @@ log = make_log('spectrum_analysis')
 
 class SpectrumAnalysisHandler(BaseHandler):
     @permissions(["Upload data"])
-    async def get(self, obj_id):
+    async def post(self, obj_id):
         """
         ---
         description: Submit a new spectrum for analysis
@@ -49,6 +49,12 @@ class SpectrumAnalysisHandler(BaseHandler):
         instrument = Instrument.get_if_accessible_by(
             instrument_id, self.current_user, raise_if_none=True, mode="read"
         )
+
+        centroid_x = data.get("centroid_x", None)
+        centroid_y = data.get("centroid_y", None)
+        spaxel_buffer = data.get("spaxel_buffer", None)
+
+        print(centroid_x, centroid_y, spaxel_buffer)
 
         if instrument is None:
             return self.error(message=f'Found no instrument with id {instrument_id}')
@@ -79,7 +85,16 @@ class SpectrumAnalysisHandler(BaseHandler):
             f.flush()
 
             cube = pysedm.get_sedmcube(f.name)
-            cube.extract_pointsource(centroid='max')
+
+            centroid_data = {}
+            if (centroid_x is not None) and (centroid_y is not None):
+                centroid_data['centroid'] = (centroid_x, centroid_y)
+            else:
+                centroid_data['centroid'] = 'max'
+
+            if spaxel_buffer is not None:
+                centroid_data['spaxelbuffer'] = spaxel_buffer
+            cube.extract_pointsource(**centroid_data)
 
             if fluxcal_data is not None:
                 file_data = fluxcal_data.split('base64,')
@@ -109,14 +124,14 @@ class SpectrumAnalysisHandler(BaseHandler):
             matplotlib.use("Agg")
             figsize = (10, 8)
             output_format = 'pdf'
+            filename = 'reduction.pdf'
 
             fig = plt.figure(figsize=figsize, constrained_layout=False)
-            cube.extractstar.show_mla()
+            cube.extractstar.show_mla(savefile=filename)
             plt.tight_layout()
             buf = io.BytesIO()
             fig.savefig(buf, format=output_format)
             plt.close(fig)
             buf.seek(0)
 
-            filename = 'reduction.pdf'
             await self.send_file(buf, filename, output_type=output_format)

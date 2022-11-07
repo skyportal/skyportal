@@ -106,7 +106,7 @@ export function addSourceTNS(id, formData) {
 }
 
 export function submitSpectrumAnalysis(id, formData) {
-  return API.GET(
+  return API.POST(
     `/api/sources/${id}/spectrum_analysis`,
     SUBMIT_SPECTRUM_ANALYSIS,
     formData
@@ -130,7 +130,7 @@ export function deleteAnalysis(analysis_id, formData = {}) {
 }
 
 export function fetchAnalyses(analysis_resource_type = "obj", params = {}) {
-  return API.POST(
+  return API.GET(
     `/api/${analysis_resource_type}/analysis`,
     FETCH_ANALYSES_FOR_OBJ,
     params
