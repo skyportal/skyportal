@@ -128,6 +128,7 @@ from .spectrum import (
     SpectrumRangeHandler,
     SyntheticPhotometryHandler,
 )
+from .spectrum_analysis import SpectrumAnalysisHandler
 from .survey_efficiency import (
     DefaultSurveyEfficiencyRequestHandler,
     SurveyEfficiencyForObservationPlanHandler,

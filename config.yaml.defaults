@@ -122,6 +122,8 @@ app:
       component: UploadSpectrum
     - path: "/observability/:id"
       component: Observability
+    - path: "/source/:id/spectrum_analysis"
+      component: SpectrumAnalysisPage
     - path: "/source/:id/finder"
       component: FindingChart
     - path: "/source/:id/periodogram"
