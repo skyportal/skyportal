@@ -155,6 +155,9 @@ class FollowupRequest(Base):
     def rise_time(self, altitude=30 * u.degree):
         """The rise time of the target as an astropy.time.Time."""
         observer = self.allocation.instrument.telescope.observer
+        if observer is None:
+            return None
+
         sunset = self.allocation.instrument.telescope.next_sunset(
             ap_time.Time.now()
         ).reshape((1,))
@@ -183,6 +186,9 @@ class FollowupRequest(Base):
     def set_time(self, altitude=30 * u.degree):
         """The set time of the target as an astropy.time.Time."""
         observer = self.allocation.instrument.telescope.observer
+        if observer is None:
+            return None
+
         sunset = self.allocation.instrument.telescope.next_sunset(ap_time.Time.now())
         coord = ap_coord.SkyCoord(self.obj.ra, self.obj.dec, unit='deg')
         return observer.target_set_time(sunset, coord, which='next', horizon=altitude)
