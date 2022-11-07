@@ -2574,7 +2574,7 @@ def make_spectrum_layout(
     elif device == "mobile_landscape":
         columns = 5
     else:
-        columns = 6
+        columns = 7
 
     # Create columns from a list.
     #
