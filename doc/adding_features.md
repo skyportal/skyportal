@@ -502,7 +502,7 @@ class SomeHandler(BaseHandler):
             return self.success(...)
 ```
 
-Note: In Python, if an error occurs and isn't catched, the method with raise an exception. Here, we want to catch errors so we can still use a return statement to return a response to the client containing the error message. TO do so, one can use the `try`/`except` syntax:
+Note: In Python, if an error occurs and isn't caught, the method will raise an exception. Here, we want to catch errors so we can still use return a response to the client containing the error message. To do so, one can use the `try`/`except` syntax:
 
 ``` python
 
@@ -588,7 +588,7 @@ skyportal_handlers = [
 
 The elements of this `skyportal_handlers` list are tuples consisting of a regex string describing the matching URL pattern, and the handler object: `(r'/api/test_comments', TestCommentHandler)`. In this case, we want to access the `TestCommentHandler` at the `/api/test_comment` path.
 
-Keep in mind that incomign requests will be routed to the first handler in the list that matches the request path. When you add a new feature, make sure to add it to the list in the correct place so that it doesn't override an existing handler.
+Keep in mind that incoming requests will be routed to the first handler in the list that matches the request path. When you add a new feature, make sure to add it to the list in the correct place so that it doesn't override an existing handler (unless that is what you intend to do!). 
 
 After defining our handler and mapping it to the API endpoint in our application, we can now expect any authenticated GET or POST requests to `<base_URL>/api/test_comments` to either fetch or create records.
 
