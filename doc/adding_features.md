@@ -424,7 +424,8 @@ Now let's take a look at what we'll need to add to the back-end to make our new 
 
 The SkyPortal back-end is built using [Tornado](https://www.tornadoweb.org/en/stable/), a Python web application framework that provides its own I/O event loop for non-blocking sockets, making it ideal for use with websockets (see below).
 
-To handle HTTP requests, we define _request handlers_ that are mapped to API endpoints in the application's configuration (in `skyportal/app_server.py` -- see below). Each SkyPortal request handler is a subclass of `BaseHandler` (defined in `skyportal/handlers/base.py`), a handler that extends Tornado's base [RequestHandler](https://www.tornadoweb.org/en/stable/web.html#tornado.web.RequestHandler), handling authentication and providing utility methods for pushing websocket messages to the front-end and returning HTTP responses.
+To handle HTTP requests, we define _request handlers_ that are mapped to API endpoints in the application's configuration (in `skyportal/app_server.py` -- see below). Each SkyPortal request handler is a subclass of 
+Handler` (defined in `skyportal/handlers/base.py`), a handler that extends Tornado's base [RequestHandler](https://www.tornadoweb.org/en/stable/web.html#tornado.web.RequestHandler), handling authentication and providing utility methods for pushing websocket messages to the front-end and returning HTTP responses.
 
 Let's take a look at adding our own handler. We'll start by defining a new request handler in a new file `skyportal/handlers/api/test_comment.py`. Note that we've imported `BaseHandler` which serves as the base class of our new handler. We define class methods describing how to handle requests of various types, e.g. a `put` method for PUT requests, a `post` method for POST requests, etc.
 
@@ -462,7 +463,7 @@ class TestCommentHandler(BaseHandler):
             self.push_all(action='skyportal/FETCH_TEST_COMMENTS')
             return self.success(data=comment)
 ```
-From `skyportal/handlers` we imported `Base`, which is the base class of our new handler. We also imported `TestComment`, which is the model class we defined above.  The `Base` class has a Session attribute, which is an instance of `DBSession`, a [SQLAlchemy](https://docs.sqlalchemy.org/en/13/index.html) [Session](https://docs.sqlalchemy.org/en/13/orm/session.html) instance. Whereas `TestComment` is an SQLAlchemy [mapper class](https://docs.sqlalchemy.org/en/13/orm/mapping_styles.html#declarative-mapping) (which maps a Python class to a database table).
+`BaseHandler` is the base class of our new handler. We also imported `TestComment`, which is the model class we defined above.  The `BaseHandler` class has a Session attribute, which is an instance of `DBSession`, a [SQLAlchemy](https://docs.sqlalchemy.org/en/13/index.html) [Session](https://docs.sqlalchemy.org/en/13/orm/session.html) instance. Whereas `TestComment` is an SQLAlchemy [mapper class](https://docs.sqlalchemy.org/en/13/orm/mapping_styles.html#declarative-mapping) (which maps a Python class to a database table).
 
 *We'll see how to define mapper classes (which correspond to database tables) shortly.*
 
@@ -474,7 +475,7 @@ In the `post` method, we start by accessing the request's JSON body with `self.g
 
 *More details on websockets can be found in the [websockets section](#websockets) below.*
 
-In both methods, to interact with the database, we use the `Session` attribute of `BaseHandler` to create an instance of `DBSession`. We use the `with self.Session() as session` syntax to ensure that the session is closed after the block is executed. This is a common pattern in Python for managing resources that need to be closed after use.
+In both methods, to interact with the database, we use the `Session` attribute of `BaseHandler` to create an instance of `DBSession`. We use a context manager (`with self.Session() as session`) to ensure that the session is closed after the block is executed. This is a common pattern in Python for managing resources that need to be closed after use.
 
 The decorator `@auth_or_token` tells the application that the request must either come from a logged in user (via the browser), or must include a valid token in the request header. If neither of these are true, the request returns with an error.
 
