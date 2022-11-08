@@ -9,7 +9,6 @@ bokeh==2.4.3
 pytest-randomly==3.12.0
 factory-boy==3.2.1
 astropy==5.1.1
-aplpy==2.1.0
 distributed==2022.10.2
 dustmaps==1.0.10
 reproject==0.9
