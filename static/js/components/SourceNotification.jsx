@@ -71,8 +71,15 @@ const SourceNotification = ({ sourceId }) => {
   };
 
   const [selectedGroups, setSelectedGroups] = useState([]);
-  const { handleSubmit, getValues, reset, register, control, errors } =
-    useForm();
+  const {
+    handleSubmit,
+    getValues,
+    reset,
+    register,
+    control,
+
+    formState: { errors },
+  } = useForm();
   const dispatch = useDispatch();
 
   const validateGroups = () => {

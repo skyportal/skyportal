@@ -33,7 +33,14 @@ const EditSourceGroups = ({ source, groups, icon }) => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const dispatch = useDispatch();
 
-  const { handleSubmit, errors, reset, control, getValues } = useForm();
+  const {
+    handleSubmit,
+    reset,
+    control,
+    getValues,
+
+    formState: { errors },
+  } = useForm();
 
   const unsavedGroups = groups?.filter(
     (g) => !source.currentGroupIds.includes(g.id)

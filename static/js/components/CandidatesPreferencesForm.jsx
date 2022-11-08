@@ -109,7 +109,14 @@ const CandidatesPreferencesForm = ({
   const [selectedClassifications, setSelectedClassifications] = useState([]);
   const [selectedAnnotationOrigin, setSelectedAnnotationOrigin] = useState();
 
-  const { handleSubmit, getValues, control, errors, reset } = useForm();
+  const {
+    handleSubmit,
+    getValues,
+    control,
+    reset,
+
+    formState: { errors },
+  } = useForm();
 
   useEffect(() => {
     if (addOrEdit === "Add") {

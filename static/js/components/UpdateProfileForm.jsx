@@ -41,7 +41,14 @@ const UpdateProfileForm = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const dispatch = useDispatch();
-  const { handleSubmit, register, reset, errors, control } = useForm();
+  const {
+    handleSubmit,
+    register,
+    reset,
+    control,
+
+    formState: { errors },
+  } = useForm();
 
   const isNewUser =
     new URL(window.location).searchParams.get("newUser") === "true";

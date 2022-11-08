@@ -24,7 +24,14 @@ import * as ProfileActions from "../ducks/profile";
 const NewTokenForm = ({ availableAcls }) => {
   const dispatch = useDispatch();
 
-  const { handleSubmit, register, errors, reset, control } = useForm();
+  const {
+    handleSubmit,
+    register,
+    reset,
+    control,
+
+    formState: { errors },
+  } = useForm();
 
   useEffect(() => {
     reset({

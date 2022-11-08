@@ -56,7 +56,13 @@ const useStyles = makeStyles((theme) => ({
 
 const FindingChart = () => {
   const classes = useStyles();
-  const { handleSubmit, getValues, errors, control } = useForm();
+  const {
+    handleSubmit,
+    getValues,
+    control,
+
+    formState: { errors },
+  } = useForm();
   const { id } = useParams();
 
   const [params, setParams] = useState({

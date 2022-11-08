@@ -195,12 +195,18 @@ const FilterCandidateList = ({
     selectedScanningProfile?.sortingOrigin
   );
 
-  const { handleSubmit, getValues, control, errors, reset, setValue } = useForm(
-    {
-      startDate: defaultStartDate,
-      endDate: defaultEndDate,
-    }
-  );
+  const {
+    handleSubmit,
+    getValues,
+    control,
+    reset,
+    setValue,
+
+    formState: { errors },
+  } = useForm({
+    startDate: defaultStartDate,
+    endDate: defaultEndDate,
+  });
 
   useEffect(() => {
     const selectedGroupIDs = Array(userAccessibleGroups.length).fill(false);
