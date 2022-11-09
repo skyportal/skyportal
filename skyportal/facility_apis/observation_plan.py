@@ -670,6 +670,11 @@ class MMAAPI(FollowUpAPI):
                 payload={"gcnEvent_dateobs": request.gcnevent.dateobs},
             )
 
+            flow.push(
+                '*',
+                "skyportal/REFRESH_OBSERVATION_PLAN_NAMES",
+            )
+
             log(f"Generating schedule for observation plan {plan.id}")
             requester_id = request.requester.id
             IOLoop.current().run_in_executor(

@@ -722,6 +722,34 @@ class ObservationPlanSubmitHandler(BaseHandler):
             return self.success(data=observation_plan_request)
 
 
+class ObservationPlanNameHandler(BaseHandler):
+    @auth_or_token
+    def get(self):
+        """
+        ---
+        description: Get all Observation Plan names
+        tags:
+          - observation_plans
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+
+        with self.Session() as session:
+            plan_names = (
+                session.scalars(sa.select(EventObservationPlan.plan_name).distinct())
+                .unique()
+                .all()
+            )
+            return self.success(data=plan_names)
+
+
 class ObservationPlanGCNHandler(BaseHandler):
     @auth_or_token
     def get(self, observation_plan_request_id):
@@ -1282,6 +1310,11 @@ class ObservationPlanGeoJSONHandler(BaseHandler):
             if observation_plan_request is None:
                 return self.error(
                     f'Could not find observation_plan_request with ID {observation_plan_request_id}'
+                )
+
+            if len(observation_plan_request.observation_plans) == 0:
+                return self.error(
+                    f'Could not find an observation_plan associated with observation_plan_request ID {observation_plan_request_id}'
                 )
 
             observation_plan = observation_plan_request.observation_plans[0]
