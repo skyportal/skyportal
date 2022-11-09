@@ -32,4 +32,4 @@ const reducer = (state = null, action) => {
   }
 };
 
-store.injectReducer("observationPlanNames", reducer);
+store.injectReducer("observationPlans", reducer);

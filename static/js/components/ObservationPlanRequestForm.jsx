@@ -262,9 +262,7 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
   const { allocationListApiObsplan } = useSelector(
     (state) => state.allocations
   );
-  const observationPlanNames = useSelector(
-    (state) => state.observationPlanNames
-  );
+  const observationPlanNames = useSelector((state) => state.observationPlans);
   const { useAMPM } = useSelector((state) => state.profile.preferences);
 
   const allGroups = useSelector((state) => state.groups.all);
