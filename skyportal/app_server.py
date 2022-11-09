@@ -90,6 +90,7 @@ from skyportal.handlers.api import (
     ObservationTreasureMapHandler,
     ObservationASCIIFileHandler,
     ObservationExternalAPIHandler,
+    ObservationPlanNameHandler,
     ObservationSimSurveyHandler,
     ObservationSimSurveyPlotHandler,
     PhotometryRangeHandler,
@@ -306,6 +307,7 @@ skyportal_handlers = [
     (r'/api/observation/treasuremap(/[0-9]+)', ObservationTreasureMapHandler),
     (r'/api/observation/external_api(/[0-9]+)?', ObservationExternalAPIHandler),
     (r'/api/observing_run(/[0-9]+)?', ObservingRunHandler),
+    (r'/api/observation_plan/plan_names', ObservationPlanNameHandler),
     (r'/api/observation_plan(/[0-9A-Za-z-_\.\+]+)?', ObservationPlanRequestHandler),
     (
         r'/api/observation_plan(/[0-9A-Za-z-_\.\+]+)/treasuremap',

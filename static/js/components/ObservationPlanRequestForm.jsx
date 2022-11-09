@@ -262,7 +262,9 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
   const { allocationListApiObsplan } = useSelector(
     (state) => state.allocations
   );
-
+  const observationPlanNames = useSelector(
+    (state) => state.observationPlanNames
+  );
   const { useAMPM } = useSelector((state) => state.profile.preferences);
 
   const allGroups = useSelector((state) => state.groups.all);
@@ -435,6 +437,10 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
       formData.start_date > formData.end_date
     ) {
       errors.start_date.addError("Start Date must come before End Date");
+    }
+
+    if (observationPlanNames.includes(formData.queue_name)) {
+      errors.queue_name.addError("Need a unique plan name");
     }
 
     return errors;
