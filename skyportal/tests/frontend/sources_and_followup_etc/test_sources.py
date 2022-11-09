@@ -756,8 +756,23 @@ def test_obj_page_unsaved_source(public_obj, driver, user):
 
     # wait for the plots to load
     driver.wait_for_xpath('//div[@class=" bk-root"]', timeout=20)
-    # this waits for the spectroscopy plot by looking for the element Mg
-    driver.wait_for_xpath('//span[text()="Mg I"]', timeout=20)
+    # this waits for the spectroscopy plot by looking for the element Fe III
+    num_panels = 0
+    nretries = 0
+    while num_panels < 2 and nretries < 30:
+        panels = driver.find_elements(By.XPATH, "//*[contains(@id,'bokeh')]")
+        num_panels = len(panels)
+        if num_panels == 2:
+            break
+        nretries = nretries + 1
+        time.sleep(5)
+
+    button_present = False
+    for panel in panels:
+        if "Fe III" in panel.text:
+            button_present = True
+
+    assert button_present
 
     driver.wait_for_xpath_to_disappear('//div[contains(@data-testid, "groupChip")]')
 
