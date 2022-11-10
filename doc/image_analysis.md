@@ -37,6 +37,13 @@ To increase the maximum request size, change the `max_body_size: 10` parameter i
 
 Also, as mentioned earlier, you need to set `image_analysis` to `True` in the `config.yaml` file. By default, it is set to `False`.
 
+Moreover, in the app.routes, uncomment the following lines:
+```
+- path: "/source/:id/image_analysis"
+  component: ImageAnalysisPage
+```
+This will add the frontend route to the image analysis page.
+
 **If you are deploying SkyPortal using Docker, don't forget to add the same changes to the `docker.yaml` file as well.**
 
 ## Deploy using Docker
@@ -59,7 +66,7 @@ RUN python3 -m venv /skyportal_env && \
     pip install astroscrappy"
 ```
 
-Again, add the same lines mentioned in the previous section to the `docker.yaml` file.
+Again, add the same lines mentioned in the Configuration section to the `docker.yaml` file.
 
 ## Usage
 
