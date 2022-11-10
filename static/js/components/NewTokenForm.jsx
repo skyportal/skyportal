@@ -70,7 +70,7 @@ const NewTokenForm = ({ availableAcls }) => {
             <Box>
               <TextField
                 label="Token name"
-                inputRef={register({ required: true })}
+                {...register("test", { required: true })}
                 name="name"
                 error={!!errors.name}
                 helperText={errors.name ? "Required" : ""}

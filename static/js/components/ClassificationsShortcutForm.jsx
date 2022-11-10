@@ -79,7 +79,7 @@ const ClassificationsShortcutForm = () => {
             <div>
               <InputLabel htmlFor="shortcutNameInput">Shortcut Name</InputLabel>
               <TextField
-                inputRef={register({
+                {...register("test", {
                   required: true,
                   validate: (value) => {
                     if (profile?.classificationShortcuts) {
