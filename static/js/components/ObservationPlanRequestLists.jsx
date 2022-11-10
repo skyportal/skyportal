@@ -449,6 +449,44 @@ const ObservationPlanRequestLists = ({ gcnEvent }) => {
       },
     });
 
+    const renderDelete = (dataIndex) => {
+      const observationplanRequest =
+        requestsGroupedByInstId[instrument_id][dataIndex];
+
+      return (
+        <div>
+          <div className={classes.actionButtons}>
+            {implementsDelete && isDeleting === observationplanRequest.id ? (
+              <div>
+                <CircularProgress />
+              </div>
+            ) : (
+              <div>
+                <Button
+                  primary
+                  onClick={() => {
+                    handleDelete(observationplanRequest.id);
+                  }}
+                  size="small"
+                  type="submit"
+                  data-testid={`deleteRequest_${observationplanRequest.id}`}
+                >
+                  Delete
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    };
+    columns.push({
+      name: "delete",
+      label: "Delete",
+      options: {
+        customBodyRenderLite: renderDelete,
+      },
+    });
+
     const renderModify = (dataIndex) => {
       const observationplanRequest =
         requestsGroupedByInstId[instrument_id][dataIndex];
@@ -461,25 +499,6 @@ const ObservationPlanRequestLists = ({ gcnEvent }) => {
             </div>
           ) : (
             <div className={classes.actionButtons}>
-              {implementsDelete && isDeleting === observationplanRequest.id ? (
-                <div>
-                  <CircularProgress />
-                </div>
-              ) : (
-                <div>
-                  <Button
-                    primary
-                    onClick={() => {
-                      handleDelete(observationplanRequest.id);
-                    }}
-                    size="small"
-                    type="submit"
-                    data-testid={`deleteRequest_${observationplanRequest.id}`}
-                  >
-                    Delete
-                  </Button>
-                </div>
-              )}
               <div>
                 <Button
                   secondary

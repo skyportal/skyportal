@@ -11,6 +11,7 @@ import * as newsFeedActions from "./ducks/newsFeed";
 import * as topSourcesActions from "./ducks/topSources";
 import * as recentSourcesActions from "./ducks/recentSources";
 import * as mmadetectorActions from "./ducks/mmadetector";
+import * as observationPlansActions from "./ducks/observationPlans";
 import * as instrumentsActions from "./ducks/instruments";
 import * as sourceCountsActions from "./ducks/sourceCounts";
 import * as observingRunsActions from "./ducks/observingRuns";
@@ -44,6 +45,7 @@ export default function hydrate() {
     dispatch(rejectedActions.fetchRejected());
     dispatch(tnsrobotsActions.fetchTNSRobots());
     dispatch(enumTypesActions.fetchEnumTypes());
+    dispatch(observationPlansActions.fetchObservationPlanNames());
     dispatch(defaultObservationPlansActions.fetchDefaultObservationPlans());
     dispatch(defaultSurveyEfficienciesActions.fetchDefaultSurveyEfficiencies());
   };

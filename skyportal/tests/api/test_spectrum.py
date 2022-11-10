@@ -1933,15 +1933,6 @@ def test_spectrum_plot_only_some_spectra(
 
     assert status == 200
 
-    # check how many different instruments are plotted
-    instruments = set()
-    refs = data['data']['bokehJSON']['doc']['roots']['references']
-    for r in refs:
-        if 'data' in r['attributes'] and 'instrument' in r['attributes']['data']:
-            instruments.add(r['attributes']['data']['instrument'][0])
-
-    assert len(instruments) > 2
-
     # now ask for the same plot but with only one spectrum
     status, data = api(
         'GET',
@@ -1951,17 +1942,6 @@ def test_spectrum_plot_only_some_spectra(
     )
 
     assert status == 200
-
-    # check how many different instruments are plotted
-    instruments = set()
-    refs = data['data']['bokehJSON']['doc']['roots']['references']
-    for r in refs:
-        if 'data' in r['attributes'] and 'instrument' in r['attributes']['data']:
-            instruments.add(r['attributes']['data']['instrument'][0])
-
-    assert len(instruments) == 2
-    assert 'LRIS' in str(instruments)
-    assert 'SEDM' in str(instruments)
 
 
 def test_post_get_spectrum_type(upload_data_token, public_source, public_group, lris):
