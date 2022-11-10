@@ -190,7 +190,7 @@ class GcnEvent(Base):
     aliases = sa.Column(
         sa.ARRAY(sa.String),
         nullable=False,
-        server_default="{}",
+        server_default=[],
         doc="List of different names for this event, parsed from different GCN notices.",
     )
 
@@ -204,7 +204,7 @@ class GcnEvent(Base):
         sa.Column(
             JSONB,
             nullable=False,
-            server_default="{}",
+            server_default={},
             doc="List of circulars associated with a GCN event. Keys are circulars ids, values are circular titles.",
         )
     )

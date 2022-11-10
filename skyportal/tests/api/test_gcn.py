@@ -1090,8 +1090,6 @@ def test_gcn_tach(
     )
     assert status == 401
 
-    time.sleep(15)
-
     status, data = api(
         'POST', 'gcn_event/2018-01-16T00:36:53/tach', token=super_admin_token
     )

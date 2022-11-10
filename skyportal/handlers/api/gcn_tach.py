@@ -4,13 +4,13 @@ import re
 from tornado.ioloop import IOLoop
 from ..base import BaseHandler
 from baselayer.app.access import auth_or_token, permissions
-from ...models import GcnEvent, DBSession
+from ...models import GcnEvent, DBSession, User
 from astropy.time import Time
 
 from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
-
+import sqlalchemy as sa
 from sqlalchemy.orm import sessionmaker, scoped_session
 
 Session = scoped_session(sessionmaker(bind=DBSession.session_factory.kw["bind"]))
@@ -197,9 +197,10 @@ def get_tach_event_aliases(id, gcn_event):
     return [], {}
 
 
-def post_aliases(dateobs, tach_id, user):
+def post_aliases(dateobs, tach_id, user_id):
     flow = Flow()
     with Session() as session:
+        user = session.scalars(sa.select(User).where(User.id == user_id)).first()
         stmt = GcnEvent.select(user).where(GcnEvent.dateobs == dateobs)
         gcn_event = session.scalars(stmt).first()
         if gcn_event is None:
@@ -271,7 +272,6 @@ class GcnTachHandler(BaseHandler):
         try:
             arrow.get(dateobs).datetime
         except Exception:
-            log(f'Invalid dateobs: {dateobs}')
             return self.error(f'Invalid dateobs: {dateobs}')
         try:
             with self.Session() as session:
@@ -296,14 +296,13 @@ class GcnTachHandler(BaseHandler):
 
                 IOLoop.current().run_in_executor(
                     None,
-                    lambda: post_aliases(dateobs, tach_id, session.user_or_token),
+                    lambda: post_aliases(dateobs, tach_id, session.user_or_token.id),
                 )
 
                 return self.success(data={'id': gcn_event_id})
 
         except Exception as e:
-            log(f'Error scraping GCN aliases: {e}')
-            return self.error(f'Error: {e}')
+            return self.error(f'Error scraping aliases: {e}')
 
     @auth_or_token
     def get(self, dateobs):
