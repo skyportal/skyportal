@@ -83,7 +83,7 @@ const SourceNotification = ({ sourceId }) => {
   const dispatch = useDispatch();
 
   const validateGroups = () => {
-    const formState = getValues({ nest: true });
+    const formState = getValues();
     return formState.groupIds.length !== 0;
   };
 
@@ -101,7 +101,7 @@ const SourceNotification = ({ sourceId }) => {
     };
     const result = await dispatch(Actions.sendAlert(formData));
     if (result.status === "success") {
-      dispatch(showNotification("Notification queued up sucessfully", "info"));
+      dispatch(showNotification("Notification queued up successfully", "info"));
       reset(initialFormState);
     }
   };
