@@ -1,15 +1,26 @@
-import React from "react";
+import React, { useState } from "react";
 import PropTypes from "prop-types";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import Slide from "@mui/material/Slide";
 import CloseIcon from "@mui/icons-material/Close";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
+import makeStyles from "@mui/styles/makeStyles";
 import CircularProgress from "@mui/material/CircularProgress";
-
 import MUIDataTable from "mui-datatables";
+
+import Button from "./Button";
+import * as Actions from "../ducks/photometry";
+
+const useStyles = makeStyles(() => ({
+  actionButtons: {
+    display: "flex",
+    flexFlow: "row wrap",
+    gap: "0.2rem",
+  },
+}));
 
 // eslint-disable-next-line
 const Transition = React.forwardRef(function Transition(props, ref) {
@@ -23,6 +34,16 @@ const isFloat = (x) =>
 const PhotometryTable = ({ obj_id, open, onClose }) => {
   const { photometry } = useSelector((state) => state);
   let bodyContent = null;
+
+  const classes = useStyles();
+  const dispatch = useDispatch();
+
+  const [isDeleting, setIsDeleting] = useState(null);
+  const handleDelete = async (id) => {
+    setIsDeleting(id);
+    await dispatch(Actions.deletePhotometry(id));
+    setIsDeleting(null);
+  };
 
   if (!Object.keys(photometry).includes(obj_id)) {
     bodyContent = (
@@ -55,6 +76,42 @@ const PhotometryTable = ({ obj_id, open, onClose }) => {
           },
         },
       }));
+
+      const renderDelete = (dataIndex) => {
+        const phot = data[dataIndex];
+        return (
+          <div>
+            <div className={classes.actionButtons}>
+              {isDeleting === phot.id ? (
+                <div>
+                  <CircularProgress />
+                </div>
+              ) : (
+                <div>
+                  <Button
+                    primary
+                    onClick={() => {
+                      handleDelete(phot.id);
+                    }}
+                    size="small"
+                    type="submit"
+                    data-testid={`deleteRequest_${photometry.id}`}
+                  >
+                    Delete
+                  </Button>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      };
+      columns.push({
+        name: "delete",
+        label: "Delete",
+        options: {
+          customBodyRenderLite: renderDelete,
+        },
+      });
 
       const customToolbarFunc = () => (
         <>

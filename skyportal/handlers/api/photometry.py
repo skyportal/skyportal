@@ -1285,6 +1285,8 @@ class PhotometryHandler(BaseHandler):
                     f'Cannot find photometry point with ID: {photometry_id}.'
                 )
 
+            obj_id = photometry.obj_id
+
             session.delete(photometry)
 
             phot_stat = session.scalars(
@@ -1299,6 +1301,11 @@ class PhotometryHandler(BaseHandler):
                 phot_stat.full_update(all_phot)
 
             session.commit()
+
+            self.push_all(
+                action="skyportal/FETCH_SOURCE_PHOTOMETRY",
+                payload={"obj_id": obj_id},
+            )
 
             return self.success()
 
