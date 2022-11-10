@@ -174,24 +174,33 @@ def source_notification_content(session, target, app_url):
         ):
             classification = c
 
-    first_detected_mjd = source.photstats[0].first_detected_mjd
-    first_detected = Time(first_detected_mjd, format="mjd").isot
-
-    last_detected_mjd = source.photstats[0].last_detected_mjd
-    last_detected = Time(last_detected_mjd, format="mjd").isot
-
-    return {
+    data = {
         "source_name": source_name,
         "ra": source.ra,
         "dec": source.dec,
-        "first_detected": first_detected,
-        "last_detected": last_detected,
-        "nb_detections": source.photstats[0].num_det_global,
         "redshift": source.redshift,
         "classification_name": classification_name,
         "classification_probability": classification.probability,
         "classification_date": Time(classification.modified).isot,
     }
+
+    if len(source.photstats) > 0:
+        first_detected_mjd = source.photstats[0].first_detected_mjd
+        first_detected = Time(first_detected_mjd, format="mjd").isot
+
+        last_detected_mjd = source.photstats[0].last_detected_mjd
+        last_detected = Time(last_detected_mjd, format="mjd").isot
+        nb_detections = source.photstats[0].num_det_global
+
+        data["first_detected"] = first_detected
+        data["last_detected"] = last_detected
+        data["nb_detections"] = nb_detections
+
+    else:
+        data["created_at"] = Time(source.created_at).isot
+        data["nb_detections"] = 0
+
+    return data
 
 
 def source_slack_notification(session, target, app_url):
@@ -212,7 +221,10 @@ def source_slack_notification(session, target, app_url):
     if data['redshift'] is not None:
         source_coordinates += f"\n - Redshift: {data['redshift']}"
 
-    source_detection_stats = f"*Source Detection Stats:*\n - First Detection: {data['first_detected']} \n - Last Detection: {data['last_detected']} \n - Number of Detections: {data['nb_detections']}"
+    if data['nb_detections'] > 0:
+        source_detection_stats = f"*Source Detection Stats:*\n - First Detection: {data['first_detected']} \n - Last Detection: {data['last_detected']} \n - Number of Detections: {data['nb_detections']}"
+    else:
+        source_detection_stats = f"*Source Detection Stats:*\n - Source created at: {data['created_at']} \n - Not yet detected (no photometry)"
 
     return [
         {
@@ -265,8 +277,10 @@ def source_email_notification(session, target, app_url):
     if data['redshift'] is not None:
         source_coordinates += f"<li>Redshift: {data['redshift']}</li>"
     source_coordinates += "</ul></div>"
-
-    source_detection_stats = f"<div><h4>Source Detection Stats:</h4><ul><li>First Detection: {data['first_detected']}</li><li>Last Detection: {data['last_detected']}</li><li>Number of Detections: {data['nb_detections']}</li></ul></div>"
+    if data['nb_detections'] > 0:
+        source_detection_stats = f"<div><h4>Source Detection Stats:</h4><ul><li>First Detection: {data['first_detected']}</li><li>Last Detection: {data['last_detected']}</li><li>Number of Detections: {data['nb_detections']}</li></ul></div>"
+    else:
+        source_detection_stats = f"<div><h4>Source Detection Stats:</h4><ul><li>Source created at: {data['created_at']}</li><li>Not yet detected (no photometry)</li></ul></div>"
 
     return subject, (
         "<!DOCTYPE html><html><head><style>body {font-family: Arial, Helvetica, sans-serif;}</style></head>"

@@ -75,8 +75,11 @@ def test_default_observation_plan_tiling(user, super_admin_token, public_group):
     assert data['status'] == 'success'
     allocation_id = data['data']['id']
 
+    default_plan_name = str(uuid.uuid4())
+
     request_data = {
         'allocation_id': allocation_id,
+        'default_plan_name': default_plan_name,
         'payload': {
             'filter_strategy': 'block',
             'schedule_strategy': 'tiling',

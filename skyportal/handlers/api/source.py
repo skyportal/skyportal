@@ -176,7 +176,7 @@ def get_source(
         if "ps1" not in existing_thumbnail_types:
             IOLoop.current().run_in_executor(
                 None,
-                lambda: add_ps1_thumbnail_and_push_ws_msg(obj_id, user_id),
+                lambda: add_ps1_thumbnail_and_push_ws_msg([obj_id], user_id),
             )
         if (
             "sdss" not in existing_thumbnail_types
@@ -257,6 +257,7 @@ def get_source(
     source_info["luminosity_distance"] = s.luminosity_distance
     source_info["dm"] = s.dm
     source_info["angular_diameter_distance"] = s.angular_diameter_distance
+    source_info["ebv"] = s.ebv
 
     if include_photometry:
         photometry = session.scalars(
@@ -1248,7 +1249,7 @@ def get_sources(
     return query_results
 
 
-def post_source(data, user_id, session):
+def post_source(data, user_id, session, refresh_source=True):
     """Post source to database.
     data: dict
         Source dictionary
@@ -1256,6 +1257,8 @@ def post_source(data, user_id, session):
         SkyPortal ID of User posting the GcnEvent
     session: sqlalchemy.Session
         Database session for this transaction
+    refresh_source : bool
+        Refresh source upon post. Defaults to True.
     """
 
     user = session.scalar(sa.select(User).where(User.id == user_id))
@@ -1341,11 +1344,14 @@ def post_source(data, user_id, session):
             lambda: add_linked_thumbnails_and_push_ws_msg(obj.id, user_id),
         )
     else:
-        flow = Flow()
-        flow.push(
-            '*', "skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}
-        )
-        flow.push('*', "skyportal/REFRESH_CANDIDATE", payload={"id": obj.internal_key})
+        if refresh_source:
+            flow = Flow()
+            flow.push(
+                '*', "skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}
+            )
+            flow.push(
+                '*', "skyportal/REFRESH_CANDIDATE", payload={"id": obj.internal_key}
+            )
 
     return obj.id
 
@@ -1362,26 +1368,30 @@ def apply_active_or_requested_filtering(query, include_requested, requested_only
     return query
 
 
-def add_ps1_thumbnail_and_push_ws_msg(obj_id, user_id):
+def add_ps1_thumbnail_and_push_ws_msg(obj_ids, user_id):
     with Session() as session:
-        try:
-            user = session.query(User).get(user_id)
-            if Obj.get_if_accessible_by(obj_id, user) is None:
-                raise AccessError(
-                    f"Insufficient permissions for User {user_id} to read Obj {obj_id}"
+        user = session.query(User).get(user_id)
+        for obj_id in obj_ids:
+            try:
+                user = session.query(User).get(user_id)
+                if Obj.get_if_accessible_by(obj_id, user) is None:
+                    raise AccessError(
+                        f"Insufficient permissions for User {user_id} to read Obj {obj_id}"
+                    )
+                obj = session.query(Obj).get(obj_id)
+                obj.add_ps1_thumbnail(session=session)
+                flow = Flow()
+                flow.push(
+                    '*',
+                    "skyportal/REFRESH_SOURCE",
+                    payload={"obj_key": obj.internal_key},
                 )
-            obj = session.query(Obj).get(obj_id)
-            obj.add_ps1_thumbnail(session=session)
-            flow = Flow()
-            flow.push(
-                '*', "skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}
-            )
-            flow.push(
-                '*', "skyportal/REFRESH_CANDIDATE", payload={"id": obj.internal_key}
-            )
-        except Exception as e:
-            log(f"Unable to generate PS1 thumbnail URL for {obj_id}: {e}")
-            session.rollback()
+                flow.push(
+                    '*', "skyportal/REFRESH_CANDIDATE", payload={"id": obj.internal_key}
+                )
+            except Exception as e:
+                log(f"Unable to generate PS1 thumbnail URL for {obj_id}: {e}")
+                session.rollback()
 
 
 def paginate_summary_query(session, query, page, num_per_page, total_matches):
@@ -2282,6 +2292,10 @@ class SourceHandler(BaseHandler):
                         description: |
                           List of associated group IDs. If not specified, all of the
                           user or token's groups will be used.
+                      refresh_source:
+                        type: bool
+                        description: |
+                          Refresh source upon post. Defaults to True.
         responses:
           200:
             content:
@@ -2306,9 +2320,15 @@ class SourceHandler(BaseHandler):
         # existence).
 
         data = self.get_json()
+        refresh_source = data.pop('refresh_source', True)
 
         with self.Session() as session:
-            obj_id = post_source(data, self.associated_user_object.id, session)
+            obj_id = post_source(
+                data,
+                self.associated_user_object.id,
+                session,
+                refresh_source=refresh_source,
+            )
             return self.success(data={"id": obj_id})
 
     @permissions(['Upload data'])
@@ -2961,11 +2981,17 @@ class PS1ThumbnailHandler(BaseHandler):
     def post(self):
         data = self.get_json()
         obj_id = data.get("objID")
-        if obj_id is None:
-            return self.error("Missing required parameter objID")
+        obj_ids = data.get("objIDs")
+
+        if obj_id is None and obj_ids is None:
+            return self.error("Missing required parameter objID or objIDs")
+
+        if obj_id is not None:
+            obj_ids = [obj_id]
+
         IOLoop.current().add_callback(
             lambda: add_ps1_thumbnail_and_push_ws_msg(
-                obj_id, self.associated_user_object.id
+                obj_ids, self.associated_user_object.id
             )
         )
         return self.success()

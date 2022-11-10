@@ -324,11 +324,11 @@ def test_gcn_summary_sources(
     assert "SUBJECT: Follow-up" in data[1]
     assert "DATE" in data[2]
     assert (
-        f"FROM:  {super_admin_user.first_name} {super_admin_user.last_name} at Affiliation <{super_admin_user.contact_email}>"
+        f"FROM:  {super_admin_user.first_name} {super_admin_user.last_name} at ... <{super_admin_user.contact_email}>"
         in data[3]
     )
     assert (
-        f"{super_admin_user.first_name.upper()[0]}. {super_admin_user.last_name} (Affiliation)"
+        f"{super_admin_user.first_name.upper()[0]}. {super_admin_user.last_name} (...)"
         in data[4]
     )
     assert f"on behalf of the {public_group.name}, report:" in data[5]
@@ -477,11 +477,11 @@ def test_gcn_summary_galaxies(
     assert "SUBJECT: Follow-up" in data[1]
     assert "DATE" in data[2]
     assert (
-        f"FROM:  {super_admin_user.first_name} {super_admin_user.last_name} at Affiliation <{super_admin_user.contact_email}>"
+        f"FROM:  {super_admin_user.first_name} {super_admin_user.last_name} at ... <{super_admin_user.contact_email}>"
         in data[3]
     )
     assert (
-        f"{super_admin_user.first_name.upper()[0]}. {super_admin_user.last_name} (Affiliation)"
+        f"{super_admin_user.first_name.upper()[0]}. {super_admin_user.last_name} (...)"
         in data[4]
     )
     assert f"on behalf of the {public_group.name}, report:" in data[5]
@@ -743,11 +743,11 @@ def test_gcn_summary_observations(
     assert "SUBJECT: Follow-up" in data[1]
     assert "DATE" in data[2]
     assert (
-        f"FROM:  {super_admin_user.first_name} {super_admin_user.last_name} at Affiliation <{super_admin_user.contact_email}>"
+        f"FROM:  {super_admin_user.first_name} {super_admin_user.last_name} at ... <{super_admin_user.contact_email}>"
         in data[3]
     )
     assert (
-        f"{super_admin_user.first_name.upper()[0]}. {super_admin_user.last_name} (Affiliation)"
+        f"{super_admin_user.first_name.upper()[0]}. {super_admin_user.last_name} (...)"
         in data[4]
     )
     assert f"on behalf of the {public_group.name}, report:" in data[5]

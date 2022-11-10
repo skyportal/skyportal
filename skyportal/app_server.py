@@ -30,6 +30,7 @@ from skyportal.handlers.api import (
     VizierQueryHandler,
     DatalabQueryHandler,
     DefaultObservationPlanRequestHandler,
+    DefaultSurveyEfficiencyRequestHandler,
     FilterHandler,
     FollowupRequestHandler,
     FollowupRequestSchedulerHandler,
@@ -69,10 +70,10 @@ from skyportal.handlers.api import (
     ObservationPlanGCNHandler,
     ObservationPlanSubmitHandler,
     ObservationPlanMovieHandler,
+    ObservationPlanObservabilityPlotHandler,
     ObservationPlanSimSurveyHandler,
     ObservationPlanSimSurveyPlotHandler,
     ObservationPlanGeoJSONHandler,
-    ObservationPlanSummaryStatisticsHandler,
     ObservationPlanSurveyEfficiencyHandler,
     ObservationPlanAirmassChartHandler,
     ObservationPlanCreateObservingRunHandler,
@@ -90,6 +91,7 @@ from skyportal.handlers.api import (
     ObservationTreasureMapHandler,
     ObservationASCIIFileHandler,
     ObservationExternalAPIHandler,
+    ObservationPlanNameHandler,
     ObservationSimSurveyHandler,
     ObservationSimSurveyPlotHandler,
     PhotometryRangeHandler,
@@ -203,6 +205,10 @@ skyportal_handlers = [
         r'/api/default_observation_plan(/[0-9A-Za-z-_\.\+]+)?',
         DefaultObservationPlanRequestHandler,
     ),
+    (
+        r'/api/default_survey_efficiency(/[0-9A-Za-z-_\.\+]+)?',
+        DefaultSurveyEfficiencyRequestHandler,
+    ),
     (r'/api/facility', FacilityMessageHandler),
     (r'/api/filters(/.*)?', FilterHandler),
     (r'/api/followup_request/schedule(/[0-9]+)', FollowupRequestSchedulerHandler),
@@ -269,6 +275,10 @@ skyportal_handlers = [
     (r'/api/sources_in_gcn/(.*)', SourcesConfirmedInGCNHandler),
     (r'/api/associated_gcns/(.*)', GCNsAssociatedWithSourceHandler),
     (
+        r'/api/localization(/[0-9]+)/observability',
+        ObservationPlanObservabilityPlotHandler,
+    ),
+    (
         r'/api/localization(/[0-9]+)/airmass(/[0-9]+)?',
         ObservationPlanAirmassChartHandler,
     ),
@@ -299,6 +309,7 @@ skyportal_handlers = [
     (r'/api/observation/treasuremap(/[0-9]+)', ObservationTreasureMapHandler),
     (r'/api/observation/external_api(/[0-9]+)?', ObservationExternalAPIHandler),
     (r'/api/observing_run(/[0-9]+)?', ObservingRunHandler),
+    (r'/api/observation_plan/plan_names', ObservationPlanNameHandler),
     (r'/api/observation_plan(/[0-9A-Za-z-_\.\+]+)?', ObservationPlanRequestHandler),
     (
         r'/api/observation_plan(/[0-9A-Za-z-_\.\+]+)/treasuremap',
@@ -327,10 +338,6 @@ skyportal_handlers = [
     (
         r'/api/observation_plan(/[0-9A-Za-z-_\.\+]+)/geojson',
         ObservationPlanGeoJSONHandler,
-    ),
-    (
-        r'/api/observation_plan(/[0-9A-Za-z-_\.\+]+)/summary_statistics',
-        ObservationPlanSummaryStatisticsHandler,
     ),
     (
         r'/api/observation_plan(/[0-9A-Za-z-_\.\+]+)/survey_efficiency',

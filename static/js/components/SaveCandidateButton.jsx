@@ -15,6 +15,7 @@ import Popper from "@mui/material/Popper";
 import MenuItem from "@mui/material/MenuItem";
 import MenuList from "@mui/material/MenuList";
 import { useForm, Controller } from "react-hook-form";
+import { showNotification } from "baselayer/components/Notifications";
 import Button from "./Button";
 
 import * as sourceActions from "../ducks/source";
@@ -59,6 +60,12 @@ const SaveCandidateButton = ({ candidate, userGroups, filterGroups }) => {
     }
   }, [filterGroups]);
 
+  const groupLookUp = {};
+  // eslint-disable-next-line no-unused-expressions
+  userGroups?.forEach((group) => {
+    groupLookUp[group.id] = group;
+  });
+
   const handleClickOpenDialog = () => {
     setDialogOpen(true);
   };
@@ -78,8 +85,18 @@ const SaveCandidateButton = ({ candidate, userGroups, filterGroups }) => {
     const groupIDs = userGroups.map((g) => g.id);
     const selectedGroupIDs = groupIDs?.filter((ID, idx) => data.group_ids[idx]);
     data.group_ids = selectedGroupIDs;
+    const selectedGroupNames = [];
+    data.group_ids?.forEach((id) => {
+      selectedGroupNames.push(groupLookUp[id].name);
+    });
+    data.refresh_source = false;
     const result = await dispatch(sourceActions.saveSource(data));
     if (result.status === "success") {
+      dispatch(
+        showNotification(
+          `Candidate successfully saved to groups: ${selectedGroupNames.join()}.`
+        )
+      );
       reset();
       setDialogOpen(false);
     }
@@ -101,8 +118,20 @@ const SaveCandidateButton = ({ candidate, userGroups, filterGroups }) => {
       const data = {
         id: candidate.id,
         group_ids: filterGroups.map((g) => g.id),
+        refresh_source: false,
       };
-      await dispatch(sourceActions.saveSource(data));
+      const selectedGroupNames = [];
+      data.group_ids?.forEach((id) => {
+        selectedGroupNames.push(groupLookUp[id].name);
+      });
+      const result = await dispatch(sourceActions.saveSource(data));
+      if (result.status === "success") {
+        dispatch(
+          showNotification(
+            `Candidate successfully saved to groups: ${selectedGroupNames.join()}.`
+          )
+        );
+      }
       setIsSubmitting(false);
     } else if (selectedIndex === 1) {
       handleClickOpenDialog();

@@ -1,6 +1,7 @@
 from gcn_kafka import Consumer
 from datetime import datetime, timedelta
 import sqlalchemy as sa
+from sqlalchemy.orm import joinedload
 import uuid
 
 from baselayer.log import make_log
@@ -8,7 +9,11 @@ from baselayer.app.models import init_db
 from baselayer.app.env import load_env
 
 from skyportal.handlers.api.gcn import post_gcnevent_from_xml
-from skyportal.handlers.api.observation_plan import post_observation_plan
+from skyportal.handlers.api.observation_plan import (
+    post_observation_plan,
+    post_survey_efficiency_analysis,
+)
+
 from skyportal.models import (
     DBSession,
     Allocation,
@@ -42,6 +47,7 @@ with DBSession() as session:
         ).first()
         if allocation is not None:
             config_gcn_observation_plan["allocation_id"] = allocation.id
+            config_gcn_observation_plan["survey_efficiencies"] = []
             config_gcn_observation_plans.append(config_gcn_observation_plan)
 
 
@@ -87,9 +93,15 @@ def service():
                 consumer.commit(message)
                 user_id = 1
                 with DBSession() as session:
-                    default_observation_plans = session.query(
-                        DefaultObservationPlanRequest
-                    ).all()
+                    default_observation_plans = (
+                        session.query(DefaultObservationPlanRequest)
+                        .options(
+                            joinedload(
+                                DefaultObservationPlanRequest.default_survey_efficiencies
+                            )
+                        )
+                        .all()
+                    )
                     gcn_observation_plans = []
                     for plan in default_observation_plans:
                         allocation = (
@@ -101,6 +113,10 @@ def service():
                         gcn_observation_plan = {}
                         gcn_observation_plan['allocation_id'] = allocation.id
                         gcn_observation_plan['payload'] = plan.payload
+                        gcn_observation_plan['survey_efficiencies'] = [
+                            survey_efficiency.to_dict()
+                            for survey_efficiency in plan.default_survey_efficiencies
+                        ]
                         gcn_observation_plans.append(gcn_observation_plan)
                     gcn_observation_plans = (
                         gcn_observation_plans + config_gcn_observation_plans
@@ -140,7 +156,13 @@ def service():
                                 'localization_id': localizations[0]["id"],
                             }
 
-                            post_observation_plan(plan, user_id, session)
+                            plan_id = post_observation_plan(plan, user_id, session)
+                            for survey_efficiency in gcn_observation_plan[
+                                'survey_efficiencies'
+                            ]:
+                                post_survey_efficiency_analysis(
+                                    survey_efficiency, plan_id, user_id, session
+                                )
                         else:
                             log(f'No allocation with allocation_id {allocation_id}')
 
