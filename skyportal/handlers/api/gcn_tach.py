@@ -296,7 +296,9 @@ class GcnTachHandler(BaseHandler):
 
                 IOLoop.current().run_in_executor(
                     None,
-                    lambda: post_aliases(dateobs, tach_id, session.user_or_token.id),
+                    lambda: post_aliases(
+                        dateobs, tach_id, self.associated_user_object.id
+                    ),
                 )
 
                 return self.success(data={'id': gcn_event_id})
