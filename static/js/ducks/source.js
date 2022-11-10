@@ -99,7 +99,7 @@ export const uploadPhotometry = (data) =>
 
 export function submitImageAnalysis(id, formData) {
   return API.POST(
-    `/api/sources/${id}/image_analysis`,
+    `/api/internal/sources/${id}/image_analysis`,
     SUBMIT_IMAGE_ANALYSIS,
     formData
   );

@@ -19,3 +19,4 @@ from .ephemeris import EphemerisHandler
 from .standards import StandardsHandler
 from .notifications import NotificationHandler, BulkNotificationHandler
 from .recent_gcn_events import RecentGcnEventsHandler
+from .image_analysis import ImageAnalysisHandler

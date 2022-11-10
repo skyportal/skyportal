@@ -40,7 +40,6 @@ const ImageAnalysisForm = ({ obj_id }) => {
     const data = { ...formData };
     data.instrument_id = selectedInstrumentId;
     data.obstime = data.obstime.replace("+00:00", "").replace(".000Z", "");
-    console.log(data.image_data);
 
     const result = await dispatch(
       sourceActions.submitImageAnalysis(obj_id, data)

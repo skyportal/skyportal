@@ -44,19 +44,19 @@ Also, as mentioned earlier, you need to set `image_analysis` to `True` in the `c
 If you are deploying SkyPortal using Docker, you need to uncomment a few lines from the Dockerfile, which are commented out by default. These lines are here to install the system and python dependencies required by STDpipe.
 
 ```
-# RUN apt-get update && \
-#     apt-get install -y sextractor scamp psfex
+RUN apt-get update && \
+    apt-get install -y sextractor scamp psfex
 ```
 
 and
 
 ```
-# RUN python3 -m venv /skyportal_env && \
-#     \
-#     bash -c "source /skyportal_env/bin/activate && \
-#     git clone https://github.com/karpov-sv/stdpipe.git && \
-#     cd stdpipe && pip install -e . && \
-#     pip install astroscrappy"
+RUN python3 -m venv /skyportal_env && \
+    \
+    bash -c "source /skyportal_env/bin/activate && \
+    git clone https://github.com/karpov-sv/stdpipe.git && \
+    cd stdpipe && pip install -e . && \
+    pip install astroscrappy"
 ```
 
 Again, add the same lines mentioned in the previous section to the `docker.yaml` file.
