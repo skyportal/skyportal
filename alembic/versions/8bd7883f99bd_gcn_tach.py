@@ -21,7 +21,7 @@ def upgrade():
     op.add_column(
         'gcnevents',
         sa.Column(
-            'aliases', sa.ARRAY(sa.String()), server_default="[]", nullable=False
+            'aliases', sa.ARRAY(sa.String()), server_default='{}', nullable=False
         ),
     )
     op.add_column('gcnevents', sa.Column('tach_id', sa.String(), nullable=True))
@@ -30,7 +30,7 @@ def upgrade():
         sa.Column(
             'circulars',
             postgresql.JSONB(astext_type=sa.Text()),
-            server_default="{}",
+            server_default='{}',
             nullable=False,
         ),
     )

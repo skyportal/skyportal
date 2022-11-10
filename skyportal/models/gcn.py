@@ -189,6 +189,7 @@ class GcnEvent(Base):
 
     aliases = sa.Column(
         sa.ARRAY(sa.String),
+        nullable=False,
         default=[],
         doc="List of different names for this event, parsed from different GCN notices.",
     )
