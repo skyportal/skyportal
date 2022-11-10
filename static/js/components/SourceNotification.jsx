@@ -124,7 +124,7 @@ const SourceNotification = ({ sourceId }) => {
               id="groupSelect"
               name="groupIds"
               labelId="notificationGroupSelectLabel"
-              as={Select}
+              // as={Select}
               control={control}
               rules={{
                 required: true,
@@ -147,44 +147,53 @@ const SourceNotification = ({ sourceId }) => {
                   ))}
                 </div>
               )}
+              render={() => (
+                <Select>
+                  {groups.length > 0 &&
+                    groups.map((group) => (
+                      <MenuItem
+                        value={group.id}
+                        key={group.id.toString()}
+                        data-testid={`notificationGroupSelect_${group.id}`}
+                        style={getFontStyles(group.id, selectedGroups, theme)}
+                      >
+                        {group.name}
+                      </MenuItem>
+                    ))}
+                </Select>
+              )}
               MenuProps={MenuProps}
               multiple
-            >
-              {groups.length > 0 &&
-                groups.map((group) => (
-                  <MenuItem
-                    value={group.id}
-                    key={group.id.toString()}
-                    data-testid={`notificationGroupSelect_${group.id}`}
-                    style={getFontStyles(group.id, selectedGroups, theme)}
-                  >
-                    {group.name}
-                  </MenuItem>
-                ))}
-            </Controller>
+            />
           </FormControl>
           <FormControl className={classes.formControl}>
             <FormLabel id="levelSelectLabel">Level</FormLabel>
             <Controller
-              as={RadioGroup}
+              // as={RadioGroup}
               name="level"
               control={control}
               rules={{ required: true }}
               defaultValue="soft"
-            >
-              <FormControlLabel
-                value="soft"
-                control={<Radio />}
-                label="Soft Alert (email)"
-              />
-              <FormControlLabel
-                value="hard"
-                control={<Radio />}
-                label="Hard Alert (email + SMS)"
-              />
-            </Controller>
+              render={() => (
+                <>
+                  <RadioGroup>
+                    <FormControlLabel
+                      value="soft"
+                      control={<Radio />}
+                      label="Soft Alert (email)"
+                    />
+                    <FormControlLabel
+                      value="hard"
+                      control={<Radio />}
+                      label="Hard Alert (email + SMS)"
+                    />
+                  </RadioGroup>
+                </>
+              )}
+            />
           </FormControl>
           <TextField
+            {...register}
             id="sourcenotification-textarea"
             label="Additional Notes"
             variant="outlined"
@@ -192,7 +201,6 @@ const SourceNotification = ({ sourceId }) => {
             defaultValue=""
             name="additionalNotes"
             size="small"
-            inputRef={register}
           />
           <Button
             primary
