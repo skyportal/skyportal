@@ -147,8 +147,8 @@ const SourceNotification = ({ sourceId }) => {
                   ))}
                 </div>
               )}
-              render={() => (
-                <Select>
+              render={(field) => (
+                <Select {...field}>
                   {groups.length > 0 &&
                     groups.map((group) => (
                       <MenuItem

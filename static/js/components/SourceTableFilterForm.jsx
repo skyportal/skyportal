@@ -508,7 +508,7 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
             label="Alias"
             type="text"
             name="alias"
-            inputRef={register("Alias")}
+            inputRef={register("alias")}
             data-testid="alias-text"
           />
         </div>
@@ -743,7 +743,7 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
           </Typography>
           <div className={classes.selectItems}>
             <Controller
-              render={({ value }) => (
+              render={({ field: { value } }) => (
                 <Select
                   inputProps={{ MenuProps: { disableScrollLock: true } }}
                   labelId="gcnEventSelectLabel"
