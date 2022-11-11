@@ -251,7 +251,7 @@ const ManageDataForm = ({ route }) => {
   }, [route.id, dispatch]);
 
   const validateGroups = () => {
-    const formState = getValues({ nest: true });
+    const formState = getValues();
     return formState.groups.length >= 1;
   };
 

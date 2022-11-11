@@ -157,12 +157,12 @@ const UserInvitations = () => {
   allGroups = allGroups?.filter((group) => !group.single_user_group);
 
   const validateInvitationGroups = () => {
-    const formState = getValues({ nest: true });
+    const formState = getValues();
     return formState.invitationGroups.length >= 1;
   };
 
   const validateInvitationStreams = () => {
-    const formState = getValues({ nest: true });
+    const formState = getValues();
     return formState.invitationStreams.length >= 1;
   };
 

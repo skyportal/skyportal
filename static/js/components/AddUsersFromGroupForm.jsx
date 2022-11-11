@@ -39,7 +39,7 @@ const AddUsersFromGroupForm = ({ groupID }) => {
   groups = groups?.filter((g) => g.id !== groupID) || [];
 
   const validateGroups = () => {
-    const formState = getValues({ nest: true });
+    const formState = getValues();
     return formState.groups.length >= 1;
   };
 
@@ -77,10 +77,10 @@ const AddUsersFromGroupForm = ({ groupID }) => {
               getOptionLabel={(group) => group.name}
               filterSelectedOptions
               data-testid="addUsersFromGroupsSelect"
-              renderInput={(params) => (
+              renderInput={(field) => (
                 <TextField
                   // eslint-disable-next-line react/jsx-props-no-spreading
-                  {...params}
+                  {...field}
                   error={!!errors.groups}
                   variant="outlined"
                   label="Select Groups/Users"

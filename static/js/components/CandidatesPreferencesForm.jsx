@@ -152,10 +152,10 @@ const CandidatesPreferencesForm = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dispatch]);
 
-  let formState = getValues({ nest: true });
+  let formState = getValues();
 
   const validateName = () => {
-    formState = getValues({ nest: true });
+    formState = getValues();
     const otherProfiles = preferences.scanningProfiles
       ?.filter((profile) => profile.name !== editingProfile?.name)
       ?.map((profile) => profile.name);
@@ -165,12 +165,12 @@ const CandidatesPreferencesForm = ({
   };
 
   const validateGroups = () => {
-    formState = getValues({ nest: true });
+    formState = getValues();
     return formState.groupIDs?.filter((value) => Boolean(value)).length >= 1;
   };
 
   const validateSorting = () => {
-    formState = getValues({ nest: true });
+    formState = getValues();
     return (
       // All left empty
       (formState.sortingOrigin === "" &&

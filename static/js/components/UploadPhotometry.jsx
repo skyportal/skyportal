@@ -156,7 +156,7 @@ const UploadPhotometryForm = () => {
   };
 
   const validateGroups = () => {
-    formState = getValues({ nest: true });
+    formState = getValues();
     return formState.groupIDs.length >= 1;
   };
 

@@ -82,7 +82,7 @@ const SaveCandidateButton = ({ candidate, userGroups, filterGroups }) => {
   };
 
   const validateGroups = () => {
-    const formState = getValues({ nest: true });
+    const formState = getValues();
     return formState.group_ids?.filter((value) => Boolean(value)).length >= 1;
   };
 

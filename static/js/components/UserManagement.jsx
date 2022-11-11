@@ -163,22 +163,22 @@ const UserManagement = () => {
   allGroups = allGroups?.filter((group) => !group.single_user_group);
 
   const validateGroups = () => {
-    const formState = getValues({ nest: true });
+    const formState = getValues();
     return formState.groups.length >= 1;
   };
 
   const validateStreams = () => {
-    const formState = getValues({ nest: true });
+    const formState = getValues();
     return formState.streams.length >= 1;
   };
 
   const validateACLs = () => {
-    const formState = getValues({ nest: true });
+    const formState = getValues();
     return formState.acls.length >= 1;
   };
 
   const validateRoles = () => {
-    const formState = getValues({ nest: true });
+    const formState = getValues();
     return formState.roles.length >= 1;
   };
 

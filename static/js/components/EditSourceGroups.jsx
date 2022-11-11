@@ -69,7 +69,7 @@ const EditSourceGroups = ({ source, groups, icon }) => {
   };
 
   const validateGroups = () => {
-    const formState = getValues({ nest: true });
+    const formState = getValues();
     return (
       (formState.inviteGroupIds?.length &&
         formState.inviteGroupIds.filter((value) => Boolean(value)).length >=
