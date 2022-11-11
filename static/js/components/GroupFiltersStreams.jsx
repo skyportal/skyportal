@@ -293,7 +293,10 @@ const GroupFiltersStreams = ({
               label="Filter Name"
               type="text"
               fullWidth
-              inputRef={register("test", { required: true, minLength: 3 })}
+              inputRef={register("filter_name", {
+                required: true,
+                minLength: 3,
+              })}
             />
             <FormControl required className={classes.selectEmpty}>
               <InputLabel name="alert-stream-select-required-label">

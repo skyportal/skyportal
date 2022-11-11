@@ -693,7 +693,7 @@ const UserInvitations = () => {
             )}
             <Controller
               name="invitationGroups"
-              render={({ onChange, value, ...props }) => (
+              render={({ field: { onChange, value } }) => (
                 <Autocomplete
                   multiple
                   value={value}
@@ -717,8 +717,6 @@ const UserInvitations = () => {
                       data-testid="addInvitationGroupsTextField"
                     />
                   )}
-                  // eslint-disable-next-line react/jsx-props-no-spreading
-                  {...props}
                 />
               )}
               control={control}
@@ -756,7 +754,7 @@ const UserInvitations = () => {
             )}
             <Controller
               name="invitationStreams"
-              render={({ onChange, value, ...props }) => (
+              render={({ field: { onChange, value } }) => (
                 <Autocomplete
                   multiple
                   value={value}
@@ -780,8 +778,6 @@ const UserInvitations = () => {
                       data-testid="addInvitationStreamsTextField"
                     />
                   )}
-                  // eslint-disable-next-line react/jsx-props-no-spreading
-                  {...props}
                 />
               )}
               control={control}
@@ -857,7 +853,7 @@ const UserInvitations = () => {
         <DialogContent>
           <form onSubmit={handleSubmit(handleEditUserExpirationDate)}>
             <Controller
-              render={({ onChange, value }) => (
+              render={({ field: { onChange, value } }) => (
                 <DatePicker
                   value={value}
                   onChange={(date) =>

@@ -146,7 +146,7 @@ const UpdateProfileForm = () => {
                   </InputLabel>
                   <Controller
                     name="affiliations"
-                    render={({ onChange, value, ...props }) => (
+                    render={({ field: { onChange, value } }) => (
                       <Autocomplete
                         multiple
                         onChange={(e, data) => onChange(data)}
@@ -187,8 +187,6 @@ const UpdateProfileForm = () => {
                             id="affilations_id"
                           />
                         )}
-                        // eslint-disable-next-line react/jsx-props-no-spreading
-                        {...props}
                       />
                     )}
                     control={control}

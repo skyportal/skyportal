@@ -161,7 +161,7 @@ const EditSourceGroups = ({ source, groups, icon }) => {
                     key={unsavedGroup.id}
                     control={
                       <Controller
-                        render={({ onChange, value }) => (
+                        render={({ field: { onChange, value } }) => (
                           <Checkbox
                             onChange={(event) => onChange(event.target.checked)}
                             checked={value}
@@ -196,7 +196,7 @@ const EditSourceGroups = ({ source, groups, icon }) => {
                     key={savedGroup.id}
                     control={
                       <Controller
-                        render={({ onChange, value }) => (
+                        render={({ field: { onChange, value } }) => (
                           <Checkbox
                             onChange={(event) => onChange(event.target.checked)}
                             checked={value}

@@ -241,7 +241,7 @@ const SaveCandidateButton = ({ candidate, userGroups, filterGroups }) => {
                 key={userGroup.id}
                 control={
                   <Controller
-                    render={({ onChange, value }) => (
+                    render={({ field: { onChange, value } }) => (
                       <Checkbox
                         onChange={(event) => onChange(event.target.checked)}
                         checked={value}

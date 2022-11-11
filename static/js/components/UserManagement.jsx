@@ -857,7 +857,7 @@ const UserManagement = () => {
             )}
             <Controller
               name="groups"
-              render={({ onChange, value, ...props }) => (
+              render={({ field: { onChange, value } }) => (
                 <Autocomplete
                   multiple
                   onChange={(e, data) => onChange(data)}
@@ -879,8 +879,6 @@ const UserManagement = () => {
                       data-testid="addUserToGroupsTextField"
                     />
                   )}
-                  // eslint-disable-next-line react/jsx-props-no-spreading
-                  {...props}
                 />
               )}
               control={control}
@@ -918,7 +916,7 @@ const UserManagement = () => {
             )}
             <Controller
               name="streams"
-              render={({ onChange, value, ...props }) => (
+              render={({ field: { onChange, value } }) => (
                 <Autocomplete
                   multiple
                   onChange={(e, data) => onChange(data)}
@@ -942,8 +940,6 @@ const UserManagement = () => {
                       data-testid="addUserToStreamsTextField"
                     />
                   )}
-                  // eslint-disable-next-line react/jsx-props-no-spreading
-                  {...props}
                 />
               )}
               control={control}
@@ -981,7 +977,7 @@ const UserManagement = () => {
             )}
             <Controller
               name="acls"
-              render={({ onChange, value, ...props }) => (
+              render={({ field: { onChange, value } }) => (
                 <Autocomplete
                   multiple
                   onChange={(e, data) => onChange(data)}
@@ -1002,8 +998,6 @@ const UserManagement = () => {
                       data-testid="addUserACLsTextField"
                     />
                   )}
-                  // eslint-disable-next-line react/jsx-props-no-spreading
-                  {...props}
                 />
               )}
               control={control}
@@ -1038,7 +1032,7 @@ const UserManagement = () => {
           <form onSubmit={handleSubmit(handleAddUserAffiliations)}>
             <Controller
               name="affiliations"
-              render={({ onChange, value, ...props }) => (
+              render={({ field: { onChange, value } }) => (
                 <Autocomplete
                   multiple
                   onChange={(e, data) => onChange(data)}
@@ -1082,8 +1076,6 @@ const UserManagement = () => {
                       data-testid="addUserAffiliationsTextField"
                     />
                   )}
-                  // eslint-disable-next-line react/jsx-props-no-spreading
-                  {...props}
                 />
               )}
               control={control}
@@ -1120,7 +1112,7 @@ const UserManagement = () => {
             )}
             <Controller
               name="roles"
-              render={({ onChange, value, ...props }) => (
+              render={({ field: { onChange, value } }) => (
                 <Autocomplete
                   multiple
                   onChange={(e, data) => onChange(data)}
@@ -1141,8 +1133,6 @@ const UserManagement = () => {
                       data-testid="addUserRolesTextField"
                     />
                   )}
-                  // eslint-disable-next-line react/jsx-props-no-spreading
-                  {...props}
                 />
               )}
               control={control}
@@ -1176,7 +1166,7 @@ const UserManagement = () => {
         <DialogContent>
           <form onSubmit={handleSubmit(handleEditUserExpirationDate)}>
             <Controller
-              render={({ onChange, value }) => (
+              render={({ field: { onChange, value } }) => (
                 <DatePicker
                   value={value}
                   onChange={(date) =>

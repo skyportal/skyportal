@@ -271,7 +271,7 @@ const CandidatesPreferencesForm = ({
             <FormValidationError message="Profile name must be unique and at least 1 character" />
           )}
           <Controller
-            render={({ onChange, value }) => (
+            render={({ field: { onChange, value } }) => (
               <TextField
                 id="name"
                 label="Name"
@@ -293,7 +293,7 @@ const CandidatesPreferencesForm = ({
         </div>
         <div className={classes.formRow}>
           <Controller
-            render={({ onChange, value }) => (
+            render={({ field: { onChange, value } }) => (
               <TextField
                 id="time-range"
                 label="Time range (hours before now)"
@@ -344,7 +344,7 @@ const CandidatesPreferencesForm = ({
           <InputLabel id="profile-redshift-select-label">Redshift</InputLabel>
           <div className={classes.redshiftField}>
             <Controller
-              render={({ onChange, value }) => (
+              render={({ field: { onChange, value } }) => (
                 <TextField
                   data-testid="profile-minimum-redshift"
                   label="Minimum"
@@ -367,7 +367,7 @@ const CandidatesPreferencesForm = ({
           </div>
           <div className={classes.redshiftField}>
             <Controller
-              render={({ onChange, value }) => (
+              render={({ field: { onChange, value } }) => (
                 <TextField
                   data-testid="profile-maximum-redshift"
                   label="Maximum"
@@ -422,7 +422,7 @@ const CandidatesPreferencesForm = ({
               labelId="profile-sorting-select-label"
               name="sortingOrigin"
               control={control}
-              render={({ onChange, value }) => (
+              render={({ field: { onChange, value } }) => (
                 <Select
                   id="profileAnnotationSortingOriginSelect"
                   value={value}
@@ -516,7 +516,7 @@ const CandidatesPreferencesForm = ({
                 key={group.id}
                 control={
                   <Controller
-                    render={({ onChange, value }) => (
+                    render={({ field: { onChange, value } }) => (
                       <Checkbox
                         onChange={(event) => {
                           onChange(event.target.checked);

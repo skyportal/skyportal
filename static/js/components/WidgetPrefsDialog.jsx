@@ -94,7 +94,7 @@ const WidgetPrefsDialog = ({
                           <FormControlLabel
                             control={
                               <Controller
-                                render={({ onChange, value }) => (
+                                render={({ field: { onChange, value } }) => (
                                   <Checkbox
                                     onChange={(event) =>
                                       onChange(event.target.checked)
@@ -116,7 +116,7 @@ const WidgetPrefsDialog = ({
                           key={subKey}
                           control={
                             <Controller
-                              render={({ onChange, value }) => (
+                              render={({ field: { onChange, value } }) => (
                                 <Checkbox
                                   onChange={(event) =>
                                     onChange(event.target.checked)

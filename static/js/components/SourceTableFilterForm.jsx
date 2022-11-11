@@ -346,7 +346,7 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
             Classification
           </Typography>
           <Controller
-            render={({ onChange, value }) => (
+            render={({ field: { onChange, value } }) => (
               <Select
                 labelId="classifications-select-label"
                 data-testid="classifications-select"
@@ -400,7 +400,7 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
             Non-Classifications
           </Typography>
           <Controller
-            render={({ onChange, value }) => (
+            render={({ field: { onChange, value } }) => (
               <Select
                 labelId="classifications-select-label"
                 data-testid="classifications-select"
@@ -650,7 +650,7 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
               labelPlacement="start"
               control={
                 <Controller
-                  render={({ onChange, value }) => (
+                  render={({ field: { onChange, value } }) => (
                     <Checkbox
                       color="primary"
                       type="checkbox"
@@ -669,7 +669,7 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
               labelPlacement="start"
               control={
                 <Controller
-                  render={({ onChange, value }) => (
+                  render={({ field: { onChange, value } }) => (
                     <Checkbox
                       color="primary"
                       type="checkbox"
@@ -688,7 +688,7 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
               labelPlacement="start"
               control={
                 <Controller
-                  render={({ onChange, value }) => (
+                  render={({ field: { onChange, value } }) => (
                     <Checkbox
                       color="primary"
                       type="checkbox"
@@ -779,7 +779,7 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
               defaultValue=""
             />
             <Controller
-              render={({ onChange, value }) => (
+              render={({ field: { onChange, value } }) => (
                 <Select
                   inputProps={{ MenuProps: { disableScrollLock: true } }}
                   labelId="localizationSelectLabel"
