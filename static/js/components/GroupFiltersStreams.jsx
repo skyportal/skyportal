@@ -30,6 +30,8 @@ import FormHelperText from "@mui/material/FormHelperText";
 import FormControl from "@mui/material/FormControl";
 import Select from "@mui/material/Select";
 import { showNotification } from "baselayer/components/Notifications";
+
+import FormValidationError from "./FormValidationError";
 import Button from "./Button";
 
 import * as filterActions from "../ducks/filter";
@@ -50,7 +52,12 @@ const GroupFiltersStreams = ({
   const dispatch = useDispatch();
   const streams = useSelector((state) => state.streams);
 
-  const { register, handleSubmit, control } = useForm();
+  const {
+    register,
+    handleSubmit,
+    control,
+    formState: { errors },
+  } = useForm();
   const fullScreen = !useMediaQuery(theme.breakpoints.up("md"));
 
   const handleAddFilterDialogClose = () => {
@@ -74,6 +81,7 @@ const GroupFiltersStreams = ({
 
   // add filter to group
   const onSubmitAddFilter = async (data) => {
+    console.log("data", data);
     const result = await dispatch(
       filterActions.addGroupFilter({
         name: data.filter_name,
@@ -216,7 +224,11 @@ const GroupFiltersStreams = ({
         onClose={handleAddStreamClose}
         aria-labelledby="responsive-dialog-title"
       >
-        <form onSubmit={handleSubmit(onSubmitAddStream)}>
+        <form
+          onSubmit={({ formData }) => {
+            onSubmitAddStream(formData);
+          }}
+        >
           <DialogTitle id="responsive-dialog-title">
             Add alert stream to group
           </DialogTitle>
@@ -302,6 +314,11 @@ const GroupFiltersStreams = ({
               <InputLabel name="alert-stream-select-required-label">
                 Alert stream
               </InputLabel>
+              {errors.filter_stream_id && (
+                <FormValidationError
+                  message={errors.filter_stream_id.message}
+                />
+              )}
               <Controller
                 labelId="alert-stream-select-required-label"
                 name="filter_stream_id"

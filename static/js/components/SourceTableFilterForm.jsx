@@ -250,7 +250,7 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
           <TextField
             label="Source ID/Name"
             name="sourceID"
-            inputRef={register}
+            inputRef={register("sourceID")}
           />
         </div>
         <div className={classes.formItemRightColumn}>
@@ -265,7 +265,7 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
             inputProps={{
               step: 0.001,
             }}
-            inputRef={register}
+            inputRef={register("position.ra")}
             className={classes.positionField}
           />
           <TextField
@@ -276,7 +276,7 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
             inputProps={{
               step: 0.001,
             }}
-            inputRef={register}
+            inputRef={register("position.dec")}
             className={classes.positionField}
           />
           <TextField
@@ -287,7 +287,7 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
             inputProps={{
               step: 0.001,
             }}
-            inputRef={register}
+            inputRef={register("position.radius")}
             className={classes.positionField}
           />
         </div>
@@ -299,14 +299,14 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
             size="small"
             label="Saved After"
             name="savedAfter"
-            inputRef={register}
+            inputRef={register("savedAfter")}
             placeholder="2021-01-01T00:00:00"
           />
           <TextField
             size="small"
             label="Saved Before"
             name="savedBefore"
-            inputRef={register}
+            inputRef={register("savedBefore")}
             placeholder="2021-01-01T00:00:00"
           />
         </div>
@@ -318,14 +318,14 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
             size="small"
             label="First Detected After"
             name="startDate"
-            inputRef={register}
+            inputRef={register("startDate")}
             placeholder="2012-08-30T00:00:00"
           />
           <TextField
             size="small"
             label="Last Detected Before"
             name="endDate"
-            inputRef={register}
+            inputRef={register("endDate")}
             placeholder="2012-08-30T00:00:00"
           />
         </div>
@@ -338,7 +338,7 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
             label="Class Name"
             type="text"
             name="simbadClass"
-            inputRef={register}
+            inputRef={register("simbadClass")}
           />
         </div>
         <div className={classes.formItemRightColumn}>
@@ -461,7 +461,7 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
             inputProps={{
               step: 0.001,
             }}
-            inputRef={register}
+            inputRef={register("minRedshift")}
           />
           <TextField
             size="small"
@@ -471,7 +471,7 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
             inputProps={{
               step: 0.001,
             }}
-            inputRef={register}
+            inputRef={register("maxRedshift")}
           />
         </div>
         <div className={classes.formItemRightColumn}>
@@ -486,7 +486,7 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
             inputProps={{
               step: 0.001,
             }}
-            inputRef={register}
+            inputRef={register("minPeakMagnitude")}
           />
           <TextField
             size="small"
@@ -496,7 +496,7 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
             inputProps={{
               step: 0.001,
             }}
-            inputRef={register}
+            inputRef={register("maxPeakMagnitude")}
           />
         </div>
         <div className={classes.formItem}>
@@ -508,7 +508,7 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
             label="Alias"
             type="text"
             name="alias"
-            inputRef={register}
+            inputRef={register("Alias")}
             data-testid="alias-text"
           />
         </div>
@@ -521,7 +521,7 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
             label="Origin"
             type="text"
             name="origin"
-            inputRef={register}
+            inputRef={register("origin")}
             data-testid="origin-text"
           />
         </div>
@@ -534,7 +534,7 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
             label="Comment"
             type="text"
             name="commentsFilter"
-            inputRef={register}
+            inputRef={register("commentsFilter")}
             data-testid="comment-text"
           />
         </div>
@@ -547,7 +547,7 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
             label="Annotation"
             type="text"
             name="annotationsFilter"
-            inputRef={register}
+            inputRef={register("annotationsFilter")}
             data-testid="annotation-text"
           />
         </div>
@@ -560,7 +560,7 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
             label="Comment Author"
             type="text"
             name="commentsFilterAuthor"
-            inputRef={register}
+            inputRef={register("commentsFilterAuthor")}
             data-testid="comment-author-text"
           />
         </div>
@@ -573,7 +573,7 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
             label="Annotation Origin"
             type="text"
             name="annotationsFilterOrigin"
-            inputRef={register}
+            inputRef={register("annotationsFilterOrigin")}
             data-testid="annotation-origin-text"
           />
         </div>
@@ -585,14 +585,14 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
             size="small"
             label="Comment After"
             name="commentsFilterAfter"
-            inputRef={register}
+            inputRef={register("commentsFilterAfter")}
             placeholder="2021-01-01T00:00:00"
           />
           <TextField
             size="small"
             label="Comment Before"
             name="commentsFilterBefore"
-            inputRef={register}
+            inputRef={register("commentsFilterBefore")}
             placeholder="2021-01-01T00:00:00"
           />
         </div>
@@ -604,14 +604,14 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
             size="small"
             label="Annotation After"
             name="annotationsFilterAfter"
-            inputRef={register}
+            inputRef={register("annotationsFilterAfter")}
             placeholder="2021-01-01T00:00:00"
           />
           <TextField
             size="small"
             label="Annotation Before"
             name="annotationsFilterBefore"
-            inputRef={register}
+            inputRef={register("annotationsFilterBefore")}
             placeholder="2021-01-01T00:00:00"
           />
         </div>
@@ -627,7 +627,7 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
             inputProps={{
               step: 0.001,
             }}
-            inputRef={register}
+            inputRef={register("minLatestMagnitude")}
           />
           <TextField
             size="small"
@@ -637,7 +637,7 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
             inputProps={{
               step: 0.001,
             }}
-            inputRef={register}
+            inputRef={register("maxLatestMagnitude")}
           />
         </div>
         <div className={classes.formItemRightColumn}>
@@ -713,7 +713,7 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
             label="Spectrum After"
             name="hasSpectrumAfter"
             data-testid="hasSpectrumAfterTest"
-            inputRef={register}
+            inputRef={register("hasSpectrumAfter")}
             placeholder="2021-01-01T00:00:00"
           />
           <TextField
@@ -721,7 +721,7 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
             label="Spectrum Before"
             name="hasSpectrumBefore"
             data-testid="hasSpectrumBeforeTest"
-            inputRef={register}
+            inputRef={register("hasSpectrumBefore")}
             placeholder="2021-01-01T00:00:00"
           />
         </div>
@@ -734,7 +734,7 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
             label="Followup Request Status"
             name="followupRequestStatus"
             data-testid="hasFollowupRequestStatusTest"
-            inputRef={register}
+            inputRef={register("followupRequestStatus")}
           />
         </div>
         <div className={classes.formItemRightColumn}>
