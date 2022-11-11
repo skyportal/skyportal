@@ -1631,7 +1631,6 @@ class ObservationPlanCreateObservingRunHandler(BaseHandler):
         """
 
         data = self.get_json()
-        print(data)
 
         with self.Session() as session:
             observation_plan_request = session.scalars(
