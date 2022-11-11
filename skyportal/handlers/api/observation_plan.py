@@ -1630,6 +1630,9 @@ class ObservationPlanCreateObservingRunHandler(BaseHandler):
                 schema: Error
         """
 
+        data = self.get_json()
+        print(data)
+
         with self.Session() as session:
             observation_plan_request = session.scalars(
                 ObservationPlanRequest.select(
@@ -1686,6 +1689,11 @@ class ObservationPlanCreateObservingRunHandler(BaseHandler):
                     'ra': obs.field.ra,
                     'dec': obs.field.dec,
                 }
+                if 'groupIds' in data and len(data['groupIds']) > 0:
+                    source['group_ids'] = data['groupIds']
+                else:
+                    source['group_ids'] = [allocation.group_id]
+
                 obj_id = post_source(source, self.associated_user_object.id, session)
                 if np.max(priorities) - np.min(priorities) == 0.0:
                     # assign equal weights if all the same

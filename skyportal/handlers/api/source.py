@@ -1290,6 +1290,7 @@ def post_source(data, user_id, session, refresh_source=True):
         ]
     except KeyError:
         group_ids = user_group_ids
+
     if not group_ids:
         raise AttributeError(
             "Invalid group_ids field. Please specify at least "
