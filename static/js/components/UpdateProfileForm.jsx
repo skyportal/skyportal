@@ -98,7 +98,7 @@ const UpdateProfileForm = () => {
               Username (normalized upon save)
             </InputLabel>
             <TextField
-              {...register("test", { required: true })}
+              {...register("username", { required: true })}
               name="username"
               id="usernameInput"
               error={!!errors.username}
@@ -115,7 +115,7 @@ const UpdateProfileForm = () => {
               <Grid item xs={6} sm={3}>
                 <InputLabel htmlFor="firstName_id">First Name</InputLabel>
                 <TextField
-                  {...register("test", { required: true })}
+                  {...register("firstName", { required: true })}
                   name="firstName"
                   id="firstName_id"
                   error={!!errors.firstName}
@@ -125,7 +125,7 @@ const UpdateProfileForm = () => {
               <Grid item xs={6} sm={3}>
                 <InputLabel htmlFor="lastName_id">Last Name</InputLabel>
                 <TextField
-                  {...register("test", { required: false })}
+                  {...register("lastName", { required: false })}
                   name="lastName"
                   id="lastName_id"
                 />
@@ -211,7 +211,7 @@ const UpdateProfileForm = () => {
                   Preferred Contact Email
                 </InputLabel>
                 <TextField
-                  {...register("test", { pattern: /^\S+@\S+$/i })}
+                  {...register("email", { pattern: /^\S+@\S+$/i })}
                   name="email"
                   type="email"
                   fullWidth
@@ -232,7 +232,7 @@ const UpdateProfileForm = () => {
                   Contact Phone (Include Country Code)
                 </InputLabel>
                 <TextField
-                  {...register("test", { maxLength: 16 })}
+                  {...register("phone", { maxLength: 16 })}
                   name="phone"
                   type="tel"
                   id="phone_id"

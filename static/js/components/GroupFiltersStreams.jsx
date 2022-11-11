@@ -228,21 +228,23 @@ const GroupFiltersStreams = ({
               <Controller
                 labelId="alert-stream-select-required-label"
                 name="stream_id"
-                as={Select}
                 defaultValue={0}
                 control={control}
                 rules={{ validate: isStreamIdInStreams }}
-              >
-                {streams?.map(
-                  (stream) =>
-                    // display only streams that are not yet added
-                    !groupStreamIds?.includes(stream.id) && (
-                      <MenuItem value={stream.id} key={stream.id}>
-                        {stream.name}
-                      </MenuItem>
-                    )
+                render={() => (
+                  <Select>
+                    {streams?.map(
+                      (stream) =>
+                        // display only streams that are not yet added
+                        !groupStreamIds?.includes(stream.id) && (
+                          <MenuItem value={stream.id} key={stream.id}>
+                            {stream.name}
+                          </MenuItem>
+                        )
+                    )}
+                  </Select>
                 )}
-              </Controller>
+              />
               <FormHelperText>Required</FormHelperText>
             </FormControl>
           </DialogContent>
@@ -291,7 +293,7 @@ const GroupFiltersStreams = ({
               label="Filter Name"
               type="text"
               fullWidth
-              inputRef={register({ required: true, minLength: 3 })}
+              inputRef={register("test", { required: true, minLength: 3 })}
             />
             <FormControl required className={classes.selectEmpty}>
               <InputLabel name="alert-stream-select-required-label">
@@ -300,17 +302,19 @@ const GroupFiltersStreams = ({
               <Controller
                 labelId="alert-stream-select-required-label"
                 name="filter_stream_id"
-                as={Select}
                 defaultValue={0}
                 control={control}
                 rules={{ validate: isStreamIdInStreams }}
-              >
-                {group.streams?.map((stream) => (
-                  <MenuItem key={stream.id} value={stream.id}>
-                    {stream.name}
-                  </MenuItem>
-                ))}
-              </Controller>
+                render={() => (
+                  <Select>
+                    {group.streams?.map((stream) => (
+                      <MenuItem key={stream.id} value={stream.id}>
+                        {stream.name}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                )}
+              />
               <FormHelperText>Required</FormHelperText>
             </FormControl>
           </DialogContent>

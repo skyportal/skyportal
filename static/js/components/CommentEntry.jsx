@@ -63,7 +63,7 @@ const CommentEntry = ({ addComment }) => {
 
   // The file input needs to be registered here, not in the input tag below
   useEffect(() => {
-    register("test", { name: "attachment" });
+    register("name", { name: "attachment" });
   }, [register]);
 
   useEffect(() => {

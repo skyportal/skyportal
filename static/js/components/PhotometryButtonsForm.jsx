@@ -101,7 +101,7 @@ const PhotometryButtonsForm = () => {
             />
             <TextField
               label="Name"
-              {...register("test", {
+              {...register("photometryButtonName", {
                 required: true,
                 validate: (value) => {
                   if (photometryButtons) {

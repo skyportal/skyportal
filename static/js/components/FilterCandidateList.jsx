@@ -255,15 +255,15 @@ const FilterCandidateList = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dispatch]);
 
-  let formState = getValues({ nest: true });
+  let formState = getValues();
 
   const validateGroups = () => {
-    formState = getValues({ nest: true });
+    formState = getValues();
     return formState.groupIDs?.filter((value) => Boolean(value)).length >= 1;
   };
 
   const validateDates = () => {
-    formState = getValues({ nest: true });
+    formState = getValues();
     if (!!formState.startDate && !!formState.endDate) {
       return formState.startDate <= formState.endDate;
     }
@@ -271,7 +271,7 @@ const FilterCandidateList = ({
   };
 
   const validateSorting = () => {
-    formState = getValues({ nest: true });
+    formState = getValues();
     return (
       // All left empty
       formState.sortingOrigin === "" ||
@@ -362,7 +362,7 @@ const FilterCandidateList = ({
               <FormValidationError message="Invalid date range." />
             )}
             <Controller
-              render={({ onChange, value }) => (
+              render={({ field: { onChange, value } }) => (
                 <LocalizationProvider dateAdapter={AdapterDateFns}>
                   <DateTimePicker
                     value={value}
@@ -384,7 +384,7 @@ const FilterCandidateList = ({
             />
             &nbsp;
             <Controller
-              render={({ onChange, value }) => (
+              render={({ field: { onChange, value } }) => (
                 <LocalizationProvider dateAdapter={AdapterDateFns}>
                   <DateTimePicker
                     value={value}
@@ -417,13 +417,16 @@ const FilterCandidateList = ({
               control={control}
               input={<Input data-testid="savedStatusSelect" />}
               defaultValue={selectedScanningProfile?.savedStatus || "all"}
-            >
-              {savedStatusSelectOptions?.map((option) => (
-                <MenuItem key={option.value} value={option.value}>
-                  {option.label}
-                </MenuItem>
-              ))}
-            </Controller>
+              render={() => (
+                <Select>
+                  {savedStatusSelectOptions?.map((option) => (
+                    <MenuItem key={option.value} value={option.value}>
+                      {option.label}
+                    </MenuItem>
+                  ))}
+                </Select>
+              )}
+            />
           </div>
           <ClassificationSelect
             selectedClassifications={selectedClassifications}
@@ -434,7 +437,7 @@ const FilterCandidateList = ({
             <InputLabel id="redshift-select-label">Redshift</InputLabel>
             <div className={classes.redshiftField}>
               <Controller
-                render={({ onChange, value }) => (
+                render={({ field: { onChange, value } }) => (
                   <TextField
                     id="minimum-redshift"
                     label="Minimum"
@@ -457,7 +460,7 @@ const FilterCandidateList = ({
             </div>
             <div className={classes.redshiftField}>
               <Controller
-                render={({ onChange, value }) => (
+                render={({ field: { onChange, value } }) => (
                   <TextField
                     id="maximum-redshift"
                     label="Maximum"
@@ -484,18 +487,20 @@ const FilterCandidateList = ({
             </InputLabel>
             <Controller
               labelId="rejectedCandidatesLabel"
-              as={Select}
               name="rejectedStatus"
               control={control}
               input={<Input data-testid="rejectedStatusSelect" />}
               defaultValue={selectedScanningProfile?.rejectedStatus || "hide"}
-            >
-              {rejectedStatusSelectOptions?.map((option) => (
-                <MenuItem key={option.value} value={option.value}>
-                  {option.label}
-                </MenuItem>
-              ))}
-            </Controller>
+              render={() => (
+                <Select>
+                  {rejectedStatusSelectOptions?.map((option) => (
+                    <MenuItem key={option.value} value={option.value}>
+                      {option.label}
+                    </MenuItem>
+                  ))}
+                </Select>
+              )}
+            />
           </div>
           <div className={`${classes.formRow} ${classes.annotationSorting}`}>
             {errors.sortingOrigin && (
@@ -513,7 +518,7 @@ const FilterCandidateList = ({
                 labelId="sorting-select-label"
                 name="sortingOrigin"
                 control={control}
-                render={({ onChange, value }) => (
+                render={({ field: { onChange, value } }) => (
                   <Select
                     id="annotationSortingOriginSelect"
                     value={value}
@@ -554,22 +559,25 @@ const FilterCandidateList = ({
                     control={control}
                     input={<Input data-testid="annotationSortingKeySelect" />}
                     defaultValue={selectedScanningProfile?.sortingKey || ""}
-                  >
-                    {availableAnnotationsInfo ? (
-                      availableAnnotationsInfo[selectedAnnotationOrigin]?.map(
-                        (option) => (
-                          <MenuItem
-                            key={Object.keys(option)[0]}
-                            value={Object.keys(option)[0]}
-                          >
-                            {Object.keys(option)[0]}
-                          </MenuItem>
-                        )
-                      )
-                    ) : (
-                      <div />
+                    render={() => (
+                      <Select>
+                        {availableAnnotationsInfo ? (
+                          availableAnnotationsInfo[
+                            selectedAnnotationOrigin
+                          ]?.map((option) => (
+                            <MenuItem
+                              key={Object.keys(option)[0]}
+                              value={Object.keys(option)[0]}
+                            >
+                              {Object.keys(option)[0]}
+                            </MenuItem>
+                          ))
+                        ) : (
+                          <div />
+                        )}
+                      </Select>
                     )}
-                  </Controller>
+                  />
                   <InputLabel id="sorting-select-order-label">
                     Annotation Sort Order
                   </InputLabel>
@@ -580,14 +588,19 @@ const FilterCandidateList = ({
                     control={control}
                     input={<Input data-testid="annotationSortingOrderSelect" />}
                     defaultValue={selectedScanningProfile?.sortingOrder || ""}
-                  >
-                    <MenuItem key="desc" value="desc">
-                      Descending
-                    </MenuItem>
-                    <MenuItem key="asc" value="asc">
-                      Ascending
-                    </MenuItem>
-                  </Controller>
+                    render={() => (
+                      <Select>
+                        <>
+                          <MenuItem key="desc" value="desc">
+                            Descending
+                          </MenuItem>
+                          <MenuItem key="asc" value="asc">
+                            Ascending
+                          </MenuItem>
+                        </>
+                      </Select>
+                    )}
+                  />
                 </>
               ) : (
                 <div />
@@ -608,7 +621,7 @@ const FilterCandidateList = ({
                   key={group.id}
                   control={
                     <Controller
-                      render={({ onChange, value }) => (
+                      render={({ field: { onChange, value } }) => (
                         <Checkbox
                           onChange={(event) => {
                             onChange(event.target.checked);
@@ -617,7 +630,7 @@ const FilterCandidateList = ({
                               (g) => g.id
                             );
                             const selectedGroupIDs = groupIDs?.filter(
-                              (ID, i) => getValues({ nest: true }).groupIDs[i]
+                              (ID, i) => getValues().groupIDs[i]
                             );
                             setFilterGroups(
                               userAccessibleGroups.filter((g) =>

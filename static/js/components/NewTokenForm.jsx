@@ -70,7 +70,7 @@ const NewTokenForm = ({ availableAcls }) => {
             <Box>
               <TextField
                 label="Token name"
-                {...register("test", { required: true })}
+                {...register("name", { required: true })}
                 name="name"
                 error={!!errors.name}
                 helperText={errors.name ? "Required" : ""}
@@ -85,7 +85,7 @@ const NewTokenForm = ({ availableAcls }) => {
                   key={acl}
                   control={
                     <Controller
-                      render={({ onChange, value }) => (
+                      render={({ field: { onChange, value } }) => (
                         <Checkbox
                           onChange={(event) => onChange(event.target.checked)}
                           checked={value}
