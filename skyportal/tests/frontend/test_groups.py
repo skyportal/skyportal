@@ -297,8 +297,8 @@ def test_cannot_add_stream_group_users_cant_access(
     )
 
     # Cannot add stream that group members don't have access to
-    driver.click_xpath('//button[contains(.,"Add stream")]')
-    driver.click_xpath('//input[@name="stream_id"]/..')
+    driver.click_xpath('//button[contains(.,"Add stream")]', scroll_parent=True)
+    driver.click_xpath('//*[@aria-labelledby="alert-stream-select-required-label"]')
 
     driver.click_xpath(f'//li[contains(.,"{public_stream2.name}")]', scroll_parent=True)
     driver.click_xpath('//button[@data-testid="add-stream-dialog-submit"]')

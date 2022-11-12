@@ -125,7 +125,7 @@ const AssignmentForm = ({ obj_id, observingRunList }) => {
             <InputLabel id="assignmentSelectLabel">Choose Run</InputLabel>
             <Controller
               inputProps={{ MenuProps: { disableScrollLock: true } }}
-              labelId="assignmentSelectLabel"
+              labelId="assignmentSelect"
               name="run_id"
               data-testid="assignmentSelect"
               control={control}
@@ -136,7 +136,7 @@ const AssignmentForm = ({ obj_id, observingRunList }) => {
                   : null
               }
               render={() => (
-                <Select>
+                <Select labelId="assignmentSelect">
                   {upcomingObservingRuns?.map((observingRun) => (
                     <MenuItem
                       value={observingRun.id}
@@ -159,13 +159,13 @@ const AssignmentForm = ({ obj_id, observingRunList }) => {
             <InputLabel id="prioritySelectLabel">Priority</InputLabel>
             <Controller
               inputProps={{ MenuProps: { disableScrollLock: true } }}
-              labelId="prioritySelectLabel"
+              labelId="prioritySelect"
               defaultValue="1"
               name="priority"
               control={control}
               rules={{ required: true }}
               render={() => (
-                <Select>
+                <Select labelId="prioritySelect">
                   {["1", "2", "3", "4", "5"].map((prio) => (
                     <MenuItem value={prio} key={prio}>
                       {prio}
@@ -176,6 +176,7 @@ const AssignmentForm = ({ obj_id, observingRunList }) => {
             />
           </FormControl>
           <TextField
+            {...register("comment")}
             id="standard-textarea"
             label="Comment"
             variant="outlined"
@@ -184,7 +185,6 @@ const AssignmentForm = ({ obj_id, observingRunList }) => {
             name="comment"
             data-testid="assignmentCommentInput"
             size="small"
-            inputRef={register("comment")}
           />
           <Button
             primary

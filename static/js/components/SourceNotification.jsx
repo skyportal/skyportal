@@ -46,7 +46,6 @@ const SourceNotification = ({ sourceId }) => {
     groupIDToName[g.id] = g.name;
   });
 
-  const allGroups = useSelector((state) => state.groups.all);
   const [selectedGroupIds, setSelectedGroupIds] = useState([]);
   const {
     handleSubmit,
@@ -93,7 +92,7 @@ const SourceNotification = ({ sourceId }) => {
             data-testid="sourceNotification_groupSelect"
           />
           <GroupShareSelect
-            groupList={allGroups}
+            groupList={groups}
             setGroupIDs={setSelectedGroupIds}
             groupIDs={selectedGroupIds}
           />
@@ -103,6 +102,7 @@ const SourceNotification = ({ sourceId }) => {
               name="level"
               control={control}
               rules={{ required: true }}
+              error={!!errors.level}
               render={() => (
                 <>
                   <RadioGroup defaultValue="soft">
@@ -130,6 +130,8 @@ const SourceNotification = ({ sourceId }) => {
             defaultValue=""
             name="additionalNotes"
             size="small"
+            error={!!errors.additionalNotes}
+            helperText={errors.additionalNotes ? "Required" : ""}
           />
           <Button
             primary

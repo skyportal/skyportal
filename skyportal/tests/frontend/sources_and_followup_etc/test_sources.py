@@ -651,7 +651,10 @@ def test_source_notification(driver, user, public_group, public_source):
     header = driver.wait_for_xpath("//header")
     ActionChains(driver).move_to_element(header).click().perform()
     driver.click_xpath("//button[@data-testid='sendNotificationButton']")
-    driver.wait_for_xpath("//*[text()='Notification queued up sucessfully']")
+    import pdb
+
+    pdb.set_trace()
+    driver.wait_for_xpath("//*[text()='Notification queued up successfully']")
 
 
 def test_unsave_from_group(

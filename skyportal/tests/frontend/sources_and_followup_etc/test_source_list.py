@@ -622,6 +622,10 @@ def test_filter_by_gcnevent(
         scroll_parent=True,
     )
 
+    import pdb
+
+    pdb.set_trace()
+
     # The source that is not in the event should disappear
     driver.wait_for_xpath_to_disappear(f'//a[@data-testid="{notinevent_obj_id}"]')
 

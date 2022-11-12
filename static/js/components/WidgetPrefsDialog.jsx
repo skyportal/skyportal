@@ -73,8 +73,8 @@ const WidgetPrefsDialog = ({
         <DialogTitle>{title}</DialogTitle>
         <DialogContent>
           <form
-            noValidate
-            autoComplete="off"
+            // noValidate
+            // autoComplete="off"
             onSubmit={handleSubmit(formSubmit)}
           >
             {Object.keys(initialValues).map((key) => {
@@ -140,15 +140,24 @@ const WidgetPrefsDialog = ({
               if (typeof initialValues[key] === "string") {
                 return (
                   <div key={key} className={classes.inputSectionDiv}>
-                    <TextField
-                      data-testid={key}
-                      size="small"
-                      label={key}
-                      inputRef={register(key, { required: true })}
+                    <Controller
+                      render={({ field: { onChange, value } }) => (
+                        <TextField
+                          data-testid={key}
+                          size="small"
+                          label={key}
+                          inputRef={register(key, { required: true })}
+                          name={key}
+                          error={!!errors[key]}
+                          helperText={errors[key] ? "Required" : ""}
+                          variant="outlined"
+                          onChange={onChange}
+                          value={value}
+                        />
+                      )}
                       name={key}
-                      error={!!errors[key]}
-                      helperText={errors[key] ? "Required" : ""}
-                      variant="outlined"
+                      control={control}
+                      defaultValue={initialValues[key]}
                     />
                   </div>
                 );

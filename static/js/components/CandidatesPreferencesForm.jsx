@@ -320,18 +320,20 @@ const CandidatesPreferencesForm = ({
           </InputLabel>
           <Controller
             labelId="savedStatusSelectLabel"
-            as={Select}
             name="savedStatus"
             control={control}
             input={<Input data-testid="profileSavedStatusSelect" />}
             defaultValue="all"
-          >
-            {savedStatusSelectOptions?.map((option) => (
-              <MenuItem key={option.value} value={option.value}>
-                {option.label}
-              </MenuItem>
-            ))}
-          </Controller>
+            render={() => (
+              <Select>
+                {savedStatusSelectOptions?.map((option) => (
+                  <MenuItem key={option.value} value={option.value}>
+                    {option.label}
+                  </MenuItem>
+                ))}
+              </Select>
+            )}
+          />
         </div>
         <div className={classes.formRow}>
           <ClassificationSelect
@@ -394,18 +396,20 @@ const CandidatesPreferencesForm = ({
           </InputLabel>
           <Controller
             labelId="profileRejectedCandidatesLabel"
-            as={Select}
             name="rejectedStatus"
             control={control}
             input={<Input data-testid="profileRejectedStatusSelect" />}
             defaultValue="hide"
-          >
-            {rejectedStatusSelectOptions?.map((option) => (
-              <MenuItem key={option.value} value={option.value}>
-                {option.label}
-              </MenuItem>
-            ))}
-          </Controller>
+            render={() => (
+              <Select>
+                {rejectedStatusSelectOptions?.map((option) => (
+                  <MenuItem key={option.value} value={option.value}>
+                    {option.label}
+                  </MenuItem>
+                ))}
+              </Select>
+            )}
+          />
         </div>
         <div
           className={`${classes.formRow} ${classes.annotationSorting}`}
@@ -455,28 +459,30 @@ const CandidatesPreferencesForm = ({
             </InputLabel>
             <Controller
               labelId="profile-sorting-select-key-label"
-              as={Select}
               name="sortingKey"
               control={control}
               input={<Input data-testid="profileAnnotationSortingKeySelect" />}
               defaultValue=""
-            >
-              {availableAnnotationsInfo ? (
-                // eslint-disable-next-line react/prop-types
-                availableAnnotationsInfo[selectedAnnotationOrigin]?.map(
-                  (option) => (
-                    <MenuItem
-                      key={Object.keys(option)[0]}
-                      value={Object.keys(option)[0]}
-                    >
-                      {Object.keys(option)[0]}
-                    </MenuItem>
-                  )
-                )
-              ) : (
-                <div />
+              render={() => (
+                <Select>
+                  {availableAnnotationsInfo ? (
+                    // eslint-disable-next-line react/prop-types
+                    availableAnnotationsInfo[selectedAnnotationOrigin]?.map(
+                      (option) => (
+                        <MenuItem
+                          key={Object.keys(option)[0]}
+                          value={Object.keys(option)[0]}
+                        >
+                          {Object.keys(option)[0]}
+                        </MenuItem>
+                      )
+                    )
+                  ) : (
+                    <div />
+                  )}
+                </Select>
               )}
-            </Controller>
+            />
             <InputLabel id="profile-sorting-select-order-label">
               Annotation Sort Order
             </InputLabel>
