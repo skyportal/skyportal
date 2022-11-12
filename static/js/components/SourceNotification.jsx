@@ -65,15 +65,16 @@ const SourceNotification = ({ sourceId }) => {
     sourceId,
   };
 
-  const onSubmit = async () => {
-    const formData = {
+  const formSubmit = (formData) => {
+    const formData2 = {
       ...initialFormState,
       ...getValues(),
     };
+    console.log("formData2", formData2);
     if (selectedGroupIds.length >= 0) {
       formData.group_ids = selectedGroupIds;
     }
-    const result = await dispatch(Actions.sendAlert(formData));
+    const result = dispatch(Actions.sendAlert(formData));
     if (result.status === "success") {
       dispatch(showNotification("Notification queued up successfully", "info"));
       reset(initialFormState);
@@ -82,7 +83,7 @@ const SourceNotification = ({ sourceId }) => {
 
   return (
     <div>
-      <form onSubmit={handleSubmit(onSubmit)}>
+      <form onSubmit={handleSubmit(formSubmit)}>
         {errors.groupIds && (
           <FormValidationError message="No target group(s) selected for notification" />
         )}
@@ -121,18 +122,27 @@ const SourceNotification = ({ sourceId }) => {
               )}
             />
           </FormControl>
-          <TextField
-            {...register("additionalNotes")}
-            id="sourcenotification-textarea"
-            label="Additional Notes"
-            variant="outlined"
-            multiline
-            defaultValue=""
+          <Controller
+            render={({ field: { onChange, value } }) => (
+              <TextField
+                {...register("additionalNotes")}
+                id="sourcenotification-textarea"
+                label="Additional Notes"
+                variant="outlined"
+                multiline
+                defaultValue=""
+                name="additionalNotes"
+                size="small"
+                error={!!errors.additionalNotes}
+                helperText={errors.additionalNotes ? "Required" : ""}
+                onChange={onChange}
+                value={value}
+              />
+            )}
             name="additionalNotes"
-            size="small"
-            error={!!errors.additionalNotes}
-            helperText={errors.additionalNotes ? "Required" : ""}
+            control={control}
           />
+
           <Button
             primary
             type="submit"

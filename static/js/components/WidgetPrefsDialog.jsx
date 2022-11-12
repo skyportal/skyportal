@@ -72,11 +72,7 @@ const WidgetPrefsDialog = ({
       <Dialog open={open} onClose={handleClose} style={{ position: "fixed" }}>
         <DialogTitle>{title}</DialogTitle>
         <DialogContent>
-          <form
-            // noValidate
-            // autoComplete="off"
-            onSubmit={handleSubmit(formSubmit)}
-          >
+          <form onSubmit={handleSubmit(formSubmit)}>
             {Object.keys(initialValues).map((key) => {
               if (
                 typeof initialValues[key] === "object" &&
