@@ -81,7 +81,6 @@ const GroupFiltersStreams = ({
 
   // add filter to group
   const onSubmitAddFilter = async (data) => {
-    console.log("data", data);
     const result = await dispatch(
       filterActions.addGroupFilter({
         name: data.filter_name,
@@ -244,7 +243,7 @@ const GroupFiltersStreams = ({
                 control={control}
                 rules={{ validate: isStreamIdInStreams }}
                 render={() => (
-                  <Select>
+                  <Select labelId="alert-stream-select-required-label">
                     {streams?.map(
                       (stream) =>
                         // display only streams that are not yet added

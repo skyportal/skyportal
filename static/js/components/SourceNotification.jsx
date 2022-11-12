@@ -51,6 +51,7 @@ const getFontStyles = (groupId, groupIds = [], theme) => ({
 });
 
 const SourceNotification = ({ sourceId }) => {
+  const maxGroups = 3;
   const classes = useStyles();
   const groups = useSelector((state) => state.groups.userAccessible);
   const groupIDToName = {};
@@ -135,20 +136,36 @@ const SourceNotification = ({ sourceId }) => {
                 setSelectedGroups(event.target.value);
                 return event.target.value;
               }}
-              input={<Input id="selectGroupsChip" />}
-              renderValue={(selected) => (
-                <div className={classes.chips}>
-                  {selected.map((value) => (
-                    <Chip
-                      key={value}
-                      label={groupIDToName[value]}
-                      className={classes.chip}
-                    />
-                  ))}
-                </div>
-              )}
               render={(field) => (
-                <Select {...field}>
+                <Select
+                  {...field}
+                  input={<Input id="selectGroupsChip" />}
+                  renderValue={(selected) => {
+                    const numSelected = selected.length;
+                    if (numSelected <= maxGroups) {
+                      return (
+                        <div className={classes.chips}>
+                          {selected?.map((value) => (
+                            <Chip
+                              key={value}
+                              label={groupIDToName[value]}
+                              className={classes.chip}
+                            />
+                          ))}
+                        </div>
+                      );
+                    }
+                    return (
+                      <div className={classes.chips}>
+                        <Chip
+                          key="chip_groups_summary"
+                          label={`${numSelected} groups`}
+                          className={classes.chip}
+                        />
+                      </div>
+                    );
+                  }}
+                >
                   {groups.length > 0 &&
                     groups.map((group) => (
                       <MenuItem
@@ -169,14 +186,12 @@ const SourceNotification = ({ sourceId }) => {
           <FormControl className={classes.formControl}>
             <FormLabel id="levelSelectLabel">Level</FormLabel>
             <Controller
-              // as={RadioGroup}
               name="level"
               control={control}
               rules={{ required: true }}
-              defaultValue="soft"
               render={() => (
                 <>
-                  <RadioGroup>
+                  <RadioGroup defaultValue="soft">
                     <FormControlLabel
                       value="soft"
                       control={<Radio />}
@@ -193,7 +208,7 @@ const SourceNotification = ({ sourceId }) => {
             />
           </FormControl>
           <TextField
-            {...register}
+            {...register("additionalNotes")}
             id="sourcenotification-textarea"
             label="Additional Notes"
             variant="outlined"
