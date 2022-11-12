@@ -3,21 +3,16 @@ import { useSelector, useDispatch } from "react-redux";
 import PropTypes from "prop-types";
 import { useForm, Controller } from "react-hook-form";
 
-import { useTheme } from "@mui/material/styles";
 import makeStyles from "@mui/styles/makeStyles";
 import FormControl from "@mui/material/FormControl";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import FormLabel from "@mui/material/FormLabel";
 import Radio from "@mui/material/Radio";
 import RadioGroup from "@mui/material/RadioGroup";
-import Select from "@mui/material/Select";
-import Input from "@mui/material/Input";
-import InputLabel from "@mui/material/InputLabel";
-import Chip from "@mui/material/Chip";
 import TextField from "@mui/material/TextField";
-import MenuItem from "@mui/material/MenuItem";
 
 import { showNotification } from "baselayer/components/Notifications";
+import GroupShareSelect from "./GroupShareSelect";
 import Button from "./Button";
 import FormValidationError from "./FormValidationError";
 import * as Actions from "../ducks/source";
@@ -43,15 +38,7 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-const getFontStyles = (groupId, groupIds = [], theme) => ({
-  fontWeight:
-    groupIds.indexOf(groupId) === -1
-      ? theme.typography.fontWeightRegular
-      : theme.typography.fontWeightMedium,
-});
-
 const SourceNotification = ({ sourceId }) => {
-  const maxGroups = 3;
   const classes = useStyles();
   const groups = useSelector((state) => state.groups.userAccessible);
   const groupIDToName = {};
@@ -59,19 +46,8 @@ const SourceNotification = ({ sourceId }) => {
     groupIDToName[g.id] = g.name;
   });
 
-  const theme = useTheme();
-  const ITEM_HEIGHT = 48;
-  const MenuProps = {
-    disableScrollLock: true,
-    PaperProps: {
-      style: {
-        maxHeight: ITEM_HEIGHT * 4.5,
-        width: 250,
-      },
-    },
-  };
-
-  const [selectedGroups, setSelectedGroups] = useState([]);
+  const allGroups = useSelector((state) => state.groups.all);
+  const [selectedGroupIds, setSelectedGroupIds] = useState([]);
   const {
     handleSubmit,
     getValues,
@@ -82,11 +58,6 @@ const SourceNotification = ({ sourceId }) => {
     formState: { errors },
   } = useForm();
   const dispatch = useDispatch();
-
-  const validateGroups = () => {
-    const formState = getValues();
-    return formState.groupIds.length !== 0;
-  };
 
   const initialFormState = {
     additionalNotes: "",
@@ -100,6 +71,9 @@ const SourceNotification = ({ sourceId }) => {
       ...initialFormState,
       ...getValues(),
     };
+    if (selectedGroupIds.length >= 0) {
+      formData.group_ids = selectedGroupIds;
+    }
     const result = await dispatch(Actions.sendAlert(formData));
     if (result.status === "success") {
       dispatch(showNotification("Notification queued up successfully", "info"));
@@ -117,72 +91,12 @@ const SourceNotification = ({ sourceId }) => {
           <FormControl
             className={classes.formControl}
             data-testid="sourceNotification_groupSelect"
-          >
-            <InputLabel id="notificationGroupSelectLabel">
-              Choose Group
-            </InputLabel>
-            <Controller
-              id="groupSelect"
-              name="groupIds"
-              labelId="notificationGroupSelectLabel"
-              // as={Select}
-              control={control}
-              rules={{
-                required: true,
-                validate: validateGroups,
-              }}
-              defaultValue={[]}
-              onChange={([event]) => {
-                setSelectedGroups(event.target.value);
-                return event.target.value;
-              }}
-              render={(field) => (
-                <Select
-                  {...field}
-                  input={<Input id="selectGroupsChip" />}
-                  renderValue={(selected) => {
-                    const numSelected = selected.length;
-                    if (numSelected <= maxGroups) {
-                      return (
-                        <div className={classes.chips}>
-                          {selected?.map((value) => (
-                            <Chip
-                              key={value}
-                              label={groupIDToName[value]}
-                              className={classes.chip}
-                            />
-                          ))}
-                        </div>
-                      );
-                    }
-                    return (
-                      <div className={classes.chips}>
-                        <Chip
-                          key="chip_groups_summary"
-                          label={`${numSelected} groups`}
-                          className={classes.chip}
-                        />
-                      </div>
-                    );
-                  }}
-                >
-                  {groups.length > 0 &&
-                    groups.map((group) => (
-                      <MenuItem
-                        value={group.id}
-                        key={group.id.toString()}
-                        data-testid={`notificationGroupSelect_${group.id}`}
-                        style={getFontStyles(group.id, selectedGroups, theme)}
-                      >
-                        {group.name}
-                      </MenuItem>
-                    ))}
-                </Select>
-              )}
-              MenuProps={MenuProps}
-              multiple
-            />
-          </FormControl>
+          />
+          <GroupShareSelect
+            groupList={allGroups}
+            setGroupIDs={setSelectedGroupIds}
+            groupIDs={selectedGroupIds}
+          />
           <FormControl className={classes.formControl}>
             <FormLabel id="levelSelectLabel">Level</FormLabel>
             <Controller
