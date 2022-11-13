@@ -324,8 +324,12 @@ const CandidatesPreferencesForm = ({
             control={control}
             input={<Input data-testid="profileSavedStatusSelect" />}
             defaultValue="all"
-            render={() => (
-              <Select>
+            render={({ field: { onChange, value } }) => (
+              <Select
+                labelId="savedStatusSelectLabel"
+                onChange={onChange}
+                value={value}
+              >
                 {savedStatusSelectOptions?.map((option) => (
                   <MenuItem key={option.value} value={option.value}>
                     {option.label}
@@ -463,8 +467,12 @@ const CandidatesPreferencesForm = ({
               control={control}
               input={<Input data-testid="profileAnnotationSortingKeySelect" />}
               defaultValue=""
-              render={() => (
-                <Select>
+              render={({ field: { onChange, value } }) => (
+                <Select
+                  onChange={onChange}
+                  value={value}
+                  data-testid="profileAnnotationSortingKeySelect"
+                >
                   {availableAnnotationsInfo ? (
                     // eslint-disable-next-line react/prop-types
                     availableAnnotationsInfo[selectedAnnotationOrigin]?.map(
@@ -495,17 +503,24 @@ const CandidatesPreferencesForm = ({
                 <Input data-testid="profileAnnotationSortingOrderSelect" />
               }
               defaultValue=""
-            >
-              <MenuItem key="none" value="">
-                None
-              </MenuItem>
-              <MenuItem key="desc" value="desc">
-                Descending
-              </MenuItem>
-              <MenuItem key="asc" value="asc">
-                Ascending
-              </MenuItem>
-            </Controller>
+              render={({ field: { onChange, value } }) => (
+                <Select
+                  onChange={onChange}
+                  value={value}
+                  data-testid="profileAnnotationSortingOrderSelect"
+                >
+                  <MenuItem key="none" value="">
+                    None
+                  </MenuItem>
+                  <MenuItem key="desc" value="desc">
+                    Descending
+                  </MenuItem>
+                  <MenuItem key="asc" value="asc">
+                    Ascending
+                  </MenuItem>
+                </Select>
+              )}
+            />
           </Responsive>
         </div>
         <div>

@@ -2193,8 +2193,6 @@ class SourceHandler(BaseHandler):
                 return self.success(data=source_info)
 
         with self.Session() as session:
-            print(first_detected_date)
-            print(last_detected_date)
             try:
                 query_results = get_sources(
                     self.associated_user_object.id,

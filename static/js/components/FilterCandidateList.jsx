@@ -200,8 +200,6 @@ const FilterCandidateList = ({
     getValues,
     control,
     reset,
-    setValue,
-
     formState: { errors },
   } = useForm({
     startDate: defaultStartDate,
@@ -246,7 +244,7 @@ const FilterCandidateList = ({
   useEffect(() => {
     dispatch(
       candidatesActions.setFilterFormData({
-        savedStatus: "all",
+        // savedStatus: "all",
         startDate: defaultStartDate.toISOString(),
       })
     );
@@ -412,13 +410,16 @@ const FilterCandidateList = ({
             </InputLabel>
             <Controller
               labelId="savedStatusSelectLabel"
-              as={Select}
               name="savedStatus"
               control={control}
               input={<Input data-testid="savedStatusSelect" />}
-              defaultValue={selectedScanningProfile?.savedStatus || "all"}
-              render={() => (
-                <Select>
+              render={({ field: { onChange, value } }) => (
+                <Select
+                  onChange={onChange}
+                  value={value}
+                  defaultValue={selectedScanningProfile?.savedStatus || "all"}
+                  data-testid="savedStatusSelect"
+                >
                   {savedStatusSelectOptions?.map((option) => (
                     <MenuItem key={option.value} value={option.value}>
                       {option.label}
@@ -450,12 +451,14 @@ const FilterCandidateList = ({
                       shrink: true,
                     }}
                     onChange={(event) => onChange(event.target.value)}
+                    defaultValue={
+                      selectedScanningProfile?.redshiftMinimum || ""
+                    }
                   />
                 )}
                 name="redshiftMinimum"
                 labelId="redshift-select-label"
                 control={control}
-                defaultValue={selectedScanningProfile?.redshiftMinimum || ""}
               />
             </div>
             <div className={classes.redshiftField}>
@@ -473,11 +476,13 @@ const FilterCandidateList = ({
                       shrink: true,
                     }}
                     onChange={(event) => onChange(event.target.value)}
+                    defaultValue={
+                      selectedScanningProfile?.redshiftMaximum || ""
+                    }
                   />
                 )}
                 name="redshiftMaximum"
                 control={control}
-                defaultValue={selectedScanningProfile?.redshiftMaximum || ""}
               />
             </div>
           </div>
@@ -490,9 +495,15 @@ const FilterCandidateList = ({
               name="rejectedStatus"
               control={control}
               input={<Input data-testid="rejectedStatusSelect" />}
-              defaultValue={selectedScanningProfile?.rejectedStatus || "hide"}
-              render={() => (
-                <Select>
+              render={({ field: { onChange, value } }) => (
+                <Select
+                  defaultValue={
+                    selectedScanningProfile?.rejectedStatus || "hide"
+                  }
+                  onChange={onChange}
+                  value={value}
+                  data-testid="rejectedStatusSelect"
+                >
                   {rejectedStatusSelectOptions?.map((option) => (
                     <MenuItem key={option.value} value={option.value}>
                       {option.label}
@@ -524,12 +535,9 @@ const FilterCandidateList = ({
                     value={value}
                     onChange={(event) => {
                       setSelectedAnnotationOrigin(event.target.value);
-                      setValue("sortingKey", "");
                       onChange(event.target.value);
                     }}
-                    input={
-                      <Input data-testid="annotationSortingOriginSelect" />
-                    }
+                    defaultValue={selectedScanningProfile?.sortingOrigin || ""}
                   >
                     {availableAnnotationsInfo ? (
                       [""]
@@ -545,7 +553,6 @@ const FilterCandidateList = ({
                   </Select>
                 )}
                 rules={{ validate: validateSorting }}
-                defaultValue={selectedAnnotationOrigin || ""}
               />
               {selectedAnnotationOrigin ? (
                 <>
@@ -554,13 +561,15 @@ const FilterCandidateList = ({
                   </InputLabel>
                   <Controller
                     labelId="sorting-select-key-label"
-                    as={Select}
                     name="sortingKey"
                     control={control}
                     input={<Input data-testid="annotationSortingKeySelect" />}
-                    defaultValue={selectedScanningProfile?.sortingKey || ""}
-                    render={() => (
-                      <Select>
+                    render={({ field: { onChange, value } }) => (
+                      <Select
+                        defaultValue={selectedScanningProfile?.sortingKey || ""}
+                        onChange={onChange}
+                        value={value}
+                      >
                         {availableAnnotationsInfo ? (
                           availableAnnotationsInfo[
                             selectedAnnotationOrigin
@@ -583,21 +592,23 @@ const FilterCandidateList = ({
                   </InputLabel>
                   <Controller
                     labelId="sorting-select-order-label"
-                    as={Select}
                     name="sortingOrder"
                     control={control}
                     input={<Input data-testid="annotationSortingOrderSelect" />}
-                    defaultValue={selectedScanningProfile?.sortingOrder || ""}
-                    render={() => (
-                      <Select>
-                        <>
-                          <MenuItem key="desc" value="desc">
-                            Descending
-                          </MenuItem>
-                          <MenuItem key="asc" value="asc">
-                            Ascending
-                          </MenuItem>
-                        </>
+                    render={({ field: { onChange, value } }) => (
+                      <Select
+                        defaultValue={
+                          selectedScanningProfile?.sortingOrder || ""
+                        }
+                        onChange={onChange}
+                        value={value}
+                      >
+                        <MenuItem key="desc" value="desc">
+                          Descending
+                        </MenuItem>
+                        <MenuItem key="asc" value="asc">
+                          Ascending
+                        </MenuItem>
                       </Select>
                     )}
                   />

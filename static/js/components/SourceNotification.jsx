@@ -65,15 +65,15 @@ const SourceNotification = ({ sourceId }) => {
     sourceId,
   };
 
-  const formSubmit = () => {
+  const formSubmit = async () => {
     const formData = {
       ...initialFormState,
       ...getValues(),
     };
     if (selectedGroupIds.length >= 0) {
-      formData.group_ids = selectedGroupIds;
+      formData.groupIds = selectedGroupIds;
     }
-    const result = dispatch(Actions.sendAlert(formData));
+    const result = await dispatch(Actions.sendAlert(formData));
     if (result.status === "success") {
       dispatch(showNotification("Notification queued up successfully", "info"));
       reset(initialFormState);
@@ -104,20 +104,18 @@ const SourceNotification = ({ sourceId }) => {
               rules={{ required: true }}
               error={!!errors.level}
               render={({ field: { onChange, value } }) => (
-                <RadioGroup
-                  value={value}
-                  onChange={onChange}
-                  defaultValue="soft"
-                >
+                <RadioGroup value={value} onChange={onChange}>
                   <FormControlLabel
                     value="soft"
                     control={<Radio />}
                     label="Soft Alert (email)"
+                    data-testid="soft"
                   />
                   <FormControlLabel
                     value="hard"
                     control={<Radio />}
                     label="Hard Alert (email + SMS)"
+                    data-testid="hard"
                   />
                 </RadioGroup>
               )}

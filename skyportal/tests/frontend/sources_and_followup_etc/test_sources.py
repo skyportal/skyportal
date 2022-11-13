@@ -645,14 +645,12 @@ def test_source_notification(driver, user, public_group, public_source):
     # popup to close it
     driver.click_xpath("//div[@id='selectGroups']", scroll_parent=True)
     driver.click_xpath(
-        "//ul[@aria-labelledby='select-groups-label']", scroll_parent=True
-    )
-    driver.click_xpath(
         f'//div[@data-testid="group_{public_group.id}"]',
         scroll_parent=True,
     )
     header = driver.wait_for_xpath("//header")
     ActionChains(driver).move_to_element(header).click().perform()
+    driver.click_xpath("//label[@data-testid='soft']")
     driver.click_xpath("//button[@data-testid='sendNotificationButton']")
     driver.wait_for_xpath("//*[text()='Notification queued up successfully']")
 
