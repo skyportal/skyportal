@@ -643,15 +643,16 @@ def test_source_notification(driver, user, public_group, public_source):
     driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
     # Choose a group and click something outside/not covered by the multi-select
     # popup to close it
-    driver.click_xpath("//div[@data-testid='sourceNotification_groupSelect']")
+    driver.click_xpath("//div[@id='selectGroups']", scroll_parent=True)
     driver.click_xpath(
-        f'//li[@data-testid="notificationGroupSelect_{public_group.id}"]',
+        f'//div[@data-testid="group_{public_group.id}"]',
         scroll_parent=True,
     )
     header = driver.wait_for_xpath("//header")
     ActionChains(driver).move_to_element(header).click().perform()
+    driver.click_xpath("//label[@data-testid='soft']")
     driver.click_xpath("//button[@data-testid='sendNotificationButton']")
-    driver.wait_for_xpath("//*[text()='Notification queued up sucessfully']")
+    driver.wait_for_xpath("//*[text()='Notification queued up successfully']")
 
 
 def test_unsave_from_group(

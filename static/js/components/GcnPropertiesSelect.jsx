@@ -144,7 +144,7 @@ const GcnPropertiesSelect = (props) => {
             </Typography>
             <div className={classes.selectItems}>
               <Controller
-                render={({ value }) => (
+                render={({ field: { value } }) => (
                   <Select
                     inputProps={{ MenuProps: { disableScrollLock: true } }}
                     labelId="gcnPropertySelectLabel"
@@ -176,7 +176,7 @@ const GcnPropertiesSelect = (props) => {
             </div>
             <div className={classes.selectItems}>
               <Controller
-                render={({ value }) => (
+                render={({ field: { value } }) => (
                   <Select
                     inputProps={{ MenuProps: { disableScrollLock: true } }}
                     labelId="gcnPropertyComparatorSelectLabel"
@@ -206,12 +206,20 @@ const GcnPropertiesSelect = (props) => {
                 defaultValue="="
               />
             </div>
-            <TextField
-              size="small"
-              label="Property Comparator Value"
+            <Controller
+              render={({ field: { onChange, value } }) => (
+                <TextField
+                  size="small"
+                  label="Property Comparator Value"
+                  name="propertyComparatorValue"
+                  inputRef={register("propertyComparatorValue")}
+                  placeholder="0.0"
+                  onChange={onChange}
+                  value={value}
+                />
+              )}
               name="propertyComparatorValue"
-              inputRef={register}
-              placeholder="0.0"
+              control={control}
             />
           </div>
 
