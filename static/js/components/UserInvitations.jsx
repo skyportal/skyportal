@@ -815,18 +815,22 @@ const UserInvitations = () => {
             )}
             <Controller
               name="invitationRole"
-              as={
-                <Select data-testid="invitationRoleSelect">
+              control={control}
+              rules={{ required: true }}
+              defaultValue={clickedInvitation?.role_id}
+              render={({ field: { onChange, value } }) => (
+                <Select
+                  data-testid="invitationRoleSelect"
+                  value={value}
+                  onChange={onChange}
+                >
                   {["Full user", "View only"].map((role) => (
                     <MenuItem key={role} value={role}>
                       {role}
                     </MenuItem>
                   ))}
                 </Select>
-              }
-              control={control}
-              rules={{ required: true }}
-              defaultValue={clickedInvitation?.role_id}
+              )}
             />
             <br />
             <div>

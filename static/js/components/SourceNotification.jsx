@@ -65,12 +65,11 @@ const SourceNotification = ({ sourceId }) => {
     sourceId,
   };
 
-  const formSubmit = (formData) => {
-    const formData2 = {
+  const formSubmit = () => {
+    const formData = {
       ...initialFormState,
       ...getValues(),
     };
-    console.log("formData2", formData2);
     if (selectedGroupIds.length >= 0) {
       formData.group_ids = selectedGroupIds;
     }
@@ -104,21 +103,23 @@ const SourceNotification = ({ sourceId }) => {
               control={control}
               rules={{ required: true }}
               error={!!errors.level}
-              render={() => (
-                <>
-                  <RadioGroup defaultValue="soft">
-                    <FormControlLabel
-                      value="soft"
-                      control={<Radio />}
-                      label="Soft Alert (email)"
-                    />
-                    <FormControlLabel
-                      value="hard"
-                      control={<Radio />}
-                      label="Hard Alert (email + SMS)"
-                    />
-                  </RadioGroup>
-                </>
+              render={({ field: { onChange, value } }) => (
+                <RadioGroup
+                  value={value}
+                  onChange={onChange}
+                  defaultValue="soft"
+                >
+                  <FormControlLabel
+                    value="soft"
+                    control={<Radio />}
+                    label="Soft Alert (email)"
+                  />
+                  <FormControlLabel
+                    value="hard"
+                    control={<Radio />}
+                    label="Hard Alert (email + SMS)"
+                  />
+                </RadioGroup>
               )}
             />
           </FormControl>
@@ -148,6 +149,7 @@ const SourceNotification = ({ sourceId }) => {
             type="submit"
             name="sendNotificationButton"
             data-testid="sendNotificationButton"
+            onClick={() => formSubmit()}
           >
             Send Notification
           </Button>

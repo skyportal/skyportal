@@ -58,6 +58,9 @@ const GroupFiltersStreams = ({
     control,
     formState: { errors },
   } = useForm();
+
+  const { handleSubmit: handleSubmit2, control: control2 } = useForm();
+
   const fullScreen = !useMediaQuery(theme.breakpoints.up("md"));
 
   const handleAddFilterDialogClose = () => {
@@ -223,11 +226,7 @@ const GroupFiltersStreams = ({
         onClose={handleAddStreamClose}
         aria-labelledby="responsive-dialog-title"
       >
-        <form
-          onSubmit={({ formData }) => {
-            onSubmitAddStream(formData);
-          }}
-        >
+        <form onSubmit={handleSubmit2(onSubmitAddStream)}>
           <DialogTitle id="responsive-dialog-title">
             Add alert stream to group
           </DialogTitle>
@@ -240,10 +239,14 @@ const GroupFiltersStreams = ({
                 labelId="alert-stream-select-required-label"
                 name="stream_id"
                 defaultValue={0}
-                control={control}
+                control={control2}
                 rules={{ validate: isStreamIdInStreams }}
-                render={() => (
-                  <Select labelId="alert-stream-select-required-label">
+                render={({ field: { onChange, value } }) => (
+                  <Select
+                    labelId="alert-stream-select-required-label"
+                    onChange={onChange}
+                    value={value}
+                  >
                     {streams?.map(
                       (stream) =>
                         // display only streams that are not yet added
@@ -296,18 +299,26 @@ const GroupFiltersStreams = ({
               </a>
               &nbsp; for an extensive guide on Alert filters in Fritz.
             </DialogContentText>
-            <TextField
-              autoFocus
-              required
-              margin="dense"
+            <Controller
+              render={({ field: { onChange, value } }) => (
+                <TextField
+                  autoFocus
+                  required
+                  margin="dense"
+                  name="filter_name"
+                  label="Filter Name"
+                  type="text"
+                  fullWidth
+                  inputRef={register("filter_name", {
+                    required: true,
+                    minLength: 3,
+                  })}
+                  onChange={onChange}
+                  value={value}
+                />
+              )}
               name="filter_name"
-              label="Filter Name"
-              type="text"
-              fullWidth
-              inputRef={register("filter_name", {
-                required: true,
-                minLength: 3,
-              })}
+              control={control}
             />
             <FormControl required className={classes.selectEmpty}>
               <InputLabel name="alert-stream-select-required-label">
@@ -324,8 +335,12 @@ const GroupFiltersStreams = ({
                 defaultValue={0}
                 control={control}
                 rules={{ validate: isStreamIdInStreams }}
-                render={() => (
-                  <Select>
+                render={({ field: { onChange, value } }) => (
+                  <Select
+                    labelId="alert-stream-select-required-label"
+                    onChange={onChange}
+                    value={value}
+                  >
                     {group.streams?.map((stream) => (
                       <MenuItem key={stream.id} value={stream.id}>
                         {stream.name}
