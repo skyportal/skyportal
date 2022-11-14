@@ -14,6 +14,7 @@ import SourceTable from "./SourceTable";
 import Spinner from "./Spinner";
 import ProgressIndicator from "./ProgressIndicators";
 import * as sourcesActions from "../ducks/sources";
+import SourceSearchBar from "./SourceSearchBar";
 
 const useStyles = makeStyles((theme) => ({
   paperDiv: {
@@ -173,6 +174,7 @@ const SourceList = () => {
         </Typography>
         {sourcesState.sources && (
           <Grid item className={classes.tableGrid}>
+            <SourceSearchBar id="search" />
             <SourceTable
               sources={sourcesState.sources}
               paginateCallback={handleSourceTablePagination}
