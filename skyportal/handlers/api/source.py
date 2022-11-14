@@ -37,6 +37,7 @@ from ...models import (
     Allocation,
     Annotation,
     Comment,
+    GroupUser,
     Instrument,
     Obj,
     User,
@@ -1328,6 +1329,19 @@ def post_source(data, user_id, session, refresh_source=True):
             .where(Source.obj_id == obj.id)
             .where(Source.group_id == group.id)
         ).first()
+        group_user = session.scalars(
+            GroupUser.select(user)
+            .where(GroupUser.user_id == user.id)
+            .where(GroupUser.group_id == group.id)
+        ).first()
+        if group_user is None:
+            raise AttributeError(
+                f'User is not a member of the group with ID {group.id}.'
+            )
+        if not group_user.can_save:
+            raise AttributeError(
+                f'User does not have power to save to group with ID {group.id}.'
+            )
         if source is not None:
             source.active = True
             source.saved_by = user
