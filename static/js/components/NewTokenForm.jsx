@@ -24,7 +24,14 @@ import * as ProfileActions from "../ducks/profile";
 const NewTokenForm = ({ availableAcls }) => {
   const dispatch = useDispatch();
 
-  const { handleSubmit, register, errors, reset, control } = useForm();
+  const {
+    handleSubmit,
+    register,
+    reset,
+    control,
+
+    formState: { errors },
+  } = useForm();
 
   useEffect(() => {
     reset({
@@ -63,7 +70,7 @@ const NewTokenForm = ({ availableAcls }) => {
             <Box>
               <TextField
                 label="Token name"
-                inputRef={register({ required: true })}
+                {...register("name", { required: true })}
                 name="name"
                 error={!!errors.name}
                 helperText={errors.name ? "Required" : ""}
@@ -78,7 +85,7 @@ const NewTokenForm = ({ availableAcls }) => {
                   key={acl}
                   control={
                     <Controller
-                      render={({ onChange, value }) => (
+                      render={({ field: { onChange, value } }) => (
                         <Checkbox
                           onChange={(event) => onChange(event.target.checked)}
                           checked={value}
