@@ -1,3 +1,4 @@
+import time
 from astropy.time import Time
 import healpix_alchemy as ha
 import humanize
@@ -23,6 +24,20 @@ env, cfg = load_env()
 default_filters = cfg['app.observation_plan.default_filters']
 
 
+def get_healpix_area(h):
+    return (h.upper - h.lower) * ha.constants.PIXEL_AREA
+
+
+def is_healpix_overlapping(h1, h2):
+    return h1.lower < h2.upper and h2.lower < h1.upper
+
+
+def get_healpix_intersection_area(h1, h2):
+    if not is_healpix_overlapping(h1, h2):
+        return 0
+    return (min(h1.upper, h2.upper) - max(h1.lower, h2.lower)) * ha.constants.PIXEL_AREA
+
+
 def generate_observation_plan_statistics(
     observation_plan_ids, request_ids, user_id, session, cumulative_probability=1.0
 ):
@@ -37,6 +52,8 @@ def generate_observation_plan_statistics(
         PlannedObservation,
         ObservationPlanRequest,
     )
+
+    session.execute('ANALYZE')
 
     for observation_plan_id, request_id in zip(observation_plan_ids, request_ids):
         plan = session.query(EventObservationPlan).get(observation_plan_id)
@@ -86,12 +103,51 @@ def generate_observation_plan_statistics(
             + statistics['total_time']
         )
 
+        # DEBUGGING: how many localization tiles are in the localization?
+        t0 = time.time()
+        tiles = session.scalars(
+            sa.select(LocalizationTile)
+            .where(LocalizationTile.localization_id == request.localization_id)
+            .order_by(LocalizationTile.probdensity.desc())
+            .distinct()
+        ).all()
+        print(
+            f"DEBUG: {len(tiles)} localization tiles in localization "
+            f"{request.localization_id} retrieved in {time.time() - t0:.2f} seconds  "
+            f"(including sort)"
+        )
+
         # Calculate area: Integrated area in sq. deg within localization
         cum_prob = (
             sa.func.sum(LocalizationTile.probdensity * LocalizationTile.healpix.area)
             .over(order_by=LocalizationTile.probdensity.desc())
             .label('cum_prob')
         )
+
+        # DEBUGGING: calculate the cumulative probabilities:
+        t0 = time.time()
+        cp = session.scalar(
+            sa.select(cum_prob).where(
+                LocalizationTile.localization_id == request.localization_id
+            )
+        )
+        print(f"DEBUG: cum_prob= {cp}. runtime: {time.time() - t0:.2f} seconds")
+
+        # DEBUGGING: calculate the cumulative probabilities:
+        t0 = time.time()
+        cum_prob_value = 0
+        min_probdensity_value = 0
+
+        for t in tiles:
+            cum_prob_value += t.probdensity * get_healpix_area(t.healpix)
+            if cum_prob_value > cumulative_probability:
+                min_probdensity_value = t.probdensity
+                break
+
+        print(
+            f'cum_prob_value = {cum_prob_value}, min_probdensity_value = {min_probdensity_value}, time: {time.time() - t0:.2f} seconds'
+        )
+
         localizationtile_subquery = (
             sa.select(LocalizationTile.probdensity, cum_prob)
             .where(
@@ -106,6 +162,77 @@ def generate_observation_plan_statistics(
             )
         ).scalar_subquery()
 
+        # DEBUGGING: get the instrument fields:
+        t0 = time.time()
+        instrument_field_tiles = session.scalars(
+            sa.select(InstrumentFieldTile)
+            .where(
+                InstrumentField.instrument_id == plan.instrument_id,
+                InstrumentFieldTile.instrument_field_id == InstrumentField.id,
+                InstrumentFieldTile.instrument_field_id == PlannedObservation.field_id,
+                PlannedObservation.observation_plan_id == plan.id,
+            )
+            .distinct()
+        ).all()
+        print(
+            f"DEBUG: {len(instrument_field_tiles)} instrument fields retrieved in {time.time() - t0:.2f} seconds"
+        )
+
+        # DEBUGGING: get the overlapping fields/tiles:
+        t0 = time.time()
+        total_area_value = 0
+        total_probability_value = 0
+        field_lower_bounds = np.array([f.healpix.lower for f in instrument_field_tiles])
+        print(field_lower_bounds)
+
+        field_upper_bounds = np.array([f.healpix.upper for f in instrument_field_tiles])
+        print(field_upper_bounds)
+
+        # field_area_array = (field_upper_bounds - field_lower_bounds) * ha.constants.PIXEL_AREA
+        field_included = np.zeros(len(instrument_field_tiles), dtype=bool)
+        sum_probability = 0
+        overlap_values = []
+        for i, t in enumerate(tiles):
+            # print(f'DEBUG: tile {t.id} has probdensity {t.probdensity}. runtime: {time.time() - t0:.2f} seconds')
+
+            # has True values where tile t has any overlap with one of the fields
+            overlap_array = np.logical_and(
+                t.healpix.lower <= field_upper_bounds,
+                t.healpix.upper >= field_lower_bounds,
+            )
+            overlap_values.append(int(np.sum(overlap_array)))
+            if i % 100 == 0:
+                print(f'sum(ovelap)= {np.sum(overlap_array)}')
+
+            # if overlap exists, get the area of overlap for each field with tile t (if no overlap, get negative value)
+            common_area_array = np.minimum(
+                t.healpix.upper, field_upper_bounds
+            ) - np.maximum(t.healpix.lower, field_lower_bounds)
+            # common_area_array = common_area_array.astype(float)
+            # common_area_array *= ha.constants.PIXEL_AREA
+            # get the probability for all fields with overlap with tile t
+            total_area_value += np.sum(common_area_array[overlap_array])
+            total_probability_value += t.probdensity * np.sum(
+                common_area_array[overlap_array]
+            )
+            sum_probability += t.probdensity * get_healpix_area(t.healpix)
+            # keep track of all fields overlapping any tiles
+            field_included = np.logical_or(field_included, overlap_array)
+
+        print(
+            f'DEBUG: fields included: {np.sum(field_included)} / {len(field_included)}'
+        )
+        print(f'DEBUG: sum_probability = {sum_probability}')
+        print(f'DEBUG: overlap values= {set(overlap_values)}')
+        # total_area_value = np.sum(field_area_array[field_included])
+        total_area_value *= ha.constants.PIXEL_AREA
+        total_probability_value *= ha.constants.PIXEL_AREA
+        print(
+            f'DEBUG: total_area_value = {total_area_value * (180/np.pi)**2}, '
+            f'total_probability_value = {total_probability_value}, '
+            f'time: {time.time() - t0:.2f} seconds'
+        )
+
         tiles_subquery = (
             sa.select(InstrumentFieldTile.id)
             .where(
@@ -116,6 +243,7 @@ def generate_observation_plan_statistics(
                 InstrumentFieldTile.instrument_field_id == PlannedObservation.field_id,
                 PlannedObservation.observation_plan_id == plan.id,
                 InstrumentFieldTile.healpix.overlaps(LocalizationTile.healpix),
+                LocalizationTile.healpix.overlaps(InstrumentFieldTile.healpix),
             )
             .distinct()
             .subquery()
@@ -127,7 +255,13 @@ def generate_observation_plan_statistics(
         )
         area = sa.func.sum(union.columns.healpix.area)
         query_area = sa.select(area)
+        t0 = time.time()
         intarea = session.execute(query_area).scalar_one()
+        print(
+            f'Area value: {intarea * (180.0 / np.pi) ** 2}. query took {time.time() - t0:.1f} s'
+        )
+
+        print(query_area)
 
         if intarea is None:
             intarea = 0.0
@@ -139,7 +273,12 @@ def generate_observation_plan_statistics(
             * (union.columns.healpix * LocalizationTile.healpix).area
         )
         query_prob = sa.select(prob)
+        t0 = time.time()
         intprob = session.execute(query_prob).scalar_one()
+        print(f'intProb value: {intprob}. query took {time.time() - t0:.1f} s')
+
+        print(query_prob)
+
         if intprob is None:
             intprob = 0.0
 

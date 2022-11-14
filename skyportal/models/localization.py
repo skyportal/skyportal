@@ -183,3 +183,9 @@ class LocalizationTile(Base):
     )
 
     healpix = sa.Column(healpix_alchemy.Tile, primary_key=True, index=True)
+
+    healpix_alchemy.constants.PIXEL_AREA
+
+    @property
+    def area(self):
+        return self.PIXEL_AREA

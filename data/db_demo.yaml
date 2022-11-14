@@ -314,10 +314,10 @@ instrument:
     api_classname: ZTFAPI
     api_classname_obsplan: ZTFMMAAPI
     treasuremap_id: 47
-    # field_data:
-    #   file: ../data/ZTF_Fields.csv
-    # field_region:
-    #   file: ../data/ZTF_Region.reg
+    field_data:
+      file: ../data/ZTF_Fields.csv
+    field_region:
+      file: ../data/ZTF_Region.reg
     sensitivity_data: {'ztfg': {'limiting_magnitude': 20.3, 'magsys': 'ab', 'exposure_time': 30, 'zeropoint': 26.3,}, 'ztfr': {'limiting_magnitude': 20.3, 'magsys': 'ab', 'exposure_time': 30, 'zeropoint': 26.3,}, 'ztfi': {'limiting_magnitude': 19.6, 'magsys': 'ab', 'exposure_time': 30, 'zeropoint': 26.3,}}
   - name: ALFOSC
     type: imaging spectrograph
