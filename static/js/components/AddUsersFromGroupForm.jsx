@@ -27,12 +27,19 @@ const useStyles = makeStyles(() => ({
 const AddUsersFromGroupForm = ({ groupID }) => {
   const dispatch = useDispatch();
   let { all: groups } = useSelector((state) => state.groups);
-  const { handleSubmit, errors, reset, control, getValues } = useForm();
+  const {
+    handleSubmit,
+    reset,
+    control,
+    getValues,
+
+    formState: { errors },
+  } = useForm();
   const classes = useStyles();
   groups = groups?.filter((g) => g.id !== groupID) || [];
 
   const validateGroups = () => {
-    const formState = getValues({ nest: true });
+    const formState = getValues();
     return formState.groups.length >= 1;
   };
 
@@ -60,7 +67,7 @@ const AddUsersFromGroupForm = ({ groupID }) => {
         )}
         <Controller
           name="groups"
-          render={({ onChange, value, ...props }) => (
+          render={({ field: { onChange, value } }) => (
             <Autocomplete
               multiple
               id="addUsersFromGroupsSelect"
@@ -70,10 +77,10 @@ const AddUsersFromGroupForm = ({ groupID }) => {
               getOptionLabel={(group) => group.name}
               filterSelectedOptions
               data-testid="addUsersFromGroupsSelect"
-              renderInput={(params) => (
+              renderInput={(field) => (
                 <TextField
                   // eslint-disable-next-line react/jsx-props-no-spreading
-                  {...params}
+                  {...field}
                   error={!!errors.groups}
                   variant="outlined"
                   label="Select Groups/Users"
@@ -82,8 +89,6 @@ const AddUsersFromGroupForm = ({ groupID }) => {
                   data-testid="addUsersFromGroupsTextField"
                 />
               )}
-              // eslint-disable-next-line react/jsx-props-no-spreading
-              {...props}
             />
           )}
           control={control}

@@ -44,6 +44,7 @@ import AssignmentForm from "./AssignmentForm";
 import AssignmentList from "./AssignmentList";
 import EditSourceGroups from "./EditSourceGroups";
 import SourceNotification from "./SourceNotification";
+import UpdateSourceCoordinates from "./UpdateSourceCoordinates";
 import UpdateSourceRedshift from "./UpdateSourceRedshift";
 import SourceRedshiftHistory from "./SourceRedshiftHistory";
 import AnnotationsTable from "./AnnotationsTable";
@@ -333,6 +334,9 @@ const SourceMobile = WidthProvider(
                           {ra_to_hours(source.ra, ":")} &nbsp;
                           {dec_to_dms(source.dec, ":")} &nbsp;
                         </span>
+                      </div>
+                      <div className={classes.sourceInfo}>
+                        <UpdateSourceCoordinates source={source} />
                       </div>
                     </div>
                     <div className={classes.sourceInfo}>
