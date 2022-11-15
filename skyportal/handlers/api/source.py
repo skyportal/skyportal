@@ -37,6 +37,7 @@ from ...models import (
     Allocation,
     Annotation,
     Comment,
+    GroupUser,
     Instrument,
     Obj,
     User,
@@ -176,7 +177,7 @@ def get_source(
         if "ps1" not in existing_thumbnail_types:
             IOLoop.current().run_in_executor(
                 None,
-                lambda: add_ps1_thumbnail_and_push_ws_msg(obj_id, user_id),
+                lambda: add_ps1_thumbnail_and_push_ws_msg([obj_id], user_id),
             )
         if (
             "sdss" not in existing_thumbnail_types
@@ -257,6 +258,7 @@ def get_source(
     source_info["luminosity_distance"] = s.luminosity_distance
     source_info["dm"] = s.dm
     source_info["angular_diameter_distance"] = s.angular_diameter_distance
+    source_info["ebv"] = s.ebv
 
     if include_photometry:
         photometry = session.scalars(
@@ -352,12 +354,15 @@ def get_sources(
     last_detected_date=None,
     has_tns_name=False,
     has_spectrum=False,
+    has_followup_request=False,
     sourceID=None,
+    rejectedSourceIDs=None,
     ra=None,
     dec=None,
     radius=None,
     has_spectrum_before=None,
     has_spectrum_after=None,
+    followup_request_status=None,
     saved_before=None,
     saved_after=None,
     created_or_modified_after=None,
@@ -421,6 +426,9 @@ def get_sources(
         obj_query = obj_query.where(
             func.lower(Obj.id).contains(func.lower(sourceID.strip()))
         )
+    if rejectedSourceIDs:
+        obj_query = obj_query.where(Obj.id.notin_(rejectedSourceIDs))
+
     if any([ra, dec, radius]):
         if not all([ra, dec, radius]):
             raise ValueError(
@@ -538,6 +546,16 @@ def get_sources(
         spectrum_subquery = Spectrum.select(user).subquery()
         obj_query = obj_query.join(
             spectrum_subquery, Obj.id == spectrum_subquery.c.obj_id
+        )
+    if has_followup_request:
+        followup_request = FollowupRequest.select(user)
+        if followup_request_status:
+            followup_request = followup_request.where(
+                FollowupRequest.status.contains(followup_request_status.strip())
+            )
+        followup_request_subquery = followup_request.subquery()
+        obj_query = obj_query.join(
+            followup_request_subquery, Obj.id == followup_request_subquery.c.obj_id
         )
     if min_redshift is not None:
         try:
@@ -1036,6 +1054,7 @@ def get_sources(
                 include_thumbnails=False,
                 # include detection stats here as it is a query column,
                 include_detection_stats=include_detection_stats,
+                use_cache=True,
                 current_user=user,
             )
         except ValueError as e:
@@ -1231,7 +1250,7 @@ def get_sources(
     return query_results
 
 
-def post_source(data, user_id, session):
+def post_source(data, user_id, session, refresh_source=True):
     """Post source to database.
     data: dict
         Source dictionary
@@ -1239,6 +1258,8 @@ def post_source(data, user_id, session):
         SkyPortal ID of User posting the GcnEvent
     session: sqlalchemy.Session
         Database session for this transaction
+    refresh_source : bool
+        Refresh source upon post. Defaults to True.
     """
 
     user = session.scalar(sa.select(User).where(User.id == user_id))
@@ -1270,6 +1291,7 @@ def post_source(data, user_id, session):
         ]
     except KeyError:
         group_ids = user_group_ids
+
     if not group_ids:
         raise AttributeError(
             "Invalid group_ids field. Please specify at least "
@@ -1307,6 +1329,20 @@ def post_source(data, user_id, session):
             .where(Source.obj_id == obj.id)
             .where(Source.group_id == group.id)
         ).first()
+        if not user.is_admin:
+            group_user = session.scalars(
+                GroupUser.select(user)
+                .where(GroupUser.user_id == user.id)
+                .where(GroupUser.group_id == group.id)
+            ).first()
+            if group_user is None:
+                raise AttributeError(
+                    f'User is not a member of the group with ID {group.id}.'
+                )
+            if not group_user.can_save:
+                raise AttributeError(
+                    f'User does not have power to save to group with ID {group.id}.'
+                )
         if source is not None:
             source.active = True
             source.saved_by = user
@@ -1324,11 +1360,14 @@ def post_source(data, user_id, session):
             lambda: add_linked_thumbnails_and_push_ws_msg(obj.id, user_id),
         )
     else:
-        flow = Flow()
-        flow.push(
-            '*', "skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}
-        )
-        flow.push('*', "skyportal/REFRESH_CANDIDATE", payload={"id": obj.internal_key})
+        if refresh_source:
+            flow = Flow()
+            flow.push(
+                '*', "skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}
+            )
+            flow.push(
+                '*', "skyportal/REFRESH_CANDIDATE", payload={"id": obj.internal_key}
+            )
 
     return obj.id
 
@@ -1345,26 +1384,30 @@ def apply_active_or_requested_filtering(query, include_requested, requested_only
     return query
 
 
-def add_ps1_thumbnail_and_push_ws_msg(obj_id, user_id):
+def add_ps1_thumbnail_and_push_ws_msg(obj_ids, user_id):
     with Session() as session:
-        try:
-            user = session.query(User).get(user_id)
-            if Obj.get_if_accessible_by(obj_id, user) is None:
-                raise AccessError(
-                    f"Insufficient permissions for User {user_id} to read Obj {obj_id}"
+        user = session.query(User).get(user_id)
+        for obj_id in obj_ids:
+            try:
+                user = session.query(User).get(user_id)
+                if Obj.get_if_accessible_by(obj_id, user) is None:
+                    raise AccessError(
+                        f"Insufficient permissions for User {user_id} to read Obj {obj_id}"
+                    )
+                obj = session.query(Obj).get(obj_id)
+                obj.add_ps1_thumbnail(session=session)
+                flow = Flow()
+                flow.push(
+                    '*',
+                    "skyportal/REFRESH_SOURCE",
+                    payload={"obj_key": obj.internal_key},
                 )
-            obj = session.query(Obj).get(obj_id)
-            obj.add_ps1_thumbnail(session=session)
-            flow = Flow()
-            flow.push(
-                '*', "skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}
-            )
-            flow.push(
-                '*', "skyportal/REFRESH_CANDIDATE", payload={"id": obj.internal_key}
-            )
-        except Exception as e:
-            log(f"Unable to generate PS1 thumbnail URL for {obj_id}: {e}")
-            session.rollback()
+                flow.push(
+                    '*', "skyportal/REFRESH_CANDIDATE", payload={"id": obj.internal_key}
+                )
+            except Exception as e:
+                log(f"Unable to generate PS1 thumbnail URL for {obj_id}: {e}")
+                session.rollback()
 
 
 def paginate_summary_query(session, query, page, num_per_page, total_matches):
@@ -1516,6 +1559,12 @@ class SourceHandler(BaseHandler):
             schema:
               type: string
             description: Portion of ID to filter on
+          - in: query
+            name: rejectedSourceIDs
+            nullable: true
+            schema:
+              type: str
+            description: Comma-separated string of object IDs not to be returned, useful in cases where you are looking for new sources passing a query.
           - in: query
             name: simbadClass
             nullable: true
@@ -1879,6 +1928,19 @@ class SourceHandler(BaseHandler):
               type: boolean
             description: If true, return only those matches with at least one associated spectrum
           - in: query
+            name: hasFollowupRequest
+            nullable: true
+            schema:
+              type: boolean
+            description: If true, return only those matches with at least one associated followup request
+          - in: query
+            name: followupRequestStatus
+            nullable: true
+            schema:
+              type: string
+            description: |
+              If provided, string to match status of followup_request against
+          - in: query
             name: createdOrModifiedAfter
             nullable: true
             schema:
@@ -1962,6 +2024,7 @@ class SourceHandler(BaseHandler):
         last_detected_date = self.get_query_argument('endDate', None)
         list_name = self.get_query_argument('listName', None)
         sourceID = self.get_query_argument('sourceID', None)  # Partial ID to match
+        rejectedSourceIDs = self.get_query_argument('rejectedSourceIDs', None)
         include_photometry = self.get_query_argument("includePhotometry", False)
         include_color_mag = self.get_query_argument("includeColorMagnitude", False)
         include_requested = self.get_query_argument("includeRequested", False)
@@ -2009,6 +2072,9 @@ class SourceHandler(BaseHandler):
         has_spectrum = self.get_query_argument("hasSpectrum", False)
         has_spectrum_after = self.get_query_argument("hasSpectrumAfter", None)
         has_spectrum_before = self.get_query_argument("hasSpectrumBefore", None)
+        has_followup_request = self.get_query_argument("hasFollowupRequest", False)
+        followup_request_status = self.get_query_argument("followupRequestStatus", None)
+
         created_or_modified_after = self.get_query_argument(
             "createdOrModifiedAfter", None
         )
@@ -2088,6 +2154,9 @@ class SourceHandler(BaseHandler):
                     "startDate and endDate must be less than a month apart when filtering by localizationDateobs or localizationName",
                 )
 
+        if rejectedSourceIDs:
+            rejectedSourceIDs = rejectedSourceIDs.split(",")
+
         # parse the group ids:
         group_ids = self.get_query_argument('group_ids', None)
         if group_ids is not None:
@@ -2158,6 +2227,7 @@ class SourceHandler(BaseHandler):
                     first_detected_date=first_detected_date,
                     last_detected_date=last_detected_date,
                     sourceID=sourceID,
+                    rejectedSourceIDs=rejectedSourceIDs,
                     ra=ra,
                     dec=dec,
                     radius=radius,
@@ -2172,6 +2242,8 @@ class SourceHandler(BaseHandler):
                     origin=origin,
                     has_tns_name=has_tns_name,
                     has_spectrum=has_spectrum,
+                    has_followup_request=has_followup_request,
+                    followup_request_status=followup_request_status,
                     min_redshift=min_redshift,
                     max_redshift=max_redshift,
                     min_peak_magnitude=min_peak_magnitude,
@@ -2236,6 +2308,10 @@ class SourceHandler(BaseHandler):
                         description: |
                           List of associated group IDs. If not specified, all of the
                           user or token's groups will be used.
+                      refresh_source:
+                        type: bool
+                        description: |
+                          Refresh source upon post. Defaults to True.
         responses:
           200:
             content:
@@ -2260,9 +2336,15 @@ class SourceHandler(BaseHandler):
         # existence).
 
         data = self.get_json()
+        refresh_source = data.pop('refresh_source', True)
 
         with self.Session() as session:
-            obj_id = post_source(data, self.associated_user_object.id, session)
+            obj_id = post_source(
+                data,
+                self.associated_user_object.id,
+                session,
+                refresh_source=refresh_source,
+            )
             return self.success(data={"id": obj_id})
 
     @permissions(['Upload data'])
@@ -2915,11 +2997,17 @@ class PS1ThumbnailHandler(BaseHandler):
     def post(self):
         data = self.get_json()
         obj_id = data.get("objID")
-        if obj_id is None:
-            return self.error("Missing required parameter objID")
+        obj_ids = data.get("objIDs")
+
+        if obj_id is None and obj_ids is None:
+            return self.error("Missing required parameter objID or objIDs")
+
+        if obj_id is not None:
+            obj_ids = [obj_id]
+
         IOLoop.current().add_callback(
             lambda: add_ps1_thumbnail_and_push_ws_msg(
-                obj_id, self.associated_user_object.id
+                obj_ids, self.associated_user_object.id
             )
         )
         return self.success()

@@ -34,28 +34,27 @@ class AnnotationsInfoHandler(BaseHandler):
         # have min/max fields on the form.
         annotations = func.jsonb_each(Annotation.data).table_valued("key", "value")
 
-        # Objs are read-public, so no need to check that annotations belong to an unreadable obj
-        # Instead, just check for annotation group membership
-        q = (
-            Annotation.query_records_accessible_by(
-                self.current_user, columns=[Annotation.origin]
-            )
-            .add_columns(
-                annotations.c.key, func.jsonb_typeof(annotations.c.value).label("type")
-            )
-            .outerjoin(annotations, literal(True))
-            .distinct()
-        )
+        with self.Session() as session:
+            # Objs are read-public, so no need to check that annotations belong to an unreadable obj
+            # Instead, just check for annotation group membership
+            results = session.execute(
+                Annotation.select(session.user_or_token, columns=[Annotation.origin])
+                .add_columns(
+                    annotations.c.key,
+                    func.jsonb_typeof(annotations.c.value).label("type"),
+                )
+                .outerjoin(annotations, literal(True))
+                .distinct()
+            ).all()
 
-        # Restructure query results so that records are grouped by origin in a
-        # nice, nested dictionary
-        results = q.all()
-        grouped = defaultdict(list)
-        keys_seen = defaultdict(set)
-        for annotation in results:
-            if annotation.key not in keys_seen[annotation.origin]:
-                grouped[annotation.origin].append({annotation.key: annotation.type})
+            # Restructure query results so that records are grouped by origin in a
+            # nice, nested dictionary
+            grouped = defaultdict(list)
+            keys_seen = defaultdict(set)
+            for annotation in results:
+                if annotation.key not in keys_seen[annotation.origin]:
+                    grouped[annotation.origin].append({annotation.key: annotation.type})
 
-            keys_seen[annotation.origin].add(annotation.key)
+                keys_seen[annotation.origin].add(annotation.key)
 
-        return self.success(data=grouped)
+            return self.success(data=grouped)

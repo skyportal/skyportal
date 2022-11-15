@@ -10,13 +10,19 @@ const FETCH_TELESCOPE_OK = "skyportal/FETCH_TELESCOPE_OK";
 
 const SUBMIT_TELESCOPE = "skyportal/SUBMIT_TELESCOPE";
 
+const DELETE_TELESCOPE = "skyportal/DELETE_TELESCOPE";
+
 const CURRENT_TELESCOPES_AND_MENU = "skyportal/CURRENT_TELESCOPES_AND_MENU";
 
 export const fetchTelescope = (id) =>
   API.GET(`/api/telescope/${id}`, FETCH_TELESCOPE);
 
-export const submitTelescope = (run) =>
-  API.POST(`/api/telescope`, SUBMIT_TELESCOPE, run);
+export const submitTelescope = (tele) =>
+  API.POST(`/api/telescope`, SUBMIT_TELESCOPE, tele);
+
+export function deleteTelescope(id) {
+  return API.DELETE(`/api/telescope/${id}`, DELETE_TELESCOPE);
+}
 
 // Websocket message handler
 messageHandler.add((actionType, payload, dispatch, getState) => {

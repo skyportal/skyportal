@@ -44,6 +44,7 @@ import AssignmentForm from "./AssignmentForm";
 import AssignmentList from "./AssignmentList";
 import EditSourceGroups from "./EditSourceGroups";
 import SourceNotification from "./SourceNotification";
+import UpdateSourceCoordinates from "./UpdateSourceCoordinates";
 import UpdateSourceRedshift from "./UpdateSourceRedshift";
 import SourceRedshiftHistory from "./SourceRedshiftHistory";
 import AnnotationsTable from "./AnnotationsTable";
@@ -240,10 +241,11 @@ export const useSourceStyles = makeStyles((theme) => ({
 }));
 
 const SourceMobile = WidthProvider(
-  withOrientationChange(({ source, isLandscape, width }) => {
+  withOrientationChange(({ source, isLandscape }) => {
     const matches = useMediaQuery("(min-width: 475px)");
     const centroidPlotSize = matches ? "21.875rem" : "17rem";
     const hrDiagramSize = matches ? 300 : 200;
+    const plotWidth = matches ? 800 : 300;
 
     const classes = useSourceStyles();
 
@@ -295,8 +297,6 @@ const SourceMobile = WidthProvider(
       device = isLandscape ? "tablet_landscape" : "tablet_portrait";
     }
 
-    const plotWidth = isBrowser ? 800 : width - 100;
-
     return (
       <div className={classes.source}>
         <div className={classes.mainColumn}>
@@ -335,6 +335,9 @@ const SourceMobile = WidthProvider(
                           {dec_to_dms(source.dec, ":")} &nbsp;
                         </span>
                       </div>
+                      <div className={classes.sourceInfo}>
+                        <UpdateSourceCoordinates source={source} />
+                      </div>
                     </div>
                     <div className={classes.sourceInfo}>
                       <div>
@@ -345,6 +348,11 @@ const SourceMobile = WidthProvider(
                         <i>l</i>,<i>b</i>={source.gal_lon.toFixed(6)}, &nbsp;
                         {source.gal_lat.toFixed(6)})
                       </div>
+                      {source.ebv ? (
+                        <div>
+                          <i> E(B-V)</i>={source.ebv.toFixed(2)}
+                        </div>
+                      ) : null}
                     </div>
                   </div>
                   <div>

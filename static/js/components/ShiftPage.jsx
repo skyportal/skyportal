@@ -40,7 +40,6 @@ const ShiftPage = ({ route }) => {
   useEffect(() => {
     if (!loaded) {
       dispatch(shiftsActions.fetchShifts()).then((data) => {
-        console.log(data);
         if (data.status === "success" && data.data.length === 0) {
           dispatch(showNotification("No shifts found", "warning"));
         } else if (data.status !== "success") {

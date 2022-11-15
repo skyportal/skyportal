@@ -537,6 +537,23 @@ const CandidateList = () => {
     handleFilterSubmit(newFilterListQueryStrings.join());
   };
 
+  const [bulkPS1GenerationInProgress, setBulkPS1GenerationInProgress] =
+    useState(false);
+  const generatePS1BulkThumbnails = (candidateList) => {
+    setBulkPS1GenerationInProgress(true);
+    const ids = [];
+    candidateList.forEach((candidateObj) => {
+      const hasPS1 = candidateObj?.thumbnails
+        ?.map((t) => t.type)
+        ?.includes("ps1");
+      if (!hasPS1) {
+        ids.push(candidateObj.id);
+      }
+    });
+    dispatch(candidatesActions.generatePS1Thumbnails(ids));
+    setBulkPS1GenerationInProgress(false);
+  };
+
   const [ps1GenerationInProgressList, setPS1GenerationInProgressList] =
     useState([]);
   const generatePS1Thumbnail = (objID) => {
@@ -1112,6 +1129,23 @@ const CandidateList = () => {
           <Spinner />
         </Box>
         <Box display={queryInProgress ? "none" : "block"}>
+          <div className={classes.pages}>
+            <div>
+              {bulkPS1GenerationInProgress ? (
+                <div>
+                  <Spinner />
+                </div>
+              ) : (
+                <Button
+                  primary
+                  onClick={() => generatePS1BulkThumbnails(candidates)}
+                  size="small"
+                >
+                  Query PS1 Thumbnails for all candidates
+                </Button>
+              )}
+            </div>
+          </div>
           <StyledEngineProvider injectFirst>
             <ThemeProvider theme={getMuiTheme(theme)}>
               <MUIDataTable

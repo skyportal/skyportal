@@ -30,6 +30,8 @@ import FormHelperText from "@mui/material/FormHelperText";
 import FormControl from "@mui/material/FormControl";
 import Select from "@mui/material/Select";
 import { showNotification } from "baselayer/components/Notifications";
+
+import FormValidationError from "./FormValidationError";
 import Button from "./Button";
 
 import * as filterActions from "../ducks/filter";
@@ -50,7 +52,15 @@ const GroupFiltersStreams = ({
   const dispatch = useDispatch();
   const streams = useSelector((state) => state.streams);
 
-  const { register, handleSubmit, control } = useForm();
+  const {
+    register,
+    handleSubmit,
+    control,
+    formState: { errors },
+  } = useForm();
+
+  const { handleSubmit: handleSubmit2, control: control2 } = useForm();
+
   const fullScreen = !useMediaQuery(theme.breakpoints.up("md"));
 
   const handleAddFilterDialogClose = () => {
@@ -216,7 +226,7 @@ const GroupFiltersStreams = ({
         onClose={handleAddStreamClose}
         aria-labelledby="responsive-dialog-title"
       >
-        <form onSubmit={handleSubmit(onSubmitAddStream)}>
+        <form onSubmit={handleSubmit2(onSubmitAddStream)}>
           <DialogTitle id="responsive-dialog-title">
             Add alert stream to group
           </DialogTitle>
@@ -228,21 +238,27 @@ const GroupFiltersStreams = ({
               <Controller
                 labelId="alert-stream-select-required-label"
                 name="stream_id"
-                as={Select}
                 defaultValue={0}
-                control={control}
+                control={control2}
                 rules={{ validate: isStreamIdInStreams }}
-              >
-                {streams?.map(
-                  (stream) =>
-                    // display only streams that are not yet added
-                    !groupStreamIds?.includes(stream.id) && (
-                      <MenuItem value={stream.id} key={stream.id}>
-                        {stream.name}
-                      </MenuItem>
-                    )
+                render={({ field: { onChange, value } }) => (
+                  <Select
+                    labelId="alert-stream-select-required-label"
+                    onChange={onChange}
+                    value={value}
+                  >
+                    {streams?.map(
+                      (stream) =>
+                        // display only streams that are not yet added
+                        !groupStreamIds?.includes(stream.id) && (
+                          <MenuItem value={stream.id} key={stream.id}>
+                            {stream.name}
+                          </MenuItem>
+                        )
+                    )}
+                  </Select>
                 )}
-              </Controller>
+              />
               <FormHelperText>Required</FormHelperText>
             </FormControl>
           </DialogContent>
@@ -283,34 +299,56 @@ const GroupFiltersStreams = ({
               </a>
               &nbsp; for an extensive guide on Alert filters in Fritz.
             </DialogContentText>
-            <TextField
-              autoFocus
-              required
-              margin="dense"
+            <Controller
+              render={({ field: { onChange, value } }) => (
+                <TextField
+                  autoFocus
+                  required
+                  margin="dense"
+                  name="filter_name"
+                  label="Filter Name"
+                  type="text"
+                  fullWidth
+                  inputRef={register("filter_name", {
+                    required: true,
+                    minLength: 3,
+                  })}
+                  onChange={onChange}
+                  value={value}
+                />
+              )}
               name="filter_name"
-              label="Filter Name"
-              type="text"
-              fullWidth
-              inputRef={register({ required: true, minLength: 3 })}
+              control={control}
             />
             <FormControl required className={classes.selectEmpty}>
               <InputLabel name="alert-stream-select-required-label">
                 Alert stream
               </InputLabel>
+              {errors.filter_stream_id && (
+                <FormValidationError
+                  message={errors.filter_stream_id.message}
+                />
+              )}
               <Controller
                 labelId="alert-stream-select-required-label"
                 name="filter_stream_id"
-                as={Select}
                 defaultValue={0}
                 control={control}
                 rules={{ validate: isStreamIdInStreams }}
-              >
-                {group.streams?.map((stream) => (
-                  <MenuItem key={stream.id} value={stream.id}>
-                    {stream.name}
-                  </MenuItem>
-                ))}
-              </Controller>
+                render={({ field: { onChange, value } }) => (
+                  <Select
+                    labelId="alert-stream-select-required-label"
+                    onChange={onChange}
+                    value={value}
+                  >
+                    {group.streams?.map((stream) => (
+                      <MenuItem key={stream.id} value={stream.id}>
+                        {stream.name}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                )}
+              />
               <FormHelperText>Required</FormHelperText>
             </FormControl>
           </DialogContent>

@@ -181,6 +181,13 @@ class CandidateHandler(BaseHandler):
                 type: boolean
               description: |
                 Boolean indicating whether to include associated comments. Defaults to false.
+            - in: query
+              name: includeAlerts
+              nullable: true
+              schema:
+                type: boolean
+              description: |
+                Boolean indicating whether to include associated alerts. Defaults to false.
           responses:
             200:
               content:
@@ -422,6 +429,7 @@ class CandidateHandler(BaseHandler):
         include_photometry = self.get_query_argument("includePhotometry", False)
         include_spectra = self.get_query_argument("includeSpectra", False)
         include_comments = self.get_query_argument("includeComments", False)
+        include_alerts = self.get_query_argument("includeAlerts", False)
 
         if obj_id is not None:
             with self.Session() as session:
@@ -434,25 +442,27 @@ class CandidateHandler(BaseHandler):
                 ).first()
                 if c is None:
                     return self.error("Invalid ID")
-                accessible_candidates = session.scalars(
-                    Candidate.select(session.user_or_token).where(
-                        Candidate.obj_id == obj_id
-                    )
-                ).all()
-                filter_ids = [cand.filter_id for cand in accessible_candidates]
-
-                passing_alerts = [
-                    {
-                        "filter_id": cand.filter_id,
-                        "passing_alert_id": cand.passing_alert_id,
-                        "passed_at": cand.passed_at,
-                    }
-                    for cand in accessible_candidates
-                ]
-
                 candidate_info = recursive_to_dict(c)
-                candidate_info["filter_ids"] = filter_ids
-                candidate_info["passing_alerts"] = passing_alerts
+
+                if include_alerts:
+                    accessible_candidates = session.scalars(
+                        Candidate.select(session.user_or_token).where(
+                            Candidate.obj_id == obj_id
+                        )
+                    ).all()
+                    filter_ids = [cand.filter_id for cand in accessible_candidates]
+
+                    passing_alerts = [
+                        {
+                            "filter_id": cand.filter_id,
+                            "passing_alert_id": cand.passing_alert_id,
+                            "passed_at": cand.passed_at,
+                        }
+                        for cand in accessible_candidates
+                    ]
+                    candidate_info["filter_ids"] = filter_ids
+                    candidate_info["passing_alerts"] = passing_alerts
+
                 if include_comments:
                     candidate_info["comments"] = sorted(
                         session.scalars(
@@ -909,7 +919,7 @@ class CandidateHandler(BaseHandler):
             candidate_list = []
             for (obj,) in query_results["candidates"]:
                 with session.no_autoflush:
-                    obj.is_source = (obj.id,) in matching_source_ids
+                    obj.is_source = obj.id in matching_source_ids
                     if obj.is_source:
                         source_subquery = (
                             Source.select(session.user_or_token)

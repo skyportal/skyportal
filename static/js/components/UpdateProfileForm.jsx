@@ -41,7 +41,14 @@ const UpdateProfileForm = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const dispatch = useDispatch();
-  const { handleSubmit, register, reset, errors, control } = useForm();
+  const {
+    handleSubmit,
+    register,
+    reset,
+    control,
+
+    formState: { errors },
+  } = useForm();
 
   const isNewUser =
     new URL(window.location).searchParams.get("newUser") === "true";
@@ -95,7 +102,7 @@ const UpdateProfileForm = () => {
               Username (normalized upon save)
             </InputLabel>
             <TextField
-              inputRef={register({ required: true })}
+              {...register("username", { required: true })}
               name="username"
               id="usernameInput"
               error={!!errors.username}
@@ -112,7 +119,7 @@ const UpdateProfileForm = () => {
               <Grid item xs={6} sm={3}>
                 <InputLabel htmlFor="firstName_id">First Name</InputLabel>
                 <TextField
-                  inputRef={register({ required: true })}
+                  {...register("firstName", { required: true })}
                   name="firstName"
                   id="firstName_id"
                   error={!!errors.firstName}
@@ -122,7 +129,7 @@ const UpdateProfileForm = () => {
               <Grid item xs={6} sm={3}>
                 <InputLabel htmlFor="lastName_id">Last Name</InputLabel>
                 <TextField
-                  inputRef={register({ required: false })}
+                  {...register("lastName", { required: false })}
                   name="lastName"
                   id="lastName_id"
                 />
@@ -143,7 +150,7 @@ const UpdateProfileForm = () => {
                   </InputLabel>
                   <Controller
                     name="affiliations"
-                    render={({ onChange, value, ...props }) => (
+                    render={({ field: { onChange, value } }) => (
                       <Autocomplete
                         multiple
                         onChange={(e, data) => onChange(data)}
@@ -184,8 +191,6 @@ const UpdateProfileForm = () => {
                             id="affilations_id"
                           />
                         )}
-                        // eslint-disable-next-line react/jsx-props-no-spreading
-                        {...props}
                       />
                     )}
                     control={control}
@@ -208,7 +213,7 @@ const UpdateProfileForm = () => {
                   Preferred Contact Email
                 </InputLabel>
                 <TextField
-                  inputRef={register({ pattern: /^\S+@\S+$/i })}
+                  {...register("email", { pattern: /^\S+@\S+$/i })}
                   name="email"
                   type="email"
                   fullWidth
@@ -229,7 +234,7 @@ const UpdateProfileForm = () => {
                   Contact Phone (Include Country Code)
                 </InputLabel>
                 <TextField
-                  inputRef={register({ maxLength: 16 })}
+                  {...register("phone", { maxLength: 16 })}
                   name="phone"
                   type="tel"
                   id="phone_id"

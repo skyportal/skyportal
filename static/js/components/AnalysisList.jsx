@@ -324,7 +324,7 @@ const AnalysisList = ({ obj_id }) => {
           {analysis?.status === "completed" && (
             <Button
               primary
-              href={`/api/obj/analysis/${analysis.id}/results`}
+              href={`/api/obj/analysis/${analysis.id}/results?download=True`}
               size="small"
               type="submit"
               data-testid={`analysis_results_${analysis.id}`}

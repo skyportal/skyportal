@@ -4,10 +4,12 @@ import json
 
 import sqlalchemy as sa
 from sqlalchemy.orm import relationship
+from sqlalchemy import func
 
 from sqlalchemy import event, inspect
 import arrow
 import lxml
+import operator  # noqa: F401
 import requests
 
 from baselayer.app.models import Base, User, AccessibleIfUserMatches
@@ -33,7 +35,14 @@ import gcn
 from sqlalchemy import or_
 
 from skyportal.models import Shift, ShiftUser
-from skyportal.utils.gcn import get_tags
+from skyportal.utils.gcn import get_tags, get_properties
+
+from skyportal.utils.notifications import (
+    gcn_slack_notification,
+    gcn_email_notification,
+    source_slack_notification,
+    source_email_notification,
+)
 
 _, cfg = load_env()
 
@@ -173,10 +182,34 @@ def send_slack_notification(mapper, connection, target):
     slack_microservice_url = f'http://127.0.0.1:{cfg["slack.microservice_port"]}'
 
     app_url = get_app_base_url()
-    data = json.dumps(
-        {"url": integration_url, "text": f'{target.text} ({app_url}{target.url})'}
-    )
+
     try:
+        if resource_type == 'gcn_events':
+            data = json.dumps(
+                {
+                    "url": integration_url,
+                    "blocks": gcn_slack_notification(
+                        session=inspect(target).session, target=target, app_url=app_url
+                    ),
+                }
+            )
+        elif resource_type == 'sources':
+            data = json.dumps(
+                {
+                    "url": integration_url,
+                    "blocks": source_slack_notification(
+                        session=inspect(target).session, target=target, app_url=app_url
+                    ),
+                }
+            )
+        else:
+            data = json.dumps(
+                {
+                    "url": integration_url,
+                    "text": f'{target.text} ({app_url}{target.url})',
+                }
+            )
+
         requests.post(
             slack_microservice_url,
             data=data,
@@ -200,51 +233,61 @@ def send_email_notification(mapper, connection, target):
     subject = None
     body = None
 
-    if resource_type == "sources":
-        subject = f"{cfg['app.title']} - New followed classification on a source"
-        body = f'{target.text} ({get_app_base_url()}{target.url})'
+    app_url = get_app_base_url()
 
-    elif resource_type == "gcn_events":
-        subject = f"{cfg['app.title']} - New GCN Event with followed notice type"
-        body = f'{target.text} ({get_app_base_url()}{target.url})'
+    try:
 
-    elif resource_type == "facility_transactions":
-        subject = f"{cfg['app.title']} - New facility transaction"
-        body = f'{target.text} ({get_app_base_url()}{target.url})'
-    elif resource_type == "analysis_services":
-        subject = f"{cfg['app.title']} - New completed analysis service"
-        body = f'{target.text} ({get_app_base_url()}{target.url})'
-    elif resource_type == "favorite_sources":
-        if target.notification_type == "favorite_sources_new_classification":
-            subject = f"{cfg['app.title']} - New classification on a favorite source"
-            body = f'{target.text} ({get_app_base_url()}{target.url})'
-        elif target.notification_type == "favorite_sources_new_spectrum":
-            subject = f"{cfg['app.title']} - New spectrum on a favorite source"
-            body = f'{target.text} ({get_app_base_url()}{target.url})'
-        elif target.notification_type == "favorite_sources_new_comment":
-            subject = f"{cfg['app.title']} - New comment on a favorite source"
-            body = f'{target.text} ({get_app_base_url()}{target.url})'
-
-    elif resource_type == "mention":
-        subject = f"{cfg['app.title']} - User mentioned you in a comment"
-        body = f'{target.text} ({get_app_base_url()}{target.url})'
-
-    elif resource_type == "group_admission_request":
-        subject = f"{cfg['app.title']} - New group admission request"
-        body = f'{target.text} ({get_app_base_url()}{target.url})'
-
-    if subject and body and target.user.contact_email:
-        try:
-            send_email(
-                recipients=[target.user.contact_email],
-                subject=subject,
-                body=body,
+        if resource_type == "sources":
+            subject, body = source_email_notification(
+                session=inspect(target).session, target=target, app_url=app_url
             )
-            log(
-                f"Sent email notification to user {target.user.id} at email: {target.user.contact_email}, subject: {subject}, body: {body}, resource_type: {resource_type}"
+
+        elif resource_type == "gcn_events":
+            subject, body = gcn_email_notification(
+                session=inspect(target).session, target=target, app_url=app_url
             )
-        except Exception as e:
-            log(f"Error sending email notification: {e}")
+
+        elif resource_type == "facility_transactions":
+            subject = f"{cfg['app.title']} - New facility transaction"
+
+        elif resource_type == "analysis_services":
+            subject = f"{cfg['app.title']} - New completed analysis service"
+
+        elif resource_type == "favorite_sources":
+            if target.notification_type == "favorite_sources_new_classification":
+                subject = (
+                    f"{cfg['app.title']} - New classification on a favorite source"
+                )
+
+            elif target.notification_type == "favorite_sources_new_spectrum":
+                subject = f"{cfg['app.title']} - New spectrum on a favorite source"
+
+            elif target.notification_type == "favorite_sources_new_comment":
+                subject = f"{cfg['app.title']} - New comment on a favorite source"
+
+        elif resource_type == "mention":
+            subject = f"{cfg['app.title']} - User mentioned you in a comment"
+
+        elif resource_type == "group_admission_request":
+            subject = f"{cfg['app.title']} - New group admission request"
+
+        if subject and target.user.contact_email:
+            try:
+                if body is None:
+                    body = f'{target.text} ({app_url}{target.url})'
+                send_email(
+                    recipients=[target.user.contact_email],
+                    subject=subject,
+                    body=body,
+                )
+                log(
+                    f"Sent email notification to user {target.user.id} at email: {target.user.contact_email}, subject: {subject}, body: {body}, resource_type: {resource_type}"
+                )
+            except Exception as e:
+                log(f"Error sending email notification: {e}")
+
+    except Exception as e:
+        log(f"Error sending email notification: {e}")
 
 
 @event.listens_for(UserNotification, 'after_insert')
@@ -485,6 +528,7 @@ def add_user_notifications(mapper, connection, target):
                             gcn.NoticeType(target.notice_type).name
                             in pref['gcn_events']['gcn_notice_types']
                         ):
+                            send_notification = True
                             if "gcn_tags" in pref["gcn_events"].keys():
                                 if len(pref['gcn_events']["gcn_tags"]) > 0:
                                     root = lxml.etree.fromstring(target.content)
@@ -493,15 +537,74 @@ def add_user_notifications(mapper, connection, target):
                                         set(tags) & set(pref['gcn_events']["gcn_tags"])
                                     )
                                     if len(intersection) == 0:
-                                        return
-                            session.add(
-                                UserNotification(
-                                    user=user,
-                                    text=f"New GcnEvent *{target.dateobs}* with Notice Type *{gcn.NoticeType(target.notice_type).name}*",
-                                    notification_type="gcn_events",
-                                    url=f"/gcn_events/{str(target.dateobs).replace(' ','T')}",
+                                        send_notification = False
+                                        break
+
+                            if "gcn_properties" in pref["gcn_events"].keys():
+                                if len(pref['gcn_events']["gcn_properties"]) > 0:
+                                    root = lxml.etree.fromstring(target.content)
+                                    properties_dict = get_properties(root)
+
+                                    for prop_filt in pref['gcn_events'][
+                                        "gcn_properties"
+                                    ]:
+                                        prop_split = prop_filt.split(":")
+                                        if not len(prop_split) == 3:
+                                            raise ValueError(
+                                                "Invalid propertiesFilter value -- property filter must have 3 values"
+                                            )
+                                        name = prop_split[0].strip()
+                                        if name in properties_dict:
+                                            value = prop_split[1].strip()
+                                            try:
+                                                value = float(value)
+                                            except ValueError as e:
+                                                raise ValueError(
+                                                    f"Invalid propotation filter value: {e}"
+                                                )
+                                            op = prop_split[2].strip()
+                                            op_options = [
+                                                "lt",
+                                                "le",
+                                                "eq",
+                                                "ne",
+                                                "ge",
+                                                "gt",
+                                            ]
+                                            if op not in op_options:
+                                                raise ValueError(
+                                                    f"Invalid operator: {op}"
+                                                )
+                                            comp_function = getattr(operator, op)
+                                            if not comp_function(
+                                                properties_dict[name], value
+                                            ):
+                                                send_notification = False
+                                                break
+                            if send_notification:
+                                stmt = sa.select(GcnNotice).where(
+                                    GcnNotice.dateobs == target.dateobs
                                 )
-                            )
+                                count_stmt = sa.select(func.count()).select_from(stmt)
+                                count_notices = session.execute(count_stmt).scalar()
+                                if count_notices > 1:
+                                    session.add(
+                                        UserNotification(
+                                            user=user,
+                                            text=f"New Notice for GCN Event *{target.dateobs}*, with Notice Type *{gcn.NoticeType(target.notice_type).name}*",
+                                            notification_type="gcn_events",
+                                            url=f"/gcn_events/{str(target.dateobs).replace(' ','T')}",
+                                        )
+                                    )
+                                else:
+                                    session.add(
+                                        UserNotification(
+                                            user=user,
+                                            text=f"New GCN Event *{target.dateobs}*, with Notice Type *{gcn.NoticeType(target.notice_type).name}*",
+                                            notification_type="gcn_events",
+                                            url=f"/gcn_events/{str(target.dateobs).replace(' ','T')}",
+                                        )
+                                    )
 
                 elif is_facility_transaction:
                     if "observation_plan_request" in target.to_dict():

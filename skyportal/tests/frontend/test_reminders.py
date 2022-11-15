@@ -92,7 +92,16 @@ def post_and_verify_reminder_frontend(driver, reminder_text):
     )
     reminder_text_2 = str(uuid.uuid4())
     driver.wait_for_xpath('//*[@id="root_text"]').send_keys(reminder_text_2)
-    next_reminder = (datetime.now() + timedelta(days=1)).strftime("%m/%d/%YT%I:%M %p")
+    first_of_the_month = int((datetime.now() + timedelta(days=1)).strftime("%d")) == 1
+    if first_of_the_month:
+        next_reminder = (datetime.now() + timedelta(days=14)).strftime(
+            "%m/%d/%YT%I:%M %p"
+        )
+    else:
+        next_reminder = (datetime.now() + timedelta(days=1)).strftime(
+            "%m/%d/%YT%I:%M %p"
+        )
+    driver.wait_for_xpath('//*[@id="root_next_reminder"]').clear()
     driver.wait_for_xpath('//*[@id="root_next_reminder"]').send_keys(
         next_reminder[0:11]
     )

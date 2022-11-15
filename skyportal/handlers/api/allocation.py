@@ -1,5 +1,8 @@
+import astropy
+from astroplan.moon import moon_phase_angle
 from marshmallow.exceptions import ValidationError
 import sqlalchemy as sa
+from sqlalchemy.orm import joinedload
 from sqlalchemy import func
 import io
 import matplotlib
@@ -68,12 +71,35 @@ class AllocationHandler(BaseHandler):
                     allocation_id = int(allocation_id)
                 except ValueError:
                     return self.error("Allocation ID must be an integer.")
+                allocations = Allocation.select(
+                    self.current_user, options=[joinedload(Allocation.requests)]
+                )
+
                 allocations = allocations.where(Allocation.id == allocation_id)
                 allocation = session.scalars(allocations).first()
                 if allocation is None:
                     return self.error("Could not retrieve allocation.")
-                return self.success(data=allocation)
 
+                allocation_data = allocation.to_dict()
+                requests = []
+                for request in allocation_data['requests']:
+                    request_data = request.to_dict()
+                    request_data['requester'] = request.requester.to_dict()
+                    request_data['obj'] = request.obj.to_dict()
+                    request_data['obj']['thumbnails'] = [
+                        thumbnail.to_dict() for thumbnail in request.obj.thumbnails
+                    ]
+                    request_data['set_time_utc'] = request.set_time().iso
+                    request_data['rise_time_utc'] = request.rise_time().iso
+                    requests.append(request_data)
+                allocation_data['requests'] = requests
+                allocation_data[
+                    'ephemeris'
+                ] = allocation.instrument.telescope.ephemeris(astropy.time.Time.now())
+                allocation_data['telescope'] = allocation.instrument.telescope.to_dict()
+                return self.success(data=allocation_data)
+
+            allocations = Allocation.select(self.current_user)
             instrument_id = self.get_query_argument('instrument_id', None)
             if instrument_id is not None:
                 allocations = allocations.where(
@@ -329,7 +355,7 @@ class AllocationReportHandler(BaseHandler):
                 return my_autopct
 
             matplotlib.use("Agg")
-            fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(12, 6))
+            fig, (ax1, ax2, ax3, ax4) = plt.subplots(1, 4, figsize=(16, 6))
             ax1.pie(
                 values,
                 labels=labels,
@@ -355,6 +381,7 @@ class AllocationReportHandler(BaseHandler):
                 ax2.remove()
 
             values = []
+            phases = []
             for a in allocations:
                 stmt = (
                     FollowupRequest.select(session.user_or_token)
@@ -365,6 +392,19 @@ class AllocationReportHandler(BaseHandler):
                     sa.select(func.count()).select_from(stmt)
                 ).scalar()
                 values.append(total_matches)
+
+                followup_requests = session.scalars(stmt).all()
+                phase_angles = []
+                for followup_request in followup_requests:
+                    try:
+                        status_split = followup_request.status.split(" ")[-1]
+                        status_split = status_split.replace("_", ":").replace(" ", "T")
+                        tt = astropy.time.Time(status_split, format='isot')
+                        phase_angle = moon_phase_angle(tt)
+                        phase_angles.append(phase_angle.value)
+                    except Exception:
+                        pass
+                phases.append(phase_angles)
 
             if sum(values) > 0:
                 ax3.pie(
@@ -378,6 +418,18 @@ class AllocationReportHandler(BaseHandler):
                 ax3.set_title('Requests Completed')
             else:
                 ax3.remove()
+
+            bins = np.linspace(0, np.pi, 20)
+            for ii, (label, phase_angles) in enumerate(zip(labels, phases)):
+                hist, bin_edges = np.histogram(phase_angles, bins=bins)
+                bin_centers = (bin_edges[1:] + bin_edges[:-1]) / 2.0
+                hist = hist / np.sum(hist)
+                ax4.step(bin_centers, hist, label=label)
+            ax4.set_yscale('log')
+            ax4.set_xlabel('Phase Angle')
+            ax4.legend(loc='upper right')
+            ax4.axis('equal')
+            ax4.set_title('Moon Phase')
 
             buf = io.BytesIO()
             fig.savefig(buf, format=output_format)

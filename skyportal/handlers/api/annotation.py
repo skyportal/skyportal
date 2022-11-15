@@ -4,7 +4,6 @@ from marshmallow.exceptions import ValidationError
 from sqlalchemy.exc import IntegrityError
 import time
 
-from baselayer.app.custom_exceptions import AccessError
 from baselayer.app.access import permissions, auth_or_token
 from baselayer.log import make_log
 
@@ -304,11 +303,12 @@ class AnnotationHandler(BaseHandler):
                 )
             elif associated_resource_type.lower() == "spectra":
                 spectrum_id = resource_id
-                try:
-                    spectrum = Spectrum.get_if_accessible_by(
-                        spectrum_id, self.current_user, raise_if_none=True
+                spectrum = session.scalars(
+                    Spectrum.select(session.user_or_token).where(
+                        Spectrum.id == spectrum_id
                     )
-                except AccessError:
+                ).first()
+                if spectrum is None:
                     return self.error(
                         f'Could not access spectrum {spectrum_id}.', status=403
                     )

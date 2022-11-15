@@ -324,11 +324,11 @@ def test_gcn_summary_sources(
     assert "SUBJECT: Follow-up" in data[1]
     assert "DATE" in data[2]
     assert (
-        f"FROM:  {super_admin_user.first_name} {super_admin_user.last_name} at Affiliation <{super_admin_user.contact_email}>"
+        f"FROM:  {super_admin_user.first_name} {super_admin_user.last_name} at ... <{super_admin_user.contact_email}>"
         in data[3]
     )
     assert (
-        f"{super_admin_user.first_name.upper()[0]}. {super_admin_user.last_name} (Affiliation)"
+        f"{super_admin_user.first_name.upper()[0]}. {super_admin_user.last_name} (...)"
         in data[4]
     )
     assert f"on behalf of the {public_group.name}, report:" in data[5]
@@ -477,11 +477,11 @@ def test_gcn_summary_galaxies(
     assert "SUBJECT: Follow-up" in data[1]
     assert "DATE" in data[2]
     assert (
-        f"FROM:  {super_admin_user.first_name} {super_admin_user.last_name} at Affiliation <{super_admin_user.contact_email}>"
+        f"FROM:  {super_admin_user.first_name} {super_admin_user.last_name} at ... <{super_admin_user.contact_email}>"
         in data[3]
     )
     assert (
-        f"{super_admin_user.first_name.upper()[0]}. {super_admin_user.last_name} (Affiliation)"
+        f"{super_admin_user.first_name.upper()[0]}. {super_admin_user.last_name} (...)"
         in data[4]
     )
     assert f"on behalf of the {public_group.name}, report:" in data[5]
@@ -743,11 +743,11 @@ def test_gcn_summary_observations(
     assert "SUBJECT: Follow-up" in data[1]
     assert "DATE" in data[2]
     assert (
-        f"FROM:  {super_admin_user.first_name} {super_admin_user.last_name} at Affiliation <{super_admin_user.contact_email}>"
+        f"FROM:  {super_admin_user.first_name} {super_admin_user.last_name} at ... <{super_admin_user.contact_email}>"
         in data[3]
     )
     assert (
-        f"{super_admin_user.first_name.upper()[0]}. {super_admin_user.last_name} (Affiliation)"
+        f"{super_admin_user.first_name.upper()[0]}. {super_admin_user.last_name} (...)"
         in data[4]
     )
     assert f"on behalf of the {public_group.name}, report:" in data[5]
@@ -1017,3 +1017,43 @@ def test_gcn_from_polygon(super_admin_token, view_only_token):
     data = data["data"]
     assert data["dateobs"] == "2022-09-03T14:44:12"
     assert 'IPN' in data["tags"]
+
+
+def test_gcn_Swift(super_admin_token, view_only_token):
+
+    datafile = f'{os.path.dirname(__file__)}/../data/SWIFT_1125809-092.xml'
+    with open(datafile, 'rb') as fid:
+        payload = fid.read()
+    data = {'xml': payload}
+
+    status, data = api('POST', 'gcn_event', data=data, token=super_admin_token)
+    assert status == 200
+    assert data['status'] == 'success'
+
+    datafile = f'{os.path.dirname(__file__)}/../data/SWIFT_1125809-104.xml'
+    with open(datafile, 'rb') as fid:
+        payload = fid.read()
+    data = {'xml': payload}
+
+    status, data = api('POST', 'gcn_event', data=data, token=super_admin_token)
+    assert status == 200
+    assert data['status'] == 'success'
+
+    dateobs = "2022-09-30 11:11:52"
+
+    status, data = api('GET', f'gcn_event/{dateobs}', token=super_admin_token)
+    assert status == 200
+    data = data["data"]
+    assert data["dateobs"] == "2022-09-30T11:11:52"
+    assert any(
+        [
+            loc['localization_name'] == '64.71490_13.35000_0.00130'
+            for loc in data["localizations"]
+        ]
+    )
+    assert any(
+        [
+            loc['localization_name'] == '64.73730_13.35170_0.05000'
+            for loc in data["localizations"]
+        ]
+    )

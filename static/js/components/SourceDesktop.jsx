@@ -34,6 +34,7 @@ import AssignmentForm from "./AssignmentForm";
 import AssignmentList from "./AssignmentList";
 import SourceNotification from "./SourceNotification";
 import EditSourceGroups from "./EditSourceGroups";
+import UpdateSourceCoordinates from "./UpdateSourceCoordinates";
 import UpdateSourceRedshift from "./UpdateSourceRedshift";
 import SourceRedshiftHistory from "./SourceRedshiftHistory";
 import AnnotationsTable from "./AnnotationsTable";
@@ -335,6 +336,9 @@ const SourceDesktop = ({ source }) => {
               </div>
             </div>
             <div className={classes.sourceInfo}>
+              <UpdateSourceCoordinates source={source} />
+            </div>
+            <div className={classes.sourceInfo}>
               <div>
                 (&alpha;,&delta;= {source.ra}, &nbsp;
                 {source.dec}; &nbsp;
@@ -343,6 +347,11 @@ const SourceDesktop = ({ source }) => {
                 <i>l</i>,<i>b</i>={source.gal_lon.toFixed(6)}, &nbsp;
                 {source.gal_lat.toFixed(6)})
               </div>
+              {source.ebv ? (
+                <div>
+                  <i> E(B-V)</i>={source.ebv.toFixed(2)}
+                </div>
+              ) : null}
             </div>
           </div>
           {source.duplicates && (
@@ -843,6 +852,7 @@ SourceDesktop.propTypes = {
     gal_lon: PropTypes.number,
     gal_lat: PropTypes.number,
     dm: PropTypes.number,
+    ebv: PropTypes.number,
     luminosity_distance: PropTypes.number,
     annotations: PropTypes.arrayOf(
       PropTypes.shape({

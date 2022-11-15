@@ -1,4 +1,5 @@
 __all__ = [
+    'DefaultSurveyEfficiencyRequest',
     'SurveyEfficiencyForObservations',
     'SurveyEfficiencyForObservationPlan',
 ]
@@ -16,6 +17,36 @@ from baselayer.app.models import (
 )
 
 from .group import accessible_by_groups_members
+
+
+class DefaultSurveyEfficiencyRequest(Base):
+    """A default request for a Survey Efficiency analysis."""
+
+    # TODO: Make read-accessible via target groups
+    create = read = AccessibleIfRelatedRowsAreAccessible(
+        default_observationplan_request="read"
+    )
+    update = AccessibleIfRelatedRowsAreAccessible(
+        default_observationplan_request="update"
+    )
+    delete = AccessibleIfRelatedRowsAreAccessible(
+        default_observationplan_request="delete"
+    )
+
+    default_observationplan_request_id = sa.Column(
+        sa.ForeignKey('defaultobservationplanrequests.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+    )
+    default_observationplan_request = relationship(
+        'DefaultObservationPlanRequest', back_populates='default_survey_efficiencies'
+    )
+
+    payload = sa.Column(
+        psql.JSONB,
+        nullable=False,
+        doc="Content of the survey efficiency assessment request.",
+    )
 
 
 class SurveyEfficiencyAnalysisMixin:

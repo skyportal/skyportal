@@ -8,7 +8,7 @@ def test_submit_and_delete_new_assignment(
 ):
     driver.get(f"/become_user/{super_admin_user.id}")
     driver.get(f"/source/{public_source.id}")
-    driver.click_xpath('//*[@data-testid="assignmentSelect"]', wait_clickable=False)
+    driver.click_xpath('//*[@aria-labelledby="assignmentSelect"]', wait_clickable=False)
     observingrun_title = (
         f"{red_transients_run.calendar_date} "
         f"{red_transients_run.instrument.name}/"

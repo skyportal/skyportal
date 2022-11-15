@@ -163,7 +163,7 @@ const Filter = () => {
           </Card>
         </Grid>
         <div>
-          <FilterPlugins />
+          <FilterPlugins group={group} />
         </div>
       </Grid>
     </div>

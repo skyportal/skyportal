@@ -34,11 +34,14 @@ from ...utils.UTCTZnaiveDateTime import UTCTZnaiveDateTime
 
 from baselayer.app.access import auth_or_token
 from baselayer.log import make_log
+
+from .source import post_source
 from ..base import BaseHandler
 from ...models import (
     DBSession,
     Allocation,
     CatalogQuery,
+    EventObservationPlan,
     GcnEvent,
     GcnNotice,
     GcnProperty,
@@ -55,6 +58,7 @@ from ...utils.gcn import (
     get_dateobs,
     get_properties,
     get_tags,
+    get_trigger,
     get_skymap,
     get_contour,
     from_url,
@@ -62,6 +66,8 @@ from ...utils.gcn import (
     from_cone,
     from_polygon,
 )
+
+from skyportal.models.gcn import SOURCE_RADIUS_THRESHOLD
 
 log = make_log('api/gcn_event')
 
@@ -94,13 +100,19 @@ def post_gcnevent_from_xml(payload, user_id, session):
         raise ValueError("xml file is not valid VOEvent")
 
     dateobs = get_dateobs(root)
+    trigger_id = get_trigger(root)
 
-    event = session.scalars(
-        GcnEvent.select(user).where(GcnEvent.dateobs == dateobs)
-    ).first()
+    if trigger_id is not None:
+        event = session.scalars(
+            GcnEvent.select(user).where(GcnEvent.trigger_id == trigger_id)
+        ).first()
+    else:
+        event = session.scalars(
+            GcnEvent.select(user).where(GcnEvent.dateobs == dateobs)
+        ).first()
 
     if event is None:
-        event = GcnEvent(dateobs=dateobs, sent_by_id=user.id)
+        event = GcnEvent(dateobs=dateobs, sent_by_id=user.id, trigger_id=trigger_id)
         session.add(event)
     else:
         if not event.is_accessible_by(user, mode="update"):
@@ -152,6 +164,42 @@ def post_gcnevent_from_xml(payload, user_id, session):
 
     skymap["dateobs"] = event.dateobs
     skymap["sent_by_id"] = user.id
+
+    try:
+        ra, dec, error = (float(val) for val in skymap["localization_name"].split("_"))
+        if error < SOURCE_RADIUS_THRESHOLD:
+            name = root.find('./Why/Inference/Name')
+            if name is not None:
+                source = {
+                    'id': (name.text).replace(' ', ''),
+                    'ra': ra,
+                    'dec': dec,
+                }
+            elif any([True if 'GRB' in tag.text.upper() else False for tag in tags]):
+                dateobs_txt = Time(dateobs).isot
+                source_name = f"GRB{dateobs_txt[2:4]}{dateobs_txt[5:7]}{dateobs_txt[8:10]}.{dateobs_txt[11:13]}{dateobs_txt[14:16]}{dateobs_txt[17:19]}"
+                source = {
+                    'id': source_name,
+                    'ra': ra,
+                    'dec': dec,
+                }
+            elif any([True if 'GW' in tag.text.upper() else False for tag in tags]):
+                dateobs_txt = Time(dateobs).isot
+                source_name = f"GW{dateobs_txt[2:4]}{dateobs_txt[5:7]}{dateobs_txt[8:10]}.{dateobs_txt[11:13]}{dateobs_txt[14:16]}{dateobs_txt[17:19]}"
+                source = {
+                    'id': source_name,
+                    'ra': ra,
+                    'dec': dec,
+                }
+            else:
+                source = {
+                    'id': Time(event.dateobs).isot.replace(":", "-"),
+                    'ra': ra,
+                    'dec': dec,
+                }
+            post_source(source, user_id, session)
+    except Exception:
+        pass
 
     localization = session.scalars(
         Localization.select(user).where(
@@ -253,6 +301,18 @@ def post_gcnevent_from_dictionary(payload, user_id, session):
 
     skymap["dateobs"] = event.dateobs
     skymap["sent_by_id"] = user.id
+
+    try:
+        ra, dec, error = (float(val) for val in skymap["localization_name"].split("_"))
+        if error < SOURCE_RADIUS_THRESHOLD:
+            source = {
+                'id': Time(event.dateobs).isot.replace(":", "-"),
+                'ra': ra,
+                'dec': dec,
+            }
+            post_source(source, user_id, session)
+    except Exception:
+        pass
 
     localization = session.scalars(
         Localization.select(user).where(
@@ -408,9 +468,9 @@ class GcnEventObservationPlanRequestsHandler(BaseHandler):
                         joinedload(GcnEvent.observationplan_requests).joinedload(
                             ObservationPlanRequest.requester
                         ),
-                        joinedload(GcnEvent.observationplan_requests).joinedload(
-                            ObservationPlanRequest.observation_plans
-                        ),
+                        joinedload(GcnEvent.observationplan_requests)
+                        .joinedload(ObservationPlanRequest.observation_plans)
+                        .joinedload(EventObservationPlan.statistics),
                     ],
                 ).where(GcnEvent.id == gcnevent_id)
             ).first()
@@ -422,9 +482,10 @@ class GcnEventObservationPlanRequestsHandler(BaseHandler):
                 dat = req.to_dict()
                 plan_data = []
                 for plan in dat["observation_plans"]:
-                    plan_dict = {
-                        **plan.to_dict(),
-                    }
+                    plan_dict = plan.to_dict()
+                    plan_dict['statistics'] = [
+                        statistics.to_dict() for statistics in plan_dict['statistics']
+                    ]
                     plan_data.append(plan_dict)
 
                 dat["observation_plans"] = plan_data
@@ -1152,8 +1213,19 @@ class GcnSummaryHandler(BaseHandler):
                     )
                     now_date = astropy.time.Time.now()
                     header_text.append(f"""DATE: {now_date}\n""")
+
+                    if (
+                        self.associated_user_object.affiliations is not None
+                        and len(self.associated_user_object.affiliations) > 0
+                    ):
+                        affiliations = ", ".join(
+                            self.associated_user_object.affiliations
+                        )
+                    else:
+                        affiliations = "..."
+
                     # add a "FROM full name and affiliation"
-                    from_str = f"""FROM:  {self.associated_user_object.first_name} {self.associated_user_object.last_name} at Affiliation"""
+                    from_str = f"""FROM:  {self.associated_user_object.first_name} {self.associated_user_object.last_name} at {affiliations}"""
                     if self.associated_user_object.contact_email is not None:
                         from_str += (
                             f""" <{self.associated_user_object.contact_email}>\n"""
@@ -1175,8 +1247,16 @@ class GcnSummaryHandler(BaseHandler):
                                 user.first_name is not None
                                 and user.last_name is not None
                             ):
+                                if (
+                                    user.affiliations is not None
+                                    and len(user.affiliations) > 0
+                                ):
+                                    affiliations = ", ".join(user.affiliations)
+                                else:
+                                    affiliations = "..."
+
                                 users_txt.append(
-                                    f"""{user.first_name[0].upper()}. {user.last_name} (Affiliation)"""  # hardcoded affiliation as it is not implemented yet
+                                    f"""{user.first_name[0].upper()}. {user.last_name} ({affiliations})"""
                                 )
                         # create a string of all users, with 5 users per line
                         users_txt = "\n".join(

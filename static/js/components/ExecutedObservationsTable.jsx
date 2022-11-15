@@ -16,6 +16,7 @@ import MUIDataTable from "mui-datatables";
 
 import { showNotification } from "baselayer/components/Notifications";
 import Button from "./Button";
+import ObservationFilterForm from "./ObservationFilterForm";
 
 import { saveSource, checkSource } from "../ducks/source";
 
@@ -71,6 +72,7 @@ const ExecutedObservationsTable = ({
   observations,
   totalMatches,
   handleTableChange = false,
+  handleFilterSubmit = false,
   pageNumber = 1,
   numPerPage = 10,
   serverSide = true,
@@ -109,6 +111,10 @@ const ExecutedObservationsTable = ({
     }
     setIsSaving(null);
   };
+
+  const customFilterDisplay = () => (
+    <ObservationFilterForm handleFilterSubmit={handleFilterSubmit} />
+  );
 
   const renderSaveSource = (dataIndex) => {
     const formData = {
@@ -220,6 +226,8 @@ const ExecutedObservationsTable = ({
     serverSide,
     pagination: true,
     count: totalMatches,
+    filter: true,
+    customFilterDialogFooter: customFilterDisplay,
   };
   if (typeof handleTableChange === "function") {
     options.onTableChange = handleTableChange;
@@ -251,6 +259,7 @@ ExecutedObservationsTable.propTypes = {
   // eslint-disable-next-line react/forbid-prop-types
   observations: PropTypes.arrayOf(PropTypes.any).isRequired,
   handleTableChange: PropTypes.func.isRequired,
+  handleFilterSubmit: PropTypes.func.isRequired,
   pageNumber: PropTypes.number,
   totalMatches: PropTypes.number,
   numPerPage: PropTypes.number,

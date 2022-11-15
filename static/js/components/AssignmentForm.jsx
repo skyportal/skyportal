@@ -124,9 +124,8 @@ const AssignmentForm = ({ obj_id, observingRunList }) => {
           <FormControl className={classes.formControl}>
             <InputLabel id="assignmentSelectLabel">Choose Run</InputLabel>
             <Controller
-              as={Select}
               inputProps={{ MenuProps: { disableScrollLock: true } }}
-              labelId="assignmentSelectLabel"
+              labelId="assignmentSelect"
               name="run_id"
               data-testid="assignmentSelect"
               control={control}
@@ -136,42 +135,48 @@ const AssignmentForm = ({ obj_id, observingRunList }) => {
                   ? upcomingObservingRuns[0].id
                   : null
               }
-            >
-              {upcomingObservingRuns?.map((observingRun) => (
-                <MenuItem
-                  value={observingRun.id}
-                  key={observingRun.id.toString()}
-                  className={classes.observingRunSelectItem}
-                >
-                  {observingRunTitle(
-                    observingRun,
-                    instrumentList,
-                    telescopeList,
-                    groups
-                  )}
-                </MenuItem>
-              ))}
-            </Controller>
+              render={() => (
+                <Select labelId="assignmentSelect">
+                  {upcomingObservingRuns?.map((observingRun) => (
+                    <MenuItem
+                      value={observingRun.id}
+                      key={observingRun.id.toString()}
+                      className={classes.observingRunSelectItem}
+                    >
+                      {observingRunTitle(
+                        observingRun,
+                        instrumentList,
+                        telescopeList,
+                        groups
+                      )}
+                    </MenuItem>
+                  ))}
+                </Select>
+              )}
+            />
           </FormControl>
           <FormControl className={classes.formControl}>
             <InputLabel id="prioritySelectLabel">Priority</InputLabel>
             <Controller
-              as={Select}
               inputProps={{ MenuProps: { disableScrollLock: true } }}
-              labelId="prioritySelectLabel"
+              labelId="prioritySelect"
               defaultValue="1"
               name="priority"
               control={control}
               rules={{ required: true }}
-            >
-              {["1", "2", "3", "4", "5"].map((prio) => (
-                <MenuItem value={prio} key={prio}>
-                  {prio}
-                </MenuItem>
-              ))}
-            </Controller>
+              render={() => (
+                <Select labelId="prioritySelect">
+                  {["1", "2", "3", "4", "5"].map((prio) => (
+                    <MenuItem value={prio} key={prio}>
+                      {prio}
+                    </MenuItem>
+                  ))}
+                </Select>
+              )}
+            />
           </FormControl>
           <TextField
+            {...register("comment")}
             id="standard-textarea"
             label="Comment"
             variant="outlined"
@@ -180,7 +185,6 @@ const AssignmentForm = ({ obj_id, observingRunList }) => {
             name="comment"
             data-testid="assignmentCommentInput"
             size="small"
-            inputRef={register}
           />
           <Button
             primary

@@ -685,39 +685,46 @@ class FollowupRequestHandler(BaseHandler):
 
             data = self.get_json()
 
-            try:
-                data = FollowupRequestPost.load(data)
-            except ValidationError as e:
-                return self.error(
-                    f'Invalid / missing parameters: {e.normalized_messages()}'
-                )
+            if 'status' in data:
+                # updating status does not require instrument API interaction
+                for k in data:
+                    setattr(followup_request, k, data[k])
+            else:
+                try:
+                    data = FollowupRequestPost.load(data)
+                except ValidationError as e:
+                    return self.error(
+                        f'Invalid / missing parameters: {e.normalized_messages()}'
+                    )
 
-            data['id'] = request_id
-            data["last_modified_by_id"] = self.associated_user_object.id
+                data['id'] = request_id
+                data["last_modified_by_id"] = self.associated_user_object.id
 
-            api = followup_request.instrument.api_class
+                api = followup_request.instrument.api_class
 
-            if not api.implements()['update']:
-                return self.error('Cannot update requests on this instrument.')
+                if not api.implements()['update']:
+                    return self.error('Cannot update requests on this instrument.')
 
-            group_ids = data.pop('target_group_ids', None)
-            if group_ids is not None:
-                stmt = Group.select(self.current_user).where(Group.id.in_(group_ids))
-                target_groups = session.scalars(stmt).all()
-                followup_request.target_groups = target_groups
+                group_ids = data.pop('target_group_ids', None)
+                if group_ids is not None:
+                    stmt = Group.select(self.current_user).where(
+                        Group.id.in_(group_ids)
+                    )
+                    target_groups = session.scalars(stmt).all()
+                    followup_request.target_groups = target_groups
 
-            # validate posted data
-            try:
-                FollowupRequest.__schema__().load(data, partial=True)
-            except ValidationError as e:
-                return self.error(
-                    f'Error parsing followup request update: "{e.normalized_messages()}"'
-                )
+                # validate posted data
+                try:
+                    FollowupRequest.__schema__().load(data, partial=True)
+                except ValidationError as e:
+                    return self.error(
+                        f'Error parsing followup request update: "{e.normalized_messages()}"'
+                    )
 
-            for k in data:
-                setattr(followup_request, k, data[k])
+                for k in data:
+                    setattr(followup_request, k, data[k])
 
-            followup_request.instrument.api_class.update(followup_request, session)
+                followup_request.instrument.api_class.update(followup_request, session)
             session.commit()
 
             self.push_all(
