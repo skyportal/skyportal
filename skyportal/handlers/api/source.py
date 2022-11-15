@@ -58,6 +58,7 @@ from ...models import (
     PhotStat,
     Spectrum,
     SourceView,
+    SourcesConfirmedInGCN,
 )
 from ...utils.offset import (
     get_nearby_offset_stars,
@@ -390,6 +391,7 @@ def get_sources(
     localization_dateobs=None,
     localization_name=None,
     localization_cumprob=None,
+    localization_reject_sources=False,
     page_number=1,
     num_per_page=DEFAULT_SOURCES_PER_PAGE,
     sort_by=None,
@@ -966,6 +968,17 @@ def get_sources(
             tiles_subquery,
             Obj.id == tiles_subquery.c.id,
         )
+
+        if localization_reject_sources:
+            obj_rejection_query = sa.select(SourcesConfirmedInGCN.obj_id).where(
+                SourcesConfirmedInGCN.dateobs == localization_dateobs,
+                SourcesConfirmedInGCN.confirmed.is_(False),
+            )
+
+            # check is done on only this subset
+            rejected_obj_ids = session.scalars(obj_rejection_query).all()
+
+            obj_query = obj_query.where(Obj.id.notin_(rejected_obj_ids))
 
     source_query = apply_active_or_requested_filtering(
         source_query, include_requested, requested_only
@@ -1975,6 +1988,12 @@ class SourceHandler(BaseHandler):
             description: |
               Cumulative probability up to which to include sources
           - in: query
+            name: localizationRejectSources
+            schema:
+              type: bool
+            description: |
+              Remove sources rejected in localization. Defaults to false.
+          - in: query
             name: includeGeoJSON
             nullable: true
             schema:
@@ -2083,6 +2102,9 @@ class SourceHandler(BaseHandler):
         localization_dateobs = self.get_query_argument("localizationDateobs", None)
         localization_name = self.get_query_argument("localizationName", None)
         localization_cumprob = self.get_query_argument("localizationCumprob", 0.95)
+        localization_reject_sources = self.get_query_argument(
+            "localizationRejectSources", False
+        )
         includeGeoJSON = self.get_query_argument("includeGeoJSON", False)
 
         class Validator(Schema):
@@ -2264,6 +2286,7 @@ class SourceHandler(BaseHandler):
                     localization_dateobs=localization_dateobs,
                     localization_name=localization_name,
                     localization_cumprob=localization_cumprob,
+                    localization_reject_sources=localization_reject_sources,
                     page_number=page_number,
                     num_per_page=num_per_page,
                     sort_by=sort_by,

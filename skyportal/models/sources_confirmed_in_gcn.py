@@ -52,3 +52,9 @@ class SourcesConfirmedInGCN(Base):
         doc="If True, the source is confirmed in the GCN. If False, the source is rejected in the GCN."
         "If there is no row, the source is not yet confirmed or rejected in the GCN.",
     )
+
+    comment = sa.Column(
+        sa.String,
+        nullable=True,
+        doc="Comment on the nature of confirmation or rejection.",
+    )
