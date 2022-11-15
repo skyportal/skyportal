@@ -1083,7 +1083,7 @@ const CandidateList = () => {
     selectableRows: "none",
     enableNestedDataAccess: ".",
     rowsPerPage,
-    rowsPerPageOptions: [1, 25, 50, 75, 100, 200],
+    rowsPerPageOptions: [1, 5, 10, 25, 50, 75, 100, 200],
     jumpToPage: true,
     serverSide: true,
     page: pageNumber - 1,
