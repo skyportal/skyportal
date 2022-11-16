@@ -979,7 +979,7 @@ def get_sources(
 
     source_subquery = source_query.subquery()
     query = obj_query.join(source_subquery, Obj.id == source_subquery.c.obj_id)
-# order_by = None
+    # order_by = None
     order_by = (
                 [source_subquery.c.saved_at]
                 if sort_order == "desc"
