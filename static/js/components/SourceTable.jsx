@@ -320,7 +320,7 @@ const SourceTable = ({
   }
   if (includeGcnStatus) {
     defaultDisplayedColumns.push("GCN Status");
-    defaultDisplayedColumns.push("GCN Status Comment");
+    defaultDisplayedColumns.push("GCN Status Explanation");
   }
 
   const [displayedColumns, setDisplayedColumns] = useState(
@@ -901,14 +901,14 @@ const SourceTable = ({
     );
   };
 
-  const renderGcnStatusComment = (dataIndex) => {
+  const renderGcnStatusExplanation = (dataIndex) => {
     const source = sources[dataIndex];
-    let statusComment = null;
+    let statusExplanation = null;
     if (sourcesingcn.filter((s) => s.obj_id === source.id).length === 0) {
-      statusComment = "";
+      statusExplanation = "";
     } else {
-      statusComment = sourcesingcn.filter((s) => s.obj_id === source.id)[0]
-        .comment;
+      statusExplanation = sourcesingcn.filter((s) => s.obj_id === source.id)[0]
+        .explanation;
     }
     return (
       <div
@@ -918,9 +918,9 @@ const SourceTable = ({
           alignItems: "center",
           justifyContent: "center",
         }}
-        name={`${source.id}_gcn_status_comment`}
+        name={`${source.id}_gcn_status_explanation`}
       >
-        {statusComment}
+        {statusExplanation}
       </div>
     );
   };
@@ -1195,12 +1195,12 @@ const SourceTable = ({
       },
     });
     columns.splice(2, 0, {
-      name: "GCN Status Comment",
+      name: "GCN Status Explanation",
       options: {
         filter: false,
         sort: false,
-        customBodyRenderLite: renderGcnStatusComment,
-        display: displayedColumns.includes("GCN Status Comment"),
+        customBodyRenderLite: renderGcnStatusExplanation,
+        display: displayedColumns.includes("GCN Status Explanation"),
       },
     });
   }

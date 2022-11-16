@@ -143,7 +143,7 @@ const ConfirmSourceInGCN = ({
           localization_name,
           localization_cumprob,
           confirmed: true,
-          comment: data.comment,
+          explanation: data.explanation,
         })
       ).then((response) => {
         if (response.status === "success") {
@@ -155,7 +155,7 @@ const ConfirmSourceInGCN = ({
       dispatch(
         SourceInGcnAction.patchSourceInGcn(dateobs, source_id, {
           confirmed: true,
-          comment: data.comment,
+          explanation: data.explanation,
         })
       ).then((response) => {
         if (response.status === "success") {
@@ -179,7 +179,7 @@ const ConfirmSourceInGCN = ({
           localization_name,
           localization_cumprob,
           confirmed: false,
-          comment: data.comment,
+          explanation: data.explanation,
         })
       ).then((response) => {
         if (response.status === "success") {
@@ -191,7 +191,7 @@ const ConfirmSourceInGCN = ({
       dispatch(
         SourceInGcnAction.patchSourceInGcn(dateobs, source_id, {
           confirmed: false,
-          comment: data.comment,
+          explanation: data.explanation,
         })
       ).then((response) => {
         if (response.status === "success") {
@@ -244,21 +244,21 @@ const ConfirmSourceInGCN = ({
                 <div>
                   <form onSubmit={handleSubmit}>
                     <Typography variant="subtitle2" className={classes.title}>
-                      Classification Comment
+                      Classification Explanation
                     </Typography>
                     <Controller
                       render={({ field: { onChange, value } }) => (
                         <TextField
                           size="small"
-                          label="Comment"
-                          name="comment"
-                          inputRef={register("comment")}
+                          label="Explanation"
+                          name="explanation"
+                          inputRef={register("explanation")}
                           className={classes.positionField}
                           onChange={onChange}
                           value={value}
                         />
                       )}
-                      name="comment"
+                      name="explanation"
                       control={control}
                     />
                     <div>
