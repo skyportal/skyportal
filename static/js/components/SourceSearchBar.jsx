@@ -139,7 +139,6 @@ const SourceSearchBar = () => {
       open={open}
       loading={loading}
       clearOnEscape
-      clearOnBlur
       selectOnFocus
       limitTags={15}
       value={value}
