@@ -598,7 +598,11 @@ class InstrumentHandler(BaseHandler):
                 IOLoop.current().run_in_executor(
                     None,
                     lambda: add_tiles(
-                        instrument.id, instrument.name, regions, field_data
+                        instrument.id,
+                        instrument.name,
+                        regions,
+                        field_data,
+                        modify=True,
                     ),
                 )
 
@@ -732,7 +736,9 @@ InstrumentHandler.post.__doc__ = f"""
         """
 
 
-def add_tiles(instrument_id, instrument_name, regions, field_data, session=Session()):
+def add_tiles(
+    instrument_id, instrument_name, regions, field_data, modify=False, session=Session()
+):
     field_ids = []
 
     try:
@@ -794,6 +800,7 @@ def add_tiles(instrument_id, instrument_name, regions, field_data, session=Sessi
         for ii, (field_id, ra, dec, coords) in enumerate(
             zip(ids, field_data['RA'], field_data['Dec'], coords_icrs)
         ):
+            print(field_id)
 
             if field_id == -1:
                 field = InstrumentField.query.filter(
@@ -887,17 +894,42 @@ def add_tiles(instrument_id, instrument_name, regions, field_data, session=Sessi
                     dec=dec,
                 )
             else:
-                field = InstrumentField(
-                    instrument_id=instrument_id,
-                    field_id=int(field_id),
-                    contour=contour,
-                    contour_summary=contour_summary,
-                    ra=ra,
-                    dec=dec,
-                )
-            session.add(field)
-            session.commit()
+                create_field = True
+                if modify:
+                    field = session.scalars(
+                        sa.select(InstrumentField).where(
+                            InstrumentField.instrument_id == instrument_id,
+                            InstrumentField.field_id == int(field_id),
+                        )
+                    ).first()
+
+                    if field is not None:
+                        field_tiles = session.scalars(
+                            sa.select(InstrumentFieldTile).where(
+                                InstrumentFieldTile.instrument_id == instrument_id,
+                                InstrumentFieldTile.instrument_field_id == field.id,
+                            )
+                        ).all()
+                        for field_tile in field_tiles:
+                            session.delete(field_tile)
+                        session.commit()
+
+                        create_field = False
+
+                if create_field:
+                    field = InstrumentField(
+                        instrument_id=instrument_id,
+                        field_id=int(field_id),
+                        contour=contour,
+                        contour_summary=contour_summary,
+                        ra=ra,
+                        dec=dec,
+                    )
+                session.add(field)
+                session.commit()
+
             field_ids.append(field.field_id)
+
             tiles = []
             for coord in coords:
                 for hpx in Tile.tiles_from_polygon_skycoord(coord):
