@@ -800,7 +800,6 @@ def add_tiles(
         for ii, (field_id, ra, dec, coords) in enumerate(
             zip(ids, field_data['RA'], field_data['Dec'], coords_icrs)
         ):
-            print(field_id)
 
             if field_id == -1:
                 field = InstrumentField.query.filter(
