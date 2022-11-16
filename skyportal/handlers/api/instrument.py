@@ -892,6 +892,8 @@ def add_tiles(
                     ra=ra,
                     dec=dec,
                 )
+                session.add(field)
+                session.commit()
             else:
                 create_field = True
                 if modify:
@@ -924,8 +926,8 @@ def add_tiles(
                         ra=ra,
                         dec=dec,
                     )
-                session.add(field)
-                session.commit()
+                    session.add(field)
+                    session.commit()
 
             field_ids.append(field.field_id)
 
