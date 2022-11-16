@@ -5,6 +5,8 @@ from astropy.time import Time
 import binascii
 import os
 import gcn
+from ligo.skymap.postprocess import crossmatch
+from ligo.skymap import distance, moc
 import lxml
 import xmlschema
 from urllib.parse import urlparse
@@ -47,6 +49,7 @@ from ...models import (
     GcnProperty,
     GcnTag,
     Localization,
+    LocalizationProperty,
     LocalizationTile,
     MMADetector,
     ObservationPlanRequest,
@@ -214,6 +217,10 @@ def post_gcnevent_from_xml(payload, user_id, session):
 
         log(f"Generating tiles/contours for localization {localization.id}")
 
+        IOLoop.current().run_in_executor(
+            None, lambda: add_skymap_properties(localization.id, user.id)
+        )
+
         IOLoop.current().run_in_executor(None, lambda: add_tiles(localization.id))
         IOLoop.current().run_in_executor(None, lambda: add_contour(localization.id))
 
@@ -327,6 +334,9 @@ def post_gcnevent_from_dictionary(payload, user_id, session):
 
         log(f"Generating tiles/contours for localization {localization.id}")
 
+        IOLoop.current().run_in_executor(
+            None, lambda: add_skymap_properties(localization.id, user.id)
+        )
         IOLoop.current().run_in_executor(None, lambda: add_tiles(localization.id))
         IOLoop.current().run_in_executor(None, lambda: add_contour(localization.id))
 
@@ -629,7 +639,7 @@ class GcnEventHandler(BaseHandler):
               description: |
                 Gcn Tag to filter out
             - in: query
-              name: propertiesFilter
+              name: gcnPropertiesFilter
               nullable: true
               schema:
                 type: array
@@ -640,6 +650,18 @@ class GcnEventHandler(BaseHandler):
               description: |
                 Comma-separated string of "property: value: operator" single(s) or triplet(s) to filter for events matching
                 that/those property(ies), i.e. "BNS" or "BNS: 0.5: lt"
+            - in: query
+              name: localizationPropertiesFilter
+              nullable: true
+              schema:
+                type: array
+                items:
+                  type: string
+              explode: false
+              style: simple
+              description: |
+                Comma-separated string of "property: value: operator" single(s) or triplet(s) to filter for event localizations matching
+                that/those property(ies), i.e. "area_90" or "area_90: 500: lt"
         responses:
           200:
             content:
@@ -670,16 +692,37 @@ class GcnEventHandler(BaseHandler):
         end_date = self.get_query_argument('endDate', None)
         tag_keep = self.get_query_argument('tagKeep', None)
         tag_remove = self.get_query_argument('tagRemove', None)
-        properties_filter = self.get_query_argument("propertiesFilter", None)
+        gcn_properties_filter = self.get_query_argument("gcnPropertiesFilter", None)
 
-        if properties_filter is not None:
-            if isinstance(properties_filter, str) and "," in properties_filter:
-                properties_filter = [c.strip() for c in properties_filter.split(",")]
-            elif isinstance(properties_filter, str):
-                properties_filter = [properties_filter]
+        if gcn_properties_filter is not None:
+            if isinstance(gcn_properties_filter, str) and "," in gcn_properties_filter:
+                gcn_properties_filter = [
+                    c.strip() for c in gcn_properties_filter.split(",")
+                ]
+            elif isinstance(gcn_properties_filter, str):
+                gcn_properties_filter = [gcn_properties_filter]
             else:
                 raise ValueError(
-                    "Invalid propertiesFilter value -- must provide at least one string value"
+                    "Invalid gcnPropertiesFilter value -- must provide at least one string value"
+                )
+
+        localization_properties_filter = self.get_query_argument(
+            "localizationPropertiesFilter", None
+        )
+
+        if localization_properties_filter is not None:
+            if (
+                isinstance(localization_properties_filter, str)
+                and "," in localization_properties_filter
+            ):
+                localization_properties_filter = [
+                    c.strip() for c in localization_properties_filter.split(",")
+                ]
+            elif isinstance(localization_properties_filter, str):
+                localization_properties_filter = [localization_properties_filter]
+            else:
+                raise ValueError(
+                    "Invalid localizationPropertiesFilter value -- must provide at least one string value"
                 )
 
         if dateobs is not None:
@@ -769,12 +812,12 @@ class GcnEventHandler(BaseHandler):
                     tag_subquery, GcnEvent.dateobs != tag_subquery.c.dateobs
                 )
 
-            if properties_filter is not None:
-                for prop_filt in properties_filter:
+            if gcn_properties_filter is not None:
+                for prop_filt in gcn_properties_filter:
                     prop_split = prop_filt.split(":")
                     if not (len(prop_split) == 1 or len(prop_split) == 3):
                         raise ValueError(
-                            "Invalid propertiesFilter value -- property filter must have 1 or 3 values"
+                            "Invalid gcnPropertiesFilter value -- property filter must have 1 or 3 values"
                         )
                     name = prop_split[0].strip()
 
@@ -784,7 +827,9 @@ class GcnEventHandler(BaseHandler):
                         try:
                             value = float(value)
                         except ValueError as e:
-                            raise ValueError(f"Invalid propotation filter value: {e}")
+                            raise ValueError(
+                                f"Invalid GCN properties filter value: {e}"
+                            )
                         op = prop_split[2].strip()
                         op_options = ["lt", "le", "eq", "ne", "ge", "gt"]
                         if op not in op_options:
@@ -803,6 +848,55 @@ class GcnEventHandler(BaseHandler):
                     query = query.join(
                         properties_subquery,
                         GcnEvent.dateobs == properties_subquery.c.dateobs,
+                    )
+
+            if localization_properties_filter is not None:
+                for prop_filt in localization_properties_filter:
+                    prop_split = prop_filt.split(":")
+                    if not (len(prop_split) == 1 or len(prop_split) == 3):
+                        raise ValueError(
+                            "Invalid localizationPropertiesFilter value -- property filter must have 1 or 3 values"
+                        )
+                    name = prop_split[0].strip()
+
+                    properties_query = LocalizationProperty.select(
+                        session.user_or_token
+                    )
+                    if len(prop_split) == 3:
+                        value = prop_split[1].strip()
+                        try:
+                            value = float(value)
+                        except ValueError as e:
+                            raise ValueError(
+                                f"Invalid localization properties filter value: {e}"
+                            )
+                        op = prop_split[2].strip()
+                        op_options = ["lt", "le", "eq", "ne", "ge", "gt"]
+                        if op not in op_options:
+                            raise ValueError(f"Invalid operator: {op}")
+                        comp_function = getattr(operator, op)
+
+                        properties_query = properties_query.where(
+                            comp_function(
+                                LocalizationProperty.data[name], cast(value, JSONB)
+                            )
+                        )
+                    else:
+                        properties_query = properties_query.where(
+                            LocalizationProperty.data[name].astext.is_not(None)
+                        )
+
+                    properties_subquery = properties_query.subquery()
+                    localizations_query = Localization.select(session.user_or_token)
+                    localizations_query = localizations_query.join(
+                        properties_subquery,
+                        Localization.id == properties_subquery.c.localization_id,
+                    )
+                    localizations_subquery = localizations_query.subquery()
+
+                    query = query.join(
+                        localizations_subquery,
+                        GcnEvent.dateobs == localizations_subquery.c.dateobs,
                     )
 
             total_matches = session.scalar(
@@ -895,6 +989,51 @@ def add_tiles(localization_id):
     except Exception as e:
         return log(
             f"Unable to generate contour for localization {localization_id}: {e}"
+        )
+    finally:
+        Session.remove()
+
+
+def add_skymap_properties(localization_id, user_id):
+    session = Session()
+    try:
+        localization = session.scalar(
+            sa.select(Localization).where(Localization.id == localization_id)
+        )
+        user = session.scalar(sa.select(User).where(User.id == user_id))
+        sky_map = localization.table
+
+        properties_dict = {}
+        result = crossmatch(sky_map, contours=(0.9,), areas=(500,))
+        area = result.contour_areas[0]
+        prob = result.area_probs[0]
+
+        if not np.isnan(area):
+            properties_dict["area_90"] = area
+        if not np.isnan(prob):
+            properties_dict["probability_500"] = prob
+
+        # Distance stats
+        if 'DISTMU' in sky_map.dtype.names:
+            # Calculate the cumulative area in deg2 and the cumulative probability.
+            dA = moc.uniq2pixarea(sky_map['UNIQ'])
+            dP = sky_map['PROBDENSITY'] * dA
+            mu = sky_map['DISTMU']
+            sigma = sky_map['DISTSIGMA']
+
+            distmean, _ = distance.parameters_to_marginal_moments(dP, mu, sigma)
+            if not np.isnan(distmean):
+                properties_dict["distance"] = distmean
+
+        properties = LocalizationProperty(
+            localization_id=localization_id, sent_by_id=user.id, data=properties_dict
+        )
+        session.add(properties)
+        session.commit()
+        return log(f"Generated properties for localization {localization_id}")
+    except Exception as e:
+        return log(
+            f"Unable to generate properties for localization {localization_id}: {e}"
         )
     finally:
         Session.remove()
@@ -1024,6 +1163,38 @@ class LocalizationHandler(BaseHandler):
             session.commit()
 
             return self.success()
+
+
+class LocalizationPropertiesHandler(BaseHandler):
+    @auth_or_token
+    def get(self):
+        """
+        ---
+        description: Get all Localization properties
+        tags:
+          - photometry
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+
+        with self.Session() as session:
+            properties = (
+                session.scalars(
+                    sa.select(
+                        sa.func.jsonb_object_keys(LocalizationProperty.data)
+                    ).distinct()
+                )
+                .unique()
+                .all()
+            )
+            return self.success(data=sorted(properties))
 
 
 class GcnSummaryHandler(BaseHandler):

@@ -129,10 +129,23 @@ const GcnEvents = () => {
       params.tagKeep = filterData.tagKeep;
       params.tagRemove = filterData.tagRemove;
 
-      if ("property" in filterData) {
-        params.propertiesFilter = `${filterData.property}: ${filterData.propertyComparatorValue}: ${filterData.propertyComparator}`;
+      console.log("filterData", filterData);
+      if ("gcnProperty" in filterData) {
+        if ("gcnPropertyComparatorValue" in filterData) {
+          params.gcnPropertiesFilter = `${filterData.gcnProperty}: ${filterData.gcnPropertyComparatorValue}: ${filterData.gcnPropertyComparator}`;
+        } else {
+          params.gcnPropertiesFilter = `${filterData.gcnProperty}`;
+        }
+      }
+      if ("localizationProperty" in filterData) {
+        if ("localizationPropertyComparatorValue" in filterData) {
+          params.localizationPropertiesFilter = `${filterData.localizationProperty}: ${filterData.localizationPropertyComparatorValue}: ${filterData.localizationPropertyComparator}`;
+        } else {
+          params.localizationPropertiesFilter = `${filterData.localizationProperty}`;
+        }
       }
     }
+    console.log("params", params);
     // Save state for future
     setFetchParams(params);
     await dispatch(gcnEventsActions.fetchGcnEvents(params));
