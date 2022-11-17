@@ -232,7 +232,7 @@ class LocalizationProperty(Base):
         doc='localization ID',
     )
 
-    data = sa.Column(JSONB, doc="Localization properties in JSON format.")
+    data = sa.Column(JSONB, doc="Localization properties in JSON format.", index=True)
 
 
 class LocalizationTag(Base):
@@ -261,4 +261,4 @@ class LocalizationTag(Base):
         doc='localization ID',
     )
 
-    text = sa.Column(sa.Unicode, nullable=False)
+    text = sa.Column(sa.Unicode, nullable=False, index=True)

@@ -1006,11 +1006,9 @@ def add_tiles(localization_id):
         session.add(localization)
         session.add_all(tiles)
         session.commit()
-        return log(f"Generated tiles for localization {localization_id}")
+        log(f"Generated tiles for localization {localization_id}")
     except Exception as e:
-        return log(
-            f"Unable to generate contour for localization {localization_id}: {e}"
-        )
+        log(f"Unable to generate contour for localization {localization_id}: {e}")
     finally:
         Session.remove()
 
@@ -1069,11 +1067,9 @@ def add_skymap_properties(localization_id, user_id):
         session.add_all(tags)
 
         session.commit()
-        return log(f"Generated properties for localization {localization_id}")
+        log(f"Generated properties for localization {localization_id}")
     except Exception as e:
-        return log(
-            f"Unable to generate properties for localization {localization_id}: {e}"
-        )
+        log(f"Unable to generate properties for localization {localization_id}: {e}")
     finally:
         Session.remove()
 
@@ -1087,9 +1083,7 @@ def add_contour(localization_id):
         session.commit()
         return log(f"Generated contour for localization {localization_id}")
     except Exception as e:
-        return log(
-            f"Unable to generate contour for localization {localization_id}: {e}"
-        )
+        log(f"Unable to generate contour for localization {localization_id}: {e}")
     finally:
         Session.remove()
 
