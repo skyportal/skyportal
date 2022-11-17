@@ -69,7 +69,7 @@ class GcnProperty(Base):
         sa.ForeignKey('users.id', ondelete='CASCADE'),
         nullable=False,
         index=True,
-        doc="The ID of the User who created this GcnTag.",
+        doc="The ID of the User who created this GcnProperty.",
     )
 
     sent_by = relationship(
@@ -85,7 +85,7 @@ class GcnProperty(Base):
         index=True,
     )
 
-    data = sa.Column(JSONB, doc="Event properties in JSON format.")
+    data = sa.Column(JSONB, doc="Event properties in JSON format.", index=True)
 
 
 class GcnTag(Base):
@@ -113,7 +113,7 @@ class GcnTag(Base):
         index=True,
     )
 
-    text = sa.Column(sa.Unicode, nullable=False)
+    text = sa.Column(sa.Unicode, nullable=False, index=True)
 
 
 class GcnEvent(Base):
