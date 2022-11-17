@@ -129,7 +129,6 @@ const GcnEvents = () => {
       params.tagKeep = filterData.tagKeep;
       params.tagRemove = filterData.tagRemove;
 
-      console.log("filterData", filterData);
       if ("gcnProperty" in filterData) {
         if ("gcnPropertyComparatorValue" in filterData) {
           params.gcnPropertiesFilter = `${filterData.gcnProperty}: ${filterData.gcnPropertyComparatorValue}: ${filterData.gcnPropertyComparator}`;
@@ -145,7 +144,6 @@ const GcnEvents = () => {
         }
       }
     }
-    console.log("params", params);
     // Save state for future
     setFetchParams(params);
     await dispatch(gcnEventsActions.fetchGcnEvents(params));
@@ -188,10 +186,30 @@ const GcnEvents = () => {
     }
   };
 
-  const renderTags = (dataIndex) =>
-    events[dataIndex]?.tags?.map((tag) => (
+  const renderGcnTags = (dataIndex) => {
+    const gcnTags = [];
+    events[dataIndex]?.tags?.forEach((tag) => {
+      gcnTags.push(tag);
+    });
+    const gcnTagsUnique = [...new Set(gcnTags)];
+    return gcnTagsUnique.map((tag) => (
       <Chip size="small" key={tag} label={tag} className={classes.eventTags} />
     ));
+  };
+
+  const renderLocalizationTags = (dataIndex) => {
+    const localizationTags = [];
+    events[dataIndex].localizations?.forEach((loc) => {
+      loc.tags?.forEach((tag) => {
+        localizationTags.push(tag.text);
+      });
+    });
+    const localizationTagsUnique = [...new Set(localizationTags)];
+
+    return localizationTagsUnique.map((tag) => (
+      <Chip size="small" key={tag} label={tag} className={classes.eventTags} />
+    ));
+  };
 
   const renderGcnNotices = (dataIndex) => (
     <ul>
@@ -247,10 +265,17 @@ const GcnEvents = () => {
       },
     },
     {
-      name: "tags",
-      label: "Tags",
+      name: "gcn_tags",
+      label: "Event Tags",
       options: {
-        customBodyRenderLite: renderTags,
+        customBodyRenderLite: renderGcnTags,
+      },
+    },
+    {
+      name: "localization_tags",
+      label: "Localization Tags",
+      options: {
+        customBodyRenderLite: renderLocalizationTags,
       },
     },
     {

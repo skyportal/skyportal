@@ -336,6 +336,12 @@ User.localizations = relationship(
     passive_deletes=True,
     doc='The localizations saved by this user',
 )
+User.localizationtags = relationship(
+    'LocalizationTag',
+    back_populates='sent_by',
+    passive_deletes=True,
+    doc='The localizationtags saved by this user',
+)
 User.localizationproperties = relationship(
     'LocalizationProperty',
     back_populates='sent_by',

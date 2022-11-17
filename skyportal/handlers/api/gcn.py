@@ -51,6 +51,7 @@ from ...models import (
     Localization,
     LocalizationProperty,
     LocalizationTile,
+    LocalizationTag,
     MMADetector,
     ObservationPlanRequest,
     User,
@@ -731,7 +732,9 @@ class GcnEventHandler(BaseHandler):
                     GcnEvent.select(
                         session.user_or_token,
                         options=[
-                            joinedload(GcnEvent.localizations),
+                            joinedload(GcnEvent.localizations).joinedload(
+                                Localization.tags
+                            ),
                             joinedload(GcnEvent.gcn_notices),
                             joinedload(GcnEvent.observationplan_requests)
                             .joinedload(ObservationPlanRequest.allocation)
@@ -750,7 +753,13 @@ class GcnEventHandler(BaseHandler):
                     "tags": list(set(event.tags)),
                     "lightcurve": event.lightcurve,
                     "localizations": sorted(
-                        (loc.to_dict() for loc in event.localizations),
+                        (
+                            {
+                                **loc.to_dict(),
+                                "tags": [tag.to_dict() for tag in loc.tags],
+                            }
+                            for loc in event.localizations
+                        ),
                         key=lambda x: x["created_at"],
                         reverse=True,
                     ),
@@ -926,7 +935,19 @@ class GcnEventHandler(BaseHandler):
 
             events = []
             for event in session.scalars(query).unique().all():
-                events.append({**event.to_dict(), "tags": list(set(event.tags))})
+                event_info = {**event.to_dict(), "tags": list(set(event.tags))}
+                event_info["localizations"] = sorted(
+                    (
+                        {
+                            **loc.to_dict(),
+                            "tags": [tag.to_dict() for tag in loc.tags],
+                        }
+                        for loc in event.localizations
+                    ),
+                    key=lambda x: x["created_at"],
+                    reverse=True,
+                )
+                events.append(event_info)
 
             query_results = {"events": events, "totalMatches": int(total_matches)}
 
@@ -1004,14 +1025,19 @@ def add_skymap_properties(localization_id, user_id):
         sky_map = localization.table
 
         properties_dict = {}
+        tags_list = []
         result = crossmatch(sky_map, contours=(0.9,), areas=(500,))
         area = result.contour_areas[0]
         prob = result.area_probs[0]
 
         if not np.isnan(area):
             properties_dict["area_90"] = area
+            if properties_dict["area_90"] < 500:
+                tags_list.append("< 500 sq. deg.")
         if not np.isnan(prob):
             properties_dict["probability_500"] = prob
+            if properties_dict["probability_500"] >= 0.9:
+                tags_list.append("> 0.9 in 500 sq. deg.")
 
         # Distance stats
         if 'DISTMU' in sky_map.dtype.names:
@@ -1024,11 +1050,24 @@ def add_skymap_properties(localization_id, user_id):
             distmean, _ = distance.parameters_to_marginal_moments(dP, mu, sigma)
             if not np.isnan(distmean):
                 properties_dict["distance"] = distmean
+                if distmean <= 150:
+                    tags_list.append("< 150 Mpc")
 
         properties = LocalizationProperty(
             localization_id=localization_id, sent_by_id=user.id, data=properties_dict
         )
         session.add(properties)
+
+        tags = [
+            LocalizationTag(
+                localization_id=localization_id,
+                text=text,
+                sent_by_id=user.id,
+            )
+            for text in tags_list
+        ]
+        session.add_all(tags)
+
         session.commit()
         return log(f"Generated properties for localization {localization_id}")
     except Exception as e:
