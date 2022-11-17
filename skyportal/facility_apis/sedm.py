@@ -331,7 +331,7 @@ class SEDMAPI(FollowUpAPI):
             "maximum_fwhm": {
                 "title": "Maximum FWHM (1-10)",
                 "type": "number",
-                "default": 5,
+                "default": 10,
                 "minimum": 1,
                 "maximum": 10,
             },
