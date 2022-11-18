@@ -24,24 +24,9 @@ env, cfg = load_env()
 default_filters = cfg['app.observation_plan.default_filters']
 
 
-def get_healpix_area(h):
-    return (h.upper - h.lower) * ha.constants.PIXEL_AREA
-
-
-def is_healpix_overlapping(h1, h2):
-    return h1.lower < h2.upper and h2.lower < h1.upper
-
-
-def get_healpix_intersection_area(h1, h2):
-    if not is_healpix_overlapping(h1, h2):
-        return 0
-    return (min(h1.upper, h2.upper) - max(h1.lower, h2.lower)) * ha.constants.PIXEL_AREA
-
-
 def generate_observation_plan_statistics(
     observation_plan_ids, request_ids, user_id, session, cumulative_probability=1.0
 ):
-
     from ..models import (
         EventObservationPlan,
         EventObservationPlanStatistics,
@@ -53,7 +38,7 @@ def generate_observation_plan_statistics(
         ObservationPlanRequest,
     )
 
-    session.execute('ANALYZE')
+    session.execute('ANALYZE')  # do we need this?
 
     for observation_plan_id, request_id in zip(observation_plan_ids, request_ids):
         plan = session.query(EventObservationPlan).get(observation_plan_id)
@@ -125,27 +110,20 @@ def generate_observation_plan_statistics(
         )
 
         # DEBUGGING: calculate the cumulative probabilities:
-        t0 = time.time()
-        cp = session.scalar(
-            sa.select(cum_prob).where(
-                LocalizationTile.localization_id == request.localization_id
-            )
-        )
-        print(f"DEBUG: cum_prob= {cp}. runtime: {time.time() - t0:.2f} seconds")
-
-        # DEBUGGING: calculate the cumulative probabilities:
-        t0 = time.time()
         cum_prob_value = 0
         min_probdensity_value = 0
-
+        i = 0
         for t in tiles:
-            cum_prob_value += t.probdensity * get_healpix_area(t.healpix)
-            if cum_prob_value > cumulative_probability:
+            i += 1
+            cum_prob_value += t.probdensity * (t.healpix.upper - t.healpix.lower)
+            if cum_prob_value >= cumulative_probability / ha.constants.PIXEL_AREA:
                 min_probdensity_value = t.probdensity
                 break
 
         print(
-            f'cum_prob_value = {cum_prob_value}, min_probdensity_value = {min_probdensity_value}, time: {time.time() - t0:.2f} seconds'
+            f"DEBUG: got {i} tiles out of {len(tiles)} "
+            f"with cum_prob >= {cum_prob_value * ha.constants.PIXEL_AREA} "
+            f"and min_probdensity >= {min_probdensity_value}"
         )
 
         localizationtile_subquery = (
@@ -180,56 +158,76 @@ def generate_observation_plan_statistics(
 
         # DEBUGGING: get the overlapping fields/tiles:
         t0 = time.time()
-        total_area_value = 0
-        total_probability_value = 0
+        sum_probability = 0  # total probability of all tiles
+        total_area_value = 0  # total area covered by instrument field tiles
+        total_probability_value = (
+            0  # total probability covered by instrument field tiles
+        )
         field_lower_bounds = np.array([f.healpix.lower for f in instrument_field_tiles])
-        print(field_lower_bounds)
-
         field_upper_bounds = np.array([f.healpix.upper for f in instrument_field_tiles])
-        print(field_upper_bounds)
 
-        # field_area_array = (field_upper_bounds - field_lower_bounds) * ha.constants.PIXEL_AREA
-        field_included = np.zeros(len(instrument_field_tiles), dtype=bool)
-        sum_probability = 0
-        overlap_values = []
+        def combine_healpix_tuples(input_tiles):
+            """
+            Combine (adjacent?) healpix tiles, given as tuples of (lower,upper).
+            Returns a list of tuples that do not overlap.
+            """
+
+            # set upper bound to make sure this algorithm isn't crazy expensive
+            for i in range(1000):
+                # check each tuple against all other tuples:
+                for j1, t1 in enumerate(input_tiles):
+                    for j2 in range(j1 + 1, len(input_tiles)):
+                        t2 = input_tiles[j2]
+                        # check if overlapping with any of the combined tiles
+                        if t2[0] < t1[1] and t1[0] < t2[1]:
+                            # if overlapping, grow to the union of both tiles
+                            input_tiles[j1] = (min(t1[0], t2[0]), max(t1[1], t2[1]))
+                            input_tiles[j2] = input_tiles[
+                                j1
+                            ]  # grow both tiles in the list!
+                output_tiles = list(set(input_tiles))  # remove duplicates
+
+                # when none of the tiles are overlapping,
+                # none will be removed by the actions of the loop
+                if len(output_tiles) == len(input_tiles):
+                    return output_tiles
+
+                input_tiles = output_tiles
+
+            raise RuntimeError("Too many iterations (1000) to combine_healpix_tuples!")
+
         for i, t in enumerate(tiles):
-            # print(f'DEBUG: tile {t.id} has probdensity {t.probdensity}. runtime: {time.time() - t0:.2f} seconds')
-
             # has True values where tile t has any overlap with one of the fields
             overlap_array = np.logical_and(
                 t.healpix.lower <= field_upper_bounds,
                 t.healpix.upper >= field_lower_bounds,
             )
-            overlap_values.append(int(np.sum(overlap_array)))
-            if i % 100 == 0:
-                print(f'sum(ovelap)= {np.sum(overlap_array)}')
 
-            # if overlap exists, get the area of overlap for each field with tile t (if no overlap, get negative value)
-            common_area_array = np.minimum(
-                t.healpix.upper, field_upper_bounds
-            ) - np.maximum(t.healpix.lower, field_lower_bounds)
-            # common_area_array = common_area_array.astype(float)
-            # common_area_array *= ha.constants.PIXEL_AREA
-            # get the probability for all fields with overlap with tile t
-            total_area_value += np.sum(common_area_array[overlap_array])
-            total_probability_value += t.probdensity * np.sum(
-                common_area_array[overlap_array]
-            )
-            sum_probability += t.probdensity * get_healpix_area(t.healpix)
-            # keep track of all fields overlapping any tiles
-            field_included = np.logical_or(field_included, overlap_array)
+            # only add area/prob if there's any overlap
+            overlap = 0
+            if np.sum(overlap_array):
+                lower_upper = zip(
+                    field_lower_bounds[overlap_array], field_upper_bounds[overlap_array]
+                )
+                new_fields = [(l, u) for (l, u) in lower_upper]
+                output_fields = combine_healpix_tuples(new_fields)
+                for lower, upper in output_fields:
+                    mx = np.minimum(t.healpix.upper, upper)
+                    mn = np.maximum(t.healpix.lower, lower)
+                    overlap += mx - mn
 
-        print(
-            f'DEBUG: fields included: {np.sum(field_included)} / {len(field_included)}'
-        )
-        print(f'DEBUG: sum_probability = {sum_probability}')
-        print(f'DEBUG: overlap values= {set(overlap_values)}')
-        # total_area_value = np.sum(field_area_array[field_included])
+            total_area_value += overlap
+            total_probability_value += t.probdensity * overlap
+            sum_probability += t.probdensity * (t.healpix.upper - t.healpix.lower)
+
+        sum_probability *= ha.constants.PIXEL_AREA
         total_area_value *= ha.constants.PIXEL_AREA
         total_probability_value *= ha.constants.PIXEL_AREA
+
         print(
-            f'DEBUG: total_area_value = {total_area_value * (180/np.pi)**2}, '
-            f'total_probability_value = {total_probability_value}, '
+            f'DEBUG: sum_probability = {sum_probability} | '
+            f'total_area_value = {total_area_value * (180 / np.pi) ** 2} | '
+            f'total_probability_value = {total_probability_value} | '
             f'time: {time.time() - t0:.2f} seconds'
         )
 
@@ -261,7 +259,7 @@ def generate_observation_plan_statistics(
             f'Area value: {intarea * (180.0 / np.pi) ** 2}. query took {time.time() - t0:.1f} s'
         )
 
-        print(query_area)
+        # print(query_area)
 
         if intarea is None:
             intarea = 0.0
@@ -277,7 +275,7 @@ def generate_observation_plan_statistics(
         intprob = session.execute(query_prob).scalar_one()
         print(f'intProb value: {intprob}. query took {time.time() - t0:.1f} s')
 
-        print(query_prob)
+        # print(query_prob)
 
         if intprob is None:
             intprob = 0.0
@@ -623,7 +621,6 @@ def generate_plan(observation_plan_ids, request_ids, user_id):
 
 
 class MMAAPI(FollowUpAPI):
-
     """An interface to MMA operations."""
 
     # subclasses *must* implement the method below
@@ -928,7 +925,7 @@ class MMAAPI(FollowUpAPI):
                 },
                 "queue_name": {
                     "type": "string",
-                    "default": f"ToO_{str(datetime.utcnow()).replace(' ','T')}",
+                    "default": f"ToO_{str(datetime.utcnow()).replace(' ', 'T')}",
                 },
             },
             "required": [
