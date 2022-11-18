@@ -347,9 +347,19 @@ const CandidateThumbnails = ({ sourceId }) => {
     dispatch(candidatesActions.generatePS1Thumbnail(objID));
   };
 
-  const candidateObj = useSelector((state) => state.candidate);
+  let candidateObj = useSelector((state) => state.candidate);
+  const { candidates } = useSelector((state) => state.candidates);
+
+  let needsQuery = true;
+  candidates?.forEach((candidate) => {
+    if (candidate.id === sourceId) {
+      candidateObj = { ...candidate };
+      needsQuery = false;
+    }
+  });
+
   useEffect(() => {
-    if (!candidateObj?.id) {
+    if (needsQuery && !candidateObj?.id) {
       dispatch(candidateActions.fetchCandidate(sourceId));
     }
   }, [sourceId, candidateObj, dispatch]);
@@ -400,9 +410,19 @@ const CandidateAutoannotations = ({ sourceId }) => {
   const dispatch = useDispatch();
   const classes = useStyles();
 
-  const candidateObj = useSelector((state) => state.candidate);
+  let candidateObj = useSelector((state) => state.candidate);
+  const { candidates } = useSelector((state) => state.candidates);
+
+  let needsQuery = true;
+  candidates?.forEach((candidate) => {
+    if (candidate.id === sourceId) {
+      candidateObj = { ...candidate };
+      needsQuery = false;
+    }
+  });
+
   useEffect(() => {
-    if (!candidateObj?.id) {
+    if (needsQuery && !candidateObj?.id) {
       dispatch(candidateActions.fetchCandidate(sourceId));
     }
   }, [sourceId, candidateObj, dispatch]);
@@ -445,9 +465,19 @@ const CandidateInfo = ({
     (state) => state.groups.userAccessible
   );
 
-  const candidateObj = useSelector((state) => state.candidate);
+  let candidateObj = useSelector((state) => state.candidate);
+  const { candidates } = useSelector((state) => state.candidates);
+
+  let needsQuery = true;
+  candidates?.forEach((candidate) => {
+    if (candidate.id === sourceId) {
+      candidateObj = { ...candidate };
+      needsQuery = false;
+    }
+  });
+
   useEffect(() => {
-    if (!candidateObj?.id) {
+    if (needsQuery && !candidateObj?.id) {
       dispatch(candidateActions.fetchCandidate(sourceId));
     }
   }, [sourceId, candidateObj, dispatch]);
@@ -854,7 +884,7 @@ const CandidateList = () => {
   const generatePS1BulkThumbnails = (candidateList) => {
     setBulkPS1GenerationInProgress(true);
     const ids = [];
-    candidateList.forEach((candidateObj) => {
+    candidateList?.forEach((candidateObj) => {
       const hasPS1 = candidateObj?.thumbnails
         ?.map((t) => t.type)
         ?.includes("ps1");
