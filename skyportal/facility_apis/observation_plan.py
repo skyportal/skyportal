@@ -120,6 +120,10 @@ def generate_observation_plan_statistics(
                 min_probdensity_value = t.probdensity
                 break
 
+        tiles = tiles[
+            :i
+        ]  # keep only the tiles with probdensity >= min_probdensity_value
+
         print(
             f"DEBUG: got {i} tiles out of {len(tiles)} "
             f"with cum_prob >= {cum_prob_value * ha.constants.PIXEL_AREA} "
