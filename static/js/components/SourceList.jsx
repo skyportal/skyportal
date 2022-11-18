@@ -174,7 +174,7 @@ const SourceList = () => {
         </Typography>
         {sourcesState.sources && (
           <Grid item className={classes.tableGrid}>
-            <SourceSearchBar id='search'/>
+            <SourceSearchBar id="search" />
             <SourceTable
               sources={sourcesState.sources}
               paginateCallback={handleSourceTablePagination}
