@@ -2755,6 +2755,7 @@ def make_spectrum_layout(
         else row(z, v_exp, smooth_column)
     )
     row4 = row(w)
+    plot_height += 200
     return column(
         plot,
         *line_checkboxes,

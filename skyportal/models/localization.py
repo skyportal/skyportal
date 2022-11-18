@@ -1,4 +1,9 @@
-__all__ = ['Localization', 'LocalizationTile']
+__all__ = [
+    'Localization',
+    'LocalizationTag',
+    'LocalizationProperty',
+    'LocalizationTile',
+]
 
 import sqlalchemy as sa
 from sqlalchemy.orm import relationship, deferred
@@ -102,6 +107,22 @@ class Localization(Base):
         doc="Survey efficiency analyses of the event.",
     )
 
+    properties = relationship(
+        'LocalizationProperty',
+        cascade='save-update, merge, refresh-expire, expunge, delete',
+        passive_deletes=True,
+        order_by="LocalizationProperty.created_at",
+        doc="Properties associated with this Localization.",
+    )
+
+    tags = relationship(
+        'LocalizationTag',
+        cascade='save-update, merge, refresh-expire, expunge, delete',
+        passive_deletes=True,
+        order_by="LocalizationTag.created_at",
+        doc="Tags associated with this Localization.",
+    )
+
     @hybrid_property
     def is_3d(self):
         return (
@@ -183,3 +204,61 @@ class LocalizationTile(Base):
     )
 
     healpix = sa.Column(healpix_alchemy.Tile, primary_key=True, index=True)
+
+
+class LocalizationProperty(Base):
+    """Store properties for localizations."""
+
+    update = delete = AccessibleIfUserMatches('sent_by')
+
+    sent_by_id = sa.Column(
+        sa.ForeignKey('users.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+        doc="The ID of the User who created this LocalizationProperty.",
+    )
+
+    sent_by = relationship(
+        "User",
+        foreign_keys=sent_by_id,
+        back_populates="localizationproperties",
+        doc="The user that saved this LocalizationProperty",
+    )
+
+    localization_id = sa.Column(
+        sa.ForeignKey('localizations.id', ondelete="CASCADE"),
+        primary_key=True,
+        index=True,
+        doc='localization ID',
+    )
+
+    data = sa.Column(JSONB, doc="Localization properties in JSON format.", index=True)
+
+
+class LocalizationTag(Base):
+    """Store qualitative tags for localizations."""
+
+    update = delete = AccessibleIfUserMatches('sent_by')
+
+    sent_by_id = sa.Column(
+        sa.ForeignKey('users.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+        doc="The ID of the User who created this LocalizationTag.",
+    )
+
+    sent_by = relationship(
+        "User",
+        foreign_keys=sent_by_id,
+        back_populates="localizationtags",
+        doc="The user that saved this LocalizationTag",
+    )
+
+    localization_id = sa.Column(
+        sa.ForeignKey('localizations.id', ondelete="CASCADE"),
+        primary_key=True,
+        index=True,
+        doc='localization ID',
+    )
+
+    text = sa.Column(sa.Unicode, nullable=False, index=True)

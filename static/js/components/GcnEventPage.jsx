@@ -318,7 +318,7 @@ const GcnEventPage = ({ route }) => {
                   </Link>
                   ({dayjs().to(dayjs.utc(`${gcnEvent.dateobs}Z`))})
                 </div>
-                <div className={styles.eventTags}>
+                <div>
                   <GcnTags gcnEvent={gcnEvent} />
                 </div>
               </AccordionDetails>

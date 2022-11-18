@@ -48,6 +48,18 @@ class RecentGcnEventsHandler(BaseHandler):
             )
             events = []
             for event in q:
-                events.append({**event.to_dict(), "tags": event.tags})
+                event_info = {**event.to_dict(), "tags": list(set(event.tags))}
+                event_info["localizations"] = sorted(
+                    (
+                        {
+                            **loc.to_dict(),
+                            "tags": [tag.to_dict() for tag in loc.tags],
+                        }
+                        for loc in event.localizations
+                    ),
+                    key=lambda x: x["created_at"],
+                    reverse=True,
+                )
+                events.append(event_info)
 
             return self.success(data=events)

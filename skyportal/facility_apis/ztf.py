@@ -281,6 +281,7 @@ def commit_photometry(url, altdata, df_request, request_id, instrument_id, user_
             inplace=True,
         )
         df['magsys'] = 'ab'
+        df['origin'] = 'fp'
 
         data_out = {
             'obj_id': request.obj_id,
