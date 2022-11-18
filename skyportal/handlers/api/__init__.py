@@ -50,6 +50,7 @@ from .gcn import (
     GcnEventTagsHandler,
     GcnSummaryHandler,
     LocalizationHandler,
+    LocalizationPropertiesHandler,
 )
 from .gcn_tach import GcnTachHandler
 from .group import (

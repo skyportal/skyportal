@@ -960,37 +960,49 @@ def get_nearby_offset_stars(
 
         d2d = c.separation(catalog)  # match it to the catalog
         if sum(d2d < min_sep) == 1 and source["phot_rp_mean_mag"] <= mag_limit:
+            use_original = True
+
             # this star is not near another star and is bright enough
 
             # if there's a close match to ZTF reference position then use
             #  ZTF position for this source instead of the gaia/motion data
             if use_ztfref and ztfcatalog is not None:
-                idx, ztfdist, _ = c.match_to_catalog_sky(ztfcatalog)
-                if ztfdist < 0.5 * u.arcsec:
-                    cprime = SkyCoord(
-                        ra=ztfcatalog[idx].ra.value,
-                        dec=ztfcatalog[idx].dec.value,
-                        unit=(u.degree, u.degree),
-                        frame='icrs',
-                        obstime=source_obstime,
+                try:
+                    idx, ztfdist, _ = c.match_to_catalog_sky(ztfcatalog)
+
+                    if ztfdist < 0.5 * u.arcsec:
+                        cprime = SkyCoord(
+                            ra=ztfcatalog[idx].ra.value,
+                            dec=ztfcatalog[idx].dec.value,
+                            unit=(u.degree, u.degree),
+                            frame='icrs',
+                            obstime=source_obstime,
+                        )
+
+                        dra, ddec = cprime.spherical_offsets_to(center)
+                        pa = cprime.position_angle(center).degree
+                        # use the RA, DEC from ZTF here
+                        source["ra"] = ztfcatalog[idx].ra.value
+                        source["dec"] = ztfcatalog[idx].dec.value
+                        good_list.append(
+                            (
+                                source["dist"],
+                                cprime,
+                                source,
+                                dra.to(u.arcsec),
+                                ddec.to(u.arcsec),
+                                pa,
+                            )
+                        )
+                        use_original = False
+                except Exception as e:
+                    log(
+                        f'Warning: ZTF catalog matching failed... '
+                        f'Error: str{e} '
+                        f'Failed catalog: {str(ztfcatalog)}'
                     )
 
-                    dra, ddec = cprime.spherical_offsets_to(center)
-                    pa = cprime.position_angle(center).degree
-                    # use the RA, DEC from ZTF here
-                    source["ra"] = ztfcatalog[idx].ra.value
-                    source["dec"] = ztfcatalog[idx].dec.value
-                    good_list.append(
-                        (
-                            source["dist"],
-                            cprime,
-                            source,
-                            dra.to(u.arcsec),
-                            ddec.to(u.arcsec),
-                            pa,
-                        )
-                    )
-            else:
+            if use_original:
                 # precess it's position forward to the source obstime and
                 # get offsets suitable for spectroscopy
                 # TODO: put this in geocentric coords to account for parallax

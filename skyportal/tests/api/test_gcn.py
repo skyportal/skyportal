@@ -194,13 +194,13 @@ def test_gcn_from_moc(super_admin_token, view_only_token):
     data = data["data"]
     assert "2022-06-18T18:31:12" in [event["dateobs"] for event in data["events"]]
 
-    params = {'propertiesFilter': 'BNS: 0.5: gt, NSBH: 0.5: lt'}
+    params = {'gcnPropertiesFilter': 'BNS: 0.5: gt, NSBH: 0.5: lt'}
     status, data = api('GET', 'gcn_event', token=super_admin_token, params=params)
     assert status == 200
     data = data["data"]
     assert "2022-06-18T18:31:12" in [event["dateobs"] for event in data['events']]
 
-    params = {'propertiesFilter': 'BNS: 0.5: lt, NSBH: 0.5: lt'}
+    params = {'gcnPropertiesFilter': 'BNS: 0.5: lt, NSBH: 0.5: lt'}
     status, data = api('GET', 'gcn_event', token=super_admin_token, params=params)
     assert status == 200
     data = data["data"]
