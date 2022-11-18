@@ -13,6 +13,7 @@ import Button from "./Button";
 
 import * as gcnTagsActions from "../ducks/gcnTags";
 import * as gcnPropertiesActions from "../ducks/gcnProperties";
+import * as localizationPropertiesActions from "../ducks/localizationProperties";
 
 const useStyles = makeStyles((theme) => ({
   paperDiv: {
@@ -113,6 +114,12 @@ const GcnEventsFilterForm = ({ handleFilterSubmit }) => {
   );
   gcnProperties.sort();
 
+  let localizationProperties = [];
+  localizationProperties = localizationProperties.concat(
+    useSelector((state) => state.localizationProperties)
+  );
+  localizationProperties.sort();
+
   const comparators = {
     lt: "<",
     le: "<=",
@@ -124,6 +131,10 @@ const GcnEventsFilterForm = ({ handleFilterSubmit }) => {
 
   useEffect(() => {
     dispatch(gcnPropertiesActions.fetchGcnProperties());
+  }, [dispatch]);
+
+  useEffect(() => {
+    dispatch(localizationPropertiesActions.fetchLocalizationProperties());
   }, [dispatch]);
 
   const { handleSubmit, register, control, reset, getValues } = useForm();
@@ -145,19 +156,35 @@ const GcnEventsFilterForm = ({ handleFilterSubmit }) => {
           <Typography variant="subtitle2" className={classes.title}>
             Time Detected (UTC)
           </Typography>
-          <TextField
-            size="small"
-            label="First Detected After"
+          <Controller
+            render={({ field: { onChange, value } }) => (
+              <TextField
+                size="small"
+                label="First Detected After"
+                name="startDate"
+                inputRef={register("startDate")}
+                placeholder="2012-08-30T00:00:00"
+                onChange={onChange}
+                value={value}
+              />
+            )}
             name="startDate"
-            inputRef={register}
-            placeholder="2012-08-30T00:00:00"
+            control={control}
           />
-          <TextField
-            size="small"
-            label="Last Detected Before"
+          <Controller
+            render={({ field: { onChange, value } }) => (
+              <TextField
+                size="small"
+                label="Last Detected Before"
+                name="endDate"
+                inputRef={register("endDate")}
+                placeholder="2012-08-30T00:00:00"
+                onChange={onChange}
+                value={value}
+              />
+            )}
             name="endDate"
-            inputRef={register}
-            placeholder="2012-08-30T00:00:00"
+            control={control}
           />
         </div>
         <div className={classes.formItemRightColumn}>
@@ -166,7 +193,7 @@ const GcnEventsFilterForm = ({ handleFilterSubmit }) => {
           </Typography>
           <div className={classes.selectItems}>
             <Controller
-              render={({ value }) => (
+              render={({ field: { value } }) => (
                 <Select
                   inputProps={{ MenuProps: { disableScrollLock: true } }}
                   labelId="gcnPropertySelectLabel"
@@ -174,7 +201,7 @@ const GcnEventsFilterForm = ({ handleFilterSubmit }) => {
                   onChange={(event) => {
                     reset({
                       ...getValues(),
-                      property:
+                      gcnProperty:
                         event.target.value === -1 ? "" : event.target.value,
                     });
                   }}
@@ -191,14 +218,14 @@ const GcnEventsFilterForm = ({ handleFilterSubmit }) => {
                   ))}
                 </Select>
               )}
-              name="property"
+              name="gcnProperty"
               control={control}
               defaultValue=""
             />
           </div>
           <div className={classes.selectItems}>
             <Controller
-              render={({ value }) => (
+              render={({ field: { value } }) => (
                 <Select
                   inputProps={{ MenuProps: { disableScrollLock: true } }}
                   labelId="gcnPropertyComparatorSelectLabel"
@@ -206,7 +233,7 @@ const GcnEventsFilterForm = ({ handleFilterSubmit }) => {
                   onChange={(event) => {
                     reset({
                       ...getValues(),
-                      propertyComparator:
+                      gcnPropertyComparator:
                         event.target.value === -1 ? "" : event.target.value,
                     });
                   }}
@@ -223,16 +250,92 @@ const GcnEventsFilterForm = ({ handleFilterSubmit }) => {
                   ))}
                 </Select>
               )}
-              name="propertyComparator"
+              name="gcnPropertyComparator"
               control={control}
               defaultValue="="
             />
           </div>
           <TextField
             size="small"
-            label="Property Comparator Value"
-            name="propertyComparatorValue"
-            inputRef={register}
+            label="GCN Property Comparator Value"
+            name="gcnPropertyComparatorValue"
+            inputRef={register("gcnPropertyComparatorValue")}
+            placeholder="0.0"
+          />
+        </div>
+        <div className={classes.formItemRightColumn}>
+          <Typography variant="subtitle2" className={classes.title}>
+            Localization Property Filtering
+          </Typography>
+          <div className={classes.selectItems}>
+            <Controller
+              render={({ field: { value } }) => (
+                <Select
+                  inputProps={{ MenuProps: { disableScrollLock: true } }}
+                  labelId="localizationPropertySelectLabel"
+                  value={value || ""}
+                  onChange={(event) => {
+                    reset({
+                      ...getValues(),
+                      localizationProperty:
+                        event.target.value === -1 ? "" : event.target.value,
+                    });
+                  }}
+                  className={classes.select}
+                >
+                  {localizationProperties?.map((localizationProperty) => (
+                    <MenuItem
+                      value={localizationProperty}
+                      key={localizationProperty}
+                      className={classes.selectItem}
+                    >
+                      {`${localizationProperty}`}
+                    </MenuItem>
+                  ))}
+                </Select>
+              )}
+              name="localizationProperty"
+              control={control}
+              defaultValue=""
+            />
+          </div>
+          <div className={classes.selectItems}>
+            <Controller
+              render={({ field: { value } }) => (
+                <Select
+                  inputProps={{ MenuProps: { disableScrollLock: true } }}
+                  labelId="localizationPropertyComparatorSelectLabel"
+                  value={value || ""}
+                  onChange={(event) => {
+                    reset({
+                      ...getValues(),
+                      localizationPropertyComparator:
+                        event.target.value === -1 ? "" : event.target.value,
+                    });
+                  }}
+                  className={classes.select}
+                >
+                  {Object.keys(comparators)?.map((key) => (
+                    <MenuItem
+                      value={key}
+                      key={key}
+                      className={classes.selectItem}
+                    >
+                      {`${comparators[key]}`}
+                    </MenuItem>
+                  ))}
+                </Select>
+              )}
+              name="localizationPropertyComparator"
+              control={control}
+              defaultValue="="
+            />
+          </div>
+          <TextField
+            size="small"
+            label="Localization Property Comparator Value"
+            name="localizationPropertyComparatorValue"
+            inputRef={register("localizationPropertyComparatorValue")}
             placeholder="0.0"
           />
         </div>
@@ -242,7 +345,7 @@ const GcnEventsFilterForm = ({ handleFilterSubmit }) => {
           </Typography>
           <div className={classes.selectItems}>
             <Controller
-              render={({ value }) => (
+              render={({ field: { value } }) => (
                 <Select
                   inputProps={{ MenuProps: { disableScrollLock: true } }}
                   labelId="gcnTagSelectLabel"
@@ -279,7 +382,7 @@ const GcnEventsFilterForm = ({ handleFilterSubmit }) => {
           </Typography>
           <div className={classes.selectItems}>
             <Controller
-              render={({ value }) => (
+              render={({ field: { value } }) => (
                 <Select
                   inputProps={{ MenuProps: { disableScrollLock: true } }}
                   labelId="gcnTagRemoveLabel"

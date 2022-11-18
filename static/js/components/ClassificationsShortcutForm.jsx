@@ -30,7 +30,13 @@ const useStyles = makeStyles(() => ({
 const ClassificationsShortcutForm = () => {
   const classes = useStyles();
   const profile = useSelector((state) => state.profile.preferences);
-  const { handleSubmit, register, errors, reset } = useForm();
+  const {
+    handleSubmit,
+    register,
+    reset,
+
+    formState: { errors },
+  } = useForm();
   const dispatch = useDispatch();
 
   const [selectedClassifications, setSelectedClassifications] = useState([]);
@@ -73,7 +79,7 @@ const ClassificationsShortcutForm = () => {
             <div>
               <InputLabel htmlFor="shortcutNameInput">Shortcut Name</InputLabel>
               <TextField
-                inputRef={register({
+                {...register("shortcutName", {
                   required: true,
                   validate: (value) => {
                     if (profile?.classificationShortcuts) {

@@ -8,7 +8,6 @@ import numpy as np
 import pandas as pd
 from sqlalchemy.orm import joinedload
 
-from bokeh.core.properties import List, String
 from bokeh.layouts import row, column
 from bokeh.models import (
     CustomJS,
@@ -23,13 +22,14 @@ from bokeh.models import (
     LegendItem,
     Dropdown,
     Spinner,
+    TabPanel,
+    Tabs,
 )
 from bokeh.models.widgets import (
     CheckboxGroup,
+    CheckboxButtonGroup,
     TextInput,
     NumericInput,
-    Panel,
-    Tabs,
     Div,
 )
 from bokeh.plotting import figure, ColumnDataSource
@@ -292,12 +292,6 @@ SPEC_LINES = {
         '#6dcff6',
     ),
 }
-
-
-class CheckboxWithLegendGroup(CheckboxGroup):
-    colors = List(String, help="List of legend colors")
-
-    __implementation__ = ""
 
 
 tooltip_format = [
@@ -1162,7 +1156,7 @@ def make_legend_items_and_detection_lines(
                     show_all_origins,
                 )
         else:
-            raise ValueError("Panel name should be one of mag, flux, and period.")
+            raise ValueError("TabPanel name should be one of mag, flux, and period.")
         if panel_name == 'mag' or panel_name == 'flux':
             mark_detections(
                 plot,
@@ -1378,7 +1372,8 @@ def make_period_controls(
                 """,
         ),
     )
-    smooth_checkbox.js_on_click(smooth_callback)
+
+    smooth_checkbox.js_on_event('button_click', smooth_callback)
     smooth_input.js_on_change('value', smooth_callback)
     smooth_column = column(
         smooth_checkbox,
@@ -1429,16 +1424,19 @@ def make_period_controls(
                     """,
         )
     )
+
     # a way to select the period
-    period_selection.js_on_click(
+    period_selection.js_on_event(
+        'button_click',
         CustomJS(
             args={'textinput': period_textinput, 'periods': period_list},
             code="""
             textinput.value = parseFloat(periods[this.active]).toFixed(9);
             """,
-        )
+        ),
     )
-    phase_selection.js_on_click(
+    phase_selection.js_on_event(
+        'button_click',
         CustomJS(
             args={
                 'textinput': period_textinput,
@@ -1452,7 +1450,7 @@ def make_period_controls(
                     os.path.dirname(__file__), '../static/js/plotjs', 'foldphase.js'
                 )
             ).read(),
-        )
+        ),
     )
 
     period_annotation_title = Div(text="Annotation Origin: ")
@@ -1583,7 +1581,7 @@ def add_widgets(
         )
         layout.children.insert(2, period_controls)
     else:
-        raise ValueError("Panel name should be one of mag, flux, and period.")
+        raise ValueError("TabPanel name should be one of mag, flux, and period.")
 
 
 def make_photometry_panel(
@@ -1613,7 +1611,7 @@ def make_photometry_panel(
 
     Returns
     -------
-    bokeh Panel object
+    bokeh TabPanel object
     """
 
     # get marker for each unique instrument
@@ -1834,7 +1832,7 @@ def make_photometry_panel(
         device,
         width,
     )
-    return Panel(child=layout, title=panel_name.capitalize())
+    return TabPanel(child=layout, title=panel_name.capitalize())
 
 
 def photometry_plot(obj_id, user_id, session, width=600, device="browser"):
@@ -2101,7 +2099,7 @@ def spectroscopy_plot(
         panels = []
         spectrum_types = [s for s in spectra_by_type]
         for i, layout in enumerate(layouts):
-            panels.append(Panel(child=layout, title=spectrum_types[i]))
+            panels.append(TabPanel(child=layout, title=spectrum_types[i]))
 
         height = None
         for layout in layouts:
@@ -2279,6 +2277,7 @@ def make_spectrum_layout(
     model_dict = {}
     legend_items = []
     label_dict = {}
+    legend_dict = {}
     for i, (key, df) in enumerate(split):
 
         renderers = []
@@ -2315,7 +2314,10 @@ def make_spectrum_layout(
         )
         renderers.append(model_dict[f'l{i}'])
 
-        legend_items.append(LegendItem(label=label, renderers=renderers, id=s.id))
+        legend_item = LegendItem(label=label, renderers=renderers)
+        legend_items.append(legend_item)
+        legend_dict[legend_item.id] = s.id
+
     plot.xaxis.axis_label = 'Wavelength (Å)'
     plot.yaxis.axis_label = 'Flux'
     plot.toolbar.logo = None
@@ -2367,7 +2369,7 @@ def make_spectrum_layout(
             )
         ).read(),
     )
-    smooth_checkbox.js_on_click(smooth_callback)
+    smooth_checkbox.js_on_event('button_click', smooth_callback)
     smooth_input.js_on_change('value', smooth_callback)
     smooth_slider.js_on_change(
         'value',
@@ -2593,26 +2595,31 @@ def make_spectrum_layout(
     plot_height += nb_rows * 60
 
     all_column_checkboxes = []
+    line_checkboxes = []
     for column_idx, element_dict in enumerate(element_dicts):
         element_dict = [e for e in element_dict if e is not None]
-        labels = [name for name, _ in element_dict]
-        colors = [color for name, (wavelengths, color) in element_dict]
-        column_checkboxes = CheckboxWithLegendGroup(
-            labels=labels, active=[], colors=colors, width=width // (columns + 1)
-        )
-        all_column_checkboxes.append(column_checkboxes)
+        checkboxes = []
+        for row_idx, (name, (wavelengths, color)) in enumerate(element_dict):
+            column_checkboxes = CheckboxButtonGroup(
+                labels=[name],
+                orientation='vertical',
+                active=[],
+                width=width // (columns + 1),
+                styles={'border-left': f'12px solid {color}', 'padding-left': '0.3em'},
+            )
+            all_column_checkboxes.append(column_checkboxes)
 
-        callback_toggle_lines = CustomJS(
-            args={'column_checkboxes': column_checkboxes, **model_dict},
-            code=f"""
-                    for (let i = 0; i < {len(labels)}; i = i + 1) {{
-                        let el_idx = i * {columns} + {column_idx};
+            callback_toggle_lines = CustomJS(
+                args={'column_checkboxes': column_checkboxes, **model_dict},
+                code=f"""
+                        let el_idx = {row_idx} * {columns} + {column_idx};
                         let el = eval("element_" + el_idx);
-                        el.visible = (column_checkboxes.active.includes(i))
-                    }}
-                """,
-        )
-        column_checkboxes.js_on_click(callback_toggle_lines)
+                        el.visible = (column_checkboxes.active.includes(0));
+                    """,
+            )
+            column_checkboxes.js_on_event('button_click', callback_toggle_lines)
+            checkboxes.append(column_checkboxes)
+        line_checkboxes.append(row(checkboxes))
 
     hide_all_spectra = Button(
         name="Hide All Spectra", label="Hide All Spectra", width_policy="min"
@@ -2648,12 +2655,12 @@ def make_spectrum_layout(
         name="Reset Checkboxes", label="Reset Checkboxes", width_policy="min"
     )
     callback_reset_specs = CustomJS(
-        args={
-            'all_column_checkboxes': all_column_checkboxes,
-        },
+        args={'all_column_checkboxes': all_column_checkboxes, **model_dict},
         code=f"""
             for (let i = 0; i < {len(all_column_checkboxes)}; i++) {{
                 all_column_checkboxes[i].active = [];
+                let el = eval("element_" + i);
+                el.visible = false;
             }}
         """,
     )
@@ -2713,10 +2720,10 @@ def make_spectrum_layout(
     on_top_spectra_dropdown.js_on_event(
         "menu_item_click",
         CustomJS(
-            args={'model_dict': model_dict, 'label_dict': label_dict},
+            args={'model_dict': model_dict, 'legend_dict': legend_dict},
             code="""
             for (const[key, value] of Object.entries(model_dict)) {
-                if (!key.startsWith('element_') && (key.charAt(key.length - 1) === label_dict[this.item].toString())) {
+                if (!key.startsWith('element_') && (this.item in legend_dict) && (key.charAt(key.length - 1) === legend_dict[this.item].toString())) {
                     value.level = 'glyph'
                 }
                 else {
@@ -2727,7 +2734,6 @@ def make_spectrum_layout(
         ),
     )
 
-    row1 = row(all_column_checkboxes)
     row2 = (
         column(
             on_top_spectra_dropdown,
@@ -2749,9 +2755,10 @@ def make_spectrum_layout(
         else row(z, v_exp, smooth_column)
     )
     row4 = row(w)
+    plot_height += 200
     return column(
         plot,
-        row1,
+        *line_checkboxes,
         row2,
         row3,
         row4,

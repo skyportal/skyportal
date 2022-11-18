@@ -88,7 +88,7 @@ def generate_observation_plan_statistics(
             + statistics['total_time']
         )
 
-        # DEBUGGING: how many localization tiles are in the localization?
+        # get the localization tiles as python objects
         t0 = time.time()
         tiles = session.scalars(
             sa.select(LocalizationTile)
@@ -109,7 +109,7 @@ def generate_observation_plan_statistics(
             .label('cum_prob')
         )
 
-        # DEBUGGING: calculate the cumulative probabilities:
+        # calculate the cumulative probabilities:
         cum_prob_value = 0
         min_probdensity_value = 0
         i = 0
@@ -126,6 +126,7 @@ def generate_observation_plan_statistics(
             f"and min_probdensity >= {min_probdensity_value}"
         )
 
+        # old query code:
         localizationtile_subquery = (
             sa.select(LocalizationTile.probdensity, cum_prob)
             .where(
@@ -134,13 +135,14 @@ def generate_observation_plan_statistics(
             .distinct()
         ).subquery()
 
+        # old query code:
         min_probdensity = (
             sa.select(sa.func.min(localizationtile_subquery.columns.probdensity)).where(
                 localizationtile_subquery.columns.cum_prob <= cumulative_probability
             )
         ).scalar_subquery()
 
-        # DEBUGGING: get the instrument fields:
+        # get the instrument field tiles as python objects
         t0 = time.time()
         instrument_field_tiles = session.scalars(
             sa.select(InstrumentFieldTile)
@@ -156,13 +158,13 @@ def generate_observation_plan_statistics(
             f"DEBUG: {len(instrument_field_tiles)} instrument fields retrieved in {time.time() - t0:.2f} seconds"
         )
 
-        # DEBUGGING: get the overlapping fields/tiles:
+        # calculate the area and integrated probability directly:
         t0 = time.time()
         sum_probability = 0  # total probability of all tiles
         total_area_value = 0  # total area covered by instrument field tiles
-        total_probability_value = (
-            0  # total probability covered by instrument field tiles
-        )
+
+        # total probability covered by instrument field tiles
+        total_probability_value = 0
         field_lower_bounds = np.array([f.healpix.lower for f in instrument_field_tiles])
         field_upper_bounds = np.array([f.healpix.upper for f in instrument_field_tiles])
 
@@ -209,8 +211,13 @@ def generate_observation_plan_statistics(
                 lower_upper = zip(
                     field_lower_bounds[overlap_array], field_upper_bounds[overlap_array]
                 )
+                # tuples of (lower, upper) for all fields that overlap with tile t
                 new_fields = [(l, u) for (l, u) in lower_upper]
+
+                # combine any overlapping fields
                 output_fields = combine_healpix_tuples(new_fields)
+
+                # get the area of the combined fields that overlaps with tile t
                 for lower, upper in output_fields:
                     mx = np.minimum(t.healpix.upper, upper)
                     mn = np.maximum(t.healpix.lower, lower)
@@ -231,6 +238,7 @@ def generate_observation_plan_statistics(
             f'time: {time.time() - t0:.2f} seconds'
         )
 
+        # old query code:
         tiles_subquery = (
             sa.select(InstrumentFieldTile.id)
             .where(
@@ -259,13 +267,12 @@ def generate_observation_plan_statistics(
             f'Area value: {intarea * (180.0 / np.pi) ** 2}. query took {time.time() - t0:.1f} s'
         )
 
-        # print(query_area)
-
         if intarea is None:
             intarea = 0.0
 
         statistics['area'] = intarea * (180.0 / np.pi) ** 2
 
+        # old query code:
         prob = sa.func.sum(
             LocalizationTile.probdensity
             * (union.columns.healpix * LocalizationTile.healpix).area
@@ -274,8 +281,6 @@ def generate_observation_plan_statistics(
         t0 = time.time()
         intprob = session.execute(query_prob).scalar_one()
         print(f'intProb value: {intprob}. query took {time.time() - t0:.1f} s')
-
-        # print(query_prob)
 
         if intprob is None:
             intprob = 0.0
@@ -804,6 +809,11 @@ class MMAAPI(FollowUpAPI):
                 '*',
                 "skyportal/REFRESH_GCNEVENT",
                 payload={"gcnEvent_dateobs": request.gcnevent.dateobs},
+            )
+
+            flow.push(
+                '*',
+                "skyportal/REFRESH_OBSERVATION_PLAN_NAMES",
             )
 
             log(f"Generating schedule for observation plan {plan.id}")

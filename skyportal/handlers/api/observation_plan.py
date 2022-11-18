@@ -722,6 +722,34 @@ class ObservationPlanSubmitHandler(BaseHandler):
             return self.success(data=observation_plan_request)
 
 
+class ObservationPlanNameHandler(BaseHandler):
+    @auth_or_token
+    def get(self):
+        """
+        ---
+        description: Get all Observation Plan names
+        tags:
+          - observation_plans
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+
+        with self.Session() as session:
+            plan_names = (
+                session.scalars(sa.select(EventObservationPlan.plan_name).distinct())
+                .unique()
+                .all()
+            )
+            return self.success(data=plan_names)
+
+
 class ObservationPlanGCNHandler(BaseHandler):
     @auth_or_token
     def get(self, observation_plan_request_id):
@@ -1284,6 +1312,11 @@ class ObservationPlanGeoJSONHandler(BaseHandler):
                     f'Could not find observation_plan_request with ID {observation_plan_request_id}'
                 )
 
+            if len(observation_plan_request.observation_plans) == 0:
+                return self.error(
+                    f'Could not find an observation_plan associated with observation_plan_request ID {observation_plan_request_id}'
+                )
+
             observation_plan = observation_plan_request.observation_plans[0]
             # features are JSON representations that the d3 stuff understands.
             # We use these to render the contours of the sky localization and
@@ -1597,6 +1630,8 @@ class ObservationPlanCreateObservingRunHandler(BaseHandler):
                 schema: Error
         """
 
+        data = self.get_json()
+
         with self.Session() as session:
             observation_plan_request = session.scalars(
                 ObservationPlanRequest.select(
@@ -1653,6 +1688,11 @@ class ObservationPlanCreateObservingRunHandler(BaseHandler):
                     'ra': obs.field.ra,
                     'dec': obs.field.dec,
                 }
+                if 'groupIds' in data and len(data['groupIds']) > 0:
+                    source['group_ids'] = data['groupIds']
+                else:
+                    source['group_ids'] = [allocation.group_id]
+
                 obj_id = post_source(source, self.associated_user_object.id, session)
                 if np.max(priorities) - np.min(priorities) == 0.0:
                     # assign equal weights if all the same

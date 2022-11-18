@@ -133,10 +133,11 @@ export const deleteObservationPlanRequestTreasureMap = (id) =>
     DELETE_OBSERVATION_PLAN_REQUEST_TREASUREMAP
   );
 
-export const createObservationPlanRequestObservingRun = (id) =>
+export const createObservationPlanRequestObservingRun = (id, params = {}) =>
   API.POST(
     `/api/observation_plan/${id}/observing_run`,
-    CREATE_OBSERVATION_PLAN_REQUEST_OBSERVING_RUN
+    CREATE_OBSERVATION_PLAN_REQUEST_OBSERVING_RUN,
+    params
   );
 
 export const deleteObservationPlanFields = (id, fieldIds) =>

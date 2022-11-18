@@ -371,7 +371,7 @@ def test_filter_by_spectrum_time(
     )
 
     before_input.send_keys(test_time)
-    driver.click_xpath("//button[text()='Submit']")
+    driver.click_xpath("//button[text()='Submit']", scroll_parent=True)
 
     # Should see the first source
     driver.wait_for_xpath(f'//a[@data-testid="{obj_id1}"]')
@@ -389,6 +389,7 @@ def test_filter_by_spectrum_time(
     after_input.send_keys(test_time)
     driver.click_xpath(
         "//button[text()='Submit']",
+        scroll_parent=True,
     )
 
     # Should see the posted source

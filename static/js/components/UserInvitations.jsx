@@ -115,7 +115,14 @@ const UserInvitations = () => {
   const [clickedInvitation, setClickedInvitation] = useState(null);
   const [dataFetched, setDataFetched] = useState(false);
 
-  const { handleSubmit, errors, reset, control, getValues } = useForm();
+  const {
+    handleSubmit,
+    reset,
+    control,
+    getValues,
+
+    formState: { errors },
+  } = useForm();
 
   useEffect(() => {
     const fetchData = () => {
@@ -150,12 +157,12 @@ const UserInvitations = () => {
   allGroups = allGroups?.filter((group) => !group.single_user_group);
 
   const validateInvitationGroups = () => {
-    const formState = getValues({ nest: true });
+    const formState = getValues();
     return formState.invitationGroups.length >= 1;
   };
 
   const validateInvitationStreams = () => {
-    const formState = getValues({ nest: true });
+    const formState = getValues();
     return formState.invitationStreams.length >= 1;
   };
 
@@ -686,7 +693,7 @@ const UserInvitations = () => {
             )}
             <Controller
               name="invitationGroups"
-              render={({ onChange, value, ...props }) => (
+              render={({ field: { onChange, value } }) => (
                 <Autocomplete
                   multiple
                   value={value}
@@ -710,8 +717,6 @@ const UserInvitations = () => {
                       data-testid="addInvitationGroupsTextField"
                     />
                   )}
-                  // eslint-disable-next-line react/jsx-props-no-spreading
-                  {...props}
                 />
               )}
               control={control}
@@ -749,7 +754,7 @@ const UserInvitations = () => {
             )}
             <Controller
               name="invitationStreams"
-              render={({ onChange, value, ...props }) => (
+              render={({ field: { onChange, value } }) => (
                 <Autocomplete
                   multiple
                   value={value}
@@ -773,8 +778,6 @@ const UserInvitations = () => {
                       data-testid="addInvitationStreamsTextField"
                     />
                   )}
-                  // eslint-disable-next-line react/jsx-props-no-spreading
-                  {...props}
                 />
               )}
               control={control}
@@ -812,18 +815,22 @@ const UserInvitations = () => {
             )}
             <Controller
               name="invitationRole"
-              as={
-                <Select data-testid="invitationRoleSelect">
+              control={control}
+              rules={{ required: true }}
+              defaultValue={clickedInvitation?.role_id}
+              render={({ field: { onChange, value } }) => (
+                <Select
+                  data-testid="invitationRoleSelect"
+                  value={value}
+                  onChange={onChange}
+                >
                   {["Full user", "View only"].map((role) => (
                     <MenuItem key={role} value={role}>
                       {role}
                     </MenuItem>
                   ))}
                 </Select>
-              }
-              control={control}
-              rules={{ required: true }}
-              defaultValue={clickedInvitation?.role_id}
+              )}
             />
             <br />
             <div>
@@ -850,7 +857,7 @@ const UserInvitations = () => {
         <DialogContent>
           <form onSubmit={handleSubmit(handleEditUserExpirationDate)}>
             <Controller
-              render={({ onChange, value }) => (
+              render={({ field: { onChange, value } }) => (
                 <DatePicker
                   value={value}
                   onChange={(date) =>

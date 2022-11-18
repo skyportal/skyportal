@@ -33,7 +33,14 @@ const EditSourceGroups = ({ source, groups, icon }) => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const dispatch = useDispatch();
 
-  const { handleSubmit, errors, reset, control, getValues } = useForm();
+  const {
+    handleSubmit,
+    reset,
+    control,
+    getValues,
+
+    formState: { errors },
+  } = useForm();
 
   const unsavedGroups = groups?.filter(
     (g) => !source.currentGroupIds.includes(g.id)
@@ -62,7 +69,7 @@ const EditSourceGroups = ({ source, groups, icon }) => {
   };
 
   const validateGroups = () => {
-    const formState = getValues({ nest: true });
+    const formState = getValues();
     return (
       (formState.inviteGroupIds?.length &&
         formState.inviteGroupIds.filter((value) => Boolean(value)).length >=
@@ -154,7 +161,7 @@ const EditSourceGroups = ({ source, groups, icon }) => {
                     key={unsavedGroup.id}
                     control={
                       <Controller
-                        render={({ onChange, value }) => (
+                        render={({ field: { onChange, value } }) => (
                           <Checkbox
                             onChange={(event) => onChange(event.target.checked)}
                             checked={value}
@@ -189,7 +196,7 @@ const EditSourceGroups = ({ source, groups, icon }) => {
                     key={savedGroup.id}
                     control={
                       <Controller
-                        render={({ onChange, value }) => (
+                        render={({ field: { onChange, value } }) => (
                           <Checkbox
                             onChange={(event) => onChange(event.target.checked)}
                             checked={value}

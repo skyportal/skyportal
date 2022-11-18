@@ -35,8 +35,14 @@ const WidgetPrefsDialog = ({
   const dispatch = useDispatch();
   const [open, setOpen] = useState(false);
 
-  const { handleSubmit, register, errors, reset, control } =
-    useForm(initialValues);
+  const {
+    handleSubmit,
+    register,
+    reset,
+    control,
+
+    formState: { errors },
+  } = useForm(initialValues);
 
   useEffect(() => {
     reset(initialValues);
@@ -66,11 +72,7 @@ const WidgetPrefsDialog = ({
       <Dialog open={open} onClose={handleClose} style={{ position: "fixed" }}>
         <DialogTitle>{title}</DialogTitle>
         <DialogContent>
-          <form
-            noValidate
-            autoComplete="off"
-            onSubmit={handleSubmit(formSubmit)}
-          >
+          <form onSubmit={handleSubmit(formSubmit)}>
             {Object.keys(initialValues).map((key) => {
               if (
                 typeof initialValues[key] === "object" &&
@@ -88,7 +90,7 @@ const WidgetPrefsDialog = ({
                           <FormControlLabel
                             control={
                               <Controller
-                                render={({ onChange, value }) => (
+                                render={({ field: { onChange, value } }) => (
                                   <Checkbox
                                     onChange={(event) =>
                                       onChange(event.target.checked)
@@ -110,7 +112,7 @@ const WidgetPrefsDialog = ({
                           key={subKey}
                           control={
                             <Controller
-                              render={({ onChange, value }) => (
+                              render={({ field: { onChange, value } }) => (
                                 <Checkbox
                                   onChange={(event) =>
                                     onChange(event.target.checked)
@@ -134,15 +136,24 @@ const WidgetPrefsDialog = ({
               if (typeof initialValues[key] === "string") {
                 return (
                   <div key={key} className={classes.inputSectionDiv}>
-                    <TextField
-                      data-testid={key}
-                      size="small"
-                      label={key}
-                      inputRef={register({ required: true })}
+                    <Controller
+                      render={({ field: { onChange, value } }) => (
+                        <TextField
+                          data-testid={key}
+                          size="small"
+                          label={key}
+                          inputRef={register(key, { required: true })}
+                          name={key}
+                          error={!!errors[key]}
+                          helperText={errors[key] ? "Required" : ""}
+                          variant="outlined"
+                          onChange={onChange}
+                          value={value}
+                        />
+                      )}
                       name={key}
-                      error={!!errors[key]}
-                      helperText={errors[key] ? "Required" : ""}
-                      variant="outlined"
+                      control={control}
+                      defaultValue={initialValues[key]}
                     />
                   </div>
                 );
