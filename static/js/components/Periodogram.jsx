@@ -9,7 +9,6 @@ import MenuItem from "@mui/material/MenuItem";
 import InputLabel from "@mui/material/InputLabel";
 import CircularProgress from "@mui/material/CircularProgress";
 import FormControl from "@mui/material/FormControl";
-import Button from "@mui/material/Button";
 import Slider from "@mui/material/Slider";
 import Input from "@mui/material/Input";
 import Grid from "@mui/material/Grid";
@@ -22,6 +21,7 @@ import { showNotification } from "baselayer/components/Notifications";
 import TextLoop from "react-text-loop";
 import { useForm, Controller } from "react-hook-form";
 import { dot, dotMultiply, add, transpose, quantileSeq } from "mathjs";
+import Button from "./Button";
 
 import * as photometryActions from "../ducks/photometry";
 
@@ -584,19 +584,24 @@ const Periodogram = () => {
                             </InputLabel>
                             <p />
                             <Controller
-                              as={Select}
                               labelId="InstrumentSourceSelectLabel"
                               name="instrument"
                               control={control}
                               defaultValue={params.instrument}
                               className={classes.items}
-                            >
-                              {instruments.map((instrument) => (
-                                <MenuItem key={instrument} value={instrument}>
-                                  {instrument}
-                                </MenuItem>
-                              ))}
-                            </Controller>
+                              render={() => (
+                                <Select>
+                                  {instruments.map((instrument) => (
+                                    <MenuItem
+                                      key={instrument}
+                                      value={instrument}
+                                    >
+                                      {instrument}
+                                    </MenuItem>
+                                  ))}
+                                </Select>
+                              )}
+                            />
                           </FormControl>
                         </Grid>
                       )}
@@ -612,19 +617,21 @@ const Periodogram = () => {
                               </InputLabel>
                               <p />
                               <Controller
-                                as={Select}
                                 labelId="FilterSourceSelectLabel"
                                 name="filter"
                                 control={control}
                                 defaultValue={params.filter}
                                 className={classes.items}
-                              >
-                                {filters.map((filt) => (
-                                  <MenuItem key={filt} value={filt}>
-                                    {filt}
-                                  </MenuItem>
-                                ))}
-                              </Controller>
+                                render={() => (
+                                  <Select>
+                                    {filters.map((filt) => (
+                                      <MenuItem key={filt} value={filt}>
+                                        {filt}
+                                      </MenuItem>
+                                    ))}
+                                  </Select>
+                                )}
+                              />
                             </FormControl>
                           </Grid>
                           <Grid item xs={12}>
@@ -636,7 +643,9 @@ const Periodogram = () => {
                                 ofac
                               </InputLabel>
                               <Controller
-                                as={<Input type="number" rules={rules} />}
+                                render={() => (
+                                  <Input type="number" rules={rules} />
+                                )}
                                 name="ofac"
                                 control={control}
                                 defaultValue={params.ofac || "20"}
@@ -646,10 +655,9 @@ const Periodogram = () => {
                           </Grid>
                           <Grid item xs={8}>
                             <Button
+                              primary
                               type="submit"
-                              color="primary"
                               name="finderButton"
-                              variant="contained"
                               className={classes.button}
                             >
                               Recalculate
@@ -692,8 +700,7 @@ const Periodogram = () => {
                                   d
                                 </Typography>
                                 <Button
-                                  variant="outlined"
-                                  color="secondary"
+                                  secondary
                                   onClick={() => copyPeriod()}
                                   className={classes.clipboard}
                                 >

@@ -4,6 +4,7 @@ import os
 from tdtax import taxonomy, __version__
 from datetime import datetime, timezone
 from selenium.webdriver.common.action_chains import ActionChains
+from selenium.webdriver.common.by import By
 
 from skyportal.tests import api
 from skyportal.tests.frontend.sources_and_followup_etc.test_sources import (
@@ -84,9 +85,11 @@ def test_group_admission_requests_notifications(
     driver.get(f"/become_user/{super_admin_user.id}")
     driver.get(f"/group/{public_group2.id}")
     driver.click_xpath('//*[@data-testid="notificationsButton"]')
-    driver.wait_for_xpath('//*[text()=" has requested to join "]')
+    driver.wait_for_xpath('//*[text()="New Group Admission Request from "]')
     driver.click_xpath('//*[@data-testid="deleteAllNotificationsButton"]')
-    driver.wait_for_xpath_to_disappear('//*[text()=" has requested to join "]')
+    driver.wait_for_xpath_to_disappear(
+        '//*[text()="New Group Admission Request from "]'
+    )
 
     filter_for_value(driver, user.username, last=True)
     driver.wait_for_xpath('//div[text()="pending"]')
@@ -378,7 +381,7 @@ def test_new_gcn_event_triggers_notification(driver, user, super_admin_token):
     driver.get("/")
     driver.wait_for_xpath("//span[text()='1']")
     driver.click_xpath('//*[@data-testid="notificationsButton"]')
-    driver.wait_for_xpath('//*[contains(text(), "New GcnEvent")]')
+    driver.wait_for_xpath('//*[contains(text(), "New GCN Event")]')
 
 
 def test_new_facility_request_triggers_notification(
@@ -484,10 +487,10 @@ def test_notification_setting_select(driver, user):
 
     driver.wait_for_xpath('//*[@aria-label="time_slot_slider" and @value="8"]')
     driver.wait_for_xpath('//*[@aria-label="time_slot_slider" and @value="20"]')
-    start_time_slot = driver.find_elements_by_xpath(
-        '//*[@aria-label="time_slot_slider" and @value="8"]'
+    start_time_slot = driver.find_elements(
+        By.XPATH, '//*[@aria-label="time_slot_slider" and @value="8"]'
     )
-    start_time_slot_move_to = driver.find_elements_by_xpath('//*[@data-index="3"]')
+    start_time_slot_move_to = driver.find_elements(By.XPATH, '//*[@data-index="3"]')
 
     # drag the start of the slider from 8 to 3
     print('start_time_slot', start_time_slot)

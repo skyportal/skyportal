@@ -6,8 +6,8 @@ import collections
 
 import numpy as np
 import pandas as pd
+from sqlalchemy.orm import joinedload
 
-from bokeh.core.properties import List, String
 from bokeh.layouts import row, column
 from bokeh.models import (
     CustomJS,
@@ -22,13 +22,14 @@ from bokeh.models import (
     LegendItem,
     Dropdown,
     Spinner,
+    TabPanel,
+    Tabs,
 )
 from bokeh.models.widgets import (
     CheckboxGroup,
+    CheckboxButtonGroup,
     TextInput,
     NumericInput,
-    Panel,
-    Tabs,
     Div,
 )
 from bokeh.plotting import figure, ColumnDataSource
@@ -44,15 +45,14 @@ from matplotlib.colors import rgb2hex
 import os
 from baselayer.app.env import load_env
 from skyportal.models import (
-    DBSession,
     Obj,
     Annotation,
     AnnotationOnSpectrum,
     Photometry,
     Instrument,
-    Telescope,
     PHOT_ZP,
     Spectrum,
+    User,
 )
 
 from .enum_types import ALLOWED_SPECTRUM_TYPES
@@ -60,7 +60,7 @@ from .enum_types import ALLOWED_SPECTRUM_TYPES
 # use the full registry from the enum_types import of sykportal
 # which may have custom bandpasses
 from .enum_types import sncosmo as snc
-
+from skyportal.handlers.api.photometry import serialize
 
 _, cfg = load_env()
 # The minimum signal-to-noise ratio to consider a photometry point as detected
@@ -292,12 +292,6 @@ SPEC_LINES = {
         '#6dcff6',
     ),
 }
-
-
-class CheckboxWithLegendGroup(CheckboxGroup):
-    colors = List(String, help="List of legend colors")
-
-    __implementation__ = ""
 
 
 tooltip_format = [
@@ -1064,9 +1058,9 @@ def make_legend_items_and_detection_lines(
             }
             for name, values in plotting_dict[panel_name]['scatter'].items():
                 if name == 'unobs':
-                    markers = ['inverted_triangle']
+                    markers = ['inverted_triangle'] * len(instruments)
                 else:
-                    markers = ['circle']
+                    markers = ['circle'] * len(instruments)
                 make_scatter(
                     plot,
                     model_dict,
@@ -1162,7 +1156,7 @@ def make_legend_items_and_detection_lines(
                     show_all_origins,
                 )
         else:
-            raise ValueError("Panel name should be one of mag, flux, and period.")
+            raise ValueError("TabPanel name should be one of mag, flux, and period.")
         if panel_name == 'mag' or panel_name == 'flux':
             mark_detections(
                 plot,
@@ -1300,6 +1294,7 @@ def make_period_controls(
     device,
     width,
     layout,
+    obj_id,
 ):
     """Makes period controls to be used in a period photometry panel.
 
@@ -1323,6 +1318,8 @@ def make_period_controls(
         The width of the plot.
     layout : bokeh Layout object
         The layout object.
+    obj_id : str
+        ID of the object
 
     Returns
     -------
@@ -1330,10 +1327,62 @@ def make_period_controls(
     """
     model_dict = transformed_model_dict(model_dict)
     period_selection = RadioGroup(labels=period_labels, active=0)
-
     phase_selection = RadioGroup(labels=["One phase", "Two phases"], active=1)
     period_title = Div(text="Period (days): ")
     period_textinput = TextInput(value=str(period if period is not None else 0.0))
+
+    smooth_checkbox = CheckboxGroup(
+        labels=["smoothing"],
+        active=[],
+    )
+    smooth_slider = Slider(
+        start=0.0,
+        end=100.0,
+        value=0.0,
+        step=1.0,
+        show_value=False,
+        max_width=350,
+        # margin=(4, 10, 0, 10),
+    )
+    smooth_input = NumericInput(value=1)
+    smooth_callback = CustomJS(
+        args={
+            'textinput': period_textinput,
+            'numphases': phase_selection,
+            'n_labels': len(grouped_data),
+            'p': plot,
+            'checkbox': smooth_checkbox,
+            'input': smooth_input,
+            'slider': smooth_slider,
+            **model_dict,
+        },
+        code=open(
+            os.path.join(
+                os.path.dirname(__file__), '../static/js/plotjs', 'foldphase.js'
+            )
+        ).read(),
+    )
+    smooth_slider.js_on_change(
+        'value',
+        CustomJS(
+            args={'slider': smooth_slider, 'input': smooth_input},
+            code="""
+                    input.value = slider.value;
+                    input.change.emit();
+                """,
+        ),
+    )
+
+    smooth_checkbox.js_on_event('button_click', smooth_callback)
+    smooth_input.js_on_change('value', smooth_callback)
+    smooth_column = column(
+        smooth_checkbox,
+        smooth_slider,
+        smooth_input,
+        width=width if "mobile" in device else int(width * 1 / 5) - 20,
+        margin=(4, 10, 0, 10),
+    )
+
     period_textinput.js_on_change(
         'value',
         CustomJS(
@@ -1342,6 +1391,9 @@ def make_period_controls(
                 'numphases': phase_selection,
                 'n_labels': len(grouped_data),
                 'p': plot,
+                'checkbox': smooth_checkbox,
+                'input': smooth_input,
+                'slider': smooth_slider,
                 **model_dict,
             },
             code=open(
@@ -1372,16 +1424,19 @@ def make_period_controls(
                     """,
         )
     )
+
     # a way to select the period
-    period_selection.js_on_click(
+    period_selection.js_on_event(
+        'button_click',
         CustomJS(
             args={'textinput': period_textinput, 'periods': period_list},
             code="""
             textinput.value = parseFloat(periods[this.active]).toFixed(9);
             """,
-        )
+        ),
     )
-    phase_selection.js_on_click(
+    phase_selection.js_on_event(
+        'button_click',
         CustomJS(
             args={
                 'textinput': period_textinput,
@@ -1395,8 +1450,30 @@ def make_period_controls(
                     os.path.dirname(__file__), '../static/js/plotjs', 'foldphase.js'
                 )
             ).read(),
-        )
+        ),
     )
+
+    period_annotation_title = Div(text="Annotation Origin: ")
+    period_annotation_textinput = TextInput()
+    period_annotation = Button(label='Create')
+    period_annotation.js_on_click(
+        CustomJS(
+            args={
+                'period': period_textinput,
+                'origin': period_annotation_textinput,
+            },
+            code=open(
+                os.path.join(
+                    os.path.dirname(__file__),
+                    '../static/js/plotjs',
+                    'post_annotation.js',
+                )
+            )
+            .read()
+            .replace('objname', obj_id),
+        ),
+    )
+
     if device == "mobile_portrait":
         period_controls = column(
             row(
@@ -1409,6 +1486,7 @@ def make_period_controls(
             ),
             phase_selection,
             period_selection,
+            smooth_column,
             width=width,
         )
     else:
@@ -1422,7 +1500,13 @@ def make_period_controls(
                 width=width,
                 sizing_mode="scale_width",
             ),
+            row(
+                period_annotation_title,
+                period_annotation_textinput,
+                period_annotation,
+            ),
             period_selection,
+            smooth_column,
             margin=10,
         )
     return period_controls
@@ -1493,13 +1577,16 @@ def add_widgets(
             device,
             width,
             layout,
+            obj_id,
         )
         layout.children.insert(2, period_controls)
     else:
-        raise ValueError("Panel name should be one of mag, flux, and period.")
+        raise ValueError("TabPanel name should be one of mag, flux, and period.")
 
 
-def make_photometry_panel(panel_name, device, width, user, data, obj_id, spectra):
+def make_photometry_panel(
+    panel_name, device, width, user, data, obj_id, spectra, session
+):
     """Makes a panel for the photometry plot.
 
     Parameters
@@ -1519,12 +1606,14 @@ def make_photometry_panel(panel_name, device, width, user, data, obj_id, spectra
         ID of the source/object the photometry is for
     spectra : list of Spectra objects
         The source/object's spectra
+    session: sqlalchemy.Session
+        Database session for this transaction
 
     Returns
     -------
-    bokeh Panel object or None if the panel should
-    not be added to the plot (i.e. no period plot)
+    bokeh TabPanel object
     """
+
     # get marker for each unique instrument
     instruments = list(data.instrument.unique())
     markers = []
@@ -1643,7 +1732,9 @@ def make_photometry_panel(panel_name, device, width, user, data, obj_id, spectra
             LinearAxis(x_range_name="Days Ago", axis_label="Days Ago"), 'below'
         )
 
-    obj = Obj.get_if_accessible_by(obj_id, user)
+    obj = session.scalars(
+        Obj.select(session.user_or_token).where(Obj.id == obj_id)
+    ).first()
     if obj.dm is not None:
         plot.extra_y_ranges = {
             "Absolute Mag": Range1d(start=y_range[0] - obj.dm, end=y_range[1] - obj.dm)
@@ -1655,11 +1746,9 @@ def make_photometry_panel(panel_name, device, width, user, data, obj_id, spectra
     period_list = []
     period = None
     if panel_name == 'period':
-        annotation_list = (
-            Annotation.query_records_accessible_by(user)
-            .filter(Annotation.obj_id == obj.id)
-            .all()
-        )
+        annotation_list = session.scalars(
+            Annotation.select(session.user_or_token).where(Annotation.obj_id == obj.id)
+        ).all()
         for an in annotation_list:
             if 'period' in an.data:
                 period_list.append(an.data['period'])
@@ -1668,8 +1757,8 @@ def make_photometry_panel(panel_name, device, width, user, data, obj_id, spectra
         if len(period_list) > 0:
             period = period_list[0]
         else:
-            period = None
-            return None
+            # default to 1 day
+            period = 1.0
 
     imhover = HoverTool(tooltips=tooltip_format)
     imhover.renderers = []
@@ -1729,7 +1818,6 @@ def make_photometry_panel(panel_name, device, width, user, data, obj_id, spectra
         column(
             make_show_and_hide_photometry_buttons(model_dict, user, device), spinner
         ),
-        # width=width,
     )
     add_widgets(
         panel_name,
@@ -1744,18 +1832,20 @@ def make_photometry_panel(panel_name, device, width, user, data, obj_id, spectra
         device,
         width,
     )
-    return Panel(child=layout, title=panel_name.capitalize())
+    return TabPanel(child=layout, title=panel_name.capitalize())
 
 
-def photometry_plot(obj_id, user, width=600, device="browser"):
+def photometry_plot(obj_id, user_id, session, width=600, device="browser"):
     """Create object photometry scatter plot.
 
     Parameters
     ----------
     obj_id : str
         ID of Obj to be plotted.
-    user : User object
-        Current user.
+    user_id : User object ID
+        Current user ID.
+    session: sqlalchemy.Session
+        Database session for this transaction
     width : int
         Width of the plot
     device : str
@@ -1768,34 +1858,53 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
         Returns Bokeh JSON embedding for the desired plot.
     """
 
-    telescope_subquery = Telescope.query_records_accessible_by(user).subquery()
-    instrument_subquery = Instrument.query_records_accessible_by(user).subquery()
-    with DBSession() as session:
-        data = pd.read_sql(
-            Photometry.query_records_accessible_by(user)
-            .add_columns(
-                telescope_subquery.c.nickname.label("telescope"),
-                instrument_subquery.c.name.label("instrument"),
-            )
-            .join(
-                instrument_subquery,
-                instrument_subquery.c.id == Photometry.instrument_id,
-            )
-            .join(
-                telescope_subquery,
-                telescope_subquery.c.id == instrument_subquery.c.telescope_id,
-            )
-            .filter(Photometry.obj_id == obj_id)
-            .statement,
-            session.get_bind(),
-        )
+    data = session.scalars(
+        Photometry.select(session.user_or_token)
+        .options(joinedload(Photometry.instrument).joinedload(Instrument.telescope))
+        .where(Photometry.obj_id == obj_id)
+    ).all()
 
+    query_result = []
+    for p in data:
+        telescope = p.instrument.telescope.nickname
+        instrument = p.instrument.name
+        result = serialize(p, 'ab', 'both')
+        result['telescope'] = telescope
+        result['instrument'] = instrument
+        result['groups'] = [g.to_dict() for g in result['groups']]
+        query_result.append(result)
+
+    data = pd.DataFrame.from_dict(query_result)
     if data.empty:
         return None, None, None
 
+    user = session.scalars(
+        User.select(session.user_or_token).where(User.id == user_id)
+    ).first()
+
+    if (
+        user.preferences
+        and 'useRefMag' in user.preferences
+        and user.preferences['useRefMag']
+    ):
+        if 'magtot' in data:
+            data['mag'] = data['magtot']
+        if 'e_magtot' in data:
+            data['magerr'] = data['e_magtot']
+        if 'tot_flux' in data:
+            data['flux'] = data['tot_flux']
+        if 'tot_fluxerr' in data:
+            data['fluxerr'] = data['tot_fluxerr']
+
+    # placeholders for unsmoothed timeseries
+    data['mag_unsmoothed'] = data['mag']
+    data['flux_unsmoothed'] = data['flux']
+
     spectra = (
-        Spectrum.query_records_accessible_by(user)
-        .filter(Spectrum.obj_id == obj_id)
+        session.scalars(
+            Spectrum.select(session.user_or_token).where(Spectrum.obj_id == obj_id)
+        )
+        .unique()
         .all()
     )
 
@@ -1820,10 +1929,6 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
         -2.5 * np.log10(data['fluxerr'] * PHOT_DETECTION_THRESHOLD) + data['zp']
     )
 
-    # Passing a dictionary to a bokeh datasource causes the frontend to die,
-    # deleting the dictionary column fixes that
-    del data['original_user_data']
-
     # keep track of things that are only upper limits
     data['hasflux'] = ~data['flux'].isna()
 
@@ -1832,13 +1937,11 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
 
     for panel_name in panel_names:
         panel = make_photometry_panel(
-            panel_name, device, width, user, data, obj_id, spectra
+            panel_name, device, width, user, data, obj_id, spectra, session
         )
-        if panel:
-            panels.append(panel)
+        panels.append(panel)
     tabs = Tabs(
         tabs=panels,
-        # width=width,
     )
     try:
         return bokeh_embed.json_item(tabs)
@@ -1846,7 +1949,7 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
         with pd.option_context('display.max_rows', None, 'display.max_columns', None):
             print('PHOTOMETRY PLOT FAILED ON THIS DATASET')
             print(data)
-        return Tabs()
+        raise Exception("Invalid data")
 
 
 def smoothing_function(values, window_size):
@@ -1890,7 +1993,7 @@ def smoothing_function(values, window_size):
 
 def spectroscopy_plot(
     obj_id,
-    user,
+    session,
     spec_id=None,
     width=800,
     device="browser",
@@ -1904,8 +2007,8 @@ def spectroscopy_plot(
     ----------
     obj_id : str
         ID of Obj to be plotted.
-    user :
-        The user object that is requesting the plot.
+    session: sqlalchemy.Session
+        Database session for this transaction
     spec_id : str or None
         A string with a single spectrum ID or a
         comma-separated list of IDs.
@@ -1938,10 +2041,16 @@ def spectroscopy_plot(
 
     """
 
-    obj = Obj.get_if_accessible_by(obj_id, user)
+    obj = session.scalars(
+        Obj.select(session.user_or_token).where(Obj.id == obj_id)
+    ).first()
+    if obj is None:
+        raise ValueError(f'Cannot find object with ID "{obj_id}"')
     spectra = (
-        Spectrum.query_records_accessible_by(user)
-        .filter(Spectrum.obj_id == obj_id)
+        session.scalars(
+            Spectrum.select(session.user_or_token).where(Spectrum.obj_id == obj_id)
+        )
+        .unique()
         .all()
     )
 
@@ -1978,7 +2087,7 @@ def spectroscopy_plot(
             make_spectrum_layout(
                 obj,
                 spectra_by_type[spec_type],
-                user,
+                session,
                 device,
                 width,
                 smoothing,
@@ -1990,16 +2099,23 @@ def spectroscopy_plot(
         panels = []
         spectrum_types = [s for s in spectra_by_type]
         for i, layout in enumerate(layouts):
-            panels.append(Panel(child=layout, title=spectrum_types[i]))
-        tabs = Tabs(
-            tabs=panels, width=width, height=layouts[0].height + 60, sizing_mode='fixed'
-        )
+            panels.append(TabPanel(child=layout, title=spectrum_types[i]))
+
+        height = None
+        for layout in layouts:
+            if layout.height is not None:
+                height = layout.height + 60
+                break
+
+        tabs = Tabs(tabs=panels, width=width, height=height, sizing_mode='fixed')
         return bokeh_embed.json_item(tabs)
 
     return bokeh_embed.json_item(layouts[0])
 
 
-def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_number):
+def make_spectrum_layout(
+    obj, spectra, session, device, width, smoothing, smooth_number
+):
     """
     Helper function that takes the object, spectra and user info,
     as well as the total width of the figure,
@@ -2014,8 +2130,8 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
     spectra : dict
         The different spectra to be plotted. This can be a subset of
         e.g., all the spectra of one type.
-    user : dict
-        info about the user, used to get the individual user plot preferences.
+    session: sqlalchemy.Session
+        Database session for this transaction
     device: string
         name of the device used ("browser", "mobile", "mobile_portrait", "tablet", etc).
     width: int
@@ -2041,11 +2157,11 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
         normfac = np.nanmedian(np.abs(s.fluxes))
         normfac = normfac if normfac != 0.0 else 1e-20
         altdata = json.dumps(s.altdata) if s.altdata is not None else ""
-        annotations = (
-            AnnotationOnSpectrum.query_records_accessible_by(user)
-            .filter(AnnotationOnSpectrum.spectrum_id == s.id)
-            .all()
-        )
+        annotations = session.scalars(
+            AnnotationOnSpectrum.select(session.user_or_token).where(
+                AnnotationOnSpectrum.spectrum_id == s.id
+            )
+        ).all()
         annotations = (
             json.dumps([{a.origin: a.data} for a in annotations])
             if len(annotations)
@@ -2161,6 +2277,7 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
     model_dict = {}
     legend_items = []
     label_dict = {}
+    legend_dict = {}
     for i, (key, df) in enumerate(split):
 
         renderers = []
@@ -2180,7 +2297,6 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
 
         # this starts out the same as the previous plot, but can be binned/smoothed later in JS
         dfs = copy.deepcopy(df)
-
         if smoothing:
             dfs['flux'] = smoothing_function(dfs['flux_original'], smooth_number)
         model_dict[f'bin{i}'] = plot.step(
@@ -2198,7 +2314,10 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
         )
         renderers.append(model_dict[f'l{i}'])
 
-        legend_items.append(LegendItem(label=label, renderers=renderers, id=s.id))
+        legend_item = LegendItem(label=label, renderers=renderers)
+        legend_items.append(legend_item)
+        legend_dict[legend_item.id] = s.id
+
     plot.xaxis.axis_label = 'Wavelength (Å)'
     plot.yaxis.axis_label = 'Flux'
     plot.toolbar.logo = None
@@ -2250,7 +2369,7 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
             )
         ).read(),
     )
-    smooth_checkbox.js_on_click(smooth_callback)
+    smooth_checkbox.js_on_event('button_click', smooth_callback)
     smooth_input.js_on_change('value', smooth_callback)
     smooth_slider.js_on_change(
         'value',
@@ -2329,11 +2448,35 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
         width=slider_width,
         margin=(0, 10, 0, 10),
     )
+    w_title = Div(text="Custom wavelength")
+    w_input = NumericInput(
+        value=0.0,
+        mode='float',
+    )
 
     # Track elements that need to be shifted with change in z / v
     shifting_elements = []
     renderers = []
     obj_redshift = 0 if obj.redshift is None else obj.redshift
+
+    flux_values = list(np.linspace(ymin, ymax, 100))
+    flux_values[-1] = np.nan
+    wavelength_values = [w_input.value]
+    el_data = pd.DataFrame(
+        {
+            'name': 'custom_wavelength_name',
+            'x': wavelength_values,
+            'wavelength': wavelength_values,
+        }
+    )
+    # el_data['x'] = el_data['wavelength'] * (1.0 + obj_redshift)
+    new_line_w = plot.vbar(
+        x='x',
+        width=10,
+        top=ymax,
+        line_alpha=0.3,
+        source=ColumnDataSource(el_data),
+    )
 
     for i, (name, (wavelengths, color)) in enumerate(SPEC_LINES.items()):
 
@@ -2386,6 +2529,34 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
             shifting_elements.append(new_line)
             new_line.glyph.line_alpha = 1.0
 
+    new_line_w.visible = False
+    model_dict['custom_line'] = new_line_w
+    renderers.append(new_line_w)
+
+    w_input.js_on_change(
+        'value',
+        CustomJS(
+            args={'input': w_input, 'model_dict': model_dict},
+            code="""
+                    if (input.value === null) {
+                        model_dict['custom_line'].visible = false;
+                    }
+                    else {
+                        model_dict['custom_line'].data_source.data['x'][0] = input.value;
+                        model_dict['custom_line'].visible = true;
+                        model_dict['custom_line'].data_source.data['wavelength'][0] = input.value;
+                        model_dict['custom_line'].data_source.change.emit();
+                    }
+                """,
+        ),
+    )
+    w = column(
+        w_title,
+        w_input,
+        width=width if "mobile" in device else int(width * 1 / 5) - 20,
+        margin=(4, 10, 0, 10),
+    )
+
     # add the elemental lines to hover tool
     hover_lines = HoverTool(
         tooltips=[
@@ -2417,27 +2588,38 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
     # To form columns from the rows, zip the rows together.
     element_dicts = zip(*rows)
 
+    # we add the height of the rows to the height of the plot
+    nb_rows = len(
+        list(zip(*itertools.zip_longest(*[iter(SPEC_LINES.items())] * columns)))[0]
+    )
+    plot_height += nb_rows * 60
+
     all_column_checkboxes = []
+    line_checkboxes = []
     for column_idx, element_dict in enumerate(element_dicts):
         element_dict = [e for e in element_dict if e is not None]
-        labels = [name for name, _ in element_dict]
-        colors = [color for name, (wavelengths, color) in element_dict]
-        column_checkboxes = CheckboxWithLegendGroup(
-            labels=labels, active=[], colors=colors, width=width // (columns + 1)
-        )
-        all_column_checkboxes.append(column_checkboxes)
+        checkboxes = []
+        for row_idx, (name, (wavelengths, color)) in enumerate(element_dict):
+            column_checkboxes = CheckboxButtonGroup(
+                labels=[name],
+                orientation='vertical',
+                active=[],
+                width=width // (columns + 1),
+                styles={'border-left': f'12px solid {color}', 'padding-left': '0.3em'},
+            )
+            all_column_checkboxes.append(column_checkboxes)
 
-        callback_toggle_lines = CustomJS(
-            args={'column_checkboxes': column_checkboxes, **model_dict},
-            code=f"""
-                    for (let i = 0; i < {len(labels)}; i = i + 1) {{
-                        let el_idx = i * {columns} + {column_idx};
+            callback_toggle_lines = CustomJS(
+                args={'column_checkboxes': column_checkboxes, **model_dict},
+                code=f"""
+                        let el_idx = {row_idx} * {columns} + {column_idx};
                         let el = eval("element_" + el_idx);
-                        el.visible = (column_checkboxes.active.includes(i))
-                    }}
-                """,
-        )
-        column_checkboxes.js_on_click(callback_toggle_lines)
+                        el.visible = (column_checkboxes.active.includes(0));
+                    """,
+            )
+            column_checkboxes.js_on_event('button_click', callback_toggle_lines)
+            checkboxes.append(column_checkboxes)
+        line_checkboxes.append(row(checkboxes))
 
     hide_all_spectra = Button(
         name="Hide All Spectra", label="Hide All Spectra", width_policy="min"
@@ -2473,12 +2655,12 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
         name="Reset Checkboxes", label="Reset Checkboxes", width_policy="min"
     )
     callback_reset_specs = CustomJS(
-        args={
-            'all_column_checkboxes': all_column_checkboxes,
-        },
+        args={'all_column_checkboxes': all_column_checkboxes, **model_dict},
         code=f"""
             for (let i = 0; i < {len(all_column_checkboxes)}; i++) {{
                 all_column_checkboxes[i].active = [];
+                let el = eval("element_" + i);
+                el.visible = false;
             }}
         """,
     )
@@ -2538,10 +2720,10 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
     on_top_spectra_dropdown.js_on_event(
         "menu_item_click",
         CustomJS(
-            args={'model_dict': model_dict, 'label_dict': label_dict},
+            args={'model_dict': model_dict, 'legend_dict': legend_dict},
             code="""
             for (const[key, value] of Object.entries(model_dict)) {
-                if (!key.startsWith('element_') && (key.charAt(key.length - 1) === label_dict[this.item].toString())) {
+                if (!key.startsWith('element_') && (this.item in legend_dict) && (key.charAt(key.length - 1) === legend_dict[this.item].toString())) {
                     value.level = 'glyph'
                 }
                 else {
@@ -2552,7 +2734,6 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
         ),
     )
 
-    row1 = row(all_column_checkboxes)
     row2 = (
         column(
             on_top_spectra_dropdown,
@@ -2573,13 +2754,17 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
         if "mobile" in device
         else row(z, v_exp, smooth_column)
     )
+    row4 = row(w)
+    plot_height += 200
     return column(
         plot,
-        row1,
+        *line_checkboxes,
         row2,
         row3,
+        row4,
         sizing_mode='stretch_width',
         width=width,
+        height=plot_height,
     )
 
 

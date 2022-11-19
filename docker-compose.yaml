@@ -7,19 +7,25 @@ services:
       - "9000:5000"
       - "9001:5001"
     volumes:
-      - thumbnails:/skyportal/static/thumbnails
+      # allow the data files to be mounted across containers
+      # if need be with the :z flag
+      # cf. https://stackoverflow.com/a/35222815
+      - thumbnails:/skyportal/static/thumbnails:z
+      - persistentdata:/skyportal/persistentdata:z
 
   db:
     image: postgres:14.4
+    container_name: postgres14.4
     environment:
       POSTGRES_USER: skyportal
       POSTGRES_PASSWORD: password
       POSTGRES_DB: skyportal
       PGDATA: /var/lib/postgresql/data/pgdata
     volumes:
-      - dbdata:/var/lib/postgresql/data/pgdata
+      - ./data/dbdata:/var/lib/postgresql/data:z
     restart: on-failure:3
 
 volumes:
   dbdata:
   thumbnails:
+  persistentdata:

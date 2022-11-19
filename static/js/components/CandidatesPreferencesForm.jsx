@@ -6,7 +6,6 @@ import PropTypes from "prop-types";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
 import Typography from "@mui/material/Typography";
-import Button from "@mui/material/Button";
 import Input from "@mui/material/Input";
 import InputLabel from "@mui/material/InputLabel";
 import TextField from "@mui/material/TextField";
@@ -18,6 +17,7 @@ import makeStyles from "@mui/styles/makeStyles";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
+import Button from "./Button";
 
 import * as candidatesActions from "../ducks/candidates";
 import * as profileActions from "../ducks/profile";
@@ -109,7 +109,14 @@ const CandidatesPreferencesForm = ({
   const [selectedClassifications, setSelectedClassifications] = useState([]);
   const [selectedAnnotationOrigin, setSelectedAnnotationOrigin] = useState();
 
-  const { handleSubmit, getValues, control, errors, reset } = useForm();
+  const {
+    handleSubmit,
+    getValues,
+    control,
+    reset,
+
+    formState: { errors },
+  } = useForm();
 
   useEffect(() => {
     if (addOrEdit === "Add") {
@@ -145,10 +152,10 @@ const CandidatesPreferencesForm = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dispatch]);
 
-  let formState = getValues({ nest: true });
+  let formState = getValues();
 
   const validateName = () => {
-    formState = getValues({ nest: true });
+    formState = getValues();
     const otherProfiles = preferences.scanningProfiles
       ?.filter((profile) => profile.name !== editingProfile?.name)
       ?.map((profile) => profile.name);
@@ -158,12 +165,12 @@ const CandidatesPreferencesForm = ({
   };
 
   const validateGroups = () => {
-    formState = getValues({ nest: true });
+    formState = getValues();
     return formState.groupIDs?.filter((value) => Boolean(value)).length >= 1;
   };
 
   const validateSorting = () => {
-    formState = getValues({ nest: true });
+    formState = getValues();
     return (
       // All left empty
       (formState.sortingOrigin === "" &&
@@ -264,7 +271,7 @@ const CandidatesPreferencesForm = ({
             <FormValidationError message="Profile name must be unique and at least 1 character" />
           )}
           <Controller
-            render={({ onChange, value }) => (
+            render={({ field: { onChange, value } }) => (
               <TextField
                 id="name"
                 label="Name"
@@ -286,7 +293,7 @@ const CandidatesPreferencesForm = ({
         </div>
         <div className={classes.formRow}>
           <Controller
-            render={({ onChange, value }) => (
+            render={({ field: { onChange, value } }) => (
               <TextField
                 id="time-range"
                 label="Time range (hours before now)"
@@ -313,18 +320,24 @@ const CandidatesPreferencesForm = ({
           </InputLabel>
           <Controller
             labelId="savedStatusSelectLabel"
-            as={Select}
             name="savedStatus"
             control={control}
             input={<Input data-testid="profileSavedStatusSelect" />}
             defaultValue="all"
-          >
-            {savedStatusSelectOptions?.map((option) => (
-              <MenuItem key={option.value} value={option.value}>
-                {option.label}
-              </MenuItem>
-            ))}
-          </Controller>
+            render={({ field: { onChange, value } }) => (
+              <Select
+                labelId="savedStatusSelectLabel"
+                onChange={onChange}
+                value={value}
+              >
+                {savedStatusSelectOptions?.map((option) => (
+                  <MenuItem key={option.value} value={option.value}>
+                    {option.label}
+                  </MenuItem>
+                ))}
+              </Select>
+            )}
+          />
         </div>
         <div className={classes.formRow}>
           <ClassificationSelect
@@ -337,7 +350,7 @@ const CandidatesPreferencesForm = ({
           <InputLabel id="profile-redshift-select-label">Redshift</InputLabel>
           <div className={classes.redshiftField}>
             <Controller
-              render={({ onChange, value }) => (
+              render={({ field: { onChange, value } }) => (
                 <TextField
                   data-testid="profile-minimum-redshift"
                   label="Minimum"
@@ -360,7 +373,7 @@ const CandidatesPreferencesForm = ({
           </div>
           <div className={classes.redshiftField}>
             <Controller
-              render={({ onChange, value }) => (
+              render={({ field: { onChange, value } }) => (
                 <TextField
                   data-testid="profile-maximum-redshift"
                   label="Maximum"
@@ -387,18 +400,20 @@ const CandidatesPreferencesForm = ({
           </InputLabel>
           <Controller
             labelId="profileRejectedCandidatesLabel"
-            as={Select}
             name="rejectedStatus"
             control={control}
             input={<Input data-testid="profileRejectedStatusSelect" />}
             defaultValue="hide"
-          >
-            {rejectedStatusSelectOptions?.map((option) => (
-              <MenuItem key={option.value} value={option.value}>
-                {option.label}
-              </MenuItem>
-            ))}
-          </Controller>
+            render={() => (
+              <Select>
+                {rejectedStatusSelectOptions?.map((option) => (
+                  <MenuItem key={option.value} value={option.value}>
+                    {option.label}
+                  </MenuItem>
+                ))}
+              </Select>
+            )}
+          />
         </div>
         <div
           className={`${classes.formRow} ${classes.annotationSorting}`}
@@ -415,7 +430,7 @@ const CandidatesPreferencesForm = ({
               labelId="profile-sorting-select-label"
               name="sortingOrigin"
               control={control}
-              render={({ onChange, value }) => (
+              render={({ field: { onChange, value } }) => (
                 <Select
                   id="profileAnnotationSortingOriginSelect"
                   value={value}
@@ -448,28 +463,34 @@ const CandidatesPreferencesForm = ({
             </InputLabel>
             <Controller
               labelId="profile-sorting-select-key-label"
-              as={Select}
               name="sortingKey"
               control={control}
               input={<Input data-testid="profileAnnotationSortingKeySelect" />}
               defaultValue=""
-            >
-              {availableAnnotationsInfo ? (
-                // eslint-disable-next-line react/prop-types
-                availableAnnotationsInfo[selectedAnnotationOrigin]?.map(
-                  (option) => (
-                    <MenuItem
-                      key={Object.keys(option)[0]}
-                      value={Object.keys(option)[0]}
-                    >
-                      {Object.keys(option)[0]}
-                    </MenuItem>
-                  )
-                )
-              ) : (
-                <div />
+              render={({ field: { onChange, value } }) => (
+                <Select
+                  onChange={onChange}
+                  value={value}
+                  data-testid="profileAnnotationSortingKeySelect"
+                >
+                  {availableAnnotationsInfo ? (
+                    // eslint-disable-next-line react/prop-types
+                    availableAnnotationsInfo[selectedAnnotationOrigin]?.map(
+                      (option) => (
+                        <MenuItem
+                          key={Object.keys(option)[0]}
+                          value={Object.keys(option)[0]}
+                        >
+                          {Object.keys(option)[0]}
+                        </MenuItem>
+                      )
+                    )
+                  ) : (
+                    <div />
+                  )}
+                </Select>
               )}
-            </Controller>
+            />
             <InputLabel id="profile-sorting-select-order-label">
               Annotation Sort Order
             </InputLabel>
@@ -482,17 +503,24 @@ const CandidatesPreferencesForm = ({
                 <Input data-testid="profileAnnotationSortingOrderSelect" />
               }
               defaultValue=""
-            >
-              <MenuItem key="none" value="">
-                None
-              </MenuItem>
-              <MenuItem key="desc" value="desc">
-                Descending
-              </MenuItem>
-              <MenuItem key="asc" value="asc">
-                Ascending
-              </MenuItem>
-            </Controller>
+              render={({ field: { onChange, value } }) => (
+                <Select
+                  onChange={onChange}
+                  value={value}
+                  data-testid="profileAnnotationSortingOrderSelect"
+                >
+                  <MenuItem key="none" value="">
+                    None
+                  </MenuItem>
+                  <MenuItem key="desc" value="desc">
+                    Descending
+                  </MenuItem>
+                  <MenuItem key="asc" value="asc">
+                    Ascending
+                  </MenuItem>
+                </Select>
+              )}
+            />
           </Responsive>
         </div>
         <div>
@@ -509,7 +537,7 @@ const CandidatesPreferencesForm = ({
                 key={group.id}
                 control={
                   <Controller
-                    render={({ onChange, value }) => (
+                    render={({ field: { onChange, value } }) => (
                       <Checkbox
                         onChange={(event) => {
                           onChange(event.target.checked);
@@ -531,11 +559,10 @@ const CandidatesPreferencesForm = ({
         </div>
         <div className={classes.saveButton}>
           <Button
-            variant="contained"
+            primary
             type="submit"
             endIcon={<SaveIcon />}
             data-testid="saveScanningProfileButton"
-            color="primary"
           >
             Save
           </Button>

@@ -9,7 +9,6 @@ import Typography from "@mui/material/Typography";
 import TextareaAutosize from "@mui/material/TextareaAutosize";
 import Box from "@mui/material/Box";
 import Autocomplete from "@mui/material/Autocomplete";
-import Button from "@mui/material/Button";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
 import TextField from "@mui/material/TextField";
@@ -38,6 +37,7 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
 import { showNotification } from "baselayer/components/Notifications";
+import Button from "./Button";
 
 import FormValidationError from "./FormValidationError";
 import * as invitationsActions from "../ducks/invitations";
@@ -115,7 +115,14 @@ const UserInvitations = () => {
   const [clickedInvitation, setClickedInvitation] = useState(null);
   const [dataFetched, setDataFetched] = useState(false);
 
-  const { handleSubmit, errors, reset, control, getValues } = useForm();
+  const {
+    handleSubmit,
+    reset,
+    control,
+    getValues,
+
+    formState: { errors },
+  } = useForm();
 
   useEffect(() => {
     const fetchData = () => {
@@ -150,12 +157,12 @@ const UserInvitations = () => {
   allGroups = allGroups?.filter((group) => !group.single_user_group);
 
   const validateInvitationGroups = () => {
-    const formState = getValues({ nest: true });
+    const formState = getValues();
     return formState.invitationGroups.length >= 1;
   };
 
   const validateInvitationStreams = () => {
-    const formState = getValues({ nest: true });
+    const formState = getValues();
     return formState.invitationStreams.length >= 1;
   };
 
@@ -305,8 +312,8 @@ const UserInvitations = () => {
     const invitation = invitations[dataIndex];
     return (
       <Button
+        secondary
         data-testid={`deleteInvitation_${invitation.user_email}`}
-        variant="contained"
         onClick={() => {
           handleDeleteInvitation(invitation.id);
         }}
@@ -661,8 +668,8 @@ const UserInvitations = () => {
         </Box>
         <Box pl={5} pb={5}>
           <Button
+            secondary
             data-testid="bulkAddUsersButton"
-            variant="contained"
             onClick={handleClickAddUsers}
           >
             Add Users
@@ -686,7 +693,7 @@ const UserInvitations = () => {
             )}
             <Controller
               name="invitationGroups"
-              render={({ onChange, value, ...props }) => (
+              render={({ field: { onChange, value } }) => (
                 <Autocomplete
                   multiple
                   value={value}
@@ -710,8 +717,6 @@ const UserInvitations = () => {
                       data-testid="addInvitationGroupsTextField"
                     />
                   )}
-                  // eslint-disable-next-line react/jsx-props-no-spreading
-                  {...props}
                 />
               )}
               control={control}
@@ -721,7 +726,7 @@ const UserInvitations = () => {
             <br />
             <div>
               <Button
-                variant="contained"
+                primary
                 type="submit"
                 name="submitAddInvitationGroupsButton"
                 data-testid="submitAddInvitationGroupsButton"
@@ -749,7 +754,7 @@ const UserInvitations = () => {
             )}
             <Controller
               name="invitationStreams"
-              render={({ onChange, value, ...props }) => (
+              render={({ field: { onChange, value } }) => (
                 <Autocomplete
                   multiple
                   value={value}
@@ -773,8 +778,6 @@ const UserInvitations = () => {
                       data-testid="addInvitationStreamsTextField"
                     />
                   )}
-                  // eslint-disable-next-line react/jsx-props-no-spreading
-                  {...props}
                 />
               )}
               control={control}
@@ -784,7 +787,7 @@ const UserInvitations = () => {
             <br />
             <div>
               <Button
-                variant="contained"
+                primary
                 type="submit"
                 name="submitAddInvitationStreamsButton"
                 data-testid="submitAddInvitationStreamsButton"
@@ -812,23 +815,27 @@ const UserInvitations = () => {
             )}
             <Controller
               name="invitationRole"
-              as={
-                <Select data-testid="invitationRoleSelect">
+              control={control}
+              rules={{ required: true }}
+              defaultValue={clickedInvitation?.role_id}
+              render={({ field: { onChange, value } }) => (
+                <Select
+                  data-testid="invitationRoleSelect"
+                  value={value}
+                  onChange={onChange}
+                >
                   {["Full user", "View only"].map((role) => (
                     <MenuItem key={role} value={role}>
                       {role}
                     </MenuItem>
                   ))}
                 </Select>
-              }
-              control={control}
-              rules={{ required: true }}
-              defaultValue={clickedInvitation?.role_id}
+              )}
             />
             <br />
             <div>
               <Button
-                variant="contained"
+                primary
                 type="submit"
                 name="submitEditRoleButton"
                 data-testid="submitEditRoleButton"
@@ -850,7 +857,7 @@ const UserInvitations = () => {
         <DialogContent>
           <form onSubmit={handleSubmit(handleEditUserExpirationDate)}>
             <Controller
-              render={({ onChange, value }) => (
+              render={({ field: { onChange, value } }) => (
                 <DatePicker
                   value={value}
                   onChange={(date) =>
@@ -871,8 +878,7 @@ const UserInvitations = () => {
             <br />
             <div className={classes.submitButton}>
               <Button
-                variant="contained"
-                color="primary"
+                primary
                 type="submit"
                 name="submitExpirationDateButton"
                 data-testid="submitExpirationDateButton"

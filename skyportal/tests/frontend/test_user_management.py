@@ -1,5 +1,3 @@
-from datetime import datetime
-
 import pytest
 from selenium.webdriver.common.keys import Keys
 
@@ -158,24 +156,3 @@ def test_add_user_to_stream(
     driver.wait_for_xpath(
         f"//*[@data-testid='deleteStreamUserButton_{user.id}_{public_stream2.id}']"
     )
-
-
-def test_user_expiration(
-    driver,
-    user,
-    super_admin_user,
-):
-    driver.get(f'/become_user/{super_admin_user.id}')
-    driver.get('/user_management')
-    filter_for_user(driver, user.username)
-
-    # Set expiration date to today
-    driver.click_xpath(f"//*[@data-testid='editUserExpirationDate{user.id}']")
-    date = datetime.now().strftime("%m/%d/%Y")
-    driver.wait_for_xpath("//input[@id='expirationDatePicker']").send_keys(date)
-    driver.click_xpath('//*[text()="Submit"]')
-
-    # Check that user deactivated
-    driver.get(f'/become_user/{user.id}')
-    driver.get("/")
-    driver.wait_for_xpath_to_disappear("//*[contains(text(), 'Top Sources')]")

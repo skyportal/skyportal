@@ -25,5 +25,6 @@ rules:
   react-hooks/exhaustive-deps: "warn"
   react/jsx-wrap-multilines: 0
   react/jsx-one-expression-per-line: 0
+  react/jsx-props-no-spreading: 0
   no-param-reassign: 0
   react/jsx-curly-newline: 0

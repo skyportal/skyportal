@@ -1,9 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import PropTypes from "prop-types";
-import { useSelector } from "react-redux";
-
+import { useDispatch, useSelector } from "react-redux";
 import Paper from "@mui/material/Paper";
-import Button from "@mui/material/Button";
 import ButtonGroup from "@mui/material/ButtonGroup";
 import Checkbox from "@mui/material/Checkbox";
 import FormControlLabel from "@mui/material/FormControlLabel";
@@ -17,7 +15,12 @@ import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
 import { useForm, Controller } from "react-hook-form";
 
+import { showNotification } from "baselayer/components/Notifications";
+import Button from "./Button";
+
 import { allowedClasses } from "./ClassificationForm";
+
+import * as gcnEventsActions from "../ducks/gcnEvents";
 
 const useStyles = makeStyles((theme) => ({
   paperDiv: {
@@ -84,6 +87,20 @@ const useStyles = makeStyles((theme) => ({
       marginRight: "1rem",
     },
   },
+  select: {
+    width: "40%",
+    height: "3rem",
+  },
+  selectItems: {
+    display: "flex",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "left",
+    gap: "0.25rem",
+  },
+  selectItem: {
+    whiteSpace: "break-spaces",
+  },
 }));
 
 const getMultiselectStyles = (value, selectedValues, theme) => ({
@@ -95,6 +112,7 @@ const getMultiselectStyles = (value, selectedValues, theme) => ({
 
 const SourceTableFilterForm = ({ handleFilterSubmit }) => {
   const classes = useStyles();
+  const dispatch = useDispatch();
   const theme = useTheme();
 
   const ITEM_HEIGHT = 48;
@@ -123,10 +141,97 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
     []
   );
 
-  const { handleSubmit, register, control, reset } = useForm();
+  const maxNumDaysUsingLocalization = useSelector(
+    (state) => state.config.maxNumDaysUsingLocalization
+  );
+  const gcnEvents = useSelector((state) => state.gcnEvents);
+  const [selectedGcnEventId, setSelectedGcnEventId] = useState(null);
+
+  useEffect(() => {
+    if (gcnEvents?.length > 0 || !gcnEvents) {
+      dispatch(gcnEventsActions.fetchGcnEvents());
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const { handleSubmit, register, control, reset, getValues } = useForm();
 
   const handleClickReset = () => {
     reset();
+  };
+
+  const gcnEventsLookUp = {};
+  // eslint-disable-next-line no-unused-expressions
+  gcnEvents?.events.forEach((gcnEvent) => {
+    gcnEventsLookUp[gcnEvent.id] = gcnEvent;
+  });
+
+  const gcnEventsSelect = gcnEvents
+    ? [
+        {
+          id: -1,
+          dateobs: "Clear Selection",
+        },
+        ...gcnEvents.events,
+      ]
+    : [];
+
+  const validate = (formData) => {
+    let valid = true;
+    if (formData.gcneventid !== "" || formData.localizationid !== "") {
+      if (formData.startDate === "" || formData.endDate === "") {
+        dispatch(
+          showNotification(
+            "Please enter First and Last Detected dates when filtering by GCN Event",
+            "error"
+          )
+        );
+        valid = false;
+      } else if (new Date(formData.startDate) > new Date(formData.endDate)) {
+        dispatch(
+          showNotification(
+            "First Detected date must be before Last Detected date",
+            "error"
+          )
+        );
+        valid = false;
+      } // check if there are more than maxNumDaysUsingLocalization days between start and end date
+      else if (
+        (new Date(formData.endDate) - new Date(formData.startDate)) /
+          (1000 * 60 * 60 * 24) >
+        (maxNumDaysUsingLocalization || 31)
+      ) {
+        dispatch(
+          showNotification(
+            `Please enter a date range less than ${
+              maxNumDaysUsingLocalization || 31
+            } days`,
+            "error"
+          )
+        );
+        valid = false;
+      }
+    }
+    return valid;
+  };
+
+  const handleFilterPreSubmit = (formData) => {
+    if (validate(formData)) {
+      if (formData.gcneventid !== "") {
+        formData.localizationDateobs =
+          gcnEventsLookUp[formData.gcneventid]?.dateobs;
+        if (formData.localizationid !== "") {
+          formData.localizationName = gcnEventsLookUp[
+            formData.gcneventid
+          ]?.localizations?.filter(
+            (l) => l.id === formData.localizationid
+          )[0]?.localization_name;
+          formData.localizationid = "";
+        }
+        formData.gcneventid = "";
+      }
+      handleFilterSubmit(formData);
+    }
   };
 
   return (
@@ -136,7 +241,7 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
       </div>
       <form
         className={classes.root}
-        onSubmit={handleSubmit(handleFilterSubmit)}
+        onSubmit={handleSubmit(handleFilterPreSubmit)}
       >
         <div className={classes.formItem}>
           <Typography variant="subtitle2" className={classes.title}>
@@ -145,95 +250,159 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
           <TextField
             label="Source ID/Name"
             name="sourceID"
-            inputRef={register}
+            inputRef={register("sourceID")}
           />
         </div>
         <div className={classes.formItemRightColumn}>
           <Typography variant="subtitle2" className={classes.title}>
             Position
           </Typography>
-          <TextField
-            size="small"
-            label="RA (deg)"
+          <Controller
+            render={({ field: { onChange, value } }) => (
+              <TextField
+                size="small"
+                label="RA (deg)"
+                name="position.ra"
+                type="number"
+                inputProps={{
+                  step: 0.001,
+                }}
+                inputRef={register("position.ra")}
+                className={classes.positionField}
+                onChange={onChange}
+                value={value}
+              />
+            )}
             name="position.ra"
-            type="number"
-            inputProps={{
-              step: 0.001,
-            }}
-            inputRef={register}
-            className={classes.positionField}
+            control={control}
           />
-          <TextField
-            size="small"
-            label="Dec (deg)"
+          <Controller
+            render={({ field: { onChange, value } }) => (
+              <TextField
+                size="small"
+                label="Dec (deg)"
+                name="position.dec"
+                type="number"
+                inputProps={{
+                  step: 0.001,
+                }}
+                inputRef={register("position.dec")}
+                className={classes.positionField}
+                onChange={onChange}
+                value={value}
+              />
+            )}
             name="position.dec"
-            type="number"
-            inputProps={{
-              step: 0.001,
-            }}
-            inputRef={register}
-            className={classes.positionField}
+            control={control}
           />
-          <TextField
-            size="small"
-            label="Radius (deg)"
+          <Controller
+            render={({ field: { onChange, value } }) => (
+              <TextField
+                size="small"
+                label="Radius (deg)"
+                name="position.radius"
+                type="number"
+                inputProps={{
+                  step: 0.001,
+                }}
+                inputRef={register("position.radius")}
+                className={classes.positionField}
+                onChange={onChange}
+                value={value}
+              />
+            )}
             name="position.radius"
-            type="number"
-            inputProps={{
-              step: 0.001,
-            }}
-            inputRef={register}
-            className={classes.positionField}
+            control={control}
           />
         </div>
         <div className={classes.formItem}>
           <Typography variant="subtitle2" className={classes.title}>
             Time Saved (UTC)
           </Typography>
-          <TextField
-            size="small"
-            label="Saved After"
+          <Controller
+            render={({ field: { onChange, value } }) => (
+              <TextField
+                size="small"
+                label="Saved After"
+                name="savedAfter"
+                inputRef={register("savedAfter")}
+                placeholder="2021-01-01T00:00:00"
+                onChange={onChange}
+                value={value}
+              />
+            )}
             name="savedAfter"
-            inputRef={register}
-            placeholder="2021-01-01T00:00:00"
+            control={control}
           />
-          <TextField
-            size="small"
-            label="Saved Before"
+          <Controller
+            render={({ field: { onChange, value } }) => (
+              <TextField
+                size="small"
+                label="Saved Before"
+                name="savedBefore"
+                inputRef={register("savedBefore")}
+                placeholder="2021-01-01T00:00:00"
+                onChange={onChange}
+                value={value}
+              />
+            )}
             name="savedBefore"
-            inputRef={register}
-            placeholder="2021-01-01T00:00:00"
+            control={control}
           />
         </div>
         <div className={classes.formItemRightColumn}>
           <Typography variant="subtitle2" className={classes.title}>
-            Time Last Detected (UTC)
+            Time First/Last Detected (UTC)
           </Typography>
-          <TextField
-            size="small"
-            label="Last Detected After"
+          <Controller
+            render={({ field: { onChange, value } }) => (
+              <TextField
+                size="small"
+                label="First Detected After"
+                name="startDate"
+                inputRef={register("startDate")}
+                placeholder="2012-08-30T00:00:00"
+                onChange={onChange}
+                value={value}
+              />
+            )}
             name="startDate"
-            inputRef={register}
-            placeholder="2012-08-30T00:00:00"
+            control={control}
           />
-          <TextField
-            size="small"
-            label="Last Detected Before"
+          <Controller
+            render={({ field: { onChange, value } }) => (
+              <TextField
+                size="small"
+                label="Last Detected Before"
+                name="endDate"
+                inputRef={register("endDate")}
+                placeholder="2012-08-30T00:00:00"
+                onChange={onChange}
+                value={value}
+              />
+            )}
             name="endDate"
-            inputRef={register}
-            placeholder="2012-08-30T00:00:00"
+            control={control}
           />
         </div>
         <div className={classes.formItem}>
           <Typography variant="subtitle2" className={classes.title}>
             Simbad Class
           </Typography>
-          <TextField
-            size="small"
-            label="Class Name"
-            type="text"
+          <Controller
+            render={({ field: { onChange, value } }) => (
+              <TextField
+                size="small"
+                label="Class Name"
+                type="text"
+                name="simbadClass"
+                inputRef={register("simbadClass")}
+                onChange={onChange}
+                value={value}
+              />
+            )}
             name="simbadClass"
-            inputRef={register}
+            control={control}
           />
         </div>
         <div className={classes.formItemRightColumn}>
@@ -241,7 +410,7 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
             Classification
           </Typography>
           <Controller
-            render={({ onChange, value }) => (
+            render={({ field: { onChange, value } }) => (
               <Select
                 labelId="classifications-select-label"
                 data-testid="classifications-select"
@@ -295,7 +464,7 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
             Non-Classifications
           </Typography>
           <Controller
-            render={({ onChange, value }) => (
+            render={({ field: { onChange, value } }) => (
               <Select
                 labelId="classifications-select-label"
                 data-testid="classifications-select"
@@ -348,191 +517,319 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
           <Typography variant="subtitle2" className={classes.title}>
             Redshift
           </Typography>
-          <TextField
-            size="small"
-            label="Min"
+          <Controller
+            render={({ field: { onChange, value } }) => (
+              <TextField
+                size="small"
+                label="Min"
+                name="minRedshift"
+                type="number"
+                inputProps={{
+                  step: 0.001,
+                }}
+                inputRef={register("minRedshift")}
+                onChange={onChange}
+                value={value}
+              />
+            )}
             name="minRedshift"
-            type="number"
-            inputProps={{
-              step: 0.001,
-            }}
-            inputRef={register}
+            control={control}
           />
-          <TextField
-            size="small"
-            label="Max"
+          <Controller
+            render={({ field: { onChange, value } }) => (
+              <TextField
+                size="small"
+                label="Max"
+                name="maxRedshift"
+                type="number"
+                inputProps={{
+                  step: 0.001,
+                }}
+                inputRef={register("maxRedshift")}
+                onChange={onChange}
+                value={value}
+              />
+            )}
             name="maxRedshift"
-            type="number"
-            inputProps={{
-              step: 0.001,
-            }}
-            inputRef={register}
+            control={control}
           />
         </div>
         <div className={classes.formItemRightColumn}>
           <Typography variant="subtitle2" className={classes.title}>
             Peak Magnitude
           </Typography>
-          <TextField
-            size="small"
-            label="Min"
+          <Controller
+            render={({ field: { onChange, value } }) => (
+              <TextField
+                size="small"
+                label="Min"
+                name="minPeakMagnitude"
+                type="number"
+                inputProps={{
+                  step: 0.001,
+                }}
+                inputRef={register("minPeakMagnitude")}
+                onChange={onChange}
+                value={value}
+              />
+            )}
             name="minPeakMagnitude"
-            type="number"
-            inputProps={{
-              step: 0.001,
-            }}
-            inputRef={register}
+            control={control}
           />
-          <TextField
-            size="small"
-            label="Max"
+          <Controller
+            render={({ field: { onChange, value } }) => (
+              <TextField
+                size="small"
+                label="Max"
+                name="maxPeakMagnitude"
+                type="number"
+                inputProps={{
+                  step: 0.001,
+                }}
+                inputRef={register("maxPeakMagnitude")}
+                onChange={onChange}
+                value={value}
+              />
+            )}
             name="maxPeakMagnitude"
-            type="number"
-            inputProps={{
-              step: 0.001,
-            }}
-            inputRef={register}
+            control={control}
           />
         </div>
         <div className={classes.formItem}>
           <Typography variant="subtitle2" className={classes.title}>
             Alias
           </Typography>
-          <TextField
-            size="small"
-            label="Alias"
-            type="text"
+          <Controller
+            render={({ field: { onChange, value } }) => (
+              <TextField
+                size="small"
+                label="Alias"
+                type="text"
+                name="alias"
+                inputRef={register("alias")}
+                data-testid="alias-text"
+                onChange={onChange}
+                value={value}
+              />
+            )}
             name="alias"
-            inputRef={register}
-            data-testid="alias-text"
+            control={control}
           />
         </div>
         <div className={classes.formItemRightColumn}>
           <Typography variant="subtitle2" className={classes.title}>
             Origin
           </Typography>
-          <TextField
-            size="small"
-            label="Origin"
-            type="text"
+          <Controller
+            render={({ field: { onChange, value } }) => (
+              <TextField
+                size="small"
+                label="Origin"
+                type="text"
+                name="origin"
+                inputRef={register("origin")}
+                data-testid="origin-text"
+                onChange={onChange}
+                value={value}
+              />
+            )}
             name="origin"
-            inputRef={register}
-            data-testid="origin-text"
+            control={control}
           />
         </div>
         <div className={classes.formItem}>
           <Typography variant="subtitle2" className={classes.title}>
             Comment
           </Typography>
-          <TextField
-            size="small"
-            label="Comment"
-            type="text"
+          <Controller
+            render={({ field: { onChange, value } }) => (
+              <TextField
+                size="small"
+                label="Comment"
+                type="text"
+                name="commentsFilter"
+                inputRef={register("commentsFilter")}
+                data-testid="comment-text"
+                onChange={onChange}
+                value={value}
+              />
+            )}
             name="commentsFilter"
-            inputRef={register}
-            data-testid="comment-text"
+            control={control}
           />
         </div>
         <div className={classes.formItemRightColumn}>
           <Typography variant="subtitle2" className={classes.title}>
             Annotation
           </Typography>
-          <TextField
-            size="small"
-            label="Annotation"
-            type="text"
+          <Controller
+            render={({ field: { onChange, value } }) => (
+              <TextField
+                size="small"
+                label="Annotation"
+                type="text"
+                name="annotationsFilter"
+                inputRef={register("annotationsFilter")}
+                data-testid="annotation-text"
+                onChange={onChange}
+                value={value}
+              />
+            )}
             name="annotationsFilter"
-            inputRef={register}
-            data-testid="annotation-text"
+            control={control}
           />
         </div>
         <div className={classes.formItem}>
           <Typography variant="subtitle2" className={classes.title}>
             Comment Author
           </Typography>
-          <TextField
-            size="small"
-            label="Comment Author"
-            type="text"
+          <Controller
+            render={({ field: { onChange, value } }) => (
+              <TextField
+                size="small"
+                label="Comment Author"
+                type="text"
+                name="commentsFilterAuthor"
+                inputRef={register("commentsFilterAuthor")}
+                data-testid="comment-author-text"
+                onChange={onChange}
+                value={value}
+              />
+            )}
             name="commentsFilterAuthor"
-            inputRef={register}
-            data-testid="comment-author-text"
+            control={control}
           />
         </div>
         <div className={classes.formItemRightColumn}>
           <Typography variant="subtitle2" className={classes.title}>
             Annotation Origin
           </Typography>
-          <TextField
-            size="small"
-            label="Annotation Origin"
-            type="text"
+          <Controller
+            render={({ field: { onChange, value } }) => (
+              <TextField
+                size="small"
+                label="Annotation Origin"
+                type="text"
+                name="annotationsFilterOrigin"
+                inputRef={register("annotationsFilterOrigin")}
+                data-testid="annotation-origin-text"
+                onChange={onChange}
+                value={value}
+              />
+            )}
             name="annotationsFilterOrigin"
-            inputRef={register}
-            data-testid="annotation-origin-text"
+            control={control}
           />
         </div>
         <div className={classes.formItemRightColumn}>
           <Typography variant="subtitle2" className={classes.title}>
             Comment Created (UTC)
           </Typography>
-          <TextField
-            size="small"
-            label="Comment After"
+          <Controller
+            render={({ field: { onChange, value } }) => (
+              <TextField
+                size="small"
+                label="Comment After"
+                name="commentsFilterAfter"
+                inputRef={register("commentsFilterAfter")}
+                placeholder="2021-01-01T00:00:00"
+                onChange={onChange}
+                value={value}
+              />
+            )}
             name="commentsFilterAfter"
-            inputRef={register}
-            placeholder="2021-01-01T00:00:00"
+            control={control}
           />
-          <TextField
-            size="small"
-            label="Comment Before"
+          <Controller
+            render={({ field: { onChange, value } }) => (
+              <TextField
+                size="small"
+                label="Comment Before"
+                name="commentsFilterBefore"
+                inputRef={register("commentsFilterBefore")}
+                placeholder="2021-01-01T00:00:00"
+                onChange={onChange}
+                value={value}
+              />
+            )}
             name="commentsFilterBefore"
-            inputRef={register}
-            placeholder="2021-01-01T00:00:00"
+            control={control}
           />
         </div>
         <div className={classes.formItem}>
           <Typography variant="subtitle2" className={classes.title}>
             Annotation Created (UTC)
           </Typography>
-          <TextField
-            size="small"
-            label="Annotation After"
+          <Controller
+            render={({ field: { onChange, value } }) => (
+              <TextField
+                size="small"
+                label="Annotation After"
+                name="annotationsFilterAfter"
+                inputRef={register("annotationsFilterAfter")}
+                placeholder="2021-01-01T00:00:00"
+                onChange={onChange}
+                value={value}
+              />
+            )}
             name="annotationsFilterAfter"
-            inputRef={register}
-            placeholder="2021-01-01T00:00:00"
+            control={control}
           />
-          <TextField
-            size="small"
-            label="Annotation Before"
+          <Controller
+            render={({ field: { onChange, value } }) => (
+              <TextField
+                size="small"
+                label="Annotation Before"
+                name="annotationsFilterBefore"
+                inputRef={register("annotationsFilterBefore")}
+                placeholder="2021-01-01T00:00:00"
+                onChange={onChange}
+                value={value}
+              />
+            )}
             name="annotationsFilterBefore"
-            inputRef={register}
-            placeholder="2021-01-01T00:00:00"
+            control={control}
           />
         </div>
         <div className={classes.formItem}>
           <Typography variant="subtitle2" className={classes.title}>
             Latest Magnitude
           </Typography>
-          <TextField
-            size="small"
-            label="Min"
+          <Controller
+            render={({ field: { onChange, value } }) => (
+              <TextField
+                size="small"
+                label="Min"
+                name="minLatestMagnitude"
+                type="number"
+                inputProps={{
+                  step: 0.001,
+                }}
+                inputRef={register("minLatestMagnitude")}
+                onChange={onChange}
+                value={value}
+              />
+            )}
             name="minLatestMagnitude"
-            type="number"
-            inputProps={{
-              step: 0.001,
-            }}
-            inputRef={register}
+            control={control}
           />
-          <TextField
-            size="small"
-            label="Max"
+          <Controller
+            render={({ field: { onChange, value } }) => (
+              <TextField
+                size="small"
+                label="Max"
+                name="maxLatestMagnitude"
+                type="number"
+                inputProps={{
+                  step: 0.001,
+                }}
+                inputRef={register("maxLatestMagnitude")}
+                onChange={onChange}
+                value={value}
+              />
+            )}
             name="maxLatestMagnitude"
-            type="number"
-            inputProps={{
-              step: 0.001,
-            }}
-            inputRef={register}
+            control={control}
           />
         </div>
         <div className={classes.formItemRightColumn}>
@@ -545,7 +842,7 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
               labelPlacement="start"
               control={
                 <Controller
-                  render={({ onChange, value }) => (
+                  render={({ field: { onChange, value } }) => (
                     <Checkbox
                       color="primary"
                       type="checkbox"
@@ -564,7 +861,7 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
               labelPlacement="start"
               control={
                 <Controller
-                  render={({ onChange, value }) => (
+                  render={({ field: { onChange, value } }) => (
                     <Checkbox
                       color="primary"
                       type="checkbox"
@@ -578,43 +875,162 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
                 />
               }
             />
+            <FormControlLabel
+              label="FollowupRequest"
+              labelPlacement="start"
+              control={
+                <Controller
+                  render={({ field: { onChange, value } }) => (
+                    <Checkbox
+                      color="primary"
+                      type="checkbox"
+                      onChange={(event) => onChange(event.target.checked)}
+                      checked={value}
+                    />
+                  )}
+                  name="hasFollowupRequest"
+                  control={control}
+                  defaultValue={false}
+                />
+              }
+            />
           </div>
         </div>
         <div className={classes.formItem}>
           <Typography variant="subtitle2" className={classes.title}>
             Time of Most Recent Spectrum (UTC)
           </Typography>
-          <TextField
-            size="small"
-            label="Spectrum After"
+          <Controller
+            render={({ field: { onChange, value } }) => (
+              <TextField
+                size="small"
+                label="Spectrum After"
+                name="hasSpectrumAfter"
+                data-testid="hasSpectrumAfterTest"
+                inputRef={register("hasSpectrumAfter")}
+                placeholder="2021-01-01T00:00:00"
+                onChange={onChange}
+                value={value}
+              />
+            )}
             name="hasSpectrumAfter"
-            data-testid="hasSpectrumAfterTest"
-            inputRef={register}
-            placeholder="2021-01-01T00:00:00"
+            control={control}
           />
-          <TextField
-            size="small"
-            label="Spectrum Before"
+          <Controller
+            render={({ field: { onChange, value } }) => (
+              <TextField
+                size="small"
+                label="Spectrum Before"
+                name="hasSpectrumBefore"
+                data-testid="hasSpectrumBeforeTest"
+                inputRef={register("hasSpectrumBefore")}
+                placeholder="2021-01-01T00:00:00"
+                onChange={onChange}
+                value={value}
+              />
+            )}
             name="hasSpectrumBefore"
-            data-testid="hasSpectrumBeforeTest"
-            inputRef={register}
-            placeholder="2021-01-01T00:00:00"
+            control={control}
           />
         </div>
+        <div className={classes.formItem}>
+          <Typography variant="subtitle2" className={classes.title}>
+            Followup Request Status
+          </Typography>
+          <Controller
+            render={({ field: { onChange, value } }) => (
+              <TextField
+                size="small"
+                label="Followup Request Status"
+                name="followupRequestStatus"
+                data-testid="hasFollowupRequestStatusTest"
+                inputRef={register("followupRequestStatus")}
+                onChange={onChange}
+                value={value}
+              />
+            )}
+            name="followupRequestStatus"
+            control={control}
+          />
+        </div>
+        <div className={classes.formItemRightColumn}>
+          <Typography variant="subtitle2" className={classes.title}>
+            GCN Event
+          </Typography>
+          <div className={classes.selectItems}>
+            <Controller
+              render={({ field: { value } }) => (
+                <Select
+                  inputProps={{ MenuProps: { disableScrollLock: true } }}
+                  labelId="gcnEventSelectLabel"
+                  value={value || ""}
+                  onChange={(event) => {
+                    reset({
+                      ...getValues(),
+                      gcneventid:
+                        event.target.value === -1 ? "" : event.target.value,
+                      localizationid:
+                        event.target.value === -1
+                          ? ""
+                          : gcnEventsLookUp[event.target.value]
+                              ?.localizations[0]?.id || "",
+                    });
+                    setSelectedGcnEventId(event.target.value);
+                  }}
+                  className={classes.select}
+                >
+                  {gcnEventsSelect?.map((gcnEvent) => (
+                    <MenuItem
+                      value={gcnEvent.id}
+                      key={gcnEvent.id}
+                      className={classes.selectItem}
+                    >
+                      {`${gcnEvent.dateobs}`}
+                    </MenuItem>
+                  ))}
+                </Select>
+              )}
+              name="gcneventid"
+              control={control}
+              defaultValue=""
+            />
+            <Controller
+              render={({ field: { onChange, value } }) => (
+                <Select
+                  inputProps={{ MenuProps: { disableScrollLock: true } }}
+                  labelId="localizationSelectLabel"
+                  value={value || ""}
+                  onChange={(event) => {
+                    onChange(event.target.value);
+                  }}
+                  className={classes.select}
+                  disabled={!selectedGcnEventId}
+                >
+                  {gcnEventsLookUp[selectedGcnEventId]?.localizations?.map(
+                    (localization) => (
+                      <MenuItem
+                        value={localization.id}
+                        key={localization.id}
+                        className={classes.selectItem}
+                      >
+                        {`${localization.localization_name}`}
+                      </MenuItem>
+                    )
+                  )}
+                </Select>
+              )}
+              name="localizationid"
+              control={control}
+              defaultValue=""
+            />
+          </div>
+        </div>
         <div className={classes.formButtons}>
-          <ButtonGroup
-            variant="contained"
-            color="primary"
-            aria-label="contained primary button group"
-          >
-            <Button variant="contained" color="primary" type="submit">
+          <ButtonGroup primary aria-label="contained primary button group">
+            <Button primary type="submit">
               Submit
             </Button>
-            <Button
-              variant="contained"
-              color="primary"
-              onClick={handleClickReset}
-            >
+            <Button primary onClick={handleClickReset}>
               Reset
             </Button>
           </ButtonGroup>

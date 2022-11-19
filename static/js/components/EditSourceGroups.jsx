@@ -7,7 +7,6 @@ import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
 import Checkbox from "@mui/material/Checkbox";
-import Button from "@mui/material/Button";
 import IconButton from "@mui/material/IconButton";
 import EditIcon from "@mui/icons-material/Edit";
 import FormControlLabel from "@mui/material/FormControlLabel";
@@ -15,6 +14,7 @@ import Tooltip from "@mui/material/Tooltip";
 import makeStyles from "@mui/styles/makeStyles";
 
 import { showNotification } from "baselayer/components/Notifications";
+import Button from "./Button";
 import * as sourceActions from "../ducks/source";
 import FormValidationError from "./FormValidationError";
 
@@ -33,7 +33,14 @@ const EditSourceGroups = ({ source, groups, icon }) => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const dispatch = useDispatch();
 
-  const { handleSubmit, errors, reset, control, getValues } = useForm();
+  const {
+    handleSubmit,
+    reset,
+    control,
+    getValues,
+
+    formState: { errors },
+  } = useForm();
 
   const unsavedGroups = groups?.filter(
     (g) => !source.currentGroupIds.includes(g.id)
@@ -62,7 +69,7 @@ const EditSourceGroups = ({ source, groups, icon }) => {
   };
 
   const validateGroups = () => {
-    const formState = getValues({ nest: true });
+    const formState = getValues();
     return (
       (formState.inviteGroupIds?.length &&
         formState.inviteGroupIds.filter((value) => Boolean(value)).length >=
@@ -116,7 +123,7 @@ const EditSourceGroups = ({ source, groups, icon }) => {
           </Tooltip>
         ) : (
           <Button
-            variant="contained"
+            secondary
             aria-label="edit-groups"
             data-testid={`editGroups${source.id}`}
             size="small"
@@ -154,7 +161,7 @@ const EditSourceGroups = ({ source, groups, icon }) => {
                     key={unsavedGroup.id}
                     control={
                       <Controller
-                        render={({ onChange, value }) => (
+                        render={({ field: { onChange, value } }) => (
                           <Checkbox
                             onChange={(event) => onChange(event.target.checked)}
                             checked={value}
@@ -189,7 +196,7 @@ const EditSourceGroups = ({ source, groups, icon }) => {
                     key={savedGroup.id}
                     control={
                       <Controller
-                        render={({ onChange, value }) => (
+                        render={({ field: { onChange, value } }) => (
                           <Checkbox
                             onChange={(event) => onChange(event.target.checked)}
                             checked={value}
@@ -209,7 +216,7 @@ const EditSourceGroups = ({ source, groups, icon }) => {
             )}
             <div style={{ textAlign: "center" }}>
               <Button
-                variant="contained"
+                secondary
                 type="submit"
                 name={`editSourceGroupsButton_${source.id}`}
               >

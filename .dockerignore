@@ -9,3 +9,24 @@ config.yaml
 test_config.yaml
 github_deploy_key.enc
 dbdata
+dask-worker-space
+webdriver-console
+cache
+
+# Git
+.git
+.gitignore
+.gitattributes
+.github
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+
+# macOS
+.DS_Store
+
+# Visual Studio Code
+.vscode

@@ -1,13 +1,19 @@
 __all__ = ['AnalysisService', 'ObjAnalysis']
 
 import os
+import io
+import tempfile
 import json
 import re
 import uuid
+import base64
 from pathlib import Path
 
 import joblib
-
+import numpy as np
+import matplotlib.pyplot as plt
+import corner
+import arviz
 import sqlalchemy as sa
 from sqlalchemy.orm import relationship
 from sqlalchemy import event
@@ -193,25 +199,142 @@ class AnalysisService(Base):
         self._authinfo = value
 
 
+class DictNumpyEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        return json.JSONEncoder.default(self, obj)
+
+
 class AnalysisMixin:
     def calc_hash(self):
         self.hash = joblib.hash(self.filename)
 
     @hybrid_property
-    def analyses(self):
-        return self.data.get('analysis', {})
-
-    @hybrid_property
     def has_inference_data(self):
-        return self.analyses.get('inference_data', None) is not None
+        return self.data.get('inference_data', None) is not None
 
     @hybrid_property
     def has_plot_data(self):
-        return self.analyses.get('plots', None) is not None
+        return self.data.get('plots', None) is not None
+
+    @hybrid_property
+    def number_of_analysis_plots(self):
+        if not self.has_plot_data:
+            return 0
+        else:
+            return len(self.data.get('plots', []))
 
     @hybrid_property
     def has_results_data(self):
-        return self.analyses.get('results', None) is not None
+        return self.data.get('results', None) is not None
+
+    def serialize_results_data(self):
+        """
+        return the results data as a dictonary, even if it
+        contains some numpy arrays
+        """
+        if not self.has_results_data:
+            return {}
+        results = self.data.get('results', {"format": "json", "data": {}})
+        if not isinstance(results, dict):
+            return {}
+
+        if results.get('format', None) == "json":
+            return results.get('data', {})
+        elif results.get('format', None) == "joblib":
+            try:
+                buf = io.BytesIO()
+                buf.write(base64.b64decode(results.get('data', None)))
+                buf.seek(0)
+                data = joblib.load(buf)
+                jsons = json.dumps(data, cls=DictNumpyEncoder)
+            except Exception as e:
+                log(f"Error serializing results data: {e}")
+                jsons = "{}"
+            return json.loads(jsons)
+        else:
+            return {}
+
+    def get_analysis_plot(self, plot_number=0):
+        if not self.has_plot_data:
+            return None
+
+        if plot_number < 0 or plot_number >= self.number_of_analysis_plots:
+            return None
+
+        plot = self.data.get('plots')[plot_number]
+        try:
+            format = plot["format"]
+        except Exception as e:
+            format = "png"
+            log(f"Warning: missing format in plot, assuming png {e}")
+
+        buf = io.BytesIO()
+        buf.write(base64.b64decode(plot['data']))
+        buf.seek(0)
+
+        return {"plot_data": buf, "plot_type": format}
+
+    def generate_corner_plot(self, **plot_kwargs):
+        """Generate a corner plot of the posterior from the inference data."""
+
+        if not self.has_inference_data:
+            return None
+
+        # we could add different formats here in the future
+        # but for now we only support netcdf4 formats
+        if self.data['inference_data']["format"] not in ["netcdf4"]:
+            raise ValueError('Inference data format not allowed.')
+
+        f = tempfile.NamedTemporaryFile(
+            suffix=".nc", prefix="inferencedata_", delete=False
+        )
+        f.close()
+        f_handle = open(f.name, 'wb')
+        f_handle.write(base64.b64decode(self.data['inference_data']['data']))
+        f_handle.close()
+        # N.B.: arviz/xarray memory maps the file, so we need to
+        # remove the file only after using the data to make the plot
+        inference_data = arviz.from_netcdf(f.name)
+
+        try:
+            # remove parameters with zero range in the data
+            # which can happen with fixed parameters
+            temp_range = [
+                [
+                    inference_data["posterior"][x].data.min(),
+                    inference_data["posterior"][x].data.max(),
+                    x,
+                ]
+                for x in inference_data["posterior"]
+            ]
+            for x in temp_range:
+                # the min and max of this variable is the same:
+                # probably a fixed parameter. Remove it (x[2]) from plotting
+                # because it causes grief for corner
+                if x[0] == x[1]:
+                    del inference_data["posterior"][x[2]]
+
+            fig = corner.corner(
+                inference_data["posterior"],
+                quantiles=[0.16, 0.5, 0.84],
+                fig_kwargs=plot_kwargs,
+            )
+        except Exception as e:
+            log(f"Failed to generate corner plot: {e}")
+            return None
+        finally:
+            # now that we have the data in figure we can
+            # remove this file
+            os.remove(f.name)
+
+        buf = io.BytesIO()
+        fig.savefig(buf, format="png")
+        plt.close(fig)
+        buf.seek(0)
+
+        return buf
 
     def load_data(self):
         """

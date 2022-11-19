@@ -2,9 +2,9 @@ import React, { lazy, Suspense } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import Paper from "@mui/material/Paper";
 import Grid from "@mui/material/Grid";
-import Button from "@mui/material/Button";
 import makeStyles from "@mui/styles/makeStyles";
 import CircularProgress from "@mui/material/CircularProgress";
+import Button from "./Button";
 import NewTelescope from "./NewTelescope";
 import TelescopeInfo from "./TelescopeInfo";
 // lazy import the TelescopeMap component
@@ -30,7 +30,6 @@ const useStyles = makeStyles((theme) => ({
   },
   selectedMenu: {
     height: "3rem",
-    backgroundColor: "lightblue",
     fontSize: "1.2rem",
   },
   nonSelectedMenu: {
@@ -75,6 +74,7 @@ export function telescopeInfo(telescope) {
 
 const TelescopePage = () => {
   dispatch = useDispatch();
+  const currentUser = useSelector((state) => state.profile);
   const { telescopeList } = useSelector((state) => state.telescopes);
   const currentTelescopeMenu = useSelector(
     (state) => state.telescope.currentTelescopeMenu
@@ -119,25 +119,31 @@ const TelescopePage = () => {
         <Grid item md={4} sm={12}>
           <Paper className={classes.menu}>
             <Button
+              secondary
               id="telescope-list"
               onClick={() => setSelectedMenu("Telescope List")}
               className={isMenuSelected("Telescope List")}
             >
               Telescope List
             </Button>
-            <Button
-              id="new-telescope"
-              onClick={() => setSelectedMenu("New Telescope")}
-              className={isMenuSelected("New Telescope")}
-            >
-              New Telescope
-            </Button>
+            {currentUser.permissions?.includes("Manage allocations") && (
+              <Button
+                primary
+                id="new-telescope"
+                onClick={() => setSelectedMenu("New Telescope")}
+                className={isMenuSelected("New Telescope")}
+              >
+                New Telescope
+              </Button>
+            )}
           </Paper>
           <Paper className={classes.paperContent}>
             {currentTelescopeMenu === "Telescope List" ? (
               <TelescopeInfo />
             ) : (
-              <NewTelescope />
+              currentUser.permissions?.includes("Manage allocations") && (
+                <NewTelescope />
+              )
             )}
           </Paper>
         </Grid>

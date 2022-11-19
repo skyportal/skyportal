@@ -3,62 +3,26 @@ __all__ = [
     'ObservationPlanRequest',
     'ObservationPlanRequestTargetGroup',
     'EventObservationPlan',
+    'EventObservationPlanStatistics',
     'PlannedObservation',
 ]
 
 import sqlalchemy as sa
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects import postgresql as psql
-from sqlalchemy.ext.hybrid import hybrid_property
 from datetime import datetime, timedelta
-import healpix_alchemy as ha
-import numpy as np
 
 from baselayer.app.models import (
     Base,
-    DBSession,
     join_model,
     User,
-    public,
     AccessibleIfRelatedRowsAreAccessible,
     AccessibleIfUserMatches,
     CustomUserAccessControl,
 )
 
 from .group import Group
-from .instrument import Instrument, InstrumentField, InstrumentFieldTile
-from .allocation import Allocation
-from .localization import LocalizationTile
-
-
-def updatable_by_token_with_listener_acl(cls, user_or_token):
-    if user_or_token.is_admin:
-        return public.query_accessible_rows(cls, user_or_token)
-
-    instruments_with_apis = (
-        Instrument.query_records_accessible_by(user_or_token)
-        .filter(Instrument.listener_classname.isnot(None))
-        .all()
-    )
-
-    api_map = {
-        instrument.id: instrument.listener_class.get_acl_id()
-        for instrument in instruments_with_apis
-    }
-
-    accessible_instrument_ids = [
-        instrument_id
-        for instrument_id, acl_id in api_map.items()
-        if acl_id in user_or_token.permissions
-    ]
-
-    return (
-        DBSession()
-        .query(cls)
-        .join(Allocation)
-        .join(Instrument)
-        .filter(Instrument.id.in_(accessible_instrument_ids))
-    )
+from .followup_request import updatable_by_token_with_listener_acl
 
 
 class DefaultObservationPlanRequest(Base):
@@ -104,11 +68,27 @@ class DefaultObservationPlanRequest(Base):
         secondary='default_observationplan_groups',
         passive_deletes=True,
         doc='Groups to share the resulting data from this default request with.',
+        overlaps='groups',
+    )
+
+    default_plan_name = sa.Column(
+        sa.String, unique=True, nullable=False, doc='Default plan name'
+    )
+
+    default_survey_efficiencies = relationship(
+        'DefaultSurveyEfficiencyRequest',
+        back_populates='default_observationplan_request',
+        doc='The default survey efficiency requests for this default plan.',
+        passive_deletes=True,
     )
 
 
 DefaultObservationPlanRequestTargetGroup = join_model(
-    'default_observationplan_groups', DefaultObservationPlanRequest, Group
+    'default_observationplan_groups',
+    DefaultObservationPlanRequest,
+    Group,
+    new_name='DefaultObservationPlanRequestTargetGroup',
+    overlaps='target_groups',
 )
 DefaultObservationPlanRequestTargetGroup.create = (
     DefaultObservationPlanRequestTargetGroup.update
@@ -233,7 +213,11 @@ class ObservationPlanRequest(Base):
 
 
 ObservationPlanRequestTargetGroup = join_model(
-    'observationplan_groups', ObservationPlanRequest, Group
+    'observationplan_groups',
+    ObservationPlanRequest,
+    Group,
+    new_name='ObservationPlanRequestTargetGroup',
+    overlaps='target_groups',
 )
 ObservationPlanRequestTargetGroup.create = (
     ObservationPlanRequestTargetGroup.update
@@ -257,6 +241,7 @@ class EventObservationPlan(Base):
         "ObservationPlanRequest",
         foreign_keys=observation_plan_request_id,
         doc="The request that this observation plan belongs to",
+        overlaps='observation_plans',
     )
 
     instrument_id = sa.Column(
@@ -269,6 +254,7 @@ class EventObservationPlan(Base):
         "Instrument",
         foreign_keys=instrument_id,
         doc="The Instrument that this observation plan belongs to",
+        overlaps='plans',
     )
 
     dateobs = sa.Column(
@@ -313,174 +299,47 @@ class EventObservationPlan(Base):
         cascade='delete',
         passive_deletes=True,
         doc="Survey efficiency analyses of the event.",
+        overlaps='observation_plan',
     )
 
-    @property
-    def start_observation(self):
-        """Time of the first planned observation."""
-        if self.planned_observations:
-            return min(
-                planned_observation.obstime
-                for planned_observation in self.planned_observations
-            )
-        else:
-            return None
+    statistics = relationship(
+        "EventObservationPlanStatistics",
+        passive_deletes=True,
+        doc='Observation statistics associated with this plan.',
+    )
 
-    @property
-    def unique_filters(self):
-        """List of filters used in the observations."""
-        if self.planned_observations:
-            return list(
-                {
-                    planned_observation.filt
-                    for planned_observation in self.planned_observations
-                }
-            )
-        else:
-            return None
 
-    @hybrid_property
-    def num_observations(self):
-        """Number of planned observation."""
-        return len(self.planned_observations)
+class EventObservationPlanStatistics(Base):
+    """Statistics derived from an EventObservationPlan.
+    Tile information, including the event time, localization ID, field IDs,
+    tiling name, and tile probabilities."""
 
-    @num_observations.expression
-    def num_observations(cls):
-        """Number of planned observation."""
-        return cls.planned_observations.count()
+    __tablename__ = 'event_observation_plan_statistics'
 
-    @property
-    def total_time(self):
-        """Total observation time (seconds)."""
-        return sum(obs.exposure_time for obs in self.planned_observations)
+    observation_plan_id = sa.Column(
+        sa.ForeignKey('eventobservationplans.id', ondelete="CASCADE"),
+        nullable=False,
+        doc='Event observation plan ID',
+    )
 
-    @property
-    def tot_time_with_overheads(self):
-        overhead = sum(obs.overhead_per_exposure for obs in self.planned_observations)
-        return overhead + self.total_time
+    observation_plan = relationship(
+        "EventObservationPlan",
+        foreign_keys=observation_plan_id,
+        doc="The EventObservationPlan that this planned observation belongs to",
+        overlaps='planned_observations',
+    )
 
-    @property
-    def area(self, cumulative_probability=1.0):
-        """Integrated area in sq. deg within localization."""
+    localization_id = sa.Column(
+        sa.ForeignKey('localizations.id', ondelete="CASCADE"),
+        nullable=False,
+        doc='Instrument ID',
+    )
 
-        cum_prob = (
-            sa.func.sum(LocalizationTile.probdensity * LocalizationTile.healpix.area)
-            .over(order_by=LocalizationTile.probdensity.desc())
-            .label('cum_prob')
-        )
-        localizationtile_subquery = (
-            sa.select(LocalizationTile.probdensity, cum_prob)
-            .where(
-                LocalizationTile.localization_id
-                == self.observation_plan_request.localization_id,
-            )
-            .distinct()
-        ).subquery()
-
-        min_probdensity = (
-            sa.select(sa.func.min(localizationtile_subquery.columns.probdensity)).where(
-                localizationtile_subquery.columns.cum_prob <= cumulative_probability
-            )
-        ).scalar_subquery()
-
-        tiles_subquery = (
-            sa.select(InstrumentFieldTile.id)
-            .where(
-                LocalizationTile.localization_id
-                == self.observation_plan_request.localization_id,
-                LocalizationTile.probdensity >= min_probdensity,
-                InstrumentFieldTile.instrument_id == self.instrument_id,
-                InstrumentFieldTile.instrument_field_id == InstrumentField.id,
-                InstrumentFieldTile.instrument_field_id == PlannedObservation.field_id,
-                PlannedObservation.observation_plan_id == self.id,
-                InstrumentFieldTile.healpix.overlaps(LocalizationTile.healpix),
-            )
-            .distinct()
-            .subquery()
-        )
-
-        union = sa.select(ha.func.union(InstrumentFieldTile.healpix).label('healpix'))
-        union = union.join(
-            tiles_subquery, tiles_subquery.c.id == InstrumentFieldTile.id
-        )
-        area = sa.func.sum(union.columns.healpix.area)
-        query_area = sa.select(area)
-        intarea = DBSession().execute(query_area).scalar_one()
-
-        if intarea is None:
-            intarea = 0.0
-        return intarea * (180.0 / np.pi) ** 2
-
-    @property
-    def probability(self, cumulative_probability=1.0):
-        """Integrated probability within a given localization."""
-
-        cum_prob = (
-            sa.func.sum(LocalizationTile.probdensity * LocalizationTile.healpix.area)
-            .over(order_by=LocalizationTile.probdensity.desc())
-            .label('cum_prob')
-        )
-        localizationtile_subquery = (
-            sa.select(LocalizationTile.probdensity, cum_prob)
-            .where(
-                LocalizationTile.localization_id
-                == self.observation_plan_request.localization_id,
-            )
-            .distinct()
-        ).subquery()
-
-        min_probdensity = (
-            sa.select(sa.func.min(localizationtile_subquery.columns.probdensity)).where(
-                localizationtile_subquery.columns.cum_prob <= cumulative_probability
-            )
-        ).scalar_subquery()
-
-        tiles_subquery = (
-            sa.select(InstrumentFieldTile.id)
-            .where(
-                LocalizationTile.localization_id
-                == self.observation_plan_request.localization_id,
-                LocalizationTile.probdensity >= min_probdensity,
-                InstrumentFieldTile.instrument_id == self.instrument_id,
-                InstrumentFieldTile.instrument_field_id == InstrumentField.id,
-                InstrumentFieldTile.instrument_field_id == PlannedObservation.field_id,
-                PlannedObservation.observation_plan_id == self.id,
-                InstrumentFieldTile.healpix.overlaps(LocalizationTile.healpix),
-            )
-            .distinct()
-            .subquery()
-        )
-
-        tiles_subquery = (
-            sa.select(InstrumentFieldTile.id)
-            .where(
-                LocalizationTile.localization_id
-                == self.observation_plan_request.localization_id,
-                LocalizationTile.probdensity >= min_probdensity,
-                InstrumentFieldTile.instrument_id == self.instrument_id,
-                InstrumentFieldTile.instrument_field_id == InstrumentField.id,
-                InstrumentFieldTile.instrument_field_id == PlannedObservation.field_id,
-                PlannedObservation.observation_plan_id == self.id,
-                InstrumentFieldTile.healpix.overlaps(LocalizationTile.healpix),
-            )
-            .distinct()
-            .subquery()
-        )
-
-        union = sa.select(ha.func.union(InstrumentFieldTile.healpix).label('healpix'))
-        union = union.join(
-            tiles_subquery, tiles_subquery.c.id == InstrumentFieldTile.id
-        )
-        prob = sa.func.sum(
-            LocalizationTile.probdensity
-            * (union.columns.healpix * LocalizationTile.healpix).area
-        )
-        query_prob = sa.select(prob)
-        intprob = DBSession().execute(query_prob).scalar_one()
-        if intprob is None:
-            intprob = 0.0
-
-        return intprob
+    statistics = sa.Column(
+        psql.JSONB,
+        nullable=False,
+        doc="Statistics related to the observation plan (sky area, 2D probability, etc.).",
+    )
 
 
 class PlannedObservation(Base):
@@ -498,6 +357,7 @@ class PlannedObservation(Base):
         "EventObservationPlan",
         foreign_keys=observation_plan_id,
         doc="The EventObservationPlan that this planned observation belongs to",
+        overlaps='planned_observations',
     )
 
     instrument_id = sa.Column(

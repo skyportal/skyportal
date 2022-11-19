@@ -1,5 +1,7 @@
-import React from "react";
+import React, { useState } from "react";
+import { useDispatch } from "react-redux";
 import PropTypes from "prop-types";
+import { useNavigate } from "react-router-dom";
 import Paper from "@mui/material/Paper";
 import {
   createTheme,
@@ -11,6 +13,12 @@ import makeStyles from "@mui/styles/makeStyles";
 import CircularProgress from "@mui/material/CircularProgress";
 
 import MUIDataTable from "mui-datatables";
+
+import { showNotification } from "baselayer/components/Notifications";
+import Button from "./Button";
+import ObservationFilterForm from "./ObservationFilterForm";
+
+import { saveSource, checkSource } from "../ducks/source";
 
 const useStyles = makeStyles((theme) => ({
   container: {
@@ -64,6 +72,7 @@ const ExecutedObservationsTable = ({
   observations,
   totalMatches,
   handleTableChange = false,
+  handleFilterSubmit = false,
   pageNumber = 1,
   numPerPage = 10,
   serverSide = true,
@@ -71,6 +80,8 @@ const ExecutedObservationsTable = ({
 }) => {
   const classes = useStyles();
   const theme = useTheme();
+  const navigate = useNavigate();
+  const dispatch = useDispatch();
 
   const renderTelescope = (dataIndex) => {
     const { instrument } = observations[dataIndex];
@@ -82,6 +93,61 @@ const ExecutedObservationsTable = ({
     const { instrument } = observations[dataIndex];
 
     return <div>{instrument ? instrument.name : ""}</div>;
+  };
+
+  const [isSaving, setIsSaving] = useState(null);
+  const handleSave = async (formData) => {
+    setIsSaving(formData.id);
+    let data = null;
+    data = await dispatch(checkSource(formData.id, formData));
+    if (data.data !== "A source of that name does not exist.") {
+      dispatch(showNotification(data.data, "error"));
+    } else {
+      const result = await dispatch(saveSource(formData));
+      if (result.status === "success") {
+        dispatch(showNotification("Source saved"));
+        navigate(`/source/${formData.id}`);
+      }
+    }
+    setIsSaving(null);
+  };
+
+  const customFilterDisplay = () => (
+    <ObservationFilterForm handleFilterSubmit={handleFilterSubmit} />
+  );
+
+  const renderSaveSource = (dataIndex) => {
+    const formData = {
+      id: observations[dataIndex].target_name?.replace(/ /g, "_"),
+      ra: observations[dataIndex].field.ra,
+      dec: observations[dataIndex].field.dec,
+    };
+    if (!observations[dataIndex].target_name) {
+      return <div />;
+    }
+    return (
+      <div className={classes.actionButtons}>
+        {isSaving === formData.id ? (
+          <div>
+            <CircularProgress />
+          </div>
+        ) : (
+          <div>
+            <Button
+              primary
+              onClick={() => {
+                handleSave(formData);
+              }}
+              size="small"
+              type="submit"
+              data-testid={`saveObservation_${formData.id}`}
+            >
+              Save Source
+            </Button>
+          </div>
+        )}
+      </div>
+    );
   };
 
   const columns = [
@@ -110,6 +176,10 @@ const ExecutedObservationsTable = ({
       label: " Observation ID",
     },
     {
+      name: "target_name",
+      label: "Target Name",
+    },
+    {
       name: "obstime",
       label: "Observation time",
     },
@@ -133,6 +203,16 @@ const ExecutedObservationsTable = ({
       name: "limmag",
       label: "Limiting magnitude",
     },
+    {
+      name: "save_source",
+      label: "Save Source",
+      options: {
+        filter: false,
+        sort: true,
+        sortThirdClickReset: true,
+        customBodyRenderLite: renderSaveSource,
+      },
+    },
   ];
 
   const options = {
@@ -146,6 +226,8 @@ const ExecutedObservationsTable = ({
     serverSide,
     pagination: true,
     count: totalMatches,
+    filter: true,
+    customFilterDialogFooter: customFilterDisplay,
   };
   if (typeof handleTableChange === "function") {
     options.onTableChange = handleTableChange;
@@ -177,6 +259,7 @@ ExecutedObservationsTable.propTypes = {
   // eslint-disable-next-line react/forbid-prop-types
   observations: PropTypes.arrayOf(PropTypes.any).isRequired,
   handleTableChange: PropTypes.func.isRequired,
+  handleFilterSubmit: PropTypes.func.isRequired,
   pageNumber: PropTypes.number,
   totalMatches: PropTypes.number,
   numPerPage: PropTypes.number,

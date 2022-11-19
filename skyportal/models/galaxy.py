@@ -19,12 +19,12 @@ class Galaxy(Base, ca.Point):
     alt_name = sa.Column(
         sa.String, nullable=True, doc="Alternative Name of the object."
     )
-    distmpc = sa.Column(sa.Float, nullable=True, doc="Distance [Mpc]")
+    distmpc = sa.Column(sa.Float, nullable=True, doc="Distance [Mpc]", index=True)
     distmpc_unc = sa.Column(sa.Float, nullable=True, doc="Distance [Mpc] uncertainty")
 
     healpix = sa.Column(healpix_alchemy.Point, index=True)
 
-    redshift = sa.Column(sa.Float, nullable=True, doc="Redshift.")
+    redshift = sa.Column(sa.Float, nullable=True, doc="Redshift.", index=True)
     redshift_error = sa.Column(sa.Float, nullable=True, doc="Redshift error.")
 
     sfr_fuv = sa.Column(sa.Float, nullable=True, doc="SFR based on FUV [Msol/yr]")

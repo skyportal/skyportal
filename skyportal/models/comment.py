@@ -1,6 +1,7 @@
 __all__ = [
     'Comment',
     'CommentOnSpectrum',
+    'CommentOnEarthquake',
     'CommentOnGCN',
     'CommentOnShift',
 ]
@@ -8,6 +9,7 @@ __all__ = [
 import sqlalchemy as sa
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import relationship
+from sqlalchemy.orm import deferred
 
 from baselayer.app.models import (
     Base,
@@ -41,11 +43,15 @@ class CommentMixin:
         sa.String, nullable=True, doc="Filename of the attachment."
     )
 
-    attachment_bytes = sa.Column(
-        sa.types.LargeBinary,
-        nullable=True,
-        doc="Binary representation of the attachment.",
-    )
+    @declared_attr
+    def attachment_bytes(cls):
+        return deferred(
+            sa.Column(
+                sa.types.LargeBinary,
+                nullable=True,
+                doc="Binary representation of the attachment.",
+            )
+        )
 
     origin = sa.Column(sa.String, nullable=True, doc='Comment origin.')
 
@@ -66,6 +72,8 @@ class CommentMixin:
             return 'comments_on_gcns'
         if cls.__name__ == 'CommentOnShift':
             return 'comments_on_shifts'
+        if cls.__name__ == 'CommentOnEarthquake':
+            return 'comments_on_earthquakes'
 
     @declared_attr
     def author(cls):
@@ -189,6 +197,31 @@ class CommentOnGCN(Base, CommentMixin):
         'GcnEvent',
         back_populates='comments',
         doc="The GcnEvent referred to by this comment.",
+    )
+
+
+class CommentOnEarthquake(Base, CommentMixin):
+
+    __tablename__ = 'comments_on_earthquakes'
+
+    create = AccessibleIfRelatedRowsAreAccessible(earthquake='read')
+
+    read = accessible_by_groups_members & AccessibleIfRelatedRowsAreAccessible(
+        earthquake='read',
+    )
+
+    update = delete = AccessibleIfUserMatches('author')
+
+    earthquake_id = sa.Column(
+        sa.ForeignKey('earthquakeevents.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+        doc="ID of the Comment's Earthquake.",
+    )
+    earthquake = relationship(
+        'EarthquakeEvent',
+        back_populates='comments',
+        doc="The Earthquake referred to by this comment.",
     )
 
 

@@ -224,7 +224,7 @@ const SurveyLinkList = ({ ra, dec, id }) => {
       />
       <SurveyLink
         name="PTF"
-        url={`http://irsa.ipac.caltech.edu/applications/ptf/#id=Hydra_ptf_ptf_image_pos&RequestClass=ServerRequest&DoSearch=true&intersect=CENTER&subsize=0.13888889000000001&mcenter=all&dpLevel=l1,l2&UserTargetWorldPt=${ra};${dec};EQ_J2000&SimpleTargetPanel.field.resolvedBy=ned&ptfField=&ccdId=&projectId=ptf&searchName=age_pos&shortDesc=Search%%20by%%20Position&isBookmarkAble=true&isDrillDownRoot=true&isSearchResult=true`}
+        url={`https://irsa.ipac.caltech.edu/applications/ptf/#id=Hydra_ptf_ptf_image_pos&RequestClass=ServerRequest&DoSearch=true&intersect=CENTER&size=0.0083333334&subsize=0.13888889000000001&mcenter=all&dpLevel=l1&UserTargetWorldPt=${ra};${dec};EQ_J2000&SimpleTargetPanel.field.resolvedBy=nedthensimbad&ptfField=&ccdId=&projectId=ptf&searchName=ptf_image_pos&shortDesc=Search%20by%20Position&isBookmarkAble=true&isDrillDownRoot=true&isSearchResult=true`}
       />
       <SurveyLink
         name="SDSS"

@@ -8,6 +8,8 @@ export const REFRESH_GCNEVENT = "skyportal/REFRESH_GCNEVENT";
 export const FETCH_GCNEVENT = "skyportal/FETCH_GCNEVENT";
 export const FETCH_GCNEVENT_OK = "skyportal/FETCH_GCNEVENT_OK";
 
+export const SUBMIT_GCNEVENT = "skyportal/SUBMIT_GCNEVENT";
+
 const ADD_COMMENT_ON_GCNEVENT = "skyportal/ADD_COMMENT_ON_GCNEVENT";
 
 const DELETE_COMMENT_ON_GCNEVENT = "skyportal/DELETE_COMMENT_ON_GCNEVENT";
@@ -44,6 +46,9 @@ const CREATE_OBSERVATION_PLAN_REQUEST_OBSERVING_RUN =
 
 const DELETE_OBSERVATION_PLAN_FIELDS =
   "skyportal/DELETE_OBSERVATION_PLAN_FIELDS";
+
+const GET_GCNEVENT_SUMMARY = "skyportal/FETCH_GCNEVENT_SUMMARY";
+const GET_GCNEVENT_SUMMARY_OK = "skyportal/FETCH_GCNEVENT_SUMMARY_OK";
 
 export const fetchGcnEvent = (dateobs) =>
   API.GET(`/api/gcn_event/${dateobs}`, FETCH_GCNEVENT);
@@ -128,10 +133,11 @@ export const deleteObservationPlanRequestTreasureMap = (id) =>
     DELETE_OBSERVATION_PLAN_REQUEST_TREASUREMAP
   );
 
-export const createObservationPlanRequestObservingRun = (id) =>
+export const createObservationPlanRequestObservingRun = (id, params = {}) =>
   API.POST(
     `/api/observation_plan/${id}/observing_run`,
-    CREATE_OBSERVATION_PLAN_REQUEST_OBSERVING_RUN
+    CREATE_OBSERVATION_PLAN_REQUEST_OBSERVING_RUN,
+    params
   );
 
 export const deleteObservationPlanFields = (id, fieldIds) =>
@@ -155,6 +161,17 @@ export function getCommentOnGcnEventAttachmentPreview(gcnEventID, commentID) {
   );
 }
 
+export function submitGcnEvent(data) {
+  return API.POST("/api/gcn_event", SUBMIT_GCNEVENT, data);
+}
+
+export function getGcnEventSummary({ dateobs, params }) {
+  return API.GET(
+    `/api/gcn_event/summary/${dateobs}`,
+    GET_GCNEVENT_SUMMARY,
+    params
+  );
+}
 // Websocket message handler
 messageHandler.add((actionType, payload, dispatch, getState) => {
   const { gcnEvent } = getState();
@@ -197,6 +214,12 @@ const reducer = (state = null, action) => {
           attachment,
           attachment_name,
         },
+      };
+    }
+    case GET_GCNEVENT_SUMMARY_OK: {
+      return {
+        ...state,
+        summary: action.data,
       };
     }
     default:

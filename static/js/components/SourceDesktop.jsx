@@ -5,7 +5,6 @@ import { Link } from "react-router-dom";
 
 import makeStyles from "@mui/styles/makeStyles";
 import Grid from "@mui/material/Grid";
-import Button from "@mui/material/Button";
 import Chip from "@mui/material/Chip";
 import Tooltip from "@mui/material/Tooltip";
 import Box from "@mui/material/Box";
@@ -18,6 +17,7 @@ import Typography from "@mui/material/Typography";
 import { log10, abs, ceil } from "mathjs";
 import CircularProgress from "@mui/material/CircularProgress";
 import HelpOutlineOutlinedIcon from "@mui/icons-material/HelpOutlineOutlined";
+import Button from "./Button";
 
 import CommentList from "./CommentList";
 import ClassificationList from "./ClassificationList";
@@ -34,16 +34,23 @@ import AssignmentForm from "./AssignmentForm";
 import AssignmentList from "./AssignmentList";
 import SourceNotification from "./SourceNotification";
 import EditSourceGroups from "./EditSourceGroups";
+import UpdateSourceCoordinates from "./UpdateSourceCoordinates";
 import UpdateSourceRedshift from "./UpdateSourceRedshift";
 import SourceRedshiftHistory from "./SourceRedshiftHistory";
 import AnnotationsTable from "./AnnotationsTable";
+import AnalysisList from "./AnalysisList";
+import AnalysisForm from "./AnalysisForm";
 import SourceSaveHistory from "./SourceSaveHistory";
 import PhotometryTable from "./PhotometryTable";
 import FavoritesButton from "./FavoritesButton";
 import SourceAnnotationButtons from "./SourceAnnotationButtons";
 import TNSATForm from "./TNSATForm";
+import Reminders from "./Reminders";
+
+import SourcePlugins from "./SourcePlugins";
 
 import * as spectraActions from "../ducks/spectra";
+import * as sourceActions from "../ducks/source";
 
 const VegaHR = React.lazy(() => import("./VegaHR"));
 
@@ -230,8 +237,11 @@ const SourceDesktop = ({ source }) => {
   }
   const specIDs = spectra ? spectra.map((s) => s.id).join(",") : "";
 
+  const associatedGCNs = useSelector((state) => state.source.associatedGCNs);
+
   useEffect(() => {
     dispatch(spectraActions.fetchSourceSpectra(source.id));
+    dispatch(sourceActions.fetchAssociatedGCNs(source.id));
   }, [source.id, dispatch]);
 
   const z_round = source.redshift_error
@@ -280,6 +290,7 @@ const SourceDesktop = ({ source }) => {
           </div>
           {!rightPaneVisible && (
             <Button
+              secondary
               onClick={() => setRightPaneVisible(true)}
               data-testid="show-right-pane-button"
             >
@@ -291,6 +302,18 @@ const SourceDesktop = ({ source }) => {
           <div className={classes.infoLine}>
             <b>Aliases: &nbsp;</b>
             <div key="aliases"> {source.alias.join(", ")} </div>
+          </div>
+        ) : null}
+        {associatedGCNs?.length > 0 ? (
+          <div className={classes.infoLine}>
+            <b>Associated to: &nbsp;</b>
+            <div key="associated_gcns">
+              {associatedGCNs.map((dateobs) => (
+                <a key={`${dateobs}`} href={`/gcn_events/${dateobs}`}>
+                  {dateobs}
+                </a>
+              ))}
+            </div>
           </div>
         ) : null}
         <div className={classes.sourceInfo}>
@@ -313,6 +336,9 @@ const SourceDesktop = ({ source }) => {
               </div>
             </div>
             <div className={classes.sourceInfo}>
+              <UpdateSourceCoordinates source={source} />
+            </div>
+            <div className={classes.sourceInfo}>
               <div>
                 (&alpha;,&delta;= {source.ra}, &nbsp;
                 {source.dec}; &nbsp;
@@ -321,6 +347,11 @@ const SourceDesktop = ({ source }) => {
                 <i>l</i>,<i>b</i>={source.gal_lon.toFixed(6)}, &nbsp;
                 {source.gal_lat.toFixed(6)})
               </div>
+              {source.ebv ? (
+                <div>
+                  <i> E(B-V)</i>={source.ebv.toFixed(2)}
+                </div>
+              ) : null}
             </div>
           </div>
           {source.duplicates && (
@@ -338,6 +369,9 @@ const SourceDesktop = ({ source }) => {
               </div>
             </div>
           )}
+          <div>
+            <SourcePlugins source={source} />
+          </div>
           <div className={classes.infoLine}>
             <div className={classes.redshiftInfo}>
               <b>Redshift: &nbsp;</b>
@@ -386,8 +420,8 @@ const SourceDesktop = ({ source }) => {
           <div className={classes.infoLine}>
             <div className={classes.infoButton}>
               <Button
+                secondary
                 size="small"
-                variant="contained"
                 onClick={() => setShowStarList(!showStarList)}
               >
                 {showStarList ? "Hide Starlist" : "Show Starlist"}
@@ -395,7 +429,7 @@ const SourceDesktop = ({ source }) => {
             </div>
             <div className={classes.infoButton}>
               <Link to={`/observability/${source.id}`} role="link">
-                <Button size="small" variant="contained">
+                <Button secondary size="small">
                   Observability
                 </Button>
               </Link>
@@ -487,15 +521,13 @@ const SourceDesktop = ({ source }) => {
                 </div>
                 <div className={classes.buttonContainer}>
                   <Link to={`/upload_photometry/${source.id}`} role="link">
-                    <Button variant="contained">
-                      Upload additional photometry
-                    </Button>
+                    <Button secondary>Upload additional photometry</Button>
                   </Link>
                   <Link to={`/manage_data/${source.id}`} role="link">
-                    <Button variant="contained">Manage data</Button>
+                    <Button secondary>Manage data</Button>
                   </Link>
                   <Button
-                    variant="contained"
+                    secondary
                     onClick={() => {
                       setShowPhotometry(true);
                     }}
@@ -505,7 +537,7 @@ const SourceDesktop = ({ source }) => {
                   </Button>
                   {photometry && (
                     <Link to={`/source/${source.id}/periodogram`} role="link">
-                      <Button variant="contained">Periodogram Analysis</Button>
+                      <Button secondary>Periodogram Analysis</Button>
                     </Link>
                   )}
                 </div>
@@ -549,12 +581,10 @@ const SourceDesktop = ({ source }) => {
                 </div>
                 <div className={classes.buttonContainer}>
                   <Link to={`/upload_spectrum/${source.id}`} role="link">
-                    <Button variant="contained">
-                      Upload additional spectroscopy
-                    </Button>
+                    <Button secondary>Upload additional spectroscopy</Button>
                   </Link>
                   <Link to={`/manage_data/${source.id}`} role="link">
-                    <Button variant="contained">Manage data</Button>
+                    <Button secondary>Manage data</Button>
                   </Link>
                 </div>
               </Grid>
@@ -608,8 +638,10 @@ const SourceDesktop = ({ source }) => {
       <Grid item xs={5}>
         {rightPaneVisible && (
           <Button
+            secondary
             onClick={() => setRightPaneVisible(false)}
             data-testid="hide-right-pane-button"
+            style={{ marginBottom: "1rem" }}
           >
             Hide right pane
           </Button>
@@ -677,6 +709,25 @@ const SourceDesktop = ({ source }) => {
                     taxonomyList={taxonomyList}
                   />
                 </div>
+              </AccordionDetails>
+            </Accordion>
+          </div>
+          <div className={classes.columnItem}>
+            <Accordion defaultExpanded>
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon />}
+                aria-controls="analysis-content"
+                id="analysis-header"
+              >
+                <Typography className={classes.accordionHeading}>
+                  External Analysis
+                </Typography>
+              </AccordionSummary>
+              <AccordionDetails>
+                <AnalysisList obj_id={source.id} />
+              </AccordionDetails>
+              <AccordionDetails>
+                <AnalysisForm obj_id={source.id} />
               </AccordionDetails>
             </Accordion>
           </div>
@@ -777,6 +828,9 @@ const SourceDesktop = ({ source }) => {
               <AccordionDetails>
                 <SourceNotification sourceId={source.id} />
               </AccordionDetails>
+              <AccordionDetails>
+                <Reminders resourceId={source.id} resourceType="source" />
+              </AccordionDetails>
             </Accordion>
           </div>
         </Collapse>
@@ -798,6 +852,7 @@ SourceDesktop.propTypes = {
     gal_lon: PropTypes.number,
     gal_lat: PropTypes.number,
     dm: PropTypes.number,
+    ebv: PropTypes.number,
     luminosity_distance: PropTypes.number,
     annotations: PropTypes.arrayOf(
       PropTypes.shape({

@@ -2,8 +2,8 @@ import React, { useState } from "react";
 import PropTypes from "prop-types";
 import { useDispatch } from "react-redux";
 
-import Button from "@mui/material/Button";
 import CircularProgress from "@mui/material/CircularProgress";
+import Button from "./Button";
 
 import * as sourceActions from "../ducks/source";
 
@@ -26,12 +26,20 @@ const SourceAnnotationButtons = ({ source }) => {
     setIsSubmittingAnnotationWise(null);
   };
 
-  const [isSubmittingAnnotationVizier, setIsSubmittingAnnotationVizier] =
+  const [isSubmittingAnnotationQuasar, setIsSubmittingAnnotationQuasar] =
     useState(null);
-  const handleAnnotationVizier = async (id) => {
-    setIsSubmittingAnnotationVizier(id);
-    await dispatch(sourceActions.fetchVizier(id));
-    setIsSubmittingAnnotationVizier(null);
+  const handleAnnotationQuasar = async (id) => {
+    setIsSubmittingAnnotationQuasar(id);
+    await dispatch(sourceActions.fetchVizier(id, "VII/290"));
+    setIsSubmittingAnnotationQuasar(null);
+  };
+
+  const [isSubmittingAnnotationGalex, setIsSubmittingAnnotationGalex] =
+    useState(null);
+  const handleAnnotationGalex = async (id) => {
+    setIsSubmittingAnnotationGalex(id);
+    await dispatch(sourceActions.fetchVizier(id, "II/335/galex_ais"));
+    setIsSubmittingAnnotationGalex(null);
   };
 
   const [isSubmittingAnnotationPhotoz, setIsSubmittingAnnotationPhotoz] =
@@ -50,13 +58,12 @@ const SourceAnnotationButtons = ({ source }) => {
         </div>
       ) : (
         <Button
+          secondary
           onClick={() => {
             handleAnnotationGaia(source.id);
           }}
           size="small"
-          color="primary"
           type="submit"
-          variant="outlined"
           data-testid={`gaiaRequest_${source.id}`}
         >
           Gaia
@@ -68,34 +75,49 @@ const SourceAnnotationButtons = ({ source }) => {
         </div>
       ) : (
         <Button
+          secondary
           onClick={() => {
             handleAnnotationWise(source.id);
           }}
           size="small"
-          color="primary"
           type="submit"
-          variant="outlined"
           data-testid={`wiseRequest_${source.id}`}
         >
           WISE Colors
         </Button>
       )}
-      {isSubmittingAnnotationVizier === source.id ? (
+      {isSubmittingAnnotationQuasar === source.id ? (
         <div>
           <CircularProgress />
         </div>
       ) : (
         <Button
+          secondary
           onClick={() => {
-            handleAnnotationVizier(source.id);
+            handleAnnotationQuasar(source.id);
           }}
           size="small"
-          color="primary"
           type="submit"
-          variant="outlined"
-          data-testid={`vizierRequest_${source.id}`}
+          data-testid={`quasarRequest_${source.id}`}
         >
           Million Quasar
+        </Button>
+      )}
+      {isSubmittingAnnotationGalex === source.id ? (
+        <div>
+          <CircularProgress />
+        </div>
+      ) : (
+        <Button
+          secondary
+          onClick={() => {
+            handleAnnotationGalex(source.id);
+          }}
+          size="small"
+          type="submit"
+          data-testid={`galexRequest_${source.id}`}
+        >
+          GALEX
         </Button>
       )}
       {isSubmittingAnnotationPhotoz === source.id ? (
@@ -104,13 +126,12 @@ const SourceAnnotationButtons = ({ source }) => {
         </div>
       ) : (
         <Button
+          secondary
           onClick={() => {
             handleAnnotationPhotoz(source.id);
           }}
           size="small"
-          color="primary"
           type="submit"
-          variant="outlined"
           data-testid={`photozRequest_${source.id}`}
         >
           Photoz

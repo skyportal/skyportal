@@ -5,7 +5,6 @@ import { useForm, Controller } from "react-hook-form";
 import Select from "@mui/material/Select";
 import InputLabel from "@mui/material/InputLabel";
 import TextField from "@mui/material/TextField";
-import Button from "@mui/material/Button";
 import FormControl from "@mui/material/FormControl";
 import CircularProgress from "@mui/material/CircularProgress";
 import MenuItem from "@mui/material/MenuItem";
@@ -16,6 +15,7 @@ import utc from "dayjs/plugin/utc";
 import * as Actions from "../ducks/source";
 
 import "react-datepicker/dist/react-datepicker-cssmodules.css";
+import Button from "./Button";
 
 dayjs.extend(utc);
 
@@ -84,8 +84,10 @@ const AssignmentForm = ({ obj_id, observingRunList }) => {
   }));
   const classes = useStyles();
 
+  // the use of integer dates leads to some upcoming runs being
+  // left out depending on the timezone
   const upcomingObservingRuns = observingRunList.filter((run) =>
-    dayjs().isBefore(dayjs(run.run_end_utc))
+    dayjs().isBefore(dayjs(run.run_end_utc).add(2, "day"))
   );
 
   if (upcomingObservingRuns.length === 0) {
@@ -122,9 +124,8 @@ const AssignmentForm = ({ obj_id, observingRunList }) => {
           <FormControl className={classes.formControl}>
             <InputLabel id="assignmentSelectLabel">Choose Run</InputLabel>
             <Controller
-              as={Select}
               inputProps={{ MenuProps: { disableScrollLock: true } }}
-              labelId="assignmentSelectLabel"
+              labelId="assignmentSelect"
               name="run_id"
               data-testid="assignmentSelect"
               control={control}
@@ -134,42 +135,48 @@ const AssignmentForm = ({ obj_id, observingRunList }) => {
                   ? upcomingObservingRuns[0].id
                   : null
               }
-            >
-              {upcomingObservingRuns?.map((observingRun) => (
-                <MenuItem
-                  value={observingRun.id}
-                  key={observingRun.id.toString()}
-                  className={classes.observingRunSelectItem}
-                >
-                  {observingRunTitle(
-                    observingRun,
-                    instrumentList,
-                    telescopeList,
-                    groups
-                  )}
-                </MenuItem>
-              ))}
-            </Controller>
+              render={() => (
+                <Select labelId="assignmentSelect">
+                  {upcomingObservingRuns?.map((observingRun) => (
+                    <MenuItem
+                      value={observingRun.id}
+                      key={observingRun.id.toString()}
+                      className={classes.observingRunSelectItem}
+                    >
+                      {observingRunTitle(
+                        observingRun,
+                        instrumentList,
+                        telescopeList,
+                        groups
+                      )}
+                    </MenuItem>
+                  ))}
+                </Select>
+              )}
+            />
           </FormControl>
           <FormControl className={classes.formControl}>
             <InputLabel id="prioritySelectLabel">Priority</InputLabel>
             <Controller
-              as={Select}
               inputProps={{ MenuProps: { disableScrollLock: true } }}
-              labelId="prioritySelectLabel"
+              labelId="prioritySelect"
               defaultValue="1"
               name="priority"
               control={control}
               rules={{ required: true }}
-            >
-              {["1", "2", "3", "4", "5"].map((prio) => (
-                <MenuItem value={prio} key={prio}>
-                  {prio}
-                </MenuItem>
-              ))}
-            </Controller>
+              render={() => (
+                <Select labelId="prioritySelect">
+                  {["1", "2", "3", "4", "5"].map((prio) => (
+                    <MenuItem value={prio} key={prio}>
+                      {prio}
+                    </MenuItem>
+                  ))}
+                </Select>
+              )}
+            />
           </FormControl>
           <TextField
+            {...register("comment")}
             id="standard-textarea"
             label="Comment"
             variant="outlined"
@@ -178,14 +185,12 @@ const AssignmentForm = ({ obj_id, observingRunList }) => {
             name="comment"
             data-testid="assignmentCommentInput"
             size="small"
-            inputRef={register}
           />
           <Button
+            primary
             type="submit"
             name="assignmentSubmitButton"
             data-testid="assignmentSubmitButton"
-            variant="contained"
-            color="primary"
             className={classes.submitButton}
           >
             Submit

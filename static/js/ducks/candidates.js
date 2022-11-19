@@ -22,6 +22,7 @@ const SET_CANDIDATES_FILTER_FORM_DATA =
   "skyportal/SET_CANDIDATES_FILTER_FORM_DATA";
 
 const GENERATE_PS1_THUMBNAIL = "skyportal/GENERATE_PS1_THUMBNAIL";
+const GENERATE_PS1_THUMBNAILS = "skyportal/GENERATE_PS1_THUMBNAILS";
 
 export const fetchCandidates = (filterParams = {}) => {
   if (!Object.keys(filterParams).includes("pageNumber")) {
@@ -32,6 +33,9 @@ export const fetchCandidates = (filterParams = {}) => {
 
 export const generatePS1Thumbnail = (objID) =>
   API.POST("/api/internal/ps1_thumbnail", GENERATE_PS1_THUMBNAIL, { objID });
+
+export const generatePS1Thumbnails = (objIDs) =>
+  API.POST("/api/internal/ps1_thumbnail", GENERATE_PS1_THUMBNAILS, { objIDs });
 
 export const setCandidatesAnnotationSortOptions = (item) => ({
   type: SET_CANDIDATES_ANNOTATION_SORT_OPTIONS,

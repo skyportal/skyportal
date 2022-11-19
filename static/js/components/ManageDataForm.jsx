@@ -8,7 +8,6 @@ import makeStyles from "@mui/styles/makeStyles";
 import Typography from "@mui/material/Typography";
 import { useForm, Controller } from "react-hook-form";
 import Autocomplete from "@mui/material/Autocomplete";
-import Button from "@mui/material/Button";
 import TextField from "@mui/material/TextField";
 import IconButton from "@mui/material/IconButton";
 import DeleteForeverIcon from "@mui/icons-material/DeleteForever";
@@ -23,6 +22,7 @@ import ReactJson from "react-json-view";
 import CircularProgress from "@mui/material/CircularProgress";
 
 import { showNotification } from "baselayer/components/Notifications";
+import Button from "./Button";
 
 import FormValidationError from "./FormValidationError";
 import TNSSpectraForm from "./TNSSpectraForm";
@@ -236,7 +236,14 @@ const ManageDataForm = ({ route }) => {
   const photometry = useSelector((state) => state.photometry);
   const spectra = useSelector((state) => state.spectra);
 
-  const { handleSubmit, errors, reset, control, getValues } = useForm();
+  const {
+    handleSubmit,
+    reset,
+    control,
+    getValues,
+
+    formState: { errors },
+  } = useForm();
 
   useEffect(() => {
     dispatch(photometryActions.fetchSourcePhotometry(route.id));
@@ -244,7 +251,7 @@ const ManageDataForm = ({ route }) => {
   }, [route.id, dispatch]);
 
   const validateGroups = () => {
-    const formState = getValues({ nest: true });
+    const formState = getValues();
     return formState.groups.length >= 1;
   };
 
@@ -475,11 +482,11 @@ const ManageDataForm = ({ route }) => {
           </DialogContent>
         </Dialog>
         <Button
+          secondary
           onClick={() => {
             setOpen(true);
           }}
           data-testid={`altdata-spectrum-button-${specid}`}
-          variant="contained"
           size="small"
         >
           Show altdata
@@ -677,7 +684,7 @@ const ManageDataForm = ({ route }) => {
           )}
           <Controller
             name="groups"
-            render={({ onChange, value, ...props }) => (
+            render={({ field: { onChange, value } }) => (
               <Autocomplete
                 multiple
                 id="dataSharingFormGroupsSelect"
@@ -696,8 +703,6 @@ const ManageDataForm = ({ route }) => {
                     className={classes.groupSelect}
                   />
                 )}
-                // eslint-disable-next-line react/jsx-props-no-spreading
-                {...props}
               />
             )}
             control={control}
@@ -707,7 +712,7 @@ const ManageDataForm = ({ route }) => {
           <br />
           <div>
             <Button
-              variant="contained"
+              primary
               type="submit"
               name="submitShareButton"
               disabled={isSubmitting}

@@ -4,7 +4,6 @@ import { useDispatch } from "react-redux";
 
 import TextField from "@mui/material/TextField";
 import Checkbox from "@mui/material/Checkbox";
-import Button from "@mui/material/Button";
 import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
 import Box from "@mui/material/Box";
@@ -17,6 +16,7 @@ import MenuItem from '@mui/material/MenuItem';
 */
 
 import { useForm, Controller } from "react-hook-form";
+import Button from "./Button";
 
 import * as ProfileActions from "../ducks/profile";
 
@@ -24,7 +24,14 @@ import * as ProfileActions from "../ducks/profile";
 const NewTokenForm = ({ availableAcls }) => {
   const dispatch = useDispatch();
 
-  const { handleSubmit, register, errors, reset, control } = useForm();
+  const {
+    handleSubmit,
+    register,
+    reset,
+    control,
+
+    formState: { errors },
+  } = useForm();
 
   useEffect(() => {
     reset({
@@ -63,7 +70,7 @@ const NewTokenForm = ({ availableAcls }) => {
             <Box>
               <TextField
                 label="Token name"
-                inputRef={register({ required: true })}
+                {...register("name", { required: true })}
                 name="name"
                 error={!!errors.name}
                 helperText={errors.name ? "Required" : ""}
@@ -78,7 +85,7 @@ const NewTokenForm = ({ availableAcls }) => {
                   key={acl}
                   control={
                     <Controller
-                      render={({ onChange, value }) => (
+                      render={({ field: { onChange, value } }) => (
                         <Checkbox
                           onChange={(event) => onChange(event.target.checked)}
                           checked={value}
@@ -114,7 +121,7 @@ const NewTokenForm = ({ availableAcls }) => {
               control={control}
               defaultValue="All"
             /> */}
-            <Button variant="contained" type="submit">
+            <Button secondary type="submit">
               Generate Token
             </Button>
           </form>

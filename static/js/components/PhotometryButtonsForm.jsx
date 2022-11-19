@@ -2,7 +2,8 @@ import React, { useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { makeStyles } from "@mui/styles";
 import { useForm } from "react-hook-form";
-import { Button, TextField } from "@mui/material";
+import { TextField } from "@mui/material";
+import Button from "./Button";
 import FilterSelect from "./FilterSelect";
 import OriginSelect from "./OriginSelect";
 import UserPreferencesHeader from "./UserPreferencesHeader";
@@ -27,7 +28,14 @@ const PhotometryButtonsForm = () => {
   const { photometryButtons } = useSelector(
     (state) => state.profile.preferences
   );
-  const { handleSubmit, register, control, errors, reset } = useForm();
+  const {
+    handleSubmit,
+    register,
+    control,
+    reset,
+
+    formState: { errors },
+  } = useForm();
   const [selectedFilters, setSelectedFilters] = useState([]);
   const [selectedOrigins, setSelectedOrigins] = useState([]);
 
@@ -93,7 +101,7 @@ const PhotometryButtonsForm = () => {
             />
             <TextField
               label="Name"
-              inputRef={register({
+              {...register("photometryButtonName", {
                 required: true,
                 validate: (value) => {
                   if (photometryButtons) {
@@ -113,7 +121,7 @@ const PhotometryButtonsForm = () => {
             />
           </div>
           <Button
-            variant="contained"
+            primary
             type="submit"
             className={classes.submitButton}
             id="addPhotometryButtonButton"

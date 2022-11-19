@@ -3,7 +3,8 @@ import { useSelector, useDispatch } from "react-redux";
 import { useForm } from "react-hook-form";
 import InputLabel from "@mui/material/InputLabel";
 import makeStyles from "@mui/styles/makeStyles";
-import { Button, TextField } from "@mui/material";
+import { TextField } from "@mui/material";
+import Button from "./Button";
 import UserPreferencesHeader from "./UserPreferencesHeader";
 import * as profileActions from "../ducks/profile";
 import ClassificationSelect from "./ClassificationSelect";
@@ -29,7 +30,13 @@ const useStyles = makeStyles(() => ({
 const ClassificationsShortcutForm = () => {
   const classes = useStyles();
   const profile = useSelector((state) => state.profile.preferences);
-  const { handleSubmit, register, errors, reset } = useForm();
+  const {
+    handleSubmit,
+    register,
+    reset,
+
+    formState: { errors },
+  } = useForm();
   const dispatch = useDispatch();
 
   const [selectedClassifications, setSelectedClassifications] = useState([]);
@@ -72,7 +79,7 @@ const ClassificationsShortcutForm = () => {
             <div>
               <InputLabel htmlFor="shortcutNameInput">Shortcut Name</InputLabel>
               <TextField
-                inputRef={register({
+                {...register("shortcutName", {
                   required: true,
                   validate: (value) => {
                     if (profile?.classificationShortcuts) {
@@ -92,11 +99,7 @@ const ClassificationsShortcutForm = () => {
               />
             </div>
           </div>
-          <Button
-            variant="contained"
-            type="submit"
-            data-testid="addShortcutButton"
-          >
+          <Button primary type="submit" data-testid="addShortcutButton">
             Add Shortcut
           </Button>
         </form>

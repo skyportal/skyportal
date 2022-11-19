@@ -274,3 +274,66 @@ def test_obj_classifications(
     assert data['data'][0]['classification'] == 'Algol'
     assert data['data'][0]['id'] == classification_id
     assert len(data['data']) == 1
+
+    status, data = api('GET', 'classification/sources', token=classification_token)
+    assert status == 200
+    assert public_source.id in data['data']
+
+
+def test_add_and_retrieve_multiple_classifications(
+    taxonomy_token, classification_token, public_source, public_group
+):
+
+    status, data = api(
+        'POST',
+        'taxonomy',
+        data={
+            'name': "test taxonomy" + str(uuid.uuid4()),
+            'hierarchy': taxonomy,
+            'group_ids': [public_group.id],
+            'provenance': f"tdtax_{__version__}",
+            'version': __version__,
+            'isLatest': True,
+        },
+        token=taxonomy_token,
+    )
+    assert status == 200
+    taxonomy_id = data['data']['taxonomy_id']
+
+    data = {
+        'classifications': [
+            {
+                'obj_id': public_source.id,
+                'classification': 'Algol',
+                'taxonomy_id': taxonomy_id,
+                'probability': 1.0,
+                'group_ids': [public_group.id],
+            },
+            {
+                'obj_id': public_source.id,
+                'classification': 'Time-domain Source',
+                'taxonomy_id': taxonomy_id,
+                'probability': 1.0,
+                'group_ids': [public_group.id],
+            },
+        ]
+    }
+
+    status, data = api(
+        'POST',
+        'classification',
+        data=data,
+        token=classification_token,
+    )
+    assert status == 200
+
+    params = {'numPerPage': 100}
+
+    status, data = api(
+        'GET', 'classification', token=classification_token, params=params
+    )
+
+    assert status == 200
+    data = data['data']['classifications']
+    assert any([d['classification'] == 'Algol' for d in data])
+    assert any([d['classification'] == 'Time-domain Source' for d in data])

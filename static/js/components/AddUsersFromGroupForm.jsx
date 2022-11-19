@@ -4,7 +4,6 @@ import { useSelector, useDispatch } from "react-redux";
 import Typography from "@mui/material/Typography";
 import { useForm, Controller } from "react-hook-form";
 import Autocomplete from "@mui/material/Autocomplete";
-import Button from "@mui/material/Button";
 import TextField from "@mui/material/TextField";
 import makeStyles from "@mui/styles/makeStyles";
 
@@ -12,6 +11,7 @@ import { showNotification } from "baselayer/components/Notifications";
 
 import * as groupsActions from "../ducks/groups";
 import FormValidationError from "./FormValidationError";
+import Button from "./Button";
 
 const useStyles = makeStyles(() => ({
   groupSelect: {
@@ -27,12 +27,19 @@ const useStyles = makeStyles(() => ({
 const AddUsersFromGroupForm = ({ groupID }) => {
   const dispatch = useDispatch();
   let { all: groups } = useSelector((state) => state.groups);
-  const { handleSubmit, errors, reset, control, getValues } = useForm();
+  const {
+    handleSubmit,
+    reset,
+    control,
+    getValues,
+
+    formState: { errors },
+  } = useForm();
   const classes = useStyles();
   groups = groups?.filter((g) => g.id !== groupID) || [];
 
   const validateGroups = () => {
-    const formState = getValues({ nest: true });
+    const formState = getValues();
     return formState.groups.length >= 1;
   };
 
@@ -60,7 +67,7 @@ const AddUsersFromGroupForm = ({ groupID }) => {
         )}
         <Controller
           name="groups"
-          render={({ onChange, value, ...props }) => (
+          render={({ field: { onChange, value } }) => (
             <Autocomplete
               multiple
               id="addUsersFromGroupsSelect"
@@ -70,10 +77,10 @@ const AddUsersFromGroupForm = ({ groupID }) => {
               getOptionLabel={(group) => group.name}
               filterSelectedOptions
               data-testid="addUsersFromGroupsSelect"
-              renderInput={(params) => (
+              renderInput={(field) => (
                 <TextField
                   // eslint-disable-next-line react/jsx-props-no-spreading
-                  {...params}
+                  {...field}
                   error={!!errors.groups}
                   variant="outlined"
                   label="Select Groups/Users"
@@ -82,8 +89,6 @@ const AddUsersFromGroupForm = ({ groupID }) => {
                   data-testid="addUsersFromGroupsTextField"
                 />
               )}
-              // eslint-disable-next-line react/jsx-props-no-spreading
-              {...props}
             />
           )}
           control={control}
@@ -92,12 +97,11 @@ const AddUsersFromGroupForm = ({ groupID }) => {
         />
         <div>
           <Button
-            variant="contained"
+            primary
             type="submit"
             name="submitAddFromGroupsButton"
             data-testid="submitAddFromGroupsButton"
             size="small"
-            color="primary"
             disableElevation
           >
             Add users

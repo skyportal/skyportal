@@ -1,0 +1,101 @@
+<?xml version = '1.0' encoding = 'UTF-8'?>
+<voe:VOEvent
+      ivorn="ivo://nasa.gsfc.gcn/AMON#ICECUBE_BRONZE_Event2022-08-22T20:26:30.03_25_136973_028816141_0"
+      role="observation" version="2.0"
+      xmlns:voe="http://www.ivoa.net/xml/VOEvent/v2.0"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:schemaLocation="http://www.ivoa.net/xml/VOEvent/v2.0  http://www.ivoa.net/xml/VOEvent/VOEvent-v2.0.xsd" >
+  <Who>
+    <AuthorIVORN>ivo://nasa.gsfc.tan/gcn</AuthorIVORN>
+    <Author>
+      <contactName>Icecube Realtime Committee</contactName>
+      <contactEmail>roc@icecube.wisc.edu</contactEmail>
+    </Author>
+    <Date>2022-08-22T20:27:21</Date>
+    <Description>This VOEvent message was created with TAN VOE version: 15.08 17jun22</Description>
+  </Who>
+  <What>
+    <Param name="Packet_Type"  value="174" />
+    <Param name="Pkt_Ser_Num"  value="6" />
+    <Param name="AMON_ID"      value="13697328816141" ucd="meta.id" >
+                                 <Description>Alert identification number.</Description>
+                                 </Param>
+    <Param name="run_id"       value="136973" ucd="meta.id" >
+                                 <Description>Run id.</Description>
+                                 </Param>
+    <Param name="event_id"     value="28816141" ucd="meta.id" >
+                                 <Description>Event id within a given run.</Description>
+                                 </Param>
+    <Param name="Event_TJD"    value="19813" unit="days" ucd="time" />
+    <Param name="Event_SOD"    value="73590.03" unit="sec" ucd="time" />
+    <Param name="Stream"       value="25" unit="dn" ucd="meta.id" >
+                                 <Description>IceCube coincidence stream identification</Description>
+                                 </Param>
+    <Param name="Rev"          value="0" unit="dn" ucd="meta.id" >
+                                 <Description>Alert revision</Description>
+                                 </Param>
+    <Param name="signalness"   value="0.3834" unit="dn"  ucd="stat.probability" >
+                                 <Description>Probability of a neutrino event being astrophysical in origin.</Description>
+                                 </Param>
+    <Param name="FAR"          value="2.0054" unit="yr^-1"  ucd="stat.probability" >
+                                 <Description>False Alarm Rate. Number per year.</Description>
+                                 </Param>
+    <Param name="energy"       value="114.9212" unit="TeV"  ucd="phys.energy" >
+                                 <Description>Likely neutrino energy (in TeV).</Description>
+                                 </Param>
+    <Param name="src_error_90" value="1.2755" unit="deg"  ucd="stat.error.sys" >
+                                 <Description>Angular error of the source, statistical only, (90% containment).</Description>
+                                 </Param>
+    <Param name="src_error_50" value="0.4968" unit="deg"  ucd="stat.error.sys" >
+                                 <Description>Angular error of the source, statistical only, (50% containment).</Description>
+                                 </Param>
+    <Param name="Trigger_ID"   value="0x0" />
+    <Param name="Misc_flags"   value="0x19000000" />
+    <Group name="Trigger_ID" >
+      <Param name="SubType"        value="indi" />
+      <Param name="Test"           value="false" />
+      <Param name="RADec_valid"    value="false" />
+      <Param name="Retraction"     value="false" />
+      <Param name="InternalTest"   value="false" />
+    </Group>
+    <Group name="Misc_flags" >
+    </Group>
+  </What>
+  <WhereWhen>
+    <ObsDataLocation>
+      <ObservatoryLocation id="GEOLUN" />
+      <ObservationLocation>
+        <AstroCoordSystem id="UTC-FK5-GEO" />
+        <AstroCoords coord_system_id="UTC-FK5-GEO">
+          <Time unit="s">
+            <TimeInstant>
+              <ISOTime>2022-08-22T20:26:30.03</ISOTime>
+            </TimeInstant>
+          </Time>
+          <Position2D unit="deg">
+            <Name1>RA</Name1>
+            <Name2>Dec</Name2>
+            <Value2>
+              <C1>273.4834</C1>
+              <C2>22.1648</C2>
+            </Value2>
+            <Error2Radius>1.2755</Error2Radius>
+          </Position2D>
+        </AstroCoords>
+      </ObservationLocation>
+    </ObsDataLocation>
+  <Description>The RA,Dec coordinates are of the type: source_object.</Description>
+  </WhereWhen>
+  <How>
+    <Description>GCN</Description>
+    <Reference uri="http://gcn.gsfc.nasa.gov/gcn/amon.html" type="url" />
+    <Reference uri="http://gcn.gsfc.nasa.gov/gcn/amon_icecube_gold_bronze_events.html" type="url" />
+  </How>
+  <Why importance="1.0">
+    <Inference probability="1.0">
+      <Concept>process.variation.burst;em</Concept>
+    </Inference>
+  </Why>
+  <Description>
+  </Description>
+</voe:VOEvent>

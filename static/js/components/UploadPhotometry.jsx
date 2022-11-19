@@ -5,11 +5,8 @@ import MUIDataTable from "mui-datatables";
 import TextareaAutosize from "@mui/material/TextareaAutosize";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
-import Button from "@mui/material/Button";
 import InputLabel from "@mui/material/InputLabel";
 import FormControl from "@mui/material/FormControl";
-import Chip from "@mui/material/Chip";
-import Input from "@mui/material/Input";
 import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
 import Box from "@mui/material/Box";
@@ -17,12 +14,13 @@ import Tooltip from "@mui/material/Tooltip";
 import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
 import CircularProgress from "@mui/material/CircularProgress";
 import Typography from "@mui/material/Typography";
-import { useTheme } from "@mui/material/styles";
 import makeStyles from "@mui/styles/makeStyles";
 import withStyles from "@mui/styles/withStyles";
 import { useForm, Controller } from "react-hook-form";
 import PapaParse from "papaparse";
+import Button from "./Button";
 
+import GroupShareSelect from "./GroupShareSelect";
 import FormValidationError from "./FormValidationError";
 import * as Actions from "../ducks/source";
 
@@ -46,24 +44,27 @@ export const HtmlTooltip = withStyles((theme) => ({
   },
 }))(Tooltip);
 
-const getStyles = (groupID, groupIDs = [], theme) => ({
-  fontWeight:
-    groupIDs.indexOf(groupID) === -1
-      ? theme.typography.fontWeightRegular
-      : theme.typography.fontWeightMedium,
-});
-
 const UploadPhotometryForm = () => {
   const dispatch = useDispatch();
   const { instrumentList } = useSelector((state) => state.instruments);
+  const groups = useSelector((state) => state.groups.userAccessible);
   const userGroups = useSelector((state) => state.groups.user);
   const [showPreview, setShowPreview] = useState(false);
   const [csvData, setCsvData] = useState({});
   const [successMessage, setSuccessMessage] = useState("");
   const { id } = useParams();
-  const { handleSubmit, errors, reset, control, getValues, setValue } =
-    useForm();
+  const {
+    handleSubmit,
+    reset,
+    control,
+    getValues,
+    setValue,
+
+    formState: { errors },
+  } = useForm();
   let formState = getValues();
+
+  const [selectedGroupIds, setSelectedGroupIds] = useState([]);
 
   // only show instruments that have an imaging mode
   const sortedInstrumentList = [...instrumentList].filter((instrument) =>
@@ -148,11 +149,6 @@ const UploadPhotometryForm = () => {
     return true;
   };
 
-  const validateGroups = () => {
-    formState = getValues({ nest: true });
-    return formState.groupIDs.length >= 1;
-  };
-
   const handleClickPreview = async (data) => {
     const [header, ...dataRows] = PapaParse.parse(
       data.csvData.trim(),
@@ -183,7 +179,6 @@ const UploadPhotometryForm = () => {
     formState = getValues();
     const data = {
       obj_id: id,
-      group_ids: formState.groupIDs,
       altdata: {},
     };
     if (formState.instrumentID !== "multiple") {
@@ -198,6 +193,9 @@ const UploadPhotometryForm = () => {
         data[col] = csvData.data.map((row) => row[idx]);
       }
     });
+    if (selectedGroupIds.length >= 0) {
+      data.group_ids = selectedGroupIds;
+    }
     const result = await dispatch(Actions.uploadPhotometry(data));
     if (result.status === "success") {
       handleReset();
@@ -239,18 +237,6 @@ const UploadPhotometryForm = () => {
     },
   }));
   const classes = useStyles();
-  const theme = useTheme();
-
-  const ITEM_HEIGHT = 48;
-  const ITEM_PADDING_TOP = 8;
-  const MenuProps = {
-    PaperProps: {
-      style: {
-        maxHeight: ITEM_HEIGHT * 4.5 + ITEM_PADDING_TOP,
-        width: 250,
-      },
-    },
-  };
 
   if (!sortedInstrumentList || !userGroups) {
     return (
@@ -297,17 +283,19 @@ const UploadPhotometryForm = () => {
               )}
               <FormControl>
                 <Controller
-                  as={
+                  name="csvData"
+                  control={control}
+                  rules={{ validate: validateCsvData }}
+                  render={({ field: { onChange, value } }) => (
                     <TextareaAutosize
                       name="csvData"
                       placeholder={sampleFluxSpaceText}
                       style={{ height: "20em", width: "40em" }}
                       className={classes.textarea}
+                      onChange={onChange}
+                      value={value}
                     />
-                  }
-                  name="csvData"
-                  control={control}
-                  rules={{ validate: validateCsvData }}
+                  )}
                 />
               </FormControl>
             </Box>
@@ -327,10 +315,19 @@ const UploadPhotometryForm = () => {
                       Instrument
                     </InputLabel>
                     <Controller
-                      as={
-                        <Select labelId="instrumentSelectLabel">
+                      name="instrumentID"
+                      rules={{ required: true }}
+                      control={control}
+                      defaultValue=""
+                      render={({ field: { onChange, value } }) => (
+                        <Select
+                          labelId="instrumentSelectLabel"
+                          value={value}
+                          onChange={onChange}
+                        >
                           <MenuItem value="multiple" key={0}>
-                            Multiple (requires instrument_id column below)
+                            Use instrument_id column (for one or more
+                            instruments)
                           </MenuItem>
                           {sortedInstrumentList.map((instrument) => (
                             <MenuItem value={instrument.id} key={instrument.id}>
@@ -346,62 +343,17 @@ const UploadPhotometryForm = () => {
                             </MenuItem>
                           ))}
                         </Select>
-                      }
-                      name="instrumentID"
-                      rules={{ required: true }}
-                      control={control}
-                      defaultValue=""
+                      )}
                     />
                   </FormControl>
                 </Box>
               </Box>
               <Box component="span" m={1}>
-                {errors.groupIDs && (
-                  <FormValidationError message="Select at least one group" />
-                )}
-                <FormControl className={classes.formControl}>
-                  <InputLabel id="select-groups-label">Groups</InputLabel>
-                  <Controller
-                    as={
-                      <Select
-                        labelId="select-groups-label"
-                        id="selectGroups"
-                        multiple
-                        input={<Input id="selectGroupsChip" />}
-                        renderValue={(selected) => (
-                          <div className={classes.chips}>
-                            {selected.map((value) => (
-                              <Chip
-                                key={value}
-                                label={groupIDToName[value]}
-                                className={classes.chip}
-                              />
-                            ))}
-                          </div>
-                        )}
-                        MenuProps={MenuProps}
-                      >
-                        {userGroups.map((group) => (
-                          <MenuItem
-                            key={group.id}
-                            value={group.id}
-                            style={getStyles(
-                              group.name,
-                              formState.groupIDs,
-                              theme
-                            )}
-                          >
-                            {group.name}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    }
-                    name="groupIDs"
-                    rules={{ validate: validateGroups }}
-                    control={control}
-                    defaultValue={[]}
-                  />
-                </FormControl>
+                <GroupShareSelect
+                  groupList={groups}
+                  setGroupIDs={setSelectedGroupIds}
+                  groupIDs={selectedGroupIds}
+                />
               </Box>
             </Box>
             <Box m={1}>
@@ -454,14 +406,14 @@ const UploadPhotometryForm = () => {
             <Box m={1}>
               <Box component="span" m={1}>
                 <FormControl>
-                  <Button variant="contained" type="submit">
+                  <Button secondary type="submit">
                     Preview in Tabular Form
                   </Button>
                 </FormControl>
               </Box>
               <Box component="span" m={1}>
                 <FormControl>
-                  <Button variant="contained" onClick={handleReset}>
+                  <Button secondary onClick={handleReset}>
                     Clear Form
                   </Button>
                 </FormControl>
@@ -494,7 +446,7 @@ const UploadPhotometryForm = () => {
           </Card>
           <br />
           <Box component="span" m={1}>
-            <Button variant="contained" onClick={handleClickSubmit}>
+            <Button secondary onClick={handleClickSubmit}>
               Upload Photometry
             </Button>
           </Box>

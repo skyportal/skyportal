@@ -13,6 +13,8 @@ from skyportal.models import cosmo
 from datetime import datetime, timezone, timedelta
 from dateutil import parser
 
+import pytest
+
 
 def test_source_list(view_only_token):
     status, data = api("GET", "sources", token=view_only_token)
@@ -77,6 +79,7 @@ def test_token_user_retrieving_source_with_phot_exists(view_only_token, public_s
     )
 
 
+@pytest.mark.flaky(reruns=2)
 def test_token_user_retrieving_source_with_thumbnails(view_only_token, public_source):
     status, data = api(
         "GET",
@@ -825,18 +828,18 @@ def test_source_photometry_summary_info(
 
 # Sources filtering tests
 def test_sources_filter_by_name_or_id(upload_data_token, view_only_token, public_group):
-    obj_id = "test_source_1"
-    obj_id2 = "some_other_object"
+    obj_id1 = str(uuid.uuid4())
+    obj_id2 = str(uuid.uuid4())
 
     # Upload two new sources
     status, data = api(
         "POST",
         "sources",
-        data={"id": obj_id, "ra": 230, "dec": -22.33, "group_ids": [public_group.id]},
+        data={"id": obj_id1, "ra": 230, "dec": -22.33, "group_ids": [public_group.id]},
         token=upload_data_token,
     )
     assert status == 200
-    assert data["data"]["id"] == obj_id
+    assert data["data"]["id"] == obj_id1
     status, data = api(
         "POST",
         "sources",
@@ -850,12 +853,36 @@ def test_sources_filter_by_name_or_id(upload_data_token, view_only_token, public
     status, data = api(
         "GET",
         "sources",
-        params={"sourceID": f"{obj_id[0:5]}", "group_ids": f"{public_group.id}"},
+        params={"sourceID": f"{obj_id1[0:5]}", "group_ids": f"{public_group.id}"},
         token=view_only_token,
     )
     assert status == 200
     assert len(data["data"]["sources"]) == 1
-    assert data["data"]["sources"][0]["id"] == obj_id
+    assert data["data"]["sources"][0]["id"] == obj_id1
+
+    # Filter for obj 1 only, rejecting object 2
+    status, data = api(
+        "GET",
+        "sources",
+        params={"rejectedSourceIDs": obj_id2, "group_ids": f"{public_group.id}"},
+        token=view_only_token,
+    )
+    assert status == 200
+    assert len(data["data"]["sources"]) == 1
+    assert data["data"]["sources"][0]["id"] == obj_id1
+
+    # Reject object 1 and 2
+    status, data = api(
+        "GET",
+        "sources",
+        params={
+            "rejectedSourceIDs": f"{obj_id1},{obj_id2}",
+            "group_ids": f"{public_group.id}",
+        },
+        token=view_only_token,
+    )
+    assert status == 200
+    assert len(data["data"]["sources"]) == 0
 
 
 def test_sources_filter_by_position(upload_data_token, view_only_token, public_group):
@@ -1636,23 +1663,6 @@ def test_sources_hidden_photometry_not_leaked(
     assert data['status'] == 'success'
     photometry_id = data['data']['ids'][0]
 
-    # Check the photometry sent back with the source
-    status, data = api(
-        "GET",
-        "sources",
-        params={"group_ids": f"{public_group.id}", "includePhotometry": "true"},
-        token=view_only_token,
-    )
-    assert status == 200
-    assert len(data["data"]["sources"]) == 1
-    assert data["data"]["sources"][0]["id"] == obj_id
-    assert len(public_source.photometry) - 1 == len(
-        data["data"]["sources"][0]["photometry"]
-    )
-    assert photometry_id not in map(
-        lambda x: x["id"], data["data"]["sources"][0]["photometry"]
-    )
-
     # Check for single GET call as well
     status, data = api(
         "GET",
@@ -1891,14 +1901,15 @@ def test_token_user_retrieving_source_with_annotation_filter(
     super_admin_token, public_source, public_source_two_groups, annotation_token
 ):
 
-    annotation_name = str(uuid.uuid4())
+    annotation_name_1 = str(uuid.uuid4())
+    annotation_name_2 = str(uuid.uuid4())
 
     status, data = api(
         'POST',
         f'sources/{public_source.id}/annotations',
         data={
             'origin': 'kowalski',
-            'data': {annotation_name: 1.5},
+            'data': {annotation_name_1: 1.5, annotation_name_2: 0.0},
         },
         token=annotation_token,
     )
@@ -1909,7 +1920,7 @@ def test_token_user_retrieving_source_with_annotation_filter(
         f'sources/{public_source_two_groups.id}/annotations',
         data={
             'origin': 'gloria',
-            'data': {annotation_name: 1.5},
+            'data': {annotation_name_1: 1.5, annotation_name_2: 1.0},
         },
         token=annotation_token,
     )
@@ -1919,7 +1930,7 @@ def test_token_user_retrieving_source_with_annotation_filter(
         "GET",
         "sources",
         params={
-            'annotationsFilter': f'{annotation_name}:2.0:le',
+            'annotationsFilter': f'{annotation_name_1}',
             'sortBy': 'saved_at',
             'sortOrder': 'desc',
         },
@@ -1933,7 +1944,21 @@ def test_token_user_retrieving_source_with_annotation_filter(
         "GET",
         "sources",
         params={
-            'annotationsFilter': f'{annotation_name}:2.0:le',
+            'annotationsFilter': f'{annotation_name_1}:2.0:le',
+            'sortBy': 'saved_at',
+            'sortOrder': 'desc',
+        },
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data["status"] == "success"
+    assert len(data["data"]["sources"]) == 2
+
+    status, data = api(
+        "GET",
+        "sources",
+        params={
+            'annotationsFilter': f'{annotation_name_1}:2.0:le',
             'annotationsFilterOrigin': 'kowalski',
             'sortBy': 'saved_at',
             'sortOrder': 'desc',
@@ -1948,7 +1973,7 @@ def test_token_user_retrieving_source_with_annotation_filter(
         "GET",
         "sources",
         params={
-            'annotationsFilter': f'{annotation_name}:2.0:ge',
+            'annotationsFilter': f'{annotation_name_1}:2.0:ge',
             'sortBy': 'saved_at',
             'sortOrder': 'desc',
         },
@@ -1957,6 +1982,20 @@ def test_token_user_retrieving_source_with_annotation_filter(
     assert status == 200
     assert data["status"] == "success"
     assert len(data["data"]["sources"]) == 0
+
+    status, data = api(
+        "GET",
+        "sources",
+        params={
+            'annotationsFilter': f'{annotation_name_1}:2.0:le,{annotation_name_2}:0.5:le',
+            'sortBy': 'saved_at',
+            'sortOrder': 'desc',
+        },
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data["status"] == "success"
+    assert len(data["data"]["sources"]) == 1
 
 
 def test_add_source_redshift_origin(upload_data_token, view_only_token, public_group):
@@ -2023,7 +2062,8 @@ def test_token_user_retrieving_source_with_comment_filter(
     )
     assert status == 200
     assert data["status"] == "success"
-    assert len(data["data"]["sources"]) == 2
+    # we are only currently supporting exact match
+    assert len(data["data"]["sources"]) == 1
 
     status, data = api(
         "GET",
@@ -2038,3 +2078,91 @@ def test_token_user_retrieving_source_with_comment_filter(
     assert status == 200
     assert data["status"] == "success"
     assert len(data["data"]["sources"]) == 1
+
+
+def test_patch_healpix(upload_data_token, view_only_token, public_group):
+
+    obj_id = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "sources",
+        data={
+            "id": obj_id,
+            "redshift": 3,
+            "group_ids": [public_group.id],
+            "ra": 234.22,
+            "dec": -22.33,
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+
+    assert status == 200
+    status, data = api("GET", f"sources/{obj_id}", token=view_only_token)
+    assert status == 200
+    assert data["data"]["id"] == obj_id
+    assert data["data"]["healpix"] == 3120579787410559663
+
+    status, data = api(
+        "PATCH",
+        f"sources/{obj_id}",
+        data={
+            "ra": 230.22,
+            "dec": -22.33,
+            "transient": False,
+            "ra_dis": 2.3,
+            "redshift": 0.00001,
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data["status"] == "success"
+
+    status, data = api("GET", f"sources/{obj_id}", token=view_only_token)
+    assert status == 200
+    assert data["data"]["id"] == obj_id
+    assert data["data"]["healpix"] == 3126137476541327364
+
+
+def test_filter_followup_request(
+    upload_data_token, view_only_token, public_group, public_group_sedm_allocation
+):
+    obj_id = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "sources",
+        data={
+            "id": obj_id,
+            "ra": 234.22,
+            "dec": -22.33,
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    status, data = api("GET", f"sources/{obj_id}", token=view_only_token)
+    assert status == 200
+    assert data["data"]["id"] == obj_id
+
+    request_data = {
+        'allocation_id': public_group_sedm_allocation.id,
+        'obj_id': obj_id,
+        'payload': {
+            'priority': 5,
+            'start_date': '3020-09-01',
+            'end_date': '3022-09-01',
+            'observation_type': 'IFU',
+        },
+    }
+
+    status, data = api(
+        'POST', 'followup_request', data=request_data, token=upload_data_token
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    params = {
+        'hasFollowupRequest': True,
+    }
+    status, data = api("GET", "sources", token=view_only_token, params=params)
+    assert status == 200
+    assert any(obj["id"] == obj_id for obj in data["data"]["sources"])

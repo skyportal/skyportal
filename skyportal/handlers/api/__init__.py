@@ -3,9 +3,14 @@ from .allocation import AllocationHandler, AllocationReportHandler
 from .analysis import (
     AnalysisServiceHandler,
     AnalysisHandler,
+    AnalysisProductsHandler,
 )
 from .candidate import CandidateHandler
-from .classification import ClassificationHandler, ObjClassificationHandler
+from .classification import (
+    ClassificationHandler,
+    ObjClassificationHandler,
+    ObjClassificationQueryHandler,
+)
 from .comment import CommentHandler, CommentAttachmentHandler
 from .annotation import AnnotationHandler
 from .annotation_services import (
@@ -14,7 +19,18 @@ from .annotation_services import (
     VizierQueryHandler,
     DatalabQueryHandler,
 )
+from .catalog_services import (
+    CatalogQueryHandler,
+    SwiftLSXPSQueryHandler,
+    GaiaPhotometricAlertsQueryHandler,
+)
 from .db_stats import StatsHandler
+from .earthquake import (
+    EarthquakeHandler,
+    EarthquakeMeasurementHandler,
+    EarthquakePredictionHandler,
+    EarthquakeStatusHandler,
+)
 from .enum_types import EnumTypesHandler
 from .filter import FilterHandler
 from .followup_request import (
@@ -24,12 +40,17 @@ from .followup_request import (
     AssignmentHandler,
 )
 from .facility_listener import FacilityMessageHandler
-from .galaxy import GalaxyCatalogHandler, GalaxyASCIIFileHandler
+from .galaxy import GalaxyCatalogHandler, GalaxyASCIIFileHandler, GalaxyGladeHandler
 from .gcn import (
     GcnEventHandler,
     GcnEventObservationPlanRequestsHandler,
+    GcnEventPropertiesHandler,
     GcnEventSurveyEfficiencyHandler,
+    GcnEventCatalogQueryHandler,
+    GcnEventTagsHandler,
+    GcnSummaryHandler,
     LocalizationHandler,
+    LocalizationPropertiesHandler,
 )
 from .group import (
     GroupHandler,
@@ -38,17 +59,21 @@ from .group import (
     GroupUsersFromOtherGroupsHandler,
     ObjGroupsHandler,
 )
-
+from .healpix import HealpixUpdateHandler
 from .user_obj_list import UserObjListHandler
 from .group_admission_request import GroupAdmissionRequestHandler
 from .instrument import InstrumentHandler
 from .invalid import InvalidEndpointHandler
 from .invitations import InvitationHandler
+from .mmadetector import (
+    MMADetectorHandler,
+    MMADetectorSpectrumHandler,
+    MMADetectorTimeIntervalHandler,
+)
 from .news_feed import NewsFeedHandler
 from .observation import (
     ObservationASCIIFileHandler,
     ObservationHandler,
-    ObservationGCNHandler,
     ObservationTreasureMapHandler,
     ObservationExternalAPIHandler,
     ObservationSimSurveyHandler,
@@ -62,9 +87,10 @@ from .observation_plan import (
     ObservationPlanGCNHandler,
     ObservationPlanSubmitHandler,
     ObservationPlanMovieHandler,
+    ObservationPlanNameHandler,
+    ObservationPlanObservabilityPlotHandler,
     ObservationPlanSimSurveyHandler,
     ObservationPlanSimSurveyPlotHandler,
-    ObservationPlanSummaryStatisticsHandler,
     ObservationPlanSurveyEfficiencyHandler,
     ObservationPlanGeoJSONHandler,
     ObservationPlanAirmassChartHandler,
@@ -84,6 +110,7 @@ from .photometry_request import PhotometryRequestHandler
 from .public_group import PublicGroupHandler
 from .roles import RoleHandler, UserRoleHandler
 from .obj import ObjHandler
+from .reminder import ReminderHandler
 from .sharing import SharingHandler
 from .shift import ShiftHandler, ShiftUserHandler, ShiftSummary
 from .source import (
@@ -104,6 +131,7 @@ from .spectrum import (
     SyntheticPhotometryHandler,
 )
 from .survey_efficiency import (
+    DefaultSurveyEfficiencyRequestHandler,
     SurveyEfficiencyForObservationPlanHandler,
     SurveyEfficiencyForObservationsHandler,
 )
@@ -113,7 +141,7 @@ from .config_handler import ConfigHandler
 from .taxonomy import TaxonomyHandler
 from .telescope import TelescopeHandler
 from .tns import ObjTNSHandler, SpectrumTNSHandler, TNSRobotHandler
-from .thumbnail import ThumbnailHandler
+from .thumbnail import ThumbnailHandler, ThumbnailPathHandler
 from .user import (
     UserHandler,
     set_default_acls,
@@ -123,3 +151,7 @@ from .user import (
 from .unsourced_finder import UnsourcedFinderHandler
 from .weather import WeatherHandler
 from .webhook import AnalysisWebhookHandler
+from .sources_confirmed_in_gcn import (
+    SourcesConfirmedInGCNHandler,
+    GCNsAssociatedWithSourceHandler,
+)

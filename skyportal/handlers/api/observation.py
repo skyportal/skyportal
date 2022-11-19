@@ -1,10 +1,8 @@
 from baselayer.app.access import permissions, auth_or_token
 from baselayer.log import make_log
 import arrow
-import astropy
 import functools
 import healpix_alchemy as ha
-import humanize
 import json
 from marshmallow.exceptions import ValidationError
 import numpy as np
@@ -193,6 +191,7 @@ def add_observations(instrument_id, obstable):
                     exposure_time=row["exposure_time"],
                     filt=row["filter"],
                     processed_fraction=row["processed_fraction"],
+                    target_name=row["target_name"],
                 )
             )
         session.add_all(observations)
@@ -222,6 +221,8 @@ def get_observations(
     observation_status='executed',
     n_per_page=100,
     page_number=1,
+    sort_order=None,
+    sort_by=None,
 ):
     f"""Query for list of observations
 
@@ -336,6 +337,16 @@ def get_observations(
             return ValueError(f"Missing instrument {instrument_name}")
 
         obs_query = obs_query.where(Observation.instrument_id == instrument.id)
+    elif instrument_name is not None:
+        instrument = session.scalars(
+            Instrument.select(
+                session.user_or_token, options=[joinedload(Instrument.fields)]
+            ).where(Instrument.name == instrument_name)
+        ).first()
+        if instrument is None:
+            return ValueError(f"Missing instrument {instrument_name}")
+
+        obs_query = obs_query.where(Observation.instrument_id == instrument.id)
 
     # optional: slice by GcnEvent localization
     if localization_dateobs is not None:
@@ -407,35 +418,18 @@ def get_observations(
         )
 
         if return_statistics:
-            if telescope_name is not None and instrument_name is not None:
-                union = (
-                    sa.select(
-                        ha.func.union(InstrumentFieldTile.healpix).label('healpix')
-                    )
-                    .filter(
-                        InstrumentFieldTile.instrument_id == instrument.id,
-                        InstrumentFieldTile.instrument_field_id
-                        == Observation.instrument_field_id,
-                        Observation.obstime >= start_date,
-                        Observation.obstime <= end_date,
-                    )
-                    .distinct()
-                    .subquery()
-                )
-            else:
-                union = (
-                    sa.select(
-                        ha.func.union(InstrumentFieldTile.healpix).label('healpix')
-                    )
-                    .filter(
-                        InstrumentFieldTile.instrument_field_id
-                        == Observation.instrument_field_id,
-                        Observation.obstime >= start_date,
-                        Observation.obstime <= end_date,
-                    )
-                    .distinct()
-                    .subquery()
-                )
+            obs_subquery = obs_query.subquery()
+            fields_query = sa.select(InstrumentField.id).join(
+                obs_subquery, InstrumentField.id == obs_subquery.c.instrument_field_id
+            )
+            field_ids = session.scalars(fields_query).unique().all()
+
+            union = (
+                sa.select(ha.func.union(InstrumentFieldTile.healpix).label('healpix'))
+                .where(InstrumentFieldTile.instrument_field_id.in_(field_ids))
+                .distinct()
+                .subquery()
+            )
 
             area = sa.func.sum(union.columns.healpix.area)
             prob = sa.func.sum(
@@ -461,6 +455,82 @@ def get_observations(
                 intarea = 0.0
 
     total_matches = session.scalar(sa.select(sa.func.count()).select_from(obs_query))
+
+    order_by = None
+    if sort_by is not None:
+        if sort_by == "obstime":
+            order_by = (
+                Observation.obstime
+                if sort_order == "asc"
+                else Observation.obstime.desc()
+            )
+        elif sort_by == "observation_id":
+            order_by = (
+                Observation.observation_id
+                if sort_order == "asc"
+                else Observation.observation_id.desc()
+            )
+        elif sort_by == "exposure_time":
+            order_by = (
+                Observation.exposure_time
+                if sort_order == "asc"
+                else Observation.exposure_time.desc()
+            )
+        elif sort_by == "seeing":
+            order_by = (
+                Observation.seeing if sort_order == "asc" else Observation.seeing.desc()
+            )
+        elif sort_by == "airmass":
+            order_by = (
+                Observation.airmass
+                if sort_order == "asc"
+                else Observation.airmass.desc()
+            )
+        elif sort_by == "limmag":
+            order_by = (
+                Observation.limmag if sort_order == "asc" else Observation.limmag.desc()
+            )
+        elif sort_by == "filt":
+            order_by = (
+                Observation.filt if sort_order == "asc" else Observation.filt.desc()
+            )
+        elif sort_by == "instrument_name":
+            order_by = (
+                Observation.instrument_id
+                if sort_order == "asc"
+                else Observation.instrument_id.desc()
+            )
+        elif sort_by == "target_name":
+            order_by = (
+                Observation.target_name
+                if sort_order == "asc"
+                else Observation.target_name.desc()
+            )
+        elif sort_by == "queue_name":
+            order_by = (
+                Observation.queue_name
+                if sort_order == "asc"
+                else Observation.queue_name.desc()
+            )
+        elif sort_by == "validity_window_start":
+            order_by = (
+                Observation.validity_window_start
+                if sort_order == "asc"
+                else Observation.validity_window_start.desc()
+            )
+        elif sort_by == "validity_window_end":
+            order_by = (
+                Observation.validity_window_end
+                if sort_order == "asc"
+                else Observation.validity_window_end.desc()
+            )
+        else:
+            raise ValueError(f'Sort column {sort_by} not known.')
+
+    if order_by is None:
+        order_by = Observation.instrument_id.desc()
+    obs_query = obs_query.order_by(order_by)
+
     if n_per_page is not None:
         obs_query = (
             obs_query.distinct()
@@ -620,6 +690,7 @@ class ObservationHandler(BaseHandler):
             'airmass',
             'seeing',
             'limmag',
+            'target_name',
         ]
         for key in optional_parameters:
             if key not in observation_data:
@@ -733,6 +804,20 @@ class ObservationHandler(BaseHandler):
               schema:
                 type: integer
               description: Page number for paginated query results. Defaults to 1
+            - in: query
+              name: sortBy
+              nullable: true
+              schema:
+                type: string
+              description: |
+                The field to sort by.
+            - in: query
+              name: sortOrder
+              nullable: true
+              schema:
+                type: string
+              description: |
+                The sort order - either "asc" or "desc". Defaults to "asc"
           responses:
             200:
               content:
@@ -756,6 +841,9 @@ class ObservationHandler(BaseHandler):
         observation_status = self.get_query_argument("observationStatus", 'executed')
         page_number = self.get_query_argument("pageNumber", 1)
         n_per_page = self.get_query_argument("numPerPage", 100)
+
+        sort_by = self.get_query_argument("sortBy", None)
+        sort_order = self.get_query_argument("sortOrder", "asc")
 
         try:
             page_number = int(page_number)
@@ -795,6 +883,8 @@ class ObservationHandler(BaseHandler):
                 observation_status=observation_status,
                 n_per_page=n_per_page,
                 page_number=page_number,
+                sort_by=sort_by,
+                sort_order=sort_order,
             )
 
             return self.success(data=data)
@@ -936,6 +1026,7 @@ class ObservationASCIIFileHandler(BaseHandler):
             'airmass',
             'seeing',
             'limmag',
+            'target_name',
         ]
         for key in optional_parameters:
             if key not in observation_data:
@@ -954,137 +1045,6 @@ class ObservationASCIIFileHandler(BaseHandler):
         )
 
         return self.success()
-
-
-class ObservationGCNHandler(BaseHandler):
-    @auth_or_token
-    async def get(self, instrument_id):
-        """
-        ---
-          description: Get a GCN-izable summary of the observations.
-          tags:
-            - observations
-          parameters:
-            - in: path
-              name: instrument_id
-              required: true
-              schema:
-                type: string
-              description: |
-                ID for the instrument to submit
-            - in: query
-              name: startDate
-              required: true
-              schema:
-                type: string
-              description: Filter by start date
-            - in: query
-              name: endDate
-              required: true
-              schema:
-                type: string
-              description: Filter by end date
-            - in: query
-              name: localizationDateobs
-              schema:
-                type: string
-              description: |
-                Event time in ISO 8601 format (`YYYY-MM-DDTHH:MM:SS.sss`).
-                Each localization is associated with a specific GCNEvent by
-                the date the event happened, and this date is used as a unique
-                identifier. It can be therefore found as Localization.dateobs,
-                queried from the /api/localization endpoint or dateobs in the
-                GcnEvent page table.
-            - in: query
-              name: localizationName
-              schema:
-                type: string
-              description: |
-                Name of localization / skymap to use.
-                Can be found in Localization.localization_name queried from
-                /api/localization endpoint or skymap name in GcnEvent page
-                table.
-            - in: query
-              name: localizationCumprob
-              schema:
-                type: number
-              description: |
-                Cumulative probability up to which to include fields.
-                Defaults to 0.95.
-          responses:
-            200:
-              content:
-                application/json:
-                  schema: ArrayOfExecutedObservations
-            400:
-              content:
-                application/json:
-                  schema: Error
-        """
-
-        start_date = self.get_query_argument('startDate')
-        end_date = self.get_query_argument('endDate')
-        localization_dateobs = self.get_query_argument('localizationDateobs', None)
-        localization_name = self.get_query_argument('localizationName', None)
-        localization_cumprob = self.get_query_argument("localizationCumprob", 0.95)
-
-        if start_date is None:
-            return self.error(message="Missing start_date")
-
-        if end_date is None:
-            return self.error(message="Missing end_date")
-
-        start_date = arrow.get(start_date.strip()).datetime
-        end_date = arrow.get(end_date.strip()).datetime
-
-        with self.Session() as session:
-
-            stmt = Instrument.select(self.current_user).where(
-                Instrument.id == instrument_id
-            )
-            instrument = session.scalars(stmt).first()
-
-            if instrument is None:
-                return self.error(message=f"Invalid instrument ID {instrument_id}")
-
-            data = get_observations(
-                session,
-                start_date,
-                end_date,
-                telescope_name=instrument.telescope.name,
-                instrument_name=instrument.name,
-                localization_dateobs=localization_dateobs,
-                localization_name=localization_name,
-                localization_cumprob=localization_cumprob,
-            )
-
-            observations = data["observations"]
-            num_observations = len(observations)
-            if num_observations == 0:
-                return self.error('Need at least one observation to produce a GCN')
-
-            start_observation = astropy.time.Time(
-                min(obs["obstime"] for obs in observations), format='datetime'
-            )
-            unique_filters = list({obs["filt"] for obs in observations})
-            total_time = sum(obs["exposure_time"] for obs in observations)
-            probability = data["probability"]
-            area = data["area"]
-
-            stmt = GcnEvent.select(self.current_user).where(
-                GcnEvent.dateobs == localization_dateobs
-            )
-            event = session.scalars(stmt).first()
-            trigger_time = astropy.time.Time(event.dateobs, format='datetime')
-            dt = start_observation.datetime - event.dateobs
-
-            content = f"""
-                SUBJECT: Follow-up of {event.gcn_notices[0].stream} trigger {trigger_time.isot} with {instrument.name}.
-
-                We observed the localization region of {event.gcn_notices[0].stream} trigger {trigger_time.isot} UTC with {instrument.name} on the {instrument.telescope.name}. We obtained a total of {num_observations} images covering {",".join(unique_filters)} bands for a total of {total_time} seconds. The observations covered {area:.1f} square degrees beginning at {start_observation.isot} ({humanize.naturaldelta(dt)} after the burst trigger time) corresponding to ~{int(100 * probability)}% of the probability enclosed in the localization region.
-                """
-
-            return self.success(data=content)
 
 
 class ObservationExternalAPIHandler(BaseHandler):
@@ -1125,30 +1085,39 @@ class ObservationExternalAPIHandler(BaseHandler):
         data['start_date'] = arrow.get(data['start_date'].strip()).datetime
         data['end_date'] = arrow.get(data['end_date'].strip()).datetime
 
-        allocation = Allocation.get_if_accessible_by(
-            data['allocation_id'], self.current_user, raise_if_none=True
-        )
-        instrument = allocation.instrument
+        with self.Session() as session:
 
-        if instrument.api_classname_obsplan is None:
-            return self.error('Instrument has no remote observation plan API.')
+            allocation = session.scalars(
+                Allocation.select(session.user_or_token).where(
+                    Allocation.id == data['allocation_id']
+                )
+            ).first()
+            if allocation is None:
+                return self.error(
+                    f"Cannot find Allocation with ID: {data['allocation_id']}"
+                )
+            instrument = allocation.instrument
 
-        if not instrument.api_class_obsplan.implements()['retrieve']:
-            return self.error(
-                'Submitting executed observation plan requests to this Instrument is not available.'
-            )
+            if instrument.api_classname_obsplan is None:
+                return self.error('Instrument has no remote observation plan API.')
 
-        try:
-            # we now retrieve and commit to the database the
-            # executed observations
-            instrument.api_class_obsplan.retrieve(
-                allocation, data['start_date'], data['end_date']
-            )
-            self.push_notification(
-                'Observation ingestion in progress. Should be available soon.'
-            )
-        except Exception as e:
-            return self.error(f"Error in querying instrument API: {e}")
+            if not instrument.api_class_obsplan.implements()['retrieve']:
+                return self.error(
+                    'Submitting executed observation plan requests to this Instrument is not available.'
+                )
+
+            try:
+                # we now retrieve and commit to the database the
+                # executed observations
+                instrument.api_class_obsplan.retrieve(
+                    allocation, data['start_date'], data['end_date']
+                )
+                self.push_notification(
+                    'Observation ingestion in progress. Should be available soon.'
+                )
+                return self.success()
+            except Exception as e:
+                return self.error(f"Error in querying instrument API: {e}")
 
     @permissions(['Upload data'])
     def get(self, allocation_id):
@@ -1215,35 +1184,43 @@ class ObservationExternalAPIHandler(BaseHandler):
         data['start_date'] = start_date
         data['end_date'] = end_date
 
-        allocation = Allocation.get_if_accessible_by(
-            data['allocation_id'], self.current_user, raise_if_none=True
-        )
-        instrument = allocation.instrument
-
-        if instrument.api_classname_obsplan is None:
-            return self.error('Instrument has no remote observation plan API.')
-
-        if not instrument.api_class_obsplan.implements()['queued']:
-            return self.error(
-                'Submitting executed observation plan requests to this Instrument is not available.'
-            )
-
-        try:
-            # we now retrieve and commit to the database the
-            # executed observations
-            queue_names = instrument.api_class_obsplan.queued(
-                allocation,
-                data['start_date'],
-                data['end_date'],
-                queues_only=queues_only,
-            )
-            if not queues_only:
-                self.push_notification(
-                    'Planned observation ingestion in progress. Should be available soon.'
+        with self.Session() as session:
+            allocation = session.scalars(
+                Allocation.select(session.user_or_token).where(
+                    Allocation.id == data['allocation_id']
                 )
-            return self.success(data={'queue_names': queue_names})
-        except Exception as e:
-            return self.error(f"Error in querying instrument API: {e}")
+            ).first()
+            if allocation is None:
+                return self.error(
+                    f"Cannot find Allocation with ID: {data['allocation_id']}"
+                )
+
+            instrument = allocation.instrument
+
+            if instrument.api_classname_obsplan is None:
+                return self.error('Instrument has no remote observation plan API.')
+
+            if not instrument.api_class_obsplan.implements()['queued']:
+                return self.error(
+                    'Submitting executed observation plan requests to this Instrument is not available.'
+                )
+
+            try:
+                # we now retrieve and commit to the database the
+                # executed observations
+                queue_names = instrument.api_class_obsplan.queued(
+                    allocation,
+                    data['start_date'],
+                    data['end_date'],
+                    queues_only=queues_only,
+                )
+                if not queues_only:
+                    self.push_notification(
+                        'Planned observation ingestion in progress. Should be available soon.'
+                    )
+                return self.success(data={'queue_names': queue_names})
+            except Exception as e:
+                return self.error(f"Error in querying instrument API: {e}")
 
     @permissions(['Upload data'])
     def delete(self, allocation_id):
@@ -1287,25 +1264,33 @@ class ObservationExternalAPIHandler(BaseHandler):
         data["last_modified_by_id"] = self.associated_user_object.id
         data['allocation_id'] = allocation_id
 
-        allocation = Allocation.get_if_accessible_by(
-            data['allocation_id'], self.current_user, raise_if_none=True
-        )
-        instrument = allocation.instrument
+        with self.Session() as session:
+            allocation = session.scalars(
+                Allocation.select(session.user_or_token).where(
+                    Allocation.id == data['allocation_id']
+                )
+            ).first()
+            if allocation is None:
+                return self.error(
+                    f"Cannot find Allocation with ID: {data['allocation_id']}"
+                )
 
-        if instrument.api_classname_obsplan is None:
-            return self.error('Instrument has no remote observation plan API.')
+            instrument = allocation.instrument
 
-        if not instrument.api_class_obsplan.implements()['remove_queue']:
-            return self.error('Cannot delete queues from this Instrument.')
+            if instrument.api_classname_obsplan is None:
+                return self.error('Instrument has no remote observation plan API.')
 
-        try:
-            # we now retrieve and commit to the database the
-            # executed observations
-            instrument.api_class_obsplan.remove_queue(
-                allocation, queue_name, self.associated_user_object.username
-            )
-        except Exception as e:
-            return self.error(f"Error in querying instrument API: {e}")
+            if not instrument.api_class_obsplan.implements()['remove_queue']:
+                return self.error('Cannot delete queues from this Instrument.')
+
+            try:
+                # we now retrieve and commit to the database the
+                # executed observations
+                instrument.api_class_obsplan.remove_queue(
+                    allocation, queue_name, self.associated_user_object.username
+                )
+            except Exception as e:
+                return self.error(f"Error in querying instrument API: {e}")
 
 
 class ObservationTreasureMapHandler(BaseHandler):
@@ -1439,7 +1424,7 @@ class ObservationTreasureMapHandler(BaseHandler):
                 if altdata and 'TREASUREMAP_API_TOKEN' in altdata:
                     api_token = altdata['TREASUREMAP_API_TOKEN']
             if not api_token:
-                raise self.error('Missing allocation information.')
+                return self.error('Missing allocation information.')
 
             graceid = event.graceid
             payload = {"graceid": graceid, "api_token": api_token}
@@ -1546,7 +1531,7 @@ class ObservationTreasureMapHandler(BaseHandler):
             if altdata and 'TREASUREMAP_API_TOKEN' in altdata:
                 api_token = altdata['TREASUREMAP_API_TOKEN']
         if not api_token:
-            raise self.error('Missing allocation information.')
+            return self.error('Missing allocation information.')
 
         graceid = event.graceid
         payload = {
@@ -1986,35 +1971,35 @@ class ObservationSimSurveyPlotHandler(BaseHandler):
                 schema: Success
         """
 
-        survey_efficiency_analysis = (
-            SurveyEfficiencyForObservations.get_if_accessible_by(
-                survey_efficiency_analysis_id, self.current_user
+        with self.Session() as session:
+            survey_efficiency_analysis = session.scalars(
+                SurveyEfficiencyForObservations.select(session.user_or_token).where(
+                    SurveyEfficiencyForObservations.id == survey_efficiency_analysis_id
+                )
+            ).first()
+            if survey_efficiency_analysis is None:
+                return self.error(
+                    f'Missing survey_efficiency_analysis for id {survey_efficiency_analysis_id}'
+                )
+
+            if survey_efficiency_analysis.lightcurves is None:
+                return self.error(
+                    f'survey_efficiency_analysis for id {survey_efficiency_analysis_id} not complete'
+                )
+
+            output_format = 'pdf'
+            simsurvey_analysis = functools.partial(
+                observation_simsurvey_plot,
+                lcs=json.loads(survey_efficiency_analysis.lightcurves),
+                output_format=output_format,
             )
-        )
 
-        if survey_efficiency_analysis is None:
-            return self.error(
-                f'Missing survey_efficiency_analysis for id {survey_efficiency_analysis_id}'
+            self.push_notification(
+                'Simsurvey analysis in progress. Should be available soon.'
             )
+            rez = await IOLoop.current().run_in_executor(None, simsurvey_analysis)
 
-        if survey_efficiency_analysis.lightcurves is None:
-            return self.error(
-                f'survey_efficiency_analysis for id {survey_efficiency_analysis_id} not complete'
-            )
+            filename = rez["name"]
+            data = io.BytesIO(rez["data"])
 
-        output_format = 'pdf'
-        simsurvey_analysis = functools.partial(
-            observation_simsurvey_plot,
-            lcs=json.loads(survey_efficiency_analysis.lightcurves),
-            output_format=output_format,
-        )
-
-        self.push_notification(
-            'Simsurvey analysis in progress. Should be available soon.'
-        )
-        rez = await IOLoop.current().run_in_executor(None, simsurvey_analysis)
-
-        filename = rez["name"]
-        data = io.BytesIO(rez["data"])
-
-        await self.send_file(data, filename, output_type=output_format)
+            await self.send_file(data, filename, output_type=output_format)

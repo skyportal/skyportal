@@ -11,6 +11,8 @@ import CircularProgress from "@mui/material/CircularProgress";
 
 import { showNotification } from "baselayer/components/Notifications";
 
+import FilterPlugins from "./FilterPlugins";
+
 import * as groupActions from "../ducks/group";
 import * as filterActions from "../ducks/filter";
 import * as streamActions from "../ducks/stream";
@@ -160,9 +162,9 @@ const Filter = () => {
             </CardContent>
           </Card>
         </Grid>
-        {/* /!* Filter stats go here? *!/ */}
-        {/* <Grid item sm={12} md={9}> */}
-        {/* </Grid> */}
+        <div>
+          <FilterPlugins group={group} />
+        </div>
       </Grid>
     </div>
   );

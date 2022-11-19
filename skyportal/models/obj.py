@@ -16,6 +16,8 @@ import astroplan
 import conesearch_alchemy
 import healpix_alchemy
 import numpy as np
+import dustmaps.sfd
+from dustmaps.config import config
 
 from baselayer.app.env import load_env
 from baselayer.app.models import (
@@ -40,6 +42,20 @@ log = make_log('models.obj')
 PHOT_DETECTION_THRESHOLD = cfg["misc.photometry_detection_threshold_nsigma"]
 
 PS1_CUTOUT_TIMEOUT = 10
+
+# download dustmap if required
+config['data_dir'] = cfg['misc.dustmap_folder']
+required_files = ['sfd/SFD_dust_4096_ngp.fits', 'sfd/SFD_dust_4096_sgp.fits']
+if any(
+    [
+        not os.path.isfile(os.path.join(config['data_dir'], required_file))
+        for required_file in required_files
+    ]
+):
+    try:
+        dustmaps.sfd.fetch()
+    except requests.exceptions.HTTPError:
+        pass
 
 
 def delete_obj_if_all_data_owned(cls, user_or_token):
@@ -249,15 +265,6 @@ class Obj(Base, conesearch_alchemy.Point):
         doc="Internal key used for secure websocket messaging.",
     )
 
-    candidates = relationship(
-        'Candidate',
-        back_populates='obj',
-        cascade='save-update, merge, refresh-expire, expunge, delete',
-        passive_deletes=True,
-        order_by="Candidate.passed_at",
-        doc="Candidates associated with the object.",
-    )
-
     comments = relationship(
         'Comment',
         back_populates='obj',
@@ -267,6 +274,15 @@ class Obj(Base, conesearch_alchemy.Point):
         doc="Comments posted about the object.",
     )
 
+    reminders = relationship(
+        'Reminder',
+        back_populates='obj',
+        cascade='save-update, merge, refresh-expire, expunge, delete',
+        passive_deletes=True,
+        order_by="Reminder.created_at",
+        doc="Reminders about the object.",
+    )
+
     comments_on_spectra = relationship(
         'CommentOnSpectrum',
         back_populates='obj',
@@ -274,6 +290,15 @@ class Obj(Base, conesearch_alchemy.Point):
         passive_deletes=True,
         order_by="CommentOnSpectrum.created_at",
         doc="Comments posted about spectra belonging to the object.",
+    )
+
+    reminders_on_spectra = relationship(
+        'ReminderOnSpectrum',
+        back_populates='obj',
+        cascade='save-update, merge, refresh-expire, expunge, delete',
+        passive_deletes=True,
+        order_by="ReminderOnSpectrum.created_at",
+        doc="Reminders about spectra belonging to the object.",
     )
 
     annotations = relationship(
@@ -386,12 +411,20 @@ class Obj(Base, conesearch_alchemy.Point):
         doc="Analyses assocated with this obj.",
     )
 
+    sources_in_gcns = relationship(
+        "SourcesConfirmedInGCN",
+        back_populates="obj",
+        passive_deletes=True,
+        doc="Sources in a localization.",
+    )
+
     def add_linked_thumbnails(self, session=DBSession):
-        """Determine the URLs of the SDSS and DESI DR8 thumbnails of the object,
+        """Determine the URLs of the SDSS and Legacy Survey DR9
+        thumbnails of the object,
         insert them into the Thumbnails table, and link them to the object."""
         sdss_thumb = Thumbnail(obj=self, public_url=self.sdss_url, type='sdss')
-        dr8_thumb = Thumbnail(obj=self, public_url=self.desi_dr8_url, type='dr8')
-        session.add_all([sdss_thumb, dr8_thumb])
+        ls_thumb = Thumbnail(obj=self, public_url=self.legacysurvey_dr9_url, type='ls')
+        session.add_all([sdss_thumb, ls_thumb])
         session.commit()
 
     def add_ps1_thumbnail(self, session=DBSession):
@@ -409,11 +442,11 @@ class Obj(Base, conesearch_alchemy.Point):
         )
 
     @property
-    def desi_dr8_url(self):
-        """Construct URL for public DESI DR8 cutout."""
+    def legacysurvey_dr9_url(self):
+        """Construct URL for public Legacy Survey DR9 cutout."""
         return (
             f"https://www.legacysurvey.org/viewer/jpeg-cutout?ra={self.ra}"
-            f"&dec={self.dec}&size=200&layer=dr8&pixscale=0.262&bands=grz"
+            f"&dec={self.dec}&size=200&layer=ls-dr9&pixscale=0.262&bands=grz"
         )
 
     @property
@@ -489,7 +522,7 @@ class Obj(Base, conesearch_alchemy.Point):
 
         # there may be a non-redshift based measurement of distance
         # for nearby sources
-        if self.altdata:
+        if isinstance(self.altdata, dict):
             if self.altdata.get("dm") is not None:
                 # see eq (24) of https://ned.ipac.caltech.edu/level5/Hogg/Hogg7.html
                 return (
@@ -599,6 +632,16 @@ class Obj(Base, conesearch_alchemy.Point):
         """
 
         return telescope.observer.altaz(time, self.target).alt
+
+    @property
+    def ebv(self):
+        """E(B-V) extinction for the object"""
+
+        coord = ap_coord.SkyCoord(self.ra, self.dec, unit='deg')
+        try:
+            return float(dustmaps.sfd.SFDQuery()(coord))
+        except Exception:
+            return None
 
 
 Obj.candidates = relationship(

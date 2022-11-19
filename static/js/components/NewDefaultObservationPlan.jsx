@@ -43,7 +43,9 @@ const NewDefaultObservationPlan = () => {
   const dispatch = useDispatch();
 
   const { telescopeList } = useSelector((state) => state.telescopes);
-  const { allocationList } = useSelector((state) => state.allocations);
+  const { allocationListApiObsplan } = useSelector(
+    (state) => state.allocations
+  );
 
   const allGroups = useSelector((state) => state.groups.all);
   const [selectedAllocationId, setSelectedAllocationId] = useState(null);
@@ -60,9 +62,7 @@ const NewDefaultObservationPlan = () => {
       // update
 
       const result = await dispatch(
-        allocationActions.fetchAllocations({
-          apiType: "api_classname_obsplan",
-        })
+        allocationActions.fetchAllocationsApiObsplan()
       );
 
       const { data } = result;
@@ -77,11 +77,6 @@ const NewDefaultObservationPlan = () => {
         apiType: "api_classname_obsplan",
       })
     );
-    dispatch(
-      allocationActions.fetchAllocations({
-        apiType: "api_classname_obsplan",
-      })
-    );
 
     // Don't want to reset everytime the component rerenders and
     // the defaultStartDate is updated, so ignore ESLint here
@@ -90,14 +85,14 @@ const NewDefaultObservationPlan = () => {
 
   // need to check both of these conditions as selectedAllocationId is
   // initialized to be null and useEffect is not called on the first
-  // render to update it, so it can be null even if allocationList is not
+  // render to update it, so it can be null even if allocationListApiObsplan is not
   // empty.
   if (
-    allocationList.length === 0 ||
+    allocationListApiObsplan.length === 0 ||
     !selectedAllocationId ||
     Object.keys(instrumentFormParams).length === 0
   ) {
-    return <h3>No robotic instruments available...</h3>;
+    return <h3>No allocations with an observation plan API...</h3>;
   }
 
   if (
@@ -127,7 +122,7 @@ const NewDefaultObservationPlan = () => {
 
   const allocationLookUp = {};
   // eslint-disable-next-line no-unused-expressions
-  allocationList?.forEach((allocation) => {
+  allocationListApiObsplan?.forEach((allocation) => {
     allocationLookUp[allocation.id] = allocation;
   });
 
@@ -142,10 +137,13 @@ const NewDefaultObservationPlan = () => {
   };
 
   const handleSubmit = async ({ formData }) => {
+    const { default_plan_name } = formData;
+    delete formData.default_plan_name;
     const json = {
       allocation_id: selectedAllocationId,
       target_group_ids: selectedGroupIds,
       payload: formData,
+      default_plan_name,
     };
     await dispatch(
       defaultObservationPlansActions.submitDefaultObservationPlan(json)
@@ -154,6 +152,10 @@ const NewDefaultObservationPlan = () => {
 
   const { formSchema, uiSchema } =
     instrumentFormParams[allocationLookUp[selectedAllocationId].instrument_id];
+  formSchema.properties.default_plan_name = {
+    default: "DEFAULT-PLAN-NAME",
+    type: "string",
+  };
 
   const keys_to_remove = ["start_date", "end_date", "queue_name"];
   keys_to_remove.forEach((key) => {
@@ -176,7 +178,7 @@ const NewDefaultObservationPlan = () => {
         name="followupRequestAllocationSelect"
         className={classes.Select}
       >
-        {allocationList?.map((allocation) => (
+        {allocationListApiObsplan?.map((allocation) => (
           <MenuItem
             value={allocation.id}
             key={allocation.id}

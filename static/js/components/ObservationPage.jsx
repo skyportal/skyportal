@@ -11,6 +11,7 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import makeStyles from "@mui/styles/makeStyles";
 import PropTypes from "prop-types";
 
+import { filterOutEmptyValues } from "../API";
 import ExecutedObservationsTable from "./ExecutedObservationsTable";
 import QueuedObservationsTable from "./QueuedObservationsTable";
 import NewObservation from "./NewObservation";
@@ -64,6 +65,7 @@ const ExecutedObservationList = ({
   observations,
   fetchParams,
   handleTableChange,
+  handleFilterSubmit,
 }) => {
   if (!observations?.observations || observations.observations.length === 0) {
     return <p>No observations available...</p>;
@@ -75,6 +77,7 @@ const ExecutedObservationList = ({
       pageNumber={fetchParams.pageNumber}
       numPerPage={fetchParams.numPerPage}
       handleTableChange={handleTableChange}
+      handleFilterSubmit={handleFilterSubmit}
       totalMatches={observations.totalMatches}
     />
   );
@@ -84,6 +87,7 @@ ExecutedObservationList.propTypes = {
   // eslint-disable-next-line react/forbid-prop-types
   observations: PropTypes.arrayOf(PropTypes.any).isRequired,
   handleTableChange: PropTypes.func.isRequired,
+  handleFilterSubmit: PropTypes.func.isRequired,
   fetchParams: PropTypes.shape({
     pageNumber: PropTypes.number,
     numPerPage: PropTypes.number,
@@ -94,6 +98,7 @@ const QueuedObservationList = ({
   observations,
   fetchParams,
   handleTableChange,
+  handleFilterSubmit,
 }) => {
   if (!observations?.observations || observations.observations.length === 0) {
     return <p>No observations available...</p>;
@@ -105,6 +110,7 @@ const QueuedObservationList = ({
       pageNumber={fetchParams.pageNumber}
       numPerPage={fetchParams.numPerPage}
       handleTableChange={handleTableChange}
+      handleFilterSubmit={handleFilterSubmit}
       totalMatches={observations.totalMatches}
     />
   );
@@ -114,6 +120,7 @@ QueuedObservationList.propTypes = {
   // eslint-disable-next-line react/forbid-prop-types
   observations: PropTypes.arrayOf(PropTypes.any).isRequired,
   handleTableChange: PropTypes.func.isRequired,
+  handleFilterSubmit: PropTypes.func.isRequired,
   fetchParams: PropTypes.shape({
     pageNumber: PropTypes.number,
     numPerPage: PropTypes.number,
@@ -163,12 +170,16 @@ const ObservationPage = () => {
     return <p>No queued observations available...</p>;
   }
 
-  const handleExecutedPageChange = async (page, numPerPage) => {
+  const handleExecutedPageChange = async (page, numPerPage, sortData) => {
     const params = {
       ...fetchExecutedParams,
       numPerPage,
       pageNumber: page + 1,
     };
+    if (sortData && Object.keys(sortData).length > 0) {
+      params.sortBy = sortData.name;
+      params.sortOrder = sortData.direction;
+    }
     // Save state for future
     setFetchExecutedParams(params);
     await dispatch(observationsActions.fetchObservations(params));
@@ -185,9 +196,42 @@ const ObservationPage = () => {
     await dispatch(queuedObservationsActions.fetchQueuedObservations(params));
   };
 
+  const handleExecutedTableSorting = async (sortData) => {
+    const params = {
+      ...fetchExecutedParams,
+      pageNumber: 1,
+      sortBy: sortData.name,
+      sortOrder: sortData.direction,
+    };
+    setFetchExecutedParams(params);
+    await dispatch(observationsActions.fetchObservations(params));
+  };
+
+  const handleQueuedTableSorting = async (sortData) => {
+    const params = {
+      ...fetchQueuedParams,
+      pageNumber: 1,
+      sortBy: sortData.name,
+      sortOrder: sortData.direction,
+    };
+    setFetchQueuedParams(params);
+    await dispatch(queuedObservationsActions.fetchQueuedObservations(params));
+  };
+
   const handleExecutedTableChange = (action, tableState) => {
     if (action === "changePage" || action === "changeRowsPerPage") {
-      handleExecutedPageChange(tableState.page, tableState.rowsPerPage);
+      handleExecutedPageChange(
+        tableState.page + 1,
+        tableState.rowsPerPage,
+        tableState.sortOrder
+      );
+    }
+    if (action === "sort") {
+      if (tableState.sortOrder.direction === "none") {
+        handleExecutedPageChange(1, tableState.rowsPerPage, {});
+      } else {
+        handleExecutedTableSorting(tableState.sortOrder);
+      }
     }
   };
 
@@ -195,6 +239,63 @@ const ObservationPage = () => {
     if (action === "changePage" || action === "changeRowsPerPage") {
       handleQueuedPageChange(tableState.page, tableState.rowsPerPage);
     }
+    if (action === "sort") {
+      if (tableState.sortOrder.direction === "none") {
+        handleQueuedPageChange(1, tableState.rowsPerPage, {});
+      } else {
+        handleQueuedTableSorting(tableState.sortOrder);
+      }
+    }
+  };
+
+  const handleExecutedTableFilter = async (
+    pageNumber,
+    numPerPage,
+    filterData
+  ) => {
+    const params = {
+      ...fetchExecutedParams,
+      pageNumber,
+      numPerPage,
+    };
+    if (filterData && Object.keys(filterData).length > 0) {
+      params.startDate = filterData.startDate;
+      params.endDate = filterData.endDate;
+      params.instrumentName = filterData.instrumentName;
+    }
+    // Save state for future
+    setFetchExecutedParams(params);
+    await dispatch(observationsActions.fetchObservations(params));
+  };
+
+  const handleQueuedTableFilter = async (
+    pageNumber,
+    numPerPage,
+    filterData
+  ) => {
+    const params = {
+      ...fetchQueuedParams,
+      pageNumber,
+      numPerPage,
+    };
+    if (filterData && Object.keys(filterData).length > 0) {
+      params.startDate = filterData.startDate;
+      params.endDate = filterData.endDate;
+      params.instrumentName = filterData.instrumentName;
+    }
+    // Save state for future
+    setFetchQueuedParams(params);
+    await dispatch(queuedObservationsActions.fetchQueuedObservations(params));
+  };
+
+  const handleExecutedFilterSubmit = async (formData) => {
+    const data = filterOutEmptyValues(formData);
+    handleExecutedTableFilter(1, defaultNumPerPage, data);
+  };
+
+  const handleQueuedFilterSubmit = async (formData) => {
+    const data = filterOutEmptyValues(formData);
+    handleQueuedTableFilter(1, defaultNumPerPage, data);
   };
 
   return (
@@ -218,6 +319,7 @@ const ObservationPage = () => {
                     observations={observations.observations}
                     fetchParams={fetchExecutedParams}
                     handleTableChange={handleExecutedTableChange}
+                    handleFilterSubmit={handleExecutedFilterSubmit}
                   />
                 </div>
               </AccordionDetails>
@@ -242,6 +344,7 @@ const ObservationPage = () => {
                     observations={queued_observations.queued_observations}
                     fetchParams={fetchQueuedParams}
                     handleTableChange={handleQueuedTableChange}
+                    handleFilterSubmit={handleQueuedFilterSubmit}
                   />
                 </div>
               </AccordionDetails>
@@ -249,57 +352,54 @@ const ObservationPage = () => {
           </div>
         </Paper>
       </Grid>
-      {currentUser.permissions?.includes("System admin") && (
-        <Grid item md={6} sm={12}>
-          <Paper className={classes.paperContent}>
-            <div>
-              <Accordion defaultExpanded elevation={0}>
-                <AccordionSummary
-                  expandIcon={<ExpandMoreIcon />}
-                  aria-controls="add-new-observations-content"
-                  id="add-new-observations-header"
-                >
-                  <Typography className={classes.accordionHeading}>
-                    Add New Observations
-                  </Typography>
-                </AccordionSummary>
-                <AccordionDetails>
-                  <div>
-                    <br style={{ marginBottom: "1rem" }} />
-                    <Divider
-                      variant="middle"
-                      className={classes.dividerHeader}
-                    />
-                    <br />
-                    <div className={classes.content}>
-                      <Typography variant="h6">
-                        Add Observations from File
-                      </Typography>
-                      <NewObservation />
-                    </div>
-                    <br />
-                    <Divider variant="middle" className={classes.divider} />
-                    <br />
-                    <div className={classes.content}>
-                      <Typography variant="h6">
-                        Add API Executed Observations
-                      </Typography>
-                      <NewAPIObservation />
-                    </div>
-                    <br />
-                    <Divider variant="middle" className={classes.divider} />
-                    <br />
-                    <div className={classes.content}>
-                      <Typography variant="h6">
-                        Add API Queued Observations
-                      </Typography>
-                      <NewAPIQueuedObservation />
-                    </div>
+      <Grid item md={6} sm={12}>
+        <Paper className={classes.paperContent}>
+          <div>
+            <Accordion defaultExpanded elevation={0}>
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon />}
+                aria-controls="add-new-observations-content"
+                id="add-new-observations-header"
+              >
+                <Typography className={classes.accordionHeading}>
+                  Add New Observations
+                </Typography>
+              </AccordionSummary>
+              <AccordionDetails>
+                <div>
+                  <br style={{ marginBottom: "1rem" }} />
+                  <Divider variant="middle" className={classes.dividerHeader} />
+                  <br />
+                  <div className={classes.content}>
+                    <Typography variant="h6">
+                      Add Observations from File
+                    </Typography>
+                    <NewObservation />
                   </div>
-                </AccordionDetails>
-              </Accordion>
-            </div>
-          </Paper>
+                  <br />
+                  <Divider variant="middle" className={classes.divider} />
+                  <br />
+                  <div className={classes.content}>
+                    <Typography variant="h6">
+                      Add API Executed Observations
+                    </Typography>
+                    <NewAPIObservation />
+                  </div>
+                  <br />
+                  <Divider variant="middle" className={classes.divider} />
+                  <br />
+                  <div className={classes.content}>
+                    <Typography variant="h6">
+                      Add API Queued Observations
+                    </Typography>
+                    <NewAPIQueuedObservation />
+                  </div>
+                </div>
+              </AccordionDetails>
+            </Accordion>
+          </div>
+        </Paper>
+        {currentUser.permissions?.includes("System admin") && (
           <Paper>
             <div className={classes.paperContent}>
               <Accordion defaultExpanded elevation={0}>
@@ -320,8 +420,8 @@ const ObservationPage = () => {
               </Accordion>
             </div>
           </Paper>
-        </Grid>
-      )}
+        )}
+      </Grid>
     </Grid>
   );
 };

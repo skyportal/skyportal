@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import Box from "@mui/material/Box";
-import Button from "@mui/material/Button";
 import Select from "@mui/material/Select";
 import Chip from "@mui/material/Chip";
 import MenuItem from "@mui/material/MenuItem";
@@ -14,6 +13,7 @@ import Paper from "@mui/material/Paper";
 import { useTheme } from "@mui/material/styles";
 
 import makeStyles from "@mui/styles/makeStyles";
+import Button from "./Button";
 
 import * as groupsActions from "../ducks/groups";
 import * as usersActions from "../ducks/users";
@@ -167,7 +167,7 @@ const NewGroupForm = () => {
           </FormControl>
         </Box>
         <Box>
-          <Button type="submit" variant="contained" color="primary">
+          <Button primary type="submit">
             Create Group
           </Button>
         </Box>

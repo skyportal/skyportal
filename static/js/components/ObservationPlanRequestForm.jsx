@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import Button from "@mui/material/Button";
 import Checkbox from "@mui/material/Checkbox";
 import Chip from "@mui/material/Chip";
 import FormControlLabel from "@mui/material/FormControlLabel";
@@ -21,6 +20,7 @@ import GeoPropTypes from "geojson-prop-types";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
+import Button from "./Button";
 
 import * as gcnEventActions from "../ducks/gcnEvent";
 import * as allocationActions from "../ducks/allocations";
@@ -259,8 +259,10 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
   const dispatch = useDispatch();
 
   const { telescopeList } = useSelector((state) => state.telescopes);
-  const { allocationList } = useSelector((state) => state.allocations);
-
+  const { allocationListApiObsplan } = useSelector(
+    (state) => state.allocations
+  );
+  const observationPlanNames = useSelector((state) => state.observationPlans);
   const { useAMPM } = useSelector((state) => state.profile.preferences);
 
   const allGroups = useSelector((state) => state.groups.all);
@@ -298,7 +300,7 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
 
   const allocationLookUp = {};
   // eslint-disable-next-line no-unused-expressions
-  allocationList?.forEach((allocation) => {
+  allocationListApiObsplan?.forEach((allocation) => {
     allocationLookUp[allocation.id] = allocation;
   });
 
@@ -337,9 +339,7 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
       // update
 
       const result = await dispatch(
-        allocationActions.fetchAllocations({
-          apiType: "api_classname_obsplan",
-        })
+        allocationActions.fetchAllocationsApiObsplan()
       );
 
       const { data } = result;
@@ -352,11 +352,6 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
 
     dispatch(
       instrumentsActions.fetchInstrumentForms({
-        apiType: "api_classname_obsplan",
-      })
-    );
-    dispatch(
-      allocationActions.fetchAllocations({
         apiType: "api_classname_obsplan",
       })
     );
@@ -373,14 +368,14 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
 
   // need to check both of these conditions as selectedAllocationId is
   // initialized to be null and useEffect is not called on the first
-  // render to update it, so it can be null even if allocationList is not
+  // render to update it, so it can be null even if allocationListApiObsplan is not
   // empty.
   if (
-    allocationList.length === 0 ||
+    allocationListApiObsplan.length === 0 ||
     !selectedAllocationId ||
     Object.keys(instrumentFormParams).length === 0
   ) {
-    return <h3>No robotic instruments available...</h3>;
+    return <h3>No allocations with an observation plan API...</h3>;
   }
 
   if (
@@ -442,6 +437,10 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
       errors.start_date.addError("Start Date must come before End Date");
     }
 
+    if (observationPlanNames.includes(formData.queue_name)) {
+      errors.queue_name.addError("Need a unique plan name");
+    }
+
     return errors;
   };
 
@@ -501,7 +500,7 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
           name="followupRequestAllocationSelect"
           className={classes.allocationSelect}
         >
-          {allocationList?.map((allocation) => (
+          {allocationListApiObsplan?.map((allocation) => (
             <MenuItem
               value={allocation.id}
               key={allocation.id}
@@ -533,7 +532,7 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
               key={localization.id}
               className={classes.SelectItem}
             >
-              {`${localization.localization_name}`}
+              {`Skymap: ${localization.localization_name} / Created: ${localization.created_at}`}
             </MenuItem>
           ))}
         </Select>
@@ -565,12 +564,7 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
             onSubmit={handleQueueSubmit}
             disabled={isSubmitting}
           >
-            <Button
-              size="small"
-              color="primary"
-              type="submit"
-              variant="outlined"
-            >
+            <Button secondary size="small" type="submit">
               Add to Queue
             </Button>
           </Form>
@@ -596,13 +590,7 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
       <div>
         {planQueues.length !== 0 && (
           <>
-            <Button
-              size="small"
-              color="primary"
-              type="submit"
-              variant="outlined"
-              onClick={handleSubmit}
-            >
+            <Button secondary size="small" type="submit" onClick={handleSubmit}>
               Generate Observation Plans
             </Button>
             <FormControlLabel
@@ -627,15 +615,24 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
       </div>
       <div>
         <Button
+          secondary
+          href={`/api/localization/${selectedLocalizationId}/observability`}
+          download={`observabilityChartRequest-${selectedLocalizationId}`}
+          size="small"
+          type="submit"
+          data-testid={`observabilityChartRequest_${selectedLocalizationId}`}
+        >
+          Observability Chart
+        </Button>
+        <Button
+          secondary
           href={`/api/localization/${selectedLocalizationId}/airmass/${
             instLookUp[allocationLookUp[selectedAllocationId].instrument_id]
               .telescope_id
           }`}
           download={`airmassChartRequest-${selectedAllocationId}`}
           size="small"
-          color="primary"
           type="submit"
-          variant="outlined"
           data-testid={`airmassChartRequest_${selectedAllocationId}`}
         >
           Airmass Chart

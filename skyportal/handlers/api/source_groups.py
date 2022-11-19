@@ -3,7 +3,6 @@ import datetime
 from baselayer.app.access import permissions
 from ..base import BaseHandler
 from ...models import (
-    DBSession,
     Obj,
     Source,
 )
@@ -52,77 +51,73 @@ class SourceGroupsHandler(BaseHandler):
         obj_id = data.get("objId")
         if obj_id is None:
             return self.error("Missing required parameter: objId")
-        obj = Obj.get_if_accessible_by(obj_id, self.current_user)
-        if obj is None:
-            return self.error("Invalid objId")
-        save_or_invite_group_ids = data.get("inviteGroupIds", [])
-        unsave_group_ids = data.get("unsaveGroupIds", [])
-        if not save_or_invite_group_ids and not unsave_group_ids:
-            return self.error(
-                "Missing required parameter: one of either unsaveGroupIds or inviteGroupIds must be provided"
-            )
-        for save_or_invite_group_id in save_or_invite_group_ids:
-            if int(save_or_invite_group_id) in [
-                g.id for g in self.current_user.accessible_groups
-            ]:
-                active = True
-                requested = False
-            else:
-                active = False
-                requested = True
-            source = (
-                DBSession()
-                .query(Source)
-                .filter(Source.obj_id == obj_id)
-                .filter(Source.group_id == save_or_invite_group_id)
-                .first()
-            )
-            if source is None:
-                DBSession().add(
-                    Source(
-                        obj_id=obj_id,
-                        group_id=save_or_invite_group_id,
-                        active=active,
-                        requested=requested,
-                        saved_by_id=self.associated_user_object.id,
+
+        with self.Session() as session:
+            obj = session.scalars(
+                Obj.select(session.user_or_token).where(Obj.id == obj_id)
+            ).first()
+            if obj is None:
+                return self.error("Invalid objId")
+            save_or_invite_group_ids = data.get("inviteGroupIds", [])
+            unsave_group_ids = data.get("unsaveGroupIds", [])
+            if not save_or_invite_group_ids and not unsave_group_ids:
+                return self.error(
+                    "Missing required parameter: one of either unsaveGroupIds or inviteGroupIds must be provided"
+                )
+
+            for save_or_invite_group_id in save_or_invite_group_ids:
+                if int(save_or_invite_group_id) in [
+                    g.id for g in self.current_user.accessible_groups
+                ]:
+                    active = True
+                    requested = False
+                else:
+                    active = False
+                    requested = True
+                source = session.scalars(
+                    Source.select(session.user_or_token)
+                    .where(Source.obj_id == obj_id)
+                    .where(Source.group_id == save_or_invite_group_id)
+                ).first()
+                if source is None:
+                    session.add(
+                        Source(
+                            obj_id=obj_id,
+                            group_id=save_or_invite_group_id,
+                            active=active,
+                            requested=requested,
+                            saved_by_id=self.associated_user_object.id,
+                        )
                     )
-                )
-            elif not source.active:
-                source.active = active
-                source.requested = requested
-            else:
-                return self.error(
-                    f"Source already saved to group w/ ID {save_or_invite_group_id}"
-                )
-        for unsave_group_id in unsave_group_ids:
-            source = (
-                DBSession()
-                .query(Source)
-                .filter(Source.obj_id == obj_id)
-                .filter(Source.group_id == unsave_group_id)
-                .first()
+                elif not source.active:
+                    source.active = active
+                    source.requested = requested
+                else:
+                    return self.error(
+                        f"Source already saved to group w/ ID {save_or_invite_group_id}"
+                    )
+            for unsave_group_id in unsave_group_ids:
+                source = session.scalars(
+                    Source.select(session.user_or_token)
+                    .where(Source.obj_id == obj_id)
+                    .where(Source.group_id == unsave_group_id)
+                ).first()
+                if source is None:
+                    return self.error(
+                        "Specified source is not saved to group from which it was to be unsaved."
+                    )
+                source.unsaved_by_id = self.associated_user_object.id
+                source.active = False
+                source.unsaved_at = datetime.datetime.utcnow()
+
+            session.commit()
+            self.push_all(
+                action="skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}
             )
-            if source is None:
-                return self.error(
-                    "Specified source is not saved to group from which it was to be unsaved."
-                )
-            source.unsaved_by_id = self.associated_user_object.id
-            source.active = False
-            source.unsaved_at = datetime.datetime.utcnow()
-
-        # TODO: replace with  self.verify_and_commit() once API refactor is complete
-        # currently a single record is used for both source requests and sources
-        # this should be refactored into two database models since the two
-        # records have different permissions
-
-        DBSession().commit()
-        self.push_all(
-            action="skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}
-        )
-        self.push_all(
-            action="skyportal/REFRESH_CANDIDATE", payload={"id": obj.internal_key}
-        )
-        return self.success()
+            # self.push_all(
+            #    action="skyportal/REFRESH_CANDIDATE", payload={"id": obj.internal_key}
+            # )
+            return self.success()
 
     @permissions(['Upload data'])
     def patch(self, obj_id, *ignored_args):
@@ -166,30 +161,27 @@ class SourceGroupsHandler(BaseHandler):
             return self.error("Missing required parameter: groupID")
         active = data.get("active")
         requested = data.get("requested")
-        obj = Obj.get_if_accessible_by(obj_id, self.current_user)
-        source = (
-            DBSession()
-            .query(Source)
-            .filter(Source.obj_id == obj_id, Source.group_id == group_id)
-            .first()
-        )
-        previously_active = bool(source.active)
-        source.active = active
-        source.requested = requested
-        if active and not previously_active:
-            source.saved_by_id = self.associated_user_object.id
 
-        # TODO: replace with  self.verify_and_commit() once API refactor is complete
-        # currently a single record is used for both source requests and sources
-        # this should be refactored into two database models since the two
-        # records have different permissions
-        # self.verify_and_commit()
+        with self.Session() as session:
+            obj = session.scalars(
+                Obj.select(session.user_or_token).where(Obj.id == obj_id)
+            ).first()
+            source = session.scalars(
+                Source.select(session.user_or_token).where(
+                    Source.obj_id == obj_id, Source.group_id == group_id
+                )
+            ).first()
+            previously_active = bool(source.active)
+            source.active = active
+            source.requested = requested
+            if active and not previously_active:
+                source.saved_by_id = self.associated_user_object.id
 
-        DBSession().commit()
-        self.push_all(
-            action="skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}
-        )
-        self.push_all(
-            action="skyportal/REFRESH_CANDIDATE", payload={"id": obj.internal_key}
-        )
-        return self.success()
+            session.commit()
+            self.push_all(
+                action="skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}
+            )
+            self.push_all(
+                action="skyportal/REFRESH_CANDIDATE", payload={"id": obj.internal_key}
+            )
+            return self.success()

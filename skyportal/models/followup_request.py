@@ -1,5 +1,9 @@
 __all__ = ['FollowupRequest', 'FollowupRequestTargetGroup']
 
+from astropy import coordinates as ap_coord
+from astropy import time as ap_time
+from astropy import units as u
+
 import sqlalchemy as sa
 from sqlalchemy.orm import relationship
 
@@ -135,6 +139,7 @@ class FollowupRequest(Base):
         secondary='request_groups',
         passive_deletes=True,
         doc='Groups to share the resulting data from this request with.',
+        overlaps='groups',
     )
 
     photometry = relationship('Photometry', back_populates='followup_request')
@@ -147,8 +152,51 @@ class FollowupRequest(Base):
     def instrument(self):
         return self.allocation.instrument
 
+    def rise_time(self, altitude=30 * u.degree):
+        """The rise time of the target as an astropy.time.Time."""
+        observer = self.allocation.instrument.telescope.observer
+        if observer is None:
+            return None
 
-FollowupRequestTargetGroup = join_model('request_groups', FollowupRequest, Group)
+        sunset = self.allocation.instrument.telescope.next_sunset(
+            ap_time.Time.now()
+        ).reshape((1,))
+        sunrise = self.allocation.instrument.telescope.next_sunrise(
+            ap_time.Time.now()
+        ).reshape((1,))
+
+        coord = ap_coord.SkyCoord(self.obj.ra, self.obj.dec, unit='deg')
+
+        next_rise = observer.target_rise_time(
+            sunset, coord, which='next', horizon=altitude
+        )
+
+        # if next rise time is after next sunrise, the target rises before
+        # sunset. show the previous rise so that the target is shown to be
+        # "already up" when the run begins (a beginning of night target).
+
+        recalc = next_rise > sunrise
+        if recalc.any():
+            next_rise = observer.target_rise_time(
+                sunset, coord, which='previous', horizon=altitude
+            )
+
+        return next_rise
+
+    def set_time(self, altitude=30 * u.degree):
+        """The set time of the target as an astropy.time.Time."""
+        observer = self.allocation.instrument.telescope.observer
+        if observer is None:
+            return None
+
+        sunset = self.allocation.instrument.telescope.next_sunset(ap_time.Time.now())
+        coord = ap_coord.SkyCoord(self.obj.ra, self.obj.dec, unit='deg')
+        return observer.target_set_time(sunset, coord, which='next', horizon=altitude)
+
+
+FollowupRequestTargetGroup = join_model(
+    'request_groups', FollowupRequest, Group, overlaps='target_groups'
+)
 FollowupRequestTargetGroup.create = (
     FollowupRequestTargetGroup.update
 ) = FollowupRequestTargetGroup.delete = (

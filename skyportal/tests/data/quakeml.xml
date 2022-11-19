@@ -1,0 +1,86 @@
+<q:quakeml xmlns="http://quakeml.org/xmlns/bed/1.2" xmlns:catalog="http://anss.org/xmlns/catalog/0.1" xmlns:anss="http://anss.org/xmlns/event/0.1" xmlns:q="http://quakeml.org/xmlns/quakeml/1.2">
+    <eventParameters publicID="quakeml:nc.anss.org/Event/NC/73446401#159840015345">
+        <event publicID="quakeml:nc.anss.org/Event/NC/73446401" catalog:datasource="nc" catalog:dataid="nc73446401" catalog:eventsource="nc" catalog:eventid="73446401">
+            <magnitude publicID="quakeml:nc.anss.org/Netmag/NC/5589474">
+                <mag>
+                    <value>2.93</value>
+                    <uncertainty>0.204</uncertainty>
+                </mag>
+                <type>Md</type>
+                <originID>quakeml:nc.anss.org/Origin/NC/12955474</originID>
+                <methodID>smi:nc.anss.org/magnitude/HypoinvMd</methodID>
+                <stationCount>19</stationCount>
+                <azimuthalGap>78.5</azimuthalGap>
+                <evaluationMode>manual</evaluationMode>
+                <evaluationStatus>reviewed</evaluationStatus>
+                <creationInfo>
+                    <agencyID>NC</agencyID>
+                    <creationTime>2020-08-26T00:01:59.000Z</creationTime>
+                </creationInfo>
+            </magnitude>
+            <origin publicID="quakeml:nc.anss.org/Origin/NC/12955474" catalog:datasource="nc" catalog:dataid="nc73446401" catalog:eventsource="nc" catalog:eventid="73446401">
+                <originUncertainty>
+                    <horizontalUncertainty>210</horizontalUncertainty>
+                    <confidenceEllipsoid>
+                        <semiMajorAxisLength>1032</semiMajorAxisLength>
+                        <semiMinorAxisLength>360</semiMinorAxisLength>
+                        <semiIntermediateAxisLength>504</semiIntermediateAxisLength>
+                        <majorAxisPlunge>87</majorAxisPlunge>
+                        <majorAxisAzimuth>99</majorAxisAzimuth>
+                        <majorAxisRotation>309</majorAxisRotation>
+                    </confidenceEllipsoid>
+                    <preferredDescription>confidence ellipsoid</preferredDescription>
+                    <confidenceLevel>95</confidenceLevel>
+                </originUncertainty>
+                <time>
+                    <value>2020-08-19T02:00:39.000Z</value>
+                </time>
+                <longitude>
+                    <value>-123.2506667</value>
+                </longitude>
+                <latitude>
+                    <value>39.3648333</value>
+                </latitude>
+                <depth>
+                    <value>7380</value>
+                    <uncertainty>430</uncertainty>
+                </depth>
+                <depthType>from location</depthType>
+                <timeFixed>false</timeFixed>
+                <epicenterFixed>false</epicenterFixed>
+                <methodID>smi:nc.anss.org/origin/HYP2000_m2g</methodID>
+                <quality>
+                    <associatedPhaseCount>37</associatedPhaseCount>
+                    <usedPhaseCount>32</usedPhaseCount>
+                    <associatedStationCount>36</associatedStationCount>
+                    <usedStationCount>31</usedStationCount>
+                    <standardError>0.07</standardError>
+                    <azimuthalGap>78</azimuthalGap>
+                    <secondaryAzimuthalGap>446</secondaryAzimuthalGap>
+                    <maximumDistance>2.277</maximumDistance>
+                    <minimumDistance>0.07280</minimumDistance>
+                    <medianDistance>0.5724</medianDistance>
+                </quality>
+                <type>hypocenter</type>
+                <evaluationMode>manual</evaluationMode>
+                <evaluationStatus>final</evaluationStatus>
+                <creationInfo>
+                    <agencyID>NC</agencyID>
+                    <creationTime>2020-08-26T00:01:59.000Z</creationTime>
+                </creationInfo>
+            </origin>
+            <preferredOriginID>quakeml:nc.anss.org/Origin/NC/12955474</preferredOriginID>
+            <preferredMagnitudeID>quakeml:nc.anss.org/Netmag/NC/5589474</preferredMagnitudeID>
+            <type>earthquake</type>
+            <creationInfo>
+                <agencyID>NC</agencyID>
+                <creationTime>2020-08-26T00:01:59.000Z</creationTime>
+                <version>2</version>
+            </creationInfo>
+        </event>
+        <creationInfo>
+            <agencyID>NC</agencyID>
+            <creationTime>2020-08-26T00:02:33.450Z</creationTime>
+        </creationInfo>
+    </eventParameters>
+</q:quakeml>

@@ -21,6 +21,8 @@ app:
   observation_plan:
     default_filters: ['ztfg', 'ztfr', 'ztfi']
 
+  heasarc_endpoint: https://heasarc.gsfc.nasa.gov
+
   # this endpoint does not actually do anything -- it is just for testing
   sedm_endpoint: http://minar.caltech.edu/add_fritz
   sedmv2_endpoint:
@@ -32,6 +34,8 @@ app:
   lco_host: observe.lco.global
   lco_port: 443
 
+  lco_archive_endpoint: https://archive-api.lco.global
+
   ztf:
     protocol: https
     host: kowalski.caltech.edu
@@ -39,10 +43,14 @@ app:
 
   ztf_forced_endpoint: https://ztfweb.ipac.caltech.edu
 
+  fink_endpoint: https://fink-portal.org
+
   swift:
     protocol: https
     host: www.swift.psu.edu
     port: 443
+
+  swift_xrt_endpoint: https://www.swift.ac.uk/user_objects
 
   ps1_endpoint: https://catalogs.mast.stsci.edu/
 
@@ -90,6 +98,8 @@ app:
       component: About
     - path: "/run/:id"
       component: RunSummary
+    - path: "/source/:obj_id/analysis/:analysis_id"
+      component: SourceAnalysisPage
     - path: "/manage_data/:id"
       component: ManageDataForm
     - path: "/filter/:fid"
@@ -98,6 +108,8 @@ app:
       component: ObservingRunPage
     - path: "/allocations"
       component: AllocationPage
+    - path: "/allocation/:id"
+      component: AllocationSummary
     - path: "/observations"
       component: ObservationPage
     - path: "/galaxies"
@@ -124,6 +136,12 @@ app:
       component: TelescopePage
     - path: "/instruments"
       component: InstrumentPage
+    - path: "/mmadetectors"
+      component: MMADetectorPage
+    - path: "/earthquakes"
+      component: EarthquakesPage
+    - path: "/earthquakes/:event_id"
+      component: EarthquakePage
     - path: "/services"
       component: AnalysisServicePage
     - path: "/shifts"
@@ -185,6 +203,10 @@ app:
           icon: Wifi
           url: /instruments
 
+        - name: MMADetectors
+          icon: Abc
+          url: /mmadetectors
+
         - name: Allocations
           icon: HourglassEmptyOutlined
           url: /allocations
@@ -192,6 +214,10 @@ app:
         - name: Observations
           icon: ZoomInOutlined
           url: /observations
+
+        - name: Earthquakes
+          icon: PieChart
+          url: /earthquakes
 
         - name: Galaxies
           icon: TornadoOutlined
@@ -395,6 +421,9 @@ server:
   # frontend only (i.e., no token authorized API requests)
   dedicated_frontend_processes: 2
 
+  # The max size of a request body in megabytes (M)
+  max_body_size: 10
+
   # Rate limit: number of requests per second (see https://www.nginx.com/blog/rate-limiting-nginx/)
   rate_limit: 5
   # Rate limit burst size (https://www.nginx.com/blog/rate-limiting-nginx/#bursts)
@@ -428,6 +457,9 @@ misc:
   # the user-supplied cosmology parameter set constructs the site-wide cosmology.
   cosmology: Planck18
   #cosmology: {H0: "65.0", Om0: 0.3, Ode0: 0.7, name: 'skyportal_user_cosmo'}
+
+  dustmap: sfd
+  dustmap_folder: persistentdata/dustmap
 
   # The minimum signal-to-noise ratio/ n-sigma for lim mag cacluations to
   # consider a photometry point as a detection
@@ -537,7 +569,7 @@ cross_match:
 # length that defines the full Quantum Efficiency at each wavelength.
 # must have at least two elements in the arrays
 # `wavelength` and `transmission`.
-# additional_bandpasses:
+additional_bandpasses:
 #  - name: 'atlasc'
 #    filterset: 'atlas'
 #    wavelength: [4150, 4157, 6556, 6560]
@@ -548,6 +580,16 @@ cross_match:
 #    wavelength: [5580, 5582, 8249, 8250]
 #    transmission: [0, 1, 1, 0]
 #    description: "basic ATLAS O filter - tophat transmission"
+  - name: 'swiftxrt'
+    filterset: 'xrt'
+    wavelength: [0.1, 1, 62, 100]
+    transmission: [0, 1, 1, 0]
+    description: "basic XRT filter - tophat transmission"
+  - name: 'nicerxti'
+    filterset: 'xti'
+    wavelength: [0.1, 1.2, 41, 100]
+    transmission: [0, 1, 1, 0]
+    description: "basic XTI filter - tophat transmission"
 
 user:
   default_role: 'Full user'
@@ -557,34 +599,43 @@ user:
 ports:
   facility_queue: 64510
 
-gcn_notice_types:
-  - FERMI_GBM_FLT_POS
-  - FERMI_GBM_GND_POS
-  - FERMI_GBM_FIN_POS
-  - FERMI_GBM_SUBTHRESH
-  - LVC_PRELIMINARY
-  - LVC_INITIAL
-  - LVC_UPDATE
-  - LVC_RETRACTION
-  - AMON_ICECUBE_COINC
-  - AMON_ICECUBE_HESE
-  - ICECUBE_ASTROTRACK_GOLD
-  - ICECUBE_ASTROTRACK_BRONZE
+gcn:
+  server: gcn.nasa.gov
+  # you can obtain a client_id and client_secret at https://gcn.nasa.gov/quickstart
+  # you can set a group_id to remember the last GCN the app ingested from the stream
+  client_group_id:
+  client_id:
+  client_secret:
+  notice_types:
+    - FERMI_GBM_FLT_POS
+    - FERMI_GBM_GND_POS
+    - FERMI_GBM_FIN_POS
+    - FERMI_GBM_SUBTHRESH
+    - SWIFT_BAT_GRB_POS_ACK
+    - SWIFT_XRT_POSITION
+    # - LVC_PRELIMINARY
+    # - LVC_INITIAL
+    # - LVC_UPDATE
+    # - LVC_RETRACTION
+    # - AMON_ICECUBE_COINC
+    # - AMON_ICECUBE_HESE
+    - ICECUBE_ASTROTRACK_GOLD
+    - ICECUBE_ASTROTRACK_BRONZE
 
-gcn_observation_plans:
-  - allocation-proposal_id: ZTF-001
-    payload:
-      filter_strategy: block
-      schedule_type: greedy_slew
-      schedule_strategy: tiling
-      galaxy_catalog: CLU_mini
-      exposure_time: 300
-      filters: g,r,g
-      maximum_airmass: 2
-      integrated_probability: 90
-      minimum_time_difference: 30
-      program_id: Partnership
-      subprogram_name: GRB
+  observation_plans:
+    - allocation-proposal_id: ZTF-001
+      payload:
+        filter_strategy: block
+        schedule_type: greedy_slew
+        schedule_strategy: tiling
+        galaxy_catalog: CLU_mini
+        exposure_time: 300
+        filters: g,r,g
+        maximum_airmass: 2
+        integrated_probability: 90
+        minimum_time_difference: 30
+        program_id: Partnership
+        subprogram_name: GRB
 
 health_monitor:
   seconds_between_checks: 30.5
@@ -595,6 +646,8 @@ health_monitor:
   startup_grace_seconds: 30
 
 analysis_services:
-  analysis_folder: analysis_data
+  analysis_folder: persistentdata/analysis
   sn_analysis_service:
     port: 6801
+  ngsf_analysis_service:
+    port: 7001

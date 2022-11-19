@@ -6,7 +6,6 @@ import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
 import SettingsIcon from "@mui/icons-material/Settings";
-import Button from "@mui/material/Button";
 import Checkbox from "@mui/material/Checkbox";
 import makeStyles from "@mui/styles/makeStyles";
 import SaveIcon from "@mui/icons-material/Save";
@@ -14,6 +13,7 @@ import TextField from "@mui/material/TextField";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Typography from "@mui/material/Typography";
 import Tooltip from "@mui/material/Tooltip";
+import Button from "./Button";
 
 const useStyles = makeStyles(() => ({
   saveButton: {
@@ -35,8 +35,14 @@ const WidgetPrefsDialog = ({
   const dispatch = useDispatch();
   const [open, setOpen] = useState(false);
 
-  const { handleSubmit, register, errors, reset, control } =
-    useForm(initialValues);
+  const {
+    handleSubmit,
+    register,
+    reset,
+    control,
+
+    formState: { errors },
+  } = useForm(initialValues);
 
   useEffect(() => {
     reset(initialValues);
@@ -66,11 +72,7 @@ const WidgetPrefsDialog = ({
       <Dialog open={open} onClose={handleClose} style={{ position: "fixed" }}>
         <DialogTitle>{title}</DialogTitle>
         <DialogContent>
-          <form
-            noValidate
-            autoComplete="off"
-            onSubmit={handleSubmit(formSubmit)}
-          >
+          <form onSubmit={handleSubmit(formSubmit)}>
             {Object.keys(initialValues).map((key) => {
               if (
                 typeof initialValues[key] === "object" &&
@@ -88,7 +90,7 @@ const WidgetPrefsDialog = ({
                           <FormControlLabel
                             control={
                               <Controller
-                                render={({ onChange, value }) => (
+                                render={({ field: { onChange, value } }) => (
                                   <Checkbox
                                     onChange={(event) =>
                                       onChange(event.target.checked)
@@ -110,7 +112,7 @@ const WidgetPrefsDialog = ({
                           key={subKey}
                           control={
                             <Controller
-                              render={({ onChange, value }) => (
+                              render={({ field: { onChange, value } }) => (
                                 <Checkbox
                                   onChange={(event) =>
                                     onChange(event.target.checked)
@@ -134,15 +136,24 @@ const WidgetPrefsDialog = ({
               if (typeof initialValues[key] === "string") {
                 return (
                   <div key={key} className={classes.inputSectionDiv}>
-                    <TextField
-                      data-testid={key}
-                      size="small"
-                      label={key}
-                      inputRef={register({ required: true })}
+                    <Controller
+                      render={({ field: { onChange, value } }) => (
+                        <TextField
+                          data-testid={key}
+                          size="small"
+                          label={key}
+                          inputRef={register(key, { required: true })}
+                          name={key}
+                          error={!!errors[key]}
+                          helperText={errors[key] ? "Required" : ""}
+                          variant="outlined"
+                          onChange={onChange}
+                          value={value}
+                        />
+                      )}
                       name={key}
-                      error={!!errors[key]}
-                      helperText={errors[key] ? "Required" : ""}
-                      variant="outlined"
+                      control={control}
+                      defaultValue={initialValues[key]}
                     />
                   </div>
                 );
@@ -150,12 +161,7 @@ const WidgetPrefsDialog = ({
               return <div key={key} />;
             })}
             <div className={classes.saveButton}>
-              <Button
-                color="primary"
-                variant="contained"
-                type="submit"
-                startIcon={<SaveIcon />}
-              >
+              <Button secondary type="submit" endIcon={<SaveIcon />}>
                 Save
               </Button>
             </div>
