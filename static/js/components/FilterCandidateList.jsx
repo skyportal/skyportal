@@ -415,6 +415,11 @@ const FilterCandidateList = ({
               input={<Input data-testid="savedStatusSelect" />}
               render={({ field: { onChange, value } }) => (
                 <Select
+                  key={
+                    selectedScanningProfile?.savedStatus
+                      ? "notLoadedYet"
+                      : "loaded"
+                  }
                   onChange={onChange}
                   value={value}
                   defaultValue={selectedScanningProfile?.savedStatus || "all"}
@@ -529,9 +534,15 @@ const FilterCandidateList = ({
                 labelId="sorting-select-label"
                 name="sortingOrigin"
                 control={control}
+                input={<Input data-testid="annotationSortingOriginSelect" />}
                 render={({ field: { onChange, value } }) => (
                   <Select
                     id="annotationSortingOriginSelect"
+                    key={
+                      selectedScanningProfile?.sortingOrigin
+                        ? "notLoadedYet"
+                        : "loaded"
+                    }
                     value={value}
                     onChange={(event) => {
                       setSelectedAnnotationOrigin(event.target.value);
