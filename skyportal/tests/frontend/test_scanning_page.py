@@ -244,7 +244,7 @@ def test_save_candidate_no_groups_error_message(
     driver.wait_for_xpath('//div[contains(.,"Select at least one group")]')
 
 
-# @pytest.mark.flaky(reruns=2)
+@pytest.mark.flaky(reruns=2)
 def test_submit_annotations_sorting(
     driver,
     view_only_user,
