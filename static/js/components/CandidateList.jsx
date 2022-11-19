@@ -27,7 +27,6 @@ import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
 import Form from "@rjsf/material-ui/v5";
 
 import { showNotification } from "baselayer/components/Notifications";
-import * as candidateActions from "../ducks/candidate";
 import * as candidatesActions from "../ducks/candidates";
 import CustomDataTable from "./CustomDataTable";
 import ThumbnailList from "./ThumbnailList";
@@ -347,22 +346,13 @@ const CandidateThumbnails = ({ sourceId }) => {
     dispatch(candidatesActions.generatePS1Thumbnail(objID));
   };
 
-  let candidateObj = useSelector((state) => state.candidate);
+  let candidateObj = null;
   const { candidates } = useSelector((state) => state.candidates);
-
-  let needsQuery = true;
   candidates?.forEach((candidate) => {
     if (candidate.id === sourceId) {
       candidateObj = { ...candidate };
-      needsQuery = false;
     }
   });
-
-  useEffect(() => {
-    if (needsQuery && !candidateObj?.id) {
-      dispatch(candidateActions.fetchCandidate(sourceId));
-    }
-  }, [sourceId, candidateObj, dispatch]);
 
   const hasPS1 = candidateObj?.thumbnails?.map((t) => t.type)?.includes("ps1");
   const displayTypes = hasPS1
@@ -407,25 +397,15 @@ CandidateThumbnails.propTypes = {
 };
 
 const CandidateAutoannotations = ({ sourceId }) => {
-  const dispatch = useDispatch();
   const classes = useStyles();
 
-  let candidateObj = useSelector((state) => state.candidate);
+  let candidateObj = null;
   const { candidates } = useSelector((state) => state.candidates);
-
-  let needsQuery = true;
   candidates?.forEach((candidate) => {
     if (candidate.id === sourceId) {
       candidateObj = { ...candidate };
-      needsQuery = false;
     }
   });
-
-  useEffect(() => {
-    if (needsQuery && !candidateObj?.id) {
-      dispatch(candidateActions.fetchCandidate(sourceId));
-    }
-  }, [sourceId, candidateObj, dispatch]);
 
   return (
     <div>
@@ -455,7 +435,6 @@ const CandidateInfo = ({
   filterGroups,
   selectedAnnotationSortOptions,
 }) => {
-  const dispatch = useDispatch();
   const classes = useStyles();
 
   const allGroups = (useSelector((state) => state.groups.all) || []).filter(
@@ -465,22 +444,13 @@ const CandidateInfo = ({
     (state) => state.groups.userAccessible
   );
 
-  let candidateObj = useSelector((state) => state.candidate);
+  let candidateObj = null;
   const { candidates } = useSelector((state) => state.candidates);
-
-  let needsQuery = true;
   candidates?.forEach((candidate) => {
     if (candidate.id === sourceId) {
       candidateObj = { ...candidate };
-      needsQuery = false;
     }
   });
-
-  useEffect(() => {
-    if (needsQuery && !candidateObj?.id) {
-      dispatch(candidateActions.fetchCandidate(sourceId));
-    }
-  }, [sourceId, candidateObj, dispatch]);
 
   const candidateHasAnnotationWithSelectedKey = (obj) => {
     const annotation = obj.annotations.find(
