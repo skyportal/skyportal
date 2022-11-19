@@ -43,7 +43,10 @@ RUN bash -c "\
     chown -R skyportal.skyportal /skyportal/static/thumbnails && \
     \
     mkdir -p /skyportal/persistentdata/analysis && \
-    chown -R skyportal.skyportal /skyportal/persistentdata/analysis"
+    chown -R skyportal.skyportal /skyportal/persistentdata/analysis && \
+    \
+    mkdir -p /skyportal/persistentdata/dustmap && \
+    chown -R skyportal.skyportal /skyportal/persistentdata/dustmap"
 
 USER skyportal
 
