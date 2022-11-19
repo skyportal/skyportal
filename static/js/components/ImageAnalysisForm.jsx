@@ -145,8 +145,8 @@ const ImageAnalysisForm = ({ obj_id }) => {
       },
       matching_radius: {
         type: "number",
-        title: "Matching Radius",
-        default: 2 / 3600,
+        title: "Matching Radius (in arcsec)",
+        default: 2,
       },
       crossmatch_catalog: {
         type: "string",

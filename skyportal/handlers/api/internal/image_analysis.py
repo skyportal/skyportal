@@ -53,6 +53,23 @@ try:
 except Exception as e:
     log(e)
 
+catalogs_enum = [
+    "ps1",
+    "gaiadr2",
+    "gaiaedr3",
+    "skymapper",
+    "vsx",
+    "apass",
+    "sdss",
+    "atlas",
+    "usnob1",
+    "gsc",
+]
+
+templates_enum = ["PanSTARRS/DR1/g", "PanSTARRS/DR1/r", "PanSTARRS/DR1/i"]
+
+methods_enum = ["scamp", "astropy", "astrometrynet"]
+
 
 def spherical_match(ra1, dec1, ra2, dec2, sr=1 / 3600):
     """Positional match on the sphere for two lists of coordinates.
@@ -124,7 +141,20 @@ def spherical_distance(ra1, dec1, ra2, dec2):
         raise e
 
 
-def reduce_image(image, header, obj_id, instrument_id, user_id, detect_cosmics=False):
+def reduce_image(
+    image,
+    header,
+    obj_id,
+    instrument_id,
+    user_id,
+    gain,
+    matching_radius,
+    catalog_name_refinement,
+    catalog_name_crossmatch,
+    template_name,
+    method,
+    detect_cosmics=False,
+):
     """Reduce an image: Perform astrometric and photometric calibration, and extract photometry to add it to the database.
 
     Parameters
@@ -159,12 +189,10 @@ def reduce_image(image, header, obj_id, instrument_id, user_id, detect_cosmics=F
             ).first()
             user = session.scalars(sa.select(User).where(User.id == user_id)).first()
 
-            # Parsing its header and print it
             time = utils.get_obs_time(header, verbose=False)
             filt = header.get('FILTER')
 
             wcs = WCS(header)
-            gain = 0.25  # otherwise it is a str
 
             # Masking saturated stars and cosmic rays
             # The mask is a binary frame with the same size as the image where True means that this pixel should not be used for the analysis
@@ -222,17 +250,34 @@ def reduce_image(image, header, obj_id, instrument_id, user_id, detect_cosmics=F
             )
 
             # ## Reference catalogue
-            # Catalogue name may be any Vizier identifier (ps1, gaiadr2, gaiaedr3, usnob1, gsc, skymapper, apass, sdss, atlas, vsx).
-            # Getting PanSTARRS objects brighter than r=17 mag
-            cat = catalogs.get_cat_vizier(
-                center_ra, center_dec, center_sr, 'ps1', filters={'rmag': '<21'}
+            # Catalog name may be any Vizier identifier (ps1, gaiadr2, gaiaedr3, usnob1, gsc, skymapper, apass, sdss, atlas, vsx).
+            cat_refinement = catalogs.get_cat_vizier(
+                center_ra,
+                center_dec,
+                center_sr,
+                catalog_name_refinement,
+                filters={'rmag': '<21'},
             )
-            log(f'{len(cat)} catalogue stars')
+            log(f'{len(cat_refinement)} catalogue stars used for refinement')
+
+            cat_crossmatch = catalogs.get_cat_vizier(
+                center_ra,
+                center_dec,
+                center_sr,
+                catalog_name_crossmatch,
+                filters={'rmag': '<21'},
+            )
+            log(f'{len(cat_crossmatch)} catalogue stars used for crossmatch')
 
             # ## Astrometric refinement
             # Refining the astrometric solution based on the positions of detected objects and catalogue stars with scamp
             wcs = pipeline.refine_astrometry(
-                obj, cat, wcs=wcs, method='scamp', cat_col_mag='rmag', verbose=True
+                obj,
+                cat_refinement,
+                wcs=wcs,
+                method=method,
+                cat_col_mag='rmag',
+                verbose=True,
             )
             if wcs is not None:
                 # Update WCS info in the header
@@ -252,8 +297,8 @@ def reduce_image(image, header, obj_id, instrument_id, user_id, detect_cosmics=F
             # Photometric calibration using 2 arcsec matching radius, r magnitude, g-r color and second order spatial variations
             m = pipeline.calibrate_photometry(
                 obj,
-                cat,
-                sr=2 / 3600,
+                cat_refinement,
+                sr=matching_radius,
                 cat_col_mag='rmag',
                 cat_col_mag1='gmag',
                 cat_col_mag2='rmag',
@@ -267,17 +312,21 @@ def reduce_image(image, header, obj_id, instrument_id, user_id, detect_cosmics=F
 
             # Filtering of transient candidates
             candidates = pipeline.filter_transient_candidates(
-                obj, cat=cat, sr=2 / 3600, verbose=True
+                obj, cat=cat_crossmatch, sr=matching_radius, verbose=True
             )
             log(f'{candidates}')
 
-            # Creating cutouts for these candidates and vizualizing them (6238 ???)
+            # Creating cutouts for these candidates and vizualizing them
             filtered = []
+
             for i, cand in enumerate(candidates):
                 dist = spherical_distance(
-                    candidates[i]['ra'], candidates[i]['dec'], 191.4734, 89.1846
-                )  # XRT enhanced position
-                if dist < 4 / 3600:
+                    candidates[i]['ra'], candidates[i]['dec'], obj['ra'], obj['dec']
+                )
+
+                if (
+                    dist < matching_radius * 2
+                ).all():  # TODO: verify the x2. the previous value was 4 / 3600, whereas it was 2 / 3600 everywhere else. Which is why I assumed it should be multiplied by 2.
                     filtered.append(candidates[i])
 
             for i, cand in enumerate(filtered):
@@ -285,7 +334,7 @@ def reduce_image(image, header, obj_id, instrument_id, user_id, detect_cosmics=F
                 cutout = cutouts.get_cutout(image, cand, 20, mask=mask, header=header)
                 # We may directly download the template image for this cutout from HiPS server - same scale and orientation
                 cutout['template'] = templates.get_hips_image(
-                    'PanSTARRS/DR1/r', header=cutout['header']
+                    template_name, header=cutout['header']
                 )[0]
                 # We do not have difference image, so it will only display original one, template and mask
                 plots.plot_cutout(cutout, qq=[0.5, 99.9], stretch='linear')
@@ -459,6 +508,56 @@ class ImageAnalysisHandler(BaseHandler):
                     message=f'Found no instrument with id {instrument_id}'
                 )
 
+            matching_radius = data.get('matching_radius')
+            if matching_radius is None:
+                return self.error(message='Missing matching_radius')
+            try:
+                matching_radius = float(matching_radius)
+            except ValueError:
+                return self.error(message='Invalid matching_radius')
+
+            matching_radius = matching_radius / 3600.0  # arcsec -> deg
+
+            gain = data.get('gain')
+            if gain is None:
+                return self.error(message='Missing gain')
+            try:
+                gain = float(gain)
+            except ValueError:
+                return self.error(message='Invalid gain')
+
+            catalog_name_refinement = data.get('astrometric_refinement_cat')
+            if catalog_name_refinement is None:
+                return self.error(message='Missing astrometric_refinement_cat')
+            if catalog_name_refinement not in catalogs_enum:
+                return self.error(
+                    message=f'Invalid astrometric_refinement_cat, must be once of: {", ".join(catalogs_enum)}'
+                )
+
+            catalog_name_crossmatch = data.get('crossmatch_catalog')
+            if catalog_name_crossmatch is None:
+                return self.error(message='Missing crossmatch_catalog')
+            if catalog_name_crossmatch not in catalogs_enum:
+                return self.error(
+                    message=f'Invalid crossmatch_catalog, must be once of: {", ".join(catalogs_enum)}'
+                )
+
+            template_name = data.get('template')
+            if template_name is None:
+                return self.error(message='Missing template')
+            if template_name not in templates_enum:
+                return self.error(
+                    message=f'Invalid template, must be once of: {", ".join(templates_enum)}'
+                )
+
+            method = data.get('method')
+            if method is None:
+                return self.error(message='Missing method')
+            if method not in methods_enum:
+                return self.error(
+                    message=f'Invalid method, must be once of: {", ".join(methods_enum)}'
+                )
+
             file_data = data.get("image_data")
             if file_data is None:
                 return self.error(message='Missing image data')
@@ -489,7 +588,17 @@ class ImageAnalysisHandler(BaseHandler):
                 IOLoop.current().run_in_executor(
                     None,
                     lambda: reduce_image(
-                        image_data, header, obj_id, instrument.id, self.current_user.id
+                        image_data,
+                        header,
+                        obj_id,
+                        instrument.id,
+                        self.current_user.id,
+                        gain,
+                        matching_radius,
+                        catalog_name_refinement,
+                        catalog_name_crossmatch,
+                        template_name,
+                        method,
                     ),
                 )
                 return self.success()
