@@ -23,6 +23,7 @@ import { GET } from "../API";
 
 import LocalizationPlot from "./LocalizationPlot";
 import AddSurveyEfficiencyObservationPlanPage from "./AddSurveyEfficiencyObservationPlanPage";
+import AddRunFromObservationPlanPage from "./AddRunFromObservationPlanPage";
 
 const useStyles = makeStyles(() => ({
   observationplanRequestTable: {
@@ -311,13 +312,6 @@ const ObservationPlanRequestLists = ({ gcnEvent }) => {
     setIsDeletingTreasureMap(null);
   };
 
-  const [isCreatingObservingRun, setIsCreatingObservingRun] = useState(null);
-  const handleCreateObservingRun = async (id) => {
-    setIsCreatingObservingRun(id);
-    await dispatch(Actions.createObservationPlanRequestObservingRun(id));
-    setIsCreatingObservingRun(null);
-  };
-
   const [isSending, setIsSending] = useState(null);
   const handleSend = async (id) => {
     setIsSending(id);
@@ -536,25 +530,9 @@ const ObservationPlanRequestLists = ({ gcnEvent }) => {
                 </Button>
               </div>
               <div>
-                {isCreatingObservingRun === observationplanRequest.id ? (
-                  <div>
-                    <CircularProgress />
-                  </div>
-                ) : (
-                  <div>
-                    <Button
-                      secondary
-                      onClick={() => {
-                        handleCreateObservingRun(observationplanRequest.id);
-                      }}
-                      size="small"
-                      type="submit"
-                      data-testid={`observingRunRequest_${observationplanRequest.id}`}
-                    >
-                      Create Observing Run
-                    </Button>
-                  </div>
-                )}
+                <AddRunFromObservationPlanPage
+                  observationplanRequest={observationplanRequest}
+                />
               </div>
               <div>
                 <AddSurveyEfficiencyObservationPlanPage

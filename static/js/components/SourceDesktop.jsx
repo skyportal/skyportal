@@ -34,6 +34,7 @@ import AssignmentForm from "./AssignmentForm";
 import AssignmentList from "./AssignmentList";
 import SourceNotification from "./SourceNotification";
 import EditSourceGroups from "./EditSourceGroups";
+import UpdateSourceCoordinates from "./UpdateSourceCoordinates";
 import UpdateSourceRedshift from "./UpdateSourceRedshift";
 import SourceRedshiftHistory from "./SourceRedshiftHistory";
 import AnnotationsTable from "./AnnotationsTable";
@@ -335,6 +336,9 @@ const SourceDesktop = ({ source }) => {
                   {dec_to_dms(source.dec, ":")} &nbsp;
                 </span>
               </div>
+            </div>
+            <div className={classes.sourceInfo}>
+              <UpdateSourceCoordinates source={source} />
             </div>
             <div className={classes.sourceInfo}>
               <div>

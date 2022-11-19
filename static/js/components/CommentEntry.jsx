@@ -57,12 +57,13 @@ const CommentEntry = ({ addComment }) => {
     getValues,
     setValue,
     control,
-    errors,
+
+    formState: { errors },
   } = useForm();
 
   // The file input needs to be registered here, not in the input tag below
   useEffect(() => {
-    register({ name: "attachment" });
+    register("name", { name: "attachment" });
   }, [register]);
 
   useEffect(() => {
@@ -116,7 +117,7 @@ const CommentEntry = ({ addComment }) => {
   };
 
   const validateGroups = () => {
-    const formState = getValues({ nest: true });
+    const formState = getValues();
     return formState.group_ids?.filter((value) => Boolean(value)).length >= 1;
   };
 
@@ -244,7 +245,7 @@ const CommentEntry = ({ addComment }) => {
               key={userGroup.id}
               control={
                 <Controller
-                  render={({ onChange, value }) => (
+                  render={({ field: { onChange, value } }) => (
                     <Checkbox
                       onChange={(event) => onChange(event.target.checked)}
                       checked={value}
