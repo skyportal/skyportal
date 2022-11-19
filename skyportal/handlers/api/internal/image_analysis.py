@@ -550,7 +550,7 @@ class ImageAnalysisHandler(BaseHandler):
                     message=f'Invalid template, must be once of: {", ".join(templates_enum)}'
                 )
 
-            method = data.get('method')
+            method = data.get('astrometric_refinement_meth')
             if method is None:
                 return self.error(message='Missing method')
             if method not in methods_enum:
