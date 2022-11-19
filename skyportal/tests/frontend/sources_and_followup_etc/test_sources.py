@@ -668,7 +668,9 @@ def test_unsave_from_group(
         scroll_parent=True,
     )
     driver.click_xpath(f'//button[@name="editSourceGroupsButton_{public_source.id}"]')
-    driver.wait_for_xpath('//*[text()="Source groups updated successfully"]')
+    driver.wait_for_xpath(
+        '//*[text()="Source groups updated successfully"]', timeout=10
+    )
     driver.wait_for_xpath_to_disappear(
         f'//div[@data-testid="groupChip_{public_group2.id}"]'
     )
@@ -690,7 +692,9 @@ def test_request_group_to_save_then_save(
         f'//button[@name="editSourceGroupsButton_{public_source.id}"]',
         scroll_parent=True,
     )
-    driver.wait_for_xpath('//*[text()="Source groups updated successfully"]')
+    driver.wait_for_xpath(
+        '//*[text()="Source groups updated successfully"]', timeout=10
+    )
     driver.get(f"/become_user/{user_two_groups.id}")
     driver.get(f"/group_sources/{public_group2.id}")
     driver.click_xpath(f'//button[@data-testid="saveSourceButton_{public_source.id}"]')
