@@ -143,7 +143,7 @@ const TelescopePage = () => {
       </div>
       <div className={classes.legend}>
         <div style={{ background: "#5ca9d6" }} className={classes.rect} />
-        <p> GCN and Networks </p>
+        <p> Networks and Space-based Instruments</p>
       </div>
     </div>
   );
