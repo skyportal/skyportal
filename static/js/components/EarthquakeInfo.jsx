@@ -171,11 +171,13 @@ const Earthquake = () => {
     <ul>
       {events[dataIndex]?.notices?.map((gcnNotice) => (
         <li key={gcnNotice.id}>
-          {["date", "magnitude", "lat", "lon", "depth"].map((attr) => (
-            <p key={attr}>
-              {attr}: {gcnNotice[attr]}
-            </p>
-          ))}
+          {["date", "magnitude", "lat", "lon", "depth", "country"].map(
+            (attr) => (
+              <p key={attr}>
+                {attr}: {gcnNotice[attr]}
+              </p>
+            )
+          )}
         </li>
       ))}
     </ul>

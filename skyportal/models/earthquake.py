@@ -68,6 +68,8 @@ class EarthquakeNotice(Base):
         sa.DateTime, nullable=False, comment='UTC event timestamp', index=True
     )
 
+    country = sa.Column(sa.String, nullable=True, comment='Country')
+
 
 class EarthquakePrediction(Base):
     """Earthquake prediction information"""
