@@ -89,6 +89,7 @@ from .observation_plan import (
     ObservationPlanMovieHandler,
     ObservationPlanNameHandler,
     ObservationPlanObservabilityPlotHandler,
+    ObservationPlanWorldmapPlotHandler,
     ObservationPlanSimSurveyHandler,
     ObservationPlanSimSurveyPlotHandler,
     ObservationPlanSurveyEfficiencyHandler,

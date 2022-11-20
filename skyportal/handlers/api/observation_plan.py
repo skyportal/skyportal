@@ -9,6 +9,7 @@ from astroplan import (
     is_event_observable,
 )
 from datetime import datetime, timedelta
+import geopandas
 import healpy as hp
 import humanize
 import json
@@ -1408,6 +1409,150 @@ class ObservationPlanFieldsHandler(BaseHandler):
             return self.success()
 
 
+class ObservationPlanWorldmapPlotHandler(BaseHandler):
+    @auth_or_token
+    async def get(self, localization_id):
+        """
+        ---
+        description: Create a summary plot for the observability for a given event.
+        tags:
+          - localizations
+        parameters:
+          - in: path
+            name: localization_id
+            required: true
+            schema:
+              type: integer
+            description: |
+              ID of localization to generate map for
+          - in: query
+            name: maximumAirmass
+            nullable: true
+            schema:
+              type: number
+            description: |
+              Maximum airmass to consider. Defaults to 2.5.
+          - in: query
+            name: twilight
+            nullable: true
+            schema:
+              type: string
+            description: |
+                Twilight definition. Choices are astronomical (-18 degrees), nautical (-12 degrees), and civil (-6 degrees).
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+        """
+
+        max_airmass = self.get_query_argument("maxAirmass", 2.5)
+        twilight = self.get_query_argument("twilight", "astronomical")
+
+        twilight_dict = {'astronomical': -18, 'nautical': -12, 'civil': -6}
+
+        with self.Session() as session:
+
+            stmt = Telescope.select(self.current_user)
+            telescopes = session.scalars(stmt).all()
+
+            stmt = Localization.select(self.current_user).where(
+                Localization.id == localization_id
+            )
+            localization = session.scalars(stmt).first()
+            m = localization.flat_2d
+            nside = localization.nside
+            npix = len(m)
+
+            trigger_time = Time(localization.dateobs, format='datetime')
+
+            # Look up (celestial) spherical polar coordinates of HEALPix grid.
+            theta, phi = hp.pix2ang(nside, np.arange(npix))
+            # Convert to RA, Dec.
+            radecs = astropy.coordinates.SkyCoord(
+                ra=phi * u.rad, dec=(0.5 * np.pi - theta) * u.rad
+            )
+
+            cmap = plt.cm.rainbow
+            norm = matplotlib.colors.Normalize(vmin=0, vmax=1)
+            sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+            sm.set_array([])
+
+            colors = []
+            for telescope in telescopes:
+                if not telescope.fixed_location:
+                    continue
+                location = EarthLocation(
+                    lon=telescope.lon * u.deg,
+                    lat=telescope.lat * u.deg,
+                    height=(telescope.elevation or 0) * u.m,
+                )
+
+                # Alt/az reference frame at observatory, now
+                frame = astropy.coordinates.AltAz(
+                    obstime=trigger_time, location=location
+                )
+
+                # Transform grid to alt/az coordinates at observatory, now
+                altaz = radecs.transform_to(frame)
+
+                # Where is the sun, now?
+                sun_altaz = astropy.coordinates.get_sun(trigger_time).transform_to(
+                    altaz
+                )
+
+                # How likely is it that the (true, unknown) location of the source
+                # is within the area that is visible, now?
+                prob = m[
+                    (sun_altaz.alt <= twilight_dict[twilight] * u.deg)
+                    & (altaz.secz <= max_airmass)
+                ].sum()
+
+                rgba_color = cmap(norm(prob))
+                colors.append(rgba_color)
+
+            world = geopandas.read_file(
+                geopandas.datasets.get_path('naturalearth_lowres')
+            )
+            ds = [
+                telescope.to_dict()
+                for telescope in telescopes
+                if telescope.fixed_location
+            ]
+            df = pd.DataFrame(ds)
+            df['colors'] = colors
+            gdf = geopandas.GeoDataFrame(
+                df, geometry=geopandas.points_from_xy(df.lon, df.lat)
+            )
+
+            output_format = 'pdf'
+            fig, (ax0, ax1) = plt.subplots(1, 2, figsize=(14, 10), width_ratios=[10, 1])
+            world.plot(ax=ax0)
+            gdf.plot(ax=ax0, color=gdf['colors'])
+            scale = 5
+            for idx, dat in gdf.iterrows():
+                ax0.annotate(
+                    dat.nickname,
+                    (
+                        dat.lon + scale * np.random.randn(),
+                        dat.lat + scale * np.random.randn(),
+                    ),
+                )
+
+            cbar = plt.colorbar(sm, cax=ax1, fraction=0.5)
+            cbar.set_label(r'Observable Probability')
+
+            buf = io.BytesIO()
+            fig.savefig(buf, format=output_format, bbox_inches='tight')
+            plt.close(fig)
+            buf.seek(0)
+
+            filename = f"worldmap.{output_format}"
+            data = io.BytesIO(buf.read())
+
+            await self.send_file(data, filename, output_type=output_format)
+
+
 class ObservationPlanObservabilityPlotHandler(BaseHandler):
     @auth_or_token
     async def get(self, localization_id):
@@ -1418,15 +1563,12 @@ class ObservationPlanObservabilityPlotHandler(BaseHandler):
           - localizations
         parameters:
           - in: path
-            name: dateobs
+            name: localization_id
             required: true
             schema:
-              type: dateobs
-          - in: path
-            name: localization_name
-            required: true
-            schema:
-              type: localization_name
+              type: integer
+            description: |
+              ID of localization to generate observability plot for
           - in: query
             name: maximumAirmass
             nullable: true
@@ -1539,12 +1681,16 @@ class ObservationPlanAirmassChartHandler(BaseHandler):
             name: localization_id
             required: true
             schema:
-              type: string
+              type: integer
+            description: |
+              ID of localization to generate airmass chart for
           - in: path
             name: telescope_id
             required: true
             schema:
-              type: string
+              type: integer
+            description: |
+              ID of telescope to generate airmass chart for
         responses:
           200:
             content:
@@ -1618,7 +1764,9 @@ class ObservationPlanCreateObservingRunHandler(BaseHandler):
             name: observation_plan_id
             required: true
             schema:
-              type: string
+              type: integer
+            description: |
+              ID of observation plan request to create observing run for
         responses:
           200:
             content:
