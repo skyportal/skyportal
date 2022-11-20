@@ -30,6 +30,9 @@ const NewSource = ({ classes }) => {
     if (data.data !== "A source of that name does not exist.") {
       dispatch(showNotification(data.data, "error"));
     } else {
+      if (selectedGroupIds.length > 0) {
+        formData.group_ids = selectedGroupIds;
+      }
       const result = await dispatch(saveSource(formData));
       if (result.status === "success") {
         dispatch(showNotification("Source saved"));
