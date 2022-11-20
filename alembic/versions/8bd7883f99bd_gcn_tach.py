@@ -26,13 +26,14 @@ def upgrade():
     )
     op.add_column(
         'gcnevents',
-        sa.Column('tach_id', sa.String(), server_default='{}', nullable=True),
+        sa.Column('tach_id', sa.String(), nullable=True),
     )
     op.add_column(
         'gcnevents',
         sa.Column(
             'circulars',
             postgresql.JSONB(astext_type=sa.Text()),
+            server_default='{}',
             nullable=False,
         ),
     )
