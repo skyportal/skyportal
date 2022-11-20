@@ -1419,15 +1419,12 @@ class ObservationPlanWorldmapPlotHandler(BaseHandler):
           - localizations
         parameters:
           - in: path
-            name: dateobs
+            name: localization_id
             required: true
             schema:
-              type: dateobs
-          - in: path
-            name: localization_name
-            required: true
-            schema:
-              type: localization_name
+              type: integer
+            description: |
+              ID of localization to generate map for
           - in: query
             name: maximumAirmass
             nullable: true
@@ -1566,15 +1563,12 @@ class ObservationPlanObservabilityPlotHandler(BaseHandler):
           - localizations
         parameters:
           - in: path
-            name: dateobs
+            name: localization_id
             required: true
             schema:
-              type: dateobs
-          - in: path
-            name: localization_name
-            required: true
-            schema:
-              type: localization_name
+              type: integer
+            description: |
+              ID of localization to generate observability plot for
           - in: query
             name: maximumAirmass
             nullable: true
@@ -1687,12 +1681,16 @@ class ObservationPlanAirmassChartHandler(BaseHandler):
             name: localization_id
             required: true
             schema:
-              type: string
+              type: integer
+            description: |
+              ID of localization to generate airmass chart for
           - in: path
             name: telescope_id
             required: true
             schema:
-              type: string
+              type: integer
+            description: |
+              ID of telescope to generate airmass chart for
         responses:
           200:
             content:
@@ -1766,7 +1764,9 @@ class ObservationPlanCreateObservingRunHandler(BaseHandler):
             name: observation_plan_id
             required: true
             schema:
-              type: string
+              type: integer
+            description: |
+              ID of observation plan request to create observing run for
         responses:
           200:
             content:
