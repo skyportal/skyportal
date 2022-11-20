@@ -3,13 +3,13 @@ import arrow
 from astropy.time import Time, TimeDelta
 import astropy.units as u
 import numpy as np
+import obspy
 from obspy.geodetics.base import gps2dist_azimuth
 from obspy.taup import TauPyModel
 from obspy.taup.helper_classes import TauModelError
 import sqlalchemy as sa
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm import sessionmaker, scoped_session
-import obspy
 
 from baselayer.app.access import auth_or_token
 from baselayer.app.custom_exceptions import AccessError
@@ -24,6 +24,9 @@ from ...models import (
     EarthquakePrediction,
     MMADetector,
     User,
+)
+from ...utils.earthquake import (
+    get_country,
 )
 
 log = make_log('earthquake')
@@ -95,6 +98,7 @@ def post_earthquake_from_xml(payload, user_id, session):
                 "Insufficient permissions: Earthquake event can only be updated by original poster"
             )
 
+    country = get_country(origin.latitude, origin.longitude)
     earthquake_notice = EarthquakeNotice(
         content=payload.encode('utf-8'),
         event_id=event_id,
@@ -102,6 +106,7 @@ def post_earthquake_from_xml(payload, user_id, session):
         lon=origin.longitude,
         depth=origin.depth,
         magnitude=mag,
+        country=country,
         date=origin.time.datetime,
         sent_by_id=user.id,
     )
@@ -143,12 +148,14 @@ def post_earthquake_from_dictionary(payload, user_id, session):
                 "Insufficient permissions: Earthquake event can only be updated by original poster"
             )
 
+    country = get_country(latitude, longitude)
     earthquake_notice = EarthquakeNotice(
         event_id=event_id,
         lat=latitude,
         lon=longitude,
         depth=depth,
         magnitude=magnitude,
+        country=country,
         date=date,
         sent_by_id=user.id,
     )
