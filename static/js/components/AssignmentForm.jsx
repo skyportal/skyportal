@@ -135,8 +135,12 @@ const AssignmentForm = ({ obj_id, observingRunList }) => {
                   ? upcomingObservingRuns[0].id
                   : null
               }
-              render={() => (
-                <Select labelId="assignmentSelect">
+              render={({ field: { onChange, value } }) => (
+                <Select
+                  labelId="assignmentSelect"
+                  onChange={onChange}
+                  value={value}
+                >
                   {upcomingObservingRuns?.map((observingRun) => (
                     <MenuItem
                       value={observingRun.id}
