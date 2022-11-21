@@ -150,7 +150,7 @@ const TelescopePage = () => {
   const TelescopeToolTip = () => (
     <Tooltip
       title={Title()}
-      placement="top"
+      placement="bottom-end"
       classes={{ tooltip: classes.tooltip }}
     >
       <HelpOutlineOutlinedIcon />
@@ -178,12 +178,12 @@ const TelescopePage = () => {
         <Grid item md={8} sm={12}>
           <Paper className={classes.paperContent}>
             <TelescopeMap telescopes={telescopeList} />
+            <div className={classes.help}>
+              <TelescopeToolTip />
+            </div>
           </Paper>
         </Grid>
         <Grid item md={4} sm={12}>
-          <div className={classes.help}>
-            <TelescopeToolTip />
-          </div>
           <Paper className={classes.menu}>
             <Button
               secondary
