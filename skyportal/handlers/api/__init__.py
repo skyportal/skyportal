@@ -50,6 +50,7 @@ from .gcn import (
     GcnEventTagsHandler,
     GcnSummaryHandler,
     LocalizationHandler,
+    LocalizationPropertiesHandler,
 )
 from .group import (
     GroupHandler,
@@ -88,6 +89,7 @@ from .observation_plan import (
     ObservationPlanMovieHandler,
     ObservationPlanNameHandler,
     ObservationPlanObservabilityPlotHandler,
+    ObservationPlanWorldmapPlotHandler,
     ObservationPlanSimSurveyHandler,
     ObservationPlanSimSurveyPlotHandler,
     ObservationPlanSurveyEfficiencyHandler,

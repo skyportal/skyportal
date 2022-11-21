@@ -3,6 +3,7 @@ import PropTypes from "prop-types";
 import { useSelector, useDispatch } from "react-redux";
 import Paper from "@mui/material/Paper";
 import { withStyles, makeStyles } from "@mui/styles";
+import { useForm, Controller } from "react-hook-form";
 
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
@@ -10,6 +11,7 @@ import MuiDialogTitle from "@mui/material/DialogTitle";
 import IconButton from "@mui/material/IconButton";
 import EditIcon from "@mui/icons-material/Edit";
 import Close from "@mui/icons-material/Close";
+import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 import grey from "@mui/material/colors/grey";
 import dayjs from "dayjs";
@@ -97,6 +99,8 @@ const ConfirmSourceInGCN = ({
   const { permissions } = useSelector((state) => state.profile);
   const [open, setOpen] = useState(false);
 
+  const { handleSubmit, control, getValues, register } = useForm();
+
   const sourcesingcn = useSelector((state) => state.sourcesingcn.sourcesingcn);
 
   const handleClose = () => {
@@ -129,6 +133,7 @@ const ConfirmSourceInGCN = ({
   };
 
   const handleConfirm = () => {
+    const data = getValues();
     if (currentState === "unknown") {
       dispatch(
         SourceInGcnAction.submitSourceInGcn(dateobs, {
@@ -138,6 +143,7 @@ const ConfirmSourceInGCN = ({
           localization_name,
           localization_cumprob,
           confirmed: true,
+          explanation: data.explanation,
         })
       ).then((response) => {
         if (response.status === "success") {
@@ -149,6 +155,7 @@ const ConfirmSourceInGCN = ({
       dispatch(
         SourceInGcnAction.patchSourceInGcn(dateobs, source_id, {
           confirmed: true,
+          explanation: data.explanation,
         })
       ).then((response) => {
         if (response.status === "success") {
@@ -162,6 +169,7 @@ const ConfirmSourceInGCN = ({
   };
 
   const handleReject = () => {
+    const data = getValues();
     if (currentState === "unknown") {
       dispatch(
         SourceInGcnAction.submitSourceInGcn(dateobs, {
@@ -171,6 +179,7 @@ const ConfirmSourceInGCN = ({
           localization_name,
           localization_cumprob,
           confirmed: false,
+          explanation: data.explanation,
         })
       ).then((response) => {
         if (response.status === "success") {
@@ -182,6 +191,7 @@ const ConfirmSourceInGCN = ({
       dispatch(
         SourceInGcnAction.patchSourceInGcn(dateobs, source_id, {
           confirmed: false,
+          explanation: data.explanation,
         })
       ).then((response) => {
         if (response.status === "success") {
@@ -231,9 +241,33 @@ const ConfirmSourceInGCN = ({
             </DialogTitle>
             <DialogContent dividers>
               <div className={classes.dialogContent}>
-                <Button onClick={handleConfirm}>CONFIRM</Button>
-                <Button onClick={handleReject}>REJECT</Button>
-                <Button onClick={handleUndefined}>UNDEFINED</Button>
+                <div>
+                  <form onSubmit={handleSubmit}>
+                    <Typography variant="subtitle2" className={classes.title}>
+                      Classification Explanation
+                    </Typography>
+                    <Controller
+                      render={({ field: { onChange, value } }) => (
+                        <TextField
+                          size="small"
+                          label="Explanation"
+                          name="explanation"
+                          inputRef={register("explanation")}
+                          className={classes.positionField}
+                          onChange={onChange}
+                          value={value}
+                        />
+                      )}
+                      name="explanation"
+                      control={control}
+                    />
+                    <div>
+                      <Button onClick={handleConfirm}>CONFIRM</Button>
+                      <Button onClick={handleReject}>REJECT</Button>
+                      <Button onClick={handleUndefined}>UNDEFINED</Button>
+                    </div>
+                  </form>
+                </div>
               </div>
             </DialogContent>
           </Dialog>
