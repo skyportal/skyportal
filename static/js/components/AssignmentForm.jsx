@@ -168,8 +168,12 @@ const AssignmentForm = ({ obj_id, observingRunList }) => {
               name="priority"
               control={control}
               rules={{ required: true }}
-              render={() => (
-                <Select labelId="prioritySelect">
+              render={({ field: { onChange, value } }) => (
+                <Select
+                  labelId="prioritySelect"
+                  onChange={onChange}
+                  value={value}
+                >
                   {["1", "2", "3", "4", "5"].map((prio) => (
                     <MenuItem value={prio} key={prio}>
                       {prio}
