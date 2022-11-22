@@ -247,10 +247,18 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
           <Typography variant="subtitle2" className={classes.title}>
             Name or ID
           </Typography>
-          <TextField
-            label="Source ID/Name"
+          <Controller
+            render={({ field: { onChange, value } }) => (
+              <TextField
+                label="Source ID/Name"
+                name="sourceID"
+                inputRef={register("sourceID")}
+                onChange={onChange}
+                value={value}
+              />
+            )}
             name="sourceID"
-            inputRef={register("sourceID")}
+            control={control}
           />
         </div>
         <div className={classes.formItemRightColumn}>
