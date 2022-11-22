@@ -1649,7 +1649,7 @@ def make_photometry_panel(
 
     ndata = data[~data['flux'].isnull()]
     if not ndata.empty:
-        finite = np.isfinite(ndata)
+        finite = np.isfinite(ndata['flux'])
         fdata = ndata[finite]
         lower = np.min(fdata['flux']) * 0.95
         upper = np.max(fdata['flux']) * 1.05
