@@ -242,10 +242,49 @@ def generate_observation_plan_statistics(
             f'time: {time.time() - t0:.2f} seconds'
         )
 
+        # leo's new query
+        t0 = time.time()
+        union = (
+            sa.select(ha.func.union(InstrumentFieldTile.healpix).label('healpix'))
+            .filter(
+                InstrumentFieldTile.instrument_field_id == PlannedObservation.field_id,
+                PlannedObservation.observation_plan_id == plan.id,
+            )
+            .subquery()
+        )
+
+        area = sa.func.sum(union.columns.healpix.area)
+        query_area = sa.select(area)
+        intarea = session.execute(query_area).scalar_one()
+
+        if intarea is None:
+            intarea = 0.0
+        intarea *= (180.0 / np.pi) ** 2
+        print(
+            f'DEBUG: Leo query area = {intarea} | time: {time.time() - t0:.2f} seconds'
+        )
+
+        prob = sa.func.sum(
+            LocalizationTile.probdensity
+            * (union.columns.healpix * LocalizationTile.healpix).area
+        )
+
+        query_prob = sa.select(prob).filter(
+            LocalizationTile.localization_id == request.localization_id,
+            union.columns.healpix.overlaps(LocalizationTile.healpix),
+        )
+        print(query_prob)
+        intprob = session.execute(query_prob).scalar_one()
+        if intprob is None:
+            intprob = 0.0
+
+        print(
+            f'DEBUG: Leo query prob = {intprob} | time: {time.time() - t0:.2f} seconds'
+        )
+
         # old query code:
         tiles_subquery = (
-            sa.select(InstrumentFieldTile.id)
-            .where(
+            sa.select(InstrumentFieldTile.id).where(
                 LocalizationTile.localization_id == request.localization_id,
                 LocalizationTile.probdensity >= min_probdensity,
                 InstrumentFieldTile.instrument_id == plan.instrument_id,
@@ -255,7 +294,7 @@ def generate_observation_plan_statistics(
                 InstrumentFieldTile.healpix.overlaps(LocalizationTile.healpix),
                 LocalizationTile.healpix.overlaps(InstrumentFieldTile.healpix),
             )
-            .distinct()
+            # .distinct()
             .subquery()
         )
 
@@ -268,7 +307,7 @@ def generate_observation_plan_statistics(
         t0 = time.time()
         intarea = session.execute(query_area).scalar_one()
         print(
-            f'Area value: {intarea * (180.0 / np.pi) ** 2}. query took {time.time() - t0:.1f} s'
+            f'DEBUG: Old query: Area value: {intarea * (180.0 / np.pi) ** 2}. query took {time.time() - t0:.1f} s'
         )
 
         if intarea is None:
@@ -284,7 +323,9 @@ def generate_observation_plan_statistics(
         query_prob = sa.select(prob)
         t0 = time.time()
         intprob = session.execute(query_prob).scalar_one()
-        print(f'intProb value: {intprob}. query took {time.time() - t0:.1f} s')
+        print(
+            f'DEBUG: Old query: intProb value: {intprob}. query took {time.time() - t0:.1f} s'
+        )
 
         if intprob is None:
             intprob = 0.0
