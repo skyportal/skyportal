@@ -314,6 +314,16 @@ const FilterCandidateList = ({
       data.sortByAnnotationOrigin = formData.sortingOrigin;
       data.sortByAnnotationKey = formData.sortingKey;
       data.sortByAnnotationOrder = formData.sortingOrder;
+    } else if (selectedScanningProfile?.sortingOrigin === undefined) {
+      // Clear annotation sort params, if a default sort is not defined
+      await dispatch(
+        candidatesActions.setCandidatesAnnotationSortOptions(null)
+      );
+      setSortOrder(null);
+    } else {
+      data.sortByAnnotationOrigin = selectedScanningProfile.sortingOrigin;
+      data.sortByAnnotationKey = selectedScanningProfile.sortingKey;
+      data.sortByAnnotationOrder = selectedScanningProfile.sortingOrder;
     }
 
     // Submit a new search for candidates
@@ -325,17 +335,15 @@ const FilterCandidateList = ({
     );
     const fetchParams = { ...data };
 
-    // Clear annotation sort params, if a default sort is not defined
-    if (selectedScanningProfile?.sortingOrigin === undefined) {
+    if (data.sortByAnnotationOrigin) {
+      setSortOrder(data.sortByAnnotationOrder);
       await dispatch(
-        candidatesActions.setCandidatesAnnotationSortOptions(null)
+        candidatesActions.setCandidatesAnnotationSortOptions({
+          key: data.sortByAnnotationKey,
+          origin: data.sortByAnnotationOrigin,
+          order: data.sortByAnnotationOrder,
+        })
       );
-      setSortOrder(null);
-    } else {
-      fetchParams.sortByAnnotationOrigin =
-        selectedScanningProfile.sortingOrigin;
-      fetchParams.sortByAnnotationKey = selectedScanningProfile.sortingKey;
-      fetchParams.sortByAnnotationOrder = selectedScanningProfile.sortingOrder;
     }
 
     // Save form-specific data, formatted for the API query
@@ -415,6 +423,11 @@ const FilterCandidateList = ({
               input={<Input data-testid="savedStatusSelect" />}
               render={({ field: { onChange, value } }) => (
                 <Select
+                  key={
+                    selectedScanningProfile?.savedStatus
+                      ? "notLoadedYet"
+                      : "loaded"
+                  }
                   onChange={onChange}
                   value={value}
                   defaultValue={selectedScanningProfile?.savedStatus || "all"}
@@ -529,9 +542,15 @@ const FilterCandidateList = ({
                 labelId="sorting-select-label"
                 name="sortingOrigin"
                 control={control}
+                input={<Input data-testid="annotationSortingOriginSelect" />}
                 render={({ field: { onChange, value } }) => (
                   <Select
                     id="annotationSortingOriginSelect"
+                    key={
+                      selectedScanningProfile?.sortingOrigin
+                        ? "notLoadedYet"
+                        : "loaded"
+                    }
                     value={value}
                     onChange={(event) => {
                       setSelectedAnnotationOrigin(event.target.value);
@@ -566,6 +585,7 @@ const FilterCandidateList = ({
                     input={<Input data-testid="annotationSortingKeySelect" />}
                     render={({ field: { onChange, value } }) => (
                       <Select
+                        id="annotationSortingKeySelect"
                         defaultValue={selectedScanningProfile?.sortingKey || ""}
                         onChange={onChange}
                         value={value}
@@ -597,6 +617,7 @@ const FilterCandidateList = ({
                     input={<Input data-testid="annotationSortingOrderSelect" />}
                     render={({ field: { onChange, value } }) => (
                       <Select
+                        id="annotationSortingOrderSelect"
                         defaultValue={
                           selectedScanningProfile?.sortingOrder || ""
                         }
