@@ -142,7 +142,6 @@ const getMuiTheme = (theme) =>
           padding: `${theme.spacing(1)} ${theme.spacing(0.5)} ${theme.spacing(
             1
           )} ${theme.spacing(1)}`,
-          width: "50px",
         },
         stackedHeader: {
           verticalAlign: "top",
