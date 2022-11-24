@@ -44,7 +44,10 @@ const customComparator = (prevProps, nextProps) => {
     }
     return false;
   }
-  return areEqual(nextProps.data, prevProps.data);
+  return (
+    areEqual(nextProps.data, prevProps.data) &&
+    areEqual(nextProps.groupIds, prevProps.groupIds)
+  );
 };
 
 export default memo(CustomDataTable, customComparator);
