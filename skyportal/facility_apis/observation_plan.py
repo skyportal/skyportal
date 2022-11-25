@@ -1,4 +1,4 @@
-import time
+# import time
 from astropy.time import Time
 import healpix_alchemy as ha
 import humanize
@@ -25,7 +25,9 @@ default_filters = cfg['app.observation_plan.default_filters']
 
 
 def generate_observation_plan_statistics(
-    observation_plan_ids, request_ids, user_id, session, cumulative_probability=1.0
+    observation_plan_ids,
+    request_ids,
+    session,
 ):
     from ..models import (
         EventObservationPlan,
@@ -38,7 +40,7 @@ def generate_observation_plan_statistics(
         ObservationPlanRequest,
     )
 
-    session.execute('ANALYZE')  # do we need this?
+    # session.execute('ANALYZE')  # do we need this?
 
     for observation_plan_id, request_id in zip(observation_plan_ids, request_ids):
         plan = session.query(EventObservationPlan).get(observation_plan_id)
@@ -89,65 +91,21 @@ def generate_observation_plan_statistics(
         )
 
         # get the localization tiles as python objects
-        t0 = time.time()
+        # t0 = time.time()
         tiles = session.scalars(
             sa.select(LocalizationTile)
             .where(LocalizationTile.localization_id == request.localization_id)
             .order_by(LocalizationTile.probdensity.desc())
             .distinct()
         ).all()
-        print(
-            f"DEBUG: {len(tiles)} localization tiles in localization "
-            f"{request.localization_id} retrieved in {time.time() - t0:.2f} seconds  "
-            f"(including sort)"
-        )
-
-        # Calculate area: Integrated area in sq. deg within localization
-        cum_prob = (
-            sa.func.sum(LocalizationTile.probdensity * LocalizationTile.healpix.area)
-            .over(order_by=LocalizationTile.probdensity.desc())
-            .label('cum_prob')
-        )
-
-        # calculate the cumulative probabilities:
-        cum_prob_value = 0
-        min_probdensity_value = 0
-        i = 0
-        for t in tiles:
-            i += 1
-            cum_prob_value += t.probdensity * (t.healpix.upper - t.healpix.lower)
-            if cum_prob_value >= cumulative_probability / ha.constants.PIXEL_AREA:
-                min_probdensity_value = t.probdensity
-                break
-
-        tiles = tiles[
-            :i
-        ]  # keep only the tiles with probdensity >= min_probdensity_value
-
-        print(
-            f"DEBUG: got {i} tiles out of {len(tiles)} "
-            f"with cum_prob >= {cum_prob_value * ha.constants.PIXEL_AREA} "
-            f"and min_probdensity >= {min_probdensity_value}"
-        )
-
-        # old query code:
-        localizationtile_subquery = (
-            sa.select(LocalizationTile.probdensity, cum_prob)
-            .where(
-                LocalizationTile.localization_id == request.localization_id,
-            )
-            .distinct()
-        ).subquery()
-
-        # old query code:
-        min_probdensity = (
-            sa.select(sa.func.min(localizationtile_subquery.columns.probdensity)).where(
-                localizationtile_subquery.columns.cum_prob <= cumulative_probability
-            )
-        ).scalar_subquery()
+        # print(
+        #     f"DEBUG: {len(tiles)} localization tiles in localization "
+        #     f"{request.localization_id} retrieved in {time.time() - t0:.2f} seconds  "
+        #     f"(including sort)"
+        # )
 
         # get the instrument field tiles as python objects
-        t0 = time.time()
+        # t0 = time.time()
         instrument_field_tiles = session.scalars(
             sa.select(InstrumentFieldTile)
             .where(
@@ -158,12 +116,12 @@ def generate_observation_plan_statistics(
             )
             .distinct()
         ).all()
-        print(
-            f"DEBUG: {len(instrument_field_tiles)} instrument fields retrieved in {time.time() - t0:.2f} seconds"
-        )
+        # print(
+        #     f"DEBUG: {len(instrument_field_tiles)} instrument fields retrieved in {time.time() - t0:.2f} seconds"
+        # )
 
         # calculate the area and integrated probability directly:
-        t0 = time.time()
+        # t0 = time.time()
         sum_probability = 0  # total probability of all tiles
         total_area_value = 0  # total area covered by instrument field tiles
 
@@ -235,102 +193,66 @@ def generate_observation_plan_statistics(
         total_area_value *= ha.constants.PIXEL_AREA
         total_probability_value *= ha.constants.PIXEL_AREA
 
-        print(
-            f'DEBUG: sum_probability = {sum_probability} | '
-            f'total_area_value = {total_area_value * (180 / np.pi) ** 2} | '
-            f'total_probability_value = {total_probability_value} | '
-            f'time: {time.time() - t0:.2f} seconds'
-        )
+        # print(
+        #     f'DEBUG: sum_probability = {sum_probability} | '
+        #     f'total_area_value = {total_area_value * (180 / np.pi) ** 2} | '
+        #     f'total_probability_value = {total_probability_value} | '
+        #     f'time: {time.time() - t0:.2f} seconds'
+        # )
 
-        # leo's new query
-        t0 = time.time()
-        union = (
-            sa.select(ha.func.union(InstrumentFieldTile.healpix).label('healpix'))
-            .filter(
-                InstrumentFieldTile.instrument_field_id == PlannedObservation.field_id,
-                PlannedObservation.observation_plan_id == plan.id,
-            )
-            .subquery()
-        )
+        statistics['area'] = total_area_value
+        statistics['probability'] = total_probability_value
 
-        area = sa.func.sum(union.columns.healpix.area)
-        query_area = sa.select(area)
-        intarea = session.execute(query_area).scalar_one()
-
-        if intarea is None:
-            intarea = 0.0
-        intarea *= (180.0 / np.pi) ** 2
-        print(
-            f'DEBUG: Leo query area = {intarea} | time: {time.time() - t0:.2f} seconds'
-        )
-
-        prob = sa.func.sum(
-            LocalizationTile.probdensity
-            * (union.columns.healpix * LocalizationTile.healpix).area
-        )
-
-        query_prob = sa.select(prob).filter(
-            LocalizationTile.localization_id == request.localization_id,
-            union.columns.healpix.overlaps(LocalizationTile.healpix),
-        )
-        print(query_prob)
-        intprob = session.execute(query_prob).scalar_one()
-        if intprob is None:
-            intprob = 0.0
-
-        print(
-            f'DEBUG: Leo query prob = {intprob} | time: {time.time() - t0:.2f} seconds'
-        )
-
-        # old query code:
-        tiles_subquery = (
-            sa.select(InstrumentFieldTile.id).where(
-                LocalizationTile.localization_id == request.localization_id,
-                LocalizationTile.probdensity >= min_probdensity,
-                InstrumentFieldTile.instrument_id == plan.instrument_id,
-                InstrumentFieldTile.instrument_field_id == InstrumentField.id,
-                InstrumentFieldTile.instrument_field_id == PlannedObservation.field_id,
-                PlannedObservation.observation_plan_id == plan.id,
-                InstrumentFieldTile.healpix.overlaps(LocalizationTile.healpix),
-                LocalizationTile.healpix.overlaps(InstrumentFieldTile.healpix),
-            )
-            # .distinct()
-            .subquery()
-        )
-
-        union = sa.select(ha.func.union(InstrumentFieldTile.healpix).label('healpix'))
-        union = union.join(
-            tiles_subquery, tiles_subquery.c.id == InstrumentFieldTile.id
-        )
-        area = sa.func.sum(union.columns.healpix.area)
-        query_area = sa.select(area)
-        t0 = time.time()
-        intarea = session.execute(query_area).scalar_one()
-        print(
-            f'DEBUG: Old query: Area value: {intarea * (180.0 / np.pi) ** 2}. query took {time.time() - t0:.1f} s'
-        )
-
-        if intarea is None:
-            intarea = 0.0
-
-        statistics['area'] = intarea * (180.0 / np.pi) ** 2
-
-        # old query code:
-        prob = sa.func.sum(
-            LocalizationTile.probdensity
-            * (union.columns.healpix * LocalizationTile.healpix).area
-        )
-        query_prob = sa.select(prob)
-        t0 = time.time()
-        intprob = session.execute(query_prob).scalar_one()
-        print(
-            f'DEBUG: Old query: intProb value: {intprob}. query took {time.time() - t0:.1f} s'
-        )
-
-        if intprob is None:
-            intprob = 0.0
-
-        statistics['probability'] = intprob
+        # This block of commented code uses database queries to
+        # calculate the stats, instead of python loops over the tiles.
+        # It is still too slow at scale, but hopefully we can figure
+        # out why and replace the code above with this block at some point.
+        # # leo's new query
+        # t0 = time.time()
+        # union = (
+        #     sa.select(ha.func.union(InstrumentFieldTile.healpix).label('healpix'))
+        #     .filter(
+        #         InstrumentFieldTile.instrument_field_id == PlannedObservation.field_id,
+        #         PlannedObservation.observation_plan_id == plan.id,
+        #     )
+        #     .subquery()
+        # )
+        #
+        # area = sa.func.sum(union.columns.healpix.area)
+        # query_area = sa.select(area)
+        # intarea = session.execute(query_area).scalar_one()
+        #
+        # if intarea is None:
+        #     intarea = 0.0
+        # intarea *= (180.0 / np.pi) ** 2
+        # print(
+        #     f'DEBUG: Leo query area = {intarea} | time: {time.time() - t0:.2f} seconds'
+        # )
+        #
+        # prob = sa.func.sum(
+        #     LocalizationTile.probdensity
+        #     * (union.columns.healpix * LocalizationTile.healpix).area
+        # )
+        #
+        # query_prob = sa.select(prob).filter(
+        #     LocalizationTile.localization_id == request.localization_id,
+        #     union.columns.healpix.overlaps(LocalizationTile.healpix),
+        # )
+        #
+        # print("DEBUG: this is Leo's query printed out: ")
+        # print(query_prob)
+        #
+        # print("DEBUG: this is Leo's query explained: ")
+        # sql = query_prob.statement.compile(session.get_bind(), compile_kwargs={"literal_binds": True})
+        # session.execute(f'EXPLAIN {sql}')
+        #
+        # intprob = session.execute(query_prob).scalar_one()
+        # if intprob is None:
+        #     intprob = 0.0
+        #
+        # print(
+        #     f'DEBUG: Leo query prob = {intprob} | time: {time.time() - t0:.2f} seconds'
+        # )
 
         plan_statistics = EventObservationPlanStatistics(
             observation_plan_id=observation_plan_id,
@@ -658,9 +580,7 @@ def generate_plan(observation_plan_ids, request_ids, user_id):
         session.merge(request)
     session.commit()
 
-    generate_observation_plan_statistics(
-        observation_plan_ids, request_ids, user_id, session
-    )
+    generate_observation_plan_statistics(observation_plan_ids, request_ids, session)
 
     flow = Flow()
     flow.push(
