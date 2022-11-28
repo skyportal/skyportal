@@ -27,7 +27,6 @@ import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
 import Form from "@rjsf/material-ui/v5";
 
 import { showNotification } from "baselayer/components/Notifications";
-import * as candidateActions from "../ducks/candidate";
 import * as candidatesActions from "../ducks/candidates";
 import CustomDataTable from "./CustomDataTable";
 import ThumbnailList from "./ThumbnailList";
@@ -347,12 +346,13 @@ const CandidateThumbnails = ({ sourceId }) => {
     dispatch(candidatesActions.generatePS1Thumbnail(objID));
   };
 
-  const candidateObj = useSelector((state) => state.candidate);
-  useEffect(() => {
-    if (!candidateObj?.id) {
-      dispatch(candidateActions.fetchCandidate(sourceId));
+  let candidateObj = null;
+  const { candidates } = useSelector((state) => state.candidates);
+  candidates?.forEach((candidate) => {
+    if (candidate.id === sourceId) {
+      candidateObj = { ...candidate };
     }
-  }, [sourceId, candidateObj, dispatch]);
+  });
 
   const hasPS1 = candidateObj?.thumbnails?.map((t) => t.type)?.includes("ps1");
   const displayTypes = hasPS1
@@ -397,15 +397,15 @@ CandidateThumbnails.propTypes = {
 };
 
 const CandidateAutoannotations = ({ sourceId }) => {
-  const dispatch = useDispatch();
   const classes = useStyles();
 
-  const candidateObj = useSelector((state) => state.candidate);
-  useEffect(() => {
-    if (!candidateObj?.id) {
-      dispatch(candidateActions.fetchCandidate(sourceId));
+  let candidateObj = null;
+  const { candidates } = useSelector((state) => state.candidates);
+  candidates?.forEach((candidate) => {
+    if (candidate.id === sourceId) {
+      candidateObj = { ...candidate };
     }
-  }, [sourceId, candidateObj, dispatch]);
+  });
 
   return (
     <div>
@@ -435,7 +435,6 @@ const CandidateInfo = ({
   filterGroups,
   selectedAnnotationSortOptions,
 }) => {
-  const dispatch = useDispatch();
   const classes = useStyles();
 
   const allGroups = (useSelector((state) => state.groups.all) || []).filter(
@@ -445,12 +444,13 @@ const CandidateInfo = ({
     (state) => state.groups.userAccessible
   );
 
-  const candidateObj = useSelector((state) => state.candidate);
-  useEffect(() => {
-    if (!candidateObj?.id) {
-      dispatch(candidateActions.fetchCandidate(sourceId));
+  let candidateObj = null;
+  const { candidates } = useSelector((state) => state.candidates);
+  candidates?.forEach((candidate) => {
+    if (candidate.id === sourceId) {
+      candidateObj = { ...candidate };
     }
-  }, [sourceId, candidateObj, dispatch]);
+  });
 
   const candidateHasAnnotationWithSelectedKey = (obj) => {
     const annotation = obj.annotations.find(
@@ -753,6 +753,11 @@ const CandidateList = () => {
     candidateIds.push(candidate.id);
   });
 
+  const groupIds = [];
+  filterGroups?.forEach((g) => {
+    groupIds.push(g.id);
+  });
+
   // Annotations filtering
   const [tableFilterList, setTableFilterList] = useState([]);
   const [filterListQueryStrings, setFilterListQueryStrings] = useState([]);
@@ -854,7 +859,7 @@ const CandidateList = () => {
   const generatePS1BulkThumbnails = (candidateList) => {
     setBulkPS1GenerationInProgress(true);
     const ids = [];
-    candidateList.forEach((candidateObj) => {
+    candidateList?.forEach((candidateObj) => {
       const hasPS1 = candidateObj?.thumbnails
         ?.map((t) => t.type)
         ?.includes("ps1");
@@ -1179,7 +1184,7 @@ const CandidateList = () => {
         display: viewColumns.includes("Autoannotations"),
         customBodyRenderLite: renderAutoannotations,
         sort: false,
-        filter: !queryInProgress,
+        filter: true,
         filterType: "custom",
         filterList: tableFilterList,
         filterOptions: {
@@ -1197,7 +1202,7 @@ const CandidateList = () => {
     print: false,
     download: false,
     sort: false,
-    filter: !queryInProgress,
+    filter: true,
     filterType: "custom",
     count: totalMatches,
     selectableRows: "none",
@@ -1267,15 +1272,24 @@ const CandidateList = () => {
           </div>
           <StyledEngineProvider injectFirst>
             <ThemeProvider theme={getMuiTheme(theme)}>
-              <CustomDataTable
-                // Reset key to reset page number
-                // https://github.com/gregnb/mui-datatables/issues/1166
-                key={`table_${pageNumber}`}
-                columns={columns}
-                data={candidateIds}
-                className={classes.table}
-                options={options}
-              />
+              <div>
+                {queryInProgress ? (
+                  <div>
+                    <Spinner />
+                  </div>
+                ) : (
+                  <CustomDataTable
+                    // Reset key to reset page number
+                    // https://github.com/gregnb/mui-datatables/issues/1166
+                    key={`table_${pageNumber}`}
+                    columns={columns}
+                    data={candidateIds}
+                    className={classes.table}
+                    options={options}
+                    groupIds={groupIds}
+                  />
+                )}
+              </div>
             </ThemeProvider>
           </StyledEngineProvider>
         </Box>

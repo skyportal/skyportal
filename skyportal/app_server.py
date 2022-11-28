@@ -72,6 +72,7 @@ from skyportal.handlers.api import (
     ObservationPlanSubmitHandler,
     ObservationPlanMovieHandler,
     ObservationPlanObservabilityPlotHandler,
+    ObservationPlanWorldmapPlotHandler,
     ObservationPlanSimSurveyHandler,
     ObservationPlanSimSurveyPlotHandler,
     ObservationPlanGeoJSONHandler,
@@ -282,6 +283,10 @@ skyportal_handlers = [
     (
         r'/api/localization(/[0-9]+)/airmass(/[0-9]+)?',
         ObservationPlanAirmassChartHandler,
+    ),
+    (
+        r'/api/localization(/[0-9]+)/worldmap',
+        ObservationPlanWorldmapPlotHandler,
     ),
     (r'/api/healpix', HealpixUpdateHandler),
     (r'/api/sources/([0-9A-Za-z-_\.\+]+)/phot_stat', PhotStatHandler),

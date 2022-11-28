@@ -283,14 +283,19 @@ def test_submit_annotations_sorting(
         f'//*[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]',
         wait_clickable=False,
     )
+
+    driver.click_xpath('//div[@aria-labelledby="annotationSortingOriginSelect"]')
+    driver.click_xpath(f'//li[text()="{origin}"]')
+    driver.click_xpath('//div[@aria-labelledby="annotationSortingKeySelect"]')
+    driver.click_xpath('//li[text()="numeric_field"]')
+    driver.click_xpath('//div[@aria-labelledby="annotationSortingOrderSelect"]')
+    driver.click_xpath('//li[text()="Ascending"]')
+
     driver.click_xpath('//button[text()="Search"]')
     driver.wait_for_xpath(f'//a[@data-testid="{public_candidate.id}"]')
 
-    driver.click_xpath("//p[text()='numeric_field: 1.0000']")
     # Check to see that selected annotation appears in info column
-    driver.wait_for_xpath(
-        '//td[contains(@data-testid, "MuiDataTableBodyCell")][.//span[text()=1.0000]]'
-    )
+    driver.click_xpath("//p[text()='numeric_field: 2.0000']")
 
     # Check to see that sorting button has become enabled, and click
     driver.wait_for_xpath_to_be_clickable(
@@ -299,13 +304,13 @@ def test_submit_annotations_sorting(
     driver.click_xpath("//button[@data-testid='sortOnAnnotationButton']")
 
     # Check that results come back as expected
-    # Col 1, Row 0 should be the first candidate's info (MuiDataTableBodyCell-1-0)
+    # Col 3, Row 0 should be the first candidate's info (MuiDataTableBodyCell-1-0)
     driver.wait_for_xpath(
-        '//td[contains(@data-testid, "MuiDataTableBodyCell-1-0")][.//span[text()="1.0000"]]'
+        '//td[contains(@data-testid, "MuiDataTableBodyCell-3-0")][.//*[contains(.,"1.0000")]]'
     )
-    # Col 1, Row 1 should be the second candidate's info (MuiDataTableBodyCell-1-1)
+    # Col 3, Row 1 should be the second candidate's info (MuiDataTableBodyCell-1-1)
     driver.wait_for_xpath(
-        '//td[contains(@data-testid, "MuiDataTableBodyCell-1-1")][.//span[text()="2.0000"]]'
+        '//td[contains(@data-testid, "MuiDataTableBodyCell-3-1")][.//*[contains(.,"2.0000")]]'
     )
 
 

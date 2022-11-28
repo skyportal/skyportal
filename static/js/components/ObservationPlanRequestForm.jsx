@@ -637,6 +637,16 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
         >
           Airmass Chart
         </Button>
+        <Button
+          secondary
+          href={`/api/localization/${selectedLocalizationId}/worldmap`}
+          download={`worldmapChartRequest-${selectedLocalizationId}`}
+          size="small"
+          type="submit"
+          data-testid={`worldmapChartRequest_${selectedLocalizationId}`}
+        >
+          World Map Chart
+        </Button>
       </div>
     </div>
   );
