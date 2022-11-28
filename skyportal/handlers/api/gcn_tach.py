@@ -177,21 +177,21 @@ def get_tach_event_aliases(id, gcn_event):
     response = requests.request("POST", url, json=payload, headers=headers)
 
     circulars = gcn_event.circulars
-    # this is a dict with key = circular id and value = title
 
-    aliases = []
+    new_aliases = []
     if response.status_code == 200:
         data = response.json()
         if data["data"]["allCirculars"]["totalCount"] > 0:
             events = data["data"]["allCirculars"]["edges"]
-            aliases.append(events[0]["node"]["evtidCircular"]["event"].replace(" ", ""))
+            event_alias = events[0]["node"]["evtidCircular"]["event"].replace(" ", "")
             new_circulars = {}
             for event in events:
                 if event["node"]["id_"] not in circulars.keys():
                     new_circulars[event["node"]["id_"]] = event["node"]["subject"]
-            day = re.sub(r'\D', '', aliases[0])
-            aliases = get_aliases(list(new_circulars.keys()), day)
-            return aliases, new_circulars
+            day = re.sub(r'\D', '', event_alias)
+            if len(new_circulars.keys()) > 0:
+                new_aliases = get_aliases(new_circulars.keys(), day)
+            return new_aliases, new_circulars
         else:
             return [], {}
     return [], {}
@@ -212,13 +212,13 @@ def post_aliases(dateobs, tach_id, user_id):
             return
 
         if gcn_event.aliases is None:
-            gcn_event.aliases = new_gcn_aliases
+            gcn_event.aliases = list(set(new_gcn_aliases))
         else:
             gcn_aliases = [alias.upper() for alias in gcn_event.aliases]
             for new_gcn_alias in new_gcn_aliases:
                 if new_gcn_alias.upper() not in gcn_aliases:
                     gcn_aliases.append(new_gcn_alias)
-            gcn_event.aliases = gcn_aliases
+            gcn_event.aliases = list(set(gcn_aliases))
 
         if gcn_event.circulars is None:
             gcn_event.circulars = new_gcn_circulars
