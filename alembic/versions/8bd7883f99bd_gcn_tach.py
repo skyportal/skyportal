@@ -1,7 +1,7 @@
 """gcn_tach
 
 Revision ID: 8bd7883f99bd
-Revises: 61f6f65746da
+Revises: f870b311df53
 Create Date: 2022-11-18 15:24:35.704491
 
 """
@@ -11,7 +11,7 @@ from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision = '8bd7883f99bd'
-down_revision = '61f6f65746da'
+down_revision = 'f870b311df53'
 branch_labels = None
 depends_on = None
 
