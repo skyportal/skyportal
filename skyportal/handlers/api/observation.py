@@ -45,6 +45,7 @@ from ...utils.simsurvey import (
 )
 from .instrument import add_tiles
 from .observation_plan import observation_simsurvey, observation_simsurvey_plot
+from ...facility_apis.observation_plan import combine_healpix_tuples
 
 
 env, cfg = load_env()
@@ -55,35 +56,6 @@ log = make_log('api/observation')
 Session = scoped_session(sessionmaker(bind=DBSession.session_factory.kw["bind"]))
 
 MAX_OBSERVATIONS = 1000
-
-
-def combine_healpix_tuples(input_tiles):
-    """
-    Combine (adjacent?) healpix tiles, given as tuples of (lower,upper).
-    Returns a list of tuples that do not overlap.
-    """
-
-    # set upper bound to make sure this algorithm isn't crazy expensive
-    for i in range(1000):
-        # check each tuple against all other tuples:
-        for j1, t1 in enumerate(input_tiles):
-            for j2 in range(j1 + 1, len(input_tiles)):
-                t2 = input_tiles[j2]
-                # check if overlapping with any of the combined tiles
-                if t2[0] < t1[1] and t1[0] < t2[1]:
-                    # if overlapping, grow to the union of both tiles
-                    input_tiles[j1] = (min(t1[0], t2[0]), max(t1[1], t2[1]))
-                    input_tiles[j2] = input_tiles[j1]  # grow both tiles in the list!
-        output_tiles = list(set(input_tiles))  # remove duplicates
-
-        # when none of the tiles are overlapping,
-        # none will be removed by the actions of the loop
-        if len(output_tiles) == len(input_tiles):
-            return output_tiles
-
-        input_tiles = output_tiles
-
-    raise RuntimeError("Too many iterations (1000) to combine_healpix_tuples!")
 
 
 def add_queued_observations(instrument_id, obstable):

@@ -16,13 +16,41 @@ from baselayer.app.flow import Flow
 from baselayer.app.env import load_env
 
 from . import FollowUpAPI
-from ..handlers.api.observation import combine_healpix_tuples
 
 log = make_log('api/observation_plan')
 
 env, cfg = load_env()
 
 default_filters = cfg['app.observation_plan.default_filters']
+
+
+def combine_healpix_tuples(input_tiles):
+    """
+    Combine (adjacent?) healpix tiles, given as tuples of (lower,upper).
+    Returns a list of tuples that do not overlap.
+    """
+
+    # set upper bound to make sure this algorithm isn't crazy expensive
+    for i in range(1000):
+        # check each tuple against all other tuples:
+        for j1, t1 in enumerate(input_tiles):
+            for j2 in range(j1 + 1, len(input_tiles)):
+                t2 = input_tiles[j2]
+                # check if overlapping with any of the combined tiles
+                if t2[0] < t1[1] and t1[0] < t2[1]:
+                    # if overlapping, grow to the union of both tiles
+                    input_tiles[j1] = (min(t1[0], t2[0]), max(t1[1], t2[1]))
+                    input_tiles[j2] = input_tiles[j1]  # grow both tiles in the list!
+        output_tiles = list(set(input_tiles))  # remove duplicates
+
+        # when none of the tiles are overlapping,
+        # none will be removed by the actions of the loop
+        if len(output_tiles) == len(input_tiles):
+            return output_tiles
+
+        input_tiles = output_tiles
+
+    raise RuntimeError("Too many iterations (1000) to combine_healpix_tuples!")
 
 
 def generate_observation_plan_statistics(
