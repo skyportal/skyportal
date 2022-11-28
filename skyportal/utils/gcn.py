@@ -10,6 +10,7 @@ import tempfile
 from urllib.parse import urlparse
 
 import astropy.units as u
+from astropy.table import Table
 from astropy.time import Time
 from astropy.coordinates import SkyCoord
 
@@ -18,6 +19,7 @@ from astropy_healpix import HEALPix, nside_to_level, pixel_resolution_to_nside
 import ligo.skymap.io
 import ligo.skymap.postprocess
 import ligo.skymap.moc
+import ligo.skymap.bayestar as ligo_bayestar
 
 
 def get_trigger(root):
@@ -328,6 +330,17 @@ def from_bytes(arr):
 
         skymap = ligo.skymap.io.read_sky_map(f.name, moc=True)
 
+        nside = 128
+        occulted = get_occulted(f.name, nside=nside)
+        if occulted is not None:
+            order = hp.nside2order(nside)
+            skymap_flat = ligo_bayestar.rasterize(skymap, order)['PROB']
+            skymap_flat = hp.reorder(skymap_flat, 'NESTED', 'RING')
+            skymap_flat[occulted] = 0.0
+            skymap_flat = skymap_flat / skymap_flat.sum()
+            skymap_flat = hp.reorder(skymap_flat, 'RING', 'NESTED')
+            skymap = ligo_bayestar.derasterize(Table([skymap_flat], names=['PROB']))
+
         skymap = {
             'localization_name': filename,
             'uniq': get_col(skymap, 'UNIQ'),
@@ -338,6 +351,27 @@ def from_bytes(arr):
         }
 
     return skymap
+
+
+def get_occulted(url, nside=64):
+
+    m = Table.read(url, format='fits')
+    ra = m.meta.get('GEO_RA', None)
+    dec = m.meta.get('GEO_DEC', None)
+    error = m.meta.get('GEO_RAD', 67.5)
+
+    if (ra is None) or (dec is None) or (error is None):
+        return None
+
+    center = SkyCoord(ra * u.deg, dec * u.deg)
+    radius = error * u.deg
+
+    hpx = HEALPix(nside, 'ring', frame=ICRS())
+
+    # Find all pixels in the circle.
+    ipix = hpx.cone_search_skycoord(center, radius)
+
+    return ipix
 
 
 def from_url(url):
@@ -352,6 +386,17 @@ def from_url(url):
     filename = os.path.basename(urlparse(url).path)
 
     skymap = ligo.skymap.io.read_sky_map(url, moc=True)
+
+    nside = 128
+    occulted = get_occulted(url, nside=nside)
+    if occulted is not None:
+        order = hp.nside2order(nside)
+        skymap_flat = ligo_bayestar.rasterize(skymap, order)['PROB']
+        skymap_flat = hp.reorder(skymap_flat, 'NESTED', 'RING')
+        skymap_flat[occulted] = 0.0
+        skymap_flat = skymap_flat / skymap_flat.sum()
+        skymap_flat = hp.reorder(skymap_flat, 'RING', 'NESTED')
+        skymap = ligo_bayestar.derasterize(Table([skymap_flat], names=['PROB']))
 
     skymap = {
         'localization_name': filename,
