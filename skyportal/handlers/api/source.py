@@ -390,7 +390,6 @@ def get_sources(
     comments_filter_after=None,
     localization_dateobs=None,
     localization_name=None,
-    localization_cumprob=None,
     localization_reject_sources=False,
     page_number=1,
     num_per_page=DEFAULT_SOURCES_PER_PAGE,
@@ -931,27 +930,9 @@ def get_sources(
                     f"Localization {localization_dateobs} not found",
                 )
 
-        cum_prob = (
-            sa.func.sum(LocalizationTile.probdensity * LocalizationTile.healpix.area)
-            .over(order_by=LocalizationTile.probdensity.desc())
-            .label('cum_prob')
-        )
-        localizationtile_subquery = (
-            sa.select(LocalizationTile.probdensity, cum_prob).filter(
-                LocalizationTile.localization_id == localization.id
-            )
-        ).subquery()
-
-        min_probdensity = (
-            sa.select(
-                sa.func.min(localizationtile_subquery.columns.probdensity)
-            ).filter(localizationtile_subquery.columns.cum_prob <= localization_cumprob)
-        ).scalar_subquery()
-
         tile_ids = session.scalars(
             sa.select(LocalizationTile.id).where(
                 LocalizationTile.localization_id == localization.id,
-                LocalizationTile.probdensity >= min_probdensity,
             )
         ).all()
 
@@ -1987,12 +1968,6 @@ class SourceHandler(BaseHandler):
                 /api/localization endpoint or skymap name in GcnEvent page
                 table.
           - in: query
-            name: localizationCumprob
-            schema:
-              type: number
-            description: |
-              Cumulative probability up to which to include sources
-          - in: query
             name: localizationRejectSources
             schema:
               type: bool
@@ -2106,7 +2081,6 @@ class SourceHandler(BaseHandler):
 
         localization_dateobs = self.get_query_argument("localizationDateobs", None)
         localization_name = self.get_query_argument("localizationName", None)
-        localization_cumprob = self.get_query_argument("localizationCumprob", 0.95)
         localization_reject_sources = self.get_query_argument(
             "localizationRejectSources", False
         )
@@ -2290,7 +2264,6 @@ class SourceHandler(BaseHandler):
                     comments_filter_after=comments_filter_after,
                     localization_dateobs=localization_dateobs,
                     localization_name=localization_name,
-                    localization_cumprob=localization_cumprob,
                     localization_reject_sources=localization_reject_sources,
                     page_number=page_number,
                     num_per_page=num_per_page,

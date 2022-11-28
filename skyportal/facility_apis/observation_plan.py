@@ -16,6 +16,7 @@ from baselayer.app.flow import Flow
 from baselayer.app.env import load_env
 
 from . import FollowUpAPI
+from ..handlers.api.observation import combine_healpix_tuples
 
 log = make_log('api/observation_plan')
 
@@ -92,7 +93,7 @@ def generate_observation_plan_statistics(
 
         # get the localization tiles as python objects
         # t0 = time.time()
-        tiles = session.scalars(
+        localization_tiles = session.scalars(
             sa.select(LocalizationTile)
             .where(LocalizationTile.localization_id == request.localization_id)
             .order_by(LocalizationTile.probdensity.desc())
@@ -122,45 +123,13 @@ def generate_observation_plan_statistics(
 
         # calculate the area and integrated probability directly:
         # t0 = time.time()
-        sum_probability = 0  # total probability of all tiles
-        total_area_value = 0  # total area covered by instrument field tiles
-
-        # total probability covered by instrument field tiles
-        total_probability_value = 0
+        # sum_probability = 0  # total probability of all tiles
+        intarea = 0  # total area covered by instrument field tiles
+        intprob = 0  # total probability covered by instrument field tiles
         field_lower_bounds = np.array([f.healpix.lower for f in instrument_field_tiles])
         field_upper_bounds = np.array([f.healpix.upper for f in instrument_field_tiles])
 
-        def combine_healpix_tuples(input_tiles):
-            """
-            Combine (adjacent?) healpix tiles, given as tuples of (lower,upper).
-            Returns a list of tuples that do not overlap.
-            """
-
-            # set upper bound to make sure this algorithm isn't crazy expensive
-            for i in range(1000):
-                # check each tuple against all other tuples:
-                for j1, t1 in enumerate(input_tiles):
-                    for j2 in range(j1 + 1, len(input_tiles)):
-                        t2 = input_tiles[j2]
-                        # check if overlapping with any of the combined tiles
-                        if t2[0] < t1[1] and t1[0] < t2[1]:
-                            # if overlapping, grow to the union of both tiles
-                            input_tiles[j1] = (min(t1[0], t2[0]), max(t1[1], t2[1]))
-                            input_tiles[j2] = input_tiles[
-                                j1
-                            ]  # grow both tiles in the list!
-                output_tiles = list(set(input_tiles))  # remove duplicates
-
-                # when none of the tiles are overlapping,
-                # none will be removed by the actions of the loop
-                if len(output_tiles) == len(input_tiles):
-                    return output_tiles
-
-                input_tiles = output_tiles
-
-            raise RuntimeError("Too many iterations (1000) to combine_healpix_tuples!")
-
-        for i, t in enumerate(tiles):
+        for i, t in enumerate(localization_tiles):
             # has True values where tile t has any overlap with one of the fields
             overlap_array = np.logical_and(
                 t.healpix.lower <= field_upper_bounds,
@@ -185,23 +154,23 @@ def generate_observation_plan_statistics(
                     mn = np.maximum(t.healpix.lower, lower)
                     overlap += mx - mn
 
-            total_area_value += overlap
-            total_probability_value += t.probdensity * overlap
-            sum_probability += t.probdensity * (t.healpix.upper - t.healpix.lower)
+            intarea += overlap
+            intprob += t.probdensity * overlap
+            # sum_probability += t.probdensity * (t.healpix.upper - t.healpix.lower)
 
-        sum_probability *= ha.constants.PIXEL_AREA
-        total_area_value *= ha.constants.PIXEL_AREA
-        total_probability_value *= ha.constants.PIXEL_AREA
+        # sum_probability *= ha.constants.PIXEL_AREA
+        intarea *= ha.constants.PIXEL_AREA
+        intprob *= ha.constants.PIXEL_AREA
 
         # print(
         #     f'DEBUG: sum_probability = {sum_probability} | '
-        #     f'total_area_value = {total_area_value * (180 / np.pi) ** 2} | '
-        #     f'total_probability_value = {total_probability_value} | '
+        #     f'intarea = {intarea * (180 / np.pi) ** 2} | '
+        #     f'intprob = {intprob} | '
         #     f'time: {time.time() - t0:.2f} seconds'
         # )
 
-        statistics['area'] = total_area_value
-        statistics['probability'] = total_probability_value
+        statistics['area'] = intarea
+        statistics['probability'] = intprob
 
         # This block of commented code uses database queries to
         # calculate the stats, instead of python loops over the tiles.

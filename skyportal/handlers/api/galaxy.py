@@ -1,4 +1,5 @@
 import os
+import datetime
 from tornado.ioloop import IOLoop
 from geojson import Point, Feature
 import sqlalchemy as sa
@@ -16,7 +17,6 @@ from baselayer.log import make_log
 
 from ..base import BaseHandler
 from ...models import DBSession, Galaxy, Localization, LocalizationTile
-import datetime
 
 
 log = make_log('api/galaxy')
@@ -35,7 +35,6 @@ def get_galaxies(
     max_distance=None,
     localization_dateobs=None,
     localization_name=None,
-    localization_cumprob=None,
     includeGeoJSON=False,
     catalog_names_only=False,
     page_number=1,
@@ -123,29 +122,11 @@ def get_galaxies(
                     f"Localization {localization_dateobs} with name {localization_name} not found",
                 )
             else:
-                raise (f"Localization {localization_dateobs} not found")
-
-        cum_prob = (
-            sa.func.sum(LocalizationTile.probdensity * LocalizationTile.healpix.area)
-            .over(order_by=LocalizationTile.probdensity.desc())
-            .label('cum_prob')
-        )
-        localizationtile_subquery = (
-            sa.select(LocalizationTile.probdensity, cum_prob).filter(
-                LocalizationTile.localization_id == localization.id
-            )
-        ).subquery()
-
-        min_probdensity = (
-            sa.select(sa.func.min(localizationtile_subquery.columns.probdensity)).where(
-                localizationtile_subquery.columns.cum_prob <= localization_cumprob
-            )
-        ).scalar_subquery()
+                raise f"Localization {localization_dateobs} not found"
 
         tile_ids = session.scalars(
             sa.select(LocalizationTile.id).where(
                 LocalizationTile.localization_id == localization.id,
-                LocalizationTile.probdensity >= min_probdensity,
             )
         ).all()
 
@@ -327,12 +308,6 @@ class GalaxyCatalogHandler(BaseHandler):
               description: |
                 Name of localization / skymap to use. Can be found in Localization.localization_name queried from /api/localization endopoint or skymap name in GcnEvent page table.
             - in: query
-              name: localizationCumprob
-              schema:
-                type: number
-              description: |
-                Cumulative probability up to which to include galaxies
-            - in: query
               name: includeGeoJSON
               nullable: true
               schema:
@@ -376,7 +351,6 @@ class GalaxyCatalogHandler(BaseHandler):
         catalog_name = self.get_query_argument("catalog_name", None)
         localization_dateobs = self.get_query_argument("localizationDateobs", None)
         localization_name = self.get_query_argument("localizationName", None)
-        localization_cumprob = self.get_query_argument("localizationCumprob", 0.95)
         includeGeoJSON = self.get_query_argument("includeGeoJSON", False)
         catalog_names_only = self.get_query_argument("catalogNamesOnly", False)
         min_redshift = self.get_query_argument("minRedshift", None)
@@ -406,7 +380,6 @@ class GalaxyCatalogHandler(BaseHandler):
                     max_distance=max_distance,
                     localization_dateobs=localization_dateobs,
                     localization_name=localization_name,
-                    localization_cumprob=localization_cumprob,
                     includeGeoJSON=includeGeoJSON,
                     catalog_names_only=catalog_names_only,
                     page_number=page_number,

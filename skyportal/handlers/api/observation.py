@@ -46,6 +46,7 @@ from ...utils.simsurvey import (
 from .instrument import add_tiles
 from .observation_plan import observation_simsurvey, observation_simsurvey_plot
 
+
 env, cfg = load_env()
 TREASUREMAP_URL = cfg['app.treasuremap_endpoint']
 
@@ -54,6 +55,35 @@ log = make_log('api/observation')
 Session = scoped_session(sessionmaker(bind=DBSession.session_factory.kw["bind"]))
 
 MAX_OBSERVATIONS = 1000
+
+
+def combine_healpix_tuples(input_tiles):
+    """
+    Combine (adjacent?) healpix tiles, given as tuples of (lower,upper).
+    Returns a list of tuples that do not overlap.
+    """
+
+    # set upper bound to make sure this algorithm isn't crazy expensive
+    for i in range(1000):
+        # check each tuple against all other tuples:
+        for j1, t1 in enumerate(input_tiles):
+            for j2 in range(j1 + 1, len(input_tiles)):
+                t2 = input_tiles[j2]
+                # check if overlapping with any of the combined tiles
+                if t2[0] < t1[1] and t1[0] < t2[1]:
+                    # if overlapping, grow to the union of both tiles
+                    input_tiles[j1] = (min(t1[0], t2[0]), max(t1[1], t2[1]))
+                    input_tiles[j2] = input_tiles[j1]  # grow both tiles in the list!
+        output_tiles = list(set(input_tiles))  # remove duplicates
+
+        # when none of the tiles are overlapping,
+        # none will be removed by the actions of the loop
+        if len(output_tiles) == len(input_tiles):
+            return output_tiles
+
+        input_tiles = output_tiles
+
+    raise RuntimeError("Too many iterations (1000) to combine_healpix_tuples!")
 
 
 def add_queued_observations(instrument_id, obstable):
@@ -215,7 +245,6 @@ def get_observations(
     instrument_name=None,
     localization_dateobs=None,
     localization_name=None,
-    localization_cumprob=0.95,
     return_statistics=False,
     includeGeoJSON=False,
     observation_status='executed',
@@ -249,9 +278,6 @@ def get_observations(
         Name of localization / skymap to use.
         Can be found in Localization.localization_name queried from
         /api/localization endpoint or skymap name in GcnEvent page table.
-    localization_cumprob : number
-        Cumulative probability up to which to include fields.
-        Defaults to 0.95.
     return_statistics: bool
         Boolean indicating whether to include integrated probability and area.
         Defaults to false.
@@ -369,29 +395,11 @@ def get_observations(
                 raise ValueError("GCN event not found")
             localization = event.localizations[-1]
 
-        cum_prob = (
-            sa.func.sum(LocalizationTile.probdensity * LocalizationTile.healpix.area)
-            .over(order_by=LocalizationTile.probdensity.desc())
-            .label('cum_prob')
-        )
-        localizationtile_subquery = (
-            sa.select(LocalizationTile.probdensity, cum_prob).filter(
-                LocalizationTile.localization_id == localization.id
-            )
-        ).subquery()
-
-        min_probdensity = (
-            sa.select(
-                sa.func.min(localizationtile_subquery.columns.probdensity)
-            ).filter(localizationtile_subquery.columns.cum_prob <= localization_cumprob)
-        ).scalar_subquery()
-
         if telescope_name is not None and instrument_name is not None:
             tiles_subquery = (
                 sa.select(InstrumentField.id)
                 .filter(
                     LocalizationTile.localization_id == localization.id,
-                    LocalizationTile.probdensity >= min_probdensity,
                     InstrumentFieldTile.instrument_id == instrument.id,
                     InstrumentFieldTile.instrument_field_id == InstrumentField.id,
                     InstrumentFieldTile.healpix.overlaps(LocalizationTile.healpix),
@@ -404,7 +412,6 @@ def get_observations(
                 sa.select(InstrumentField.id)
                 .filter(
                     LocalizationTile.localization_id == localization.id,
-                    LocalizationTile.probdensity >= min_probdensity,
                     InstrumentFieldTile.instrument_field_id == InstrumentField.id,
                     InstrumentFieldTile.healpix.overlaps(LocalizationTile.healpix),
                 )
@@ -418,41 +425,108 @@ def get_observations(
         )
 
         if return_statistics:
-            obs_subquery = obs_query.subquery()
-            fields_query = sa.select(InstrumentField.id).join(
-                obs_subquery, InstrumentField.id == obs_subquery.c.instrument_field_id
-            )
-            field_ids = session.scalars(fields_query).unique().all()
-
-            union = (
-                sa.select(ha.func.union(InstrumentFieldTile.healpix).label('healpix'))
-                .where(InstrumentFieldTile.instrument_field_id.in_(field_ids))
+            localization_tiles = session.scalars(
+                sa.select(LocalizationTile)
+                .where(LocalizationTile.localization_id == localization.id)
+                .order_by(LocalizationTile.probdensity.desc())
                 .distinct()
-                .subquery()
+            ).all()
+
+            obs_subquery = obs_query.subquery()
+            instrument_field_tiles = session.scalars(
+                sa.select(InstrumentFieldTile)
+                .join(
+                    obs_subquery,
+                    InstrumentField.id == obs_subquery.c.instrument_field_id,
+                )
+                .where(
+                    InstrumentFieldTile.instrument_field_id == InstrumentField.id,
+                )
+                .distinct()
+            ).all()
+
+            intarea = 0  # total area covered by instrument field tiles
+            intprob = 0  # total probability covered by instrument field tiles
+            field_lower_bounds = np.array(
+                [f.healpix.lower for f in instrument_field_tiles]
+            )
+            field_upper_bounds = np.array(
+                [f.healpix.upper for f in instrument_field_tiles]
             )
 
-            area = sa.func.sum(union.columns.healpix.area)
-            prob = sa.func.sum(
-                LocalizationTile.probdensity
-                * (union.columns.healpix * LocalizationTile.healpix).area
-            )
-            query_area = sa.select(area).filter(
-                LocalizationTile.localization_id == localization.id,
-                LocalizationTile.probdensity >= min_probdensity,
-                union.columns.healpix.overlaps(LocalizationTile.healpix),
-            )
-            query_prob = sa.select(prob).filter(
-                LocalizationTile.localization_id == localization.id,
-                LocalizationTile.probdensity >= min_probdensity,
-                union.columns.healpix.overlaps(LocalizationTile.healpix),
-            )
-            intprob = session.execute(query_prob).scalar_one()
-            intarea = session.execute(query_area).scalar_one()
+            for i, t in enumerate(localization_tiles):
+                # has True values where tile t has any overlap with one of the fields
+                overlap_array = np.logical_and(
+                    t.healpix.lower <= field_upper_bounds,
+                    t.healpix.upper >= field_lower_bounds,
+                )
 
-            if intprob is None:
-                intprob = 0.0
-            if intarea is None:
-                intarea = 0.0
+                # only add area/prob if there's any overlap
+                overlap = 0
+                if np.sum(overlap_array):
+                    lower_upper = zip(
+                        field_lower_bounds[overlap_array],
+                        field_upper_bounds[overlap_array],
+                    )
+                    # tuples of (lower, upper) for all fields that overlap with tile t
+                    new_fields = [(l, u) for (l, u) in lower_upper]
+
+                    # combine any overlapping fields
+                    output_fields = combine_healpix_tuples(new_fields)
+
+                    # get the area of the combined fields that overlaps with tile t
+                    for lower, upper in output_fields:
+                        mx = np.minimum(t.healpix.upper, upper)
+                        mn = np.maximum(t.healpix.lower, lower)
+                        overlap += mx - mn
+
+                intarea += overlap
+                intprob += t.probdensity * overlap
+                # sum_probability += t.probdensity * (t.healpix.upper - t.healpix.lower)
+
+            # sum_probability *= ha.constants.PIXEL_AREA
+            intarea *= ha.constants.PIXEL_AREA
+            intprob *= ha.constants.PIXEL_AREA
+
+            # below is old code that is too slow to use at scale
+            # we may be able to speed it up at some point, then
+            # it may be good to have this as reference for what
+            # the queries should look like
+
+            # fields_query = sa.select(InstrumentField.id).join(
+            #     obs_subquery, InstrumentField.id == obs_subquery.c.instrument_field_id
+            # )
+            # field_ids = session.scalars(fields_query).unique().all()
+            #
+            # union = (
+            #     sa.select(ha.func.union(InstrumentFieldTile.healpix).label('healpix'))
+            #     .where(InstrumentFieldTile.instrument_field_id.in_(field_ids))
+            #     .distinct()
+            #     .subquery()
+            # )
+            #
+            # area = sa.func.sum(union.columns.healpix.area)
+            # prob = sa.func.sum(
+            #     LocalizationTile.probdensity
+            #     * (union.columns.healpix * LocalizationTile.healpix).area
+            # )
+            # query_area = sa.select(area).filter(
+            #     LocalizationTile.localization_id == localization.id,
+            #     LocalizationTile.probdensity >= min_probdensity,
+            #     union.columns.healpix.overlaps(LocalizationTile.healpix),
+            # )
+            # query_prob = sa.select(prob).filter(
+            #     LocalizationTile.localization_id == localization.id,
+            #     LocalizationTile.probdensity >= min_probdensity,
+            #     union.columns.healpix.overlaps(LocalizationTile.healpix),
+            # )
+            # intprob = session.execute(query_prob).scalar_one()
+            # intarea = session.execute(query_area).scalar_one()
+            #
+            # if intprob is None:
+            #     intprob = 0.0
+            # if intarea is None:
+            #     intarea = 0.0
 
     total_matches = session.scalar(sa.select(sa.func.count()).select_from(obs_query))
 
