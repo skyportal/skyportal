@@ -1,9 +1,16 @@
-import React from "react";
+import React, { useState } from "react";
+import { useSelector, useDispatch } from "react-redux";
 import PropTypes from "prop-types";
 import Tooltip from "@mui/material/Tooltip";
 import Chip from "@mui/material/Chip";
-
+import DeleteIcon from "@mui/icons-material/Delete";
 import makeStyles from "@mui/styles/makeStyles";
+
+import { showNotification } from "baselayer/components/Notifications";
+import Button from "./Button";
+import ConfirmDeletionDialog from "./ConfirmDeletionDialog";
+
+import * as sourceActions from "../ducks/source";
 
 export const useStyles = makeStyles((theme) => ({
   chip: {
@@ -11,12 +18,55 @@ export const useStyles = makeStyles((theme) => ({
     fontSize: "1.2rem",
     fontWeight: "bold",
   },
+  classificationDelete: {
+    cursor: "pointer",
+    fontSize: "2em",
+    position: "absolute",
+    padding: 0,
+    right: 0,
+    top: 0,
+  },
+  classificationDeleteDisabled: {
+    opacity: 0,
+  },
 }));
 
 const ClassificationRow = ({ classifications }) => {
   const classes = useStyles();
+  const dispatch = useDispatch();
+
+  const currentUser = useSelector((state) => state.profile);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [classificationToDelete, setClassificationToDelete] = useState(null);
+  const openDialog = (id) => {
+    setDialogOpen(true);
+    setClassificationToDelete(id);
+  };
+  const closeDialog = () => {
+    setDialogOpen(false);
+    setClassificationToDelete(null);
+  };
+
+  const deleteClassification = () => {
+    dispatch(sourceActions.deleteClassification(classificationToDelete)).then(
+      (result) => {
+        if (result.status === "success") {
+          dispatch(showNotification("Classification deleted"));
+          closeDialog();
+        }
+      }
+    );
+  };
 
   const classification = classifications[0];
+
+  const permission =
+    currentUser.permissions.includes("System admin") ||
+    currentUser.permissions.includes("Manage groups") ||
+    currentUser.username === classification.author_name;
+
+  console.log("classification", classification);
+  console.log("permission", permission);
   const clsProb = classification.probability
     ? classification.probability
     : "null";
@@ -28,15 +78,37 @@ const ClassificationRow = ({ classifications }) => {
         disableTouchListener
         title={
           <div>
-            {classifications.map((cls) => (
-              <>
-                P=
-                {clsProb} ({cls.taxname})
-                <br />
-                <i>{cls.author_name}</i>
-                <br />
-              </>
-            ))}
+            <div>
+              {classifications.map((cls) => (
+                <>
+                  P=
+                  {clsProb} ({cls.taxname})
+                  <br />
+                  <i>{cls.author_name}</i>
+                  <br />
+                </>
+              ))}
+            </div>
+            <div>
+              <Button
+                key={classification.id}
+                id="delete_classification"
+                classes={{
+                  root: classes.classificationDelete,
+                  disabled: classes.classificationDeleteDisabled,
+                }}
+                onClick={() => openDialog(classification.id)}
+                disabled={!permission}
+              >
+                <DeleteIcon />
+              </Button>
+              <ConfirmDeletionDialog
+                deleteFunction={deleteClassification}
+                dialogOpen={dialogOpen}
+                closeDialog={closeDialog}
+                resourceName="classification"
+              />
+            </div>
           </div>
         }
       >
