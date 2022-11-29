@@ -65,8 +65,6 @@ const ClassificationRow = ({ classifications }) => {
     currentUser.permissions.includes("Manage groups") ||
     currentUser.username === classification.author_name;
 
-  console.log("classification", classification);
-  console.log("permission", permission);
   const clsProb = classification.probability
     ? classification.probability
     : "null";
