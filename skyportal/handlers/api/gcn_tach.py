@@ -222,9 +222,7 @@ def post_aliases(dateobs, tach_id, user_id):
                 gcn_event.circulars = {**gcn_event.circulars, **new_gcn_circulars}
 
             if len(new_gcn_aliases) > 0:
-                if (
-                    not gcn_event.aliases
-                ):  # thanks to the implicit booleanness of the empty list in python, this checks if its None or an empty list
+                if not gcn_event.aliases:  # empty list or None
                     gcn_event.aliases = new_gcn_aliases
                 else:
                     gcn_aliases = gcn_event.aliases
