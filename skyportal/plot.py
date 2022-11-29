@@ -1647,10 +1647,15 @@ def make_photometry_panel(
 
     grouped_data = data.groupby('label', sort=False)
 
-    finite = np.isfinite(data['flux'])
-    fdata = data[finite]
-    lower = np.min(fdata['flux']) * 0.95
-    upper = np.max(fdata['flux']) * 1.05
+    ndata = data[~data['flux'].isnull()]
+    if not ndata.empty:
+        finite = np.isfinite(ndata['flux'])
+        fdata = ndata[finite]
+        lower = np.min(fdata['flux']) * 0.95
+        upper = np.max(fdata['flux']) * 1.05
+    else:
+        lower = 0.0
+        upper = 1.0
 
     xmin = data['mjd'].min() - 2
     xmax = data['mjd'].max() + 2

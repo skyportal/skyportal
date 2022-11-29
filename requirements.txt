@@ -37,7 +37,7 @@ jsonpath_ng==1.5.3
 pytest-rerunfailures==10.2
 timezonefinder==6.1.1
 astroplan==0.8
-py3-validate-email==1.0.7
+py3-validate-email==1.0.5
 alembic==1.8.1
 marshmallow-jsonschema==0.13.0
 requests_toolbelt==0.10.1
@@ -79,3 +79,4 @@ confluent_kafka==1.9.2 # dependency of gcn-kafka: pinning to understand memory e
 iminuit==2.15.2
 watchdog==2.1.9
 PyAstronomy==0.18.0
+shapely==1.8.0
