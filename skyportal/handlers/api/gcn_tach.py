@@ -191,6 +191,7 @@ def get_tach_event_aliases(id, gcn_event):
             day = re.sub(r'\D', '', event_alias)
             if len(new_circulars.keys()) > 0:
                 new_aliases = get_aliases(new_circulars.keys(), day)
+            new_aliases = list({alias.upper() for alias in new_aliases})
             return new_aliases, new_circulars
         else:
             return [], {}
@@ -198,40 +199,50 @@ def get_tach_event_aliases(id, gcn_event):
 
 
 def post_aliases(dateobs, tach_id, user_id):
-    flow = Flow()
-    with Session() as session:
-        user = session.scalars(sa.select(User).where(User.id == user_id)).first()
-        stmt = GcnEvent.select(user).where(GcnEvent.dateobs == dateobs)
-        gcn_event = session.scalars(stmt).first()
-        if gcn_event is None:
-            return
-        gcn_event.tach_id = tach_id
-        new_gcn_aliases, new_gcn_circulars = get_tach_event_aliases(tach_id, gcn_event)
+    try:
+        flow = Flow()
+        with Session() as session:
+            user = session.scalars(sa.select(User).where(User.id == user_id)).first()
+            stmt = GcnEvent.select(user).where(GcnEvent.dateobs == dateobs)
+            gcn_event = session.scalars(stmt).first()
+            if gcn_event is None:
+                return
+            gcn_event.tach_id = tach_id
+            new_gcn_aliases, new_gcn_circulars = get_tach_event_aliases(
+                tach_id, gcn_event
+            )
 
-        if len(new_gcn_aliases) == 0:
-            return
+            if len(new_gcn_circulars) == 0:
+                # no new circulars, no need to update aliases
+                return
 
-        if gcn_event.aliases is None:
-            gcn_event.aliases = list(set(new_gcn_aliases))
-        else:
-            gcn_aliases = [alias.upper() for alias in gcn_event.aliases]
-            for new_gcn_alias in new_gcn_aliases:
-                if new_gcn_alias.upper() not in gcn_aliases:
-                    gcn_aliases.append(new_gcn_alias)
-            gcn_event.aliases = list(set(gcn_aliases))
+            if not gcn_event.circulars:
+                gcn_event.circulars = new_gcn_circulars
+            else:
+                gcn_event.circulars = {**gcn_event.circulars, **new_gcn_circulars}
 
-        if gcn_event.circulars is None:
-            gcn_event.circulars = new_gcn_circulars
-        else:
-            gcn_event.circulars = {**gcn_event.circulars, **new_gcn_circulars}
+            if len(new_gcn_aliases) > 0:
+                if (
+                    not gcn_event.aliases
+                ):  # thanks to the implicit booleanness of the empty list in python, this checks if its None or an empty list
+                    gcn_event.aliases = new_gcn_aliases
+                else:
+                    gcn_aliases = gcn_event.aliases
+                    for new_gcn_alias in new_gcn_aliases:
+                        if new_gcn_alias not in gcn_aliases:
+                            gcn_aliases.append(new_gcn_alias)
+                    gcn_event.aliases = gcn_aliases
 
-        session.commit()
+            session.commit()
 
-    flow.push(
-        user_id='*',
-        action_type='skyportal/REFRESH_GCNEVENT',
-        payload={'gcnEvent_dateobs': dateobs},
-    )
+        flow.push(
+            user_id='*',
+            action_type='skyportal/REFRESH_GCNEVENT',
+            payload={'gcnEvent_dateobs': dateobs},
+        )
+    except Exception:
+        log(f'Failed to post aliases for {dateobs}')
+        return
 
 
 class GcnTachHandler(BaseHandler):
@@ -312,7 +323,6 @@ class GcnTachHandler(BaseHandler):
         try:
             arrow.get(dateobs).datetime
         except Exception:
-            log(f'Invalid dateobs: {dateobs}')
             return self.error(f'Invalid dateobs: {dateobs}')
         try:
             with self.Session() as session:
@@ -332,5 +342,4 @@ class GcnTachHandler(BaseHandler):
                 )
 
         except Exception as e:
-            log(f'Error scraping GCN aliases: {e}')
             return self.error(f'Error: {e}')
