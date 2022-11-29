@@ -1338,6 +1338,7 @@ class GcnSummaryHandler(BaseHandler):
         start_date = self.get_query_argument('startDate', None)
         end_date = self.get_query_argument('endDate', None)
         localization_name = self.get_query_argument('localizationName', None)
+        localization_cumprob = self.get_query_argument('localizationCumprob', 0.95)
         show_sources = self.get_query_argument('showSources', False)
         show_galaxies = self.get_query_argument('showGalaxies', False)
         show_observations = self.get_query_argument('showObservations', False)
@@ -1488,6 +1489,7 @@ class GcnSummaryHandler(BaseHandler):
                             last_detected_date=end_date,
                             localization_dateobs=dateobs,
                             localization_name=localization_name,
+                            localization_cumprob=localization_cumprob,
                             page_number=source_page_number,
                             num_per_page=MAX_SOURCES_PER_PAGE,
                         )
@@ -1627,6 +1629,7 @@ class GcnSummaryHandler(BaseHandler):
                             session,
                             localization_dateobs=event.dateobs,
                             localization_name=localization_name,
+                            localization_cumprob=localization_cumprob,
                             page_number=galaxies_page_number,
                             num_per_page=MAX_GALAXIES,
                         )
@@ -1702,6 +1705,7 @@ class GcnSummaryHandler(BaseHandler):
                             instrument_name=instrument.name,
                             localization_dateobs=dateobs,
                             localization_name=localization_name,
+                            localization_cumprob=localization_cumprob,
                             return_statistics=True,
                         )
 
