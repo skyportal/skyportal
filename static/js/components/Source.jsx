@@ -17,7 +17,8 @@ const sidebarWidth = 190;
 const Source = ({ route }) => {
   const ref = useRef(null);
   const theme = useTheme();
-  const initialWidth = window.innerWidth - sidebarWidth - 2 * theme.spacing(2);
+  const initialWidth =
+    window.innerWidth - sidebarWidth - 2 * parseInt(theme.spacing(2), 10);
   const [width, setWidth] = useState(initialWidth);
   const dispatch = useDispatch();
   const source = useSelector((state) => state.source);

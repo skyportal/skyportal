@@ -52,6 +52,7 @@ from .gcn import (
     LocalizationHandler,
     LocalizationPropertiesHandler,
 )
+from .gcn_tach import GcnTachHandler
 from .group import (
     GroupHandler,
     GroupUserHandler,
