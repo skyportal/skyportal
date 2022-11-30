@@ -1,0 +1,299 @@
+name: Fink Taxonomy
+version: "1.1"
+hierarchy:
+  class: Fink Taxonomy
+  subclasses:
+    - class: Fink classifiers
+      subclasses:
+        - class: Ambiguous
+        - class: Early SN Ia candidate
+        - class: Kilonova candidate
+        - class: Microlensing candidate
+        - class: SN candidate
+        - class: Solar System candidate
+        - class: Solar System MPC
+        - class: Tracklet
+    - class: TNS classified data
+      subclasses:
+        - class: (TNS) Afterglow
+        - class: (TNS) AGN
+        - class: (TNS) CV
+        - class: (TNS) FRB
+        - class: (TNS) Galaxy
+        - class: (TNS) ILRT
+        - class: (TNS) Impostor-SN
+        - class: (TNS) Kilonova
+        - class: (TNS) LBV
+        - class: (TNS) Light-Echo
+        - class: (TNS) LRN
+        - class: (TNS) M dwarf
+        - class: (TNS) Nova
+        - class: (TNS) Other
+        - class: (TNS) QSO
+        - class: (TNS) SLSN-I
+        - class: (TNS) SLSN-II
+        - class: (TNS) SN
+        - class: (TNS) SN I
+        - class: (TNS) SN Ia
+        - class: (TNS) SN Ia-91bg-like
+        - class: (TNS) SN Ia-91T-like
+        - class: (TNS) SN Ia-CSM
+        - class: (TNS) SN Ia-pec
+        - class: (TNS) SN Iax02cx-like]
+        - class: (TNS) SN Ib
+        - class: (TNS) SN Ib-Ca-rich
+        - class: (TNS) SN Ib-pec
+        - class: (TNS) SN Ib/c
+        - class: (TNS) SN Ibn
+        - class: (TNS) SN Ic
+        - class: (TNS) SN Ic-BL
+        - class: (TNS) SN Ic-pec
+        - class: (TNS) SN Icn
+        - class: (TNS) SN II
+        - class: (TNS) SN II-pec
+        - class: (TNS) SN IIb
+        - class: (TNS) SN IIL
+        - class: (TNS) SN IIn
+        - class: (TNS) SN IIn-pec
+        - class: (TNS) SN IIP
+        - class: (TNS) TDE
+        - class: (TNS) Varstar
+    - class: Cross-match with SIMBAD
+      subclasses:
+        - class: (SIMBAD) **
+        - class: (SIMBAD) *in**
+        - class: (SIMBAD) *inAssoc
+        - class: (SIMBAD) *inCl
+        - class: (SIMBAD) *inNeb
+        - class: (SIMBAD) AbsLineSystem
+        - class: (SIMBAD) Ae*
+        - class: (SIMBAD) AGB*
+        - class: (SIMBAD) AGN
+        - class: (SIMBAD) AGN_Candidate
+        - class: (SIMBAD) AMHer
+        - class: (SIMBAD) Assoc*
+        - class: (SIMBAD) BClG
+        - class: (SIMBAD) Be*
+        - class: (SIMBAD) Blazar
+        - class: (SIMBAD) Blazar_Candidate
+        - class: (SIMBAD) BLLac
+        - class: (SIMBAD) BLLac_Candidate
+        - class: (SIMBAD) Blue
+        - class: (SIMBAD) BlueCompG
+        - class: (SIMBAD) BlueSG*
+        - class: (SIMBAD) BlueStraggler
+        - class: (SIMBAD) BrNeb
+        - class: (SIMBAD) Broad_ALS
+        - class: (SIMBAD) brownD*
+        - class: (SIMBAD) Bubble
+        - class: (SIMBAD) BYDra
+        - class: (SIMBAD) C*
+        - class: (SIMBAD) Candiate_sr*
+        - class: (SIMBAD) Candidate_**
+        - class: (SIMBAD) Candidate_Ae*
+        - class: (SIMBAD) Candidate_AGB*
+        - class: (SIMBAD) Candidate_Be*
+        - class: (SIMBAD) Candidate_BH
+        - class: (SIMBAD) Candidate_brownD*
+        - class: (SIMBAD) Candidate_BSG*
+        - class: (SIMBAD) Candidate_BSS
+        - class: (SIMBAD) Candidate_C*
+        - class: (SIMBAD) Candidate_Cepheid
+        - class: (SIMBAD) Candidate_CH
+        - class: (SIMBAD) Candidate_CV*
+        - class: (SIMBAD) Candidate_EB*
+        - class: (SIMBAD) Candidate_HB*
+        - class: (SIMBAD) Candidate_HMXB
+        - class: (SIMBAD) Candidate_Hsd
+        - class: (SIMBAD) Candidate_Lens
+        - class: (SIMBAD) Candidate_LensSyste
+        - class: (SIMBAD) Candidate_LensSystem
+        - class: (SIMBAD) Candidate_LMXB
+        - class: (SIMBAD) Candidate_low-mass*
+        - class: (SIMBAD) Candidate_LP*
+        - class: (SIMBAD) Candidate_Mi*
+        - class: (SIMBAD) Candidate_Nova
+        - class: (SIMBAD) Candidate_NS
+        - class: (SIMBAD) Candidate_OH
+        - class: (SIMBAD) Candidate_Pec*
+        - class: (SIMBAD) Candidate_pMS*
+        - class: (SIMBAD) Candidate_post-AGB*
+        - class: (SIMBAD) Candidate_RGB*
+        - class: (SIMBAD) Candidate_RRLyr
+        - class: (SIMBAD) Candidate_RSG*
+        - class: (SIMBAD) Candidate_S*
+        - class: (SIMBAD) Candidate_SG*
+        - class: (SIMBAD) Candidate_SN*
+        - class: (SIMBAD) Candidate_Symb*
+        - class: (SIMBAD) Candidate_TTau*
+        - class: (SIMBAD) Candidate_WD*
+        - class: (SIMBAD) Candidate_WR*
+        - class: (SIMBAD) Candidate_XB*
+        - class: (SIMBAD) Candidate_YSG*
+        - class: (SIMBAD) Candidate_YSO
+        - class: (SIMBAD) Candidates
+        - class: (SIMBAD) CataclyV*
+        - class: (SIMBAD) Cepheid
+        - class: (SIMBAD) CH
+        - class: (SIMBAD) Circumstellar
+        - class: (SIMBAD) Cl*
+        - class: (SIMBAD) Cl*?
+        - class: (SIMBAD) ClG
+        - class: (SIMBAD) Cloud
+        - class: (SIMBAD) ComGlob
+        - class: (SIMBAD) Compact_Gr_G
+        - class: (SIMBAD) deltaCep
+        - class: (SIMBAD) denseCore
+        - class: (SIMBAD) DkNeb
+        - class: (SIMBAD) DLy-alpha_ALS
+        - class: (SIMBAD) DQHer
+        - class: (SIMBAD) DwarfNova
+        - class: (SIMBAD) EB*
+        - class: (SIMBAD) EB*Algol
+        - class: (SIMBAD) EB*betLyr
+        - class: (SIMBAD) EB*Planet
+        - class: (SIMBAD) EB*WUMa
+        - class: (SIMBAD) EllipVar
+        - class: (SIMBAD) Em*
+        - class: (SIMBAD) EmG
+        - class: (SIMBAD) EmObj
+        - class: (SIMBAD) Erupt*RCrB
+        - class: (SIMBAD) Eruptive*
+        - class: (SIMBAD) Flare*
+        - class: (SIMBAD) FUOr
+        - class: (SIMBAD) Galaxy
+        - class: (SIMBAD) GalNeb
+        - class: (SIMBAD) gamma
+        - class: (SIMBAD) gammaBurst
+        - class: (SIMBAD) gammaDor
+        - class: (SIMBAD) GinCl
+        - class: (SIMBAD) GinGroup
+        - class: (SIMBAD) GinPair
+        - class: (SIMBAD) GlCl
+        - class: (SIMBAD) GlCl?
+        - class: (SIMBAD) Globule
+        - class: (SIMBAD) Gravitation
+        - class: (SIMBAD) GravLens
+        - class: (SIMBAD) GravLensSystem
+        - class: (SIMBAD) GravWaveEvent
+        - class: (SIMBAD) GroupG
+        - class: (SIMBAD) HB*
+        - class: (SIMBAD) HH
+        - class: (SIMBAD) HI
+        - class: (SIMBAD) High_z_G
+        - class: (SIMBAD) HII
+        - class: (SIMBAD) HII_G
+        - class: (SIMBAD) HIshell
+        - class: (SIMBAD) HMXB
+        - class: (SIMBAD) HotSubdwarf
+        - class: (SIMBAD) HV*
+        - class: (SIMBAD) HVCld
+        - class: (SIMBAD) IG
+        - class: (SIMBAD) Inexistent
+        - class: (SIMBAD) IR
+        - class: (SIMBAD) IR<10um
+        - class: (SIMBAD) IR>30um
+        - class: (SIMBAD) Irregular_V*
+        - class: (SIMBAD) ISM
+        - class: (SIMBAD) LensedG
+        - class: (SIMBAD) LensedImage
+        - class: (SIMBAD) LensedQ
+        - class: (SIMBAD) LensingEv
+        - class: (SIMBAD) LINER
+        - class: (SIMBAD) LMXB
+        - class: (SIMBAD) low-mass*
+        - class: (SIMBAD) LPV*
+        - class: (SIMBAD) LSB_G
+        - class: (SIMBAD) Ly-alpha_ALS
+        - class: (SIMBAD) Ly-limit_ALS
+        - class: (SIMBAD) Maser
+        - class: (SIMBAD) metal_ALS
+        - class: (SIMBAD) Mira
+        - class: (SIMBAD) MolCld
+        - class: (SIMBAD) MouvGroup
+        - class: (SIMBAD) multiple_object
+        - class: (SIMBAD) Neutron*
+        - class: (SIMBAD) Nova
+        - class: (SIMBAD) Nova-like
+        - class: (SIMBAD) OH/IR
+        - class: (SIMBAD) OpCl
+        - class: (SIMBAD) Orion_V*
+        - class: (SIMBAD) Outflow
+        - class: (SIMBAD) outflow?
+        - class: (SIMBAD) OVV
+        - class: (SIMBAD) PairG
+        - class: (SIMBAD) PartofCloud
+        - class: (SIMBAD) PartofG
+        - class: (SIMBAD) Pec*
+        - class: (SIMBAD) Planet
+        - class: (SIMBAD) Planet?
+        - class: (SIMBAD) PM*
+        - class: (SIMBAD) pMS*
+        - class: (SIMBAD) PN
+        - class: (SIMBAD) PN?
+        - class: (SIMBAD) Possible_As*
+        - class: (SIMBAD) Possible_ClG
+        - class: (SIMBAD) Possible_G
+        - class: (SIMBAD) Possible_GrG
+        - class: (SIMBAD) Possible_lensImage
+        - class: (SIMBAD) Possible_SClG
+        - class: (SIMBAD) post-AGB*
+        - class: (SIMBAD) Pulsar
+        - class: (SIMBAD) PulsV*
+        - class: (SIMBAD) PulsV*bCep
+        - class: (SIMBAD) PulsV*delSct
+        - class: (SIMBAD) PulsV*RVTau
+        - class: (SIMBAD) pulsV*SX
+        - class: (SIMBAD) PulsV*WVir
+        - class: (SIMBAD) pulsWD*
+        - class: (SIMBAD) QSO
+        - class: (SIMBAD) QSO_Candidate
+        - class: (SIMBAD) Radio
+        - class: (SIMBAD) Radio(cm)
+        - class: (SIMBAD) Radio(m)
+        - class: (SIMBAD) Radio(mm)
+        - class: (SIMBAD) Radio(sub-mm)
+        - class: (SIMBAD) radioBurst
+        - class: (SIMBAD) RadioG
+        - class: (SIMBAD) Rapid_Irreg_V*
+        - class: (SIMBAD) RCrB_Candidate
+        - class: (SIMBAD) Red
+        - class: (SIMBAD) RedExtreme
+        - class: (SIMBAD) RedSG*
+        - class: (SIMBAD) Region
+        - class: (SIMBAD) RfNeb
+        - class: (SIMBAD) RGB*
+        - class: (SIMBAD) RotV*
+        - class: (SIMBAD) RotV*alf2CVn
+        - class: (SIMBAD) RRLyr
+        - class: (SIMBAD) RSCVn
+        - class: (SIMBAD) S*
+        - class: (SIMBAD) SB*
+        - class: (SIMBAD) semi-regV*
+        - class: (SIMBAD) Seyfert
+        - class: (SIMBAD) Seyfert_1
+        - class: (SIMBAD) Seyfert_2
+        - class: (SIMBAD) SFregion
+        - class: (SIMBAD) SG*
+        - class: (SIMBAD) SN
+        - class: (SIMBAD) SNR
+        - class: (SIMBAD) SNR?
+        - class: (SIMBAD) Star
+        - class: (SIMBAD) StarburstG
+        - class: (SIMBAD) Stream*
+        - class: (SIMBAD) Sub-stellar
+        - class: (SIMBAD) SuperClG
+        - class: (SIMBAD) Symbiotic*
+        - class: (SIMBAD) TTau*
+        - class: (SIMBAD) ULX
+        - class: (SIMBAD) ULX?
+        - class: (SIMBAD) UV
+        - class: (SIMBAD) V*
+        - class: (SIMBAD) V*?
+        - class: (SIMBAD) Void
+        - class: (SIMBAD) WD*
+        - class: (SIMBAD) WR*
+        - class: (SIMBAD) X
+        - class: (SIMBAD) XB
+        - class: (SIMBAD) YellowSG*
+        - class: (SIMBAD) YSO"

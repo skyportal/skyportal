@@ -1,0 +1,808 @@
+import os
+
+# import sqlalchemy as sa
+# from sqlalchemy.orm import joinedload
+import time
+import pandas as pd
+import numpy as np
+import requests
+import yaml
+
+# import healpix_alchemy as ha
+# import astropy.units as u
+from astropy.visualization import (
+    AsymmetricPercentileInterval,
+    LinearStretch,
+    LogStretch,
+    ImageNormalize,
+)
+import datetime
+import gzip
+import io
+from astropy.io import fits
+from matplotlib import pyplot as plt
+import base64
+
+
+from baselayer.log import make_log
+from baselayer.app.models import init_db
+from baselayer.app.env import load_env
+
+from fink_client.consumer import AlertConsumer
+from fink_filters.classification import extract_fink_classification_from_pdf
+
+# from skyportal.handlers.api.photometry import (
+#     add_external_photometry,
+#     standardize_photometry_data,
+#     get_values_table_and_condition,
+# )
+from skyportal.handlers.api.source import post_source
+
+from skyportal.models import (
+    DBSession,
+    Obj,
+    Instrument,
+    Group,
+    Taxonomy,
+    Stream,
+    Filter,
+    Candidate,
+)
+
+from baselayer.app.models import User
+
+env, cfg = load_env()
+init_db(**cfg['database'])
+
+log = make_log('fink')
+
+REQUEST_TIMEOUT_SECONDS = cfg['health_monitor.request_timeout_seconds']
+
+
+def get_token():
+    try:
+        token = yaml.load(open('.tokens.yaml'), Loader=yaml.Loader)['INITIAL_ADMIN']
+        return token
+    except (FileNotFoundError, TypeError, KeyError):
+        print('No token found')
+        return None
+
+
+def get_taxonomy():
+    try:
+        taxonomy_dict = yaml.load(
+            open('services/fink/data/taxonomy.yaml'), Loader=yaml.Loader
+        )
+        return taxonomy_dict
+    except (FileNotFoundError, TypeError, KeyError):
+        print('No taxonomy found')
+        return None
+
+
+def is_loaded():
+    port = cfg['ports.app_internal']
+    try:
+        r = requests.get(
+            f'http://localhost:{port}/api/sysinfo', timeout=REQUEST_TIMEOUT_SECONDS
+        )
+    except:  # noqa: E722
+        status_code = 0
+    else:
+        status_code = r.status_code
+
+    if status_code == 200:
+        return True
+    else:
+        return False
+
+
+def service():
+    while True:
+        token = get_token()
+        if is_loaded() and token is not None:
+            try:
+                poll_fink_alerts(token)
+            except Exception as e:
+                log(e)
+        time.sleep(10)
+
+
+def api_skyportal(method: str, endpoint: str, data=None, token=None):
+    """Make an API call to a SkyPortal instance
+    :param method:
+    :param endpoint:
+    :param data:
+    :return:
+    """
+    method = method.lower()
+
+    if endpoint is None:
+        raise ValueError("Endpoint not specified")
+    if method not in ["head", "get", "post", "put", "patch", "delete"]:
+        raise ValueError(f"Unsupported method: {method}")
+
+    if method == "get":
+        response = requests.request(
+            method,
+            f"{'https' if cfg['server']['ssl'] else 'http'}://"
+            f"{cfg['server']['host']}:{cfg['server']['port']}"
+            f"{endpoint}",
+            params=data,
+            headers={"Authorization": f"token {token}"},
+        )
+    else:
+        response = requests.request(
+            method,
+            f"{'https' if cfg['server']['ssl'] else 'http'}://"
+            f"{cfg['server']['host']}:{cfg['server']['port']}"
+            f"{endpoint}",
+            json=data,
+            headers={"Authorization": f"token {token}"},
+        )
+
+    return response
+
+
+def make_photometry(alert: dict, jd_start: float = None):
+    """
+    Make a de-duplicated pandas.DataFrame with photometry of alert['objectId']
+    :param alert: ZTF-like alert packet/dict
+    :param jd_start:
+    :return:
+    """
+    df_candidate = pd.DataFrame(alert["candidate"], index=[0])
+
+    df_prv_candidates = pd.DataFrame(alert["prv_candidates"])
+    df_light_curve = pd.concat(
+        [df_candidate, df_prv_candidates], ignore_index=True, sort=False
+    )
+
+    ztf_filters = {1: "ztfg", 2: "ztfr", 3: "ztfi"}
+    df_light_curve["filter"] = df_light_curve["fid"].apply(lambda x: ztf_filters[x])
+
+    df_light_curve["magsys"] = "ab"
+    df_light_curve["mjd"] = df_light_curve["jd"] - 2400000.5
+
+    df_light_curve["mjd"] = df_light_curve["mjd"].apply(lambda x: np.float64(x))
+    df_light_curve["magpsf"] = df_light_curve["magpsf"].apply(lambda x: np.float32(x))
+    df_light_curve["sigmapsf"] = df_light_curve["sigmapsf"].apply(
+        lambda x: np.float32(x)
+    )
+
+    df_light_curve = (
+        df_light_curve.drop_duplicates(subset=["mjd", "magpsf"])
+        .reset_index(drop=True)
+        .sort_values(by=["mjd"])
+    )
+
+    # filter out bad data:
+    mask_good_diffmaglim = df_light_curve["diffmaglim"] > 0
+    df_light_curve = df_light_curve.loc[mask_good_diffmaglim]
+
+    # convert from mag to flux
+
+    # step 1: calculate the coefficient that determines whether the
+    # flux should be negative or positive
+    coeff = df_light_curve["isdiffpos"].apply(
+        lambda x: 1.0 if x in [True, 1, "y", "Y", "t", "1"] else -1.0
+    )
+
+    # step 2: calculate the flux normalized to an arbitrary AB zeropoint of
+    # 23.9 (results in flux in uJy)
+    df_light_curve["flux"] = coeff * 10 ** (-0.4 * (df_light_curve["magpsf"] - 23.9))
+
+    # step 3: separate detections from non detections
+    detected = np.isfinite(df_light_curve["magpsf"])
+    undetected = ~detected
+
+    # step 4: calculate the flux error
+    df_light_curve["fluxerr"] = None  # initialize the column
+
+    # step 4a: calculate fluxerr for detections using sigmapsf
+    df_light_curve.loc[detected, "fluxerr"] = np.abs(
+        df_light_curve.loc[detected, "sigmapsf"]
+        * df_light_curve.loc[detected, "flux"]
+        * np.log(10)
+        / 2.5
+    )
+
+    # step 4b: calculate fluxerr for non detections using diffmaglim
+    df_light_curve.loc[undetected, "fluxerr"] = (
+        10 ** (-0.4 * (df_light_curve.loc[undetected, "diffmaglim"] - 23.9)) / 5.0
+    )  # as diffmaglim is the 5-sigma depth
+
+    # step 5: set the zeropoint and magnitude system
+    df_light_curve["zp"] = 23.9
+    df_light_curve["zpsys"] = "ab"
+
+    # only "new" photometry requested?
+    if jd_start is not None:
+        w_after_jd = df_light_curve["jd"] > jd_start
+        df_light_curve = df_light_curve.loc[w_after_jd]
+
+    return df_light_curve
+
+
+def post_annotation_to_skyportal(alert, user_id, group_id, instrument_id, token, log):
+
+    annotations = {
+        "obj_id": alert["objectId"],
+        "origin": "Fink Science",
+        "data": {  # fink science data
+            "cdsxmatch": alert["cdsxmatch"],
+            "rf_snia_vs_nonia": alert["rf_snia_vs_nonia"],
+            "snn_snia_vs_nonia": alert["snn_snia_vs_nonia"],
+            "snn_sn_vs_all": alert["snn_sn_vs_all"],
+            "microlensing": alert["mulens"],
+            "asteroids": alert["roid"],
+            "rf_kn_vs_nonkn": alert["rf_kn_vs_nonkn"],
+            "nalerthist": alert["nalerthist"],
+            # "ad_features": alert["lc_*"],
+            # "rf_agn_vs_nonagn": alert["rf_agn_vs_nonagn"],
+        },
+        "group_ids": [group_id],
+    }
+
+    response = api_skyportal(
+        "GET", f"/api/sources/{alert['objectId']}/annotations", None, token
+    )
+
+    try:
+        if response.status_code == 200:
+            existing_annotations = {
+                annotation["origin"]: {
+                    "annotation_id": annotation["id"],
+                    "author_id": annotation["author_id"],
+                }
+                for annotation in response.json()["data"]
+            }
+            if 'Fink Science' in existing_annotations:
+                annotations['author_id'] = existing_annotations['Fink Science'][
+                    'author_id'
+                ]
+                method = "PUT"
+                endpoint = f"/api/sources/{alert['objectId']}/annotations/{existing_annotations['Fink Science']['annotation_id']}"
+            else:
+                method = "POST"
+                endpoint = f"/api/sources/{alert['objectId']}/annotations"
+            try:
+                response = api_skyportal(
+                    method,
+                    endpoint,
+                    annotations,
+                    token,
+                )
+                if response.json()["status"] == "success":
+                    log(f"Posted {alert['objectId']} annotation to SkyPortal")
+                    return True
+                else:
+                    log(f"Failed to post {alert['objectId']} annotation to SkyPortal")
+                    return False
+            except Exception as e:
+                log(
+                    f"Failed to post annotation of {alert['objectId']} to group_ids {group_id}"
+                )
+                print(e)
+                return False
+        else:
+            log(f"Failed to get existing annotations of {alert['objectId']}")
+            return False
+    except Exception as e:
+        log(f"Failed to post annotation of {alert['objectId']} to group_ids {group_id}")
+        print(e)
+        return False
+
+
+def post_classification_to_skyportal(
+    topic, alert, user_id, user_name, group_id, instrument_id, taxonomy_id, token, log
+):
+
+    alert_pd = pd.DataFrame([alert])
+    alert_pd["tracklet"] = ""
+    classification = extract_fink_classification_from_pdf(alert_pd)[0]
+    probability = None
+
+    if (
+        topic
+        in [
+            "fink_kn_candidates_ztf",
+            "fink_early_kn_candidates_ztf",
+            "fink_rate_based_kn_candidates_ztf",
+        ]
+        and "kilonova" not in classification.lower()
+    ):
+        classification = "Kilonova candidate"
+        probability = alert["rf_kn_vs_nonkn"]
+
+    data = {
+        "obj_id": alert["objectId"],
+        "classification": classification,
+        "author_name": "fink_client",
+        "taxonomy_id": taxonomy_id,
+        "group_ids": [group_id],
+    }
+
+    if probability is not None:
+        data["probability"] = probability
+
+    response = api_skyportal(
+        "GET", f"/api/sources/{alert['objectId']}/classifications", None, token
+    )
+
+    try:
+        if response.status_code == 200:
+            classification_id = None
+            author_id = None
+            for classification in response.json()["data"]:
+                if (
+                    classification["author_name"] == user_name
+                    and classification["taxonomy_id"] == taxonomy_id
+                ):
+                    classification_id = classification["id"]
+                    author_id = classification["author_id"]
+                    break
+
+            if classification_id is not None and author_id is not None:
+                data['author_id'] = author_id
+                data['author_name'] = user_name
+                method = "PUT"
+                endpoint = f"/api/classification/{classification_id}"
+            else:
+                method = "POST"
+                endpoint = "/api/classification"
+
+            try:
+                response = api_skyportal(
+                    method,
+                    endpoint,
+                    data,
+                    token,
+                )
+                if response.json()["status"] == "success":
+                    log(f"Posted {alert['objectId']} classification to SkyPortal")
+                    return True
+                else:
+                    log(
+                        f"Failed to post {alert['objectId']} classification to SkyPortal"
+                    )
+                    return False
+            except Exception as e:
+                log(
+                    f"Failed to post classification of {alert['objectId']} to group_ids {group_id}"
+                )
+                print(e)
+                return False
+        else:
+            log(f"Failed to get existing classifications of {alert['objectId']}")
+            return False
+    except Exception as e:
+        log(
+            f"Failed to post classification of {alert['objectId']} to group_ids {group_id}"
+        )
+        print(e)
+        return False
+
+
+def post_cutouts_to_skyportal(alert, token, log):
+
+    for i, (skyportal_type, cutout_type) in enumerate(
+        [("new", "Science"), ("ref", "Template"), ("sub", "Difference")]
+    ):
+        cutout_data = alert[f'cutout{cutout_type}']['stampData']
+        with gzip.open(io.BytesIO(cutout_data), "rb") as f:
+            with fits.open(io.BytesIO(f.read()), ignore_missing_simple=True) as hdu:
+                image_data = hdu[0].data
+        image_data = np.flipud(image_data)
+        plt.close("all")
+        fig = plt.figure()
+        fig.set_size_inches(4, 4, forward=False)
+        ax = plt.Axes(fig, [0.0, 0.0, 1.0, 1.0])
+        ax.set_axis_off()
+        fig.add_axes(ax)
+
+        # replace nans with median:
+        img = np.array(image_data)
+        # replace dubiously large values
+        xl = np.greater(np.abs(img), 1e20, where=~np.isnan(img))
+        if img[xl].any():
+            img[xl] = np.nan
+        if np.isnan(img).any():
+            median = float(np.nanmean(img.flatten()))
+            img = np.nan_to_num(img, nan=median)
+
+        norm = ImageNormalize(
+            img,
+            stretch=LinearStretch() if cutout_type == "Difference" else LogStretch(),
+        )
+        img_norm = norm(img)
+        normalizer = AsymmetricPercentileInterval(
+            lower_percentile=1, upper_percentile=100
+        )
+        vmin, vmax = normalizer.get_limits(img_norm)
+        ax.imshow(img_norm, cmap="bone", origin="lower", vmin=vmin, vmax=vmax)
+        buff = io.BytesIO()
+        plt.savefig(buff, dpi=42, format="png")
+        buff.seek(0)
+        plt.close("all")
+
+        thumbnail_dict = {
+            "obj_id": alert["objectId"],
+            "data": base64.b64encode(buff.read()).decode("utf-8"),
+            "ttype": skyportal_type,
+        }
+
+        try:
+            response = api_skyportal(
+                "POST",
+                "/api/thumbnail",
+                thumbnail_dict,
+                token,
+            )
+            if response.json()["status"] == "success":
+                log(f"Posted {alert['objectId']} {skyportal_type} cutout to SkyPortal")
+            else:
+                log(
+                    f"Failed to post {alert['objectId']} {skyportal_type} cutout to SkyPortal"
+                )
+        except Exception as e:
+            log(
+                f"Failed to post {alert['objectId']} {skyportal_type} cutout to SkyPortal"
+            )
+            print(e)
+
+
+def init_consumer(
+    fink_username: str = None,
+    fink_password: str = None,
+    fink_group_id: str = None,
+    fink_servers: str = None,
+    fink_topics: list = None,
+    testing: bool = None,
+    schema: str = None,
+    log: callable = None,
+):
+    """
+    Arguments
+    ----------
+    fink_username : str
+        Fink username. Can be omitted, then the username is taken from the config file.
+    fink_password : str
+        Fink password. Can be omitted, then the password is taken from the config file.
+    fink_group_id : int
+        Fink group id. Can be omitted, then the group id is taken from the config file.
+    fink_servers : list
+        Fink servers. Can be omitted, then the servers are taken from the config file.
+    fink_topics : list
+        Fink topics. Can be omitted, then the topics are taken from the config file.
+    testing : bool
+        If True, we use the testing servers. Can be omitted, then the value is taken from the config file.
+    schema : str
+        Schema file. Can be omitted, then the schema is taken from the config file.
+    log : function
+        Log function. Can be omitted if you do not desire to log.
+    Returns
+    ----------
+    consumer : AlertConsumer
+        AlertConsumer object
+    """
+
+    fink_config = {
+        "username": fink_username,
+        "bootstrap.servers": fink_servers,
+        "group_id": fink_group_id,
+    }
+
+    if fink_password is not None:
+        fink_config["password"] = fink_password
+
+    if (
+        testing is True
+    ):  # if in testing mode, we use older alerts with a different schema than the one currently used by fink
+        if log is not None:
+            log("Using fake alerts for testing")
+        consumer = AlertConsumer(
+            topics=fink_topics, config=fink_config, schema_path=schema
+        )
+    else:
+        if log is not None:
+            log("Using Fink Broker")
+        consumer = AlertConsumer(topics=fink_topics, config=fink_config)
+    if log is not None:
+        log(f"Fink topics you subscribed to: {fink_topics}")
+    return consumer
+
+
+def poll_alert(consumer: callable, max_timeout: int, log: callable = None):
+    """
+    Polls the consumer for an alert.
+    Arguments
+    ----------
+        consumer : AlertConsumer
+            AlertConsumer object
+        maxtimeout : int
+            Maximum time to wait for an alert
+        log : function
+            Log function. Can be omitted if you do not desire to log.
+    Returns
+    ----------
+        alert : dict
+            Alert object
+    """
+    try:
+        # Poll the servers
+        topic, alert, key = consumer.poll(max_timeout)
+        if topic is None or alert is None:
+            if log is not None:
+                log(f"No alerts received in the last {max_timeout} seconds")
+            return None, None
+        else:
+            return topic, alert
+    except Exception as e:
+        if log is not None:
+            log(f"Error while polling: {e}")
+        return None, None
+
+
+def post_alert(
+    topic: str = None,
+    alert: dict = None,
+    user_id: int = None,
+    group_id: int = None,
+    stream_id: int = None,
+    filter_id: int = None,
+    instrument_id: int = None,
+    taxonomy_id: int = None,
+    token: str = None,
+    log: callable = None,
+):
+    # this method posts a new alert to the database
+    # in the alert dict, the key "objectId" is the unique identifier of the object associated to the alert
+    # the key "candid" is the unique identifier of the alert (the candidate)
+    # the key "candidate" contains the information about the alert
+    # the key "prv_candidates" contains the information about the previous alerts
+    # we need to be sure that all prv_candidates are also in the database, otherwise we need to add them
+
+    # check if the object already exists in the database
+    with DBSession() as session:
+        user = session.query(User).get(user_id)
+        # OBJECT
+        obj = session.scalars(
+            Obj.select(user).where(Obj.id == alert["objectId"])
+        ).first()
+
+        if obj is None:
+            # create the object
+            source = {
+                'id': alert['objectId'],
+                'ra': alert['candidate']['ra'],
+                'dec': alert['candidate']['dec'],
+            }
+            post_source(source, user.id, session)
+
+            candidate = Candidate(
+                obj_id=alert["objectId"],
+                passing_alert_id=alert["candid"],
+                passed_at=datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%f"),
+                uploader_id=user.id,
+                filter_id=filter_id,
+            )
+            session.add(candidate)
+            session.commit()
+
+            post_cutouts_to_skyportal(alert, token, log)
+
+        # PHOTOMETRY
+        df_photometry = make_photometry(alert)
+        df_photometry = df_photometry.fillna('')
+        photometry = {
+            "obj_id": alert["objectId"],
+            "instrument_id": instrument_id,
+            "group_ids": [group_id],
+            "mjd": df_photometry["mjd"].tolist(),
+            "flux": df_photometry["flux"].tolist(),
+            "fluxerr": df_photometry["fluxerr"].tolist(),
+            "zp": df_photometry["zp"].tolist(),
+            "magsys": df_photometry["zpsys"].tolist(),
+            "filter": df_photometry["filter"].tolist(),
+            "ra": df_photometry["ra"].tolist(),
+            "dec": df_photometry["dec"].tolist(),
+        }
+
+        if (len(photometry.get("flux", ())) > 0) or (
+            len(photometry.get("fluxerr", ())) > 0
+        ):
+            try:
+                response = api_skyportal("PUT", "/api/photometry", photometry, token)
+                if response.json()["status"] == "success":
+                    log(f"Posted {alert['objectId']} photometry to SkyPortal")
+                else:
+                    log(f"Failed to post {alert['objectId']} photometry to SkyPortal")
+            except Exception as e:
+                log(
+                    f"Failed to post photometry of {alert['objectId']} to group_ids {group_id}"
+                )
+                print(e)
+
+            # ANNOTATIONS
+            post_annotation_to_skyportal(
+                alert, user.id, group_id, instrument_id, token, log
+            )
+
+            # CLASSIFICATION
+            post_classification_to_skyportal(
+                topic,
+                alert,
+                user.id,
+                user.username,
+                group_id,
+                instrument_id,
+                taxonomy_id,
+                token,
+                log,
+            )
+
+
+def poll_fink_alerts(token: str):
+    client_id = cfg['fink.client_id']
+    client_secret = cfg['fink.client_secret']
+    client_group_id = cfg.get('fink.client_group_id')
+    topics = cfg['fink.topics']
+    servers = cfg['fink.servers']  # comma seperated list of servers to listen to
+    maxtimeout = cfg[
+        'fink.maxtimeout'
+    ]  # maximum time to wait before pooling a new alert (in seconds)
+    testing = cfg.get('fink.testing', False)  # if True, we use the testing servers
+    if testing is True:
+        schema = cfg['fink.schema']  # path to the schema file if in testing mode
+    else:
+        schema = None
+
+    if client_id is None or client_id == '':
+        log('No client_id configured to poll fink alerts (config: fink.client_id)')
+        return
+    if topics is None or topics == '' or topics == []:
+        log('No topics configured to poll fink alerts (config: fink.topics)')
+        return
+    if client_group_id is None or client_group_id == '':
+        log(
+            'No client_group_id configured to poll fink alerts (config: fink.client_group_id)'
+        )
+        return
+    if servers is None or servers == '' or servers == []:
+        log('No servers configured to poll fink alerts (config: fink.servers)')
+        return
+    if maxtimeout is None or maxtimeout == '':
+        maxtimeout = 5
+
+    if testing is True:
+        if schema is not None or schema != '':
+            try:
+                schema = os.path.abspath(
+                    os.path.join(os.path.dirname(__file__), schema)
+                )
+                log(f"Using testing schema: {schema}")
+            except Exception as e:
+                log(f"Error while loading schema: {e}")
+                return
+        else:
+            log(
+                'No schema file configured to poll fink alerts in testing mode (config: fink.schema)'
+            )
+            return
+
+    try:
+        taxonomy_dict = get_taxonomy()
+    except Exception as e:
+        log(f"Couldn't open fink taxonomy: {e}")
+        return
+
+    try:
+        with DBSession() as session:
+            user = session.query(User).get(1)
+            user_id = user.id
+            instrument = session.scalars(
+                Instrument.select(user).where(Instrument.name == "ZTF")
+            ).first()
+            if instrument is None:
+                log("Could not find ZTF instrument in database")
+                return
+            instrument_id = instrument.id
+            group = session.scalars(
+                Group.select(user).where(Group.name == "Fink")
+            ).first()
+            if group is None:
+                all_users = session.scalars(User.select(user)).all()
+                group = Group(name="Fink", users=all_users)
+                session.add(group)
+                session.commit()
+            group_id = group.id
+
+            taxonomy = session.scalars(
+                Taxonomy.select(user).where(Taxonomy.name == "Fink Taxonomy")
+            ).first()
+            if taxonomy is None:
+                data = {
+                    "name": taxonomy_dict['name'],
+                    "hierarchy": taxonomy_dict['hierarchy'],
+                    "version": taxonomy_dict['version'],
+                }
+                response = api_skyportal("POST", "/api/taxonomy", data, token)
+                if response.json()["status"] == "success":
+                    log("Posted taxonomy to SkyPortal")
+                    taxonomy_id = response.json()["data"]["id"]
+                else:
+                    log("Failed to post taxonomy to SkyPortal")
+                    return
+            else:
+                taxonomy_id = taxonomy.id
+
+            stream = session.scalars(
+                Stream.select(user).where(Stream.name == "Fink")
+            ).first()
+            if stream is None:
+                all_users = session.scalars(User.select(user)).all()
+                stream = Stream(name="Fink")
+                session.add(stream)
+                session.commit()
+            stream_id = stream.id
+
+            filter = session.scalars(
+                Filter.select(user).where(Filter.name == "Fink")
+            ).first()
+            if filter is None:
+                filter = Filter(
+                    name="Fink",
+                    group_id=group_id,
+                    stream_id=stream_id,
+                )
+                session.add(filter)
+                session.commit()
+            filter_id = filter.id
+
+    except Exception as e:
+        log(f"Error getting user, instrument and groups: {e}")
+        return
+
+    log('Starting fink service')
+
+    try:
+        consumer = init_consumer(
+            fink_username=client_id,
+            fink_password=client_secret,
+            fink_group_id=client_group_id,
+            fink_servers=servers,
+            fink_topics=topics,
+            testing=False,
+            schema=schema,
+            log=log,
+        )
+
+    except Exception as e:
+        log(f'Error while initializing fink consumer: {e}')
+        return
+
+    while True:
+        topic, alert = poll_alert(consumer, maxtimeout, log)
+        if alert is not None:
+            # do something with the alert
+            post_alert(
+                topic,
+                alert,
+                user_id,
+                group_id,
+                stream_id,
+                filter_id,
+                instrument_id,
+                taxonomy_id,
+                token,
+                log,
+            )
+            # post to skyportal
+            time.sleep(10)
+
+
+if __name__ == "__main__":
+    try:
+        service()
+    except Exception as e:
+        log(f'Error: {e}')

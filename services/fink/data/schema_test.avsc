@@ -1,0 +1,1354 @@
+{
+  "type": "record",
+  "name": "topLevelRecord",
+  "fields": [
+    {
+      "name": "candid",
+      "type": [
+        "long",
+        "null"
+      ]
+    },
+    {
+      "name": "schemavsn",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    {
+      "name": "publisher",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    {
+      "name": "objectId",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    {
+      "name": "candidate",
+      "type": [
+        {
+          "type": "record",
+          "name": "candidate",
+          "namespace": "topLevelRecord",
+          "fields": [
+            {
+              "name": "jd",
+              "type": [
+                "double",
+                "null"
+              ]
+            },
+            {
+              "name": "fid",
+              "type": [
+                "int",
+                "null"
+              ]
+            },
+            {
+              "name": "pid",
+              "type": [
+                "long",
+                "null"
+              ]
+            },
+            {
+              "name": "diffmaglim",
+              "type": [
+                "float",
+                "null"
+              ]
+            },
+            {
+              "name": "pdiffimfilename",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            {
+              "name": "programpi",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            {
+              "name": "programid",
+              "type": [
+                "int",
+                "null"
+              ]
+            },
+            {
+              "name": "candid",
+              "type": [
+                "long",
+                "null"
+              ]
+            },
+            {
+              "name": "isdiffpos",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            {
+              "name": "tblid",
+              "type": [
+                "long",
+                "null"
+              ]
+            },
+            {
+              "name": "nid",
+              "type": [
+                "int",
+                "null"
+              ]
+            },
+            {
+              "name": "rcid",
+              "type": [
+                "int",
+                "null"
+              ]
+            },
+            {
+              "name": "field",
+              "type": [
+                "int",
+                "null"
+              ]
+            },
+            {
+              "name": "xpos",
+              "type": [
+                "float",
+                "null"
+              ]
+            },
+            {
+              "name": "ypos",
+              "type": [
+                "float",
+                "null"
+              ]
+            },
+            {
+              "name": "ra",
+              "type": [
+                "double",
+                "null"
+              ]
+            },
+            {
+              "name": "dec",
+              "type": [
+                "double",
+                "null"
+              ]
+            },
+            {
+              "name": "magpsf",
+              "type": [
+                "float",
+                "null"
+              ]
+            },
+            {
+              "name": "sigmapsf",
+              "type": [
+                "float",
+                "null"
+              ]
+            },
+            {
+              "name": "chipsf",
+              "type": [
+                "float",
+                "null"
+              ]
+            },
+            {
+              "name": "magap",
+              "type": [
+                "float",
+                "null"
+              ]
+            },
+            {
+              "name": "sigmagap",
+              "type": [
+                "float",
+                "null"
+              ]
+            },
+            {
+              "name": "distnr",
+              "type": [
+                "float",
+                "null"
+              ]
+            },
+            {
+              "name": "magnr",
+              "type": [
+                "float",
+                "null"
+              ]
+            },
+            {
+              "name": "sigmagnr",
+              "type": [
+                "float",
+                "null"
+              ]
+            },
+            {
+              "name": "chinr",
+              "type": [
+                "float",
+                "null"
+              ]
+            },
+            {
+              "name": "sharpnr",
+              "type": [
+                "float",
+                "null"
+              ]
+            },
+            {
+              "name": "sky",
+              "type": [
+                "float",
+                "null"
+              ]
+            },
+            {
+              "name": "magdiff",
+              "type": [
+                "float",
+                "null"
+              ]
+            },
+            {
+              "name": "fwhm",
+              "type": [
+                "float",
+                "null"
+              ]
+            },
+            {
+              "name": "classtar",
+              "type": [
+                "float",
+                "null"
+              ]
+            },
+            {
+              "name": "mindtoedge",
+              "type": [
+                "float",
+                "null"
+              ]
+            },
+            {
+              "name": "magfromlim",
+              "type": [
+                "float",
+                "null"
+              ]
+            },
+            {
+              "name": "seeratio",
+              "type": [
+                "float",
+                "null"
+              ]
+            },
+            {
+              "name": "aimage",
+              "type": [
+                "float",
+                "null"
+              ]
+            },
+            {
+              "name": "bimage",
+              "type": [
+                "float",
+                "null"
+              ]
+            },
+            {
+              "name": "aimagerat",
+              "type": [
+                "float",
+                "null"
+              ]
+            },
+            {
+              "name": "bimagerat",
+              "type": [
+                "float",
+                "null"
+              ]
+            },
+            {
+              "name": "elong",
+              "type": [
+                "float",
+                "null"
+              ]
+            },
+            {
+              "name": "nneg",
+              "type": [
+                "int",
+                "null"
+              ]
+            },
+            {
+              "name": "nbad",
+              "type": [
+                "int",
+                "null"
+              ]
+            },
+            {
+              "name": "rb",
+              "type": [
+                "float",
+                "null"
+              ]
+            },
+            {
+              "name": "ssdistnr",
+              "type": [
+                "float",
+                "null"
+              ]
+            },
+            {
+              "name": "ssmagnr",
+              "type": [
+                "float",
+                "null"
+              ]
+            },
+            {
+              "name": "ssnamenr",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            {
+              "name": "sumrat",
+              "type": [
+                "float",
+                "null"
+              ]
+            },
+            {
+              "name": "magapbig",
+              "type": [
+                "float",
+                "null"
+              ]
+            },
+            {
+              "name": "sigmagapbig",
+              "type": [
+                "float",
+                "null"
+              ]
+            },
+            {
+              "name": "ranr",
+              "type": [
+                "double",
+                "null"
+              ]
+            },
+            {
+              "name": "decnr",
+              "type": [
+                "double",
+                "null"
+              ]
+            },
+            {
+              "name": "sgmag1",
+              "type": [
+                "float",
+                "null"
+              ]
+            },
+            {
+              "name": "srmag1",
+              "type": [
+                "float",
+                "null"
+              ]
+            },
+            {
+              "name": "simag1",
+              "type": [
+                "float",
+                "null"
+              ]
+            },
+            {
+              "name": "szmag1",
+              "type": [
+                "float",
+                "null"
+              ]
+            },
+            {
+              "name": "sgscore1",
+              "type": [
+                "float",
+                "null"
+              ]
+            },
+            {
+              "name": "distpsnr1",
+              "type": [
+                "float",
+                "null"
+              ]
+            },
+            {
+              "name": "ndethist",
+              "type": [
+                "int",
+                "null"
+              ]
+            },
+            {
+              "name": "ncovhist",
+              "type": [
+                "int",
+                "null"
+              ]
+            },
+            {
+              "name": "jdstarthist",
+              "type": [
+                "double",
+                "null"
+              ]
+            },
+            {
+              "name": "jdendhist",
+              "type": [
+                "double",
+                "null"
+              ]
+            },
+            {
+              "name": "scorr",
+              "type": [
+                "double",
+                "null"
+              ]
+            },
+            {
+              "name": "tooflag",
+              "type": [
+                "int",
+                "null"
+              ]
+            },
+            {
+              "name": "objectidps1",
+              "type": [
+                "long",
+                "null"
+              ]
+            },
+            {
+              "name": "objectidps2",
+              "type": [
+                "long",
+                "null"
+              ]
+            },
+            {
+              "name": "sgmag2",
+              "type": [
+                "float",
+                "null"
+              ]
+            },
+            {
+              "name": "srmag2",
+              "type": [
+                "float",
+                "null"
+              ]
+            },
+            {
+              "name": "simag2",
+              "type": [
+                "float",
+                "null"
+              ]
+            },
+            {
+              "name": "szmag2",
+              "type": [
+                "float",
+                "null"
+              ]
+            },
+            {
+              "name": "sgscore2",
+              "type": [
+                "float",
+                "null"
+              ]
+            },
+            {
+              "name": "distpsnr2",
+              "type": [
+                "float",
+                "null"
+              ]
+            },
+            {
+              "name": "objectidps3",
+              "type": [
+                "long",
+                "null"
+              ]
+            },
+            {
+              "name": "sgmag3",
+              "type": [
+                "float",
+                "null"
+              ]
+            },
+            {
+              "name": "srmag3",
+              "type": [
+                "float",
+                "null"
+              ]
+            },
+            {
+              "name": "simag3",
+              "type": [
+                "float",
+                "null"
+              ]
+            },
+            {
+              "name": "szmag3",
+              "type": [
+                "float",
+                "null"
+              ]
+            },
+            {
+              "name": "sgscore3",
+              "type": [
+                "float",
+                "null"
+              ]
+            },
+            {
+              "name": "distpsnr3",
+              "type": [
+                "float",
+                "null"
+              ]
+            },
+            {
+              "name": "nmtchps",
+              "type": [
+                "int",
+                "null"
+              ]
+            },
+            {
+              "name": "rfid",
+              "type": [
+                "long",
+                "null"
+              ]
+            },
+            {
+              "name": "jdstartref",
+              "type": [
+                "double",
+                "null"
+              ]
+            },
+            {
+              "name": "jdendref",
+              "type": [
+                "double",
+                "null"
+              ]
+            },
+            {
+              "name": "nframesref",
+              "type": [
+                "int",
+                "null"
+              ]
+            },
+            {
+              "name": "rbversion",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            {
+              "name": "dsnrms",
+              "type": [
+                "float",
+                "null"
+              ]
+            },
+            {
+              "name": "ssnrms",
+              "type": [
+                "float",
+                "null"
+              ]
+            },
+            {
+              "name": "dsdiff",
+              "type": [
+                "float",
+                "null"
+              ]
+            },
+            {
+              "name": "magzpsci",
+              "type": [
+                "float",
+                "null"
+              ]
+            },
+            {
+              "name": "magzpsciunc",
+              "type": [
+                "float",
+                "null"
+              ]
+            },
+            {
+              "name": "magzpscirms",
+              "type": [
+                "float",
+                "null"
+              ]
+            },
+            {
+              "name": "nmatches",
+              "type": [
+                "int",
+                "null"
+              ]
+            },
+            {
+              "name": "clrcoeff",
+              "type": [
+                "float",
+                "null"
+              ]
+            },
+            {
+              "name": "clrcounc",
+              "type": [
+                "float",
+                "null"
+              ]
+            },
+            {
+              "name": "zpclrcov",
+              "type": [
+                "float",
+                "null"
+              ]
+            },
+            {
+              "name": "zpmed",
+              "type": [
+                "float",
+                "null"
+              ]
+            },
+            {
+              "name": "clrmed",
+              "type": [
+                "float",
+                "null"
+              ]
+            },
+            {
+              "name": "clrrms",
+              "type": [
+                "float",
+                "null"
+              ]
+            },
+            {
+              "name": "neargaia",
+              "type": [
+                "float",
+                "null"
+              ]
+            },
+            {
+              "name": "neargaiabright",
+              "type": [
+                "float",
+                "null"
+              ]
+            },
+            {
+              "name": "maggaia",
+              "type": [
+                "float",
+                "null"
+              ]
+            },
+            {
+              "name": "maggaiabright",
+              "type": [
+                "float",
+                "null"
+              ]
+            },
+            {
+              "name": "exptime",
+              "type": [
+                "float",
+                "null"
+              ]
+            },
+            {
+              "name": "drb",
+              "type": [
+                "float",
+                "null"
+              ]
+            },
+            {
+              "name": "drbversion",
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          ]
+        },
+        "null"
+      ]
+    },
+    {
+      "name": "prv_candidates",
+      "type": [
+        {
+          "type": "array",
+          "items": [
+            {
+              "type": "record",
+              "name": "prv_candidates",
+              "namespace": "topLevelRecord",
+              "fields": [
+                {
+                  "name": "jd",
+                  "type": [
+                    "double",
+                    "null"
+                  ]
+                },
+                {
+                  "name": "fid",
+                  "type": [
+                    "int",
+                    "null"
+                  ]
+                },
+                {
+                  "name": "pid",
+                  "type": [
+                    "long",
+                    "null"
+                  ]
+                },
+                {
+                  "name": "diffmaglim",
+                  "type": [
+                    "float",
+                    "null"
+                  ]
+                },
+                {
+                  "name": "pdiffimfilename",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                {
+                  "name": "programpi",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                {
+                  "name": "programid",
+                  "type": [
+                    "int",
+                    "null"
+                  ]
+                },
+                {
+                  "name": "candid",
+                  "type": [
+                    "long",
+                    "null"
+                  ]
+                },
+                {
+                  "name": "isdiffpos",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                {
+                  "name": "tblid",
+                  "type": [
+                    "long",
+                    "null"
+                  ]
+                },
+                {
+                  "name": "nid",
+                  "type": [
+                    "int",
+                    "null"
+                  ]
+                },
+                {
+                  "name": "rcid",
+                  "type": [
+                    "int",
+                    "null"
+                  ]
+                },
+                {
+                  "name": "field",
+                  "type": [
+                    "int",
+                    "null"
+                  ]
+                },
+                {
+                  "name": "xpos",
+                  "type": [
+                    "float",
+                    "null"
+                  ]
+                },
+                {
+                  "name": "ypos",
+                  "type": [
+                    "float",
+                    "null"
+                  ]
+                },
+                {
+                  "name": "ra",
+                  "type": [
+                    "double",
+                    "null"
+                  ]
+                },
+                {
+                  "name": "dec",
+                  "type": [
+                    "double",
+                    "null"
+                  ]
+                },
+                {
+                  "name": "magpsf",
+                  "type": [
+                    "float",
+                    "null"
+                  ]
+                },
+                {
+                  "name": "sigmapsf",
+                  "type": [
+                    "float",
+                    "null"
+                  ]
+                },
+                {
+                  "name": "chipsf",
+                  "type": [
+                    "float",
+                    "null"
+                  ]
+                },
+                {
+                  "name": "magap",
+                  "type": [
+                    "float",
+                    "null"
+                  ]
+                },
+                {
+                  "name": "sigmagap",
+                  "type": [
+                    "float",
+                    "null"
+                  ]
+                },
+                {
+                  "name": "distnr",
+                  "type": [
+                    "float",
+                    "null"
+                  ]
+                },
+                {
+                  "name": "magnr",
+                  "type": [
+                    "float",
+                    "null"
+                  ]
+                },
+                {
+                  "name": "sigmagnr",
+                  "type": [
+                    "float",
+                    "null"
+                  ]
+                },
+                {
+                  "name": "chinr",
+                  "type": [
+                    "float",
+                    "null"
+                  ]
+                },
+                {
+                  "name": "sharpnr",
+                  "type": [
+                    "float",
+                    "null"
+                  ]
+                },
+                {
+                  "name": "sky",
+                  "type": [
+                    "float",
+                    "null"
+                  ]
+                },
+                {
+                  "name": "magdiff",
+                  "type": [
+                    "float",
+                    "null"
+                  ]
+                },
+                {
+                  "name": "fwhm",
+                  "type": [
+                    "float",
+                    "null"
+                  ]
+                },
+                {
+                  "name": "classtar",
+                  "type": [
+                    "float",
+                    "null"
+                  ]
+                },
+                {
+                  "name": "mindtoedge",
+                  "type": [
+                    "float",
+                    "null"
+                  ]
+                },
+                {
+                  "name": "magfromlim",
+                  "type": [
+                    "float",
+                    "null"
+                  ]
+                },
+                {
+                  "name": "seeratio",
+                  "type": [
+                    "float",
+                    "null"
+                  ]
+                },
+                {
+                  "name": "aimage",
+                  "type": [
+                    "float",
+                    "null"
+                  ]
+                },
+                {
+                  "name": "bimage",
+                  "type": [
+                    "float",
+                    "null"
+                  ]
+                },
+                {
+                  "name": "aimagerat",
+                  "type": [
+                    "float",
+                    "null"
+                  ]
+                },
+                {
+                  "name": "bimagerat",
+                  "type": [
+                    "float",
+                    "null"
+                  ]
+                },
+                {
+                  "name": "elong",
+                  "type": [
+                    "float",
+                    "null"
+                  ]
+                },
+                {
+                  "name": "nneg",
+                  "type": [
+                    "int",
+                    "null"
+                  ]
+                },
+                {
+                  "name": "nbad",
+                  "type": [
+                    "int",
+                    "null"
+                  ]
+                },
+                {
+                  "name": "rb",
+                  "type": [
+                    "float",
+                    "null"
+                  ]
+                },
+                {
+                  "name": "ssdistnr",
+                  "type": [
+                    "float",
+                    "null"
+                  ]
+                },
+                {
+                  "name": "ssmagnr",
+                  "type": [
+                    "float",
+                    "null"
+                  ]
+                },
+                {
+                  "name": "ssnamenr",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                {
+                  "name": "sumrat",
+                  "type": [
+                    "float",
+                    "null"
+                  ]
+                },
+                {
+                  "name": "magapbig",
+                  "type": [
+                    "float",
+                    "null"
+                  ]
+                },
+                {
+                  "name": "sigmagapbig",
+                  "type": [
+                    "float",
+                    "null"
+                  ]
+                },
+                {
+                  "name": "ranr",
+                  "type": [
+                    "double",
+                    "null"
+                  ]
+                },
+                {
+                  "name": "decnr",
+                  "type": [
+                    "double",
+                    "null"
+                  ]
+                },
+                {
+                  "name": "scorr",
+                  "type": [
+                    "double",
+                    "null"
+                  ]
+                },
+                {
+                  "name": "magzpsci",
+                  "type": [
+                    "float",
+                    "null"
+                  ]
+                },
+                {
+                  "name": "magzpsciunc",
+                  "type": [
+                    "float",
+                    "null"
+                  ]
+                },
+                {
+                  "name": "magzpscirms",
+                  "type": [
+                    "float",
+                    "null"
+                  ]
+                },
+                {
+                  "name": "clrcoeff",
+                  "type": [
+                    "float",
+                    "null"
+                  ]
+                },
+                {
+                  "name": "clrcounc",
+                  "type": [
+                    "float",
+                    "null"
+                  ]
+                },
+                {
+                  "name": "rbversion",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              ]
+            },
+            "null"
+          ]
+        },
+        "null"
+      ]
+    },
+    {
+      "name": "cutoutScience",
+      "type": [
+        {
+          "type": "record",
+          "name": "cutoutScience",
+          "namespace": "topLevelRecord",
+          "fields": [
+            {
+              "name": "fileName",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            {
+              "name": "stampData",
+              "type": [
+                "bytes",
+                "null"
+              ]
+            }
+          ]
+        },
+        "null"
+      ]
+    },
+    {
+      "name": "cutoutTemplate",
+      "type": [
+        {
+          "type": "record",
+          "name": "cutoutTemplate",
+          "namespace": "topLevelRecord",
+          "fields": [
+            {
+              "name": "fileName",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            {
+              "name": "stampData",
+              "type": [
+                "bytes",
+                "null"
+              ]
+            }
+          ]
+        },
+        "null"
+      ]
+    },
+    {
+      "name": "cutoutDifference",
+      "type": [
+        {
+          "type": "record",
+          "name": "cutoutDifference",
+          "namespace": "topLevelRecord",
+          "fields": [
+            {
+              "name": "fileName",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            {
+              "name": "stampData",
+              "type": [
+                "bytes",
+                "null"
+              ]
+            }
+          ]
+        },
+        "null"
+      ]
+    },
+    {
+      "name": "timestamp",
+      "type": [
+        {
+          "type": "long",
+          "logicalType": "timestamp-micros"
+        },
+        "null"
+      ]
+    },
+    {
+      "name": "cdsxmatch",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    {
+      "name": "rf_snia_vs_nonia",
+      "type": [
+        "double",
+        "null"
+      ]
+    },
+    {
+      "name": "snn_snia_vs_nonia",
+      "type": [
+        "double",
+        "null"
+      ]
+    },
+    {
+      "name": "snn_sn_vs_all",
+      "type": [
+        "double",
+        "null"
+      ]
+    },
+    {
+      "name": "mulens",
+      "type": [
+        "double",
+        "null"
+      ]
+    },
+    {
+      "name": "roid",
+      "type": [
+        "int",
+        "null"
+      ]
+    },
+    {
+      "name": "nalerthist",
+      "type": [
+        "int",
+        "null"
+      ]
+    },
+    {
+      "name": "rf_kn_vs_nonkn",
+      "type": [
+        "double",
+        "null"
+      ]
+    },
+    {
+      "name": "fink_broker_version",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    {
+      "name": "fink_science_version",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    {
+      "name": "tracklet",
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  ]
+}

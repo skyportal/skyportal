@@ -79,3 +79,8 @@ confluent_kafka==1.9.2 # dependency of gcn-kafka: pinning to understand memory e
 iminuit==2.15.2
 watchdog==2.1.9
 PyAstronomy==0.18.0
+fink-client
+fink-filters
+fink-utils
+pyspark
+pyarrow
