@@ -374,9 +374,15 @@ def get_color(wavelength):
         bandcolor = 'red'
     elif 7000 < wavelength <= 8000:  # sdss i
         bandcolor = 'orange'
-    elif 8000 < wavelength <= 11000:  # sdss z
+    elif 8000 < wavelength <= 9000:  # sdss z
         bandcolor = 'brown'
-    elif 11000 < wavelength < 1e5:  # mm to Radio
+    elif 9000 < wavelength <= 10000:  # PS1 y
+        bandcolor = 'goldenrod'
+    elif 10000 < wavelength <= 13000:  # 2MASS J
+        bandcolor = 'black'
+    elif 13000 < wavelength <= 17000:  # 2MASS H
+        bandcolor = 'mediumpurple'
+    elif 17000 < wavelength < 1e5:  # mm to Radio
         wavelength = np.log10(wavelength)
         cmap = cmap_ir
         cmap_limits = (4, 5)
