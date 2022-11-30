@@ -8,7 +8,7 @@ import {
   StyledEngineProvider,
 } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
-import { grey, purple } from "@mui/material/colors";
+import { grey } from "@mui/material/colors";
 
 const Theme = ({ disableTransitions, children }) => {
   const theme = useSelector((state) => state.profile.preferences.theme);
@@ -18,7 +18,7 @@ const Theme = ({ disableTransitions, children }) => {
     palette: {
       grey: {
         main: grey[500],
-        dark: purple[600],
+        dark: grey[200],
       },
     },
   });
@@ -58,7 +58,43 @@ const Theme = ({ disableTransitions, children }) => {
       MuiTypography: {
         styleOverrides: {
           body1: {
-            color: dark ? grey[200] : null,
+            color: dark ? grey[100] : null,
+          },
+          body2: {
+            color: dark ? grey[50] : null,
+          },
+          subtitle1: {
+            color: dark ? grey[50] : null,
+          },
+          subtitle2: {
+            color: dark ? grey[50] : null,
+          },
+          button: {
+            color: dark ? grey[50] : null,
+          },
+          caption: {
+            color: dark ? grey[50] : null,
+          },
+          overline: {
+            color: dark ? grey[50] : null,
+          },
+          h1: {
+            color: dark ? grey[50] : null,
+          },
+          h2: {
+            color: dark ? grey[50] : null,
+          },
+          h3: {
+            color: dark ? grey[50] : null,
+          },
+          h4: {
+            color: dark ? grey[50] : null,
+          },
+          h5: {
+            color: dark ? grey[50] : null,
+          },
+          h6: {
+            color: dark ? grey[50] : null,
           },
         },
       },
