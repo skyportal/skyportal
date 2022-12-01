@@ -791,8 +791,6 @@ class GcnEventHandler(BaseHandler):
                     ),
                 }
 
-                print(data["localizations"][0]["center"])
-
                 return self.success(data=data)
 
         with self.Session() as session:
