@@ -78,6 +78,8 @@ log = make_log('api/gcn_event')
 
 Session = scoped_session(sessionmaker(bind=DBSession.session_factory.kw["bind"]))
 
+MAX_GCNEVENTS = 1000
+
 
 def post_gcnevent_from_xml(payload, user_id, session):
     """Post GcnEvent to database from voevent xml.
@@ -592,7 +594,7 @@ class GcnEventHandler(BaseHandler):
 
     @auth_or_token
     async def get(self, dateobs=None):
-        """
+        f"""
         ---
         single:
           description: Retrieve a GCN event
@@ -663,6 +665,20 @@ class GcnEventHandler(BaseHandler):
               description: |
                 Comma-separated string of "property: value: operator" single(s) or triplet(s) to filter for event localizations matching
                 that/those property(ies), i.e. "area_90" or "area_90: 500: lt"
+            - in: query
+              name: numPerPage
+              nullable: true
+              schema:
+                type: integer
+              description: |
+                Number of GCN events to return per paginated request.
+                Defaults to 10. Can be no larger than {MAX_GCNEVENTS}.
+            - in: query
+              name: pageNumber
+              nullable: true
+              schema:
+                type: integer
+              description: Page number for paginated query results. Defaults to 1.
         responses:
           200:
             content:
@@ -680,11 +696,14 @@ class GcnEventHandler(BaseHandler):
         except ValueError as e:
             return self.error(f'pageNumber fails: {e}')
 
-        n_per_page = self.get_query_argument("numPerPage", 100)
+        n_per_page = self.get_query_argument("numPerPage", 10)
         try:
             n_per_page = int(n_per_page)
         except ValueError as e:
             return self.error(f'numPerPage fails: {e}')
+
+        if n_per_page > MAX_GCNEVENTS:
+            return self.error(f'numPerPage should be no larger than {MAX_GCNEVENTS}.')
 
         sort_by = self.get_query_argument("sortBy", None)
         sort_order = self.get_query_argument("sortOrder", "asc")
@@ -949,10 +968,6 @@ class GcnEventHandler(BaseHandler):
                         {
                             **loc.to_dict(),
                             "tags": [tag.to_dict() for tag in loc.tags],
-                            "properties": [
-                                properties.to_dict() for properties in loc.properties
-                            ],
-                            "center": loc.center,
                         }
                         for loc in event.localizations
                     ),
