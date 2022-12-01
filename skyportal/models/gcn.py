@@ -187,6 +187,28 @@ class GcnEvent(Base):
         doc="Comments posted about this GCN event.",
     )
 
+    aliases = sa.Column(
+        sa.ARRAY(sa.String),
+        nullable=False,
+        server_default='{}',
+        doc="List of different names for this event, parsed from different GCN notices.",
+    )
+
+    tach_id = sa.Column(
+        sa.String,
+        nullable=True,
+        doc="TACH id associated with a GCN event",
+    )
+
+    circulars = deferred(
+        sa.Column(
+            JSONB,
+            nullable=False,
+            server_default='{}',
+            doc="List of circulars associated with a GCN event. Keys are circulars ids, values are circular titles.",
+        )
+    )
+
     reminders = relationship(
         'ReminderOnGCN',
         back_populates='gcn',
