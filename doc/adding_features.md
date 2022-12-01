@@ -378,11 +378,11 @@ const FETCH_TEST_COMMENTS_OK = 'skyportal/FETCH_TEST_COMMENTS_OK';
 const SUBMIT_TEST_COMMENT = 'skyportal/SUBMIT_TEST_COMMENT';
 
 export function fetchComments() {
-  return API.GET('/api/test_comments', FETCH_TEST_COMMENTS);
+  return API.GET('/api/test_comment', FETCH_TEST_COMMENTS);
 }
 
 export function submitComment(commentText) {
-  return API.POST('/api/test_comments', SUBMIT_TEST_COMMENT, { commentText });
+  return API.POST('/api/test_comment', SUBMIT_TEST_COMMENT, { commentText });
 }
 
 // Websocket message handler
@@ -587,11 +587,11 @@ skyportal_handlers = [
 ]
 ```
 
-The elements of this `skyportal_handlers` list are tuples consisting of a regex string describing the matching URL pattern, and the handler object: `(r'/api/test_comments', TestCommentHandler)`. In this case, we want to access the `TestCommentHandler` at the `/api/test_comment` path.
+The elements of this `skyportal_handlers` list are tuples consisting of a regex string describing the matching URL pattern, and the handler object: `(r'/api/test_comment', TestCommentHandler)`. In this case, we want to access the `TestCommentHandler` at the `/api/test_comment` path.
 
 Keep in mind that incoming requests will be routed to the first handler in the list that matches the request path. When you add a new feature, make sure to add it to the list in the correct place so that it doesn't override an existing handler (unless that is what you intend to do!). 
 
-After defining our handler and mapping it to the API endpoint in our application, we can now expect any authenticated GET or POST requests to `<base_URL>/api/test_comments` to either fetch or create records.
+After defining our handler and mapping it to the API endpoint in our application, we can now expect any authenticated GET or POST requests to `<base_URL>/api/test_comment` to either fetch or create records.
 
 We can now fire up SkyPortal to try out our new feature by running `make run` (run `make log` in another terminal to monitor the logs). After we see in the logs that the compiling and bundling our JavaScript sources (you'll see "main.bundle.js"), navigate to wherever you've configured the app to run (localhost:5000 by default), perform a hard refresh to bypass outdated cache, and you can see our component is rendering and behaving as expected.
 
@@ -618,7 +618,7 @@ def test_test_comments(driver, user):
     driver.wait_for_xpath("//li[text()='TEST_TEXT']")
 ```
 
-To execute the test suite, stop the app and run it again using the `make run_testing` command instead. This will start the app in a testing configuration, which will use a separate database. Once the app has started correctly, you can run a specific test using `pytest skyportal/tests/frontend/test_comments.py`.
+To execute the test suite, stop the app and run it again using the `make run_testing` command instead. This will start the app in a testing configuration, which will use a separate database. Once the app has started correctly, you can run a specific test using `pytest skyportal/tests/frontend/test_test_comments.py`.
 
 Otherwise, you can simply run `make test` to run the entire test suite.
 
@@ -712,11 +712,11 @@ Let's recap the files we've created or edited to implement this new feature:
 - component definition file `static/js/components/TestComments.jsx` _(new)_
 - Redux-related code (action creators, reducer, etc.) `static/js/ducks/testComments.js` _(new)_
 - specifying the route/component mapping in `config.yaml.defaults` _(edit)_
-- back-end handler definition in `skyportal/handlers/api/test_comments.py` _(new)_
-- back-end model definition in `skyportal/models/test_comments.py` _(new)_
+- back-end handler definition in `skyportal/handlers/api/test_comment.py` _(new)_
+- back-end model definition in `skyportal/models/test_comment.py` _(new)_
 - adding imports models and handlers in the `__init__.py` files found in `skyportal/models` and `skyportal/handlers/api` _(edit)_
 - importing our handler and adding the route mapping to our handlers list in `skyportal/app_server.py` _(edit, 2 lines of code)_
-- adding a new test in `skyportal/tests/frontend/test_comments.py` _(new)_
+- adding a new test in `skyportal/tests/frontend/test_test_comments.py` _(new)_
 
 
 
