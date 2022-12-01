@@ -735,6 +735,9 @@ class GcnEventHandler(BaseHandler):
                             joinedload(GcnEvent.localizations).joinedload(
                                 Localization.tags
                             ),
+                            joinedload(GcnEvent.localizations).joinedload(
+                                Localization.properties
+                            ),
                             joinedload(GcnEvent.gcn_notices),
                             joinedload(GcnEvent.observationplan_requests)
                             .joinedload(ObservationPlanRequest.allocation)
@@ -757,6 +760,11 @@ class GcnEventHandler(BaseHandler):
                             {
                                 **loc.to_dict(),
                                 "tags": [tag.to_dict() for tag in loc.tags],
+                                "properties": [
+                                    properties.to_dict()
+                                    for properties in loc.properties
+                                ],
+                                "center": loc.center,
                             }
                             for loc in event.localizations
                         ),
@@ -941,6 +949,10 @@ class GcnEventHandler(BaseHandler):
                         {
                             **loc.to_dict(),
                             "tags": [tag.to_dict() for tag in loc.tags],
+                            "properties": [
+                                properties.to_dict() for properties in loc.properties
+                            ],
+                            "center": loc.center,
                         }
                         for loc in event.localizations
                     ),

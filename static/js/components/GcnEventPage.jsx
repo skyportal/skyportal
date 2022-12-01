@@ -39,6 +39,7 @@ import CommentList from "./CommentList";
 import GcnTags from "./GcnTags";
 import GcnAliases from "./GcnAliases";
 import GcnCirculars from "./GcnCirculars";
+import GcnLocalizationsTable from "./GcnLocalizationsTable";
 import GcnProperties from "./GcnProperties";
 import Reminders from "./Reminders";
 
@@ -369,6 +370,26 @@ const GcnEventPage = ({ route }) => {
               <AccordionDetails>
                 <div className={styles.eventTags}>
                   <GcnProperties properties={gcnEvent.properties} />
+                </div>
+              </AccordionDetails>
+            </Accordion>
+          </div>
+          <div className={styles.columnItem}>
+            <Accordion defaultExpanded>
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon />}
+                aria-controls="gcnEvent-content"
+                id="info-header"
+              >
+                <Typography className={styles.accordionHeading}>
+                  Localization Properties
+                </Typography>
+              </AccordionSummary>
+              <AccordionDetails>
+                <div className={styles.eventTags}>
+                  <GcnLocalizationsTable
+                    localizations={gcnEvent.localizations}
+                  />
                 </div>
               </AccordionDetails>
             </Accordion>
