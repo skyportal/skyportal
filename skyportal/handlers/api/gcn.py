@@ -949,10 +949,6 @@ class GcnEventHandler(BaseHandler):
                         {
                             **loc.to_dict(),
                             "tags": [tag.to_dict() for tag in loc.tags],
-                            "properties": [
-                                properties.to_dict() for properties in loc.properties
-                            ],
-                            "center": loc.center,
                         }
                         for loc in event.localizations
                     ),
