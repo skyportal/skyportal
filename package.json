@@ -84,7 +84,7 @@
     "redoc-cli": "0.13.20",
     "redux": "4.2.0",
     "redux-logger": "3.0.6",
-    "redux-thunk": "2.4.1",
+    "redux-thunk": "2.4.2",
     "regl": "2.1.0",
     "semver": "7.3.7",
     "style-loader": "2.0.0",
