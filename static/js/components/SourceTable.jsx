@@ -681,6 +681,16 @@ const SourceTable = ({
     return <div key={`${source.id}_dec_sex`}>{dec_to_dms(source.dec)}</div>;
   };
 
+  const renderGalLon = (dataIndex) => {
+    const source = sources[dataIndex];
+    return <div key={`${source.id}_gal_lon`}>{source.gal_lon.toFixed(6)}</div>;
+  };
+
+  const renderGalLat = (dataIndex) => {
+    const source = sources[dataIndex];
+    return <div key={`${source.id}_gal_lat`}>{source.gal_lat.toFixed(6)}</div>;
+  };
+
   const renderClassification = (dataIndex) => {
     const source = sources[dataIndex];
 
@@ -1080,6 +1090,28 @@ const SourceTable = ({
         sortThirdClickReset: true,
         display: displayedColumns.includes("Dec (dd:mm:ss)"),
         customBodyRenderLite: renderDecSex,
+      },
+    },
+    {
+      name: "l",
+      label: "l (deg)",
+      options: {
+        filter: false,
+        sort: true,
+        sortThirdClickReset: true,
+        display: displayedColumns.includes("l (deg)"),
+        customBodyRenderLite: renderGalLon,
+      },
+    },
+    {
+      name: "b",
+      label: "b (deg)",
+      options: {
+        filter: false,
+        sort: true,
+        sortThirdClickReset: true,
+        display: displayedColumns.includes("b (deg)"),
+        customBodyRenderLite: renderGalLat,
       },
     },
     {
