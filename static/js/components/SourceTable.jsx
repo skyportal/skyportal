@@ -1486,6 +1486,8 @@ SourceTable.propTypes = {
       id: PropTypes.string,
       ra: PropTypes.number,
       dec: PropTypes.number,
+      gal_lon: PropTypes.number,
+      gal_lat: PropTypes.number,
       origin: PropTypes.string,
       alias: PropTypes.arrayOf(PropTypes.string),
       redshift: PropTypes.number,
