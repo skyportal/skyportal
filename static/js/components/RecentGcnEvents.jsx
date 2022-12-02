@@ -11,6 +11,7 @@ import makeStyles from "@mui/styles/makeStyles";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
+import { grey } from "@mui/material/colors";
 import Button from "./Button";
 
 import * as profileActions from "../ducks/profile";
@@ -28,6 +29,7 @@ const useStyles = makeStyles((theme) => ({
     overflowY: "auto",
     marginTop: "0.625rem",
     paddingTop: "0.625rem",
+    color: theme.palette.mode === "light" ? null : grey[100],
   },
   eventList: {
     display: "block",
@@ -35,21 +37,25 @@ const useStyles = makeStyles((theme) => ({
     listStyleType: "none",
     paddingLeft: 0,
     marginTop: 0,
+    color: theme.palette.mode === "light" ? null : grey[100],
   },
   eventNameContainer: {
     display: "flex",
     flexDirection: "row",
     alignItems: "center",
+    color: theme.palette.mode === "light" ? null : grey[100],
   },
   eventNameLink: {
-    color: theme.palette.primary.main,
+    color:
+      theme.palette.mode === "light" ? theme.palette.primary.main : grey[100],
   },
   eventTags: {
     marginLeft: "1rem",
     "& > div": {
       margin: "0.25rem",
       color: "white",
-      background: theme.palette.primary.main,
+      background:
+        theme.palette.mode === "light" ? theme.palette.primary.main : grey[100],
     },
   },
 }));

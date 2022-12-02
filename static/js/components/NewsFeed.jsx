@@ -14,6 +14,7 @@ import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
 import emoji from "emoji-dictionary";
 
+import { grey } from "@mui/material/colors";
 import WidgetPrefsDialog from "./WidgetPrefsDialog";
 import UserAvatar from "./UserAvatar";
 import * as profileActions from "../ducks/profile";
@@ -63,6 +64,7 @@ const useStyles = makeStyles((theme) => ({
     paddingBottom: "0.1em",
     display: "flex",
     flexDirection: "column",
+    color: theme.palette.mode === "light" ? null : grey[100],
   },
   entryAvatar: {
     marginRight: "0.6em",
@@ -87,6 +89,7 @@ const useStyles = makeStyles((theme) => ({
   entryTitle: {
     fontSize: "0.875em !important",
     padding: "0.3125rem 0.625rem !important",
+    color: theme.palette.mode === "light" ? null : grey[100],
   },
 }));
 

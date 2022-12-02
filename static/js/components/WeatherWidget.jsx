@@ -14,6 +14,7 @@ import MenuItem from "@mui/material/MenuItem";
 import Menu from "@mui/material/Menu";
 import IconButton from "@mui/material/IconButton";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
+import { grey } from "@mui/material/colors";
 import Button from "./Button";
 
 import * as profileActions from "../ducks/profile";
@@ -26,13 +27,14 @@ const defaultPrefs = {
   telescopeID: 1,
 };
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles((theme) => ({
   weatherInfo: {
     display: "flex",
     flexDirection: "row",
     height: "60%",
     overflow: "hidden",
     overflowY: "scroll",
+    color: theme.palette.mode === "light" ? null : grey[100],
   },
   weatherBar: {
     display: "flex",
@@ -62,6 +64,7 @@ const useStyles = makeStyles(() => ({
   description: {
     position: "relative",
     left: "0.5rem",
+    color: theme.palette.mode === "light" ? null : grey[100],
   },
   telescopeName: {
     display: "inline-block",

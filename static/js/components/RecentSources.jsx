@@ -13,6 +13,7 @@ import makeStyles from "@mui/styles/makeStyles";
 import DragHandleIcon from "@mui/icons-material/DragHandle";
 import CircularProgress from "@mui/material/CircularProgress";
 
+import { grey } from "@mui/material/colors";
 import { ra_to_hours, dec_to_dms } from "../units";
 import * as profileActions from "../ducks/profile";
 import WidgetPrefsDialog from "./WidgetPrefsDialog";
@@ -63,6 +64,7 @@ export const useSourceListStyles = makeStyles((theme) => ({
     flexDirection: "row",
     margin: "10px",
     width: "100%",
+    color: theme.palette.mode === "light" ? null : grey[100],
   },
   sourceNameContainer: {
     display: "flex",
@@ -101,7 +103,9 @@ export const useSourceListStyles = makeStyles((theme) => ({
     transition: "all 0.3s ease",
     "&:hover": {
       backgroundColor:
-        theme.palette.mode === "light" ? theme.palette.secondary.light : null,
+        theme.palette.mode === "light"
+          ? theme.palette.secondary.light
+          : theme.palette.secondary.dark,
     },
     "&:hover $quickViewButton": {
       visibility: "visible",
