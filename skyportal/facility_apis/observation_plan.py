@@ -31,7 +31,9 @@ def combine_healpix_tuples(input_tiles):
     """
 
     # set upper bound to make sure this algorithm isn't crazy expensive
-    for i in range(1000):
+    for i in range(100000):
+
+        input_tiles.sort()
         # check each tuple against all other tuples:
         for j1, t1 in enumerate(input_tiles):
             for j2 in range(j1 + 1, len(input_tiles)):
@@ -41,6 +43,10 @@ def combine_healpix_tuples(input_tiles):
                     # if overlapping, grow to the union of both tiles
                     input_tiles[j1] = (min(t1[0], t2[0]), max(t1[1], t2[1]))
                     input_tiles[j2] = input_tiles[j1]  # grow both tiles in the list!
+                else:
+                    # if not overlapping, no need to scan next tiles,
+                    # since they are sorted by lower bound
+                    break
         output_tiles = list(set(input_tiles))  # remove duplicates
 
         # when none of the tiles are overlapping,
