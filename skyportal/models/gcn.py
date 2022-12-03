@@ -69,7 +69,7 @@ class GcnProperty(Base):
         sa.ForeignKey('users.id', ondelete='CASCADE'),
         nullable=False,
         index=True,
-        doc="The ID of the User who created this GcnTag.",
+        doc="The ID of the User who created this GcnProperty.",
     )
 
     sent_by = relationship(
@@ -85,7 +85,7 @@ class GcnProperty(Base):
         index=True,
     )
 
-    data = sa.Column(JSONB, doc="Event properties in JSON format.")
+    data = sa.Column(JSONB, doc="Event properties in JSON format.", index=True)
 
 
 class GcnTag(Base):
@@ -113,7 +113,7 @@ class GcnTag(Base):
         index=True,
     )
 
-    text = sa.Column(sa.Unicode, nullable=False)
+    text = sa.Column(sa.Unicode, nullable=False, index=True)
 
 
 class GcnEvent(Base):
@@ -185,6 +185,28 @@ class GcnEvent(Base):
         passive_deletes=True,
         order_by="CommentOnGCN.created_at",
         doc="Comments posted about this GCN event.",
+    )
+
+    aliases = sa.Column(
+        sa.ARRAY(sa.String),
+        nullable=False,
+        server_default='{}',
+        doc="List of different names for this event, parsed from different GCN notices.",
+    )
+
+    tach_id = sa.Column(
+        sa.String,
+        nullable=True,
+        doc="TACH id associated with a GCN event",
+    )
+
+    circulars = deferred(
+        sa.Column(
+            JSONB,
+            nullable=False,
+            server_default='{}',
+            doc="List of circulars associated with a GCN event. Keys are circulars ids, values are circular titles.",
+        )
     )
 
     reminders = relationship(

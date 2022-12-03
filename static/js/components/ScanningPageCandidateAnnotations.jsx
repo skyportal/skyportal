@@ -47,7 +47,11 @@ export const getAnnotationValueString = (value) => {
   }
   return valueString;
 };
-const ScanningPageCandidateAnnotations = ({ annotations }) => {
+const ScanningPageCandidateAnnotations = ({
+  annotations,
+  listWidth = 250,
+  listItemWidth = 200,
+}) => {
   const classes = useStyles();
 
   const dispatch = useDispatch();
@@ -102,7 +106,12 @@ const ScanningPageCandidateAnnotations = ({ annotations }) => {
             timeout="auto"
             unmountOnExit
           >
-            <List component="div" dense disablePadding>
+            <List
+              component="div"
+              sx={{ maxWidth: listWidth }}
+              dense
+              disablePadding
+            >
               {Object.entries(annotation.data).map(([key, value]) => (
                 <ListItem
                   key={`key_${annotation.origin}_${key}`}
@@ -117,6 +126,9 @@ const ScanningPageCandidateAnnotations = ({ annotations }) => {
                   onClick={() => handleItemSelect(annotation.origin, key)}
                 >
                   <ListItemText
+                    secondaryTypographyProps={{
+                      sx: { maxWidth: listItemWidth },
+                    }}
                     secondary={`${key}: ${getAnnotationValueString(value)}`}
                   />
                 </ListItem>
@@ -137,6 +149,13 @@ ScanningPageCandidateAnnotations.propTypes = {
       data: PropTypes.object.isRequired, // eslint-disable-line react/forbid-prop-types
     })
   ).isRequired,
+  listWidth: PropTypes.number,
+  listItemWidth: PropTypes.number,
+};
+
+ScanningPageCandidateAnnotations.defaultProps = {
+  listWidth: 250,
+  listItemWidth: 200,
 };
 
 export default ScanningPageCandidateAnnotations;

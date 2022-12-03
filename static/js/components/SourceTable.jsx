@@ -320,6 +320,7 @@ const SourceTable = ({
   }
   if (includeGcnStatus) {
     defaultDisplayedColumns.push("GCN Status");
+    defaultDisplayedColumns.push("GCN Status Explanation");
   }
 
   const [displayedColumns, setDisplayedColumns] = useState(
@@ -900,6 +901,30 @@ const SourceTable = ({
     );
   };
 
+  const renderGcnStatusExplanation = (dataIndex) => {
+    const source = sources[dataIndex];
+    let statusExplanation = null;
+    if (sourcesingcn.filter((s) => s.obj_id === source.id).length === 0) {
+      statusExplanation = "";
+    } else {
+      statusExplanation = sourcesingcn.filter((s) => s.obj_id === source.id)[0]
+        .explanation;
+    }
+    return (
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+        name={`${source.id}_gcn_status_explanation`}
+      >
+        {statusExplanation}
+      </div>
+    );
+  };
+
   const handleFilterSubmit = async (formData) => {
     setQueryInProgress(true);
 
@@ -1167,6 +1192,15 @@ const SourceTable = ({
         sort: false,
         customBodyRenderLite: renderGcnStatus,
         display: displayedColumns.includes("GCN Status"),
+      },
+    });
+    columns.splice(2, 0, {
+      name: "GCN Status Explanation",
+      options: {
+        filter: false,
+        sort: false,
+        customBodyRenderLite: renderGcnStatusExplanation,
+        display: displayedColumns.includes("GCN Status Explanation"),
       },
     });
   }

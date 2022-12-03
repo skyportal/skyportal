@@ -333,6 +333,10 @@ const GcnSelectionForm = ({
         title: "Maximum Distance [Mpc]",
         default: 150,
       },
+      localizationRejectSources: {
+        type: "boolean",
+        title: "Do not display rejected sources",
+      },
       queryList: {
         type: "array",
         items: {
