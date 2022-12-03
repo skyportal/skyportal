@@ -19,7 +19,7 @@ on:
 jobs:
   test:
     name: Test SkyPortal migrations
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     timeout-minutes: 90
     env:
       # We only check migrations from this point onward, since we know
@@ -48,28 +48,41 @@ jobs:
           --health-retries 5
 
     steps:
-      - uses: actions/setup-python@v1
+      - uses: actions/setup-python@v2
         with:
           python-version: "3.8"
 
       - name: Checkout main
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           fetch-depth: 0
           ref: main
           submodules: true
 
-      - uses: actions/cache@v2
+      - uses: actions/cache@v3
         with:
           path: |
             ~/.npm
           key: ${{ runner.os }}-npm-${{ hashFiles('package.json') }}
 
-      - uses: actions/cache@v2
+      - uses: actions/cache@v3
         with:
           path: |
             ~/.cache/pip
           key: ${{ runner.os }}-${{ hashFiles('**/requirements*.txt') }}
+
+      - name: Install local dependencies
+        if: ${{ env.ACT }}
+        run: |
+          sudo apt update
+          sudo apt install -y postgresql postgresql-contrib
+
+      - name: Boot local dependencies
+        if: ${{ env.ACT }}
+        run: |
+          sudo sed -i -e 's/md5/trust/g' -e 's/peer/trust/g' /etc/postgresql/12/main/pg_hba.conf
+          cat /etc/postgresql/12/main/pg_hba.conf
+          sudo service postgresql start
 
       - name: Install system dependencies
         run: |
@@ -131,6 +144,7 @@ jobs:
           EOF
 
       - name: Initialize SkyPortal
+        if: ${{ env.ACT != 'true' }}
         run: |
           # Usually, we create databases on the local machine, so
           # `createdb` just works out of the box.  However, when doing
@@ -145,6 +159,26 @@ jobs:
           createdb -h localhost -U skyportal skyportal_test
           psql -U skyportal -h localhost -c "GRANT ALL PRIVILEGES ON DATABASE skyportal_test TO skyportal;" skyportal_test
 
+      - name: Initialize SkyPortal
+        if: ${{ env.ACT == 'true' }}
+        run: |
+          # psql -U postgres -h localhost -c "DROP OWNED BY skyportal";
+          # sudo -u postgres dropuser --if-exists -h localhost skyportal
+          # sudo -u postgres createuser -h localhost -d -r -s skyportal
+          dropdb --if-exists -h localhost -U skyportal skyportal
+          createdb -h localhost -U skyportal skyportal
+          dropdb --if-exists -h localhost -U skyportal skyportal_test
+          createdb -h localhost -U skyportal skyportal_test
+
+      - name: Run alembic
+        run: |
+          # Usually, we create databases on the local machine, so
+          # `createdb` just works out of the box.  However, when doing
+          # this on a server, as in our case, we need to specify extra
+          # options.
+          #
+          # db_init should not complain if the databases exist already
+          #
           export NPM_CONFIG_LEGACY_PEER_DEPS="true"
           make db_init
 
