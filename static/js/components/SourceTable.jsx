@@ -681,6 +681,16 @@ const SourceTable = ({
     return <div key={`${source.id}_dec_sex`}>{dec_to_dms(source.dec)}</div>;
   };
 
+  const renderGalLon = (dataIndex) => {
+    const source = sources[dataIndex];
+    return <div key={`${source.id}_gal_lon`}>{source.gal_lon.toFixed(6)}</div>;
+  };
+
+  const renderGalLat = (dataIndex) => {
+    const source = sources[dataIndex];
+    return <div key={`${source.id}_gal_lat`}>{source.gal_lat.toFixed(6)}</div>;
+  };
+
   const renderClassification = (dataIndex) => {
     const source = sources[dataIndex];
 
@@ -1083,6 +1093,28 @@ const SourceTable = ({
       },
     },
     {
+      name: "l",
+      label: "l (deg)",
+      options: {
+        filter: false,
+        sort: true,
+        sortThirdClickReset: true,
+        display: displayedColumns.includes("l (deg)"),
+        customBodyRenderLite: renderGalLon,
+      },
+    },
+    {
+      name: "b",
+      label: "b (deg)",
+      options: {
+        filter: false,
+        sort: true,
+        sortThirdClickReset: true,
+        display: displayedColumns.includes("b (deg)"),
+        customBodyRenderLite: renderGalLat,
+      },
+    },
+    {
       name: "redshift",
       label: "Redshift",
       options: {
@@ -1454,6 +1486,8 @@ SourceTable.propTypes = {
       id: PropTypes.string,
       ra: PropTypes.number,
       dec: PropTypes.number,
+      gal_lon: PropTypes.number,
+      gal_lat: PropTypes.number,
       origin: PropTypes.string,
       alias: PropTypes.arrayOf(PropTypes.string),
       redshift: PropTypes.number,
