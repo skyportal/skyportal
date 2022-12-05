@@ -378,11 +378,11 @@ const FETCH_TEST_COMMENTS_OK = 'skyportal/FETCH_TEST_COMMENTS_OK';
 const SUBMIT_TEST_COMMENT = 'skyportal/SUBMIT_TEST_COMMENT';
 
 export function fetchComments() {
-  return API.GET('/api/test_comments', FETCH_TEST_COMMENTS);
+  return API.GET('/api/test_comment', FETCH_TEST_COMMENTS);
 }
 
 export function submitComment(commentText) {
-  return API.POST('/api/test_comments', SUBMIT_TEST_COMMENT, { commentText });
+  return API.POST('/api/test_comment', SUBMIT_TEST_COMMENT, { commentText });
 }
 
 // Websocket message handler
@@ -424,7 +424,8 @@ Now let's take a look at what we'll need to add to the back-end to make our new 
 
 The SkyPortal back-end is built using [Tornado](https://www.tornadoweb.org/en/stable/), a Python web application framework that provides its own I/O event loop for non-blocking sockets, making it ideal for use with websockets (see below).
 
-To handle HTTP requests, we define _request handlers_ that are mapped to API endpoints in the application's configuration (in `skyportal/app_server.py` -- see below). Each SkyPortal request handler is a subclass of `BaseHandler` (defined in `skyportal/handlers/base.py`), a handler that extends Tornado's base [RequestHandler](https://www.tornadoweb.org/en/stable/web.html#tornado.web.RequestHandler), handling authentication and providing utility methods for pushing websocket messages to the front-end and returning HTTP responses.
+To handle HTTP requests, we define _request handlers_ that are mapped to API endpoints in the application's configuration (in `skyportal/app_server.py` -- see below). Each SkyPortal request handler is a subclass of 
+Handler` (defined in `skyportal/handlers/base.py`), a handler that extends Tornado's base [RequestHandler](https://www.tornadoweb.org/en/stable/web.html#tornado.web.RequestHandler), handling authentication and providing utility methods for pushing websocket messages to the front-end and returning HTTP responses.
 
 Let's take a look at adding our own handler. We'll start by defining a new request handler in a new file `skyportal/handlers/api/test_comment.py`. Note that we've imported `BaseHandler` which serves as the base class of our new handler. We define class methods describing how to handle requests of various types, e.g. a `put` method for PUT requests, a `post` method for POST requests, etc.
 
@@ -433,15 +434,18 @@ Let's take a look at adding our own handler. We'll start by defining a new reque
 ``` python
 from baselayer.app.access import auth_or_token
 from ..base import BaseHandler
-from ...models import DBSession, TestComment
+from ...models import TestComment
 
 
 class TestCommentHandler(BaseHandler):
     @auth_or_token
     def get(self):
         # If we wanted to do any query filtering, this is where that would happen
-        comments = DBSession().query(TestComment).all()
-        return self.success(data=comments)
+        with self.Session() as session:
+            comments = session.scalars(
+                TestComment.select(session.user_or_token)
+            ).all()
+            return self.success(data=comments)
 
     @auth_or_token
     def post(self):
@@ -449,17 +453,33 @@ class TestCommentHandler(BaseHandler):
         comment_text = data.get("commentText")
         if comment_text is None or comment_text == "":
             return self.error("`commentText` must be provided as a non-empty string")
-        DBSession().add(
-            TestComment(user_id=self.current_user.id, text=comment_text)
-        )
-        DBSession().commit()
-        self.push_all(action="skyportal/FETCH_TEST_COMMENTS")
-        return self.success()
+        with self.Session() as session:
+            comment = TestComment(
+                text=comment_text,
+                user_id=self.associated_user_object.id,
+            )
+            session.add(comment)
+            session.commit()
+            self.push_all(action='skyportal/FETCH_TEST_COMMENTS')
+            return self.success(data=comment)
 ```
+`BaseHandler` is the base class of our new handler. We also imported `TestComment`, which is the model class we defined above.  The `BaseHandler` class has a Session attribute, which is an instance of `DBSession`, a [SQLAlchemy](https://docs.sqlalchemy.org/en/13/index.html) [Session](https://docs.sqlalchemy.org/en/13/orm/session.html) instance. Whereas `TestComment` is an SQLAlchemy [mapper class](https://docs.sqlalchemy.org/en/13/orm/mapping_styles.html#declarative-mapping) (which maps a Python class to a database table).
 
-From `skyportal/models.py` we've imported `DBSession`, a [SQLAlchemy](https://docs.sqlalchemy.org/en/13/index.html) [Session](https://docs.sqlalchemy.org/en/13/orm/session.html) instance, and `TestComment`, our SQLAlchemy [mapper class](https://docs.sqlalchemy.org/en/13/orm/mapping_styles.html#declarative-mapping) (which maps a Python class to a database table). We'll see how to define mapper classes (which correspond to database tables) shortly. The decorator `@auth_or_token` tells the application that the request must either come from a logged in user (via the browser), or must include a valid token in the request header. If neither of these are true, the request returns with an error.
+*We'll see how to define mapper classes (which correspond to database tables) shortly.*
 
-In our GET handler (the `get` method), we retrieve all test comments from the database with `DBSession().query(TestComment).all()`. We then return a call to `BaseHandler.success`, which generates a response object whose JSON body content is of the form:
+We then defined a new class `TestCommentHandler` that extends `BaseHandler`. We defined two class methods, `get` and `post`, which describe how to handle GET and POST requests, respectively.
+
+The `get` method queries the database for all `TestComment` records, and returns them to the front-end or a simple API call.
+
+In the `post` method, we start by accessing the request's JSON body with `self.get_json()`, and ensure that `"commentText"` is provided there as a non-empty string, returning an error response otherwise. If it is provided, we proceed with creating a new `TestComment` record, which we then add to the session with `session.add()`, and commit the session to disk with `session.commit()`. Before returning the handlers response, a websocket message is sent to the front-end with action type `"skyportal/FETCH_TEST_COMMENTS"`, which will trigger the front-end (using the ducks from React Redux mentioned earlier) to re-fetch the comments list from the back-end. Note that we're using the `push_all` method of `BaseHandler` to push the websocket message to all connected clients. If we wanted to push the message to only a subset of clients, we could use `push` instead, passing in a list of user IDs to send the message to.
+
+*More details on websockets can be found in the [websockets section](#websockets) below.*
+
+In both methods, to interact with the database, we use the `Session` attribute of `BaseHandler` to create an instance of `DBSession`. We use a context manager (`with self.Session() as session`) to ensure that the session is closed after the block is executed. This is a common pattern in Python for managing resources that need to be closed after use.
+
+The decorator `@auth_or_token` tells the application that the request must either come from a logged in user (via the browser), or must include a valid token in the request header. If neither of these are true, the request returns with an error.
+
+In both methods, we return a call to `BaseHandler.success`, which generates a response object whose JSON body content is of the form:
 
 ``` python
 {
@@ -483,30 +503,95 @@ class SomeHandler(BaseHandler):
             return self.success(...)
 ```
 
-Error responses with informative messages should be returned when a request contains invalid data, if the user doesn't have access to the requested resource, or if an exception is caught during the handling of the request. The default status code for `BaseHandler.error` is 400, but can be changed accordingly by passing in, for example, `status=404`.
+Note: In Python, if an error occurs and isn't caught, the method will raise an exception. Here, we want to catch errors so we can still use return a response to the client containing the error message. To do so, one can use the `try`/`except` syntax:
 
-In our POST handler, we access the request's JSON body with `self.get_json()`, and ensure that `"commentText"` is provided there as a non-empty string, returning an error response otherwise. We then insert a new row into the test comments table with `DBSession().add(TestComment(...))`, and commit it to disk with `DBSession().commit()`. Before returning a success response, we call `BaseHandler.push_all`, passing in `action="skyportal/FETCH_TEST_COMMENTS"`, which pushes a websocket message with the specified action type to all currently logged in users. If we wanted to push a websocket message only to the current user (the user who initiated the request currently being handled), we could use `self.push` instead of `self.push_all`.
+``` python
+
+class SomeHandler(BaseHandler):
+    def some_request_type(self):
+        ...
+        try:
+            do_something_that_might_raise_an_error()
+            return self.success(...) # this will only be executed if no error is raised
+        except Exception as e:
+            return self.error(f"Error message here: {e}")
+```
+
+Error responses with informative messages should be returned when a request contains invalid data, if the user doesn't have access to the requested resource, or if an exception is caught during the handling of the request. The default status code for `BaseHandler.error` is 400, but can be changed accordingly by passing in, for example, `status=404`.
 
 Let's turn for a moment to [SQLAlchemy](https://docs.sqlalchemy.org/en/13/index.html), a Python library offering a SQL toolkit and object relational mapper (ORM). We [declare classes](https://docs.sqlalchemy.org/en/14/orm/mapping_styles.html#orm-declarative-mapping) that inherit from SQLAlchemy's `declarative_base` (this is all set up in [`baselayer`](https://github.com/cesium-ml/baselayer)'s [`models`](https://github.com/cesium-ml/baselayer/blob/main/app/models.py) module, which we import in SkyPortal's `models` module as `Base`) that are then mapped to database tables by SQLAlchemy. `baselayer`'s base class, which SkyPortal mapper classes inherit from, already comes with a few columns: `id` (integer), `created_at` (`DateTime`), and `modified` (`DateTime`).
 
-With that, let's define our `TestComment` mapper class in `skyportal/models.py`:
+With that, let's define our `TestComment` mapper class in `skyportal/models` directory, in a file called `test_comment.py`:
 
 ``` python
+__all__ = ['TestComment']
+import sqlalchemy as sa
+from sqlalchemy.orm import relationship
+
+from baselayer.app.models import Base, User
+
+
 class TestComment(Base):
     text = sa.Column(sa.String, nullable=False, doc="Comment text")
+
     user_id = sa.Column(
         sa.ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
         doc="ID of the User that submitted the comment",
     )
+    user = relationship(
+        "User",
+        foreign_keys=[user_id],
+        back_populates="test_comments",
+        doc="The User that submitted the comment",
+    )
+
+User.test_comments = relationship(
+    "TestComment",
+    back_populates="user",
+    passive_deletes=True,
+    doc="Comments submitted by this User",
+)
+
 ```
 
 The SQLAlchemy ORM maps this class to a database table with the columns `text` (a string type, as specified by `sa.String`) and `user_id` (a [`ForeignKey`](https://docs.sqlalchemy.org/en/14/core/constraints.html#sqlalchemy.schema.ForeignKey) instance, which defines a dependency on the `id` column of the `users` table, constraining the value to a valid user ID), in addition to the above-mentioned columns inherited from `Base`. Note that class names map to table names by appending an "s" (to indicate plurality) to the lowercase version of the class name (e.g. the `User` class maps to the `"users"` table).
 
-As illustrated in our `TestCommentHandler.post` implementation above, class instances map to rows in the corresponding table. So to add a new row to the `"testcomments"` table, we pass an instance of `TestComment` to `DBSession().add`: `DBSession().add(TestComment(text=text, user_id=user_id))`, followed by committing the changes to disk by calling `DBSession().commit()`.
+Also, we defined a relationship between the `TestComment` class and the `User` class, which is a one-to-many relationship (one user can have many comments, but a comment can only be submitted by one user). This is done by defining a [`relationship`](https://docs.sqlalchemy.org/en/14/orm/basic_relationships.html#one-to-many) named `user` in the TestComment class, and then defining a [`relationship`](https://docs.sqlalchemy.org/en/14/orm/basic_relationships.html#one-to-many) named `test_comments` on the `User` class. This is necessary because the `TestComment` class is defined after the `User` class, and so the `User` class doesn't know about the `TestComment` class yet. The 2 relationships are then linked together by setting the `back_populates` argument of the `relationship` on the `User` class to the `relationship` on the `TestComment` class, and vice versa.
 
-After adding the relevant import lines to `skyportal/handlers/api/__init__.py` and `skyportal/app_server.py` to import our new `TestCommentHandler` into the `app_server` module, we then add an element to our endpoint & handler mapping list (see the `handlers` assignment statement in the `make_app` function defined in `skyportal/app_server.py`) to map the associated API endpoint to the new handler class. The elements of this list are tuples consisting of a regex string describing the matching URL pattern, and the handler object: `(r'/api/test_comments, TestCommentHandler')`. After defining our handler and mapping it to the API endpoint in our application, we can now expect any authenticated GET or POST requests to `<base_URL>/api/test_comments` to either fetch or create records.
+
+After adding a new handler and/or model, we ensure that they can be imported in other modules by adding them to the `__init__.py` files in their respective directories. For example, for `skyportal/handlers/api/test_comment.py`, we add the following line to the `skyportal/handlers/api/__init__.py` file:
+
+``` python
+from .test_comment import TestCommentHandler
+```
+
+and for `skyportal/models/test_comment.py`, we add the following line to the `skyportal/models/__init__.py` file:
+
+``` python
+from .test_comment import TestComment
+```
+
+Now, we need to define the API endpoint that will be used to access the `TestCommentHandler` we just defined. This is done in the `skyportal/app_server.py` file.
+
+``` python
+from skyportal.handlers.api import TestCommentHandler # add this line to the top of the file after the existing handlers imports
+
+...
+
+skyportal_handlers = [
+    ...
+    (r'/api/test_comment', TestCommentHandler), # add this line in the skyporatl_handlers list
+    ...
+]
+```
+
+The elements of this `skyportal_handlers` list are tuples consisting of a regex string describing the matching URL pattern, and the handler object: `(r'/api/test_comment', TestCommentHandler)`. In this case, we want to access the `TestCommentHandler` at the `/api/test_comment` path.
+
+Keep in mind that incoming requests will be routed to the first handler in the list that matches the request path. When you add a new feature, make sure to add it to the list in the correct place so that it doesn't override an existing handler (unless that is what you intend to do!). 
+
+After defining our handler and mapping it to the API endpoint in our application, we can now expect any authenticated GET or POST requests to `<base_URL>/api/test_comment` to either fetch or create records.
 
 We can now fire up SkyPortal to try out our new feature by running `make run` (run `make log` in another terminal to monitor the logs). After we see in the logs that the compiling and bundling our JavaScript sources (you'll see "main.bundle.js"), navigate to wherever you've configured the app to run (localhost:5000 by default), perform a hard refresh to bypass outdated cache, and you can see our component is rendering and behaving as expected.
 
@@ -533,7 +618,9 @@ def test_test_comments(driver, user):
     driver.wait_for_xpath("//li[text()='TEST_TEXT']")
 ```
 
-Execute the test suite with `make test`, or, to run the new test on its own, run the app in testing mode with `make run_testing` and run `py.test skyportal/tests/frontend/test_comments.py` in another terminal.
+To execute the test suite, stop the app and run it again using the `make run_testing` command instead. This will start the app in a testing configuration, which will use a separate database. Once the app has started correctly, you can run a specific test using `pytest skyportal/tests/frontend/test_test_comments.py`.
+
+Otherwise, you can simply run `make test` to run the entire test suite.
 
 ### Websockets
 
@@ -625,9 +712,11 @@ Let's recap the files we've created or edited to implement this new feature:
 - component definition file `static/js/components/TestComments.jsx` _(new)_
 - Redux-related code (action creators, reducer, etc.) `static/js/ducks/testComments.js` _(new)_
 - specifying the route/component mapping in `config.yaml.defaults` _(edit)_
-- back-end handler definition in `skyportal/handlers/api/test_comments.py` _(new)_
-- importing our handler and adding the route mapping to our handlers list in `skyportal/app_server.py` _(2 lines of code)_
-- adding a new test in `skyportal/tests/frontend/test_comments.py` _(new)_
+- back-end handler definition in `skyportal/handlers/api/test_comment.py` _(new)_
+- back-end model definition in `skyportal/models/test_comment.py` _(new)_
+- adding imports models and handlers in the `__init__.py` files found in `skyportal/models` and `skyportal/handlers/api` _(edit)_
+- importing our handler and adding the route mapping to our handlers list in `skyportal/app_server.py` _(edit, 2 lines of code)_
+- adding a new test in `skyportal/tests/frontend/test_test_comments.py` _(new)_
 
 
 

@@ -9,6 +9,7 @@ from regions import Regions
 from astropy.table import Table
 
 from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.common.by import By
 
 from baselayer.app.config import load_config
 from os.path import join as pjoin
@@ -632,3 +633,38 @@ def test_gcn_summary_observations(
 
     finally:
         os.remove(fpath)
+
+
+def test_gcn_tach(
+    driver,
+    super_admin_user,
+    super_admin_token,
+):
+
+    datafile = f'{os.path.dirname(__file__)}/../data/GRB180116A_Fermi_GBM_Gnd_Pos.xml'
+    with open(datafile, 'rb') as fid:
+        payload = fid.read()
+    data = {'xml': payload}
+
+    status, data = api('POST', 'gcn_event', data=data, token=super_admin_token)
+    assert status == 200
+    assert data['status'] == 'success'
+
+    # wait for event to load
+    for n_times in range(26):
+        status, data = api(
+            'GET', "gcn_event/2018-01-16T00:36:53", token=super_admin_token
+        )
+        if data['status'] == 'success':
+            break
+        time.sleep(2)
+    assert n_times < 25
+
+    driver.get(f'/become_user/{super_admin_user.id}')
+    driver.get('/gcn_events/2018-01-16T00:36:53')
+    driver.wait_for_xpath('//*[@data-testid="update-aliases"]')
+    driver.click_xpath('//*[@data-testid="update-aliases"]')
+    driver.wait_for_xpath('//*[contains(., "GRB180116A")]', timeout=30)
+    assert len(driver.find_elements(By.XPATH, '//*[@name="aliases-chips"]/*')) == 1
+
+    driver.wait_for_xpath('//a[contains(text(), "GRB 180116A: Fermi GBM Detection")]')

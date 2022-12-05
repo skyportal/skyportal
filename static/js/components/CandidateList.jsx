@@ -753,6 +753,11 @@ const CandidateList = () => {
     candidateIds.push(candidate.id);
   });
 
+  const groupIds = [];
+  filterGroups?.forEach((g) => {
+    groupIds.push(g.id);
+  });
+
   // Annotations filtering
   const [tableFilterList, setTableFilterList] = useState([]);
   const [filterListQueryStrings, setFilterListQueryStrings] = useState([]);
@@ -1281,6 +1286,7 @@ const CandidateList = () => {
                     data={candidateIds}
                     className={classes.table}
                     options={options}
+                    groupIds={groupIds}
                   />
                 )}
               </div>

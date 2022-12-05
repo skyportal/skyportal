@@ -247,6 +247,13 @@ const GcnEvents = () => {
     </Link>
   );
 
+  const renderAliases = (dataIndex) =>
+    events[dataIndex]?.aliases?.length > 0 ? (
+      <p>{events[dataIndex]?.aliases.join(", ")}</p>
+    ) : (
+      <p>No aliases</p>
+    );
+
   const customFilterDisplay = () =>
     filterFormSubmitted ? (
       <div className={classes.filterAlert}>
@@ -262,6 +269,13 @@ const GcnEvents = () => {
       label: "Date Observed",
       options: {
         customBodyRenderLite: renderDateObs,
+      },
+    },
+    {
+      name: "aliases",
+      label: "Aliases",
+      options: {
+        customBodyRenderLite: renderAliases,
       },
     },
     {

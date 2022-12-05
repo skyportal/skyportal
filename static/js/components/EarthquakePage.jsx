@@ -102,7 +102,8 @@ const sidebarWidth = 190;
 const EarthquakePage = ({ route }) => {
   const ref = useRef(null);
   const theme = useTheme();
-  const initialWidth = window.innerWidth - sidebarWidth - 2 * theme.spacing(2);
+  const initialWidth =
+    window.innerWidth - sidebarWidth - 2 * parseInt(theme.spacing(2), 10);
   const [width, setWidth] = useState(initialWidth);
 
   const earthquake = useSelector((state) => state.earthquake);
