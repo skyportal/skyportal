@@ -1,4 +1,4 @@
-# import time
+import time
 from astropy.time import Time
 import healpix_alchemy as ha
 import humanize
@@ -63,7 +63,32 @@ def generate_observation_plan_statistics(
     observation_plan_ids,
     request_ids,
     session,
+    stats_method='python',
+    stats_logging=False,
 ):
+    """
+    Generate statistics for a list of observation plan IDs.
+    The statistics are posted to the database as an
+    EventObservationPlanStatistics object.
+
+    Parameters
+    ----------
+    observation_plan_ids: list of int
+        List of observation plan IDs to generate statistics for.
+    request_ids: list of int
+        List of request IDs to generate statistics for.
+        Should be the same length as observation_plan_ids.
+    session: sqlalchemy.orm.session.Session
+        Database session.
+    stats_method: str
+        Method to use for computing statistics. Options are:
+        - 'python': Use python to compute statistics (default)
+        - 'db': Use database/postgres queries to compute statistics
+    stats_logging: bool
+        Whether to log statistics computation time.
+
+    """
+
     from ..models import (
         EventObservationPlan,
         EventObservationPlanStatistics,
@@ -75,7 +100,8 @@ def generate_observation_plan_statistics(
         ObservationPlanRequest,
     )
 
-    # session.execute('ANALYZE')  # do we need this?
+    if stats_method == 'db':
+        session.execute('ANALYZE')  # do we need this?
 
     for observation_plan_id, request_id in zip(observation_plan_ids, request_ids):
         plan = session.query(EventObservationPlan).get(observation_plan_id)
@@ -126,136 +152,140 @@ def generate_observation_plan_statistics(
         )
 
         # get the localization tiles as python objects
-        # t0 = time.time()
-        localization_tiles = session.scalars(
-            sa.select(LocalizationTile)
-            .where(LocalizationTile.localization_id == request.localization_id)
-            .order_by(LocalizationTile.probdensity.desc())
-            .distinct()
-        ).all()
-        # print(
-        #     f"DEBUG: {len(tiles)} localization tiles in localization "
-        #     f"{request.localization_id} retrieved in {time.time() - t0:.2f} seconds  "
-        #     f"(including sort)"
-        # )
+        if stats_method == 'python':
 
-        # get the instrument field tiles as python objects
-        # t0 = time.time()
-        instrument_field_tiles = session.scalars(
-            sa.select(InstrumentFieldTile)
-            .where(
-                InstrumentField.instrument_id == plan.instrument_id,
-                InstrumentFieldTile.instrument_field_id == InstrumentField.id,
-                InstrumentFieldTile.instrument_field_id == PlannedObservation.field_id,
-                PlannedObservation.observation_plan_id == plan.id,
-            )
-            .distinct()
-        ).all()
-        # print(
-        #     f"DEBUG: {len(instrument_field_tiles)} instrument fields retrieved in {time.time() - t0:.2f} seconds"
-        # )
-
-        # calculate the area and integrated probability directly:
-        # t0 = time.time()
-        # sum_probability = 0  # total probability of all tiles
-        intarea = 0  # total area covered by instrument field tiles
-        intprob = 0  # total probability covered by instrument field tiles
-        field_lower_bounds = np.array([f.healpix.lower for f in instrument_field_tiles])
-        field_upper_bounds = np.array([f.healpix.upper for f in instrument_field_tiles])
-
-        for i, t in enumerate(localization_tiles):
-            # has True values where tile t has any overlap with one of the fields
-            overlap_array = np.logical_and(
-                t.healpix.lower <= field_upper_bounds,
-                t.healpix.upper >= field_lower_bounds,
-            )
-
-            # only add area/prob if there's any overlap
-            overlap = 0
-            if np.sum(overlap_array):
-                lower_upper = zip(
-                    field_lower_bounds[overlap_array], field_upper_bounds[overlap_array]
+            t0 = time.time()
+            localization_tiles = session.scalars(
+                sa.select(LocalizationTile)
+                .where(LocalizationTile.localization_id == request.localization_id)
+                .order_by(LocalizationTile.probdensity.desc())
+                .distinct()
+            ).all()
+            if stats_logging:
+                log(
+                    "STATS: ",
+                    f"{len(localization_tiles)} localization tiles in localization "
+                    f"{request.localization_id} retrieved in {time.time() - t0:.2f}s. ",
                 )
-                # tuples of (lower, upper) for all fields that overlap with tile t
-                new_fields = [(l, u) for (l, u) in lower_upper]
 
-                # combine any overlapping fields
-                output_fields = combine_healpix_tuples(new_fields)
+            # get the instrument field tiles as python objects
+            t0 = time.time()
+            instrument_field_tiles = session.scalars(
+                sa.select(InstrumentFieldTile)
+                .where(
+                    InstrumentField.instrument_id == plan.instrument_id,
+                    InstrumentFieldTile.instrument_field_id == InstrumentField.id,
+                    InstrumentFieldTile.instrument_field_id
+                    == PlannedObservation.field_id,
+                    PlannedObservation.observation_plan_id == plan.id,
+                )
+                .distinct()
+            ).all()
+            if stats_logging:
+                log(
+                    f"STATS: {len(instrument_field_tiles)} instrument "
+                    f"fields retrieved in {time.time() - t0:.2f}s. "
+                )
 
-                # get the area of the combined fields that overlaps with tile t
-                for lower, upper in output_fields:
-                    mx = np.minimum(t.healpix.upper, upper)
-                    mn = np.maximum(t.healpix.lower, lower)
-                    overlap += mx - mn
+            # calculate the area and integrated probability directly:
+            t0 = time.time()
+            intarea = 0  # total area covered by instrument field tiles
+            intprob = 0  # total probability covered by instrument field tiles
+            field_lower_bounds = np.array(
+                [f.healpix.lower for f in instrument_field_tiles]
+            )
+            field_upper_bounds = np.array(
+                [f.healpix.upper for f in instrument_field_tiles]
+            )
 
-            intarea += overlap
-            intprob += t.probdensity * overlap
-            # sum_probability += t.probdensity * (t.healpix.upper - t.healpix.lower)
+            for i, t in enumerate(localization_tiles):
+                # has True values where tile t has any overlap with one of the fields
+                overlap_array = np.logical_and(
+                    t.healpix.lower <= field_upper_bounds,
+                    t.healpix.upper >= field_lower_bounds,
+                )
 
-        # sum_probability *= ha.constants.PIXEL_AREA
-        intarea *= ha.constants.PIXEL_AREA
-        intprob *= ha.constants.PIXEL_AREA
+                # only add area/prob if there's any overlap
+                overlap = 0
+                if np.any(overlap_array):
+                    lower_upper = zip(
+                        field_lower_bounds[overlap_array],
+                        field_upper_bounds[overlap_array],
+                    )
+                    # tuples of (lower, upper) for all fields that overlap with tile t
+                    new_fields = [(l, u) for (l, u) in lower_upper]
 
-        # print(
-        #     f'DEBUG: sum_probability = {sum_probability} | '
-        #     f'intarea = {intarea * (180 / np.pi) ** 2} | '
-        #     f'intprob = {intprob} | '
-        #     f'time: {time.time() - t0:.2f} seconds'
-        # )
+                    # combine any overlapping fields
+                    output_fields = combine_healpix_tuples(new_fields)
 
-        statistics['area'] = intarea
-        statistics['probability'] = intprob
+                    # get the area of the combined fields that overlaps with tile t
+                    for lower, upper in output_fields:
+                        mx = np.minimum(t.healpix.upper, upper)
+                        mn = np.maximum(t.healpix.lower, lower)
+                        overlap += mx - mn
 
-        # This block of commented code uses database queries to
+                intarea += overlap
+                intprob += t.probdensity * overlap
+
+            intarea *= ha.constants.PIXEL_AREA
+            intprob *= ha.constants.PIXEL_AREA
+
+            if stats_logging:
+                log(
+                    "STATS: ",
+                    f'intarea= {intarea * (180 / np.pi) ** 2}, '
+                    f'intprob= {intprob}. '
+                    f'Runtime= {time.time() - t0:.2f}s. ',
+                )
+
+            statistics['area'] = intarea
+            statistics['probability'] = intprob
+
+        # This code below uses database queries to
         # calculate the stats, instead of python loops over the tiles.
         # It is still too slow at scale, but hopefully we can figure
         # out why and replace the code above with this block at some point.
-        # # leo's new query
-        # t0 = time.time()
-        # union = (
-        #     sa.select(ha.func.union(InstrumentFieldTile.healpix).label('healpix'))
-        #     .filter(
-        #         InstrumentFieldTile.instrument_field_id == PlannedObservation.field_id,
-        #         PlannedObservation.observation_plan_id == plan.id,
-        #     )
-        #     .subquery()
-        # )
-        #
-        # area = sa.func.sum(union.columns.healpix.area)
-        # query_area = sa.select(area)
-        # intarea = session.execute(query_area).scalar_one()
-        #
-        # if intarea is None:
-        #     intarea = 0.0
-        # intarea *= (180.0 / np.pi) ** 2
-        # print(
-        #     f'DEBUG: Leo query area = {intarea} | time: {time.time() - t0:.2f} seconds'
-        # )
-        #
-        # prob = sa.func.sum(
-        #     LocalizationTile.probdensity
-        #     * (union.columns.healpix * LocalizationTile.healpix).area
-        # )
-        #
-        # query_prob = sa.select(prob).filter(
-        #     LocalizationTile.localization_id == request.localization_id,
-        #     union.columns.healpix.overlaps(LocalizationTile.healpix),
-        # )
-        #
-        # print("DEBUG: this is Leo's query printed out: ")
-        # print(query_prob)
-        #
-        # print("DEBUG: this is Leo's query explained: ")
-        # sql = query_prob.statement.compile(session.get_bind(), compile_kwargs={"literal_binds": True})
-        # session.execute(f'EXPLAIN {sql}')
-        #
-        # intprob = session.execute(query_prob).scalar_one()
-        # if intprob is None:
-        #     intprob = 0.0
-        #
-        # print(
-        #     f'DEBUG: Leo query prob = {intprob} | time: {time.time() - t0:.2f} seconds'
-        # )
+        elif stats_method == 'db':
+
+            t0 = time.time()
+            union = (
+                sa.select(ha.func.union(InstrumentFieldTile.healpix).label('healpix'))
+                .filter(
+                    InstrumentFieldTile.instrument_field_id
+                    == PlannedObservation.field_id,
+                    PlannedObservation.observation_plan_id == plan.id,
+                )
+                .subquery()
+            )
+
+            area = sa.func.sum(union.columns.healpix.area)
+            query_area = sa.select(area)
+            intarea = session.execute(query_area).scalar_one()
+
+            if intarea is None:
+                intarea = 0.0
+            intarea *= (180.0 / np.pi) ** 2
+            if stats_logging:
+                log(f'STATS: area= {intarea}. Runtime= {time.time() - t0:.2f}s. ')
+
+            prob = sa.func.sum(
+                LocalizationTile.probdensity
+                * (union.columns.healpix * LocalizationTile.healpix).area
+            )
+
+            query_prob = sa.select(prob).filter(
+                LocalizationTile.localization_id == request.localization_id,
+                union.columns.healpix.overlaps(LocalizationTile.healpix),
+            )
+
+            intprob = session.execute(query_prob).scalar_one()
+            if intprob is None:
+                intprob = 0.0
+
+            if stats_logging:
+                log(f'STATS: prob= {intprob}. Runtime= {time.time() - t0:.2f}s. ')
+        else:
+            raise ValueError(f"Unknown stats_method: {stats_method}")
 
         plan_statistics = EventObservationPlanStatistics(
             observation_plan_id=observation_plan_id,
@@ -266,7 +296,13 @@ def generate_observation_plan_statistics(
         session.commit()
 
 
-def generate_plan(observation_plan_ids, request_ids, user_id):
+def generate_plan(
+    observation_plan_ids,
+    request_ids,
+    user_id,
+    stats_method='python',
+    stats_logging=False,
+):
     """Use gwemopt to construct multiple observing plans."""
 
     from ..models import DBSession
@@ -694,7 +730,14 @@ class MMAAPI(FollowUpAPI):
         log(f"Generating schedule for observation plan {plan.id}")
         requester_id = request.requester.id
         IOLoop.current().run_in_executor(
-            None, lambda: generate_plan(plan_ids, request_ids, requester_id)
+            None,
+            lambda: generate_plan(
+                observation_plan_ids=plan_ids,
+                request_ids=request_ids,
+                user_id=requester_id,
+                stats_method=request.payload.get('stats_method'),
+                stats_logging=request.payload.get('stats_logging'),
+            ),
         )
 
     # subclasses *must* implement the method below
@@ -787,7 +830,15 @@ class MMAAPI(FollowUpAPI):
             log(f"Generating schedule for observation plan {plan.id}")
             requester_id = request.requester.id
             IOLoop.current().run_in_executor(
-                None, lambda: generate_plan([plan.id], [request.id], requester_id)
+                # TODO: add stats_method and stats_logging to the arguments
+                None,
+                lambda: generate_plan(
+                    observation_plan_ids=[plan.id],
+                    request_ids=[request.id],
+                    user_id=requester_id,
+                    stats_method=request.payload.get('stats_method'),
+                    stats_logging=request.payload.get('stats_logging'),
+                ),
             )
         else:
             raise ValueError(
