@@ -9,6 +9,13 @@ As this feature requires additional system dependencies, we choose to make it op
 sudo apt install sextractor scamp psfex swarp
 ```
 
+Also, one needs to install `snid`. To install it, you can run the following commands which will git clone and run an install script (works only on ubuntu for now, both arm64 and amd64)
+
+```
+git clone https://github.com/Theodlz/snid-install-ubuntu.git && \
+cd snid-install-ubuntu && sudo chmod +x install.sh && sudo bash ./install.sh
+```
+
 ## Installing STDpipe
 
 As of right now, STDpipe is in development, and not available on pypi or conda yet.
@@ -58,8 +65,10 @@ RUN apt-get update && \
 and
 
 ```
+RUN git clone https://github.com/Theodlz/snid-install-ubuntu.git && \
+    cd snid-install-ubuntu && chmod +x install.sh && bash ./install.sh
+
 RUN python3 -m venv /skyportal_env && \
-    \
     bash -c "source /skyportal_env/bin/activate && \
     git clone https://github.com/karpov-sv/stdpipe.git && \
     cd stdpipe && pip install -e . && \

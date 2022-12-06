@@ -26,8 +26,10 @@ RUN python3 -m venv /skyportal_env && \
 
 
 # lines to uncomment if you want to use the image analysis feature
+# RUN git clone https://github.com/Theodlz/snid-install-ubuntu.git && \
+#     cd snid-install-ubuntu && chmod +x install.sh && bash ./install.sh
+
 # RUN python3 -m venv /skyportal_env && \
-#     \
 #     bash -c "source /skyportal_env/bin/activate && \
 #     git clone https://github.com/karpov-sv/stdpipe.git && \
 #     cd stdpipe && pip install -e . && \
