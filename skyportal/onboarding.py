@@ -1,4 +1,5 @@
 import datetime
+import sqlalchemy as sa
 
 from .models import (
     DBSession,
@@ -105,7 +106,10 @@ def get_username(strategy, details, backend, uid, user=None, *args, **kwargs):
         raise Exception("PSA configuration error: `username` not properly captured.")
     storage = strategy.storage
 
-    existing_user = DBSession().query(User).filter(User.oauth_uid == uid).first()
+    with DBSession as session:
+        existing_user = session.scalars(
+            sa.select(User).where(User.oauth_uid == uid)
+        ).first()
 
     if not user and existing_user is None:
         email_as_username = strategy.setting('USERNAME_IS_FULL_EMAIL', False)
@@ -125,7 +129,10 @@ def setup_invited_user_permissions(strategy, uid, details, user, *args, **kwargs
     if not cfg["invitations.enabled"]:
         return
 
-    existing_user = DBSession().query(User).filter(User.oauth_uid == uid).first()
+    with DBSession() as session:
+        existing_user = session.scalars(
+            sa.select(User).where(User.oauth_uid == uid)
+        ).first()
 
     invite_token = strategy.session_get("invite_token")
     if invite_token is None and existing_user is None:
@@ -158,39 +165,42 @@ def setup_invited_user_permissions(strategy, uid, details, user, *args, **kwargs
             "Authentication Error: User has not been granted sufficient stream access to be added to specified groups."
         )
 
-    # Add user to specified streams
-    for stream_id in stream_ids:
-        DBSession.add(StreamUser(stream_id=stream_id, user_id=user.id))
+    with DBSession() as session:
+        # Add user to specified streams
+        for stream_id in stream_ids:
+            session.add(StreamUser(stream_id=stream_id, user_id=user.id))
 
-    # Add user to specified groups
-    for group_id, admin, can_save in zip(
-        group_ids, invitation.admin_for_groups, invitation.can_save_to_groups
-    ):
-        DBSession.add(
-            GroupUser(
-                user_id=user.id, group_id=group_id, admin=admin, can_save=can_save
+        # Add user to specified groups
+        for group_id, admin, can_save in zip(
+            group_ids, invitation.admin_for_groups, invitation.can_save_to_groups
+        ):
+            session.add(
+                GroupUser(
+                    user_id=user.id, group_id=group_id, admin=admin, can_save=can_save
+                )
             )
-        )
 
-    # Add user to sitewide public group
-    public_group = (
-        DBSession()
-        .query(Group)
-        .filter(Group.name == cfg["misc"]["public_group_name"])
-        .first()
-    )
-    if public_group is not None and public_group not in invitation.groups:
-        DBSession().add(GroupUser(group_id=public_group.id, user_id=user.id))
+        # Add user to sitewide public group
+        public_group = session.scalars(
+            sa.select(Group).where(Group.name == cfg["misc"]["public_group_name"])
+        ).first()
 
-    invitation.used = True
-    DBSession().commit()
+        if public_group is not None and public_group not in invitation.groups:
+            session.add(GroupUser(group_id=public_group.id, user_id=user.id))
+
+        invitation.used = True
+        session.commit()
 
 
 def user_details(strategy, details, backend, uid, user=None, *args, **kwargs):
     """Update user details using data from provider."""
     if not user:
         return
-    existing_user = DBSession().query(User).filter(User.oauth_uid == uid).first()
+
+    with DBSession() as session:
+        existing_user = session.scalars(
+            sa.select(User).where(User.oauth_uid == uid)
+        ).first()
     if not (
         existing_user.contact_email is None
         and existing_user.first_name is None
