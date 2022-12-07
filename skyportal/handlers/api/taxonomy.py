@@ -77,7 +77,6 @@ class TaxonomyHandler(BaseHandler):
                 }
                 for taxonomy in taxonomies
             ]
-            print(taxonomies)
             return self.success(data=taxonomies)
 
     @permissions(['Post taxonomy'])
