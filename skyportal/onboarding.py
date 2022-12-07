@@ -111,18 +111,18 @@ def get_username(strategy, details, backend, uid, user=None, *args, **kwargs):
             sa.select(User).where(User.oauth_uid == uid)
         ).first()
 
-    if not user and existing_user is None:
-        email_as_username = strategy.setting('USERNAME_IS_FULL_EMAIL', False)
-        if email_as_username and details.get('email'):
-            username = details['email']
-        else:
-            username = details['username']
+        if not user and existing_user is None:
+            email_as_username = strategy.setting('USERNAME_IS_FULL_EMAIL', False)
+            if email_as_username and details.get('email'):
+                username = details['email']
+            else:
+                username = details['username']
 
-    elif existing_user is not None:
-        return {"username": existing_user.username}
-    else:
-        username = storage.user.get_username(user)
-    return {'username': username}
+        elif existing_user is not None:
+            return {"username": existing_user.username}
+        else:
+            username = storage.user.get_username(user)
+        return {'username': username}
 
 
 def setup_invited_user_permissions(strategy, uid, details, user, *args, **kwargs):
@@ -134,38 +134,37 @@ def setup_invited_user_permissions(strategy, uid, details, user, *args, **kwargs
             sa.select(User).where(User.oauth_uid == uid)
         ).first()
 
-    invite_token = strategy.session_get("invite_token")
-    if invite_token is None and existing_user is None:
-        raise Exception(
-            "Authentication Error: Missing invite token. A valid invite token is required."
-        )
-    elif existing_user is not None and invite_token is None:
-        return
+        invite_token = strategy.session_get("invite_token")
+        if invite_token is None and existing_user is None:
+            raise Exception(
+                "Authentication Error: Missing invite token. A valid invite token is required."
+            )
+        elif existing_user is not None and invite_token is None:
+            return
 
-    invitation = Invitation.query.filter(Invitation.token == invite_token).first()
-    if invitation is None:
-        raise Exception(
-            "Authentication Error: Invalid invite token. A valid invite token is required."
-        )
+        invitation = Invitation.query.filter(Invitation.token == invite_token).first()
+        if invitation is None:
+            raise Exception(
+                "Authentication Error: Invalid invite token. A valid invite token is required."
+            )
 
-    if invitation.used:
-        raise Exception("Authentication Error: Invitation has already been used.")
+        if invitation.used:
+            raise Exception("Authentication Error: Invitation has already been used.")
 
-    group_ids = [g.id for g in invitation.groups]
-    stream_ids = [stream.id for stream in invitation.streams]
+        group_ids = [g.id for g in invitation.groups]
+        stream_ids = [stream.id for stream in invitation.streams]
 
-    if not all(
-        [
-            stream in invitation.streams
-            for group in invitation.groups
-            for stream in group.streams
-        ]
-    ):
-        raise Exception(
-            "Authentication Error: User has not been granted sufficient stream access to be added to specified groups."
-        )
+        if not all(
+            [
+                stream in invitation.streams
+                for group in invitation.groups
+                for stream in group.streams
+            ]
+        ):
+            raise Exception(
+                "Authentication Error: User has not been granted sufficient stream access to be added to specified groups."
+            )
 
-    with DBSession() as session:
         # Add user to specified streams
         for stream_id in stream_ids:
             session.add(StreamUser(stream_id=stream_id, user_id=user.id))
@@ -201,50 +200,51 @@ def user_details(strategy, details, backend, uid, user=None, *args, **kwargs):
         existing_user = session.scalars(
             sa.select(User).where(User.oauth_uid == uid)
         ).first()
-    if not (
-        existing_user.contact_email is None
-        and existing_user.first_name is None
-        and existing_user.last_name is None
-    ):
-        return
 
-    changed = False  # flag to track changes
+        if not (
+            existing_user.contact_email is None
+            and existing_user.first_name is None
+            and existing_user.last_name is None
+        ):
+            return
 
-    # Default protected user fields (username, id, pk and email) can be ignored
-    # by setting the SOCIAL_AUTH_NO_DEFAULT_PROTECTED_USER_FIELDS to True
-    if strategy.setting('NO_DEFAULT_PROTECTED_USER_FIELDS') is True:
-        protected = ()
-    else:
-        protected = (
-            'username',
-            'id',
-            'pk',
-            'email',
-            'password',
-            'is_active',
-            'is_staff',
-            'is_superuser',
-        )
+        changed = False  # flag to track changes
 
-    protected = protected + tuple(strategy.setting('PROTECTED_USER_FIELDS', []))
+        # Default protected user fields (username, id, pk and email) can be ignored
+        # by setting the SOCIAL_AUTH_NO_DEFAULT_PROTECTED_USER_FIELDS to True
+        if strategy.setting('NO_DEFAULT_PROTECTED_USER_FIELDS') is True:
+            protected = ()
+        else:
+            protected = (
+                'username',
+                'id',
+                'pk',
+                'email',
+                'password',
+                'is_active',
+                'is_staff',
+                'is_superuser',
+            )
 
-    # Update user model attributes with the new data sent by the current
-    # provider. Update on some attributes is disabled by default, for
-    # example username and id fields. It's also possible to disable update
-    # on fields defined in SOCIAL_AUTH_PROTECTED_USER_FIELDS.
-    field_mapping = strategy.setting('USER_FIELD_MAPPING', {}, backend)
-    for name, value in details.items():
-        # Convert to existing user field if mapping exists
-        name = field_mapping.get(name, name)
-        if value is None or not hasattr(user, name) or name in protected:
-            continue
+        protected = protected + tuple(strategy.setting('PROTECTED_USER_FIELDS', []))
 
-        current_value = getattr(user, name, None)
-        if current_value == value:
-            continue
+        # Update user model attributes with the new data sent by the current
+        # provider. Update on some attributes is disabled by default, for
+        # example username and id fields. It's also possible to disable update
+        # on fields defined in SOCIAL_AUTH_PROTECTED_USER_FIELDS.
+        field_mapping = strategy.setting('USER_FIELD_MAPPING', {}, backend)
+        for name, value in details.items():
+            # Convert to existing user field if mapping exists
+            name = field_mapping.get(name, name)
+            if value is None or not hasattr(user, name) or name in protected:
+                continue
 
-        changed = True
-        setattr(user, name, value)
+            current_value = getattr(user, name, None)
+            if current_value == value:
+                continue
 
-    if changed:
-        strategy.storage.user.changed(user)
+            changed = True
+            setattr(user, name, value)
+
+        if changed:
+            strategy.storage.user.changed(user)
