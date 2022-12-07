@@ -762,7 +762,7 @@ def test_gcn_summary_observations(
         '(2 days after the burst trigger time) corresponding to ~9% '
         'of the probability enclosed in the localization region.'
     )
-    print(data[7])
+
     assert obs_summary_text in data[7]
 
     obs_table = data[8].split('\n')
