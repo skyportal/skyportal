@@ -1,4 +1,4 @@
-__all__ = ['Allocation']
+__all__ = ['Allocation', 'AllocationUser']
 
 import sqlalchemy as sa
 from sqlalchemy.orm import relationship
@@ -8,11 +8,43 @@ from sqlalchemy_utils.types import JSONType
 import json
 
 from baselayer.app.env import load_env
-from baselayer.app.models import Base, AccessibleIfRelatedRowsAreAccessible
-from .group import accessible_by_group_members
+from baselayer.app.models import (
+    Base,
+    User,
+    AccessibleIfRelatedRowsAreAccessible,
+    join_model,
+    UserAccessControl,
+    CustomUserAccessControl,
+    DBSession,
+    safe_aliased,
+)
+from .group import GroupUser, accessible_by_group_members
 
 
 _, cfg = load_env()
+
+
+def allocationuser_access_logic(cls, user_or_token):
+    aliased = safe_aliased(cls)
+    user_id = UserAccessControl.user_id_from_user_or_token(user_or_token)
+    user_allocation_admin = (
+        DBSession()
+        .query(Allocation)
+        .join(GroupUser, GroupUser.group_id == Allocation.group_id)
+        .filter(sa.and_(GroupUser.user_id == user_id, GroupUser.admin.is_(True)))
+    )
+    query = DBSession().query(cls).join(aliased, cls.allocation_id == aliased.shift_id)
+    if not user_or_token.is_system_admin:
+        query = query.filter(
+            sa.or_(
+                aliased.user_id == user_id,
+                sa.and_(aliased.admin.is_(True), aliased.user_id == user_id),
+                aliased.allocation_id.in_(
+                    [allocation.id for allocation in user_allocation_admin.all()]
+                ),
+            )
+        )
+    return query
 
 
 class Allocation(Base):
@@ -90,6 +122,15 @@ class Allocation(Base):
         EncryptedType(JSONType, cfg['app.secret_key'], AesEngine, 'pkcs5')
     )
 
+    allocation_users = relationship(
+        'AllocationUser',
+        back_populates='allocation',
+        cascade='save-update, merge, refresh-expire, expunge',
+        passive_deletes=True,
+        doc='Elements of a join table mapping Users to Allocations.',
+        overlaps='allocations, users',
+    )
+
     @property
     def altdata(self):
         if self._altdata is None:
@@ -100,3 +141,11 @@ class Allocation(Base):
     @altdata.setter
     def altdata(self, value):
         self._altdata = value
+
+
+AllocationUser = join_model('allocation_users', Allocation, User)
+AllocationUser.__doc__ = "Join table mapping `Allocation`s to `User`s."
+AllocationUser.create = AllocationUser.read
+AllocationUser.update = AllocationUser.delete = CustomUserAccessControl(
+    allocationuser_access_logic
+)
