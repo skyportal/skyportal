@@ -15,6 +15,7 @@ import Button from "./Button";
 import ConfirmDeletionDialog from "./ConfirmDeletionDialog";
 
 import * as sourceActions from "../ducks/source";
+import { guessMode } from "vega-embed";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
@@ -75,6 +76,8 @@ const ClassificationList = () => {
   const source = useSelector((state) => state.source);
   const obj = source;
   const userProfile = useSelector((state) => state.profile);
+  const groupUsers = useSelector((state) => state.group.group_users);
+  const currentGroupUser = groupUsers.filter(groupUser => groupUser.user_id === userProfile.id)[0];
   // const acls = useSelector((state) => state.profile.acls);
   let { classifications } = obj;
 
@@ -126,6 +129,7 @@ const ClassificationList = () => {
       const permission =
         userProfile.permissions.includes("System admin") ||
         userProfile.permissions.includes("Manage groups") ||
+        currentGroupUser.admin ||
         userProfile.username === author_name;
       return (
         <ListItem key={id} className={styles.classification}>
