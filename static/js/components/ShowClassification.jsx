@@ -37,7 +37,9 @@ const ClassificationRow = ({ classifications }) => {
 
   const currentUser = useSelector((state) => state.profile);
   const groupUsers = useSelector((state) => state.group.group_users);
-  const currentGroupUser = groupUsers.filter(groupUser => groupUser.user_id === currentUser.id)[0];
+  const currentGroupUser = groupUsers.filter(
+    (groupUser) => groupUser.user_id === currentUser.id
+  )[0];
   const [dialogOpen, setDialogOpen] = useState(false);
   const [classificationToDelete, setClassificationToDelete] = useState(null);
   const openDialog = (id) => {
