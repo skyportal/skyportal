@@ -213,6 +213,16 @@ class TelescopeHandler(BaseHandler):
                 temp['is_night_astronomical'] = is_night_astronomical
                 temp['next_twilight_morning_astronomical'] = morning
                 temp['next_twilight_evening_astronomical'] = evening
+
+                allocations = []
+                for instrument in telescope.instruments:
+                    for allocation in instrument.allocations:
+                        allocation_data = allocation.to_dict()
+                        allocation_data['allocation_users'] = [
+                            user.user.to_dict() for user in allocation.allocation_users
+                        ]
+                        allocations.append(allocation_data)
+                temp['allocations'] = allocations
                 telescopes.append(temp)
 
             return self.success(data=telescopes)
