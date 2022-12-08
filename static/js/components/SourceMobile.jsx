@@ -435,6 +435,18 @@ const SourceMobile = WidthProvider(
                         </Button>
                       </Link>
                     </div>
+                    <div className={classes.infoButton}>
+                      <Button
+                        secondary
+                        href={`/api/sources/${source.id}/observability`}
+                        download={`observabilityChartRequest-${source.id}`}
+                        size="small"
+                        type="submit"
+                        data-testid={`observabilityChartRequest_${source.id}`}
+                      >
+                        Observability Chart
+                      </Button>
+                    </div>
                   </div>
                 </div>
                 <br />

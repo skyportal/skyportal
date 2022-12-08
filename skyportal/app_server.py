@@ -104,6 +104,7 @@ from skyportal.handlers.api import (
     SharingHandler,
     SourceHandler,
     SourceExistsHandler,
+    SourceObservabilityPlotHandler,
     SourceOffsetsHandler,
     SourceFinderHandler,
     SourceNotificationHandler,
@@ -376,6 +377,10 @@ skyportal_handlers = [
     (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/groups', ObjGroupsHandler),
     (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/color_mag', ObjColorMagHandler),
     (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/tns', ObjTNSHandler),
+    (
+        r'/api/sources(/[0-9A-Za-z-_\.\+]+)/observability',
+        SourceObservabilityPlotHandler,
+    ),
     (r'/api/(sources|spectra)/([0-9A-Za-z-_\.\+]+)/comments', CommentHandler),
     (r'/api/(sources|spectra)/([0-9A-Za-z-_\.\+]+)/comments(/[0-9]+)?', CommentHandler),
     (
