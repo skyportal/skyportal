@@ -36,8 +36,8 @@ const ClassificationRow = ({ classifications }) => {
   const dispatch = useDispatch();
 
   const currentUser = useSelector((state) => state.profile);
-  const groupUsers = useSelector((state) => state.group.group_users);
-  const currentGroupUser = groupUsers.filter(
+  const groupUsers = useSelector((state) => state.group?.group_users);
+  const currentGroupUser = groupUsers?.filter(
     (groupUser) => groupUser.user_id === currentUser.id
   )[0];
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -67,7 +67,7 @@ const ClassificationRow = ({ classifications }) => {
   const permission =
     currentUser.permissions.includes("System admin") ||
     currentUser.permissions.includes("Manage groups") ||
-    currentGroupUser.admin ||
+    currentGroupUser?.admin ||
     currentUser.username === classification.author_name;
 
   const clsProb = classification.probability

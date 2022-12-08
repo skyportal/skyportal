@@ -75,8 +75,8 @@ const ClassificationList = () => {
   const source = useSelector((state) => state.source);
   const obj = source;
   const userProfile = useSelector((state) => state.profile);
-  const groupUsers = useSelector((state) => state.group.group_users);
-  const currentGroupUser = groupUsers.filter(
+  const groupUsers = useSelector((state) => state.group?.group_users);
+  const currentGroupUser = groupUsers?.filter(
     (groupUser) => groupUser.user_id === userProfile.id
   )[0];
   // const acls = useSelector((state) => state.profile.acls);
@@ -130,7 +130,7 @@ const ClassificationList = () => {
       const permission =
         userProfile.permissions.includes("System admin") ||
         userProfile.permissions.includes("Manage groups") ||
-        currentGroupUser.admin ||
+        currentGroupUser?.admin ||
         userProfile.username === author_name;
       return (
         <ListItem key={id} className={styles.classification}>
