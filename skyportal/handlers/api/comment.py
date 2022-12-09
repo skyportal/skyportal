@@ -22,6 +22,7 @@ from ...models import (
     EarthquakeEvent,
     Spectrum,
     GcnEvent,
+    Instrument,
     Shift,
     Group,
     User,
@@ -39,6 +40,42 @@ def users_mentioned(text, session):
         word = word.strip(punctuation)
         if word.startswith("@"):
             usernames.append(word.replace("@", ""))
+    users = session.scalars(
+        User.select(session.user_or_token).where(
+            User.username.in_(usernames),
+            User.preferences["notifications"]["mention"]["active"]
+            .astext.cast(sa.Boolean)
+            .is_(True),
+        )
+    ).all()
+
+    return users
+
+
+def instruments_mentioned(text, session):
+    punctuation = string.punctuation.replace("-", "").replace("#", "")
+    instruments = []
+    for word in text.replace(",", " ").split():
+        word = word.strip(punctuation)
+        if word.startswith("#"):
+            instruments.append(word.replace("#", ""))
+
+    instruments = session.scalars(
+        Instrument.select(session.user_or_token).where(
+            Instrument.name.in_(instruments),
+        )
+    ).all()
+
+    usernames = []
+    for instrument in instruments:
+        allocations = instrument.allocations
+        for allocation in allocations:
+            allocation_users = [
+                user.user.username for user in allocation.allocation_users
+            ]
+            usernames = usernames + allocation_users
+    usernames = list(set(usernames))
+
     users = session.scalars(
         User.select(session.user_or_token).where(
             User.username.in_(usernames),
@@ -509,6 +546,40 @@ class CommentHandler(BaseHandler):
 
             if users_mentioned_in_comment:
                 for user_mentioned in users_mentioned_in_comment:
+                    session.add(
+                        UserNotification(
+                            user=user_mentioned,
+                            text=text_to_send,
+                            notification_type="mention",
+                            url=url_endpoint,
+                        )
+                    )
+
+            users_mentioned_in_instrument_comment = instruments_mentioned(
+                comment_text, session
+            )
+            if associated_resource_type.lower() == "sources":
+                text_to_send = f"*@{self.associated_user_object.username}* mentioned an instrument you have an allocation on in a comment on *{obj_id}*"
+                url_endpoint = f"/source/{obj_id}"
+            elif associated_resource_type.lower() == "spectra":
+                text_to_send = f"*@{self.associated_user_object.username}* mentioned an instrument you have an allocation on in a comment on *{spectrum_id}*"
+                url_endpoint = f"/source/{spectrum_id}"
+            elif associated_resource_type.lower() == "gcn_event":
+                text_to_send = f"*@{self.associated_user_object.username}* mentioned an instrument you have an allocation on in a comment on *{gcnevent_id}*"
+                url_endpoint = f"/gcn_events/{gcnevent_id}"
+            elif associated_resource_type.lower() == "shift":
+                text_to_send = f"*@{self.associated_user_object.username}* mentioned an instrument you have an allocation on in a comment on *shift {shift_id}*"
+                url_endpoint = "/shifts"
+            elif associated_resource_type.lower() == "earthquake":
+                text_to_send = f"*@{self.associated_user_object.username}* mentioned an instrument you have an allocation on in a comment on *{earthquake_id}*"
+                url_endpoint = f"/earthquakes/{earthquake_id}"
+            else:
+                return self.error(
+                    f'Unknown resource type "{associated_resource_type}".'
+                )
+
+            if users_mentioned_in_instrument_comment:
+                for user_mentioned in users_mentioned_in_instrument_comment:
                     session.add(
                         UserNotification(
                             user=user_mentioned,

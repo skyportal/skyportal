@@ -12,6 +12,7 @@ import Button from "./Button";
 
 import FormValidationError from "./FormValidationError";
 import UsernameTrie from "../usernameTrie";
+import InstrumentTrie from "../instrumentTrie";
 
 const useStyles = makeStyles(() => ({
   commentEntry: {
@@ -34,9 +35,11 @@ const CommentEntry = ({ addComment }) => {
   const [textInputCursorIndex, setTextInputCursorIndex] = useState(0);
   const [autosuggestVisible, setAutosuggestVisible] = useState(false);
   const [usernamePrefixMatches, setUsernamePrefixMatches] = useState({});
+  const [instrumentPrefixMatches, setInstrumentPrefixMatches] = useState({});
   const textAreaRef = useRef(null);
   const autoSuggestRootItem = useRef(null);
   const { users } = useSelector((state) => state.users);
+  const { instrumentList } = useSelector((state) => state.instruments);
 
   const usernameTrie = useMemo(() => {
     const trie = UsernameTrie();
@@ -49,6 +52,17 @@ const CommentEntry = ({ addComment }) => {
     });
     return trie;
   }, [users]);
+
+  const instrumentTrie = useMemo(() => {
+    const trie = InstrumentTrie();
+    instrumentList.forEach((instrument) => {
+      trie.insertInstrument({
+        instrument: instrument.name,
+        telescope: instrument.telescope.nickname,
+      });
+    });
+    return trie;
+  }, [instrumentList]);
 
   const {
     handleSubmit,
@@ -103,6 +117,16 @@ const CommentEntry = ({ addComment }) => {
         setTextInputCursorIndex(cursorIdx);
         setAutosuggestVisible(true);
       }
+    } else if (currentWord.startsWith("#")) {
+      const matches = instrumentTrie.findAllStartingWith(
+        currentWord.slice(1),
+        10
+      );
+      setInstrumentPrefixMatches(matches);
+      if (Object.keys(matches).length > 0) {
+        setTextInputCursorIndex(cursorIdx);
+        setAutosuggestVisible(true);
+      }
     } else {
       setAutosuggestVisible(false);
     }
@@ -137,6 +161,25 @@ const CommentEntry = ({ addComment }) => {
     setValue("text", newTextValue);
     setAutosuggestVisible(false);
     setUsernamePrefixMatches({});
+    textAreaRef.current.focus();
+  };
+
+  const handleClickSuggestedInstrument = (instrument) => {
+    const currentWord = textValue
+      .slice(0, textInputCursorIndex)
+      .trim()
+      .split(" ")
+      .pop();
+
+    const newTextValue = `${textValue.slice(
+      0,
+      textInputCursorIndex - currentWord.length
+    )}#${instrument} ${textValue.slice(textInputCursorIndex)}`;
+
+    setTextValue(newTextValue);
+    setValue("text", newTextValue);
+    setAutosuggestVisible(false);
+    setInstrumentPrefixMatches({});
     textAreaRef.current.focus();
   };
 
@@ -209,6 +252,45 @@ const CommentEntry = ({ addComment }) => {
                 }}
               >
                 {`${username} ${firstName || ""} ${lastName || ""}`.trim()}
+              </Button>
+            </li>
+          )
+        )}
+      </div>
+      <div
+        style={{
+          paddingLeft: "2rem",
+          overflowY: "scroll",
+          maxHeight: "10rem",
+          display: autosuggestVisible ? "block" : "none",
+        }}
+      >
+        {Object.entries(instrumentPrefixMatches).map(
+          ([instrument, { telescope }], ix) => (
+            <li key={instrument}>
+              <Button
+                onClick={() => handleClickSuggestedInstrument(instrument)}
+                style={{ textTransform: "none" }}
+                ref={ix === 0 ? autoSuggestRootItem : null}
+                onKeyDown={(event) => {
+                  // On down arrow, move to next sibling
+                  if (event.key === "ArrowDown") {
+                    // Focus on next item in list
+                    // -> parent (li) -> sibling (li) -> firstChild (button)
+                    event.target.parentNode.nextSibling?.firstChild.focus();
+                    // Do not scroll the list
+                    event.preventDefault();
+                  }
+                  // Up arrow
+                  if (event.key === "ArrowUp") {
+                    // Focus on previous item in list
+                    // -> parent (li) -> sibling (li) -> firstChild (button)
+                    event.target.parentNode.previousSibling?.firstChild.focus();
+                    event.preventDefault();
+                  }
+                }}
+              >
+                {`${instrument} / ${telescope}`.trim()}
               </Button>
             </li>
           )
