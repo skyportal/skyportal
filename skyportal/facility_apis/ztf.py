@@ -608,7 +608,7 @@ class ZTFMMAAPI(MMAAPI):
 
     # subclasses *must* implement the method below
     @staticmethod
-    def send(request):
+    def send(request, session):
 
         """Submit an EventObservationPlan to ZTF.
 
@@ -618,7 +618,7 @@ class ZTFMMAAPI(MMAAPI):
             The request to add to the queue and the SkyPortal database.
         """
 
-        from ..models import FacilityTransaction, DBSession
+        from ..models import FacilityTransaction
 
         req = ZTFRequest()
         requestgroup = req._build_observation_plan_payload(request)
@@ -655,7 +655,7 @@ class ZTFMMAAPI(MMAAPI):
             initiator_id=request.last_modified_by_id,
         )
 
-        DBSession().add(transaction)
+        session.add(transaction)
 
     @staticmethod
     def remove(request):

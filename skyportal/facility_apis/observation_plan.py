@@ -5,6 +5,8 @@ import pandas as pd
 from regions import Regions
 from datetime import datetime, timedelta
 import numpy as np
+from requests import Request, Session
+from skyportal.utils import http
 
 import sqlalchemy as sa
 from sqlalchemy.orm import sessionmaker, scoped_session
@@ -483,6 +485,63 @@ def generate_plan(observation_plan_ids, request_ids, user_id):
     )
 
 
+class GenericRequest:
+
+    """A dictionary structure for ToO requests."""
+
+    def _build_observation_plan_payload(self, request):
+        """Payload json for observation plan queue requests.
+
+        Parameters
+        ----------
+
+        request: skyportal.models.ObservationPlanRequest
+            The request to add to the queue and the SkyPortal database.
+
+        Returns
+        ----------
+        payload: json
+            payload for requests.
+        """
+
+        start_mjd = Time(request.payload["start_date"], format='iso').mjd
+        end_mjd = Time(request.payload["end_date"], format='iso').mjd
+
+        json_data = {
+            'queue_name': "ToO_" + request.payload["queue_name"],
+            'validity_window_mjd': [start_mjd, end_mjd],
+        }
+
+        # One observation plan per request
+        if not len(request.observation_plans) == 1:
+            raise ValueError('Should be one observation plan for this request.')
+
+        observation_plan = request.observation_plans[0]
+        planned_observations = observation_plan.planned_observations
+
+        if len(planned_observations) == 0:
+            raise ValueError('Cannot submit observing plan with no observations.')
+
+        targets = []
+        cnt = 1
+        for obs in planned_observations:
+            target = {
+                'request_id': cnt,
+                'field_id': obs.field.field_id,
+                'ra': obs.field.ra,
+                'dec': obs.field.dec,
+                'filter': obs.filt,
+                'exposure_time': obs.exposure_time,
+                'program_pi': request.requester.username,
+            }
+            targets.append(target)
+            cnt = cnt + 1
+
+        json_data['targets'] = targets
+
+        return json_data
+
+
 class MMAAPI(FollowUpAPI):
 
     """An interface to MMA operations."""
@@ -813,5 +872,62 @@ class MMAAPI(FollowUpAPI):
         }
 
         return form_json_schema
+
+    @staticmethod
+    def send(request, session):
+
+        """Submit an EventObservationPlan.
+
+        Parameters
+        ----------
+        request : skyportal.models.ObservationPlanRequest
+            The request to add to the queue and the SkyPortal database.
+        """
+
+        from ..models import FacilityTransaction
+
+        altdata = request.allocation.altdata
+        if not altdata:
+            raise ValueError('Missing allocation information.')
+
+        req = GenericRequest()
+        requestgroup = req._build_observation_plan_payload(request)
+
+        headers = {"Authorization": f"Bearer {altdata['access_token']}"}
+
+        payload = {
+            'targets': requestgroup["targets"],
+            'queue_name': requestgroup["queue_name"],
+            'validity_window_mjd': requestgroup["validity_window_mjd"],
+            'queue_type': 'list',
+            'user': request.requester.username,
+        }
+
+        url = (
+            'http://'
+            + ('127.0.0.1' if 'localhost' in altdata['host'] else altdata['host'])
+            + ':'
+            + altdata['port']
+            + '/api/obsplans'
+        )
+        s = Session()
+        genericreq = Request('PUT', url, json=payload, headers=headers)
+        prepped = genericreq.prepare()
+        r = s.send(prepped)
+
+        if r.status_code == 200:
+            request.status = 'submitted to telescope queue'
+        else:
+            request.status = f'rejected from telescope queue: {r.content}'
+
+        transaction = FacilityTransaction(
+            request=http.serialize_requests_request(r.request),
+            # response=http.serialize_requests_response(r), TODO: fix this, decide what the response should be
+            response=None,
+            observation_plan_request=request,
+            initiator_id=request.last_modified_by_id,
+        )
+
+        session.add(transaction)
 
     ui_json_schema = {}
