@@ -619,7 +619,7 @@ allocation:
     instrument_id: =GenericMMAInstrument
     =id: GenericMMAInstrument_allocation
     default_share_group_ids: [=program_A, =program_B]
-    _altdata: '{"host": "localhost", "port": "8080", "access_token": "blabla"}'
+    _altdata: '{"host": "localhost", "port": "8080", "access_token": "123"}'
 
 galaxy_catalog:
   - catalog_name: CLU_mini
