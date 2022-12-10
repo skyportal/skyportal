@@ -893,7 +893,7 @@ class MMAAPI(FollowUpAPI):
         req = GenericRequest()
         requestgroup = req._build_observation_plan_payload(request)
 
-        headers = {"Authorization": f"Bearer {altdata['access_token']}"}
+        headers = {"Authorization": f"token {altdata['access_token']}"}
 
         payload = {
             'targets': requestgroup["targets"],
