@@ -559,19 +559,39 @@ class CommentHandler(BaseHandler):
                 comment_text, session
             )
             if associated_resource_type.lower() == "sources":
-                text_to_send = f"*@{self.associated_user_object.username}* mentioned an instrument you have an allocation on in a comment on *{obj_id}*"
+                text_to_send = (
+                    f"*@{self.associated_user_object.username}* "
+                    "mentioned an instrument you have an "
+                    f"allocation on in a comment on *{obj_id}*"
+                )
                 url_endpoint = f"/source/{obj_id}"
             elif associated_resource_type.lower() == "spectra":
-                text_to_send = f"*@{self.associated_user_object.username}* mentioned an instrument you have an allocation on in a comment on *{spectrum_id}*"
+                text_to_send = (
+                    f"*@{self.associated_user_object.username}* "
+                    "mentioned an instrument you have an "
+                    f"allocation on in a comment on *{spectrum_id}*"
+                )
                 url_endpoint = f"/source/{spectrum_id}"
             elif associated_resource_type.lower() == "gcn_event":
-                text_to_send = f"*@{self.associated_user_object.username}* mentioned an instrument you have an allocation on in a comment on *{gcnevent_id}*"
+                text_to_send = (
+                    f"*@{self.associated_user_object.username}* "
+                    "mentioned an instrument you have an "
+                    f"allocation on in a comment on *{gcnevent_id}*"
+                )
                 url_endpoint = f"/gcn_events/{gcnevent_id}"
             elif associated_resource_type.lower() == "shift":
-                text_to_send = f"*@{self.associated_user_object.username}* mentioned an instrument you have an allocation on in a comment on *shift {shift_id}*"
+                text_to_send = (
+                    f"*@{self.associated_user_object.username}* "
+                    "mentioned an instrument you have an "
+                    "allocation on in a comment on *shift {shift_id}*"
+                )
                 url_endpoint = "/shifts"
             elif associated_resource_type.lower() == "earthquake":
-                text_to_send = f"*@{self.associated_user_object.username}* mentioned an instrument you have an allocation on in a comment on *{earthquake_id}*"
+                text_to_send = (
+                    f"*@{self.associated_user_object.username}* "
+                    "mentioned an instrument you have an "
+                    "allocation on in a comment on *{earthquake_id}*"
+                )
                 url_endpoint = f"/earthquakes/{earthquake_id}"
             else:
                 return self.error(
