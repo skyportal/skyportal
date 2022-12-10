@@ -557,7 +557,6 @@ allocation:
     group_id: =program_A
     instrument_id: =ZTF
     =id: ZTF_allocation
-    _altdata: '{"host": "localhost", "port": "8080", "access_token": "123"}'
   - pi: Michael Coughlin
     proposal_id: ATLAS-001
     start_date: "3020-02-12T00:00:00"
