@@ -1,16 +1,21 @@
 from astropy.time import Time
 import healpix_alchemy as ha
 import humanize
+import json
 import pandas as pd
 from regions import Regions
 from datetime import datetime, timedelta
 import numpy as np
+import os
 from requests import Request, Session
 from skyportal.utils import http
-
+import paramiko
+from paramiko import SSHClient
+from scp import SCPClient
 import sqlalchemy as sa
 from sqlalchemy.orm import sessionmaker, scoped_session
 from sqlalchemy.orm import joinedload
+import tempfile
 
 from baselayer.log import make_log
 from baselayer.app.flow import Flow
@@ -893,8 +898,6 @@ class MMAAPI(FollowUpAPI):
         req = GenericRequest()
         requestgroup = req._build_observation_plan_payload(request)
 
-        headers = {"Authorization": f"token {altdata['access_token']}"}
-
         payload = {
             'targets': requestgroup["targets"],
             'queue_name': requestgroup["queue_name"],
@@ -903,30 +906,64 @@ class MMAAPI(FollowUpAPI):
             'user': request.requester.username,
         }
 
-        url = (
-            'http://'
-            + ('127.0.0.1' if 'localhost' in altdata['host'] else altdata['host'])
-            + ':'
-            + altdata['port']
-            + '/api/obsplans'
-        )
-        s = Session()
-        genericreq = Request('PUT', url, json=payload, headers=headers)
-        prepped = genericreq.prepare()
-        r = s.send(prepped)
+        if 'type' in altdata and altdata['type'] == 'scp':
+            with tempfile.NamedTemporaryFile(mode='w') as f:
+                json.dump(payload, f, indent=4, sort_keys=True)
+                f.flush()
 
-        if r.status_code == 200:
-            request.status = 'submitted to telescope queue'
+                ssh = SSHClient()
+                ssh.load_system_host_keys()
+                ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+                ssh.connect(
+                    hostname=altdata['host'],
+                    port=altdata['port'],
+                    username=altdata['username'],
+                    password=altdata['password'],
+                )
+                scp = SCPClient(ssh.get_transport())
+                scp.put(
+                    f.name,
+                    os.path.join(altdata['directory'], payload["queue_name"] + '.json'),
+                )
+                scp.close()
+
+                request.status = 'submitted'
+
+                transaction = FacilityTransaction(
+                    request=None,
+                    response=None,
+                    observation_plan_request=request,
+                    initiator_id=request.last_modified_by_id,
+                )
+
         else:
-            request.status = f'rejected from telescope queue: {r.content}'
+            headers = {"Authorization": f"token {altdata['access_token']}"}
 
-        transaction = FacilityTransaction(
-            request=http.serialize_requests_request(r.request),
-            # response=http.serialize_requests_response(r), TODO: fix this, decide what the response should be
-            response=None,
-            observation_plan_request=request,
-            initiator_id=request.last_modified_by_id,
-        )
+            # default to API
+            url = (
+                'http://'
+                + ('127.0.0.1' if 'localhost' in altdata['host'] else altdata['host'])
+                + ':'
+                + altdata['port']
+                + '/api/obsplans'
+            )
+            s = Session()
+            genericreq = Request('PUT', url, json=payload, headers=headers)
+            prepped = genericreq.prepare()
+            r = s.send(prepped)
+
+            if r.status_code == 200:
+                request.status = 'submitted to telescope queue'
+            else:
+                request.status = f'rejected from telescope queue: {r.content}'
+
+            transaction = FacilityTransaction(
+                request=http.serialize_requests_request(r.request),
+                # response=http.serialize_requests_response(r), TODO: fix this, decide what the response should be
+                response=None,
+                observation_plan_request=request,
+                initiator_id=request.last_modified_by_id,
+            )
 
         session.add(transaction)
 
