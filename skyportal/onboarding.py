@@ -106,7 +106,7 @@ def get_username(strategy, details, backend, uid, user=None, *args, **kwargs):
         raise Exception("PSA configuration error: `username` not properly captured.")
     storage = strategy.storage
 
-    with DBSession as session:
+    with DBSession() as session:
         existing_user = session.scalars(
             sa.select(User).where(User.oauth_uid == uid)
         ).first()
