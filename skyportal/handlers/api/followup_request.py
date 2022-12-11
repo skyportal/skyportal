@@ -1502,7 +1502,7 @@ class DefaultFollowupRequestHandler(BaseHandler):
             200:
               content:
                 application/json:
-                  schema: SingleDefaultFollowupRequestRequest
+                  schema: SingleDefaultFollowupRequest
             400:
               content:
                 application/json:
@@ -1515,7 +1515,7 @@ class DefaultFollowupRequestHandler(BaseHandler):
             200:
               content:
                 application/json:
-                  schema: ArrayOfDefaultFollowupRequestRequests
+                  schema: ArrayOfDefaultFollowupRequests
             400:
               content:
                 application/json:
