@@ -63,13 +63,15 @@ class SEDMV2API(FollowUpAPI):
     """SkyPortal interface to the Spectral Energy Distribution machine (SEDMv2)."""
 
     @staticmethod
-    def submit(request, session):
+    def submit(request, session, **kwargs):
         """Submit a follow-up request to SEDMv2.
 
         Parameters
         ----------
         request: skyportal.models.FollowupRequest
             The request to submit.
+        session: sqlalchemy.Session
+            Database session for this transaction
         """
 
         from ..models import FacilityTransaction
@@ -117,12 +119,13 @@ class SEDMV2API(FollowUpAPI):
 
         session.add(transaction)
 
-        flow = Flow()
-        flow.push(
-            '*',
-            'skyportal/REFRESH_SOURCE',
-            payload={'obj_key': request.obj.internal_key},
-        )
+        if 'refresh_source' in kwargs and kwargs['refresh_source']:
+            flow = Flow()
+            flow.push(
+                '*',
+                'skyportal/REFRESH_SOURCE',
+                payload={'obj_key': request.obj.internal_key},
+            )
 
     @staticmethod
     def delete(request, session):

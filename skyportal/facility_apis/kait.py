@@ -63,7 +63,7 @@ class KAITAPI(FollowUpAPI):
 
     # subclasses *must* implement the method below
     @staticmethod
-    def submit(request, session):
+    def submit(request, session, **kwargs):
 
         """Submit a follow-up request to KAIT.
 

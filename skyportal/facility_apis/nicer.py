@@ -122,7 +122,7 @@ class NICERAPI(FollowUpAPI):
     """An interface to NICER operations."""
 
     @staticmethod
-    def submit(request, session):
+    def submit(request, session, **kwargs):
 
         """Submit a follow-up request to NICER
 

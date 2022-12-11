@@ -193,7 +193,7 @@ class PS1API(FollowUpAPI):
 
     # subclasses *must* implement the method below
     @staticmethod
-    def submit(request, session):
+    def submit(request, session, **kwargs):
 
         """Submit a photometry request to PS1 DR2 API.
 
