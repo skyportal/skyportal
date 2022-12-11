@@ -941,7 +941,8 @@ class MMAAPI(FollowUpAPI):
 
             # default to API
             url = (
-                'http://'
+                altdata['protocol']
+                + '://'
                 + ('127.0.0.1' if 'localhost' in altdata['host'] else altdata['host'])
                 + ':'
                 + altdata['port']
