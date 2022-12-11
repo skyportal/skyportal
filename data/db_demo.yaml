@@ -464,6 +464,7 @@ instrument:
     telescope_id: =Rubin
     type: imager
     =id: LSST
+    api_classname: GENERICAPI
     api_classname_obsplan: MMAAPI
     filters: ["lsstu", "lsstg", "lsstr", "lssti", "lsstz", "lssty"]
     # field_data:
