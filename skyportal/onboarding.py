@@ -105,23 +105,22 @@ def get_username(strategy, details, backend, uid, user=None, *args, **kwargs):
         raise Exception("PSA configuration error: `username` not properly captured.")
     storage = strategy.storage
 
-    with DBSession() as session:
-        existing_user = session.scalars(
-            sa.select(User).where(User.oauth_uid == uid)
-        ).first()
+    existing_user = (
+        DBSession().scalars(sa.select(User).where(User.oauth_uid == uid)).first()
+    )
 
-        if not user and existing_user is None:
-            email_as_username = strategy.setting('USERNAME_IS_FULL_EMAIL', False)
-            if email_as_username and details.get('email'):
-                username = details['email']
-            else:
-                username = details['username']
-
-        elif existing_user is not None:
-            return {"username": existing_user.username}
+    if not user and existing_user is None:
+        email_as_username = strategy.setting('USERNAME_IS_FULL_EMAIL', False)
+        if email_as_username and details.get('email'):
+            username = details['email']
         else:
-            username = storage.user.get_username(user)
-        return {'username': username}
+            username = details['username']
+
+    elif existing_user is not None:
+        return {"username": existing_user.username}
+    else:
+        username = storage.user.get_username(user)
+    return {'username': username}
 
 
 def setup_invited_user_permissions(strategy, uid, details, user, *args, **kwargs):
