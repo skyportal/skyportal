@@ -1120,7 +1120,6 @@ class MMAAPI(FollowUpAPI):
 
             transaction = FacilityTransaction(
                 request=http.serialize_requests_request(r.request),
-                # response=http.serialize_requests_response(r), TODO: fix this, decide what the response should be
                 response=None,
                 observation_plan_request=request,
                 initiator_id=request.last_modified_by_id,
