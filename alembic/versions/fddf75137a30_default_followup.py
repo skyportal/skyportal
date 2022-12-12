@@ -1,7 +1,7 @@
 """Follow-up request migration
 
 Revision ID: fddf75137a30
-Revises: 9f6032c799a9
+Revises: 9f2563d6c9b5
 Create Date: 2022-12-11 00:22:33.020951
 
 """
@@ -11,7 +11,7 @@ from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision = 'fddf75137a30'
-down_revision = '9f6032c799a9'
+down_revision = '9f2563d6c9b5'
 branch_labels = None
 depends_on = None
 
@@ -88,11 +88,6 @@ def upgrade():
         ['created_at'],
         unique=False,
     )
-
-    with op.get_context().autocommit_block():
-        op.execute(
-            "ALTER TYPE followup_apis ADD VALUE IF NOT EXISTS 'GROWTHINDIAMMAAPI' AFTER 'ATLASAPI'"
-        )
 
     # ### end Alembic commands ###
 
