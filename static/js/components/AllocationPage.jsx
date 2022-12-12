@@ -12,6 +12,7 @@ import makeStyles from "@mui/styles/makeStyles";
 import PropTypes from "prop-types";
 import { showNotification } from "baselayer/components/Notifications";
 import CircularProgress from "@mui/material/CircularProgress";
+import ModifyAllocation from "./ModifyAllocation";
 import NewAllocation from "./NewAllocation";
 import NewDefaultSurveyEfficiency from "./NewDefaultSurveyEfficiency";
 import NewDefaultObservationPlan from "./NewDefaultObservationPlan";
@@ -501,6 +502,13 @@ const AllocationPage = () => {
               <div className={classes.paperContent}>
                 <Typography variant="h6">Add a New Allocation</Typography>
                 <NewAllocation />
+              </div>
+            </Paper>
+            <br />
+            <Paper>
+              <div className={classes.paperContent}>
+                <Typography variant="h6">Modify an Allocation</Typography>
+                <ModifyAllocation />
               </div>
             </Paper>
             <br />
