@@ -292,7 +292,6 @@ def add_followup(mapper, connection, target):
 
         comp_function = getattr(operator, 'eq')
         target_data = target.to_dict()
-        print(target_data)
 
         requests_query = sa.select(DefaultFollowupRequest)
         requests_query = requests_query.where(
