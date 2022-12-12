@@ -155,7 +155,7 @@ class SEDMAPI(FollowUpAPI):
     """SkyPortal interface to the Spectral Energy Distribution machine (SEDM)."""
 
     @staticmethod
-    def submit(request, session):
+    def submit(request, session, **kwargs):
         """Submit a follow-up request to SEDM.
 
         Parameters
@@ -189,12 +189,13 @@ class SEDMAPI(FollowUpAPI):
 
         session.add(transaction)
 
-        flow = Flow()
-        flow.push(
-            '*',
-            'skyportal/REFRESH_SOURCE',
-            payload={'obj_key': request.obj.internal_key},
-        )
+        if 'refresh_source' in kwargs and kwargs['refresh_source']:
+            flow = Flow()
+            flow.push(
+                '*',
+                'skyportal/REFRESH_SOURCE',
+                payload={'obj_key': request.obj.internal_key},
+            )
 
     @staticmethod
     def delete(request, session):

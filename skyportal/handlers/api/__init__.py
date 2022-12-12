@@ -34,6 +34,7 @@ from .earthquake import (
 from .enum_types import EnumTypesHandler
 from .filter import FilterHandler
 from .followup_request import (
+    DefaultFollowupRequestHandler,
     FollowupRequestHandler,
     FollowupRequestPrioritizationHandler,
     FollowupRequestSchedulerHandler,

@@ -76,6 +76,12 @@ class Allocation(Base):
         doc='The requests made against this allocation.',
         passive_deletes=True,
     )
+    default_requests = relationship(
+        'DefaultFollowupRequest',
+        back_populates='allocation',
+        doc='The default requests made against this allocation.',
+        passive_deletes=True,
+    )
     default_observation_plans = relationship(
         'DefaultObservationPlanRequest',
         back_populates='allocation',

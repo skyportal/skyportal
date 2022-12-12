@@ -415,7 +415,7 @@ class IOOAPI(LTAPI):
     """An interface to LT IOO operations."""
 
     @staticmethod
-    def submit(request, session):
+    def submit(request, session, **kwargs):
 
         """Submit a follow-up request to LT's IOO.
 
@@ -553,7 +553,7 @@ class IOIAPI(LTAPI):
     """An interface to LT IOI operations."""
 
     @staticmethod
-    def submit(request, session):
+    def submit(request, session, **kwargs):
 
         """Submit a follow-up request to LT's IOI.
 
@@ -690,7 +690,7 @@ class SPRATAPI(LTAPI):
     """An interface to LT SPRAT operations."""
 
     @staticmethod
-    def submit(request, session):
+    def submit(request, session, **kwargs):
 
         """Submit a follow-up request to LT's SPRAT.
 
