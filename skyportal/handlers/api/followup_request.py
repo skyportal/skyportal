@@ -1407,7 +1407,7 @@ class DefaultFollowupRequestHandler(BaseHandler):
     def post(self):
         """
         ---
-        description: Create default follow-up request requests.
+        description: Create default follow-up request.
         tags:
           - default_followup_request
         requestBody:
