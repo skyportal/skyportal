@@ -282,6 +282,16 @@ class AllocationHandler(BaseHandler):
             data = self.get_json()
             data['id'] = allocation_id
 
+            allocation_admin_ids = data.pop('allocation_admin_ids', None)
+            if allocation_admin_ids is not None:
+                allocation_admins = session.scalars(
+                    User.select(self.current_user).where(
+                        User.id.in_(allocation_admin_ids)
+                    )
+                ).all()
+            else:
+                allocation_admins = []
+
             schema = Allocation.__schema__()
             try:
                 schema.load(data, partial=True)
@@ -292,6 +302,16 @@ class AllocationHandler(BaseHandler):
 
             for k in data:
                 setattr(allocation, k, data[k])
+
+            for user in allocation_admins:
+                session.merge(user)
+
+            session.add_all(
+                [
+                    AllocationUser(allocation=allocation, user=user)
+                    for user in allocation_admins
+                ]
+            )
 
             session.commit()
             self.push_all(action='skyportal/REFRESH_ALLOCATIONS')

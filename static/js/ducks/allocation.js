@@ -12,8 +12,13 @@ const SUBMIT_ALLOCATION = "skyportal/SUBMIT_ALLOCATION";
 
 const DELETE_ALLOCATION = "skyportal/DELETE_ALLOCATION";
 
+const MODIFY_ALLOCATION = "skyportal/MODIFY_ALLOCATION";
+
 export const fetchAllocation = (id) =>
   API.GET(`/api/allocation/${id}`, FETCH_ALLOCATION);
+
+export const modifyAllocation = (id, run) =>
+  API.PUT(`/api/allocation/${id}`, MODIFY_ALLOCATION, run);
 
 export const submitAllocation = (run) =>
   API.POST(`/api/allocation`, SUBMIT_ALLOCATION, run);
