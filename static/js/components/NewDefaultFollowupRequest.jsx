@@ -152,7 +152,6 @@ const NewDefaultFollowupRequest = () => {
     );
   };
 
-
   const { formSchema, uiSchema } =
     instrumentFormParams[allocationLookUp[selectedAllocationId].instrument_id];
   formSchema.properties.default_followup_name = {
