@@ -1587,7 +1587,7 @@ class DefaultFollowupRequestHandler(BaseHandler):
 
             if default_followup_request is None:
                 return self.error(
-                    'Default follow-up request with ID {default_followup_request_id} is not available.'
+                    f'Default follow-up request with ID {default_followup_request_id} is not available.'
                 )
 
             session.delete(default_followup_request)
