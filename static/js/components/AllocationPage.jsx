@@ -105,6 +105,20 @@ export function observationPlanTitle(
   return result;
 }
 
+const userLabel = (user) => {
+  let label = user.username;
+  if (user.first_name && user.last_name) {
+    label = `${user.first_name} ${user.last_name} (${user.username})`;
+    if (user.contact_email) {
+      label = `${label} (${user.contact_email})`;
+    }
+    if (user.affiliations && user.affiliations.length > 0) {
+      label = `${label} (${user.affiliations.join()})`;
+    }
+  }
+  return label;
+};
+
 export function allocationTitle(allocation, instrumentList, telescopeList) {
   const { instrument_id } = allocation;
   const instrument = instrumentList?.filter((i) => i.id === instrument_id)[0];
@@ -143,6 +157,13 @@ export function allocationInfo(allocation, groups) {
     });
   }
 
+  const allocation_users = [];
+  if (allocation.allocation_users?.length > 0) {
+    allocation.allocation_users.forEach((user) => {
+      allocation_users.push(userLabel(user));
+    });
+  }
+
   const startDate = new Date(`${allocation.start_date}Z`).toLocaleString(
     "en-US",
     { hour12: false }
@@ -162,6 +183,9 @@ export function allocationInfo(allocation, groups) {
     }
     if (share_groups.length > 0) {
       result += ` / Default Share Groups: ${share_groups.join(", ")}`;
+    }
+    if (allocation_users.length > 0) {
+      result += ` / Admins: ${allocation_users.join(", ")}`;
     }
     result += ")";
   }

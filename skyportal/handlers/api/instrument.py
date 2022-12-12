@@ -464,7 +464,10 @@ class InstrumentHandler(BaseHandler):
             if inst_name is not None:
                 stmt = stmt.filter(Instrument.name == inst_name)
             instruments = session.scalars(stmt).all()
-            data = [instrument.to_dict() for instrument in instruments]
+            data = [
+                {**instrument.to_dict(), 'telescope': instrument.telescope.to_dict()}
+                for instrument in instruments
+            ]
             return self.success(data=data)
 
     @permissions(['Manage allocations'])

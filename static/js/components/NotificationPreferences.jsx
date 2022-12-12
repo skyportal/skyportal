@@ -95,7 +95,8 @@ const NotificationPreferences = () => {
       event.target.name === "mention" ||
       event.target.name === "favorite_sources" ||
       event.target.name === "facility_transactions" ||
-      event.target.name === "analysis_services"
+      event.target.name === "analysis_services" ||
+      event.target.name === "observation_plans"
     ) {
       prefs.notifications[event.target.name] = {
         active: event.target.checked,
@@ -390,6 +391,32 @@ const NotificationPreferences = () => {
         </FormGroup>
         {profile?.notifications?.mention?.active === true && (
           <NotificationSettingsSelect notificationResourceType="mention" />
+        )}
+      </div>
+      <div className={classes.pref}>
+        <FormGroup row className={classes.form_group}>
+          <FormControlLabel
+            control={
+              <Switch
+                checked={
+                  profile?.notifications?.observation_plans?.active === true
+                }
+                name="observation_plans"
+                onChange={prefToggled}
+              />
+            }
+            label="Observation Plans"
+          />
+          <Tooltip
+            title="This allows you to be notified for all completed observation plans for which you are an allocation admin."
+            placement="right"
+            classes={{ tooltip: classes.tooltip }}
+          >
+            <HelpOutlineOutlinedIcon />
+          </Tooltip>
+        </FormGroup>
+        {profile?.notifications?.observation_plans?.active === true && (
+          <NotificationSettingsSelect notificationResourceType="observation_plans" />
         )}
       </div>
     </div>

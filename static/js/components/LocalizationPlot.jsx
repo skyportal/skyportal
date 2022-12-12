@@ -35,9 +35,14 @@ const LocalizationPlot = ({
   const dispatch = useDispatch();
 
   useEffect(() => {
-    dispatch(
-      localizationActions.fetchLocalization(loc.dateobs, loc.localization_name)
-    );
+    if (loc) {
+      dispatch(
+        localizationActions.fetchLocalization(
+          loc.dateobs,
+          loc.localization_name
+        )
+      );
+    }
   }, [loc, dispatch]);
 
   if (!loc) {

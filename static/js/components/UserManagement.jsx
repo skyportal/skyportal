@@ -36,6 +36,7 @@ import Button from "./Button";
 
 import FormValidationError from "./FormValidationError";
 import UserInvitations from "./UserInvitations";
+import UpdateUsername from "./UpdateUsername";
 import * as groupsActions from "../ducks/groups";
 import * as usersActions from "../ducks/users";
 import * as streamsActions from "../ducks/streams";
@@ -349,6 +350,17 @@ const UserManagement = () => {
         {`${user.first_name ? user.first_name : ""} ${
           user.last_name ? user.last_name : ""
         }`}
+      </div>
+    );
+  };
+
+  // MUI DataTable functions
+  const renderUsername = (dataIndex) => {
+    const user = users[dataIndex];
+    return (
+      <div>
+        {`${user.username}`}
+        <UpdateUsername user={user} />
       </div>
     );
   };
@@ -740,6 +752,7 @@ const UserManagement = () => {
       options: {
         // Turn off default filtering for custom form
         filter: false,
+        customBodyRenderLite: renderUsername,
       },
     },
     {
