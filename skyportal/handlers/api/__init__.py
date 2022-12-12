@@ -120,6 +120,7 @@ from .source import (
     SourceOffsetsHandler,
     SourceFinderHandler,
     SourceNotificationHandler,
+    SourceObservabilityPlotHandler,
     PS1ThumbnailHandler,
 )
 from .source_exists import SourceExistsHandler

@@ -90,6 +90,11 @@ For more information on how to use the session, see `baselayer/doc/dev.md`.
 
 - Generic logic applicable to any model is included in the base model class `baselayer.app.models.Base` (`to_dict`, `__str__`, etc.), but can be overridden within a specific model
 - Models can be queried directly (`User.query.all()`), or more specific queries can be constructed via the session object (`DBSession().query(User.id).all()`)
+- A more modern way to interact with the models is using select statements: `Obj.select(current_user_id).where(Obj.id == 'ZTF20aahxjps')`
+- To get the actual objects create a session (either using `self.Session()` on the handler or using `DBSession()` which does not apply permissioning).
+  Then use the session: `session.execute(stmt).all()` or `session.scalars(stmt).all()`. The `scalars` is preferred when selecting whole objects or single columns.
+  The `execute` is better for getting multiple columns as tuples.
+- Best practice is to call the session as a context manager (i.e., `with self.Session() as session:`) but only if the session does not need to stay open.
 - Convenience functionality:
   - Join relationships: some multi-step relationships are defined through joins using the `secondary` parameter to eliminate queries from the intermediate table; e.g., `User.acls` instad of `[r.acls for r in User.roles]`
   - [Association proxies](http://docs.sqlalchemy.org/en/latest/orm/extensions/associationproxy.html): shortcut to some attribute of a related object; e.g., `User.permissions` instead of `[a.id for a in User.acls]`

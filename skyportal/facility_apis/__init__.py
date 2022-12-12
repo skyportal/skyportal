@@ -1,6 +1,7 @@
 # Generic Interfaces
 from .interface import FollowUpAPI, Listener
 from .observation_plan import MMAAPI, GenericRequest
+from .generic import GENERICAPI
 from .slack import SLACKAPI
 
 # Instrument Specific APIs
