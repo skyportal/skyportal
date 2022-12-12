@@ -119,7 +119,7 @@ class SEDMV2API(FollowUpAPI):
 
         session.add(transaction)
 
-        if 'refresh_source' in kwargs and kwargs['refresh_source']:
+        if kwargs.get('refresh_source', False):
             flow = Flow()
             flow.push(
                 '*',
