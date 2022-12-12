@@ -303,6 +303,14 @@ telescope:
     nickname: Rubin
     skycam_link: null
     =id: Rubin
+  - name: GROWTH-India Telescope
+    nickname: GIT-0p7m
+    lat: 32.77889
+    lon: 78.96472
+    robotic: true
+    elevation: 4500
+    diameter: 0.7
+    =id: GIT-0p7m
 
 instrument:
   - name: ZTF
@@ -471,6 +479,15 @@ instrument:
     #   file: ../data/LSST_Fields.csv
     field_fov_type: circle
     field_fov_attributes: 1.75
+  - band: optical
+    name: GIT
+    telescope_id: =GIT-0p7m
+    type: imager
+    =id: GIT
+    api_classname_obsplan: GROWTHINDIAMMAAPI
+    filters: ["sdssu", "sdssg", "sdssr", "sdssi", "sdssz"]
+    field_fov_type: rectangle
+    field_fov_attributes: [0.7,0.7]
 
 allocation:
   - pi: Michael Coughlin
@@ -599,6 +616,13 @@ allocation:
     hours_allocated: 100
     group_id: =program_A
     instrument_id: =LSST
+  - pi: Michael Coughlin
+    proposal_id: GIT-001
+    start_date: "3020-02-12T00:00:00"
+    end_date: "3020-07-12T00:00:00"
+    hours_allocated: 100
+    group_id: =program_A
+    instrument_id: =GIT
 
 galaxy_catalog:
   - catalog_name: CLU_mini
