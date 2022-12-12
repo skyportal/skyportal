@@ -83,7 +83,6 @@ const ClassificationRow = ({ classifications }) => {
   const permission =
     currentUser.permissions.includes("System admin") ||
     currentUser.permissions.includes("Manage groups") ||
-    // currentGroupUser?.admin ||
     isGroupAdmin ||
     currentUser.username === classification.author_name;
 
