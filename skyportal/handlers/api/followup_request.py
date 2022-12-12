@@ -1527,6 +1527,7 @@ class DefaultFollowupRequestHandler(BaseHandler):
                 default_followup_request = session.scalars(
                     DefaultFollowupRequest.select(
                         session.user_or_token,
+                        mode="update",
                         options=[joinedload(DefaultFollowupRequest.allocation)],
                     ).where(DefaultFollowupRequest.id == default_followup_request_id)
                 ).first()
@@ -1580,9 +1581,9 @@ class DefaultFollowupRequestHandler(BaseHandler):
 
         with self.Session() as session:
 
-            stmt = DefaultFollowupRequest.select(session.user_or_token).where(
-                DefaultFollowupRequest.id == default_followup_request_id
-            )
+            stmt = DefaultFollowupRequest.select(
+                session.user_or_token, mode="delete"
+            ).where(DefaultFollowupRequest.id == default_followup_request_id)
             default_followup_request = session.scalars(stmt).first()
 
             if default_followup_request is None:
