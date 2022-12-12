@@ -152,10 +152,6 @@ const NewDefaultFollowupRequest = () => {
     );
   };
 
-  console.log("instrumentList", instrumentList);
-  console.log("instrumentFormParams", instrumentFormParams);
-  console.log("allocationLookUp", allocationLookUp);
-  console.log("selectedAllocationId", selectedAllocationId);
 
   const { formSchema, uiSchema } =
     instrumentFormParams[allocationLookUp[selectedAllocationId].instrument_id];
