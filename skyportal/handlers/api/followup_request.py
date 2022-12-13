@@ -9,6 +9,7 @@ from tornado.ioloop import IOLoop
 import pandas as pd
 import tempfile
 import functools
+import json
 from scipy.stats import norm
 import sqlalchemy as sa
 from sqlalchemy import func
@@ -1474,6 +1475,16 @@ class DefaultFollowupRequestHandler(BaseHandler):
                 jsonschema.validate(payload, formSchema)
             except jsonschema.exceptions.ValidationError as e:
                 return self.error(f'Payload failed to validate: {e}', status=403)
+
+            if "source_filter" in data:
+                if not isinstance(data["source_filter"], dict):
+                    try:
+                        data["source_filter"] = data["source_filter"].replace("'", '"')
+                        data["source_filter"] = json.loads(data["source_filter"])
+                    except json.decoder.JSONDecodeError:
+                        return self.error(
+                            'Incorrect format for source_filter. Must be a json string.'
+                        )
 
             default_followup_request = DefaultFollowupRequest.__schema__().load(data)
             default_followup_request.target_groups = target_groups
