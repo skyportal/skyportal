@@ -160,6 +160,10 @@ jobs:
         run: |
           sed -i 's/timeout=60/timeout=180/g' baselayer/tools/test_frontend.py
 
+      - name: Patch Notifications.jsx for a longer display
+        run: |
+          sed -i 's/duration = 3000/duration = 15000/g' baselayer/static/js/components/Notifications.jsx
+
       - name: Run front-end tests part 1
         if: ${{ matrix.test_subset == 'frontend_pt1' }}
         run: |
