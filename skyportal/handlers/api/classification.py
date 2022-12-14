@@ -480,6 +480,55 @@ class ObjClassificationHandler(BaseHandler):
             )
             return self.success(data=classifications)
 
+    @auth_or_token
+    def delete(self, obj_id):
+        """
+        ---
+        description: Delete an object's classifications
+        tags:
+          - classifications
+          - sources
+        parameters:
+          - in: path
+            name: classification_id
+            required: true
+            schema:
+              type: integer
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+        """
+
+        with self.Session() as session:
+
+            classifications = (
+                session.scalars(
+                    Classification.select(session.user_or_token, mode="delete").where(
+                        Classification.obj_id == obj_id
+                    )
+                )
+                .unique()
+                .all()
+            )
+
+            for c in classifications:
+                obj_key = c.obj.internal_key
+                session.delete(c)
+            session.commit()
+
+            self.push_all(
+                action='skyportal/REFRESH_SOURCE',
+                payload={'obj_key': obj_key},
+            )
+            self.push_all(
+                action='skyportal/REFRESH_CANDIDATE',
+                payload={'id': obj_key},
+            )
+
+            return self.success()
+
 
 class ObjClassificationQueryHandler(BaseHandler):
     @auth_or_token
