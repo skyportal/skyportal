@@ -231,6 +231,9 @@ class AccessibleIfGroupUserIsAdminAndUserMatches(AccessibleIfUserMatches):
 accessible_by_group_admins = AccessibleIfGroupUserIsAdminAndUserMatches(
     'group.group_users.user'
 )
+accessible_by_groups_admins = AccessibleIfGroupUserIsAdminAndUserMatches(
+    'groups.group_users.user'
+)
 accessible_by_admins = AccessibleIfGroupUserIsAdminAndUserMatches('group_users.user')
 accessible_by_members = AccessibleIfUserMatches('users')
 accessible_by_stream_members = AccessibleIfUserMatches('stream.users')

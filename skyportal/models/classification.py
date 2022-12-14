@@ -5,7 +5,7 @@ from sqlalchemy.orm import relationship
 
 from baselayer.app.models import Base, AccessibleIfUserMatches
 
-from .group import accessible_by_groups_members
+from .group import accessible_by_groups_members, accessible_by_groups_admins
 from .taxonomy import ok_if_tax_and_obj_readable
 
 
@@ -14,7 +14,7 @@ class Classification(Base):
 
     create = ok_if_tax_and_obj_readable
     read = accessible_by_groups_members & ok_if_tax_and_obj_readable
-    update = delete = AccessibleIfUserMatches('author')
+    update = delete = accessible_by_groups_admins | AccessibleIfUserMatches('author')
 
     classification = sa.Column(
         sa.String, nullable=False, index=True, doc="The assigned class."
