@@ -103,6 +103,15 @@ def run_ngsf_model(data_dict):
         )
         return rez
 
+    if fix_z and np.ma.is_masked(z):
+        rez.update(
+            {
+                "status": "failure",
+                "message": "Need redshift if fixing redshift",
+            }
+        )
+        return rez
+
     # we will need to write to temp files
     # locally and then write their contents
     # to the results dictionary for uploading
@@ -122,8 +131,8 @@ def run_ngsf_model(data_dict):
         curl_command = f'curl -L -H "Content-Type: application/json" -H "User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/62.0.3202.94 Safari/537.36" -o {NGSF_zip} {NGSF_bank}'
         os.system(curl_command)
 
-        with zipfile.ZipFile(NGSF_zip, "r") as z:
-            z.extractall(SUPERFIT_PATH)
+        with zipfile.ZipFile(NGSF_zip, "r") as zp:
+            zp.extractall(SUPERFIT_PATH)
 
     if not os.path.isdir(SUPERFIT_DATA_PATH):
         os.makedirs(SUPERFIT_DATA_PATH)
