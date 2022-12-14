@@ -1249,7 +1249,7 @@ const SourceTable = ({
     serverSide: true,
     rowsPerPage: numPerPage,
     page: pageNumber - 1,
-    rowsPerPageOptions: [10, 25, 50, 75, 100, 200],
+    rowsPerPageOptions: [1, 5, 10, 25, 50, 75, 100, 200],
     jumpToPage: true,
     pagination: true,
     count: totalMatches,
