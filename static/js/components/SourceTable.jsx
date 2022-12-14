@@ -8,6 +8,7 @@ import TableRow from "@mui/material/TableRow";
 import IconButton from "@mui/material/IconButton";
 import Grid from "@mui/material/Grid";
 import Chip from "@mui/material/Chip";
+import DeleteIcon from "@mui/icons-material/Delete";
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 import MUIDataTable from "mui-datatables";
 import {
@@ -34,6 +35,7 @@ import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 
 import { isMobileOnly } from "react-device-detect";
+import { showNotification } from "baselayer/components/Notifications";
 import Button from "./Button";
 
 import { ra_to_hours, dec_to_dms, mjd_to_utc } from "../units";
@@ -49,6 +51,7 @@ import * as sourcesingcnActions from "../ducks/confirmedsourcesingcn";
 import { filterOutEmptyValues } from "../API";
 import { getAnnotationValueString } from "./ScanningPageCandidateAnnotations";
 import ConfirmSourceInGCN from "./ConfirmSourceInGCN";
+import ConfirmDeletionDialog from "./ConfirmDeletionDialog";
 
 const VegaSpectrum = React.lazy(() => import("./VegaSpectrum"));
 const VegaHR = React.lazy(() => import("./VegaHR"));
@@ -186,6 +189,17 @@ const useStyles = makeStyles((theme) => ({
     paddingTop: 0,
     paddingBottom: 0,
   },
+  classificationDelete: {
+    cursor: "pointer",
+    fontSize: "2em",
+    position: "absolute",
+    padding: 0,
+    right: 0,
+    top: 0,
+  },
+  classificationDeleteDisabled: {
+    opacity: 0,
+  },
 }));
 
 const getMuiTheme = (theme) =>
@@ -286,6 +300,142 @@ let defaultDisplayedColumns = [
   "Date Saved",
   "Finder",
 ];
+
+const RenderShowClassification = ({ source }) => {
+  const classes = useStyles();
+  const dispatch = useDispatch();
+
+  const { taxonomyList } = useSelector((state) => state.taxonomies);
+
+  const currentUser = useSelector((state) => state.profile);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [classificationSourceToDelete, setClassificationSourceToDelete] =
+    useState(null);
+  const openDialog = () => {
+    setDialogOpen(true);
+    setClassificationSourceToDelete(source.id);
+  };
+  const closeDialog = () => {
+    setDialogOpen(false);
+    setClassificationSourceToDelete(null);
+  };
+
+  const deleteClassifications = () => {
+    dispatch(
+      sourceActions.deleteClassifications(classificationSourceToDelete)
+    ).then((result) => {
+      if (result.status === "success") {
+        dispatch(showNotification("Classification deleted"));
+        closeDialog();
+      }
+    });
+  };
+
+  const permission =
+    currentUser.permissions.includes("System admin") ||
+    currentUser.permissions.includes("Manage groups");
+
+  return (
+    <div>
+      <Tooltip
+        key={`${source.id}`}
+        placement="top-end"
+        disableFocusListener
+        disableTouchListener
+        title={
+          <>
+            <Button
+              key={source.id}
+              id="delete_classifications"
+              classes={{
+                root: classes.classificationDelete,
+                disabled: classes.classificationDeleteDisabled,
+              }}
+              onClick={() => openDialog(source.id)}
+              disabled={!permission}
+            >
+              <DeleteIcon />
+            </Button>
+            <ConfirmDeletionDialog
+              deleteFunction={deleteClassifications}
+              dialogOpen={dialogOpen}
+              closeDialog={closeDialog}
+              resourceName="classifications"
+            />
+          </>
+        }
+      >
+        <div>
+          <ShowClassification
+            classifications={source.classifications}
+            taxonomyList={taxonomyList}
+            shortened
+          />
+        </div>
+      </Tooltip>
+    </div>
+  );
+};
+
+RenderShowClassification.propTypes = {
+  source: PropTypes.shape({
+    id: PropTypes.string,
+    ra: PropTypes.number,
+    dec: PropTypes.number,
+    gal_lon: PropTypes.number,
+    gal_lat: PropTypes.number,
+    origin: PropTypes.string,
+    alias: PropTypes.arrayOf(PropTypes.string),
+    redshift: PropTypes.number,
+    annotations: PropTypes.arrayOf(
+      PropTypes.shape({
+        origin: PropTypes.string.isRequired,
+        data: PropTypes.object.isRequired, // eslint-disable-line react/forbid-prop-types
+        author: PropTypes.shape({
+          username: PropTypes.string.isRequired,
+        }).isRequired,
+        created_at: PropTypes.string.isRequired,
+      })
+    ).isRequired,
+    classifications: PropTypes.arrayOf(
+      PropTypes.shape({
+        id: PropTypes.number,
+        classification: PropTypes.string,
+        created_at: PropTypes.string,
+        groups: PropTypes.arrayOf(
+          PropTypes.shape({
+            id: PropTypes.number,
+            name: PropTypes.string,
+          })
+        ),
+      })
+    ),
+    altdata: PropTypes.shape({
+      tns: PropTypes.shape({
+        name: PropTypes.string,
+      }),
+    }),
+    spectrum_exists: PropTypes.bool,
+    last_detected_at: PropTypes.string,
+    last_detected_mag: PropTypes.number,
+    peak_detected_at: PropTypes.string,
+    peak_detected_mag: PropTypes.number,
+    groups: PropTypes.arrayOf(
+      PropTypes.shape({
+        id: PropTypes.number,
+        name: PropTypes.string,
+      })
+    ),
+    photstats: PropTypes.arrayOf(
+      PropTypes.shape({
+        peak_mag_global: PropTypes.number,
+        peak_mjd_global: PropTypes.number,
+        last_detected_mag: PropTypes.number,
+        last_detected_mjd: PropTypes.number,
+      })
+    ),
+  }).isRequired,
+};
 
 // MUI data table with pull out rows containing a summary of each source.
 // This component is used in GroupSources, SourceList and Favorites page.
@@ -702,11 +852,9 @@ const SourceTable = ({
           </div>
         }
       >
-        <ShowClassification
-          classifications={source.classifications}
-          taxonomyList={taxonomyList}
-          shortened
-        />
+        <div>
+          <RenderShowClassification source={source} />
+        </div>
       </Suspense>
     );
   };
@@ -940,9 +1088,9 @@ const SourceTable = ({
 
     // Remove empty position
     if (
-      formData.position.ra === "" &&
-      formData.position.dec === "" &&
-      formData.position.radius === ""
+      !formData.position.ra &&
+      !formData.position.dec &&
+      !formData.position.radius
     ) {
       delete formData.position;
     }
@@ -1247,7 +1395,7 @@ const SourceTable = ({
     serverSide: true,
     rowsPerPage: numPerPage,
     page: pageNumber - 1,
-    rowsPerPageOptions: [10, 25, 50, 75, 100, 200],
+    rowsPerPageOptions: [1, 5, 10, 25, 50, 75, 100, 200],
     jumpToPage: true,
     pagination: true,
     count: totalMatches,
