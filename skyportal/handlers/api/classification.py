@@ -484,7 +484,7 @@ class ObjClassificationHandler(BaseHandler):
     def delete(self, obj_id):
         """
         ---
-        description: Delete an object's classifications
+        description: Delete all of an object's classifications
         tags:
           - classifications
           - sources
