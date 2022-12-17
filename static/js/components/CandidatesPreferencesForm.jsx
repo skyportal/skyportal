@@ -10,6 +10,7 @@ import Input from "@mui/material/Input";
 import InputLabel from "@mui/material/InputLabel";
 import TextField from "@mui/material/TextField";
 import FormControlLabel from "@mui/material/FormControlLabel";
+import Checkbox from "@mui/material/Checkbox";
 import SaveIcon from "@mui/icons-material/Save";
 
 import makeStyles from "@mui/styles/makeStyles";
@@ -537,7 +538,7 @@ const CandidatesPreferencesForm = ({
                 control={
                   <Controller
                     render={({ field: { onChange, value } }) => (
-                      <heckbox
+                      <Checkbox
                         onChange={(event) => {
                           onChange(event.target.checked);
                         }}
