@@ -44,6 +44,7 @@ const addFilterParamDefaults = (filterParams) => {
   filterParams.includeColorMagnitude = true;
   filterParams.includeThumbnails = true;
   filterParams.includeDetectionStats = true;
+  filterParams.includeScanners = true;
 };
 
 export function fetchSources(filterParams = {}) {

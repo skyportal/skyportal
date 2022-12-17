@@ -2,10 +2,12 @@ import React, { Suspense, useState, useEffect } from "react";
 import PropTypes from "prop-types";
 import { useSelector, useDispatch } from "react-redux";
 import { Link, useNavigate } from "react-router-dom";
+import { useForm, Controller } from "react-hook-form";
 
 import TableCell from "@mui/material/TableCell";
 import TableRow from "@mui/material/TableRow";
 import IconButton from "@mui/material/IconButton";
+import FormControlLabel from "@mui/material/FormControlLabel";
 import Grid from "@mui/material/Grid";
 import Chip from "@mui/material/Chip";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -19,6 +21,7 @@ import {
   adaptV4Theme,
 } from "@mui/material/styles";
 import makeStyles from "@mui/styles/makeStyles";
+import Checkbox from "@mui/material/Checkbox";
 import CheckIcon from "@mui/icons-material/Check";
 import ClearIcon from "@mui/icons-material/Clear";
 import InfoIcon from "@mui/icons-material/Info";
@@ -432,6 +435,124 @@ RenderShowClassification.propTypes = {
         peak_mjd_global: PropTypes.number,
         last_detected_mag: PropTypes.number,
         last_detected_mjd: PropTypes.number,
+      })
+    ),
+  }).isRequired,
+};
+
+const RenderShowScanning = ({ source }) => {
+  const dispatch = useDispatch();
+
+  const { control } = useForm();
+
+  const currentUser = useSelector((state) => state.profile);
+
+  const scannedSource = (checked) => {
+    const groupIds = [];
+    source.groups?.forEach((g) => {
+      groupIds.push(g.id);
+    });
+
+    if (checked === true) {
+      dispatch(sourceActions.addSourceScans(source.id, { groupIds }));
+    } else {
+      dispatch(sourceActions.deleteSourceScans(source.id, { groupIds }));
+    }
+  };
+
+  const scannerUsernames = source.scanners
+    ? source.scanners.map((s) => s.username)
+    : [];
+  const defaultChecked = scannerUsernames.includes(currentUser.username);
+
+  return (
+    <div>
+      <FormControlLabel
+        key={source.id}
+        control={
+          <Controller
+            render={({ field: { onChange, value } }) => (
+              <Checkbox
+                onChange={(event) => {
+                  onChange(event.target.checked);
+                  scannedSource(event.target.checked);
+                }}
+                checked={value}
+                data-testid={`scanningCheckBox${source.id}`}
+              />
+            )}
+            name={`scanningCheckBox${source.id}`}
+            control={control}
+            defaultValue={defaultChecked}
+          />
+        }
+        label={`Scanned By:  ${scannerUsernames.join(",")}`}
+      />
+    </div>
+  );
+};
+
+RenderShowScanning.propTypes = {
+  source: PropTypes.shape({
+    id: PropTypes.string,
+    ra: PropTypes.number,
+    dec: PropTypes.number,
+    gal_lon: PropTypes.number,
+    gal_lat: PropTypes.number,
+    origin: PropTypes.string,
+    alias: PropTypes.arrayOf(PropTypes.string),
+    redshift: PropTypes.number,
+    annotations: PropTypes.arrayOf(
+      PropTypes.shape({
+        origin: PropTypes.string.isRequired,
+        data: PropTypes.object.isRequired, // eslint-disable-line react/forbid-prop-types
+        author: PropTypes.shape({
+          username: PropTypes.string.isRequired,
+        }).isRequired,
+        created_at: PropTypes.string.isRequired,
+      })
+    ).isRequired,
+    classifications: PropTypes.arrayOf(
+      PropTypes.shape({
+        id: PropTypes.number,
+        classification: PropTypes.string,
+        created_at: PropTypes.string,
+        groups: PropTypes.arrayOf(
+          PropTypes.shape({
+            id: PropTypes.number,
+            name: PropTypes.string,
+          })
+        ),
+      })
+    ),
+    altdata: PropTypes.shape({
+      tns: PropTypes.shape({
+        name: PropTypes.string,
+      }),
+    }),
+    spectrum_exists: PropTypes.bool,
+    last_detected_at: PropTypes.string,
+    last_detected_mag: PropTypes.number,
+    peak_detected_at: PropTypes.string,
+    peak_detected_mag: PropTypes.number,
+    groups: PropTypes.arrayOf(
+      PropTypes.shape({
+        id: PropTypes.number,
+        name: PropTypes.string,
+      })
+    ),
+    photstats: PropTypes.arrayOf(
+      PropTypes.shape({
+        peak_mag_global: PropTypes.number,
+        peak_mjd_global: PropTypes.number,
+        last_detected_mag: PropTypes.number,
+        last_detected_mjd: PropTypes.number,
+      })
+    ),
+    scanners: PropTypes.arrayOf(
+      PropTypes.shape({
+        id: PropTypes.number,
+        username: PropTypes.string,
       })
     ),
   }).isRequired,
@@ -859,6 +980,24 @@ const SourceTable = ({
     );
   };
 
+  const renderScanning = (dataIndex) => {
+    const source = sources[dataIndex];
+
+    return (
+      <Suspense
+        fallback={
+          <div>
+            <CircularProgress color="secondary" />
+          </div>
+        }
+      >
+        <div>
+          <RenderShowScanning source={source} />
+        </div>
+      </Suspense>
+    );
+  };
+
   // helper function to get the source groups
   const getGroups = (source) => source.groups?.filter((group) => group.active);
   const navigate = useNavigate();
@@ -1281,6 +1420,17 @@ const SourceTable = ({
         sortThirdClickReset: true,
         display: displayedColumns.includes("Classification"),
         customBodyRenderLite: renderClassification,
+      },
+    },
+    {
+      name: "scanning",
+      label: "Scanning",
+      options: {
+        filter: false,
+        sort: true,
+        sortThirdClickReset: true,
+        display: displayedColumns.includes("Scanning"),
+        customBodyRenderLite: renderScanning,
       },
     },
     {

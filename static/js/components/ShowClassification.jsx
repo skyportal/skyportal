@@ -4,6 +4,8 @@ import PropTypes from "prop-types";
 import Tooltip from "@mui/material/Tooltip";
 import Chip from "@mui/material/Chip";
 import DeleteIcon from "@mui/icons-material/Delete";
+import ThumbUp from "@mui/icons-material/ThumbUp";
+import ThumbDown from "@mui/icons-material/ThumbDown";
 import makeStyles from "@mui/styles/makeStyles";
 
 import { showNotification } from "baselayer/components/Notifications";
@@ -67,6 +69,16 @@ const ClassificationRow = ({ classifications }) => {
     setClassificationToDelete(null);
   };
 
+  const addVote = (classification_id, vote) => {
+    dispatch(
+      sourceActions.addClassificationVote(classification_id, { vote })
+    ).then((result) => {
+      if (result.status === "success") {
+        dispatch(showNotification("Vote registered"));
+      }
+    });
+  };
+
   const deleteClassification = () => {
     dispatch(sourceActions.deleteClassification(classificationToDelete)).then(
       (result) => {
@@ -79,6 +91,29 @@ const ClassificationRow = ({ classifications }) => {
   };
 
   const classification = classifications[0];
+
+  const upvoterIds = [];
+  const downvoterIds = [];
+  let upvoteValue = 1;
+  let downvoteValue = -1;
+  let upvoteColor = "action";
+  let downvoteColor = "action";
+
+  classification.votes?.forEach((s) => {
+    if (s.vote === 1) {
+      upvoterIds.push(s.id);
+      if (s.voter_id === currentUser.id) {
+        upvoteValue = 0;
+        upvoteColor = "disabled";
+      }
+    } else if (s.vote === -1) {
+      downvoterIds.push(s.id);
+      if (s.voter_id === currentUser.id) {
+        downvoteValue = 0;
+        downvoteColor = "disabled";
+      }
+    }
+  });
 
   const permission =
     currentUser.permissions.includes("System admin") ||
@@ -128,6 +163,26 @@ const ClassificationRow = ({ classifications }) => {
                 resourceName="classification"
               />
             </div>
+            <div>
+              <Button
+                key={classification.id}
+                id="down_vote"
+                onClick={() => addVote(classification.id, downvoteValue)}
+              >
+                <ThumbDown color={downvoteColor} />
+                <p> {` ${downvoterIds.length} votes`} </p>
+              </Button>
+            </div>
+            <div>
+              <Button
+                key={classification.id}
+                id="add_vote"
+                onClick={() => addVote(classification.id, upvoteValue)}
+              >
+                <ThumbUp color={upvoteColor} />
+                <p> {` ${upvoterIds.length} votes`} </p>
+              </Button>
+            </div>
           </div>
         }
       >
@@ -159,6 +214,12 @@ ClassificationRow.propTypes = {
         PropTypes.shape({
           id: PropTypes.number,
           name: PropTypes.string,
+        })
+      ),
+      votes: PropTypes.arrayOf(
+        PropTypes.shape({
+          id: PropTypes.number,
+          vote: PropTypes.number,
         })
       ),
     })

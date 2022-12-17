@@ -6,7 +6,7 @@ from baselayer.app.access import permissions, auth_or_token
 from baselayer.app.flow import Flow
 
 from ..base import BaseHandler
-from ...models import Group, Classification, Taxonomy, Obj, User
+from ...models import Group, Classification, ClassificationVote, Taxonomy, Obj, User
 
 DEFAULT_CLASSIFICATIONS_PER_PAGE = 100
 MAX_CLASSIFICATIONS_PER_PAGE = 500
@@ -478,7 +478,16 @@ class ObjClassificationHandler(BaseHandler):
                 .unique()
                 .all()
             )
-            return self.success(data=classifications)
+
+            classifications_json = []
+            for classification in classifications:
+                classification_dict = classification.to_dict()
+                classification_dict['votes'] = [
+                    g.to_dict() for g in classification.votes
+                ]
+                classifications_json.append(classification_dict)
+
+            return self.success(data=classifications_json)
 
     @auth_or_token
     def delete(self, obj_id):
@@ -603,3 +612,125 @@ class ObjClassificationQueryHandler(BaseHandler):
             obj_ids = session.scalars(stmt.distinct()).all()
 
             return self.success(data=obj_ids)
+
+
+class ClassificationVotesHandler(BaseHandler):
+    @auth_or_token
+    def post(self, classification_id):
+        """
+        ---
+        description: Vote for a classification.
+        tags:
+          - classifications
+          - classification_votes
+        parameters:
+          - in: path
+            name: classification_id
+            required: true
+            schema:
+              type: string
+            description: |
+              ID of classification to indicate the vote for
+        requestBody:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  vote:
+                    type: integer
+                    description: |
+                      Upvote or downvote a classification
+                required:
+                  - vote
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+        """
+
+        data = self.get_json()
+        vote = data.get("vote")
+        if vote is None:
+            return self.error("Missing required parameter: `vote`")
+
+        with self.Session() as session:
+            classification = session.scalars(
+                Classification.select(session.user_or_token).where(
+                    Classification.id == classification_id
+                )
+            ).first()
+            if classification is None:
+                return self.error(
+                    f"Cannot find classification with ID {classification_id}"
+                )
+
+            classification_vote = session.scalars(
+                ClassificationVote.select(session.user_or_token).where(
+                    ClassificationVote.classification_id == classification_id
+                )
+            ).first()
+            if classification_vote is None:
+                new_vote = ClassificationVote(
+                    classification_id=classification_id,
+                    voter_id=self.associated_user_object.id,
+                    vote=vote,
+                )
+                session.add(new_vote)
+            else:
+                classification_vote.vote = vote
+            session.commit()
+
+            self.push_all(
+                action="skyportal/REFRESH_SOURCE",
+                payload={"obj_key": classification.obj.internal_key},
+            )
+            return self.success()
+
+    @auth_or_token
+    def delete(self, classification_id):
+        """
+        ---
+        description: Delete classification vote.
+        tags:
+          - classifications
+          - classification_votes
+        parameters:
+          - in: path
+            name: classification_id
+            required: true
+            schema:
+              type: string
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+        """
+
+        with self.Session() as session:
+            classification = session.scalars(
+                Classification.select(session.user_or_token).where(
+                    Classification.id == classification_id
+                )
+            ).first()
+            if classification is None:
+                return self.error(
+                    f"Cannot find classification with ID {classification_id}"
+                )
+
+            classification_vote = session.scalars(
+                ClassificationVote.select(session.user_or_token, mode="delete").where(
+                    ClassificationVote.classification_id == classification_id
+                )
+            ).first()
+            session.delete(classification_vote)
+            session.commit()
+
+            self.push_all(
+                action="skyportal/REFRESH_SOURCE",
+                payload={"obj_key": classification.obj.internal_key},
+            )
+
+            return self.success()

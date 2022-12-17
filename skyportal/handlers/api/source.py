@@ -68,6 +68,7 @@ from ...models import (
     Listing,
     PhotStat,
     Spectrum,
+    SourceScan,
     SourceView,
     SourcesConfirmedInGCN,
     Telescope,
@@ -109,6 +110,7 @@ def get_source(
     include_spectrum_exists=False,
     include_period_exists=False,
     include_detection_stats=False,
+    include_scanners=False,
     is_token_request=False,
     include_requested=False,
     requested_only=False,
@@ -240,6 +242,24 @@ def get_source(
                 for period_str in period_str_options
             ]
         )
+    if include_scanners:
+        scans_subquery = (
+            SourceScan.select(session.user_or_token)
+            .where(SourceScan.obj_id == obj_id)
+            .subquery()
+        )
+
+        users = (
+            session.scalars(
+                User.select(session.user_or_token).join(
+                    scans_subquery,
+                    User.id == scans_subquery.c.scanner_id,
+                )
+            )
+            .unique()
+            .all()
+        )
+        source_info["scanners"] = [user.to_dict() for user in users]
 
     source_info["annotations"] = sorted(
         session.scalars(
@@ -263,6 +283,7 @@ def get_source(
     for classification in readable_classifications:
         classification_dict = classification.to_dict()
         classification_dict['groups'] = [g.to_dict() for g in classification.groups]
+        classification_dict['votes'] = [g.to_dict() for g in classification.votes]
         readable_classifications_json.append(classification_dict)
 
     source_info["classifications"] = readable_classifications_json
@@ -358,6 +379,7 @@ def get_sources(
     include_spectrum_exists=False,
     include_period_exists=False,
     include_detection_stats=False,
+    include_scanners=False,
     is_token_request=False,
     include_requested=False,
     requested_only=False,
@@ -1141,6 +1163,9 @@ def get_sources(
                     classification_dict['groups'] = [
                         g.to_dict() for g in classification.groups
                     ]
+                    classification_dict['votes'] = [
+                        g.to_dict() for g in classification.votes
+                    ]
                     readable_classifications_json.append(classification_dict)
 
                 obj_list[-1]["classifications"] = readable_classifications_json
@@ -1161,6 +1186,25 @@ def get_sources(
             obj_list[-1]["luminosity_distance"] = obj.luminosity_distance
             obj_list[-1]["dm"] = obj.dm
             obj_list[-1]["angular_diameter_distance"] = obj.angular_diameter_distance
+            if include_scanners:
+                scans_subquery = (
+                    SourceScan.select(session.user_or_token)
+                    .where(SourceScan.obj_id == obj.id)
+                    .subquery()
+                )
+
+                users = (
+                    session.scalars(
+                        User.select(session.user_or_token).join(
+                            scans_subquery,
+                            User.id == scans_subquery.c.scanner_id,
+                        )
+                    )
+                    .unique()
+                    .all()
+                )
+
+                obj_list[-1]["scanners"] = [user.to_dict() for user in users]
 
             if include_photometry_exists:
                 stmt = Photometry.select(session.user_or_token).where(
@@ -1794,6 +1838,13 @@ class SourceHandler(BaseHandler):
             description: |
               Boolean indicating whether to return if a source has a spectra. Defaults to false.
           - in: query
+            name: includeScanners
+            nullable: true
+            schema:
+              type: boolean
+            description: |
+              Boolean indicating whether to return marked source scanners. Defaults to false.
+          - in: query
             name: removeNested
             nullable: true
             schema:
@@ -2079,6 +2130,7 @@ class SourceHandler(BaseHandler):
             "includeSpectrumExists", False
         )
         include_period_exists = self.get_query_argument("includePeriodExists", False)
+        include_scanners = self.get_query_argument("includeScanners", False)
         remove_nested = self.get_query_argument("removeNested", False)
         include_detection_stats = self.get_query_argument(
             "includeDetectionStats", False
@@ -2229,6 +2281,7 @@ class SourceHandler(BaseHandler):
                         include_spectrum_exists=include_spectrum_exists,
                         include_period_exists=include_period_exists,
                         include_detection_stats=include_detection_stats,
+                        include_scanners=include_scanners,
                         is_token_request=is_token_request,
                         include_requested=include_requested,
                         requested_only=requested_only,
@@ -2258,6 +2311,7 @@ class SourceHandler(BaseHandler):
                     include_spectrum_exists=include_spectrum_exists,
                     include_period_exists=include_period_exists,
                     include_detection_stats=include_detection_stats,
+                    include_scanners=include_scanners,
                     is_token_request=is_token_request,
                     include_requested=include_requested,
                     requested_only=requested_only,
