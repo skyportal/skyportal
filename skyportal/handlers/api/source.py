@@ -1,4 +1,12 @@
+import astropy
+from astropy.coordinates import EarthLocation
 from astropy.time import Time
+from astroplan import (
+    AirmassConstraint,
+    AtNightConstraint,
+    Observer,
+    is_event_observable,
+)
 import datetime
 from json.decoder import JSONDecodeError
 import astropy.units as u
@@ -8,6 +16,7 @@ from twilio.base.exceptions import TwilioException
 from tornado.ioloop import IOLoop
 import io
 from dateutil.parser import isoparse
+import numpy as np
 import sqlalchemy as sa
 from sqlalchemy.orm import joinedload
 from sqlalchemy import func, or_, distinct
@@ -16,6 +25,8 @@ from sqlalchemy.sql.expression import cast
 import arrow
 from marshmallow import Schema, fields
 from marshmallow.exceptions import ValidationError
+from matplotlib import dates
+import matplotlib.pyplot as plt
 import operator  # noqa: F401
 import functools
 import conesearch_alchemy as ca
@@ -59,6 +70,7 @@ from ...models import (
     Spectrum,
     SourceView,
     SourcesConfirmedInGCN,
+    Telescope,
 )
 from ...utils.offset import (
     get_nearby_offset_stars,
@@ -3039,3 +3051,115 @@ class PS1ThumbnailHandler(BaseHandler):
             )
         )
         return self.success()
+
+
+class SourceObservabilityPlotHandler(BaseHandler):
+    @auth_or_token
+    async def get(self, obj_id):
+        """
+        ---
+        description: Create a summary plot for the observability for a given source.
+        tags:
+          - localizations
+        parameters:
+          - in: path
+            name: obj_id
+            required: true
+            schema:
+              type: string
+            description: |
+              ID of object to generate observability plot for
+          - in: query
+            name: maximumAirmass
+            nullable: true
+            schema:
+              type: number
+            description: |
+              Maximum airmass to consider. Defaults to 2.5.
+          - in: query
+            name: twilight
+            nullable: true
+            schema:
+              type: string
+            description: |
+                Twilight definition. Choices are astronomical (-18 degrees), nautical (-12 degrees), and civil (-6 degrees).
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+        """
+
+        max_airmass = self.get_query_argument("maxAirmass", 2.5)
+        twilight = self.get_query_argument("twilight", "astronomical")
+
+        with self.Session() as session:
+
+            stmt = Telescope.select(self.current_user)
+            telescopes = session.scalars(stmt).all()
+
+            stmt = Obj.select(self.current_user).where(Obj.id == obj_id)
+            source = session.scalars(stmt).first()
+            coords = astropy.coordinates.SkyCoord(source.ra, source.dec, unit='deg')
+
+            trigger_time = Time.now()
+            times = trigger_time + np.linspace(0, 1) * u.day
+
+            observers = []
+            for telescope in telescopes:
+                if not telescope.fixed_location:
+                    continue
+                location = EarthLocation(
+                    lon=telescope.lon * u.deg,
+                    lat=telescope.lat * u.deg,
+                    height=(telescope.elevation or 0) * u.m,
+                )
+
+                observers.append(Observer(location, name=telescope.nickname))
+            observers = list(reversed(observers))
+
+            constraints = [
+                getattr(AtNightConstraint, f'twilight_{twilight}')(),
+                AirmassConstraint(max_airmass),
+            ]
+
+            output_format = 'pdf'
+            fig = plt.figure(figsize=(14, 10))
+            width, height = fig.get_size_inches()
+            fig.set_size_inches(width, (len(observers) + 1) / 16 * width)
+            ax = plt.axes()
+            locator = dates.AutoDateLocator()
+            formatter = dates.DateFormatter('%H:%M')
+            ax.set_xlim([times[0].plot_date, times[-1].plot_date])
+            ax.xaxis.set_major_formatter(formatter)
+            ax.xaxis.set_major_locator(locator)
+            ax.set_xlabel(f"Time from {min(times).datetime.date()} [UTC]")
+            plt.setp(ax.get_xticklabels(), rotation=30, ha='right')
+            ax.set_yticks(np.arange(len(observers)))
+            ax.set_yticklabels([observer.name for observer in observers])
+            ax.yaxis.set_tick_params(left=False)
+            ax.grid(axis='x')
+            ax.spines['bottom'].set_visible(False)
+            ax.spines['top'].set_visible(False)
+
+            for i, observer in enumerate(observers):
+                observable = 100 * np.dot(
+                    1.0, is_event_observable(constraints, observer, coords, times)
+                )
+                ax.contourf(
+                    times.plot_date,
+                    [i - 0.4, i + 0.4],
+                    np.tile(observable, (2, 1)),
+                    levels=np.arange(10, 110, 10),
+                    cmap=plt.get_cmap().reversed(),
+                )
+
+            buf = io.BytesIO()
+            fig.savefig(buf, format=output_format, bbox_inches='tight')
+            plt.close(fig)
+            buf.seek(0)
+
+            filename = f"observability.{output_format}"
+            data = io.BytesIO(buf.read())
+
+            await self.send_file(data, filename, output_type=output_format)

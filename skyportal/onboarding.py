@@ -1,4 +1,5 @@
 import datetime
+import sqlalchemy as sa
 
 from .models import (
     DBSession,
@@ -23,81 +24,80 @@ USER_FIELDS = ["username", "email"]
 
 def create_user(strategy, details, backend, uid, user=None, *args, **kwargs):
     invite_token = strategy.session_get("invite_token")
-    with DBSession() as session:
-        try:
-            existing_user = session.query(User).filter(User.oauth_uid == uid).first()
 
-            if cfg["invitations.enabled"]:
+    try:
+        existing_user = DBSession().query(User).filter(User.oauth_uid == uid).first()
 
-                if existing_user is None and invite_token is None:
-                    raise Exception(
-                        "Authentication Error: Missing invite token. A valid invite token is required."
-                    )
-                elif existing_user is not None:
-                    return {"is_new": False, "user": existing_user}
+        if cfg["invitations.enabled"]:
 
-                try:
-                    n_days = int(cfg["invitations.days_until_expiry"])
-                except TypeError:
-                    raise TypeError(
-                        "Invalid invitation configuration value: invitations.days_until_expiry cannot be cast to int"
-                    )
-
-                invitation = (
-                    session.query(Invitation)
-                    .filter(Invitation.token == invite_token)
-                    .first()
+            if existing_user is None and invite_token is None:
+                raise Exception(
+                    "Authentication Error: Missing invite token. A valid invite token is required."
                 )
-                if invitation is None:
-                    raise Exception(
-                        "Authentication Error: Invalid invite token. A valid invite token is required."
-                    )
+            elif existing_user is not None:
+                return {"is_new": False, "user": existing_user}
 
-                cutoff_datetime = datetime.datetime.now() - datetime.timedelta(
-                    days=n_days
+            try:
+                n_days = int(cfg["invitations.days_until_expiry"])
+            except TypeError:
+                raise TypeError(
+                    "Invalid invitation configuration value: invitations.days_until_expiry cannot be cast to int"
                 )
-                if invitation.created_at < cutoff_datetime:
-                    raise Exception("Authentication Error: Invite token expired.")
-                if invitation.used:
-                    raise Exception(
-                        "Authentication Error: Invite token has already been used."
-                    )
 
-                user = User(
-                    username=details["username"],
-                    contact_email=details["email"],
-                    first_name=details["first_name"],
-                    last_name=details["last_name"],
-                    oauth_uid=uid,
-                    expiration_date=invitation.user_expiration_date,
+            invitation = (
+                DBSession()
+                .query(Invitation)
+                .filter(Invitation.token == invite_token)
+                .first()
+            )
+            if invitation is None:
+                raise Exception(
+                    "Authentication Error: Invalid invite token. A valid invite token is required."
                 )
-                user.roles.append(invitation.role)
-                session.add(user)
-                session.flush()
-                set_default_acls(user, session)
-                session.commit()
-                return {"is_new": True, "user": user}
-            elif not cfg["invitations.enabled"]:
-                if existing_user is not None:
-                    return {"is_new": False, "user": existing_user}
 
-                if user is not None:  # Matching user already exists
-                    return {"is_new": False, "user": user}
+            cutoff_datetime = datetime.datetime.now() - datetime.timedelta(days=n_days)
+            if invitation.created_at < cutoff_datetime:
+                raise Exception("Authentication Error: Invite token expired.")
+            if invitation.used:
+                raise Exception(
+                    "Authentication Error: Invite token has already been used."
+                )
 
-                # No matching user exists; create a new user
-                fields = {
-                    name: kwargs.get(name, details.get(name))
-                    for name in backend.setting("USER_FIELDS", USER_FIELDS)
-                }
-                user = strategy.create_user(**fields, **{"oauth_uid": uid})
-                set_default_role(user, session)
-                set_default_acls(user, session)
-                set_default_group(user, session)
-                session.commit()
-                return {"is_new": True, "user": user}
-        except Exception as e:
-            session.rollback()
-            raise e
+            user = User(
+                username=details["username"],
+                contact_email=details["email"],
+                first_name=details["first_name"],
+                last_name=details["last_name"],
+                oauth_uid=uid,
+                expiration_date=invitation.user_expiration_date,
+            )
+            user.roles.append(invitation.role)
+            DBSession().add(user)
+            DBSession().flush()
+            set_default_acls(user, DBSession())
+            DBSession().commit()
+            return {"is_new": True, "user": user}
+        elif not cfg["invitations.enabled"]:
+            if existing_user is not None:
+                return {"is_new": False, "user": existing_user}
+
+            if user is not None:  # Matching user already exists
+                return {"is_new": False, "user": user}
+
+            # No matching user exists; create a new user
+            fields = {
+                name: kwargs.get(name, details.get(name))
+                for name in backend.setting("USER_FIELDS", USER_FIELDS)
+            }
+            user = strategy.create_user(**fields, **{"oauth_uid": uid})
+            set_default_role(user, DBSession())
+            set_default_acls(user, DBSession())
+            set_default_group(user, DBSession())
+            DBSession().commit()
+            return {"is_new": True, "user": user}
+    except Exception as e:
+        DBSession().rollback()
+        raise e
 
 
 def get_username(strategy, details, backend, uid, user=None, *args, **kwargs):
@@ -105,7 +105,9 @@ def get_username(strategy, details, backend, uid, user=None, *args, **kwargs):
         raise Exception("PSA configuration error: `username` not properly captured.")
     storage = strategy.storage
 
-    existing_user = DBSession().query(User).filter(User.oauth_uid == uid).first()
+    existing_user = (
+        DBSession().scalars(sa.select(User).where(User.oauth_uid == uid)).first()
+    )
 
     if not user and existing_user is None:
         email_as_username = strategy.setting('USERNAME_IS_FULL_EMAIL', False)
@@ -125,7 +127,9 @@ def setup_invited_user_permissions(strategy, uid, details, user, *args, **kwargs
     if not cfg["invitations.enabled"]:
         return
 
-    existing_user = DBSession().query(User).filter(User.oauth_uid == uid).first()
+    existing_user = (
+        DBSession().scalars(sa.select(User).where(User.oauth_uid == uid)).first()
+    )
 
     invite_token = strategy.session_get("invite_token")
     if invite_token is None and existing_user is None:
@@ -160,13 +164,13 @@ def setup_invited_user_permissions(strategy, uid, details, user, *args, **kwargs
 
     # Add user to specified streams
     for stream_id in stream_ids:
-        DBSession.add(StreamUser(stream_id=stream_id, user_id=user.id))
+        DBSession().add(StreamUser(stream_id=stream_id, user_id=user.id))
 
     # Add user to specified groups
     for group_id, admin, can_save in zip(
         group_ids, invitation.admin_for_groups, invitation.can_save_to_groups
     ):
-        DBSession.add(
+        DBSession().add(
             GroupUser(
                 user_id=user.id, group_id=group_id, admin=admin, can_save=can_save
             )
@@ -175,10 +179,10 @@ def setup_invited_user_permissions(strategy, uid, details, user, *args, **kwargs
     # Add user to sitewide public group
     public_group = (
         DBSession()
-        .query(Group)
-        .filter(Group.name == cfg["misc"]["public_group_name"])
+        .scalars(sa.select(Group).where(Group.name == cfg["misc"]["public_group_name"]))
         .first()
     )
+
     if public_group is not None and public_group not in invitation.groups:
         DBSession().add(GroupUser(group_id=public_group.id, user_id=user.id))
 
@@ -190,7 +194,11 @@ def user_details(strategy, details, backend, uid, user=None, *args, **kwargs):
     """Update user details using data from provider."""
     if not user:
         return
-    existing_user = DBSession().query(User).filter(User.oauth_uid == uid).first()
+
+    existing_user = (
+        DBSession().scalars(sa.select(User).where(User.oauth_uid == uid)).first()
+    )
+
     if not (
         existing_user.contact_email is None
         and existing_user.first_name is None

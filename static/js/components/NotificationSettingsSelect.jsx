@@ -123,7 +123,8 @@ const NotificationSettingsSelect = ({ notificationResourceType }) => {
       notificationResourceType === "favorite_sources" ||
       notificationResourceType === "facility_transactions" ||
       notificationResourceType === "mention" ||
-      notificationResourceType === "analysis_services"
+      notificationResourceType === "analysis_services" ||
+      notificationResourceType === "observation_plans"
     ) {
       const prefs = {
         notifications: {
@@ -162,7 +163,8 @@ const NotificationSettingsSelect = ({ notificationResourceType }) => {
       notificationResourceType === "favorite_sources" ||
       notificationResourceType === "facility_transactions" ||
       notificationResourceType === "mention" ||
-      notificationResourceType === "analysis_services"
+      notificationResourceType === "analysis_services" ||
+      notificationResourceType === "observation_plans"
     ) {
       const prefs = {
         notifications: {
@@ -206,7 +208,8 @@ const NotificationSettingsSelect = ({ notificationResourceType }) => {
       notificationResourceType === "favorite_sources" ||
       notificationResourceType === "facility_transactions" ||
       notificationResourceType === "mention" ||
-      notificationResourceType === "analysis_services"
+      notificationResourceType === "analysis_services" ||
+      notificationResourceType === "observation_plans"
     ) {
       const prefs = {
         notifications: {

@@ -21,7 +21,7 @@ dayjs.extend(utc);
 const NewSource = ({ classes }) => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const allGroups = useSelector((state) => state.groups.userAccessible);
+  const groups = useSelector((state) => state.groups.userAccessible);
   const [selectedGroupIds, setSelectedGroupIds] = useState([]);
 
   const handleSubmit = async ({ formData }) => {
@@ -80,7 +80,7 @@ const NewSource = ({ classes }) => {
           <DragHandleIcon className={`${classes.widgetIcon} dragHandle`} />
           <div>
             <GroupShareSelect
-              groupList={allGroups}
+              groupList={groups}
               setGroupIDs={setSelectedGroupIds}
               groupIDs={selectedGroupIds}
             />

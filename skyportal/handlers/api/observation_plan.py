@@ -650,7 +650,7 @@ class ObservationPlanSubmitHandler(BaseHandler):
                 return self.error('Cannot send observation plans on this instrument.')
 
             try:
-                api.send(observation_plan_request)
+                api.send(observation_plan_request, session)
             except Exception as e:
                 observation_plan_request.status = 'failed to send'
                 return self.error(

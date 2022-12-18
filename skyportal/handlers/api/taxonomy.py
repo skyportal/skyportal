@@ -1,5 +1,6 @@
 from tdtax import schema, validate
 from jsonschema.exceptions import ValidationError as JSONValidationError
+import yaml
 
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
@@ -68,7 +69,15 @@ class TaxonomyHandler(BaseHandler):
                     )
                 )
             )
-            return self.success(data=query.unique().all())
+            taxonomies = query.unique().all()
+            taxonomies = [
+                {
+                    **taxonomy.to_dict(),
+                    'groups': [group.to_dict() for group in taxonomy.groups],
+                }
+                for taxonomy in taxonomies
+            ]
+            return self.success(data=taxonomies)
 
     @permissions(['Post taxonomy'])
     def post(self):
@@ -147,6 +156,11 @@ class TaxonomyHandler(BaseHandler):
         if version is None:
             return self.error("A version string must be provided for a taxonomy")
 
+        hierarchy_file = data.get('hierarchy_file', None)
+        if hierarchy_file is not None:
+            data['hierarchy'] = yaml.load(hierarchy_file, Loader=yaml.Loader)[0]
+            del data['hierarchy_file']
+
         with self.Session() as session:
 
             existing_matches = session.scalars(
@@ -215,6 +229,8 @@ class TaxonomyHandler(BaseHandler):
             session.add(taxonomy)
             session.commit()
 
+            self.push_all(action="skyportal/REFRESH_TAXONOMIES")
+
             return self.success(data={'taxonomy_id': taxonomy.id})
 
     @permissions(['Delete taxonomy'])
@@ -250,5 +266,7 @@ class TaxonomyHandler(BaseHandler):
 
             session.delete(taxonomy)
             session.commit()
+
+            self.push_all(action="skyportal/REFRESH_TAXONOMIES")
 
             return self.success()

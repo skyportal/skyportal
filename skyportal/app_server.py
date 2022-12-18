@@ -29,6 +29,7 @@ from skyportal.handlers.api import (
     IRSAQueryWISEHandler,
     VizierQueryHandler,
     DatalabQueryHandler,
+    DefaultFollowupRequestHandler,
     DefaultObservationPlanRequestHandler,
     DefaultSurveyEfficiencyRequestHandler,
     FilterHandler,
@@ -104,6 +105,7 @@ from skyportal.handlers.api import (
     SharingHandler,
     SourceHandler,
     SourceExistsHandler,
+    SourceObservabilityPlotHandler,
     SourceOffsetsHandler,
     SourceFinderHandler,
     SourceNotificationHandler,
@@ -203,6 +205,10 @@ skyportal_handlers = [
     (r'/api/classification/sources(/.*)?', ObjClassificationQueryHandler),
     (r'/api/classification(/[0-9]+)?', ClassificationHandler),
     (r'/api/enum_types(/.*)?', EnumTypesHandler),
+    (
+        r'/api/default_followup_request(/[0-9A-Za-z-_\.\+]+)?',
+        DefaultFollowupRequestHandler,
+    ),
     (
         r'/api/default_observation_plan(/[0-9A-Za-z-_\.\+]+)?',
         DefaultObservationPlanRequestHandler,
@@ -376,6 +382,10 @@ skyportal_handlers = [
     (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/groups', ObjGroupsHandler),
     (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/color_mag', ObjColorMagHandler),
     (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/tns', ObjTNSHandler),
+    (
+        r'/api/sources(/[0-9A-Za-z-_\.\+]+)/observability',
+        SourceObservabilityPlotHandler,
+    ),
     (r'/api/(sources|spectra)/([0-9A-Za-z-_\.\+]+)/comments', CommentHandler),
     (r'/api/(sources|spectra)/([0-9A-Za-z-_\.\+]+)/comments(/[0-9]+)?', CommentHandler),
     (

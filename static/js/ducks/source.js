@@ -15,6 +15,8 @@ const ADD_CLASSIFICATION = "skyportal/ADD_CLASSIFICATION";
 
 const DELETE_CLASSIFICATION = "skyportal/DELETE_CLASSIFICATION";
 
+const DELETE_CLASSIFICATIONS = "skyportal/DELETE_CLASSIFICATIONS";
+
 const ADD_SOURCE_TNS = "skyportal/ADD_SOURCE_TNS";
 
 const ADD_COMMENT = "skyportal/ADD_COMMENT";
@@ -155,6 +157,13 @@ export function deleteClassification(classification_id) {
   return API.DELETE(
     `/api/classification/${classification_id}`,
     DELETE_CLASSIFICATION
+  );
+}
+
+export function deleteClassifications(source_id) {
+  return API.DELETE(
+    `/api/sources/${source_id}/classifications`,
+    DELETE_CLASSIFICATIONS
   );
 }
 

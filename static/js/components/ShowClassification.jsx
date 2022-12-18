@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import PropTypes from "prop-types";
 import Tooltip from "@mui/material/Tooltip";
@@ -36,6 +36,26 @@ const ClassificationRow = ({ classifications }) => {
   const dispatch = useDispatch();
 
   const currentUser = useSelector((state) => state.profile);
+  const groupUsers = useSelector((state) => state.group?.group_users);
+  const currentGroupUser = groupUsers?.filter(
+    (groupUser) => groupUser.user_id === currentUser.id
+  )[0];
+
+  useEffect(() => {
+    if (
+      currentGroupUser?.admin !== undefined &&
+      currentGroupUser?.admin !== null
+    ) {
+      window.localStorage.setItem(
+        "CURRENT_GROUP_ADMIN",
+        JSON.stringify(currentGroupUser.admin)
+      );
+    }
+  }, [currentGroupUser]);
+
+  const isGroupAdmin = JSON.parse(
+    window.localStorage.getItem("CURRENT_GROUP_ADMIN")
+  );
   const [dialogOpen, setDialogOpen] = useState(false);
   const [classificationToDelete, setClassificationToDelete] = useState(null);
   const openDialog = (id) => {
@@ -63,6 +83,7 @@ const ClassificationRow = ({ classifications }) => {
   const permission =
     currentUser.permissions.includes("System admin") ||
     currentUser.permissions.includes("Manage groups") ||
+    isGroupAdmin ||
     currentUser.username === classification.author_name;
 
   const clsProb = classification.probability
