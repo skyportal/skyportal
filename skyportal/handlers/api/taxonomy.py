@@ -233,6 +233,73 @@ class TaxonomyHandler(BaseHandler):
 
             return self.success(data={'taxonomy_id': taxonomy.id})
 
+    @permissions(['Post taxonomy'])
+    def put(self, taxonomy_id):
+        """
+        ---
+        description: Update taxonomy
+        tags:
+          - instruments
+        parameters:
+          - in: path
+            name: taxonomy_id
+            required: true
+            schema:
+              type: integer
+        requestBody:
+          content:
+            application/json:
+              schema: TaxonomyNoID
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+
+        data = self.get_json()
+        data['id'] = int(taxonomy_id)
+
+        hierarchy = data.get('hierarchy', None)
+        if hierarchy is not None:
+            return self.error(
+                "Editing the hierarchy not allowed, upload a new taxonomy if this change is desired."
+            )
+
+        with self.Session() as session:
+            # permission check
+            stmt = Taxonomy.select(session.user_or_token, mode="update").where(
+                Taxonomy.id == int(taxonomy_id)
+            )
+            taxonomy = session.scalars(stmt).first()
+            if taxonomy is None:
+                return self.error(f'Missing taxonomy with ID {taxonomy_id}')
+
+            group_ids = data.pop("group_ids", None)
+            if group_ids:
+                user_accessible_group_ids = [
+                    g.id for g in self.current_user.accessible_groups
+                ]
+                group_ids = [
+                    gid for gid in group_ids if gid in user_accessible_group_ids
+                ]
+                groups = session.scalars(
+                    Group.select(session.user_or_token).where(Group.id.in_(group_ids))
+                ).all()
+                taxonomy.groups = groups
+
+            for k in data:
+                setattr(taxonomy, k, data[k])
+
+            session.commit()
+
+            self.push_all(action="skyportal/REFRESH_TAXONOMIES")
+            return self.success()
+
     @permissions(['Delete taxonomy'])
     def delete(self, taxonomy_id):
         """
