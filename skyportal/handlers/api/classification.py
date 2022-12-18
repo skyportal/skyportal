@@ -74,6 +74,11 @@ def post_classification(data, user_id, session):
         groups=groups,
     )
     session.add(classification)
+
+    new_vote = ClassificationVote(
+        classification=classification, voter_id=user.id, vote=1
+    )
+    session.add(new_vote)
     session.commit()
 
     flow = Flow()

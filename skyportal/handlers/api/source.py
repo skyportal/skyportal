@@ -390,6 +390,8 @@ def get_sources(
     has_tns_name=False,
     has_spectrum=False,
     has_followup_request=False,
+    has_been_scanned=False,
+    has_not_been_scanned=False,
     sourceID=None,
     rejectedSourceIDs=None,
     ra=None,
@@ -593,6 +595,15 @@ def get_sources(
         obj_query = obj_query.join(
             followup_request_subquery, Obj.id == followup_request_subquery.c.obj_id
         )
+    if has_been_scanned:
+        scans_subquery = SourceScan.select(session.user_or_token).subquery()
+        obj_query = obj_query.join(scans_subquery, Obj.id == scans_subquery.c.obj_id)
+    if has_not_been_scanned:
+        scans_subquery = SourceScan.select(
+            session.user_or_token, columns=[SourceScan.obj_id]
+        ).subquery()
+        obj_query = obj_query.where(Obj.id.notin_(scans_subquery))
+
     if min_redshift is not None:
         try:
             min_redshift = float(min_redshift)
@@ -1666,6 +1677,20 @@ class SourceHandler(BaseHandler):
               type: boolean
             description: If true, return only those matches with TNS names
           - in: query
+            name: hasBeenScanned
+            nullable: true
+            schema:
+              type: boolean
+            description: |
+              If true, return only those objects which have been scanned
+          - in: query
+            name: hasNotBeenScanned
+            nullable: true
+            schema:
+              type: boolean
+            description: |
+              If true, return only those objects which have not been scanned
+          - in: query
             name: numPerPage
             nullable: true
             schema:
@@ -2264,6 +2289,8 @@ class SourceHandler(BaseHandler):
         alias = self.get_query_argument('alias', None)
         origin = self.get_query_argument('origin', None)
         has_tns_name = self.get_query_argument('hasTNSname', None)
+        has_been_scanned = self.get_query_argument('hasBeenScanned', False)
+        has_not_been_scanned = self.get_query_argument('hasNotBeenScanned', False)
         total_matches = self.get_query_argument('totalMatches', None)
         is_token_request = isinstance(self.current_user, Token)
 
@@ -2334,6 +2361,8 @@ class SourceHandler(BaseHandler):
                     alias=alias,
                     origin=origin,
                     has_tns_name=has_tns_name,
+                    has_been_scanned=has_been_scanned,
+                    has_not_been_scanned=has_not_been_scanned,
                     has_spectrum=has_spectrum,
                     has_followup_request=has_followup_request,
                     followup_request_status=followup_request_status,
