@@ -176,7 +176,7 @@ const ClassificationRow = ({ classifications }) => {
             <div>
               <Button
                 key={classification.id}
-                id="add_vote"
+                id="up_vote"
                 onClick={() => addVote(classification.id, upvoteValue)}
               >
                 <ThumbUp color={upvoteColor} />
