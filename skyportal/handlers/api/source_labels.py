@@ -144,9 +144,6 @@ class SourceLabelsHandler(BaseHandler):
                     SourceLabel.obj_id == obj_id
                 )
             ).first()
-            print(source_labels)
-            print(self.associated_user_object.id)
-            print(group_ids)
 
             for group_id in group_ids:
                 source_label = session.scalars(
