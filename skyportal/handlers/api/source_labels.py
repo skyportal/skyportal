@@ -161,7 +161,6 @@ class SourceLabelsHandler(BaseHandler):
                     SourceLabel.obj_id == obj_id
                 )
             ).first()
-            print(source_labels)
 
             self.push_all(
                 action="skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}
