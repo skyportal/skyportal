@@ -239,7 +239,7 @@ class TaxonomyHandler(BaseHandler):
         ---
         description: Update taxonomy
         tags:
-          - instruments
+          - taxonomies
         parameters:
           - in: path
             name: taxonomy_id
