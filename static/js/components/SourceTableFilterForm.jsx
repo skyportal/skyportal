@@ -910,7 +910,7 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
           </Typography>
           <div className={classes.checkboxGroup}>
             <FormControlLabel
-              label="scanned"
+              label="labelled"
               labelPlacement="start"
               control={
                 <Controller
@@ -922,14 +922,14 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
                       checked={value}
                     />
                   )}
-                  name="hasBeenScanned"
+                  name="hasBeenLabelled"
                   control={control}
                   defaultValue={false}
                 />
               }
             />
             <FormControlLabel
-              label="not scanned"
+              label="not labelled"
               labelPlacement="start"
               control={
                 <Controller
@@ -941,7 +941,7 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
                       checked={value}
                     />
                   )}
-                  name="hasNotBeenScanned"
+                  name="hasNotBeenLabelled"
                   control={control}
                   defaultValue={false}
                 />

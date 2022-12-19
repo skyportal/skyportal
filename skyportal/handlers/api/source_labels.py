@@ -2,16 +2,16 @@ from baselayer.app.access import auth_or_token
 from ..base import BaseHandler
 from ...models import (
     Obj,
-    SourceScan,
+    SourceLabel,
 )
 
 
-class SourceScansHandler(BaseHandler):
+class SourceLabelsHandler(BaseHandler):
     @auth_or_token
     def post(self, obj_id):
         """
         ---
-        description: Note that a source has been scanned.
+        description: Note that a source has been labelled.
         tags:
           - sources
           - source_scans
@@ -22,7 +22,7 @@ class SourceScansHandler(BaseHandler):
             schema:
               type: string
             description: |
-              ID of object to indicate source scanning for
+              ID of object to indicate source labelling for
         requestBody:
           content:
             application/json:
@@ -34,7 +34,7 @@ class SourceScansHandler(BaseHandler):
                     items:
                       type: integer
                     description: |
-                      List of IDs of groups to indicate scanning for
+                      List of IDs of groups to indicate labelling for
                 required:
                   - groupIds
         responses:
@@ -65,19 +65,19 @@ class SourceScansHandler(BaseHandler):
                 return self.error("Invalid objId")
 
             for group_id in group_ids:
-                source_view = session.scalars(
-                    SourceScan.select(session.user_or_token)
-                    .where(SourceScan.obj_id == obj_id)
-                    .where(SourceScan.group_id == group_id)
-                    .where(SourceScan.scanner_id == self.associated_user_object.id)
+                source_label = session.scalars(
+                    SourceLabel.select(session.user_or_token)
+                    .where(SourceLabel.obj_id == obj_id)
+                    .where(SourceLabel.group_id == group_id)
+                    .where(SourceLabel.labeller_id == self.associated_user_object.id)
                 ).first()
-                if source_view is None:
-                    view = SourceScan(
+                if source_label is None:
+                    label = SourceLabel(
                         obj_id=obj_id,
-                        scanner_id=self.associated_user_object.id,
+                        labeller_id=self.associated_user_object.id,
                         group_id=group_id,
                     )
-                    session.add(view)
+                    session.add(label)
             session.commit()
 
             self.push_all(
@@ -89,7 +89,7 @@ class SourceScansHandler(BaseHandler):
     def delete(self, obj_id):
         """
         ---
-        description: Delete source scans
+        description: Delete source labels
         tags:
           - sources
         parameters:
@@ -139,16 +139,32 @@ class SourceScansHandler(BaseHandler):
             if obj is None:
                 return self.error("Invalid objId")
 
+            source_labels = session.scalars(
+                SourceLabel.select(session.user_or_token, mode="delete").where(
+                    SourceLabel.obj_id == obj_id
+                )
+            ).first()
+            print(source_labels)
+            print(self.associated_user_object.id)
+            print(group_ids)
+
             for group_id in group_ids:
-                source_view = session.scalars(
-                    SourceScan.select(session.user_or_token, mode="delete")
-                    .where(SourceScan.obj_id == obj_id)
-                    .where(SourceScan.group_id == group_id)
-                    .where(SourceScan.scanner_id == self.associated_user_object.id)
+                source_label = session.scalars(
+                    SourceLabel.select(session.user_or_token, mode="delete")
+                    .where(SourceLabel.obj_id == obj_id)
+                    .where(SourceLabel.group_id == group_id)
+                    .where(SourceLabel.labeller_id == self.associated_user_object.id)
                 ).first()
-                if source_view is not None:
-                    session.delete(source_view)
+                if source_label is not None:
+                    session.delete(source_label)
             session.commit()
+
+            source_labels = session.scalars(
+                SourceLabel.select(session.user_or_token, mode="delete").where(
+                    SourceLabel.obj_id == obj_id
+                )
+            ).first()
+            print(source_labels)
 
             self.push_all(
                 action="skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}

@@ -50,9 +50,9 @@ const GET_COMMENT_ON_SPECTRUM_ATTACHMENT_PREVIEW_OK =
 
 const ADD_SOURCE_VIEW = "skyportal/ADD_SOURCE_VIEW";
 
-const ADD_SOURCE_SCAN = "skyportal/ADD_SOURCE_SCAN";
+const ADD_SOURCE_LABEL = "skyportal/ADD_SOURCE_LABEL";
 
-const DELETE_SOURCE_SCAN = "skyportal/DELETE_SOURCE_SCAN";
+const DELETE_SOURCE_LABEL = "skyportal/DELETE_SOURCE_LABEL";
 
 const SUBMIT_FOLLOWUP_REQUEST = "skyportal/SUBMIT_FOLLOWUP_REQUEST";
 
@@ -289,7 +289,7 @@ export function getCommentOnSpectrumAttachmentPreview(spectrumID, commentID) {
 
 export function fetchSource(id, actionType = FETCH_LOADED_SOURCE) {
   return API.GET(
-    `/api/sources/${id}?includeComments=true&includeColorMagnitude=true&includeThumbnails=true&includePhotometryExists=true&includeSpectrumExists=true&includeScanners=true`,
+    `/api/sources/${id}?includeComments=true&includeColorMagnitude=true&includeThumbnails=true&includePhotometryExists=true&includeSpectrumExists=true&includeLabellers=true`,
     actionType
   );
 }
@@ -305,12 +305,12 @@ export function addSourceView(id) {
   return API.POST(`/api/internal/source_views/${id}`, ADD_SOURCE_VIEW);
 }
 
-export function addSourceScans(id, data) {
-  return API.POST(`/api/sources/${id}/scans`, ADD_SOURCE_SCAN, data);
+export function addSourceLabels(id, data) {
+  return API.POST(`/api/sources/${id}/labels`, ADD_SOURCE_LABEL, data);
 }
 
-export function deleteSourceScans(id, data) {
-  return API.DELETE(`/api/sources/${id}/scans`, DELETE_SOURCE_SCAN, data);
+export function deleteSourceLabels(id, data) {
+  return API.DELETE(`/api/sources/${id}/labels`, DELETE_SOURCE_LABEL, data);
 }
 
 export const updateSource = (id, payload) =>

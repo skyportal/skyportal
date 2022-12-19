@@ -2168,7 +2168,7 @@ def test_filter_followup_request(
     assert any(obj["id"] == obj_id for obj in data["data"]["sources"])
 
 
-def test_add_and_delete_source_scan(upload_data_token, view_only_token, public_group):
+def test_add_and_delete_source_label(upload_data_token, view_only_token, public_group):
     obj_id = str(uuid.uuid4())
     status, data = api(
         "POST",
@@ -2182,16 +2182,16 @@ def test_add_and_delete_source_scan(upload_data_token, view_only_token, public_g
     )
     assert status == 200
 
-    params = {'includeScanners': True}
+    params = {'includeLabellers': True}
     status, data = api("GET", f"sources/{obj_id}", token=view_only_token, params=params)
     assert status == 200
     assert data["data"]["id"] == obj_id
 
-    assert len(data["data"]["scanners"]) == 0
+    assert len(data["data"]["labellers"]) == 0
 
     status, data = api(
         "POST",
-        f"sources/{obj_id}/scans",
+        f"sources/{obj_id}/labels",
         data={
             "groupIds": [public_group.id],
         },
@@ -2199,16 +2199,16 @@ def test_add_and_delete_source_scan(upload_data_token, view_only_token, public_g
     )
     assert status == 200
 
-    params = {'includeScanners': True}
+    params = {'includeLabellers': True}
     status, data = api("GET", f"sources/{obj_id}", token=view_only_token, params=params)
     assert status == 200
     assert data["data"]["id"] == obj_id
 
-    assert len(data["data"]["scanners"]) == 1
+    assert len(data["data"]["labellers"]) == 1
 
     status, data = api(
         "DELETE",
-        f"sources/{obj_id}/scans",
+        f"sources/{obj_id}/labels",
         data={
             "groupIds": [public_group.id],
         },
@@ -2216,9 +2216,9 @@ def test_add_and_delete_source_scan(upload_data_token, view_only_token, public_g
     )
     assert status == 200
 
-    params = {'includeScanners': True}
+    params = {'includeLabellers': True}
     status, data = api("GET", f"sources/{obj_id}", token=view_only_token, params=params)
     assert status == 200
     assert data["data"]["id"] == obj_id
 
-    assert len(data["data"]["scanners"]) == 0
+    assert len(data["data"]["labellers"]) == 0

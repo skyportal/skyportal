@@ -440,30 +440,38 @@ RenderShowClassification.propTypes = {
   }).isRequired,
 };
 
-const RenderShowScanning = ({ source }) => {
+const RenderShowLabelling = ({ source }) => {
   const dispatch = useDispatch();
-
   const { control } = useForm();
+  const [checked, setChecked] = useState(false);
 
   const currentUser = useSelector((state) => state.profile);
 
-  const scannedSource = (checked) => {
+  const labellerUsernames = source.labellers
+    ? source.labellers.map((s) => s.username)
+    : [];
+  const defaultChecked = labellerUsernames.includes(currentUser.username);
+
+  useEffect(() => {
+    setChecked(defaultChecked);
+  }, [setChecked, defaultChecked]);
+
+  const labelledSource = (check) => {
     const groupIds = [];
     source.groups?.forEach((g) => {
       groupIds.push(g.id);
     });
 
-    if (checked === true) {
-      dispatch(sourceActions.addSourceScans(source.id, { groupIds }));
+    if (check === true) {
+      dispatch(sourceActions.addSourceLabels(source.id, { groupIds }));
     } else {
-      dispatch(sourceActions.deleteSourceScans(source.id, { groupIds }));
+      dispatch(sourceActions.deleteSourceLabels(source.id, { groupIds }));
     }
   };
 
-  const scannerUsernames = source.scanners
-    ? source.scanners.map((s) => s.username)
-    : [];
-  const defaultChecked = scannerUsernames.includes(currentUser.username);
+  const checkBox = (event) => {
+    setChecked(event.target.checked);
+  };
 
   return (
     <div>
@@ -471,28 +479,27 @@ const RenderShowScanning = ({ source }) => {
         key={source.id}
         control={
           <Controller
-            render={({ field: { onChange, value } }) => (
+            render={() => (
               <Checkbox
                 onChange={(event) => {
-                  onChange(event.target.checked);
-                  scannedSource(event.target.checked);
+                  checkBox(event);
+                  labelledSource(event.target.checked);
                 }}
-                checked={value}
-                data-testid={`scanningCheckBox${source.id}`}
+                checked={checked}
+                data-testid={`labellingCheckBox${source.id}`}
               />
             )}
-            name={`scanningCheckBox${source.id}`}
+            name={`labellingCheckBox${source.id}`}
             control={control}
-            defaultValue={defaultChecked}
           />
         }
-        label={`Scanned By:  ${scannerUsernames.join(",")}`}
+        label={`Labelled By:  ${labellerUsernames.join(",")}`}
       />
     </div>
   );
 };
 
-RenderShowScanning.propTypes = {
+RenderShowLabelling.propTypes = {
   source: PropTypes.shape({
     id: PropTypes.string,
     ra: PropTypes.number,
@@ -549,7 +556,7 @@ RenderShowScanning.propTypes = {
         last_detected_mjd: PropTypes.number,
       })
     ),
-    scanners: PropTypes.arrayOf(
+    labellers: PropTypes.arrayOf(
       PropTypes.shape({
         id: PropTypes.number,
         username: PropTypes.string,
@@ -980,7 +987,7 @@ const SourceTable = ({
     );
   };
 
-  const renderScanning = (dataIndex) => {
+  const renderLabelling = (dataIndex) => {
     const source = sources[dataIndex];
 
     return (
@@ -992,7 +999,7 @@ const SourceTable = ({
         }
       >
         <div>
-          <RenderShowScanning source={source} />
+          <RenderShowLabelling source={source} />
         </div>
       </Suspense>
     );
@@ -1423,14 +1430,14 @@ const SourceTable = ({
       },
     },
     {
-      name: "scanning",
-      label: "Scanning",
+      name: "labelling",
+      label: "Labelling",
       options: {
         filter: false,
         sort: true,
         sortThirdClickReset: true,
-        display: displayedColumns.includes("Scanning"),
-        customBodyRenderLite: renderScanning,
+        display: displayedColumns.includes("Labelling"),
+        customBodyRenderLite: renderLabelling,
       },
     },
     {

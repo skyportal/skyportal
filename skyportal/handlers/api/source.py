@@ -68,7 +68,7 @@ from ...models import (
     Listing,
     PhotStat,
     Spectrum,
-    SourceScan,
+    SourceLabel,
     SourceView,
     SourcesConfirmedInGCN,
     Telescope,
@@ -110,7 +110,7 @@ def get_source(
     include_spectrum_exists=False,
     include_period_exists=False,
     include_detection_stats=False,
-    include_scanners=False,
+    include_labellers=False,
     is_token_request=False,
     include_requested=False,
     requested_only=False,
@@ -242,24 +242,25 @@ def get_source(
                 for period_str in period_str_options
             ]
         )
-    if include_scanners:
-        scans_subquery = (
-            SourceScan.select(session.user_or_token)
-            .where(SourceScan.obj_id == obj_id)
+    if include_labellers:
+        labels_subquery = (
+            SourceLabel.select(session.user_or_token)
+            .where(SourceLabel.obj_id == obj_id)
             .subquery()
         )
 
         users = (
             session.scalars(
                 User.select(session.user_or_token).join(
-                    scans_subquery,
-                    User.id == scans_subquery.c.scanner_id,
+                    labels_subquery,
+                    User.id == labels_subquery.c.labeller_id,
                 )
             )
             .unique()
             .all()
         )
-        source_info["scanners"] = [user.to_dict() for user in users]
+        source_info["labellers"] = [user.to_dict() for user in users]
+        print(source_info["labellers"])
 
     source_info["annotations"] = sorted(
         session.scalars(
@@ -379,7 +380,7 @@ def get_sources(
     include_spectrum_exists=False,
     include_period_exists=False,
     include_detection_stats=False,
-    include_scanners=False,
+    include_labellers=False,
     is_token_request=False,
     include_requested=False,
     requested_only=False,
@@ -390,8 +391,8 @@ def get_sources(
     has_tns_name=False,
     has_spectrum=False,
     has_followup_request=False,
-    has_been_scanned=False,
-    has_not_been_scanned=False,
+    has_been_labelled=False,
+    has_not_been_labelled=False,
     sourceID=None,
     rejectedSourceIDs=None,
     ra=None,
@@ -595,14 +596,14 @@ def get_sources(
         obj_query = obj_query.join(
             followup_request_subquery, Obj.id == followup_request_subquery.c.obj_id
         )
-    if has_been_scanned:
-        scans_subquery = SourceScan.select(session.user_or_token).subquery()
-        obj_query = obj_query.join(scans_subquery, Obj.id == scans_subquery.c.obj_id)
-    if has_not_been_scanned:
-        scans_subquery = SourceScan.select(
-            session.user_or_token, columns=[SourceScan.obj_id]
+    if has_been_labelled:
+        labels_subquery = SourceLabel.select(session.user_or_token).subquery()
+        obj_query = obj_query.join(labels_subquery, Obj.id == labels_subquery.c.obj_id)
+    if has_not_been_labelled:
+        labels_subquery = SourceLabel.select(
+            session.user_or_token, columns=[SourceLabel.obj_id]
         ).subquery()
-        obj_query = obj_query.where(Obj.id.notin_(scans_subquery))
+        obj_query = obj_query.where(Obj.id.notin_(labels_subquery))
 
     if min_redshift is not None:
         try:
@@ -1197,25 +1198,25 @@ def get_sources(
             obj_list[-1]["luminosity_distance"] = obj.luminosity_distance
             obj_list[-1]["dm"] = obj.dm
             obj_list[-1]["angular_diameter_distance"] = obj.angular_diameter_distance
-            if include_scanners:
-                scans_subquery = (
-                    SourceScan.select(session.user_or_token)
-                    .where(SourceScan.obj_id == obj.id)
+            if include_labellers:
+                labels_subquery = (
+                    SourceLabel.select(session.user_or_token)
+                    .where(SourceLabel.obj_id == obj.id)
                     .subquery()
                 )
 
                 users = (
                     session.scalars(
                         User.select(session.user_or_token).join(
-                            scans_subquery,
-                            User.id == scans_subquery.c.scanner_id,
+                            labels_subquery,
+                            User.id == labels_subquery.c.labeller_id,
                         )
                     )
                     .unique()
                     .all()
                 )
 
-                obj_list[-1]["scanners"] = [user.to_dict() for user in users]
+                obj_list[-1]["labellers"] = [user.to_dict() for user in users]
 
             if include_photometry_exists:
                 stmt = Photometry.select(session.user_or_token).where(
@@ -1677,19 +1678,19 @@ class SourceHandler(BaseHandler):
               type: boolean
             description: If true, return only those matches with TNS names
           - in: query
-            name: hasBeenScanned
+            name: hasBeenLabelled
             nullable: true
             schema:
               type: boolean
             description: |
-              If true, return only those objects which have been scanned
+              If true, return only those objects which have been labelled
           - in: query
-            name: hasNotBeenScanned
+            name: hasNotBeenLabelled
             nullable: true
             schema:
               type: boolean
             description: |
-              If true, return only those objects which have not been scanned
+              If true, return only those objects which have not been labelled
           - in: query
             name: numPerPage
             nullable: true
@@ -1863,12 +1864,12 @@ class SourceHandler(BaseHandler):
             description: |
               Boolean indicating whether to return if a source has a spectra. Defaults to false.
           - in: query
-            name: includeScanners
+            name: includeLabellers
             nullable: true
             schema:
               type: boolean
             description: |
-              Boolean indicating whether to return marked source scanners. Defaults to false.
+              Boolean indicating whether to return marked source labellers. Defaults to false.
           - in: query
             name: removeNested
             nullable: true
@@ -2155,7 +2156,7 @@ class SourceHandler(BaseHandler):
             "includeSpectrumExists", False
         )
         include_period_exists = self.get_query_argument("includePeriodExists", False)
-        include_scanners = self.get_query_argument("includeScanners", False)
+        include_labellers = self.get_query_argument("includeLabellers", False)
         remove_nested = self.get_query_argument("removeNested", False)
         include_detection_stats = self.get_query_argument(
             "includeDetectionStats", False
@@ -2289,8 +2290,8 @@ class SourceHandler(BaseHandler):
         alias = self.get_query_argument('alias', None)
         origin = self.get_query_argument('origin', None)
         has_tns_name = self.get_query_argument('hasTNSname', None)
-        has_been_scanned = self.get_query_argument('hasBeenScanned', False)
-        has_not_been_scanned = self.get_query_argument('hasNotBeenScanned', False)
+        has_been_labelled = self.get_query_argument('hasBeenLabelled', False)
+        has_not_been_labelled = self.get_query_argument('hasNotBeenLabelled', False)
         total_matches = self.get_query_argument('totalMatches', None)
         is_token_request = isinstance(self.current_user, Token)
 
@@ -2308,7 +2309,7 @@ class SourceHandler(BaseHandler):
                         include_spectrum_exists=include_spectrum_exists,
                         include_period_exists=include_period_exists,
                         include_detection_stats=include_detection_stats,
-                        include_scanners=include_scanners,
+                        include_labellers=include_labellers,
                         is_token_request=is_token_request,
                         include_requested=include_requested,
                         requested_only=requested_only,
@@ -2338,7 +2339,7 @@ class SourceHandler(BaseHandler):
                     include_spectrum_exists=include_spectrum_exists,
                     include_period_exists=include_period_exists,
                     include_detection_stats=include_detection_stats,
-                    include_scanners=include_scanners,
+                    include_labellers=include_labellers,
                     is_token_request=is_token_request,
                     include_requested=include_requested,
                     requested_only=requested_only,
@@ -2361,8 +2362,8 @@ class SourceHandler(BaseHandler):
                     alias=alias,
                     origin=origin,
                     has_tns_name=has_tns_name,
-                    has_been_scanned=has_been_scanned,
-                    has_not_been_scanned=has_not_been_scanned,
+                    has_been_labelled=has_been_labelled,
+                    has_not_been_labelled=has_not_been_labelled,
                     has_spectrum=has_spectrum,
                     has_followup_request=has_followup_request,
                     followup_request_status=followup_request_status,

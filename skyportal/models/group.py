@@ -391,12 +391,12 @@ class Group(Base):
         passive_deletes=True,
         doc="Allocations made to this group.",
     )
-    source_scans = relationship(
-        'SourceScan',
+    source_labels = relationship(
+        'SourceLabel',
         back_populates="group",
         cascade="save-update, merge, refresh-expire, expunge",
         passive_deletes=True,
-        doc="Source scans made by this group.",
+        doc="Source labels made by this group.",
     )
     admission_requests = relationship(
         "GroupAdmissionRequest",

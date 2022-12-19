@@ -6,7 +6,16 @@ from baselayer.app.access import permissions, auth_or_token
 from baselayer.app.flow import Flow
 
 from ..base import BaseHandler
-from ...models import Group, Classification, ClassificationVote, Taxonomy, Obj, User
+from ...models import (
+    Group,
+    Classification,
+    ClassificationVote,
+    Source,
+    SourceLabel,
+    Taxonomy,
+    Obj,
+    User,
+)
 
 DEFAULT_CLASSIFICATIONS_PER_PAGE = 100
 MAX_CLASSIFICATIONS_PER_PAGE = 500
@@ -23,11 +32,12 @@ def post_classification(data, user_id, session):
     """
 
     user = session.scalar(sa.select(User).where(User.id == user_id))
-
-    user_group_ids = [g.id for g in user.accessible_groups]
-    group_ids = data.pop("group_ids", user_group_ids)
-
     obj_id = data['obj_id']
+
+    sources = session.scalars(Source.select(user).where(Source.obj_id == obj_id)).all()
+    source_group_ids = [source.group_id for source in sources]
+    user_group_ids = [g.id for g in user.accessible_groups]
+    group_ids = data.pop("group_ids", list(set(source_group_ids) & set(user_group_ids)))
 
     # check the taxonomy
     taxonomy_id = data["taxonomy_id"]
@@ -79,6 +89,22 @@ def post_classification(data, user_id, session):
         classification=classification, voter_id=user.id, vote=1
     )
     session.add(new_vote)
+
+    for group_id in group_ids:
+        source_label = session.scalars(
+            SourceLabel.select(session.user_or_token)
+            .where(SourceLabel.obj_id == obj_id)
+            .where(SourceLabel.group_id == group_id)
+            .where(SourceLabel.labeller_id == user_id)
+        ).first()
+        if source_label is None:
+            label = SourceLabel(
+                obj_id=obj_id,
+                labeller_id=user_id,
+                group_id=group_id,
+            )
+            session.add(label)
+
     session.commit()
 
     flow = Flow()

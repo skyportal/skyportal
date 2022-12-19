@@ -120,7 +120,7 @@ from skyportal.handlers.api import (
     SyntheticPhotometryHandler,
     ObjSpectraHandler,
     ReminderHandler,
-    SourceScansHandler,
+    SourceLabelsHandler,
     SpectrumTNSHandler,
     ShiftHandler,
     ShiftUserHandler,
@@ -383,7 +383,7 @@ skyportal_handlers = [
     (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/finder', SourceFinderHandler),
     (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/classifications', ObjClassificationHandler),
     (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/groups', ObjGroupsHandler),
-    (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/scans', SourceScansHandler),
+    (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/labels', SourceLabelsHandler),
     (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/color_mag', ObjColorMagHandler),
     (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/tns', ObjTNSHandler),
     (
