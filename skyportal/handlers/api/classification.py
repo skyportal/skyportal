@@ -458,8 +458,24 @@ class ClassificationHandler(BaseHandler):
                 )
 
             obj_key = c.obj.internal_key
+            obj_id = c.obj.id
+            group_ids = [group.id for group in c.groups]
             session.delete(c)
-            session.commit()
+
+            for group_id in group_ids:
+                source_label = session.scalars(
+                    SourceLabel.select(session.user_or_token)
+                    .where(SourceLabel.obj_id == obj_id)
+                    .where(SourceLabel.group_id == group_id)
+                    .where(SourceLabel.labeller_id == self.associated_user_object.id)
+                ).first()
+                if source_label is None:
+                    label = SourceLabel(
+                        obj_id=obj_id,
+                        labeller_id=self.associated_user_object.id,
+                        group_id=group_id,
+                    )
+                    session.add(label)
 
             self.push_all(
                 action='skyportal/REFRESH_SOURCE',
@@ -469,6 +485,8 @@ class ClassificationHandler(BaseHandler):
                 action='skyportal/REFRESH_CANDIDATE',
                 payload={'id': obj_key},
             )
+
+            session.commit()
 
             return self.success()
 
@@ -555,7 +573,27 @@ class ObjClassificationHandler(BaseHandler):
 
             for c in classifications:
                 obj_key = c.obj.internal_key
+                obj_id = c.obj.id
+                group_ids = [group.id for group in c.groups]
                 session.delete(c)
+
+                for group_id in group_ids:
+                    source_label = session.scalars(
+                        SourceLabel.select(session.user_or_token)
+                        .where(SourceLabel.obj_id == obj_id)
+                        .where(SourceLabel.group_id == group_id)
+                        .where(
+                            SourceLabel.labeller_id == self.associated_user_object.id
+                        )
+                    ).first()
+                    if source_label is None:
+                        label = SourceLabel(
+                            obj_id=obj_id,
+                            labeller_id=self.associated_user_object.id,
+                            group_id=group_id,
+                        )
+                        session.add(label)
+
             session.commit()
 
             self.push_all(
@@ -712,6 +750,24 @@ class ClassificationVotesHandler(BaseHandler):
                 session.add(new_vote)
             else:
                 classification_vote.vote = vote
+
+            obj_id = classification.obj.id
+            group_ids = [group.id for group in classification.groups]
+            for group_id in group_ids:
+                source_label = session.scalars(
+                    SourceLabel.select(session.user_or_token)
+                    .where(SourceLabel.obj_id == obj_id)
+                    .where(SourceLabel.group_id == group_id)
+                    .where(SourceLabel.labeller_id == self.associated_user_object.id)
+                ).first()
+            if source_label is None:
+                label = SourceLabel(
+                    obj_id=obj_id,
+                    labeller_id=self.associated_user_object.id,
+                    group_id=group_id,
+                )
+                session.add(label)
+
             session.commit()
 
             self.push_all(
@@ -759,6 +815,24 @@ class ClassificationVotesHandler(BaseHandler):
                 )
             ).first()
             session.delete(classification_vote)
+
+            obj_id = classification.obj.id
+            group_ids = [group.id for group in classification.groups]
+            for group_id in group_ids:
+                source_label = session.scalars(
+                    SourceLabel.select(session.user_or_token)
+                    .where(SourceLabel.obj_id == obj_id)
+                    .where(SourceLabel.group_id == group_id)
+                    .where(SourceLabel.labeller_id == self.associated_user_object.id)
+                ).first()
+            if source_label is None:
+                label = SourceLabel(
+                    obj_id=obj_id,
+                    labeller_id=self.associated_user_object.id,
+                    group_id=group_id,
+                )
+                session.add(label)
+
             session.commit()
 
             self.push_all(

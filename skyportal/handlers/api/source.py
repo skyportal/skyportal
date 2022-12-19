@@ -260,7 +260,6 @@ def get_source(
             .all()
         )
         source_info["labellers"] = [user.to_dict() for user in users]
-        print(source_info["labellers"])
 
     source_info["annotations"] = sorted(
         session.scalars(
