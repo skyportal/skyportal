@@ -12,6 +12,7 @@ import makeStyles from "@mui/styles/makeStyles";
 import PropTypes from "prop-types";
 import { showNotification } from "baselayer/components/Notifications";
 import CircularProgress from "@mui/material/CircularProgress";
+import ModifyTaxonomy from "./ModifyTaxonomy";
 import NewTaxonomy from "./NewTaxonomy";
 // eslint-disable-next-line import/no-cycle
 import Button from "./Button";
@@ -191,6 +192,12 @@ const TaxonomyPage = () => {
             <div className={classes.paperContent}>
               <Typography variant="h6">Add a New Taxonomy</Typography>
               <NewTaxonomy />
+            </div>
+          </Paper>
+          <Paper>
+            <div className={classes.paperContent}>
+              <Typography variant="h6">Modify a Taxonomy</Typography>
+              <ModifyTaxonomy />
             </div>
           </Paper>
         </Grid>
