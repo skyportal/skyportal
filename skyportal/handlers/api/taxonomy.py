@@ -233,6 +233,123 @@ class TaxonomyHandler(BaseHandler):
 
             return self.success(data={'taxonomy_id': taxonomy.id})
 
+    @permissions(["Delete taxonomy"])
+    def patch(self, taxonomy_id):
+        """
+        ---
+        description: Update a taxonomy
+        tags:
+          - taxonomies
+        parameters:
+          - in: path
+            name: taxonomy_id
+            required: true
+            schema:
+              type: integer
+        requestBody:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  name:
+                    type: string
+                    description: |
+                      Short string to make this taxonomy memorable
+                      to end users.
+                  group_ids:
+                    type: array
+                    items:
+                      type: integer
+                    description: |
+                      List of group IDs corresponding to which groups should be
+                      able to view comment. Defaults to all of requesting
+                      user's groups.
+                  provenance:
+                    type: string
+                    description: |
+                      Identifier (e.g., URL or git hash) that
+                      uniquely ties this taxonomy back
+                      to an origin or place of record
+                  isLatest:
+                    type: boolean
+                    description: |
+                      Consider this version of the taxonomy with this
+                      name the latest? Defaults to True.
+
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+        """
+        with self.Session() as session:
+            taxonomy = session.scalars(
+                Taxonomy.select(session.user_or_token, mode='update').where(
+                    Taxonomy.id == taxonomy_id
+                )
+            ).first()
+            if taxonomy is None:
+                return self.error(
+                    'Taxonomy does not exist or is not available to user.'
+                )
+
+            data = self.get_json()
+
+            try:
+                taxonomy_id = int(taxonomy_id)
+            except ValueError:
+                return self.error("Invalid taxonomy_id")
+
+            name = data.get("name")
+            group_ids = data.get("group_ids")
+            provenance = data.get("provenance")
+            isLatest = data.get("isLatest")
+            if (
+                name is None
+                and group_ids is None
+                and provenance is None
+                and isLatest is None
+            ):
+                return self.error(
+                    "At least one of `name`, `group_ids`, `provenance`, or `isLatest` is required."
+                )
+            if group_ids is not None:
+                group_ids = [int(gid) for gid in group_ids]
+
+                groups = (
+                    session.scalars(
+                        Group.select(self.current_user).where(Group.id.in_(group_ids))
+                    )
+                    .unique()
+                    .all()
+                )
+                if set(group_ids).difference({g.id for g in groups}):
+                    return self.error(
+                        "The following groupIDs elements are invalid: "
+                        f"{set(group_ids).difference({g.id for g in groups})}"
+                    )
+
+            if isLatest is not None:
+                try:
+                    isLatest = bool(isLatest)
+                except ValueError:
+                    raise self.error('Invalid value provided for `isLatest`.')
+
+            if name is not None:
+                taxonomy.name = name
+            if group_ids is not None:
+                taxonomy.groups = groups
+            if provenance is not None:
+                taxonomy.provenance = provenance
+            if isLatest is not None:
+                taxonomy.isLatest = isLatest
+            session.commit()
+
+            self.push_all(action="skyportal/REFRESH_TAXONOMIES")
+
+            return self.success()
+
     @permissions(['Delete taxonomy'])
     def delete(self, taxonomy_id):
         """
