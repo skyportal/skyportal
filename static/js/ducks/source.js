@@ -288,10 +288,16 @@ export function getCommentOnSpectrumAttachmentPreview(spectrumID, commentID) {
 }
 
 export function fetchSource(id, actionType = FETCH_LOADED_SOURCE) {
-  return API.GET(
-    `/api/sources/${id}?includeComments=true&includeColorMagnitude=true&includeThumbnails=true&includePhotometryExists=true&includeSpectrumExists=true&includeLabellers=true`,
-    actionType
-  );
+  const urlParams = {
+    includeComments: true,
+    includeColorMagnitude: true,
+    includeThumbnails: true,
+    includePhotometryExists: true,
+    includeSpectrumExists: true,
+    includeLabellers: true,
+  };
+  const queryString = new URLSearchParams(urlParams).toString();
+  return API.GET(`/api/sources/${id}?${queryString}`, actionType);
 }
 
 export function checkSource(id, params, actionType = CHECK_SOURCE) {

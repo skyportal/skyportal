@@ -96,8 +96,8 @@ const ClassificationRow = ({ classifications }) => {
   const downvoterIds = [];
   let upvoteValue = 1;
   let downvoteValue = -1;
-  let upvoteColor = "action";
-  let downvoteColor = "action";
+  let upvoteColor = "success";
+  let downvoteColor = "error";
 
   classification.votes?.forEach((s) => {
     if (s.vote === 1) {

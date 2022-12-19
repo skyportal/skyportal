@@ -3,8 +3,6 @@ __all__ = ['Classification', 'ClassificationVote']
 import sqlalchemy as sa
 from sqlalchemy.orm import relationship
 
-from datetime import datetime
-
 from baselayer.app.models import (
     Base,
     AccessibleIfUserMatches,
@@ -108,16 +106,9 @@ class ClassificationVote(Base):
         doc="ID of the User that made this ClassificationVote",
     )
     voter = relationship('User', doc="The User that scanned this source.")
-    created_at = sa.Column(
-        sa.DateTime,
-        nullable=False,
-        default=datetime.utcnow,
-        index=True,
-        doc="UTC timestamp of the vote.",
-    )
     vote = sa.Column(
         sa.Integer,
-        doc='User-assigned vote for classification',
+        doc='User-assigned vote for classification (will generally be 1 for upvote and -1 for downvote)',
         nullable=False,
         index=True,
     )

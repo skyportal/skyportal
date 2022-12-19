@@ -1868,7 +1868,7 @@ class SourceHandler(BaseHandler):
             schema:
               type: boolean
             description: |
-              Boolean indicating whether to return marked source labellers. Defaults to false.
+              Boolean indicating whether to return list of users who have labelled this source. Defaults to false.
           - in: query
             name: removeNested
             nullable: true
