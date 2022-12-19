@@ -532,7 +532,7 @@ class ObjClassificationHandler(BaseHandler):
             for classification in classifications:
                 classification_dict = classification.to_dict()
                 classification_dict['votes'] = [
-                    g.to_dict() for g in classification.votes
+                    v.to_dict() for v in classification.votes
                 ]
                 classifications_json.append(classification_dict)
 
