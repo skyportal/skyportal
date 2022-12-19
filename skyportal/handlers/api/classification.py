@@ -699,7 +699,8 @@ class ClassificationVotesHandler(BaseHandler):
 
             classification_vote = session.scalars(
                 ClassificationVote.select(session.user_or_token).where(
-                    ClassificationVote.classification_id == classification_id
+                    ClassificationVote.classification_id == classification_id,
+                    ClassificationVote.voter_id == self.associated_user_object.id,
                 )
             ).first()
             if classification_vote is None:
@@ -753,7 +754,8 @@ class ClassificationVotesHandler(BaseHandler):
 
             classification_vote = session.scalars(
                 ClassificationVote.select(session.user_or_token, mode="delete").where(
-                    ClassificationVote.classification_id == classification_id
+                    ClassificationVote.classification_id == classification_id,
+                    ClassificationVote.voter_id == self.associated_user_object.id,
                 )
             ).first()
             session.delete(classification_vote)
