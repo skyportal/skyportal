@@ -96,21 +96,21 @@ const ClassificationRow = ({ classifications }) => {
   const downvoterIds = [];
   let upvoteValue = 1;
   let downvoteValue = -1;
-  let upvoteColor = "success";
-  let downvoteColor = "error";
+  let upvoteColor = "disabled";
+  let downvoteColor = "disabled";
 
   classification.votes?.forEach((s) => {
     if (s.vote === 1) {
       upvoterIds.push(s.id);
       if (s.voter_id === currentUser.id) {
         upvoteValue = 0;
-        upvoteColor = "disabled";
+        upvoteColor = "success";
       }
     } else if (s.vote === -1) {
       downvoterIds.push(s.id);
       if (s.voter_id === currentUser.id) {
         downvoteValue = 0;
-        downvoteColor = "disabled";
+        downvoteColor = "error";
       }
     }
   });
