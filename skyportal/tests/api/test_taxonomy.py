@@ -168,3 +168,56 @@ def test_taxonomy_group_view(
     status, data = api('GET', f'taxonomy/{taxonomy_id}', token=taxonomy_token)
     assert status == 400
     assert "is not available to user" in data["message"]
+
+
+def test_update_taxonomy(taxonomy_token, public_group):
+    name = str(uuid.uuid4())
+    status, data = api(
+        'POST',
+        'taxonomy',
+        data={
+            'name': name,
+            'hierarchy': taxonomy,
+            'group_ids': [public_group.id],
+            'provenance': f"tdtax_{__version__}",
+            'version': __version__,
+            'isLatest': True,
+        },
+        token=taxonomy_token,
+    )
+    assert status == 200
+    taxonomy_id = data['data']['taxonomy_id']
+
+    status, data = api('GET', f'taxonomy/{taxonomy_id}', token=taxonomy_token)
+
+    assert status == 200
+    assert data['data']['name'] == name
+    assert data['data']['version'] == __version__
+
+    name2 = str(uuid.uuid4())
+    status, data = api(
+        'PUT',
+        f'taxonomy/{taxonomy_id}',
+        data={
+            'name': name2,
+        },
+        token=taxonomy_token,
+    )
+    assert status == 200
+
+    status, data = api('GET', f'taxonomy/{taxonomy_id}', token=taxonomy_token)
+
+    assert status == 200
+    assert data['data']['name'] == name2
+    assert data['data']['version'] == __version__
+
+    name2 = str(uuid.uuid4())
+    status, data = api(
+        'PUT',
+        f'taxonomy/{taxonomy_id}',
+        data={
+            'hierarchy': taxonomy,
+        },
+        token=taxonomy_token,
+    )
+    assert status == 400
