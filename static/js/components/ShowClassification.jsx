@@ -170,7 +170,10 @@ const ClassificationRow = ({ classifications }) => {
                 onClick={() => addVote(classification.id, downvoteValue)}
               >
                 <ThumbDown color={downvoteColor} />
-                <p> {` ${downvoterIds.length} votes`} </p>
+                <font color="white">
+                  {" "}
+                  &nbsp; {`${downvoterIds.length} vote(s)`}{" "}
+                </font>
               </Button>
             </div>
             <div>
@@ -180,7 +183,10 @@ const ClassificationRow = ({ classifications }) => {
                 onClick={() => addVote(classification.id, upvoteValue)}
               >
                 <ThumbUp color={upvoteColor} />
-                <p> {` ${upvoterIds.length} votes`} </p>
+                <font color="white">
+                  {" "}
+                  &nbsp; {`${upvoterIds.length} vote(s)`}{" "}
+                </font>
               </Button>
             </div>
           </div>
