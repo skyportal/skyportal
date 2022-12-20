@@ -31,6 +31,7 @@ from .phot_stat import *
 from .reminder import *
 from .shift import *
 from .source import *
+from .source_label import *
 from .source_view import *
 from .source_notification import *
 from .spectrum import *

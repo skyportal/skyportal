@@ -221,7 +221,7 @@ def post_gcnevent_from_xml(payload, user_id, session):
         log(f"Generating tiles/contours for localization {localization.id}")
 
         IOLoop.current().run_in_executor(
-            None, lambda: add_skymap_properties(localization.id, user.id)
+            None, lambda: add_skymap_properties(localization.id, user_id)
         )
 
         IOLoop.current().run_in_executor(None, lambda: add_tiles(localization.id))

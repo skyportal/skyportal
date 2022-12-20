@@ -307,7 +307,9 @@ def test_classifications(driver, user, taxonomy_token, public_group, public_sour
     driver.click_xpath("//*[text()='Submit']", wait_clickable=False)
     driver.wait_for_xpath("//*[text()='Classification saved']")
     driver.find_element(
-        By.XPATH, "//span[contains(@class, 'MuiChip-label') and text()='Mult-mode?']"
+        By.XPATH,
+        "//span[contains(@class, 'MuiChip-label') and text()='Mult-mode?']",
+        timeout=20,
     )
 
 
@@ -888,4 +890,4 @@ def test_duplicate_sources_render(
     driver.get(f"/source/{public_source.id}")
     driver.wait_for_xpath('//*[contains(text(), "Possible duplicate of:")]')
     driver.click_xpath(f'//button[text()="{obj_id2}"]')
-    driver.wait_for_xpath(f'//div[text()="{obj_id2}"]')
+    driver.wait_for_xpath(f'//div[text()="{obj_id2}"]', timeout=20)

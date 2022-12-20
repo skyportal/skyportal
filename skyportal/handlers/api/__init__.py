@@ -8,6 +8,7 @@ from .analysis import (
 from .candidate import CandidateHandler
 from .classification import (
     ClassificationHandler,
+    ClassificationVotesHandler,
     ObjClassificationHandler,
     ObjClassificationQueryHandler,
 )
@@ -134,6 +135,7 @@ from .spectrum import (
     SpectrumRangeHandler,
     SyntheticPhotometryHandler,
 )
+from .source_labels import SourceLabelsHandler
 from .survey_efficiency import (
     DefaultSurveyEfficiencyRequestHandler,
     SurveyEfficiencyForObservationPlanHandler,
