@@ -139,12 +139,6 @@ class SourceLabelsHandler(BaseHandler):
             if obj is None:
                 return self.error("Invalid objId")
 
-            source_labels = session.scalars(
-                SourceLabel.select(session.user_or_token, mode="delete").where(
-                    SourceLabel.obj_id == obj_id
-                )
-            ).first()
-
             for group_id in group_ids:
                 source_label = session.scalars(
                     SourceLabel.select(session.user_or_token, mode="delete")
@@ -155,12 +149,6 @@ class SourceLabelsHandler(BaseHandler):
                 if source_label is not None:
                     session.delete(source_label)
             session.commit()
-
-            source_labels = session.scalars(
-                SourceLabel.select(session.user_or_token, mode="delete").where(
-                    SourceLabel.obj_id == obj_id
-                )
-            ).first()
 
             self.push_all(
                 action="skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}
