@@ -370,7 +370,7 @@ def create_annotations_query(
     return annotations_query
 
 
-def get_sources(
+async def get_sources(
     user_id,
     session,
     include_thumbnails=False,
