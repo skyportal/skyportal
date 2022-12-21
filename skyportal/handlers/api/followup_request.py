@@ -860,6 +860,8 @@ def observation_schedule(
     ]
 
     blocks = []
+
+    # FIXME: account for different instrument readout times
     read_out = 10.0 * u.s
 
     for ii, followup_request in enumerate(followup_requests):
@@ -920,6 +922,7 @@ def observation_schedule(
                     'group_id': allocation.group_id,
                     'request_id': followup_request.id,
                     'filter': bandpass,
+                    'exposure_time': exposure_time,
                 }
                 for bandpass in payload["observation_choices"]
             ]
@@ -930,6 +933,7 @@ def observation_schedule(
                     'group_id': allocation.group_id,
                     'request_id': followup_request.id,
                     'filter': 'default',
+                    'exposure_time': exposure_time,
                 }
             ]
 
@@ -995,10 +999,10 @@ def observation_schedule(
             request_id = block["configuration"]["request_id"]
             group_id = block["configuration"]["group_id"]
             requester = block["configuration"]["requester"]
+            exposure_time = int(block["configuration"]["exposure_time"].value)
 
             obs_start = Time(block["start time (UTC)"], format='iso')
             obs_end = Time(block["end time (UTC)"], format='iso')
-            exposure_time = int(block["duration (minutes)"] * 60.0)
 
             c = SkyCoord(
                 ra=block["ra"] * u.degree, dec=block["dec"] * u.degree, frame='icrs'
