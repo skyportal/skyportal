@@ -53,7 +53,7 @@ const GroupSources = ({ route }) => {
 
   // Load the group sources
   useEffect(() => {
-    async function fetchData() {
+    const fetchData = async () => {
       await dispatch(
         sourcesActions.fetchSavedGroupSources({
           group_ids: [route.id],
