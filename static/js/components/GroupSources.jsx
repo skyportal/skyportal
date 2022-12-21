@@ -53,20 +53,23 @@ const GroupSources = ({ route }) => {
 
   // Load the group sources
   useEffect(() => {
-    dispatch(
-      sourcesActions.fetchSavedGroupSources({
-        group_ids: [route.id],
-        pageNumber: 1,
-        numPerPage: 10,
-      })
-    );
-    dispatch(
-      sourcesActions.fetchPendingGroupSources({
-        group_ids: [route.id],
-        pageNumber: 1,
-        numPerPage: 10,
-      })
-    );
+    async function fetchData() {
+      await dispatch(
+        sourcesActions.fetchSavedGroupSources({
+          group_ids: [route.id],
+          pageNumber: 1,
+          numPerPage: 10,
+        })
+      );
+      await dispatch(
+        sourcesActions.fetchPendingGroupSources({
+          group_ids: [route.id],
+          pageNumber: 1,
+          numPerPage: 10,
+        })
+      );
+      fetchData();
+    }
   }, [route.id, dispatch]);
 
   if (!savedSourcesState.sources || !pendingSourcesState.sources) {
@@ -80,8 +83,8 @@ const GroupSources = ({ route }) => {
 
   const groupName = groups?.filter((g) => g.id === groupID)[0]?.name || "";
 
-  const handleSavedSourcesTableSorting = (sortData, filterData) => {
-    dispatch(
+  const handleSavedSourcesTableSorting = async (sortData, filterData) => {
+    await dispatch(
       sourcesActions.fetchSavedGroupSources({
         ...filterData,
         group_ids: [route.id],
@@ -93,7 +96,7 @@ const GroupSources = ({ route }) => {
     );
   };
 
-  const handleSavedSourcesTablePagination = (
+  const handleSavedSourcesTablePagination = async (
     pageNumber,
     numPerPage,
     sortData,
@@ -110,13 +113,13 @@ const GroupSources = ({ route }) => {
       data.sortBy = sortData.name;
       data.sortOrder = sortData.direction;
     }
-    dispatch(sourcesActions.fetchSavedGroupSources(data));
+    await dispatch(sourcesActions.fetchSavedGroupSources(data));
     setSorting(sortData);
     setFiltering(filterData);
   };
 
-  const handlePendingSourcesTableSorting = (sortData, filterData) => {
-    dispatch(
+  const handlePendingSourcesTableSorting = async (sortData, filterData) => {
+    await dispatch(
       sourcesActions.fetchPendingGroupSources({
         ...filterData,
         group_ids: [route.id],
@@ -130,7 +133,7 @@ const GroupSources = ({ route }) => {
     setFiltering(filterData);
   };
 
-  const handlePendingSourcesTablePagination = (
+  const handlePendingSourcesTablePagination = async (
     pageNumber,
     numPerPage,
     sortData,
@@ -147,13 +150,13 @@ const GroupSources = ({ route }) => {
       data.sortBy = sortData.name;
       data.sortOrder = sortData.direction;
     }
-    dispatch(sourcesActions.fetchPendingGroupSources(data));
+    await dispatch(sourcesActions.fetchPendingGroupSources(data));
   };
 
   const handleSourcesDownload = async () => {
     const sourceAll = [];
     if (savedSourcesState.totalMatches === 0) {
-      dispatch(showNotification("No sources to download", "warning"));
+      await dispatch(showNotification("No sources to download", "warning"));
     } else {
       setDownloadProgressTotal(savedSourcesState.totalMatches);
       for (
