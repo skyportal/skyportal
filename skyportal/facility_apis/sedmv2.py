@@ -32,6 +32,7 @@ def validate_request_to_sedmv2(request):
         "priority",
         "start_date",
         "end_date",
+        "too",
     ]:
         if param not in request.payload:
             raise ValueError(f'Parameter {param} required.')
@@ -57,6 +58,9 @@ def validate_request_to_sedmv2(request):
 
     if request.payload["priority"] < 1 or request.payload["priority"] > 5:
         raise ValueError('priority must be within 1-5.')
+
+    if request.payload["too"] not in ["Y", "N"]:
+        raise ValueError('too must be Y or N')
 
 
 class SEDMV2API(FollowUpAPI):
@@ -310,6 +314,15 @@ class SEDMV2API(FollowUpAPI):
                 "title": "End Date (UT)",
                 "default": (datetime.utcnow().date() + timedelta(days=7)).isoformat(),
             },
+            "too": {
+                "title": "Is this a Target of Opportunity observation?",
+                "type": "string",
+                "enum": [
+                    "N",
+                    "Y",
+                ],
+                "default": "N",
+            },
         },
         "required": [
             "observation_choices",
@@ -320,10 +333,14 @@ class SEDMV2API(FollowUpAPI):
             "exposure_counts",
             "maximum_airmass",
             "minimum_lunar_distance",
+            "too",
+            "emccd",
         ],
     }
 
-    ui_json_schema = {"observation_choices": {"ui:widget": "checkboxes"}}
+    ui_json_schema = {
+        "observation_choices": {"ui:widget": "checkboxes"},
+    }
 
     alias_lookup = {
         'observation_choices': "Request",

@@ -23,6 +23,7 @@ from astroplan import Observer
 from astroplan import FixedTarget
 from astroplan import ObservingBlock
 from astroplan.constraints import (
+    Constraint,
     AtNightConstraint,
     AirmassConstraint,
     MoonSeparationConstraint,
@@ -808,6 +809,36 @@ class FollowupRequestHandler(BaseHandler):
             return self.success()
 
 
+class TargetOfOpportunityConstraint(Constraint):
+    """
+    Prioritize target of opportunity targets earlier.
+
+    Parameters
+    ----------
+    toos : List[bool]
+        List indicating whether targets are ToOs or not.
+    tau : `~astropy.units.Quantity`
+        Exponential decay constant for normalization (in days).
+        Defaults to 1 hour.
+    """
+
+    def __init__(self, tau=1 / 24 * u.day, toos=None):
+        self.tau = tau
+        self.toos = toos
+
+    def compute_constraint(self, times, observer, targets):
+        tt = times - times[0]
+        exp_func = np.exp(-tt / self.tau)
+        exp_func = exp_func / np.max(exp_func)
+
+        reward_function = np.ones((len(targets), len(times)))
+        for ii, too in enumerate(self.toos):
+            if too:
+                reward_function[ii, :] = exp_func
+
+        return reward_function
+
+
 def observation_schedule(
     followup_requests,
     instrument,
@@ -853,13 +884,8 @@ def observation_schedule(
     )
     observer = Observer(location=location, name=instrument.name)
 
-    global_constraints = [
-        AirmassConstraint(max=2.50, boolean_constraint=False),
-        AtNightConstraint.twilight_civil(),
-        MoonSeparationConstraint(min=10.0 * u.deg),
-    ]
-
     blocks = []
+    toos = []
 
     # FIXME: account for different instrument readout times
     read_out = 10.0 * u.s
@@ -900,6 +926,11 @@ def observation_schedule(
             exposure_counts = payload["exposure_counts"]
         else:
             exposure_counts = 1
+
+        if "too" in payload:
+            too = payload["too"] in ["Y", "Yes", "True", "t", "true", "1", True, 1]
+        else:
+            too = False
 
         # get extra constraints
         constraints = []
@@ -948,8 +979,22 @@ def observation_schedule(
             )
             blocks.append(b)
 
+            if too:
+                toos.append(True)
+            else:
+                toos.append(False)
+
+    global_constraints = [
+        AirmassConstraint(max=2.50, boolean_constraint=False),
+        AtNightConstraint.twilight_civil(),
+        MoonSeparationConstraint(min=10.0 * u.deg),
+        TargetOfOpportunityConstraint(toos=toos),
+    ]
+
     # Initialize a transitioner object with the slew rate and/or the
     # duration of other transitions (e.g. filter changes)
+
+    # FIXME: account for different telescope slew rates
     slew_rate = 2.0 * u.deg / u.second
     transitioner = Transitioner(slew_rate, {'filter': {'default': 10 * u.second}})
 
