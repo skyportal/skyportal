@@ -245,7 +245,7 @@ def generate_observation_plan_statistics(
                     f'Runtime= {time.time() - t0:.2f}s. ',
                 )
 
-            statistics['area'] = intarea
+            statistics['area'] = intarea * (180 / np.pi) ** 2
             statistics['probability'] = intprob
 
         # This code below uses database queries to
@@ -617,12 +617,11 @@ def generate_plan(
 
     session.add_all(planned_observations)
     for plan in plans:
-        plan.status = 'complete'
+        setattr(plan, 'status', 'complete')
         session.merge(plan)
-    session.commit()
 
     for request in requests:
-        request.status = 'complete'
+        setattr(request, 'status', 'complete')
         session.merge(request)
     session.commit()
 
@@ -806,108 +805,133 @@ class MMAAPI(FollowUpAPI):
 
     # subclasses *must* implement the method below
     @staticmethod
-    def submit(request):
+    def submit(request_id, asynchronous=True):
 
         """Generate an observation plan.
 
         Parameters
         ----------
-        request: skyportal.models.ObservationPlanRequest
-            The request to generate the observation plan.
+        request_id : int
+            The ID of the ObservationPlanRequest to generate the observation plan.
+        asynchronous : bool
+            Create asynchronous request. Defaults to True.
         """
 
         from tornado.ioloop import IOLoop
-        from ..models import DBSession, EventObservationPlan
+        from ..models import DBSession, EventObservationPlan, ObservationPlanRequest
 
-        plan = EventObservationPlan.query.filter_by(
-            plan_name=request.payload["queue_name"]
-        ).first()
-        if plan is None:
+        with DBSession() as session:
+            request = session.scalar(
+                sa.select(ObservationPlanRequest).where(
+                    ObservationPlanRequest.id == request_id
+                )
+            )
+            plan = session.scalars(
+                sa.select(EventObservationPlan).where(
+                    EventObservationPlan.plan_name == request.payload["queue_name"]
+                )
+            ).first()
 
-            # check payload
-            required_parameters = {
-                'start_date',
-                'end_date',
-                'schedule_type',
-                'schedule_strategy',
-                'filter_strategy',
-                'exposure_time',
-                'filters',
-                'maximum_airmass',
-                'integrated_probability',
-                'minimum_time_difference',
-            }
+            if plan is None:
 
-            if not required_parameters.issubset(set(request.payload.keys())):
-                raise ValueError('Missing required planning parameter')
+                # check payload
+                required_parameters = {
+                    'start_date',
+                    'end_date',
+                    'schedule_type',
+                    'schedule_strategy',
+                    'filter_strategy',
+                    'exposure_time',
+                    'filters',
+                    'maximum_airmass',
+                    'integrated_probability',
+                    'minimum_time_difference',
+                }
 
-            if request.payload["schedule_type"] not in [
-                "greedy",
-                "greedy_slew",
-                "sear",
-                "airmass_weighted",
-            ]:
-                raise ValueError(
-                    'schedule_type must be one of greedy, greedy_slew, sear, or airmass_weighted'
+                if not required_parameters.issubset(set(request.payload.keys())):
+                    raise ValueError('Missing required planning parameter')
+
+                if request.payload["schedule_type"] not in [
+                    "greedy",
+                    "greedy_slew",
+                    "sear",
+                    "airmass_weighted",
+                ]:
+                    raise ValueError(
+                        'schedule_type must be one of greedy, greedy_slew, sear, or airmass_weighted'
+                    )
+
+                if (
+                    request.payload["integrated_probability"] < 0
+                    or request.payload["integrated_probability"] > 100
+                ):
+                    raise ValueError('integrated_probability must be between 0 and 100')
+
+                if request.payload["filter_strategy"] not in ["block", "integrated"]:
+                    raise ValueError(
+                        'filter_strategy must be either block or integrated'
+                    )
+
+                start_time = Time(
+                    request.payload["start_date"], format='iso', scale='utc'
+                )
+                end_time = Time(request.payload["end_date"], format='iso', scale='utc')
+
+                plan = EventObservationPlan(
+                    observation_plan_request_id=request.id,
+                    dateobs=request.gcnevent.dateobs,
+                    plan_name=request.payload['queue_name'],
+                    instrument_id=request.instrument.id,
+                    validity_window_start=start_time.datetime,
+                    validity_window_end=end_time.datetime,
                 )
 
-            if (
-                request.payload["integrated_probability"] < 0
-                or request.payload["integrated_probability"] > 100
-            ):
-                raise ValueError('integrated_probability must be between 0 and 100')
+                session.add(plan)
+                session.commit()
 
-            if request.payload["filter_strategy"] not in ["block", "integrated"]:
-                raise ValueError('filter_strategy must be either block or integrated')
+                request.status = 'running'
+                session.merge(request)
+                session.commit()
 
-            start_time = Time(request.payload["start_date"], format='iso', scale='utc')
-            end_time = Time(request.payload["end_date"], format='iso', scale='utc')
+                flow = Flow()
+                flow.push(
+                    '*',
+                    "skyportal/REFRESH_GCNEVENT",
+                    payload={"gcnEvent_dateobs": request.gcnevent.dateobs},
+                )
 
-            plan = EventObservationPlan(
-                observation_plan_request_id=request.id,
-                dateobs=request.gcnevent.dateobs,
-                plan_name=request.payload['queue_name'],
-                instrument_id=request.instrument.id,
-                validity_window_start=start_time.datetime,
-                validity_window_end=end_time.datetime,
-            )
+                flow.push(
+                    '*',
+                    "skyportal/REFRESH_OBSERVATION_PLAN_NAMES",
+                )
 
-            DBSession().add(plan)
-            DBSession().commit()
+                log(f"Generating schedule for observation plan {plan.id}")
+                requester_id = request.requester.id
 
-            request.status = 'running'
-            DBSession().merge(request)
-            DBSession().commit()
-
-            flow = Flow()
-            flow.push(
-                '*',
-                "skyportal/REFRESH_GCNEVENT",
-                payload={"gcnEvent_dateobs": request.gcnevent.dateobs},
-            )
-
-            flow.push(
-                '*',
-                "skyportal/REFRESH_OBSERVATION_PLAN_NAMES",
-            )
-
-            log(f"Generating schedule for observation plan {plan.id}")
-            requester_id = request.requester.id
-            IOLoop.current().run_in_executor(
-                # TODO: add stats_method and stats_logging to the arguments
-                None,
-                lambda: generate_plan(
-                    observation_plan_ids=[plan.id],
-                    request_ids=[request.id],
-                    user_id=requester_id,
-                    stats_method=request.payload.get('stats_method'),
-                    stats_logging=request.payload.get('stats_logging'),
-                ),
-            )
-        else:
-            raise ValueError(
-                f'plan_name {request.payload["queue_name"]} already exists.'
-            )
+                if asynchronous:
+                    IOLoop.current().run_in_executor(
+                        # TODO: add stats_method and stats_logging to the arguments
+                        None,
+                        lambda: generate_plan(
+                            observation_plan_ids=[plan.id],
+                            request_ids=[request.id],
+                            user_id=requester_id,
+                            stats_method=request.payload.get('stats_method'),
+                            stats_logging=request.payload.get('stats_logging'),
+                        ),
+                    )
+                else:
+                    generate_plan(
+                        observation_plan_ids=[plan.id],
+                        request_ids=[request.id],
+                        user_id=requester_id,
+                        stats_method=request.payload.get('stats_method'),
+                        stats_logging=request.payload.get('stats_logging'),
+                    )
+            else:
+                raise ValueError(
+                    f'plan_name {request.payload["queue_name"]} already exists.'
+                )
 
     @staticmethod
     def delete(request_id):

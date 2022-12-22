@@ -87,36 +87,34 @@ log = make_log('api/observation_plan')
 
 
 def post_survey_efficiency_analysis(
-    survey_efficiency_analysis, plan_id, user_id, session
+    survey_efficiency_analysis, plan_id, user_id, session, asynchronous=True
 ):
     """Post survey efficiency analysis to database.
 
     Parameters
     ----------
-    survey_efficiency_analysis: dict
+    survey_efficiency_analysis : dict
         Dictionary describing survey efficiency analysis
-    plan_id: int
+    plan_id : int
         SkyPortal ID of Observation plan request
     user_id : int
         SkyPortal ID of User posting the GcnEvent
-    session: sqlalchemy.Session
+    session : sqlalchemy.Session
         Database session for this transaction
+    asynchronous : bool
+        Create asynchronous efficiency analysis. Defaults to True.
     """
 
     status_complete = False
     while not status_complete:
-        observation_plan_request = (
-            session.scalars(
-                sa.select(ObservationPlanRequest)
-                .options(
-                    joinedload(ObservationPlanRequest.observation_plans)
-                    .joinedload(EventObservationPlan.planned_observations)
-                    .joinedload(PlannedObservation.field)
-                )
-                .where(ObservationPlanRequest.id == plan_id)
+        observation_plan_request = session.scalar(
+            sa.select(ObservationPlanRequest)
+            .options(
+                joinedload(ObservationPlanRequest.observation_plans)
+                .joinedload(EventObservationPlan.planned_observations)
+                .joinedload(PlannedObservation.field)
             )
-            .unique()
-            .all()
+            .where(ObservationPlanRequest.id == plan_id)
         )
         status_complete = observation_plan_request.status == "complete"
 
@@ -207,40 +205,60 @@ def post_survey_efficiency_analysis(
         f'Simsurvey analysis in progress for ID {survey_efficiency_analysis.id}. Should be available soon.'
     )
 
-    simsurvey_analysis = functools.partial(
-        observation_simsurvey,
-        observations,
-        localization.id,
-        instrument.id,
-        survey_efficiency_analysis.id,
-        "SurveyEfficiencyForObservationPlan",
-        width=width,
-        height=height,
-        number_of_injections=payload['numberInjections'],
-        number_of_detections=payload['numberDetections'],
-        detection_threshold=payload['detectionThreshold'],
-        minimum_phase=payload['minimumPhase'],
-        maximum_phase=payload['maximumPhase'],
-        model_name=payload['modelName'],
-        optional_injection_parameters=payload['optionalInjectionParameters'],
-    )
+    if asynchronous:
+        simsurvey_analysis = functools.partial(
+            observation_simsurvey,
+            observations,
+            localization.id,
+            instrument.id,
+            survey_efficiency_analysis.id,
+            "SurveyEfficiencyForObservationPlan",
+            width=width,
+            height=height,
+            number_of_injections=payload['numberInjections'],
+            number_of_detections=payload['numberDetections'],
+            detection_threshold=payload['detectionThreshold'],
+            minimum_phase=payload['minimumPhase'],
+            maximum_phase=payload['maximumPhase'],
+            model_name=payload['modelName'],
+            optional_injection_parameters=payload['optionalInjectionParameters'],
+        )
 
-    IOLoop.current().run_in_executor(None, simsurvey_analysis)
+        IOLoop.current().run_in_executor(None, simsurvey_analysis)
+    else:
+        observation_simsurvey(
+            observations,
+            localization.id,
+            instrument.id,
+            survey_efficiency_analysis.id,
+            "SurveyEfficiencyForObservationPlan",
+            width=width,
+            height=height,
+            number_of_injections=payload['numberInjections'],
+            number_of_detections=payload['numberDetections'],
+            detection_threshold=payload['detectionThreshold'],
+            minimum_phase=payload['minimumPhase'],
+            maximum_phase=payload['maximumPhase'],
+            model_name=payload['modelName'],
+            optional_injection_parameters=payload['optionalInjectionParameters'],
+        )
 
     return survey_efficiency_analysis.id
 
 
-def post_observation_plans(plans, user_id, session):
+def post_observation_plans(plans, user_id, session, asynchronous=True):
     """Post combined ObservationPlans to database.
 
     Parameters
     ----------
-    plan: dict
+    plan : dict
         Observation plan dictionary
     user_id : int
         SkyPortal ID of User posting the GcnEvent
-    session: sqlalchemy.Session
+    session : sqlalchemy.Session
         Database session for this transaction
+    asynchronous : bool
+        Create asynchronous request. Defaults to True.
     """
 
     user = session.query(User).get(user_id)
@@ -324,17 +342,19 @@ def post_observation_plans(plans, user_id, session):
         )
 
 
-def post_observation_plan(plan, user_id, session):
+def post_observation_plan(plan, user_id, session, asynchronous=True):
     """Post ObservationPlan to database.
 
     Parameters
     ----------
-    plan: dict
+    plan : dict
         Observation plan dictionary
     user_id : int
         SkyPortal ID of User posting the GcnEvent
-    session: sqlalchemy.Session
+    session : sqlalchemy.Session
         Database session for this transaction
+    asynchronous : bool
+        Create asynchronous request. Defaults to True.
     """
 
     user = session.query(User).get(user_id)
@@ -391,21 +411,24 @@ def post_observation_plan(plan, user_id, session):
     session.add(observation_plan_request)
     session.commit()
 
+    dateobs = observation_plan_request.gcnevent.dateobs
+    observation_plan_request_id = observation_plan_request.id
+
     flow = Flow()
 
     flow.push(
         '*',
         "skyportal/REFRESH_GCNEVENT",
-        payload={"gcnEvent_dateobs": observation_plan_request.gcnevent.dateobs},
+        payload={"gcnEvent_dateobs": dateobs},
     )
 
     try:
-        instrument.api_class_obsplan.submit(observation_plan_request)
+        instrument.api_class_obsplan.submit(
+            observation_plan_request_id, asynchronous=asynchronous
+        )
     except Exception as e:
         observation_plan_request.status = 'failed to submit'
         raise AttributeError(f'Error submitting observation plan: {e.args[0]}')
-    finally:
-        session.commit()
 
     flow.push(
         '*',
@@ -413,7 +436,7 @@ def post_observation_plan(plan, user_id, session):
         payload={"gcnEvent_dateobs": observation_plan_request.gcnevent.dateobs},
     )
 
-    return observation_plan_request.id
+    return observation_plan_request_id
 
 
 class ObservationPlanRequestHandler(BaseHandler):
@@ -2008,7 +2031,7 @@ def observation_simsurvey(
         order = hp.nside2order(localization.nside)
         t = rasterize(localization.table, order)
 
-        if 'DISTMU' in t:
+        if 'DISTMU' in t.colnames:
             result = t['PROB'], t['DISTMU'], t['DISTSIGMA'], t['DISTNORM']
             hp_data = hp.reorder(result, 'NESTED', 'RING')
             map_struct = {}
