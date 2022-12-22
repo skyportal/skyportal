@@ -68,8 +68,8 @@ const GroupSources = ({ route }) => {
           numPerPage: 10,
         })
       );
-      fetchData();
-    }
+    };
+    fetchData();
   }, [route.id, dispatch]);
 
   if (!savedSourcesState.sources || !pendingSourcesState.sources) {
