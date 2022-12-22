@@ -348,7 +348,7 @@ def post_gcnevent_from_dictionary(payload, user_id, session):
 
 class GcnEventTagsHandler(BaseHandler):
     @auth_or_token
-    def get(self):
+    async def get(self):
         """
         ---
         description: Get all GCN Event tags
@@ -372,7 +372,7 @@ class GcnEventTagsHandler(BaseHandler):
 
 class GcnEventPropertiesHandler(BaseHandler):
     @auth_or_token
-    def get(self):
+    async def get(self):
         """
         ---
         description: Get all GCN Event properties
@@ -1117,7 +1117,7 @@ def add_contour(localization_id):
 
 class LocalizationHandler(BaseHandler):
     @auth_or_token
-    def get(self, dateobs, localization_name):
+    async def get(self, dateobs, localization_name):
         """
         ---
         description: Retrieve a GCN localization
@@ -1227,7 +1227,7 @@ class LocalizationHandler(BaseHandler):
 
 class LocalizationPropertiesHandler(BaseHandler):
     @auth_or_token
-    def get(self):
+    async def get(self):
         """
         ---
         description: Get all Localization properties
