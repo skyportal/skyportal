@@ -234,7 +234,10 @@ const TelescopeInfo = () => {
 
   const currentUser = useSelector((state) => state.profile);
 
-  const permission = currentUser.permissions?.includes("System admin");
+  const permission =
+    currentUser.permissions?.includes("Delete telescope") ||
+    currentUser.permissions?.includes("System admin");
+
   const [dialogOpen, setDialogOpen] = useState(false);
   const [telescopeToDelete, setTelescopeToDelete] = useState(null);
   const openDialog = (id) => {
