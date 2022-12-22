@@ -1509,7 +1509,7 @@ class GcnSummaryHandler(BaseHandler):
                     sources = []
                     while True:
                         # get the sources in the event
-                        sources_data = get_sources(
+                        sources_data = await get_sources(
                             user_id=self.associated_user_object.id,
                             session=session,
                             first_detected_date=start_date,
