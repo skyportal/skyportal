@@ -1040,8 +1040,7 @@ class GcnEventHandler(BaseHandler):
 
 def add_tiles_and_observation_plans(localization_id, user_id):
     session = Session()
-    # try:
-    if True:
+    try:
         localization = session.scalar(
             sa.select(Localization).where(Localization.id == localization_id)
         )
@@ -1145,12 +1144,12 @@ def add_tiles_and_observation_plans(localization_id, user_id):
         return log(
             f"Generated tiles / observation plans for localization {localization_id}"
         )
-    # except Exception as e:
-    #    log(
-    #        f"Unable to generate tiles / observation plans for localization {localization_id}: {e}"
-    #    )
-    # finally:
-    #    Session.remove()
+    except Exception as e:
+        log(
+            f"Unable to generate tiles / observation plans for localization {localization_id}: {e}"
+        )
+    finally:
+        Session.remove()
 
 
 def add_skymap_properties(localization_id, user_id):
