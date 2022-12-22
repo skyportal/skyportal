@@ -99,7 +99,7 @@ log = make_log('api/source')
 MAX_LOCALIZATION_SOURCES = 50000
 
 
-def get_source(
+async def get_source(
     obj_id,
     user_id,
     session,
@@ -1549,7 +1549,7 @@ class SourceHandler(BaseHandler):
                 self.finish()
 
     @auth_or_token
-    def get(self, obj_id=None):
+    async def get(self, obj_id=None):
         """
         ---
         single:
@@ -2297,7 +2297,7 @@ class SourceHandler(BaseHandler):
         if obj_id is not None:
             with self.Session() as session:
                 try:
-                    source_info = get_source(
+                    source_info = await get_source(
                         obj_id,
                         self.associated_user_object.id,
                         session,
@@ -2329,7 +2329,7 @@ class SourceHandler(BaseHandler):
 
         with self.Session() as session:
             try:
-                query_results = get_sources(
+                query_results = await get_sources(
                     self.associated_user_object.id,
                     session,
                     include_thumbnails=include_thumbnails,
