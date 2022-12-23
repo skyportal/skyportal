@@ -697,7 +697,7 @@ class MMAAPI(FollowUpAPI):
 
     # subclasses *must* implement the method below
     @staticmethod
-    def submit_multiple(requests):
+    def submit_multiple(requests, asynchronous=True):
 
         """Generate multiple observation plans.
 
@@ -705,6 +705,8 @@ class MMAAPI(FollowUpAPI):
         ----------
         requests: skyportal.models.ObservationPlanRequest
             The list of requests to generate the observation plan.
+        asynchronous : bool
+            Create asynchronous request. Defaults to True.
         """
 
         from tornado.ioloop import IOLoop
@@ -792,16 +794,26 @@ class MMAAPI(FollowUpAPI):
 
         log(f"Generating schedule for observation plan {plan.id}")
         requester_id = request.requester.id
-        IOLoop.current().run_in_executor(
-            None,
-            lambda: generate_plan(
+
+        if asynchronous:
+            IOLoop.current().run_in_executor(
+                None,
+                lambda: generate_plan(
+                    observation_plan_ids=plan_ids,
+                    request_ids=request_ids,
+                    user_id=requester_id,
+                    stats_method=request.payload.get('stats_method'),
+                    stats_logging=request.payload.get('stats_logging'),
+                ),
+            )
+        else:
+            generate_plan(
                 observation_plan_ids=plan_ids,
                 request_ids=request_ids,
                 user_id=requester_id,
                 stats_method=request.payload.get('stats_method'),
                 stats_logging=request.payload.get('stats_logging'),
-            ),
-        )
+            )
 
     # subclasses *must* implement the method below
     @staticmethod

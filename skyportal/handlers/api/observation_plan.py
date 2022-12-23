@@ -2031,7 +2031,7 @@ def observation_simsurvey(
         order = hp.nside2order(localization.nside)
         t = rasterize(localization.table, order)
 
-        if 'DISTMU' in t.colnames:
+        if {'DISTMU', 'DISTSIGMA', 'DISTNORM'}.issubset(set(t.colnames)):
             result = t['PROB'], t['DISTMU'], t['DISTSIGMA'], t['DISTNORM']
             hp_data = hp.reorder(result, 'NESTED', 'RING')
             map_struct = {}

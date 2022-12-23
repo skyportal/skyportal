@@ -1095,13 +1095,14 @@ def add_tiles_and_observation_plans(localization_id, user_id):
                 Allocation.select(user).where(Allocation.id == plan.allocation_id)
             ).first()
 
-            gcn_observation_plan = {}
-            gcn_observation_plan['allocation_id'] = allocation.id
-            gcn_observation_plan['payload'] = plan.payload
-            gcn_observation_plan['survey_efficiencies'] = [
-                survey_efficiency.to_dict()
-                for survey_efficiency in plan.default_survey_efficiencies
-            ]
+            gcn_observation_plan = {
+                'allocation_id': allocation.id,
+                'payload': plan.payload,
+                'survey_efficiencies': [
+                    survey_efficiency.to_dict()
+                    for survey_efficiency in plan.default_survey_efficiencies
+                ],
+            }
             gcn_observation_plans.append(gcn_observation_plan)
         gcn_observation_plans = gcn_observation_plans + config_gcn_observation_plans
 
