@@ -71,6 +71,7 @@ const getMuiTheme = (theme) =>
 const ExecutedObservationsTable = ({
   observations,
   totalMatches,
+  downloadCallback,
   handleTableChange = false,
   handleFilterSubmit = false,
   pageNumber = 1,
@@ -227,7 +228,98 @@ const ExecutedObservationsTable = ({
     pagination: true,
     count: totalMatches,
     filter: true,
+    download: true,
     customFilterDialogFooter: customFilterDisplay,
+    onDownload: (buildHead, buildBody) => {
+      const renderTelescopeDownload = (observation) => {
+        const { instrument } = observation;
+        return instrument.telescope ? instrument.telescope.name : "";
+      };
+      const renderInstrumentDownload = (observation) => {
+        const { instrument } = observation;
+        return instrument ? instrument.name : "";
+      };
+      downloadCallback().then((data) => {
+        // if there is no data, cancel download
+        if (data?.length > 0) {
+          const result =
+            buildHead([
+              {
+                name: "telescope_name",
+                download: true,
+              },
+              {
+                name: "instrument_name",
+                download: true,
+              },
+              {
+                name: "observation_id",
+                download: true,
+              },
+              {
+                name: "target_name",
+                download: true,
+              },
+              {
+                name: "obstime",
+                download: true,
+              },
+              {
+                name: "filt",
+                download: true,
+              },
+              {
+                name: "exposure_time",
+                download: true,
+              },
+              {
+                name: "airmass",
+                download: true,
+              },
+              {
+                name: "seeing",
+                download: true,
+              },
+              {
+                name: "limmag",
+                download: true,
+              },
+              {
+                name: "save_source",
+                download: false,
+              },
+            ]) +
+            buildBody(
+              data.map((x) => ({
+                ...x,
+                data: [
+                  renderTelescopeDownload(x),
+                  renderInstrumentDownload(x),
+                  x.observation_id,
+                  x.target_name,
+                  x.obstime,
+                  x.filt,
+                  x.exposure_time,
+                  x.airmass,
+                  x.seeing,
+                  x.limmag,
+                ],
+              }))
+            );
+          const blob = new Blob([result], {
+            type: "text/csv;charset=utf-8;",
+          });
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.href = url;
+          link.setAttribute("download", "observations.csv");
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        }
+      });
+      return false;
+    },
   };
   if (typeof handleTableChange === "function") {
     options.onTableChange = handleTableChange;
@@ -260,6 +352,7 @@ ExecutedObservationsTable.propTypes = {
   observations: PropTypes.arrayOf(PropTypes.any).isRequired,
   handleTableChange: PropTypes.func.isRequired,
   handleFilterSubmit: PropTypes.func.isRequired,
+  downloadCallback: PropTypes.func.isRequired,
   pageNumber: PropTypes.number,
   totalMatches: PropTypes.number,
   numPerPage: PropTypes.number,

@@ -10,7 +10,10 @@ import Divider from "@mui/material/Divider";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import makeStyles from "@mui/styles/makeStyles";
 import PropTypes from "prop-types";
+import Dialog from "@mui/material/Dialog";
+import DialogContent from "@mui/material/DialogContent";
 
+import { showNotification } from "baselayer/components/Notifications";
 import { filterOutEmptyValues } from "../API";
 import ExecutedObservationsTable from "./ExecutedObservationsTable";
 import QueuedObservationsTable from "./QueuedObservationsTable";
@@ -18,6 +21,7 @@ import NewObservation from "./NewObservation";
 import NewAPIObservation from "./NewAPIObservation";
 import NewAPIQueuedObservation from "./NewAPIQueuedObservation";
 import QueueAPIDisplay from "./QueueAPIDisplay";
+import ProgressIndicator from "./ProgressIndicators";
 
 import * as observationsActions from "../ducks/observations";
 import * as queuedObservationsActions from "../ducks/queued_observations";
@@ -66,6 +70,7 @@ const ExecutedObservationList = ({
   fetchParams,
   handleTableChange,
   handleFilterSubmit,
+  downloadCallback,
 }) => {
   if (!observations?.observations || observations.observations.length === 0) {
     return <p>No observations available...</p>;
@@ -79,6 +84,7 @@ const ExecutedObservationList = ({
       handleTableChange={handleTableChange}
       handleFilterSubmit={handleFilterSubmit}
       totalMatches={observations.totalMatches}
+      downloadCallback={downloadCallback}
     />
   );
 };
@@ -92,6 +98,7 @@ ExecutedObservationList.propTypes = {
     pageNumber: PropTypes.number,
     numPerPage: PropTypes.number,
   }).isRequired,
+  downloadCallback: PropTypes.func.isRequired,
 };
 
 const QueuedObservationList = ({
@@ -99,6 +106,7 @@ const QueuedObservationList = ({
   fetchParams,
   handleTableChange,
   handleFilterSubmit,
+  downloadCallback,
 }) => {
   if (!observations?.observations || observations.observations.length === 0) {
     return <p>No observations available...</p>;
@@ -112,6 +120,7 @@ const QueuedObservationList = ({
       handleTableChange={handleTableChange}
       handleFilterSubmit={handleFilterSubmit}
       totalMatches={observations.totalMatches}
+      downloadCallback={downloadCallback}
     />
   );
 };
@@ -125,6 +134,7 @@ QueuedObservationList.propTypes = {
     pageNumber: PropTypes.number,
     numPerPage: PropTypes.number,
   }).isRequired,
+  downloadCallback: PropTypes.func.isRequired,
 };
 
 const ObservationPage = () => {
@@ -143,6 +153,9 @@ const ObservationPage = () => {
     pageNumber: 1,
     numPerPage: defaultNumPerPage,
   });
+
+  const [downloadProgressCurrent, setDownloadProgressCurrent] = useState(0);
+  const [downloadProgressTotal, setDownloadProgressTotal] = useState(0);
 
   useEffect(() => {
     const params = {
@@ -298,6 +311,132 @@ const ObservationPage = () => {
     handleQueuedTableFilter(1, defaultNumPerPage, data);
   };
 
+  const handleExecutedDownload = async () => {
+    const observationsAll = [];
+    if (observations.observations.totalMatches === 0) {
+      dispatch(showNotification("No observations to download", "warning"));
+    } else {
+      setDownloadProgressTotal(observations.observations.totalMatches);
+      for (
+        let i = 1;
+        i <=
+        Math.ceil(
+          observations.observations.totalMatches /
+            fetchExecutedParams.numPerPage
+        );
+        i += 1
+      ) {
+        const data = {
+          ...fetchExecutedParams,
+          pageNumber: i,
+        };
+        /* eslint-disable no-await-in-loop */
+        const result = await dispatch(
+          observationsActions.fetchObservations(data)
+        );
+        if (result && result.data && result?.status === "success") {
+          observationsAll.push(...result.data.observations);
+          setDownloadProgressCurrent(observationsAll.length);
+          setDownloadProgressTotal(observations.observations.totalMatches);
+        } else if (result && result?.status !== "success") {
+          // break the loop and set progress to 0 and show error message
+          setDownloadProgressCurrent(0);
+          setDownloadProgressTotal(0);
+          if (observations.observations?.length === 0) {
+            dispatch(
+              showNotification(
+                "Failed to fetch some observations. Download cancelled.",
+                "error"
+              )
+            );
+          } else {
+            dispatch(
+              showNotification(
+                "Failed to fetch some observations, please try again. Observations fetched so far will be downloaded.",
+                "error"
+              )
+            );
+          }
+          break;
+        }
+      }
+    }
+    setDownloadProgressCurrent(0);
+    setDownloadProgressTotal(0);
+    if (observationsAll?.length === observations.totalMatches?.length) {
+      dispatch(showNotification("Observations downloaded successfully"));
+    }
+    return observationsAll;
+  };
+
+  const handleQueuedDownload = async () => {
+    const observationsAll = [];
+
+    if (queued_observations.queued_observations.totalMatches === 0) {
+      dispatch(showNotification("No observations to download", "warning"));
+    } else {
+      setDownloadProgressTotal(
+        queued_observations.queued_observations.totalMatches
+      );
+      for (
+        let i = 1;
+        i <=
+        Math.ceil(
+          queued_observations.queued_observations.totalMatches /
+            fetchQueuedParams.numPerPage
+        );
+        i += 1
+      ) {
+        const data = {
+          ...fetchQueuedParams,
+          pageNumber: i,
+        };
+        /* eslint-disable no-await-in-loop */
+        const result = await dispatch(
+          queuedObservationsActions.fetchQueuedObservations(data)
+        );
+        if (result && result.data && result?.status === "success") {
+          observationsAll.push(...result.data.observations);
+          setDownloadProgressCurrent(observationsAll.length);
+          setDownloadProgressTotal(
+            queued_observations.queued_observations.totalMatches
+          );
+        } else if (result && result?.status !== "success") {
+          // break the loop and set progress to 0 and show error message
+          setDownloadProgressCurrent(0);
+          setDownloadProgressTotal(0);
+          if (
+            queued_observations.queued_observations.observations?.length === 0
+          ) {
+            dispatch(
+              showNotification(
+                "Failed to fetch some observations. Download cancelled.",
+                "error"
+              )
+            );
+          } else {
+            dispatch(
+              showNotification(
+                "Failed to fetch some observations, please try again. Observations fetched so far will be downloaded.",
+                "error"
+              )
+            );
+          }
+          break;
+        }
+      }
+    }
+    setDownloadProgressCurrent(0);
+    setDownloadProgressTotal(0);
+    if (
+      observationsAll?.length ===
+      queued_observations.queued_observations.totalMatches?.length
+    ) {
+      dispatch(showNotification("Observations downloaded successfully"));
+    }
+    return observationsAll;
+  };
+
   return (
     <Grid container spacing={3}>
       <Grid item md={6} sm={12}>
@@ -320,9 +459,44 @@ const ObservationPage = () => {
                     fetchParams={fetchExecutedParams}
                     handleTableChange={handleExecutedTableChange}
                     handleFilterSubmit={handleExecutedFilterSubmit}
+                    downloadCallback={handleExecutedDownload}
                   />
                 </div>
               </AccordionDetails>
+              <Dialog
+                open={downloadProgressTotal > 0}
+                style={{ position: "fixed" }}
+                maxWidth="md"
+              >
+                <DialogContent
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    justifyContent: "center",
+                    alignItems: "center",
+                  }}
+                >
+                  <Typography variant="h6" display="inline">
+                    Downloading {downloadProgressTotal} observations
+                  </Typography>
+                  <div
+                    style={{
+                      height: "5rem",
+                      width: "5rem",
+                      display: "flex",
+                      flexDirection: "column",
+                      justifyContent: "center",
+                      alignItems: "center",
+                    }}
+                  >
+                    <ProgressIndicator
+                      current={downloadProgressCurrent}
+                      total={downloadProgressTotal}
+                      percentage={false}
+                    />
+                  </div>
+                </DialogContent>
+              </Dialog>
             </Accordion>
           </div>
         </Paper>
@@ -345,6 +519,7 @@ const ObservationPage = () => {
                     fetchParams={fetchQueuedParams}
                     handleTableChange={handleQueuedTableChange}
                     handleFilterSubmit={handleQueuedFilterSubmit}
+                    downloadCallback={handleQueuedDownload}
                   />
                 </div>
               </AccordionDetails>
