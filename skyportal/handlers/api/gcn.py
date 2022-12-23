@@ -1990,6 +1990,11 @@ class LocalizationDownloadHandler(BaseHandler):
         """
 
         dateobs = dateobs.strip()
+        try:
+            arrow.get(dateobs)
+        except arrow.parser.ParserError as e:
+            return self.error(f'Failed to parse dateobs: str({e})')
+
         localization_name = localization_name.strip()
         local_temp_files = []
 
@@ -2020,7 +2025,7 @@ class LocalizationDownloadHandler(BaseHandler):
                 await self.send_file(data, filename, output_type=output_format)
 
             except Exception as e:
-                return self.error(f'Failed to create skymap for download: str{e}')
+                return self.error(f'Failed to create skymap for download: str({e})')
             finally:
                 # clean up local files
                 for f in local_temp_files:
