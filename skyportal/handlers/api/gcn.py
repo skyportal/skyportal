@@ -3,13 +3,16 @@
 import ast
 from astropy.time import Time
 import binascii
+import io
 import os
 import gcn
 from ligo.skymap.postprocess import crossmatch
 from ligo.skymap import distance, moc
+import ligo.skymap.io
 import lxml
 import xmlschema
 from urllib.parse import urlparse
+import tempfile
 from tornado.ioloop import IOLoop
 import arrow
 import astropy
@@ -1954,3 +1957,58 @@ class GcnSummaryHandler(BaseHandler):
         except Exception as e:
             return self.error(f"Error generating summary: {e}")
         return self.success(data=contents)
+
+
+class LocalizationDownloadHandler(BaseHandler):
+    @auth_or_token
+    async def get(self, dateobs, localization_name):
+        """
+        ---
+        description: Download a GCN localization skymap
+        tags:
+          - localizations
+        parameters:
+          - in: path
+            name: dateobs
+            required: true
+            schema:
+              type: dateobs
+          - in: path
+            name: localization_name
+            required: true
+            schema:
+              type: localization_name
+        responses:
+          200:
+            content:
+              application/json:
+                schema: LocalizationHandlerGet
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+
+        with self.Session() as session:
+            localization = session.scalars(
+                Localization.select(session.user_or_token).where(
+                    Localization.dateobs == dateobs,
+                    Localization.localization_name == localization_name,
+                )
+            ).first()
+            if localization is None:
+                return self.error("Localization not found", status=404)
+
+            output_format = 'pdf'
+            with tempfile.NamedTemporaryFile(suffix='.fits') as fitsfile:
+                ligo.skymap.io.write_sky_map(
+                    fitsfile.name, localization.table, moc=True
+                )
+
+                with open(fitsfile.name, mode='rb') as g:
+                    content = g.read()
+
+            data = io.BytesIO(content)
+            filename = f"{localization.localization_name}.fits"
+
+            await self.send_file(data, filename, output_type=output_format)
