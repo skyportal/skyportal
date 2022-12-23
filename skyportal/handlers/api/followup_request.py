@@ -23,6 +23,8 @@ from astroplan import Observer
 from astroplan import FixedTarget
 from astroplan import ObservingBlock
 from astroplan.constraints import (
+    Constraint,
+    AltitudeConstraint,
     AtNightConstraint,
     AirmassConstraint,
     MoonSeparationConstraint,
@@ -808,6 +810,72 @@ class FollowupRequestHandler(BaseHandler):
             return self.success()
 
 
+class HourAngleConstraint(Constraint):
+    """
+    Constrain the hour angle of a target.
+
+    Parameters
+    ----------
+    min : float or `None`
+        Minimum hour angle of the target. `None` indicates no limit.
+    max : float or `None`
+        Maximum hour angle of the target. `None` indicates no limit.
+    """
+
+    def __init__(self, min=-5.5, max=5.5):
+        self.min = min
+        self.max = max
+
+    def compute_constraint(self, times, observer, targets):
+
+        has = np.zeros((len(targets), len(times)))
+        for ii, tt in enumerate(times):
+            tt = Time(tt, format='jd', scale='utc', location=observer.location)
+            lst = tt.sidereal_time('mean')
+            has[:, ii] = [(lst - target.ra).hour for target in targets]
+
+        if self.min is None and self.max is not None:
+            mask = has <= self.max
+        elif self.max is None and self.min is not None:
+            mask = self.min <= has
+        elif self.min is not None and self.max is not None:
+            mask = (self.min <= has) & (has <= self.max)
+        else:
+            raise ValueError("No max and/or min specified in " "HourAngleConstraint.")
+        return mask
+
+
+class TargetOfOpportunityConstraint(Constraint):
+    """
+    Prioritize target of opportunity targets by giving them
+    higher weights at earlier times.
+
+    Parameters
+    ----------
+    toos : List[bool]
+        List indicating whether targets are ToOs or not.
+    tau : `~astropy.units.Quantity`
+        Exponential decay constant for normalization (in days).
+        Defaults to 1 hour.
+    """
+
+    def __init__(self, tau=1 / 24 * u.day, toos=None):
+        self.tau = tau
+        self.toos = toos
+
+    def compute_constraint(self, times, observer, targets):
+        tt = times - times[0]
+        exp_func = np.exp(-tt / self.tau)
+        exp_func = exp_func / np.max(exp_func)
+
+        reward_function = np.ones((len(targets), len(times)))
+        for ii, too in enumerate(self.toos):
+            if too:
+                reward_function[ii, :] = exp_func
+
+        return reward_function
+
+
 def observation_schedule(
     followup_requests,
     instrument,
@@ -853,13 +921,8 @@ def observation_schedule(
     )
     observer = Observer(location=location, name=instrument.name)
 
-    global_constraints = [
-        AirmassConstraint(max=2.50, boolean_constraint=False),
-        AtNightConstraint.twilight_civil(),
-        MoonSeparationConstraint(min=10.0 * u.deg),
-    ]
-
     blocks = []
+    toos = []
 
     # FIXME: account for different instrument readout times
     read_out = 10.0 * u.s
@@ -900,6 +963,11 @@ def observation_schedule(
             exposure_counts = payload["exposure_counts"]
         else:
             exposure_counts = 1
+
+        if "too" in payload:
+            too = payload["too"] in ["Y", "Yes", "True", "t", "true", "1", True, 1]
+        else:
+            too = False
 
         # get extra constraints
         constraints = []
@@ -948,8 +1016,24 @@ def observation_schedule(
             )
             blocks.append(b)
 
+            if too:
+                toos.append(True)
+            else:
+                toos.append(False)
+
+    global_constraints = [
+        AirmassConstraint(max=2.50, boolean_constraint=False),
+        AltitudeConstraint(20 * u.deg, 90 * u.deg),
+        AtNightConstraint.twilight_civil(),
+        HourAngleConstraint(min=-5.5, max=5.5),
+        MoonSeparationConstraint(min=10.0 * u.deg),
+        TargetOfOpportunityConstraint(toos=toos),
+    ]
+
     # Initialize a transitioner object with the slew rate and/or the
     # duration of other transitions (e.g. filter changes)
+
+    # FIXME: account for different telescope slew rates
     slew_rate = 2.0 * u.deg / u.second
     transitioner = Transitioner(slew_rate, {'filter': {'default': 10 * u.second}})
 
