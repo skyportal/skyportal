@@ -103,14 +103,12 @@ const GcnLocalizationsTable = ({ localizations }) => {
 
     const renderName = (dataIndex) => {
       const localization = localizations[dataIndex];
-      console.log("localization", localization);
-
       return (
         <div>
           <Button
             secondary
             href={`/api/localization/${localization.dateobs}/name/${localization.localization_name}/download`}
-            download={`localization-${localization.id}`}
+            download={`localization-${localization.id}.fits`}
             size="small"
             type="submit"
             data-testid={`localization_${localization.id}`}

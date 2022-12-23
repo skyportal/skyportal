@@ -1989,26 +1989,42 @@ class LocalizationDownloadHandler(BaseHandler):
                 schema: Error
         """
 
+        dateobs = dateobs.strip()
+        localization_name = localization_name.strip()
+        local_temp_files = []
+
         with self.Session() as session:
-            localization = session.scalars(
-                Localization.select(session.user_or_token).where(
-                    Localization.dateobs == dateobs,
-                    Localization.localization_name == localization_name,
-                )
-            ).first()
-            if localization is None:
-                return self.error("Localization not found", status=404)
+            try:
+                localization = session.scalars(
+                    Localization.select(session.user_or_token).where(
+                        Localization.dateobs == dateobs,
+                        Localization.localization_name == localization_name,
+                    )
+                ).first()
+                if localization is None:
+                    return self.error("Localization not found", status=404)
 
-            output_format = 'pdf'
-            with tempfile.NamedTemporaryFile(suffix='.fits') as fitsfile:
-                ligo.skymap.io.write_sky_map(
-                    fitsfile.name, localization.table, moc=True
-                )
+                output_format = 'fits'
+                with tempfile.NamedTemporaryFile(suffix='.fits') as fitsfile:
+                    ligo.skymap.io.write_sky_map(
+                        fitsfile.name, localization.table, moc=True
+                    )
 
-                with open(fitsfile.name, mode='rb') as g:
-                    content = g.read()
+                    with open(fitsfile.name, mode='rb') as g:
+                        content = g.read()
+                    local_temp_files.append(fitsfile.name)
 
-            data = io.BytesIO(content)
-            filename = f"{localization.localization_name}.fits"
+                data = io.BytesIO(content)
+                filename = f"{localization.localization_name}.{output_format}"
 
-            await self.send_file(data, filename, output_type=output_format)
+                await self.send_file(data, filename, output_type=output_format)
+
+            except Exception as e:
+                return self.error(f'Failed to create skymap for download: str{e}')
+            finally:
+                # clean up local files
+                for f in local_temp_files:
+                    try:
+                        os.remove(f)
+                    except:  # noqa E722
+                        pass
