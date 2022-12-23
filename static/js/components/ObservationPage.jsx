@@ -72,7 +72,7 @@ const ExecutedObservationList = ({
   handleFilterSubmit,
   downloadCallback,
 }) => {
-  if (!observations?.observations || observations.observations.length === 0) {
+  if (!observations?.observations) {
     return <p>No observations available...</p>;
   }
 
@@ -108,7 +108,7 @@ const QueuedObservationList = ({
   handleFilterSubmit,
   downloadCallback,
 }) => {
-  if (!observations?.observations || observations.observations.length === 0) {
+  if (!observations?.observations) {
     return <p>No observations available...</p>;
   }
 
