@@ -334,7 +334,6 @@ class SEDMV2API(FollowUpAPI):
             "maximum_airmass",
             "minimum_lunar_distance",
             "too",
-            "emccd",
         ],
     }
 
