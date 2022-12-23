@@ -24,6 +24,7 @@ from astroplan import FixedTarget
 from astroplan import ObservingBlock
 from astroplan.constraints import (
     Constraint,
+    AltitudeConstraint,
     AtNightConstraint,
     AirmassConstraint,
     MoonSeparationConstraint,
@@ -809,9 +810,45 @@ class FollowupRequestHandler(BaseHandler):
             return self.success()
 
 
+class HourAngleConstraint(Constraint):
+    """
+    Constrain the hour angle of a target.
+
+    Parameters
+    ----------
+    min : float or `None`
+        Minimum hour angle of the target. `None` indicates no limit.
+    max : float or `None`
+        Maximum hour angle of the target. `None` indicates no limit.
+    """
+
+    def __init__(self, min=-5.5, max=5.5):
+        self.min = min
+        self.max = max
+
+    def compute_constraint(self, times, observer, targets):
+
+        has = np.zeros((len(targets), len(times)))
+        for ii, tt in enumerate(times):
+            tt = Time(tt, format='jd', scale='utc', location=observer.location)
+            lst = tt.sidereal_time('mean')
+            has[:, ii] = [(lst - target.ra).hour for target in targets]
+
+        if self.min is None and self.max is not None:
+            mask = has <= self.max
+        elif self.max is None and self.min is not None:
+            mask = self.min <= has
+        elif self.min is not None and self.max is not None:
+            mask = (self.min <= has) & (has <= self.max)
+        else:
+            raise ValueError("No max and/or min specified in " "HourAngleConstraint.")
+        return mask
+
+
 class TargetOfOpportunityConstraint(Constraint):
     """
-    Prioritize target of opportunity targets earlier.
+    Prioritize target of opportunity targets by giving them
+    higher weights at earlier times.
 
     Parameters
     ----------
@@ -986,7 +1023,9 @@ def observation_schedule(
 
     global_constraints = [
         AirmassConstraint(max=2.50, boolean_constraint=False),
+        AltitudeConstraint(20 * u.deg, 90 * u.deg),
         AtNightConstraint.twilight_civil(),
+        HourAngleConstraint(min=-5.5, max=5.5),
         MoonSeparationConstraint(min=10.0 * u.deg),
         TargetOfOpportunityConstraint(toos=toos),
     ]
