@@ -10,7 +10,12 @@ const FETCH_TAXONOMIES_OK = "skyportal/FETCH_TAXONOMIES_OK";
 
 const SUBMIT_TAXONOMY = "skyportal/SUBMIT_TAXONOMY";
 
+const MODIFY_TAXONOMY = "skyportal/MODIFY_TAXONOMY";
+
 const DELETE_TAXONOMY = "skyportal/DELETE_TAXONOMY";
+
+export const modifyTaxonomy = (id, params) =>
+  API.PUT(`/api/taxonomy/${id}`, MODIFY_TAXONOMY, params);
 
 export function deleteTaxonomy(id) {
   return API.DELETE(`/api/taxonomy/${id}`, DELETE_TAXONOMY);

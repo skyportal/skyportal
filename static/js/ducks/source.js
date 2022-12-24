@@ -15,6 +15,10 @@ const ADD_CLASSIFICATION = "skyportal/ADD_CLASSIFICATION";
 
 const DELETE_CLASSIFICATION = "skyportal/DELETE_CLASSIFICATION";
 
+const ADD_CLASSIFICATION_VOTE = "skyportal/ADD_CLASSIFICATION_VOTE";
+
+const DELETE_CLASSIFICATION_VOTE = "skyportal/DELETE_CLASSIFICATION_VOTE";
+
 const DELETE_CLASSIFICATIONS = "skyportal/DELETE_CLASSIFICATIONS";
 
 const ADD_SOURCE_TNS = "skyportal/ADD_SOURCE_TNS";
@@ -45,6 +49,10 @@ const GET_COMMENT_ON_SPECTRUM_ATTACHMENT_PREVIEW_OK =
   "skyportal/GET_COMMENT_ON_SPECTRUM_ATTACHMENT_PREVIEW_OK";
 
 const ADD_SOURCE_VIEW = "skyportal/ADD_SOURCE_VIEW";
+
+const ADD_SOURCE_LABEL = "skyportal/ADD_SOURCE_LABEL";
+
+const DELETE_SOURCE_LABEL = "skyportal/DELETE_SOURCE_LABEL";
 
 const SUBMIT_FOLLOWUP_REQUEST = "skyportal/SUBMIT_FOLLOWUP_REQUEST";
 
@@ -99,6 +107,14 @@ export const uploadPhotometry = (data) =>
 
 export function addClassification(formData) {
   return API.POST(`/api/classification`, ADD_CLASSIFICATION, formData);
+}
+
+export function addClassificationVote(classification_id, data = {}) {
+  return API.POST(
+    `/api/classification/votes/${classification_id}`,
+    ADD_CLASSIFICATION_VOTE,
+    data
+  );
 }
 
 export function addSourceTNS(id, formData) {
@@ -157,6 +173,13 @@ export function deleteClassification(classification_id) {
   return API.DELETE(
     `/api/classification/${classification_id}`,
     DELETE_CLASSIFICATION
+  );
+}
+
+export function deleteClassificationVote(classification_id) {
+  return API.DELETE(
+    `/api/classification/votes/${classification_id}`,
+    DELETE_CLASSIFICATION_VOTE
   );
 }
 
@@ -265,10 +288,16 @@ export function getCommentOnSpectrumAttachmentPreview(spectrumID, commentID) {
 }
 
 export function fetchSource(id, actionType = FETCH_LOADED_SOURCE) {
-  return API.GET(
-    `/api/sources/${id}?includeComments=true&includeColorMagnitude=true&includeThumbnails=true&includePhotometryExists=true&includeSpectrumExists=true`,
-    actionType
-  );
+  const urlParams = {
+    includeComments: true,
+    includeColorMagnitude: true,
+    includeThumbnails: true,
+    includePhotometryExists: true,
+    includeSpectrumExists: true,
+    includeLabellers: true,
+  };
+  const queryString = new URLSearchParams(urlParams).toString();
+  return API.GET(`/api/sources/${id}?${queryString}`, actionType);
 }
 
 export function checkSource(id, params, actionType = CHECK_SOURCE) {
@@ -280,6 +309,14 @@ export function checkSource(id, params, actionType = CHECK_SOURCE) {
 
 export function addSourceView(id) {
   return API.POST(`/api/internal/source_views/${id}`, ADD_SOURCE_VIEW);
+}
+
+export function addSourceLabels(id, data) {
+  return API.POST(`/api/sources/${id}/labels`, ADD_SOURCE_LABEL, data);
+}
+
+export function deleteSourceLabels(id, data) {
+  return API.DELETE(`/api/sources/${id}/labels`, DELETE_SOURCE_LABEL, data);
 }
 
 export const updateSource = (id, payload) =>

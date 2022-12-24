@@ -904,6 +904,51 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
             />
           </div>
         </div>
+        <div className={classes.formItemRightColumn}>
+          <Typography variant="subtitle2" className={classes.title}>
+            Which have been...
+          </Typography>
+          <div className={classes.checkboxGroup}>
+            <FormControlLabel
+              label="labelled"
+              labelPlacement="start"
+              control={
+                <Controller
+                  render={({ field: { onChange, value } }) => (
+                    <Checkbox
+                      color="primary"
+                      type="checkbox"
+                      onChange={(event) => onChange(event.target.checked)}
+                      checked={value}
+                    />
+                  )}
+                  name="hasBeenLabelled"
+                  control={control}
+                  defaultValue={false}
+                />
+              }
+            />
+            <FormControlLabel
+              label="not labelled"
+              labelPlacement="start"
+              control={
+                <Controller
+                  render={({ field: { onChange, value } }) => (
+                    <Checkbox
+                      color="primary"
+                      type="checkbox"
+                      onChange={(event) => onChange(event.target.checked)}
+                      checked={value}
+                    />
+                  )}
+                  name="hasNotBeenLabelled"
+                  control={control}
+                  defaultValue={false}
+                />
+              }
+            />
+          </div>
+        </div>
         <div className={classes.formItem}>
           <Typography variant="subtitle2" className={classes.title}>
             Time of Most Recent Spectrum (UTC)

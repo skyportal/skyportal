@@ -6,7 +6,7 @@ from ...models import Telescope
 
 
 class TelescopeHandler(BaseHandler):
-    @permissions(['Manage allocations'])
+    @permissions(['Manage telescopes'])
     def post(self):
         """
         ---
@@ -227,7 +227,7 @@ class TelescopeHandler(BaseHandler):
 
             return self.success(data=telescopes)
 
-    @permissions(['Manage allocations'])
+    @permissions(['Manage telescopes'])
     def put(self, telescope_id):
         """
         ---
@@ -268,7 +268,7 @@ class TelescopeHandler(BaseHandler):
 
             schema = Telescope.__schema__()
             try:
-                schema.load(data)
+                schema.load(data, partial=True)
             except ValidationError as e:
                 return self.error(
                     'Invalid/missing parameters: ' f'{e.normalized_messages()}'
@@ -300,7 +300,7 @@ class TelescopeHandler(BaseHandler):
             self.push_all(action="skyportal/REFRESH_TELESCOPES")
             return self.success()
 
-    @permissions(['Manage allocations'])
+    @permissions(['Delete telescope'])
     def delete(self, telescope_id):
         """
         ---
