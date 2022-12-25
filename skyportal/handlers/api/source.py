@@ -2400,8 +2400,7 @@ class SourceHandler(BaseHandler):
                 return self.success(data=source_info)
 
         with self.Session() as session:
-            # try:
-            if True:
+            try:
                 query_results = get_sources(
                     self.associated_user_object.id,
                     session,
@@ -2472,8 +2471,8 @@ class SourceHandler(BaseHandler):
                     total_matches=total_matches,
                     includeGeoJSON=includeGeoJSON,
                 )
-            # except Exception as e:
-            #    return self.error(f'Cannot retrieve sources: {str(e)}')
+            except Exception as e:
+                return self.error(f'Cannot retrieve sources: {str(e)}')
 
             query_size = sizeof(query_results)
             if query_size >= SIZE_WARNING_THRESHOLD:

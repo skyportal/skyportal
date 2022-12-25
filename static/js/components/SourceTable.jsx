@@ -1259,8 +1259,6 @@ const SourceTable = ({
       delete data.position;
     }
 
-    console.log("formData", formData);
-
     setFilterFormData(data);
     paginateCallback(1, rowsPerPage, {}, data);
     setFilterFormSubmitted(true);
