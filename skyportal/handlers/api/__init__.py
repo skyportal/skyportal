@@ -127,6 +127,7 @@ from .source import (
 )
 from .source_exists import SourceExistsHandler
 from .source_groups import SourceGroupsHandler
+from .spatial_catalog import SpatialCatalogHandler
 from .spectrum import (
     SpectrumHandler,
     ObjSpectraHandler,
