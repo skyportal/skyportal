@@ -9,6 +9,7 @@ import ThumbDown from "@mui/icons-material/ThumbDown";
 import makeStyles from "@mui/styles/makeStyles";
 
 import { showNotification } from "baselayer/components/Notifications";
+import { grey } from "@mui/material/colors";
 import Button from "./Button";
 import ConfirmDeletionDialog from "./ConfirmDeletionDialog";
 
@@ -19,6 +20,7 @@ export const useStyles = makeStyles((theme) => ({
     margin: theme.spacing(0.5),
     fontSize: "1.2rem",
     fontWeight: "bold",
+    color: theme.palette.mode === "light" ? null : grey[100],
   },
   classificationDelete: {
     cursor: "pointer",

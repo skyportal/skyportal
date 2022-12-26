@@ -17,6 +17,7 @@ import DialogContentText from "@mui/material/DialogContentText";
 import DialogTitle from "@mui/material/DialogTitle";
 
 import CircularProgress from "@mui/material/CircularProgress";
+import { grey } from "@mui/material/colors";
 import Button from "./Button";
 
 import GroupUsers from "./GroupUsers";
@@ -27,6 +28,7 @@ import * as groupsActions from "../ducks/groups";
 import * as streamsActions from "../ducks/streams";
 
 const useStyles = makeStyles((theme) => ({
+  color: theme.palette.mode === "light" ? null : grey[50],
   padding_bottom: {
     paddingBottom: "2em",
   },

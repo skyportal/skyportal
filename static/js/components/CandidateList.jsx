@@ -27,6 +27,7 @@ import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
 import Form from "@rjsf/material-ui/v5";
 
 import { showNotification } from "baselayer/components/Notifications";
+import { grey } from "@mui/material/colors";
 import * as candidatesActions from "../ducks/candidates";
 import CustomDataTable from "./CustomDataTable";
 import ThumbnailList from "./ThumbnailList";
@@ -48,15 +49,18 @@ import CandidatePlugins from "./CandidatePlugins";
 const useStyles = makeStyles((theme) => ({
   candidateListContainer: {
     padding: "1rem",
-    color: theme.palette.mode === "dark" ? "#c9c9c9" : "#090909",
+    color: theme.palette.mode === "light" ? null : grey[100],
   },
   table: {
     marginTop: "1rem",
+    color: theme.palette.mode === "light" ? null : grey[50],
   },
   title: {
     marginBottom: "0.625rem",
+    color: theme.palette.mode === "light" ? null : grey[50],
   },
   pages: {
+    color: theme.palette.mode === "light" ? null : grey[100],
     margin: "1rem",
     "& > div": {
       display: "inline-block",
@@ -70,6 +74,7 @@ const useStyles = makeStyles((theme) => ({
     paddingBottom: "0.1rem",
   },
   infoItem: {
+    color: theme.palette.mode === "light" ? null : grey[50],
     display: "flex",
     "& > span": {
       paddingLeft: "0.25rem",
@@ -88,15 +93,18 @@ const useStyles = makeStyles((theme) => ({
   },
   thumbnails: (props) => ({
     minWidth: props.thumbnailsMinWidth,
+    color: theme.palette.mode === "light" ? null : grey[100],
   }),
   info: (props) => ({
     fontSize: "0.875rem",
     minWidth: props.infoMinWidth,
     maxWidth: props.infoMaxWidth,
+    color: theme.palette.mode === "light" ? null : grey[100],
   }),
   annotations: (props) => ({
     minWidth: props.annotationsMinWidth,
     maxWidth: props.annotationsMaxWidth,
+    color: theme.palette.mode === "light" ? null : grey[100],
     overflowWrap: "break-word",
   }),
   sortButtton: {
@@ -107,9 +115,11 @@ const useStyles = makeStyles((theme) => ({
   },
   chip: {
     margin: theme.spacing(0.5),
+    color: theme.palette.mode === "light" ? null : grey[50],
   },
   typography: {
     padding: theme.spacing(2),
+    color: theme.palette.mode === "light" ? null : grey[50],
   },
   helpButton: {
     display: "inline-block",
@@ -121,11 +131,13 @@ const useStyles = makeStyles((theme) => ({
   formControl: {
     margin: theme.spacing(1),
     minWidth: 120,
+    color: theme.palette.mode === "light" ? null : grey[100],
   },
   formContainer: {
     display: "flex",
     flexFlow: "row wrap",
     alignItems: "center",
+    color: theme.palette.mode === "light" ? null : grey[50],
   },
   idButton: {
     textTransform: "none",
@@ -139,7 +151,9 @@ const getMuiTheme = (theme) =>
     palette: theme.palette,
     overrides: {
       MUIDataTableBodyCell: {
+        color: theme.palette.mode === "light" ? null : grey[100],
         root: {
+          color: theme.palette.mode === "light" ? null : grey[100],
           padding: `${theme.spacing(1)} ${theme.spacing(0.5)} ${theme.spacing(
             1
           )} ${theme.spacing(1)}`,
@@ -156,6 +170,7 @@ const getMuiTheme = (theme) =>
         },
       },
       MUIDataTablePagination: {
+        color: theme.palette.mode === "light" ? null : grey[100],
         toolbar: {
           flexFlow: "row wrap",
           justifyContent: "flex-end",
@@ -213,11 +228,13 @@ const getMuiTheme = (theme) =>
         root: {
           maxHeight: "calc(100vh - 5rem)",
         },
+        color: theme.palette.mode === "light" ? null : grey[50],
       },
       MUIDataTableFilterList: {
         chip: {
           maxWidth: "100%",
         },
+        color: theme.palette.mode === "light" ? null : grey[50],
       },
     },
   });

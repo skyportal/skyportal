@@ -17,6 +17,7 @@ import Typography from "@mui/material/Typography";
 import { log10, abs, ceil } from "mathjs";
 import CircularProgress from "@mui/material/CircularProgress";
 import HelpOutlineOutlinedIcon from "@mui/icons-material/HelpOutlineOutlined";
+import { grey } from "@mui/material/colors";
 import Button from "./Button";
 
 import CommentList from "./CommentList";
@@ -65,25 +66,30 @@ const green = "#359d73";
 // Export to allow Candidate.jsx to use styles
 export const useSourceStyles = makeStyles((theme) => ({
   chip: {
+    color: theme.palette.mode === "light" ? null : grey[100],
     margin: theme.spacing(0.5),
   },
   accordionHeading: {
+    color: theme.palette.mode === "light" ? null : grey[100],
     fontSize: "1.25rem",
     fontWeight: theme.typography.fontWeightRegular,
   },
   photometryContainer: {
+    color: theme.palette.mode === "light" ? null : grey[100],
     display: "flex",
     overflowX: "scroll",
     flexDirection: "column",
     padding: "0.5rem",
   },
   buttonContainer: {
+    color: theme.palette.mode === "light" ? null : grey[100],
     "& button": {
       margin: "0.5rem",
     },
   },
   columnItem: {
     marginBottom: theme.spacing(2),
+    color: theme.palette.mode === "light" ? null : grey[100],
   },
   name: {
     fontSize: "200%",
@@ -101,13 +107,16 @@ export const useSourceStyles = makeStyles((theme) => ({
   },
   comments: {
     width: "100%",
+    color: theme.palette.mode === "light" ? null : grey[100],
   },
   tns: {
     width: "100%",
+    color: theme.palette.mode === "light" ? null : grey[100],
   },
   classifications: {
     display: "flex",
     flexDirection: "column",
+    color: theme.palette.mode === "light" ? null : grey[100],
     width: "100%",
   },
   hr_diagram: {},
@@ -137,6 +146,7 @@ export const useSourceStyles = makeStyles((theme) => ({
   sourceInfo: {
     display: "flex",
     flexFlow: "row wrap",
+    color: theme.palette.mode === "light" ? null : grey[100],
     alignItems: "center",
   },
   infoLine: {
@@ -144,13 +154,16 @@ export const useSourceStyles = makeStyles((theme) => ({
     flexBasis: "100%",
     display: "flex",
     flexFlow: "row wrap",
+    color: theme.palette.mode === "light" ? null : grey[100],
     padding: "0.25rem 0",
   },
   redshiftInfo: {
     padding: "0.25rem 0.5rem 0.25rem 0",
+    color: theme.palette.mode === "light" ? null : grey[100],
   },
   dmdlInfo: {
     alignSelf: "center",
+    color: theme.palette.mode === "light" ? null : grey[100],
     "&>div": {
       display: "inline",
       padding: "0.25rem 0.5rem 0.25rem 0",
@@ -161,16 +174,19 @@ export const useSourceStyles = makeStyles((theme) => ({
   },
   findingChart: {
     alignItems: "center",
+    color: theme.palette.mode === "light" ? null : grey[100],
   },
   source: {
     padding: theme.spacing(2),
     display: "flex",
+    color: theme.palette.mode === "light" ? null : grey[100],
     flexDirection: "row",
   },
   tooltipContent: {
     display: "flex",
     flexDirection: "column",
     justifyContent: "center",
+    color: theme.palette.mode === "light" ? null : grey[100],
     alignItems: "center",
     width: "100%",
   },
@@ -178,6 +194,7 @@ export const useSourceStyles = makeStyles((theme) => ({
     width: "100%",
     display: "flex",
     flexDirection: "row",
+    color: theme.palette.mode === "light" ? null : grey[100],
     justifyContent: "left",
     alignItems: "center",
     gap: "10px",

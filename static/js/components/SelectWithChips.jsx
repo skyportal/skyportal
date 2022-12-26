@@ -9,15 +9,18 @@ import {
   useTheme,
   Chip,
 } from "@mui/material";
+import { grey } from "@mui/material/colors";
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles((theme) => ({
   chips: {
     display: "flex",
     flexWrap: "wrap",
     maxWidth: "25rem",
+    color: theme.palette.mode === "light" ? null : grey[100],
   },
   formControl: {
     minWidth: "12rem",
+    color: theme.palette.mode === "light" ? null : grey[100],
   },
 }));
 

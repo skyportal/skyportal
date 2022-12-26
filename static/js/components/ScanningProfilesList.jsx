@@ -20,6 +20,7 @@ import {
 import makeStyles from "@mui/styles/makeStyles";
 
 import MUIDataTable from "mui-datatables";
+import { grey } from "@mui/material/colors";
 import Button from "./Button";
 import * as profileActions from "../ducks/profile";
 
@@ -54,9 +55,11 @@ const useStyles = makeStyles((theme) => ({
   container: {
     width: "100%",
     overflow: "scroll",
+    color: theme.palette.mode === "light" ? null : grey[100],
   },
   chip: {
     margin: theme.spacing(0.5),
+    color: theme.palette.mode === "light" ? null : grey[100],
   },
   actionButtons: {
     display: "flex",
@@ -65,6 +68,7 @@ const useStyles = makeStyles((theme) => ({
     "& > button": {
       margin: "0.25rem 0",
     },
+    color: theme.palette.mode === "light" ? null : grey[100],
   },
 }));
 
@@ -75,6 +79,7 @@ const getMuiTheme = (theme) =>
       palette: theme.palette,
       overrides: {
         MUIDataTablePagination: {
+          color: theme.palette.mode === "light" ? null : grey[100],
           toolbar: {
             flexFlow: "row wrap",
             justifyContent: "flex-end",

@@ -23,6 +23,7 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
 import { showNotification } from "baselayer/components/Notifications";
+import { grey } from "@mui/material/colors";
 import Button from "./Button";
 import * as invitationsActions from "../ducks/invitations";
 
@@ -42,6 +43,7 @@ const useStyles = makeStyles((theme) => ({
   },
   typography: {
     padding: theme.spacing(1),
+    color: theme.palette.mode === "light" ? null : grey[50],
   },
 }));
 

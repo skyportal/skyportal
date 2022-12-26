@@ -21,6 +21,7 @@ import AccordionSummary from "@mui/material/AccordionSummary";
 import AccordionDetails from "@mui/material/AccordionDetails";
 import Typography from "@mui/material/Typography";
 
+import { grey } from "@mui/material/colors";
 import ManageUserButtons from "./GroupPageManageUserButtons";
 import NewGroupUserForm from "./NewGroupUserForm";
 import InviteNewGroupUserForm from "./InviteNewGroupUserForm";
@@ -33,6 +34,7 @@ const getMuiTheme = (theme) =>
       palette: theme.palette,
       overrides: {
         MUIDataTableHeadCell: {
+          color: theme.palette.mode === "light" ? null : grey[100],
           hintIconAlone: {
             marginTop: 0,
           },

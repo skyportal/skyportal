@@ -19,18 +19,21 @@ import makeStyles from "@mui/styles/makeStyles";
 import withStyles from "@mui/styles/withStyles";
 
 import { showNotification } from "baselayer/components/Notifications";
+import { grey } from "@mui/material/colors";
 import Button from "./Button";
 import { getSortedClasses } from "./ShowClassification";
 import * as Actions from "../ducks/source";
 import * as ClassificationsActions from "../ducks/classifications";
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles((theme) => ({
   container: {
     padding: "1rem",
+    color: theme.palette.mode === "light" ? null : grey[100],
   },
   taxonomySelect: {
     minWidth: "10rem",
     margin: "0.25rem 0",
+    color: theme.palette.mode === "light" ? null : grey[100],
   },
   sliderContainer: {
     display: "flex",
@@ -41,9 +44,11 @@ const useStyles = makeStyles(() => ({
       flexGrow: "1",
       flexBasis: "15rem",
     },
+    color: theme.palette.mode === "light" ? null : grey[100],
   },
   submitButton: {
     margin: "1rem 0",
+    color: theme.palette.mode === "light" ? null : grey[100],
   },
 }));
 

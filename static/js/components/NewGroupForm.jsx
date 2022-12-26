@@ -13,12 +13,14 @@ import Paper from "@mui/material/Paper";
 import { useTheme } from "@mui/material/styles";
 
 import makeStyles from "@mui/styles/makeStyles";
+import { grey } from "@mui/material/colors";
 import Button from "./Button";
 
 import * as groupsActions from "../ducks/groups";
 import * as usersActions from "../ducks/users";
 
 const getStyles = (userID, userIDs = [], theme) => ({
+  color: theme.palette.mode === "light" ? null : grey[50],
   fontWeight:
     userIDs.indexOf(userID) === -1
       ? theme.typography.fontWeightRegular

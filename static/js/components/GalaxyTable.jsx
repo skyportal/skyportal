@@ -12,13 +12,16 @@ import makeStyles from "@mui/styles/makeStyles";
 import CircularProgress from "@mui/material/CircularProgress";
 
 import MUIDataTable from "mui-datatables";
+import { grey } from "@mui/material/colors";
 
 const useStyles = makeStyles((theme) => ({
   container: {
     width: "100%",
     overflow: "scroll",
+    color: theme.palette.mode === "light" ? null : grey[100],
   },
   eventTags: {
+    color: theme.palette.mode === "light" ? null : grey[100],
     marginLeft: "0.5rem",
     "& > div": {
       margin: "0.25rem",
@@ -33,8 +36,10 @@ const getMuiTheme = (theme) =>
   createTheme(
     adaptV4Theme({
       palette: theme.palette,
+      color: theme.palette.mode === "light" ? null : grey[100],
       overrides: {
         MUIDataTablePagination: {
+          color: theme.palette.mode === "light" ? null : grey[100],
           toolbar: {
             flexFlow: "row wrap",
             justifyContent: "flex-end",
@@ -47,6 +52,7 @@ const getMuiTheme = (theme) =>
             },
           },
           tableCellContainer: {
+            color: theme.palette.mode === "light" ? null : grey[100],
             padding: "1rem",
           },
           selectRoot: {

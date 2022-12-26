@@ -8,6 +8,7 @@ import CircularProgress from "@mui/material/CircularProgress";
 import makeStyles from "@mui/styles/makeStyles";
 
 import { showNotification } from "baselayer/components/Notifications";
+import { grey } from "@mui/material/colors";
 import Button from "./Button";
 
 import * as groupsActions from "../ducks/groups";
@@ -15,7 +16,8 @@ import * as usersActions from "../ducks/users";
 
 const filter = createFilterOptions();
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles((theme) => ({
+  color: theme.palette.mode === "light" ? null : grey[50],
   heading: {
     fontSize: "1.0625rem",
     fontWeight: 500,

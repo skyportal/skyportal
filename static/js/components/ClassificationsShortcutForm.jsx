@@ -4,26 +4,30 @@ import { useForm } from "react-hook-form";
 import InputLabel from "@mui/material/InputLabel";
 import makeStyles from "@mui/styles/makeStyles";
 import { TextField } from "@mui/material";
+import { grey } from "@mui/material/colors";
 import Button from "./Button";
 import UserPreferencesHeader from "./UserPreferencesHeader";
 import * as profileActions from "../ducks/profile";
 import ClassificationSelect from "./ClassificationSelect";
 import DeletableChips from "./DeletableChips";
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles((theme) => ({
   chips: {
     display: "flex",
     flexWrap: "wrap",
     maxWidth: "20rem",
+    color: theme.palette.mode === "light" ? null : grey[50],
   },
   form: {
     display: "flex",
     gap: "1rem",
     flexWrap: "wrap",
     paddingBottom: "1.5rem",
+    color: theme.palette.mode === "light" ? null : grey[50],
   },
   classificationsMenu: {
     minWidth: "12rem",
+    color: theme.palette.mode === "light" ? null : grey[50],
   },
 }));
 

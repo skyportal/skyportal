@@ -6,10 +6,12 @@ import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
 import { showNotification } from "baselayer/components/Notifications";
 import { useForm } from "react-hook-form";
+import { grey } from "@mui/material/colors";
 import ClassificationSelect from "./ClassificationSelect";
 import * as Actions from "../ducks/source";
 import { allowedClasses } from "./ClassificationForm";
 import Button from "./Button";
+import theme from "./Theme";
 
 const AddClassificationsScanningPage = ({ obj_id }) => {
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -69,7 +71,10 @@ const AddClassificationsScanningPage = ({ obj_id }) => {
       >
         <DialogTitle>Add Classifications</DialogTitle>
         <DialogContent>
-          <form onSubmit={handleSubmit(onSubmit)}>
+          <form
+            onSubmit={handleSubmit(onSubmit)}
+            color={theme.palette.mode === "light" ? null : grey[50]}
+          >
             <ClassificationSelect
               selectedClassifications={selectedClassifications}
               setSelectedClassifications={setSelectedClassifications}

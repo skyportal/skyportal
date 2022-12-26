@@ -11,6 +11,7 @@ import CircularProgress from "@mui/material/CircularProgress";
 
 import { showNotification } from "baselayer/components/Notifications";
 
+import { grey } from "@mui/material/colors";
 import FilterPlugins from "./FilterPlugins";
 
 import * as groupActions from "../ducks/group";
@@ -30,12 +31,15 @@ const useStyles = makeStyles((theme) => ({
   heading: {
     fontSize: "1.0625rem",
     fontWeight: 500,
+    color: theme.palette.mode === "light" ? null : grey[50],
   },
   accordion_details: {
     flexDirection: "column",
+    color: theme.palette.mode === "light" ? null : grey[50],
   },
   button_add: {
     maxWidth: "8.75rem",
+    color: theme.palette.mode === "light" ? null : grey[50],
   },
   formControl: {
     margin: theme.spacing(1),
@@ -54,6 +58,7 @@ const useStyles = makeStyles((theme) => ({
   },
   title: {
     fontSize: "0.875rem",
+    color: theme.palette.mode === "light" ? null : grey[50],
   },
   big_font: {
     fontSize: "1rem",
@@ -63,6 +68,7 @@ const useStyles = makeStyles((theme) => ({
   },
   header: {
     paddingBottom: 10,
+    color: theme.palette.mode === "light" ? null : grey[50],
   },
 }));
 

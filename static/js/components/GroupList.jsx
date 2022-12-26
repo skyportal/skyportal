@@ -8,12 +8,14 @@ import ListItemText from "@mui/material/ListItemText";
 import Typography from "@mui/material/Typography";
 import DragHandleIcon from "@mui/icons-material/DragHandle";
 import makeStyles from "@mui/styles/makeStyles";
+import { grey } from "@mui/material/colors";
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles((theme) => ({
   listContainer: {
     overflowX: "hidden",
     overflowY: "scroll",
     height: "calc(95% - 1.25rem);",
+    color: theme.palette.mode === "light" ? null : grey[50],
   },
   flex: {
     display: "flex",

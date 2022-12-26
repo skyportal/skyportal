@@ -12,6 +12,7 @@ import CircularProgress from "@mui/material/CircularProgress";
 
 import { showNotification } from "baselayer/components/Notifications";
 
+import { grey } from "@mui/material/colors";
 import SourceTable from "./SourceTable";
 import withRouter from "./withRouter";
 import ProgressIndicator from "./ProgressIndicators";
@@ -27,6 +28,7 @@ const useStyles = makeStyles((theme) => ({
     height: "15rem",
     overflowY: "scroll",
     padding: "0.5rem 0",
+    color: theme.palette.mode === "light" ? null : grey[50],
   },
   tableGrid: {
     width: "100%",

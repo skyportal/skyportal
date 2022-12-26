@@ -17,6 +17,7 @@ import makeStyles from "@mui/styles/makeStyles";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
+import { grey } from "@mui/material/colors";
 import Button from "./Button";
 
 import * as candidatesActions from "../ducks/candidates";
@@ -28,17 +29,19 @@ import ClassificationSelect from "./ClassificationSelect";
 
 dayjs.extend(utc);
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles((theme) => ({
   filterListContainer: {
     padding: "1rem",
     display: "flex",
     flexFlow: "column nowrap",
+    color: theme.palette.mode === "light" ? null : grey[50],
   },
   formRow: {
     margin: "1rem 0",
     "& > div": {
       width: "100%",
     },
+    color: theme.palette.mode === "light" ? null : grey[50],
   },
   redshiftField: {
     display: "inline-block",

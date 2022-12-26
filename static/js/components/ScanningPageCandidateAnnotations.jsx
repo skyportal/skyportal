@@ -11,6 +11,7 @@ import ExpandLess from "@mui/icons-material/ExpandLess";
 import ExpandMore from "@mui/icons-material/ExpandMore";
 import Divider from "@mui/material/Divider";
 
+import { grey } from "@mui/material/colors";
 import * as candidatesActions from "../ducks/candidates";
 
 const useStyles = makeStyles((theme) => ({
@@ -24,11 +25,13 @@ const useStyles = makeStyles((theme) => ({
     "& .Mui-disabled": {
       opacity: 1,
     },
+    color: theme.palette.mode === "light" ? null : grey[50],
   },
   nested: {
     paddingLeft: theme.spacing(4),
     paddingTop: 0,
     paddingBottom: 0,
+    color: theme.palette.mode === "light" ? null : grey[100],
   },
 }));
 

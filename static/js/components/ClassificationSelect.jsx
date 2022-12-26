@@ -2,14 +2,16 @@ import React from "react";
 import { useSelector } from "react-redux";
 import PropTypes from "prop-types";
 import makeStyles from "@mui/styles/makeStyles";
+import { grey } from "@mui/material/colors";
 import { allowedClasses } from "./ClassificationForm";
 import ClassificationShortcutButtons from "./ClassificationShortcutButtons";
 import SelectWithChips from "./SelectWithChips";
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles((theme) => ({
   shortcutButtons: {
     margin: "1rem 0",
   },
+  color: theme.palette.mode === "light" ? null : grey[50],
 }));
 
 const ClassificationSelect = (props) => {

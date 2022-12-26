@@ -39,6 +39,7 @@ import Typography from "@mui/material/Typography";
 
 import { isMobileOnly } from "react-device-detect";
 import { showNotification } from "baselayer/components/Notifications";
+import { grey } from "@mui/material/colors";
 import Button from "./Button";
 
 import { ra_to_hours, dec_to_dms, mjd_to_utc } from "../units";
@@ -62,6 +63,7 @@ const VegaHR = React.lazy(() => import("./VegaHR"));
 const useStyles = makeStyles((theme) => ({
   comment: {
     fontSize: "90%",
+    color: theme.palette.mode === "light" ? null : grey[100],
     display: "flex",
     flexDirection: "row",
     padding: "0.125rem",
@@ -78,6 +80,7 @@ const useStyles = makeStyles((theme) => ({
   },
   commentDark: {
     fontSize: "90%",
+    color: theme.palette.mode === "light" ? null : grey[100],
     display: "flex",
     flexDirection: "row",
     padding: "0.125rem",
@@ -99,6 +102,7 @@ const useStyles = makeStyles((theme) => ({
   },
   commentContent: {
     display: "flex",
+    color: theme.palette.mode === "light" ? null : grey[100],
     flexFlow: "column nowrap",
     padding: "0.3125rem 0.625rem 0.3125rem 0.875rem",
     borderRadius: "15px",
@@ -107,6 +111,7 @@ const useStyles = makeStyles((theme) => ({
   commentHeader: {
     display: "flex",
     alignItems: "center",
+    color: theme.palette.mode === "light" ? null : grey[100],
   },
   commentUserName: {
     fontWeight: "bold",
@@ -115,17 +120,19 @@ const useStyles = makeStyles((theme) => ({
     color: "#76aace",
   },
   commentTime: {
-    color: "gray",
     fontSize: "80%",
     marginRight: "1em",
+    color: theme.palette.mode === "light" ? null : grey[100],
   },
   commentUserGroup: {
     display: "inline-block",
+    color: theme.palette.mode === "light" ? null : grey[100],
     "& > svg": {
       fontSize: "1rem",
     },
   },
   commentMessage: {
+    color: theme.palette.mode === "light" ? null : grey[100],
     maxWidth: "25em",
     "& > p": {
       margin: "0",
@@ -140,24 +147,32 @@ const useStyles = makeStyles((theme) => ({
     maxWidth: "25em",
   },
   chip: {
+    color: theme.palette.mode === "light" ? null : grey[100],
     margin: theme.spacing(0.5),
   },
-  source: {},
+  source: {
+    color: theme.palette.mode === "light" ? null : grey[100],
+  },
   commentListContainer: {
+    color: theme.palette.mode === "light" ? null : grey[100],
     height: "15rem",
     overflowY: "scroll",
     padding: "0.5rem 0",
   },
   tableGrid: {
+    color: theme.palette.mode === "light" ? null : grey[100],
     width: "100%",
   },
   groupSelect: {
+    color: theme.palette.mode === "light" ? null : grey[100],
     maxWidth: "20rem",
   },
   filterFormRow: {
+    color: theme.palette.mode === "light" ? null : grey[100],
     margin: "0.75rem 0",
   },
   sourceName: {
+    color: theme.palette.mode === "light" ? null : grey[100],
     verticalAlign: "middle",
   },
   objId: {
@@ -176,11 +191,13 @@ const useStyles = makeStyles((theme) => ({
     fontSize: "1rem",
   },
   annotations: (props) => ({
+    color: theme.palette.mode === "light" ? null : grey[100],
     minWidth: props.annotationsMinWidth,
     maxWidth: props.annotationsMaxWidth,
     overflowWrap: "break-word",
   }),
   root: {
+    color: theme.palette.mode === "light" ? null : grey[100],
     width: "100%",
     background: theme.palette.background.paper,
     padding: theme.spacing(1),
@@ -188,11 +205,13 @@ const useStyles = makeStyles((theme) => ({
     overflowY: "scroll",
   },
   nested: {
+    color: theme.palette.mode === "light" ? null : grey[100],
     paddingLeft: theme.spacing(4),
     paddingTop: 0,
     paddingBottom: 0,
   },
   classificationDelete: {
+    color: theme.palette.mode === "light" ? null : grey[100],
     cursor: "pointer",
     fontSize: "2em",
     position: "absolute",
@@ -211,6 +230,7 @@ const getMuiTheme = (theme) =>
       palette: theme.palette,
       overrides: {
         MUIDataTableHeadCell: {
+          color: theme.palette.mode === "light" ? null : grey[100],
           sortLabelRoot: {
             height: "1.4rem",
           },
@@ -219,11 +239,13 @@ const getMuiTheme = (theme) =>
         MuiGridList: {
           root: {
             display: "none",
+            color: theme.palette.mode === "light" ? null : grey[100],
           },
         },
         MUIDataTableFilter: {
           root: {
             height: "100%",
+            color: theme.palette.mode === "light" ? null : grey[100],
           },
           header: {
             display: "none",
@@ -247,8 +269,10 @@ const getMuiTheme = (theme) =>
             [theme.breakpoints.up("sm")]: {
               flexDirection: "row",
             },
+            color: theme.palette.mode === "light" ? null : grey[100],
           },
           selectRoot: {
+            color: theme.palette.mode === "light" ? null : grey[100],
             marginRight: "0.5rem",
             [theme.breakpoints.up("sm")]: {
               marginLeft: "0",
@@ -262,6 +286,7 @@ const getMuiTheme = (theme) =>
             width: "100%",
             maxWidth: "100%",
             margin: 0,
+            color: theme.palette.mode === "light" ? null : grey[100],
             maxHeight: "calc(100vh - 1rem)",
             borderRadius: 0,
             top: "0 !important",

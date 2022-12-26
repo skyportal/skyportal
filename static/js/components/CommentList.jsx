@@ -9,6 +9,7 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
 
+import { grey } from "@mui/material/colors";
 import * as sourceActions from "../ducks/source";
 import * as gcnEventActions from "../ducks/gcnEvent";
 import * as shiftActions from "../ducks/shift";
@@ -21,7 +22,7 @@ import RegularCommentList from "./RegularCommentList";
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles((theme) => ({
   commentsContainer: {
     width: "100%",
   },
@@ -32,6 +33,7 @@ const useStyles = makeStyles(() => ({
   },
   comment: {
     fontSize: "90%",
+    color: theme.palette.mode === "light" ? null : grey[50],
     display: "flex",
     flexDirection: "row",
     padding: "0.125rem",
@@ -53,6 +55,7 @@ const useStyles = makeStyles(() => ({
     padding: "0.125rem",
     margin: "0 0.125rem 0.125rem 0",
     borderRadius: "1rem",
+    color: theme.palette.mode === "light" ? null : grey[50],
     "&:hover": {
       backgroundColor: "#3a3a3a",
     },
@@ -77,6 +80,7 @@ const useStyles = makeStyles(() => ({
   commentHeader: {
     display: "flex",
     alignItems: "center",
+    color: theme.palette.mode === "light" ? null : grey[50],
   },
   commentHeaderContent: {
     width: "70%",
@@ -113,6 +117,7 @@ const useStyles = makeStyles(() => ({
       margin: "0",
     },
     wordWrap: "break-word",
+    color: theme.palette.mode === "light" ? null : grey[50],
   },
   commentUserName: {
     fontWeight: "bold",

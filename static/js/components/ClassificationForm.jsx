@@ -12,15 +12,19 @@ import makeStyles from "@mui/styles/makeStyles";
 import Form from "@rjsf/material-ui/v5";
 
 import { showNotification } from "baselayer/components/Notifications";
+import { grey } from "@mui/material/colors";
 import * as Actions from "../ducks/source";
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles((theme) => ({
+  color: theme.palette.mode === "light" ? null : grey[50],
   chips: {
     display: "flex",
+    color: theme.palette.mode === "light" ? null : grey[100],
     flexWrap: "wrap",
   },
   chip: {
     margin: 2,
+    color: theme.palette.mode === "light" ? null : grey[50],
   },
 }));
 

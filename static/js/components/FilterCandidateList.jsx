@@ -22,6 +22,7 @@ import makeStyles from "@mui/styles/makeStyles";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
+import { grey } from "@mui/material/colors";
 import * as candidatesActions from "../ducks/candidates";
 import Responsive from "./Responsive";
 import FoldBox from "./FoldBox";
@@ -33,11 +34,12 @@ import Button from "./Button";
 
 dayjs.extend(utc);
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles((theme) => ({
   filterListContainer: {
     padding: "1rem",
     display: "flex",
     flexFlow: "column nowrap",
+    color: theme.palette.mode === "light" ? null : grey[50],
   },
   buttonsRow: {
     marginTop: "1rem",
@@ -46,6 +48,7 @@ const useStyles = makeStyles(() => ({
     "& > div": {
       marginRight: "1rem",
     },
+    color: theme.palette.mode === "light" ? null : grey[50],
   },
   pages: {
     marginTop: "1rem",
@@ -53,6 +56,7 @@ const useStyles = makeStyles(() => ({
       display: "inline-block",
       marginRight: "1rem",
     },
+    color: theme.palette.mode === "light" ? null : grey[100],
   },
   jumpToPage: {
     marginTop: "0.3125rem",
@@ -62,24 +66,29 @@ const useStyles = makeStyles(() => ({
     "& > button": {
       marginLeft: "0.5rem",
     },
+    color: theme.palette.mode === "light" ? null : grey[100],
   },
   formRow: {
     margin: "1rem 0",
+    color: theme.palette.mode === "light" ? null : grey[50],
   },
   redshiftField: {
     display: "inline-block",
     marginRight: "0.5rem",
+    color: theme.palette.mode === "light" ? null : grey[50],
   },
   savedStatusSelect: {
     margin: "1rem 0",
     "& input": {
       fontSize: "1rem",
     },
+    color: theme.palette.mode === "light" ? null : grey[50],
   },
   annotationSorting: {
     "& label": {
       marginTop: "1rem",
     },
+    color: theme.palette.mode === "light" ? null : grey[50],
   },
 }));
 

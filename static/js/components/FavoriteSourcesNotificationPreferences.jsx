@@ -7,12 +7,14 @@ import Switch from "@mui/material/Switch";
 import Typography from "@mui/material/Typography";
 import makeStyles from "@mui/styles/makeStyles";
 
+import { grey } from "@mui/material/colors";
 import * as profileActions from "../ducks/profile";
 import UserPreferencesHeader from "./UserPreferencesHeader";
 
 const useStyles = makeStyles((theme) => ({
   typography: {
     padding: theme.spacing(2),
+    color: theme.palette.mode === "light" ? null : grey[100],
   },
 }));
 

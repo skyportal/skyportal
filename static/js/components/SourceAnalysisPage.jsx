@@ -16,6 +16,7 @@ import DownloadIcon from "@mui/icons-material/Download";
 import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
 import Typography from "@mui/material/Typography";
+import { grey } from "@mui/material/colors";
 import Button from "./Button";
 import withRouter from "./withRouter";
 
@@ -37,12 +38,15 @@ const useStyles = makeStyles((theme) => ({
     padding: `${theme.spacing(0.75)} ${theme.spacing(1)} ${theme.spacing(
       0.75
     )} ${theme.spacing(1)}`,
+    color: theme.palette.mode === "light" ? null : grey[100],
   },
   title: {
     fontSize: "0.875rem",
+    color: theme.palette.mode === "light" ? null : grey[100],
   },
   chip: {
     margin: "0.1em",
+    color: theme.palette.mode === "light" ? null : grey[100],
   },
   pos: {
     marginBottom: 0,
@@ -75,6 +79,7 @@ const useStyles = makeStyles((theme) => ({
   accordionHeading: {
     fontSize: "1.25rem",
     fontWeight: theme.typography.fontWeightRegular,
+    color: theme.palette.mode === "light" ? null : grey[100],
   },
 }));
 

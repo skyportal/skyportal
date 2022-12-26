@@ -9,6 +9,7 @@ import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 
 import { showNotification } from "baselayer/components/Notifications";
+import { grey } from "@mui/material/colors";
 import UninitializedDBMessage from "./UninitializedDBMessage";
 import SourceTable from "./SourceTable";
 import Spinner from "./Spinner";
@@ -16,6 +17,7 @@ import ProgressIndicator from "./ProgressIndicators";
 import * as sourcesActions from "../ducks/sources";
 
 const useStyles = makeStyles((theme) => ({
+  color: theme.palette.mode === "light" ? null : grey[100],
   paperDiv: {
     padding: "1rem",
     height: "100%",
@@ -26,6 +28,7 @@ const useStyles = makeStyles((theme) => ({
   formControl: {
     margin: theme.spacing(1),
     minWidth: 120,
+    color: theme.palette.mode === "light" ? null : grey[100],
   },
   paper: {
     padding: "1rem",

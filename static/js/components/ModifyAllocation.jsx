@@ -14,6 +14,7 @@ import { showNotification } from "baselayer/components/Notifications";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
+import { grey } from "@mui/material/colors";
 import GroupShareSelect from "./GroupShareSelect";
 import { modifyAllocation } from "../ducks/allocation";
 import { fetchAllocations } from "../ducks/allocations";
@@ -21,18 +22,21 @@ import * as groupActions from "../ducks/group";
 
 dayjs.extend(utc);
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles((theme) => ({
   groupSelect: {
     width: "20rem",
     marginBottom: "0.75rem",
+    color: theme.palette.mode === "light" ? null : grey[100],
   },
   usersSelect: {
     width: "20rem",
     marginBottom: "0.75rem",
+    color: theme.palette.mode === "light" ? null : grey[100],
   },
   heading: {
     fontSize: "1.0625rem",
     fontWeight: 500,
+    color: theme.palette.mode === "light" ? null : grey[100],
   },
 }));
 

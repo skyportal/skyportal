@@ -8,15 +8,18 @@ import MenuItem from "@mui/material/MenuItem";
 import Chip from "@mui/material/Chip";
 import FormControl from "@mui/material/FormControl";
 import { makeStyles, useTheme } from "@mui/styles";
+import { grey } from "@mui/material/colors";
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles((theme) => ({
   chips: {
     display: "flex",
     flexWrap: "wrap",
     maxWidth: "20rem",
+    color: theme.palette.mode === "light" ? null : grey[100],
   },
   groupsMenu: {
     minWidth: "12rem",
+    color: theme.palette.mode === "light" ? null : grey[100],
   },
 }));
 

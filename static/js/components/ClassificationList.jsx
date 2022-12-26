@@ -11,6 +11,7 @@ import { showNotification } from "baselayer/components/Notifications";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import utc from "dayjs/plugin/utc";
+import { grey } from "@mui/material/colors";
 import Button from "./Button";
 import ConfirmDeletionDialog from "./ConfirmDeletionDialog";
 
@@ -19,7 +20,7 @@ import * as sourceActions from "../ducks/source";
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles((theme) => ({
   classification: {
     fontSize: "90%",
     display: "flex",
@@ -30,6 +31,7 @@ const useStyles = makeStyles(() => ({
     alignItems: "start",
     justifyContent: "space-between",
     overflowAnchor: "none",
+    color: theme.palette.mode === "light" ? null : grey[50],
   },
   classificationHeader: {
     flexGrow: "4",
@@ -37,17 +39,19 @@ const useStyles = makeStyles(() => ({
     paddingTop: "0.5rem",
     paddingBottom: "0.5rem",
     alignItems: "start",
+    color: theme.palette.mode === "light" ? null : grey[50],
   },
   classificationTime: {
     flexGrow: "4",
-    color: "gray",
     fontSize: "80%",
+    color: theme.palette.mode === "light" ? null : grey[50],
   },
   classificationMessage: {
     maxWidth: "20em",
+    color: theme.palette.mode === "light" ? null : grey[50],
   },
   classificationUserDomain: {
-    color: "lightgray",
+    color: theme.palette.mode === "light" ? null : grey[50],
     fontSize: "80%",
     paddingRight: "0.5em",
   },
@@ -58,8 +62,10 @@ const useStyles = makeStyles(() => ({
     alignItems: "start",
     minHeight: "1.6875rem",
     maxWidth: "20em",
+    color: theme.palette.mode === "light" ? null : grey[50],
   },
   classificationDelete: {
+    color: theme.palette.mode === "light" ? null : grey[100],
     height: "2.1875rem",
     paddingTop: "0.5em",
     paddingBottom: "0.5em",

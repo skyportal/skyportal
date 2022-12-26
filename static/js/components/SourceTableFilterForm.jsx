@@ -16,6 +16,7 @@ import MenuItem from "@mui/material/MenuItem";
 import { useForm, Controller } from "react-hook-form";
 
 import { showNotification } from "baselayer/components/Notifications";
+import { grey } from "@mui/material/colors";
 import Button from "./Button";
 
 import { allowedClasses } from "./ClassificationForm";
@@ -24,17 +25,21 @@ import * as gcnEventsActions from "../ducks/gcnEvents";
 
 const useStyles = makeStyles((theme) => ({
   paperDiv: {
+    color: theme.palette.mode === "light" ? null : grey[100],
     padding: "1rem",
     height: "100%",
   },
   tableGrid: {
     width: "100%",
+    color: theme.palette.mode === "light" ? null : grey[100],
   },
   formControl: {
+    color: theme.palette.mode === "light" ? null : grey[100],
     margin: theme.spacing(1),
     minWidth: 120,
   },
   paper: {
+    color: theme.palette.mode === "light" ? null : grey[100],
     padding: "1rem",
     marginTop: "1rem",
     maxHeight: "calc(100vh - 5rem)",
@@ -48,16 +53,20 @@ const useStyles = makeStyles((theme) => ({
       margin: theme.spacing(0.2),
       width: "10rem",
     },
+    color: theme.palette.mode === "light" ? null : grey[100],
   },
   formItem: {
+    color: theme.palette.mode === "light" ? null : grey[100],
     flex: "1 1 45%",
     margin: "0.5rem",
   },
   formItemRightColumn: {
     flex: "1 1 50%",
     margin: "0.5rem",
+    color: theme.palette.mode === "light" ? null : grey[100],
   },
   positionField: {
+    color: theme.palette.mode === "light" ? null : grey[100],
     width: "33%",
     "& > label": {
       fontSize: "0.875rem",
@@ -69,17 +78,21 @@ const useStyles = makeStyles((theme) => ({
   formButtons: {
     width: "100%",
     margin: "0.5rem",
+    color: theme.palette.mode === "light" ? null : grey[100],
   },
   title: {
     margin: "0.5rem 0rem 0rem 0rem",
+    color: theme.palette.mode === "light" ? null : grey[100],
   },
   multiSelect: {
+    color: theme.palette.mode === "light" ? null : grey[100],
     maxWidth: "100%",
     "& > div": {
       whiteSpace: "normal",
     },
   },
   checkboxGroup: {
+    color: theme.palette.mode === "light" ? null : grey[100],
     display: "flex",
     flexWrap: "wrap",
     width: "100%",
@@ -88,6 +101,7 @@ const useStyles = makeStyles((theme) => ({
     },
   },
   select: {
+    color: theme.palette.mode === "light" ? null : grey[100],
     width: "40%",
     height: "3rem",
   },
@@ -97,6 +111,7 @@ const useStyles = makeStyles((theme) => ({
     alignItems: "center",
     justifyContent: "left",
     gap: "0.25rem",
+    color: theme.palette.mode === "light" ? null : grey[100],
   },
   selectItem: {
     whiteSpace: "break-spaces",
