@@ -32,11 +32,6 @@ from baselayer.app.env import load_env
 from fink_client.consumer import AlertConsumer
 from fink_filters.classification import extract_fink_classification_from_pdf
 
-# from skyportal.handlers.api.photometry import (
-#     add_external_photometry,
-#     standardize_photometry_data,
-#     get_values_table_and_condition,
-# )
 from skyportal.handlers.api.source import post_source
 
 from skyportal.models import (
@@ -101,7 +96,23 @@ def is_loaded():
         return False
 
 
+def fink_actived():
+    activated = True
+    try:
+        fink_cfg = cfg['fink']
+        if fink_cfg is None or (not isinstance(fink_cfg, dict)) or fink_cfg == {}:
+            activated = False
+    except KeyError:
+        activated = False
+    return activated
+
+
 def service():
+
+    if not fink_actived():
+        log('Fink service is not activated (missing configuration)')
+        return
+
     while True:
         token = get_token()
         if is_loaded() and token is not None:
@@ -228,9 +239,7 @@ def make_photometry(alert: dict, jd_start: float = None):
     return df_light_curve
 
 
-def post_annotation_to_skyportal(alert, user_id, group_id, instrument_id, token, log):
-
-    # get the gcnevents with a dateobs within the last week
+def post_annotation_to_skyportal(alert, group_ids, token, log):
 
     annotations = {
         "obj_id": alert["objectId"],
@@ -247,7 +256,7 @@ def post_annotation_to_skyportal(alert, user_id, group_id, instrument_id, token,
             # "ad_features": alert["lc_*"],
             # "rf_agn_vs_nonagn": alert["rf_agn_vs_nonagn"],
         },
-        "group_ids": [group_id],
+        "group_ids": group_ids,
     }
 
     response = api_skyportal(
@@ -287,7 +296,7 @@ def post_annotation_to_skyportal(alert, user_id, group_id, instrument_id, token,
                     return False
             except Exception as e:
                 log(
-                    f"Failed to post annotation of {alert['objectId']} to group_ids {group_id}"
+                    f"Failed to post annotation of {alert['objectId']} to group_ids: {', '.join([str(g) for g in group_ids])} with error {e}"
                 )
                 print(e)
                 return False
@@ -295,13 +304,15 @@ def post_annotation_to_skyportal(alert, user_id, group_id, instrument_id, token,
             log(f"Failed to get existing annotations of {alert['objectId']}")
             return False
     except Exception as e:
-        log(f"Failed to post annotation of {alert['objectId']} to group_ids {group_id}")
+        log(
+            f"Failed to post annotation of {alert['objectId']} to group_ids: {', '.join([str(g) for g in group_ids])} with error {e}"
+        )
         print(e)
         return False
 
 
 def post_classification_to_skyportal(
-    topic, alert, user_id, user_name, group_id, instrument_id, taxonomy_id, token, log
+    topic, alert, user_name, group_ids, taxonomy_id, token, log
 ):
 
     alert_pd = pd.DataFrame([alert])
@@ -326,7 +337,7 @@ def post_classification_to_skyportal(
         "classification": classification,
         "author_name": "fink_client",
         "taxonomy_id": taxonomy_id,
-        "group_ids": [group_id],
+        "group_ids": group_ids,
     }
 
     if probability is not None:
@@ -375,7 +386,7 @@ def post_classification_to_skyportal(
                     return False
             except Exception as e:
                 log(
-                    f"Failed to post classification of {alert['objectId']} to group_ids {group_id}"
+                    f"Failed to post classification of {alert['objectId']} to group_ids: {', '.join([str(g) for g in group_ids])} with error {e}"
                 )
                 print(e)
                 return False
@@ -384,7 +395,7 @@ def post_classification_to_skyportal(
             return False
     except Exception as e:
         log(
-            f"Failed to post classification of {alert['objectId']} to group_ids {group_id}"
+            f"Failed to post classification of {alert['objectId']} to group_ids: {', '.join([str(g) for g in group_ids])} with error {e}"
         )
         print(e)
         return False
@@ -596,14 +607,10 @@ def init_consumer(
     if (
         testing is True
     ):  # if in testing mode, we use older alerts with a different schema than the one currently used by fink
-        if log is not None:
-            log("Using fake alerts for testing")
         consumer = AlertConsumer(
             topics=fink_topics, config=fink_config, schema_path=schema
         )
     else:
-        if log is not None:
-            log("Using Fink Broker")
         consumer = AlertConsumer(topics=fink_topics, config=fink_config)
     if log is not None:
         log(f"Fink topics you subscribed to: {fink_topics}")
@@ -645,7 +652,6 @@ def post_alert(
     topic: str = None,
     alert: dict = None,
     user_id: int = None,
-    group_id: int = None,
     stream_id: int = None,
     filter_id: int = None,
     instrument_id: int = None,
@@ -663,6 +669,24 @@ def post_alert(
     # check if the object already exists in the database
     with DBSession() as session:
         user = session.query(User).get(user_id)
+
+        # FILTER ASSOCIATED TO TOPIC
+        filters = session.scalars(
+            Filter.select(user).where(
+                Filter.name == topic, Filter.stream_id == stream_id
+            )
+        ).all()
+
+        if filters is None:
+            if log is not None:
+                log(f"Filter {topic} not found in the database")
+            return False
+
+        filter_ids = [f.id for f in filters]
+
+        # GROUPS ASSOCIATED TO FILTERS
+        group_ids = [filter.group_id for filter in filters]
+
         # OBJECT
         obj = session.scalars(
             Obj.select(user).where(Obj.id == alert["objectId"])
@@ -677,25 +701,38 @@ def post_alert(
             }
             post_source(source, user.id, session)
 
-            candidate = Candidate(
-                obj_id=alert["objectId"],
-                passing_alert_id=alert["candid"],
-                passed_at=datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%f"),
-                uploader_id=user.id,
-                filter_id=filter_id,
-            )
-            session.add(candidate)
-            session.commit()
-
             post_cutouts_to_skyportal(alert, token, log)
+
+        # CANDIDATE
+        for filter_id in filter_ids:
+            candidate = session.scalars(
+                Candidate.select(user).where(
+                    Candidate.passing_alert_id == alert['candidate']["candid"],
+                    Candidate.obj_id == alert["objectId"],
+                    Candidate.filter_id == filter_id,
+                )
+            ).first()
+
+            if candidate is None:
+                candidate = Candidate(
+                    obj_id=alert["objectId"],
+                    passing_alert_id=alert['candidate']["candid"],
+                    passed_at=datetime.datetime.utcnow().strftime(
+                        "%Y-%m-%dT%H:%M:%S.%f"
+                    ),
+                    uploader_id=user.id,
+                    filter_id=filter_id,
+                )
+                session.add(candidate)
+                session.commit()
 
         # PHOTOMETRY
         df_photometry = make_photometry(alert)
         df_photometry = df_photometry.fillna('')
         photometry = {
             "obj_id": alert["objectId"],
+            "stream_ids": [stream_id],
             "instrument_id": instrument_id,
-            "group_ids": [group_id],
             "mjd": df_photometry["mjd"].tolist(),
             "flux": df_photometry["flux"].tolist(),
             "fluxerr": df_photometry["fluxerr"].tolist(),
@@ -717,13 +754,13 @@ def post_alert(
                     log(f"Failed to post {alert['objectId']} photometry to SkyPortal")
             except Exception as e:
                 log(
-                    f"Failed to post photometry of {alert['objectId']} to group_ids {group_id}"
+                    f"Failed to post photometry of {alert['objectId']} to group_ids: {', '.join([str(g) for g in group_ids])}: {e}"
                 )
                 print(e)
 
             # ANNOTATIONS
             post_annotation_to_skyportal(
-                alert, user.id, group_id, instrument_id, token, log
+                alert, user.id, group_ids, instrument_id, token, log
             )
 
             # CLASSIFICATION
@@ -732,25 +769,25 @@ def post_alert(
                 alert,
                 user.id,
                 user.username,
-                group_id,
+                group_ids,
                 instrument_id,
                 taxonomy_id,
                 token,
                 log,
             )
 
-            # SOURCE IN GCN EVENT? TODO: TESTING
+            # SOURCE IN GCN EVENT? TODO: IMPLEMENT FULLY AND TEST IN A FUTURE PR
             obj_in_events = source_in_recent_gcns(alert, session, user, 0.95, log)
             if len(obj_in_events) > 0:
                 # send user notifications to all users in the group
                 group_users = session.scalars(
-                    GroupUser.select(user).where(GroupUser.group_id == group_id)
+                    GroupUser.select(user).where(GroupUser.group_id.in_(group_ids))
                 ).all()
                 for group_user in group_users:
                     session.add(
                         UserNotification(
                             user=group_user.user,
-                            text=f"Object {alert['objectId']} was found in GCN event(s): {', '.join(obj_in_events)}",
+                            text=f"Object {alert['objectId']} was found in GCN event(s): {', '.join(obj_in_events)} (new alert)",
                             notification_type="obj_in_events",
                             url=f"/source/{alert['objectId']}",
                         )
@@ -764,9 +801,9 @@ def poll_fink_alerts(token: str):
     client_group_id = cfg.get('fink.client_group_id')
     topics = cfg['fink.topics']
     servers = cfg['fink.servers']  # comma seperated list of servers to listen to
-    maxtimeout = cfg[
-        'fink.maxtimeout'
-    ]  # maximum time to wait before pooling a new alert (in seconds)
+    maxtimeout = cfg.get(
+        'fink.maxtimeout', 10
+    )  # maximum time to wait before pooling a new alert (in seconds)
     testing = cfg.get('fink.testing', False)  # if True, we use the testing servers
     if testing is True:
         schema = cfg['fink.schema']  # path to the schema file if in testing mode
@@ -823,6 +860,7 @@ def poll_fink_alerts(token: str):
                 log("Could not find ZTF instrument in database")
                 return
             instrument_id = instrument.id
+
             group = session.scalars(
                 Group.select(user).where(Group.name == "Fink")
             ).first()
@@ -832,6 +870,48 @@ def poll_fink_alerts(token: str):
                 session.add(group)
                 session.commit()
             group_id = group.id
+
+            stream = session.scalars(
+                Stream.select(user).where(Stream.name == "Fink")
+            ).first()
+            if stream is None:
+                all_users = session.scalars(User.select(user)).all()
+                stream = Stream(name="Fink")
+                session.add(stream)
+                session.commit()
+            stream_id = stream.id
+
+            filter_ids = []
+            filters = session.scalars(
+                Filter.select(user).where(Filter.stream_id == stream_id)
+            ).all()
+            if filters is None:
+                filters = []
+            if len(filters) == 0:
+                # loop over the topics and a filter for each
+                for topic in topics:
+                    filter = Filter(
+                        stream_id=stream_id,
+                        name=topic,
+                        group_id=group_id,
+                    )
+                    session.add(filter)
+                    session.commit()
+                    filter_ids.append(filter.id)
+            elif all(filter.name in topics for filter in filters):
+                # loop over the topics and create a filter for those that don't exist yet
+                for topic in topics:
+                    if not any(filter.name == topic for filter in filters):
+                        filter = Filter(
+                            stream_id=stream_id,
+                            name=topic,
+                            group_id=group_id,
+                        )
+                        session.add(filter)
+                        session.commit()
+                        filter_ids.append(filter.id)
+            else:
+                filter_ids = [filter.id for filter in filters]
 
             taxonomy = session.scalars(
                 Taxonomy.select(user).where(Taxonomy.name == "Fink Taxonomy")
@@ -844,36 +924,12 @@ def poll_fink_alerts(token: str):
                 }
                 response = api_skyportal("POST", "/api/taxonomy", data, token)
                 if response.json()["status"] == "success":
-                    log("Posted taxonomy to SkyPortal")
-                    taxonomy_id = response.json()["data"]["id"]
+                    taxonomy_id = response.json()["data"]["taxonomy_id"]
                 else:
                     log("Failed to post taxonomy to SkyPortal")
                     return
             else:
                 taxonomy_id = taxonomy.id
-
-            stream = session.scalars(
-                Stream.select(user).where(Stream.name == "Fink")
-            ).first()
-            if stream is None:
-                all_users = session.scalars(User.select(user)).all()
-                stream = Stream(name="Fink")
-                session.add(stream)
-                session.commit()
-            stream_id = stream.id
-
-            filter = session.scalars(
-                Filter.select(user).where(Filter.name == "Fink")
-            ).first()
-            if filter is None:
-                filter = Filter(
-                    name="Fink",
-                    group_id=group_id,
-                    stream_id=stream_id,
-                )
-                session.add(filter)
-                session.commit()
-            filter_id = filter.id
 
     except Exception as e:
         log(f"Error getting user, instrument, groups, etc: {e}")
@@ -905,9 +961,8 @@ def poll_fink_alerts(token: str):
                 topic,
                 alert,
                 user_id,
-                group_id,
                 stream_id,
-                filter_id,
+                filter_ids,
                 instrument_id,
                 taxonomy_id,
                 token,
