@@ -8,9 +8,6 @@ import numpy as np
 import requests
 import yaml
 from astropy.time import Time
-
-# import healpix_alchemy as ha
-# import astropy.units as u
 from astropy.visualization import (
     AsymmetricPercentileInterval,
     LinearStretch,
@@ -471,11 +468,7 @@ def post_cutouts_to_skyportal(alert, token, log):
 
 def source_in_recent_gcns(alert, session, user, localization_cumprob, log):
     obj = session.scalars(Obj.select(user).where(Obj.id == alert["objectId"])).first()
-    # date_7_days_ago = datetime.datetime.now() - datetime.timedelta(days=7) # let's look for a timeframe of a week after the trigger time of an event
-    # so naturally, the first detection of the source has to be within one week as well
-    date_7_days_ago = datetime.datetime.now() - datetime.timedelta(
-        days=30
-    )  # changed to 30 for testing purposes, so we get more potential matches
+    date_7_days_ago = datetime.datetime.now() - datetime.timedelta(days=7)
     obj_in_events = []
     if obj is not None:
         if obj.photstats[-1].first_detected_mjd is not None:
@@ -606,7 +599,7 @@ def init_consumer(
 
     if (
         testing is True
-    ):  # if in testing mode, we use older alerts with a different schema than the one currently used by fink
+    ):  # if in testing mode, we can use older alerts with a different schema than the one currently used by fink
         consumer = AlertConsumer(
             topics=fink_topics, config=fink_config, schema_path=schema
         )
@@ -779,7 +772,6 @@ def post_alert(
             # SOURCE IN GCN EVENT? TODO: IMPLEMENT FULLY AND TEST IN A FUTURE PR
             obj_in_events = source_in_recent_gcns(alert, session, user, 0.95, log)
             if len(obj_in_events) > 0:
-                # send user notifications to all users in the group
                 group_users = session.scalars(
                     GroupUser.select(user).where(GroupUser.group_id.in_(group_ids))
                 ).all()
@@ -800,13 +792,11 @@ def poll_fink_alerts(token: str):
     client_secret = cfg['fink.client_secret']
     client_group_id = cfg.get('fink.client_group_id')
     topics = cfg['fink.topics']
-    servers = cfg['fink.servers']  # comma seperated list of servers to listen to
-    maxtimeout = cfg.get(
-        'fink.maxtimeout', 10
-    )  # maximum time to wait before pooling a new alert (in seconds)
-    testing = cfg.get('fink.testing', False)  # if True, we use the testing servers
+    servers = cfg['fink.servers']
+    maxtimeout = cfg.get('fink.maxtimeout', 10)
+    testing = cfg.get('fink.testing', False)
     if testing is True:
-        schema = cfg['fink.schema']  # path to the schema file if in testing mode
+        schema = cfg['fink.schema']
     else:
         schema = None
 
@@ -888,7 +878,6 @@ def poll_fink_alerts(token: str):
             if filters is None:
                 filters = []
             if len(filters) == 0:
-                # loop over the topics and a filter for each
                 for topic in topics:
                     filter = Filter(
                         stream_id=stream_id,
@@ -898,8 +887,9 @@ def poll_fink_alerts(token: str):
                     session.add(filter)
                     session.commit()
                     filter_ids.append(filter.id)
-            elif all(filter.name in topics for filter in filters):
-                # loop over the topics and create a filter for those that don't exist yet
+            elif not all(
+                topic in [filter.name for filter in filters] for topic in topics
+            ):
                 for topic in topics:
                     if not any(filter.name == topic for filter in filters):
                         filter = Filter(
@@ -956,7 +946,6 @@ def poll_fink_alerts(token: str):
     while True:
         topic, alert = poll_alert(consumer, maxtimeout, log)
         if alert is not None:
-            # do something with the alert
             post_alert(
                 topic,
                 alert,
