@@ -37,3 +37,11 @@ fink:
 Then, as SkyPortal is started, the microservice will start listening to new alerts from Fink broker. For every new alert, a candidate will be posted, as well as auto-annotations, and the fink classification. If the alert is on a new object, the object and the source(s) will be created as well.
 When the services starts for the first time (or if the config is modified), a filter will be created for each topic, as well as a Fink stream and a Fink Group.
 If you want to the sources and candidates to be posted to your group, you need to make sure that all users have access to the Stream, after which you can associate it to your group (as well as the filters for the topics you want to use).
+
+It also comes with additional dependencies, which can be found in the `requirements.txt` located in the `services/fink` directory. You can install them after installing SkyPortal's dependencies by running:
+
+```bash
+
+pip install -r services/fink/requirements.txt
+
+```
