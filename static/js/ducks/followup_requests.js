@@ -6,6 +6,15 @@ const FETCH_FOLLOWUP_REQUESTS_OK = "skyportal/FETCH_FOLLOWUP_REQUESTS_OK";
 
 const PRIORITIZE_FOLLOWUP_REQUESTS = "skyportal/FETCH_FOLLOWUP_REQUESTS";
 
+const ADD_TO_WATCH_LIST = "skyportal/ADD_TO_WATCH_LIST";
+const REMOVE_FROM_WATCH_LIST = "skyportal/REMOVE_FROM_WATCH_LIST";
+
+export const addToWatchList = (id) =>
+  API.POST(`/api/followup_request/watch/${id}`, ADD_TO_WATCH_LIST);
+
+export const removeFromWatchList = (id) =>
+  API.DELETE(`/api/followup_request/watch/${id}`, REMOVE_FROM_WATCH_LIST);
+
 export function fetchFollowupRequests(params = {}) {
   if (!Object.keys(params).includes("numPerPage")) {
     params.numPerPage = 10;

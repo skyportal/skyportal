@@ -183,7 +183,7 @@ ObservationPlanGlobe.propTypes = {
 
 const ObservationPlanSummaryStatistics = ({ observationplanRequest }) => {
   const summaryStatistics =
-    observationplanRequest.observation_plans[0].statistics;
+    observationplanRequest?.observation_plans[0]?.statistics;
 
   return (
     <div>

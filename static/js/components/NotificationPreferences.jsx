@@ -258,7 +258,7 @@ const NotificationPreferences = () => {
                 onChange={prefToggled}
               />
             }
-            label="Facility Transactions"
+            label="Facility Transactions / Follow-up Requests"
           />
           <Tooltip
             title="This allows you to be notified for all facility transactions (followup requests, observation plans)."

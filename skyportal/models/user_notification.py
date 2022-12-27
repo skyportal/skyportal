@@ -27,6 +27,7 @@ from .spectrum import Spectrum
 from .comment import Comment
 from .listing import Listing
 from .facility_transaction import FacilityTransaction
+from .followup_request import FollowupRequest
 from .observation_plan import ObservationPlanRequest, EventObservationPlan
 from .group import GroupAdmissionRequest, GroupUser, Group
 from ..email_utils import send_email
@@ -419,6 +420,7 @@ def push_frontend_notification(mapper, connection, target):
 @event.listens_for(GroupAdmissionRequest, 'after_insert')
 @event.listens_for(ObjAnalysis, 'after_update')
 @event.listens_for(EventObservationPlan, 'after_insert')
+@event.listens_for(FollowupRequest, 'after_update')
 def add_user_notifications(mapper, connection, target):
 
     # Add front-end user notifications
@@ -435,6 +437,7 @@ def add_user_notifications(mapper, connection, target):
         )
         is_analysis_service = target.__class__.__name__ == "ObjAnalysis"
         is_observation_plan = target.__class__.__name__ == "EventObservationPlan"
+        is_followup_request = target.__class__.__name__ == "FollowupRequest"
 
         if is_gcnevent:
             users = session.scalars(
@@ -444,7 +447,7 @@ def add_user_notifications(mapper, connection, target):
                     .is_(True)
                 )
             ).all()
-        elif is_facility_transaction:
+        elif is_facility_transaction or is_followup_request:
             users = session.scalars(
                 sa.select(User).where(
                     User.preferences["notifications"]["facility_transactions"]["active"]
@@ -627,11 +630,13 @@ def add_user_notifications(mapper, connection, target):
                         allocation = session.scalars(
                             sa.select(Allocation).where(Allocation.id == allocation_id)
                         ).first()
-                        allocation_user_ids = [
+                        notification_user_ids = [
                             allocation_user.user.id
                             for allocation_user in allocation.allocation_users
                         ]
-
+                        notification_user_ids.append(
+                            target.observation_plan_request.requester_id
+                        )
                         instrument = allocation.instrument
                         localization_id = (
                             target.observation_plan_request.localization_id
@@ -641,11 +646,11 @@ def add_user_notifications(mapper, connection, target):
                                 Localization.id == localization_id
                             )
                         ).first()
-                        if user.id in allocation_user_ids:
+                        if user.id in notification_user_ids:
                             session.add(
                                 UserNotification(
                                     user=user,
-                                    text=f"New Observation Plan submission for GcnEvent *{localization.dateobs}* by *{instrument.name}*",
+                                    text=f"New Observation Plan submission for GcnEvent *{localization.dateobs}* for *{instrument.name}* by user *{target.observation_plan_request.requester.username}*",
                                     notification_type="facility_transactions",
                                     url=f"/gcn_events/{str(localization.dateobs).replace(' ','T')}",
                                 )
@@ -655,20 +660,51 @@ def add_user_notifications(mapper, connection, target):
                         allocation = session.scalars(
                             sa.select(Allocation).where(Allocation.id == allocation_id)
                         ).first()
-                        allocation_user_ids = [
+                        notification_user_ids = [
                             allocation_user.user.id
                             for allocation_user in allocation.allocation_users
                         ]
+                        notification_user_ids.append(
+                            target.followup_request.requester_id
+                        )
+                        notification_user_ids = list(set(notification_user_ids))
+
                         instrument = allocation.instrument
-                        if user.id in allocation_user_ids:
+                        if user.id in notification_user_ids:
                             session.add(
                                 UserNotification(
                                     user=user,
-                                    text=f"New Follow-up submission for object *{target.followup_request.obj_id}* by *{instrument.name}*",
+                                    text=f"New Follow-up submission for object *{target.followup_request.obj_id}* by *{instrument.name}* by user *{target.followup_request.requester.username}*",
                                     notification_type="facility_transactions",
                                     url=f"/source/{target.followup_request.obj_id}",
                                 )
                             )
+                elif is_followup_request:
+                    if target.status == "submitted":
+                        continue
+                    allocation_id = target.allocation_id
+                    allocation = session.scalars(
+                        sa.select(Allocation).where(Allocation.id == allocation_id)
+                    ).first()
+                    notification_user_ids = [
+                        allocation_user.user.id
+                        for allocation_user in allocation.allocation_users
+                    ] + [watcher.user_id for watcher in target.watchers]
+                    print(notification_user_ids)
+                    notification_user_ids.append(target.requester_id)
+                    notification_user_ids.append(target.last_modified_by_id)
+                    notification_user_ids = list(set(notification_user_ids))
+
+                    instrument = allocation.instrument
+                    if user.id in notification_user_ids:
+                        session.add(
+                            UserNotification(
+                                user=user,
+                                text=f"Follow-up submission for object *{target.obj_id}* by *{instrument.name}* updated by user *{target.last_modified_by.username}*",
+                                notification_type="facility_transactions",
+                                url=f"/source/{target.obj_id}",
+                            )
+                        )
                 elif is_analysis_service:
                     if target.status == "completed":
                         session.add(
@@ -691,11 +727,11 @@ def add_user_notifications(mapper, connection, target):
                             Allocation.id == observation_plan_request.allocation_id
                         )
                     ).first()
-                    allocation_user_ids = [
+                    notification_user_ids = [
                         allocation_user.user.id
                         for allocation_user in allocation.allocation_users
                     ]
-
+                    notification_user_ids.append(observation_plan_request.requester_id)
                     instrument = allocation.instrument
                     localization_id = observation_plan_request.localization_id
                     localization = session.scalars(
@@ -703,11 +739,11 @@ def add_user_notifications(mapper, connection, target):
                             Localization.id == localization_id
                         )
                     ).first()
-                    if user.id in allocation_user_ids:
+                    if user.id in notification_user_ids:
                         session.add(
                             UserNotification(
                                 user=user,
-                                text=f"New Observation Plan submission for GcnEvent *{localization.dateobs}* by *{instrument.name}*",
+                                text=f"New Observation Plan submission for GcnEvent *{localization.dateobs}* for *{instrument.name}* by user *{observation_plan_request.requester.username}*",
                                 notification_type="observation_plans",
                                 url=f"/gcn_events/{str(localization.dateobs).replace(' ','T')}",
                             )

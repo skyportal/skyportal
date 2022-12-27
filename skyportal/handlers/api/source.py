@@ -141,20 +141,25 @@ def get_source(
         raise ValueError("Source not found")
 
     source_info = s.to_dict()
-    source_info["followup_requests"] = session.scalars(
-        FollowupRequest.select(
-            user,
-            options=[
-                joinedload(FollowupRequest.allocation).joinedload(
-                    Allocation.instrument
-                ),
-                joinedload(FollowupRequest.allocation).joinedload(Allocation.group),
-                joinedload(FollowupRequest.requester),
-            ],
+    source_info["followup_requests"] = (
+        session.scalars(
+            FollowupRequest.select(
+                user,
+                options=[
+                    joinedload(FollowupRequest.allocation).joinedload(
+                        Allocation.instrument
+                    ),
+                    joinedload(FollowupRequest.allocation).joinedload(Allocation.group),
+                    joinedload(FollowupRequest.requester),
+                    joinedload(FollowupRequest.watchers),
+                ],
+            )
+            .where(FollowupRequest.obj_id == obj_id)
+            .where(FollowupRequest.status != "deleted")
         )
-        .where(FollowupRequest.obj_id == obj_id)
-        .where(FollowupRequest.status != "deleted")
-    ).all()
+        .unique()
+        .all()
+    )
     source_info["assignments"] = session.scalars(
         ClassicalAssignment.select(
             user,
