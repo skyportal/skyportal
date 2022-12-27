@@ -13,6 +13,7 @@ import IconButton from "@mui/material/IconButton";
 import GetAppIcon from "@mui/icons-material/GetApp";
 import Grid from "@mui/material/Grid";
 import Typography from "@mui/material/Typography";
+import { showNotification } from "baselayer/components/Notifications";
 import { useTheme } from "@mui/material/styles";
 
 // eslint-disable-next-line
@@ -36,6 +37,9 @@ import ObservationPlanRequestLists from "./ObservationPlanRequestLists";
 
 import CommentList from "./CommentList";
 import GcnTags from "./GcnTags";
+import GcnAliases from "./GcnAliases";
+import GcnCirculars from "./GcnCirculars";
+import GcnLocalizationsTable from "./GcnLocalizationsTable";
 import GcnProperties from "./GcnProperties";
 import Reminders from "./Reminders";
 
@@ -243,7 +247,8 @@ const sidebarWidth = 190;
 const GcnEventPage = ({ route }) => {
   const ref = useRef(null);
   const theme = useTheme();
-  const initialWidth = window.innerWidth - sidebarWidth - 2 * theme.spacing(2);
+  const initialWidth =
+    window.innerWidth - sidebarWidth - 2 * parseInt(theme.spacing(2), 10);
   const [width, setWidth] = useState(initialWidth);
 
   const gcnEvent = useSelector((state) => state.gcnEvent);
@@ -256,6 +261,10 @@ const GcnEventPage = ({ route }) => {
     endDate: null,
     localizationCumprob: null,
   });
+  const currentUser = useSelector((state) => state.profile);
+  const permission =
+    currentUser.permissions?.includes("System admin") ||
+    currentUser.permissions?.includes("Manage GCNs");
 
   const gcnEventSources = useSelector(
     (state) => state?.sources?.gcnEventSources
@@ -281,6 +290,7 @@ const GcnEventPage = ({ route }) => {
   useEffect(() => {
     const fetchGcnEvent = async (dateobs) => {
       await dispatch(gcnEventActions.fetchGcnEvent(dateobs));
+      await dispatch(gcnEventActions.fetchGcnTach(dateobs));
     };
     fetchGcnEvent(route.dateobs);
   }, [route, dispatch]);
@@ -293,6 +303,28 @@ const GcnEventPage = ({ route }) => {
   if (width < 600) {
     xs = 14;
   }
+
+  const handleUpdateAliasesCirculars = () => {
+    dispatch(gcnEventActions.postGcnTach(gcnEvent.dateobs)).then((response) => {
+      if (response.status === "success") {
+        dispatch(
+          showNotification(
+            "Aliases and Circulars update started. Please wait..."
+          )
+        );
+        if (gcnEvent?.aliases?.length === 0) {
+          dispatch(
+            showNotification(
+              "This has never been done for this event before. It may take few minutes.",
+              "warning"
+            )
+          );
+        }
+      } else {
+        dispatch(showNotification("Error updating aliases", "error"));
+      }
+    });
+  };
 
   return (
     <div ref={ref}>
@@ -338,6 +370,26 @@ const GcnEventPage = ({ route }) => {
               <AccordionDetails>
                 <div className={styles.eventTags}>
                   <GcnProperties properties={gcnEvent.properties} />
+                </div>
+              </AccordionDetails>
+            </Accordion>
+          </div>
+          <div className={styles.columnItem}>
+            <Accordion defaultExpanded>
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon />}
+                aria-controls="gcnEvent-content"
+                id="info-header"
+              >
+                <Typography className={styles.accordionHeading}>
+                  Localization Properties
+                </Typography>
+              </AccordionSummary>
+              <AccordionDetails>
+                <div className={styles.eventTags}>
+                  <GcnLocalizationsTable
+                    localizations={gcnEvent.localizations}
+                  />
                 </div>
               </AccordionDetails>
             </Accordion>
@@ -454,6 +506,60 @@ const GcnEventPage = ({ route }) => {
                       </li>
                     ))}
                   </div>
+                </AccordionDetails>
+              </Accordion>
+            </div>
+            <div className={styles.columnItem}>
+              <Accordion defaultExpanded>
+                <AccordionSummary
+                  expandIcon={<ExpandMoreIcon />}
+                  aria-controls="gcnEvent-content"
+                  id="gcnnotices-header"
+                >
+                  <Typography className={styles.accordionHeading}>
+                    GCN Aliases
+                  </Typography>
+                </AccordionSummary>
+                <AccordionDetails>
+                  <div className={styles.gcnEventContainer}>
+                    <GcnAliases gcnEvent={gcnEvent} />
+                  </div>
+                  {permission && (
+                    <Button
+                      secondary
+                      onClick={() => handleUpdateAliasesCirculars()}
+                      data-testid="update-aliases"
+                    >
+                      Update
+                    </Button>
+                  )}
+                </AccordionDetails>
+              </Accordion>
+            </div>
+            <div className={styles.columnItem}>
+              <Accordion defaultExpanded>
+                <AccordionSummary
+                  expandIcon={<ExpandMoreIcon />}
+                  aria-controls="gcnEvent-content"
+                  id="gcncirculars-header"
+                >
+                  <Typography className={styles.accordionHeading}>
+                    GCN Circulars
+                  </Typography>
+                </AccordionSummary>
+                <AccordionDetails>
+                  <div className={styles.gcnEventContainer}>
+                    <GcnCirculars gcnEvent={gcnEvent} />
+                  </div>
+                  {permission && (
+                    <Button
+                      secondary
+                      onClick={() => handleUpdateAliasesCirculars()}
+                      data-testid="update-circulars"
+                    >
+                      Update
+                    </Button>
+                  )}
                 </AccordionDetails>
               </Accordion>
             </div>

@@ -12,7 +12,14 @@ import numpy as np
 from baselayer.app.access import auth_or_token, permissions
 
 from ..base import BaseHandler
-from ...models import FollowupRequest, Group, Allocation, Instrument
+from ...models import (
+    FollowupRequest,
+    Group,
+    User,
+    Allocation,
+    AllocationUser,
+    Instrument,
+)
 
 
 class AllocationHandler(BaseHandler):
@@ -142,6 +149,15 @@ class AllocationHandler(BaseHandler):
                     )
 
             allocations = session.scalars(allocations).unique().all()
+            allocations = [
+                {
+                    **allocation.to_dict(),
+                    'allocation_users': [
+                        user.user.to_dict() for user in allocation.allocation_users
+                    ],
+                }
+                for allocation in allocations
+            ]
             return self.success(data=allocations)
 
     @permissions(['Manage allocations'])
@@ -173,8 +189,17 @@ class AllocationHandler(BaseHandler):
         """
 
         data = self.get_json()
-
         with self.Session() as session:
+
+            allocation_admin_ids = data.pop('allocation_admin_ids', None)
+            if allocation_admin_ids is not None:
+                allocation_admins = session.scalars(
+                    User.select(self.current_user).where(
+                        User.id.in_(allocation_admin_ids)
+                    )
+                ).all()
+            else:
+                allocation_admins = []
 
             try:
                 allocation = Allocation.__schema__().load(data=data)
@@ -202,6 +227,17 @@ class AllocationHandler(BaseHandler):
                 )
 
             session.add(allocation)
+
+            for user in allocation_admins:
+                session.merge(user)
+
+            session.add_all(
+                [
+                    AllocationUser(allocation=allocation, user=user)
+                    for user in allocation_admins
+                ]
+            )
+
             session.commit()
             self.push_all(action='skyportal/REFRESH_ALLOCATIONS')
             return self.success(data={"id": allocation.id})
@@ -246,6 +282,16 @@ class AllocationHandler(BaseHandler):
             data = self.get_json()
             data['id'] = allocation_id
 
+            allocation_admin_ids = data.pop('allocation_admin_ids', None)
+            if allocation_admin_ids is not None:
+                allocation_admins = session.scalars(
+                    User.select(self.current_user).where(
+                        User.id.in_(allocation_admin_ids)
+                    )
+                ).all()
+            else:
+                allocation_admins = []
+
             schema = Allocation.__schema__()
             try:
                 schema.load(data, partial=True)
@@ -256,6 +302,16 @@ class AllocationHandler(BaseHandler):
 
             for k in data:
                 setattr(allocation, k, data[k])
+
+            for user in allocation_admins:
+                session.merge(user)
+
+            session.add_all(
+                [
+                    AllocationUser(allocation=allocation, user=user)
+                    for user in allocation_admins
+                ]
+            )
 
             session.commit()
             self.push_all(action='skyportal/REFRESH_ALLOCATIONS')

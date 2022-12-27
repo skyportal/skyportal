@@ -1,4 +1,12 @@
+import astropy
+from astropy.coordinates import EarthLocation
 from astropy.time import Time
+from astroplan import (
+    AirmassConstraint,
+    AtNightConstraint,
+    Observer,
+    is_event_observable,
+)
 import datetime
 from json.decoder import JSONDecodeError
 import astropy.units as u
@@ -8,6 +16,7 @@ from twilio.base.exceptions import TwilioException
 from tornado.ioloop import IOLoop
 import io
 from dateutil.parser import isoparse
+import numpy as np
 import sqlalchemy as sa
 from sqlalchemy.orm import joinedload
 from sqlalchemy import func, or_, distinct
@@ -16,6 +25,8 @@ from sqlalchemy.sql.expression import cast
 import arrow
 from marshmallow import Schema, fields
 from marshmallow.exceptions import ValidationError
+from matplotlib import dates
+import matplotlib.pyplot as plt
 import operator  # noqa: F401
 import functools
 import conesearch_alchemy as ca
@@ -57,8 +68,10 @@ from ...models import (
     Listing,
     PhotStat,
     Spectrum,
+    SourceLabel,
     SourceView,
     SourcesConfirmedInGCN,
+    Telescope,
 )
 from ...utils.offset import (
     get_nearby_offset_stars,
@@ -97,6 +110,7 @@ def get_source(
     include_spectrum_exists=False,
     include_period_exists=False,
     include_detection_stats=False,
+    include_labellers=False,
     is_token_request=False,
     include_requested=False,
     requested_only=False,
@@ -228,6 +242,24 @@ def get_source(
                 for period_str in period_str_options
             ]
         )
+    if include_labellers:
+        labels_subquery = (
+            SourceLabel.select(session.user_or_token)
+            .where(SourceLabel.obj_id == obj_id)
+            .subquery()
+        )
+
+        users = (
+            session.scalars(
+                User.select(session.user_or_token).join(
+                    labels_subquery,
+                    User.id == labels_subquery.c.labeller_id,
+                )
+            )
+            .unique()
+            .all()
+        )
+        source_info["labellers"] = [user.to_dict() for user in users]
 
     source_info["annotations"] = sorted(
         session.scalars(
@@ -251,6 +283,7 @@ def get_source(
     for classification in readable_classifications:
         classification_dict = classification.to_dict()
         classification_dict['groups'] = [g.to_dict() for g in classification.groups]
+        classification_dict['votes'] = [g.to_dict() for g in classification.votes]
         readable_classifications_json.append(classification_dict)
 
     source_info["classifications"] = readable_classifications_json
@@ -346,6 +379,7 @@ def get_sources(
     include_spectrum_exists=False,
     include_period_exists=False,
     include_detection_stats=False,
+    include_labellers=False,
     is_token_request=False,
     include_requested=False,
     requested_only=False,
@@ -356,6 +390,8 @@ def get_sources(
     has_tns_name=False,
     has_spectrum=False,
     has_followup_request=False,
+    has_been_labelled=False,
+    has_not_been_labelled=False,
     sourceID=None,
     rejectedSourceIDs=None,
     ra=None,
@@ -559,6 +595,15 @@ def get_sources(
         obj_query = obj_query.join(
             followup_request_subquery, Obj.id == followup_request_subquery.c.obj_id
         )
+    if has_been_labelled:
+        labels_subquery = SourceLabel.select(session.user_or_token).subquery()
+        obj_query = obj_query.join(labels_subquery, Obj.id == labels_subquery.c.obj_id)
+    if has_not_been_labelled:
+        labels_subquery = SourceLabel.select(
+            session.user_or_token, columns=[SourceLabel.obj_id]
+        ).subquery()
+        obj_query = obj_query.where(Obj.id.notin_(labels_subquery))
+
     if min_redshift is not None:
         try:
             min_redshift = float(min_redshift)
@@ -1129,6 +1174,9 @@ def get_sources(
                     classification_dict['groups'] = [
                         g.to_dict() for g in classification.groups
                     ]
+                    classification_dict['votes'] = [
+                        g.to_dict() for g in classification.votes
+                    ]
                     readable_classifications_json.append(classification_dict)
 
                 obj_list[-1]["classifications"] = readable_classifications_json
@@ -1149,6 +1197,25 @@ def get_sources(
             obj_list[-1]["luminosity_distance"] = obj.luminosity_distance
             obj_list[-1]["dm"] = obj.dm
             obj_list[-1]["angular_diameter_distance"] = obj.angular_diameter_distance
+            if include_labellers:
+                labels_subquery = (
+                    SourceLabel.select(session.user_or_token)
+                    .where(SourceLabel.obj_id == obj.id)
+                    .subquery()
+                )
+
+                users = (
+                    session.scalars(
+                        User.select(session.user_or_token).join(
+                            labels_subquery,
+                            User.id == labels_subquery.c.labeller_id,
+                        )
+                    )
+                    .unique()
+                    .all()
+                )
+
+                obj_list[-1]["labellers"] = [user.to_dict() for user in users]
 
             if include_photometry_exists:
                 stmt = Photometry.select(session.user_or_token).where(
@@ -1610,6 +1677,20 @@ class SourceHandler(BaseHandler):
               type: boolean
             description: If true, return only those matches with TNS names
           - in: query
+            name: hasBeenLabelled
+            nullable: true
+            schema:
+              type: boolean
+            description: |
+              If true, return only those objects which have been labelled
+          - in: query
+            name: hasNotBeenLabelled
+            nullable: true
+            schema:
+              type: boolean
+            description: |
+              If true, return only those objects which have not been labelled
+          - in: query
             name: numPerPage
             nullable: true
             schema:
@@ -1781,6 +1862,13 @@ class SourceHandler(BaseHandler):
               type: boolean
             description: |
               Boolean indicating whether to return if a source has a spectra. Defaults to false.
+          - in: query
+            name: includeLabellers
+            nullable: true
+            schema:
+              type: boolean
+            description: |
+              Boolean indicating whether to return list of users who have labelled this source. Defaults to false.
           - in: query
             name: removeNested
             nullable: true
@@ -2067,6 +2155,7 @@ class SourceHandler(BaseHandler):
             "includeSpectrumExists", False
         )
         include_period_exists = self.get_query_argument("includePeriodExists", False)
+        include_labellers = self.get_query_argument("includeLabellers", False)
         remove_nested = self.get_query_argument("removeNested", False)
         include_detection_stats = self.get_query_argument(
             "includeDetectionStats", False
@@ -2200,6 +2289,8 @@ class SourceHandler(BaseHandler):
         alias = self.get_query_argument('alias', None)
         origin = self.get_query_argument('origin', None)
         has_tns_name = self.get_query_argument('hasTNSname', None)
+        has_been_labelled = self.get_query_argument('hasBeenLabelled', False)
+        has_not_been_labelled = self.get_query_argument('hasNotBeenLabelled', False)
         total_matches = self.get_query_argument('totalMatches', None)
         is_token_request = isinstance(self.current_user, Token)
 
@@ -2217,6 +2308,7 @@ class SourceHandler(BaseHandler):
                         include_spectrum_exists=include_spectrum_exists,
                         include_period_exists=include_period_exists,
                         include_detection_stats=include_detection_stats,
+                        include_labellers=include_labellers,
                         is_token_request=is_token_request,
                         include_requested=include_requested,
                         requested_only=requested_only,
@@ -2246,6 +2338,7 @@ class SourceHandler(BaseHandler):
                     include_spectrum_exists=include_spectrum_exists,
                     include_period_exists=include_period_exists,
                     include_detection_stats=include_detection_stats,
+                    include_labellers=include_labellers,
                     is_token_request=is_token_request,
                     include_requested=include_requested,
                     requested_only=requested_only,
@@ -2268,6 +2361,8 @@ class SourceHandler(BaseHandler):
                     alias=alias,
                     origin=origin,
                     has_tns_name=has_tns_name,
+                    has_been_labelled=has_been_labelled,
+                    has_not_been_labelled=has_not_been_labelled,
                     has_spectrum=has_spectrum,
                     has_followup_request=has_followup_request,
                     followup_request_status=followup_request_status,
@@ -3039,3 +3134,115 @@ class PS1ThumbnailHandler(BaseHandler):
             )
         )
         return self.success()
+
+
+class SourceObservabilityPlotHandler(BaseHandler):
+    @auth_or_token
+    async def get(self, obj_id):
+        """
+        ---
+        description: Create a summary plot for the observability for a given source.
+        tags:
+          - localizations
+        parameters:
+          - in: path
+            name: obj_id
+            required: true
+            schema:
+              type: string
+            description: |
+              ID of object to generate observability plot for
+          - in: query
+            name: maximumAirmass
+            nullable: true
+            schema:
+              type: number
+            description: |
+              Maximum airmass to consider. Defaults to 2.5.
+          - in: query
+            name: twilight
+            nullable: true
+            schema:
+              type: string
+            description: |
+                Twilight definition. Choices are astronomical (-18 degrees), nautical (-12 degrees), and civil (-6 degrees).
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+        """
+
+        max_airmass = self.get_query_argument("maxAirmass", 2.5)
+        twilight = self.get_query_argument("twilight", "astronomical")
+
+        with self.Session() as session:
+
+            stmt = Telescope.select(self.current_user)
+            telescopes = session.scalars(stmt).all()
+
+            stmt = Obj.select(self.current_user).where(Obj.id == obj_id)
+            source = session.scalars(stmt).first()
+            coords = astropy.coordinates.SkyCoord(source.ra, source.dec, unit='deg')
+
+            trigger_time = Time.now()
+            times = trigger_time + np.linspace(0, 1) * u.day
+
+            observers = []
+            for telescope in telescopes:
+                if not telescope.fixed_location:
+                    continue
+                location = EarthLocation(
+                    lon=telescope.lon * u.deg,
+                    lat=telescope.lat * u.deg,
+                    height=(telescope.elevation or 0) * u.m,
+                )
+
+                observers.append(Observer(location, name=telescope.nickname))
+            observers = list(reversed(observers))
+
+            constraints = [
+                getattr(AtNightConstraint, f'twilight_{twilight}')(),
+                AirmassConstraint(max_airmass),
+            ]
+
+            output_format = 'pdf'
+            fig = plt.figure(figsize=(14, 10))
+            width, height = fig.get_size_inches()
+            fig.set_size_inches(width, (len(observers) + 1) / 16 * width)
+            ax = plt.axes()
+            locator = dates.AutoDateLocator()
+            formatter = dates.DateFormatter('%H:%M')
+            ax.set_xlim([times[0].plot_date, times[-1].plot_date])
+            ax.xaxis.set_major_formatter(formatter)
+            ax.xaxis.set_major_locator(locator)
+            ax.set_xlabel(f"Time from {min(times).datetime.date()} [UTC]")
+            plt.setp(ax.get_xticklabels(), rotation=30, ha='right')
+            ax.set_yticks(np.arange(len(observers)))
+            ax.set_yticklabels([observer.name for observer in observers])
+            ax.yaxis.set_tick_params(left=False)
+            ax.grid(axis='x')
+            ax.spines['bottom'].set_visible(False)
+            ax.spines['top'].set_visible(False)
+
+            for i, observer in enumerate(observers):
+                observable = 100 * np.dot(
+                    1.0, is_event_observable(constraints, observer, coords, times)
+                )
+                ax.contourf(
+                    times.plot_date,
+                    [i - 0.4, i + 0.4],
+                    np.tile(observable, (2, 1)),
+                    levels=np.arange(10, 110, 10),
+                    cmap=plt.get_cmap().reversed(),
+                )
+
+            buf = io.BytesIO()
+            fig.savefig(buf, format=output_format, bbox_inches='tight')
+            plt.close(fig)
+            buf.seek(0)
+
+            filename = f"observability.{output_format}"
+            data = io.BytesIO(buf.read())
+
+            await self.send_file(data, filename, output_type=output_format)

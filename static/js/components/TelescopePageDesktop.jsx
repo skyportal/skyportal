@@ -193,7 +193,7 @@ const TelescopePage = () => {
             >
               Telescope List
             </Button>
-            {currentUser.permissions?.includes("Manage allocations") && (
+            {currentUser.permissions?.includes("Manage telescopes") && (
               <Button
                 primary
                 id="new-telescope"
@@ -208,7 +208,7 @@ const TelescopePage = () => {
             {currentTelescopeMenu === "Telescope List" ? (
               <TelescopeInfo />
             ) : (
-              currentUser.permissions?.includes("Manage allocations") && (
+              currentUser.permissions?.includes("Manage telescopes") && (
                 <NewTelescope />
               )
             )}

@@ -11,12 +11,20 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.hybrid import hybrid_property
 
 from astropy.table import Table
+import dustmaps.sfd
+from dustmaps.config import config
 import numpy as np
+import ligo.skymap.postprocess
 import ligo.skymap.bayestar as ligo_bayestar
 import healpy
 import healpix_alchemy
 
 from baselayer.app.models import Base, AccessibleIfUserMatches
+from baselayer.app.env import load_env
+
+
+_, cfg = load_env()
+config['data_dir'] = cfg['misc.dustmap_folder']
 
 
 class Localization(Base):
@@ -183,6 +191,27 @@ class Localization(Base):
             return healpy.reorder(result, 'NESTED', 'RING')
         else:
             return (self.flat_2d,)
+
+    @property
+    def center(self):
+        """Get information about the center of the localization."""
+
+        prob = self.flat_2d
+        coord = ligo.skymap.postprocess.posterior_max(prob)
+
+        center_info = {}
+        center_info["ra"] = coord.ra.deg
+        center_info["dec"] = coord.dec.deg
+        center_info["gal_lat"] = coord.galactic.b.deg
+        center_info["gal_lon"] = coord.galactic.l.deg
+
+        try:
+            ebv = float(dustmaps.sfd.SFDQuery()(coord))
+        except Exception:
+            ebv = None
+        center_info["ebv"] = ebv
+
+        return center_info
 
 
 class LocalizationTile(Base):

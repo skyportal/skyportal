@@ -337,3 +337,72 @@ def test_add_and_retrieve_multiple_classifications(
     data = data['data']['classifications']
     assert any([d['classification'] == 'Algol' for d in data])
     assert any([d['classification'] == 'Time-domain Source' for d in data])
+
+
+def test_obj_classifications_vote(
+    taxonomy_token, classification_token, public_source, public_group
+):
+    status, data = api(
+        'POST',
+        'taxonomy',
+        data={
+            'name': "test taxonomy" + str(uuid.uuid4()),
+            'hierarchy': taxonomy,
+            'group_ids': [public_group.id],
+            'provenance': f"tdtax_{__version__}",
+            'version': __version__,
+            'isLatest': True,
+        },
+        token=taxonomy_token,
+    )
+    assert status == 200
+    taxonomy_id = data['data']['taxonomy_id']
+
+    status, data = api(
+        'POST',
+        'classification',
+        data={
+            'obj_id': public_source.id,
+            'classification': 'Algol',
+            'taxonomy_id': taxonomy_id,
+        },
+        token=classification_token,
+    )
+    assert status == 200
+    classification_id = data['data']['classification_id']
+
+    status, data = api(
+        'POST',
+        f'classification/votes/{classification_id}',
+        data={
+            'vote': 1,
+        },
+        token=classification_token,
+    )
+    assert status == 200
+
+    status, data = api(
+        'GET', f'sources/{public_source.id}/classifications', token=classification_token
+    )
+    assert status == 200
+    assert data['data'][0]['classification'] == 'Algol'
+    assert data['data'][0]['id'] == classification_id
+    assert len(data['data']) == 1
+    assert len(data['data'][0]['votes']) == 1
+    assert data['data'][0]['votes'][0]['vote'] == 1
+
+    status, data = api(
+        'DELETE',
+        f'classification/votes/{classification_id}',
+        token=classification_token,
+    )
+    assert status == 200
+
+    status, data = api(
+        'GET', f'sources/{public_source.id}/classifications', token=classification_token
+    )
+    assert status == 200
+    assert data['data'][0]['classification'] == 'Algol'
+    assert data['data'][0]['id'] == classification_id
+    assert len(data['data']) == 1
+    assert len(data['data'][0]['votes']) == 0

@@ -8,6 +8,7 @@ from .analysis import (
 from .candidate import CandidateHandler
 from .classification import (
     ClassificationHandler,
+    ClassificationVotesHandler,
     ObjClassificationHandler,
     ObjClassificationQueryHandler,
 )
@@ -34,6 +35,7 @@ from .earthquake import (
 from .enum_types import EnumTypesHandler
 from .filter import FilterHandler
 from .followup_request import (
+    DefaultFollowupRequestHandler,
     FollowupRequestHandler,
     FollowupRequestPrioritizationHandler,
     FollowupRequestSchedulerHandler,
@@ -52,6 +54,7 @@ from .gcn import (
     LocalizationHandler,
     LocalizationPropertiesHandler,
 )
+from .gcn_tach import GcnTachHandler
 from .group import (
     GroupHandler,
     GroupUserHandler,
@@ -119,6 +122,7 @@ from .source import (
     SourceOffsetsHandler,
     SourceFinderHandler,
     SourceNotificationHandler,
+    SourceObservabilityPlotHandler,
     PS1ThumbnailHandler,
 )
 from .source_exists import SourceExistsHandler
@@ -131,6 +135,7 @@ from .spectrum import (
     SpectrumRangeHandler,
     SyntheticPhotometryHandler,
 )
+from .source_labels import SourceLabelsHandler
 from .survey_efficiency import (
     DefaultSurveyEfficiencyRequestHandler,
     SurveyEfficiencyForObservationPlanHandler,

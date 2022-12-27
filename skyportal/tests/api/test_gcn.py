@@ -755,7 +755,14 @@ def test_gcn_summary_observations(
     # obs
     assert "Observations:" in data[6]
 
-    obs_summary_text = 'We observed the localization region of LVC trigger 2019-08-14T21:10:39.000 UTC.  We obtained a total of 9 images covering ztfr bands for a total of 270 seconds. The observations covered 715.2 square degrees beginning at 2019-08-17T01:00:00.288 (2 days after the burst trigger time) corresponding to ~9% of the probability enclosed in the localization region.'
+    obs_summary_text = (
+        'We observed the localization region of LVC trigger 2019-08-14T21:10:39.000 UTC.  '
+        'We obtained a total of 9 images covering ztfr bands for a total of 270 seconds. '
+        'The observations covered 26.5 square degrees beginning at 2019-08-17T01:00:00.288 '
+        '(2 days after the burst trigger time) corresponding to ~9% '
+        'of the probability enclosed in the localization region.'
+    )
+
     assert obs_summary_text in data[7]
 
     obs_table = data[8].split('\n')
@@ -1057,3 +1064,66 @@ def test_gcn_Swift(super_admin_token, view_only_token):
             for loc in data["localizations"]
         ]
     )
+
+
+def test_gcn_tach(
+    super_admin_token,
+    view_only_token,
+):
+
+    datafile = f'{os.path.dirname(__file__)}/../data/GRB180116A_Fermi_GBM_Gnd_Pos.xml'
+    with open(datafile, 'rb') as fid:
+        payload = fid.read()
+    data = {'xml': payload}
+
+    status, data = api('POST', 'gcn_event', data=data, token=super_admin_token)
+    assert status == 200
+    assert data['status'] == 'success'
+
+    for n_times in range(26):
+        status, data = api(
+            'GET', "gcn_event/2018-01-16T00:36:53", token=super_admin_token
+        )
+        if data['status'] == 'success':
+            break
+        time.sleep(2)
+    assert n_times < 25
+
+    data = data['data']
+    assert len(data['aliases']) == 0
+
+    status, data = api(
+        'POST', 'gcn_event/2018-01-16T00:36:53/tach', token=view_only_token
+    )
+    assert status == 401
+
+    status, data = api(
+        'POST', 'gcn_event/2018-01-16T00:36:53/tach', token=super_admin_token
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    for n_times in range(30):
+        status, data = api(
+            'GET', "gcn_event/2018-01-16T00:36:53", token=super_admin_token
+        )
+        if data['status'] == 'success':
+            if len(data['data']['aliases']) > 0:
+                aliases = data['data']['aliases']
+                break
+            time.sleep(1)
+
+    assert n_times < 29
+    assert len(aliases) == 1
+    assert 'GRB180116A' in aliases
+
+    status, data = api(
+        'GET', "gcn_event/2018-01-16T00:36:53/tach", token=super_admin_token
+    )
+
+    assert status == 200
+    assert data['status'] == 'success'
+    data = data['data']
+    assert len(data['aliases']) == 1
+    assert len(data['circulars']) == 3
+    assert data['tach_id'] is not None

@@ -15,7 +15,19 @@ from baselayer.app.models import (
 from .group import Group, accessible_by_groups_members
 
 
-def taxonomy_update_delete_logic(cls, user_or_token):
+def taxonomy_update_logic(cls, user_or_token):
+    """This function generates the query for taxonomies that the current user
+    can update. If the querying user doesn't have System admin or Post taxonomy
+    acl, then no taxonomies are accessible to that user under this policy .
+    """
+    if len({'Delete taxonomy', 'System admin'} & set(user_or_token.permissions)) == 0:
+        # nothing accessible
+        return restricted.query_accessible_rows(cls, user_or_token)
+
+    return DBSession().query(cls)
+
+
+def taxonomy_delete_logic(cls, user_or_token):
     """This function generates the query for taxonomies that the current user
     can update or delete. If the querying user doesn't have System admin or
     Delete taxonomy acl, then no taxonomies are accessible to that user under
@@ -137,7 +149,6 @@ class Taxonomy(Base):
 # system admins can delete any taxonomy that has no classifications attached
 # people with the delete taxonomy ACL can delete any taxonomy that has no
 # classifications attached and is shared with at least one of their groups
-Taxonomy.update = Taxonomy.delete = (
-    CustomUserAccessControl(taxonomy_update_delete_logic) & Taxonomy.read
-)
+Taxonomy.update = CustomUserAccessControl(taxonomy_update_logic) & Taxonomy.read
+Taxonomy.delete = CustomUserAccessControl(taxonomy_delete_logic) & Taxonomy.read
 Taxonomy.get_taxonomy_usable_by_user = get_taxonomy_usable_by_user

@@ -36,13 +36,19 @@ from ...utils.UTCTZnaiveDateTime import UTCTZnaiveDateTime
 
 from baselayer.app.access import auth_or_token
 from baselayer.log import make_log
+from baselayer.app.env import load_env
 
 from .source import post_source
+from .observation_plan import (
+    post_observation_plan,
+    post_survey_efficiency_analysis,
+)
 from ..base import BaseHandler
 from ...models import (
     DBSession,
     Allocation,
     CatalogQuery,
+    DefaultObservationPlanRequest,
     EventObservationPlan,
     GcnEvent,
     GcnNotice,
@@ -75,8 +81,11 @@ from skyportal.models.gcn import SOURCE_RADIUS_THRESHOLD
 
 log = make_log('api/gcn_event')
 
+env, cfg = load_env()
 
 Session = scoped_session(sessionmaker(bind=DBSession.session_factory.kw["bind"]))
+
+MAX_GCNEVENTS = 1000
 
 
 def post_gcnevent_from_xml(payload, user_id, session):
@@ -102,6 +111,12 @@ def post_gcnevent_from_xml(payload, user_id, session):
         root = lxml.etree.fromstring(payload)
     else:
         raise ValueError("xml file is not valid VOEvent")
+
+    gcn_notice = session.scalars(
+        GcnNotice.select(user).where(GcnNotice.ivorn == root.attrib['ivorn'])
+    ).first()
+    if gcn_notice is not None:
+        raise ValueError(f"GcnNotice with ivorn {root.attrib['ivorn']} already exists.")
 
     dateobs = get_dateobs(root)
     trigger_id = get_trigger(root)
@@ -219,10 +234,12 @@ def post_gcnevent_from_xml(payload, user_id, session):
         log(f"Generating tiles/contours for localization {localization.id}")
 
         IOLoop.current().run_in_executor(
-            None, lambda: add_skymap_properties(localization.id, user.id)
+            None, lambda: add_skymap_properties(localization.id, user_id)
         )
 
-        IOLoop.current().run_in_executor(None, lambda: add_tiles(localization.id))
+        IOLoop.current().run_in_executor(
+            None, lambda: add_tiles_and_observation_plans(localization.id, user_id)
+        )
         IOLoop.current().run_in_executor(None, lambda: add_contour(localization.id))
 
     return event.id
@@ -338,7 +355,9 @@ def post_gcnevent_from_dictionary(payload, user_id, session):
         IOLoop.current().run_in_executor(
             None, lambda: add_skymap_properties(localization.id, user.id)
         )
-        IOLoop.current().run_in_executor(None, lambda: add_tiles(localization.id))
+        IOLoop.current().run_in_executor(
+            None, lambda: add_tiles_and_observation_plans(localization.id, user_id)
+        )
         IOLoop.current().run_in_executor(None, lambda: add_contour(localization.id))
 
     return event.id
@@ -577,22 +596,25 @@ class GcnEventHandler(BaseHandler):
                 )
 
         with self.Session() as session:
-            if 'xml' in data:
-                event_id = post_gcnevent_from_xml(
-                    data['xml'], self.associated_user_object.id, session
-                )
-            else:
-                event_id = post_gcnevent_from_dictionary(
-                    data, self.associated_user_object.id, session
-                )
+            try:
+                if 'xml' in data:
+                    event_id = post_gcnevent_from_xml(
+                        data['xml'], self.associated_user_object.id, session
+                    )
+                else:
+                    event_id = post_gcnevent_from_dictionary(
+                        data, self.associated_user_object.id, session
+                    )
 
-            self.push(action='skyportal/REFRESH_GCN_EVENTS')
+                self.push(action='skyportal/REFRESH_GCN_EVENTS')
+            except Exception as e:
+                return self.error(f'Cannot post event: {str(e)}')
 
             return self.success(data={'gcnevent_id': event_id})
 
     @auth_or_token
     async def get(self, dateobs=None):
-        """
+        f"""
         ---
         single:
           description: Retrieve a GCN event
@@ -663,6 +685,20 @@ class GcnEventHandler(BaseHandler):
               description: |
                 Comma-separated string of "property: value: operator" single(s) or triplet(s) to filter for event localizations matching
                 that/those property(ies), i.e. "area_90" or "area_90: 500: lt"
+            - in: query
+              name: numPerPage
+              nullable: true
+              schema:
+                type: integer
+              description: |
+                Number of GCN events to return per paginated request.
+                Defaults to 10. Can be no larger than {MAX_GCNEVENTS}.
+            - in: query
+              name: pageNumber
+              nullable: true
+              schema:
+                type: integer
+              description: Page number for paginated query results. Defaults to 1.
         responses:
           200:
             content:
@@ -680,11 +716,14 @@ class GcnEventHandler(BaseHandler):
         except ValueError as e:
             return self.error(f'pageNumber fails: {e}')
 
-        n_per_page = self.get_query_argument("numPerPage", 100)
+        n_per_page = self.get_query_argument("numPerPage", 10)
         try:
             n_per_page = int(n_per_page)
         except ValueError as e:
             return self.error(f'numPerPage fails: {e}')
+
+        if n_per_page > MAX_GCNEVENTS:
+            return self.error(f'numPerPage should be no larger than {MAX_GCNEVENTS}.')
 
         sort_by = self.get_query_argument("sortBy", None)
         sort_order = self.get_query_argument("sortOrder", "asc")
@@ -735,6 +774,9 @@ class GcnEventHandler(BaseHandler):
                             joinedload(GcnEvent.localizations).joinedload(
                                 Localization.tags
                             ),
+                            joinedload(GcnEvent.localizations).joinedload(
+                                Localization.properties
+                            ),
                             joinedload(GcnEvent.gcn_notices),
                             joinedload(GcnEvent.observationplan_requests)
                             .joinedload(ObservationPlanRequest.allocation)
@@ -757,6 +799,11 @@ class GcnEventHandler(BaseHandler):
                             {
                                 **loc.to_dict(),
                                 "tags": [tag.to_dict() for tag in loc.tags],
+                                "properties": [
+                                    properties.to_dict()
+                                    for properties in loc.properties
+                                ],
+                                "center": loc.center,
                             }
                             for loc in event.localizations
                         ),
@@ -991,10 +1038,13 @@ class GcnEventHandler(BaseHandler):
             return self.success()
 
 
-def add_tiles(localization_id):
+def add_tiles_and_observation_plans(localization_id, user_id):
     session = Session()
     try:
-        localization = session.query(Localization).get(localization_id)
+        localization = session.scalar(
+            sa.select(Localization).where(Localization.id == localization_id)
+        )
+        user = session.scalar(sa.select(User).where(User.id == user_id))
 
         tiles = [
             LocalizationTile(
@@ -1006,9 +1056,99 @@ def add_tiles(localization_id):
         session.add(localization)
         session.add_all(tiles)
         session.commit()
-        log(f"Generated tiles for localization {localization_id}")
+
+        config_gcn_observation_plans_all = [
+            observation_plan for observation_plan in cfg["gcn.observation_plans"]
+        ]
+        config_gcn_observation_plans = []
+        for config_gcn_observation_plan in config_gcn_observation_plans_all:
+            allocation = session.scalars(
+                Allocation.select(user).where(
+                    Allocation.proposal_id
+                    == config_gcn_observation_plan["allocation-proposal_id"]
+                )
+            ).first()
+            if allocation is not None:
+                config_gcn_observation_plan["allocation_id"] = allocation.id
+                config_gcn_observation_plan["survey_efficiencies"] = []
+                config_gcn_observation_plans.append(config_gcn_observation_plan)
+
+        default_observation_plans = (
+            (
+                session.scalars(
+                    DefaultObservationPlanRequest.select(
+                        user,
+                        options=[
+                            joinedload(
+                                DefaultObservationPlanRequest.default_survey_efficiencies
+                            )
+                        ],
+                    )
+                )
+            )
+            .unique()
+            .all()
+        )
+        gcn_observation_plans = []
+        for plan in default_observation_plans:
+            allocation = session.scalars(
+                Allocation.select(user).where(Allocation.id == plan.allocation_id)
+            ).first()
+
+            gcn_observation_plan = {
+                'allocation_id': allocation.id,
+                'payload': plan.payload,
+                'survey_efficiencies': [
+                    survey_efficiency.to_dict()
+                    for survey_efficiency in plan.default_survey_efficiencies
+                ],
+            }
+            gcn_observation_plans.append(gcn_observation_plan)
+        gcn_observation_plans = gcn_observation_plans + config_gcn_observation_plans
+
+        event = session.scalars(
+            GcnEvent.select(user).where(GcnEvent.dateobs == localization.dateobs)
+        ).first()
+        start_date = str(datetime.datetime.utcnow()).replace("T", "")
+        end_date = str(datetime.datetime.utcnow() + datetime.timedelta(days=1)).replace(
+            "T", ""
+        )
+
+        for ii, gcn_observation_plan in enumerate(gcn_observation_plans):
+            allocation_id = gcn_observation_plan['allocation_id']
+            allocation = session.scalars(
+                Allocation.select(user).where(Allocation.id == allocation_id)
+            ).first()
+
+            if allocation is not None:
+                payload = {
+                    **gcn_observation_plan['payload'],
+                    'start_date': start_date,
+                    'end_date': end_date,
+                    'queue_name': f'{allocation.instrument.name}-{start_date}-{ii}',
+                }
+                plan = {
+                    'payload': payload,
+                    'allocation_id': allocation.id,
+                    'gcnevent_id': event.id,
+                    'localization_id': localization.id,
+                }
+
+                plan_id = post_observation_plan(
+                    plan, user_id, session, asynchronous=False
+                )
+                for survey_efficiency in gcn_observation_plan['survey_efficiencies']:
+                    post_survey_efficiency_analysis(
+                        survey_efficiency, plan_id, user_id, session, asynchronous=False
+                    )
+
+        return log(
+            f"Generated tiles / observation plans for localization {localization_id}"
+        )
     except Exception as e:
-        log(f"Unable to generate contour for localization {localization_id}: {e}")
+        log(
+            f"Unable to generate tiles / observation plans for localization {localization_id}: {e}"
+        )
     finally:
         Session.remove()
 

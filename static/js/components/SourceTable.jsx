@@ -2,12 +2,15 @@ import React, { Suspense, useState, useEffect } from "react";
 import PropTypes from "prop-types";
 import { useSelector, useDispatch } from "react-redux";
 import { Link, useNavigate } from "react-router-dom";
+import { useForm, Controller } from "react-hook-form";
 
 import TableCell from "@mui/material/TableCell";
 import TableRow from "@mui/material/TableRow";
 import IconButton from "@mui/material/IconButton";
+import FormControlLabel from "@mui/material/FormControlLabel";
 import Grid from "@mui/material/Grid";
 import Chip from "@mui/material/Chip";
+import DeleteIcon from "@mui/icons-material/Delete";
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 import MUIDataTable from "mui-datatables";
 import {
@@ -18,6 +21,7 @@ import {
   adaptV4Theme,
 } from "@mui/material/styles";
 import makeStyles from "@mui/styles/makeStyles";
+import Checkbox from "@mui/material/Checkbox";
 import CheckIcon from "@mui/icons-material/Check";
 import ClearIcon from "@mui/icons-material/Clear";
 import InfoIcon from "@mui/icons-material/Info";
@@ -34,6 +38,7 @@ import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 
 import { isMobileOnly } from "react-device-detect";
+import { showNotification } from "baselayer/components/Notifications";
 import Button from "./Button";
 
 import { ra_to_hours, dec_to_dms, mjd_to_utc } from "../units";
@@ -49,6 +54,7 @@ import * as sourcesingcnActions from "../ducks/confirmedsourcesingcn";
 import { filterOutEmptyValues } from "../API";
 import { getAnnotationValueString } from "./ScanningPageCandidateAnnotations";
 import ConfirmSourceInGCN from "./ConfirmSourceInGCN";
+import ConfirmDeletionDialog from "./ConfirmDeletionDialog";
 
 const VegaSpectrum = React.lazy(() => import("./VegaSpectrum"));
 const VegaHR = React.lazy(() => import("./VegaHR"));
@@ -186,6 +192,17 @@ const useStyles = makeStyles((theme) => ({
     paddingTop: 0,
     paddingBottom: 0,
   },
+  classificationDelete: {
+    cursor: "pointer",
+    fontSize: "2em",
+    position: "absolute",
+    padding: 0,
+    right: 0,
+    top: 0,
+  },
+  classificationDeleteDisabled: {
+    opacity: 0,
+  },
 }));
 
 const getMuiTheme = (theme) =>
@@ -286,6 +303,267 @@ let defaultDisplayedColumns = [
   "Date Saved",
   "Finder",
 ];
+
+const RenderShowClassification = ({ source }) => {
+  const classes = useStyles();
+  const dispatch = useDispatch();
+
+  const { taxonomyList } = useSelector((state) => state.taxonomies);
+
+  const currentUser = useSelector((state) => state.profile);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [classificationSourceToDelete, setClassificationSourceToDelete] =
+    useState(null);
+  const openDialog = () => {
+    setDialogOpen(true);
+    setClassificationSourceToDelete(source.id);
+  };
+  const closeDialog = () => {
+    setDialogOpen(false);
+    setClassificationSourceToDelete(null);
+  };
+
+  const deleteClassifications = () => {
+    dispatch(
+      sourceActions.deleteClassifications(classificationSourceToDelete)
+    ).then((result) => {
+      if (result.status === "success") {
+        dispatch(showNotification("Classification deleted"));
+        closeDialog();
+      }
+    });
+  };
+
+  const permission =
+    currentUser.permissions.includes("System admin") ||
+    currentUser.permissions.includes("Manage groups");
+
+  return (
+    <div>
+      <Tooltip
+        key={`${source.id}`}
+        placement="top-end"
+        disableFocusListener
+        disableTouchListener
+        title={
+          <>
+            <Button
+              key={source.id}
+              id="delete_classifications"
+              classes={{
+                root: classes.classificationDelete,
+                disabled: classes.classificationDeleteDisabled,
+              }}
+              onClick={() => openDialog(source.id)}
+              disabled={!permission}
+            >
+              <DeleteIcon />
+            </Button>
+            <ConfirmDeletionDialog
+              deleteFunction={deleteClassifications}
+              dialogOpen={dialogOpen}
+              closeDialog={closeDialog}
+              resourceName="classifications"
+            />
+          </>
+        }
+      >
+        <div>
+          <ShowClassification
+            classifications={source.classifications}
+            taxonomyList={taxonomyList}
+            shortened
+          />
+        </div>
+      </Tooltip>
+    </div>
+  );
+};
+
+RenderShowClassification.propTypes = {
+  source: PropTypes.shape({
+    id: PropTypes.string,
+    ra: PropTypes.number,
+    dec: PropTypes.number,
+    gal_lon: PropTypes.number,
+    gal_lat: PropTypes.number,
+    origin: PropTypes.string,
+    alias: PropTypes.arrayOf(PropTypes.string),
+    redshift: PropTypes.number,
+    annotations: PropTypes.arrayOf(
+      PropTypes.shape({
+        origin: PropTypes.string.isRequired,
+        data: PropTypes.object.isRequired, // eslint-disable-line react/forbid-prop-types
+        author: PropTypes.shape({
+          username: PropTypes.string.isRequired,
+        }).isRequired,
+        created_at: PropTypes.string.isRequired,
+      })
+    ).isRequired,
+    classifications: PropTypes.arrayOf(
+      PropTypes.shape({
+        id: PropTypes.number,
+        classification: PropTypes.string,
+        created_at: PropTypes.string,
+        groups: PropTypes.arrayOf(
+          PropTypes.shape({
+            id: PropTypes.number,
+            name: PropTypes.string,
+          })
+        ),
+      })
+    ),
+    altdata: PropTypes.shape({
+      tns: PropTypes.shape({
+        name: PropTypes.string,
+      }),
+    }),
+    spectrum_exists: PropTypes.bool,
+    last_detected_at: PropTypes.string,
+    last_detected_mag: PropTypes.number,
+    peak_detected_at: PropTypes.string,
+    peak_detected_mag: PropTypes.number,
+    groups: PropTypes.arrayOf(
+      PropTypes.shape({
+        id: PropTypes.number,
+        name: PropTypes.string,
+      })
+    ),
+    photstats: PropTypes.arrayOf(
+      PropTypes.shape({
+        peak_mag_global: PropTypes.number,
+        peak_mjd_global: PropTypes.number,
+        last_detected_mag: PropTypes.number,
+        last_detected_mjd: PropTypes.number,
+      })
+    ),
+  }).isRequired,
+};
+
+const RenderShowLabelling = ({ source }) => {
+  const dispatch = useDispatch();
+  const { control } = useForm();
+  const [checked, setChecked] = useState(false);
+
+  const currentUser = useSelector((state) => state.profile);
+
+  const labellerUsernames = source.labellers
+    ? source.labellers.map((s) => s.username)
+    : [];
+  const defaultChecked = labellerUsernames.includes(currentUser.username);
+
+  useEffect(() => {
+    setChecked(defaultChecked);
+  }, [setChecked, defaultChecked]);
+
+  const labelledSource = (check) => {
+    const groupIds = [];
+    source.groups?.forEach((g) => {
+      groupIds.push(g.id);
+    });
+
+    if (check === true) {
+      dispatch(sourceActions.addSourceLabels(source.id, { groupIds }));
+    } else {
+      dispatch(sourceActions.deleteSourceLabels(source.id, { groupIds }));
+    }
+  };
+
+  const checkBox = (event) => {
+    setChecked(event.target.checked);
+  };
+
+  return (
+    <div>
+      <FormControlLabel
+        key={source.id}
+        control={
+          <Controller
+            render={() => (
+              <Checkbox
+                onChange={(event) => {
+                  checkBox(event);
+                  labelledSource(event.target.checked);
+                }}
+                checked={checked}
+                data-testid={`labellingCheckBox${source.id}`}
+              />
+            )}
+            name={`labellingCheckBox${source.id}`}
+            control={control}
+          />
+        }
+        label={`Labelled By:  ${labellerUsernames.join(",")}`}
+      />
+    </div>
+  );
+};
+
+RenderShowLabelling.propTypes = {
+  source: PropTypes.shape({
+    id: PropTypes.string,
+    ra: PropTypes.number,
+    dec: PropTypes.number,
+    gal_lon: PropTypes.number,
+    gal_lat: PropTypes.number,
+    origin: PropTypes.string,
+    alias: PropTypes.arrayOf(PropTypes.string),
+    redshift: PropTypes.number,
+    annotations: PropTypes.arrayOf(
+      PropTypes.shape({
+        origin: PropTypes.string.isRequired,
+        data: PropTypes.object.isRequired, // eslint-disable-line react/forbid-prop-types
+        author: PropTypes.shape({
+          username: PropTypes.string.isRequired,
+        }).isRequired,
+        created_at: PropTypes.string.isRequired,
+      })
+    ).isRequired,
+    classifications: PropTypes.arrayOf(
+      PropTypes.shape({
+        id: PropTypes.number,
+        classification: PropTypes.string,
+        created_at: PropTypes.string,
+        groups: PropTypes.arrayOf(
+          PropTypes.shape({
+            id: PropTypes.number,
+            name: PropTypes.string,
+          })
+        ),
+      })
+    ),
+    altdata: PropTypes.shape({
+      tns: PropTypes.shape({
+        name: PropTypes.string,
+      }),
+    }),
+    spectrum_exists: PropTypes.bool,
+    last_detected_at: PropTypes.string,
+    last_detected_mag: PropTypes.number,
+    peak_detected_at: PropTypes.string,
+    peak_detected_mag: PropTypes.number,
+    groups: PropTypes.arrayOf(
+      PropTypes.shape({
+        id: PropTypes.number,
+        name: PropTypes.string,
+      })
+    ),
+    photstats: PropTypes.arrayOf(
+      PropTypes.shape({
+        peak_mag_global: PropTypes.number,
+        peak_mjd_global: PropTypes.number,
+        last_detected_mag: PropTypes.number,
+        last_detected_mjd: PropTypes.number,
+      })
+    ),
+    labellers: PropTypes.arrayOf(
+      PropTypes.shape({
+        id: PropTypes.number,
+        username: PropTypes.string,
+      })
+    ),
+  }).isRequired,
+};
 
 // MUI data table with pull out rows containing a summary of each source.
 // This component is used in GroupSources, SourceList and Favorites page.
@@ -681,6 +959,16 @@ const SourceTable = ({
     return <div key={`${source.id}_dec_sex`}>{dec_to_dms(source.dec)}</div>;
   };
 
+  const renderGalLon = (dataIndex) => {
+    const source = sources[dataIndex];
+    return <div key={`${source.id}_gal_lon`}>{source.gal_lon.toFixed(6)}</div>;
+  };
+
+  const renderGalLat = (dataIndex) => {
+    const source = sources[dataIndex];
+    return <div key={`${source.id}_gal_lat`}>{source.gal_lat.toFixed(6)}</div>;
+  };
+
   const renderClassification = (dataIndex) => {
     const source = sources[dataIndex];
 
@@ -692,11 +980,27 @@ const SourceTable = ({
           </div>
         }
       >
-        <ShowClassification
-          classifications={source.classifications}
-          taxonomyList={taxonomyList}
-          shortened
-        />
+        <div>
+          <RenderShowClassification source={source} />
+        </div>
+      </Suspense>
+    );
+  };
+
+  const renderLabelling = (dataIndex) => {
+    const source = sources[dataIndex];
+
+    return (
+      <Suspense
+        fallback={
+          <div>
+            <CircularProgress color="secondary" />
+          </div>
+        }
+      >
+        <div>
+          <RenderShowLabelling source={source} />
+        </div>
       </Suspense>
     );
   };
@@ -930,9 +1234,9 @@ const SourceTable = ({
 
     // Remove empty position
     if (
-      formData.position.ra === "" &&
-      formData.position.dec === "" &&
-      formData.position.radius === ""
+      !formData.position.ra &&
+      !formData.position.dec &&
+      !formData.position.radius
     ) {
       delete formData.position;
     }
@@ -1083,6 +1387,28 @@ const SourceTable = ({
       },
     },
     {
+      name: "l",
+      label: "l (deg)",
+      options: {
+        filter: false,
+        sort: true,
+        sortThirdClickReset: true,
+        display: displayedColumns.includes("l (deg)"),
+        customBodyRenderLite: renderGalLon,
+      },
+    },
+    {
+      name: "b",
+      label: "b (deg)",
+      options: {
+        filter: false,
+        sort: true,
+        sortThirdClickReset: true,
+        display: displayedColumns.includes("b (deg)"),
+        customBodyRenderLite: renderGalLat,
+      },
+    },
+    {
       name: "redshift",
       label: "Redshift",
       options: {
@@ -1101,6 +1427,17 @@ const SourceTable = ({
         sortThirdClickReset: true,
         display: displayedColumns.includes("Classification"),
         customBodyRenderLite: renderClassification,
+      },
+    },
+    {
+      name: "labelling",
+      label: "Labelling",
+      options: {
+        filter: false,
+        sort: true,
+        sortThirdClickReset: true,
+        display: displayedColumns.includes("Labelling"),
+        customBodyRenderLite: renderLabelling,
       },
     },
     {
@@ -1215,7 +1552,7 @@ const SourceTable = ({
     serverSide: true,
     rowsPerPage: numPerPage,
     page: pageNumber - 1,
-    rowsPerPageOptions: [10, 25, 50, 75, 100, 200],
+    rowsPerPageOptions: [1, 5, 10, 25, 50, 75, 100, 200],
     jumpToPage: true,
     pagination: true,
     count: totalMatches,
@@ -1454,6 +1791,8 @@ SourceTable.propTypes = {
       id: PropTypes.string,
       ra: PropTypes.number,
       dec: PropTypes.number,
+      gal_lon: PropTypes.number,
+      gal_lat: PropTypes.number,
       origin: PropTypes.string,
       alias: PropTypes.arrayOf(PropTypes.string),
       redshift: PropTypes.number,
