@@ -1,8 +1,13 @@
 from tornado.ioloop import IOLoop
+import sqlalchemy as sa
+from sqlalchemy import func
 from sqlalchemy.orm import sessionmaker, scoped_session
-import operator  # noqa: F401
+from io import StringIO
+import pandas as pd
+import time
 
-from baselayer.app.access import auth_or_token
+from baselayer.app.access import permissions, auth_or_token
+from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
 from ..base import BaseHandler
@@ -13,6 +18,7 @@ from ...models import (
     SpatialCatalogEntryTile,
 )
 from ...utils.gcn import (
+    from_cone,
     from_ellipse,
 )
 
@@ -26,26 +32,54 @@ MAX_SPATIAL_CATALOG_ENTRIES = 1000
 def add_catalog(catalog_id, catalog_data):
 
     log(f"Generating catalog with ID {catalog_id}")
+    start = time.time()
 
     session = Session()
     try:
         entries = []
-        for ra, dec, name, amaj, amin, phi in zip(
-            catalog_data['ra'],
-            catalog_data['dec'],
-            catalog_data['name'],
-            catalog_data['amaj'],
-            catalog_data['amin'],
-            catalog_data['phi'],
-        ):
+        # check for cone key
+        if {'radius'}.issubset(set(catalog_data.keys())):
+            for ra, dec, name, radius in zip(
+                catalog_data['ra'],
+                catalog_data['dec'],
+                catalog_data['name'],
+                catalog_data['radius'],
+            ):
+                name = name.strip().replace(" ", "-")
+                skymap = from_cone(ra, dec, radius, n_sigma=2)
+                del skymap['localization_name']
+                skymap['entry_name'] = name
 
-            name = name.strip().replace(" ", "-")
-            skymap = from_ellipse(name, ra, dec, amaj, amin, phi)
-            skymap['entry_name'] = skymap['localization_name']
-            del skymap['localization_name']
+                data = {'ra': ra, 'dec': dec, 'radius': radius}
 
-            entry = SpatialCatalogEntry(**{**skymap, 'catalog_id': catalog_id})
-            entries.append(entry)
+                entry = SpatialCatalogEntry(
+                    **{**skymap, 'catalog_id': catalog_id, 'data': data}
+                )
+                entries.append(entry)
+        elif {'amaj', 'amin', 'phi'}.issubset(set(catalog_data.keys())):
+            for ra, dec, name, amaj, amin, phi in zip(
+                catalog_data['ra'],
+                catalog_data['dec'],
+                catalog_data['name'],
+                catalog_data['amaj'],
+                catalog_data['amin'],
+                catalog_data['phi'],
+            ):
+
+                name = name.strip().replace(" ", "-")
+                skymap = from_ellipse(name, ra, dec, amaj, amin, phi)
+                skymap['entry_name'] = skymap['localization_name']
+                del skymap['localization_name']
+
+                data = {'ra': ra, 'dec': dec, 'amaj': amaj, 'amin': amin, 'phi': phi}
+
+                entry = SpatialCatalogEntry(
+                    **{**skymap, 'catalog_id': catalog_id, 'data': data}
+                )
+                entries.append(entry)
+
+        else:
+            return ValueError('Could not disambiguate keys')
 
         session.add_all(entries)
         session.commit()
@@ -61,9 +95,43 @@ def add_catalog(catalog_id, catalog_data):
             session.add_all(tiles)
         session.commit()
 
-        log(f"Generated catalog with ID {catalog_id}")
+        flow = Flow()
+        flow.push(
+            '*',
+            "skyportal/REFRESH_SPATIAL_CATALOGS",
+        )
+
+        end = time.time()
+        duration = end - start
+
+        log(f"Generated catalog with ID {catalog_id} in {duration} seconds")
     except Exception as e:
         log(f"Unable to generate catalog: {e}")
+    finally:
+        Session.remove()
+
+
+def delete_catalog(catalog_id):
+
+    log(f"Deleting catalog with ID {catalog_id}")
+
+    session = Session()
+    try:
+        catalog = session.scalar(
+            sa.select(SpatialCatalog).where(SpatialCatalog.id == int(catalog_id))
+        )
+        session.delete(catalog)
+        session.commit()
+
+        flow = Flow()
+        flow.push(
+            '*',
+            "skyportal/REFRESH_SPATIAL_CATALOGS",
+        )
+
+        log(f"Deleted catalog with ID {catalog_id}")
+    except Exception as e:
+        log(f"Unable to delete catalog: {e}")
     finally:
         Session.remove()
 
@@ -84,7 +152,17 @@ class SpatialCatalogHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              description: New spatial catalog ID
           400:
             content:
               application/json:
@@ -108,10 +186,21 @@ class SpatialCatalogHandler(BaseHandler):
         if any([(x > 90) or (x < -90) for x in catalog_data['dec']]):
             return self.error("declination should span -90<dec<90.")
 
+        # check for cone or ellipse keys
+        if (not {'radius'}.issubset(set(catalog_data.keys()))) and (
+            not {'amaj', 'amin', 'phi'}.issubset(set(catalog_data.keys()))
+        ):
+            return self.error("error or amaj, amin, and phi required in field_data.")
+
         with self.Session() as session:
-            catalog = SpatialCatalog(catalog_name=catalog_name)
-            session.add(catalog)
-            session.commit()
+            stmt = SpatialCatalog.select(self.current_user).where(
+                SpatialCatalog.catalog_name == catalog_name
+            )
+            catalog = session.scalars(stmt).first()
+            if catalog is None:
+                catalog = SpatialCatalog(catalog_name=catalog_name)
+                session.add(catalog)
+                session.commit()
 
             IOLoop.current().run_in_executor(
                 None, lambda: add_catalog(catalog.id, catalog_data)
@@ -158,7 +247,16 @@ class SpatialCatalogHandler(BaseHandler):
 
             stmt = SpatialCatalog.select(self.current_user)
             catalogs = session.scalars(stmt).all()
-            data = [catalog.to_dict() for catalog in catalogs]
+            data = []
+            for catalog in catalogs:
+                count_stmt = SpatialCatalogEntry.select(self.current_user).where(
+                    SpatialCatalogEntry.catalog_id == catalog.id
+                )
+
+                entries_count = session.execute(
+                    sa.select(func.count()).select_from(count_stmt)
+                ).scalar()
+                data.append({**catalog.to_dict(), 'entries_count': entries_count})
             return self.success(data=data)
 
     @auth_or_token
@@ -192,8 +290,90 @@ class SpatialCatalogHandler(BaseHandler):
             if catalog is None:
                 return self.error(f'Missing catalog with ID {catalog_id}')
 
-            session.delete(catalog)
-            session.commit()
+            IOLoop.current().run_in_executor(None, lambda: delete_catalog(catalog.id))
 
-        self.push_all(action="skyportal/REFRESH_SPATIAL_CATALOGS")
-        return self.success()
+            self.push_all(action="skyportal/REFRESH_SPATIAL_CATALOGS")
+            return self.success()
+
+
+class SpatialCatalogASCIIFileHandler(BaseHandler):
+    @permissions(['Upload data'])
+    def post(self):
+        """
+        ---
+        description: Upload spatial catalog from ASCII file
+        tags:
+          - galaxys
+        requestBody:
+          content:
+            application/json:
+              schema: SpatialCatalogASCIIFileHandlerPost
+        responses:
+          200:
+            content:
+              application/json:
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              description: New spatial catalog ID
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+
+        json = self.get_json()
+        catalog_data = json.pop('catalogData', None)
+        catalog_name = json.pop('catalogName', None)
+
+        if catalog_data is None:
+            return self.error(message="Missing catalog_data")
+
+        try:
+            catalog_data = pd.read_table(StringIO(catalog_data), sep=",").to_dict(
+                orient='list'
+            )
+        except Exception as e:
+            return self.error(f"Unable to read in galaxy file: {e}")
+
+        if catalog_name is None:
+            return self.error("catalog_name is a required parameter.")
+        if catalog_data is None:
+            return self.error("catalog_data is a required parameter.")
+
+        # check RA bounds
+        if any([(x < 0) or (x >= 360) for x in catalog_data['ra']]):
+            return self.error("ra should span 0=<ra<360.")
+
+        # check Declination bounds
+        if any([(x > 90) or (x < -90) for x in catalog_data['dec']]):
+            return self.error("declination should span -90<dec<90.")
+
+        # check for cone or ellipse keys
+        if (not {'radius'}.issubset(set(catalog_data.keys()))) and (
+            not {'amaj', 'amin', 'phi'}.issubset(set(catalog_data.keys()))
+        ):
+            return self.error("error or amaj, amin, and phi required in field_data.")
+
+        with self.Session() as session:
+            stmt = SpatialCatalog.select(self.current_user).where(
+                SpatialCatalog.catalog_name == catalog_name
+            )
+            catalog = session.scalars(stmt).first()
+            if catalog is None:
+                catalog = SpatialCatalog(catalog_name=catalog_name)
+                session.add(catalog)
+                session.commit()
+
+            IOLoop.current().run_in_executor(
+                None, lambda: add_catalog(catalog.id, catalog_data)
+            )
+
+            return self.success(data={"id": catalog.id})

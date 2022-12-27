@@ -254,7 +254,7 @@ def get_properties(root):
     return property_dict
 
 
-def from_cone(ra, dec, error):
+def from_cone(ra, dec, error, n_sigma=4):
     localization_name = f"{ra:.5f}_{dec:.5f}_{error:.5f}"
 
     center = SkyCoord(ra * u.deg, dec * u.deg)
@@ -267,7 +267,7 @@ def from_cone(ra, dec, error):
     )
 
     # Find all pixels in the 4-sigma error circle.
-    ipix = hpx.cone_search_skycoord(center, 4 * radius)
+    ipix = hpx.cone_search_skycoord(center, n_sigma * radius)
 
     # Convert to multi-resolution pixel indices and sort.
     uniq = ligo.skymap.moc.nest2uniq(nside_to_level(hpx.nside), ipix.astype(np.int64))

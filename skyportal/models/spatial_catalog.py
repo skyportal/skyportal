@@ -6,6 +6,7 @@ __all__ = [
 
 import sqlalchemy as sa
 from sqlalchemy.orm import relationship, deferred
+from sqlalchemy.dialects.postgresql import JSONB
 
 from astropy.table import Table
 import numpy as np
@@ -55,6 +56,13 @@ class SpatialCatalogEntry(Base):
 
     entry_name = sa.Column(
         sa.String, unique=True, nullable=False, doc='Entry name', index=True
+    )
+
+    data = sa.Column(
+        JSONB,
+        doc="Entry initialization properties in JSON format.",
+        nullable=False,
+        index=True,
     )
 
     nside = 512

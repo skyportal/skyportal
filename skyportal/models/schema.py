@@ -1920,6 +1920,11 @@ class SpatialCatalogHandlerPost(_Schema):
     )
 
 
+class SpatialCatalogASCIIFileHandlerPost(_Schema):
+    catalogName = fields.String(metadata={"description": 'Spatial catalog name.'})
+    catalogData = fields.Field(metadata={'description': 'Catalog data Ascii string'})
+
+
 def register_components(spec):
     print('Registering schemas with APISpec')
 
