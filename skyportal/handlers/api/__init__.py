@@ -52,6 +52,7 @@ from .gcn import (
     GcnEventTagsHandler,
     GcnSummaryHandler,
     LocalizationHandler,
+    LocalizationDownloadHandler,
     LocalizationPropertiesHandler,
 )
 from .gcn_tach import GcnTachHandler
