@@ -534,6 +534,8 @@ class UserHandler(BaseHandler):
                         User.id == user_id
                     )
                 ).first()
+                if user is None:
+                    return self.error(f'Cannot find user with ID {user_id}')
                 expiration_date = data.get("expirationDate")
                 if expiration_date is not None:
                     try:
