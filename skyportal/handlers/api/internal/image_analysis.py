@@ -11,6 +11,19 @@ from astropy.coordinates import search_around_sky
 from astropy.time import Time
 import astropy.units as u
 
+import astroscrappy
+from stdpipe import (
+    astrometry,
+    photometry,
+    catalogs,
+    cutouts,
+    templates,
+    plots,
+    pipeline,
+    psf,
+    utils,
+)
+
 import base64
 import numpy as np
 import sqlalchemy as sa
@@ -27,31 +40,9 @@ _, cfg = load_env()
 
 log = make_log('image_analysis')
 
-try:
-    if cfg['image_analysis'] is True:
-        import astroscrappy
-        from stdpipe import (
-            astrometry,
-            photometry,
-            catalogs,
-            cutouts,
-            templates,
-            plots,
-            pipeline,
-            psf,
-            utils,
-        )
-except Exception as e:
-    log(e)
-
-try:
-    if cfg['image_analysis'] is True:
-        # remove any temp dir starting with 'sex'
-        for dir in os.listdir('/tmp'):
-            if dir.startswith('sex') or dir.startswith('psfex'):
-                shutil.rmtree(os.path.join('/tmp', dir))
-except Exception as e:
-    log(e)
+for dir in os.listdir('/tmp'):
+    if dir.startswith('sex') or dir.startswith('psfex'):
+        shutil.rmtree(os.path.join('/tmp', dir))
 
 catalogs_enum = [
     "ps1",
@@ -72,7 +63,8 @@ methods_enum = ["scamp", "astropy", "astrometrynet"]
 
 
 def spherical_match(ra1, dec1, ra2, dec2, sr=1 / 3600):
-    """Positional match on the sphere for two lists of coordinates.
+    """
+    Positional match on the sphere for two lists of coordinates.
 
     Aimed to be a direct replacement for :func:`esutil.htm.HTM.match` method with :code:`maxmatch=0`.
 
@@ -95,20 +87,19 @@ def spherical_match(ra1, dec1, ra2, dec2, sr=1 / 3600):
         Two parallel sets of indices corresponding to matches from first and second lists, along with the pairwise distances in degrees
 
     """
-    try:
-        idx1, idx2, dist, _ = search_around_sky(
-            SkyCoord(ra1, dec1, unit='deg'), SkyCoord(ra2, dec2, unit='deg'), sr * u.deg
-        )
 
-        dist = dist.deg  # convert to degrees
+    idx1, idx2, dist, _ = search_around_sky(
+        SkyCoord(ra1, dec1, unit='deg'), SkyCoord(ra2, dec2, unit='deg'), sr * u.deg
+    )
 
-        return idx1, idx2, dist
-    except Exception as e:
-        raise e
+    dist = dist.deg  # convert to degrees
+
+    return idx1, idx2, dist
 
 
 def spherical_distance(ra1, dec1, ra2, dec2):
-    """Compute the distance between two points on the sphere.
+    """
+    Compute the distance between two points on the sphere.
 
     Parameters
     ----------
@@ -127,18 +118,16 @@ def spherical_distance(ra1, dec1, ra2, dec2):
         Distance in degrees
 
     """
-    try:
-        x = np.sin(np.deg2rad((ra1 - ra2) / 2))
-        x *= x
-        y = np.sin(np.deg2rad((dec1 - dec2) / 2))
-        y *= y
 
-        z = np.cos(np.deg2rad((dec1 + dec2) / 2))
-        z *= z
+    x = np.sin(np.deg2rad((ra1 - ra2) / 2))
+    x *= x
+    y = np.sin(np.deg2rad((dec1 - dec2) / 2))
+    y *= y
 
-        return np.rad2deg(2 * np.arcsin(np.sqrt(x * (z - y) + y)))
-    except Exception as e:
-        raise e
+    z = np.cos(np.deg2rad((dec1 + dec2) / 2))
+    z *= z
+
+    return np.rad2deg(2 * np.arcsin(np.sqrt(x * (z - y) + y)))
 
 
 def reduce_image(
@@ -155,7 +144,9 @@ def reduce_image(
     method,
     detect_cosmics=False,
 ):
-    """Reduce an image: Perform astrometric and photometric calibration, and extract photometry to add it to the database.
+    """
+    Reduce an image: Perform astrometric and photometric calibration,
+    and extract photometry to add it to the database.
 
     Parameters
     ----------
@@ -198,9 +189,10 @@ def reduce_image(
             # The mask is a binary frame with the same size as the image where True means that this pixel should not be used for the analysis
             mask = image > 0.9 * np.max(image)
 
+            # TODO: we want to use 'dilate' to expand the mask before applying it to the image, to get the edges that are not saturated
+
             if detect_cosmics:
-                cmask, cimage = astroscrappy.detect_cosmics(image, mask, verbose=False)
-                log(f'Done masking cosmics: {np.sum(cmask)} pixels masked')
+                cmask, _ = astroscrappy.detect_cosmics(image, mask, verbose=False)
                 mask |= cmask
 
             # ## Detect and measure the objects
@@ -217,11 +209,9 @@ def reduce_image(
                 raise ValueError(
                     'No objects detected. If this is unexpected, check source extractor installation.'
                 )
-            log(f'{len(obj)} objects detected')
 
             # First rough estimation of average FWHM of detected objects, taking into account only unflagged ones
             fwhm = np.median(obj['fwhm'][obj['flags'] == 0])
-            log(f'Average FWHM is {fwhm} pixels')
 
             # We will pass this FWHM to measurement function so that aperture and background radii will be relative to it.
             # We will also reject all objects with measured S/N < 5
@@ -236,7 +226,6 @@ def reduce_image(
                 sn=5,
                 verbose=True,
             )
-            log(f'{len(obj)} objects properly measured')
 
             # ## Astrometric calibration
             # Getting the center position, size and pixel scale for the image
@@ -244,10 +233,6 @@ def reduce_image(
                 header=header, width=image.shape[1], height=image.shape[0]
             )
             pixscale = astrometry.get_pixscale(header=header)
-
-            log(
-                f'Frame center is {center_ra} {center_dec} radius {center_sr} deg, {pixscale*3600} arcsec/pixel'
-            )
 
             # ## Reference catalogue
             # Catalog name may be any Vizier identifier (ps1, gaiadr2, gaiaedr3, usnob1, gsc, skymapper, apass, sdss, atlas, vsx).
@@ -258,7 +243,6 @@ def reduce_image(
                 catalog_name_refinement,
                 filters={'rmag': '<21'},
             )
-            log(f'{len(cat_refinement)} catalogue stars used for refinement')
 
             cat_crossmatch = catalogs.get_cat_vizier(
                 center_ra,
@@ -267,7 +251,6 @@ def reduce_image(
                 catalog_name_crossmatch,
                 filters={'rmag': '<21'},
             )
-            log(f'{len(cat_crossmatch)} catalogue stars used for crossmatch')
 
             # ## Astrometric refinement
             # Refining the astrometric solution based on the positions of detected objects and catalogue stars with scamp
@@ -314,7 +297,6 @@ def reduce_image(
             candidates = pipeline.filter_transient_candidates(
                 obj, cat=cat_crossmatch, sr=matching_radius, verbose=True
             )
-            log(f'{candidates}')
 
             # Creating cutouts for these candidates and vizualizing them
             filtered = []
@@ -345,12 +327,11 @@ def reduce_image(
             )
             pixscale = astrometry.get_pixscale(wcs=wcs)
 
-            zero_fn = m[
-                'zero_fn'
-            ]  # Function to get the zero point as a function of position on the image
+            # Function to get the zero point as a function of position on the image
+            zero_fn = m['zero_fn']
             obj['mag_calib'] = obj['mag'] + zero_fn(obj['x'], obj['y'])
 
-            # We may roughly estimage the effective gain of the image from background mean and rms as gain = mean/rms**2
+            # We may roughly estimate the effective gain of the image from background mean and rms as gain = mean/rms**2
             bg, rms = photometry.get_background(image, mask=mask, get_rms=True)
 
             log(f'Effective gain is {np.median(bg/rms**2)}')
@@ -421,7 +402,6 @@ def reduce_image(
 
             sims = vstack(sims)
 
-            # FIXME
             data = {
                 'ra': [ra0],
                 'dec': [dec0],
@@ -563,7 +543,12 @@ class ImageAnalysisHandler(BaseHandler):
                 return self.error(message='Missing image data')
 
             filt = data.get("filter")
+            if filt is None:
+                return self.error(message='Missing filter')
+
             obstime = data.get("obstime")
+            if obstime is None:
+                return self.error(message='Missing obstime')
             obstime = Time(arrow.get(obstime.strip()).datetime)
 
             file_data = file_data.split('base64,')
@@ -584,7 +569,6 @@ class ImageAnalysisHandler(BaseHandler):
                 image_data = hdul[0].data.astype(np.double)
                 header['FILTER'] = filt
                 header['DATE-OBS'] = obstime.isot
-                # now lets get the file data again, so we can save it later as another file
                 IOLoop.current().run_in_executor(
                     None,
                     lambda: reduce_image(

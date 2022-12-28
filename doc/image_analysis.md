@@ -79,9 +79,8 @@ Again, add the same lines mentioned in the Configuration section to the `docker.
 
 ## Usage
 
-Go to the page of a source, and add `/image_analysis` at the end of the URL. It should look something like `http://localhost:5000/source/ZTF22aayaehk/image_analysis`.
-Then, fill in the fields required by the form, and upload the image.
-Otherwise, you can find a button labelled `Image Analysis` right under the photometry plot. It will redirect you to the image analysis page.
+Go to the page of a source, and click on the `Image Analysis` right button under the photometry plot. It will redirect you to the image analysis page.
+Then, fill in the fields required by the form, and upload the image. The operations performed by STDpipe are computation intensive, so it can take several minutes to extract the photometry from the image.
 
 **The image must be a compressed FITS file (.fits.fz). We recommend compressing it with funpack.**
 
