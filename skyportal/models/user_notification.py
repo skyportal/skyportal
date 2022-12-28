@@ -690,7 +690,6 @@ def add_user_notifications(mapper, connection, target):
                         allocation_user.user.id
                         for allocation_user in allocation.allocation_users
                     ] + [watcher.user_id for watcher in target.watchers]
-                    print(notification_user_ids)
                     notification_user_ids.append(target.requester_id)
                     notification_user_ids.append(target.last_modified_by_id)
                     notification_user_ids = list(set(notification_user_ids))

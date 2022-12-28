@@ -1817,6 +1817,11 @@ class FollowupRequestWatcherHandler(BaseHandler):
                     FollowupRequestUser.followuprequest_id == followup_request_id,
                 )
             ).first()
+            if watcher is None:
+                return self.error(
+                    f"The user {self.current_user.id} is not watching request {followup_request_id}."
+                )
+
             session.delete(watcher)
             session.commit()
 

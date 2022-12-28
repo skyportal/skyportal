@@ -21,7 +21,6 @@ from baselayer.app.models import (
     Base,
     DBSession,
     join_model,
-    accessible_by_owner,
     User,
     public,
     AccessibleIfRelatedRowsAreAccessible,
@@ -299,7 +298,9 @@ FollowupRequestTargetGroup.create = (
 FollowupRequestUser = join_model('followup_request_users', FollowupRequest, User)
 FollowupRequestUser.__doc__ = "Join table mapping `FollowupRequest`s to `User`s."
 FollowupRequestUser.create = FollowupRequestUser.read
-FollowupRequestUser.update = FollowupRequestUser.delete = accessible_by_owner
+FollowupRequestUser.update = FollowupRequestUser.delete = AccessibleIfUserMatches(
+    'user'
+)
 
 
 @event.listens_for(Classification, 'after_insert')

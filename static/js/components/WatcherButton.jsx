@@ -11,7 +11,7 @@ import Button from "./Button";
 
 import * as followupRequestActions from "../ducks/followup_requests";
 
-const ButtonInclude = (requestID, textMode) => {
+const UnwatchButton = (requestID, textMode) => {
   const dispatch = useDispatch();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const handleSubmit = async () => {
@@ -45,7 +45,7 @@ const ButtonInclude = (requestID, textMode) => {
   );
 };
 
-const ButtonExclude = (requestID, textMode) => {
+const WatchButton = (requestID, textMode) => {
   const dispatch = useDispatch();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const handleSubmit = async () => {
@@ -90,9 +90,9 @@ const WatcherButton = ({ followupRequest, textMode }) => {
     watcherIds.push(s.user_id);
   });
   if (watcherIds.includes(currentUser.id)) {
-    return ButtonInclude(followupRequest.id, textMode);
+    return UnwatchButton(followupRequest.id, textMode);
   }
-  return ButtonExclude(followupRequest.id, textMode);
+  return WatchButton(followupRequest.id, textMode);
 };
 
 WatcherButton.propTypes = {
