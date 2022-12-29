@@ -125,19 +125,35 @@ const ObservationFilterForm = ({ handleFilterSubmit }) => {
           <Typography variant="subtitle2" className={classes.title}>
             Time (UTC)
           </Typography>
-          <TextField
-            size="small"
-            label="Time After"
+          <Controller
+            render={({ field: { onChange, value } }) => (
+              <TextField
+                size="small"
+                label="Time After"
+                name="startDate"
+                inputRef={register("startDate")}
+                placeholder="2012-08-30T00:00:00"
+                onChange={onChange}
+                value={value}
+              />
+            )}
             name="startDate"
-            inputRef={register}
-            placeholder="2012-08-30T00:00:00"
+            control={control}
           />
-          <TextField
-            size="small"
-            label="Time Before"
+          <Controller
+            render={({ field: { onChange, value } }) => (
+              <TextField
+                size="small"
+                label="Time Before"
+                name="endDate"
+                inputRef={register("endDate")}
+                placeholder="2012-08-30T00:00:00"
+                onChange={onChange}
+                value={value}
+              />
+            )}
             name="endDate"
-            inputRef={register}
-            placeholder="2012-08-30T00:00:00"
+            control={control}
           />
         </div>
         <div className={classes.formItemRightColumn}>
@@ -146,7 +162,7 @@ const ObservationFilterForm = ({ handleFilterSubmit }) => {
           </Typography>
           <div className={classes.selectItems}>
             <Controller
-              render={({ value }) => (
+              render={({ field: { value } }) => (
                 <Select
                   inputProps={{ MenuProps: { disableScrollLock: true } }}
                   labelId="instrumentSelectLabel"

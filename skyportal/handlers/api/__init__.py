@@ -37,6 +37,7 @@ from .filter import FilterHandler
 from .followup_request import (
     DefaultFollowupRequestHandler,
     FollowupRequestHandler,
+    FollowupRequestWatcherHandler,
     FollowupRequestPrioritizationHandler,
     FollowupRequestSchedulerHandler,
     AssignmentHandler,
@@ -52,6 +53,7 @@ from .gcn import (
     GcnEventTagsHandler,
     GcnSummaryHandler,
     LocalizationHandler,
+    LocalizationDownloadHandler,
     LocalizationPropertiesHandler,
 )
 from .gcn_tach import GcnTachHandler
