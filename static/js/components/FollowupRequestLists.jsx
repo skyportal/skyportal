@@ -292,8 +292,6 @@ const FollowupRequestLists = ({
       name: "watcher",
       label: "Watch?",
       options: {
-        sort: true,
-        sortThirdClickReset: true,
         customBodyRenderLite: renderWatcher,
       },
     });

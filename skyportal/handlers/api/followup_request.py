@@ -1763,8 +1763,14 @@ class FollowupRequestWatcherHandler(BaseHandler):
             session.add(watcher)
             session.commit()
 
-            self.push_all(
-                action="skyportal/REFRESH_SOURCE",
+            flow = Flow()
+            flow.push(
+                user_id=self.current_user.id,
+                action_type="skyportal/REFRESH_FOLLOWUP_REQUESTS",
+            )
+            flow.push(
+                user_id=self.current_user.id,
+                action_type="skyportal/REFRESH_SOURCE",
                 payload={"obj_key": followup_request.obj.internal_key},
             )
 
@@ -1827,8 +1833,14 @@ class FollowupRequestWatcherHandler(BaseHandler):
             session.delete(watcher)
             session.commit()
 
-            self.push_all(
-                action="skyportal/REFRESH_SOURCE",
+            flow = Flow()
+            flow.push(
+                user_id=self.current_user.id,
+                action_type="skyportal/REFRESH_FOLLOWUP_REQUESTS",
+            )
+            flow.push(
+                user_id=self.current_user.id,
+                action_type="skyportal/REFRESH_SOURCE",
                 payload={"obj_key": followup_request.obj.internal_key},
             )
 
