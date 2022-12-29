@@ -17,6 +17,7 @@ import {
 import makeStyles from "@mui/styles/makeStyles";
 import MUIDataTable from "mui-datatables";
 import Button from "./Button";
+import WatcherButton from "./WatcherButton";
 
 import * as Actions from "../ducks/source";
 
@@ -278,6 +279,22 @@ const FollowupRequestLists = ({
         },
       });
     }
+
+    const renderWatcher = (dataIndex) => {
+      const followupRequest = requestsGroupedByInstId[instrument_id][dataIndex];
+      return (
+        <div>
+          <WatcherButton followupRequest={followupRequest} textMode={false} />
+        </div>
+      );
+    };
+    columns.push({
+      name: "watcher",
+      label: "Watch?",
+      options: {
+        customBodyRenderLite: renderWatcher,
+      },
+    });
 
     return columns;
   };

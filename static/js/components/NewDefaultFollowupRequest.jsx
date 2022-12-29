@@ -152,8 +152,16 @@ const NewDefaultFollowupRequest = () => {
     );
   };
 
-  const { formSchema, uiSchema } =
+  const instrumentFormParam =
     instrumentFormParams[allocationLookUp[selectedAllocationId].instrument_id];
+  if (!instrumentFormParam) {
+    return (
+      <div>
+        <CircularProgress color="secondary" />
+      </div>
+    );
+  }
+  const { formSchema, uiSchema } = instrumentFormParam;
   formSchema.properties.default_followup_name = {
     default: "DEFAULT-PLAN-NAME",
     type: "string",
