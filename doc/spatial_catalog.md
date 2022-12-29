@@ -3,7 +3,7 @@
 
 For catalogs where source location uncertainties are large enough that the Source class is insufficient, SkyPortal has the concept of `SpatialCatalog`s. These catalogs enable cross-matching between sources and objects with spatial extent, such as gamma-ray source catalogs.
 
-Catalogs can be uploaded through the API or on the Source Catalogs web page. Files must have the columns name, ra, dec, where name is the source catalog entry (must be unique), ra and dec are right ascencion and declination in degrees. They must also either contain (i) for an ellipse, amaj, amin, and phi, where amaj, amin, and phi are the major and minor ellipse elements with phi the corresponding angle or (ii) for a cone, radius, where radius is the radius of the cone in degrees.
+Catalogs can be uploaded through the API or on the Source Catalogs web page. Files must have the columns name, ra, dec, where name is the source catalog entry (must be unique), ra and dec are right ascension and declination in degrees. They must also either contain (i) for an ellipse, amaj, amin, and phi, where amaj, amin, and phi are the major and minor ellipse elements with phi the corresponding angle or (ii) for a cone, radius, where radius is the radius of the cone in degrees.
 
 ## Creating a spatial catalog file
 

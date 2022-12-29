@@ -106,6 +106,7 @@ def add_catalog(catalog_id, catalog_data):
 
         log(f"Generated catalog with ID {catalog_id} in {duration} seconds")
     except Exception as e:
+        session.rollback()
         log(f"Unable to generate catalog: {e}")
     finally:
         Session.remove()
@@ -178,6 +179,16 @@ class SpatialCatalogHandler(BaseHandler):
         if catalog_data is None:
             return self.error("catalog_data is a required parameter.")
 
+        if type(catalog_name) is not str:
+            return self.error("catalog_name must be a string")
+
+        if type(catalog_data) is not dict:
+            return self.error("catalog_data must be a dictionary")
+
+        # check for required parameters
+        if not {'name', 'ra', 'dec'}.issubset(set(catalog_data.keys())):
+            return self.error("name, ra, and dec required in field_data.")
+
         # check RA bounds
         if any([(x < 0) or (x >= 360) for x in catalog_data['ra']]):
             return self.error("ra should span 0=<ra<360.")
@@ -233,9 +244,13 @@ class SpatialCatalogHandler(BaseHandler):
         with self.Session() as session:
 
             if catalog_id is not None:
+                try:
+                    catalog_id = int(catalog_id)
+                except ValueError:
+                    return self.error('catalog_id must be an integer')
 
                 stmt = SpatialCatalog.select(self.current_user).where(
-                    SpatialCatalog.id == int(catalog_id)
+                    SpatialCatalog.id == catalog_id
                 )
                 catalog = session.scalars(stmt).first()
                 if catalog is None:
@@ -347,6 +362,10 @@ class SpatialCatalogASCIIFileHandler(BaseHandler):
             return self.error("catalog_name is a required parameter.")
         if catalog_data is None:
             return self.error("catalog_data is a required parameter.")
+
+        # check for required parameters
+        if not {'name', 'ra', 'dec'}.issubset(set(catalog_data.keys())):
+            return self.error("name, ra, and dec required in field_data.")
 
         # check RA bounds
         if any([(x < 0) or (x >= 360) for x in catalog_data['ra']]):

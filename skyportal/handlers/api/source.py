@@ -1037,6 +1037,11 @@ def get_sources(
 
     if spatial_catalog_name is not None:
 
+        if spatial_catalog_entry_name is None:
+            raise ValueError(
+                'spatial_catalog_entry_name must be defined if spatial_catalog_name is as well'
+            )
+
         # This grabs just the IDs so the more expensive localization in-out
         # check is done on only this subset
         obj_ids = session.scalars(obj_query).all()
@@ -2152,13 +2157,13 @@ class SourceHandler(BaseHandler):
             schema:
               type: string
             description: |
-                Name of spatial catalog to use.
+                Name of spatial catalog to use. spatialCatalogEntryName must also be defined for use.
           - in: query
             name: spatialCatalogEntryName
             schema:
               type: string
             description: |
-                Name of spatial catalog entry to use.
+                Name of spatial catalog entry to use. spatialCatalogName must also be defined for use.
           - in: query
             name: includeGeoJSON
             nullable: true
@@ -2345,6 +2350,12 @@ class SourceHandler(BaseHandler):
             ).days > MAX_NUM_DAYS_USING_LOCALIZATION:
                 return self.error(
                     "startDate and endDate must be less than a month apart when filtering by localizationDateobs or localizationName",
+                )
+
+        if spatial_catalog_name is not None:
+            if spatial_catalog_entry_name is None:
+                return self.error(
+                    'spatialCatalogEntryName must be defined if spatialCatalogName is as well'
                 )
 
         if rejectedSourceIDs:

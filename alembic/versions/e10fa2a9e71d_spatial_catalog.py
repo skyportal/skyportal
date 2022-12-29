@@ -1,7 +1,7 @@
 """Spatial catalog migration
 
 Revision ID: e10fa2a9e71d
-Revises: f3647e87b69f
+Revises: 2064509f3e08
 Create Date: 2022-12-27 04:02:41.707729
 
 """
@@ -12,7 +12,7 @@ import healpix_alchemy
 
 # revision identifiers, used by Alembic.
 revision = 'e10fa2a9e71d'
-down_revision = 'f3647e87b69f'
+down_revision = '2064509f3e08'
 branch_labels = None
 depends_on = None
 

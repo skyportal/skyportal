@@ -116,6 +116,7 @@ const SpatialCatalogTable = ({
       label: "Entry data",
       options: {
         customBodyRenderLite: renderData,
+        download: false,
       },
     },
     {
@@ -126,6 +127,7 @@ const SpatialCatalogTable = ({
         sort: true,
         sortThirdClickReset: true,
         customBodyRenderLite: renderRetrieveSources,
+        download: false,
       },
     },
   ];

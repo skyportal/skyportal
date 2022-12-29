@@ -304,7 +304,7 @@ def from_polygon(localization_name, polygon):
     uniq = uniq[i]
 
     # Evaluate Gaussian.
-    probdensity = 1.0 * np.ones(ipix.shape)
+    probdensity = np.ones(ipix.shape)
     probdensity /= probdensity.sum() * hpx.pixel_area.to_value(u.steradian)
 
     skymap = {
@@ -337,7 +337,7 @@ def from_ellipse(localization_name, ra, dec, amaj, amin, phi):
     ipix = ipix[i]
     uniq = uniq[i]
 
-    probdensity = 1.0 * np.ones(ipix.shape)
+    probdensity = np.ones(ipix.shape)
     probdensity /= probdensity.sum() * hpx.pixel_area.to_value(u.steradian)
 
     skymap = {
