@@ -566,6 +566,7 @@ class FollowupRequestHandler(BaseHandler):
                     joinedload(FollowupRequest.obj).joinedload(Obj.thumbnails),
                     joinedload(FollowupRequest.requester),
                     joinedload(FollowupRequest.obj),
+                    joinedload(FollowupRequest.watchers),
                 )
                 followup_request = session.scalars(followup_requests).first()
                 if followup_request is None:
@@ -614,6 +615,7 @@ class FollowupRequestHandler(BaseHandler):
                 joinedload(FollowupRequest.allocation).joinedload(Allocation.group),
                 joinedload(FollowupRequest.obj),
                 joinedload(FollowupRequest.requester),
+                joinedload(FollowupRequest.watchers),
             )
 
             count_stmt = sa.select(func.count()).select_from(followup_requests)
