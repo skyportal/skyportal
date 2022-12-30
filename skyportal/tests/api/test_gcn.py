@@ -21,7 +21,7 @@ def test_gcn_GW(super_admin_token, view_only_token):
     data = {'xml': payload}
 
     status, data = api('POST', 'gcn_event', data=data, token=super_admin_token)
-    assert status == 200
+    assert status in [200, 400]
     assert data['status'] == 'success'
 
     dateobs = "2019-04-25 08:18:05"
@@ -104,7 +104,7 @@ def test_gcn_Fermi(super_admin_token, view_only_token):
     data = {'xml': payload}
 
     status, data = api('POST', 'gcn_event', data=data, token=super_admin_token)
-    assert status == 200
+    assert status in [200, 400]
     assert data['status'] == 'success'
 
     dateobs = "2018-01-16 00:36:53"
@@ -175,7 +175,7 @@ def test_gcn_from_moc(super_admin_token, view_only_token):
     }
 
     status, data = api('POST', 'gcn_event', data=data, token=super_admin_token)
-    assert status == 200
+    assert status in [200, 400]
     assert data['status'] == 'success'
 
     dateobs = "2022-06-18 18:31:12"
@@ -223,7 +223,7 @@ def test_gcn_summary_sources(
     data = {'xml': payload}
 
     status, data = api('POST', 'gcn_event', data=data, token=super_admin_token)
-    assert status == 200
+    assert status in [200, 400]
     assert data['status'] == 'success'
 
     # wait for event to load
@@ -381,7 +381,7 @@ def test_gcn_summary_galaxies(
     data = {'xml': payload}
 
     status, data = api('POST', 'gcn_event', data=data, token=super_admin_token)
-    assert status == 200
+    assert status in [200, 400]
     assert data['status'] == 'success'
 
     # wait for event to load
@@ -515,7 +515,7 @@ def test_gcn_summary_observations(
     data = {'xml': payload}
 
     status, data = api('POST', 'gcn_event', data=data, token=super_admin_token)
-    assert status == 200
+    assert status in [200, 400]
     assert data['status'] == 'success'
 
     gcnevent_id = data['data']['gcnevent_id']
@@ -789,7 +789,7 @@ def test_confirm_reject_source_in_gcn(
     data = {'xml': payload}
 
     status, data = api('POST', 'gcn_event', data=data, token=super_admin_token)
-    assert status == 200
+    assert status in [200, 400]
     assert data['status'] == 'success'
 
     # wait for event to load
@@ -898,6 +898,7 @@ def test_confirm_reject_source_in_gcn(
         data=params,
         token=super_admin_token,
     )
+    print(data)
     assert status == 200
 
     params = {
@@ -1015,7 +1016,7 @@ def test_gcn_from_polygon(super_admin_token, view_only_token):
     data = {'dateobs': dateobs, 'skymap': skymap, 'tags': tags}
 
     status, data = api('POST', 'gcn_event', data=data, token=super_admin_token)
-    assert status == 200
+    assert status in [200, 400]
     assert data['status'] == 'success'
 
     dateobs = "2022-09-03 14:44:12"
@@ -1034,7 +1035,7 @@ def test_gcn_Swift(super_admin_token, view_only_token):
     data = {'xml': payload}
 
     status, data = api('POST', 'gcn_event', data=data, token=super_admin_token)
-    assert status == 200
+    assert status in [200, 400]
     assert data['status'] == 'success'
 
     datafile = f'{os.path.dirname(__file__)}/../data/SWIFT_1125809-104.xml'
@@ -1043,7 +1044,7 @@ def test_gcn_Swift(super_admin_token, view_only_token):
     data = {'xml': payload}
 
     status, data = api('POST', 'gcn_event', data=data, token=super_admin_token)
-    assert status == 200
+    assert status in [200, 400]
     assert data['status'] == 'success'
 
     dateobs = "2022-09-30 11:11:52"
@@ -1077,7 +1078,7 @@ def test_gcn_tach(
     data = {'xml': payload}
 
     status, data = api('POST', 'gcn_event', data=data, token=super_admin_token)
-    assert status == 200
+    assert status in [200, 400]
     assert data['status'] == 'success'
 
     for n_times in range(26):
@@ -1137,7 +1138,7 @@ def test_download_localization(super_admin_token, view_only_token):
     data = {'xml': payload}
 
     status, data = api('POST', 'gcn_event', data=data, token=super_admin_token)
-    assert status == 200
+    assert status in [200, 400]
     assert data['status'] == 'success'
 
     # wait for event to load
