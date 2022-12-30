@@ -198,7 +198,7 @@ const NewPhotometryForm = ({ obj_id }) => {
 
     dispatch(submitPhotometry(payload)).then((result) => {
       if (result.status === "success") {
-        dispatch(showNotification("Photometry successfully added"));
+        dispatch(showNotification("Photometry added successfully"));
       } else {
         dispatch(showNotification("Error adding photometry"));
       }
