@@ -18,6 +18,9 @@ import makeStyles from "@mui/styles/makeStyles";
 import withStyles from "@mui/styles/withStyles";
 import { useForm, Controller } from "react-hook-form";
 import PapaParse from "papaparse";
+import { Grid } from "@mui/material";
+// eslint-disable-next-line import/no-unresolved
+import Form from "@rjsf/material-ui/v5";
 import Button from "./Button";
 
 import GroupShareSelect from "./GroupShareSelect";
@@ -52,6 +55,7 @@ const UploadPhotometryForm = () => {
   const [showPreview, setShowPreview] = useState(false);
   const [csvData, setCsvData] = useState({});
   const [successMessage, setSuccessMessage] = useState("");
+  const [selectedInstrument, updateSelected] = useState(1);
   const { id } = useParams();
   const {
     handleSubmit,
@@ -78,6 +82,12 @@ const UploadPhotometryForm = () => {
       return -1;
     }
     return 0;
+  });
+
+  const InstrumentFilterList = {};
+  // eslint-disable-next-line no-unused-expressions
+  instrumentList?.forEach((instrument) => {
+    InstrumentFilterList[instrument.id] = instrument.filters;
   });
 
   const parseOptions = {
@@ -246,219 +256,346 @@ const UploadPhotometryForm = () => {
     );
   }
 
+  // const handleSubmitForms = async ({ formData }) => {
+  //   const data = {
+  //       magsys: formData.magsys,
+  //       'limiting_mag':formData.limiting_mag,
+  //       'mjd': 0,
+  //       'filter': formData.filters,
+  //       'obj_id' : id,
+  //       'instrument_id': formData.instrument_id,
+  //       'mag': formData.mag,
+  //       'magerr': formData.mag_err,
+  //       'altdata': { exposure: formData.exposure },
+
+  //   };
+  //
+  //   const result = await dispatch(Actions.uploadPhotometry(data));
+  //   if (result.status === "success") {
+  //     dispatch(showNotification("photometry saved"));
+  //   }
+  // };
+
+  const regexDate = new RegExp(
+    "[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[1-2][0-9]|3[0-1])T(2[0-3]|[01][0-9]):[0-5][0-9]:[0-5][0-9]"
+  );
+
+  const validate = (formData, error) => {
+    if (!formData.dateobs) {
+      error.dateobs.addError("Observation date must be defined");
+    }
+    if (formData.dateobs && regexDate.test(formData.dateobs) !== true) {
+      error.dateobs.addError(
+        "Observation date must be in the format :  YYYY-MM-DDThh:mm:ss"
+      );
+    }
+    if (!formData.magsys) {
+      error.magsys.addError("Magnitude system must be defined");
+    }
+    if (!formData.instrument_id) {
+      error.instrument_id.addError("You must choose an instrument");
+    }
+    if (formData.instrument_id) {
+      const value = formData.instrument_id;
+      updateSelected(value);
+    }
+    return error;
+  };
+
+  const listmag = ["Vega", "AB"];
+
+  const properties = {
+    dateobs: {
+      type: "string",
+      title: "Observation date [i.e. YYYY-MM-DDThh:mm:ss]",
+    },
+    mag: {
+      type: "number",
+      title: "Magnitude",
+    },
+    mag_err: {
+      type: "number",
+      title: "Magnitude error",
+    },
+    limiting_mag: {
+      type: "number",
+      title: "Limiting magnitude",
+    },
+    magsys: {
+      type: "array",
+      items: {
+        type: "string",
+        enum: listmag,
+      },
+      uniqueItems: true,
+      title: "Magnitude system",
+    },
+    exposure: {
+      type: "number",
+      title: "Exposure [i.e. 60x60s ou 1x300s]",
+    },
+    instrument_id: {
+      type: "integer",
+      oneOf: sortedInstrumentList.map((instrument) => ({
+        enum: [instrument.id],
+        title: `(ID : ${instrument.id})  ${instrument.name} \n ${instrument.filters}`,
+      })),
+      title: "Instrument",
+      default: sortedInstrumentList[1]?.id,
+    },
+    filters: {
+      type: "array",
+      items: {
+        type: "string",
+        enum: InstrumentFilterList[selectedInstrument],
+      },
+      title: "Filters",
+    },
+
+    required: ["dateobs", "instrument_id", "magsys"],
+  };
+
+  const photoFormSchema = {
+    type: "object",
+    properties,
+  };
+
   return (
-    <div>
-      <Typography variant="h5">
-        Upload photometry for source&nbsp;
-        <Link to={`/source/${id}`} role="link">
-          {id}
-        </Link>
-      </Typography>
-      <Card>
-        <CardContent>
-          <form onSubmit={handleSubmit(handleClickPreview)}>
-            <Box m={1}>
-              <Box component="span" mr={1}>
-                <Button
-                  onClick={() => {
-                    setValue("csvData", sampleFluxSpaceText);
-                  }}
-                >
-                  Load sample flux-space data
-                </Button>
-              </Box>
-              <Box component="span" ml={1}>
-                <Button
-                  onClick={() => {
-                    setValue("csvData", sampleMagSpaceText);
-                  }}
-                >
-                  Load sample mag-space data
-                </Button>
-              </Box>
-            </Box>
-            <Box component="span" m={1}>
-              {errors.csvData && (
-                <FormValidationError message={errors.csvData.message} />
-              )}
-              <FormControl>
-                <Controller
-                  name="csvData"
-                  control={control}
-                  rules={{ validate: validateCsvData }}
-                  render={({ field: { onChange, value } }) => (
-                    <TextareaAutosize
-                      name="csvData"
-                      placeholder={sampleFluxSpaceText}
-                      style={{ height: "20em", width: "40em" }}
-                      className={classes.textarea}
-                      onChange={onChange}
-                      value={value}
-                    />
-                  )}
-                />
-              </FormControl>
-            </Box>
-            <Box m={1} style={{ display: "inline-block" }}>
-              <Box display="flex" alignItems="center">
-                <Box component="span" m={1}>
-                  <font size="small">
-                    Note: To display an instrument&apos;s available filters,
-                    hover over the instrument name in the drop-down menu below.
-                    <br />
-                  </font>
-                  {errors.instrumentID && (
-                    <FormValidationError message="Select an instrument" />
-                  )}
-                  <FormControl className={classes.formControl}>
-                    <InputLabel id="instrumentSelectLabel">
-                      Instrument
-                    </InputLabel>
-                    <Controller
-                      name="instrumentID"
-                      rules={{ required: true }}
-                      control={control}
-                      defaultValue=""
-                      render={({ field: { onChange, value } }) => (
-                        <Select
-                          labelId="instrumentSelectLabel"
-                          value={value}
-                          onChange={onChange}
-                        >
-                          <MenuItem value="multiple" key={0}>
-                            Use instrument_id column (for one or more
-                            instruments)
-                          </MenuItem>
-                          {sortedInstrumentList.map((instrument) => (
-                            <MenuItem value={instrument.id} key={instrument.id}>
-                              <Tooltip
-                                title={`Filters: ${instrument.filters.join(
-                                  ", "
-                                )}`}
-                              >
-                                <span>
-                                  {`${instrument.name} (ID: ${instrument.id})`}
-                                </span>
-                              </Tooltip>
-                            </MenuItem>
-                          ))}
-                        </Select>
-                      )}
-                    />
-                  </FormControl>
+    <Grid container spacing={3}>
+      <Grid item xs={6}>
+        <Typography variant="h5">
+          Upload photometry for source&nbsp;
+          <Link to={`/source/${id}`} role="link">
+            {id}
+          </Link>
+        </Typography>
+        <Card>
+          <CardContent>
+            <form onSubmit={handleSubmit(handleClickPreview)}>
+              <Box m={1}>
+                <Box component="span" mr={1}>
+                  <Button
+                    onClick={() => {
+                      setValue("csvData", sampleFluxSpaceText);
+                    }}
+                  >
+                    Load sample flux-space data
+                  </Button>
+                </Box>
+                <Box component="span" ml={1}>
+                  <Button
+                    onClick={() => {
+                      setValue("csvData", sampleMagSpaceText);
+                    }}
+                  >
+                    Load sample mag-space data
+                  </Button>
                 </Box>
               </Box>
               <Box component="span" m={1}>
-                <GroupShareSelect
-                  groupList={groups}
-                  setGroupIDs={setSelectedGroupIds}
-                  groupIDs={selectedGroupIds}
-                />
-              </Box>
-            </Box>
-            <Box m={1}>
-              <HtmlTooltip
-                interactive
-                title={
-                  <>
-                    <p>
-                      Use this form to upload flux- or mag-space photometry data
-                      (only one type per request, not mixed).
-                    </p>
-                    <p>
-                      Required fields (flux-space):&nbsp;
-                      <code>
-                        mjd,flux,fluxerr,zp,magsys,filter[,instrument_id]
-                      </code>
-                      <br />
-                      Required fields (mag-space):&nbsp;
-                      <code>
-                        mjd,mag,magerr,limiting_mag,magsys,filter[,instrument_id]
-                      </code>
-                      <br />
-                      See the&nbsp;
-                      <a href="https://skyportal.io/docs/api.html#/paths/~1api~1photometry/post">
-                        API docs
-                      </a>
-                      &nbsp;for other allowable fields (note: omit{" "}
-                      <code>obj_id</code> here).
-                    </p>
-                    <p>
-                      Other miscellanous metadata can be supplied by preceding
-                      the column name with <code>&quot;altdata.&quot;</code>{" "}
-                      (e.g. <code>&quot;altdata.calibrated_to&quot;</code>
-                      ). Such fields will ultimately be stored in the photometry
-                      table&apos;s <code>altdata</code>
-                      &nbsp;JSONB column, e.g.{" "}
-                      <code>
-                        {"{"}
-                        &quot;calibrated_to&quot;: &quot;ps1&quot;, ...
-                        {"}"}
-                      </code>
-                      .
-                    </p>
-                  </>
-                }
-              >
-                <HelpOutlineIcon />
-              </HtmlTooltip>
-            </Box>
-            <Box m={1}>
-              <Box component="span" m={1}>
+                {errors.csvData && (
+                  <FormValidationError message={errors.csvData.message} />
+                )}
                 <FormControl>
-                  <Button secondary type="submit">
-                    Preview in Tabular Form
-                  </Button>
+                  <Controller
+                    name="csvData"
+                    control={control}
+                    rules={{ validate: validateCsvData }}
+                    render={({ field: { onChange, value } }) => (
+                      <TextareaAutosize
+                        name="csvData"
+                        placeholder={sampleFluxSpaceText}
+                        style={{ height: "20em", width: "40em" }}
+                        className={classes.textarea}
+                        onChange={onChange}
+                        value={value}
+                      />
+                    )}
+                  />
                 </FormControl>
               </Box>
-              <Box component="span" m={1}>
-                <FormControl>
-                  <Button secondary onClick={handleReset}>
-                    Clear Form
-                  </Button>
-                </FormControl>
+              <Box m={1} style={{ display: "inline-block" }}>
+                <Box display="flex" alignItems="center">
+                  <Box component="span" m={1}>
+                    <font size="small">
+                      Note: To display an instrument&apos;s available filters,
+                      hover over the instrument name in the drop-down menu
+                      below.
+                      <br />
+                    </font>
+                    {errors.instrumentID && (
+                      <FormValidationError message="Select an instrument" />
+                    )}
+                    <FormControl className={classes.formControl}>
+                      <InputLabel id="instrumentSelectLabel">
+                        Instrument
+                      </InputLabel>
+                      <Controller
+                        name="instrumentID"
+                        rules={{ required: true }}
+                        control={control}
+                        defaultValue=""
+                        render={({ field: { onChange, value } }) => (
+                          <Select
+                            labelId="instrumentSelectLabel"
+                            value={value}
+                            onChange={onChange}
+                          >
+                            <MenuItem value="multiple" key={0}>
+                              Use instrument_id column (for one or more
+                              instruments)
+                            </MenuItem>
+                            {sortedInstrumentList.map((instrument) => (
+                              <MenuItem
+                                value={instrument.id}
+                                key={instrument.id}
+                              >
+                                <Tooltip
+                                  title={`Filters: ${instrument.filters.join(
+                                    ", "
+                                  )}`}
+                                >
+                                  <span>
+                                    {`${instrument.name} (ID: ${instrument.id})`}
+                                  </span>
+                                </Tooltip>
+                              </MenuItem>
+                            ))}
+                          </Select>
+                        )}
+                      />
+                    </FormControl>
+                  </Box>
+                </Box>
+                <Box component="span" m={1}>
+                  <GroupShareSelect
+                    groupList={groups}
+                    setGroupIDs={setSelectedGroupIds}
+                    groupIDs={selectedGroupIds}
+                  />
+                </Box>
               </Box>
+              <Box m={1}>
+                <HtmlTooltip
+                  interactive
+                  title={
+                    <>
+                      <p>
+                        Use this form to upload flux- or mag-space photometry
+                        data (only one type per request, not mixed).
+                      </p>
+                      <p>
+                        Required fields (flux-space):&nbsp;
+                        <code>
+                          mjd,flux,fluxerr,zp,magsys,filter[,instrument_id]
+                        </code>
+                        <br />
+                        Required fields (mag-space):&nbsp;
+                        <code>
+                          mjd,mag,magerr,limiting_mag,magsys,filter[,instrument_id]
+                        </code>
+                        <br />
+                        See the&nbsp;
+                        <a href="https://skyportal.io/docs/api.html#/paths/~1api~1photometry/post">
+                          API docs
+                        </a>
+                        &nbsp;for other allowable fields (note: omit{" "}
+                        <code>obj_id</code> here).
+                      </p>
+                      <p>
+                        Other miscellanous metadata can be supplied by preceding
+                        the column name with <code>&quot;altdata.&quot;</code>{" "}
+                        (e.g. <code>&quot;altdata.calibrated_to&quot;</code>
+                        ). Such fields will ultimately be stored in the
+                        photometry table&apos;s <code>altdata</code>
+                        &nbsp;JSONB column, e.g.{" "}
+                        <code>
+                          {"{"}
+                          &quot;calibrated_to&quot;: &quot;ps1&quot;, ...
+                          {"}"}
+                        </code>
+                        .
+                      </p>
+                    </>
+                  }
+                >
+                  <HelpOutlineIcon />
+                </HtmlTooltip>
+              </Box>
+              <Box m={1}>
+                <Box component="span" m={1}>
+                  <FormControl>
+                    <Button secondary type="submit">
+                      Preview in Tabular Form
+                    </Button>
+                  </FormControl>
+                </Box>
+                <Box component="span" m={1}>
+                  <FormControl>
+                    <Button secondary onClick={handleReset}>
+                      Clear Form
+                    </Button>
+                  </FormControl>
+                </Box>
+              </Box>
+            </form>
+          </CardContent>
+        </Card>
+        {showPreview && csvData.columns && (
+          <div>
+            <br />
+            <br />
+            <Card>
+              <CardContent>
+                <Box component="span" m={1}>
+                  <MUIDataTable
+                    title="Data Preview"
+                    columns={csvData.columns}
+                    data={csvData.data}
+                    options={{
+                      search: false,
+                      filter: false,
+                      selectableRows: "none",
+                      download: false,
+                      print: false,
+                    }}
+                  />
+                </Box>
+              </CardContent>
+            </Card>
+            <br />
+            <Box component="span" m={1}>
+              <Button secondary onClick={handleClickSubmit}>
+                Upload Photometry
+              </Button>
             </Box>
-          </form>
-        </CardContent>
-      </Card>
-      {showPreview && csvData.columns && (
-        <div>
-          <br />
-          <br />
-          <Card>
-            <CardContent>
-              <Box component="span" m={1}>
-                <MUIDataTable
-                  title="Data Preview"
-                  columns={csvData.columns}
-                  data={csvData.data}
-                  options={{
-                    search: false,
-                    filter: false,
-                    selectableRows: "none",
-                    download: false,
-                    print: false,
-                  }}
-                />
-              </Box>
-            </CardContent>
-          </Card>
-          <br />
-          <Box component="span" m={1}>
-            <Button secondary onClick={handleClickSubmit}>
-              Upload Photometry
-            </Button>
-          </Box>
+          </div>
+        )}
+        {successMessage && !formState.dirty && (
+          <div style={{ whiteSpace: "pre-line" }}>
+            <br />
+            <font color="blue">{successMessage}</font>
+          </div>
+        )}
+      </Grid>
+      <Grid item xs={6}>
+        <Typography variant="h5">
+          Forms for source&nbsp;
+          <Link to={`/source/${id}`} role="link">
+            {id}
+          </Link>
+        </Typography>
+        &nbsp;
+        <div style={{ display: "flex", alignItems: "center" }}>
+          <Form
+            schema={photoFormSchema}
+            // onSubmit={handleSubmitForms}
+            validate={validate}
+            liveValidate
+          />
         </div>
-      )}
-      {successMessage && !formState.dirty && (
-        <div style={{ whiteSpace: "pre-line" }}>
-          <br />
-          <font color="blue">{successMessage}</font>
-        </div>
-      )}
-    </div>
+      </Grid>
+    </Grid>
   );
 };
 
