@@ -1,6 +1,7 @@
 # Inspired by https://github.com/growth-astro/growth-too-marshal/blob/main/growth/too/gcn.py
 
 import base64
+from cdshealpix import elliptical_cone_search
 import os
 import numpy as np
 import scipy
@@ -14,12 +15,14 @@ from astropy.table import Table
 from astropy.time import Time
 from astropy.coordinates import SkyCoord
 
-from astropy.coordinates import ICRS
+from astropy.coordinates import ICRS, Angle, Longitude, Latitude
 from astropy_healpix import HEALPix, nside_to_level, pixel_resolution_to_nside
 import ligo.skymap.io
 import ligo.skymap.postprocess
 import ligo.skymap.moc
 import ligo.skymap.bayestar as ligo_bayestar
+from mocpy.mocpy import flatten_pixels
+from mocpy import MOC
 
 
 def get_trigger(root):
@@ -251,7 +254,7 @@ def get_properties(root):
     return property_dict
 
 
-def from_cone(ra, dec, error):
+def from_cone(ra, dec, error, n_sigma=4):
     localization_name = f"{ra:.5f}_{dec:.5f}_{error:.5f}"
 
     center = SkyCoord(ra * u.deg, dec * u.deg)
@@ -264,7 +267,7 @@ def from_cone(ra, dec, error):
     )
 
     # Find all pixels in the 4-sigma error circle.
-    ipix = hpx.cone_search_skycoord(center, 4 * radius)
+    ipix = hpx.cone_search_skycoord(center, n_sigma * radius)
 
     # Convert to multi-resolution pixel indices and sort.
     uniq = ligo.skymap.moc.nest2uniq(nside_to_level(hpx.nside), ipix.astype(np.int64))
@@ -301,7 +304,40 @@ def from_polygon(localization_name, polygon):
     uniq = uniq[i]
 
     # Evaluate Gaussian.
-    probdensity = 1.0 * np.ones(ipix.shape)
+    probdensity = np.ones(ipix.shape)
+    probdensity /= probdensity.sum() * hpx.pixel_area.to_value(u.steradian)
+
+    skymap = {
+        'localization_name': localization_name,
+        'uniq': uniq.tolist(),
+        'probdensity': probdensity.tolist(),
+    }
+
+    return skymap
+
+
+def from_ellipse(localization_name, ra, dec, amaj, amin, phi):
+
+    NSIDE = int(2**13)
+    hpx = HEALPix(NSIDE, 'nested', frame=ICRS())
+    ipix, depth, fully_covered = elliptical_cone_search(
+        Longitude(ra, u.deg),
+        Latitude(dec, u.deg),
+        Angle(amaj, unit="deg"),
+        Angle(amin, unit="deg"),
+        Angle(phi, unit="deg"),
+        nside_to_level(hpx.nside),
+    )
+    moc = MOC.from_healpix_cells(ipix, depth, fully_covered)
+    ipix = flatten_pixels(moc._interval_set._intervals, int(np.log2(NSIDE)))
+
+    # Convert to multi-resolution pixel indices and sort.
+    uniq = ligo.skymap.moc.nest2uniq(nside_to_level(hpx.nside), ipix.astype(np.int64))
+    i = np.argsort(uniq)
+    ipix = ipix[i]
+    uniq = uniq[i]
+
+    probdensity = np.ones(ipix.shape)
     probdensity /= probdensity.sum() * hpx.pixel_area.to_value(u.steradian)
 
     skymap = {

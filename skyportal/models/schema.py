@@ -1913,6 +1913,18 @@ class GalaxyASCIIFileHandlerPost(_Schema):
     catalogData = fields.Field(metadata={'description': 'Catalog data Ascii string'})
 
 
+class SpatialCatalogHandlerPost(_Schema):
+    catalog_name = fields.String(metadata={"description": 'Spatial catalog name.'})
+    catalog_data = fields.List(
+        fields.Field(), metadata={"description": 'Spatial catalog data'}
+    )
+
+
+class SpatialCatalogASCIIFileHandlerPost(_Schema):
+    catalogName = fields.String(metadata={"description": 'Spatial catalog name.'})
+    catalogData = fields.Field(metadata={'description': 'Catalog data Ascii string'})
+
+
 def register_components(spec):
     print('Registering schemas with APISpec')
 
