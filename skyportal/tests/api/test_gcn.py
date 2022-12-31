@@ -1127,3 +1127,40 @@ def test_gcn_tach(
     assert len(data['aliases']) == 1
     assert len(data['circulars']) == 3
     assert data['tach_id'] is not None
+
+
+def test_download_localization(super_admin_token, view_only_token):
+
+    datafile = f'{os.path.dirname(__file__)}/../../../data/GW190814.xml'
+    with open(datafile, 'rb') as fid:
+        payload = fid.read()
+    data = {'xml': payload}
+
+    status, data = api('POST', 'gcn_event', data=data, token=super_admin_token)
+    assert status == 200
+    assert data['status'] == 'success'
+
+    # wait for event to load
+    for n_times in range(26):
+        status, data = api(
+            'GET', "gcn_event/2019-08-14T21:10:39", token=super_admin_token
+        )
+        if data['status'] == 'success':
+            break
+        time.sleep(2)
+    assert n_times < 25
+
+    dateobs = "2019-08-14T21:10:39"
+    skymap = 'LALInference.v1.fits.gz'
+
+    assert data["data"]["dateobs"] == dateobs
+    assert any(
+        [loc['localization_name'] == skymap for loc in data["data"]["localizations"]]
+    )
+
+    status, data = api(
+        'GET',
+        f'localization/{dateobs}/name/{skymap}/download',
+        token=super_admin_token,
+    )
+    assert status == 200

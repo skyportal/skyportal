@@ -37,6 +37,7 @@ from .filter import FilterHandler
 from .followup_request import (
     DefaultFollowupRequestHandler,
     FollowupRequestHandler,
+    FollowupRequestWatcherHandler,
     FollowupRequestPrioritizationHandler,
     FollowupRequestSchedulerHandler,
     AssignmentHandler,
@@ -52,6 +53,7 @@ from .gcn import (
     GcnEventTagsHandler,
     GcnSummaryHandler,
     LocalizationHandler,
+    LocalizationDownloadHandler,
     LocalizationPropertiesHandler,
 )
 from .gcn_tach import GcnTachHandler
@@ -127,6 +129,7 @@ from .source import (
 )
 from .source_exists import SourceExistsHandler
 from .source_groups import SourceGroupsHandler
+from .spatial_catalog import SpatialCatalogHandler, SpatialCatalogASCIIFileHandler
 from .spectrum import (
     SpectrumHandler,
     ObjSpectraHandler,

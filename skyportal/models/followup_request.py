@@ -1,4 +1,9 @@
-__all__ = ['DefaultFollowupRequest', 'FollowupRequest', 'FollowupRequestTargetGroup']
+__all__ = [
+    'DefaultFollowupRequest',
+    'FollowupRequest',
+    'FollowupRequestTargetGroup',
+    'FollowupRequestUser',
+]
 
 from astropy import coordinates as ap_coord
 from astropy import time as ap_time
@@ -224,6 +229,15 @@ class FollowupRequest(Base):
     )
     spectra = relationship('Spectrum', back_populates='followup_request')
 
+    watchers = relationship(
+        'FollowupRequestUser',
+        back_populates='followuprequest',
+        cascade='save-update, merge, refresh-expire, expunge',
+        passive_deletes=True,
+        doc='Elements of a join table mapping Users to FollowupRequestss.',
+        overlaps='followup_requests, users',
+    )
+
     @property
     def instrument(self):
         return self.allocation.instrument
@@ -278,6 +292,14 @@ FollowupRequestTargetGroup.create = (
 ) = FollowupRequestTargetGroup.delete = (
     AccessibleIfUserMatches('followuprequest.requester')
     & FollowupRequestTargetGroup.read
+)
+
+
+FollowupRequestUser = join_model('followup_request_users', FollowupRequest, User)
+FollowupRequestUser.__doc__ = "Join table mapping `FollowupRequest`s to `User`s."
+FollowupRequestUser.create = FollowupRequestUser.read
+FollowupRequestUser.update = FollowupRequestUser.delete = AccessibleIfUserMatches(
+    'user'
 )
 
 

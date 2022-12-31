@@ -740,6 +740,13 @@ sources:
       - =program_A
       - =program_B
     redshift: 0.7481
+  - id: RedbackMillisecondPulsar
+    ra: 33.043637
+    dec: 53.36078
+    group_ids:
+      - =public_group_id
+      - =program_A
+      - =program_B
 
 sources/ZTF21aaqjmps/comments:
   - obj_id: ZTF21aaqjmps
@@ -1062,6 +1069,11 @@ shifts/=gcnshift/users:
   - userID: =viewonlyuser
     admin: false
     needs_replacement: true
+
+spatial_catalog:
+  - catalog_name: '4FGL-DR2'
+    catalog_data:
+      file: ./gll_psc_v27.csv
 
 default_observation_plan:
   - allocation_id: =ZTF_allocation
