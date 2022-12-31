@@ -18,11 +18,16 @@ def test_gcn_GW(super_admin_token, view_only_token):
     datafile = f'{os.path.dirname(__file__)}/../data/GW190425_initial.xml'
     with open(datafile, 'rb') as fid:
         payload = fid.read()
-    data = {'xml': payload}
+    event_data = {'xml': payload}
 
-    status, data = api('POST', 'gcn_event', data=data, token=super_admin_token)
-    assert status in [200, 400]
-    assert data['status'] == 'success'
+    dateobs = "2019-04-25 08:18:05"
+    status, data = api('GET', f'gcn_event/{dateobs}', token=super_admin_token)
+    if status == 404:
+        status, data = api(
+            'POST', 'gcn_event', data=event_data, token=super_admin_token
+        )
+        assert status == 200
+        assert data['status'] == 'success'
 
     dateobs = "2019-04-25 08:18:05"
     status, data = api('GET', f'gcn_event/{dateobs}', token=super_admin_token)
@@ -101,15 +106,19 @@ def test_gcn_Fermi(super_admin_token, view_only_token):
     datafile = f'{os.path.dirname(__file__)}/../data/GRB180116A_Fermi_GBM_Gnd_Pos.xml'
     with open(datafile, 'rb') as fid:
         payload = fid.read()
-    data = {'xml': payload}
-
-    status, data = api('POST', 'gcn_event', data=data, token=super_admin_token)
-    assert status in [200, 400]
-    assert data['status'] == 'success'
+    event_data = {'xml': payload}
 
     dateobs = "2018-01-16 00:36:53"
-    params = {"include2DMap": True}
+    status, data = api('GET', f'gcn_event/{dateobs}', token=super_admin_token)
 
+    if status == 404:
+        status, data = api(
+            'POST', 'gcn_event', data=event_data, token=super_admin_token
+        )
+        assert status == 200
+        assert data['status'] == 'success'
+
+    params = {"include2DMap": True}
     status, data = api('GET', f'gcn_event/{dateobs}', token=super_admin_token)
     assert status == 200
     data = data["data"]
@@ -167,18 +176,23 @@ def test_gcn_from_moc(super_admin_token, view_only_token):
     skymap = from_url(skymap)
     properties = {'BNS': 0.9, 'NSBH': 0.1}
 
-    data = {
+    event_data = {
         'dateobs': dateobs,
         'skymap': skymap,
         'tags': tags,
         'properties': properties,
     }
 
-    status, data = api('POST', 'gcn_event', data=data, token=super_admin_token)
-    assert status in [200, 400]
-    assert data['status'] == 'success'
-
     dateobs = "2022-06-18 18:31:12"
+    status, data = api('GET', f'gcn_event/{dateobs}', token=super_admin_token)
+
+    if status == 404:
+        status, data = api(
+            'POST', 'gcn_event', data=event_data, token=super_admin_token
+        )
+        assert status == 200
+        assert data['status'] == 'success'
+
     status, data = api('GET', f'gcn_event/{dateobs}', token=super_admin_token)
     assert status == 200
     data = data["data"]
@@ -220,17 +234,21 @@ def test_gcn_summary_sources(
     datafile = f'{os.path.dirname(__file__)}/../../../data/GW190814.xml'
     with open(datafile, 'rb') as fid:
         payload = fid.read()
-    data = {'xml': payload}
+    event_data = {'xml': payload}
 
-    status, data = api('POST', 'gcn_event', data=data, token=super_admin_token)
-    assert status in [200, 400]
-    assert data['status'] == 'success'
+    dateobs = "2019-08-14T21:10:39"
+    status, data = api('GET', f'gcn_event/{dateobs}', token=super_admin_token)
+
+    if status == 404:
+        status, data = api(
+            'POST', 'gcn_event', data=event_data, token=super_admin_token
+        )
+        assert status == 200
+        assert data['status'] == 'success'
 
     # wait for event to load
     for n_times in range(26):
-        status, data = api(
-            'GET', "gcn_event/2019-08-14T21:10:39", token=super_admin_token
-        )
+        status, data = api('GET', f"gcn_event/{dateobs}", token=super_admin_token)
         if data['status'] == 'success':
             break
         time.sleep(2)
@@ -378,17 +396,21 @@ def test_gcn_summary_galaxies(
     datafile = f'{os.path.dirname(__file__)}/../../../data/GW190814.xml'
     with open(datafile, 'rb') as fid:
         payload = fid.read()
-    data = {'xml': payload}
+    event_data = {'xml': payload}
 
-    status, data = api('POST', 'gcn_event', data=data, token=super_admin_token)
-    assert status in [200, 400]
-    assert data['status'] == 'success'
+    dateobs = "2019-08-14T21:10:39"
+    status, data = api('GET', f'gcn_event/{dateobs}', token=super_admin_token)
+
+    if status == 404:
+        status, data = api(
+            'POST', 'gcn_event', data=event_data, token=super_admin_token
+        )
+        assert status == 200
+        assert data['status'] == 'success'
 
     # wait for event to load
     for n_times in range(26):
-        status, data = api(
-            'GET', "gcn_event/2019-08-14T21:10:39", token=super_admin_token
-        )
+        status, data = api('GET', f"gcn_event/{dateobs}", token=super_admin_token)
         if data['status'] == 'success':
             break
         time.sleep(2)
@@ -512,19 +534,23 @@ def test_gcn_summary_observations(
     datafile = f'{os.path.dirname(__file__)}/../../../data/GW190814.xml'
     with open(datafile, 'rb') as fid:
         payload = fid.read()
-    data = {'xml': payload}
+    event_data = {'xml': payload}
 
-    status, data = api('POST', 'gcn_event', data=data, token=super_admin_token)
-    assert status in [200, 400]
-    assert data['status'] == 'success'
+    dateobs = "2019-08-14T21:10:39"
+    status, data = api('GET', f'gcn_event/{dateobs}', token=super_admin_token)
+
+    if status == 404:
+        status, data = api(
+            'POST', 'gcn_event', data=event_data, token=super_admin_token
+        )
+        assert status == 200
+        assert data['status'] == 'success'
 
     gcnevent_id = data['data']['gcnevent_id']
 
     # wait for event to load
     for n_times in range(26):
-        status, data = api(
-            'GET', "gcn_event/2019-08-14T21:10:39", token=super_admin_token
-        )
+        status, data = api('GET', f"gcn_event/{dateobs}", token=super_admin_token)
         if data['status'] == 'success':
             break
         time.sleep(2)
@@ -786,17 +812,21 @@ def test_confirm_reject_source_in_gcn(
     datafile = f'{os.path.dirname(__file__)}/../../../data/GW190814.xml'
     with open(datafile, 'rb') as fid:
         payload = fid.read()
-    data = {'xml': payload}
+    event_data = {'xml': payload}
 
-    status, data = api('POST', 'gcn_event', data=data, token=super_admin_token)
-    assert status in [200, 400]
-    assert data['status'] == 'success'
+    dateobs = "2019-08-14T21:10:39"
+    status, data = api('GET', f'gcn_event/{dateobs}', token=super_admin_token)
+
+    if status == 404:
+        status, data = api(
+            'POST', 'gcn_event', data=event_data, token=super_admin_token
+        )
+        assert status == 200
+        assert data['status'] == 'success'
 
     # wait for event to load
     for n_times in range(26):
-        status, data = api(
-            'GET', "gcn_event/2019-08-14T21:10:39", token=super_admin_token
-        )
+        status, data = api('GET', f"gcn_event/{dateobs}", token=super_admin_token)
         if data['status'] == 'success':
             break
         time.sleep(2)
@@ -898,7 +928,6 @@ def test_confirm_reject_source_in_gcn(
         data=params,
         token=super_admin_token,
     )
-    print(data)
     assert status == 200
 
     params = {
@@ -1013,10 +1042,10 @@ def test_gcn_from_polygon(super_admin_token, view_only_token):
     tags = ['IPN', 'GRB']
     skymap = {'polygon': polygon, 'localization_name': localization_name}
 
-    data = {'dateobs': dateobs, 'skymap': skymap, 'tags': tags}
+    event_data = {'dateobs': dateobs, 'skymap': skymap, 'tags': tags}
 
-    status, data = api('POST', 'gcn_event', data=data, token=super_admin_token)
-    assert status in [200, 400]
+    status, data = api('POST', 'gcn_event', data=event_data, token=super_admin_token)
+    assert status == 200
     assert data['status'] == 'success'
 
     dateobs = "2022-09-03 14:44:12"
@@ -1032,22 +1061,28 @@ def test_gcn_Swift(super_admin_token, view_only_token):
     datafile = f'{os.path.dirname(__file__)}/../data/SWIFT_1125809-092.xml'
     with open(datafile, 'rb') as fid:
         payload = fid.read()
-    data = {'xml': payload}
-
-    status, data = api('POST', 'gcn_event', data=data, token=super_admin_token)
-    assert status in [200, 400]
-    assert data['status'] == 'success'
+    event_data_1 = {'xml': payload}
 
     datafile = f'{os.path.dirname(__file__)}/../data/SWIFT_1125809-104.xml'
     with open(datafile, 'rb') as fid:
         payload = fid.read()
-    data = {'xml': payload}
-
-    status, data = api('POST', 'gcn_event', data=data, token=super_admin_token)
-    assert status in [200, 400]
-    assert data['status'] == 'success'
+    event_data_2 = {'xml': payload}
 
     dateobs = "2022-09-30 11:11:52"
+    status, data = api('GET', f'gcn_event/{dateobs}', token=super_admin_token)
+
+    if status == 404:
+        status, data = api(
+            'POST', 'gcn_event', data=event_data_1, token=super_admin_token
+        )
+        assert status in [200, 400]
+        assert data['status'] == 'success'
+
+        status, data = api(
+            'POST', 'gcn_event', data=event_data_2, token=super_admin_token
+        )
+        assert status == 200
+        assert data['status'] == 'success'
 
     status, data = api('GET', f'gcn_event/{dateobs}', token=super_admin_token)
     assert status == 200
@@ -1075,16 +1110,20 @@ def test_gcn_tach(
     datafile = f'{os.path.dirname(__file__)}/../data/GRB180116A_Fermi_GBM_Gnd_Pos.xml'
     with open(datafile, 'rb') as fid:
         payload = fid.read()
-    data = {'xml': payload}
+    event_data = {'xml': payload}
 
-    status, data = api('POST', 'gcn_event', data=data, token=super_admin_token)
-    assert status in [200, 400]
-    assert data['status'] == 'success'
+    dateobs = "2018-01-16T00:36:53"
+    status, data = api('GET', f'gcn_event/{dateobs}', token=super_admin_token)
+
+    if status == 400:
+        status, data = api(
+            'POST', 'gcn_event', data=event_data, token=super_admin_token
+        )
+        assert status == 200
+        assert data['status'] == 'success'
 
     for n_times in range(26):
-        status, data = api(
-            'GET', "gcn_event/2018-01-16T00:36:53", token=super_admin_token
-        )
+        status, data = api('GET', f"gcn_event/{dateobs}", token=super_admin_token)
         if data['status'] == 'success':
             break
         time.sleep(2)
@@ -1093,21 +1132,15 @@ def test_gcn_tach(
     data = data['data']
     assert len(data['aliases']) == 0
 
-    status, data = api(
-        'POST', 'gcn_event/2018-01-16T00:36:53/tach', token=view_only_token
-    )
+    status, data = api('POST', f'gcn_event/{dateobs}/tach', token=view_only_token)
     assert status == 401
 
-    status, data = api(
-        'POST', 'gcn_event/2018-01-16T00:36:53/tach', token=super_admin_token
-    )
+    status, data = api('POST', f'gcn_event/{dateobs}/tach', token=super_admin_token)
     assert status == 200
     assert data['status'] == 'success'
 
     for n_times in range(30):
-        status, data = api(
-            'GET', "gcn_event/2018-01-16T00:36:53", token=super_admin_token
-        )
+        status, data = api('GET', f"gcn_event/{dateobs}", token=super_admin_token)
         if data['status'] == 'success':
             if len(data['data']['aliases']) > 0:
                 aliases = data['data']['aliases']
@@ -1118,9 +1151,7 @@ def test_gcn_tach(
     assert len(aliases) == 1
     assert 'GRB180116A' in aliases
 
-    status, data = api(
-        'GET', "gcn_event/2018-01-16T00:36:53/tach", token=super_admin_token
-    )
+    status, data = api('GET', f"gcn_event/{dateobs}/tach", token=super_admin_token)
 
     assert status == 200
     assert data['status'] == 'success'
@@ -1135,25 +1166,27 @@ def test_download_localization(super_admin_token, view_only_token):
     datafile = f'{os.path.dirname(__file__)}/../../../data/GW190814.xml'
     with open(datafile, 'rb') as fid:
         payload = fid.read()
-    data = {'xml': payload}
+    event_data = {'xml': payload}
 
-    status, data = api('POST', 'gcn_event', data=data, token=super_admin_token)
-    assert status in [200, 400]
-    assert data['status'] == 'success'
+    dateobs = "2019-08-14T21:10:39"
+    status, data = api('GET', f'gcn_event/{dateobs}', token=super_admin_token)
+
+    if status == 404:
+        status, data = api(
+            'POST', 'gcn_event', data=event_data, token=super_admin_token
+        )
+        assert status == 200
+        assert data['status'] == 'success'
 
     # wait for event to load
     for n_times in range(26):
-        status, data = api(
-            'GET', "gcn_event/2019-08-14T21:10:39", token=super_admin_token
-        )
+        status, data = api('GET', f"gcn_event/{dateobs}", token=super_admin_token)
         if data['status'] == 'success':
             break
         time.sleep(2)
     assert n_times < 25
 
-    dateobs = "2019-08-14T21:10:39"
     skymap = 'LALInference.v1.fits.gz'
-
     assert data["data"]["dateobs"] == dateobs
     assert any(
         [loc['localization_name'] == skymap for loc in data["data"]["localizations"]]
