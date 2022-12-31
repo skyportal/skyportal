@@ -1115,7 +1115,7 @@ def test_gcn_tach(
     dateobs = "2018-01-16T00:36:53"
     status, data = api('GET', f'gcn_event/{dateobs}', token=super_admin_token)
 
-    if status == 400:
+    if status == 404:
         status, data = api(
             'POST', 'gcn_event', data=event_data, token=super_admin_token
         )
