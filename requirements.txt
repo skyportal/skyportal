@@ -23,7 +23,7 @@ marshmallow==3.17.0
 marshmallow-sqlalchemy==0.28.1
 marshmallow-enum==1.5.1
 Pillow>=8.4.0
-pyproj==3.3.0
+pyproj==3.4.1
 pytest==7.1.0
 sncosmo==2.9.0
 tdtax==0.1.4
