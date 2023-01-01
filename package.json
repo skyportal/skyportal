@@ -27,7 +27,7 @@
     "clsx": "1.2.1",
     "convert-css-length": "2.0.1",
     "core-js": "3.24.1",
-    "css-loader": "6.7.1",
+    "css-loader": "6.7.3",
     "d3": "7.4.4",
     "d3-array": "3.1.5",
     "d3-geo": "3.0.1",
