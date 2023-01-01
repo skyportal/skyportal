@@ -35,7 +35,7 @@ regions==0.6
 jsonschema==3.2.0
 jsonpath_ng==1.5.3
 pytest-rerunfailures==10.2
-timezonefinder==6.1.1
+timezonefinder==6.1.9
 astroplan==0.8
 py3-validate-email==1.0.5.post1
 alembic==1.8.1
