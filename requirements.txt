@@ -32,7 +32,7 @@ mocpy==0.11.0
 obspy==1.4.0
 conesearch-alchemy==1.0.0
 regions==0.6
-jsonschema==3.2.0
+jsonschema==4.17.3
 jsonpath_ng==1.5.3
 pytest-rerunfailures==10.2
 timezonefinder==6.1.9
