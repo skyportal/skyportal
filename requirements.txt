@@ -12,7 +12,7 @@ factory-boy==3.2.1
 astropy==5.1.1
 distributed==2022.10.2
 dustmaps==1.0.10
-reproject==0.9
+reproject==0.9.1
 avro-python3==1.10.2
 fastavro==1.7.0
 tqdm>=4.27,<4.65
