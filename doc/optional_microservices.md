@@ -1,9 +1,5 @@
 # Optional Microservices
 
-[//]: <> On this page, we introduce reader to the microservices structure of skyportal
-[//]: <> then, we present the optional microservices, the first (and only so far) one being implemented is fink, which we present in detail,
-[//]: <> and we explain how to activate fink by adding it in the config
-
 ## Details about Microservices
 
 SkyPortal's architecture relies heavy on microservices using supervisor to manage them. For example, the app (backend, api based) runs as multiple instances of a microservice, gcnevents are ingested as a listener running as a microservice, and so on. Most services (other than ones coming from baselayer) can be found in the `services` directory.
