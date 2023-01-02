@@ -24,25 +24,27 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-const UpdateUsername = ({ user }) => {
+const UpdateUserParameter = ({ user, parameter }) => {
   const classes = useStyles();
   const dispatch = useDispatch();
-  const [username, setUsername] = useState(user.username);
+
+  const [param, setParam] = useState(user[parameter]);
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    setUsername(user.username);
+    setParam(user[parameter]);
   }, [user]);
 
   const handleChange = (e) => {
-    setUsername(e.target.value);
+    setParam(e.target.value);
   };
 
   const handleSubmit = async () => {
     setIsSubmitting(true);
-    const newState = { username };
+    const newState = {};
+    newState[parameter] = param;
     const result = await dispatch(usersActions.patchUser(user.id, newState));
     setIsSubmitting(false);
     if (result.status === "success") {
@@ -72,11 +74,11 @@ const UpdateUsername = ({ user }) => {
         <DialogContent>
           <div>
             <TextField
-              data-testid="updateUsernameTextfield"
+              data-testid="updateUserParameterTextfield"
               size="small"
-              label="username"
-              value={username}
-              name="username"
+              label="param"
+              value={param}
+              name="param"
               onChange={handleChange}
               variant="outlined"
             />
@@ -89,7 +91,7 @@ const UpdateUsername = ({ user }) => {
               }}
               endIcon={<SaveIcon />}
               size="large"
-              data-testid="updateUsernameSubmitButton"
+              data-testid="updateUserParameterSubmitButton"
               disabled={isSubmitting}
             >
               Save
@@ -101,11 +103,12 @@ const UpdateUsername = ({ user }) => {
   );
 };
 
-UpdateUsername.propTypes = {
+UpdateUserParameter.propTypes = {
   user: PropTypes.shape({
     id: PropTypes.number,
     username: PropTypes.string,
   }).isRequired,
+  parameter: PropTypes.string.isRequired,
 };
 
-export default UpdateUsername;
+export default UpdateUserParameter;

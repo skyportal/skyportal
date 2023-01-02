@@ -43,12 +43,14 @@ from ..base import BaseHandler
 from ...models import (
     DefaultFollowupRequest,
     FollowupRequest,
+    FollowupRequestUser,
     Instrument,
     ClassicalAssignment,
     Localization,
     ObservingRun,
     Obj,
     Group,
+    User,
     Allocation,
     cosmo,
 )
@@ -385,6 +387,14 @@ def post_followup_request(data, session, refresh_source=True):
     stmt = Group.select(session.user_or_token).where(Group.id.in_(group_ids))
     target_groups = session.scalars(stmt).all()
 
+    watcher_ids = data.pop('watcher_ids', None)
+    if watcher_ids is not None:
+        watchers = session.scalars(
+            sa.select(User).where(User.id.in_(watcher_ids))
+        ).all()
+    else:
+        watchers = []
+
     try:
         formSchema = instrument.api_class.custom_json_schema(
             instrument, session.user_or_token
@@ -397,6 +407,7 @@ def post_followup_request(data, session, refresh_source=True):
 
     followup_request = FollowupRequest.__schema__().load(data)
     followup_request.target_groups = target_groups
+    followup_request.watchers = watchers
     session.add(followup_request)
 
     if refresh_source:
@@ -555,6 +566,7 @@ class FollowupRequestHandler(BaseHandler):
                     joinedload(FollowupRequest.obj).joinedload(Obj.thumbnails),
                     joinedload(FollowupRequest.requester),
                     joinedload(FollowupRequest.obj),
+                    joinedload(FollowupRequest.watchers),
                 )
                 followup_request = session.scalars(followup_requests).first()
                 if followup_request is None:
@@ -603,6 +615,7 @@ class FollowupRequestHandler(BaseHandler):
                 joinedload(FollowupRequest.allocation).joinedload(Allocation.group),
                 joinedload(FollowupRequest.obj),
                 joinedload(FollowupRequest.requester),
+                joinedload(FollowupRequest.watchers),
             )
 
             count_stmt = sa.select(func.count()).select_from(followup_requests)
@@ -1693,4 +1706,142 @@ class DefaultFollowupRequestHandler(BaseHandler):
             session.delete(default_followup_request)
             session.commit()
             self.push_all(action="skyportal/REFRESH_DEFAULT_FOLLOWUP_REQUESTS")
+            return self.success()
+
+
+class FollowupRequestWatcherHandler(BaseHandler):
+    @auth_or_token
+    def post(self, followup_request_id):
+        """
+        ---
+        description: Add follow-up request to watch list
+        tags:
+            - followup_requests
+        parameters:
+            - in: path
+              name: followup_request_id
+              required: true
+              schema:
+                type: integer
+        responses:
+            200:
+               content:
+                application/json:
+                  schema: Success
+            400:
+              content:
+                application/json:
+                  schema: Error
+        """
+
+        with self.Session() as session:
+
+            # get owned assignments
+            followup_requests = FollowupRequest.select(self.current_user)
+
+            try:
+                followup_request_id = int(followup_request_id)
+            except ValueError:
+                return self.error("Assignment ID must be an integer.")
+
+            followup_requests = followup_requests.where(
+                FollowupRequest.id == followup_request_id
+            ).options(
+                joinedload(FollowupRequest.watchers),
+            )
+            followup_request = session.scalars(followup_requests).first()
+            if followup_request is None:
+                return self.error("Could not retrieve followup request.")
+
+            watchers = followup_request.watchers
+            if any([watcher.id == self.current_user.id for watcher in watchers]):
+                return self.error("User already watching this request")
+
+            watcher = FollowupRequestUser(
+                user_id=self.current_user.id, followuprequest_id=followup_request_id
+            )
+            session.add(watcher)
+            session.commit()
+
+            flow = Flow()
+            flow.push(
+                user_id=self.current_user.id,
+                action_type="skyportal/REFRESH_FOLLOWUP_REQUESTS",
+            )
+            flow.push(
+                user_id=self.current_user.id,
+                action_type="skyportal/REFRESH_SOURCE",
+                payload={"obj_key": followup_request.obj.internal_key},
+            )
+
+            return self.success()
+
+    @auth_or_token
+    def delete(self, followup_request_id):
+        """
+        ---
+        description: Delete follow-up request from watch list
+        tags:
+            - followup_requests
+        parameters:
+            - in: path
+              name: followup_request_id
+              required: true
+              schema:
+                type: integer
+        responses:
+            200:
+               content:
+                application/json:
+                  schema: Success
+            400:
+              content:
+                application/json:
+                  schema: Error
+        """
+
+        with self.Session() as session:
+
+            # get owned assignments
+            followup_requests = FollowupRequest.select(self.current_user)
+
+            try:
+                followup_request_id = int(followup_request_id)
+            except ValueError:
+                return self.error("Assignment ID must be an integer.")
+
+            followup_requests = followup_requests.where(
+                FollowupRequest.id == followup_request_id
+            ).options(
+                joinedload(FollowupRequest.watchers),
+            )
+            followup_request = session.scalars(followup_requests).first()
+            if followup_request is None:
+                return self.error("Could not retrieve followup request.")
+
+            watcher = session.scalars(
+                FollowupRequestUser.select(self.current_user, mode="delete").where(
+                    FollowupRequestUser.user_id == self.current_user.id,
+                    FollowupRequestUser.followuprequest_id == followup_request_id,
+                )
+            ).first()
+            if watcher is None:
+                return self.error(
+                    f"The user {self.current_user.id} is not watching request {followup_request_id}."
+                )
+
+            session.delete(watcher)
+            session.commit()
+
+            flow = Flow()
+            flow.push(
+                user_id=self.current_user.id,
+                action_type="skyportal/REFRESH_FOLLOWUP_REQUESTS",
+            )
+            flow.push(
+                user_id=self.current_user.id,
+                action_type="skyportal/REFRESH_SOURCE",
+                payload={"obj_key": followup_request.obj.internal_key},
+            )
+
             return self.success()
