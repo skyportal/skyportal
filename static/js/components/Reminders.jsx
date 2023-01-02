@@ -363,16 +363,18 @@ const RemindersTable = ({ reminders, resourceId, resourceType }) => {
     <div>
       {reminders && resourceType && resourceId ? (
         <Paper className={classes.container}>
-          <StyledEngineProvider injectFirst>
-            <ThemeProvider theme={getMuiTheme(theme)}>
-              <MUIDataTable
-                title="Reminders"
-                data={reminders}
-                options={options}
-                columns={columns}
-              />
-            </ThemeProvider>
-          </StyledEngineProvider>
+          <div data-testid="Reminders">
+            <StyledEngineProvider injectFirst>
+              <ThemeProvider theme={getMuiTheme(theme)}>
+                <MUIDataTable
+                  title="Reminders"
+                  data={reminders}
+                  options={options}
+                  columns={columns}
+                />
+              </ThemeProvider>
+            </StyledEngineProvider>
+          </div>
           {open && (
             <Dialog
               open={open}

@@ -96,6 +96,24 @@ const ExecutedObservationsTable = ({
     return <div>{instrument ? instrument.name : ""}</div>;
   };
 
+  const renderFieldID = (dataIndex) => {
+    const { field } = observations[dataIndex];
+
+    return <div>{field ? field.field_id.toFixed(0) : ""}</div>;
+  };
+
+  const renderRA = (dataIndex) => {
+    const { field } = observations[dataIndex];
+
+    return <div>{field ? field.ra.toFixed(5) : ""}</div>;
+  };
+
+  const renderDeclination = (dataIndex) => {
+    const { field } = observations[dataIndex];
+
+    return <div>{field ? field.dec.toFixed(5) : ""}</div>;
+  };
+
   const [isSaving, setIsSaving] = useState(null);
   const handleSave = async (formData) => {
     setIsSaving(formData.id);
@@ -177,6 +195,36 @@ const ExecutedObservationsTable = ({
       label: " Observation ID",
     },
     {
+      name: "field_id",
+      label: "Field ID",
+      options: {
+        filter: false,
+        sort: true,
+        sortThirdClickReset: true,
+        customBodyRenderLite: renderFieldID,
+      },
+    },
+    {
+      name: "ra",
+      label: "Right Ascension",
+      options: {
+        filter: false,
+        sort: true,
+        sortThirdClickReset: true,
+        customBodyRenderLite: renderRA,
+      },
+    },
+    {
+      name: "dec",
+      label: "Declination",
+      options: {
+        filter: false,
+        sort: true,
+        sortThirdClickReset: true,
+        customBodyRenderLite: renderDeclination,
+      },
+    },
+    {
       name: "target_name",
       label: "Target Name",
     },
@@ -239,6 +287,18 @@ const ExecutedObservationsTable = ({
         const { instrument } = observation;
         return instrument ? instrument.name : "";
       };
+      const renderFieldIDDownload = (observation) => {
+        const { field } = observation;
+        return field ? field.field_id : "";
+      };
+      const renderRADownload = (observation) => {
+        const { field } = observation;
+        return field ? field.ra : "";
+      };
+      const renderDeclinationDownload = (observation) => {
+        const { field } = observation;
+        return field ? field.dec : "";
+      };
       downloadCallback().then((data) => {
         // if there is no data, cancel download
         if (data?.length > 0) {
@@ -254,6 +314,18 @@ const ExecutedObservationsTable = ({
               },
               {
                 name: "observation_id",
+                download: true,
+              },
+              {
+                name: "field_id",
+                download: true,
+              },
+              {
+                name: "ra",
+                download: true,
+              },
+              {
+                name: "dec",
                 download: true,
               },
               {
@@ -296,6 +368,9 @@ const ExecutedObservationsTable = ({
                   renderTelescopeDownload(x),
                   renderInstrumentDownload(x),
                   x.observation_id,
+                  renderFieldIDDownload(x),
+                  renderRADownload(x),
+                  renderDeclinationDownload(x),
                   x.target_name,
                   x.obstime,
                   x.filt,
