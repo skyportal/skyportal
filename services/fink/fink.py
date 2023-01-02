@@ -42,8 +42,8 @@ from skyportal.models import (
     Candidate,
     GcnEvent,
     LocalizationTile,
-    UserNotification,
-    GroupUser,
+    # UserNotification,
+    # GroupUser,
     Galaxy,
 )
 
@@ -58,6 +58,14 @@ REQUEST_TIMEOUT_SECONDS = cfg['health_monitor.request_timeout_seconds']
 
 
 def get_token():
+    """
+    Get token from .tokens.yaml
+
+    Returns
+    -------
+    str
+        Skyportal admin token
+    """
     try:
         token = yaml.load(open('.tokens.yaml'), Loader=yaml.Loader)['INITIAL_ADMIN']
         return token
@@ -67,6 +75,14 @@ def get_token():
 
 
 def get_taxonomy():
+    """
+    Get fink taxonomy from taxonomy.yaml
+
+    Returns
+    -------
+    dict
+        taxonomy dictionary
+    """
     try:
         taxonomy_dict = yaml.load(
             open('services/fink/data/taxonomy.yaml'), Loader=yaml.Loader
@@ -78,6 +94,14 @@ def get_taxonomy():
 
 
 def is_loaded():
+    """
+    Check if SkyPortal is ready to receive requests
+
+    Returns
+    -------
+    bool
+        True if ready, False otherwise
+    """
     port = cfg['ports.app_internal']
     try:
         r = requests.get(
@@ -95,6 +119,14 @@ def is_loaded():
 
 
 def fink_actived():
+    """
+    Check if Fink service is activated
+
+    Returns
+    -------
+    bool
+        True if activated, False otherwise
+    """
     activated = True
     try:
         fink_cfg = cfg['fink']
@@ -106,6 +138,13 @@ def fink_actived():
 
 
 def service():
+    """
+    Fink service
+
+    Returns
+    -------
+    None
+    """
 
     if not fink_actived():
         log('Fink service is not activated (missing configuration)')
@@ -122,11 +161,24 @@ def service():
 
 
 def api_skyportal(method: str, endpoint: str, data=None, token=None):
-    """Make an API call to a SkyPortal instance
-    :param method:
-    :param endpoint:
-    :param data:
-    :return:
+    """
+    Make an API call to a SkyPortal instance
+
+    Arguments
+    ---------
+    method: str
+        HTTP method
+    endpoint: str
+        API endpoint
+    data: dict
+        Data to send
+    token: str
+        SkyPortal token
+
+    Returns
+    -------
+    response: requests.Response
+        Response from SkyPortal
     """
     method = method.lower()
 
@@ -159,10 +211,19 @@ def api_skyportal(method: str, endpoint: str, data=None, token=None):
 
 def make_photometry(alert: dict, jd_start: float = None):
     """
-    Make a de-duplicated pandas.DataFrame with photometry of alert['objectId']
-    :param alert: ZTF-like alert packet/dict
-    :param jd_start:
-    :return:
+    Make a de-duplicated pandas.DataFrame with photometry of alert['objectId'], from https://github.com/skyportal/kowalski
+
+    Arguments
+    ---------
+    alert: dict
+        Alert data
+    jd_start: float
+        Start time in JD to select photometry from
+
+    Returns
+    -------
+    df_light_curve: pandas.DataFrame
+        Light curve with deduplicated photometry in flux
     """
     df_candidate = pd.DataFrame(alert["candidate"], index=[0])
 
@@ -238,6 +299,29 @@ def make_photometry(alert: dict, jd_start: float = None):
 
 
 def post_annotation_to_skyportal(alert, session, user, group_ids, token, log):
+    """
+    Post annotations to SkyPortal
+
+    Arguments
+    ---------
+    alert: dict
+        Alert data
+    session: sqlalchemy.orm.session.Session
+        Database session
+    user: baselayer.app.models.User
+        The user to use to query the database
+    group_ids: list
+        List of group IDs
+    token: str
+        SkyPortal token
+    log: logging.Logger
+        Logger
+
+    Returns
+    -------
+    bool
+        True if successful, False otherwise
+    """
 
     annotations = {
         "obj_id": alert["objectId"],
@@ -326,6 +410,31 @@ def post_annotation_to_skyportal(alert, session, user, group_ids, token, log):
 def post_classification_to_skyportal(
     topic, alert, user_name, group_ids, taxonomy_id, token, log
 ):
+    """
+    Post classification to SkyPortal
+
+    Arguments
+    ---------
+    topic: str
+        Kafka topic
+    alert: dict
+        Alert data
+    user_name: str
+        User name
+    group_ids: list
+        List of group ids
+    taxonomy_id: int
+        Taxonomy id
+    token: str
+        SkyPortal token
+    log: function
+        Logging function
+
+    Returns
+    -------
+    bool
+        True if successful, False otherwise
+    """
 
     alert_pd = pd.DataFrame([alert])
     alert_pd["tracklet"] = ""
@@ -414,6 +523,18 @@ def post_classification_to_skyportal(
 
 
 def post_cutouts_to_skyportal(alert, token, log):
+    """
+    Post cutouts to SkyPortal, from https://github.com/skyportal/kowalski
+
+    Arguments
+    ----------
+    alert: dict
+        Alert data
+    token: str
+        SkyPortal token
+    log: logging.Logger
+        Logger
+    """
 
     for i, (skyportal_type, cutout_type) in enumerate(
         [("new", "Science"), ("ref", "Template"), ("sub", "Difference")]
@@ -481,7 +602,31 @@ def post_cutouts_to_skyportal(alert, token, log):
             print(e)
 
 
+# TODO: move this to a more appropriate place where it can run for all alerts (not just fink's)
+# it could be added as a DB trigger in the candidates or photometry models
+# it would be triggered we similar conditions as those used for the photstats
 def source_in_recent_gcns(alert, session, user, localization_cumprob, log):
+    """
+    Check if the source is in some of the recent GCNs (within 7 days)
+
+    Arguments
+    ---------
+    alert: dict
+        Alert data
+    session: sqlalchemy.orm.session.Session
+        Database session
+    user: baselayer.app.models.User
+        The user to use to query the database
+    localization_cumprob: float
+        Cumulative probability of the localization
+    log: logging.Logger
+        Logger
+
+    Returns
+    -------
+    obj_in_events: list
+        List of GcnEvent dateobs for which the source is in the localization
+    """
     obj = session.scalars(Obj.select(user).where(Obj.id == alert["objectId"])).first()
     date_7_days_ago = datetime.datetime.now() - datetime.timedelta(days=7)
     obj_in_events = []
@@ -569,11 +714,25 @@ def source_in_recent_gcns(alert, session, user, localization_cumprob, log):
 
 
 def distance(ra1, dec1, ra2, dec2):
-    # calculate the distance between two points on the sky in arcsec
-    # ra1, dec1 are the coordinates of the first point
-    # ra2, dec2 are the coordinates of the second point
-    # ra1, dec1, ra2, dec2 are in degrees
-    # returns the distance in arcsec
+    """
+    Calculate the distance between two points on the sky
+
+    Arguments
+    ---------
+    ra1: float
+        The ra of the first point
+    dec1: float
+        The dec of the first point
+    ra2: float
+        The ra of the second point
+    dec2: float
+        The dec of the second point
+
+    Returns
+    -------
+    d: float
+        The distance between the two points in arcsec
+    """
 
     # convert ra and dec to radians
     ra1 = np.radians(ra1)
@@ -595,12 +754,29 @@ def distance(ra1, dec1, ra2, dec2):
 
 
 def get_obj_host_galaxy(alert, session, user, log):
-    # here, we want to find the host galaxy of the source
-    # we do this by finding the galaxy closest to the source
-    # we perform a cone search with a radius of 1 arcsec
-    # if there are no galaxies within 1 arcsec, we increase the cone search radius by 1 arcsec until we find a galaxy, or until the radius is 10 arcsec
-    # if there are multiple galaxies within the cone search radius, we take the closest one
-    # if there are no galaxies within 10 arcsec, we return None
+    """
+    Arguments
+    ---------
+    alert: dict
+        The alert packet
+    session: sqlalchemy.orm.session.Session
+        The database session
+    user: baselayer.app.models.User
+        The user to use to query the database
+    log: function
+        The log function to use to log messages
+
+    Returns
+    -------
+    galaxy_name: str or None
+        The name of the host galaxy
+    galaxy_id: int or None
+        The id of the host galaxy
+    galaxy_distmpc: float or None
+        The distance to the host galaxy in Mpc
+    distance_to_galaxy: float or None
+        The distance to the host galaxy in arcsec
+    """
     obj = session.scalars(Obj.select(user).where(Obj.id == alert["objectId"])).first()
     if obj is not None:
         if obj.ra is not None and obj.dec is not None:
@@ -726,12 +902,35 @@ def post_alert(
     token: str = None,
     log: callable = None,
 ):
-    # this method posts a new alert to the database
-    # in the alert dict, the key "objectId" is the unique identifier of the object associated to the alert
-    # the key "candid" is the unique identifier of the alert (the candidate)
-    # the key "candidate" contains the information about the alert
-    # the key "prv_candidates" contains the information about the previous alerts
-    # we need to be sure that all prv_candidates are also in the database, otherwise we need to add them
+    """
+    Posts an alert from Fink to SkyPortal.
+
+    Arguments
+    ----------
+    topic: str
+        Topic of the alert
+    alert: dict
+        Alert object
+    user_id: int
+        User id
+    stream_id: int
+        Stream id
+    filter_id: int
+        Filter id
+    instrument_id: int
+        Instrument id
+    taxonomy_id: int
+        Taxonomy id
+    token: str
+        SkyPortal token
+    log: function
+        Logger
+
+    Returns
+    ----------
+    bool
+        True if the alert was successfully posted, False otherwise
+    """
 
     # check if the object already exists in the database
     with DBSession() as session:
@@ -839,25 +1038,38 @@ def post_alert(
                 log,
             )
 
-            # SOURCE IN GCN EVENT? TODO: IMPLEMENT FULLY AND TEST IN A FUTURE PR
-            obj_in_events = source_in_recent_gcns(alert, session, user, 0.95, log)
-            if len(obj_in_events) > 0:
-                group_users = session.scalars(
-                    GroupUser.select(user).where(GroupUser.group_id.in_(group_ids))
-                ).all()
-                for group_user in group_users:
-                    session.add(
-                        UserNotification(
-                            user=group_user.user,
-                            text=f"Object {alert['objectId']} was found in GCN event(s): {', '.join(obj_in_events)} (new alert)",
-                            notification_type="obj_in_events",
-                            url=f"/source/{alert['objectId']}",
-                        )
-                    )
-                session.commit()
+            # TODO: add this as a DB trigger later on
+            # obj_in_events = source_in_recent_gcns(alert, session, user, 0.95, log)
+            # if len(obj_in_events) > 0:
+            #     group_users = session.scalars(
+            #         GroupUser.select(user).where(GroupUser.group_id.in_(group_ids))
+            #     ).all()
+            #     for group_user in group_users:
+            #         session.add(
+            #             UserNotification(
+            #                 user=group_user.user,
+            #                 text=f"Object {alert['objectId']} was found in GCN event(s): {', '.join(obj_in_events)} (new alert)",
+            #                 notification_type="obj_in_events",
+            #                 url=f"/source/{alert['objectId']}",
+            #             )
+            #         )
+            #     session.commit()
 
 
 def poll_fink_alerts(token: str):
+    """
+    Poll Fink alerts and add necessary data to SkyPortal: (taxonomy, filters, streams, groups, etc.)
+
+    Arguments
+    ----------
+    token: str
+        The token to use to authenticate to SkyPortal.
+
+    Returns
+    ----------
+    None
+    """
+
     client_id = cfg['fink.client_id']
     client_secret = cfg['fink.client_secret']
     client_group_id = cfg.get('fink.client_group_id')
