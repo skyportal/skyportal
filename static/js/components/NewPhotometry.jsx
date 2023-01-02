@@ -13,12 +13,6 @@ const validateDate = (date) => {
   return regex.test(date);
 };
 
-const validateExposure = (exposure) => {
-  // use a regex to check if the exposure is written as Numbers x Numbers s
-  const regex = /^\d+x\d+s$/;
-  return regex.test(exposure);
-};
-
 const UTCToMJD = (utc) => {
   // convert utc to MJD
   const utcDate = new Date(utc);
@@ -81,9 +75,24 @@ const NewPhotometryForm = ({ obj_id }) => {
         enum: listmag,
         title: "Magnitude system",
       },
-      exposure: {
+      origin: {
         type: "string",
-        title: "Exposure [i.e. 60x60s ou 1x300s]",
+        title: "Origin",
+      },
+      nb_exposure: {
+        type: "integer",
+        title: "Number of exposures",
+      },
+      exposure_time: {
+        type: "integer",
+        title: "Exposure time [i.e. 60 or 300]",
+      },
+      // add a checkbox called 'coordinates' that is false by default
+      // if it is checked, show the ra and dec fields
+      coordinates: {
+        type: "boolean",
+        title: "Enter coordinates",
+        default: false,
       },
       instrument_id: {
         type: "integer",
@@ -95,7 +104,7 @@ const NewPhotometryForm = ({ obj_id }) => {
         title: "Instrument",
       },
     },
-    required: ["dateobs", "instrument_id"],
+    required: ["dateobs", "instrument_id", "magsys"],
     dependencies: {
       instrument_id: {
         oneOf: sortedInstrumentList.map((instrument) => ({
@@ -112,6 +121,26 @@ const NewPhotometryForm = ({ obj_id }) => {
           required: ["filter"],
         })),
       },
+      coordinates: {
+        oneOf: [
+          {
+            properties: {
+              coordinates: {
+                enum: [true],
+              },
+              ra: {
+                type: "number",
+                title: "RA",
+              },
+              dec: {
+                type: "number",
+                title: "Dec",
+              },
+            },
+            required: ["ra", "dec"],
+          },
+        ],
+      },
     },
   };
 
@@ -119,9 +148,20 @@ const NewPhotometryForm = ({ obj_id }) => {
     if (formData.dateobs && !validateDate(formData.dateobs)) {
       errors.dateobs.addError("Date must be in the format YYYY-MM-DDThh:mm:ss");
     }
-    if (formData.exposure && !validateExposure(formData.exposure)) {
-      errors.exposure.addError(
-        "Exposure must be in the format 60x60s ou 1x300s"
+    if (formData.nb_exposure && formData.nb_exposure < 0) {
+      errors.nb_exposure.addError("Number of exposures cannot be negative");
+    }
+    if (formData.exposure_time && formData.exposure_time < 0) {
+      errors.exposure_time.addError("Exposure time cannot be negative");
+    }
+    if (formData.exposure_time && !formData.nb_exposure) {
+      errors.nb_exposure.addError(
+        "Please enter a number of exposures when entering an exposure time"
+      );
+    }
+    if (formData.nb_exposure && !formData.exposure_time) {
+      errors.exposure_time.addError(
+        "Please enter an exposure time when entering a number of exposures"
       );
     }
     if (
@@ -136,15 +176,12 @@ const NewPhotometryForm = ({ obj_id }) => {
     if (formData.instrument_id && !formData.filter) {
       errors.filter.addError("Please select a filter");
     }
-    // if there are no mag and not limiting mag, add an error
     if (!formData.mag && !formData.limiting_mag) {
       errors.mag.addError("Please enter a magnitude or a limiting magnitude");
     }
-    // if there is a mag or limiting mag, but no magerr, add an error
     if ((formData.mag || formData.limiting_mag) && !formData.magerr) {
       errors.magerr.addError("Please enter a magnitude error");
     }
-    // if the mag, magerr or limiting_mag are all not numbers, add an error
     if (formData.mag && Number.isNaN(formData.mag)) {
       errors.mag.addError("Magnitude must be a number");
     }
@@ -153,6 +190,14 @@ const NewPhotometryForm = ({ obj_id }) => {
     }
     if (formData.limiting_mag && Number.isNaN(formData.limiting_mag)) {
       errors.magerr.addError("Limiting magnitude must be a number");
+    }
+    if (
+      formData.coordinates === true &&
+      (Number.isNaN(formData.ra) || Number.isNaN(formData.dec))
+    ) {
+      errors.ra.addError(
+        "Please enter a valid RA and Dec when coordinates is checked"
+      );
     }
     return errors;
   };
@@ -165,9 +210,14 @@ const NewPhotometryForm = ({ obj_id }) => {
       magerr,
       limiting_mag,
       magsys,
-      exposure,
+      origin,
+      nb_exposure,
+      exposure_time,
+      coordinates,
       instrument_id,
       filter,
+      ra,
+      dec,
     } = data.formData;
     const mjd = UTCToMJD(dateobs);
     const payload = {
@@ -189,11 +239,21 @@ const NewPhotometryForm = ({ obj_id }) => {
     if (!Number.isNaN(limiting_mag)) {
       payload.limiting_mag = limiting_mag;
     }
-    if (exposure) {
-      payload.altdata = { exposure };
+    if (!Number.isNaN(nb_exposure) && !Number.isNaN(exposure_time)) {
+      payload.altdata = { exposure: `${nb_exposure}x${exposure_time}` };
     }
+
     if (group_ids) {
       payload.group_ids = group_ids;
+    }
+
+    if (coordinates === true) {
+      payload.ra = ra;
+      payload.dec = dec;
+    }
+
+    if (origin) {
+      payload.origin = origin;
     }
 
     dispatch(submitPhotometry(payload)).then((result) => {

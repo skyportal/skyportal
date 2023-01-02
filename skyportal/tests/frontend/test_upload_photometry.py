@@ -189,7 +189,14 @@ def test_upload_photometry_form(driver, sedm, super_admin_user, public_source):
     driver.scroll_to_element_and_click(magsys_dropdown)
     driver.wait_for_xpath('//*[text()="AB"]').click()
 
-    driver.wait_for_xpath('//*[@id="root_exposure"]').send_keys("60x60s")
+    driver.wait_for_xpath('//*[@id="root_origin"]').send_keys("test")
+    driver.wait_for_xpath('//*[@id="root_nb_exposure"]').send_keys("6")
+    driver.wait_for_xpath('//*[@id="root_exposure_time"]').send_keys("60")
+
+    coordinates_option = driver.wait_for_xpath('//*[@id="root_coordinates"]')
+    driver.scroll_to_element_and_click(coordinates_option)
+    driver.wait_for_xpath('//*[@id="root_ra"]').send_keys("10.625")
+    driver.wait_for_xpath('//*[@id="root_dec"]').send_keys("41.2")
 
     instrument_dropdown = driver.wait_for_xpath('//*[@id="root_instrument_id"]')
     driver.scroll_to_element_and_click(instrument_dropdown)
