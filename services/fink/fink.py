@@ -20,7 +20,7 @@ import io
 from astropy.io import fits
 from matplotlib import pyplot as plt
 import base64
-
+import conesearch_alchemy as ca
 
 from baselayer.log import make_log
 from baselayer.app.models import init_db
@@ -44,6 +44,7 @@ from skyportal.models import (
     LocalizationTile,
     UserNotification,
     GroupUser,
+    Galaxy,
 )
 
 from baselayer.app.models import User
@@ -236,7 +237,7 @@ def make_photometry(alert: dict, jd_start: float = None):
     return df_light_curve
 
 
-def post_annotation_to_skyportal(alert, group_ids, token, log):
+def post_annotation_to_skyportal(alert, session, user, group_ids, token, log):
 
     annotations = {
         "obj_id": alert["objectId"],
@@ -255,6 +256,20 @@ def post_annotation_to_skyportal(alert, group_ids, token, log):
         },
         "group_ids": group_ids,
     }
+
+    # HOST GALAXY
+    name, catalog, distmpc, distmpc_unc, distance_from_host = get_obj_host_galaxy(
+        alert, session, user, log
+    )
+    if name is not None:
+        annotations["data"] = {
+            **annotations["data"],
+            "host_galaxy_name": name,
+            "host_galaxy_catalog": catalog,
+            "host_galaxy_distmpc": distmpc,
+            "host_galaxy_distmpc_unc": distmpc_unc,
+            "host_galaxy_distance_from_obj (arcsec)": distance_from_host,
+        }
 
     response = api_skyportal(
         "GET", f"/api/sources/{alert['objectId']}/annotations", None, token
@@ -553,6 +568,65 @@ def source_in_recent_gcns(alert, session, user, localization_cumprob, log):
     return obj_in_events
 
 
+def distance(ra1, dec1, ra2, dec2):
+    # calculate the distance between two points on the sky in arcsec
+    # ra1, dec1 are the coordinates of the first point
+    # ra2, dec2 are the coordinates of the second point
+    # ra1, dec1, ra2, dec2 are in degrees
+    # returns the distance in arcsec
+
+    # convert ra and dec to radians
+    ra1 = np.radians(ra1)
+    dec1 = np.radians(dec1)
+    ra2 = np.radians(ra2)
+    dec2 = np.radians(dec2)
+
+    # calculate the distance
+    d = (
+        np.sin((dec1 - dec2) / 2) ** 2
+        + np.cos(dec1) * np.cos(dec2) * np.sin((ra1 - ra2) / 2) ** 2
+    )
+    d = 2 * np.arcsin(np.sqrt(d))
+
+    # convert to arcsec
+    d = np.degrees(d) * 3600
+
+    return d
+
+
+def get_obj_host_galaxy(alert, session, user, log):
+    # here, we want to find the host galaxy of the source
+    # we do this by finding the galaxy closest to the source
+    # we perform a cone search with a radius of 1 arcsec
+    # if there are no galaxies within 1 arcsec, we increase the cone search radius by 1 arcsec until we find a galaxy, or until the radius is 10 arcsec
+    # if there are multiple galaxies within the cone search radius, we take the closest one
+    # if there are no galaxies within 10 arcsec, we return None
+    obj = session.scalars(Obj.select(user).where(Obj.id == alert["objectId"])).first()
+    if obj is not None:
+        if obj.ra is not None and obj.dec is not None:
+            point = ca.Point(ra=obj.ra, dec=obj.dec)
+            radius = 1 / 3600.0
+            max_radius = 10 / 3600.0
+            while radius <= max_radius:
+                galaxies = session.scalars(
+                    Galaxy.select(user).where(Galaxy.within(point, radius))
+                ).all()
+                if len(galaxies) > 0:
+                    galaxies.sort(key=lambda x: distance(x.ra, x.dec, obj.ra, obj.dec))
+                    galaxy = galaxies[0]
+                    log(f"Found {alert['objectId']} in {galaxy.name}")
+                    return (
+                        galaxy.name,
+                        galaxy.id,
+                        galaxy.distmpc,
+                        galaxy.distmpc_unc,
+                        distance(galaxy.ra, galaxy.dec, obj.ra, obj.dec),
+                    )
+                else:
+                    radius += 1 / 3600.0
+    return (None, None, None, None, None)
+
+
 def init_consumer(
     fink_username: str = None,
     fink_password: str = None,
@@ -752,18 +826,14 @@ def post_alert(
                 print(e)
 
             # ANNOTATIONS
-            post_annotation_to_skyportal(
-                alert, user.id, group_ids, instrument_id, token, log
-            )
+            post_annotation_to_skyportal(alert, session, user, group_ids, token, log)
 
             # CLASSIFICATION
             post_classification_to_skyportal(
                 topic,
                 alert,
-                user.id,
                 user.username,
                 group_ids,
-                instrument_id,
                 taxonomy_id,
                 token,
                 log,
