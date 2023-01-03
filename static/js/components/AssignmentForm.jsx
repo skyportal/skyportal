@@ -135,8 +135,12 @@ const AssignmentForm = ({ obj_id, observingRunList }) => {
                   ? upcomingObservingRuns[0].id
                   : null
               }
-              render={() => (
-                <Select labelId="assignmentSelect">
+              render={({ field: { onChange, value } }) => (
+                <Select
+                  labelId="assignmentSelect"
+                  onChange={onChange}
+                  value={value}
+                >
                   {upcomingObservingRuns?.map((observingRun) => (
                     <MenuItem
                       value={observingRun.id}
@@ -164,8 +168,12 @@ const AssignmentForm = ({ obj_id, observingRunList }) => {
               name="priority"
               control={control}
               rules={{ required: true }}
-              render={() => (
-                <Select labelId="prioritySelect">
+              render={({ field: { onChange, value } }) => (
+                <Select
+                  labelId="prioritySelect"
+                  onChange={onChange}
+                  value={value}
+                >
                   {["1", "2", "3", "4", "5"].map((prio) => (
                     <MenuItem value={prio} key={prio}>
                       {prio}

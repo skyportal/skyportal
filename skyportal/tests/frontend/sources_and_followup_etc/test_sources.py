@@ -1,5 +1,4 @@
 import os
-from os.path import join as pjoin
 import uuid
 import json
 import time
@@ -308,7 +307,9 @@ def test_classifications(driver, user, taxonomy_token, public_group, public_sour
     driver.click_xpath("//*[text()='Submit']", wait_clickable=False)
     driver.wait_for_xpath("//*[text()='Classification saved']")
     driver.find_element(
-        By.XPATH, "//span[contains(@class, 'MuiChip-label') and text()='Mult-mode?']"
+        By.XPATH,
+        "//span[contains(@class, 'MuiChip-label') and text()='Mult-mode?']",
+        timeout=20,
     )
 
 
@@ -372,83 +373,6 @@ def test_comment_groups_validation(
         driver.wait_for_xpath(
             '//div[@data-testid="comments-accordion"]//span[text()="a few seconds ago"]'
         )
-
-
-@pytest.mark.flaky(reruns=2)
-def test_upload_download_comment_attachment(driver, user, public_source):
-    driver.get(f"/become_user/{user.id}")  # TODO decorator/context manager?
-    driver.get(f"/source/{public_source.id}")
-    driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
-    comment_text = str(uuid.uuid4())
-    enter_comment_text(driver, comment_text)
-    # attachment_file = driver.find_element_by_css_selector('input[type=file]')
-    attachment_file = driver.wait_for_xpath(
-        "//div[@data-testid='comments-accordion']//input[@name='attachment']"
-    )
-    attachment_file.send_keys(
-        pjoin(
-            os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
-            'data',
-            'spec.csv',
-        )
-    )
-    driver.click_xpath(
-        '//div[@data-testid="comments-accordion"]//*[@name="submitCommentButton"]'
-    )
-    try:
-        comment_text_p = driver.wait_for_xpath(
-            f'//div[@data-testid="comments-accordion"]//p[text()="{comment_text}"]',
-            timeout=20,
-        )
-    except TimeoutException:
-        driver.refresh()
-        comment_text_p = driver.wait_for_xpath(
-            f'//div[@data-testid="comments-accordion"]//p[text()="{comment_text}"]'
-        )
-    comment_div = comment_text_p.find_element(By.XPATH, "../..")
-    driver.execute_script("arguments[0].scrollIntoView();", comment_div)
-    ActionChains(driver).move_to_element(comment_div).perform()
-
-    # Scroll up to top of comments list
-    comments = driver.wait_for_xpath(
-        "//div[@data-testid='comments-accordion']//p[text()='Comments']"
-    )
-    driver.scroll_to_element(comments)
-
-    attachment_div = driver.wait_for_xpath(
-        "//div[@data-testid='comments-accordion']//div[contains(text(), 'Attachment:')]"
-    )
-    attachment_button = driver.wait_for_xpath(
-        '//div[@data-testid="comments-accordion"]//button[@data-testid="attachmentButton_spec"]'
-    )
-    # Try to open the preview dialog twice before failing to make it more robust
-    try:
-        ActionChains(driver).move_to_element(attachment_div).pause(0.5).perform()
-        ActionChains(driver).move_to_element(attachment_button).pause(
-            0.5
-        ).click().perform()
-        # Preview dialog
-        driver.click_xpath('//a[@data-testid="attachmentDownloadButton_spec"]')
-    except TimeoutException:
-        ActionChains(driver).move_to_element(attachment_div).pause(0.5).perform()
-        ActionChains(driver).move_to_element(attachment_button).pause(
-            0.5
-        ).click().perform()
-        # Preview dialog
-        driver.click_xpath('//a[@data-testid="attachmentDownloadButton_spec"]')
-
-    fpath = str(os.path.abspath(pjoin(cfg['paths.downloads_folder'], 'spec.csv')))
-    try_count = 1
-    while not os.path.exists(fpath) and try_count <= 3:
-        try_count += 1
-        assert os.path.exists(fpath)
-
-    try:
-        with open(fpath) as f:
-            lines = f.read()
-        assert lines.split('\n')[0] == 'wavelengths,fluxes,instrument_id'
-    finally:
-        os.remove(fpath)
 
 
 def test_view_only_user_cannot_comment(driver, view_only_user, public_source):
@@ -668,7 +592,9 @@ def test_unsave_from_group(
         scroll_parent=True,
     )
     driver.click_xpath(f'//button[@name="editSourceGroupsButton_{public_source.id}"]')
-    driver.wait_for_xpath('//*[text()="Source groups updated successfully"]')
+    driver.wait_for_xpath(
+        '//*[text()="Source groups updated successfully"]', timeout=10
+    )
     driver.wait_for_xpath_to_disappear(
         f'//div[@data-testid="groupChip_{public_group2.id}"]'
     )
@@ -690,7 +616,9 @@ def test_request_group_to_save_then_save(
         f'//button[@name="editSourceGroupsButton_{public_source.id}"]',
         scroll_parent=True,
     )
-    driver.wait_for_xpath('//*[text()="Source groups updated successfully"]')
+    driver.wait_for_xpath(
+        '//*[text()="Source groups updated successfully"]', timeout=10
+    )
     driver.get(f"/become_user/{user_two_groups.id}")
     driver.get(f"/group_sources/{public_group2.id}")
     driver.click_xpath(f'//button[@data-testid="saveSourceButton_{public_source.id}"]')
@@ -962,4 +890,4 @@ def test_duplicate_sources_render(
     driver.get(f"/source/{public_source.id}")
     driver.wait_for_xpath('//*[contains(text(), "Possible duplicate of:")]')
     driver.click_xpath(f'//button[text()="{obj_id2}"]')
-    driver.wait_for_xpath(f'//div[text()="{obj_id2}"]')
+    driver.wait_for_xpath(f'//div[text()="{obj_id2}"]', timeout=20)

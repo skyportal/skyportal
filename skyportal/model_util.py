@@ -12,8 +12,10 @@ all_acl_ids = [
     'Manage sources',
     'Manage groups',
     'Manage shifts',
+    'Manage instruments',
     'Manage allocations',
     'Manage observing runs',
+    'Manage telescopes',
     'Manage Analysis Services',
     'Manage GCNs',
     'Upload data',
@@ -21,6 +23,8 @@ all_acl_ids = [
     'System admin',
     'Post taxonomy',
     'Delete taxonomy',
+    'Delete instrument',
+    'Delete telescope',
     'Classify',
 ] + [c.get_acl_id() for c in LISTENER_CLASSES]
 

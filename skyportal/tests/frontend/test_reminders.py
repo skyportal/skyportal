@@ -77,8 +77,9 @@ def post_and_verify_reminder(endpoint, token):
 
 
 def post_and_verify_reminder_frontend(driver, reminder_text):
+
     search_button_xpath = driver.wait_for_xpath(
-        '//button[@data-testid="Search-iconButton"]'
+        '//*[@data-testid="Reminders"]//button[@aria-label="Search"]'
     )
     driver.scroll_to_element_and_click(search_button_xpath)
     search_bar = driver.wait_for_xpath('//input[@aria-label="Search"]')

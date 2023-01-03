@@ -9,6 +9,7 @@ from astroplan import (
     is_event_observable,
 )
 from datetime import datetime, timedelta
+import geopandas
 import healpy as hp
 import humanize
 import json
@@ -86,36 +87,34 @@ log = make_log('api/observation_plan')
 
 
 def post_survey_efficiency_analysis(
-    survey_efficiency_analysis, plan_id, user_id, session
+    survey_efficiency_analysis, plan_id, user_id, session, asynchronous=True
 ):
     """Post survey efficiency analysis to database.
 
     Parameters
     ----------
-    survey_efficiency_analysis: dict
+    survey_efficiency_analysis : dict
         Dictionary describing survey efficiency analysis
-    plan_id: int
+    plan_id : int
         SkyPortal ID of Observation plan request
     user_id : int
         SkyPortal ID of User posting the GcnEvent
-    session: sqlalchemy.Session
+    session : sqlalchemy.Session
         Database session for this transaction
+    asynchronous : bool
+        Create asynchronous efficiency analysis. Defaults to True.
     """
 
     status_complete = False
     while not status_complete:
-        observation_plan_request = (
-            session.scalars(
-                sa.select(ObservationPlanRequest)
-                .options(
-                    joinedload(ObservationPlanRequest.observation_plans)
-                    .joinedload(EventObservationPlan.planned_observations)
-                    .joinedload(PlannedObservation.field)
-                )
-                .where(ObservationPlanRequest.id == plan_id)
+        observation_plan_request = session.scalar(
+            sa.select(ObservationPlanRequest)
+            .options(
+                joinedload(ObservationPlanRequest.observation_plans)
+                .joinedload(EventObservationPlan.planned_observations)
+                .joinedload(PlannedObservation.field)
             )
-            .unique()
-            .all()
+            .where(ObservationPlanRequest.id == plan_id)
         )
         status_complete = observation_plan_request.status == "complete"
 
@@ -206,40 +205,60 @@ def post_survey_efficiency_analysis(
         f'Simsurvey analysis in progress for ID {survey_efficiency_analysis.id}. Should be available soon.'
     )
 
-    simsurvey_analysis = functools.partial(
-        observation_simsurvey,
-        observations,
-        localization.id,
-        instrument.id,
-        survey_efficiency_analysis.id,
-        "SurveyEfficiencyForObservationPlan",
-        width=width,
-        height=height,
-        number_of_injections=payload['numberInjections'],
-        number_of_detections=payload['numberDetections'],
-        detection_threshold=payload['detectionThreshold'],
-        minimum_phase=payload['minimumPhase'],
-        maximum_phase=payload['maximumPhase'],
-        model_name=payload['modelName'],
-        optional_injection_parameters=payload['optionalInjectionParameters'],
-    )
+    if asynchronous:
+        simsurvey_analysis = functools.partial(
+            observation_simsurvey,
+            observations,
+            localization.id,
+            instrument.id,
+            survey_efficiency_analysis.id,
+            "SurveyEfficiencyForObservationPlan",
+            width=width,
+            height=height,
+            number_of_injections=payload['numberInjections'],
+            number_of_detections=payload['numberDetections'],
+            detection_threshold=payload['detectionThreshold'],
+            minimum_phase=payload['minimumPhase'],
+            maximum_phase=payload['maximumPhase'],
+            model_name=payload['modelName'],
+            optional_injection_parameters=payload['optionalInjectionParameters'],
+        )
 
-    IOLoop.current().run_in_executor(None, simsurvey_analysis)
+        IOLoop.current().run_in_executor(None, simsurvey_analysis)
+    else:
+        observation_simsurvey(
+            observations,
+            localization.id,
+            instrument.id,
+            survey_efficiency_analysis.id,
+            "SurveyEfficiencyForObservationPlan",
+            width=width,
+            height=height,
+            number_of_injections=payload['numberInjections'],
+            number_of_detections=payload['numberDetections'],
+            detection_threshold=payload['detectionThreshold'],
+            minimum_phase=payload['minimumPhase'],
+            maximum_phase=payload['maximumPhase'],
+            model_name=payload['modelName'],
+            optional_injection_parameters=payload['optionalInjectionParameters'],
+        )
 
     return survey_efficiency_analysis.id
 
 
-def post_observation_plans(plans, user_id, session):
+def post_observation_plans(plans, user_id, session, asynchronous=True):
     """Post combined ObservationPlans to database.
 
     Parameters
     ----------
-    plan: dict
+    plan : dict
         Observation plan dictionary
     user_id : int
         SkyPortal ID of User posting the GcnEvent
-    session: sqlalchemy.Session
+    session : sqlalchemy.Session
         Database session for this transaction
+    asynchronous : bool
+        Create asynchronous request. Defaults to True.
     """
 
     user = session.query(User).get(user_id)
@@ -323,17 +342,19 @@ def post_observation_plans(plans, user_id, session):
         )
 
 
-def post_observation_plan(plan, user_id, session):
+def post_observation_plan(plan, user_id, session, asynchronous=True):
     """Post ObservationPlan to database.
 
     Parameters
     ----------
-    plan: dict
+    plan : dict
         Observation plan dictionary
     user_id : int
         SkyPortal ID of User posting the GcnEvent
-    session: sqlalchemy.Session
+    session : sqlalchemy.Session
         Database session for this transaction
+    asynchronous : bool
+        Create asynchronous request. Defaults to True.
     """
 
     user = session.query(User).get(user_id)
@@ -390,21 +411,24 @@ def post_observation_plan(plan, user_id, session):
     session.add(observation_plan_request)
     session.commit()
 
+    dateobs = observation_plan_request.gcnevent.dateobs
+    observation_plan_request_id = observation_plan_request.id
+
     flow = Flow()
 
     flow.push(
         '*',
         "skyportal/REFRESH_GCNEVENT",
-        payload={"gcnEvent_dateobs": observation_plan_request.gcnevent.dateobs},
+        payload={"gcnEvent_dateobs": dateobs},
     )
 
     try:
-        instrument.api_class_obsplan.submit(observation_plan_request)
+        instrument.api_class_obsplan.submit(
+            observation_plan_request_id, asynchronous=asynchronous
+        )
     except Exception as e:
         observation_plan_request.status = 'failed to submit'
         raise AttributeError(f'Error submitting observation plan: {e.args[0]}')
-    finally:
-        session.commit()
 
     flow.push(
         '*',
@@ -412,7 +436,7 @@ def post_observation_plan(plan, user_id, session):
         payload={"gcnEvent_dateobs": observation_plan_request.gcnevent.dateobs},
     )
 
-    return observation_plan_request.id
+    return observation_plan_request_id
 
 
 class ObservationPlanRequestHandler(BaseHandler):
@@ -649,7 +673,7 @@ class ObservationPlanSubmitHandler(BaseHandler):
                 return self.error('Cannot send observation plans on this instrument.')
 
             try:
-                api.send(observation_plan_request)
+                api.send(observation_plan_request, session)
             except Exception as e:
                 observation_plan_request.status = 'failed to send'
                 return self.error(
@@ -1408,6 +1432,150 @@ class ObservationPlanFieldsHandler(BaseHandler):
             return self.success()
 
 
+class ObservationPlanWorldmapPlotHandler(BaseHandler):
+    @auth_or_token
+    async def get(self, localization_id):
+        """
+        ---
+        description: Create a summary plot for the observability for a given event.
+        tags:
+          - localizations
+        parameters:
+          - in: path
+            name: localization_id
+            required: true
+            schema:
+              type: integer
+            description: |
+              ID of localization to generate map for
+          - in: query
+            name: maximumAirmass
+            nullable: true
+            schema:
+              type: number
+            description: |
+              Maximum airmass to consider. Defaults to 2.5.
+          - in: query
+            name: twilight
+            nullable: true
+            schema:
+              type: string
+            description: |
+                Twilight definition. Choices are astronomical (-18 degrees), nautical (-12 degrees), and civil (-6 degrees).
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+        """
+
+        max_airmass = self.get_query_argument("maxAirmass", 2.5)
+        twilight = self.get_query_argument("twilight", "astronomical")
+
+        twilight_dict = {'astronomical': -18, 'nautical': -12, 'civil': -6}
+
+        with self.Session() as session:
+
+            stmt = Telescope.select(self.current_user)
+            telescopes = session.scalars(stmt).all()
+
+            stmt = Localization.select(self.current_user).where(
+                Localization.id == localization_id
+            )
+            localization = session.scalars(stmt).first()
+            m = localization.flat_2d
+            nside = localization.nside
+            npix = len(m)
+
+            trigger_time = Time(localization.dateobs, format='datetime')
+
+            # Look up (celestial) spherical polar coordinates of HEALPix grid.
+            theta, phi = hp.pix2ang(nside, np.arange(npix))
+            # Convert to RA, Dec.
+            radecs = astropy.coordinates.SkyCoord(
+                ra=phi * u.rad, dec=(0.5 * np.pi - theta) * u.rad
+            )
+
+            cmap = plt.cm.rainbow
+            norm = matplotlib.colors.Normalize(vmin=0, vmax=1)
+            sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+            sm.set_array([])
+
+            colors = []
+            for telescope in telescopes:
+                if not telescope.fixed_location:
+                    continue
+                location = EarthLocation(
+                    lon=telescope.lon * u.deg,
+                    lat=telescope.lat * u.deg,
+                    height=(telescope.elevation or 0) * u.m,
+                )
+
+                # Alt/az reference frame at observatory, now
+                frame = astropy.coordinates.AltAz(
+                    obstime=trigger_time, location=location
+                )
+
+                # Transform grid to alt/az coordinates at observatory, now
+                altaz = radecs.transform_to(frame)
+
+                # Where is the sun, now?
+                sun_altaz = astropy.coordinates.get_sun(trigger_time).transform_to(
+                    altaz
+                )
+
+                # How likely is it that the (true, unknown) location of the source
+                # is within the area that is visible, now?
+                prob = m[
+                    (sun_altaz.alt <= twilight_dict[twilight] * u.deg)
+                    & (altaz.secz <= max_airmass)
+                ].sum()
+
+                rgba_color = cmap(norm(prob))
+                colors.append(rgba_color)
+
+            world = geopandas.read_file(
+                geopandas.datasets.get_path('naturalearth_lowres')
+            )
+            ds = [
+                telescope.to_dict()
+                for telescope in telescopes
+                if telescope.fixed_location
+            ]
+            df = pd.DataFrame(ds)
+            df['colors'] = colors
+            gdf = geopandas.GeoDataFrame(
+                df, geometry=geopandas.points_from_xy(df.lon, df.lat)
+            )
+
+            output_format = 'pdf'
+            fig, (ax0, ax1) = plt.subplots(1, 2, figsize=(14, 10), width_ratios=[10, 1])
+            world.plot(ax=ax0)
+            gdf.plot(ax=ax0, color=gdf['colors'])
+            scale = 5
+            for idx, dat in gdf.iterrows():
+                ax0.annotate(
+                    dat.nickname,
+                    (
+                        dat.lon + scale * np.random.randn(),
+                        dat.lat + scale * np.random.randn(),
+                    ),
+                )
+
+            cbar = plt.colorbar(sm, cax=ax1, fraction=0.5)
+            cbar.set_label(r'Observable Probability')
+
+            buf = io.BytesIO()
+            fig.savefig(buf, format=output_format, bbox_inches='tight')
+            plt.close(fig)
+            buf.seek(0)
+
+            filename = f"worldmap.{output_format}"
+            data = io.BytesIO(buf.read())
+
+            await self.send_file(data, filename, output_type=output_format)
+
+
 class ObservationPlanObservabilityPlotHandler(BaseHandler):
     @auth_or_token
     async def get(self, localization_id):
@@ -1418,15 +1586,12 @@ class ObservationPlanObservabilityPlotHandler(BaseHandler):
           - localizations
         parameters:
           - in: path
-            name: dateobs
+            name: localization_id
             required: true
             schema:
-              type: dateobs
-          - in: path
-            name: localization_name
-            required: true
-            schema:
-              type: localization_name
+              type: integer
+            description: |
+              ID of localization to generate observability plot for
           - in: query
             name: maximumAirmass
             nullable: true
@@ -1539,12 +1704,16 @@ class ObservationPlanAirmassChartHandler(BaseHandler):
             name: localization_id
             required: true
             schema:
-              type: string
+              type: integer
+            description: |
+              ID of localization to generate airmass chart for
           - in: path
             name: telescope_id
             required: true
             schema:
-              type: string
+              type: integer
+            description: |
+              ID of telescope to generate airmass chart for
         responses:
           200:
             content:
@@ -1618,7 +1787,9 @@ class ObservationPlanCreateObservingRunHandler(BaseHandler):
             name: observation_plan_id
             required: true
             schema:
-              type: string
+              type: integer
+            description: |
+              ID of observation plan request to create observing run for
         responses:
           200:
             content:
@@ -1860,7 +2031,7 @@ def observation_simsurvey(
         order = hp.nside2order(localization.nside)
         t = rasterize(localization.table, order)
 
-        if 'DISTMU' in t:
+        if {'DISTMU', 'DISTSIGMA', 'DISTNORM'}.issubset(set(t.colnames)):
             result = t['PROB'], t['DISTMU'], t['DISTSIGMA'], t['DISTNORM']
             hp_data = hp.reorder(result, 'NESTED', 'RING')
             map_struct = {}

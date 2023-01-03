@@ -753,6 +753,11 @@ const CandidateList = () => {
     candidateIds.push(candidate.id);
   });
 
+  const groupIds = [];
+  filterGroups?.forEach((g) => {
+    groupIds.push(g.id);
+  });
+
   // Annotations filtering
   const [tableFilterList, setTableFilterList] = useState([]);
   const [filterListQueryStrings, setFilterListQueryStrings] = useState([]);
@@ -1179,7 +1184,7 @@ const CandidateList = () => {
         display: viewColumns.includes("Autoannotations"),
         customBodyRenderLite: renderAutoannotations,
         sort: false,
-        filter: !queryInProgress,
+        filter: true,
         filterType: "custom",
         filterList: tableFilterList,
         filterOptions: {
@@ -1197,7 +1202,7 @@ const CandidateList = () => {
     print: false,
     download: false,
     sort: false,
-    filter: !queryInProgress,
+    filter: true,
     filterType: "custom",
     count: totalMatches,
     selectableRows: "none",
@@ -1267,15 +1272,24 @@ const CandidateList = () => {
           </div>
           <StyledEngineProvider injectFirst>
             <ThemeProvider theme={getMuiTheme(theme)}>
-              <CustomDataTable
-                // Reset key to reset page number
-                // https://github.com/gregnb/mui-datatables/issues/1166
-                key={`table_${pageNumber}`}
-                columns={columns}
-                data={candidateIds}
-                className={classes.table}
-                options={options}
-              />
+              <div>
+                {queryInProgress ? (
+                  <div>
+                    <Spinner />
+                  </div>
+                ) : (
+                  <CustomDataTable
+                    // Reset key to reset page number
+                    // https://github.com/gregnb/mui-datatables/issues/1166
+                    key={`table_${pageNumber}`}
+                    columns={columns}
+                    data={candidateIds}
+                    className={classes.table}
+                    options={options}
+                    groupIds={groupIds}
+                  />
+                )}
+              </div>
             </ThemeProvider>
           </StyledEngineProvider>
         </Box>

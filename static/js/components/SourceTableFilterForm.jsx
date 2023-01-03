@@ -21,6 +21,7 @@ import Button from "./Button";
 import { allowedClasses } from "./ClassificationForm";
 
 import * as gcnEventsActions from "../ducks/gcnEvents";
+import * as spatialCatalogsActions from "../ducks/spatialCatalogs";
 
 const useStyles = makeStyles((theme) => ({
   paperDiv: {
@@ -147,12 +148,33 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
   const gcnEvents = useSelector((state) => state.gcnEvents);
   const [selectedGcnEventId, setSelectedGcnEventId] = useState(null);
 
+  const spatialCatalogs = useSelector((state) => state.spatialCatalogs);
+  const spatialCatalog = useSelector((state) => state.spatialCatalog);
+  const [selectedSpatialCatalogId, setSelectedSpatialCatalogId] =
+    useState(null);
+
   useEffect(() => {
     if (gcnEvents?.length > 0 || !gcnEvents) {
       dispatch(gcnEventsActions.fetchGcnEvents());
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (spatialCatalogs?.length > 0 || !spatialCatalogs) {
+      dispatch(spatialCatalogsActions.fetchSpatialCatalogs());
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (selectedSpatialCatalogId) {
+      dispatch(
+        spatialCatalogsActions.fetchSpatialCatalog(selectedSpatialCatalogId)
+      );
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedSpatialCatalogId]);
 
   const { handleSubmit, register, control, reset, getValues } = useForm();
 
@@ -173,6 +195,22 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
           dateobs: "Clear Selection",
         },
         ...gcnEvents.events,
+      ]
+    : [];
+
+  const spatialCatalogsLookUp = {};
+  // eslint-disable-next-line no-unused-expressions
+  spatialCatalogs?.forEach((catalog) => {
+    spatialCatalogsLookUp[catalog.id] = catalog;
+  });
+
+  const spatialCatalogsSelect = spatialCatalogs
+    ? [
+        {
+          id: -1,
+          catalog_name: "Clear Selection",
+        },
+        ...spatialCatalogs,
       ]
     : [];
 
@@ -230,6 +268,17 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
         }
         formData.gcneventid = "";
       }
+      if (formData.spatialcatalogid !== "") {
+        formData.spatialCatalogName =
+          spatialCatalogsLookUp[formData.spatialcatalogid]?.catalog_name;
+        if (formData.spatialcatalogentryid !== "") {
+          formData.spatialCatalogEntryName = spatialCatalog?.entries?.filter(
+            (l) => l.id === formData.spatialcatalogentryid
+          )[0]?.entry_name;
+          formData.spatialcatalogentryid = "";
+        }
+        formData.spatialcatalogid = "";
+      }
       handleFilterSubmit(formData);
     }
   };
@@ -247,10 +296,18 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
           <Typography variant="subtitle2" className={classes.title}>
             Name or ID
           </Typography>
-          <TextField
-            label="Source ID/Name"
+          <Controller
+            render={({ field: { onChange, value } }) => (
+              <TextField
+                label="Source ID/Name"
+                name="sourceID"
+                inputRef={register("sourceID")}
+                onChange={onChange}
+                value={value}
+              />
+            )}
             name="sourceID"
-            inputRef={register("sourceID")}
+            control={control}
           />
         </div>
         <div className={classes.formItemRightColumn}>
@@ -896,6 +953,51 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
             />
           </div>
         </div>
+        <div className={classes.formItemRightColumn}>
+          <Typography variant="subtitle2" className={classes.title}>
+            Which have been...
+          </Typography>
+          <div className={classes.checkboxGroup}>
+            <FormControlLabel
+              label="labelled"
+              labelPlacement="start"
+              control={
+                <Controller
+                  render={({ field: { onChange, value } }) => (
+                    <Checkbox
+                      color="primary"
+                      type="checkbox"
+                      onChange={(event) => onChange(event.target.checked)}
+                      checked={value}
+                    />
+                  )}
+                  name="hasBeenLabelled"
+                  control={control}
+                  defaultValue={false}
+                />
+              }
+            />
+            <FormControlLabel
+              label="not labelled"
+              labelPlacement="start"
+              control={
+                <Controller
+                  render={({ field: { onChange, value } }) => (
+                    <Checkbox
+                      color="primary"
+                      type="checkbox"
+                      onChange={(event) => onChange(event.target.checked)}
+                      checked={value}
+                    />
+                  )}
+                  name="hasNotBeenLabelled"
+                  control={control}
+                  defaultValue={false}
+                />
+              }
+            />
+          </div>
+        </div>
         <div className={classes.formItem}>
           <Typography variant="subtitle2" className={classes.title}>
             Time of Most Recent Spectrum (UTC)
@@ -1020,6 +1122,71 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
                 </Select>
               )}
               name="localizationid"
+              control={control}
+              defaultValue=""
+            />
+          </div>
+        </div>
+        <div className={classes.formItemRightColumn}>
+          <Typography variant="subtitle2" className={classes.title}>
+            Spatial Catalog
+          </Typography>
+          <div className={classes.selectItems}>
+            <Controller
+              render={({ field: { value } }) => (
+                <Select
+                  inputProps={{ MenuProps: { disableScrollLock: true } }}
+                  labelId="spatialCatalogSelectLabel"
+                  value={value || ""}
+                  onChange={(event) => {
+                    reset({
+                      ...getValues(),
+                      spatialcatalogid:
+                        event.target.value === -1 ? "" : event.target.value,
+                    });
+                    setSelectedSpatialCatalogId(event.target.value);
+                  }}
+                  className={classes.select}
+                >
+                  {spatialCatalogsSelect?.map((cat) => (
+                    <MenuItem
+                      value={cat.id}
+                      key={cat.id}
+                      className={classes.selectItem}
+                    >
+                      {`${cat.catalog_name}`}
+                    </MenuItem>
+                  ))}
+                </Select>
+              )}
+              name="spatialcatalogid"
+              control={control}
+              defaultValue=""
+            />
+            <Controller
+              render={({ field: { onChange, value } }) => (
+                <Select
+                  inputProps={{ MenuProps: { disableScrollLock: true } }}
+                  labelId="spatialCatalogEntrySelectLabel"
+                  value={value || ""}
+                  onChange={(event) => {
+                    onChange(event.target.value);
+                  }}
+                  className={classes.select}
+                  disabled={!selectedSpatialCatalogId}
+                >
+                  {spatialCatalog?.entries?.map((spatialCatalogEntry) => (
+                    <MenuItem
+                      value={spatialCatalogEntry.id}
+                      key={spatialCatalogEntry.id}
+                      className={classes.selectItem}
+                    >
+                      {`${spatialCatalogEntry.entry_name}`}
+                    </MenuItem>
+                  ))}
+                </Select>
+              )}
+              name="spatialcatalogentryid"
               control={control}
               defaultValue=""
             />

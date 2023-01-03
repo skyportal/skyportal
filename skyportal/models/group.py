@@ -231,6 +231,9 @@ class AccessibleIfGroupUserIsAdminAndUserMatches(AccessibleIfUserMatches):
 accessible_by_group_admins = AccessibleIfGroupUserIsAdminAndUserMatches(
     'group.group_users.user'
 )
+accessible_by_groups_admins = AccessibleIfGroupUserIsAdminAndUserMatches(
+    'groups.group_users.user'
+)
 accessible_by_admins = AccessibleIfGroupUserIsAdminAndUserMatches('group_users.user')
 accessible_by_members = AccessibleIfUserMatches('users')
 accessible_by_stream_members = AccessibleIfUserMatches('stream.users')
@@ -387,6 +390,13 @@ class Group(Base):
         cascade="save-update, merge, refresh-expire, expunge",
         passive_deletes=True,
         doc="Allocations made to this group.",
+    )
+    source_labels = relationship(
+        'SourceLabel',
+        back_populates="group",
+        cascade="save-update, merge, refresh-expire, expunge",
+        passive_deletes=True,
+        doc="Source labels made by this group.",
     )
     admission_requests = relationship(
         "GroupAdmissionRequest",

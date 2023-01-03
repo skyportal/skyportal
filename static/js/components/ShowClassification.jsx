@@ -1,9 +1,18 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
+import { useSelector, useDispatch } from "react-redux";
 import PropTypes from "prop-types";
 import Tooltip from "@mui/material/Tooltip";
 import Chip from "@mui/material/Chip";
-
+import DeleteIcon from "@mui/icons-material/Delete";
+import ThumbUp from "@mui/icons-material/ThumbUp";
+import ThumbDown from "@mui/icons-material/ThumbDown";
 import makeStyles from "@mui/styles/makeStyles";
+
+import { showNotification } from "baselayer/components/Notifications";
+import Button from "./Button";
+import ConfirmDeletionDialog from "./ConfirmDeletionDialog";
+
+import * as sourceActions from "../ducks/source";
 
 export const useStyles = makeStyles((theme) => ({
   chip: {
@@ -11,12 +20,107 @@ export const useStyles = makeStyles((theme) => ({
     fontSize: "1.2rem",
     fontWeight: "bold",
   },
+  classificationDelete: {
+    cursor: "pointer",
+    fontSize: "2em",
+    position: "absolute",
+    padding: 0,
+    right: 0,
+    top: 0,
+  },
+  classificationDeleteDisabled: {
+    opacity: 0,
+  },
 }));
 
 const ClassificationRow = ({ classifications }) => {
   const classes = useStyles();
+  const dispatch = useDispatch();
+
+  const currentUser = useSelector((state) => state.profile);
+  const groupUsers = useSelector((state) => state.group?.group_users);
+  const currentGroupUser = groupUsers?.filter(
+    (groupUser) => groupUser.user_id === currentUser.id
+  )[0];
+
+  useEffect(() => {
+    if (
+      currentGroupUser?.admin !== undefined &&
+      currentGroupUser?.admin !== null
+    ) {
+      window.localStorage.setItem(
+        "CURRENT_GROUP_ADMIN",
+        JSON.stringify(currentGroupUser.admin)
+      );
+    }
+  }, [currentGroupUser]);
+
+  const isGroupAdmin = JSON.parse(
+    window.localStorage.getItem("CURRENT_GROUP_ADMIN")
+  );
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [classificationToDelete, setClassificationToDelete] = useState(null);
+  const openDialog = (id) => {
+    setDialogOpen(true);
+    setClassificationToDelete(id);
+  };
+  const closeDialog = () => {
+    setDialogOpen(false);
+    setClassificationToDelete(null);
+  };
+
+  const addVote = (classification_id, vote) => {
+    dispatch(
+      sourceActions.addClassificationVote(classification_id, { vote })
+    ).then((result) => {
+      if (result.status === "success") {
+        dispatch(showNotification("Vote registered"));
+      }
+    });
+  };
+
+  const deleteClassification = () => {
+    dispatch(sourceActions.deleteClassification(classificationToDelete)).then(
+      (result) => {
+        if (result.status === "success") {
+          dispatch(showNotification("Classification deleted"));
+          closeDialog();
+        }
+      }
+    );
+  };
 
   const classification = classifications[0];
+
+  const upvoterIds = [];
+  const downvoterIds = [];
+  let upvoteValue = 1;
+  let downvoteValue = -1;
+  let upvoteColor = "disabled";
+  let downvoteColor = "disabled";
+
+  classification.votes?.forEach((s) => {
+    if (s.vote === 1) {
+      upvoterIds.push(s.id);
+      if (s.voter_id === currentUser.id) {
+        upvoteValue = 0;
+        upvoteColor = "success";
+      }
+    } else if (s.vote === -1) {
+      downvoterIds.push(s.id);
+      if (s.voter_id === currentUser.id) {
+        downvoteValue = 0;
+        downvoteColor = "error";
+      }
+    }
+  });
+
+  const permission =
+    currentUser.permissions.includes("System admin") ||
+    currentUser.permissions.includes("Manage groups") ||
+    isGroupAdmin ||
+    currentUser.username === classification.author_name;
+
   const clsProb = classification.probability
     ? classification.probability
     : "null";
@@ -28,15 +132,63 @@ const ClassificationRow = ({ classifications }) => {
         disableTouchListener
         title={
           <div>
-            {classifications.map((cls) => (
-              <>
-                P=
-                {clsProb} ({cls.taxname})
-                <br />
-                <i>{cls.author_name}</i>
-                <br />
-              </>
-            ))}
+            <div>
+              {classifications.map((cls) => (
+                <>
+                  P=
+                  {clsProb} ({cls.taxname})
+                  <br />
+                  <i>{cls.author_name}</i>
+                  <br />
+                </>
+              ))}
+            </div>
+            <div>
+              <Button
+                key={classification.id}
+                id="delete_classification"
+                classes={{
+                  root: classes.classificationDelete,
+                  disabled: classes.classificationDeleteDisabled,
+                }}
+                onClick={() => openDialog(classification.id)}
+                disabled={!permission}
+              >
+                <DeleteIcon />
+              </Button>
+              <ConfirmDeletionDialog
+                deleteFunction={deleteClassification}
+                dialogOpen={dialogOpen}
+                closeDialog={closeDialog}
+                resourceName="classification"
+              />
+            </div>
+            <div>
+              <Button
+                key={classification.id}
+                id="down_vote"
+                onClick={() => addVote(classification.id, downvoteValue)}
+              >
+                <ThumbDown color={downvoteColor} />
+                <font color="white">
+                  {" "}
+                  &nbsp; {`${downvoterIds.length} vote(s)`}{" "}
+                </font>
+              </Button>
+            </div>
+            <div>
+              <Button
+                key={classification.id}
+                id="up_vote"
+                onClick={() => addVote(classification.id, upvoteValue)}
+              >
+                <ThumbUp color={upvoteColor} />
+                <font color="white">
+                  {" "}
+                  &nbsp; {`${upvoterIds.length} vote(s)`}{" "}
+                </font>
+              </Button>
+            </div>
           </div>
         }
       >
@@ -68,6 +220,12 @@ ClassificationRow.propTypes = {
         PropTypes.shape({
           id: PropTypes.number,
           name: PropTypes.string,
+        })
+      ),
+      votes: PropTypes.arrayOf(
+        PropTypes.shape({
+          id: PropTypes.number,
+          vote: PropTypes.number,
         })
       ),
     })

@@ -14,10 +14,10 @@ const ConfirmDeletionDialog = ({
   closeDialog,
   resourceName,
 }) => (
-  <Dialog open={dialogOpen} onClose={closeDialog}>
+  <Dialog sx={{ "z-index": 99999 }} open={dialogOpen} onClose={closeDialog}>
     <DialogTitle>Delete {resourceName}?</DialogTitle>
     <DialogContent>
-      Are you sure you want to delete this {resourceName}?
+      Are you sure you want to delete this/these {resourceName}?
     </DialogContent>
     <DialogActions>
       <Button secondary autoFocus onClick={closeDialog}>

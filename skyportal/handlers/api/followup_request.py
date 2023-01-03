@@ -1,4 +1,5 @@
 import arrow
+from datetime import datetime, timedelta
 import healpy as hp
 import jsonschema
 from marshmallow.exceptions import ValidationError
@@ -8,6 +9,7 @@ from tornado.ioloop import IOLoop
 import pandas as pd
 import tempfile
 import functools
+import json
 from scipy.stats import norm
 import sqlalchemy as sa
 from sqlalchemy import func
@@ -21,6 +23,8 @@ from astroplan import Observer
 from astroplan import FixedTarget
 from astroplan import ObservingBlock
 from astroplan.constraints import (
+    Constraint,
+    AltitudeConstraint,
     AtNightConstraint,
     AirmassConstraint,
     MoonSeparationConstraint,
@@ -37,13 +41,16 @@ from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.flow import Flow
 from ..base import BaseHandler
 from ...models import (
+    DefaultFollowupRequest,
     FollowupRequest,
+    FollowupRequestUser,
     Instrument,
     ClassicalAssignment,
     Localization,
     ObservingRun,
     Obj,
     Group,
+    User,
     Allocation,
     cosmo,
 )
@@ -354,6 +361,84 @@ class AssignmentHandler(BaseHandler):
             return self.success()
 
 
+def post_followup_request(data, session, refresh_source=True):
+    """Post follow-up request to database.
+    data: dict
+        Follow-up request dictionary
+    session: sqlalchemy.Session
+        Database session for this transaction
+    refresh_source : bool
+        Refresh source upon post. Defaults to True.
+    """
+
+    stmt = Allocation.select(session.user_or_token).where(
+        Allocation.id == data['allocation_id'],
+    )
+    allocation = session.scalars(stmt).first()
+    instrument = allocation.instrument
+
+    if instrument.api_classname is None:
+        raise ValueError('Instrument has no remote API.')
+
+    if not instrument.api_class.implements()['submit']:
+        raise ValueError('Cannot submit followup requests to this Instrument.')
+
+    group_ids = data.pop('target_group_ids', [])
+    stmt = Group.select(session.user_or_token).where(Group.id.in_(group_ids))
+    target_groups = session.scalars(stmt).all()
+
+    watcher_ids = data.pop('watcher_ids', None)
+    if watcher_ids is not None:
+        watchers = session.scalars(
+            sa.select(User).where(User.id.in_(watcher_ids))
+        ).all()
+    else:
+        watchers = []
+
+    try:
+        formSchema = instrument.api_class.custom_json_schema(
+            instrument, session.user_or_token
+        )
+    except AttributeError:
+        formSchema = instrument.api_class.form_json_schema
+
+    # validate the payload
+    jsonschema.validate(data['payload'], formSchema)
+
+    followup_request = FollowupRequest.__schema__().load(data)
+    followup_request.target_groups = target_groups
+    followup_request.watchers = watchers
+    session.add(followup_request)
+
+    if refresh_source:
+        session.commit()
+
+        flow = Flow()
+        flow.push(
+            '*',
+            "skyportal/REFRESH_SOURCE",
+            payload={"obj_key": followup_request.obj.internal_key},
+        )
+
+    try:
+        instrument.api_class.submit(
+            followup_request, session, refresh_source=refresh_source
+        )
+    except Exception:
+        followup_request.status = 'failed to submit'
+        raise
+    finally:
+        if refresh_source:
+            session.commit()
+            flow.push(
+                '*',
+                "skyportal/REFRESH_SOURCE",
+                payload={"obj_key": followup_request.obj.internal_key},
+            )
+
+    return followup_request.id
+
+
 class FollowupRequestHandler(BaseHandler):
     @auth_or_token
     def get(self, followup_request_id=None):
@@ -481,6 +566,7 @@ class FollowupRequestHandler(BaseHandler):
                     joinedload(FollowupRequest.obj).joinedload(Obj.thumbnails),
                     joinedload(FollowupRequest.requester),
                     joinedload(FollowupRequest.obj),
+                    joinedload(FollowupRequest.watchers),
                 )
                 followup_request = session.scalars(followup_requests).first()
                 if followup_request is None:
@@ -529,6 +615,7 @@ class FollowupRequestHandler(BaseHandler):
                 joinedload(FollowupRequest.allocation).joinedload(Allocation.group),
                 joinedload(FollowupRequest.obj),
                 joinedload(FollowupRequest.requester),
+                joinedload(FollowupRequest.watchers),
             )
 
             count_stmt = sa.select(func.count()).select_from(followup_requests)
@@ -588,55 +675,9 @@ class FollowupRequestHandler(BaseHandler):
             data["last_modified_by_id"] = self.associated_user_object.id
             data['allocation_id'] = int(data['allocation_id'])
 
-            stmt = Allocation.select(session.user_or_token).where(
-                Allocation.id == data['allocation_id'],
-            )
-            allocation = session.scalars(stmt).first()
-            instrument = allocation.instrument
+            followup_request_id = post_followup_request(data, session)
 
-            if instrument.api_classname is None:
-                return self.error('Instrument has no remote API.')
-
-            if not instrument.api_class.implements()['submit']:
-                return self.error('Cannot submit followup requests to this Instrument.')
-
-            group_ids = data.pop('target_group_ids', [])
-            stmt = Group.select(self.current_user).where(Group.id.in_(group_ids))
-            target_groups = session.scalars(stmt).all()
-
-            try:
-                formSchema = instrument.api_class.custom_json_schema(
-                    instrument, self.current_user
-                )
-            except AttributeError:
-                formSchema = instrument.api_class.form_json_schema
-
-            # validate the payload
-            jsonschema.validate(data['payload'], formSchema)
-
-            followup_request = FollowupRequest.__schema__().load(data)
-            followup_request.target_groups = target_groups
-            session.add(followup_request)
-            session.commit()
-
-            self.push_all(
-                action="skyportal/REFRESH_SOURCE",
-                payload={"obj_key": followup_request.obj.internal_key},
-            )
-
-            try:
-                instrument.api_class.submit(followup_request, session)
-            except Exception:
-                followup_request.status = 'failed to submit'
-                raise
-            finally:
-                session.commit()
-                self.push_all(
-                    action="skyportal/REFRESH_SOURCE",
-                    payload={"obj_key": followup_request.obj.internal_key},
-                )
-
-            return self.success(data={"id": followup_request.id})
+            return self.success(data={"id": followup_request_id})
 
     @permissions(["Upload data"])
     def put(self, request_id):
@@ -782,6 +823,72 @@ class FollowupRequestHandler(BaseHandler):
             return self.success()
 
 
+class HourAngleConstraint(Constraint):
+    """
+    Constrain the hour angle of a target.
+
+    Parameters
+    ----------
+    min : float or `None`
+        Minimum hour angle of the target. `None` indicates no limit.
+    max : float or `None`
+        Maximum hour angle of the target. `None` indicates no limit.
+    """
+
+    def __init__(self, min=-5.5, max=5.5):
+        self.min = min
+        self.max = max
+
+    def compute_constraint(self, times, observer, targets):
+
+        has = np.zeros((len(targets), len(times)))
+        for ii, tt in enumerate(times):
+            tt = Time(tt, format='jd', scale='utc', location=observer.location)
+            lst = tt.sidereal_time('mean')
+            has[:, ii] = [(lst - target.ra).hour for target in targets]
+
+        if self.min is None and self.max is not None:
+            mask = has <= self.max
+        elif self.max is None and self.min is not None:
+            mask = self.min <= has
+        elif self.min is not None and self.max is not None:
+            mask = (self.min <= has) & (has <= self.max)
+        else:
+            raise ValueError("No max and/or min specified in " "HourAngleConstraint.")
+        return mask
+
+
+class TargetOfOpportunityConstraint(Constraint):
+    """
+    Prioritize target of opportunity targets by giving them
+    higher weights at earlier times.
+
+    Parameters
+    ----------
+    toos : List[bool]
+        List indicating whether targets are ToOs or not.
+    tau : `~astropy.units.Quantity`
+        Exponential decay constant for normalization (in days).
+        Defaults to 1 hour.
+    """
+
+    def __init__(self, tau=1 / 24 * u.day, toos=None):
+        self.tau = tau
+        self.toos = toos
+
+    def compute_constraint(self, times, observer, targets):
+        tt = times - times[0]
+        exp_func = np.exp(-tt / self.tau)
+        exp_func = exp_func / np.max(exp_func)
+
+        reward_function = np.ones((len(targets), len(times)))
+        for ii, too in enumerate(self.toos):
+            if too:
+                reward_function[ii, :] = exp_func
+
+        return reward_function
+
+
 def observation_schedule(
     followup_requests,
     instrument,
@@ -827,13 +934,10 @@ def observation_schedule(
     )
     observer = Observer(location=location, name=instrument.name)
 
-    global_constraints = [
-        AirmassConstraint(max=2.50, boolean_constraint=False),
-        AtNightConstraint.twilight_civil(),
-        MoonSeparationConstraint(min=10.0 * u.deg),
-    ]
-
     blocks = []
+    toos = []
+
+    # FIXME: account for different instrument readout times
     read_out = 10.0 * u.s
 
     for ii, followup_request in enumerate(followup_requests):
@@ -873,6 +977,11 @@ def observation_schedule(
         else:
             exposure_counts = 1
 
+        if "too" in payload:
+            too = payload["too"] in ["Y", "Yes", "True", "t", "true", "1", True, 1]
+        else:
+            too = False
+
         # get extra constraints
         constraints = []
         if "minimum_lunar_distance" in payload:
@@ -894,6 +1003,7 @@ def observation_schedule(
                     'group_id': allocation.group_id,
                     'request_id': followup_request.id,
                     'filter': bandpass,
+                    'exposure_time': exposure_time,
                 }
                 for bandpass in payload["observation_choices"]
             ]
@@ -904,6 +1014,7 @@ def observation_schedule(
                     'group_id': allocation.group_id,
                     'request_id': followup_request.id,
                     'filter': 'default',
+                    'exposure_time': exposure_time,
                 }
             ]
 
@@ -918,8 +1029,24 @@ def observation_schedule(
             )
             blocks.append(b)
 
+            if too:
+                toos.append(True)
+            else:
+                toos.append(False)
+
+    global_constraints = [
+        AirmassConstraint(max=2.50, boolean_constraint=False),
+        AltitudeConstraint(20 * u.deg, 90 * u.deg),
+        AtNightConstraint.twilight_civil(),
+        HourAngleConstraint(min=-5.5, max=5.5),
+        MoonSeparationConstraint(min=10.0 * u.deg),
+        TargetOfOpportunityConstraint(toos=toos),
+    ]
+
     # Initialize a transitioner object with the slew rate and/or the
     # duration of other transitions (e.g. filter changes)
+
+    # FIXME: account for different telescope slew rates
     slew_rate = 2.0 * u.deg / u.second
     transitioner = Transitioner(slew_rate, {'filter': {'default': 10 * u.second}})
 
@@ -969,10 +1096,10 @@ def observation_schedule(
             request_id = block["configuration"]["request_id"]
             group_id = block["configuration"]["group_id"]
             requester = block["configuration"]["requester"]
+            exposure_time = int(block["configuration"]["exposure_time"].value)
 
             obs_start = Time(block["start time (UTC)"], format='iso')
             obs_end = Time(block["end time (UTC)"], format='iso')
-            exposure_time = int(block["duration (minutes)"] * 60.0)
 
             c = SkyCoord(
                 ra=block["ra"] * u.degree, dec=block["dec"] * u.degree, frame='icrs'
@@ -1372,6 +1499,349 @@ class FollowupRequestPrioritizationHandler(BaseHandler):
             flow.push(
                 '*',
                 "skyportal/REFRESH_FOLLOWUP_REQUESTS",
+            )
+
+            return self.success()
+
+
+class DefaultFollowupRequestHandler(BaseHandler):
+    @auth_or_token
+    def post(self):
+        """
+        ---
+        description: Create default follow-up request.
+        tags:
+          - default_followup_request
+        requestBody:
+          content:
+            application/json:
+              schema: DefaultFollowupRequestPost
+        responses:
+          200:
+            content:
+              application/json:
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              description: New default follow-up request ID
+        """
+        data = self.get_json()
+
+        with self.Session() as session:
+            target_group_ids = data.pop('target_group_ids', [])
+            stmt = Group.select(self.current_user).where(Group.id.in_(target_group_ids))
+            target_groups = session.scalars(stmt).all()
+
+            stmt = Allocation.select(session.user_or_token).where(
+                Allocation.id == data['allocation_id'],
+            )
+            allocation = session.scalars(stmt).first()
+            if allocation is None:
+                return self.error(
+                    f"Cannot access allocation with ID: {data['allocation_id']}",
+                    status=403,
+                )
+
+            instrument = allocation.instrument
+            if instrument.api_classname is None:
+                return self.error('Instrument has no remote API.', status=403)
+
+            try:
+                formSchema = instrument.api_class.custom_json_schema(
+                    instrument, self.current_user
+                )
+            except AttributeError:
+                formSchema = instrument.api_class.form_json_schema
+
+            payload = data['payload']
+            if "start_date" in payload:
+                return self.error('Cannot have start_date in the payload')
+            else:
+                payload['start_date'] = str(datetime.utcnow())
+
+            if "end_date" in payload:
+                return self.error('Cannot have end_date in the payload')
+            else:
+                payload['end_date'] = str(datetime.utcnow() + timedelta(days=1))
+
+            # validate the payload
+            try:
+                jsonschema.validate(payload, formSchema)
+            except jsonschema.exceptions.ValidationError as e:
+                return self.error(f'Payload failed to validate: {e}', status=403)
+
+            if "source_filter" in data:
+                if not isinstance(data["source_filter"], dict):
+                    try:
+                        data["source_filter"] = data["source_filter"].replace("'", '"')
+                        data["source_filter"] = json.loads(data["source_filter"])
+                    except json.decoder.JSONDecodeError:
+                        return self.error(
+                            'Incorrect format for source_filter. Must be a json string.'
+                        )
+
+            default_followup_request = DefaultFollowupRequest.__schema__().load(data)
+            default_followup_request.target_groups = target_groups
+
+            session.add(default_followup_request)
+            session.commit()
+
+            self.push_all(action="skyportal/REFRESH_DEFAULT_FOLLOWUP_REQUESTS")
+            return self.success(data={"id": default_followup_request.id})
+
+    @auth_or_token
+    def get(self, default_followup_request_id=None):
+        """
+        ---
+        single:
+          description: Retrieve a single default follow-up request
+          tags:
+            - default_followup_requests
+          parameters:
+            - in: path
+              name: default_followup_request_id
+              required: true
+              schema:
+                type: integer
+          responses:
+            200:
+              content:
+                application/json:
+                  schema: SingleDefaultFollowupRequest
+            400:
+              content:
+                application/json:
+                  schema: Error
+        multiple:
+          description: Retrieve all default follow-up requests
+          tags:
+            - filters
+          responses:
+            200:
+              content:
+                application/json:
+                  schema: ArrayOfDefaultFollowupRequests
+            400:
+              content:
+                application/json:
+                  schema: Error
+        """
+
+        with self.Session() as session:
+            if default_followup_request_id is not None:
+                default_followup_request = session.scalars(
+                    DefaultFollowupRequest.select(
+                        session.user_or_token,
+                        mode="update",
+                        options=[joinedload(DefaultFollowupRequest.allocation)],
+                    ).where(DefaultFollowupRequest.id == default_followup_request_id)
+                ).first()
+                if default_followup_request is None:
+                    return self.error(
+                        f'Cannot find DefaultFollowupRequestRequest with ID {default_followup_request_id}'
+                    )
+                return self.success(data=default_followup_request)
+
+            default_followup_requests = (
+                session.scalars(
+                    DefaultFollowupRequest.select(
+                        session.user_or_token,
+                        options=[joinedload(DefaultFollowupRequest.allocation)],
+                    )
+                )
+                .unique()
+                .all()
+            )
+
+            default_followup_request_data = []
+            for request in default_followup_requests:
+                default_followup_request_data.append(
+                    {
+                        **request.to_dict(),
+                        'allocation': request.allocation.to_dict(),
+                    }
+                )
+
+            return self.success(data=default_followup_request_data)
+
+    @auth_or_token
+    def delete(self, default_followup_request_id):
+        """
+        ---
+        description: Delete a default follow-up request
+        tags:
+          - filters
+        parameters:
+          - in: path
+            name: default_followup_request_id
+            required: true
+            schema:
+              type: integer
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+        """
+
+        with self.Session() as session:
+
+            stmt = DefaultFollowupRequest.select(
+                session.user_or_token, mode="delete"
+            ).where(DefaultFollowupRequest.id == default_followup_request_id)
+            default_followup_request = session.scalars(stmt).first()
+
+            if default_followup_request is None:
+                return self.error(
+                    f'Default follow-up request with ID {default_followup_request_id} is not available.'
+                )
+
+            session.delete(default_followup_request)
+            session.commit()
+            self.push_all(action="skyportal/REFRESH_DEFAULT_FOLLOWUP_REQUESTS")
+            return self.success()
+
+
+class FollowupRequestWatcherHandler(BaseHandler):
+    @auth_or_token
+    def post(self, followup_request_id):
+        """
+        ---
+        description: Add follow-up request to watch list
+        tags:
+            - followup_requests
+        parameters:
+            - in: path
+              name: followup_request_id
+              required: true
+              schema:
+                type: integer
+        responses:
+            200:
+               content:
+                application/json:
+                  schema: Success
+            400:
+              content:
+                application/json:
+                  schema: Error
+        """
+
+        with self.Session() as session:
+
+            # get owned assignments
+            followup_requests = FollowupRequest.select(self.current_user)
+
+            try:
+                followup_request_id = int(followup_request_id)
+            except ValueError:
+                return self.error("Assignment ID must be an integer.")
+
+            followup_requests = followup_requests.where(
+                FollowupRequest.id == followup_request_id
+            ).options(
+                joinedload(FollowupRequest.watchers),
+            )
+            followup_request = session.scalars(followup_requests).first()
+            if followup_request is None:
+                return self.error("Could not retrieve followup request.")
+
+            watchers = followup_request.watchers
+            if any([watcher.id == self.current_user.id for watcher in watchers]):
+                return self.error("User already watching this request")
+
+            watcher = FollowupRequestUser(
+                user_id=self.current_user.id, followuprequest_id=followup_request_id
+            )
+            session.add(watcher)
+            session.commit()
+
+            flow = Flow()
+            flow.push(
+                user_id=self.current_user.id,
+                action_type="skyportal/REFRESH_FOLLOWUP_REQUESTS",
+            )
+            flow.push(
+                user_id=self.current_user.id,
+                action_type="skyportal/REFRESH_SOURCE",
+                payload={"obj_key": followup_request.obj.internal_key},
+            )
+
+            return self.success()
+
+    @auth_or_token
+    def delete(self, followup_request_id):
+        """
+        ---
+        description: Delete follow-up request from watch list
+        tags:
+            - followup_requests
+        parameters:
+            - in: path
+              name: followup_request_id
+              required: true
+              schema:
+                type: integer
+        responses:
+            200:
+               content:
+                application/json:
+                  schema: Success
+            400:
+              content:
+                application/json:
+                  schema: Error
+        """
+
+        with self.Session() as session:
+
+            # get owned assignments
+            followup_requests = FollowupRequest.select(self.current_user)
+
+            try:
+                followup_request_id = int(followup_request_id)
+            except ValueError:
+                return self.error("Assignment ID must be an integer.")
+
+            followup_requests = followup_requests.where(
+                FollowupRequest.id == followup_request_id
+            ).options(
+                joinedload(FollowupRequest.watchers),
+            )
+            followup_request = session.scalars(followup_requests).first()
+            if followup_request is None:
+                return self.error("Could not retrieve followup request.")
+
+            watcher = session.scalars(
+                FollowupRequestUser.select(self.current_user, mode="delete").where(
+                    FollowupRequestUser.user_id == self.current_user.id,
+                    FollowupRequestUser.followuprequest_id == followup_request_id,
+                )
+            ).first()
+            if watcher is None:
+                return self.error(
+                    f"The user {self.current_user.id} is not watching request {followup_request_id}."
+                )
+
+            session.delete(watcher)
+            session.commit()
+
+            flow = Flow()
+            flow.push(
+                user_id=self.current_user.id,
+                action_type="skyportal/REFRESH_FOLLOWUP_REQUESTS",
+            )
+            flow.push(
+                user_id=self.current_user.id,
+                action_type="skyportal/REFRESH_SOURCE",
+                payload={"obj_key": followup_request.obj.internal_key},
             )
 
             return self.success()
