@@ -31,7 +31,7 @@ else:
 
 ZTF_FORCED_URL = cfg['app.ztf_forced_endpoint']
 
-bands = {'g': 1, 'ztfg': 1, 'r': 1, 'ztfr': 2, 'i': 3, 'ztfi': 3}
+bands = {'g': 1, 'ztfg': 1, 'r': 2, 'ztfr': 2, 'i': 3, 'ztfi': 3}
 inv_bands = {1: 'ztfg', 2: 'ztfr', 3: 'ztfi'}
 
 log = make_log('facility_apis/ztf')
