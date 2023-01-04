@@ -216,6 +216,19 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
 
   const validate = (formData) => {
     let valid = true;
+    if (
+      formData.currentUserLabeller === true &&
+      formData.hasBeenLabelled === false &&
+      formData.hasNotBeenLabelled === false
+    ) {
+      dispatch(
+        showNotification(
+          "Please specify whether to filter for labelled or not labelled sources by the current user",
+          "error"
+        )
+      );
+      valid = false;
+    }
     if (formData.gcneventid !== "" || formData.localizationid !== "") {
       if (formData.startDate === "" || formData.endDate === "") {
         dispatch(
