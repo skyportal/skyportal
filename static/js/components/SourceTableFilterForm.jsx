@@ -996,6 +996,25 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
                 />
               }
             />
+            <FormControlLabel
+              label="by me"
+              labelPlacement="start"
+              control={
+                <Controller
+                  render={({ field: { onChange, value } }) => (
+                    <Checkbox
+                      color="primary"
+                      type="checkbox"
+                      onChange={(event) => onChange(event.target.checked)}
+                      checked={value}
+                    />
+                  )}
+                  name="currentUserLabeller"
+                  control={control}
+                  defaultValue={false}
+                />
+              }
+            />
           </div>
         </div>
         <div className={classes.formItem}>
