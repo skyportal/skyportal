@@ -16,6 +16,7 @@ import {
 import makeStyles from "@mui/styles/makeStyles";
 import MUIDataTable from "mui-datatables";
 
+import Button from "./Button";
 import { ra_to_hours, dec_to_dms } from "../units";
 
 const useStyles = makeStyles(() => ({
@@ -98,10 +99,32 @@ const GcnLocalizationsTable = ({ localizations }) => {
   }
 
   const getDataTableColumns = () => {
-    const columns = [
-      { name: "created_at", label: "Created at" },
-      { name: "localization_name", label: "Name" },
-    ];
+    const columns = [{ name: "created_at", label: "Created at" }];
+
+    const renderName = (dataIndex) => {
+      const localization = localizations[dataIndex];
+      return (
+        <div>
+          <Button
+            secondary
+            href={`/api/localization/${localization.dateobs}/name/${localization.localization_name}/download`}
+            download={`localization-${localization.id}.fits`}
+            size="small"
+            type="submit"
+            data-testid={`localization_${localization.id}`}
+          >
+            {localization.localization_name}
+          </Button>
+        </div>
+      );
+    };
+    columns.push({
+      name: "localization_name",
+      label: "Name",
+      options: {
+        customBodyRenderLite: renderName,
+      },
+    });
 
     const renderCenter = (dataIndex) => {
       const localization = localizations[dataIndex];
@@ -238,6 +261,7 @@ GcnLocalizationsTable.propTypes = {
     PropTypes.shape({
       id: PropTypes.number,
       localization_name: PropTypes.string,
+      dateobs: PropTypes.string,
       properties: PropTypes.arrayOf(
         PropTypes.shape({
           id: PropTypes.number,

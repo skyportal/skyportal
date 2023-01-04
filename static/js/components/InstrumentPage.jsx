@@ -171,8 +171,12 @@ const InstrumentPage = () => {
   const { telescopeList } = useSelector((state) => state.telescopes);
   const currentUser = useSelector((state) => state.profile);
 
-  const permission =
-    currentUser.permissions?.includes("Manage allocations") ||
+  const post_permission =
+    currentUser.permissions?.includes("Manage instruments") ||
+    currentUser.permissions?.includes("System admin");
+
+  const delete_permission =
+    currentUser.permissions?.includes("Delete instrument") ||
     currentUser.permissions?.includes("System admin");
 
   const classes = useStyles();
@@ -185,12 +189,12 @@ const InstrumentPage = () => {
             <InstrumentList
               instruments={instrumentList}
               telescopes={telescopeList}
-              deletePermission={permission}
+              deletePermission={delete_permission}
             />
           </div>
         </Paper>
       </Grid>
-      {permission && (
+      {post_permission && (
         <Grid item md={6} sm={12}>
           <Paper>
             <div className={classes.paperContent}>

@@ -36,6 +36,7 @@ import Button from "./Button";
 
 import FormValidationError from "./FormValidationError";
 import UserInvitations from "./UserInvitations";
+import UpdateUserParameter from "./UpdateUserParameter";
 import * as groupsActions from "../ducks/groups";
 import * as usersActions from "../ducks/users";
 import * as streamsActions from "../ducks/streams";
@@ -346,9 +347,31 @@ const UserManagement = () => {
     const user = users[dataIndex];
     return (
       <div>
-        {`${user.first_name ? user.first_name : ""} ${
-          user.last_name ? user.last_name : ""
-        }`}
+        {`${user.first_name ? user.first_name : ""}`}
+        <UpdateUserParameter user={user} parameter="first_name" />
+        {`${user.last_name ? user.last_name : ""}`}
+        <UpdateUserParameter user={user} parameter="last_name" />
+      </div>
+    );
+  };
+
+  // MUI DataTable functions
+  const renderUsername = (dataIndex) => {
+    const user = users[dataIndex];
+    return (
+      <div>
+        {`${user.username}`}
+        <UpdateUserParameter user={user} parameter="username" />
+      </div>
+    );
+  };
+
+  const renderEmail = (dataIndex) => {
+    const user = users[dataIndex];
+    return (
+      <div>
+        {`${user.contact_email ? user.contact_email : ""}`}
+        <UpdateUserParameter user={user} parameter="contact_email" />
       </div>
     );
   };
@@ -740,6 +763,7 @@ const UserManagement = () => {
       options: {
         // Turn off default filtering for custom form
         filter: false,
+        customBodyRenderLite: renderUsername,
       },
     },
     {
@@ -757,6 +781,7 @@ const UserManagement = () => {
       label: "Email",
       options: {
         filter: false,
+        customBodyRenderLite: renderEmail,
       },
     },
     {

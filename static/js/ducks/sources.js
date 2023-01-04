@@ -31,6 +31,10 @@ const FETCH_SOURCE_AND_MERGE_OK = "skyportal/FETCH_SOURCE_AND_MERGE_OK";
 const FETCH_GCNEVENT_SOURCES = "skyportal/FETCH_GCNEVENT_SOURCES";
 const FETCH_GCNEVENT_SOURCES_OK = "skyportal/FETCH_GCNEVENT_SOURCES_OK";
 
+const FETCH_SPATIAL_CATALOG_SOURCES = "skyportal/FETCH_SPATIAL_CATALOG_SOURCES";
+const FETCH_SPATIAL_CATALOG_SOURCES_OK =
+  "skyportal/FETCH_SPATIAL_CATALOG_SOURCES_OK";
+
 const addFilterParamDefaults = (filterParams) => {
   if (!Object.keys(filterParams).includes("pageNumber")) {
     filterParams.pageNumber = 1;
@@ -44,6 +48,7 @@ const addFilterParamDefaults = (filterParams) => {
   filterParams.includeColorMagnitude = true;
   filterParams.includeThumbnails = true;
   filterParams.includeDetectionStats = true;
+  filterParams.includeLabellers = true;
 };
 
 export function fetchSources(filterParams = {}) {
@@ -94,6 +99,17 @@ export function fetchGcnEventSources(dateobs, filterParams = {}) {
 
   filterParams.includeGeoJSON = true;
   return API.GET("/api/sources", FETCH_GCNEVENT_SOURCES, filterParams);
+}
+
+export function fetchSpatialCatalogSources(
+  catalogName,
+  entryName,
+  filterParams = {}
+) {
+  addFilterParamDefaults(filterParams);
+  filterParams.spatialCatalogName = catalogName;
+  filterParams.spatialCatalogEntryName = entryName;
+  return API.GET("/api/sources", FETCH_SPATIAL_CATALOG_SOURCES, filterParams);
 }
 
 const initialState = {
@@ -212,6 +228,12 @@ const reducer = (
       return {
         ...state,
         gcnEventSources: action.data,
+      };
+    }
+    case FETCH_SPATIAL_CATALOG_SOURCES_OK: {
+      return {
+        ...state,
+        spatialCatalogSources: action.data,
       };
     }
     default:

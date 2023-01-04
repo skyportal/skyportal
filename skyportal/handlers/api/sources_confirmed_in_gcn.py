@@ -62,7 +62,7 @@ class Validator(Schema):
 
 class SourcesConfirmedInGCNHandler(BaseHandler):
     @auth_or_token
-    def get(self, dateobs, source_id=None):
+    async def get(self, dateobs, source_id=None):
         """
         ---
         single:
@@ -211,7 +211,7 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
         return self.success(data=sources_in_gcn)
 
     @permissions(['Manage GCNs'])
-    def post(self, dateobs):
+    async def post(self, dateobs):
         """
         ---
         description: Confirm or reject a source in a gcn
@@ -312,7 +312,7 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
 
         with self.Session() as session:
             try:
-                sources = get_sources(
+                sources = await get_sources(
                     user_id=self.associated_user_object.id,
                     session=session,
                     first_detected_date=start_date,
@@ -547,7 +547,7 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
 
 class GCNsAssociatedWithSourceHandler(BaseHandler):
     @auth_or_token
-    def get(self, source_id):
+    async def get(self, source_id):
         """
         ---
         description: Get the GCNs associated with a source (GCNs for which the source has been confirmed)

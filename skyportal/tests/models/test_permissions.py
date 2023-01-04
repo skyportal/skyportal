@@ -2106,14 +2106,14 @@ def test_group_admin_user_update_public_classification(
     group_admin_user, public_classification
 ):
     accessible = public_classification.is_accessible_by(group_admin_user, mode="update")
-    assert not accessible  # must be classification author
+    assert accessible  # must be classification author or super/group admin
 
 
 def test_group_admin_user_delete_public_classification(
     group_admin_user, public_classification
 ):
     accessible = public_classification.is_accessible_by(group_admin_user, mode="delete")
-    assert not accessible  # must be classification author
+    assert accessible  # must be classification author or super/group admin
 
 
 def test_user_create_public_groupclassification(user, public_groupclassification):

@@ -114,6 +114,8 @@ app:
       component: ObservationPage
     - path: "/galaxies"
       component: GalaxyPage
+    - path: "/spatial_catalogs"
+      component: SpatialCatalogPage
     - path: "/followup_requests"
       component: FollowupRequestPage
     - path: "/group_sources/:id"
@@ -150,6 +152,8 @@ app:
       component: ShiftNoId
     - path: "/shifts/:id"
       component: ShiftWithId
+    - path: "/taxonomies"
+      component: TaxonomyPage
 
   sidebar:
     # See https://material-ui.com/components/material-icons/
@@ -225,9 +229,17 @@ app:
           icon: TornadoOutlined
           url: /galaxies
 
+        - name: Spatial Catalogs
+          icon: PhotoSizeSelectLargeOutlined
+          url: /spatial_catalogs
+
         - name: Analysis Services
           icon: SentimentSatisfied
           url: /services
+
+        - name: Taxonomies
+          icon: WallpaperOutlined
+          url: /taxonomies
 
     - name: Admin
       permissions: ["Manage users", "System admin"]
