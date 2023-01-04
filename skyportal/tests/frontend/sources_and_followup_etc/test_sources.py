@@ -309,7 +309,6 @@ def test_classifications(driver, user, taxonomy_token, public_group, public_sour
     driver.find_element(
         By.XPATH,
         "//span[contains(@class, 'MuiChip-label') and text()='Mult-mode?']",
-        timeout=20,
     )
 
 
