@@ -368,7 +368,7 @@ def post_gcnevent_from_dictionary(payload, user_id, session):
 
 class GcnEventTagsHandler(BaseHandler):
     @auth_or_token
-    def get(self):
+    async def get(self):
         """
         ---
         description: Get all GCN Event tags
@@ -392,7 +392,7 @@ class GcnEventTagsHandler(BaseHandler):
 
 class GcnEventPropertiesHandler(BaseHandler):
     @auth_or_token
-    def get(self):
+    async def get(self):
         """
         ---
         description: Get all GCN Event properties
@@ -1233,7 +1233,7 @@ def add_contour(localization_id):
 
 class LocalizationHandler(BaseHandler):
     @auth_or_token
-    def get(self, dateobs, localization_name):
+    async def get(self, dateobs, localization_name):
         """
         ---
         description: Retrieve a GCN localization
@@ -1343,7 +1343,7 @@ class LocalizationHandler(BaseHandler):
 
 class LocalizationPropertiesHandler(BaseHandler):
     @auth_or_token
-    def get(self):
+    async def get(self):
         """
         ---
         description: Get all Localization properties
@@ -1625,7 +1625,7 @@ class GcnSummaryHandler(BaseHandler):
                     sources = []
                     while True:
                         # get the sources in the event
-                        sources_data = get_sources(
+                        sources_data = await get_sources(
                             user_id=self.associated_user_object.id,
                             session=session,
                             first_detected_date=start_date,
