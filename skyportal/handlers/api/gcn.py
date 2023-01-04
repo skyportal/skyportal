@@ -3,13 +3,16 @@
 import ast
 from astropy.time import Time
 import binascii
+import io
 import os
 import gcn
 from ligo.skymap.postprocess import crossmatch
 from ligo.skymap import distance, moc
+import ligo.skymap.io
 import lxml
 import xmlschema
 from urllib.parse import urlparse
+import tempfile
 from tornado.ioloop import IOLoop
 import arrow
 import astropy
@@ -365,7 +368,7 @@ def post_gcnevent_from_dictionary(payload, user_id, session):
 
 class GcnEventTagsHandler(BaseHandler):
     @auth_or_token
-    def get(self):
+    async def get(self):
         """
         ---
         description: Get all GCN Event tags
@@ -389,7 +392,7 @@ class GcnEventTagsHandler(BaseHandler):
 
 class GcnEventPropertiesHandler(BaseHandler):
     @auth_or_token
-    def get(self):
+    async def get(self):
         """
         ---
         description: Get all GCN Event properties
@@ -1230,7 +1233,7 @@ def add_contour(localization_id):
 
 class LocalizationHandler(BaseHandler):
     @auth_or_token
-    def get(self, dateobs, localization_name):
+    async def get(self, dateobs, localization_name):
         """
         ---
         description: Retrieve a GCN localization
@@ -1340,7 +1343,7 @@ class LocalizationHandler(BaseHandler):
 
 class LocalizationPropertiesHandler(BaseHandler):
     @auth_or_token
-    def get(self):
+    async def get(self):
         """
         ---
         description: Get all Localization properties
@@ -1622,7 +1625,7 @@ class GcnSummaryHandler(BaseHandler):
                     sources = []
                     while True:
                         # get the sources in the event
-                        sources_data = get_sources(
+                        sources_data = await get_sources(
                             user_id=self.associated_user_object.id,
                             session=session,
                             first_detected_date=start_date,
@@ -1954,3 +1957,79 @@ class GcnSummaryHandler(BaseHandler):
         except Exception as e:
             return self.error(f"Error generating summary: {e}")
         return self.success(data=contents)
+
+
+class LocalizationDownloadHandler(BaseHandler):
+    @auth_or_token
+    async def get(self, dateobs, localization_name):
+        """
+        ---
+        description: Download a GCN localization skymap
+        tags:
+          - localizations
+        parameters:
+          - in: path
+            name: dateobs
+            required: true
+            schema:
+              type: dateobs
+          - in: path
+            name: localization_name
+            required: true
+            schema:
+              type: localization_name
+        responses:
+          200:
+            content:
+              application/json:
+                schema: LocalizationHandlerGet
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+
+        dateobs = dateobs.strip()
+        try:
+            arrow.get(dateobs)
+        except arrow.parser.ParserError as e:
+            return self.error(f'Failed to parse dateobs: str({e})')
+
+        localization_name = localization_name.strip()
+        local_temp_files = []
+
+        with self.Session() as session:
+            try:
+                localization = session.scalars(
+                    Localization.select(session.user_or_token).where(
+                        Localization.dateobs == dateobs,
+                        Localization.localization_name == localization_name,
+                    )
+                ).first()
+                if localization is None:
+                    return self.error("Localization not found", status=404)
+
+                output_format = 'fits'
+                with tempfile.NamedTemporaryFile(suffix='.fits') as fitsfile:
+                    ligo.skymap.io.write_sky_map(
+                        fitsfile.name, localization.table, moc=True
+                    )
+
+                    with open(fitsfile.name, mode='rb') as g:
+                        content = g.read()
+                    local_temp_files.append(fitsfile.name)
+
+                data = io.BytesIO(content)
+                filename = f"{localization.localization_name}.{output_format}"
+
+                await self.send_file(data, filename, output_type=output_format)
+
+            except Exception as e:
+                return self.error(f'Failed to create skymap for download: str({e})')
+            finally:
+                # clean up local files
+                for f in local_temp_files:
+                    try:
+                        os.remove(f)
+                    except:  # noqa E722
+                        pass

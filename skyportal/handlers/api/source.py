@@ -71,6 +71,9 @@ from ...models import (
     SourceLabel,
     SourceView,
     SourcesConfirmedInGCN,
+    SpatialCatalog,
+    SpatialCatalogEntry,
+    SpatialCatalogEntryTile,
     Telescope,
 )
 from ...utils.offset import (
@@ -99,7 +102,7 @@ log = make_log('api/source')
 MAX_LOCALIZATION_SOURCES = 50000
 
 
-def get_source(
+async def get_source(
     obj_id,
     user_id,
     session,
@@ -141,20 +144,25 @@ def get_source(
         raise ValueError("Source not found")
 
     source_info = s.to_dict()
-    source_info["followup_requests"] = session.scalars(
-        FollowupRequest.select(
-            user,
-            options=[
-                joinedload(FollowupRequest.allocation).joinedload(
-                    Allocation.instrument
-                ),
-                joinedload(FollowupRequest.allocation).joinedload(Allocation.group),
-                joinedload(FollowupRequest.requester),
-            ],
+    source_info["followup_requests"] = (
+        session.scalars(
+            FollowupRequest.select(
+                user,
+                options=[
+                    joinedload(FollowupRequest.allocation).joinedload(
+                        Allocation.instrument
+                    ),
+                    joinedload(FollowupRequest.allocation).joinedload(Allocation.group),
+                    joinedload(FollowupRequest.requester),
+                    joinedload(FollowupRequest.watchers),
+                ],
+            )
+            .where(FollowupRequest.obj_id == obj_id)
+            .where(FollowupRequest.status != "deleted")
         )
-        .where(FollowupRequest.obj_id == obj_id)
-        .where(FollowupRequest.status != "deleted")
-    ).all()
+        .unique()
+        .all()
+    )
     source_info["assignments"] = session.scalars(
         ClassicalAssignment.select(
             user,
@@ -370,7 +378,7 @@ def create_annotations_query(
     return annotations_query
 
 
-def get_sources(
+async def get_sources(
     user_id,
     session,
     include_thumbnails=False,
@@ -428,6 +436,8 @@ def get_sources(
     localization_name=None,
     localization_cumprob=None,
     localization_reject_sources=False,
+    spatial_catalog_name=None,
+    spatial_catalog_entry_name=None,
     page_number=1,
     num_per_page=DEFAULT_SOURCES_PER_PAGE,
     sort_by=None,
@@ -454,7 +464,7 @@ def get_sources(
     if include_detection_stats:
         obj_query_options.append(joinedload(Obj.photstats))
 
-    if localization_dateobs is not None:
+    if (localization_dateobs is not None) or (spatial_catalog_name is not None):
         obj_query = Obj.select(user, columns=[Obj.id])
     else:
         obj_query = Obj.select(user, options=obj_query_options)
@@ -940,7 +950,7 @@ def get_sources(
 
         # This grabs just the IDs so the more expensive localization in-out
         # check is done on only this subset
-        obj_ids = session.scalars(obj_query).all()
+        obj_ids = session.scalars(obj_query).unique().all()
 
         if len(obj_ids) > MAX_LOCALIZATION_SOURCES:
             raise ValueError('Need fewer sources for efficient cross-match.')
@@ -1024,6 +1034,62 @@ def get_sources(
             rejected_obj_ids = session.scalars(obj_rejection_query).all()
 
             obj_query = obj_query.where(Obj.id.notin_(rejected_obj_ids))
+
+    if spatial_catalog_name is not None:
+
+        if spatial_catalog_entry_name is None:
+            raise ValueError(
+                'spatial_catalog_entry_name must be defined if spatial_catalog_name is as well'
+            )
+
+        # This grabs just the IDs so the more expensive localization in-out
+        # check is done on only this subset
+        obj_ids = session.scalars(obj_query).all()
+
+        if len(obj_ids) > MAX_LOCALIZATION_SOURCES:
+            raise ValueError('Need fewer sources for efficient cross-match.')
+
+        obj_query = Obj.select(user, options=obj_query_options).where(
+            Obj.id.in_(obj_ids)
+        )
+
+        catalog = session.scalars(
+            SpatialCatalog.select(
+                user,
+            ).where(SpatialCatalog.catalog_name == spatial_catalog_name)
+        ).first()
+
+        catalog_entry = session.scalars(
+            SpatialCatalogEntry.select(
+                user,
+            )
+            .where(SpatialCatalogEntry.entry_name == spatial_catalog_entry_name)
+            .where(SpatialCatalogEntry.catalog_id == catalog.id)
+        ).first()
+        if catalog_entry is None:
+            raise ValueError(
+                f"Catalog entry {spatial_catalog_entry_name} from catalog {spatial_catalog_name} not found",
+            )
+
+        tile_ids = session.scalars(
+            sa.select(SpatialCatalogEntryTile.id).where(
+                SpatialCatalogEntryTile.entry_name == catalog_entry.entry_name,
+            )
+        ).all()
+
+        tiles_subquery = (
+            sa.select(Obj.id)
+            .filter(
+                SpatialCatalogEntryTile.id.in_(tile_ids),
+                SpatialCatalogEntryTile.healpix.contains(Obj.healpix),
+            )
+            .subquery()
+        )
+
+        obj_query = obj_query.join(
+            tiles_subquery,
+            Obj.id == tiles_subquery.c.id,
+        )
 
     source_query = apply_active_or_requested_filtering(
         source_query, include_requested, requested_only
@@ -1549,7 +1615,7 @@ class SourceHandler(BaseHandler):
                 self.finish()
 
     @auth_or_token
-    def get(self, obj_id=None):
+    async def get(self, obj_id=None):
         """
         ---
         single:
@@ -2087,6 +2153,18 @@ class SourceHandler(BaseHandler):
             description: |
               Remove sources rejected in localization. Defaults to false.
           - in: query
+            name: spatialCatalogName
+            schema:
+              type: string
+            description: |
+                Name of spatial catalog to use. spatialCatalogEntryName must also be defined for use.
+          - in: query
+            name: spatialCatalogEntryName
+            schema:
+              type: string
+            description: |
+                Name of spatial catalog entry to use. spatialCatalogName must also be defined for use.
+          - in: query
             name: includeGeoJSON
             nullable: true
             schema:
@@ -2199,6 +2277,10 @@ class SourceHandler(BaseHandler):
         localization_reject_sources = self.get_query_argument(
             "localizationRejectSources", False
         )
+        spatial_catalog_name = self.get_query_argument("spatialCatalogName", None)
+        spatial_catalog_entry_name = self.get_query_argument(
+            "spatialCatalogEntryName", None
+        )
         includeGeoJSON = self.get_query_argument("includeGeoJSON", False)
 
         class Validator(Schema):
@@ -2270,6 +2352,12 @@ class SourceHandler(BaseHandler):
                     "startDate and endDate must be less than a month apart when filtering by localizationDateobs or localizationName",
                 )
 
+        if spatial_catalog_name is not None:
+            if spatial_catalog_entry_name is None:
+                return self.error(
+                    'spatialCatalogEntryName must be defined if spatialCatalogName is as well'
+                )
+
         if rejectedSourceIDs:
             rejectedSourceIDs = rejectedSourceIDs.split(",")
 
@@ -2297,7 +2385,7 @@ class SourceHandler(BaseHandler):
         if obj_id is not None:
             with self.Session() as session:
                 try:
-                    source_info = get_source(
+                    source_info = await get_source(
                         obj_id,
                         self.associated_user_object.id,
                         session,
@@ -2329,7 +2417,7 @@ class SourceHandler(BaseHandler):
 
         with self.Session() as session:
             try:
-                query_results = get_sources(
+                query_results = await get_sources(
                     self.associated_user_object.id,
                     session,
                     include_thumbnails=include_thumbnails,
@@ -2387,6 +2475,8 @@ class SourceHandler(BaseHandler):
                     localization_name=localization_name,
                     localization_cumprob=localization_cumprob,
                     localization_reject_sources=localization_reject_sources,
+                    spatial_catalog_name=spatial_catalog_name,
+                    spatial_catalog_entry_name=spatial_catalog_entry_name,
                     page_number=page_number,
                     num_per_page=num_per_page,
                     sort_by=sort_by,

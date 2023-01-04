@@ -24,7 +24,7 @@ _, cfg = load_env()
 
 class PlotPhotometryHandler(BaseHandler):
     @auth_or_token
-    def get(self, obj_id):
+    async def get(self, obj_id):
         width = self.get_query_argument("width", 600)
         device = self.get_query_argument("device", None)
         # Just return browser by default if not one of accepted types
@@ -32,7 +32,7 @@ class PlotPhotometryHandler(BaseHandler):
             device = "browser"
         with self.Session() as session:
             try:
-                json = plot.photometry_plot(
+                json = await plot.photometry_plot(
                     obj_id=obj_id,
                     user_id=self.current_user.id,
                     session=session,
@@ -47,7 +47,7 @@ class PlotPhotometryHandler(BaseHandler):
 
 class PlotSpectroscopyHandler(BaseHandler):
     @auth_or_token
-    def get(self, obj_id):
+    async def get(self, obj_id):
         width = self.get_query_argument("width", 600)
         device = self.get_query_argument("device", None)
         smoothing = self.get_query_argument("smoothing", False)
@@ -59,7 +59,7 @@ class PlotSpectroscopyHandler(BaseHandler):
 
         with self.Session() as session:
             try:
-                json = plot.spectroscopy_plot(
+                json = await plot.spectroscopy_plot(
                     obj_id=obj_id,
                     session=session,
                     spec_id=spec_id,
@@ -87,7 +87,7 @@ class AirmassHandler(BaseHandler):
 
 class PlotAssignmentAirmassHandler(AirmassHandler):
     @auth_or_token
-    def get(self, assignment_id):
+    async def get(self, assignment_id):
         assignment = ClassicalAssignment.get_if_accessible_by(
             assignment_id, self.current_user, raise_if_none=True
         )
@@ -110,7 +110,7 @@ class PlotAssignmentAirmassHandler(AirmassHandler):
 
 class PlotObjTelAirmassHandler(AirmassHandler):
     @auth_or_token
-    def get(self, obj_id, telescope_id):
+    async def get(self, obj_id, telescope_id):
 
         time = self.get_query_argument('time', None)
         if time is not None:
@@ -146,7 +146,7 @@ class PlotObjTelAirmassHandler(AirmassHandler):
 
 class PlotHoursBelowAirmassHandler(AirmassHandler):
     @auth_or_token
-    def get(self, obj_id, telescope_id):
+    async def get(self, obj_id, telescope_id):
         threshold = cfg["misc.hours_below_airmass_threshold"]
         if threshold is None:
             threshold = 2.9
@@ -194,7 +194,7 @@ class PlotHoursBelowAirmassHandler(AirmassHandler):
 
 class FilterWavelengthHandler(BaseHandler):
     @auth_or_token
-    def get(self):
+    async def get(self):
         filters = self.get_query_argument('filters', None)
         if filters:
             filters = filters.split(',')
