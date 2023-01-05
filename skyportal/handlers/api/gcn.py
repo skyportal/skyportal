@@ -82,6 +82,15 @@ from ...utils.gcn import (
 
 from skyportal.models.gcn import SOURCE_RADIUS_THRESHOLD
 
+# import healpy as hp
+import ligo.skymap.postprocess
+import astropy_healpix as ah
+import astropy.units as u
+from mocpy import MOC
+from mocpy.mocpy import flatten_pixels
+from astropy.table import Table
+from astropy.coordinates import ICRS
+
 log = make_log('api/gcn_event')
 
 env, cfg = load_env()
@@ -2023,6 +2032,140 @@ class LocalizationDownloadHandler(BaseHandler):
                 filename = f"{localization.localization_name}.{output_format}"
 
                 await self.send_file(data, filename, output_type=output_format)
+
+            except Exception as e:
+                return self.error(f'Failed to create skymap for download: str({e})')
+            finally:
+                # clean up local files
+                for f in local_temp_files:
+                    try:
+                        os.remove(f)
+                    except:  # noqa E722
+                        pass
+
+
+class LocalizationCrossmatchHandler(BaseHandler):
+    def create_moc(skymap, countour_decimal_percentage):
+        uniq = skymap['UNIQ']
+        probdensity = skymap['PROBDENSITY']
+
+        level, ipix = ah.uniq_to_level_ipix(uniq)
+        area = ah.nside_to_pixel_area(ah.level_to_nside(level)).to_value(u.steradian)
+
+        prob = probdensity * area
+
+        # Create MOC
+        contour_decimal = countour_decimal_percentage / 100
+        moc = MOC.from_valued_healpix_cells(
+            uniq, prob, cumul_from=0.0, cumul_to=contour_decimal
+        )
+
+        return moc
+
+    @auth_or_token
+    async def get(self):
+        """
+        ---
+        description: Download a GCN localization skymap
+        tags:
+          - localizations
+        parameters:
+          - in: path
+            name: dateobs
+            required: true
+            schema:
+              type: dateobs
+          - in: path
+            name: localization_name
+            required: true
+            schema:
+              type: localization_name
+        responses:
+          200:
+            content:
+              application/json:
+                schema: LocalizationHandlerGet
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        id1 = self.get_query_argument("id1", None)
+        id2 = self.get_query_argument("id2", None)
+        if id1 is None or id2 is None:
+            return self.error("Please provide two localization id")
+
+        id1 = id1.strip()
+        id2 = id2.strip()
+        local_temp_files = []
+
+        with self.Session() as session:
+            try:
+                localization1 = session.scalars(
+                    Localization.select(session.user_or_token).where(
+                        Localization.id == id1,
+                    )
+                ).first()
+                localization2 = session.scalars(
+                    Localization.select(session.user_or_token).where(
+                        Localization.id == id2,
+                    )
+                ).first()
+
+                if localization1 is None or localization2 is None:
+                    return self.error("Localization not found", status=404)
+
+                output_format = 'fits'
+
+                skymap1 = localization1.table
+                skymap2 = localization2.table
+
+                moc1 = LocalizationCrossmatchHandler.create_moc(skymap1, 90)
+                moc2 = LocalizationCrossmatchHandler.create_moc(skymap2, 90)
+                intersection = moc1.intersection(moc2)
+                NSIDE = int(2**11)
+                hpx = ah.HEALPix(NSIDE, 'nested', frame=ICRS())
+
+                ipix = flatten_pixels(
+                    intersection._interval_set._intervals, int(np.log2(NSIDE))
+                )
+                # ipix = hp.ring2nest(NSIDE,ipix.astype(np.int64))
+
+                # Convert to multi-resolution pixel indices and sort.
+                uniq = ligo.skymap.moc.nest2uniq(
+                    ah.nside_to_level(hpx.nside), ipix.astype(np.int64)
+                )
+                i = np.argsort(uniq)
+                ipix = ipix[i]
+                uniq = uniq[i]
+
+                probdensity = np.ones(ipix.shape)
+                probdensity /= probdensity.sum() * hpx.pixel_area.to_value(u.steradian)
+
+                table = Table(
+                    [np.asarray(uniq, dtype=np.int64), probdensity],
+                    names=['UNIQ', 'PROBDENSITY'],
+                )
+                print(table)
+
+                with tempfile.NamedTemporaryFile(suffix='.fits') as fitsfile:
+                    ligo.skymap.io.write_sky_map(
+                        fitsfile.name, table, format='fits', moc=True
+                    )
+
+                    with open(fitsfile.name, mode='rb') as g:
+                        content = g.read()
+                    local_temp_files.append(fitsfile.name)
+
+                data = io.BytesIO(content)
+                filename = f"{localization1.localization_name}_{localization2.localization_name}.{output_format}"
+
+                await self.send_file(
+                    data,
+                    filename,
+                    output_type=output_format,
+                    max_file_size=100 * 1024**2,
+                )
 
             except Exception as e:
                 return self.error(f'Failed to create skymap for download: str({e})')
