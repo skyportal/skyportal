@@ -114,6 +114,8 @@ app:
       component: ObservationPage
     - path: "/galaxies"
       component: GalaxyPage
+    - path: "/spatial_catalogs"
+      component: SpatialCatalogPage
     - path: "/followup_requests"
       component: FollowupRequestPage
     - path: "/group_sources/:id"
@@ -224,6 +226,10 @@ app:
         - name: Galaxies
           icon: TornadoOutlined
           url: /galaxies
+
+        - name: Spatial Catalogs
+          icon: PhotoSizeSelectLargeOutlined
+          url: /spatial_catalogs
 
         - name: Analysis Services
           icon: SentimentSatisfied

@@ -8,6 +8,7 @@ from sqlalchemy import func
 
 from sqlalchemy import event, inspect
 import arrow
+import datetime
 import lxml
 import operator  # noqa: F401
 import requests
@@ -667,6 +668,18 @@ def add_user_notifications(mapper, connection, target):
                         notification_user_ids.append(
                             target.followup_request.requester_id
                         )
+                        shift_user_ids = users_on_shift(session)
+                        for shift_user_id in shift_user_ids:
+                            user = session.scalar(
+                                sa.select(User).where(User.id == shift_user_id)
+                            )
+                            check_access = session.scalar(
+                                Allocation.select(user).where(
+                                    Allocation.id == allocation_id
+                                )
+                            )
+                            if check_access is not None:
+                                notification_user_ids.append(shift_user_id)
                         notification_user_ids = list(set(notification_user_ids))
 
                         instrument = allocation.instrument
@@ -692,6 +705,18 @@ def add_user_notifications(mapper, connection, target):
                     ] + [watcher.user_id for watcher in target.watchers]
                     notification_user_ids.append(target.requester_id)
                     notification_user_ids.append(target.last_modified_by_id)
+                    shift_user_ids = users_on_shift(session)
+                    for shift_user_id in shift_user_ids:
+                        user = session.scalar(
+                            sa.select(User).where(User.id == shift_user_id)
+                        )
+                        check_access = session.scalar(
+                            Allocation.select(user).where(
+                                Allocation.id == allocation_id
+                            )
+                        )
+                        if check_access is not None:
+                            notification_user_ids.append(shift_user_id)
                     notification_user_ids = list(set(notification_user_ids))
 
                     instrument = allocation.instrument
@@ -837,3 +862,14 @@ def add_user_notifications(mapper, connection, target):
                                         url=f"/source/{target.obj_id}",
                                     )
                                 )
+
+
+def users_on_shift(session):
+    users = session.scalars(
+        sa.select(ShiftUser).where(
+            ShiftUser.shift_id == Shift.id,
+            Shift.start_date <= datetime.datetime.now(),
+            Shift.end_date >= datetime.datetime.now(),
+        )
+    ).all()
+    return [user.user_id for user in users]
