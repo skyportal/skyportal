@@ -2,13 +2,17 @@
 
 import ast
 from astropy.time import Time
+from astropy.table import Table
 import binascii
+import healpy as hp
 import io
 import os
 import gcn
 from ligo.skymap.postprocess import crossmatch
 from ligo.skymap import distance, moc
+import ligo.skymap.bayestar as ligo_bayestar
 import ligo.skymap.io
+import ligo.skymap.postprocess
 import lxml
 import xmlschema
 from urllib.parse import urlparse
@@ -81,15 +85,6 @@ from ...utils.gcn import (
 )
 
 from skyportal.models.gcn import SOURCE_RADIUS_THRESHOLD
-
-# import healpy as hp
-import ligo.skymap.postprocess
-import astropy_healpix as ah
-import astropy.units as u
-from mocpy import MOC
-from mocpy.mocpy import flatten_pixels
-from astropy.table import Table
-from astropy.coordinates import ICRS
 
 log = make_log('api/gcn_event')
 
@@ -2045,23 +2040,6 @@ class LocalizationDownloadHandler(BaseHandler):
 
 
 class LocalizationCrossmatchHandler(BaseHandler):
-    def create_moc(skymap, countour_decimal_percentage):
-        uniq = skymap['UNIQ']
-        probdensity = skymap['PROBDENSITY']
-
-        level, ipix = ah.uniq_to_level_ipix(uniq)
-        area = ah.nside_to_pixel_area(ah.level_to_nside(level)).to_value(u.steradian)
-
-        prob = probdensity * area
-
-        # Create MOC
-        contour_decimal = countour_decimal_percentage / 100
-        moc = MOC.from_valued_healpix_cells(
-            uniq, prob, cumul_from=0.0, cumul_to=contour_decimal
-        )
-
-        return moc
-
     @auth_or_token
     async def get(self):
         """
@@ -2117,40 +2095,16 @@ class LocalizationCrossmatchHandler(BaseHandler):
 
                 output_format = 'fits'
 
-                skymap1 = localization1.table
-                skymap2 = localization2.table
+                skymap1 = localization1.flat_2d
+                skymap2 = localization2.flat_2d
+                skymap = skymap1 * skymap2
+                skymap = skymap / np.sum(skymap)
 
-                moc1 = LocalizationCrossmatchHandler.create_moc(skymap1, 90)
-                moc2 = LocalizationCrossmatchHandler.create_moc(skymap2, 90)
-                intersection = moc1.intersection(moc2)
-                NSIDE = int(2**11)
-                hpx = ah.HEALPix(NSIDE, 'nested', frame=ICRS())
-
-                ipix = flatten_pixels(
-                    intersection._interval_set._intervals, int(np.log2(NSIDE))
-                )
-                # ipix = hp.ring2nest(NSIDE,ipix.astype(np.int64))
-
-                # Convert to multi-resolution pixel indices and sort.
-                uniq = ligo.skymap.moc.nest2uniq(
-                    ah.nside_to_level(hpx.nside), ipix.astype(np.int64)
-                )
-                i = np.argsort(uniq)
-                ipix = ipix[i]
-                uniq = uniq[i]
-
-                probdensity = np.ones(ipix.shape)
-                probdensity /= probdensity.sum() * hpx.pixel_area.to_value(u.steradian)
-
-                table = Table(
-                    [np.asarray(uniq, dtype=np.int64), probdensity],
-                    names=['UNIQ', 'PROBDENSITY'],
-                )
-                print(table)
-
+                skymap = hp.reorder(skymap, 'RING', 'NESTED')
+                skymap = ligo_bayestar.derasterize(Table([skymap], names=['PROB']))
                 with tempfile.NamedTemporaryFile(suffix='.fits') as fitsfile:
                     ligo.skymap.io.write_sky_map(
-                        fitsfile.name, table, format='fits', moc=True
+                        fitsfile.name, skymap, format='fits', moc=True
                     )
 
                     with open(fitsfile.name, mode='rb') as g:
@@ -2164,7 +2118,6 @@ class LocalizationCrossmatchHandler(BaseHandler):
                     data,
                     filename,
                     output_type=output_format,
-                    max_file_size=100 * 1024**2,
                 )
 
             except Exception as e:
