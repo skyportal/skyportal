@@ -142,6 +142,11 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
     []
   );
 
+  const [byMe, setByMe] = useState(false);
+  const handleChange = (event) => {
+    setByMe(event.target.checked);
+  };
+
   const maxNumDaysUsingLocalization = useSelector(
     (state) => state.config.maxNumDaysUsingLocalization
   );
@@ -980,7 +985,10 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
                     <Checkbox
                       color="primary"
                       type="checkbox"
-                      onChange={(event) => onChange(event.target.checked)}
+                      onChange={(event) => {
+                        onChange(event.target.checked);
+                        handleChange(event);
+                      }}
                       checked={value}
                     />
                   )}
@@ -999,7 +1007,10 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
                     <Checkbox
                       color="primary"
                       type="checkbox"
-                      onChange={(event) => onChange(event.target.checked)}
+                      onChange={(event) => {
+                        onChange(event.target.checked);
+                        handleChange(event);
+                      }}
                       checked={value}
                     />
                   )}
@@ -1012,6 +1023,7 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
             <FormControlLabel
               label="by me"
               labelPlacement="start"
+              disabled={!byMe}
               control={
                 <Controller
                   render={({ field: { onChange, value } }) => (
@@ -1020,6 +1032,7 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
                       type="checkbox"
                       onChange={(event) => onChange(event.target.checked)}
                       checked={value}
+                      disabled={!byMe}
                     />
                   )}
                   name="currentUserLabeller"
