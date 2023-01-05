@@ -123,8 +123,7 @@ const NotificationSettingsSelect = ({ notificationResourceType }) => {
       notificationResourceType === "favorite_sources" ||
       notificationResourceType === "facility_transactions" ||
       notificationResourceType === "mention" ||
-      notificationResourceType === "analysis_services" ||
-      notificationResourceType === "observation_plans"
+      notificationResourceType === "analysis_services"
     ) {
       const prefs = {
         notifications: {
@@ -132,26 +131,64 @@ const NotificationSettingsSelect = ({ notificationResourceType }) => {
         },
       };
       if (event.target.name === "on_shift") {
-        prefs.notifications[notificationResourceType].sms = {};
-        prefs.notifications[notificationResourceType].sms[event.target.name] =
+        if (notificationResourceType === "sms" ){
+          prefs.notifications[notificationResourceType].sms = {};
+          prefs.notifications[notificationResourceType].sms[event.target.name] =
           event.target.checked;
+        }
+        else if (notificationResourceType === "whatsapp" ){
+          prefs.notifications[notificationResourceType].whatsapp = {};
+          prefs.notifications[notificationResourceType].whatsapp[event.target.name] =
+          event.target.checked;
+        }
+        else if (notificationResourceType === "phone" ){
+          prefs.notifications[notificationResourceType].phone = {};
+          prefs.notifications[notificationResourceType].phone[event.target.name] =
+          event.target.checked;
+        }
       } else if (event.target.name === "time_slot") {
-        prefs.notifications[notificationResourceType].sms = {};
-        if (event.target.checked) {
-          prefs.notifications[notificationResourceType].sms[event.target.name] =
-            [8, 20];
-          setValue([8, 20]);
-        } else {
-          prefs.notifications[notificationResourceType].sms[event.target.name] =
-            [];
-          setValue([]);
+        if (notificationResourceType === "sms"){
+          prefs.notifications[notificationResourceType].sms = {};
+          if (event.target.checked) {
+            prefs.notifications[notificationResourceType].sms[event.target.name] =
+              [8, 20];
+            setValue([8, 20]);
+          } else {
+            prefs.notifications[notificationResourceType].sms[event.target.name] =
+              [];
+            setValue([]);
+          }
+        }
+        else if (notificationResourceType === "whatsapp"){
+          prefs.notifications[notificationResourceType].whatsapp = {};
+          if (event.target.checked) {
+            prefs.notifications[notificationResourceType].whatsapp[event.target.name] =
+              [8, 20];
+            setValue([8, 20]);
+          } else {
+            prefs.notifications[notificationResourceType].whatsapp[event.target.name] =
+              [];
+            setValue([]);
+          }
+        }
+        else if (notificationResourceType === "phone"){
+          prefs.notifications[notificationResourceType].phone = {};
+          if (event.target.checked) {
+            prefs.notifications[notificationResourceType].phone[event.target.name] =
+              [8, 20];
+            setValue([8, 20]);
+          } else {
+            prefs.notifications[notificationResourceType].phone[event.target.name] =
+              [];
+            setValue([]);
+          }
         }
       } else {
         prefs.notifications[notificationResourceType][event.target.name] = {
           active: event.target.checked,
         };
       }
-
+      
       dispatch(profileActions.updateUserPreferences(prefs));
     }
   };
@@ -358,8 +395,9 @@ const NotificationSettingsSelect = ({ notificationResourceType }) => {
                   </Tooltip>
                 </FormGroup>
               </div>
-              {profile?.notifications?.[notificationResourceType]?.sms
-                ?.active && (
+              {(profile?.notifications?.[notificationResourceType]?.sms 
+              || profile?.notifications?.[notificationResourceType]?.whatsapp 
+              || profile?.notifications?.[notificationResourceType]?.phone) && (
                 <div className={classes.options}>
                   <FormGroup row className={classes.form_group}>
                     <FormControlLabel
@@ -373,7 +411,7 @@ const NotificationSettingsSelect = ({ notificationResourceType }) => {
                       label="On Shift"
                     />
                     <Tooltip
-                      title="Click here to receive notifications by SMS when you are on shift. This is in addition to the time slot option. "
+                      title="Click here to receive notifications when you are on shift. This is in addition to the time slot option. "
                       placement="right"
                       classes={{ tooltip: classes.tooltip }}
                     >
@@ -392,7 +430,7 @@ const NotificationSettingsSelect = ({ notificationResourceType }) => {
                       label="Time Slot (UTC)"
                     />
                     <Tooltip
-                      title="Click here to receive notifications by SMS during a specific time slot. Outside of the time slot, you will not receive any messages on your phone. This is in addition to notifications during shifts, if configured."
+                      title="Click here to receive notifications during a specific time slot. Outside of the time slot, you will not receive any messages on your phone. This is in addition to notifications during shifts, if configured."
                       placement="right"
                       classes={{ tooltip: classes.tooltip }}
                     >
@@ -400,6 +438,8 @@ const NotificationSettingsSelect = ({ notificationResourceType }) => {
                     </Tooltip>
                   </FormGroup>
                   {profile?.notifications?.[notificationResourceType]?.sms
+                    ?.time_slot?.length > 0 || profile?.notifications?.[notificationResourceType]?.whatsapp
+                    ?.time_slot?.length > 0 || profile?.notifications?.[notificationResourceType]?.phone
                     ?.time_slot?.length > 0 && (
                     <Box
                       sx={{ width: 300 }}
