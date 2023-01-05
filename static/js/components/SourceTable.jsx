@@ -1280,7 +1280,15 @@ const SourceTable = ({
           data[key] = value;
         }
       });
-      setTableFilterList(sourceFilterList);
+
+      dispatch(sourcesActions.fetchSources(data)).then((response) => {
+        if (response.status === "success") {
+          setTableFilterList(sourceFilterList);
+        } else {
+          setTableFilterList([]);
+        }
+      });
+
       setFilterFormData(data);
       paginateCallback(1, rowsPerPage, {}, data);
     }

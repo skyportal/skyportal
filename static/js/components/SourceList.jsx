@@ -84,20 +84,13 @@ const SourceList = () => {
       data.sortOrder = sortData.direction;
     }
     dispatch(sourcesActions.fetchSources(data)).then((response) => {
-      console.log(response)
-              if (response.status === "success") {
-                setSorting(sortData);
-                setFiltering(filterData);
-              } else {
-
-                handleSourceTablePagination(
-                  pageNumber,
-                  numPerPage,
-                  null,
-                  null);
-              }
-            });
-
+      if (response.status === "success") {
+        setSorting(sortData);
+        setFiltering(filterData);
+      } else {
+        handleSourceTablePagination(pageNumber, numPerPage, null, null);
+      }
+    });
   };
 
   const handleSourceTableSorting = (sortData, filterData) => {
