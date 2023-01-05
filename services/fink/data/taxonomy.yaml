@@ -8,6 +8,10 @@ hierarchy:
         - class: Ambiguous
         - class: Early SN Ia candidate
         - class: Kilonova candidate
+          subclasses:
+            - class: Galaxy crossmatch kilonova candidate
+            - class: Rate-based kilonova candidate
+            - class: Classifier-based kilonova candidate
         - class: Microlensing candidate
         - class: SN candidate
         - class: Solar System candidate

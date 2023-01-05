@@ -305,11 +305,12 @@ def post_annotation_to_skyportal(alert, session, user, group_ids, token, log):
             "nalerthist": alert["nalerthist"],
             # "ad_features": alert["lc_*"],
             # "rf_agn_vs_nonagn": alert["rf_agn_vs_nonagn"],
+            "obstime (jd)": alert["candidate"]["jd"],
         },
         "group_ids": group_ids,
     }
 
-    # HOST GALAXY
+    # HOST GALAXY (FOR NOW DONE IN SP, LATER COMING FROM FINK'S ALERT)
     name, catalog, distmpc, distmpc_unc, distance_from_host = get_obj_host_galaxy(
         alert, session, user, log
     )
@@ -321,6 +322,14 @@ def post_annotation_to_skyportal(alert, session, user, group_ids, token, log):
             "host_galaxy_distmpc": distmpc,
             "host_galaxy_distmpc_unc": distmpc_unc,
             "host_galaxy_distance_from_obj (arcsec)": distance_from_host,
+        }
+
+    # ADD RATES IF TOPIC IS rate_based_kn_candidates
+    if alert["topic"] == "rate_based_kn_candidates":
+        annotations["data"] = {
+            **annotations["data"],
+            "rate(dg)": alert["candidate"]["rate(dg)"],
+            "rate(dr)": alert["candidate"]["rate(dr)"],
         }
 
     response = api_skyportal(
@@ -418,8 +427,16 @@ def post_classification_to_skyportal(
         ]
         and "kilonova" not in classification.lower()
     ):
-        classification = "Kilonova candidate"
-        probability = alert["rf_kn_vs_nonkn"]
+        # special case for kilonova candidates
+        # specify what kind of kilonova candidate topic it came from with a more explicity classification
+        if topic == "fink_kn_candidates_ztf":
+            classification = "Classifier-based kilonova candidate"
+        elif topic == "fink_early_kn_candidates_ztf":
+            classification = "Galaxy crossmatch kilonova candidate"
+        elif topic == "fink_rate_based_kn_candidates_ztf":
+            classification = "Rate-based kilonova candidate"
+
+        probability = 1.0
 
     data = {
         "obj_id": alert["objectId"],
@@ -745,6 +762,9 @@ def get_obj_host_galaxy(alert, session, user, log):
     distance_to_galaxy: float or None
         The distance to the host galaxy in arcsec
     """
+
+    # POST MANGROVE CATALOG FOR THE CROSSMATCH
+    # DISCUSS WITH JULIEN PELOTON ABOUT ADDIND HIS CROSSMATCH IN THE ALERT PACKET
     obj = session.scalars(Obj.select(user).where(Obj.id == alert["objectId"])).first()
     if obj is not None:
         if obj.ra is not None and obj.dec is not None:
