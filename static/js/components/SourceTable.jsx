@@ -1229,6 +1229,11 @@ const SourceTable = ({
     );
   };
 
+  const handleSearchChange = (searchText) => {
+    const data = { sourceID: searchText };
+    paginateCallback(1, rowsPerPage, {}, data);
+  };
+
   const handleFilterSubmit = async (formData) => {
     setQueryInProgress(true);
 
@@ -1560,7 +1565,8 @@ const SourceTable = ({
     customFilterDialogFooter: customFilterDisplay,
     onFilterChange: handleTableFilterChipChange,
     onFilterDialogOpen: () => setFilterFormSubmitted(false),
-    search: false,
+    search: true,
+    onSearchChange: handleSearchChange,
     download: true,
     rowsExpanded: openedRows,
     onRowExpansionChange: (_, allRowsExpanded) => {
