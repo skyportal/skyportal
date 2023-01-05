@@ -202,7 +202,7 @@ def test_analysis_start(
     )
 
 
-# @pytest.mark.flaky(reruns=3)
+@pytest.mark.flaky(reruns=3)
 def test_classifications(driver, user, taxonomy_token, public_group, public_source):
     simple = {
         'class': 'Cepheid',
