@@ -422,8 +422,8 @@ def send_whatsapp_notification(mapper, connection, target):
         try:
             client.messages.create(
                 body=f"{cfg['app.title']} - {target.text}",
-                from_=from_number,
-                to=target.user.contact_phone.e164,
+                from_="whatsapp:" + from_number,
+                to="whatsapp" + target.user.contact_phone.e164,
             )
             log(
                 f"Sent WhatsApp notification to user {target.user.id} at phone number: {target.user.contact_phone.e164}, body: {target.text}, resource_type: {resource_type}"
