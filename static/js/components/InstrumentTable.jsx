@@ -65,7 +65,6 @@ const InstrumentTable = ({
   telescopes,
   paginateCallback,
   totalMatches,
-  pageNumber,
   numPerPage,
   sortingCallback,
   hideTitle = false,
@@ -260,13 +259,10 @@ const InstrumentTable = ({
     onSearchChange: handleSearchChange,
     selectableRows: "none",
     elevation: 0,
-    page: pageNumber - 1,
-    rowsPerPage: numPerPage,
     onTableChange: handleTableChange,
-    rowsPerPageOptions: [10, 25, 50, 100],
     jumpToPage: true,
     serverSide: true,
-    pagination: true,
+    pagination: false,
     count: totalMatches,
     filter: true,
     sort: true,
@@ -301,7 +297,6 @@ InstrumentTable.propTypes = {
   telescopes: PropTypes.arrayOf(PropTypes.any).isRequired,
   paginateCallback: PropTypes.func.isRequired,
   sortingCallback: PropTypes.func,
-  pageNumber: PropTypes.number,
   totalMatches: PropTypes.number,
   numPerPage: PropTypes.number,
   hideTitle: PropTypes.bool,
@@ -309,7 +304,6 @@ InstrumentTable.propTypes = {
 };
 
 InstrumentTable.defaultProps = {
-  pageNumber: 1,
   totalMatches: 0,
   numPerPage: 10,
   sortingCallback: null,
