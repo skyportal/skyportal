@@ -146,7 +146,37 @@ const NotificationSettingsSelect = ({ notificationResourceType }) => {
             [];
           setValue([]);
         }
-      } else {
+      } /*else if (event.target.name === "on_shift_phone") {
+        prefs.notifications[notificationResourceType].phone = {};
+        prefs.notifications[notificationResourceType].phone[event.target.name] =
+          event.target.checked;
+      } else if (event.target.name === "time_slot_phone") {
+        prefs.notifications[notificationResourceType].phone = {};
+        if (event.target.checked) {
+          prefs.notifications[notificationResourceType].phone[event.target.name] =
+            [8, 20];
+          setValue([8, 20]);
+        } else {
+          prefs.notifications[notificationResourceType].phone[event.target.name] =
+            [];
+          setValue([]);
+        }
+      } else if (event.target.name === "on_shift_whatsapp") {
+        prefs.notifications[notificationResourceType].whatsapp = {};
+        prefs.notifications[notificationResourceType].whatsapp[event.target.name] =
+          event.target.checked;
+      } /*else if (event.target.name === "time_slot_whatsapp") {
+        prefs.notifications[notificationResourceType].whatsapp = {};
+        if (event.target.checked) {
+          prefs.notifications[notificationResourceType].whatsapp[event.target.name] =
+            [8, 20];
+          setValue([8, 20]);
+        } else {
+          prefs.notifications[notificationResourceType].whatsapp[event.target.name] =
+            [];
+          setValue([]);
+        }
+      } */ else {
         prefs.notifications[notificationResourceType][event.target.name] = {
           active: event.target.checked,
         };
@@ -190,7 +220,24 @@ const NotificationSettingsSelect = ({ notificationResourceType }) => {
       checked =
         profile?.notifications[notificationResourceType]?.sms?.time_slot
           ?.length > 0;
-    } else {
+    }/* else if (type === "on_shift_phone") {
+      checked =
+        profile?.notifications[notificationResourceType]?.phone?.time_slot
+          ?.length > 0;
+    } else if (type === "time_slot_phone") {
+      checked =
+        profile?.notifications[notificationResourceType]?.phone?.time_slot
+          ?.length > 0;
+    } else if (type === "on_shift_whatsapp") {
+      checked =
+        profile?.notifications[notificationResourceType]?.whatsapp?.time_slot
+          ?.length > 0;
+    } /*else if (type === "time_slot_whatsapp") {
+      checked =
+        profile?.notifications[notificationResourceType]?.whatsapp?.time_slot
+          ?.length > 0;
+    } */
+    else {
       checked = profile?.notifications[notificationResourceType][type]?.active;
     }
     return checked;
@@ -422,15 +469,15 @@ const NotificationSettingsSelect = ({ notificationResourceType }) => {
                     <FormControlLabel
                       control={
                         <Switch
-                          checked={handleChecked("on_shift")}
-                          name="on_shift"
+                          checked={handleChecked("on_shift_phone")}
+                          name="on_shift_phone"
                           onChange={prefToggled}
                         />
                       }
                       label="On Shift"
                     />
                     <Tooltip
-                      title="Click here to receive notifications by SMS when you are on shift. This is in addition to the time slot option. "
+                      title="Click here to receive notifications by Phone Call when you are on shift. This is in addition to the time slot option. "
                       placement="right"
                       classes={{ tooltip: classes.tooltip }}
                     >
@@ -441,15 +488,15 @@ const NotificationSettingsSelect = ({ notificationResourceType }) => {
                     <FormControlLabel
                       control={
                         <Switch
-                          checked={handleChecked("time_slot")}
-                          name="time_slot"
+                          checked={handleChecked("time_slot_phone")}
+                          name="time_slot_phone"
                           onChange={prefToggled}
                         />
                       }
                       label="Time Slot (UTC)"
                     />
                     <Tooltip
-                      title="Click here to receive notifications by SMS during a specific time slot. Outside of the time slot, you will not receive any messages on your phone. This is in addition to notifications during shifts, if configured."
+                      title="Click here to receive notifications by Phone Call during a specific time slot. Outside of the time slot, you will not receive any messages on your phone. This is in addition to notifications during shifts, if configured."
                       placement="right"
                       classes={{ tooltip: classes.tooltip }}
                     >
@@ -521,15 +568,15 @@ const NotificationSettingsSelect = ({ notificationResourceType }) => {
                     <FormControlLabel
                       control={
                         <Switch
-                          checked={handleChecked("on_shift")}
-                          name="on_shift"
+                          checked={handleChecked("on_shift_whatsapp")}
+                          name="on_shift_whatsapp"
                           onChange={prefToggled}
                         />
                       }
                       label="On Shift"
                     />
                     <Tooltip
-                      title="Click here to receive notifications by SMS when you are on shift. This is in addition to the time slot option. "
+                      title="Click here to receive notifications on WhatsApp when you are on shift. This is in addition to the time slot option. "
                       placement="right"
                       classes={{ tooltip: classes.tooltip }}
                     >
@@ -540,15 +587,15 @@ const NotificationSettingsSelect = ({ notificationResourceType }) => {
                     <FormControlLabel
                       control={
                         <Switch
-                          checked={handleChecked("time_slot")}
-                          name="time_slot"
+                          checked={handleChecked("time_slot_whatsapp")}
+                          name="time_slot_whatsapp"
                           onChange={prefToggled}
                         />
                       }
                       label="Time Slot (UTC)"
                     />
                     <Tooltip
-                      title="Click here to receive notifications by SMS during a specific time slot. Outside of the time slot, you will not receive any messages on your phone. This is in addition to notifications during shifts, if configured."
+                      title="Click here to receive notifications on WhatsApp during a specific time slot. Outside of the time slot, you will not receive any messages on your phone. This is in addition to notifications during shifts, if configured."
                       placement="right"
                       classes={{ tooltip: classes.tooltip }}
                     >
