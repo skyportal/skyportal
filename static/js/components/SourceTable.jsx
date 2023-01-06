@@ -1284,12 +1284,12 @@ const SourceTable = ({
       dispatch(sourcesActions.fetchSources(data)).then((response) => {
         if (response.status === "success") {
           setTableFilterList(sourceFilterList);
+          setFilterFormData(data);
         } else {
           setTableFilterList([]);
+          setFilterFormData([]);
         }
       });
-
-      setFilterFormData(data);
       paginateCallback(1, rowsPerPage, {}, data);
     }
   };
