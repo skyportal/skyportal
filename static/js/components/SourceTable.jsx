@@ -1280,8 +1280,16 @@ const SourceTable = ({
           data[key] = value;
         }
       });
-      setTableFilterList(sourceFilterList);
-      setFilterFormData(data);
+
+      dispatch(sourcesActions.fetchSources(data)).then((response) => {
+        if (response.status === "success") {
+          setTableFilterList(sourceFilterList);
+          setFilterFormData(data);
+        } else {
+          setTableFilterList([]);
+          setFilterFormData([]);
+        }
+      });
       paginateCallback(1, rowsPerPage, {}, data);
     }
   };
