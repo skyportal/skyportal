@@ -306,10 +306,8 @@ def test_classifications(driver, user, taxonomy_token, public_group, public_sour
     driver.wait_for_xpath('//*[@id="probability"]').send_keys("0.02")
     driver.click_xpath("//*[text()='Submit']", wait_clickable=False)
     driver.wait_for_xpath("//*[text()='Classification saved']")
-    driver.find_element(
-        By.XPATH,
+    driver.wait_for_xpath(
         "//span[contains(@class, 'MuiChip-label') and text()='Mult-mode?']",
-        timeout=20,
     )
 
 
