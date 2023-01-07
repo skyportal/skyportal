@@ -515,6 +515,26 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
             control={control}
             defaultValue={[]}
           />
+          <Typography variant="subtitle2" className={classes.title}>
+            Require all classifications?
+          </Typography>
+          <FormControlLabel
+            control={
+              <Controller
+                render={({ field: { onChange, value } }) => (
+                  <Checkbox
+                    color="primary"
+                    type="checkbox"
+                    onChange={(event) => onChange(event.target.checked)}
+                    checked={value}
+                  />
+                )}
+                name="classifications_simul"
+                control={control}
+                defaultValue={false}
+              />
+            }
+          />
         </div>
         <div className={classes.formItemRightColumn}>
           <Typography variant="subtitle2" className={classes.title}>
@@ -568,6 +588,28 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
             name="nonclassifications"
             control={control}
             defaultValue={[]}
+          />
+        </div>
+        <div className={classes.formItemRightColumn}>
+          <Typography variant="subtitle2" className={classes.title}>
+            Unclassified Sources
+          </Typography>
+          <FormControlLabel
+            control={
+              <Controller
+                render={({ field: { onChange, value } }) => (
+                  <Checkbox
+                    color="primary"
+                    type="checkbox"
+                    onChange={(event) => onChange(event.target.checked)}
+                    checked={value}
+                  />
+                )}
+                name="unclassified"
+                control={control}
+                defaultValue={false}
+              />
+            }
           />
         </div>
         <div className={classes.formItem}>
