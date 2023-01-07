@@ -315,19 +315,17 @@ def send_sms_notification(mapper, connection, target):
         )
         if current_shift is not None:
             sending = True
-    else:
-        timeslot = prefs[resource_type]['sms'].get("time_slot", [])
-        if len(timeslot) > 0:
-            current_time = arrow.utcnow().datetime
-            if timeslot[0] < timeslot[1]:
-                if (
-                    current_time.hour >= timeslot[0]
-                    and current_time.hour <= timeslot[1]
-                ):
-                    sending = True
-            else:
-                if current_time.hour <= timeslot[1] or current_time.hour >= timeslot[0]:
-                    sending = True
+
+    timeslot = prefs[resource_type]['sms'].get("time_slot", [])
+    if len(timeslot) > 0:
+        current_time = arrow.utcnow().datetime
+        if timeslot[0] < timeslot[1]:
+            if current_time.hour >= timeslot[0] and current_time.hour <= timeslot[1]:
+                sending = True
+        else:
+            if current_time.hour <= timeslot[1] or current_time.hour >= timeslot[0]:
+                sending = True
+
     if sending:
         try:
             client.messages.create(
@@ -346,6 +344,7 @@ def send_sms_notification(mapper, connection, target):
 def send_phone_notification(mapper, connection, target):
     resource_type = notification_resource_type(target)
     prefs = user_preferences(target, "phone", resource_type)
+
     if not prefs:
         return
 
@@ -360,19 +359,17 @@ def send_phone_notification(mapper, connection, target):
         )
         if current_shift is not None:
             sending = True
-    else:
-        timeslot = prefs[resource_type]['phone'].get("time_slot", [])
-        if len(timeslot) > 0:
-            current_time = arrow.utcnow().datetime
-            if timeslot[0] < timeslot[1]:
-                if (
-                    current_time.hour >= timeslot[0]
-                    and current_time.hour <= timeslot[1]
-                ):
-                    sending = True
-            else:
-                if current_time.hour <= timeslot[1] or current_time.hour >= timeslot[0]:
-                    sending = True
+
+    timeslot = prefs[resource_type]['phone'].get("time_slot", [])
+    if len(timeslot) > 0:
+        current_time = arrow.utcnow().datetime
+        if timeslot[0] < timeslot[1]:
+            if current_time.hour >= timeslot[0] and current_time.hour <= timeslot[1]:
+                sending = True
+        else:
+            if current_time.hour <= timeslot[1] or current_time.hour >= timeslot[0]:
+                sending = True
+
     if sending:
         try:
             message = f"Greetings. This is the SkyPortal robot. {target.text}"
@@ -386,6 +383,7 @@ def send_phone_notification(mapper, connection, target):
             )
         except Exception as e:
             log(f"Error sending phone call notification: {e}")
+
 
 @event.listens_for(UserNotification, 'after_insert')
 def send_whatsapp_notification(mapper, connection, target):
@@ -405,25 +403,23 @@ def send_whatsapp_notification(mapper, connection, target):
         )
         if current_shift is not None:
             sending = True
-    else:
-        timeslot = prefs[resource_type]['whatsapp'].get("time_slot", [])
-        if len(timeslot) > 0:
-            current_time = arrow.utcnow().datetime
-            if timeslot[0] < timeslot[1]:
-                if (
-                    current_time.hour >= timeslot[0]
-                    and current_time.hour <= timeslot[1]
-                ):
-                    sending = True
-            else:
-                if current_time.hour <= timeslot[1] or current_time.hour >= timeslot[0]:
-                    sending = True
+
+    timeslot = prefs[resource_type]['whatsapp'].get("time_slot", [])
+    if len(timeslot) > 0:
+        current_time = arrow.utcnow().datetime
+        if timeslot[0] < timeslot[1]:
+            if current_time.hour >= timeslot[0] and current_time.hour <= timeslot[1]:
+                sending = True
+        else:
+            if current_time.hour <= timeslot[1] or current_time.hour >= timeslot[0]:
+                sending = True
+
     if sending:
         try:
             client.messages.create(
                 body=f"{cfg['app.title']} - {target.text}",
-                from_="whatsapp:" + from_number,
-                to="whatsapp" + target.user.contact_phone.e164,
+                from_="whatsapp:" + str(from_number),
+                to="whatsapp" + str(target.user.contact_phone.e164),
             )
             log(
                 f"Sent WhatsApp notification to user {target.user.id} at phone number: {target.user.contact_phone.e164}, body: {target.text}, resource_type: {resource_type}"
