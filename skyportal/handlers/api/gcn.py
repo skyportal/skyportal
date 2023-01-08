@@ -1390,6 +1390,7 @@ class LocalizationPropertiesHandler(BaseHandler):
 
 
 def add_gcn_summary(
+    summary_id,
     user_id,
     dateobs,
     title,
@@ -1412,6 +1413,7 @@ def add_gcn_summary(
         user = session.query(User).get(user_id)
         session.user_or_token = user
 
+        gcn_summary = session.query(GcnSummary).get(summary_id)
         group = session.query(Group).get(group_id)
         event = session.query(GcnEvent).filter(GcnEvent.dateobs == dateobs).first()
 
@@ -1783,14 +1785,7 @@ def add_gcn_summary(
                     observations_text = ["\nObservations:"] + observations_text
                     contents.extend(observations_text)
 
-        gcn_summary = GcnSummary(
-            dateobs=event.dateobs,
-            title=title,
-            text="\n".join(contents),
-            sent_by_id=user.id,
-            group_id=group_id,
-        )
-        session.add(gcn_summary)
+        gcn_summary.text = "\n".join(contents)
         session.commit()
 
         flow = Flow()
@@ -1799,6 +1794,7 @@ def add_gcn_summary(
             action_type="skyportal/REFRESH_GCN_EVENT",
             payload={"gcnEvent_dateobs": event.dateobs},
         )
+        log(f"Successfully generated GCN summary {gcn_summary.id}")
 
     except Exception as e:
         log(f"Unable to create GCN summary: {e}")
@@ -1955,7 +1951,10 @@ class GcnSummaryHandler(BaseHandler):
                 return self.error("Subject is required")
             if user_ids is not None:
                 try:
-                    user_ids = [int(user_id) for user_id in user_ids]
+                    if type(user_ids) == list:
+                        user_ids = [int(user_id) for user_id in user_ids]
+                    else:
+                        user_ids = [int(user_ids)]
                 except ValueError:
                     return self.error("User IDs must be integers")
             else:
@@ -1988,31 +1987,45 @@ class GcnSummaryHandler(BaseHandler):
                     "A summary with the same title, group, and event already exists for this user"
                 )
 
-        try:
-            IOLoop.current().run_in_executor(
-                None,
-                lambda: add_gcn_summary(
-                    user_id=self.associated_user_object.id,
-                    dateobs=dateobs,
-                    title=title,
-                    number=number,
-                    subject=subject,
-                    user_ids=user_ids,
-                    group_id=group_id,
-                    start_date=start_date,
-                    end_date=end_date,
-                    localization_name=localization_name,
-                    localization_cumprob=localization_cumprob,
-                    show_sources=show_sources,
-                    show_galaxies=show_galaxies,
-                    show_observations=show_observations,
-                    no_text=no_text,
-                    photometry_in_window=photometry_in_window,
-                ),
+            gcn_summary = GcnSummary(
+                dateobs=event.dateobs,
+                title=title,
+                text="pending",
+                sent_by_id=self.associated_user_object.id,
+                group_id=group_id,
             )
-            return self.success()
-        except Exception as e:
-            return self.error(f"Error generating summary: {e}")
+            session.add(gcn_summary)
+            session.commit()
+
+            summary_id = gcn_summary.id
+            user_id = self.associated_user_object.id
+
+            try:
+                IOLoop.current().run_in_executor(
+                    None,
+                    lambda: add_gcn_summary(
+                        summary_id=summary_id,
+                        user_id=user_id,
+                        dateobs=dateobs,
+                        title=title,
+                        number=number,
+                        subject=subject,
+                        user_ids=user_ids,
+                        group_id=group_id,
+                        start_date=start_date,
+                        end_date=end_date,
+                        localization_name=localization_name,
+                        localization_cumprob=localization_cumprob,
+                        show_sources=show_sources,
+                        show_galaxies=show_galaxies,
+                        show_observations=show_observations,
+                        no_text=no_text,
+                        photometry_in_window=photometry_in_window,
+                    ),
+                )
+                return self.success({"id": summary_id})
+            except Exception as e:
+                return self.error(f"Error generating summary: {e}")
 
     @auth_or_token
     def get(self, dateobs, summary_id):
