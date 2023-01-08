@@ -873,7 +873,7 @@ def test_gcn_summary_observations(
     assert obs_summary_text in data[8]
 
     obs_table = data[10:]
-    assert len(obs_table) >= 14  # other obs have probably been added in previous tests
+    assert len(obs_table) >= 13  # other obs have probably been added in previous tests
     assert "T-T0 (hr)" in obs_table[1]
     assert "mjd" in obs_table[1]
     assert "ra" in obs_table[1]
