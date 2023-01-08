@@ -3,7 +3,7 @@ import messageHandler from "baselayer/MessageHandler";
 import * as API from "../API";
 import store from "../store";
 
-export const REFRESH_GCNEVENT = "skyportal/REFRESH_GCNEVENT";
+export const REFRESH_GCN_EVENT = "skyportal/REFRESH_GCN_EVENT";
 
 export const FETCH_GCNEVENT = "skyportal/FETCH_GCNEVENT";
 export const FETCH_GCNEVENT_OK = "skyportal/FETCH_GCNEVENT_OK";
@@ -47,8 +47,9 @@ const CREATE_OBSERVATION_PLAN_REQUEST_OBSERVING_RUN =
 const DELETE_OBSERVATION_PLAN_FIELDS =
   "skyportal/DELETE_OBSERVATION_PLAN_FIELDS";
 
-const GET_GCNEVENT_SUMMARY = "skyportal/FETCH_GCNEVENT_SUMMARY";
-const GET_GCNEVENT_SUMMARY_OK = "skyportal/FETCH_GCNEVENT_SUMMARY_OK";
+const POST_GCNEVENT_SUMMARY = "skyportal/POST_GCNEVENT_SUMMARY";
+const FETCH_GCNEVENT_SUMMARY = "skyportal/FETCH_GCNEVENT_SUMMARY";
+const DELETE_GCNEVENT_SUMMARY = "skyportal/DELETE_GCNEVENT_SUMMARY";
 
 const POST_GCN_TACH = "skyportal/POST_GCN_TACH";
 const FETCH_GCN_TACH = "skyportal/FETCH_GCN_TACH";
@@ -169,11 +170,25 @@ export function submitGcnEvent(data) {
   return API.POST("/api/gcn_event", SUBMIT_GCNEVENT, data);
 }
 
-export function getGcnEventSummary({ dateobs, params }) {
-  return API.GET(
-    `/api/gcn_event/summary/${dateobs}`,
-    GET_GCNEVENT_SUMMARY,
+export function postGcnEventSummary({ dateobs, params }) {
+  return API.POST(
+    `/api/gcn_event/${dateobs}/summary`,
+    POST_GCNEVENT_SUMMARY,
     params
+  );
+}
+
+export function fetchGcnEventSummary({ dateobs, summaryID }) {
+  return API.GET(
+    `/api/gcn_event/${dateobs}/summary/${summaryID}`,
+    FETCH_GCNEVENT_SUMMARY
+  );
+}
+
+export function deleteGcnEventSummary({ dateobs, summaryID }) {
+  return API.DELETE(
+    `/api/gcn_event/${dateobs}/summary/${summaryID}`,
+    DELETE_GCNEVENT_SUMMARY
   );
 }
 
@@ -195,7 +210,7 @@ messageHandler.add((actionType, payload, dispatch, getState) => {
       }
     });
   }
-  if (actionType === REFRESH_GCNEVENT) {
+  if (actionType === REFRESH_GCN_EVENT) {
     const loaded_gcnevent_key = gcnEvent?.dateobs;
 
     if (loaded_gcnevent_key === payload.gcnEvent_dateobs) {
@@ -235,12 +250,6 @@ const reducer = (state = null, action) => {
           attachment,
           attachment_name,
         },
-      };
-    }
-    case GET_GCNEVENT_SUMMARY_OK: {
-      return {
-        ...state,
-        summary: action.data,
       };
     }
     case FETCH_GCN_TACH_OK: {

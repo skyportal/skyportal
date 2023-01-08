@@ -235,7 +235,7 @@ def post_aliases(dateobs, tach_id, user_id):
 
         flow.push(
             user_id='*',
-            action_type='skyportal/REFRESH_GCNEVENT',
+            action_type='skyportal/REFRESH_GCN_EVENT',
             payload={'gcnEvent_dateobs': dateobs},
         )
     except Exception:
