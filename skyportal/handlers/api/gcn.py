@@ -69,6 +69,7 @@ from ...models import (
     User,
     Instrument,
     Group,
+    UserNotification,
 )
 from ...utils.gcn import (
     get_dateobs,
@@ -1794,9 +1795,25 @@ def add_gcn_summary(
             action_type="skyportal/REFRESH_GCN_EVENT",
             payload={"gcnEvent_dateobs": event.dateobs},
         )
+
+        notification = UserNotification(
+            user=user,
+            text=f"GCN summary *{gcn_summary.title}* on *{event.dateobs}* created.",
+            notification_type="gcn_summary",
+            url=f"/gcn_events/{event.dateobs}",
+        )
+        session.add(notification)
+        session.commit()
+
         log(f"Successfully generated GCN summary {gcn_summary.id}")
 
     except Exception as e:
+        try:
+            gcn_summary = session.query(GcnSummary).get(summary_id)
+            gcn_summary.text = "Failed to generate summary."
+            session.commit()
+        except Exception:
+            pass
         log(f"Unable to create GCN summary: {e}")
 
 
@@ -2106,6 +2123,13 @@ class GcnSummaryHandler(BaseHandler):
             summary = session.scalars(stmt).first()
             if summary is None:
                 return self.error("Summary not found", status=404)
+
+            if summary.text.strip().lower() == "pending" and datetime.datetime.now() < (
+                summary.created_at + datetime.timedelta(hours=1)
+            ):
+                return self.error(
+                    "Cannot delete a recently created summary (less than 1 hour) that is still pending"
+                )
 
             session.delete(summary)
             session.commit()
