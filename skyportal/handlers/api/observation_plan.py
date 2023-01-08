@@ -337,7 +337,7 @@ def post_observation_plans(plans, user_id, session, asynchronous=True):
     for observation_plan_request in observation_plan_requests:
         flow.push(
             '*',
-            "skyportal/REFRESH_GCNEVENT",
+            "skyportal/REFRESH_GCN_EVENT",
             payload={"gcnEvent_dateobs": observation_plan_request.gcnevent.dateobs},
         )
 
@@ -418,7 +418,7 @@ def post_observation_plan(plan, user_id, session, asynchronous=True):
 
     flow.push(
         '*',
-        "skyportal/REFRESH_GCNEVENT",
+        "skyportal/REFRESH_GCN_EVENT",
         payload={"gcnEvent_dateobs": dateobs},
     )
 
@@ -432,7 +432,7 @@ def post_observation_plan(plan, user_id, session, asynchronous=True):
 
     flow.push(
         '*',
-        "skyportal/REFRESH_GCNEVENT",
+        "skyportal/REFRESH_GCN_EVENT",
         payload={"gcnEvent_dateobs": observation_plan_request.gcnevent.dateobs},
     )
 
@@ -623,7 +623,7 @@ class ObservationPlanRequestHandler(BaseHandler):
             session.commit()
 
             self.push_all(
-                action="skyportal/REFRESH_GCNEVENT",
+                action="skyportal/REFRESH_GCN_EVENT",
                 payload={"gcnEvent_dateobs": dateobs},
             )
 
@@ -682,7 +682,7 @@ class ObservationPlanSubmitHandler(BaseHandler):
             finally:
                 session.commit()
             self.push_all(
-                action="skyportal/REFRESH_GCNEVENT",
+                action="skyportal/REFRESH_GCN_EVENT",
                 payload={"gcnEvent_dateobs": observation_plan_request.gcnevent.dateobs},
             )
 
@@ -737,7 +737,7 @@ class ObservationPlanSubmitHandler(BaseHandler):
             finally:
                 session.commit()
             self.push_all(
-                action="skyportal/REFRESH_GCNEVENT",
+                action="skyportal/REFRESH_GCN_EVENT",
                 payload={"gcnEvent_dateobs": observation_plan_request.gcnevent.dateobs},
             )
 
@@ -1425,7 +1425,7 @@ class ObservationPlanFieldsHandler(BaseHandler):
                 session.commit()
 
             self.push_all(
-                action="skyportal/REFRESH_GCNEVENT",
+                action="skyportal/REFRESH_GCN_EVENT",
                 payload={"gcnEvent_dateobs": dateobs},
             )
 
