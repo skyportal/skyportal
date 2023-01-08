@@ -1807,7 +1807,7 @@ class GcnSummaryHandler(BaseHandler):
         ---
           description: Post a summary of a GCN event.
           tags:
-            - observations
+            - gcnsummarys
           parameters:
             - in: body
               name: title
@@ -2036,6 +2036,11 @@ class GcnSummaryHandler(BaseHandler):
           - gcn
         parameters:
           - in: path
+            name: dateobs
+            required: true
+            schema:
+              type: string
+          - in: path
             name: summary_id
             required: true
             schema:
@@ -2044,7 +2049,7 @@ class GcnSummaryHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: GcnSummaryHandlerGet
+                schema: SingleGcnSummary
           400:
             content:
               application/json:
@@ -2126,12 +2131,12 @@ class LocalizationDownloadHandler(BaseHandler):
             name: dateobs
             required: true
             schema:
-              type: dateobs
+              type: string
           - in: path
             name: localization_name
             required: true
             schema:
-              type: localization_name
+              type: string
         responses:
           200:
             content:
