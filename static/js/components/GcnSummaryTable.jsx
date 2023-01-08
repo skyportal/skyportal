@@ -66,6 +66,7 @@ const getMuiTheme = (theme) =>
 const GcnSummaryTable = ({
   summaries,
   setSelectedGcnSummaryId,
+  deleteGcnEventSummary,
   pageNumber = 1,
   numPerPage = 10,
   serverSide = false,
@@ -83,10 +84,15 @@ const GcnSummaryTable = ({
     return <div>{summary.sent_by.username}</div>;
   };
 
-  const renderRetrieveSummary = (dataIndex) => {
+  const renderGroup = (dataIndex) => {
+    const summary = summaries[dataIndex];
+    return <div>{summary.group.name}</div>;
+  };
+
+  const renderRetrieveDeleteSummary = (dataIndex) => {
     const summary = summaries[dataIndex];
     return (
-      <div>
+      <div style={{ display: "flex", gap: "0.5rem" }}>
         <Button
           primary
           onClick={() => {
@@ -96,7 +102,18 @@ const GcnSummaryTable = ({
           type="submit"
           data-testid={`retrieveSummary_${summary.id}`}
         >
-          Retrieve Summary
+          Retrieve
+        </Button>
+        <Button
+          primary
+          onClick={() => {
+            deleteGcnEventSummary(summary.id);
+          }}
+          size="small"
+          type="submit"
+          data-testid={`deleteSummary_${summary.id}`}
+        >
+          Delete
         </Button>
       </div>
     );
@@ -104,8 +121,8 @@ const GcnSummaryTable = ({
 
   const columns = [
     {
-      name: "id",
-      label: "Summary ID",
+      name: "title",
+      label: "Title",
     },
     {
       name: "created_at",
@@ -120,13 +137,21 @@ const GcnSummaryTable = ({
       },
     },
     {
-      name: "retrieve_summary",
-      label: "Retrieve Summary",
+      name: "Group",
+      label: "Group",
+      options: {
+        customBodyRenderLite: renderGroup,
+        download: false,
+      },
+    },
+    {
+      name: "manage_summary",
+      label: "Manage",
       options: {
         filter: false,
         sort: true,
         sortThirdClickReset: true,
-        customBodyRenderLite: renderRetrieveSummary,
+        customBodyRenderLite: renderRetrieveDeleteSummary,
         download: false,
       },
     },
@@ -172,9 +197,11 @@ GcnSummaryTable.propTypes = {
       id: PropTypes.number,
       created_at: PropTypes.string,
       sent_by: PropTypes.objectOf(PropTypes.any).isRequired, // eslint-disable-line react/forbid-prop-types,
+      group: PropTypes.objectOf(PropTypes.any).isRequired, // eslint-disable-line react/forbid-prop-types,
     })
   ),
   setSelectedGcnSummaryId: PropTypes.func.isRequired,
+  deleteGcnEventSummary: PropTypes.func.isRequired,
   pageNumber: PropTypes.number,
   numPerPage: PropTypes.number,
   hideTitle: PropTypes.bool,

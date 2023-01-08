@@ -28,7 +28,12 @@ import {
 } from "./SelectWithChips";
 import * as usersActions from "../ducks/users";
 import * as groupsActions from "../ducks/groups";
-import { getGcnEventSummary, fetchGcnEvent } from "../ducks/gcnEvent";
+import {
+  fetchGcnEventSummary,
+  postGcnEventSummary,
+  deleteGcnEventSummary,
+  fetchGcnEvent,
+} from "../ducks/gcnEvent";
 import Button from "./Button";
 import GcnSummaryTable from "./GcnSummaryTable";
 
@@ -82,6 +87,13 @@ const useStyles = makeStyles((theme) => ({
     width: "100%",
     gap: theme.spacing(2),
   },
+  menu: {
+    display: "flex",
+    direction: "row",
+    justifyContent: "space-around",
+    alignItems: "center",
+    marginBottom: "1rem",
+  },
 }));
 
 const dialogTitleStyles = (theme) => ({
@@ -129,7 +141,6 @@ const GcnSummary = ({ dateobs }) => {
   const [selectedUsers, setSelectedUsers] = useState([]);
   const [selectedGroup, setSelectedGroup] = useState(null);
   const gcnEvent = useSelector((state) => state.gcnEvent);
-  const { summary } = useSelector((state) => state.gcnEvent);
   const [text, setText] = useState("");
   const [nb, setNb] = useState("");
   const [title, setTitle] = useState("Gcn Summary");
@@ -144,7 +155,9 @@ const GcnSummary = ({ dateobs }) => {
   const [photometryInWindow, setPhotometryInWindow] = useState(false);
   const [selectedGcnSummaryId, setSelectedGcnSummaryId] = useState(null);
 
-  const [fetching, setFetching] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  const [displayList, setDisplayList] = useState(true);
 
   const groups_list = groups.map((group) => ({
     id: group.id,
@@ -164,11 +177,25 @@ const GcnSummary = ({ dateobs }) => {
   }, [dateobs, dispatch]);
 
   useEffect(() => {
-    if (selectedGcnSummaryId) {
-      const thisSummary = gcnEvent.summaries?.filter(
-        (s) => s.id === selectedGcnSummaryId
-      )[0];
-      setText(thisSummary.text);
+    const fetchSummary = (summaryID) => {
+      dispatch(fetchGcnEventSummary({ dateobs, summaryID })).then(
+        (response) => {
+          if (response.status === "success") {
+            setText(response.data.text);
+          } else {
+            setText("");
+            dispatch(showNotification("Error fetching summary", "error"));
+          }
+        }
+      );
+    };
+    if (gcnEvent?.summaries?.length > 0) {
+      if (selectedGcnSummaryId) {
+        fetchSummary(selectedGcnSummaryId);
+        setDisplayList(false);
+      } else {
+        setText("");
+      }
     }
   }, [gcnEvent, selectedGcnSummaryId]);
 
@@ -180,14 +207,6 @@ const GcnSummary = ({ dateobs }) => {
     if (!dataFetched) {
       fetchData();
       setDataFetched(true);
-    } else if (summary) {
-      if (summary?.length === 0) {
-        dispatch(
-          showNotification("No data found with these parameters", "warning")
-        );
-      }
-      setText(summary.join(""));
-      setFetching(false);
     }
     const defaultStartDate = dayjs.utc(dateobs).format("YYYY-MM-DD HH:mm:ss");
     const defaultEndDate = dayjs
@@ -198,7 +217,7 @@ const GcnSummary = ({ dateobs }) => {
     setEndDate(defaultEndDate);
     setSubject(`Follow-up on GCN Event ${dateobs}`);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dateobs, summary, dataFetched, dispatch]);
+  }, [dateobs, dataFetched, dispatch]);
 
   const handleClose = () => {
     setOpen(false);
@@ -232,12 +251,7 @@ const GcnSummary = ({ dateobs }) => {
 
     if (!noText) {
       if (title === "") {
-        dispatch(
-          showNotification(
-            "Please enter a title when noText is not checked",
-            "error"
-          )
-        );
+        dispatch(showNotification("Please enter a title", "error"));
         valid = false;
       }
       if (subject === "") {
@@ -250,12 +264,7 @@ const GcnSummary = ({ dateobs }) => {
         valid = false;
       }
       if (!selectedGroup?.id) {
-        dispatch(
-          showNotification(
-            "Please select a group when noText is not checked",
-            "error"
-          )
-        );
+        dispatch(showNotification("Please select a group", "error"));
         valid = false;
       }
     }
@@ -281,6 +290,7 @@ const GcnSummary = ({ dateobs }) => {
 
   const handleSubmitGcnSummary = async () => {
     if (validateSubmit()) {
+      setLoading(true);
       const params = {
         title,
         subject,
@@ -298,13 +308,26 @@ const GcnSummary = ({ dateobs }) => {
       if (nb !== "") {
         params.number = nb;
       }
-      setFetching(true);
-      dispatch(getGcnEventSummary({ dateobs, params })).then((response) => {
-        if (response.status !== "success") {
-          setFetching(false);
+      dispatch(postGcnEventSummary({ dateobs, params })).then((response) => {
+        if (response.status === "success") {
+          dispatch(showNotification("Summary is being generated, please wait"));
+        } else {
+          dispatch(showNotification("Error generating summary", "error"));
         }
+        setLoading(false);
       });
     }
+  };
+
+  const handleDeleteGcnEventSummary = (summaryID) => {
+    dispatch(deleteGcnEventSummary({ dateobs, summaryID })).then((response) => {
+      if (response.status === "success") {
+        setSelectedGcnSummaryId(null);
+        dispatch(showNotification("Summary deleted"));
+      } else {
+        dispatch(showNotification("Error deleting summary", "error"));
+      }
+    });
   };
 
   return (
@@ -433,17 +456,17 @@ const GcnSummary = ({ dateobs }) => {
                   <div className={classes.buttons}>
                     <LoadingButton
                       onClick={() => handleSubmitGcnSummary()}
-                      loading={fetching}
+                      loading={loading}
                       loadingPosition="end"
                       variant="contained"
                       className={classes.button}
                     >
-                      Get Summary
+                      Generate
                     </LoadingButton>
                     <Button
                       secondary
                       endIcon={<GetApp />}
-                      disabled={!summary || summary?.length === 0}
+                      disabled={!text || text?.length === 0}
                       onClick={() => {
                         const blob = new Blob([text], { type: "text/plain" });
                         const url = URL.createObjectURL(blob);
@@ -460,61 +483,81 @@ const GcnSummary = ({ dateobs }) => {
                 </Paper>
               </Grid>
               <Grid item md={8} sm={12}>
-                <Paper elevation={1} className={classes.content}>
-                  {fetching && (
-                    <div
-                      style={{
-                        display: "flex",
-                        width: "100%",
-                        height: "100%",
-                        justifyContent: "center",
-                        alignItems: "center",
-                      }}
-                    >
-                      <CircularProgress />
-                    </div>
-                  )}
-                  {!fetching && text && (
-                    <TextField
-                      id="text"
-                      label="Text"
-                      multiline
-                      value={text}
-                      onChange={(e) => setText(e.target.value)}
-                      className={classes.textField}
-                      InputProps={{
-                        style: {
-                          fontSize: "0.9rem",
-                          fontFamily: "monospace",
-                        },
-                      }}
-                    />
-                  )}
-                  {!fetching && !text && (
-                    <div
-                      style={{
-                        textAlign: "center",
-                        display: "flex",
-                        width: "100%",
-                        height: "100%",
-                        justifyContent: "center",
-                        alignItems: "center",
-                      }}
-                    >
-                      <Typography variant="h4">
-                        Use the form on the left to generate a summary.
-                      </Typography>
-                    </div>
-                  )}
+                <Paper className={classes.menu}>
+                  <Button
+                    primary
+                    id="gcn-summary-list"
+                    onClick={() => setDisplayList(true)}
+                  >
+                    GCN Summaries List
+                  </Button>
+                  <Button
+                    primary
+                    id="new-telescope"
+                    onClick={() => setDisplayList(false)}
+                  >
+                    Summary Text
+                  </Button>
                 </Paper>
-                <Paper elevation={1} className={classes.content}>
-                  <div>
-                    <GcnSummaryTable
-                      summaries={gcnEvent.summaries}
-                      setSelectedGcnSummaryId={setSelectedGcnSummaryId}
-                    />
-                  </div>
-                </Paper>
+                {displayList ? (
+                  <Paper elevation={1} className={classes.content}>
+                    <div>
+                      <GcnSummaryTable
+                        summaries={gcnEvent.summaries}
+                        setSelectedGcnSummaryId={setSelectedGcnSummaryId}
+                        deleteGcnEventSummary={handleDeleteGcnEventSummary}
+                      />
+                    </div>
+                  </Paper>
+                ) : (
+                  <Paper elevation={1} className={classes.content}>
+                    {loading && (
+                      <div
+                        style={{
+                          display: "flex",
+                          width: "100%",
+                          height: "100%",
+                          justifyContent: "center",
+                          alignItems: "center",
+                        }}
+                      >
+                        <CircularProgress />
+                      </div>
+                    )}
+                    {!loading && text && (
+                      <TextField
+                        id="text"
+                        label="Text"
+                        multiline
+                        value={text}
+                        onChange={(e) => setText(e.target.value)}
+                        className={classes.textField}
+                        InputProps={{
+                          style: {
+                            fontSize: "0.9rem",
+                            fontFamily: "monospace",
+                          },
+                        }}
+                      />
+                    )}
+                    {!loading && !text && (
+                      <div
+                        style={{
+                          textAlign: "center",
+                          display: "flex",
+                          width: "100%",
+                          height: "100%",
+                          justifyContent: "center",
+                          alignItems: "center",
+                        }}
+                      >
+                        <Typography variant="h4">
+                          Use the form on the left to generate a summary.
+                        </Typography>
+                      </div>
+                    )}
+                  </Paper>
+                )}
               </Grid>
             </Grid>
           </DialogContent>
