@@ -56,6 +56,7 @@ from ...models import (
     GcnEvent,
     GcnNotice,
     GcnProperty,
+    GcnSummary,
     GcnTag,
     Localization,
     LocalizationProperty,
@@ -787,6 +788,7 @@ class GcnEventHandler(BaseHandler):
                             joinedload(GcnEvent.comments),
                             joinedload(GcnEvent.detectors),
                             joinedload(GcnEvent.properties),
+                            joinedload(GcnEvent.summaries),
                         ],
                     ).where(GcnEvent.dateobs == dateobs)
                 ).first()
@@ -827,6 +829,17 @@ class GcnEventHandler(BaseHandler):
                                 },
                             }
                             for c in event.comments
+                        ),
+                        key=lambda x: x["created_at"],
+                        reverse=True,
+                    ),
+                    "summaries": sorted(
+                        (
+                            {
+                                **s.to_dict(),
+                                "sent_by": s.sent_by.to_dict(),
+                            }
+                            for s in event.summaries
                         ),
                         key=lambda x: x["created_at"],
                         reverse=True,
@@ -1954,6 +1967,21 @@ class GcnSummaryHandler(BaseHandler):
                     if len(observations_text) > 0 and not no_text:
                         observations_text = ["\nObservations:"] + observations_text
                         contents.extend(observations_text)
+
+                # Save GCN summary to dateobs
+                gcn_summary = GcnSummary(
+                    dateobs=event.dateobs,
+                    text="\n".join(contents),
+                    sent_by_id=self.associated_user_object.id,
+                )
+                session.add(gcn_summary)
+                session.commit()
+
+                self.push(
+                    action='skyportal/REFRESH_GCNEVENT',
+                    payload={"gcnEvent_dateobs": event.dateobs},
+                )
+
         except Exception as e:
             return self.error(f"Error generating summary: {e}")
         return self.success(data=contents)

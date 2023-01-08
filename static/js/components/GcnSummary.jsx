@@ -28,8 +28,9 @@ import {
 } from "./SelectWithChips";
 import * as usersActions from "../ducks/users";
 import * as groupsActions from "../ducks/groups";
-import { getGcnEventSummary } from "../ducks/gcnEvent";
+import { getGcnEventSummary, fetchGcnEvent } from "../ducks/gcnEvent";
 import Button from "./Button";
+import GcnSummaryTable from "./GcnSummaryTable";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
@@ -127,6 +128,7 @@ const GcnSummary = ({ dateobs }) => {
   const [dataFetched, setDataFetched] = useState(false);
   const [selectedUsers, setSelectedUsers] = useState([]);
   const [selectedGroup, setSelectedGroup] = useState(null);
+  const gcnEvent = useSelector((state) => state.gcnEvent);
   const { summary } = useSelector((state) => state.gcnEvent);
   const [text, setText] = useState("");
   const [nb, setNb] = useState("");
@@ -140,6 +142,7 @@ const GcnSummary = ({ dateobs }) => {
   const [showObservations, setShowObservations] = useState(false);
   const [noText, setNoText] = useState(false);
   const [photometryInWindow, setPhotometryInWindow] = useState(false);
+  const [selectedGcnSummaryId, setSelectedGcnSummaryId] = useState(null);
 
   const [fetching, setFetching] = useState(false);
 
@@ -152,6 +155,22 @@ const GcnSummary = ({ dateobs }) => {
     id: user.id,
     label: `${user.first_name} ${user.last_name}`,
   }));
+
+  useEffect(() => {
+    const fetchEvent = async (gcnEvent_dateobs) => {
+      await dispatch(fetchGcnEvent(gcnEvent_dateobs));
+    };
+    fetchEvent(dateobs);
+  }, [dateobs, dispatch]);
+
+  useEffect(() => {
+    if (selectedGcnSummaryId) {
+      const thisSummary = gcnEvent.summaries?.filter(
+        (s) => s.id === selectedGcnSummaryId
+      )[0];
+      setText(thisSummary.text);
+    }
+  }, [gcnEvent, selectedGcnSummaryId]);
 
   useEffect(() => {
     const fetchData = () => {
@@ -487,6 +506,14 @@ const GcnSummary = ({ dateobs }) => {
                       </Typography>
                     </div>
                   )}
+                </Paper>
+                <Paper elevation={1} className={classes.content}>
+                  <div>
+                    <GcnSummaryTable
+                      summaries={gcnEvent.summaries}
+                      setSelectedGcnSummaryId={setSelectedGcnSummaryId}
+                    />
+                  </div>
                 </Paper>
               </Grid>
             </Grid>

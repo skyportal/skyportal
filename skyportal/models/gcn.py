@@ -1,4 +1,4 @@
-__all__ = ['GcnNotice', 'GcnTag', 'GcnEvent', 'GcnProperty']
+__all__ = ['GcnNotice', 'GcnTag', 'GcnEvent', 'GcnProperty', 'GcnSummary']
 
 import sqlalchemy as sa
 from sqlalchemy.orm import relationship
@@ -12,6 +12,34 @@ import lxml
 from baselayer.app.models import Base, DBSession, AccessibleIfUserMatches
 
 SOURCE_RADIUS_THRESHOLD = 5 / 60.0  # 5 arcmin in degrees
+
+
+class GcnSummary(Base):
+    """Store GCN summary text for events."""
+
+    update = delete = AccessibleIfUserMatches('sent_by')
+
+    sent_by_id = sa.Column(
+        sa.ForeignKey('users.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+        doc="The ID of the User who created this GcnSummary.",
+    )
+
+    sent_by = relationship(
+        "User",
+        foreign_keys=sent_by_id,
+        back_populates="gcnsummaries",
+        doc="The user that saved this GcnSummary",
+    )
+
+    dateobs = sa.Column(
+        sa.ForeignKey('gcnevents.dateobs', ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    text = sa.Column(sa.Unicode, nullable=False)
 
 
 class GcnNotice(Base):
@@ -149,6 +177,14 @@ class GcnEvent(Base):
         passive_deletes=True,
         order_by="GcnProperty.created_at",
         doc="Properties associated with this GCN event.",
+    )
+
+    summaries = relationship(
+        'GcnSummary',
+        cascade='save-update, merge, refresh-expire, expunge, delete',
+        passive_deletes=True,
+        order_by="GcnSummary.created_at",
+        doc="Summaries associated with this GCN event.",
     )
 
     _tags = relationship(
