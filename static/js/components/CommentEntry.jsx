@@ -12,6 +12,7 @@ import Button from "./Button";
 
 import FormValidationError from "./FormValidationError";
 import UsernameTrie from "../usernameTrie";
+import InstrumentTrie from "../instrumentTrie";
 
 const useStyles = makeStyles(() => ({
   commentEntry: {
@@ -34,9 +35,11 @@ const CommentEntry = ({ addComment }) => {
   const [textInputCursorIndex, setTextInputCursorIndex] = useState(0);
   const [autosuggestVisible, setAutosuggestVisible] = useState(false);
   const [usernamePrefixMatches, setUsernamePrefixMatches] = useState({});
+  const [instrumentPrefixMatches, setInstrumentPrefixMatches] = useState({});
   const textAreaRef = useRef(null);
   const autoSuggestRootItem = useRef(null);
   const { users } = useSelector((state) => state.users);
+  const { instrumentList } = useSelector((state) => state.instruments);
 
   const usernameTrie = useMemo(() => {
     const trie = UsernameTrie();
@@ -50,6 +53,17 @@ const CommentEntry = ({ addComment }) => {
     return trie;
   }, [users]);
 
+  const instrumentTrie = useMemo(() => {
+    const trie = InstrumentTrie();
+    instrumentList.forEach((instrument) => {
+      trie.insertInstrument({
+        instrument: instrument.name,
+        telescope: instrument.telescope.nickname,
+      });
+    });
+    return trie;
+  }, [instrumentList]);
+
   const {
     handleSubmit,
     reset,
@@ -57,12 +71,13 @@ const CommentEntry = ({ addComment }) => {
     getValues,
     setValue,
     control,
-    errors,
+
+    formState: { errors },
   } = useForm();
 
   // The file input needs to be registered here, not in the input tag below
   useEffect(() => {
-    register({ name: "attachment" });
+    register("name", { name: "attachment" });
   }, [register]);
 
   useEffect(() => {
@@ -102,6 +117,16 @@ const CommentEntry = ({ addComment }) => {
         setTextInputCursorIndex(cursorIdx);
         setAutosuggestVisible(true);
       }
+    } else if (currentWord.startsWith("#")) {
+      const matches = instrumentTrie.findAllStartingWith(
+        currentWord.slice(1),
+        10
+      );
+      setInstrumentPrefixMatches(matches);
+      if (Object.keys(matches).length > 0) {
+        setTextInputCursorIndex(cursorIdx);
+        setAutosuggestVisible(true);
+      }
     } else {
       setAutosuggestVisible(false);
     }
@@ -116,7 +141,7 @@ const CommentEntry = ({ addComment }) => {
   };
 
   const validateGroups = () => {
-    const formState = getValues({ nest: true });
+    const formState = getValues();
     return formState.group_ids?.filter((value) => Boolean(value)).length >= 1;
   };
 
@@ -136,6 +161,25 @@ const CommentEntry = ({ addComment }) => {
     setValue("text", newTextValue);
     setAutosuggestVisible(false);
     setUsernamePrefixMatches({});
+    textAreaRef.current.focus();
+  };
+
+  const handleClickSuggestedInstrument = (instrument) => {
+    const currentWord = textValue
+      .slice(0, textInputCursorIndex)
+      .trim()
+      .split(" ")
+      .pop();
+
+    const newTextValue = `${textValue.slice(
+      0,
+      textInputCursorIndex - currentWord.length
+    )}#${instrument} ${textValue.slice(textInputCursorIndex)}`;
+
+    setTextValue(newTextValue);
+    setValue("text", newTextValue);
+    setAutosuggestVisible(false);
+    setInstrumentPrefixMatches({});
     textAreaRef.current.focus();
   };
 
@@ -213,6 +257,45 @@ const CommentEntry = ({ addComment }) => {
           )
         )}
       </div>
+      <div
+        style={{
+          paddingLeft: "2rem",
+          overflowY: "scroll",
+          maxHeight: "10rem",
+          display: autosuggestVisible ? "block" : "none",
+        }}
+      >
+        {Object.entries(instrumentPrefixMatches).map(
+          ([instrument, { telescope }], ix) => (
+            <li key={instrument}>
+              <Button
+                onClick={() => handleClickSuggestedInstrument(instrument)}
+                style={{ textTransform: "none" }}
+                ref={ix === 0 ? autoSuggestRootItem : null}
+                onKeyDown={(event) => {
+                  // On down arrow, move to next sibling
+                  if (event.key === "ArrowDown") {
+                    // Focus on next item in list
+                    // -> parent (li) -> sibling (li) -> firstChild (button)
+                    event.target.parentNode.nextSibling?.firstChild.focus();
+                    // Do not scroll the list
+                    event.preventDefault();
+                  }
+                  // Up arrow
+                  if (event.key === "ArrowUp") {
+                    // Focus on previous item in list
+                    // -> parent (li) -> sibling (li) -> firstChild (button)
+                    event.target.parentNode.previousSibling?.firstChild.focus();
+                    event.preventDefault();
+                  }
+                }}
+              >
+                {`${instrument} / ${telescope}`.trim()}
+              </Button>
+            </li>
+          )
+        )}
+      </div>
       <div className={styles.inputDiv}>
         <label>
           Attachment &nbsp;
@@ -244,7 +327,7 @@ const CommentEntry = ({ addComment }) => {
               key={userGroup.id}
               control={
                 <Controller
-                  render={({ onChange, value }) => (
+                  render={({ field: { onChange, value } }) => (
                     <Checkbox
                       onChange={(event) => onChange(event.target.checked)}
                       checked={value}

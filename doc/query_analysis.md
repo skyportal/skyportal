@@ -16,6 +16,9 @@ For example, a query written like this on the Python side
 
 ```python
 DBSession().query(Instrument.id).filter(Instrument.id == 1)
+# new version for SQLAlchemy 2.0
+with DBSession() as session:
+    session.execute(sa.select(Instrument.id).where(Instrument.id == 1))
 ```
 
 would yield the following Postgres-dialect SQL query

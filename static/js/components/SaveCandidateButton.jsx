@@ -28,7 +28,14 @@ const SaveCandidateButton = ({ candidate, userGroups, filterGroups }) => {
   const dispatch = useDispatch();
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  const { handleSubmit, errors, reset, control, getValues } = useForm();
+  const {
+    handleSubmit,
+    reset,
+    control,
+    getValues,
+
+    formState: { errors },
+  } = useForm();
 
   useEffect(() => {
     reset({
@@ -75,7 +82,7 @@ const SaveCandidateButton = ({ candidate, userGroups, filterGroups }) => {
   };
 
   const validateGroups = () => {
-    const formState = getValues({ nest: true });
+    const formState = getValues();
     return formState.group_ids?.filter((value) => Boolean(value)).length >= 1;
   };
 
@@ -234,7 +241,7 @@ const SaveCandidateButton = ({ candidate, userGroups, filterGroups }) => {
                 key={userGroup.id}
                 control={
                   <Controller
-                    render={({ onChange, value }) => (
+                    render={({ field: { onChange, value } }) => (
                       <Checkbox
                         onChange={(event) => onChange(event.target.checked)}
                         checked={value}

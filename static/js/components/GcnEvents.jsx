@@ -129,8 +129,19 @@ const GcnEvents = () => {
       params.tagKeep = filterData.tagKeep;
       params.tagRemove = filterData.tagRemove;
 
-      if ("property" in filterData) {
-        params.propertiesFilter = `${filterData.property}: ${filterData.propertyComparatorValue}: ${filterData.propertyComparator}`;
+      if ("gcnProperty" in filterData) {
+        if ("gcnPropertyComparatorValue" in filterData) {
+          params.gcnPropertiesFilter = `${filterData.gcnProperty}: ${filterData.gcnPropertyComparatorValue}: ${filterData.gcnPropertyComparator}`;
+        } else {
+          params.gcnPropertiesFilter = `${filterData.gcnProperty}`;
+        }
+      }
+      if ("localizationProperty" in filterData) {
+        if ("localizationPropertyComparatorValue" in filterData) {
+          params.localizationPropertiesFilter = `${filterData.localizationProperty}: ${filterData.localizationPropertyComparatorValue}: ${filterData.localizationPropertyComparator}`;
+        } else {
+          params.localizationPropertiesFilter = `${filterData.localizationProperty}`;
+        }
       }
     }
     // Save state for future
@@ -175,10 +186,30 @@ const GcnEvents = () => {
     }
   };
 
-  const renderTags = (dataIndex) =>
-    events[dataIndex]?.tags?.map((tag) => (
+  const renderGcnTags = (dataIndex) => {
+    const gcnTags = [];
+    events[dataIndex]?.tags?.forEach((tag) => {
+      gcnTags.push(tag);
+    });
+    const gcnTagsUnique = [...new Set(gcnTags)];
+    return gcnTagsUnique.map((tag) => (
       <Chip size="small" key={tag} label={tag} className={classes.eventTags} />
     ));
+  };
+
+  const renderLocalizationTags = (dataIndex) => {
+    const localizationTags = [];
+    events[dataIndex].localizations?.forEach((loc) => {
+      loc.tags?.forEach((tag) => {
+        localizationTags.push(tag.text);
+      });
+    });
+    const localizationTagsUnique = [...new Set(localizationTags)];
+
+    return localizationTagsUnique.map((tag) => (
+      <Chip size="small" key={tag} label={tag} className={classes.eventTags} />
+    ));
+  };
 
   const renderGcnNotices = (dataIndex) => (
     <ul>
@@ -216,6 +247,13 @@ const GcnEvents = () => {
     </Link>
   );
 
+  const renderAliases = (dataIndex) =>
+    events[dataIndex]?.aliases?.length > 0 ? (
+      <p>{events[dataIndex]?.aliases.join(", ")}</p>
+    ) : (
+      <p>No aliases</p>
+    );
+
   const customFilterDisplay = () =>
     filterFormSubmitted ? (
       <div className={classes.filterAlert}>
@@ -234,10 +272,24 @@ const GcnEvents = () => {
       },
     },
     {
-      name: "tags",
-      label: "Tags",
+      name: "aliases",
+      label: "Aliases",
       options: {
-        customBodyRenderLite: renderTags,
+        customBodyRenderLite: renderAliases,
+      },
+    },
+    {
+      name: "gcn_tags",
+      label: "Event Tags",
+      options: {
+        customBodyRenderLite: renderGcnTags,
+      },
+    },
+    {
+      name: "localization_tags",
+      label: "Localization Tags",
+      options: {
+        customBodyRenderLite: renderLocalizationTags,
       },
     },
     {

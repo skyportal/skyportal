@@ -281,20 +281,20 @@ class AnalysisServiceHandler(BaseHandler):
         group_ids = data.pop('group_ids', None)
         with self.Session() as session:
             if not group_ids:
-                groups = self.current_user.accessible_groups
-            else:
-                groups = (
-                    session.scalars(
-                        Group.select(self.current_user).where(Group.id.in_(group_ids))
-                    )
-                    .unique()
-                    .all()
+                group_ids = [g.id for g in self.current_user.accessible_groups]
+
+            groups = (
+                session.scalars(
+                    Group.select(self.current_user).where(Group.id.in_(group_ids))
                 )
-                if {g.id for g in groups} != set(group_ids):
-                    return self.error(
-                        f'Cannot find one or more groups with IDs: {group_ids}.',
-                        status=403,
-                    )
+                .unique()
+                .all()
+            )
+            if {g.id for g in groups} != set(group_ids):
+                return self.error(
+                    f'Cannot find one or more groups with IDs: {group_ids}.',
+                    status=403,
+                )
 
             schema = AnalysisService.__schema__()
             try:

@@ -7,8 +7,6 @@ import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
 import InputLabel from "@mui/material/InputLabel";
 import FormControl from "@mui/material/FormControl";
-import Chip from "@mui/material/Chip";
-import Input from "@mui/material/Input";
 import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
 import Box from "@mui/material/Box";
@@ -16,13 +14,15 @@ import Tooltip from "@mui/material/Tooltip";
 import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
 import CircularProgress from "@mui/material/CircularProgress";
 import Typography from "@mui/material/Typography";
-import { useTheme } from "@mui/material/styles";
 import makeStyles from "@mui/styles/makeStyles";
 import withStyles from "@mui/styles/withStyles";
 import { useForm, Controller } from "react-hook-form";
 import PapaParse from "papaparse";
 import Button from "./Button";
 
+import NewPhotometryForm from "./NewPhotometry";
+
+import GroupShareSelect from "./GroupShareSelect";
 import FormValidationError from "./FormValidationError";
 import * as Actions from "../ducks/source";
 
@@ -46,24 +46,27 @@ export const HtmlTooltip = withStyles((theme) => ({
   },
 }))(Tooltip);
 
-const getStyles = (groupID, groupIDs = [], theme) => ({
-  fontWeight:
-    groupIDs.indexOf(groupID) === -1
-      ? theme.typography.fontWeightRegular
-      : theme.typography.fontWeightMedium,
-});
-
 const UploadPhotometryForm = () => {
   const dispatch = useDispatch();
   const { instrumentList } = useSelector((state) => state.instruments);
+  const groups = useSelector((state) => state.groups.userAccessible);
   const userGroups = useSelector((state) => state.groups.user);
   const [showPreview, setShowPreview] = useState(false);
   const [csvData, setCsvData] = useState({});
   const [successMessage, setSuccessMessage] = useState("");
   const { id } = useParams();
-  const { handleSubmit, errors, reset, control, getValues, setValue } =
-    useForm();
+  const {
+    handleSubmit,
+    reset,
+    control,
+    getValues,
+    setValue,
+
+    formState: { errors },
+  } = useForm();
   let formState = getValues();
+
+  const [selectedGroupIds, setSelectedGroupIds] = useState([]);
 
   // only show instruments that have an imaging mode
   const sortedInstrumentList = [...instrumentList].filter((instrument) =>
@@ -91,6 +94,8 @@ const UploadPhotometryForm = () => {
       PapaParse.UNIT_SEP,
     ],
   };
+
+  const [inputFormat, setInputFormat] = useState("csv");
 
   const validateCsvData = () => {
     setShowPreview(false);
@@ -148,11 +153,6 @@ const UploadPhotometryForm = () => {
     return true;
   };
 
-  const validateGroups = () => {
-    formState = getValues({ nest: true });
-    return formState.groupIDs.length >= 1;
-  };
-
   const handleClickPreview = async (data) => {
     const [header, ...dataRows] = PapaParse.parse(
       data.csvData.trim(),
@@ -183,7 +183,6 @@ const UploadPhotometryForm = () => {
     formState = getValues();
     const data = {
       obj_id: id,
-      group_ids: formState.groupIDs,
       altdata: {},
     };
     if (formState.instrumentID !== "multiple") {
@@ -198,6 +197,9 @@ const UploadPhotometryForm = () => {
         data[col] = csvData.data.map((row) => row[idx]);
       }
     });
+    if (selectedGroupIds.length >= 0) {
+      data.group_ids = selectedGroupIds;
+    }
     const result = await dispatch(Actions.uploadPhotometry(data));
     if (result.status === "success") {
       handleReset();
@@ -239,18 +241,6 @@ const UploadPhotometryForm = () => {
     },
   }));
   const classes = useStyles();
-  const theme = useTheme();
-
-  const ITEM_HEIGHT = 48;
-  const ITEM_PADDING_TOP = 8;
-  const MenuProps = {
-    PaperProps: {
-      style: {
-        maxHeight: ITEM_HEIGHT * 4.5 + ITEM_PADDING_TOP,
-        width: 250,
-      },
-    },
-  };
 
   if (!sortedInstrumentList || !userGroups) {
     return (
@@ -268,244 +258,248 @@ const UploadPhotometryForm = () => {
           {id}
         </Link>
       </Typography>
-      <Card>
-        <CardContent>
-          <form onSubmit={handleSubmit(handleClickPreview)}>
-            <Box m={1}>
-              <Box component="span" mr={1}>
-                <Button
-                  onClick={() => {
-                    setValue("csvData", sampleFluxSpaceText);
-                  }}
-                >
-                  Load sample flux-space data
-                </Button>
-              </Box>
-              <Box component="span" ml={1}>
-                <Button
-                  onClick={() => {
-                    setValue("csvData", sampleMagSpaceText);
-                  }}
-                >
-                  Load sample mag-space data
-                </Button>
-              </Box>
-            </Box>
-            <Box component="span" m={1}>
-              {errors.csvData && (
-                <FormValidationError message={errors.csvData.message} />
-              )}
-              <FormControl>
-                <Controller
-                  as={
-                    <TextareaAutosize
-                      name="csvData"
-                      placeholder={sampleFluxSpaceText}
-                      style={{ height: "20em", width: "40em" }}
-                      className={classes.textarea}
-                    />
-                  }
-                  name="csvData"
-                  control={control}
-                  rules={{ validate: validateCsvData }}
-                />
-              </FormControl>
-            </Box>
-            <Box m={1} style={{ display: "inline-block" }}>
-              <Box display="flex" alignItems="center">
+      <Box m={1}>
+        <Box component="span" mr={1}>
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={() => {
+              setInputFormat("csv");
+            }}
+          >
+            Using CSV (bulk)
+          </Button>
+        </Box>
+        <Box component="span" ml={1}>
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={() => {
+              setInputFormat("form");
+            }}
+          >
+            Using Form (one)
+          </Button>
+        </Box>
+      </Box>
+      {inputFormat === "csv" ? (
+        <>
+          <Card>
+            <CardContent>
+              <form onSubmit={handleSubmit(handleClickPreview)}>
+                <Box m={1}>
+                  <Box component="span" mr={1}>
+                    <Button
+                      onClick={() => {
+                        setValue("csvData", sampleFluxSpaceText);
+                      }}
+                    >
+                      Load sample flux-space data
+                    </Button>
+                  </Box>
+                  <Box component="span" ml={1}>
+                    <Button
+                      onClick={() => {
+                        setValue("csvData", sampleMagSpaceText);
+                      }}
+                    >
+                      Load sample mag-space data
+                    </Button>
+                  </Box>
+                </Box>
                 <Box component="span" m={1}>
-                  <font size="small">
-                    Note: To display an instrument&apos;s available filters,
-                    hover over the instrument name in the drop-down menu below.
-                    <br />
-                  </font>
-                  {errors.instrumentID && (
-                    <FormValidationError message="Select an instrument" />
+                  {errors.csvData && (
+                    <FormValidationError message={errors.csvData.message} />
                   )}
-                  <FormControl className={classes.formControl}>
-                    <InputLabel id="instrumentSelectLabel">
-                      Instrument
-                    </InputLabel>
+                  <FormControl>
                     <Controller
-                      as={
-                        <Select labelId="instrumentSelectLabel">
-                          <MenuItem value="multiple" key={0}>
-                            Use instrument_id column (for one or more
-                            instruments)
-                          </MenuItem>
-                          {sortedInstrumentList.map((instrument) => (
-                            <MenuItem value={instrument.id} key={instrument.id}>
-                              <Tooltip
-                                title={`Filters: ${instrument.filters.join(
-                                  ", "
-                                )}`}
-                              >
-                                <span>
-                                  {`${instrument.name} (ID: ${instrument.id})`}
-                                </span>
-                              </Tooltip>
-                            </MenuItem>
-                          ))}
-                        </Select>
-                      }
-                      name="instrumentID"
-                      rules={{ required: true }}
+                      name="csvData"
                       control={control}
-                      defaultValue=""
+                      rules={{ validate: validateCsvData }}
+                      render={({ field: { onChange, value } }) => (
+                        <TextareaAutosize
+                          name="csvData"
+                          placeholder={sampleFluxSpaceText}
+                          style={{ height: "20em", width: "40em" }}
+                          className={classes.textarea}
+                          onChange={onChange}
+                          value={value}
+                        />
+                      )}
                     />
                   </FormControl>
                 </Box>
-              </Box>
-              <Box component="span" m={1}>
-                {errors.groupIDs && (
-                  <FormValidationError message="Select at least one group" />
-                )}
-                <FormControl className={classes.formControl}>
-                  <InputLabel id="select-groups-label">Groups</InputLabel>
-                  <Controller
-                    as={
-                      <Select
-                        labelId="select-groups-label"
-                        id="selectGroups"
-                        multiple
-                        input={<Input id="selectGroupsChip" />}
-                        renderValue={(selected) => (
-                          <div className={classes.chips}>
-                            {selected.map((value) => (
-                              <Chip
-                                key={value}
-                                label={groupIDToName[value]}
-                                className={classes.chip}
-                              />
-                            ))}
-                          </div>
-                        )}
-                        MenuProps={MenuProps}
-                      >
-                        {userGroups.map((group) => (
-                          <MenuItem
-                            key={group.id}
-                            value={group.id}
-                            style={getStyles(
-                              group.name,
-                              formState.groupIDs,
-                              theme
-                            )}
-                          >
-                            {group.name}
-                          </MenuItem>
-                        ))}
-                      </Select>
+                <Box m={1} style={{ display: "inline-block" }}>
+                  <Box display="flex" alignItems="center">
+                    <Box component="span" m={1}>
+                      <font size="small">
+                        Note: To display an instrument&apos;s available filters,
+                        hover over the instrument name in the drop-down menu
+                        below.
+                        <br />
+                      </font>
+                      {errors.instrumentID && (
+                        <FormValidationError message="Select an instrument" />
+                      )}
+                      <FormControl className={classes.formControl}>
+                        <InputLabel id="instrumentSelectLabel">
+                          Instrument
+                        </InputLabel>
+                        <Controller
+                          name="instrumentID"
+                          rules={{ required: true }}
+                          control={control}
+                          defaultValue=""
+                          render={({ field: { onChange, value } }) => (
+                            <Select
+                              labelId="instrumentSelectLabel"
+                              value={value}
+                              onChange={onChange}
+                            >
+                              <MenuItem value="multiple" key={0}>
+                                Use instrument_id column (for one or more
+                                instruments)
+                              </MenuItem>
+                              {sortedInstrumentList.map((instrument) => (
+                                <MenuItem
+                                  value={instrument.id}
+                                  key={instrument.id}
+                                >
+                                  <Tooltip
+                                    title={`Filters: ${instrument.filters.join(
+                                      ", "
+                                    )}`}
+                                  >
+                                    <span>
+                                      {`${instrument.name} (ID: ${instrument.id})`}
+                                    </span>
+                                  </Tooltip>
+                                </MenuItem>
+                              ))}
+                            </Select>
+                          )}
+                        />
+                      </FormControl>
+                    </Box>
+                  </Box>
+                  <Box component="span" m={1}>
+                    <GroupShareSelect
+                      groupList={groups}
+                      setGroupIDs={setSelectedGroupIds}
+                      groupIDs={selectedGroupIds}
+                    />
+                  </Box>
+                </Box>
+                <Box m={1}>
+                  <HtmlTooltip
+                    interactive
+                    title={
+                      <>
+                        <p>
+                          Use this form to upload flux- or mag-space photometry
+                          data (only one type per request, not mixed).
+                        </p>
+                        <p>
+                          Required fields (flux-space):&nbsp;
+                          <code>
+                            mjd,flux,fluxerr,zp,magsys,filter[,instrument_id]
+                          </code>
+                          <br />
+                          Required fields (mag-space):&nbsp;
+                          <code>
+                            mjd,mag,magerr,limiting_mag,magsys,filter[,instrument_id]
+                          </code>
+                          <br />
+                          See the&nbsp;
+                          <a href="https://skyportal.io/docs/api.html#/paths/~1api~1photometry/post">
+                            API docs
+                          </a>
+                          &nbsp;for other allowable fields (note: omit{" "}
+                          <code>obj_id</code> here).
+                        </p>
+                        <p>
+                          Other miscellanous metadata can be supplied by
+                          preceding the column name with{" "}
+                          <code>&quot;altdata.&quot;</code> (e.g.{" "}
+                          <code>&quot;altdata.calibrated_to&quot;</code>
+                          ). Such fields will ultimately be stored in the
+                          photometry table&apos;s <code>altdata</code>
+                          &nbsp;JSONB column, e.g.{" "}
+                          <code>
+                            {"{"}
+                            &quot;calibrated_to&quot;: &quot;ps1&quot;, ...
+                            {"}"}
+                          </code>
+                          .
+                        </p>
+                      </>
                     }
-                    name="groupIDs"
-                    rules={{ validate: validateGroups }}
-                    control={control}
-                    defaultValue={[]}
-                  />
-                </FormControl>
-              </Box>
-            </Box>
-            <Box m={1}>
-              <HtmlTooltip
-                interactive
-                title={
-                  <>
-                    <p>
-                      Use this form to upload flux- or mag-space photometry data
-                      (only one type per request, not mixed).
-                    </p>
-                    <p>
-                      Required fields (flux-space):&nbsp;
-                      <code>
-                        mjd,flux,fluxerr,zp,magsys,filter[,instrument_id]
-                      </code>
-                      <br />
-                      Required fields (mag-space):&nbsp;
-                      <code>
-                        mjd,mag,magerr,limiting_mag,magsys,filter[,instrument_id]
-                      </code>
-                      <br />
-                      See the&nbsp;
-                      <a href="https://skyportal.io/docs/api.html#/paths/~1api~1photometry/post">
-                        API docs
-                      </a>
-                      &nbsp;for other allowable fields (note: omit{" "}
-                      <code>obj_id</code> here).
-                    </p>
-                    <p>
-                      Other miscellanous metadata can be supplied by preceding
-                      the column name with <code>&quot;altdata.&quot;</code>{" "}
-                      (e.g. <code>&quot;altdata.calibrated_to&quot;</code>
-                      ). Such fields will ultimately be stored in the photometry
-                      table&apos;s <code>altdata</code>
-                      &nbsp;JSONB column, e.g.{" "}
-                      <code>
-                        {"{"}
-                        &quot;calibrated_to&quot;: &quot;ps1&quot;, ...
-                        {"}"}
-                      </code>
-                      .
-                    </p>
-                  </>
-                }
-              >
-                <HelpOutlineIcon />
-              </HtmlTooltip>
-            </Box>
-            <Box m={1}>
-              <Box component="span" m={1}>
-                <FormControl>
-                  <Button secondary type="submit">
-                    Preview in Tabular Form
-                  </Button>
-                </FormControl>
-              </Box>
-              <Box component="span" m={1}>
-                <FormControl>
-                  <Button secondary onClick={handleReset}>
-                    Clear Form
-                  </Button>
-                </FormControl>
-              </Box>
-            </Box>
-          </form>
-        </CardContent>
-      </Card>
-      {showPreview && csvData.columns && (
-        <div>
-          <br />
-          <br />
-          <Card>
-            <CardContent>
-              <Box component="span" m={1}>
-                <MUIDataTable
-                  title="Data Preview"
-                  columns={csvData.columns}
-                  data={csvData.data}
-                  options={{
-                    search: false,
-                    filter: false,
-                    selectableRows: "none",
-                    download: false,
-                    print: false,
-                  }}
-                />
-              </Box>
+                  >
+                    <HelpOutlineIcon />
+                  </HtmlTooltip>
+                </Box>
+                <Box m={1}>
+                  <Box component="span" m={1}>
+                    <FormControl>
+                      <Button secondary type="submit">
+                        Preview in Tabular Form
+                      </Button>
+                    </FormControl>
+                  </Box>
+                  <Box component="span" m={1}>
+                    <FormControl>
+                      <Button secondary onClick={handleReset}>
+                        Clear Form
+                      </Button>
+                    </FormControl>
+                  </Box>
+                </Box>
+              </form>
             </CardContent>
           </Card>
-          <br />
-          <Box component="span" m={1}>
-            <Button secondary onClick={handleClickSubmit}>
-              Upload Photometry
-            </Button>
-          </Box>
-        </div>
-      )}
-      {successMessage && !formState.dirty && (
-        <div style={{ whiteSpace: "pre-line" }}>
-          <br />
-          <font color="blue">{successMessage}</font>
-        </div>
+          {showPreview && csvData.columns && (
+            <div>
+              <br />
+              <br />
+              <Card>
+                <CardContent>
+                  <Box component="span" m={1}>
+                    <MUIDataTable
+                      title="Data Preview"
+                      columns={csvData.columns}
+                      data={csvData.data}
+                      options={{
+                        search: false,
+                        filter: false,
+                        selectableRows: "none",
+                        download: false,
+                        print: false,
+                      }}
+                    />
+                  </Box>
+                </CardContent>
+              </Card>
+              <br />
+              <Box component="span" m={1}>
+                <Button secondary onClick={handleClickSubmit}>
+                  Upload Photometry
+                </Button>
+              </Box>
+            </div>
+          )}
+          {successMessage && !formState.dirty && (
+            <div style={{ whiteSpace: "pre-line" }}>
+              <br />
+              <font color="blue">{successMessage}</font>
+            </div>
+          )}
+        </>
+      ) : (
+        <Card className={classes.card}>
+          <div style={{ padding: "2rem" }}>
+            <NewPhotometryForm obj_id={id} />
+          </div>
+        </Card>
       )}
     </div>
   );

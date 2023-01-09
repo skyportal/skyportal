@@ -44,6 +44,7 @@ import AssignmentForm from "./AssignmentForm";
 import AssignmentList from "./AssignmentList";
 import EditSourceGroups from "./EditSourceGroups";
 import SourceNotification from "./SourceNotification";
+import UpdateSourceCoordinates from "./UpdateSourceCoordinates";
 import UpdateSourceRedshift from "./UpdateSourceRedshift";
 import SourceRedshiftHistory from "./SourceRedshiftHistory";
 import AnnotationsTable from "./AnnotationsTable";
@@ -334,6 +335,9 @@ const SourceMobile = WidthProvider(
                           {dec_to_dms(source.dec, ":")} &nbsp;
                         </span>
                       </div>
+                      <div className={classes.sourceInfo}>
+                        <UpdateSourceCoordinates source={source} />
+                      </div>
                     </div>
                     <div className={classes.sourceInfo}>
                       <div>
@@ -344,9 +348,11 @@ const SourceMobile = WidthProvider(
                         <i>l</i>,<i>b</i>={source.gal_lon.toFixed(6)}, &nbsp;
                         {source.gal_lat.toFixed(6)})
                       </div>
-                      <div>
-                        <i>E(B-V)</i>={source.ebv.toFixed(2)}
-                      </div>
+                      {source.ebv ? (
+                        <div>
+                          <i> E(B-V)</i>={source.ebv.toFixed(2)}
+                        </div>
+                      ) : null}
                     </div>
                   </div>
                   <div>
@@ -428,6 +434,18 @@ const SourceMobile = WidthProvider(
                           Observability
                         </Button>
                       </Link>
+                    </div>
+                    <div className={classes.infoButton}>
+                      <Button
+                        secondary
+                        href={`/api/sources/${source.id}/observability`}
+                        download={`observabilityChartRequest-${source.id}`}
+                        size="small"
+                        type="submit"
+                        data-testid={`observabilityChartRequest_${source.id}`}
+                      >
+                        Observability Chart
+                      </Button>
                     </div>
                   </div>
                 </div>

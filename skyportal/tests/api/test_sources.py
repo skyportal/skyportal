@@ -2166,3 +2166,59 @@ def test_filter_followup_request(
     status, data = api("GET", "sources", token=view_only_token, params=params)
     assert status == 200
     assert any(obj["id"] == obj_id for obj in data["data"]["sources"])
+
+
+def test_add_and_delete_source_label(upload_data_token, view_only_token, public_group):
+    obj_id = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "sources",
+        data={
+            "id": obj_id,
+            "ra": 234.22,
+            "dec": -22.33,
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+
+    params = {'includeLabellers': True}
+    status, data = api("GET", f"sources/{obj_id}", token=view_only_token, params=params)
+    assert status == 200
+    assert data["data"]["id"] == obj_id
+
+    assert len(data["data"]["labellers"]) == 0
+
+    status, data = api(
+        "POST",
+        f"sources/{obj_id}/labels",
+        data={
+            "groupIds": [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+
+    params = {'includeLabellers': True}
+    status, data = api("GET", f"sources/{obj_id}", token=view_only_token, params=params)
+    assert status == 200
+    assert data["data"]["id"] == obj_id
+
+    assert len(data["data"]["labellers"]) == 1
+
+    status, data = api(
+        "DELETE",
+        f"sources/{obj_id}/labels",
+        data={
+            "groupIds": [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+
+    params = {'includeLabellers': True}
+    status, data = api("GET", f"sources/{obj_id}", token=view_only_token, params=params)
+    assert status == 200
+    assert data["data"]["id"] == obj_id
+
+    assert len(data["data"]["labellers"]) == 0

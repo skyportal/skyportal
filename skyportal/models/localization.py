@@ -1,4 +1,9 @@
-__all__ = ['Localization', 'LocalizationTile']
+__all__ = [
+    'Localization',
+    'LocalizationTag',
+    'LocalizationProperty',
+    'LocalizationTile',
+]
 
 import sqlalchemy as sa
 from sqlalchemy.orm import relationship, deferred
@@ -6,12 +11,20 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.hybrid import hybrid_property
 
 from astropy.table import Table
+import dustmaps.sfd
+from dustmaps.config import config
 import numpy as np
+import ligo.skymap.postprocess
 import ligo.skymap.bayestar as ligo_bayestar
 import healpy
 import healpix_alchemy
 
 from baselayer.app.models import Base, AccessibleIfUserMatches
+from baselayer.app.env import load_env
+
+
+_, cfg = load_env()
+config['data_dir'] = cfg['misc.dustmap_folder']
 
 
 class Localization(Base):
@@ -102,6 +115,22 @@ class Localization(Base):
         doc="Survey efficiency analyses of the event.",
     )
 
+    properties = relationship(
+        'LocalizationProperty',
+        cascade='save-update, merge, refresh-expire, expunge, delete',
+        passive_deletes=True,
+        order_by="LocalizationProperty.created_at",
+        doc="Properties associated with this Localization.",
+    )
+
+    tags = relationship(
+        'LocalizationTag',
+        cascade='save-update, merge, refresh-expire, expunge, delete',
+        passive_deletes=True,
+        order_by="LocalizationTag.created_at",
+        doc="Tags associated with this Localization.",
+    )
+
     @hybrid_property
     def is_3d(self):
         return (
@@ -163,6 +192,27 @@ class Localization(Base):
         else:
             return (self.flat_2d,)
 
+    @property
+    def center(self):
+        """Get information about the center of the localization."""
+
+        prob = self.flat_2d
+        coord = ligo.skymap.postprocess.posterior_max(prob)
+
+        center_info = {}
+        center_info["ra"] = coord.ra.deg
+        center_info["dec"] = coord.dec.deg
+        center_info["gal_lat"] = coord.galactic.b.deg
+        center_info["gal_lon"] = coord.galactic.l.deg
+
+        try:
+            ebv = float(dustmaps.sfd.SFDQuery()(coord))
+        except Exception:
+            ebv = None
+        center_info["ebv"] = ebv
+
+        return center_info
+
 
 class LocalizationTile(Base):
     """This is a single tile within a skymap (as in the Localization table).
@@ -183,3 +233,61 @@ class LocalizationTile(Base):
     )
 
     healpix = sa.Column(healpix_alchemy.Tile, primary_key=True, index=True)
+
+
+class LocalizationProperty(Base):
+    """Store properties for localizations."""
+
+    update = delete = AccessibleIfUserMatches('sent_by')
+
+    sent_by_id = sa.Column(
+        sa.ForeignKey('users.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+        doc="The ID of the User who created this LocalizationProperty.",
+    )
+
+    sent_by = relationship(
+        "User",
+        foreign_keys=sent_by_id,
+        back_populates="localizationproperties",
+        doc="The user that saved this LocalizationProperty",
+    )
+
+    localization_id = sa.Column(
+        sa.ForeignKey('localizations.id', ondelete="CASCADE"),
+        primary_key=True,
+        index=True,
+        doc='localization ID',
+    )
+
+    data = sa.Column(JSONB, doc="Localization properties in JSON format.", index=True)
+
+
+class LocalizationTag(Base):
+    """Store qualitative tags for localizations."""
+
+    update = delete = AccessibleIfUserMatches('sent_by')
+
+    sent_by_id = sa.Column(
+        sa.ForeignKey('users.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+        doc="The ID of the User who created this LocalizationTag.",
+    )
+
+    sent_by = relationship(
+        "User",
+        foreign_keys=sent_by_id,
+        back_populates="localizationtags",
+        doc="The user that saved this LocalizationTag",
+    )
+
+    localization_id = sa.Column(
+        sa.ForeignKey('localizations.id', ondelete="CASCADE"),
+        primary_key=True,
+        index=True,
+        doc='localization ID',
+    )
+
+    text = sa.Column(sa.Unicode, nullable=False, index=True)

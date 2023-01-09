@@ -174,6 +174,7 @@ def commit_photometry(json_response, altdata, request_id, instrument_id, user_id
             inplace=True,
         )
         df['magsys'] = 'ab'
+        df['origin'] = 'fp'
 
         data_out = {
             'obj_id': request.obj_id,
@@ -262,7 +263,7 @@ class ATLASAPI(FollowUpAPI):
 
     # subclasses *must* implement the method below
     @staticmethod
-    def submit(request, session):
+    def submit(request, session, **kwargs):
 
         """Submit a forced photometry request to ATLAS.
 

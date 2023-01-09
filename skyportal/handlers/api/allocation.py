@@ -2,6 +2,7 @@ import astropy
 from astroplan.moon import moon_phase_angle
 from marshmallow.exceptions import ValidationError
 import sqlalchemy as sa
+from sqlalchemy.orm import joinedload
 from sqlalchemy import func
 import io
 import matplotlib
@@ -11,7 +12,14 @@ import numpy as np
 from baselayer.app.access import auth_or_token, permissions
 
 from ..base import BaseHandler
-from ...models import FollowupRequest, Group, Allocation, Instrument
+from ...models import (
+    FollowupRequest,
+    Group,
+    User,
+    Allocation,
+    AllocationUser,
+    Instrument,
+)
 
 
 class AllocationHandler(BaseHandler):
@@ -70,12 +78,39 @@ class AllocationHandler(BaseHandler):
                     allocation_id = int(allocation_id)
                 except ValueError:
                     return self.error("Allocation ID must be an integer.")
+                allocations = Allocation.select(
+                    self.current_user, options=[joinedload(Allocation.requests)]
+                )
+
                 allocations = allocations.where(Allocation.id == allocation_id)
                 allocation = session.scalars(allocations).first()
                 if allocation is None:
                     return self.error("Could not retrieve allocation.")
-                return self.success(data=allocation)
 
+                allocation_data = allocation.to_dict()
+                requests = []
+                for request in allocation_data['requests']:
+                    request_data = request.to_dict()
+                    request_data['requester'] = request.requester.to_dict()
+                    request_data['obj'] = request.obj.to_dict()
+                    request_data['obj']['thumbnails'] = [
+                        thumbnail.to_dict() for thumbnail in request.obj.thumbnails
+                    ]
+                    request_data['set_time_utc'] = request.set_time().iso
+                    if isinstance(request_data['set_time_utc'], np.ma.MaskedArray):
+                        request_data['set_time_utc'] = None
+                    request_data['rise_time_utc'] = request.rise_time().iso
+                    if isinstance(request_data['rise_time_utc'], np.ma.MaskedArray):
+                        request_data['rise_time_utc'] = None
+                    requests.append(request_data)
+                allocation_data['requests'] = requests
+                allocation_data[
+                    'ephemeris'
+                ] = allocation.instrument.telescope.ephemeris(astropy.time.Time.now())
+                allocation_data['telescope'] = allocation.instrument.telescope.to_dict()
+                return self.success(data=allocation_data)
+
+            allocations = Allocation.select(self.current_user)
             instrument_id = self.get_query_argument('instrument_id', None)
             if instrument_id is not None:
                 allocations = allocations.where(
@@ -114,6 +149,15 @@ class AllocationHandler(BaseHandler):
                     )
 
             allocations = session.scalars(allocations).unique().all()
+            allocations = [
+                {
+                    **allocation.to_dict(),
+                    'allocation_users': [
+                        user.user.to_dict() for user in allocation.allocation_users
+                    ],
+                }
+                for allocation in allocations
+            ]
             return self.success(data=allocations)
 
     @permissions(['Manage allocations'])
@@ -145,8 +189,17 @@ class AllocationHandler(BaseHandler):
         """
 
         data = self.get_json()
-
         with self.Session() as session:
+
+            allocation_admin_ids = data.pop('allocation_admin_ids', None)
+            if allocation_admin_ids is not None:
+                allocation_admins = session.scalars(
+                    User.select(self.current_user).where(
+                        User.id.in_(allocation_admin_ids)
+                    )
+                ).all()
+            else:
+                allocation_admins = []
 
             try:
                 allocation = Allocation.__schema__().load(data=data)
@@ -174,6 +227,17 @@ class AllocationHandler(BaseHandler):
                 )
 
             session.add(allocation)
+
+            for user in allocation_admins:
+                session.merge(user)
+
+            session.add_all(
+                [
+                    AllocationUser(allocation=allocation, user=user)
+                    for user in allocation_admins
+                ]
+            )
+
             session.commit()
             self.push_all(action='skyportal/REFRESH_ALLOCATIONS')
             return self.success(data={"id": allocation.id})
@@ -218,6 +282,16 @@ class AllocationHandler(BaseHandler):
             data = self.get_json()
             data['id'] = allocation_id
 
+            allocation_admin_ids = data.pop('allocation_admin_ids', None)
+            if allocation_admin_ids is not None:
+                allocation_admins = session.scalars(
+                    User.select(self.current_user).where(
+                        User.id.in_(allocation_admin_ids)
+                    )
+                ).all()
+            else:
+                allocation_admins = []
+
             schema = Allocation.__schema__()
             try:
                 schema.load(data, partial=True)
@@ -228,6 +302,16 @@ class AllocationHandler(BaseHandler):
 
             for k in data:
                 setattr(allocation, k, data[k])
+
+            for user in allocation_admins:
+                session.merge(user)
+
+            session.add_all(
+                [
+                    AllocationUser(allocation=allocation, user=user)
+                    for user in allocation_admins
+                ]
+            )
 
             session.commit()
             self.push_all(action='skyportal/REFRESH_ALLOCATIONS')

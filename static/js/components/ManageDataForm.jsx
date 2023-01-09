@@ -236,7 +236,14 @@ const ManageDataForm = ({ route }) => {
   const photometry = useSelector((state) => state.photometry);
   const spectra = useSelector((state) => state.spectra);
 
-  const { handleSubmit, errors, reset, control, getValues } = useForm();
+  const {
+    handleSubmit,
+    reset,
+    control,
+    getValues,
+
+    formState: { errors },
+  } = useForm();
 
   useEffect(() => {
     dispatch(photometryActions.fetchSourcePhotometry(route.id));
@@ -244,7 +251,7 @@ const ManageDataForm = ({ route }) => {
   }, [route.id, dispatch]);
 
   const validateGroups = () => {
-    const formState = getValues({ nest: true });
+    const formState = getValues();
     return formState.groups.length >= 1;
   };
 
@@ -677,7 +684,7 @@ const ManageDataForm = ({ route }) => {
           )}
           <Controller
             name="groups"
-            render={({ onChange, value, ...props }) => (
+            render={({ field: { onChange, value } }) => (
               <Autocomplete
                 multiple
                 id="dataSharingFormGroupsSelect"
@@ -696,8 +703,6 @@ const ManageDataForm = ({ route }) => {
                     className={classes.groupSelect}
                   />
                 )}
-                // eslint-disable-next-line react/jsx-props-no-spreading
-                {...props}
               />
             )}
             control={control}

@@ -1,4 +1,3 @@
-from jsonschema_to_openapi.convert import convert
 from copy import deepcopy
 
 
@@ -26,11 +25,6 @@ class _ListenerBase:
         base['title'] = cls.__name__
         base['additionalProperties'] = False
         return base
-
-    @classmethod
-    def openapi_spec(cls):
-        """OpenAPI representation of the user-contributed JSONSchema."""
-        return convert(cls.complete_schema())
 
     @classmethod
     def get_acl_id(cls):

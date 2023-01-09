@@ -6,7 +6,7 @@ from ...models import Telescope
 
 
 class TelescopeHandler(BaseHandler):
-    @permissions(['Manage allocations'])
+    @permissions(['Manage telescopes'])
     def post(self):
         """
         ---
@@ -213,11 +213,21 @@ class TelescopeHandler(BaseHandler):
                 temp['is_night_astronomical'] = is_night_astronomical
                 temp['next_twilight_morning_astronomical'] = morning
                 temp['next_twilight_evening_astronomical'] = evening
+
+                allocations = []
+                for instrument in telescope.instruments:
+                    for allocation in instrument.allocations:
+                        allocation_data = allocation.to_dict()
+                        allocation_data['allocation_users'] = [
+                            user.user.to_dict() for user in allocation.allocation_users
+                        ]
+                        allocations.append(allocation_data)
+                temp['allocations'] = allocations
                 telescopes.append(temp)
 
             return self.success(data=telescopes)
 
-    @permissions(['Manage allocations'])
+    @permissions(['Manage telescopes'])
     def put(self, telescope_id):
         """
         ---
@@ -258,7 +268,7 @@ class TelescopeHandler(BaseHandler):
 
             schema = Telescope.__schema__()
             try:
-                schema.load(data)
+                schema.load(data, partial=True)
             except ValidationError as e:
                 return self.error(
                     'Invalid/missing parameters: ' f'{e.normalized_messages()}'
@@ -290,7 +300,7 @@ class TelescopeHandler(BaseHandler):
             self.push_all(action="skyportal/REFRESH_TELESCOPES")
             return self.success()
 
-    @permissions(['Manage allocations'])
+    @permissions(['Delete telescope'])
     def delete(self, telescope_id):
         """
         ---

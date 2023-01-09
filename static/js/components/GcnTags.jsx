@@ -27,18 +27,33 @@ const useStyles = makeStyles(() => ({
 const RenderTags = ({ gcnEvent }) => {
   const styles = useStyles();
 
-  const tags = [];
+  const gcnTags = [];
   gcnEvent.tags?.forEach((tag) => {
-    tags.push(tag);
+    gcnTags.push(tag);
   });
-  const tagsUnique = [...new Set(tags)];
+  const gcnTagsUnique = [...new Set(gcnTags)];
+
+  const localizationTags = [];
+  gcnEvent.localizations?.forEach((loc) => {
+    loc.tags?.forEach((tag) => {
+      localizationTags.push(tag.text);
+    });
+  });
+  const localizationTagsUnique = [...new Set(localizationTags)];
 
   return (
-    <>
-      {tagsUnique.map((tag) => (
-        <Chip className={styles[tag]} size="small" label={tag} key={tag} />
-      ))}
-    </>
+    <div>
+      <div>
+        {gcnTagsUnique.map((tag) => (
+          <Chip className={styles[tag]} size="small" label={tag} key={tag} />
+        ))}
+      </div>
+      <div>
+        {localizationTagsUnique.map((tag) => (
+          <Chip className={styles[tag]} size="small" label={tag} key={tag} />
+        ))}
+      </div>
+    </div>
   );
 };
 
@@ -46,6 +61,12 @@ RenderTags.propTypes = {
   gcnEvent: PropTypes.shape({
     dateobs: PropTypes.string,
     tags: PropTypes.arrayOf(PropTypes.string).isRequired,
+    localizations: PropTypes.arrayOf(
+      PropTypes.shape({
+        id: PropTypes.number,
+        localization_name: PropTypes.string,
+      })
+    ),
   }).isRequired,
 };
 

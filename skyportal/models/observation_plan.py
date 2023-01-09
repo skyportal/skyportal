@@ -350,6 +350,7 @@ class PlannedObservation(Base):
     observation_plan_id = sa.Column(
         sa.ForeignKey('eventobservationplans.id', ondelete="CASCADE"),
         nullable=False,
+        index=True,
         doc='Event observation plan ID',
     )
 
@@ -375,6 +376,7 @@ class PlannedObservation(Base):
 
     field_id = sa.Column(
         sa.ForeignKey("instrumentfields.id", ondelete="CASCADE"),
+        index=True,
         primary_key=True,
         doc='Field ID',
     )
