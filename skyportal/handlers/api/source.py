@@ -607,33 +607,19 @@ async def get_sources(
             followup_request_subquery, Obj.id == followup_request_subquery.c.obj_id
         )
     if has_been_labelled:
+        labels_query = SourceLabel.select(session.user_or_token)
         if current_user_labeller:
-            labels_subquery = (
-                SourceLabel.select(session.user_or_token)
-                .where(SourceLabel.labeller_id == user.id)
-                .subquery()
-            )
-            obj_query = obj_query.join(
-                labels_subquery, Obj.id == labels_subquery.c.obj_id
-            )
-        else:
-            labels_subquery = SourceLabel.select(session.user_or_token).subquery()
-            obj_query = obj_query.join(
-                labels_subquery, Obj.id == labels_subquery.c.obj_id
-            )
+            labels_query = labels_query.where(SourceLabel.labeller_id == user.id)
+        labels_subquery = labels_query.subquery()
+        obj_query = obj_query.join(labels_subquery, Obj.id == labels_subquery.c.obj_id)
     if has_not_been_labelled:
+        labels_query = SourceLabel.select(
+            session.user_or_token, columns=[SourceLabel.obj_id]
+        )
         if current_user_labeller:
-            labels_subquery = (
-                SourceLabel.select(session.user_or_token, columns=[SourceLabel.obj_id])
-                .where(SourceLabel.labeller_id == user.id)
-                .subquery()
-            )
-            obj_query = obj_query.where(Obj.id.notin_(labels_subquery))
-        else:
-            labels_subquery = SourceLabel.select(
-                session.user_or_token, columns=[SourceLabel.obj_id]
-            ).subquery()
-            obj_query = obj_query.where(Obj.id.notin_(labels_subquery))
+            labels_query = labels_query.where(SourceLabel.labeller_id == user.id)
+        labels_subquery = labels_query.subquery()
+        obj_query = obj_query.where(Obj.id.notin_(labels_subquery))
 
     if min_redshift is not None:
         try:
@@ -1783,7 +1769,7 @@ class SourceHandler(BaseHandler):
             schema:
               type: boolean
             description: |
-              If true and one of hasBeenLabeller or hasNotBeenLabelled is true, return only those objects which have not been labelled/not labelled by the current user. Otherwise, return results for all users.
+              If true and one of hasBeenLabeller or hasNotBeenLabelled is true, return only those objects which have been labelled/not labelled by the current user. Otherwise, return results for all users.
           - in: query
             name: numPerPage
             nullable: true
