@@ -1229,6 +1229,11 @@ const SourceTable = ({
     );
   };
 
+  const handleSearchChange = (searchText) => {
+    const data = { sourceID: searchText };
+    paginateCallback(1, rowsPerPage, {}, data);
+  };
+
   const handleFilterSubmit = async (formData) => {
     setQueryInProgress(true);
 
@@ -1280,8 +1285,16 @@ const SourceTable = ({
           data[key] = value;
         }
       });
-      setTableFilterList(sourceFilterList);
-      setFilterFormData(data);
+
+      dispatch(sourcesActions.fetchSources(data)).then((response) => {
+        if (response.status === "success") {
+          setTableFilterList(sourceFilterList);
+          setFilterFormData(data);
+        } else {
+          setTableFilterList([]);
+          setFilterFormData([]);
+        }
+      });
       paginateCallback(1, rowsPerPage, {}, data);
     }
   };
@@ -1560,7 +1573,8 @@ const SourceTable = ({
     customFilterDialogFooter: customFilterDisplay,
     onFilterChange: handleTableFilterChipChange,
     onFilterDialogOpen: () => setFilterFormSubmitted(false),
-    search: false,
+    search: true,
+    onSearchChange: handleSearchChange,
     download: true,
     rowsExpanded: openedRows,
     onRowExpansionChange: (_, allRowsExpanded) => {
