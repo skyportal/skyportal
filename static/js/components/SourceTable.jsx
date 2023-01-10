@@ -637,7 +637,6 @@ const SourceTable = ({
     switch (action) {
       case "changePage":
       case "changeRowsPerPage":
-        setQueryInProgress(true);
         setRowsPerPage(tableState.rowsPerPage);
         paginateCallback(
           tableState.page + 1,
