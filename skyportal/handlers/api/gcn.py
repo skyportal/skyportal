@@ -2227,7 +2227,7 @@ class LocalizationCrossmatchHandler(BaseHandler):
     async def get(self):
         """
         ---
-        description: Download a GCN localization skymap
+        description: A fits file corresponding to the intersection of the input fits files.
         tags:
           - localizations
         parameters:
@@ -2243,12 +2243,11 @@ class LocalizationCrossmatchHandler(BaseHandler):
               type: localization_name
         responses:
           200:
-            description: A fits file corresponding to the intersection of the input fits files.
             content:
-                application/fits:
+              application/fits:
                 schema:
-                    type: string
-                    format: binary
+                  type: string
+                  format: binary
           400:
             content:
               application/json:
