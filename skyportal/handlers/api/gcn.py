@@ -2245,10 +2245,10 @@ class LocalizationCrossmatchHandler(BaseHandler):
           200:
             description: A fits file corresponding to the intersection of the input fits files.
             content:
-            application/fits:
-            schema:
-              type: string
-              format: binary
+                application/fits:
+                schema:
+                    type: string
+                    format: binary
           400:
             content:
               application/json:
