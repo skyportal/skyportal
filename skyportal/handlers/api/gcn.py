@@ -2243,9 +2243,12 @@ class LocalizationCrossmatchHandler(BaseHandler):
               type: localization_name
         responses:
           200:
+            description: A fits file corresponding to the intersection of the input fits files.
             content:
-              application/json:
-                schema: LocalizationHandlerGet
+            application/fits:
+            schema:
+              type: string
+              format: binary
           400:
             content:
               application/json:

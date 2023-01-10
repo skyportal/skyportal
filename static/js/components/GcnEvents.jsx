@@ -357,7 +357,7 @@ const GcnEvents = () => {
         </Paper>
         <Paper style={{ margin: "16px 0px" }} variant="outlined">
           <div className={classes.paperContent}>
-            <Typography variant="h6">Crossmatch</Typography>
+            <Typography variant="h6">Intersect two skymaps</Typography>
             <Crossmatch />
           </div>
         </Paper>

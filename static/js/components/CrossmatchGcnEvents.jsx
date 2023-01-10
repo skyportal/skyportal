@@ -239,7 +239,7 @@ const Crossmatch = () => {
             secondary
             type="submit"
             href={`/api/localizationcrossmatch?id1=${selectedLocalizationId1}&id2=${selectedLocalizationId2}`}
-            download={`crossmatch-${selectedLocalizationId1}-${selectedLocalizationId2}`}
+            download={`crossmatch-${selectedLocalizationId1}-${selectedLocalizationId2}.fits`}
             size="small"
             data-testid={`crossmatch_${selectedGcnEventId1}`}
           >
