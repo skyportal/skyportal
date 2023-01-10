@@ -400,6 +400,7 @@ async def get_sources(
     has_followup_request=False,
     has_been_labelled=False,
     has_not_been_labelled=False,
+    current_user_labeller=False,
     sourceID=None,
     rejectedSourceIDs=None,
     ra=None,
@@ -608,12 +609,18 @@ async def get_sources(
             followup_request_subquery, Obj.id == followup_request_subquery.c.obj_id
         )
     if has_been_labelled:
-        labels_subquery = SourceLabel.select(session.user_or_token).subquery()
+        labels_query = SourceLabel.select(session.user_or_token)
+        if current_user_labeller:
+            labels_query = labels_query.where(SourceLabel.labeller_id == user.id)
+        labels_subquery = labels_query.subquery()
         obj_query = obj_query.join(labels_subquery, Obj.id == labels_subquery.c.obj_id)
     if has_not_been_labelled:
-        labels_subquery = SourceLabel.select(
+        labels_query = SourceLabel.select(
             session.user_or_token, columns=[SourceLabel.obj_id]
-        ).subquery()
+        )
+        if current_user_labeller:
+            labels_query = labels_query.where(SourceLabel.labeller_id == user.id)
+        labels_subquery = labels_query.subquery()
         obj_query = obj_query.where(Obj.id.notin_(labels_subquery))
 
     if min_redshift is not None:
@@ -1800,6 +1807,13 @@ class SourceHandler(BaseHandler):
             description: |
               If true, return only those objects which have not been labelled
           - in: query
+            name: currentUserLabeller
+            nullable: true
+            schema:
+              type: boolean
+            description: |
+              If true and one of hasBeenLabeller or hasNotBeenLabelled is true, return only those objects which have been labelled/not labelled by the current user. Otherwise, return results for all users.
+          - in: query
             name: numPerPage
             nullable: true
             schema:
@@ -2440,6 +2454,7 @@ class SourceHandler(BaseHandler):
         has_tns_name = self.get_query_argument('hasTNSname', None)
         has_been_labelled = self.get_query_argument('hasBeenLabelled', False)
         has_not_been_labelled = self.get_query_argument('hasNotBeenLabelled', False)
+        current_user_labeller = self.get_query_argument('currentUserLabeller', False)
         total_matches = self.get_query_argument('totalMatches', None)
         is_token_request = isinstance(self.current_user, Token)
 
@@ -2513,6 +2528,7 @@ class SourceHandler(BaseHandler):
                     has_tns_name=has_tns_name,
                     has_been_labelled=has_been_labelled,
                     has_not_been_labelled=has_not_been_labelled,
+                    current_user_labeller=current_user_labeller,
                     has_spectrum=has_spectrum,
                     has_followup_request=has_followup_request,
                     followup_request_status=followup_request_status,
