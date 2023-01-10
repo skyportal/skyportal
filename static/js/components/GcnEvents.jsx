@@ -23,6 +23,7 @@ import * as gcnEventsActions from "../ducks/gcnEvents";
 import Spinner from "./Spinner";
 import GcnEventsFilterForm from "./GcnEventsFilterForm";
 import NewGcnEvent from "./NewGcnEvent";
+import Crossmatch from "./CrossmatchGcnEvents";
 
 const useStyles = makeStyles((theme) => ({
   container: {
@@ -352,6 +353,12 @@ const GcnEvents = () => {
           <div className={classes.paperContent}>
             <Typography variant="h6">Add a New GcnEvent</Typography>
             <NewGcnEvent />
+          </div>
+        </Paper>
+        <Paper style={{ margin: "16px 0px" }} variant="outlined">
+          <div className={classes.paperContent}>
+            <Typography variant="h6">Crossmatch</Typography>
+            <Crossmatch />
           </div>
         </Paper>
       </Grid>
