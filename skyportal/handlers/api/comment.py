@@ -627,7 +627,7 @@ class CommentHandler(BaseHandler):
 
             if isinstance(comment, CommentOnGCN):
                 self.push_all(
-                    action='skyportal/REFRESH_GCNEVENT',
+                    action='skyportal/REFRESH_GCN_EVENT',
                     payload={'gcnEvent_dateobs': comment.gcn.dateobs},
                 )
             elif isinstance(comment, CommentOnEarthquake):
@@ -992,7 +992,7 @@ class CommentHandler(BaseHandler):
 
             if isinstance(c, CommentOnGCN):  # also update the GcnEvent
                 self.push_all(
-                    action='skyportal/REFRESH_GCNEVENT',
+                    action='skyportal/REFRESH_GCN_EVENT',
                     payload={'gcnEvent_dateobs': gcnevent_dateobs},
                 )
             elif isinstance(c, CommentOnEarthquake):  # also update the earthquake

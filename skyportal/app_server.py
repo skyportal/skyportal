@@ -284,7 +284,7 @@ skyportal_handlers = [
     (r'/api/earthquake/status', EarthquakeStatusHandler),
     (r'/api/earthquake(/.*)?', EarthquakeHandler),
     (r'/api/gcn_event(/.*)/tach', GcnTachHandler),
-    (r'/api/gcn_event/summary(/.*)?', GcnSummaryHandler),
+    (r'/api/gcn_event/(.*)/summary(/.*)?', GcnSummaryHandler),
     (r'/api/gcn_event/tags', GcnEventTagsHandler),
     (r'/api/gcn_event/properties', GcnEventPropertiesHandler),
     (r'/api/gcn_event(/.*)?', GcnEventHandler),

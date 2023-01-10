@@ -142,6 +142,11 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
     []
   );
 
+  const [byMe, setByMe] = useState(false);
+  const handleChange = (event) => {
+    setByMe(event.target.checked);
+  };
+
   const maxNumDaysUsingLocalization = useSelector(
     (state) => state.config.maxNumDaysUsingLocalization
   );
@@ -216,6 +221,19 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
 
   const validate = (formData) => {
     let valid = true;
+    if (
+      formData.currentUserLabeller === true &&
+      formData.hasBeenLabelled === false &&
+      formData.hasNotBeenLabelled === false
+    ) {
+      dispatch(
+        showNotification(
+          "Please specify whether to filter for labelled or not labelled sources by the current user",
+          "error"
+        )
+      );
+      valid = false;
+    }
     if (formData.gcneventid !== "" || formData.localizationid !== "") {
       if (formData.startDate === "" || formData.endDate === "") {
         dispatch(
@@ -515,6 +533,26 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
             control={control}
             defaultValue={[]}
           />
+          <Typography variant="subtitle2" className={classes.title}>
+            Require all classifications?
+          </Typography>
+          <FormControlLabel
+            control={
+              <Controller
+                render={({ field: { onChange, value } }) => (
+                  <Checkbox
+                    color="primary"
+                    type="checkbox"
+                    onChange={(event) => onChange(event.target.checked)}
+                    checked={value}
+                  />
+                )}
+                name="classifications_simul"
+                control={control}
+                defaultValue={false}
+              />
+            }
+          />
         </div>
         <div className={classes.formItemRightColumn}>
           <Typography variant="subtitle2" className={classes.title}>
@@ -568,6 +606,28 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
             name="nonclassifications"
             control={control}
             defaultValue={[]}
+          />
+        </div>
+        <div className={classes.formItemRightColumn}>
+          <Typography variant="subtitle2" className={classes.title}>
+            Unclassified Sources
+          </Typography>
+          <FormControlLabel
+            control={
+              <Controller
+                render={({ field: { onChange, value } }) => (
+                  <Checkbox
+                    color="primary"
+                    type="checkbox"
+                    onChange={(event) => onChange(event.target.checked)}
+                    checked={value}
+                  />
+                )}
+                name="unclassified"
+                control={control}
+                defaultValue={false}
+              />
+            }
           />
         </div>
         <div className={classes.formItem}>
@@ -967,7 +1027,10 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
                     <Checkbox
                       color="primary"
                       type="checkbox"
-                      onChange={(event) => onChange(event.target.checked)}
+                      onChange={(event) => {
+                        onChange(event.target.checked);
+                        handleChange(event);
+                      }}
                       checked={value}
                     />
                   )}
@@ -986,11 +1049,35 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
                     <Checkbox
                       color="primary"
                       type="checkbox"
-                      onChange={(event) => onChange(event.target.checked)}
+                      onChange={(event) => {
+                        onChange(event.target.checked);
+                        handleChange(event);
+                      }}
                       checked={value}
                     />
                   )}
                   name="hasNotBeenLabelled"
+                  control={control}
+                  defaultValue={false}
+                />
+              }
+            />
+            <FormControlLabel
+              label="by me"
+              labelPlacement="start"
+              disabled={!byMe}
+              control={
+                <Controller
+                  render={({ field: { onChange, value } }) => (
+                    <Checkbox
+                      color="primary"
+                      type="checkbox"
+                      onChange={(event) => onChange(event.target.checked)}
+                      checked={value}
+                      disabled={!byMe}
+                    />
+                  )}
+                  name="currentUserLabeller"
                   control={control}
                   defaultValue={false}
                 />
