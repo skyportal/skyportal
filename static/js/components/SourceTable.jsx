@@ -11,6 +11,8 @@ import FormControlLabel from "@mui/material/FormControlLabel";
 import Grid from "@mui/material/Grid";
 import Chip from "@mui/material/Chip";
 import DeleteIcon from "@mui/icons-material/Delete";
+import ThumbUp from "@mui/icons-material/ThumbUp";
+import ThumbDown from "@mui/icons-material/ThumbDown";
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 import MUIDataTable from "mui-datatables";
 import {
@@ -307,10 +309,30 @@ let defaultDisplayedColumns = [
 const RenderShowClassification = ({ source }) => {
   const classes = useStyles();
   const dispatch = useDispatch();
+  const currentUser = useSelector((state) => state.profile);
+  const groupUsers = useSelector((state) => state.group?.group_users);
+  const currentGroupUser = groupUsers?.filter(
+    (groupUser) => groupUser.user_id === currentUser.id
+  )[0];
+
+  useEffect(() => {
+    if (
+      currentGroupUser?.admin !== undefined &&
+      currentGroupUser?.admin !== null
+    ) {
+      window.localStorage.setItem(
+        "CURRENT_GROUP_ADMIN",
+        JSON.stringify(currentGroupUser.admin)
+      );
+    }
+  }, [currentGroupUser]);
+
+  const isGroupAdmin = JSON.parse(
+    window.localStorage.getItem("CURRENT_GROUP_ADMIN")
+  );
 
   const { taxonomyList } = useSelector((state) => state.taxonomies);
 
-  const currentUser = useSelector((state) => state.profile);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [classificationSourceToDelete, setClassificationSourceToDelete] =
     useState(null);
@@ -334,9 +356,53 @@ const RenderShowClassification = ({ source }) => {
     });
   };
 
+  const addVotes = (vote) => {
+    let success = true;
+    source.classifications?.forEach((c) => {
+      dispatch(sourceActions.addClassificationVote(c.id, { vote })).then(
+        (result) => {
+          if (result.status !== "success") {
+            success = false;
+          }
+        }
+      );
+    });
+    if (success) {
+      dispatch(showNotification("Votes registered"));
+    }
+  };
+
+  let upvoteColor = "disabled";
+  let downvoteColor = "disabled";
+  let upvoteValue = 1;
+  let downvoteValue = -1;
+  const upvoterIds = [];
+  const downvoterIds = [];
+
+  source.classifications?.forEach((classification) => {
+    classification.votes?.forEach((s) => {
+      if (s.voter_id === currentUser.id) {
+        if (s.vote === 1) {
+          upvoterIds.push(classification.id);
+        } else if (s.vote === -1) {
+          downvoterIds.push(classification.id);
+        }
+      }
+    });
+  });
+
+  if (source.classifications?.length === upvoterIds.length) {
+    upvoteColor = "success";
+    upvoteValue = 0;
+  } else if (source.classifications?.length === downvoterIds.length) {
+    downvoteColor = "error";
+    downvoteValue = 0;
+  }
+
   const permission =
     currentUser.permissions.includes("System admin") ||
-    currentUser.permissions.includes("Manage groups");
+    currentUser.permissions.includes("Manage groups") ||
+    isGroupAdmin;
 
   return (
     <div>
@@ -347,6 +413,9 @@ const RenderShowClassification = ({ source }) => {
         disableTouchListener
         title={
           <>
+            <br />
+            <b>All Classifications:</b>
+            <br />
             <Button
               key={source.id}
               id="delete_classifications"
@@ -365,6 +434,24 @@ const RenderShowClassification = ({ source }) => {
               closeDialog={closeDialog}
               resourceName="classifications"
             />
+            <div>
+              <Button
+                key={source.id}
+                id="down_vote"
+                onClick={() => addVotes(downvoteValue)}
+              >
+                <ThumbDown color={downvoteColor} />
+              </Button>
+            </div>
+            <div>
+              <Button
+                key={source.id}
+                id="up_vote"
+                onClick={() => addVotes(upvoteValue)}
+              >
+                <ThumbUp color={upvoteColor} />
+              </Button>
+            </div>
           </>
         }
       >
