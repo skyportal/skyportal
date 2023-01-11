@@ -413,20 +413,9 @@ const RenderShowClassification = ({ source }) => {
         disableTouchListener
         title={
           <>
-            <Button
-              key={source.id}
-              id="down_vote"
-              onClick={() => addVotes(downvoteValue)}
-            >
-              <ThumbDown color={downvoteColor} />
-            </Button>
-            <Button
-              key={source.id}
-              id="up_vote"
-              onClick={() => addVotes(upvoteValue)}
-            >
-              <ThumbUp color={upvoteColor} />
-            </Button>
+            <br />
+            <b>All Classifications:</b>
+            <br />
             <Button
               key={source.id}
               id="delete_classifications"
@@ -445,6 +434,24 @@ const RenderShowClassification = ({ source }) => {
               closeDialog={closeDialog}
               resourceName="classifications"
             />
+            <div>
+              <Button
+                key={source.id}
+                id="down_vote"
+                onClick={() => addVotes(downvoteValue)}
+              >
+                <ThumbDown color={downvoteColor} />
+              </Button>
+            </div>
+            <div>
+              <Button
+                key={source.id}
+                id="up_vote"
+                onClick={() => addVotes(upvoteValue)}
+              >
+                <ThumbUp color={upvoteColor} />
+              </Button>
+            </div>
           </>
         }
       >
