@@ -357,15 +357,19 @@ const RenderShowClassification = ({ source }) => {
   };
 
   const addVotes = (vote) => {
+    let success = true;
     source.classifications?.forEach((c) => {
       dispatch(sourceActions.addClassificationVote(c.id, { vote })).then(
         (result) => {
-          if (result.status === "success") {
-            dispatch(showNotification("Vote registered"));
+          if (result.status !== "success") {
+            success = false;
           }
         }
       );
     });
+    if (success) {
+      dispatch(showNotification("Votes registered"));
+    }
   };
 
   let upvoteColor = "disabled";
