@@ -3,13 +3,17 @@
 import asyncio
 import ast
 from astropy.time import Time
+from astropy.table import Table
 import binascii
+import healpy as hp
 import io
 import os
 import gcn
 from ligo.skymap.postprocess import crossmatch
 from ligo.skymap import distance, moc
+import ligo.skymap.bayestar as ligo_bayestar
 import ligo.skymap.io
+import ligo.skymap.postprocess
 import lxml
 import xmlschema
 from urllib.parse import urlparse
@@ -2206,6 +2210,100 @@ class LocalizationDownloadHandler(BaseHandler):
                 filename = f"{localization.localization_name}.{output_format}"
 
                 await self.send_file(data, filename, output_type=output_format)
+
+            except Exception as e:
+                return self.error(f'Failed to create skymap for download: str({e})')
+            finally:
+                # clean up local files
+                for f in local_temp_files:
+                    try:
+                        os.remove(f)
+                    except:  # noqa E722
+                        pass
+
+
+class LocalizationCrossmatchHandler(BaseHandler):
+    @auth_or_token
+    async def get(self):
+        """
+        ---
+        description: A fits file corresponding to the intersection of the input fits files.
+        tags:
+          - localizations
+        parameters:
+          - in: path
+            name: dateobs
+            required: true
+            schema:
+              type: dateobs
+          - in: path
+            name: localization_name
+            required: true
+            schema:
+              type: localization_name
+        responses:
+          200:
+            content:
+              application/fits:
+                schema:
+                  type: string
+                  format: binary
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        id1 = self.get_query_argument("id1", None)
+        id2 = self.get_query_argument("id2", None)
+        if id1 is None or id2 is None:
+            return self.error("Please provide two localization id")
+
+        id1 = id1.strip()
+        id2 = id2.strip()
+        local_temp_files = []
+
+        with self.Session() as session:
+            try:
+                localization1 = session.scalars(
+                    Localization.select(session.user_or_token).where(
+                        Localization.id == id1,
+                    )
+                ).first()
+                localization2 = session.scalars(
+                    Localization.select(session.user_or_token).where(
+                        Localization.id == id2,
+                    )
+                ).first()
+
+                if localization1 is None or localization2 is None:
+                    return self.error("Localization not found", status=404)
+
+                output_format = 'fits'
+
+                skymap1 = localization1.flat_2d
+                skymap2 = localization2.flat_2d
+                skymap = skymap1 * skymap2
+                skymap = skymap / np.sum(skymap)
+
+                skymap = hp.reorder(skymap, 'RING', 'NESTED')
+                skymap = ligo_bayestar.derasterize(Table([skymap], names=['PROB']))
+                with tempfile.NamedTemporaryFile(suffix='.fits') as fitsfile:
+                    ligo.skymap.io.write_sky_map(
+                        fitsfile.name, skymap, format='fits', moc=True
+                    )
+
+                    with open(fitsfile.name, mode='rb') as g:
+                        content = g.read()
+                    local_temp_files.append(fitsfile.name)
+
+                data = io.BytesIO(content)
+                filename = f"{localization1.localization_name}_{localization2.localization_name}.{output_format}"
+
+                await self.send_file(
+                    data,
+                    filename,
+                    output_type=output_format,
+                )
 
             except Exception as e:
                 return self.error(f'Failed to create skymap for download: str({e})')
