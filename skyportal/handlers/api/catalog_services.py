@@ -200,6 +200,7 @@ def fetch_transients(allocation_id, user_id, group_ids, payload):
                 ).first()
                 if s is None:
                     log(f"Posting {source['id']} as source")
+                    source['group_ids'] = group_ids
                     obj_id = post_source(source, user_id, session)
                     obj_ids.append(obj_id)
 
