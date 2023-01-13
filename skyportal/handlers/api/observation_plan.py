@@ -337,7 +337,7 @@ def post_observation_plans(plans, user_id, session, asynchronous=True):
     for observation_plan_request in observation_plan_requests:
         flow.push(
             '*',
-            "skyportal/REFRESH_GCNEVENT",
+            "skyportal/REFRESH_GCN_EVENT",
             payload={"gcnEvent_dateobs": observation_plan_request.gcnevent.dateobs},
         )
 
@@ -418,7 +418,7 @@ def post_observation_plan(plan, user_id, session, asynchronous=True):
 
     flow.push(
         '*',
-        "skyportal/REFRESH_GCNEVENT",
+        "skyportal/REFRESH_GCN_EVENT",
         payload={"gcnEvent_dateobs": dateobs},
     )
 
@@ -432,7 +432,7 @@ def post_observation_plan(plan, user_id, session, asynchronous=True):
 
     flow.push(
         '*',
-        "skyportal/REFRESH_GCNEVENT",
+        "skyportal/REFRESH_GCN_EVENT",
         payload={"gcnEvent_dateobs": observation_plan_request.gcnevent.dateobs},
     )
 
@@ -623,7 +623,7 @@ class ObservationPlanRequestHandler(BaseHandler):
             session.commit()
 
             self.push_all(
-                action="skyportal/REFRESH_GCNEVENT",
+                action="skyportal/REFRESH_GCN_EVENT",
                 payload={"gcnEvent_dateobs": dateobs},
             )
 
@@ -682,7 +682,7 @@ class ObservationPlanSubmitHandler(BaseHandler):
             finally:
                 session.commit()
             self.push_all(
-                action="skyportal/REFRESH_GCNEVENT",
+                action="skyportal/REFRESH_GCN_EVENT",
                 payload={"gcnEvent_dateobs": observation_plan_request.gcnevent.dateobs},
             )
 
@@ -737,7 +737,7 @@ class ObservationPlanSubmitHandler(BaseHandler):
             finally:
                 session.commit()
             self.push_all(
-                action="skyportal/REFRESH_GCNEVENT",
+                action="skyportal/REFRESH_GCN_EVENT",
                 payload={"gcnEvent_dateobs": observation_plan_request.gcnevent.dateobs},
             )
 
@@ -1280,6 +1280,11 @@ class ObservationPlanSurveyEfficiencyHandler(BaseHandler):
                     f'Could not find observation_plan_request with ID {observation_plan_request_id}'
                 )
 
+            if len(observation_plan_request.observation_plans) == 0:
+                return self.error(
+                    f'Could not find an observation_plan associated with observation_plan_request ID {observation_plan_request_id}'
+                )
+
             observation_plan = observation_plan_request.observation_plans[0]
             analysis_data = []
             for analysis in observation_plan.survey_efficiency_analyses:
@@ -1414,6 +1419,11 @@ class ObservationPlanFieldsHandler(BaseHandler):
                     f'Could not find observation_plan_request with ID {observation_plan_request_id}'
                 )
 
+            if len(observation_plan_request.observation_plans) == 0:
+                return self.error(
+                    f'Could not find an observation_plan associated with observation_plan_request ID {observation_plan_request_id}'
+                )
+
             observation_plan = observation_plan_request.observation_plans[0]
             dateobs = observation_plan_request.gcnevent.dateobs
 
@@ -1425,7 +1435,7 @@ class ObservationPlanFieldsHandler(BaseHandler):
                 session.commit()
 
             self.push_all(
-                action="skyportal/REFRESH_GCNEVENT",
+                action="skyportal/REFRESH_GCN_EVENT",
                 payload={"gcnEvent_dateobs": dateobs},
             )
 
@@ -1831,6 +1841,11 @@ class ObservationPlanCreateObservingRunHandler(BaseHandler):
                 )
 
             instrument = allocation.instrument
+
+            if len(observation_plan_request.observation_plans) == 0:
+                return self.error(
+                    f'Could not find an observation_plan associated with observation_plan_request ID {observation_plan_request_id}'
+                )
 
             observation_plan = observation_plan_request.observation_plans[0]
             planned_observations = observation_plan.planned_observations

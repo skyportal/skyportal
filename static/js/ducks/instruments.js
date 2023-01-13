@@ -21,8 +21,8 @@ export function fetchGcnEventInstruments(dateobs, filterParams = {}) {
   return API.GET("/api/instrument", FETCH_GCNEVENT_INSTRUMENTS, filterParams);
 }
 
-export const fetchInstruments = () =>
-  API.GET("/api/instrument", FETCH_INSTRUMENTS);
+export const fetchInstruments = (filterParams = {}) =>
+  API.GET("/api/instrument", FETCH_INSTRUMENTS, filterParams);
 
 export const fetchInstrumentForms = (params = {}) =>
   API.GET("/api/internal/instrument_forms", FETCH_INSTRUMENT_FORMS, params);

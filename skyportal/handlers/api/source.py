@@ -400,6 +400,7 @@ async def get_sources(
     has_followup_request=False,
     has_been_labelled=False,
     has_not_been_labelled=False,
+    current_user_labeller=False,
     sourceID=None,
     rejectedSourceIDs=None,
     ra=None,
@@ -423,7 +424,9 @@ async def get_sources(
     max_latest_magnitude=None,
     number_of_detections=None,
     classifications=None,
+    classifications_simul=False,
     nonclassifications=None,
+    unclassified=False,
     annotations_filter=None,
     annotations_filter_origin=None,
     annotations_filter_before=None,
@@ -606,12 +609,18 @@ async def get_sources(
             followup_request_subquery, Obj.id == followup_request_subquery.c.obj_id
         )
     if has_been_labelled:
-        labels_subquery = SourceLabel.select(session.user_or_token).subquery()
+        labels_query = SourceLabel.select(session.user_or_token)
+        if current_user_labeller:
+            labels_query = labels_query.where(SourceLabel.labeller_id == user.id)
+        labels_subquery = labels_query.subquery()
         obj_query = obj_query.join(labels_subquery, Obj.id == labels_subquery.c.obj_id)
     if has_not_been_labelled:
-        labels_subquery = SourceLabel.select(
+        labels_query = SourceLabel.select(
             session.user_or_token, columns=[SourceLabel.obj_id]
-        ).subquery()
+        )
+        if current_user_labeller:
+            labels_query = labels_query.where(SourceLabel.labeller_id == user.id)
+        labels_subquery = labels_query.subquery()
         obj_query = obj_query.where(Obj.id.notin_(labels_subquery))
 
     if min_redshift is not None:
@@ -717,31 +726,63 @@ async def get_sources(
                     )
                 )
             )
-            classification_accessible_query = Classification.select(user).subquery()
+            classification_accessible_subquery = Classification.select(user).subquery()
 
-            classification_query = (
-                session.query(
-                    distinct(Classification.obj_id).label("obj_id"),
-                    Classification.classification,
+            if classifications_simul:
+                classification_id_query = Obj.select(
+                    session.user_or_token, columns=[Obj.id]
                 )
-                .join(Taxonomy)
-                .where(Classification.classification.in_(classifications))
-                .where(Taxonomy.name.in_(taxonomy_names))
-            )
-            classification_subquery = classification_query.subquery()
+                for taxonomy_name, classification in zip(
+                    taxonomy_names, classifications
+                ):
+                    classification_query = (
+                        session.query(
+                            distinct(Classification.obj_id).label("obj_id"),
+                            Classification.classification,
+                        )
+                        .join(Taxonomy)
+                        .where(Classification.classification == classification)
+                        .where(Taxonomy.name == taxonomy_name)
+                    )
+                    classification_subquery = classification_query.subquery()
 
-            # We join in the classifications being filtered for first before
-            # the filter for accessible classifications to speed up the query
-            # (this way seems to help the query planner come to more optimal join
-            # strategies)
-            obj_query = obj_query.join(
-                classification_subquery,
-                Obj.id == classification_subquery.c.obj_id,
-            )
-            obj_query = obj_query.join(
-                classification_accessible_query,
-                Obj.id == classification_accessible_query.c.obj_id,
-            )
+                    classification_id_query = classification_id_query.where(
+                        Obj.id == classification_subquery.c.obj_id
+                    )
+                # We join in the classifications being filtered for first before
+                # the filter for accessible classifications to speed up the query                                                                                               # (this way seems to help the query planner come to more optimal join
+                # strategies)
+                classification_id_query = classification_id_query.join(
+                    classification_accessible_subquery,
+                    Obj.id == classification_accessible_subquery.c.obj_id,
+                )
+                classification_id_subquery = classification_id_query.subquery()
+            else:
+                classification_query = (
+                    session.query(
+                        distinct(Classification.obj_id).label("obj_id"),
+                        Classification.classification,
+                    )
+                    .join(Taxonomy)
+                    .where(Classification.classification.in_(classifications))
+                    .where(Taxonomy.name.in_(taxonomy_names))
+                )
+                classification_subquery = classification_query.subquery()
+
+                classification_id_query = Obj.select(
+                    session.user_or_token, columns=[Obj.id]
+                ).where(Obj.id == classification_subquery.c.obj_id)
+                # We join in the classifications being filtered for first before
+                # the filter for accessible classifications to speed up the query
+                # (this way seems to help the query planner come to more optimal join
+                # strategies)
+                classification_id_query = classification_id_query.join(
+                    classification_accessible_subquery,
+                    Obj.id == classification_accessible_subquery.c.obj_id,
+                )
+                classification_id_subquery = classification_id_query.subquery()
+
+            obj_query = obj_query.where(Obj.id.in_(classification_id_subquery))
 
         else:
             # Not filtering on classifications, but ordering on them
@@ -790,18 +831,27 @@ async def get_sources(
         )
         nonclassification_subquery = nonclassification_query.subquery()
 
+        nonclassification_id_query = Obj.select(
+            session.user_or_token, columns=[Obj.id]
+        ).where(Obj.id == nonclassification_subquery.c.obj_id)
         # We join in the nonclassifications being filtered for first before
         # the filter for accessible classifications to speed up the query
         # (this way seems to help the query planner come to more optimal join
         # strategies)
-        obj_query = obj_query.join(
-            nonclassification_subquery,
-            Obj.id != nonclassification_subquery.c.obj_id,
-        )
-        obj_query = obj_query.join(
+        nonclassification_id_query = nonclassification_id_query.join(
             classification_accessible_subquery,
             Obj.id == classification_accessible_subquery.c.obj_id,
         )
+        nonclassification_id_subquery = nonclassification_id_query.subquery()
+
+        obj_query = obj_query.where(Obj.id.notin_(nonclassification_id_subquery))
+
+    if unclassified:
+        unclassified_subquery = Classification.select(
+            session.user_or_token, columns=[Classification.obj_id]
+        ).subquery()
+        obj_query = obj_query.where(Obj.id.notin_(unclassified_subquery))
+
     if annotations_filter is not None:
         if isinstance(annotations_filter, str) and "," in annotations_filter:
             annotations_filter = [c.strip() for c in annotations_filter.split(",")]
@@ -1757,6 +1807,13 @@ class SourceHandler(BaseHandler):
             description: |
               If true, return only those objects which have not been labelled
           - in: query
+            name: currentUserLabeller
+            nullable: true
+            schema:
+              type: boolean
+            description: |
+              If true and one of hasBeenLabeller or hasNotBeenLabelled is true, return only those objects which have been labelled/not labelled by the current user. Otherwise, return results for all users.
+          - in: query
             name: numPerPage
             nullable: true
             schema:
@@ -1970,6 +2027,14 @@ class SourceHandler(BaseHandler):
               Comma-separated string of "taxonomy: classification" pair(s) to filter for sources matching
               that/those classification(s), i.e. "Sitewide Taxonomy: Type II, Sitewide Taxonomy: AGN"
           - in: query
+            name: classifications_simul
+            nullable: true
+            schema:
+              type: boolean
+            description: |
+              Boolean indicating whether object must satisfy all classifications if query (i.e. an AND rather than an OR).
+              Defaults to false.
+          - in: query
             name: nonclassifications
             nullable: true
             schema:
@@ -1981,6 +2046,14 @@ class SourceHandler(BaseHandler):
             description: |
               Comma-separated string of "taxonomy: classification" pair(s) to filter for sources NOT matching
               that/those classification(s), i.e. "Sitewide Taxonomy: Type II, Sitewide Taxonomy: AGN"
+          - in: query
+            name: unclassified
+            nullable: true
+            schema:
+              type: boolean
+            description: |
+              Boolean indicating whether to reject any sources with classifications.
+              Defaults to false.
           - in: query
             name: annotationsFilter
             nullable: true
@@ -2239,7 +2312,9 @@ class SourceHandler(BaseHandler):
             "includeDetectionStats", False
         )
         classifications = self.get_query_argument("classifications", None)
+        classifications_simul = self.get_query_argument("classifications_simul", False)
         nonclassifications = self.get_query_argument("nonclassifications", None)
+        unclassified = self.get_query_argument("unclassified", False)
         annotations_filter = self.get_query_argument("annotationsFilter", None)
         annotations_filter_origin = self.get_query_argument(
             "annotationsFilterOrigin", None
@@ -2379,6 +2454,7 @@ class SourceHandler(BaseHandler):
         has_tns_name = self.get_query_argument('hasTNSname', None)
         has_been_labelled = self.get_query_argument('hasBeenLabelled', False)
         has_not_been_labelled = self.get_query_argument('hasNotBeenLabelled', False)
+        current_user_labeller = self.get_query_argument('currentUserLabeller', False)
         total_matches = self.get_query_argument('totalMatches', None)
         is_token_request = isinstance(self.current_user, Token)
 
@@ -2416,7 +2492,8 @@ class SourceHandler(BaseHandler):
                 return self.success(data=source_info)
 
         with self.Session() as session:
-            try:
+            # try:
+            if True:
                 query_results = await get_sources(
                     self.associated_user_object.id,
                     session,
@@ -2451,6 +2528,7 @@ class SourceHandler(BaseHandler):
                     has_tns_name=has_tns_name,
                     has_been_labelled=has_been_labelled,
                     has_not_been_labelled=has_not_been_labelled,
+                    current_user_labeller=current_user_labeller,
                     has_spectrum=has_spectrum,
                     has_followup_request=has_followup_request,
                     followup_request_status=followup_request_status,
@@ -2462,7 +2540,9 @@ class SourceHandler(BaseHandler):
                     max_latest_magnitude=max_latest_magnitude,
                     number_of_detections=number_of_detections,
                     classifications=classifications,
+                    classifications_simul=classifications_simul,
                     nonclassifications=nonclassifications,
+                    unclassified=unclassified,
                     annotations_filter=annotations_filter,
                     annotations_filter_origin=annotations_filter_origin,
                     annotations_filter_before=annotations_filter_before,
@@ -2487,8 +2567,8 @@ class SourceHandler(BaseHandler):
                     total_matches=total_matches,
                     includeGeoJSON=includeGeoJSON,
                 )
-            except Exception as e:
-                return self.error(f'Cannot retrieve sources: {str(e)}')
+            # except Exception as e:
+            #    return self.error(f'Cannot retrieve sources: {str(e)}')
 
             query_size = sizeof(query_results)
             if query_size >= SIZE_WARNING_THRESHOLD:

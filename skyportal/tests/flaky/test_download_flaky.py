@@ -209,22 +209,29 @@ def test_gcn_summary_observations(
     super_admin_token,
     public_group,
 ):
+
     datafile = f'{os.path.dirname(__file__)}/../../../data/GW190814.xml'
     with open(datafile, 'rb') as fid:
         payload = fid.read()
-    data = {'xml': payload}
+    event_data = {'xml': payload}
 
-    status, data = api('POST', 'gcn_event', data=data, token=super_admin_token)
-    assert status == 200
-    assert data['status'] == 'success'
+    dateobs = "2019-08-14T21:10:39"
+    status, data = api('GET', f'gcn_event/{dateobs}', token=super_admin_token)
 
-    gcnevent_id = data['data']['gcnevent_id']
+    if status == 404:
+        status, data = api(
+            'POST', 'gcn_event', data=event_data, token=super_admin_token
+        )
+        assert status == 200
+        assert data['status'] == 'success'
+
+        gcnevent_id = data['data']['gcnevent_id']
+    else:
+        gcnevent_id = data['data']['id']
 
     # wait for event to load
     for n_times in range(26):
-        status, data = api(
-            'GET', "gcn_event/2019-08-14T21:10:39", token=super_admin_token
-        )
+        status, data = api('GET', f"gcn_event/{dateobs}", token=super_admin_token)
         if data['status'] == 'success':
             break
         time.sleep(2)
@@ -492,17 +499,21 @@ def test_gcn_summary_galaxies(
     datafile = f'{os.path.dirname(__file__)}/../../../data/GW190814.xml'
     with open(datafile, 'rb') as fid:
         payload = fid.read()
-    data = {'xml': payload}
+    event_data = {'xml': payload}
 
-    status, data = api('POST', 'gcn_event', data=data, token=super_admin_token)
-    assert status == 200
-    assert data['status'] == 'success'
+    dateobs = "2019-08-14T21:10:39"
+    status, data = api('GET', f'gcn_event/{dateobs}', token=super_admin_token)
+
+    if status == 404:
+        status, data = api(
+            'POST', 'gcn_event', data=event_data, token=super_admin_token
+        )
+        assert status == 200
+        assert data['status'] == 'success'
 
     # wait for event to load
     for n_times in range(26):
-        status, data = api(
-            'GET', "gcn_event/2019-08-14T21:10:39", token=super_admin_token
-        )
+        status, data = api('GET', f"gcn_event/{dateobs}", token=super_admin_token)
         if data['status'] == 'success':
             break
         time.sleep(2)
@@ -640,15 +651,23 @@ def test_gcn_summary_sources(
         payload = fid.read()
     data = {'xml': payload}
 
-    status, data = api('POST', 'gcn_event', data=data, token=super_admin_token)
-    assert status == 200
-    assert data['status'] == 'success'
+    datafile = f'{os.path.dirname(__file__)}/../../../data/GW190814.xml'
+    with open(datafile, 'rb') as fid:
+        payload = fid.read()
+    event_data = {'xml': payload}
 
-    # wait for event to load
-    for n_times in range(26):
+    dateobs = "2019-08-14T21:10:39"
+    status, data = api('GET', f'gcn_event/{dateobs}', token=super_admin_token)
+
+    if status == 404:
         status, data = api(
-            'GET', "gcn_event/2019-08-14T21:10:39", token=super_admin_token
+            'POST', 'gcn_event', data=event_data, token=super_admin_token
         )
+        assert status == 200
+        assert data['status'] == 'success'
+
+    for n_times in range(26):
+        status, data = api('GET', f"gcn_event/{dateobs}", token=super_admin_token)
         if data['status'] == 'success':
             break
         time.sleep(2)
@@ -722,6 +741,7 @@ def test_gcn_summary_sources(
         "startDate": "2019-08-13 08:18:05",
         "endDate": "2019-08-19 08:18:05",
         "localizationCumprob": 0.99,
+        "numberDetections": 1,
         "showSources": True,
         "showGalaxies": False,
         "showObservations": False,
@@ -797,24 +817,29 @@ def get_summary(driver, user, group, showSources, showGalaxies, showObservations
     if showSources is True:
         show_sources = '//*[@label="Show Sources"]'
         driver.wait_for_xpath(show_sources)
-        driver.click_xpath(show_sources)
+        driver.click_xpath(show_sources, scroll_parent=True)
     if showGalaxies is True:
         show_galaxies = '//*[@label="Show Galaxies"]'
         driver.wait_for_xpath(show_galaxies)
-        driver.click_xpath(show_galaxies)
+        driver.click_xpath(show_galaxies, scroll_parent=True)
     if showObservations is True:
         show_observations = '//*[@label="Show Observations"]'
         driver.wait_for_xpath(show_observations)
-        driver.click_xpath(show_observations)
+        driver.click_xpath(show_observations, scroll_parent=True)
 
-    get_summary_button = '//button[contains(.,"Get Summary")]'
+    get_summary_button = '//button[contains(.,"Generate")]'
     element = driver.wait_for_xpath(get_summary_button)
     element.send_keys(Keys.END)
-    driver.click_xpath(get_summary_button)
+    driver.click_xpath(get_summary_button, scroll_parent=True)
+
+    retrieve_button = '//button[contains(.,"Retrieve")]'
+    element = driver.wait_for_xpath(retrieve_button)
+    element.send_keys(Keys.END)
+    driver.click_xpath(retrieve_button, scroll_parent=True)
 
     text_area = '//textarea[@id="text"]'
     driver.wait_for_xpath(text_area, timeout=60)
     driver.wait_for_xpath('//textarea[contains(.,"TITLE: GCN SUMMARY")]', 60)
 
     download_button = '//button[contains(.,"Download")]'
-    driver.click_xpath(download_button)
+    driver.click_xpath(download_button, scroll_parent=True)
