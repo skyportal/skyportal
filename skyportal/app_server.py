@@ -540,7 +540,7 @@ def make_app(cfg, baselayer_handlers, baselayer_settings, process=None, env=None
         print('  in the configuration file!')
         print('!' * 80)
 
-    if cfg['image_analysis'] is True:
+    if 'image_analysis' in cfg:
         missing_bins = []
         for exe in ['scamp', 'psfex']:
             bin = shutil.which(exe)

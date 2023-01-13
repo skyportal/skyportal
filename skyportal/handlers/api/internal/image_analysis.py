@@ -461,7 +461,7 @@ class ImageAnalysisHandler(BaseHandler):
                 schema: Error
         """
         try:
-            if cfg['image_analysis'] is not True:
+            if 'image_analysis' not in cfg:
                 return self.error('Image analysis is not enabled')
 
             missing_bins = []
@@ -549,11 +549,15 @@ class ImageAnalysisHandler(BaseHandler):
             obstime = data.get("obstime")
             if obstime is None:
                 return self.error(message='Missing obstime')
-            obstime = Time(arrow.get(obstime.strip()).datetime)
+
+            try:
+                obstime = Time(arrow.get(obstime.strip()).datetime)
+            except Exception as e:
+                return self.error(message=f'Invalid obstime: {e}')
 
             file_data = file_data.split('base64,')
             file_name = file_data[0].split('name=')[1].split(';')[0]
-            # if image name contains (.fz) then it is a compressed file
+
             if file_name.endswith('.fz'):
                 suffix = '.fits.fz'
             else:

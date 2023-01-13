@@ -42,7 +42,8 @@ pip install -e .
 By default, the app allows a maximum request size of 10MB (from the client). This is not enough for someone to upload most .fits files (compressed or not).
 To increase the maximum request size, change the `max_body_size: 10` parameter in the `config.yaml` file to a larger value, like `100` (in MB).
 
-Also, as mentioned earlier, you need to set `image_analysis` to `True` in the `config.yaml` file. By default, it is set to `False`.
+Also, as mentioned earlier, you need to add `image_analysis: ` in the `config.yaml` file. By default, it is not present.
+Later, this field of the config file will be used to configure the image analysis feature.
 
 Moreover, in the app.routes, uncomment the following lines:
 ```
