@@ -142,6 +142,8 @@ def reduce_image(
     catalog_name_crossmatch,
     template_name,
     method,
+    s_n_detection,
+    s_n_blind_match,
     detect_cosmics=False,
 ):
     """
@@ -160,6 +162,22 @@ def reduce_image(
         Instrument ID
     user_id: int
         User ID
+    gain: float
+        Gain of the telescope
+    matching_radius: float
+        Matching radius in arcseconds
+    catalog_name_refinement: str
+        Name of the catalog used for astrometric refinement
+    catalog_name_crossmatch: str
+        Name of the catalog used for cross-matching
+    template_name: str
+        Name of the template used for photometric calibration
+    method: str
+        Astrometric calibration method
+    s_n_detection: int
+        Detection S/N threshold
+    s_n_blind_match: int
+        Number used to simulate N stars
     detect_cosmics: bool
         Run LACosmic on the image
 
@@ -223,7 +241,7 @@ def reduce_image(
                 gain=gain,
                 aper=1.0,
                 bkgann=[5, 7],
-                sn=5,
+                sn=s_n_detection,
                 verbose=True,
             )
 
@@ -257,11 +275,13 @@ def reduce_image(
             wcs = pipeline.refine_astrometry(
                 obj,
                 cat_refinement,
+                sr=matching_radius,
                 wcs=wcs,
                 method=method,
                 cat_col_mag='rmag',
                 verbose=True,
             )
+
             if wcs is not None:
                 # Update WCS info in the header
                 astrometry.clear_wcs(
@@ -334,8 +354,6 @@ def reduce_image(
             # We may roughly estimate the effective gain of the image from background mean and rms as gain = mean/rms**2
             bg, rms = photometry.get_background(image, mask=mask, get_rms=True)
 
-            log(f'Effective gain is {np.median(bg/rms**2)}')
-
             psf_model, psf_snapshots = psf.run_psfex(
                 image,
                 mask=mask,
@@ -349,11 +367,11 @@ def reduce_image(
             for _ in tqdm(range(100)):
                 image1 = image.copy()
 
-                # Simulate 20 random stars
+                # Simulate s_n_blind_match random stars
                 sim = pipeline.place_random_stars(
                     image1,
                     psf_model,
-                    nstars=20,
+                    nstars=s_n_blind_match,
                     minflux=10,
                     maxflux=1e6,
                     wcs=wcs,
@@ -377,7 +395,7 @@ def reduce_image(
                     wcs=wcs,
                     gain=gain,
                     minarea=3,
-                    sn=5,
+                    sn=s_n_detection,
                     _workdir=workdir_sextractor_obj1,
                 )
 
@@ -419,6 +437,12 @@ def reduce_image(
                 'group_ids': [g.id for g in user.accessible_groups],
                 **data,
             }
+
+            for i in range(len(data['mag'])):
+                # if mag is not None or nan but magerr is, set magerr to 0
+                if not (data['mag'][i] is None or np.isnan(data['mag'][i])):
+                    if data['magerr'][i] is None or np.isnan(data['magerr'][i]):
+                        data['magerr'][i] = 0.0
 
             shutil.rmtree(workdir_sextractor_obj)
             shutil.rmtree(workdir_psfex)
@@ -551,6 +575,22 @@ class ImageAnalysisHandler(BaseHandler):
             if obstime is None:
                 return self.error(message='Missing obstime')
 
+            s_n_detection = data.get("s_n_detection", 5)
+            if s_n_detection is None:
+                return self.error(message='Missing s_n_detection')
+            if not isinstance(s_n_detection, int) or int(s_n_detection) < 0:
+                return self.error(
+                    message='Invalid s_n_detection, must be a positive integer'
+                )
+
+            s_n_blind_match = data.get("s_n_blind_match", 20)
+            if s_n_blind_match is None:
+                return self.error(message='Missing s_n_blind_match')
+            if not isinstance(s_n_blind_match, int) or int(s_n_blind_match) < 0:
+                return self.error(
+                    message='Invalid s_n_blind_match, must be a positive integer'
+                )
+
             try:
                 obstime = Time(arrow.get(obstime.strip()).datetime)
             except Exception as e:
@@ -588,6 +628,8 @@ class ImageAnalysisHandler(BaseHandler):
                         catalog_name_crossmatch,
                         template_name,
                         method,
+                        s_n_detection,
+                        s_n_blind_match,
                     ),
                 )
                 return self.success()

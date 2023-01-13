@@ -121,16 +121,6 @@ const ImageAnalysisForm = ({ obj_id }) => {
         title: "S/N Blind Match",
         default: 20,
       },
-      upper_scale: {
-        type: "number",
-        title: "Upper Scale",
-        default: 5,
-      },
-      lower_scale: {
-        type: "number",
-        title: "Lower Scale",
-        default: 0.1,
-      },
       astrometric_refinement_cat: {
         type: "string",
         title: "Astrometric Refinement Catalog",
