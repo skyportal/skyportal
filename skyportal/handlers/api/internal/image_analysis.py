@@ -435,7 +435,8 @@ def reduce_image(
                 shutil.rmtree(workdir_sextractor_obj1)
         except Exception as e2:
             log(e2)
-        raise e
+        log(e)
+        pass
 
 
 class ImageAnalysisHandler(BaseHandler):

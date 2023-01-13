@@ -173,7 +173,6 @@ from skyportal.handlers.api.internal import (
     BulkNotificationHandler,
     RecentGcnEventsHandler,
     FilterWavelengthHandler,
-    ImageAnalysisHandler,
 )
 
 from . import model_util, openapi
@@ -498,10 +497,6 @@ skyportal_handlers = [
     (r'/api/internal/notifications/all', BulkNotificationHandler),
     (r'/api/internal/ps1_thumbnail', PS1ThumbnailHandler),
     (r'/api/internal/recent_gcn_events', RecentGcnEventsHandler),
-    (
-        r'/api/internal/sources(/[0-9A-Za-z-_\.\+]+)/image_analysis',
-        ImageAnalysisHandler,
-    ),
     (r'/api/.*', InvalidEndpointHandler),
     (r'/become_user(/.*)?', BecomeUserHandler),
     (r'/logout', LogoutHandler),
@@ -554,6 +549,17 @@ def make_app(cfg, baselayer_handlers, baselayer_settings, process=None, env=None
             )
             log('!' * 80)
             return
+
+        # ignore the flake8 error due to the import being before in this file
+
+        from skyportal.handlers.api.internal import ImageAnalysisHandler
+
+        baselayer_handlers = baselayer_handlers + [
+            (
+                r'/api/internal/sources(/[0-9A-Za-z-_\.\+]+)/image_analysis',
+                ImageAnalysisHandler,
+            ),
+        ]
 
     handlers = baselayer_handlers + skyportal_handlers
 
