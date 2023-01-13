@@ -8,6 +8,7 @@ import numpy as np
 import requests
 import yaml
 from astropy.time import Time
+from astropy.table import Table
 from astropy.visualization import (
     AsymmetricPercentileInterval,
     LinearStretch,
@@ -30,6 +31,7 @@ from fink_client.consumer import AlertConsumer
 from fink_filters.classification import extract_fink_classification_from_pdf
 
 from skyportal.handlers.api.source import post_source
+from skyportal.handlers.api.galaxy import add_galaxies
 
 from skyportal.models import (
     DBSession,
@@ -254,7 +256,39 @@ def make_photometry(alert: dict, jd_start: float = None):
     mask_good_diffmaglim = df_light_curve["diffmaglim"] > 0
     df_light_curve = df_light_curve.loc[mask_good_diffmaglim]
 
-    # set the zeropoint and magnitude system
+    # convert from mag to flux
+
+    # step 1: calculate the coefficient that determines whether the
+    # flux should be negative or positive
+    coeff = df_light_curve["isdiffpos"].apply(
+        lambda x: 1.0 if x in [True, 1, "y", "Y", "t", "1"] else -1.0
+    )
+
+    # step 2: calculate the flux normalized to an arbitrary AB zeropoint of
+    # 23.9 (results in flux in uJy)
+    df_light_curve["flux"] = coeff * 10 ** (-0.4 * (df_light_curve["magpsf"] - 23.9))
+
+    # step 3: separate detections from non detections
+    detected = np.isfinite(df_light_curve["magpsf"])
+    undetected = ~detected
+
+    # step 4: calculate the flux error
+    df_light_curve["fluxerr"] = None  # initialize the column
+
+    # step 4a: calculate fluxerr for detections using sigmapsf
+    df_light_curve.loc[detected, "fluxerr"] = np.abs(
+        df_light_curve.loc[detected, "sigmapsf"]
+        * df_light_curve.loc[detected, "flux"]
+        * np.log(10)
+        / 2.5
+    )
+
+    # step 4b: calculate fluxerr for non detections using diffmaglim
+    df_light_curve.loc[undetected, "fluxerr"] = (
+        10 ** (-0.4 * (df_light_curve.loc[undetected, "diffmaglim"] - 23.9)) / 5.0
+    )  # as diffmaglim is the 5-sigma depth
+
+    # step 5: set the zeropoint and magnitude system
     df_light_curve["zp"] = 23.9
     df_light_curve["zpsys"] = "ab"
 
@@ -266,7 +300,7 @@ def make_photometry(alert: dict, jd_start: float = None):
     return df_light_curve
 
 
-def post_annotation_to_skyportal(alert, session, user, group_ids, token, log):
+def post_annotation_to_skyportal(topic, alert, session, user, group_ids, token, log):
     """
     Post annotations to SkyPortal
 
@@ -295,6 +329,7 @@ def post_annotation_to_skyportal(alert, session, user, group_ids, token, log):
         "obj_id": alert["objectId"],
         "origin": "Fink Science",
         "data": {  # fink science data
+            "topic": topic,
             "cdsxmatch": alert["cdsxmatch"],
             "rf_snia_vs_nonia": alert["rf_snia_vs_nonia"],
             "snn_snia_vs_nonia": alert["snn_snia_vs_nonia"],
@@ -311,26 +346,38 @@ def post_annotation_to_skyportal(alert, session, user, group_ids, token, log):
     }
 
     # HOST GALAXY (FOR NOW DONE IN SP, LATER COMING FROM FINK'S ALERT)
-    name, catalog, distmpc, distmpc_unc, distance_from_host = get_obj_host_galaxy(
-        alert, session, user, log
-    )
+    (
+        name,
+        distmpc,
+        distmpc_unc,
+        dist_from_host_arcsec,
+        projected_dist_from_host_mpc,
+    ) = get_obj_host_galaxy(alert, session, user, log)
     if name is not None:
         annotations["data"] = {
             **annotations["data"],
-            "host_galaxy_name": name,
-            "host_galaxy_catalog": catalog,
-            "host_galaxy_distmpc": distmpc,
-            "host_galaxy_distmpc_unc": distmpc_unc,
-            "host_galaxy_distance_from_obj (arcsec)": distance_from_host,
+            "host_galaxy_name": str(name),
+            "host_galaxy_catalog": 'Mangrove',
+            "host_galaxy_distmpc": round(distmpc, 4),
+            "host_galaxy_distmpc_unc": round(distmpc_unc, 4),
+            "host_galaxy_dist_from_obj (arcsec)": round(dist_from_host_arcsec, 4),
+            "host_galaxy_projected_dist_from_obj (mpc)": round(
+                projected_dist_from_host_mpc, 4
+            ),
         }
 
     # ADD RATES IF TOPIC IS rate_based_kn_candidates
-    if alert["topic"] == "rate_based_kn_candidates":
+    if topic == "rate_based_kn_candidates":
         annotations["data"] = {
             **annotations["data"],
-            "rate(dg)": alert["candidate"]["rate(dg)"],
-            "rate(dr)": alert["candidate"]["rate(dr)"],
+            "rate(dg)": round(float(alert["candidate"]["rate(dg)"]), 4),
+            "rate(dr)": round(float(alert["candidate"]["rate(dr)"]), 4),
         }
+
+    annotations["data"] = {
+        k: None if isinstance(v, float) and np.isnan(v) else v
+        for k, v in annotations["data"].items()
+    }
 
     response = api_skyportal(
         "GET", f"/api/sources/{alert['objectId']}/annotations", None, token
@@ -719,21 +766,68 @@ def distance(ra1, dec1, ra2, dec2):
         The distance between the two points in arcsec
     """
 
-    # convert ra and dec to radians
+    # convert to radians
     ra1 = np.radians(ra1)
     dec1 = np.radians(dec1)
     ra2 = np.radians(ra2)
     dec2 = np.radians(dec2)
 
     # calculate the distance
-    d = (
-        np.sin((dec1 - dec2) / 2) ** 2
-        + np.cos(dec1) * np.cos(dec2) * np.sin((ra1 - ra2) / 2) ** 2
+    d = np.degrees(
+        2
+        * np.arcsin(
+            np.sqrt(
+                np.sin((dec1 - dec2) / 2) ** 2
+                + np.cos(dec1) * np.cos(dec2) * np.sin((ra1 - ra2) / 2) ** 2
+            )
+        )
     )
-    d = 2 * np.arcsin(np.sqrt(d))
 
-    # convert to arcsec
-    d = np.degrees(d) * 3600
+    # return converted to arcsec
+    return d * 3600
+
+
+def distance_projected(ra1, dec1, ra2, dec2, distance):
+    """
+    Calculate the distance in Mpc between two points on the sky projected at a given distance
+
+    Arguments
+    ---------
+    ra1: float
+        The ra of the first point
+    dec1: float
+        The dec of the first point
+    ra2: float
+        The ra of the second point
+    dec2: float
+        The dec of the second point
+    distance: float
+        The distance of the galaxy from the earth in Mpc
+        We use it to project both points at this distance and then calculate the distance between them
+
+    Returns
+    -------
+    d: float
+        The distance between the two points in Mpc
+    """
+
+    # convert to radians
+    ra1 = np.radians(ra1)
+    dec1 = np.radians(dec1)
+    ra2 = np.radians(ra2)
+    dec2 = np.radians(dec2)
+
+    # convert to cartesian coordinates
+    x1 = distance * np.cos(ra1) * np.cos(dec1)
+    y1 = distance * np.sin(ra1) * np.cos(dec1)
+    z1 = distance * np.sin(dec1)
+
+    x2 = distance * np.cos(ra2) * np.cos(dec2)
+    y2 = distance * np.sin(ra2) * np.cos(dec2)
+    z2 = distance * np.sin(dec2)
+
+    # calculate the distance
+    d = np.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2 + (z1 - z2) ** 2)
 
     return d
 
@@ -773,22 +867,108 @@ def get_obj_host_galaxy(alert, session, user, log):
             max_radius = 10 / 3600.0
             while radius <= max_radius:
                 galaxies = session.scalars(
-                    Galaxy.select(user).where(Galaxy.within(point, radius))
+                    Galaxy.select(user).where(
+                        Galaxy.within(point, radius), Galaxy.catalog_name == "Mangrove"
+                    )
                 ).all()
                 if len(galaxies) > 0:
-                    galaxies.sort(key=lambda x: distance(x.ra, x.dec, obj.ra, obj.dec))
+                    # we sort the galaxies by distance in Mpc to the object when projected at the galaxy's distance
+                    galaxies.sort(
+                        key=lambda x: distance_projected(
+                            x.ra, x.dec, obj.ra, obj.dec, x.distmpc
+                        )
+                    )
                     galaxy = galaxies[0]
                     log(f"Found {alert['objectId']} in {galaxy.name}")
                     return (
                         galaxy.name,
-                        galaxy.id,
                         galaxy.distmpc,
                         galaxy.distmpc_unc,
                         distance(galaxy.ra, galaxy.dec, obj.ra, obj.dec),
+                        distance_projected(
+                            galaxy.ra, galaxy.dec, obj.ra, obj.dec, galaxy.distmpc
+                        ),
                     )
                 else:
                     radius += 1 / 3600.0
     return (None, None, None, None, None)
+
+
+def post_mangrove_galaxy_catalog(session, user, log):
+    """
+    Post the galaxy catalog from mangrove in the database
+
+    Arguments
+    ---------
+    session: sqlalchemy.orm.session.Session
+        The database session
+    user: baselayer.app.models.User
+        The user to use to query the database
+    log: function
+        The log function to use to log messages
+    """
+
+    stmt = Galaxy.select(user).where(Galaxy.catalog_name == "Mangrove")
+    if session.scalars(stmt).first() is None:
+        # first download the catalog in /data
+        # first check if there is already a file called mangrove.hdf5 in /data
+        if not os.path.isfile("data/mangrove.hdf5"):
+            log("Downloading the galaxy catalog from mangrove")
+            url = 'https://mangrove.lal.in2p3.fr/data/mangrove.hdf5'
+            r = requests.get(url, allow_redirects=True)
+            open('data/mangrove.hdf5', 'wb').write(r.content)
+        else:
+            log("The galaxy catalog is already downloaded")
+
+        mangrove_data = Table.read('data/mangrove.hdf5')
+        # make sure that text columns are converted to str
+        for col in ['2MASS_name', 'HyperLEDA_name']:
+            mangrove_data[col] = mangrove_data['HyperLEDA_name'].astype(str)
+
+        # convert to pandas dataframe
+        mangrove_data = mangrove_data.to_pandas()
+        # rename the RA column ra, and dist column distmpc
+        mangrove_data = mangrove_data.rename(
+            columns={
+                'RA': 'ra',
+                '2MASS_name': 'name',
+                'HyperLEDA_name': 'alt_name',
+                'dist': 'distmpc',
+                'dist_err': 'distmpc_unc',
+                'z': 'redshift',
+                'stellarmass': 'mstar',
+                'B_mag': 'magb',
+                'K_mag': 'magk',
+            }
+        )
+        # delete duplicate (same name)
+        mangrove_data = mangrove_data.drop_duplicates(subset=['name'])
+        mangrove_data = mangrove_data.to_dict(orient='list')
+
+        # fill in any missing optional parameters
+        optional_parameters = [
+            'alt_name',
+            'distmpc',
+            'distmpc_unc',
+            'redshift',
+            'redshift_error',
+            'sfr_fuv',
+            'mstar',
+            'magk',
+            'magb',
+            'a',
+            'b2a',
+            'pa',
+            'btc',
+        ]
+        for key in optional_parameters:
+            if key not in mangrove_data:
+                mangrove_data[key] = [None] * len(mangrove_data['ra'])
+
+        log("Posting the galaxy catalog in the database")
+        add_galaxies('Mangrove', mangrove_data)
+    else:
+        log("The galaxy catalog is already in the database")
 
 
 def init_consumer(
@@ -1013,7 +1193,9 @@ def post_alert(
                 print(e)
 
             # ANNOTATIONS
-            post_annotation_to_skyportal(alert, session, user, group_ids, token, log)
+            post_annotation_to_skyportal(
+                topic, alert, session, user, group_ids, token, log
+            )
 
             # CLASSIFICATION
             post_classification_to_skyportal(
@@ -1190,6 +1372,8 @@ def poll_fink_alerts(token: str):
                     return
             else:
                 taxonomy_id = taxonomy.id
+
+            post_mangrove_galaxy_catalog(session, user, log)
 
     except Exception as e:
         log(f"Error getting user, instrument, groups, etc: {e}")
