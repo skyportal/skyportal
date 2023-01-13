@@ -664,14 +664,28 @@ class GcnEventHandler(BaseHandler):
               schema:
                 type: string
               description: |
-                Gcn Tag to match against
+                Comma-separated string of `GcnTag`s to match against.
             - in: query
               name: tagRemove
               nullable: true
               schema:
                 type: string
               description: |
-                Gcn Tag to filter out
+                Comma-separated string of `GcnTag`s to filter out
+            - in: query
+              name: localizationTagKeep
+              nullable: true
+              schema:
+                type: string
+              description: |
+                Comma-separated string of `LocalizationTag`s to match against.
+            - in: query
+              name: localizationTagRemove
+              nullable: true
+              schema:
+                type: string
+              description: |
+                Comma-separated string of `LocalizationTag`s to filter out
             - in: query
               name: gcnPropertiesFilter
               nullable: true
@@ -743,7 +757,56 @@ class GcnEventHandler(BaseHandler):
         end_date = self.get_query_argument('endDate', None)
         tag_keep = self.get_query_argument('tagKeep', None)
         tag_remove = self.get_query_argument('tagRemove', None)
+        localization_tag_keep = self.get_query_argument('localizationTagKeep', None)
+        localization_tag_remove = self.get_query_argument('localizationTagRemove', None)
         gcn_properties_filter = self.get_query_argument("gcnPropertiesFilter", None)
+
+        if tag_keep is not None:
+            if isinstance(tag_keep, str) and "," in tag_keep:
+                tag_keep = [c.strip() for c in tag_keep.split(",")]
+            elif isinstance(tag_keep, str):
+                tag_keep = [tag_keep]
+            else:
+                raise ValueError(
+                    "Invalid tagKeep value -- must provide at least one string value"
+                )
+
+        if tag_remove is not None:
+            if isinstance(tag_remove, str) and "," in tag_remove:
+                tag_remove = [c.strip() for c in tag_remove.split(",")]
+            elif isinstance(tag_remove, str):
+                tag_remove = [tag_remove]
+            else:
+                raise ValueError(
+                    "Invalid tagRemove value -- must provide at least one string value"
+                )
+
+        if localization_tag_keep is not None:
+            if isinstance(localization_tag_keep, str) and "," in localization_tag_keep:
+                localization_tag_keep = [
+                    c.strip() for c in localization_tag_keep.split(",")
+                ]
+            elif isinstance(localization_tag_keep, str):
+                localization_tag_keep = [localization_tag_keep]
+            else:
+                raise ValueError(
+                    "Invalid localizationTagKeep value -- must provide at least one string value"
+                )
+
+        if localization_tag_remove is not None:
+            if (
+                isinstance(localization_tag_remove, str)
+                and "," in localization_tag_remove
+            ):
+                localization_tag_remove = [
+                    c.strip() for c in localization_tag_remove.split(",")
+                ]
+            elif isinstance(localization_tag_remove, str):
+                localization_tag_remove = [localization_tag_remove]
+            else:
+                raise ValueError(
+                    "Invalid localizationTagRemove value -- must provide at least one string value"
+                )
 
         if gcn_properties_filter is not None:
             if isinstance(gcn_properties_filter, str) and "," in gcn_properties_filter:
@@ -876,7 +939,7 @@ class GcnEventHandler(BaseHandler):
             if tag_keep:
                 tag_subquery = (
                     GcnTag.select(session.user_or_token)
-                    .where(GcnTag.text.contains(tag_keep))
+                    .where(GcnTag.text.in_(tag_keep))
                     .subquery()
                 )
                 query = query.join(
@@ -885,13 +948,40 @@ class GcnEventHandler(BaseHandler):
             if tag_remove:
                 tag_subquery = (
                     GcnTag.select(session.user_or_token)
-                    .where(GcnTag.text.contains(tag_remove))
+                    .where(GcnTag.text.in_(tag_remove))
                     .subquery()
                 )
                 query = query.join(
                     tag_subquery, GcnEvent.dateobs != tag_subquery.c.dateobs
                 )
-
+            if localization_tag_keep:
+                tag_subquery = (
+                    LocalizationTag.select(session.user_or_token)
+                    .where(LocalizationTag.text.in_(localization_tag_keep))
+                    .subquery()
+                )
+                localization_id_query = (
+                    Localization.select(
+                        session.user_or_token, columns=[Localization.dateobs]
+                    )
+                    .where(Localization.id == tag_subquery.c.localization_id)
+                    .subquery()
+                )
+                query = query.where(GcnEvent.dateobs.in_(localization_id_query))
+            if localization_tag_remove:
+                tag_subquery = (
+                    LocalizationTag.select(session.user_or_token)
+                    .where(LocalizationTag.text.in_(localization_tag_remove))
+                    .subquery()
+                )
+                localization_id_query = (
+                    Localization.select(
+                        session.user_or_token, columns=[Localization.dateobs]
+                    )
+                    .where(Localization.id == tag_subquery.c.localization_id)
+                    .subquery()
+                )
+                query = query.where(GcnEvent.dateobs.notin_(localization_id_query))
             if gcn_properties_filter is not None:
                 for prop_filt in gcn_properties_filter:
                     prop_split = prop_filt.split(":")
@@ -1392,6 +1482,34 @@ class LocalizationPropertiesHandler(BaseHandler):
                 .all()
             )
             return self.success(data=sorted(properties))
+
+
+class LocalizationTagsHandler(BaseHandler):
+    @auth_or_token
+    async def get(self):
+        """
+        ---
+        description: Get all Localization tags
+        tags:
+          - photometry
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+
+        with self.Session() as session:
+            tags = (
+                session.scalars(sa.select(LocalizationTag.text).distinct())
+                .unique()
+                .all()
+            )
+            return self.success(data=tags)
 
 
 def add_gcn_summary(

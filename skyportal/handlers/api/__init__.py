@@ -56,6 +56,7 @@ from .gcn import (
     LocalizationDownloadHandler,
     LocalizationCrossmatchHandler,
     LocalizationPropertiesHandler,
+    LocalizationTagsHandler,
 )
 from .gcn_tach import GcnTachHandler
 from .group import (

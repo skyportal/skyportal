@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import PropTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
 import Paper from "@mui/material/Paper";
@@ -6,13 +6,17 @@ import ButtonGroup from "@mui/material/ButtonGroup";
 import TextField from "@mui/material/TextField";
 import makeStyles from "@mui/styles/makeStyles";
 import Typography from "@mui/material/Typography";
-import Select from "@mui/material/Select";
-import MenuItem from "@mui/material/MenuItem";
 import { useForm, Controller } from "react-hook-form";
 import Button from "./Button";
 
+import GcnTagsSelect from "./GcnTagsSelect";
+import GcnPropertiesSelect from "./GcnPropertiesSelect";
+import LocalizationTagsSelect from "./LocalizationTagsSelect";
+import LocalizationPropertiesSelect from "./LocalizationPropertiesSelect";
+
 import * as gcnTagsActions from "../ducks/gcnTags";
 import * as gcnPropertiesActions from "../ducks/gcnProperties";
+import * as localizationTagsActions from "../ducks/localizationTags";
 import * as localizationPropertiesActions from "../ducks/localizationProperties";
 
 const useStyles = makeStyles((theme) => ({
@@ -104,8 +108,18 @@ const GcnEventsFilterForm = ({ handleFilterSubmit }) => {
   gcnTags = gcnTags.concat(useSelector((state) => state.gcnTags));
   gcnTags.sort();
 
+  let localizationTags = [];
+  localizationTags = gcnTags.concat(
+    useSelector((state) => state.localizationTags)
+  );
+  localizationTags.sort();
+
   useEffect(() => {
     dispatch(gcnTagsActions.fetchGcnTags());
+  }, [dispatch]);
+
+  useEffect(() => {
+    dispatch(localizationTagsActions.fetchLocalizationTags());
   }, [dispatch]);
 
   let gcnProperties = [];
@@ -120,14 +134,13 @@ const GcnEventsFilterForm = ({ handleFilterSubmit }) => {
   );
   localizationProperties.sort();
 
-  const comparators = {
-    lt: "<",
-    le: "<=",
-    eq: "=",
-    ne: "!=",
-    ge: ">",
-    gt: ">=",
-  };
+  const [selectedGcnTags, setSelectedGcnTags] = useState([]);
+  const [rejectedGcnTags, setRejectedGcnTags] = useState([]);
+  const [selectedGcnProperties, setSelectedGcnProperties] = useState([]);
+  const [selectedLocalizationTags, setSelectedLocalizationTags] = useState([]);
+  const [rejectedLocalizationTags, setRejectedLocalizationTags] = useState([]);
+  const [selectedLocalizationProperties, setSelectedLocalizationProperties] =
+    useState([]);
 
   useEffect(() => {
     dispatch(gcnPropertiesActions.fetchGcnProperties());
@@ -137,10 +150,20 @@ const GcnEventsFilterForm = ({ handleFilterSubmit }) => {
     dispatch(localizationPropertiesActions.fetchLocalizationProperties());
   }, [dispatch]);
 
-  const { handleSubmit, register, control, reset, getValues } = useForm();
+  const { handleSubmit, register, control, reset } = useForm();
 
   const handleClickReset = () => {
     reset();
+  };
+
+  const handleFilterPreSubmit = (formData) => {
+    formData.tagKeep = selectedGcnTags;
+    formData.tagRemove = rejectedGcnTags;
+    formData.gcnPropertiesFilter = selectedGcnProperties;
+    formData.localizationTagKeep = selectedLocalizationTags;
+    formData.localizationTagRemove = rejectedLocalizationTags;
+    formData.localizationPropertiesFilter = selectedLocalizationProperties;
+    handleFilterSubmit(formData);
   };
 
   return (
@@ -150,7 +173,7 @@ const GcnEventsFilterForm = ({ handleFilterSubmit }) => {
       </div>
       <form
         className={classes.root}
-        onSubmit={handleSubmit(handleFilterSubmit)}
+        onSubmit={handleSubmit(handleFilterPreSubmit)}
       >
         <div className={classes.formItem}>
           <Typography variant="subtitle2" className={classes.title}>
@@ -187,231 +210,47 @@ const GcnEventsFilterForm = ({ handleFilterSubmit }) => {
             control={control}
           />
         </div>
-        <div className={classes.formItemRightColumn}>
+        <div className={classes.formItem}>
           <Typography variant="subtitle2" className={classes.title}>
-            GCN Property Filtering
+            GCN Tags to Keep
           </Typography>
-          <div className={classes.selectItems}>
-            <Controller
-              render={({ field: { value } }) => (
-                <Select
-                  inputProps={{ MenuProps: { disableScrollLock: true } }}
-                  labelId="gcnPropertySelectLabel"
-                  value={value || ""}
-                  onChange={(event) => {
-                    reset({
-                      ...getValues(),
-                      gcnProperty:
-                        event.target.value === -1 ? "" : event.target.value,
-                    });
-                  }}
-                  className={classes.select}
-                >
-                  {gcnProperties?.map((gcnProperty) => (
-                    <MenuItem
-                      value={gcnProperty}
-                      key={gcnProperty}
-                      className={classes.selectItem}
-                    >
-                      {`${gcnProperty}`}
-                    </MenuItem>
-                  ))}
-                </Select>
-              )}
-              name="gcnProperty"
-              control={control}
-              defaultValue=""
-            />
-          </div>
-          <div className={classes.selectItems}>
-            <Controller
-              render={({ field: { value } }) => (
-                <Select
-                  inputProps={{ MenuProps: { disableScrollLock: true } }}
-                  labelId="gcnPropertyComparatorSelectLabel"
-                  value={value || ""}
-                  onChange={(event) => {
-                    reset({
-                      ...getValues(),
-                      gcnPropertyComparator:
-                        event.target.value === -1 ? "" : event.target.value,
-                    });
-                  }}
-                  className={classes.select}
-                >
-                  {Object.keys(comparators)?.map((key) => (
-                    <MenuItem
-                      value={key}
-                      key={key}
-                      className={classes.selectItem}
-                    >
-                      {`${comparators[key]}`}
-                    </MenuItem>
-                  ))}
-                </Select>
-              )}
-              name="gcnPropertyComparator"
-              control={control}
-              defaultValue="="
-            />
-          </div>
-          <TextField
-            size="small"
-            label="GCN Property Comparator Value"
-            name="gcnPropertyComparatorValue"
-            inputRef={register("gcnPropertyComparatorValue")}
-            placeholder="0.0"
+          <GcnTagsSelect
+            selectedGcnTags={selectedGcnTags}
+            setSelectedGcnTags={setSelectedGcnTags}
+          />
+          <Typography variant="subtitle2" className={classes.title}>
+            GCN Tags to Reject
+          </Typography>
+          <GcnTagsSelect
+            selectedGcnTags={rejectedGcnTags}
+            setSelectedGcnTags={setRejectedGcnTags}
+          />
+          <GcnPropertiesSelect
+            selectedGcnProperties={selectedGcnProperties}
+            setSelectedGcnProperties={setSelectedGcnProperties}
           />
         </div>
         <div className={classes.formItemRightColumn}>
           <Typography variant="subtitle2" className={classes.title}>
-            Localization Property Filtering
+            Localization Tags to Keep
           </Typography>
-          <div className={classes.selectItems}>
-            <Controller
-              render={({ field: { value } }) => (
-                <Select
-                  inputProps={{ MenuProps: { disableScrollLock: true } }}
-                  labelId="localizationPropertySelectLabel"
-                  value={value || ""}
-                  onChange={(event) => {
-                    reset({
-                      ...getValues(),
-                      localizationProperty:
-                        event.target.value === -1 ? "" : event.target.value,
-                    });
-                  }}
-                  className={classes.select}
-                >
-                  {localizationProperties?.map((localizationProperty) => (
-                    <MenuItem
-                      value={localizationProperty}
-                      key={localizationProperty}
-                      className={classes.selectItem}
-                    >
-                      {`${localizationProperty}`}
-                    </MenuItem>
-                  ))}
-                </Select>
-              )}
-              name="localizationProperty"
-              control={control}
-              defaultValue=""
-            />
-          </div>
-          <div className={classes.selectItems}>
-            <Controller
-              render={({ field: { value } }) => (
-                <Select
-                  inputProps={{ MenuProps: { disableScrollLock: true } }}
-                  labelId="localizationPropertyComparatorSelectLabel"
-                  value={value || ""}
-                  onChange={(event) => {
-                    reset({
-                      ...getValues(),
-                      localizationPropertyComparator:
-                        event.target.value === -1 ? "" : event.target.value,
-                    });
-                  }}
-                  className={classes.select}
-                >
-                  {Object.keys(comparators)?.map((key) => (
-                    <MenuItem
-                      value={key}
-                      key={key}
-                      className={classes.selectItem}
-                    >
-                      {`${comparators[key]}`}
-                    </MenuItem>
-                  ))}
-                </Select>
-              )}
-              name="localizationPropertyComparator"
-              control={control}
-              defaultValue="="
-            />
-          </div>
-          <TextField
-            size="small"
-            label="Localization Property Comparator Value"
-            name="localizationPropertyComparatorValue"
-            inputRef={register("localizationPropertyComparatorValue")}
-            placeholder="0.0"
+          <LocalizationTagsSelect
+            selectedLocalizationTags={selectedLocalizationTags}
+            setSelectedLocalizationTags={setSelectedLocalizationTags}
           />
-        </div>
-        <div className={classes.formItemRightColumn}>
           <Typography variant="subtitle2" className={classes.title}>
-            GCN Tag to Keep
+            Localization Tags to Reject
           </Typography>
-          <div className={classes.selectItems}>
-            <Controller
-              render={({ field: { value } }) => (
-                <Select
-                  inputProps={{ MenuProps: { disableScrollLock: true } }}
-                  labelId="gcnTagSelectLabel"
-                  value={value || ""}
-                  onChange={(event) => {
-                    reset({
-                      ...getValues(),
-                      tagKeep:
-                        event.target.value === -1 ? "" : event.target.value,
-                    });
-                  }}
-                  className={classes.select}
-                >
-                  {gcnTags?.map((gcnTag) => (
-                    <MenuItem
-                      value={gcnTag}
-                      key={gcnTag}
-                      className={classes.selectItem}
-                    >
-                      {`${gcnTag}`}
-                    </MenuItem>
-                  ))}
-                </Select>
-              )}
-              name="tagKeep"
-              control={control}
-              defaultValue=""
-            />
-          </div>
-        </div>
-        <div className={classes.formItemRightColumn}>
-          <Typography variant="subtitle2" className={classes.title}>
-            GCN Tag to Filter Out
-          </Typography>
-          <div className={classes.selectItems}>
-            <Controller
-              render={({ field: { value } }) => (
-                <Select
-                  inputProps={{ MenuProps: { disableScrollLock: true } }}
-                  labelId="gcnTagRemoveLabel"
-                  value={value || ""}
-                  onChange={(event) => {
-                    reset({
-                      ...getValues(),
-                      tagRemove:
-                        event.target.value === -1 ? "" : event.target.value,
-                    });
-                  }}
-                  className={classes.select}
-                >
-                  {gcnTags?.map((gcnTag) => (
-                    <MenuItem
-                      value={gcnTag}
-                      key={gcnTag}
-                      className={classes.selectItem}
-                    >
-                      {`${gcnTag}`}
-                    </MenuItem>
-                  ))}
-                </Select>
-              )}
-              name="tagRemove"
-              control={control}
-              defaultValue=""
-            />
-          </div>
+          <LocalizationTagsSelect
+            selectedLocalizationTags={rejectedLocalizationTags}
+            setSelectedLocalizationTags={setRejectedLocalizationTags}
+          />
+          <LocalizationPropertiesSelect
+            selectedLocalizationProperties={selectedLocalizationProperties}
+            setSelectedLocalizationProperties={
+              setSelectedLocalizationProperties
+            }
+          />
         </div>
         <div className={classes.formButtons}>
           <ButtonGroup
