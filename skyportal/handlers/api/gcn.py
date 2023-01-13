@@ -1407,6 +1407,7 @@ def add_gcn_summary(
     end_date,
     localization_name,
     localization_cumprob,
+    number_of_detections,
     show_sources,
     show_galaxies,
     show_observations,
@@ -1501,6 +1502,7 @@ def add_gcn_summary(
                     localization_dateobs=dateobs,
                     localization_name=localization_name,
                     localization_cumprob=localization_cumprob,
+                    number_of_detections=number_of_detections,
                     page_number=source_page_number,
                     num_per_page=MAX_SOURCES_PER_PAGE,
                 )
@@ -1876,6 +1878,12 @@ class GcnSummaryHandler(BaseHandler):
                 type: number
               description: Cumulative probability up to which to include fields. Defaults to 0.95.
             - in: body
+              name: numberDetections
+              nullable: true
+              schema:
+                type: number
+              description: Return only sources who have at least numberDetections detections. Defaults to 2.
+            - in: body
               name: showSources
               required: true
               schema:
@@ -1931,6 +1939,7 @@ class GcnSummaryHandler(BaseHandler):
         end_date = data.get("endDate", None)
         localization_name = data.get("localizationName", None)
         localization_cumprob = data.get("localizationCumprob", 0.95)
+        number_of_detections = data.get("numberDetections", 2)
         show_sources = data.get("showSources", False)
         show_galaxies = data.get("showGalaxies", False)
         show_observations = data.get("showObservations", False)
@@ -1961,6 +1970,11 @@ class GcnSummaryHandler(BaseHandler):
 
         if group_id is None:
             return self.error("Group ID is required")
+
+        try:
+            number_of_detections = int(number_of_detections)
+        except ValueError:
+            return self.error("numberDetections must be an integer")
 
         if not no_text:
             if number is not None:
@@ -2037,6 +2051,7 @@ class GcnSummaryHandler(BaseHandler):
                         end_date=end_date,
                         localization_name=localization_name,
                         localization_cumprob=localization_cumprob,
+                        number_of_detections=number_of_detections,
                         show_sources=show_sources,
                         show_galaxies=show_galaxies,
                         show_observations=show_observations,
