@@ -8,7 +8,6 @@ import numpy as np
 import pandas as pd
 from sqlalchemy.orm import joinedload
 
-from bokeh.core.properties import List, String
 from bokeh.layouts import row, column
 from bokeh.models import (
     CustomJS,
@@ -23,13 +22,14 @@ from bokeh.models import (
     LegendItem,
     Dropdown,
     Spinner,
+    TabPanel,
+    Tabs,
 )
 from bokeh.models.widgets import (
     CheckboxGroup,
+    CheckboxButtonGroup,
     TextInput,
     NumericInput,
-    Panel,
-    Tabs,
     Div,
 )
 from bokeh.plotting import figure, ColumnDataSource
@@ -60,7 +60,7 @@ from .enum_types import ALLOWED_SPECTRUM_TYPES
 # use the full registry from the enum_types import of sykportal
 # which may have custom bandpasses
 from .enum_types import sncosmo as snc
-
+from skyportal.handlers.api.photometry import serialize
 
 _, cfg = load_env()
 # The minimum signal-to-noise ratio to consider a photometry point as detected
@@ -68,17 +68,20 @@ PHOT_DETECTION_THRESHOLD = cfg["misc.photometry_detection_threshold_nsigma"]
 
 SPEC_LINES = {
     'H': ([3970, 4102, 4341, 4861, 6563, 10052, 10941, 12822, 18756], '#ff0000'),
-    'He I': ([3889, 4471, 5876, 6678, 7065], '#002157'),
+    'He I': ([3889, 4471, 5876, 6678, 7065, 10830, 20580], '#002157'),
     'He II': ([3203, 4686, 5411, 6560, 6683, 6891, 8237, 10124], '#003b99'),
     'C I': ([8335, 9093, 9406, 9658, 10693, 11330, 11754, 14543], '#8a2be2'),
-    'C II': ([3919, 3921, 4267, 5145, 5890, 6578, 7231, 7236, 9234, 9891], '#570199'),
+    'C II': (
+        [3919, 3921, 4267, 5145, 5890, 6578, 7231, 7236, 9234, 9891, 17846, 18905],
+        '#570199',
+    ),
     'C III': ([4647, 4650, 5696, 6742, 8500, 8665, 9711], '#a30198'),
     'C IV': ([4658, 5801, 5812, 7061, 7726, 8859], '#ff0073'),
     'N II': ([3995, 4631, 5005, 5680, 5942, 6482, 6611], '#01fee1'),
     'N III': ([4634, 4641, 4687, 5321, 5327, 6467], '#01fe95'),
     'N IV': ([3479, 3483, 3485, 4058, 6381, 7115], '#00ff4d'),
     'N V': ([4604, 4620, 4945], '#22ff00'),
-    'O I': ([6158, 7772, 7774, 7775, 8446, 9263], '#007236'),
+    'O I': ([6158, 7772, 7774, 7775, 8446, 9263, 11290, 13165], '#007236'),
     '[O I]': ([5577, 6300, 6363], '#007236'),
     'O II': (
         [3390, 3377, 3713, 3749, 3954, 3973, 4076, 4349, 4416, 4649, 6641, 6721],
@@ -94,7 +97,22 @@ SPEC_LINES = {
     'Na I': ([5890, 5896, 8183, 8195], '#aba000'),
     'Mg I': ([3829, 3832, 3838, 4571, 4703, 5167, 5173, 5184, 5528, 8807], '#8c6239'),
     'Mg II': (
-        [2796, 2798, 2803, 4481, 7877, 7896, 8214, 8235, 9218, 9244, 9632],
+        [
+            2796,
+            2798,
+            2803,
+            4481,
+            7877,
+            7896,
+            8214,
+            8235,
+            9218,
+            9244,
+            9632,
+            10092,
+            10927,
+            16787,
+        ],
         '#bf874e',
     ),
     'Si I': ([10585, 10827, 12032, 15888], '#6495ed'),
@@ -102,7 +120,10 @@ SPEC_LINES = {
     'S I': ([9223, 10457, 13809, 18940, 22694], '#ffe4b5'),
     'S II': ([5433, 5454, 5606, 5640, 5647, 6715, 13529, 14501], '#a38409'),
     'Ca I': ([19453, 19753], '#009000'),
-    'Ca II': ([3159, 3180, 3706, 3737, 3934, 3969, 8498, 8542, 8662], '#005050'),
+    'Ca II': (
+        [3159, 3180, 3706, 3737, 3934, 3969, 8498, 8542, 8662, 9931, 11839, 11950],
+        '#005050',
+    ),
     '[Ca II]': ([7292, 7324], '#859797'),
     'Mn I': ([12900, 13310, 13630, 13859, 15184, 15263], '#009090'),
     'Fe I': ([11973], '#cd5c5c'),
@@ -294,12 +315,6 @@ SPEC_LINES = {
 }
 
 
-class CheckboxWithLegendGroup(CheckboxGroup):
-    colors = List(String, help="List of legend colors")
-
-    __implementation__ = ""
-
-
 tooltip_format = [
     ('mjd', '@mjd{0.000000}'),
     ('flux', '@flux'),
@@ -359,9 +374,15 @@ def get_color(wavelength):
         bandcolor = 'red'
     elif 7000 < wavelength <= 8000:  # sdss i
         bandcolor = 'orange'
-    elif 8000 < wavelength <= 11000:  # sdss z
+    elif 8000 < wavelength <= 9000:  # sdss z
         bandcolor = 'brown'
-    elif 11000 < wavelength < 1e5:  # mm to Radio
+    elif 9000 < wavelength <= 10000:  # PS1 y
+        bandcolor = 'goldenrod'
+    elif 10000 < wavelength <= 13000:  # 2MASS J
+        bandcolor = 'black'
+    elif 13000 < wavelength <= 17000:  # 2MASS H
+        bandcolor = 'mediumpurple'
+    elif 17000 < wavelength < 1e5:  # mm to Radio
         wavelength = np.log10(wavelength)
         cmap = cmap_ir
         cmap_limits = (4, 5)
@@ -1064,9 +1085,9 @@ def make_legend_items_and_detection_lines(
             }
             for name, values in plotting_dict[panel_name]['scatter'].items():
                 if name == 'unobs':
-                    markers = ['inverted_triangle']
+                    markers = ['inverted_triangle'] * len(instruments)
                 else:
-                    markers = ['circle']
+                    markers = ['circle'] * len(instruments)
                 make_scatter(
                     plot,
                     model_dict,
@@ -1162,7 +1183,7 @@ def make_legend_items_and_detection_lines(
                     show_all_origins,
                 )
         else:
-            raise ValueError("Panel name should be one of mag, flux, and period.")
+            raise ValueError("TabPanel name should be one of mag, flux, and period.")
         if panel_name == 'mag' or panel_name == 'flux':
             mark_detections(
                 plot,
@@ -1378,7 +1399,8 @@ def make_period_controls(
                 """,
         ),
     )
-    smooth_checkbox.js_on_click(smooth_callback)
+
+    smooth_checkbox.js_on_event('button_click', smooth_callback)
     smooth_input.js_on_change('value', smooth_callback)
     smooth_column = column(
         smooth_checkbox,
@@ -1429,16 +1451,19 @@ def make_period_controls(
                     """,
         )
     )
+
     # a way to select the period
-    period_selection.js_on_click(
+    period_selection.js_on_event(
+        'button_click',
         CustomJS(
             args={'textinput': period_textinput, 'periods': period_list},
             code="""
             textinput.value = parseFloat(periods[this.active]).toFixed(9);
             """,
-        )
+        ),
     )
-    phase_selection.js_on_click(
+    phase_selection.js_on_event(
+        'button_click',
         CustomJS(
             args={
                 'textinput': period_textinput,
@@ -1452,7 +1477,7 @@ def make_period_controls(
                     os.path.dirname(__file__), '../static/js/plotjs', 'foldphase.js'
                 )
             ).read(),
-        )
+        ),
     )
 
     period_annotation_title = Div(text="Annotation Origin: ")
@@ -1583,7 +1608,7 @@ def add_widgets(
         )
         layout.children.insert(2, period_controls)
     else:
-        raise ValueError("Panel name should be one of mag, flux, and period.")
+        raise ValueError("TabPanel name should be one of mag, flux, and period.")
 
 
 def make_photometry_panel(
@@ -1613,7 +1638,7 @@ def make_photometry_panel(
 
     Returns
     -------
-    bokeh Panel object
+    bokeh TabPanel object
     """
 
     # get marker for each unique instrument
@@ -1649,10 +1674,15 @@ def make_photometry_panel(
 
     grouped_data = data.groupby('label', sort=False)
 
-    finite = np.isfinite(data['flux'])
-    fdata = data[finite]
-    lower = np.min(fdata['flux']) * 0.95
-    upper = np.max(fdata['flux']) * 1.05
+    ndata = data[~data['flux'].isnull()]
+    if not ndata.empty:
+        finite = np.isfinite(ndata['flux'])
+        fdata = ndata[finite]
+        lower = np.min(fdata['flux']) * 0.95
+        upper = np.max(fdata['flux']) * 1.05
+    else:
+        lower = 0.0
+        upper = 1.0
 
     xmin = data['mjd'].min() - 2
     xmax = data['mjd'].max() + 2
@@ -1834,10 +1864,10 @@ def make_photometry_panel(
         device,
         width,
     )
-    return Panel(child=layout, title=panel_name.capitalize())
+    return TabPanel(child=layout, title=panel_name.capitalize())
 
 
-def photometry_plot(obj_id, user_id, session, width=600, device="browser"):
+async def photometry_plot(obj_id, user_id, session, width=600, device="browser"):
     """Create object photometry scatter plot.
 
     Parameters
@@ -1870,9 +1900,10 @@ def photometry_plot(obj_id, user_id, session, width=600, device="browser"):
     for p in data:
         telescope = p.instrument.telescope.nickname
         instrument = p.instrument.name
-        result = p.to_dict()
+        result = serialize(p, 'ab', 'both')
         result['telescope'] = telescope
         result['instrument'] = instrument
+        result['groups'] = [g.to_dict() for g in result['groups']]
         query_result.append(result)
 
     data = pd.DataFrame.from_dict(query_result)
@@ -1882,6 +1913,24 @@ def photometry_plot(obj_id, user_id, session, width=600, device="browser"):
     user = session.scalars(
         User.select(session.user_or_token).where(User.id == user_id)
     ).first()
+
+    if (
+        user.preferences
+        and 'useRefMag' in user.preferences
+        and user.preferences['useRefMag']
+    ):
+        if 'magtot' in data:
+            data['mag'] = data['magtot']
+        if 'e_magtot' in data:
+            data['magerr'] = data['e_magtot']
+        if 'tot_flux' in data:
+            data['flux'] = data['tot_flux']
+        if 'tot_fluxerr' in data:
+            data['fluxerr'] = data['tot_fluxerr']
+
+    # placeholders for unsmoothed timeseries
+    data['mag_unsmoothed'] = data['mag']
+    data['flux_unsmoothed'] = data['flux']
 
     spectra = (
         session.scalars(
@@ -1911,10 +1960,6 @@ def photometry_plot(obj_id, user_id, session, width=600, device="browser"):
     data['lim_mag'] = (
         -2.5 * np.log10(data['fluxerr'] * PHOT_DETECTION_THRESHOLD) + data['zp']
     )
-
-    # Passing a dictionary to a bokeh datasource causes the frontend to die,
-    # deleting the dictionary column fixes that
-    del data['original_user_data']
 
     # keep track of things that are only upper limits
     data['hasflux'] = ~data['flux'].isna()
@@ -1978,7 +2023,7 @@ def smoothing_function(values, window_size):
     return output
 
 
-def spectroscopy_plot(
+async def spectroscopy_plot(
     obj_id,
     session,
     spec_id=None,
@@ -2086,7 +2131,7 @@ def spectroscopy_plot(
         panels = []
         spectrum_types = [s for s in spectra_by_type]
         for i, layout in enumerate(layouts):
-            panels.append(Panel(child=layout, title=spectrum_types[i]))
+            panels.append(TabPanel(child=layout, title=spectrum_types[i]))
 
         height = None
         for layout in layouts:
@@ -2264,6 +2309,7 @@ def make_spectrum_layout(
     model_dict = {}
     legend_items = []
     label_dict = {}
+    legend_dict = {}
     for i, (key, df) in enumerate(split):
 
         renderers = []
@@ -2300,7 +2346,10 @@ def make_spectrum_layout(
         )
         renderers.append(model_dict[f'l{i}'])
 
-        legend_items.append(LegendItem(label=label, renderers=renderers, id=s.id))
+        legend_item = LegendItem(label=label, renderers=renderers)
+        legend_items.append(legend_item)
+        legend_dict[legend_item.id] = s.id
+
     plot.xaxis.axis_label = 'Wavelength (Å)'
     plot.yaxis.axis_label = 'Flux'
     plot.toolbar.logo = None
@@ -2352,7 +2401,7 @@ def make_spectrum_layout(
             )
         ).read(),
     )
-    smooth_checkbox.js_on_click(smooth_callback)
+    smooth_checkbox.js_on_event('button_click', smooth_callback)
     smooth_input.js_on_change('value', smooth_callback)
     smooth_slider.js_on_change(
         'value',
@@ -2578,26 +2627,31 @@ def make_spectrum_layout(
     plot_height += nb_rows * 60
 
     all_column_checkboxes = []
+    line_checkboxes = []
     for column_idx, element_dict in enumerate(element_dicts):
         element_dict = [e for e in element_dict if e is not None]
-        labels = [name for name, _ in element_dict]
-        colors = [color for name, (wavelengths, color) in element_dict]
-        column_checkboxes = CheckboxWithLegendGroup(
-            labels=labels, active=[], colors=colors, width=width // (columns + 1)
-        )
-        all_column_checkboxes.append(column_checkboxes)
+        checkboxes = []
+        for row_idx, (name, (wavelengths, color)) in enumerate(element_dict):
+            column_checkboxes = CheckboxButtonGroup(
+                labels=[name],
+                orientation='vertical',
+                active=[],
+                width=width // (columns + 1),
+                styles={'border-left': f'12px solid {color}', 'padding-left': '0.3em'},
+            )
+            all_column_checkboxes.append(column_checkboxes)
 
-        callback_toggle_lines = CustomJS(
-            args={'column_checkboxes': column_checkboxes, **model_dict},
-            code=f"""
-                    for (let i = 0; i < {len(labels)}; i = i + 1) {{
-                        let el_idx = i * {columns} + {column_idx};
+            callback_toggle_lines = CustomJS(
+                args={'column_checkboxes': column_checkboxes, **model_dict},
+                code=f"""
+                        let el_idx = {row_idx} * {columns} + {column_idx};
                         let el = eval("element_" + el_idx);
-                        el.visible = (column_checkboxes.active.includes(i))
-                    }}
-                """,
-        )
-        column_checkboxes.js_on_click(callback_toggle_lines)
+                        el.visible = (column_checkboxes.active.includes(0));
+                    """,
+            )
+            column_checkboxes.js_on_event('button_click', callback_toggle_lines)
+            checkboxes.append(column_checkboxes)
+        line_checkboxes.append(row(checkboxes))
 
     hide_all_spectra = Button(
         name="Hide All Spectra", label="Hide All Spectra", width_policy="min"
@@ -2633,12 +2687,12 @@ def make_spectrum_layout(
         name="Reset Checkboxes", label="Reset Checkboxes", width_policy="min"
     )
     callback_reset_specs = CustomJS(
-        args={
-            'all_column_checkboxes': all_column_checkboxes,
-        },
+        args={'all_column_checkboxes': all_column_checkboxes, **model_dict},
         code=f"""
             for (let i = 0; i < {len(all_column_checkboxes)}; i++) {{
                 all_column_checkboxes[i].active = [];
+                let el = eval("element_" + i);
+                el.visible = false;
             }}
         """,
     )
@@ -2698,10 +2752,10 @@ def make_spectrum_layout(
     on_top_spectra_dropdown.js_on_event(
         "menu_item_click",
         CustomJS(
-            args={'model_dict': model_dict, 'label_dict': label_dict},
+            args={'model_dict': model_dict, 'legend_dict': legend_dict},
             code="""
             for (const[key, value] of Object.entries(model_dict)) {
-                if (!key.startsWith('element_') && (key.charAt(key.length - 1) === label_dict[this.item].toString())) {
+                if (!key.startsWith('element_') && (this.item in legend_dict) && (key.charAt(key.length - 1) === legend_dict[this.item].toString())) {
                     value.level = 'glyph'
                 }
                 else {
@@ -2712,7 +2766,6 @@ def make_spectrum_layout(
         ),
     )
 
-    row1 = row(all_column_checkboxes)
     row2 = (
         column(
             on_top_spectra_dropdown,
@@ -2734,9 +2787,10 @@ def make_spectrum_layout(
         else row(z, v_exp, smooth_column)
     )
     row4 = row(w)
+    plot_height += 200
     return column(
         plot,
-        row1,
+        *line_checkboxes,
         row2,
         row3,
         row4,

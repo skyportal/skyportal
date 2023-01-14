@@ -21,7 +21,7 @@ dayjs.extend(utc);
 const NewSource = ({ classes }) => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const allGroups = useSelector((state) => state.groups.userAccessible);
+  const groups = useSelector((state) => state.groups.userAccessible);
   const [selectedGroupIds, setSelectedGroupIds] = useState([]);
 
   const handleSubmit = async ({ formData }) => {
@@ -30,6 +30,9 @@ const NewSource = ({ classes }) => {
     if (data.data !== "A source of that name does not exist.") {
       dispatch(showNotification(data.data, "error"));
     } else {
+      if (selectedGroupIds.length > 0) {
+        formData.group_ids = selectedGroupIds;
+      }
       const result = await dispatch(saveSource(formData));
       if (result.status === "success") {
         dispatch(showNotification("Source saved"));
@@ -77,7 +80,7 @@ const NewSource = ({ classes }) => {
           <DragHandleIcon className={`${classes.widgetIcon} dragHandle`} />
           <div>
             <GroupShareSelect
-              groupList={allGroups}
+              groupList={groups}
               setGroupIDs={setSelectedGroupIds}
               groupIDs={selectedGroupIds}
             />

@@ -51,17 +51,20 @@ class SourceGroupsHandler(BaseHandler):
         obj_id = data.get("objId")
         if obj_id is None:
             return self.error("Missing required parameter: objId")
-        obj = Obj.get_if_accessible_by(obj_id, self.current_user)
-        if obj is None:
-            return self.error("Invalid objId")
-        save_or_invite_group_ids = data.get("inviteGroupIds", [])
-        unsave_group_ids = data.get("unsaveGroupIds", [])
-        if not save_or_invite_group_ids and not unsave_group_ids:
-            return self.error(
-                "Missing required parameter: one of either unsaveGroupIds or inviteGroupIds must be provided"
-            )
 
         with self.Session() as session:
+            obj = session.scalars(
+                Obj.select(session.user_or_token).where(Obj.id == obj_id)
+            ).first()
+            if obj is None:
+                return self.error("Invalid objId")
+            save_or_invite_group_ids = data.get("inviteGroupIds", [])
+            unsave_group_ids = data.get("unsaveGroupIds", [])
+            if not save_or_invite_group_ids and not unsave_group_ids:
+                return self.error(
+                    "Missing required parameter: one of either unsaveGroupIds or inviteGroupIds must be provided"
+                )
+
             for save_or_invite_group_id in save_or_invite_group_ids:
                 if int(save_or_invite_group_id) in [
                     g.id for g in self.current_user.accessible_groups
@@ -111,9 +114,9 @@ class SourceGroupsHandler(BaseHandler):
             self.push_all(
                 action="skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}
             )
-            self.push_all(
-                action="skyportal/REFRESH_CANDIDATE", payload={"id": obj.internal_key}
-            )
+            # self.push_all(
+            #    action="skyportal/REFRESH_CANDIDATE", payload={"id": obj.internal_key}
+            # )
             return self.success()
 
     @permissions(['Upload data'])

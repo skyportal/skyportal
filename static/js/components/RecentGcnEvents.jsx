@@ -105,7 +105,7 @@ const RecentGcnEvents = ({ classes }) => {
                     </Button>
                   </Link>
                   <div>({dayjs().to(dayjs.utc(`${gcnEvent.dateobs}Z`))})</div>
-                  <div className={styles.eventTags}>
+                  <div>
                     <GcnTags gcnEvent={gcnEvent} />
                   </div>
                 </div>

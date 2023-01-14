@@ -12,6 +12,7 @@ import {
 } from "@mui/material/styles";
 import makeStyles from "@mui/styles/makeStyles";
 import useMediaQuery from "@mui/material/useMediaQuery";
+import CircularProgress from "@mui/material/CircularProgress";
 import IconButton from "@mui/material/IconButton";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import ArrowUpward from "@mui/icons-material/ArrowUpward";
@@ -24,10 +25,10 @@ import Popover from "@mui/material/Popover";
 import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
 // eslint-disable-next-line import/no-unresolved
 import Form from "@rjsf/material-ui/v5";
-import MUIDataTable from "mui-datatables";
 
 import { showNotification } from "baselayer/components/Notifications";
 import * as candidatesActions from "../ducks/candidates";
+import CustomDataTable from "./CustomDataTable";
 import ThumbnailList from "./ThumbnailList";
 import SaveCandidateButton from "./SaveCandidateButton";
 import FilterCandidateList from "./FilterCandidateList";
@@ -334,6 +335,335 @@ CustomSortToolbar.defaultProps = {
   sortOrder: null,
 };
 
+const CandidateThumbnails = ({ sourceId }) => {
+  const dispatch = useDispatch();
+  const classes = useStyles();
+
+  const [ps1GenerationInProgressList, setPS1GenerationInProgressList] =
+    useState([]);
+  const generatePS1Thumbnail = (objID) => {
+    setPS1GenerationInProgressList([...ps1GenerationInProgressList, objID]);
+    dispatch(candidatesActions.generatePS1Thumbnail(objID));
+  };
+
+  let candidateObj = null;
+  const { candidates } = useSelector((state) => state.candidates);
+  candidates?.forEach((candidate) => {
+    if (candidate.id === sourceId) {
+      candidateObj = { ...candidate };
+    }
+  });
+
+  const hasPS1 = candidateObj?.thumbnails?.map((t) => t.type)?.includes("ps1");
+  const displayTypes = hasPS1
+    ? ["new", "ref", "sub", "sdss", "ls", "ps1"]
+    : ["new", "ref", "sub", "sdss", "ls"];
+  return (
+    <div>
+      {!candidateObj?.thumbnails ? (
+        <div>
+          <CircularProgress />
+        </div>
+      ) : (
+        <div className={classes.thumbnails}>
+          <ThumbnailList
+            ra={candidateObj.ra}
+            dec={candidateObj.dec}
+            thumbnails={candidateObj.thumbnails}
+            size="9rem"
+            displayTypes={displayTypes}
+          />
+          {!hasPS1 && (
+            <Button
+              primary
+              disabled={ps1GenerationInProgressList.includes(candidateObj.id)}
+              size="small"
+              onClick={() => {
+                generatePS1Thumbnail(candidateObj.id);
+              }}
+              data-testid={`generatePS1Button${candidateObj.id}`}
+            >
+              Generate PS1 Cutout
+            </Button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+CandidateThumbnails.propTypes = {
+  sourceId: PropTypes.string.isRequired,
+};
+
+const CandidateAutoannotations = ({ sourceId }) => {
+  const classes = useStyles();
+
+  let candidateObj = null;
+  const { candidates } = useSelector((state) => state.candidates);
+  candidates?.forEach((candidate) => {
+    if (candidate.id === sourceId) {
+      candidateObj = { ...candidate };
+    }
+  });
+
+  return (
+    <div>
+      {!candidateObj?.annotations ? (
+        <div>
+          <CircularProgress />
+        </div>
+      ) : (
+        <div className={classes.annotations}>
+          {candidateObj.annotations && (
+            <ScanningPageCandidateAnnotations
+              annotations={candidateObj.annotations}
+            />
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+CandidateAutoannotations.propTypes = {
+  sourceId: PropTypes.string.isRequired,
+};
+
+const CandidateInfo = ({
+  sourceId,
+  filterGroups,
+  selectedAnnotationSortOptions,
+}) => {
+  const classes = useStyles();
+
+  const allGroups = (useSelector((state) => state.groups.all) || []).filter(
+    (g) => !g.single_user_group
+  );
+  const userAccessibleGroups = useSelector(
+    (state) => state.groups.userAccessible
+  );
+
+  let candidateObj = null;
+  const { candidates } = useSelector((state) => state.candidates);
+  candidates?.forEach((candidate) => {
+    if (candidate.id === sourceId) {
+      candidateObj = { ...candidate };
+    }
+  });
+
+  const candidateHasAnnotationWithSelectedKey = (obj) => {
+    const annotation = obj.annotations.find(
+      (a) => a.origin === selectedAnnotationSortOptions.origin
+    );
+    if (annotation === undefined) {
+      return false;
+    }
+    return selectedAnnotationSortOptions.key in annotation.data;
+  };
+
+  const getCandidateSelectedAnnotationValue = (obj) => {
+    const annotation = obj.annotations.find(
+      (a) => a.origin === selectedAnnotationSortOptions.origin
+    );
+    return getAnnotationValueString(
+      annotation.data[selectedAnnotationSortOptions.key]
+    );
+  };
+
+  const recentClassification =
+    candidateObj.classifications && candidateObj.classifications.length > 0
+      ? getMostRecentClassification(candidateObj.classifications)
+      : null;
+
+  return (
+    <div>
+      {!candidateObj?.annotations ? (
+        <div>
+          <CircularProgress />
+        </div>
+      ) : (
+        <div className={classes.info}>
+          <span className={classes.itemPaddingBottom}>
+            <a
+              href={`/source/${candidateObj.id}`}
+              target="_blank"
+              data-testid={candidateObj.id}
+              rel="noreferrer"
+            >
+              <Button primary size="small" className={classes.idButton}>
+                {candidateObj.id}&nbsp;
+                <OpenInNewIcon fontSize="inherit" />
+              </Button>
+            </a>
+          </span>
+          {candidateObj.is_source ? (
+            <div>
+              <div className={classes.itemPaddingBottom}>
+                <Chip size="small" label="Previously Saved" color="primary" />
+                <RejectButton objID={candidateObj.id} />
+              </div>
+              <div className={classes.saveCandidateButton}>
+                <EditSourceGroups
+                  source={{
+                    id: candidateObj.id,
+                    currentGroupIds: candidateObj.saved_groups?.map(
+                      (g) => g.id
+                    ),
+                  }}
+                  groups={allGroups}
+                />
+              </div>
+              <div>
+                <AddClassificationsScanningPage obj_id={candidateObj.id} />
+              </div>
+              <div className={classes.infoItem}>
+                <b>Saved groups: </b>
+                <span>
+                  {candidateObj.saved_groups?.map((group) => (
+                    <Chip
+                      label={
+                        group.nickname
+                          ? group.nickname.substring(0, 15)
+                          : group.name.substring(0, 15)
+                      }
+                      key={group.id}
+                      size="small"
+                      className={classes.chip}
+                    />
+                  ))}
+                </span>
+              </div>
+            </div>
+          ) : (
+            <div>
+              <Chip
+                size="small"
+                label="NOT SAVED"
+                className={classes.itemPaddingBottom}
+              />
+              <RejectButton objID={candidateObj.id} />
+            </div>
+          )}
+          {/* If candidate is either unsaved or is not yet saved to all groups being filtered on, show the "Save to..." button */}{" "}
+          {Boolean(
+            !candidateObj.is_source ||
+              (candidateObj.is_source &&
+                filterGroups?.filter(
+                  (g) =>
+                    !candidateObj.saved_groups?.map((x) => x.id)?.includes(g.id)
+                ).length)
+          ) && (
+            // eslint-disable-next-line react/jsx-indent
+            <div className={classes.saveCandidateButton}>
+              <SaveCandidateButton
+                candidate={candidateObj}
+                userGroups={
+                  // Filter out groups the candidate is already saved to
+                  candidateObj.is_source
+                    ? userAccessibleGroups?.filter(
+                        (g) =>
+                          !candidateObj.saved_groups
+                            ?.map((x) => x.id)
+                            ?.includes(g.id)
+                      )
+                    : userAccessibleGroups
+                }
+                filterGroups={
+                  // Filter out groups the candidate is already saved to
+                  candidateObj.is_source
+                    ? filterGroups?.filter(
+                        (g) =>
+                          !candidateObj.saved_groups
+                            ?.map((x) => x.id)
+                            ?.includes(g.id)
+                      )
+                    : filterGroups
+                }
+              />
+            </div>
+          )}
+          {candidateObj.last_detected_at && (
+            <div className={classes.infoItem}>
+              <b>Last detected: </b>
+              <span>
+                {
+                  String(candidateObj.last_detected_at)
+                    .split(".")[0]
+                    .split("T")[1]
+                }
+                &nbsp;&nbsp;
+                {
+                  String(candidateObj.last_detected_at)
+                    .split(".")[0]
+                    .split("T")[0]
+                }
+              </span>
+            </div>
+          )}
+          <div className={classes.infoItem}>
+            <b>Coordinates: </b>
+            <span className={classes.position}>
+              {ra_to_hours(candidateObj.ra)} &nbsp;
+              {dec_to_dms(candidateObj.dec)}
+            </span>
+            &nbsp; (&alpha;,&delta;= {candidateObj.ra.toFixed(3)}, &nbsp;
+            {candidateObj.dec.toFixed(3)})
+          </div>
+          <div className={classes.infoItem}>
+            <b>Gal. Coords (l,b): </b>
+            <span>
+              {candidateObj.gal_lon.toFixed(3)}&nbsp;&nbsp;
+              {candidateObj.gal_lat.toFixed(3)}
+            </span>
+          </div>
+          <div className={classes.infoItem}>
+            <CandidatePlugins candidate={candidateObj} />
+          </div>
+          {candidateObj.classifications && recentClassification && (
+            <div className={classes.infoItemPadded}>
+              <b>Classification: </b>
+              <br />
+              <span>
+                <Chip
+                  size="small"
+                  label={recentClassification}
+                  color="primary"
+                  className={classes.chip}
+                />
+              </span>
+            </div>
+          )}
+          {selectedAnnotationSortOptions !== null &&
+            candidateHasAnnotationWithSelectedKey(candidateObj) && (
+              <div className={classes.infoItem}>
+                <b>
+                  {selectedAnnotationSortOptions.key} (
+                  {selectedAnnotationSortOptions.origin}):
+                </b>
+                <span>{getCandidateSelectedAnnotationValue(candidateObj)}</span>
+              </div>
+            )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+CandidateInfo.propTypes = {
+  sourceId: PropTypes.string.isRequired,
+  filterGroups: PropTypes.arrayOf(PropTypes.shape({})).isRequired,
+  selectedAnnotationSortOptions: PropTypes.shape({
+    origin: PropTypes.string.isRequired,
+    key: PropTypes.string.isRequired,
+    order: PropTypes.string,
+  }),
+};
+
+CandidateInfo.defaultProps = {
+  selectedAnnotationSortOptions: null,
+};
+
 const columnNames = ["Images", "Info", "Photometry", "Autoannotations"];
 
 const CandidateList = () => {
@@ -379,9 +709,6 @@ const CandidateList = () => {
   const userAccessibleGroups = useSelector(
     (state) => state.groups.userAccessible
   );
-  const allGroups = (useSelector((state) => state.groups.all) || []).filter(
-    (g) => !g.single_user_group
-  );
 
   const availableAnnotationsInfo = useSelector(
     (state) => state.candidates.annotationsInfo
@@ -421,24 +748,15 @@ const CandidateList = () => {
     setAnnotationsHeaderAnchor(null);
   };
 
-  const candidateHasAnnotationWithSelectedKey = (candidateObj) => {
-    const annotation = candidateObj.annotations.find(
-      (a) => a.origin === selectedAnnotationSortOptions.origin
-    );
-    if (annotation === undefined) {
-      return false;
-    }
-    return selectedAnnotationSortOptions.key in annotation.data;
-  };
+  const candidateIds = [];
+  candidates?.forEach((candidate) => {
+    candidateIds.push(candidate.id);
+  });
 
-  const getCandidateSelectedAnnotationValue = (candidateObj) => {
-    const annotation = candidateObj.annotations.find(
-      (a) => a.origin === selectedAnnotationSortOptions.origin
-    );
-    return getAnnotationValueString(
-      annotation.data[selectedAnnotationSortOptions.key]
-    );
-  };
+  const groupIds = [];
+  filterGroups?.forEach((g) => {
+    groupIds.push(g.id);
+  });
 
   // Annotations filtering
   const [tableFilterList, setTableFilterList] = useState([]);
@@ -536,11 +854,21 @@ const CandidateList = () => {
     handleFilterSubmit(newFilterListQueryStrings.join());
   };
 
-  const [ps1GenerationInProgressList, setPS1GenerationInProgressList] =
-    useState([]);
-  const generatePS1Thumbnail = (objID) => {
-    setPS1GenerationInProgressList([...ps1GenerationInProgressList, objID]);
-    dispatch(candidatesActions.generatePS1Thumbnail(objID));
+  const [bulkPS1GenerationInProgress, setBulkPS1GenerationInProgress] =
+    useState(false);
+  const generatePS1BulkThumbnails = (candidateList) => {
+    setBulkPS1GenerationInProgress(true);
+    const ids = [];
+    candidateList?.forEach((candidateObj) => {
+      const hasPS1 = candidateObj?.thumbnails
+        ?.map((t) => t.type)
+        ?.includes("ps1");
+      if (!hasPS1) {
+        ids.push(candidateObj.id);
+      }
+    });
+    dispatch(candidatesActions.generatePS1Thumbnails(ids));
+    setBulkPS1GenerationInProgress(false);
   };
 
   const handleViewColumnsChange = (changedColumn, action) => {
@@ -554,229 +882,43 @@ const CandidateList = () => {
   };
 
   const renderThumbnails = (dataIndex) => {
-    const candidateObj = candidates[dataIndex];
-    const hasPS1 = candidateObj?.thumbnails
-      ?.map((t) => t.type)
-      ?.includes("ps1");
-    const displayTypes = hasPS1
-      ? ["new", "ref", "sub", "sdss", "ls", "ps1"]
-      : ["new", "ref", "sub", "sdss", "ls"];
+    const sourceId = candidateIds[dataIndex];
     return (
-      <div className={classes.thumbnails}>
-        <ThumbnailList
-          ra={candidateObj.ra}
-          dec={candidateObj.dec}
-          thumbnails={candidateObj.thumbnails}
-          size="9rem"
-          displayTypes={displayTypes}
-        />
-        {!hasPS1 && (
-          <Button
-            primary
-            disabled={ps1GenerationInProgressList.includes(candidateObj.id)}
-            size="small"
-            onClick={() => {
-              generatePS1Thumbnail(candidateObj.id);
-            }}
-            data-testid={`generatePS1Button${candidateObj.id}`}
-          >
-            Generate PS1 Cutout
-          </Button>
-        )}
-      </div>
+      <Suspense fallback={<Spinner />}>
+        <CandidateThumbnails sourceId={sourceId} />
+      </Suspense>
     );
   };
 
   const renderInfo = (dataIndex) => {
-    const candidateObj = candidates[dataIndex];
-    const recentClassification =
-      candidateObj.classifications && candidateObj.classifications.length > 0
-        ? getMostRecentClassification(candidateObj.classifications)
-        : null;
-
+    const sourceId = candidateIds[dataIndex];
     return (
-      <div className={classes.info}>
-        <span className={classes.itemPaddingBottom}>
-          <a
-            href={`/source/${candidateObj.id}`}
-            target="_blank"
-            data-testid={candidateObj.id}
-            rel="noreferrer"
-          >
-            <Button primary size="small" className={classes.idButton}>
-              {candidateObj.id}&nbsp;
-              <OpenInNewIcon fontSize="inherit" />
-            </Button>
-          </a>
-        </span>
-        {candidateObj.is_source ? (
-          <div>
-            <div className={classes.itemPaddingBottom}>
-              <Chip size="small" label="Previously Saved" color="primary" />
-              <RejectButton objID={candidateObj.id} />
-            </div>
-            <div className={classes.saveCandidateButton}>
-              <EditSourceGroups
-                source={{
-                  id: candidateObj.id,
-                  currentGroupIds: candidateObj.saved_groups?.map((g) => g.id),
-                }}
-                groups={allGroups}
-              />
-            </div>
-            <div>
-              <AddClassificationsScanningPage obj_id={candidateObj.id} />
-            </div>
-            <div className={classes.infoItem}>
-              <b>Saved groups: </b>
-              <span>
-                {candidateObj.saved_groups?.map((group) => (
-                  <Chip
-                    label={
-                      group.nickname
-                        ? group.nickname.substring(0, 15)
-                        : group.name.substring(0, 15)
-                    }
-                    key={group.id}
-                    size="small"
-                    className={classes.chip}
-                  />
-                ))}
-              </span>
-            </div>
-          </div>
-        ) : (
-          <div>
-            <Chip
-              size="small"
-              label="NOT SAVED"
-              className={classes.itemPaddingBottom}
-            />
-            <RejectButton objID={candidateObj.id} />
-          </div>
-        )}
-        {/* If candidate is either unsaved or is not yet saved to all groups being filtered on, show the "Save to..." button */}
-        {Boolean(
-          !candidateObj.is_source ||
-            (candidateObj.is_source &&
-              filterGroups?.filter(
-                (g) =>
-                  !candidateObj.saved_groups?.map((x) => x.id)?.includes(g.id)
-              ).length)
-        ) && (
-          // eslint-disable-next-line react/jsx-indent
-          <div className={classes.saveCandidateButton}>
-            <SaveCandidateButton
-              candidate={candidateObj}
-              userGroups={
-                // Filter out groups the candidate is already saved to
-                candidateObj.is_source
-                  ? userAccessibleGroups?.filter(
-                      (g) =>
-                        !candidateObj.saved_groups
-                          ?.map((x) => x.id)
-                          ?.includes(g.id)
-                    )
-                  : userAccessibleGroups
-              }
-              filterGroups={
-                // Filter out groups the candidate is already saved to
-                candidateObj.is_source
-                  ? filterGroups?.filter(
-                      (g) =>
-                        !candidateObj.saved_groups
-                          ?.map((x) => x.id)
-                          ?.includes(g.id)
-                    )
-                  : filterGroups
-              }
-            />
-          </div>
-        )}
-        {candidateObj.last_detected_at && (
-          <div className={classes.infoItem}>
-            <b>Last detected: </b>
-            <span>
-              {
-                String(candidateObj.last_detected_at)
-                  .split(".")[0]
-                  .split("T")[1]
-              }
-              &nbsp;&nbsp;
-              {
-                String(candidateObj.last_detected_at)
-                  .split(".")[0]
-                  .split("T")[0]
-              }
-            </span>
-          </div>
-        )}
-        <div className={classes.infoItem}>
-          <b>Coordinates: </b>
-          <span className={classes.position}>
-            {ra_to_hours(candidateObj.ra)} &nbsp;
-            {dec_to_dms(candidateObj.dec)}
-          </span>
-          &nbsp; (&alpha;,&delta;= {candidateObj.ra.toFixed(3)}, &nbsp;
-          {candidateObj.dec.toFixed(3)})
-        </div>
-        <div className={classes.infoItem}>
-          <b>Gal. Coords (l,b): </b>
-          <span>
-            {candidateObj.gal_lon.toFixed(3)}&nbsp;&nbsp;
-            {candidateObj.gal_lat.toFixed(3)}
-          </span>
-        </div>
-        <div className={classes.infoItem}>
-          <CandidatePlugins candidate={candidateObj} />
-        </div>
-        {candidateObj.classifications && recentClassification && (
-          <div className={classes.infoItemPadded}>
-            <b>Classification: </b>
-            <br />
-            <span>
-              <Chip
-                size="small"
-                label={recentClassification}
-                color="primary"
-                className={classes.chip}
-              />
-            </span>
-          </div>
-        )}
-        {selectedAnnotationSortOptions !== null &&
-          candidateHasAnnotationWithSelectedKey(candidateObj) && (
-            <div className={classes.infoItem}>
-              <b>
-                {selectedAnnotationSortOptions.key} (
-                {selectedAnnotationSortOptions.origin}):
-              </b>
-              <span>{getCandidateSelectedAnnotationValue(candidateObj)}</span>
-            </div>
-          )}
-      </div>
+      <Suspense fallback={<Spinner />}>
+        <CandidateInfo
+          sourceId={sourceId}
+          filterGroups={filterGroups}
+          selectedAnnotationSortOptions={selectedAnnotationSortOptions}
+        />
+      </Suspense>
     );
   };
 
   const renderPhotometry = (dataIndex) => {
-    const candidateObj = candidates[dataIndex];
+    const sourceId = candidateIds[dataIndex];
     return (
       <Suspense fallback={<Spinner />}>
-        <VegaPhotometry sourceId={candidateObj.id} />
+        <VegaPhotometry sourceId={sourceId} />
       </Suspense>
     );
   };
 
   const renderAutoannotations = (dataIndex) => {
-    const candidateObj = candidates[dataIndex];
+    const sourceId = candidateIds[dataIndex];
+
     return (
-      <div className={classes.annotations}>
-        {candidateObj.annotations && (
-          <ScanningPageCandidateAnnotations
-            annotations={candidateObj.annotations}
-          />
-        )}
-      </div>
+      <Suspense fallback={<Spinner />}>
+        <CandidateAutoannotations sourceId={sourceId} />
+      </Suspense>
     );
   };
 
@@ -1042,7 +1184,7 @@ const CandidateList = () => {
         display: viewColumns.includes("Autoannotations"),
         customBodyRenderLite: renderAutoannotations,
         sort: false,
-        filter: !queryInProgress,
+        filter: true,
         filterType: "custom",
         filterList: tableFilterList,
         filterOptions: {
@@ -1060,13 +1202,13 @@ const CandidateList = () => {
     print: false,
     download: false,
     sort: false,
-    filter: !queryInProgress,
+    filter: true,
     filterType: "custom",
     count: totalMatches,
     selectableRows: "none",
     enableNestedDataAccess: ".",
     rowsPerPage,
-    rowsPerPageOptions: [1, 25, 50, 75, 100, 200],
+    rowsPerPageOptions: [5, 10, 25, 50, 75, 100, 200],
     jumpToPage: true,
     serverSide: true,
     page: pageNumber - 1,
@@ -1111,17 +1253,43 @@ const CandidateList = () => {
           <Spinner />
         </Box>
         <Box display={queryInProgress ? "none" : "block"}>
+          <div className={classes.pages}>
+            <div>
+              {bulkPS1GenerationInProgress ? (
+                <div>
+                  <Spinner />
+                </div>
+              ) : (
+                <Button
+                  primary
+                  onClick={() => generatePS1BulkThumbnails(candidates)}
+                  size="small"
+                >
+                  Query PS1 Thumbnails for all candidates
+                </Button>
+              )}
+            </div>
+          </div>
           <StyledEngineProvider injectFirst>
             <ThemeProvider theme={getMuiTheme(theme)}>
-              <MUIDataTable
-                // Reset key to reset page number
-                // https://github.com/gregnb/mui-datatables/issues/1166
-                key={`table_${pageNumber}`}
-                columns={columns}
-                data={candidates !== null ? candidates : []}
-                className={classes.table}
-                options={options}
-              />
+              <div>
+                {queryInProgress ? (
+                  <div>
+                    <Spinner />
+                  </div>
+                ) : (
+                  <CustomDataTable
+                    // Reset key to reset page number
+                    // https://github.com/gregnb/mui-datatables/issues/1166
+                    key={`table_${pageNumber}`}
+                    columns={columns}
+                    data={candidateIds}
+                    className={classes.table}
+                    options={options}
+                    groupIds={groupIds}
+                  />
+                )}
+              </div>
             </ThemeProvider>
           </StyledEngineProvider>
         </Box>

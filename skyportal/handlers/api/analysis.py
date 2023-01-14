@@ -1,8 +1,10 @@
+import io
 import json
 from urllib.parse import urlparse, urljoin
 import datetime
 import functools
 
+import numpy as np
 import pandas as pd
 import requests
 from requests_oauthlib import OAuth1
@@ -279,20 +281,20 @@ class AnalysisServiceHandler(BaseHandler):
         group_ids = data.pop('group_ids', None)
         with self.Session() as session:
             if not group_ids:
-                groups = self.current_user.accessible_groups
-            else:
-                groups = (
-                    session.scalars(
-                        Group.select(self.current_user).where(Group.id.in_(group_ids))
-                    )
-                    .unique()
-                    .all()
+                group_ids = [g.id for g in self.current_user.accessible_groups]
+
+            groups = (
+                session.scalars(
+                    Group.select(self.current_user).where(Group.id.in_(group_ids))
                 )
-                if {g.id for g in groups} != set(group_ids):
-                    return self.error(
-                        f'Cannot find one or more groups with IDs: {group_ids}.',
-                        status=403,
-                    )
+                .unique()
+                .all()
+            )
+            if {g.id for g in groups} != set(group_ids):
+                return self.error(
+                    f'Cannot find one or more groups with IDs: {group_ids}.',
+                    status=403,
+                )
 
             schema = AnalysisService.__schema__()
             try:
@@ -580,7 +582,12 @@ class AnalysisServiceHandler(BaseHandler):
 
 class AnalysisHandler(BaseHandler):
     def generic_serialize(self, row, columns):
-        return {c: getattr(row, c) for c in columns}
+        return {
+            c: getattr(row, c).tolist()
+            if isinstance(getattr(row, c), np.ndarray)
+            else getattr(row, c)
+            for c in columns
+        }
 
     def get_associated_obj_resource(self, associated_resource_type):
         """
@@ -829,7 +836,6 @@ class AnalysisHandler(BaseHandler):
                             for row in input_data
                         ]
                         df = pd.DataFrame(input_data)
-
                     inputs[input_type] = df.to_csv(index=False)
 
                 invalid_after = datetime.datetime.utcnow() + datetime.timedelta(
@@ -1188,6 +1194,10 @@ class AnalysisProductsHandler(BaseHandler):
               schema:
                 type: object
                 properties:
+                  download:
+                    type: bool
+                    description: |
+                        Download the results as a file
                   plot_kwargs:
                     type: object
                     additionalProperties:
@@ -1197,7 +1207,7 @@ class AnalysisProductsHandler(BaseHandler):
                         if new plots are to be generated (e.g. with corner plots)
         responses:
           200:
-            description: PNG finding chart file
+            description: Requested analysis file
             content:
                 oneOf:
                     - image/png:
@@ -1247,7 +1257,23 @@ class AnalysisProductsHandler(BaseHandler):
                             return self.error(
                                 "No results data found for this Analysis.", status=404
                             )
-                        return self.success(data=analysis.serialize_results_data())
+
+                        result = analysis.serialize_results_data()
+                        if result:
+                            download = self.get_query_argument("download", False)
+                            if download:
+                                filename = f"analysis_{analysis.obj_id}.json"
+                                buf = io.BytesIO()
+                                buf.write(result.encode('utf-8'))
+                                buf.seek(0)
+
+                                await self.send_file(buf, filename, output_type='json')
+                            else:
+                                return self.success(data=result)
+                        else:
+                            return self.error(
+                                "No results data found for this Analysis.", status=404
+                            )
                     elif product_type.lower() == "plots":
                         if not analysis.has_plot_data:
                             return self.error(

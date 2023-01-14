@@ -15,9 +15,17 @@ const ADD_CLASSIFICATION = "skyportal/ADD_CLASSIFICATION";
 
 const DELETE_CLASSIFICATION = "skyportal/DELETE_CLASSIFICATION";
 
+const ADD_CLASSIFICATION_VOTE = "skyportal/ADD_CLASSIFICATION_VOTE";
+
+const DELETE_CLASSIFICATION_VOTE = "skyportal/DELETE_CLASSIFICATION_VOTE";
+
+const DELETE_CLASSIFICATIONS = "skyportal/DELETE_CLASSIFICATIONS";
+
 const ADD_SOURCE_TNS = "skyportal/ADD_SOURCE_TNS";
 
 const ADD_COMMENT = "skyportal/ADD_COMMENT";
+
+const DELETE_ANNOTATION = "skyportal/DELETE_ANNOTATION";
 
 const DELETE_COMMENT = "skyportal/DELETE_COMMENT";
 const DELETE_COMMENT_ON_SPECTRUM = "skyportal/DELETE_COMMENT_ON_SPECTRUM";
@@ -41,6 +49,10 @@ const GET_COMMENT_ON_SPECTRUM_ATTACHMENT_PREVIEW_OK =
   "skyportal/GET_COMMENT_ON_SPECTRUM_ATTACHMENT_PREVIEW_OK";
 
 const ADD_SOURCE_VIEW = "skyportal/ADD_SOURCE_VIEW";
+
+const ADD_SOURCE_LABEL = "skyportal/ADD_SOURCE_LABEL";
+
+const DELETE_SOURCE_LABEL = "skyportal/DELETE_SOURCE_LABEL";
 
 const SUBMIT_FOLLOWUP_REQUEST = "skyportal/SUBMIT_FOLLOWUP_REQUEST";
 
@@ -88,13 +100,31 @@ const FETCH_ANALYSES_FOR_OBJ = "skyportal/FETCH_ANALYSES_FOR_OBJ";
 const FETCH_ANALYSIS_FOR_OBJ = "skyportal/FETCH_ANALYSIS_FOR_OBJ";
 const FETCH_ANALYSIS_RESULTS_FOR_OBJ = "skyportal/FETCH_ANALYSIS_FOR_OBJ";
 
+const SUBMIT_IMAGE_ANALYSIS = "skyportal/SUBMIT_IMAGE_ANALYSIS";
+
 export const shareData = (data) => API.POST("/api/sharing", SHARE_DATA, data);
 
 export const uploadPhotometry = (data) =>
   API.POST("/api/photometry", UPLOAD_PHOTOMETRY, data);
 
+export function submitImageAnalysis(id, formData) {
+  return API.POST(
+    `/api/internal/sources/${id}/image_analysis`,
+    SUBMIT_IMAGE_ANALYSIS,
+    formData
+  );
+}
+
 export function addClassification(formData) {
   return API.POST(`/api/classification`, ADD_CLASSIFICATION, formData);
+}
+
+export function addClassificationVote(classification_id, data = {}) {
+  return API.POST(
+    `/api/classification/votes/${classification_id}`,
+    ADD_CLASSIFICATION_VOTE,
+    data
+  );
 }
 
 export function addSourceTNS(id, formData) {
@@ -156,6 +186,20 @@ export function deleteClassification(classification_id) {
   );
 }
 
+export function deleteClassificationVote(classification_id) {
+  return API.DELETE(
+    `/api/classification/votes/${classification_id}`,
+    DELETE_CLASSIFICATION_VOTE
+  );
+}
+
+export function deleteClassifications(source_id) {
+  return API.DELETE(
+    `/api/sources/${source_id}/classifications`,
+    DELETE_CLASSIFICATIONS
+  );
+}
+
 export function addComment(formData) {
   function fileReaderPromise(file) {
     return new Promise((resolve) => {
@@ -204,6 +248,13 @@ export function addComment(formData) {
   );
 }
 
+export function deleteAnnotation(sourceID, annotationID) {
+  return API.DELETE(
+    `/api/sources/${sourceID}/annotations/${annotationID}`,
+    DELETE_ANNOTATION
+  );
+}
+
 export function deleteComment(sourceID, commentID) {
   return API.DELETE(
     `/api/sources/${sourceID}/comments/${commentID}`,
@@ -247,10 +298,16 @@ export function getCommentOnSpectrumAttachmentPreview(spectrumID, commentID) {
 }
 
 export function fetchSource(id, actionType = FETCH_LOADED_SOURCE) {
-  return API.GET(
-    `/api/sources/${id}?includeComments=true&includeColorMagnitude=true&includeThumbnails=true&includePhotometryExists=true&includeSpectrumExists=true`,
-    actionType
-  );
+  const urlParams = {
+    includeComments: true,
+    includeColorMagnitude: true,
+    includeThumbnails: true,
+    includePhotometryExists: true,
+    includeSpectrumExists: true,
+    includeLabellers: true,
+  };
+  const queryString = new URLSearchParams(urlParams).toString();
+  return API.GET(`/api/sources/${id}?${queryString}`, actionType);
 }
 
 export function checkSource(id, params, actionType = CHECK_SOURCE) {
@@ -262,6 +319,14 @@ export function checkSource(id, params, actionType = CHECK_SOURCE) {
 
 export function addSourceView(id) {
   return API.POST(`/api/internal/source_views/${id}`, ADD_SOURCE_VIEW);
+}
+
+export function addSourceLabels(id, data) {
+  return API.POST(`/api/sources/${id}/labels`, ADD_SOURCE_LABEL, data);
+}
+
+export function deleteSourceLabels(id, data) {
+  return API.DELETE(`/api/sources/${id}/labels`, DELETE_SOURCE_LABEL, data);
 }
 
 export const updateSource = (id, payload) =>
@@ -329,8 +394,10 @@ export const fetchGaia = (sourceID) =>
 export const fetchWise = (sourceID) =>
   API.POST(`/api/sources/${sourceID}/annotations/irsa`, FETCH_WISE);
 
-export const fetchVizier = (sourceID) =>
-  API.POST(`/api/sources/${sourceID}/annotations/vizier`, FETCH_VIZIER);
+export const fetchVizier = (sourceID, catalog = "VII/290") =>
+  API.POST(`/api/sources/${sourceID}/annotations/vizier`, FETCH_VIZIER, {
+    catalog,
+  });
 
 export const fetchPhotoz = (sourceID) =>
   API.POST(`/api/sources/${sourceID}/annotations/datalab`, FETCH_PHOTOZ);

@@ -1,4 +1,12 @@
+import astropy
+from astropy.coordinates import EarthLocation
 from astropy.time import Time
+from astroplan import (
+    AirmassConstraint,
+    AtNightConstraint,
+    Observer,
+    is_event_observable,
+)
 import datetime
 from json.decoder import JSONDecodeError
 import astropy.units as u
@@ -8,6 +16,7 @@ from twilio.base.exceptions import TwilioException
 from tornado.ioloop import IOLoop
 import io
 from dateutil.parser import isoparse
+import numpy as np
 import sqlalchemy as sa
 from sqlalchemy.orm import joinedload
 from sqlalchemy import func, or_, distinct
@@ -16,6 +25,8 @@ from sqlalchemy.sql.expression import cast
 import arrow
 from marshmallow import Schema, fields
 from marshmallow.exceptions import ValidationError
+from matplotlib import dates
+import matplotlib.pyplot as plt
 import operator  # noqa: F401
 import functools
 import conesearch_alchemy as ca
@@ -37,6 +48,7 @@ from ...models import (
     Allocation,
     Annotation,
     Comment,
+    GroupUser,
     Instrument,
     Obj,
     User,
@@ -56,7 +68,13 @@ from ...models import (
     Listing,
     PhotStat,
     Spectrum,
+    SourceLabel,
     SourceView,
+    SourcesConfirmedInGCN,
+    SpatialCatalog,
+    SpatialCatalogEntry,
+    SpatialCatalogEntryTile,
+    Telescope,
 )
 from ...utils.offset import (
     get_nearby_offset_stars,
@@ -84,7 +102,7 @@ log = make_log('api/source')
 MAX_LOCALIZATION_SOURCES = 50000
 
 
-def get_source(
+async def get_source(
     obj_id,
     user_id,
     session,
@@ -95,6 +113,7 @@ def get_source(
     include_spectrum_exists=False,
     include_period_exists=False,
     include_detection_stats=False,
+    include_labellers=False,
     is_token_request=False,
     include_requested=False,
     requested_only=False,
@@ -125,20 +144,25 @@ def get_source(
         raise ValueError("Source not found")
 
     source_info = s.to_dict()
-    source_info["followup_requests"] = session.scalars(
-        FollowupRequest.select(
-            user,
-            options=[
-                joinedload(FollowupRequest.allocation).joinedload(
-                    Allocation.instrument
-                ),
-                joinedload(FollowupRequest.allocation).joinedload(Allocation.group),
-                joinedload(FollowupRequest.requester),
-            ],
+    source_info["followup_requests"] = (
+        session.scalars(
+            FollowupRequest.select(
+                user,
+                options=[
+                    joinedload(FollowupRequest.allocation).joinedload(
+                        Allocation.instrument
+                    ),
+                    joinedload(FollowupRequest.allocation).joinedload(Allocation.group),
+                    joinedload(FollowupRequest.requester),
+                    joinedload(FollowupRequest.watchers),
+                ],
+            )
+            .where(FollowupRequest.obj_id == obj_id)
+            .where(FollowupRequest.status != "deleted")
         )
-        .where(FollowupRequest.obj_id == obj_id)
-        .where(FollowupRequest.status != "deleted")
-    ).all()
+        .unique()
+        .all()
+    )
     source_info["assignments"] = session.scalars(
         ClassicalAssignment.select(
             user,
@@ -176,7 +200,7 @@ def get_source(
         if "ps1" not in existing_thumbnail_types:
             IOLoop.current().run_in_executor(
                 None,
-                lambda: add_ps1_thumbnail_and_push_ws_msg(obj_id, user_id),
+                lambda: add_ps1_thumbnail_and_push_ws_msg([obj_id], user_id),
             )
         if (
             "sdss" not in existing_thumbnail_types
@@ -226,6 +250,24 @@ def get_source(
                 for period_str in period_str_options
             ]
         )
+    if include_labellers:
+        labels_subquery = (
+            SourceLabel.select(session.user_or_token)
+            .where(SourceLabel.obj_id == obj_id)
+            .subquery()
+        )
+
+        users = (
+            session.scalars(
+                User.select(session.user_or_token).join(
+                    labels_subquery,
+                    User.id == labels_subquery.c.labeller_id,
+                )
+            )
+            .unique()
+            .all()
+        )
+        source_info["labellers"] = [user.to_dict() for user in users]
 
     source_info["annotations"] = sorted(
         session.scalars(
@@ -249,6 +291,7 @@ def get_source(
     for classification in readable_classifications:
         classification_dict = classification.to_dict()
         classification_dict['groups'] = [g.to_dict() for g in classification.groups]
+        classification_dict['votes'] = [g.to_dict() for g in classification.votes]
         readable_classifications_json.append(classification_dict)
 
     source_info["classifications"] = readable_classifications_json
@@ -257,6 +300,7 @@ def get_source(
     source_info["luminosity_distance"] = s.luminosity_distance
     source_info["dm"] = s.dm
     source_info["angular_diameter_distance"] = s.angular_diameter_distance
+    source_info["ebv"] = s.ebv
 
     if include_photometry:
         photometry = session.scalars(
@@ -334,7 +378,7 @@ def create_annotations_query(
     return annotations_query
 
 
-def get_sources(
+async def get_sources(
     user_id,
     session,
     include_thumbnails=False,
@@ -343,6 +387,7 @@ def get_sources(
     include_spectrum_exists=False,
     include_period_exists=False,
     include_detection_stats=False,
+    include_labellers=False,
     is_token_request=False,
     include_requested=False,
     requested_only=False,
@@ -352,12 +397,18 @@ def get_sources(
     last_detected_date=None,
     has_tns_name=False,
     has_spectrum=False,
+    has_followup_request=False,
+    has_been_labelled=False,
+    has_not_been_labelled=False,
+    current_user_labeller=False,
     sourceID=None,
+    rejectedSourceIDs=None,
     ra=None,
     dec=None,
     radius=None,
     has_spectrum_before=None,
     has_spectrum_after=None,
+    followup_request_status=None,
     saved_before=None,
     saved_after=None,
     created_or_modified_after=None,
@@ -373,7 +424,9 @@ def get_sources(
     max_latest_magnitude=None,
     number_of_detections=None,
     classifications=None,
+    classifications_simul=False,
     nonclassifications=None,
+    unclassified=False,
     annotations_filter=None,
     annotations_filter_origin=None,
     annotations_filter_before=None,
@@ -385,6 +438,9 @@ def get_sources(
     localization_dateobs=None,
     localization_name=None,
     localization_cumprob=None,
+    localization_reject_sources=False,
+    spatial_catalog_name=None,
+    spatial_catalog_entry_name=None,
     page_number=1,
     num_per_page=DEFAULT_SOURCES_PER_PAGE,
     sort_by=None,
@@ -411,7 +467,7 @@ def get_sources(
     if include_detection_stats:
         obj_query_options.append(joinedload(Obj.photstats))
 
-    if localization_dateobs is not None:
+    if (localization_dateobs is not None) or (spatial_catalog_name is not None):
         obj_query = Obj.select(user, columns=[Obj.id])
     else:
         obj_query = Obj.select(user, options=obj_query_options)
@@ -421,6 +477,9 @@ def get_sources(
         obj_query = obj_query.where(
             func.lower(Obj.id).contains(func.lower(sourceID.strip()))
         )
+    if rejectedSourceIDs:
+        obj_query = obj_query.where(Obj.id.notin_(rejectedSourceIDs))
+
     if any([ra, dec, radius]):
         if not all([ra, dec, radius]):
             raise ValueError(
@@ -539,6 +598,31 @@ def get_sources(
         obj_query = obj_query.join(
             spectrum_subquery, Obj.id == spectrum_subquery.c.obj_id
         )
+    if has_followup_request:
+        followup_request = FollowupRequest.select(user)
+        if followup_request_status:
+            followup_request = followup_request.where(
+                FollowupRequest.status.contains(followup_request_status.strip())
+            )
+        followup_request_subquery = followup_request.subquery()
+        obj_query = obj_query.join(
+            followup_request_subquery, Obj.id == followup_request_subquery.c.obj_id
+        )
+    if has_been_labelled:
+        labels_query = SourceLabel.select(session.user_or_token)
+        if current_user_labeller:
+            labels_query = labels_query.where(SourceLabel.labeller_id == user.id)
+        labels_subquery = labels_query.subquery()
+        obj_query = obj_query.join(labels_subquery, Obj.id == labels_subquery.c.obj_id)
+    if has_not_been_labelled:
+        labels_query = SourceLabel.select(
+            session.user_or_token, columns=[SourceLabel.obj_id]
+        )
+        if current_user_labeller:
+            labels_query = labels_query.where(SourceLabel.labeller_id == user.id)
+        labels_subquery = labels_query.subquery()
+        obj_query = obj_query.where(Obj.id.notin_(labels_subquery))
+
     if min_redshift is not None:
         try:
             min_redshift = float(min_redshift)
@@ -642,31 +726,63 @@ def get_sources(
                     )
                 )
             )
-            classification_accessible_query = Classification.select(user).subquery()
+            classification_accessible_subquery = Classification.select(user).subquery()
 
-            classification_query = (
-                session.query(
-                    distinct(Classification.obj_id).label("obj_id"),
-                    Classification.classification,
+            if classifications_simul:
+                classification_id_query = Obj.select(
+                    session.user_or_token, columns=[Obj.id]
                 )
-                .join(Taxonomy)
-                .where(Classification.classification.in_(classifications))
-                .where(Taxonomy.name.in_(taxonomy_names))
-            )
-            classification_subquery = classification_query.subquery()
+                for taxonomy_name, classification in zip(
+                    taxonomy_names, classifications
+                ):
+                    classification_query = (
+                        session.query(
+                            distinct(Classification.obj_id).label("obj_id"),
+                            Classification.classification,
+                        )
+                        .join(Taxonomy)
+                        .where(Classification.classification == classification)
+                        .where(Taxonomy.name == taxonomy_name)
+                    )
+                    classification_subquery = classification_query.subquery()
 
-            # We join in the classifications being filtered for first before
-            # the filter for accessible classifications to speed up the query
-            # (this way seems to help the query planner come to more optimal join
-            # strategies)
-            obj_query = obj_query.join(
-                classification_subquery,
-                Obj.id == classification_subquery.c.obj_id,
-            )
-            obj_query = obj_query.join(
-                classification_accessible_query,
-                Obj.id == classification_accessible_query.c.obj_id,
-            )
+                    classification_id_query = classification_id_query.where(
+                        Obj.id == classification_subquery.c.obj_id
+                    )
+                # We join in the classifications being filtered for first before
+                # the filter for accessible classifications to speed up the query                                                                                               # (this way seems to help the query planner come to more optimal join
+                # strategies)
+                classification_id_query = classification_id_query.join(
+                    classification_accessible_subquery,
+                    Obj.id == classification_accessible_subquery.c.obj_id,
+                )
+                classification_id_subquery = classification_id_query.subquery()
+            else:
+                classification_query = (
+                    session.query(
+                        distinct(Classification.obj_id).label("obj_id"),
+                        Classification.classification,
+                    )
+                    .join(Taxonomy)
+                    .where(Classification.classification.in_(classifications))
+                    .where(Taxonomy.name.in_(taxonomy_names))
+                )
+                classification_subquery = classification_query.subquery()
+
+                classification_id_query = Obj.select(
+                    session.user_or_token, columns=[Obj.id]
+                ).where(Obj.id == classification_subquery.c.obj_id)
+                # We join in the classifications being filtered for first before
+                # the filter for accessible classifications to speed up the query
+                # (this way seems to help the query planner come to more optimal join
+                # strategies)
+                classification_id_query = classification_id_query.join(
+                    classification_accessible_subquery,
+                    Obj.id == classification_accessible_subquery.c.obj_id,
+                )
+                classification_id_subquery = classification_id_query.subquery()
+
+            obj_query = obj_query.where(Obj.id.in_(classification_id_subquery))
 
         else:
             # Not filtering on classifications, but ordering on them
@@ -715,18 +831,27 @@ def get_sources(
         )
         nonclassification_subquery = nonclassification_query.subquery()
 
+        nonclassification_id_query = Obj.select(
+            session.user_or_token, columns=[Obj.id]
+        ).where(Obj.id == nonclassification_subquery.c.obj_id)
         # We join in the nonclassifications being filtered for first before
         # the filter for accessible classifications to speed up the query
         # (this way seems to help the query planner come to more optimal join
         # strategies)
-        obj_query = obj_query.join(
-            nonclassification_subquery,
-            Obj.id != nonclassification_subquery.c.obj_id,
-        )
-        obj_query = obj_query.join(
+        nonclassification_id_query = nonclassification_id_query.join(
             classification_accessible_subquery,
             Obj.id == classification_accessible_subquery.c.obj_id,
         )
+        nonclassification_id_subquery = nonclassification_id_query.subquery()
+
+        obj_query = obj_query.where(Obj.id.notin_(nonclassification_id_subquery))
+
+    if unclassified:
+        unclassified_subquery = Classification.select(
+            session.user_or_token, columns=[Classification.obj_id]
+        ).subquery()
+        obj_query = obj_query.where(Obj.id.notin_(unclassified_subquery))
+
     if annotations_filter is not None:
         if isinstance(annotations_filter, str) and "," in annotations_filter:
             annotations_filter = [c.strip() for c in annotations_filter.split(",")]
@@ -875,7 +1000,7 @@ def get_sources(
 
         # This grabs just the IDs so the more expensive localization in-out
         # check is done on only this subset
-        obj_ids = session.scalars(obj_query).all()
+        obj_ids = session.scalars(obj_query).unique().all()
 
         if len(obj_ids) > MAX_LOCALIZATION_SOURCES:
             raise ValueError('Need fewer sources for efficient cross-match.')
@@ -949,6 +1074,73 @@ def get_sources(
             Obj.id == tiles_subquery.c.id,
         )
 
+        if localization_reject_sources:
+            obj_rejection_query = sa.select(SourcesConfirmedInGCN.obj_id).where(
+                SourcesConfirmedInGCN.dateobs == localization_dateobs,
+                SourcesConfirmedInGCN.confirmed.is_(False),
+            )
+
+            # check is done on only this subset
+            rejected_obj_ids = session.scalars(obj_rejection_query).all()
+
+            obj_query = obj_query.where(Obj.id.notin_(rejected_obj_ids))
+
+    if spatial_catalog_name is not None:
+
+        if spatial_catalog_entry_name is None:
+            raise ValueError(
+                'spatial_catalog_entry_name must be defined if spatial_catalog_name is as well'
+            )
+
+        # This grabs just the IDs so the more expensive localization in-out
+        # check is done on only this subset
+        obj_ids = session.scalars(obj_query).all()
+
+        if len(obj_ids) > MAX_LOCALIZATION_SOURCES:
+            raise ValueError('Need fewer sources for efficient cross-match.')
+
+        obj_query = Obj.select(user, options=obj_query_options).where(
+            Obj.id.in_(obj_ids)
+        )
+
+        catalog = session.scalars(
+            SpatialCatalog.select(
+                user,
+            ).where(SpatialCatalog.catalog_name == spatial_catalog_name)
+        ).first()
+
+        catalog_entry = session.scalars(
+            SpatialCatalogEntry.select(
+                user,
+            )
+            .where(SpatialCatalogEntry.entry_name == spatial_catalog_entry_name)
+            .where(SpatialCatalogEntry.catalog_id == catalog.id)
+        ).first()
+        if catalog_entry is None:
+            raise ValueError(
+                f"Catalog entry {spatial_catalog_entry_name} from catalog {spatial_catalog_name} not found",
+            )
+
+        tile_ids = session.scalars(
+            sa.select(SpatialCatalogEntryTile.id).where(
+                SpatialCatalogEntryTile.entry_name == catalog_entry.entry_name,
+            )
+        ).all()
+
+        tiles_subquery = (
+            sa.select(Obj.id)
+            .filter(
+                SpatialCatalogEntryTile.id.in_(tile_ids),
+                SpatialCatalogEntryTile.healpix.contains(Obj.healpix),
+            )
+            .subquery()
+        )
+
+        obj_query = obj_query.join(
+            tiles_subquery,
+            Obj.id == tiles_subquery.c.id,
+        )
+
     source_query = apply_active_or_requested_filtering(
         source_query, include_requested, requested_only
     )
@@ -962,7 +1154,12 @@ def get_sources(
     source_subquery = source_query.subquery()
     query = obj_query.join(source_subquery, Obj.id == source_subquery.c.obj_id)
 
-    order_by = None
+    # order_by = None
+    order_by = (
+        [source_subquery.c.saved_at]
+        if sort_order == "desc"
+        else [source_subquery.c.saved_at.desc()]
+    )
     if sort_by is not None:
         if sort_by == "id":
             order_by = [Obj.id] if sort_order == "asc" else [Obj.id.desc()]
@@ -1036,6 +1233,7 @@ def get_sources(
                 include_thumbnails=False,
                 # include detection stats here as it is a query column,
                 include_detection_stats=include_detection_stats,
+                use_cache=True,
                 current_user=user,
             )
         except ValueError as e:
@@ -1092,6 +1290,9 @@ def get_sources(
                     classification_dict['groups'] = [
                         g.to_dict() for g in classification.groups
                     ]
+                    classification_dict['votes'] = [
+                        g.to_dict() for g in classification.votes
+                    ]
                     readable_classifications_json.append(classification_dict)
 
                 obj_list[-1]["classifications"] = readable_classifications_json
@@ -1112,6 +1313,25 @@ def get_sources(
             obj_list[-1]["luminosity_distance"] = obj.luminosity_distance
             obj_list[-1]["dm"] = obj.dm
             obj_list[-1]["angular_diameter_distance"] = obj.angular_diameter_distance
+            if include_labellers:
+                labels_subquery = (
+                    SourceLabel.select(session.user_or_token)
+                    .where(SourceLabel.obj_id == obj.id)
+                    .subquery()
+                )
+
+                users = (
+                    session.scalars(
+                        User.select(session.user_or_token).join(
+                            labels_subquery,
+                            User.id == labels_subquery.c.labeller_id,
+                        )
+                    )
+                    .unique()
+                    .all()
+                )
+
+                obj_list[-1]["labellers"] = [user.to_dict() for user in users]
 
             if include_photometry_exists:
                 stmt = Photometry.select(session.user_or_token).where(
@@ -1231,7 +1451,7 @@ def get_sources(
     return query_results
 
 
-def post_source(data, user_id, session):
+def post_source(data, user_id, session, refresh_source=True):
     """Post source to database.
     data: dict
         Source dictionary
@@ -1239,6 +1459,8 @@ def post_source(data, user_id, session):
         SkyPortal ID of User posting the GcnEvent
     session: sqlalchemy.Session
         Database session for this transaction
+    refresh_source : bool
+        Refresh source upon post. Defaults to True.
     """
 
     user = session.scalar(sa.select(User).where(User.id == user_id))
@@ -1270,6 +1492,7 @@ def post_source(data, user_id, session):
         ]
     except KeyError:
         group_ids = user_group_ids
+
     if not group_ids:
         raise AttributeError(
             "Invalid group_ids field. Please specify at least "
@@ -1307,6 +1530,20 @@ def post_source(data, user_id, session):
             .where(Source.obj_id == obj.id)
             .where(Source.group_id == group.id)
         ).first()
+        if not user.is_admin:
+            group_user = session.scalars(
+                GroupUser.select(user)
+                .where(GroupUser.user_id == user.id)
+                .where(GroupUser.group_id == group.id)
+            ).first()
+            if group_user is None:
+                raise AttributeError(
+                    f'User is not a member of the group with ID {group.id}.'
+                )
+            if not group_user.can_save:
+                raise AttributeError(
+                    f'User does not have power to save to group with ID {group.id}.'
+                )
         if source is not None:
             source.active = True
             source.saved_by = user
@@ -1324,11 +1561,14 @@ def post_source(data, user_id, session):
             lambda: add_linked_thumbnails_and_push_ws_msg(obj.id, user_id),
         )
     else:
-        flow = Flow()
-        flow.push(
-            '*', "skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}
-        )
-        flow.push('*', "skyportal/REFRESH_CANDIDATE", payload={"id": obj.internal_key})
+        if refresh_source:
+            flow = Flow()
+            flow.push(
+                '*', "skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}
+            )
+            flow.push(
+                '*', "skyportal/REFRESH_CANDIDATE", payload={"id": obj.internal_key}
+            )
 
     return obj.id
 
@@ -1345,26 +1585,30 @@ def apply_active_or_requested_filtering(query, include_requested, requested_only
     return query
 
 
-def add_ps1_thumbnail_and_push_ws_msg(obj_id, user_id):
+def add_ps1_thumbnail_and_push_ws_msg(obj_ids, user_id):
     with Session() as session:
-        try:
-            user = session.query(User).get(user_id)
-            if Obj.get_if_accessible_by(obj_id, user) is None:
-                raise AccessError(
-                    f"Insufficient permissions for User {user_id} to read Obj {obj_id}"
+        user = session.query(User).get(user_id)
+        for obj_id in obj_ids:
+            try:
+                user = session.query(User).get(user_id)
+                if Obj.get_if_accessible_by(obj_id, user) is None:
+                    raise AccessError(
+                        f"Insufficient permissions for User {user_id} to read Obj {obj_id}"
+                    )
+                obj = session.query(Obj).get(obj_id)
+                obj.add_ps1_thumbnail(session=session)
+                flow = Flow()
+                flow.push(
+                    '*',
+                    "skyportal/REFRESH_SOURCE",
+                    payload={"obj_key": obj.internal_key},
                 )
-            obj = session.query(Obj).get(obj_id)
-            obj.add_ps1_thumbnail(session=session)
-            flow = Flow()
-            flow.push(
-                '*', "skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}
-            )
-            flow.push(
-                '*', "skyportal/REFRESH_CANDIDATE", payload={"id": obj.internal_key}
-            )
-        except Exception as e:
-            log(f"Unable to generate PS1 thumbnail URL for {obj_id}: {e}")
-            session.rollback()
+                flow.push(
+                    '*', "skyportal/REFRESH_CANDIDATE", payload={"id": obj.internal_key}
+                )
+            except Exception as e:
+                log(f"Unable to generate PS1 thumbnail URL for {obj_id}: {e}")
+                session.rollback()
 
 
 def paginate_summary_query(session, query, page, num_per_page, total_matches):
@@ -1421,7 +1665,7 @@ class SourceHandler(BaseHandler):
                 self.finish()
 
     @auth_or_token
-    def get(self, obj_id=None):
+    async def get(self, obj_id=None):
         """
         ---
         single:
@@ -1517,6 +1761,12 @@ class SourceHandler(BaseHandler):
               type: string
             description: Portion of ID to filter on
           - in: query
+            name: rejectedSourceIDs
+            nullable: true
+            schema:
+              type: str
+            description: Comma-separated string of object IDs not to be returned, useful in cases where you are looking for new sources passing a query.
+          - in: query
             name: simbadClass
             nullable: true
             schema:
@@ -1542,6 +1792,27 @@ class SourceHandler(BaseHandler):
             schema:
               type: boolean
             description: If true, return only those matches with TNS names
+          - in: query
+            name: hasBeenLabelled
+            nullable: true
+            schema:
+              type: boolean
+            description: |
+              If true, return only those objects which have been labelled
+          - in: query
+            name: hasNotBeenLabelled
+            nullable: true
+            schema:
+              type: boolean
+            description: |
+              If true, return only those objects which have not been labelled
+          - in: query
+            name: currentUserLabeller
+            nullable: true
+            schema:
+              type: boolean
+            description: |
+              If true and one of hasBeenLabeller or hasNotBeenLabelled is true, return only those objects which have been labelled/not labelled by the current user. Otherwise, return results for all users.
           - in: query
             name: numPerPage
             nullable: true
@@ -1715,6 +1986,13 @@ class SourceHandler(BaseHandler):
             description: |
               Boolean indicating whether to return if a source has a spectra. Defaults to false.
           - in: query
+            name: includeLabellers
+            nullable: true
+            schema:
+              type: boolean
+            description: |
+              Boolean indicating whether to return list of users who have labelled this source. Defaults to false.
+          - in: query
             name: removeNested
             nullable: true
             schema:
@@ -1749,6 +2027,14 @@ class SourceHandler(BaseHandler):
               Comma-separated string of "taxonomy: classification" pair(s) to filter for sources matching
               that/those classification(s), i.e. "Sitewide Taxonomy: Type II, Sitewide Taxonomy: AGN"
           - in: query
+            name: classifications_simul
+            nullable: true
+            schema:
+              type: boolean
+            description: |
+              Boolean indicating whether object must satisfy all classifications if query (i.e. an AND rather than an OR).
+              Defaults to false.
+          - in: query
             name: nonclassifications
             nullable: true
             schema:
@@ -1760,6 +2046,14 @@ class SourceHandler(BaseHandler):
             description: |
               Comma-separated string of "taxonomy: classification" pair(s) to filter for sources NOT matching
               that/those classification(s), i.e. "Sitewide Taxonomy: Type II, Sitewide Taxonomy: AGN"
+          - in: query
+            name: unclassified
+            nullable: true
+            schema:
+              type: boolean
+            description: |
+              Boolean indicating whether to reject any sources with classifications.
+              Defaults to false.
           - in: query
             name: annotationsFilter
             nullable: true
@@ -1879,6 +2173,19 @@ class SourceHandler(BaseHandler):
               type: boolean
             description: If true, return only those matches with at least one associated spectrum
           - in: query
+            name: hasFollowupRequest
+            nullable: true
+            schema:
+              type: boolean
+            description: If true, return only those matches with at least one associated followup request
+          - in: query
+            name: followupRequestStatus
+            nullable: true
+            schema:
+              type: string
+            description: |
+              If provided, string to match status of followup_request against
+          - in: query
             name: createdOrModifiedAfter
             nullable: true
             schema:
@@ -1912,6 +2219,24 @@ class SourceHandler(BaseHandler):
               type: number
             description: |
               Cumulative probability up to which to include sources
+          - in: query
+            name: localizationRejectSources
+            schema:
+              type: bool
+            description: |
+              Remove sources rejected in localization. Defaults to false.
+          - in: query
+            name: spatialCatalogName
+            schema:
+              type: string
+            description: |
+                Name of spatial catalog to use. spatialCatalogEntryName must also be defined for use.
+          - in: query
+            name: spatialCatalogEntryName
+            schema:
+              type: string
+            description: |
+                Name of spatial catalog entry to use. spatialCatalogName must also be defined for use.
           - in: query
             name: includeGeoJSON
             nullable: true
@@ -1962,6 +2287,7 @@ class SourceHandler(BaseHandler):
         last_detected_date = self.get_query_argument('endDate', None)
         list_name = self.get_query_argument('listName', None)
         sourceID = self.get_query_argument('sourceID', None)  # Partial ID to match
+        rejectedSourceIDs = self.get_query_argument('rejectedSourceIDs', None)
         include_photometry = self.get_query_argument("includePhotometry", False)
         include_color_mag = self.get_query_argument("includeColorMagnitude", False)
         include_requested = self.get_query_argument("includeRequested", False)
@@ -1980,12 +2306,15 @@ class SourceHandler(BaseHandler):
             "includeSpectrumExists", False
         )
         include_period_exists = self.get_query_argument("includePeriodExists", False)
+        include_labellers = self.get_query_argument("includeLabellers", False)
         remove_nested = self.get_query_argument("removeNested", False)
         include_detection_stats = self.get_query_argument(
             "includeDetectionStats", False
         )
         classifications = self.get_query_argument("classifications", None)
+        classifications_simul = self.get_query_argument("classifications_simul", False)
         nonclassifications = self.get_query_argument("nonclassifications", None)
+        unclassified = self.get_query_argument("unclassified", False)
         annotations_filter = self.get_query_argument("annotationsFilter", None)
         annotations_filter_origin = self.get_query_argument(
             "annotationsFilterOrigin", None
@@ -2009,6 +2338,9 @@ class SourceHandler(BaseHandler):
         has_spectrum = self.get_query_argument("hasSpectrum", False)
         has_spectrum_after = self.get_query_argument("hasSpectrumAfter", None)
         has_spectrum_before = self.get_query_argument("hasSpectrumBefore", None)
+        has_followup_request = self.get_query_argument("hasFollowupRequest", False)
+        followup_request_status = self.get_query_argument("followupRequestStatus", None)
+
         created_or_modified_after = self.get_query_argument(
             "createdOrModifiedAfter", None
         )
@@ -2017,6 +2349,13 @@ class SourceHandler(BaseHandler):
         localization_dateobs = self.get_query_argument("localizationDateobs", None)
         localization_name = self.get_query_argument("localizationName", None)
         localization_cumprob = self.get_query_argument("localizationCumprob", 0.95)
+        localization_reject_sources = self.get_query_argument(
+            "localizationRejectSources", False
+        )
+        spatial_catalog_name = self.get_query_argument("spatialCatalogName", None)
+        spatial_catalog_entry_name = self.get_query_argument(
+            "spatialCatalogEntryName", None
+        )
         includeGeoJSON = self.get_query_argument("includeGeoJSON", False)
 
         class Validator(Schema):
@@ -2088,6 +2427,15 @@ class SourceHandler(BaseHandler):
                     "startDate and endDate must be less than a month apart when filtering by localizationDateobs or localizationName",
                 )
 
+        if spatial_catalog_name is not None:
+            if spatial_catalog_entry_name is None:
+                return self.error(
+                    'spatialCatalogEntryName must be defined if spatialCatalogName is as well'
+                )
+
+        if rejectedSourceIDs:
+            rejectedSourceIDs = rejectedSourceIDs.split(",")
+
         # parse the group ids:
         group_ids = self.get_query_argument('group_ids', None)
         if group_ids is not None:
@@ -2104,13 +2452,16 @@ class SourceHandler(BaseHandler):
         alias = self.get_query_argument('alias', None)
         origin = self.get_query_argument('origin', None)
         has_tns_name = self.get_query_argument('hasTNSname', None)
+        has_been_labelled = self.get_query_argument('hasBeenLabelled', False)
+        has_not_been_labelled = self.get_query_argument('hasNotBeenLabelled', False)
+        current_user_labeller = self.get_query_argument('currentUserLabeller', False)
         total_matches = self.get_query_argument('totalMatches', None)
         is_token_request = isinstance(self.current_user, Token)
 
         if obj_id is not None:
             with self.Session() as session:
                 try:
-                    source_info = get_source(
+                    source_info = await get_source(
                         obj_id,
                         self.associated_user_object.id,
                         session,
@@ -2121,6 +2472,7 @@ class SourceHandler(BaseHandler):
                         include_spectrum_exists=include_spectrum_exists,
                         include_period_exists=include_period_exists,
                         include_detection_stats=include_detection_stats,
+                        include_labellers=include_labellers,
                         is_token_request=is_token_request,
                         include_requested=include_requested,
                         requested_only=requested_only,
@@ -2140,8 +2492,9 @@ class SourceHandler(BaseHandler):
                 return self.success(data=source_info)
 
         with self.Session() as session:
-            try:
-                query_results = get_sources(
+            # try:
+            if True:
+                query_results = await get_sources(
                     self.associated_user_object.id,
                     session,
                     include_thumbnails=include_thumbnails,
@@ -2150,6 +2503,7 @@ class SourceHandler(BaseHandler):
                     include_spectrum_exists=include_spectrum_exists,
                     include_period_exists=include_period_exists,
                     include_detection_stats=include_detection_stats,
+                    include_labellers=include_labellers,
                     is_token_request=is_token_request,
                     include_requested=include_requested,
                     requested_only=requested_only,
@@ -2158,6 +2512,7 @@ class SourceHandler(BaseHandler):
                     first_detected_date=first_detected_date,
                     last_detected_date=last_detected_date,
                     sourceID=sourceID,
+                    rejectedSourceIDs=rejectedSourceIDs,
                     ra=ra,
                     dec=dec,
                     radius=radius,
@@ -2171,7 +2526,12 @@ class SourceHandler(BaseHandler):
                     alias=alias,
                     origin=origin,
                     has_tns_name=has_tns_name,
+                    has_been_labelled=has_been_labelled,
+                    has_not_been_labelled=has_not_been_labelled,
+                    current_user_labeller=current_user_labeller,
                     has_spectrum=has_spectrum,
+                    has_followup_request=has_followup_request,
+                    followup_request_status=followup_request_status,
                     min_redshift=min_redshift,
                     max_redshift=max_redshift,
                     min_peak_magnitude=min_peak_magnitude,
@@ -2180,7 +2540,9 @@ class SourceHandler(BaseHandler):
                     max_latest_magnitude=max_latest_magnitude,
                     number_of_detections=number_of_detections,
                     classifications=classifications,
+                    classifications_simul=classifications_simul,
                     nonclassifications=nonclassifications,
+                    unclassified=unclassified,
                     annotations_filter=annotations_filter,
                     annotations_filter_origin=annotations_filter_origin,
                     annotations_filter_before=annotations_filter_before,
@@ -2192,6 +2554,9 @@ class SourceHandler(BaseHandler):
                     localization_dateobs=localization_dateobs,
                     localization_name=localization_name,
                     localization_cumprob=localization_cumprob,
+                    localization_reject_sources=localization_reject_sources,
+                    spatial_catalog_name=spatial_catalog_name,
+                    spatial_catalog_entry_name=spatial_catalog_entry_name,
                     page_number=page_number,
                     num_per_page=num_per_page,
                     sort_by=sort_by,
@@ -2202,8 +2567,8 @@ class SourceHandler(BaseHandler):
                     total_matches=total_matches,
                     includeGeoJSON=includeGeoJSON,
                 )
-            except Exception as e:
-                return self.error(f'Cannot retrieve sources: {str(e)}')
+            # except Exception as e:
+            #    return self.error(f'Cannot retrieve sources: {str(e)}')
 
             query_size = sizeof(query_results)
             if query_size >= SIZE_WARNING_THRESHOLD:
@@ -2236,6 +2601,10 @@ class SourceHandler(BaseHandler):
                         description: |
                           List of associated group IDs. If not specified, all of the
                           user or token's groups will be used.
+                      refresh_source:
+                        type: bool
+                        description: |
+                          Refresh source upon post. Defaults to True.
         responses:
           200:
             content:
@@ -2260,9 +2629,15 @@ class SourceHandler(BaseHandler):
         # existence).
 
         data = self.get_json()
+        refresh_source = data.pop('refresh_source', True)
 
         with self.Session() as session:
-            obj_id = post_source(data, self.associated_user_object.id, session)
+            obj_id = post_source(
+                data,
+                self.associated_user_object.id,
+                session,
+                refresh_source=refresh_source,
+            )
             return self.success(data={"id": obj_id})
 
     @permissions(['Upload data'])
@@ -2915,11 +3290,129 @@ class PS1ThumbnailHandler(BaseHandler):
     def post(self):
         data = self.get_json()
         obj_id = data.get("objID")
-        if obj_id is None:
-            return self.error("Missing required parameter objID")
+        obj_ids = data.get("objIDs")
+
+        if obj_id is None and obj_ids is None:
+            return self.error("Missing required parameter objID or objIDs")
+
+        if obj_id is not None:
+            obj_ids = [obj_id]
+
         IOLoop.current().add_callback(
             lambda: add_ps1_thumbnail_and_push_ws_msg(
-                obj_id, self.associated_user_object.id
+                obj_ids, self.associated_user_object.id
             )
         )
         return self.success()
+
+
+class SourceObservabilityPlotHandler(BaseHandler):
+    @auth_or_token
+    async def get(self, obj_id):
+        """
+        ---
+        description: Create a summary plot for the observability for a given source.
+        tags:
+          - localizations
+        parameters:
+          - in: path
+            name: obj_id
+            required: true
+            schema:
+              type: string
+            description: |
+              ID of object to generate observability plot for
+          - in: query
+            name: maximumAirmass
+            nullable: true
+            schema:
+              type: number
+            description: |
+              Maximum airmass to consider. Defaults to 2.5.
+          - in: query
+            name: twilight
+            nullable: true
+            schema:
+              type: string
+            description: |
+                Twilight definition. Choices are astronomical (-18 degrees), nautical (-12 degrees), and civil (-6 degrees).
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+        """
+
+        max_airmass = self.get_query_argument("maxAirmass", 2.5)
+        twilight = self.get_query_argument("twilight", "astronomical")
+
+        with self.Session() as session:
+
+            stmt = Telescope.select(self.current_user)
+            telescopes = session.scalars(stmt).all()
+
+            stmt = Obj.select(self.current_user).where(Obj.id == obj_id)
+            source = session.scalars(stmt).first()
+            coords = astropy.coordinates.SkyCoord(source.ra, source.dec, unit='deg')
+
+            trigger_time = Time.now()
+            times = trigger_time + np.linspace(0, 1) * u.day
+
+            observers = []
+            for telescope in telescopes:
+                if not telescope.fixed_location:
+                    continue
+                location = EarthLocation(
+                    lon=telescope.lon * u.deg,
+                    lat=telescope.lat * u.deg,
+                    height=(telescope.elevation or 0) * u.m,
+                )
+
+                observers.append(Observer(location, name=telescope.nickname))
+            observers = list(reversed(observers))
+
+            constraints = [
+                getattr(AtNightConstraint, f'twilight_{twilight}')(),
+                AirmassConstraint(max_airmass),
+            ]
+
+            output_format = 'pdf'
+            fig = plt.figure(figsize=(14, 10))
+            width, height = fig.get_size_inches()
+            fig.set_size_inches(width, (len(observers) + 1) / 16 * width)
+            ax = plt.axes()
+            locator = dates.AutoDateLocator()
+            formatter = dates.DateFormatter('%H:%M')
+            ax.set_xlim([times[0].plot_date, times[-1].plot_date])
+            ax.xaxis.set_major_formatter(formatter)
+            ax.xaxis.set_major_locator(locator)
+            ax.set_xlabel(f"Time from {min(times).datetime.date()} [UTC]")
+            plt.setp(ax.get_xticklabels(), rotation=30, ha='right')
+            ax.set_yticks(np.arange(len(observers)))
+            ax.set_yticklabels([observer.name for observer in observers])
+            ax.yaxis.set_tick_params(left=False)
+            ax.grid(axis='x')
+            ax.spines['bottom'].set_visible(False)
+            ax.spines['top'].set_visible(False)
+
+            for i, observer in enumerate(observers):
+                observable = 100 * np.dot(
+                    1.0, is_event_observable(constraints, observer, coords, times)
+                )
+                ax.contourf(
+                    times.plot_date,
+                    [i - 0.4, i + 0.4],
+                    np.tile(observable, (2, 1)),
+                    levels=np.arange(10, 110, 10),
+                    cmap=plt.get_cmap().reversed(),
+                )
+
+            buf = io.BytesIO()
+            fig.savefig(buf, format=output_format, bbox_inches='tight')
+            plt.close(fig)
+            buf.seek(0)
+
+            filename = f"observability.{output_format}"
+            data = io.BytesIO(buf.read())
+
+            await self.send_file(data, filename, output_type=output_format)

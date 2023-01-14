@@ -12,6 +12,7 @@ import makeStyles from "@mui/styles/makeStyles";
 import CircularProgress from "@mui/material/CircularProgress";
 
 import MUIDataTable from "mui-datatables";
+import ObservationFilterForm from "./ObservationFilterForm";
 
 const useStyles = makeStyles((theme) => ({
   container: {
@@ -64,7 +65,9 @@ const getMuiTheme = (theme) =>
 const QueuedObservationsTable = ({
   observations,
   totalMatches,
+  downloadCallback,
   handleTableChange = false,
+  handleFilterSubmit = false,
   pageNumber = 1,
   numPerPage = 10,
   serverSide = true,
@@ -84,6 +87,28 @@ const QueuedObservationsTable = ({
 
     return <div>{instrument ? instrument.name : ""}</div>;
   };
+
+  const renderFieldID = (dataIndex) => {
+    const { field } = observations[dataIndex];
+
+    return <div>{field ? field.field_id.toFixed(0) : ""}</div>;
+  };
+
+  const renderRA = (dataIndex) => {
+    const { field } = observations[dataIndex];
+
+    return <div>{field ? field.ra.toFixed(5) : ""}</div>;
+  };
+
+  const renderDeclination = (dataIndex) => {
+    const { field } = observations[dataIndex];
+
+    return <div>{field ? field.dec.toFixed(5) : ""}</div>;
+  };
+
+  const customFilterDisplay = () => (
+    <ObservationFilterForm handleFilterSubmit={handleFilterSubmit} />
+  );
 
   const columns = [
     {
@@ -109,6 +134,36 @@ const QueuedObservationsTable = ({
     {
       name: "queue_name",
       label: "Queue name",
+    },
+    {
+      name: "field_id",
+      label: "Field ID",
+      options: {
+        filter: false,
+        sort: true,
+        sortThirdClickReset: true,
+        customBodyRenderLite: renderFieldID,
+      },
+    },
+    {
+      name: "ra",
+      label: "Right Ascension",
+      options: {
+        filter: false,
+        sort: true,
+        sortThirdClickReset: true,
+        customBodyRenderLite: renderRA,
+      },
+    },
+    {
+      name: "dec",
+      label: "Declination",
+      options: {
+        filter: false,
+        sort: true,
+        sortThirdClickReset: true,
+        customBodyRenderLite: renderDeclination,
+      },
     },
     {
       name: "obstime",
@@ -143,6 +198,112 @@ const QueuedObservationsTable = ({
     serverSide,
     pagination: true,
     count: totalMatches,
+    filter: true,
+    download: true,
+    customFilterDialogFooter: customFilterDisplay,
+    onDownload: (buildHead, buildBody) => {
+      const renderTelescopeDownload = (observation) => {
+        const { instrument } = observation;
+        return instrument.telescope ? instrument.telescope.name : "";
+      };
+      const renderInstrumentDownload = (observation) => {
+        const { instrument } = observation;
+        return instrument ? instrument.name : "";
+      };
+      const renderFieldIDDownload = (observation) => {
+        const { field } = observation;
+        return field ? field.field_id : "";
+      };
+      const renderRADownload = (observation) => {
+        const { field } = observation;
+        return field ? field.ra : "";
+      };
+      const renderDeclinationDownload = (observation) => {
+        const { field } = observation;
+        return field ? field.dec : "";
+      };
+      downloadCallback().then((data) => {
+        // if there is no data, cancel download
+        if (data?.length > 0) {
+          const result =
+            buildHead([
+              {
+                name: "telescope_name",
+                download: true,
+              },
+              {
+                name: "instrument_name",
+                download: true,
+              },
+              {
+                name: "queue_name",
+                download: true,
+              },
+              {
+                name: "field_id",
+                download: true,
+              },
+              {
+                name: "ra",
+                download: true,
+              },
+              {
+                name: "dec",
+                download: true,
+              },
+              {
+                name: "obstime",
+                download: true,
+              },
+              {
+                name: "filt",
+                download: true,
+              },
+              {
+                name: "exposure_time",
+                download: true,
+              },
+              {
+                name: "validity_window_start",
+                download: true,
+              },
+              {
+                name: "validity_window_end",
+                download: true,
+              },
+            ]) +
+            buildBody(
+              data.map((x) => ({
+                ...x,
+                data: [
+                  renderTelescopeDownload(x),
+                  renderInstrumentDownload(x),
+                  x.queue_name,
+                  renderFieldIDDownload(x),
+                  renderRADownload(x),
+                  renderDeclinationDownload(x),
+                  x.obstime,
+                  x.filt,
+                  x.exposure_time,
+                  x.validity_window_start,
+                  x.validity_window_end,
+                ],
+              }))
+            );
+          const blob = new Blob([result], {
+            type: "text/csv;charset=utf-8;",
+          });
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.href = url;
+          link.setAttribute("download", "observations.csv");
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        }
+      });
+      return false;
+    },
   };
   if (typeof handleTableChange === "function") {
     options.onTableChange = handleTableChange;
@@ -174,6 +335,8 @@ QueuedObservationsTable.propTypes = {
   // eslint-disable-next-line react/forbid-prop-types
   observations: PropTypes.arrayOf(PropTypes.any).isRequired,
   handleTableChange: PropTypes.func.isRequired,
+  handleFilterSubmit: PropTypes.func.isRequired,
+  downloadCallback: PropTypes.func.isRequired,
   pageNumber: PropTypes.number,
   totalMatches: PropTypes.number,
   numPerPage: PropTypes.number,

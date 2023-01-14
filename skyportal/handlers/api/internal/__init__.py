@@ -1,3 +1,7 @@
+from baselayer.app.env import load_env
+
+_, cfg = load_env()
+
 from .plot import (
     PlotPhotometryHandler,
     PlotSpectroscopyHandler,
@@ -19,3 +23,7 @@ from .ephemeris import EphemerisHandler
 from .standards import StandardsHandler
 from .notifications import NotificationHandler, BulkNotificationHandler
 from .recent_gcn_events import RecentGcnEventsHandler
+
+
+if 'image_analysis' in cfg:
+    from .image_analysis import ImageAnalysisHandler

@@ -18,6 +18,7 @@ class Validator(Schema):
         truthy=['true', 'True', 'confirmed', True],
         falsy=['false', 'False', 'rejected', False],
     )
+    explanation = fields.String(required=False)
     localization_name = fields.String()
     localization_cumprob = fields.Float()
     sources_id_list = fields.String()
@@ -61,7 +62,7 @@ class Validator(Schema):
 
 class SourcesConfirmedInGCNHandler(BaseHandler):
     @auth_or_token
-    def get(self, dateobs, source_id=None):
+    async def get(self, dateobs, source_id=None):
         """
         ---
         single:
@@ -210,7 +211,7 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
         return self.success(data=sources_in_gcn)
 
     @permissions(['Manage GCNs'])
-    def post(self, dateobs):
+    async def post(self, dateobs):
         """
         ---
         description: Confirm or reject a source in a gcn
@@ -281,6 +282,7 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
         localization_cumprob = data.get('localization_cumprob')
         source_id = data.get('source_id')
         confirmed = data.get('confirmed')
+        explanation = data.get('explanation')
         start_date = data.get('start_date')
         end_date = data.get('end_date')
 
@@ -310,7 +312,7 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
 
         with self.Session() as session:
             try:
-                sources = get_sources(
+                sources = await get_sources(
                     user_id=self.associated_user_object.id,
                     session=session,
                     first_detected_date=start_date,
@@ -351,6 +353,8 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
                     dateobs=dateobs,
                     confirmed=confirmed,
                 )
+                if explanation is not None:
+                    source_in_gcn.explanation = explanation
                 session.add(source_in_gcn)
                 session.commit()
                 source_in_gcn_id = source_in_gcn.id
@@ -412,6 +416,7 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
         """
         data = self.get_json()
         confirmed = data.get('confirmed')
+        explanation = data.get('explanation')
 
         validator_instance = Validator()
         params_to_be_validated = {
@@ -420,6 +425,8 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
             'dateobs': dateobs,
             'confirmed': confirmed,
         }
+        if explanation is not None:
+            params_to_be_validated["explanation"] = explanation
         try:
             validated = validator_instance.load(params_to_be_validated)
         except ValidationError as e:
@@ -448,6 +455,8 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
                         "Source is not confirmed/rejected in this GCN event"
                     )
                 source_in_gcn.confirmed = confirmed
+                if explanation is not None:
+                    source_in_gcn.explanation = explanation
                 session.commit()
                 source_in_gcn_id = source_in_gcn.id
             except Exception as e:
@@ -538,7 +547,7 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
 
 class GCNsAssociatedWithSourceHandler(BaseHandler):
     @auth_or_token
-    def get(self, source_id):
+    async def get(self, source_id):
         """
         ---
         description: Get the GCNs associated with a source (GCNs for which the source has been confirmed)

@@ -31,7 +31,7 @@ else:
 
 ZTF_FORCED_URL = cfg['app.ztf_forced_endpoint']
 
-bands = {'g': 1, 'ztfg': 1, 'r': 1, 'ztfr': 2, 'i': 3, 'ztfi': 3}
+bands = {'g': 1, 'ztfg': 1, 'r': 2, 'ztfr': 2, 'i': 3, 'ztfi': 3}
 inv_bands = {1: 'ztfg', 2: 'ztfr', 3: 'ztfi'}
 
 log = make_log('facility_apis/ztf')
@@ -281,6 +281,7 @@ def commit_photometry(url, altdata, df_request, request_id, instrument_id, user_
             inplace=True,
         )
         df['magsys'] = 'ab'
+        df['origin'] = 'fp'
 
         data_out = {
             'obj_id': request.obj_id,
@@ -484,7 +485,7 @@ class ZTFAPI(FollowUpAPI):
 
     # subclasses *must* implement the method below
     @staticmethod
-    def submit(request, session):
+    def submit(request, session, **kwargs):
 
         """Submit a follow-up request to ZTF.
 
@@ -607,7 +608,7 @@ class ZTFMMAAPI(MMAAPI):
 
     # subclasses *must* implement the method below
     @staticmethod
-    def send(request):
+    def send(request, session):
 
         """Submit an EventObservationPlan to ZTF.
 
@@ -617,7 +618,7 @@ class ZTFMMAAPI(MMAAPI):
             The request to add to the queue and the SkyPortal database.
         """
 
-        from ..models import FacilityTransaction, DBSession
+        from ..models import FacilityTransaction
 
         req = ZTFRequest()
         requestgroup = req._build_observation_plan_payload(request)
@@ -654,7 +655,7 @@ class ZTFMMAAPI(MMAAPI):
             initiator_id=request.last_modified_by_id,
         )
 
-        DBSession().add(transaction)
+        session.add(transaction)
 
     @staticmethod
     def remove(request):

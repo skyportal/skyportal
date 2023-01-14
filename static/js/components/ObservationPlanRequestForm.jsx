@@ -262,7 +262,7 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
   const { allocationListApiObsplan } = useSelector(
     (state) => state.allocations
   );
-
+  const observationPlanNames = useSelector((state) => state.observationPlans);
   const { useAMPM } = useSelector((state) => state.profile.preferences);
 
   const allGroups = useSelector((state) => state.groups.all);
@@ -435,6 +435,10 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
       formData.start_date > formData.end_date
     ) {
       errors.start_date.addError("Start Date must come before End Date");
+    }
+
+    if (observationPlanNames.includes(formData.queue_name)) {
+      errors.queue_name.addError("Need a unique plan name");
     }
 
     return errors;
@@ -612,6 +616,16 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
       <div>
         <Button
           secondary
+          href={`/api/localization/${selectedLocalizationId}/observability`}
+          download={`observabilityChartRequest-${selectedLocalizationId}`}
+          size="small"
+          type="submit"
+          data-testid={`observabilityChartRequest_${selectedLocalizationId}`}
+        >
+          Observability Chart
+        </Button>
+        <Button
+          secondary
           href={`/api/localization/${selectedLocalizationId}/airmass/${
             instLookUp[allocationLookUp[selectedAllocationId].instrument_id]
               .telescope_id
@@ -622,6 +636,16 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
           data-testid={`airmassChartRequest_${selectedAllocationId}`}
         >
           Airmass Chart
+        </Button>
+        <Button
+          secondary
+          href={`/api/localization/${selectedLocalizationId}/worldmap`}
+          download={`worldmapChartRequest-${selectedLocalizationId}`}
+          size="small"
+          type="submit"
+          data-testid={`worldmapChartRequest_${selectedLocalizationId}`}
+        >
+          World Map Chart
         </Button>
       </div>
     </div>

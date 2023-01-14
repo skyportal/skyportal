@@ -97,9 +97,13 @@ User Guide
    query_analysis
    permissions
    slack
+   followup
    mma
+   spatial_catalog
    advanced_usage
    analysis
+   image_analysis
+   extensions
 
 Contributing
 ------------

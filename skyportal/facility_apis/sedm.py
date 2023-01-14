@@ -24,23 +24,27 @@ class SEDMListener(Listener):
     }
 
     @staticmethod
-    def process_message(handler_instance):
+    def process_message(handler_instance, session):
         """Receive a POSTed message from SEDM.
 
         Parameters
         ----------
         message: skyportal.handlers.FacilityMessageHandler
            The instance of the handler that received the request.
+        session: sqlalchemy.Session
+            Database session for this transaction
         """
 
-        from ..models import FollowupRequest, FacilityTransaction, DBSession
+        from ..models import FollowupRequest, FacilityTransaction
 
         data = handler_instance.get_json()
-        request = FollowupRequest.get_if_accessible_by(
-            int(data['followup_request_id']),
-            handler_instance.current_user,
-            mode="update",
-        )
+
+        request = session.scalars(
+            FollowupRequest.select(session.user_or_token, mode='update').where(
+                FollowupRequest.id == int(data['followup_request_id'])
+            )
+        ).first()
+
         request.status = data['new_status']
 
         transaction_record = FacilityTransaction(
@@ -49,7 +53,7 @@ class SEDMListener(Listener):
             initiator=handler_instance.associated_user_object,
         )
 
-        DBSession().add(transaction_record)
+        session.add(transaction_record)
 
 
 def convert_request_to_sedm(request, method_value='new'):
@@ -151,7 +155,7 @@ class SEDMAPI(FollowUpAPI):
     """SkyPortal interface to the Spectral Energy Distribution machine (SEDM)."""
 
     @staticmethod
-    def submit(request, session):
+    def submit(request, session, **kwargs):
         """Submit a follow-up request to SEDM.
 
         Parameters
@@ -185,12 +189,13 @@ class SEDMAPI(FollowUpAPI):
 
         session.add(transaction)
 
-        flow = Flow()
-        flow.push(
-            '*',
-            'skyportal/REFRESH_SOURCE',
-            payload={'obj_key': request.obj.internal_key},
-        )
+        if 'refresh_source' in kwargs and kwargs['refresh_source']:
+            flow = Flow()
+            flow.push(
+                '*',
+                'skyportal/REFRESH_SOURCE',
+                payload={'obj_key': request.obj.internal_key},
+            )
 
     @staticmethod
     def delete(request, session):

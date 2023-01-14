@@ -37,7 +37,7 @@ Session = scoped_session(sessionmaker(bind=DBSession.session_factory.kw["bind"])
 
 
 class InstrumentHandler(BaseHandler):
-    @permissions(['Manage allocations'])
+    @permissions(['Manage instruments'])
     def post(self):
         # See bottom of this file for redoc docstring -- moved it there so that
         # it could be made an f-string.
@@ -464,10 +464,13 @@ class InstrumentHandler(BaseHandler):
             if inst_name is not None:
                 stmt = stmt.filter(Instrument.name == inst_name)
             instruments = session.scalars(stmt).all()
-            data = [instrument.to_dict() for instrument in instruments]
+            data = [
+                {**instrument.to_dict(), 'telescope': instrument.telescope.to_dict()}
+                for instrument in instruments
+            ]
             return self.success(data=data)
 
-    @permissions(['Manage allocations'])
+    @permissions(['Manage instruments'])
     def put(self, instrument_id):
         """
         ---
@@ -598,14 +601,18 @@ class InstrumentHandler(BaseHandler):
                 IOLoop.current().run_in_executor(
                     None,
                     lambda: add_tiles(
-                        instrument.id, instrument.name, regions, field_data
+                        instrument.id,
+                        instrument.name,
+                        regions,
+                        field_data,
+                        modify=True,
                     ),
                 )
 
             self.push_all(action="skyportal/REFRESH_INSTRUMENTS")
             return self.success()
 
-    @permissions(['Manage allocations'])
+    @permissions(['Delete instrument'])
     def delete(self, instrument_id):
         """
         ---
@@ -732,7 +739,9 @@ InstrumentHandler.post.__doc__ = f"""
         """
 
 
-def add_tiles(instrument_id, instrument_name, regions, field_data, session=Session()):
+def add_tiles(
+    instrument_id, instrument_name, regions, field_data, modify=False, session=Session()
+):
     field_ids = []
 
     try:
@@ -886,18 +895,45 @@ def add_tiles(instrument_id, instrument_name, regions, field_data, session=Sessi
                     ra=ra,
                     dec=dec,
                 )
+                session.add(field)
+                session.commit()
             else:
-                field = InstrumentField(
-                    instrument_id=instrument_id,
-                    field_id=int(field_id),
-                    contour=contour,
-                    contour_summary=contour_summary,
-                    ra=ra,
-                    dec=dec,
-                )
-            session.add(field)
-            session.commit()
+                create_field = True
+                if modify:
+                    field = session.scalars(
+                        sa.select(InstrumentField).where(
+                            InstrumentField.instrument_id == instrument_id,
+                            InstrumentField.field_id == int(field_id),
+                        )
+                    ).first()
+
+                    if field is not None:
+                        field_tiles = session.scalars(
+                            sa.select(InstrumentFieldTile).where(
+                                InstrumentFieldTile.instrument_id == instrument_id,
+                                InstrumentFieldTile.instrument_field_id == field.id,
+                            )
+                        ).all()
+                        for field_tile in field_tiles:
+                            session.delete(field_tile)
+                        session.commit()
+
+                        create_field = False
+
+                if create_field:
+                    field = InstrumentField(
+                        instrument_id=instrument_id,
+                        field_id=int(field_id),
+                        contour=contour,
+                        contour_summary=contour_summary,
+                        ra=ra,
+                        dec=dec,
+                    )
+                    session.add(field)
+                    session.commit()
+
             field_ids.append(field.field_id)
+
             tiles = []
             for coord in coords:
                 for hpx in Tile.tiles_from_polygon_skycoord(coord):

@@ -163,7 +163,7 @@ def serialize(phot, outsys, format):
                 magsys_packet = sncosmo.get_magsystem(phot.original_user_data['magsys'])
                 relzp_packet = 2.5 * np.log10(magsys_packet.zpbandflux(filter))
                 packet_correction = relzp_out - relzp_packet
-                maglimit = phot.original_user_data['limiting_mag']
+                maglimit = float(phot.original_user_data['limiting_mag'])
                 maglimit_out = maglimit + packet_correction
             else:
                 # calculate the limiting mag
@@ -1285,6 +1285,8 @@ class PhotometryHandler(BaseHandler):
                     f'Cannot find photometry point with ID: {photometry_id}.'
                 )
 
+            obj_id = photometry.obj_id
+
             session.delete(photometry)
 
             phot_stat = session.scalars(
@@ -1299,6 +1301,11 @@ class PhotometryHandler(BaseHandler):
                 phot_stat.full_update(all_phot)
 
             session.commit()
+
+            self.push_all(
+                action="skyportal/FETCH_SOURCE_PHOTOMETRY",
+                payload={"obj_id": obj_id},
+            )
 
             return self.success()
 

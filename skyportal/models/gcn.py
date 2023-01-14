@@ -1,4 +1,4 @@
-__all__ = ['GcnNotice', 'GcnTag', 'GcnEvent', 'GcnProperty']
+__all__ = ['GcnNotice', 'GcnTag', 'GcnEvent', 'GcnProperty', 'GcnSummary']
 
 import sqlalchemy as sa
 from sqlalchemy.orm import relationship
@@ -10,6 +10,56 @@ import gcn
 import lxml
 
 from baselayer.app.models import Base, DBSession, AccessibleIfUserMatches
+from .group import accessible_by_group_members
+
+SOURCE_RADIUS_THRESHOLD = 5 / 60.0  # 5 arcmin in degrees
+
+
+class GcnSummary(Base):
+    """Store GCN summary text for events."""
+
+    create = read = accessible_by_group_members
+
+    update = delete = AccessibleIfUserMatches('sent_by')
+
+    sent_by_id = sa.Column(
+        sa.ForeignKey('users.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+        doc="The ID of the User who created this GcnSummary.",
+    )
+
+    sent_by = relationship(
+        "User",
+        foreign_keys=sent_by_id,
+        back_populates="gcnsummaries",
+        doc="The user that saved this GcnSummary",
+    )
+
+    dateobs = sa.Column(
+        sa.ForeignKey('gcnevents.dateobs', ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    # have a relationship to a group
+    group_id = sa.Column(
+        sa.ForeignKey('groups.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+        doc="The ID of the Group that this GcnSummary is associated with.",
+    )
+
+    group = relationship(
+        "Group",
+        foreign_keys=group_id,
+        back_populates="gcnsummaries",
+        doc="The group that this GcnSummary is associated with.",
+    )
+
+    title = sa.Column(sa.String, nullable=False)
+
+    text = deferred(sa.Column(sa.Unicode, nullable=False))
 
 
 class GcnNotice(Base):
@@ -67,7 +117,7 @@ class GcnProperty(Base):
         sa.ForeignKey('users.id', ondelete='CASCADE'),
         nullable=False,
         index=True,
-        doc="The ID of the User who created this GcnTag.",
+        doc="The ID of the User who created this GcnProperty.",
     )
 
     sent_by = relationship(
@@ -83,7 +133,7 @@ class GcnProperty(Base):
         index=True,
     )
 
-    data = sa.Column(JSONB, doc="Event properties in JSON format.")
+    data = sa.Column(JSONB, doc="Event properties in JSON format.", index=True)
 
 
 class GcnTag(Base):
@@ -111,7 +161,7 @@ class GcnTag(Base):
         index=True,
     )
 
-    text = sa.Column(sa.Unicode, nullable=False)
+    text = sa.Column(sa.Unicode, nullable=False, index=True)
 
 
 class GcnEvent(Base):
@@ -135,6 +185,10 @@ class GcnEvent(Base):
 
     dateobs = sa.Column(sa.DateTime, doc='Event time', unique=True, nullable=False)
 
+    trigger_id = sa.Column(
+        sa.BigInteger, unique=True, doc='Trigger ID supplied by instrument'
+    )
+
     gcn_notices = relationship("GcnNotice", order_by=GcnNotice.date)
 
     properties = relationship(
@@ -143,6 +197,14 @@ class GcnEvent(Base):
         passive_deletes=True,
         order_by="GcnProperty.created_at",
         doc="Properties associated with this GCN event.",
+    )
+
+    summaries = relationship(
+        'GcnSummary',
+        cascade='save-update, merge, refresh-expire, expunge, delete',
+        passive_deletes=True,
+        order_by="GcnSummary.created_at",
+        doc="Summaries associated with this GCN event.",
     )
 
     _tags = relationship(
@@ -181,6 +243,28 @@ class GcnEvent(Base):
         doc="Comments posted about this GCN event.",
     )
 
+    aliases = sa.Column(
+        sa.ARRAY(sa.String),
+        nullable=False,
+        server_default='{}',
+        doc="List of different names for this event, parsed from different GCN notices.",
+    )
+
+    tach_id = sa.Column(
+        sa.String,
+        nullable=True,
+        doc="TACH id associated with a GCN event",
+    )
+
+    circulars = deferred(
+        sa.Column(
+            JSONB,
+            nullable=False,
+            server_default='{}',
+            doc="List of circulars associated with a GCN event. Keys are circulars ids, values are circular titles.",
+        )
+    )
+
     reminders = relationship(
         'ReminderOnGCN',
         back_populates='gcn',
@@ -202,7 +286,7 @@ class GcnEvent(Base):
     @hybrid_property
     def tags(self):
         """List of tags."""
-        return [tag.text for tag in self._tags]
+        return [tag.text for tag in set(self._tags)]
 
     @tags.expression
     def tags(cls):

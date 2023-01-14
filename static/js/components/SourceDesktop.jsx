@@ -34,6 +34,7 @@ import AssignmentForm from "./AssignmentForm";
 import AssignmentList from "./AssignmentList";
 import SourceNotification from "./SourceNotification";
 import EditSourceGroups from "./EditSourceGroups";
+import UpdateSourceCoordinates from "./UpdateSourceCoordinates";
 import UpdateSourceRedshift from "./UpdateSourceRedshift";
 import SourceRedshiftHistory from "./SourceRedshiftHistory";
 import AnnotationsTable from "./AnnotationsTable";
@@ -210,6 +211,7 @@ const SourceDesktop = ({ source }) => {
   const [showPhotometry, setShowPhotometry] = useState(false);
   const [rightPaneVisible, setRightPaneVisible] = useState(true);
   const plotWidth = rightPaneVisible ? 800 : 1200;
+  const image_analysis = useSelector((state) => state.config.image_analysis);
 
   const { instrumentList, instrumentFormParams } = useSelector(
     (state) => state.instruments
@@ -219,6 +221,8 @@ const SourceDesktop = ({ source }) => {
 
   const { observingRunList } = useSelector((state) => state.observingRuns);
   const { taxonomyList } = useSelector((state) => state.taxonomies);
+
+  const currentUser = useSelector((state) => state.profile);
 
   const groups = (useSelector((state) => state.groups.all) || []).filter(
     (g) => !g.single_user_group
@@ -335,6 +339,9 @@ const SourceDesktop = ({ source }) => {
               </div>
             </div>
             <div className={classes.sourceInfo}>
+              <UpdateSourceCoordinates source={source} />
+            </div>
+            <div className={classes.sourceInfo}>
               <div>
                 (&alpha;,&delta;= {source.ra}, &nbsp;
                 {source.dec}; &nbsp;
@@ -343,6 +350,11 @@ const SourceDesktop = ({ source }) => {
                 <i>l</i>,<i>b</i>={source.gal_lon.toFixed(6)}, &nbsp;
                 {source.gal_lat.toFixed(6)})
               </div>
+              {source.ebv ? (
+                <div>
+                  <i> E(B-V)</i>={source.ebv.toFixed(2)}
+                </div>
+              ) : null}
             </div>
           </div>
           {source.duplicates && (
@@ -424,6 +436,18 @@ const SourceDesktop = ({ source }) => {
                   Observability
                 </Button>
               </Link>
+            </div>
+            <div className={classes.infoButton}>
+              <Button
+                secondary
+                href={`/api/sources/${source.id}/observability`}
+                download={`observabilityChartRequest-${source.id}`}
+                size="small"
+                type="submit"
+                data-testid={`observabilityChartRequest_${source.id}`}
+              >
+                Observability Chart
+              </Button>
             </div>
           </div>
         </div>
@@ -531,6 +555,15 @@ const SourceDesktop = ({ source }) => {
                       <Button secondary>Periodogram Analysis</Button>
                     </Link>
                   )}
+                  {currentUser?.permissions?.includes("Upload data") &&
+                    image_analysis && (
+                      <Link
+                        to={`/source/${source.id}/image_analysis`}
+                        role="link"
+                      >
+                        <Button variant="contained">Image Analysis</Button>
+                      </Link>
+                    )}
                 </div>
               </Grid>
             </AccordionDetails>
@@ -843,6 +876,7 @@ SourceDesktop.propTypes = {
     gal_lon: PropTypes.number,
     gal_lat: PropTypes.number,
     dm: PropTypes.number,
+    ebv: PropTypes.number,
     luminosity_distance: PropTypes.number,
     annotations: PropTypes.arrayOf(
       PropTypes.shape({

@@ -860,6 +860,30 @@ def test_sources_filter_by_name_or_id(upload_data_token, view_only_token, public
     assert len(data["data"]["sources"]) == 1
     assert data["data"]["sources"][0]["id"] == obj_id1
 
+    # Filter for obj 1 only, rejecting object 2
+    status, data = api(
+        "GET",
+        "sources",
+        params={"rejectedSourceIDs": obj_id2, "group_ids": f"{public_group.id}"},
+        token=view_only_token,
+    )
+    assert status == 200
+    assert len(data["data"]["sources"]) == 1
+    assert data["data"]["sources"][0]["id"] == obj_id1
+
+    # Reject object 1 and 2
+    status, data = api(
+        "GET",
+        "sources",
+        params={
+            "rejectedSourceIDs": f"{obj_id1},{obj_id2}",
+            "group_ids": f"{public_group.id}",
+        },
+        token=view_only_token,
+    )
+    assert status == 200
+    assert len(data["data"]["sources"]) == 0
+
 
 def test_sources_filter_by_position(upload_data_token, view_only_token, public_group):
     obj_id1 = str(uuid.uuid4())
@@ -1290,6 +1314,110 @@ def test_sources_filter_by_classifications(
     )
     assert status == 200
     assert any([source["id"] == obj_id2 for source in data["data"]["sources"]])
+
+
+def test_sources_filter_by_unclassified(
+    upload_data_token,
+    taxonomy_token,
+    classification_token,
+    view_only_token,
+    public_group,
+):
+    # Post a source with a classification, and one without
+    obj_id = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "sources",
+        data={
+            "id": obj_id,
+            "ra": 234.22,
+            "dec": -22.33,
+            "group_ids": [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+
+    taxonomy_name = "test taxonomy" + str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "taxonomy",
+        data={
+            "name": taxonomy_name,
+            "hierarchy": taxonomy,
+            "group_ids": [public_group.id],
+            "provenance": f"tdtax_{__version__}",
+            "version": __version__,
+            "isLatest": True,
+        },
+        token=taxonomy_token,
+    )
+    assert status == 200
+    taxonomy_id = data["data"]["taxonomy_id"]
+
+    status, data = api(
+        "POST",
+        "classification",
+        data={
+            "obj_id": obj_id,
+            "classification": "Algol",
+            "taxonomy_id": taxonomy_id,
+            "probability": 1.0,
+            "group_ids": [public_group.id],
+        },
+        token=classification_token,
+    )
+    assert status == 200
+    classification_id = data["data"]["classification_id"]
+
+    # Filter for all sources
+    status, data = api(
+        "GET",
+        "sources",
+        params={
+            "unclassified": False,
+            "group_ids": f"{public_group.id}",
+        },
+        token=view_only_token,
+    )
+    assert status == 200
+    assert len(data["data"]["sources"]) == 1
+    assert data["data"]["sources"][0]["id"] == obj_id
+
+    # Filter for unclassified sources
+    status, data = api(
+        "GET",
+        "sources",
+        params={
+            "unclassified": True,
+            "group_ids": f"{public_group.id}",
+        },
+        token=view_only_token,
+    )
+    assert status == 200
+    assert len(data["data"]["sources"]) == 0
+
+    # now delete that classification
+    status, data = api(
+        "DELETE",
+        f"classification/{classification_id}",
+        token=classification_token,
+    )
+    assert status == 200
+
+    # now filter for unclassified sources again
+    status, data = api(
+        "GET",
+        "sources",
+        params={
+            "unclassified": True,
+            "group_ids": f"{public_group.id}",
+        },
+        token=view_only_token,
+    )
+    assert status == 200
+    assert len(data["data"]["sources"]) == 1
+    assert data["data"]["sources"][0]["id"] == obj_id
 
 
 def test_sources_filter_by_redshift(upload_data_token, view_only_token, public_group):
@@ -2098,3 +2226,103 @@ def test_patch_healpix(upload_data_token, view_only_token, public_group):
     assert status == 200
     assert data["data"]["id"] == obj_id
     assert data["data"]["healpix"] == 3126137476541327364
+
+
+def test_filter_followup_request(
+    upload_data_token, view_only_token, public_group, public_group_sedm_allocation
+):
+    obj_id = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "sources",
+        data={
+            "id": obj_id,
+            "ra": 234.22,
+            "dec": -22.33,
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    status, data = api("GET", f"sources/{obj_id}", token=view_only_token)
+    assert status == 200
+    assert data["data"]["id"] == obj_id
+
+    request_data = {
+        'allocation_id': public_group_sedm_allocation.id,
+        'obj_id': obj_id,
+        'payload': {
+            'priority': 5,
+            'start_date': '3020-09-01',
+            'end_date': '3022-09-01',
+            'observation_type': 'IFU',
+        },
+    }
+
+    status, data = api(
+        'POST', 'followup_request', data=request_data, token=upload_data_token
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    params = {
+        'hasFollowupRequest': True,
+    }
+    status, data = api("GET", "sources", token=view_only_token, params=params)
+    assert status == 200
+    assert any(obj["id"] == obj_id for obj in data["data"]["sources"])
+
+
+def test_add_and_delete_source_label(upload_data_token, view_only_token, public_group):
+    obj_id = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "sources",
+        data={
+            "id": obj_id,
+            "ra": 234.22,
+            "dec": -22.33,
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+
+    params = {'includeLabellers': True}
+    status, data = api("GET", f"sources/{obj_id}", token=view_only_token, params=params)
+    assert status == 200
+    assert data["data"]["id"] == obj_id
+
+    assert len(data["data"]["labellers"]) == 0
+
+    status, data = api(
+        "POST",
+        f"sources/{obj_id}/labels",
+        data={
+            "groupIds": [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+
+    params = {'includeLabellers': True}
+    status, data = api("GET", f"sources/{obj_id}", token=view_only_token, params=params)
+    assert status == 200
+    assert data["data"]["id"] == obj_id
+
+    assert len(data["data"]["labellers"]) == 1
+
+    status, data = api(
+        "DELETE",
+        f"sources/{obj_id}/labels",
+        data={
+            "groupIds": [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+
+    params = {'includeLabellers': True}
+    status, data = api("GET", f"sources/{obj_id}", token=view_only_token, params=params)
+    assert status == 200
+    assert data["data"]["id"] == obj_id
+
+    assert len(data["data"]["labellers"]) == 0

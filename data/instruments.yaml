@@ -426,6 +426,18 @@
   name: PGIR
   telescope_id: =PGIR
   type: imager
+- =id: WNTR
+  band: NIR
+  filters: ['2massj', '2massh', '2massks']
+  name: WNTR
+  telescope_id: =WINTER
+  type: imager
+- =id: SUMMER
+  band: optical
+  filters: ['sdssu', 'sdssg', 'sdssr', 'sdssi', 'sdssz']
+  name: SUMMER
+  telescope_id: =WINTER
+  type: imager
 - band: optical
   name: KAIT
   telescope_id: =KAIT

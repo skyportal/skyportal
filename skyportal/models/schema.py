@@ -1290,6 +1290,42 @@ class DefaultObservationPlanPost(_Schema):
     )
 
 
+class DefaultFollowupRequestPost(_Schema):
+
+    payload = fields.Field(
+        required=False,
+        metadata={'description': "Content of the default follow-up request."},
+    )
+
+    allocation_id = fields.Integer(
+        required=True,
+        metadata={'description': "Follow-up request allocation ID."},
+    )
+
+    target_group_ids = fields.List(
+        fields.Integer,
+        required=False,
+        metadata={
+            'description': (
+                'IDs of groups to share the results of the default follow-up request with.'
+            )
+        },
+    )
+
+
+class DefaultSurveyEfficiencyPost(_Schema):
+
+    payload = fields.Field(
+        required=False,
+        metadata={'description': "Content of the default survey efficiency analysis."},
+    )
+
+    default_observationplan_request_id = fields.Integer(
+        required=True,
+        metadata={'description': "Default observation plan request ID."},
+    )
+
+
 class ObservingRunGet(ObservingRunPost):
     owner_id = fields.Integer(
         metadata={'description': 'The User ID of the owner of this run.'}
@@ -1874,6 +1910,18 @@ class GalaxyHandlerPost(_Schema):
 class GalaxyASCIIFileHandlerPost(_Schema):
     catalogName = fields.String(metadata={"description": 'Galaxy catalog name.'})
 
+    catalogData = fields.Field(metadata={'description': 'Catalog data Ascii string'})
+
+
+class SpatialCatalogHandlerPost(_Schema):
+    catalog_name = fields.String(metadata={"description": 'Spatial catalog name.'})
+    catalog_data = fields.List(
+        fields.Field(), metadata={"description": 'Spatial catalog data'}
+    )
+
+
+class SpatialCatalogASCIIFileHandlerPost(_Schema):
+    catalogName = fields.String(metadata={"description": 'Spatial catalog name.'})
     catalogData = fields.Field(metadata={'description': 'Catalog data Ascii string'})
 
 

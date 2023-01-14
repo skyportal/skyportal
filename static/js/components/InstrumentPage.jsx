@@ -1,33 +1,49 @@
-import React from "react";
-import { useSelector } from "react-redux";
-import List from "@mui/material/List";
-import ListItem from "@mui/material/ListItem";
-import ListItemText from "@mui/material/ListItemText";
-import Typography from "@mui/material/Typography";
+import React, { useEffect, useState } from "react";
+import { useSelector, useDispatch } from "react-redux";
+
 import Paper from "@mui/material/Paper";
-import Grid from "@mui/material/Grid";
 import makeStyles from "@mui/styles/makeStyles";
-import PropTypes from "prop-types";
+import Grid from "@mui/material/Grid";
+import Typography from "@mui/material/Typography";
+
 import CircularProgress from "@mui/material/CircularProgress";
+import InstrumentTable from "./InstrumentTable";
+import Spinner from "./Spinner";
+import * as instrumentsActions from "../ducks/instruments";
 import NewInstrument from "./NewInstrument";
 // eslint-disable-next-line import/no-cycle
 import ModifyInstrument from "./ModifyInstrument";
 
 const useStyles = makeStyles((theme) => ({
-  root: {
-    width: "100%",
-    maxWidth: "22.5rem",
-    backgroundColor: theme.palette.background.paper,
-  },
-  paperContent: {
+  paperDiv: {
     padding: "1rem",
+    height: "100%",
   },
-}));
-
-const textStyles = makeStyles(() => ({
-  primary: {
-    fontWeight: "bold",
-    fontSize: "110%",
+  tableGrid: {
+    width: "100%",
+  },
+  formControl: {
+    margin: theme.spacing(1),
+    minWidth: 120,
+  },
+  paper: {
+    padding: "1rem",
+    marginTop: "0.625rem",
+  },
+  root: {
+    display: "flex",
+    flexWrap: "wrap",
+    "& .MuiTextField-root": {
+      margin: theme.spacing(0.2),
+      width: "10rem",
+    },
+  },
+  blockWrapper: {
+    width: "100%",
+    marginBottom: "0.5rem",
+  },
+  title: {
+    margin: "0.5rem 0rem 0rem 0rem",
   },
 }));
 
@@ -88,48 +104,83 @@ export function instrumentInfo(instrument, telescopeList) {
   return result;
 }
 
-const InstrumentList = ({ instruments, telescopes }) => {
+const InstrumentList = () => {
   const classes = useStyles();
-  const textClasses = textStyles();
+  const dispatch = useDispatch();
 
-  return (
-    <div className={classes.root}>
-      <List component="nav">
-        {instruments?.map((instrument) => (
-          <ListItem button key={instrument.id}>
-            <ListItemText
-              primary={instrumentTitle(instrument, telescopes)}
-              secondary={instrumentInfo(instrument, telescopes)}
-              classes={textClasses}
-            />
-          </ListItem>
-        ))}
-      </List>
-    </div>
-  );
-};
+  const instrumentsState = useSelector((state) => state.instruments);
+  const telescopesState = useSelector((state) => state.telescopes);
 
-const InstrumentPage = () => {
-  const { instrumentList } = useSelector((state) => state.instruments);
-  const { telescopeList } = useSelector((state) => state.telescopes);
+  const [rowsPerPage, setRowsPerPage] = useState(100);
+
   const currentUser = useSelector((state) => state.profile);
 
-  const classes = useStyles();
+  const post_permission =
+    currentUser.permissions?.includes("Manage instruments") ||
+    currentUser.permissions?.includes("System admin");
+
+  useEffect(() => {
+    dispatch(instrumentsActions.fetchInstruments());
+  }, [dispatch]);
+
+  const handleInstrumentTablePagination = (
+    pageNumber,
+    numPerPage,
+    sortData,
+    filterData
+  ) => {
+    setRowsPerPage(numPerPage);
+    const data = {
+      ...filterData,
+      pageNumber,
+      numPerPage,
+    };
+    if (sortData && Object.keys(sortData).length > 0) {
+      data.sortBy = sortData.name;
+      data.sortOrder = sortData.direction;
+    }
+    dispatch(instrumentsActions.fetchInstruments(data));
+  };
+
+  const handleInstrumentTableSorting = (sortData, filterData) => {
+    const data = {
+      ...filterData,
+      pageNumber: 1,
+      rowsPerPage,
+      sortBy: sortData.name,
+      sortOrder: sortData.direction,
+    };
+    dispatch(instrumentsActions.fetchInstruments(data));
+  };
+
+  if (!instrumentsState.instrumentList) {
+    return <Spinner />;
+  }
+
   return (
-    <Grid container spacing={3}>
-      <Grid item md={6} sm={12}>
+    <Grid container spacing={2}>
+      <Grid item md={8} sm={12}>
         <Paper elevation={1}>
-          <div className={classes.paperContent}>
-            <Typography variant="h6">List of Instruments</Typography>
-            <InstrumentList
-              instruments={instrumentList}
-              telescopes={telescopeList}
-            />
+          <div className={classes.paper}>
+            <Typography variant="h6" display="inline">
+              Instruments
+            </Typography>
+            {instrumentsState.instrumentList && (
+              <InstrumentTable
+                instruments={instrumentsState.instrumentList}
+                telescopes={telescopesState.telescopeList}
+                paginateCallback={handleInstrumentTablePagination}
+                totalMatches={instrumentsState.totalMatches}
+                pageNumber={instrumentsState.pageNumber}
+                numPerPage={instrumentsState.numPerPage}
+                sortingCallback={handleInstrumentTableSorting}
+              />
+            )}
           </div>
         </Paper>
       </Grid>
-      {currentUser.permissions?.includes("Manage allocations") && (
-        <Grid item md={6} sm={12}>
+      {post_permission && (
+        <Grid item md={4} sm={12}>
           <Paper>
             <div className={classes.paperContent}>
               <Typography variant="h6">Add a New Instrument</Typography>
@@ -144,13 +195,9 @@ const InstrumentPage = () => {
           </Paper>
         </Grid>
       )}
+      {!instrumentsState.instrumentList && <Spinner />}
     </Grid>
   );
 };
 
-InstrumentList.propTypes = {
-  instruments: PropTypes.arrayOf(PropTypes.any).isRequired, // eslint-disable-line react/forbid-prop-types
-  telescopes: PropTypes.arrayOf(PropTypes.any).isRequired, // eslint-disable-line react/forbid-prop-types
-};
-
-export default InstrumentPage;
+export default InstrumentList;

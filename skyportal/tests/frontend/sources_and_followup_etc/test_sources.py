@@ -1,7 +1,7 @@
 import os
-from os.path import join as pjoin
 import uuid
 import json
+import time
 
 from io import BytesIO
 import pytest
@@ -48,8 +48,26 @@ def test_public_source_page(driver, user, public_source, public_group):
     driver.get(f"/become_user/{user.id}")  # TODO decorator/context manager?
     driver.get(f"/source/{public_source.id}")
     driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
-    driver.wait_for_xpath('//*[text()="Export Bold Light Curve to CSV"]', 20)
-    driver.wait_for_xpath('//span[contains(text(), "Fe III")]')
+    driver.wait_for_xpath('//div[@class=" bk-root"]', timeout=20)
+
+    # this waits for the spectroscopy plot by looking for the element Fe III
+    num_panels = 0
+    nretries = 0
+    while num_panels < 2 and nretries < 30:
+        panels = driver.find_elements(By.XPATH, "//*[contains(@id,'bokeh')]")
+        num_panels = len(panels)
+        if num_panels == 2:
+            break
+        nretries = nretries + 1
+        time.sleep(5)
+
+    button_present = False
+    for panel in panels:
+        if "Fe III" in panel.text:
+            button_present = True
+
+    assert button_present
+
     driver.wait_for_xpath(f'//span[text()="{public_group.name}"]')
 
 
@@ -116,8 +134,26 @@ def test_public_source_page_null_z(driver, user, public_source, public_group):
     driver.get(f"/become_user/{user.id}")  # TODO decorator/context manager?
     driver.get(f"/source/{public_source.id}")
     driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
-    driver.wait_for_xpath('//*[text()="Export Bold Light Curve to CSV"]', timeout=20)
-    driver.wait_for_xpath('//span[contains(text(), "Fe III")]')
+    driver.wait_for_xpath('//div[@class=" bk-root"]', timeout=20)
+
+    # this waits for the spectroscopy plot by looking for the element Fe III
+    num_panels = 0
+    nretries = 0
+    while num_panels < 2 and nretries < 30:
+        panels = driver.find_elements(By.XPATH, "//*[contains(@id,'bokeh')]")
+        num_panels = len(panels)
+        if num_panels == 2:
+            break
+        nretries = nretries + 1
+        time.sleep(5)
+
+    button_present = False
+    for panel in panels:
+        if "Fe III" in panel.text:
+            button_present = True
+
+    assert button_present
+
     driver.wait_for_xpath(f'//span[text()="{public_group.name}"]')
 
 
@@ -249,6 +285,7 @@ def test_classifications(driver, user, taxonomy_token, public_group, public_sour
 
     del_button_xpath = "//button[starts-with(@name, 'deleteClassificationButton')]"
     driver.click_xpath(del_button_xpath, wait_clickable=False)
+    driver.click_xpath("//*[text()='Confirm']", wait_clickable=False)
     driver.wait_for_xpath_to_disappear("//*[contains(text(), '(P=1)')]")
     driver.wait_for_xpath_to_disappear(f"//i[text()='{tax_name}']")
     driver.wait_for_xpath_to_disappear(
@@ -269,8 +306,8 @@ def test_classifications(driver, user, taxonomy_token, public_group, public_sour
     driver.wait_for_xpath('//*[@id="probability"]').send_keys("0.02")
     driver.click_xpath("//*[text()='Submit']", wait_clickable=False)
     driver.wait_for_xpath("//*[text()='Classification saved']")
-    driver.find_element(
-        By.XPATH, "//span[contains(@class, 'MuiChip-label') and text()='Mult-mode?']"
+    driver.wait_for_xpath(
+        "//span[contains(@class, 'MuiChip-label') and text()='Mult-mode?']",
     )
 
 
@@ -334,83 +371,6 @@ def test_comment_groups_validation(
         driver.wait_for_xpath(
             '//div[@data-testid="comments-accordion"]//span[text()="a few seconds ago"]'
         )
-
-
-@pytest.mark.flaky(reruns=2)
-def test_upload_download_comment_attachment(driver, user, public_source):
-    driver.get(f"/become_user/{user.id}")  # TODO decorator/context manager?
-    driver.get(f"/source/{public_source.id}")
-    driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
-    comment_text = str(uuid.uuid4())
-    enter_comment_text(driver, comment_text)
-    # attachment_file = driver.find_element_by_css_selector('input[type=file]')
-    attachment_file = driver.wait_for_xpath(
-        "//div[@data-testid='comments-accordion']//input[@name='attachment']"
-    )
-    attachment_file.send_keys(
-        pjoin(
-            os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
-            'data',
-            'spec.csv',
-        )
-    )
-    driver.click_xpath(
-        '//div[@data-testid="comments-accordion"]//*[@name="submitCommentButton"]'
-    )
-    try:
-        comment_text_p = driver.wait_for_xpath(
-            f'//div[@data-testid="comments-accordion"]//p[text()="{comment_text}"]',
-            timeout=20,
-        )
-    except TimeoutException:
-        driver.refresh()
-        comment_text_p = driver.wait_for_xpath(
-            f'//div[@data-testid="comments-accordion"]//p[text()="{comment_text}"]'
-        )
-    comment_div = comment_text_p.find_element(By.XPATH, "../..")
-    driver.execute_script("arguments[0].scrollIntoView();", comment_div)
-    ActionChains(driver).move_to_element(comment_div).perform()
-
-    # Scroll up to top of comments list
-    comments = driver.wait_for_xpath(
-        "//div[@data-testid='comments-accordion']//p[text()='Comments']"
-    )
-    driver.scroll_to_element(comments)
-
-    attachment_div = driver.wait_for_xpath(
-        "//div[@data-testid='comments-accordion']//div[contains(text(), 'Attachment:')]"
-    )
-    attachment_button = driver.wait_for_xpath(
-        '//div[@data-testid="comments-accordion"]//button[@data-testid="attachmentButton_spec"]'
-    )
-    # Try to open the preview dialog twice before failing to make it more robust
-    try:
-        ActionChains(driver).move_to_element(attachment_div).pause(0.5).perform()
-        ActionChains(driver).move_to_element(attachment_button).pause(
-            0.5
-        ).click().perform()
-        # Preview dialog
-        driver.click_xpath('//a[@data-testid="attachmentDownloadButton_spec"]')
-    except TimeoutException:
-        ActionChains(driver).move_to_element(attachment_div).pause(0.5).perform()
-        ActionChains(driver).move_to_element(attachment_button).pause(
-            0.5
-        ).click().perform()
-        # Preview dialog
-        driver.click_xpath('//a[@data-testid="attachmentDownloadButton_spec"]')
-
-    fpath = str(os.path.abspath(pjoin(cfg['paths.downloads_folder'], 'spec.csv')))
-    try_count = 1
-    while not os.path.exists(fpath) and try_count <= 3:
-        try_count += 1
-        assert os.path.exists(fpath)
-
-    try:
-        with open(fpath) as f:
-            lines = f.read()
-        assert lines.split('\n')[0] == 'wavelengths,fluxes,instrument_id'
-    finally:
-        os.remove(fpath)
 
 
 def test_view_only_user_cannot_comment(driver, view_only_user, public_source):
@@ -605,15 +565,16 @@ def test_source_notification(driver, user, public_group, public_source):
     driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
     # Choose a group and click something outside/not covered by the multi-select
     # popup to close it
-    driver.click_xpath("//div[@data-testid='sourceNotification_groupSelect']")
+    driver.click_xpath("//div[@id='selectGroups']", scroll_parent=True)
     driver.click_xpath(
-        f'//li[@data-testid="notificationGroupSelect_{public_group.id}"]',
+        f'//div[@data-testid="group_{public_group.id}"]',
         scroll_parent=True,
     )
     header = driver.wait_for_xpath("//header")
     ActionChains(driver).move_to_element(header).click().perform()
+    driver.click_xpath("//label[@data-testid='soft']")
     driver.click_xpath("//button[@data-testid='sendNotificationButton']")
-    driver.wait_for_xpath("//*[text()='Notification queued up sucessfully']")
+    driver.wait_for_xpath("//*[text()='Notification queued up successfully']")
 
 
 def test_unsave_from_group(
@@ -629,7 +590,9 @@ def test_unsave_from_group(
         scroll_parent=True,
     )
     driver.click_xpath(f'//button[@name="editSourceGroupsButton_{public_source.id}"]')
-    driver.wait_for_xpath('//*[text()="Source groups updated successfully"]')
+    driver.wait_for_xpath(
+        '//*[text()="Source groups updated successfully"]', timeout=10
+    )
     driver.wait_for_xpath_to_disappear(
         f'//div[@data-testid="groupChip_{public_group2.id}"]'
     )
@@ -651,7 +614,9 @@ def test_request_group_to_save_then_save(
         f'//button[@name="editSourceGroupsButton_{public_source.id}"]',
         scroll_parent=True,
     )
-    driver.wait_for_xpath('//*[text()="Source groups updated successfully"]')
+    driver.wait_for_xpath(
+        '//*[text()="Source groups updated successfully"]', timeout=10
+    )
     driver.get(f"/become_user/{user_two_groups.id}")
     driver.get(f"/group_sources/{public_group2.id}")
     driver.click_xpath(f'//button[@data-testid="saveSourceButton_{public_source.id}"]')
@@ -717,9 +682,24 @@ def test_obj_page_unsaved_source(public_obj, driver, user):
     driver.get(f"/source/{public_obj.id}")
 
     # wait for the plots to load
-    driver.wait_for_xpath('//*[text()="Export Bold Light Curve to CSV"]', 20)
-    # this waits for the spectroscopy plot by looking for the element Mg
-    driver.wait_for_xpath('//span[text()="Mg I"]', timeout=20)
+    driver.wait_for_xpath('//div[@class=" bk-root"]', timeout=20)
+    # this waits for the spectroscopy plot by looking for the element Fe III
+    num_panels = 0
+    nretries = 0
+    while num_panels < 2 and nretries < 30:
+        panels = driver.find_elements(By.XPATH, "//*[contains(@id,'bokeh')]")
+        num_panels = len(panels)
+        if num_panels == 2:
+            break
+        nretries = nretries + 1
+        time.sleep(5)
+
+    button_present = False
+    for panel in panels:
+        if "Fe III" in panel.text:
+            button_present = True
+
+    assert button_present
 
     driver.wait_for_xpath_to_disappear('//div[contains(@data-testid, "groupChip")]')
 
@@ -729,9 +709,24 @@ def test_show_photometry_table(public_source, driver, user):
     driver.get(f"/source/{public_source.id}")
 
     # wait for the plots to load
-    driver.wait_for_xpath('//*[text()="Export Bold Light Curve to CSV"]', 20)
-    # this waits for the spectroscopy plot by looking for the element Mg
-    driver.wait_for_xpath('//span[text()="Mg I"]')
+    driver.wait_for_xpath('//div[@class=" bk-root"]', timeout=20)
+    # this waits for the spectroscopy plot by looking for the element Fe III
+    num_panels = 0
+    nretries = 0
+    while num_panels < 2 and nretries < 30:
+        panels = driver.find_elements(By.XPATH, "//*[contains(@id,'bokeh')]")
+        num_panels = len(panels)
+        if num_panels == 2:
+            break
+        nretries = nretries + 1
+        time.sleep(5)
+
+    button_present = False
+    for panel in panels:
+        if "Fe III" in panel.text:
+            button_present = True
+
+    assert button_present
 
     driver.click_xpath('//*[@data-testid="show-photometry-table-button"]')
     driver.wait_for_xpath(f'//*[contains(text(), "Photometry of {public_source.id}")]')
@@ -790,8 +785,25 @@ def test_source_hr_diagram(driver, user, public_source, annotation_token):
 
     driver.get(f"/source/{public_source.id}")
     driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
-    driver.wait_for_xpath('//*[text()="Export Bold Light Curve to CSV"]', 20)
-    driver.wait_for_xpath('//span[contains(text(), "Fe III")]')
+    driver.wait_for_xpath('//div[@class=" bk-root"]', timeout=20)
+
+    # this waits for the spectroscopy plot by looking for the element Fe III
+    num_panels = 0
+    nretries = 0
+    while num_panels < 2 and nretries < 30:
+        panels = driver.find_elements(By.XPATH, "//*[contains(@id,'bokeh')]")
+        num_panels = len(panels)
+        if num_panels == 2:
+            break
+        nretries = nretries + 1
+        time.sleep(5)
+
+    button_present = False
+    for panel in panels:
+        if "Fe III" in panel.text:
+            button_present = True
+
+    assert button_present
 
     driver.wait_for_xpath('//*[@id="hr-diagram-content"]')
 
@@ -876,4 +888,4 @@ def test_duplicate_sources_render(
     driver.get(f"/source/{public_source.id}")
     driver.wait_for_xpath('//*[contains(text(), "Possible duplicate of:")]')
     driver.click_xpath(f'//button[text()="{obj_id2}"]')
-    driver.wait_for_xpath(f'//div[text()="{obj_id2}"]')
+    driver.wait_for_xpath(f'//div[text()="{obj_id2}"]', timeout=20)

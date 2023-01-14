@@ -14,6 +14,7 @@ const UIPreferences = () => {
   const invertThumbnails = preferences?.invertThumbnails || false;
   const compactComments = preferences?.compactComments || false;
   const useAMPM = preferences?.useAMPM || false;
+  const useRefMag = preferences?.useRefMag || false;
   const dispatch = useDispatch();
 
   const themeToggled = (event) => {
@@ -41,6 +42,13 @@ const UIPreferences = () => {
   const useAMPMToggled = (event) => {
     const prefs = {
       useAMPM: event.target.checked,
+    };
+    dispatch(profileActions.updateUserPreferences(prefs));
+  };
+
+  const useRefMagToggled = (event) => {
+    const prefs = {
+      useRefMag: event.target.checked,
     };
     dispatch(profileActions.updateUserPreferences(prefs));
   };
@@ -77,6 +85,14 @@ const UIPreferences = () => {
     />
   );
 
+  const useRefMagSwitch = (
+    <Switch
+      value="Plot Total Magnitude / Flux (including reference)"
+      checked={useRefMag}
+      onChange={useRefMagToggled}
+    />
+  );
+
   /* To get hold of the current theme:
 
   const themeCtx = useTheme();
@@ -98,6 +114,10 @@ const UIPreferences = () => {
           label="Compact Comments"
         />
         <FormControlLabel control={useAMPMSwitch} label="24 Hour or AM/PM" />
+        <FormControlLabel
+          control={useRefMagSwitch}
+          label="Use Reference Magnitude"
+        />
       </FormGroup>
     </div>
   );

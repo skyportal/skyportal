@@ -18,7 +18,7 @@ from baselayer.app.models import (
 
 from .catalog import CatalogQuery
 from .group import Group, GroupUser
-from .followup_request import FollowupRequest
+from .followup_request import DefaultFollowupRequest, FollowupRequest
 from .observation_plan import DefaultObservationPlanRequest, ObservationPlanRequest
 from .stream import Stream
 from .invitation import Invitation
@@ -247,6 +247,13 @@ User.followup_requests = relationship(
     doc="The follow-up requests this User has made.",
     foreign_keys=[FollowupRequest.requester_id],
 )
+User.default_followup_requests = relationship(
+    'DefaultFollowupRequest',
+    back_populates='requester',
+    passive_deletes=True,
+    doc="The default follow-up requests this User has made.",
+    foreign_keys=[DefaultFollowupRequest.requester_id],
+)
 User.observationplan_requests = relationship(
     'ObservationPlanRequest',
     back_populates='requester',
@@ -300,6 +307,12 @@ User.gcnnotices = relationship(
     passive_deletes=True,
     doc='The GcnNotices saved by this user',
 )
+User.gcnsummaries = relationship(
+    'GcnSummary',
+    back_populates='sent_by',
+    passive_deletes=True,
+    doc='The gcnsummaries saved by this user',
+)
 User.gcntags = relationship(
     'GcnTag',
     back_populates='sent_by',
@@ -335,6 +348,18 @@ User.localizations = relationship(
     back_populates='sent_by',
     passive_deletes=True,
     doc='The localizations saved by this user',
+)
+User.localizationtags = relationship(
+    'LocalizationTag',
+    back_populates='sent_by',
+    passive_deletes=True,
+    doc='The localizationtags saved by this user',
+)
+User.localizationproperties = relationship(
+    'LocalizationProperty',
+    back_populates='sent_by',
+    passive_deletes=True,
+    doc='The localizationproperties saved by this user',
 )
 User.notifications = relationship(
     "UserNotification",
@@ -399,11 +424,11 @@ def delete_single_user_group(mapper, connection, target):
 def update_single_user_group(mapper, connection, target):
 
     # Update single user group name if needed
-    @event.listens_for(DBSession(), "after_flush_postexec", once=True)
+    @event.listens_for(inspect(target).session, "after_flush_postexec", once=True)
     def receive_after_flush(session, context):
         single_user_group = target.single_user_group
         single_user_group.name = slugify(target.username)
-        DBSession().merge(single_user_group)
+        session.merge(single_user_group)
 
 
 @property

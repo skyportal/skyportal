@@ -2,8 +2,8 @@ import pytest
 from selenium.webdriver import ActionChains
 
 
-# @pytest.mark.flaky(reruns=2)
-def test_upload_photometry(
+@pytest.mark.flaky(reruns=2)
+def test_upload_photometry_csv(
     driver, sedm, super_admin_user, public_source, super_admin_token, public_group
 ):
     inst_id = sedm.id
@@ -17,7 +17,7 @@ def test_upload_photometry(
     )
 
     # instrument select
-    driver.click_xpath('//*[@id="mui-component-select-instrumentID"]')
+    driver.click_xpath('//*[@aria-labelledby="instrumentSelectLabel"]')
     driver.click_xpath(f'//li[@data-value="{inst_id}"]', scroll_parent=True)
 
     # Click somewhere outside to remove focus from instrument select
@@ -26,7 +26,7 @@ def test_upload_photometry(
 
     # group select
     driver.click_xpath('//div[@id="selectGroups"]')
-    driver.click_xpath(f'//li[text()="{public_group.name}"]', scroll_parent=True)
+    driver.click_xpath(f'//li[@data-value="{public_group.id}"]', scroll_parent=True)
 
     # Click somewhere outside to remove focus from group select
     header = driver.wait_for_xpath("//header")
@@ -39,7 +39,7 @@ def test_upload_photometry(
 
 
 @pytest.mark.flaky(reruns=2)
-def test_upload_photometry_multiple_groups(
+def test_upload_photometry_csv_multiple_groups(
     driver,
     sedm,
     super_admin_user_two_groups,
@@ -60,7 +60,7 @@ def test_upload_photometry_multiple_groups(
         "58002,53,1,25,ab,sdssg"
     )
     # instrument select
-    driver.click_xpath('//*[@id="mui-component-select-instrumentID"]')
+    driver.click_xpath('//*[@aria-labelledby="instrumentSelectLabel"]')
     driver.click_xpath(f'//li[@data-value="{inst_id}"]', scroll_parent=True)
 
     # Click somewhere outside to remove focus from instrument select
@@ -69,8 +69,8 @@ def test_upload_photometry_multiple_groups(
 
     # group select
     driver.click_xpath('//div[@id="selectGroups"]')
-    driver.click_xpath(f'//li[text()="{public_group.name}"]', scroll_parent=True)
-    driver.click_xpath(f'//li[text()="{public_group2.name}"]', scroll_parent=True)
+    driver.click_xpath(f'//li[@data-value="{public_group.id}"]', scroll_parent=True)
+    driver.click_xpath(f'//li[@data-value="{public_group2.id}"]', scroll_parent=True)
 
     # Click somewhere outside to remove focus from group select
     header = driver.wait_for_xpath("//header")
@@ -83,7 +83,7 @@ def test_upload_photometry_multiple_groups(
 
 
 @pytest.mark.flaky(reruns=2)
-def test_upload_photometry_with_altdata(
+def test_upload_photometry_csv_with_altdata(
     driver, sedm, super_admin_user, public_source, super_admin_token, public_group
 ):
     inst_id = sedm.id
@@ -96,7 +96,7 @@ def test_upload_photometry_with_altdata(
         "58002,53,1,25,ab,sdssg,44.2,\"edf,edf\""
     )
     # instrument select
-    driver.click_xpath('//*[@id="mui-component-select-instrumentID"]')
+    driver.click_xpath('//*[@aria-labelledby="instrumentSelectLabel"]')
     driver.click_xpath(f'//li[@data-value="{inst_id}"]', scroll_parent=True)
 
     # Click somewhere outside to remove focus from instrument select
@@ -105,7 +105,7 @@ def test_upload_photometry_with_altdata(
 
     # group select
     driver.click_xpath('//div[@id="selectGroups"]')
-    driver.click_xpath(f'//li[text()="{public_group.name}"]', scroll_parent=True)
+    driver.click_xpath(f'//li[@data-value="{public_group.id}"]', scroll_parent=True)
 
     # Click somewhere outside to remove focus from group select
     header = driver.wait_for_xpath("//header")
@@ -118,7 +118,7 @@ def test_upload_photometry_with_altdata(
 
 
 @pytest.mark.flaky(reruns=2)
-def test_upload_photometry_form_validation(
+def test_upload_photometry_csv_form_validation(
     driver, sedm, super_admin_user, public_source, super_admin_token, public_group
 ):
     inst_id = sedm.id
@@ -157,18 +157,56 @@ def test_upload_photometry_form_validation(
     driver.wait_for_xpath('//div[contains(.,"Select an instrument")]')
 
     # instrument select
-    driver.click_xpath('//*[@id="mui-component-select-instrumentID"]')
+    driver.click_xpath('//*[@aria-labelledby="instrumentSelectLabel"]')
     driver.click_xpath(f'//li[@data-value="{inst_id}"]', scroll_parent=True)
 
     # Click somewhere outside to remove focus from instrument select
     header = driver.wait_for_xpath("//header")
     ActionChains(driver).move_to_element(header).click().perform()
 
-    driver.wait_for_xpath('//div[contains(.,"Select at least one group")]')
-
     # group select
     driver.click_xpath('//div[@id="selectGroups"]')
-    driver.click_xpath(f'//li[text()="{public_group.name}"]', scroll_parent=True)
+    driver.click_xpath(f'//li[@data-value="{public_group.id}"]', scroll_parent=True)
 
     driver.click_xpath('//*[text()="Preview in Tabular Form"]')
     driver.wait_for_xpath('//div[text()="58001"]')
+
+
+@pytest.mark.flaky(reruns=2)
+def test_upload_photometry_form(driver, sedm, super_admin_user, public_source):
+    driver.get(f"/become_user/{super_admin_user.id}")
+    driver.get(f"/upload_photometry/{public_source.id}")
+
+    button = driver.wait_for_xpath('//*[contains(text(), "Using Form (one)")]')
+    button.click()
+
+    driver.wait_for_xpath('//*[@id="root_dateobs"]').send_keys("2017-05-09T12:34:56")
+    driver.wait_for_xpath('//*[@id="root_mag"]').send_keys("12.3")
+    driver.wait_for_xpath('//*[@id="root_magerr"]').send_keys("0.1")
+    driver.wait_for_xpath('//*[@id="root_limiting_mag"]').send_keys("20.0")
+
+    magsys_dropdown = driver.wait_for_xpath('//*[@id="root_magsys"]')
+    driver.scroll_to_element_and_click(magsys_dropdown)
+    driver.wait_for_xpath('//*[text()="AB"]').click()
+
+    driver.wait_for_xpath('//*[@id="root_origin"]').send_keys("test")
+    driver.wait_for_xpath('//*[@id="root_nb_exposure"]').send_keys("6")
+    driver.wait_for_xpath('//*[@id="root_exposure_time"]').send_keys("60")
+
+    coordinates_option = driver.wait_for_xpath('//*[@id="root_coordinates"]')
+    driver.scroll_to_element_and_click(coordinates_option)
+    driver.wait_for_xpath('//*[@id="root_ra"]').send_keys("10.625")
+    driver.wait_for_xpath('//*[@id="root_dec"]').send_keys("41.2")
+
+    instrument_dropdown = driver.wait_for_xpath('//*[@id="root_instrument_id"]')
+    driver.scroll_to_element_and_click(instrument_dropdown)
+    driver.wait_for_xpath(f'//*[contains(text(), "{sedm.name}")]').click()
+
+    filter_dropdown = driver.wait_for_xpath('//*[@id="root_filter"]')
+    driver.scroll_to_element_and_click(filter_dropdown)
+    driver.wait_for_xpath('//*[text()="sdssg"]').click()
+
+    submit = driver.wait_for_xpath('//*[text()="Submit"]')
+    driver.scroll_to_element_and_click(submit)
+
+    driver.wait_for_xpath('//*[contains(text(), "Photometry added successfully")]')

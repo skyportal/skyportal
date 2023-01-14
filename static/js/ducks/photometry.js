@@ -9,6 +9,10 @@ const FETCH_FILTER_WAVELENGTHS = "skyportal/FETCH_FILTER_WAVELENGTHS";
 const FETCH_ALL_ORIGINS = "skyportal/FETCH_ALL_ORIGINS";
 const FETCH_ALL_ORIGINS_OK = "skyportal/FETCH_ALL_ORIGINS_OK";
 
+const DELETE_PHOTOMETRY = "skyportal/DELETE_PHOTOMETRY";
+
+const SUBMIT_PHOTOMETRY = "skyportal/SUBMIT_PHOTOMETRY";
+
 // eslint-disable-next-line import/prefer-default-export
 export function fetchSourcePhotometry(id) {
   return API.GET(`/api/sources/${id}/photometry`, FETCH_SOURCE_PHOTOMETRY);
@@ -24,6 +28,14 @@ export function fetchFilterWavelengths(filterParams = {}) {
 
 export function fetchAllOrigins() {
   return API.GET("/api/photometry/origins", FETCH_ALL_ORIGINS);
+}
+
+export function deletePhotometry(id) {
+  return API.DELETE(`/api/photometry/${id}`, DELETE_PHOTOMETRY);
+}
+
+export function submitPhotometry(photometry) {
+  return API.POST("/api/photometry", SUBMIT_PHOTOMETRY, photometry);
 }
 
 // Websocket message handler

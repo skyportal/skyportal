@@ -108,10 +108,14 @@ app:
       component: ObservingRunPage
     - path: "/allocations"
       component: AllocationPage
+    - path: "/allocation/:id"
+      component: AllocationSummary
     - path: "/observations"
       component: ObservationPage
     - path: "/galaxies"
       component: GalaxyPage
+    - path: "/spatial_catalogs"
+      component: SpatialCatalogPage
     - path: "/followup_requests"
       component: FollowupRequestPage
     - path: "/group_sources/:id"
@@ -126,6 +130,8 @@ app:
       component: FindingChart
     - path: "/source/:id/periodogram"
       component: Periodogram
+    # - path: "/source/:id/image_analysis"
+      # component: ImageAnalysisPage
     - path: "/db_stats"
       component: DBStats
     - path: "/gcn_events"
@@ -146,6 +152,8 @@ app:
       component: ShiftNoId
     - path: "/shifts/:id"
       component: ShiftWithId
+    - path: "/taxonomies"
+      component: TaxonomyPage
 
   sidebar:
     # See https://material-ui.com/components/material-icons/
@@ -221,9 +229,17 @@ app:
           icon: TornadoOutlined
           url: /galaxies
 
+        - name: Spatial Catalogs
+          icon: PhotoSizeSelectLargeOutlined
+          url: /spatial_catalogs
+
         - name: Analysis Services
           icon: SentimentSatisfied
           url: /services
+
+        - name: Taxonomies
+          icon: WallpaperOutlined
+          url: /taxonomies
 
     - name: Admin
       permissions: ["Manage users", "System admin"]
@@ -419,6 +435,9 @@ server:
   # frontend only (i.e., no token authorized API requests)
   dedicated_frontend_processes: 2
 
+  # The max size of a request body in megabytes (M)
+  max_body_size: 10
+
   # Rate limit: number of requests per second (see https://www.nginx.com/blog/rate-limiting-nginx/)
   rate_limit: 5
   # Rate limit burst size (https://www.nginx.com/blog/rate-limiting-nginx/#bursts)
@@ -452,6 +471,9 @@ misc:
   # the user-supplied cosmology parameter set constructs the site-wide cosmology.
   cosmology: Planck18
   #cosmology: {H0: "65.0", Om0: 0.3, Ode0: 0.7, name: 'skyportal_user_cosmo'}
+
+  dustmap: sfd
+  dustmap_folder: persistentdata/dustmap
 
   # The minimum signal-to-noise ratio/ n-sigma for lim mag cacluations to
   # consider a photometry point as a detection
@@ -603,6 +625,8 @@ gcn:
     - FERMI_GBM_GND_POS
     - FERMI_GBM_FIN_POS
     - FERMI_GBM_SUBTHRESH
+    - SWIFT_BAT_GRB_POS_ACK
+    - SWIFT_XRT_POSITION
     # - LVC_PRELIMINARY
     # - LVC_INITIAL
     # - LVC_UPDATE
@@ -639,5 +663,7 @@ analysis_services:
   analysis_folder: persistentdata/analysis
   sn_analysis_service:
     port: 6801
+  ngsf_analysis_service:
+    port: 7001
 
 comment_folder: persistentdata/comments

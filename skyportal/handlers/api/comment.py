@@ -1,15 +1,18 @@
 import string
 import base64
+import io
 from marshmallow.exceptions import ValidationError
-from baselayer.app.custom_exceptions import AccessError
-from baselayer.app.access import permissions, auth_or_token
-from baselayer.log import make_log
-from ..base import BaseHandler
+import os
 import sqlalchemy as sa
 import time
 import unicodedata
 
+from baselayer.app.access import permissions, auth_or_token
+from baselayer.log import make_log
+
+from ..base import BaseHandler
 from ...utils.sizeof import sizeof, SIZE_WARNING_THRESHOLD
+from ...utils.fits_display import get_fits_preview
 from ...models import (
     Comment,
     CommentOnSpectrum,
@@ -19,6 +22,7 @@ from ...models import (
     EarthquakeEvent,
     Spectrum,
     GcnEvent,
+    Instrument,
     Shift,
     Group,
     User,
@@ -36,6 +40,42 @@ def users_mentioned(text, session):
         word = word.strip(punctuation)
         if word.startswith("@"):
             usernames.append(word.replace("@", ""))
+    users = session.scalars(
+        User.select(session.user_or_token).where(
+            User.username.in_(usernames),
+            User.preferences["notifications"]["mention"]["active"]
+            .astext.cast(sa.Boolean)
+            .is_(True),
+        )
+    ).all()
+
+    return users
+
+
+def instruments_mentioned(text, session):
+    punctuation = string.punctuation.replace("-", "").replace("#", "")
+    instruments = []
+    for word in text.replace(",", " ").split():
+        word = word.strip(punctuation)
+        if word.startswith("#"):
+            instruments.append(word.replace("#", ""))
+
+    instruments = session.scalars(
+        Instrument.select(session.user_or_token).where(
+            Instrument.name.in_(instruments),
+        )
+    ).all()
+
+    usernames = []
+    for instrument in instruments:
+        allocations = instrument.allocations
+        for allocation in allocations:
+            allocation_users = [
+                user.user.username for user in allocation.allocation_users
+            ]
+            usernames = usernames + allocation_users
+    usernames = list(set(usernames))
+
     users = session.scalars(
         User.select(session.user_or_token).where(
             User.username.in_(usernames),
@@ -407,7 +447,9 @@ class CommentHandler(BaseHandler):
             elif associated_resource_type.lower() == "spectra":
                 spectrum_id = resource_id
                 spectrum = session.scalars(
-                    Spectrum.select(self.current_user).where(Spectrum.id == spectrum_id)
+                    Spectrum.select(session.user_or_token).where(
+                        Spectrum.id == spectrum_id
+                    )
                 ).first()
                 if spectrum is None:
                     return self.error(
@@ -427,7 +469,9 @@ class CommentHandler(BaseHandler):
             elif associated_resource_type.lower() == "gcn_event":
                 gcnevent_id = resource_id
                 gcn_event = session.scalars(
-                    GcnEvent.select(self.current_user).where(GcnEvent.id == gcnevent_id)
+                    GcnEvent.select(session.user_or_token).where(
+                        GcnEvent.id == gcnevent_id
+                    )
                 ).first()
                 if gcn_event is None:
                     return self.error(
@@ -445,7 +489,7 @@ class CommentHandler(BaseHandler):
             elif associated_resource_type.lower() == "earthquake":
                 earthquake_id = resource_id
                 earthquake = session.scalars(
-                    EarthquakeEvent.select(self.current_user).where(
+                    EarthquakeEvent.select(session.user_or_token).where(
                         EarthquakeEvent.id == earthquake_id
                     )
                 ).first()
@@ -464,11 +508,10 @@ class CommentHandler(BaseHandler):
                 )
             elif associated_resource_type.lower() == "shift":
                 shift_id = resource_id
-                try:
-                    shift = Shift.get_if_accessible_by(
-                        shift_id, self.current_user, raise_if_none=True
-                    )
-                except AccessError:
+                shift = session.scalars(
+                    Shift.select(session.user_or_token).where(Shift.id == shift_id)
+                ).first()
+                if shift is None:
                     return self.error(f'Could not access Shift {shift.id}.', status=403)
                 comment = CommentOnShift(
                     text=comment_text,
@@ -516,6 +559,60 @@ class CommentHandler(BaseHandler):
                         )
                     )
 
+            users_mentioned_in_instrument_comment = instruments_mentioned(
+                comment_text, session
+            )
+            if associated_resource_type.lower() == "sources":
+                text_to_send = (
+                    f"*@{self.associated_user_object.username}* "
+                    "mentioned an instrument you have an "
+                    f"allocation on in a comment on *{obj_id}*"
+                )
+                url_endpoint = f"/source/{obj_id}"
+            elif associated_resource_type.lower() == "spectra":
+                text_to_send = (
+                    f"*@{self.associated_user_object.username}* "
+                    "mentioned an instrument you have an "
+                    f"allocation on in a comment on *{spectrum_id}*"
+                )
+                url_endpoint = f"/source/{spectrum_id}"
+            elif associated_resource_type.lower() == "gcn_event":
+                text_to_send = (
+                    f"*@{self.associated_user_object.username}* "
+                    "mentioned an instrument you have an "
+                    f"allocation on in a comment on *{gcnevent_id}*"
+                )
+                url_endpoint = f"/gcn_events/{gcnevent_id}"
+            elif associated_resource_type.lower() == "shift":
+                text_to_send = (
+                    f"*@{self.associated_user_object.username}* "
+                    "mentioned an instrument you have an "
+                    "allocation on in a comment on *shift {shift_id}*"
+                )
+                url_endpoint = "/shifts"
+            elif associated_resource_type.lower() == "earthquake":
+                text_to_send = (
+                    f"*@{self.associated_user_object.username}* "
+                    "mentioned an instrument you have an "
+                    "allocation on in a comment on *{earthquake_id}*"
+                )
+                url_endpoint = f"/earthquakes/{earthquake_id}"
+            else:
+                return self.error(
+                    f'Unknown resource type "{associated_resource_type}".'
+                )
+
+            if users_mentioned_in_instrument_comment:
+                for user_mentioned in users_mentioned_in_instrument_comment:
+                    session.add(
+                        UserNotification(
+                            user=user_mentioned,
+                            text=text_to_send,
+                            notification_type="mention",
+                            url=url_endpoint,
+                        )
+                    )
+
             session.add(comment)
             session.commit()
             if data_to_disk is not None:
@@ -537,7 +634,7 @@ class CommentHandler(BaseHandler):
 
             if isinstance(comment, CommentOnGCN):
                 self.push_all(
-                    action='skyportal/REFRESH_GCNEVENT',
+                    action='skyportal/REFRESH_GCN_EVENT',
                     payload={'gcnEvent_dateobs': comment.gcn.dateobs},
                 )
             elif isinstance(comment, CommentOnEarthquake):
@@ -909,7 +1006,7 @@ class CommentHandler(BaseHandler):
 
             if isinstance(c, CommentOnGCN):  # also update the GcnEvent
                 self.push_all(
-                    action='skyportal/REFRESH_GCNEVENT',
+                    action='skyportal/REFRESH_GCN_EVENT',
                     payload={'gcnEvent_dateobs': gcnevent_dateobs},
                 )
             elif isinstance(c, CommentOnEarthquake):  # also update the earthquake
@@ -970,6 +1067,12 @@ class CommentAttachmentHandler(BaseHandler):
             schema:
               type: boolean
               description: If true, download the attachment; else return file data as text. True by default.
+          - in: query
+            name: preview
+            nullable: True
+            schema:
+              type: boolean
+              description: If true, return an attachment preview. False by default.
         responses:
           200:
             content:
@@ -1004,6 +1107,7 @@ class CommentAttachmentHandler(BaseHandler):
             return self.error("Must provide a valid (scalar integer) comment ID. ")
 
         download = self.get_query_argument('download', True)
+        preview = self.get_query_argument('preview', False)
 
         with self.Session() as session:
 
@@ -1085,11 +1189,21 @@ class CommentAttachmentHandler(BaseHandler):
                 if unicodedata.category(c) != 'Mn'
             )
             if download:
+                attachment = decoded_attachment
+
+                if preview and attachment_name.lower().endswith(("fit", "fits")):
+                    try:
+                        attachment = get_fits_preview(io.BytesIO(decoded_attachment))
+                        attachment_name = os.path.splitext(attachment_name)[0] + ".png"
+                    except Exception as e:
+                        log(f'Cannot render {attachment_name} as image: {str(e)}')
+
                 self.set_header(
                     "Content-Disposition",
                     "attachment; " f"filename={attachment_name}",
                 )
                 self.set_header("Content-type", "application/octet-stream")
+
                 if data_path is None:
                     data = base64.b64decode(comment.attachment_bytes)
                 else:

@@ -5,6 +5,7 @@ import datetime
 import warnings
 from functools import wraps
 import re
+import time
 
 import pandas as pd
 import requests
@@ -31,7 +32,7 @@ from astropy.io import fits
 from astropy.visualization import ImageNormalize, ZScaleInterval
 from reproject import reproject_adaptive
 import pyvo as vo
-from pyvo.dal.exceptions import DALQueryError
+from pyvo.dal.exceptions import DALQueryError, DALServiceError
 
 from .cache import Cache
 
@@ -118,9 +119,14 @@ class GaiaQuery:
             rez = job.get_results()
             return rez
         else:
-            # native return type is pyvo.dal.tap.TAPResults
-            job = self.connection.search(q)
-            return self._standardize_table(job.to_table())
+            try:
+                # native return type is pyvo.dal.tap.TAPResults
+                job = self.connection.search(q)
+                return self._standardize_table(job.to_table())
+            except DALServiceError:
+                log("Warning: backup TAP+ server failed")
+                self.connection = None
+                raise HTTPError("GaiaQuery failed on backup database.")
 
     def _standardize_table(self, tab):
 
@@ -378,8 +384,88 @@ source_image_parameters = {
 }
 
 
+def get_astrometry_backup_from_ztf(
+    ra,
+    dec,
+    max_offset_arcsec=600,
+    extra_backup_ztf_columns={
+        "ref_epoch": (2015.5, u.year),
+        "pmra": (0.0, u.mas / u.year),
+        "pmdec": (0.0, u.mas / u.year),
+        "parallax": (0.1, u.mas),
+    },
+):
+    """Get astrometry from ZTF, making the result look like a Gaia query result.
+
+    Parameters
+    ----------
+    ra : float
+        Right ascension (J2015.5) of the source
+    dec : float
+        Declination (J2015.5) of the source
+    extra_backup_ztf_columns : dictionary, optional
+        Extra columns to add to the astrometry table, along
+        with the default and relevant units.
+
+    Returns
+    -------
+    astropy.table.Table
+        Astrometry table
+
+    """
+    # get the ZTF catalog data and make it look like a Gaia Query result
+    ztf_astrometry = get_ztfcatalog(ra, dec, as_astropy_table=True)
+    if len(ztf_astrometry) == 0:
+        return ztf_astrometry
+
+    ztf_astrometry.rename_column('sourceid', 'source_id')
+    ztf_astrometry.rename_column('mag', 'phot_rp_mean_mag')
+    ztf_astrometry["phot_rp_mean_mag"].fill_value = 20.0
+    ztf_astrometry["phot_rp_mean_mag"].unit = u.mag
+
+    ztf_astrometry.remove_columns(
+        ['xpos', 'ypos', 'flux', 'sigflux', 'sigmag', 'snr', 'chi', 'sharp', 'flags']
+    )
+
+    catalog = SkyCoord.guess_from_table(ztf_astrometry)
+    center = SkyCoord(
+        ra=ra,
+        dec=dec,
+        unit=(u.degree, u.degree),
+        pm_ra_cosdec=0 * u.mas / u.yr,
+        pm_dec=0 * u.mas / u.yr,
+        frame='icrs',
+        distance=10 * u.kpc,
+        obstime=Time(
+            extra_backup_ztf_columns.get("ref_epoch", (2015.5,))[0],
+            format='decimalyear',
+        ),
+    )
+    ztf_astrometry["dist"] = center.separation(catalog).degree
+    ztf_astrometry["dist"].unit = u.degree
+    filter_mask = ztf_astrometry["dist"] <= max_offset_arcsec * u.arcsec
+    ztf_astrometry = ztf_astrometry[filter_mask]
+
+    if len(ztf_astrometry) == 0:
+        return ztf_astrometry
+
+    # add the extra columns
+    for k, v in extra_backup_ztf_columns.items():
+        ztf_astrometry[k] = v[0]
+        if v[1] is not None:
+            ztf_astrometry[k].unit = v[1]
+
+    return ztf_astrometry
+
+
 @memcache
-def get_ztfcatalog(ra, dec, cache_dir="./cache/finder_cat/", cache_max_items=1000):
+def get_ztfcatalog(
+    ra,
+    dec,
+    cache_dir="./cache/finder_cat/",
+    cache_max_items=1000,
+    as_astropy_table=False,
+):
     """Finds the ZTF public catalog data around this position
 
     Parameters
@@ -392,10 +478,17 @@ def get_ztfcatalog(ra, dec, cache_dir="./cache/finder_cat/", cache_max_items=100
         Directory to cache the astrometry data
     cache_max_items : int, optional
         How many files to keep in the cache
+    as_astropy_table : bool, optional
+        If True, return the data as an astropy table
+        If False, return the data as a SkyCoord list
     """
     cache = Cache(cache_dir=cache_dir, max_items=cache_max_items)
 
     refurl = get_ztfref_url(ra, dec, imsize=5)
+    if refurl is None or refurl == '':
+        log("Empty ZTF reference image URL. Returning empty table.")
+        return Table()
+
     # the catalog data is in the same directory as the reference images
     caturl = refurl.replace("_refimg.fits", "_refpsfcat.fits")
     catname = os.path.basename(caturl)
@@ -419,11 +512,18 @@ def get_ztfcatalog(ra, dec, cache_dir="./cache/finder_cat/", cache_max_items=100
     ztftable = Table(data)
     ztftable["ra"].unit = u.deg
     ztftable["dec"].unit = u.deg
+    if as_astropy_table:
+        try:
+            magzp = float(hdu[0].header["MAGZP"])
+        except KeyError:
+            magzp = 25.0
+        ztftable["mag"] += magzp
+        return ztftable
     try:
         catalog = SkyCoord.guess_from_table(ztftable)
         return catalog
     except ValueError:
-        return None
+        return Table()
 
 
 @warningfilter(action="ignore", category=RuntimeWarning)
@@ -664,6 +764,7 @@ def get_nearby_offset_stars(
     allowed_queries=2,
     queries_issued=0,
     use_ztfref=True,
+    use_ztfref_as_gaia_backup=True,
     required_ztfref_source_distance=60,
 ):
     """Finds good list of nearby offset stars for spectroscopy
@@ -702,6 +803,10 @@ def get_nearby_offset_stars(
         How many times have we issued a query? Bookkeeping parameter.
     use_ztfref : boolean, optional
         Use the ZTFref catalog for offset star positions if possible
+    use_ztfref_as_gaia_backup : boolean, optional
+        Use the ZTFref catalog for finding the initial offset star positions
+        if Gaia fails to return any stars. This is useful for the case where
+        Gaia servers are down.
     required_ztfref_source_distance : float, optional
         If there are zero ZTF ref stars within this distance in arcsec,
         then do not use the ztfref catalog even if asked. This probably
@@ -715,7 +820,6 @@ def get_nearby_offset_stars(
         the length of the star list (not including the source itself),
         and whether the ZTFref catalog was used for source positions or not.
     """
-
     if queries_issued >= allowed_queries:
         raise Exception('Number of offsets queries needed exceeds what is allowed')
 
@@ -750,9 +854,35 @@ def get_nearby_offset_stars(
                     CIRCLE('ICRS', {source_ra}, {source_dec},
                            {radius_degrees}))
                 """
+    default_return = (
+        [],
+        query_string.replace("\n", " "),
+        queries_issued,
+        0,
+        False,
+    )
 
-    g = GaiaQuery()
-    r = g.query(query_string)
+    # try to get Gaia sources first
+    r = None
+    for retry in range(2):
+        try:
+            g = GaiaQuery()
+            r = g.query(query_string)
+            break
+        except Exception as e:
+            log(f'Gaia query failed: {e}]')
+            time.sleep(1 + 2**retry)
+
+    # ...otherwise fall back to ZTFref public sources or return
+    # a tuple of no offset stars
+    if r is None:
+        if use_ztfref_as_gaia_backup:
+            r = get_astrometry_backup_from_ztf(source_ra, source_dec)
+            use_ztfref = True
+        else:
+            return default_return
+    if r is None or len(r) == 0:
+        return default_return
 
     # we need to filter here to get around the new Gaia archive slowdown
     # when SQL filtering on different columns
@@ -791,7 +921,7 @@ def get_nearby_offset_stars(
     catalog = SkyCoord.guess_from_table(r)
     if use_ztfref:
         ztfcatalog = get_ztfcatalog(source_ra, source_dec)
-        if ztfcatalog is None:
+        if ztfcatalog is None or len(ztfcatalog) == 0:
             log(
                 'Warning: Could not find the ZTF reference catalog'
                 f' at position {source_ra} {source_dec}'
@@ -830,37 +960,49 @@ def get_nearby_offset_stars(
 
         d2d = c.separation(catalog)  # match it to the catalog
         if sum(d2d < min_sep) == 1 and source["phot_rp_mean_mag"] <= mag_limit:
+            use_original = True
+
             # this star is not near another star and is bright enough
 
             # if there's a close match to ZTF reference position then use
             #  ZTF position for this source instead of the gaia/motion data
             if use_ztfref and ztfcatalog is not None:
-                idx, ztfdist, _ = c.match_to_catalog_sky(ztfcatalog)
-                if ztfdist < 0.5 * u.arcsec:
-                    cprime = SkyCoord(
-                        ra=ztfcatalog[idx].ra.value,
-                        dec=ztfcatalog[idx].dec.value,
-                        unit=(u.degree, u.degree),
-                        frame='icrs',
-                        obstime=source_obstime,
+                try:
+                    idx, ztfdist, _ = c.match_to_catalog_sky(ztfcatalog)
+
+                    if ztfdist < 0.5 * u.arcsec:
+                        cprime = SkyCoord(
+                            ra=ztfcatalog[idx].ra.value,
+                            dec=ztfcatalog[idx].dec.value,
+                            unit=(u.degree, u.degree),
+                            frame='icrs',
+                            obstime=source_obstime,
+                        )
+
+                        dra, ddec = cprime.spherical_offsets_to(center)
+                        pa = cprime.position_angle(center).degree
+                        # use the RA, DEC from ZTF here
+                        source["ra"] = ztfcatalog[idx].ra.value
+                        source["dec"] = ztfcatalog[idx].dec.value
+                        good_list.append(
+                            (
+                                source["dist"],
+                                cprime,
+                                source,
+                                dra.to(u.arcsec),
+                                ddec.to(u.arcsec),
+                                pa,
+                            )
+                        )
+                        use_original = False
+                except Exception as e:
+                    log(
+                        f'Warning: ZTF catalog matching failed... '
+                        f'Error: str{e} '
+                        f'Failed catalog: {str(ztfcatalog)}'
                     )
 
-                    dra, ddec = cprime.spherical_offsets_to(center)
-                    pa = cprime.position_angle(center).degree
-                    # use the RA, DEC from ZTF here
-                    source["ra"] = ztfcatalog[idx].ra.value
-                    source["dec"] = ztfcatalog[idx].dec.value
-                    good_list.append(
-                        (
-                            source["dist"],
-                            cprime,
-                            source,
-                            dra.to(u.arcsec),
-                            ddec.to(u.arcsec),
-                            pa,
-                        )
-                    )
-            else:
+            if use_original:
                 # precess it's position forward to the source obstime and
                 # get offsets suitable for spectroscopy
                 # TODO: put this in geocentric coords to account for parallax

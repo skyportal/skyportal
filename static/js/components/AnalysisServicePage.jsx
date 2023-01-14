@@ -1,5 +1,6 @@
-import React, { useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
+import DeleteIcon from "@mui/icons-material/Delete";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
 import ListItemText from "@mui/material/ListItemText";
@@ -11,6 +12,7 @@ import PropTypes from "prop-types";
 import { showNotification } from "baselayer/components/Notifications";
 import CircularProgress from "@mui/material/CircularProgress";
 import Button from "./Button";
+import ConfirmDeletionDialog from "./ConfirmDeletionDialog";
 import NewAnalysisService from "./NewAnalysisService";
 
 import * as analysisServicesActions from "../ducks/analysis_services";
@@ -89,13 +91,24 @@ const AnalysisServiceList = ({ analysisServices, deletePermission }) => {
   const classes = useStyles();
   const textClasses = textStyles();
   const groups = useSelector((state) => state.groups.all);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [analysisServiceToDelete, setAnalysisServiceToDelete] = useState(null);
+  const openDialog = (id) => {
+    setDialogOpen(true);
+    setAnalysisServiceToDelete(id);
+  };
+  const closeDialog = () => {
+    setDialogOpen(false);
+    setAnalysisServiceToDelete(null);
+  };
 
-  const deleteAnalysisService = (analysisService) => {
+  const deleteAnalysisService = () => {
     dispatch(
-      analysisServicesActions.deleteAnalysisService(analysisService.id)
+      analysisServicesActions.deleteAnalysisService(analysisServiceToDelete)
     ).then((result) => {
       if (result.status === "success") {
         dispatch(showNotification("AnalysisService deleted"));
+        closeDialog();
       }
     });
   };
@@ -117,11 +130,17 @@ const AnalysisServiceList = ({ analysisServices, deletePermission }) => {
                 root: classes.analysisServiceDelete,
                 disabled: classes.analysisServiceDeleteDisabled,
               }}
-              onClick={() => deleteAnalysisService(analysisService)}
+              onClick={() => openDialog(analysisService.id)}
               disabled={!deletePermission}
             >
-              &times;
+              <DeleteIcon />
             </Button>
+            <ConfirmDeletionDialog
+              deleteFunction={deleteAnalysisService}
+              dialogOpen={dialogOpen}
+              closeDialog={closeDialog}
+              resourceName="analysis service"
+            />
           </ListItem>
         ))}
       </List>
@@ -144,7 +163,7 @@ const AnalysisServicePage = () => {
 
   useEffect(() => {
     const getAnalysisServices = async () => {
-      // Wait for the allocations to update before setting
+      // Wait for the analysis services to update before setting
       // the new default form fields, so that the instruments list can
       // update
 

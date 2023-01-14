@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import PropTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
 // eslint-disable-next-line import/no-unresolved
 import Form from "@rjsf/material-ui/v5";
@@ -34,7 +35,7 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-const FollowupRequestSelectionForm = () => {
+const FollowupRequestSelectionForm = ({ fetchParams, setFetchParams }) => {
   const classes = useStyles();
   const dispatch = useDispatch();
 
@@ -55,11 +56,6 @@ const FollowupRequestSelectionForm = () => {
   const [isSubmittingFilter, setIsSubmittingFilter] = useState(false);
   const [selectedInstrumentId, setSelectedInstrumentId] = useState(null);
   const [selectedFormat, setSelectedFormat] = useState("csv");
-
-  const [formDataState, setFormDataState] = useState({
-    observationStartDate: defaultStartDate,
-    observationEndDate: defaultEndDate,
-  });
 
   useEffect(() => {
     const getInstruments = async () => {
@@ -134,7 +130,7 @@ const FollowupRequestSelectionForm = () => {
   const handleSubmitFilter = async ({ formData }) => {
     setIsSubmittingFilter(true);
     await dispatch(followupRequestActions.fetchFollowupRequests(formData));
-    setFormDataState(formData);
+    setFetchParams(formData);
     setIsSubmittingFilter(false);
   };
 
@@ -204,7 +200,7 @@ const FollowupRequestSelectionForm = () => {
   const scheduleUrl = createScheduleUrl(
     selectedInstrumentId,
     selectedFormat,
-    formDataState
+    fetchParams
   );
   const reportUrl = createAllocationReportUrl(selectedInstrumentId);
   return (
@@ -288,6 +284,16 @@ const FollowupRequestSelectionForm = () => {
       </div>
     </div>
   );
+};
+
+FollowupRequestSelectionForm.propTypes = {
+  fetchParams: PropTypes.shape({
+    pageNumber: PropTypes.number,
+    numPerPage: PropTypes.number,
+    observationStartDate: PropTypes.string,
+    observationEndDate: PropTypes.string,
+  }).isRequired,
+  setFetchParams: PropTypes.func.isRequired,
 };
 
 export default FollowupRequestSelectionForm;

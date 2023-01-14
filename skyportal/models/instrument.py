@@ -340,6 +340,7 @@ class InstrumentFieldTile(Base):
 
     instrument_id = sa.Column(
         sa.ForeignKey('instruments.id', ondelete="CASCADE"),
+        index=True,
         nullable=False,
         doc='Instrument ID',
     )
@@ -355,6 +356,7 @@ class InstrumentFieldTile(Base):
         sa.ForeignKey('instrumentfields.id', ondelete="CASCADE"),
         nullable=False,
         doc='Instrument Field ID',
+        index=True,
     )
 
     field = relationship(

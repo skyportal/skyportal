@@ -15,6 +15,7 @@ import UserPreferencesHeader from "./UserPreferencesHeader";
 import ClassificationSelect from "./ClassificationSelect";
 import GcnNoticeTypesSelect from "./GcnNoticeTypesSelect";
 import GcnTagsSelect from "./GcnTagsSelect";
+import GcnPropertiesSelect from "./GcnPropertiesSelect";
 import NotificationSettingsSelect from "./NotificationSettingsSelect";
 import * as profileActions from "../ducks/profile";
 
@@ -67,6 +68,10 @@ const NotificationPreferences = () => {
     profile?.notications?.gcn_events?.gcn_tags || []
   );
 
+  const [selectedGcnProperties, setSelectedGcnProperties] = useState(
+    profile?.notications?.gcn_events?.gcn_properties || []
+  );
+
   useEffect(() => {
     setSelectedClassifications(
       profile?.notifications?.sources?.classifications || []
@@ -75,6 +80,9 @@ const NotificationPreferences = () => {
       profile?.notifications?.gcn_events?.gcn_notice_types || []
     );
     setSelectedGcnTags(profile?.notifications?.gcn_events?.gcn_tags || []);
+    setSelectedGcnProperties(
+      profile?.notifications?.gcn_events?.gcn_properties || []
+    );
   }, [profile]);
 
   const prefToggled = (event) => {
@@ -87,7 +95,8 @@ const NotificationPreferences = () => {
       event.target.name === "mention" ||
       event.target.name === "favorite_sources" ||
       event.target.name === "facility_transactions" ||
-      event.target.name === "analysis_services"
+      event.target.name === "analysis_services" ||
+      event.target.name === "observation_plans"
     ) {
       prefs.notifications[event.target.name] = {
         active: event.target.checked,
@@ -128,12 +137,14 @@ const NotificationPreferences = () => {
         gcn_events: {
           gcn_notice_types: [...new Set(selectedGcnNoticeTypes)],
           gcn_tags: [...new Set(selectedGcnTags)],
+          gcn_properties: [...new Set(selectedGcnProperties)],
         },
       },
     };
     dispatch(profileActions.updateUserPreferences(prefs));
     setSelectedGcnNoticeTypes([...new Set(selectedGcnNoticeTypes)]);
     setSelectedGcnTags([...new Set(selectedGcnTags)]);
+    setSelectedGcnProperties([...new Set(selectedGcnProperties)]);
     dispatch(showNotification("Gcn notice types updated"));
   };
 
@@ -217,6 +228,10 @@ const NotificationPreferences = () => {
                   selectedGcnTags={selectedGcnTags}
                   setSelectedGcnTags={setSelectedGcnTags}
                 />
+                <GcnPropertiesSelect
+                  selectedGcnProperties={selectedGcnProperties}
+                  setSelectedGcnProperties={setSelectedGcnProperties}
+                />
                 <Button
                   secondary
                   type="submit"
@@ -243,7 +258,7 @@ const NotificationPreferences = () => {
                 onChange={prefToggled}
               />
             }
-            label="Facility Transactions"
+            label="Facility Transactions / Follow-up Requests"
           />
           <Tooltip
             title="This allows you to be notified for all facility transactions (followup requests, observation plans)."
@@ -376,6 +391,32 @@ const NotificationPreferences = () => {
         </FormGroup>
         {profile?.notifications?.mention?.active === true && (
           <NotificationSettingsSelect notificationResourceType="mention" />
+        )}
+      </div>
+      <div className={classes.pref}>
+        <FormGroup row className={classes.form_group}>
+          <FormControlLabel
+            control={
+              <Switch
+                checked={
+                  profile?.notifications?.observation_plans?.active === true
+                }
+                name="observation_plans"
+                onChange={prefToggled}
+              />
+            }
+            label="Observation Plans"
+          />
+          <Tooltip
+            title="This allows you to be notified for all completed observation plans for which you are an allocation admin."
+            placement="right"
+            classes={{ tooltip: classes.tooltip }}
+          >
+            <HelpOutlineOutlinedIcon />
+          </Tooltip>
+        </FormGroup>
+        {profile?.notifications?.observation_plans?.active === true && (
+          <NotificationSettingsSelect notificationResourceType="observation_plans" />
         )}
       </div>
     </div>

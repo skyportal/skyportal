@@ -92,12 +92,17 @@ class CatalogQueryHandler(BaseHandler):
         if 'catalogName' not in data['payload']:
             return self.error('catalogName required in query payload')
 
-        with self.Session():
+        with self.Session() as session:
 
+            allocation = session.scalar(
+                sa.select(Allocation).where(Allocation.id == data['allocation_id'])
+            )
+
+            group_ids = []
             if 'target_group_ids' in data and len(data['target_group_ids']) > 0:
                 group_ids = data['target_group_ids']
-            else:
-                group_ids = [g.id for g in self.current_user.accessible_groups]
+            group_ids.append(allocation.group_id)
+            group_ids = list(set(group_ids))
 
             fetch_tr = functools.partial(
                 fetch_transients,
@@ -176,6 +181,7 @@ def fetch_transients(allocation_id, user_id, group_ids, payload):
 
             program_id_selector = list(program_id_selector)
 
+            log("Querying kowalski for sources")
             # Query kowalski
             sources = query_kowalski(
                 altdata['access_token'],
@@ -186,23 +192,28 @@ def fetch_transients(allocation_id, user_id, group_ids, payload):
                 within_days=dt,
             )
             obj_ids = []
+            log("Looping over sources")
             for source in sources:
+                log(f"Retrieving {source['id']}")
                 s = session.scalars(
                     Obj.select(user).where(Obj.id == source['id'])
                 ).first()
                 if s is None:
+                    log(f"Posting {source['id']} as source")
+                    source['group_ids'] = group_ids
                     obj_id = post_source(source, user_id, session)
                     obj_ids.append(obj_id)
 
                 if alert_available:
+                    log(f"Posting photometry from {source['id']}")
                     post_alert(
                         source['id'],
-                        None,
                         group_ids,
-                        program_id_selector,
                         user.id,
                         session,
+                        program_id_selector=program_id_selector,
                     )
+            log("Finished querying Kowalski for sources")
 
         elif payload['catalogName'] == 'ZTF-Fink':
 
@@ -212,13 +223,16 @@ def fetch_transients(allocation_id, user_id, group_ids, payload):
             if instrument is None:
                 raise ValueError('Expected an Instrument named ZTF')
 
+            log("Querying Fink for sources")
             sources = query_fink(
                 jd_trigger, ra_center, dec_center, max_days=dt, within_days=dt
             )
 
             obj_ids = []
+            log("Looping over sources")
             for source in sources:
                 df = source.pop('data')
+                log(f"Retrieving {source['id']}")
 
                 data_out = {
                     'obj_id': source['id'],
@@ -239,6 +253,7 @@ def fetch_transients(allocation_id, user_id, group_ids, payload):
                     log(f"Photometry committed to database for {source['id']}")
                 else:
                     log(f"No photometry to commit to database for {source['id']}")
+            log("Finished querying Fink for sources")
 
         elif payload['catalogName'] == 'LSXPS':
             telescope_name = 'Swift'
@@ -248,7 +263,9 @@ def fetch_transients(allocation_id, user_id, group_ids, payload):
             if telescope is None:
                 raise AttributeError(f'Expected a Telescope named {telescope_name}')
             instrument = telescope.instruments[0]
+            log("Querying Swift for sources")
             obj_ids = fetch_swift_transients(instrument.id, user_id)
+            log("Finished querying Swift for sources")
 
         elif payload['catalogName'] == 'Gaia':
             telescope_name = 'Gaia'
@@ -258,10 +275,11 @@ def fetch_transients(allocation_id, user_id, group_ids, payload):
             if telescope is None:
                 raise AttributeError(f'Expected a Telescope named {telescope_name}')
             instrument = telescope.instruments[0]
+            log("Querying Gaia for sources")
             obj_ids = fetch_gaia_transients(
                 instrument.id, user_id, {'start_date': start_date, 'end_date': end_date}
             )
-
+            log("Finished querying fink for sources")
         else:
             return AttributeError(f"Catalog name {payload['catalogName']} unknown")
 

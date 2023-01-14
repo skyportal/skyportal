@@ -99,7 +99,7 @@ const TelescopePage = () => {
           </div>
         </Paper>
       </Grid>
-      {currentUser.permissions?.includes("Manage allocations") && (
+      {currentUser.permissions?.includes("Manage telescopes") && (
         <Grid item md={6} sm={12}>
           <Paper>
             <div className={classes.paperContent}>

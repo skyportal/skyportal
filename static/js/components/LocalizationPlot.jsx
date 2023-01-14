@@ -35,9 +35,14 @@ const LocalizationPlot = ({
   const dispatch = useDispatch();
 
   useEffect(() => {
-    dispatch(
-      localizationActions.fetchLocalization(loc.dateobs, loc.localization_name)
-    );
+    if (loc) {
+      dispatch(
+        localizationActions.fetchLocalization(
+          loc.dateobs,
+          loc.localization_name
+        )
+      );
+    }
   }, [loc, dispatch]);
 
   if (!loc) {
@@ -258,7 +263,8 @@ const GeoJSONGlobePlot = ({
     };
 
     const visibleOnSphere = (d) => {
-      if (!d.properties?.name) return false;
+      if (!d.properties?.name && !d.properties?.credible_level === 0)
+        return false;
       if (!d.geometry?.coordinates) return false;
 
       const gdistance = d3.geoDistance(
@@ -307,6 +313,33 @@ const GeoJSONGlobePlot = ({
         .attr("d", geoGenerator);
 
       if (data.skymap?.features && data.options.localization) {
+        const x = (d) => projection(d.geometry.coordinates)[0];
+        const y = (d) => projection(d.geometry.coordinates)[1];
+
+        svg
+          .selectAll("circle_skymap")
+          .data(data.skymap.features)
+          .enter()
+          .append("circle")
+          .attr("fill", (d) => (visibleOnSphere(d) ? "blue" : "none"))
+          .attr("cx", x)
+          .attr("cy", y)
+          .attr("r", 3);
+
+        svg
+          .selectAll(".label")
+          .data(data.skymap.features)
+          .enter()
+          .append("text")
+          .attr("transform", translate)
+          .style("visibility", (d) =>
+            visibleOnSphere(d) ? "visible" : "hidden"
+          )
+          .style("text-anchor", "middle")
+          .style("font-size", "0.75rem")
+          .style("font-weight", "normal")
+          .text("Center");
+
         svg
           .selectAll("path")
           .data(data.skymap.features)
@@ -340,7 +373,7 @@ const GeoJSONGlobePlot = ({
         const y = (d) => projection(d.geometry.coordinates)[1];
 
         svg
-          .selectAll("circle")
+          .selectAll("circle_sources")
           .data(sources.features)
           .enter()
           .append("circle")

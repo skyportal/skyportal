@@ -28,7 +28,14 @@ const PhotometryButtonsForm = () => {
   const { photometryButtons } = useSelector(
     (state) => state.profile.preferences
   );
-  const { handleSubmit, register, control, errors, reset } = useForm();
+  const {
+    handleSubmit,
+    register,
+    control,
+    reset,
+
+    formState: { errors },
+  } = useForm();
   const [selectedFilters, setSelectedFilters] = useState([]);
   const [selectedOrigins, setSelectedOrigins] = useState([]);
 
@@ -94,7 +101,7 @@ const PhotometryButtonsForm = () => {
             />
             <TextField
               label="Name"
-              inputRef={register({
+              {...register("photometryButtonName", {
                 required: true,
                 validate: (value) => {
                   if (photometryButtons) {
