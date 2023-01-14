@@ -610,8 +610,16 @@ class ImageAnalysisHandler(BaseHandler):
                 f.write(file_data)
                 f.flush()
                 hdul = fits.open(f.name)
-                header = hdul[0].header
-                image_data = hdul[0].data.astype(np.double)
+
+                hdul_index = -1
+                for i, hdu in enumerate(hdul):
+                    if hdu.data is not None:
+                        hdul_index = i
+                        break
+                if hdul_index == -1:
+                    return self.error(message='No image found in file')
+                header = hdul[hdul_index].header
+                image_data = hdul[hdul_index].data.astype(np.double)
                 header['FILTER'] = filt
                 header['DATE-OBS'] = obstime.isot
                 IOLoop.current().run_in_executor(
