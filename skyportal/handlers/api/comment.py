@@ -1189,11 +1189,15 @@ class CommentAttachmentHandler(BaseHandler):
                 if unicodedata.category(c) != 'Mn'
             )
             if download:
-                attachment = decoded_attachment
+                if data_path is None:
+                    attachment = base64.b64decode(comment.attachment_bytes)
+                else:
+                    with open(data_path, 'rb') as f:
+                        attachment = f.read()
 
                 if preview and attachment_name.lower().endswith(("fit", "fits")):
                     try:
-                        attachment = get_fits_preview(io.BytesIO(decoded_attachment))
+                        attachment = get_fits_preview(io.BytesIO(attachment))
                         attachment_name = os.path.splitext(attachment_name)[0] + ".png"
                     except Exception as e:
                         log(f'Cannot render {attachment_name} as image: {str(e)}')
@@ -1204,12 +1208,7 @@ class CommentAttachmentHandler(BaseHandler):
                 )
                 self.set_header("Content-type", "application/octet-stream")
 
-                if data_path is None:
-                    data = base64.b64decode(comment.attachment_bytes)
-                else:
-                    with open(data_path, 'rb') as f:
-                        data = f.read()
-                self.write(data)
+                self.write(attachment)
             else:
                 if data_path is None:
                     data = base64.b64decode(comment.attachment_bytes).decode()
