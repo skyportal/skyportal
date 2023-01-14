@@ -9,8 +9,6 @@ import healpy as hp
 import io
 import os
 import gcn
-from ligo.skymap.postprocess import crossmatch
-from ligo.skymap import distance, moc
 import ligo.skymap.bayestar as ligo_bayestar
 import ligo.skymap.io
 import ligo.skymap.postprocess
@@ -78,6 +76,7 @@ from ...models import (
 from ...utils.gcn import (
     get_dateobs,
     get_properties,
+    get_skymap_properties,
     get_tags,
     get_trigger,
     get_skymap,
@@ -186,10 +185,10 @@ def post_gcnevent_from_xml(payload, user_id, session):
             detectors.append(mma_detector)
     session.add(gcn_notice)
     event.detectors = detectors
+    session.commit()
 
     skymap = get_skymap(root, gcn_notice)
     if skymap is None:
-        session.commit()
         return event.id
 
     skymap["dateobs"] = event.dateobs
@@ -308,10 +307,10 @@ def post_gcnevent_from_dictionary(payload, user_id, session):
         if mma_detector is not None:
             detectors.append(mma_detector)
     event.detectors = detectors
+    session.commit()
 
     skymap = payload.get('skymap', None)
     if skymap is None:
-        session.commit()
         return event.id
 
     if type(skymap) is dict:
@@ -607,7 +606,8 @@ class GcnEventHandler(BaseHandler):
                 )
 
         with self.Session() as session:
-            try:
+            # try:
+            if True:
                 if 'xml' in data:
                     event_id = post_gcnevent_from_xml(
                         data['xml'], self.associated_user_object.id, session
@@ -618,8 +618,8 @@ class GcnEventHandler(BaseHandler):
                     )
 
                 self.push(action='skyportal/REFRESH_GCN_EVENTS')
-            except Exception as e:
-                return self.error(f'Cannot post event: {str(e)}')
+            # except Exception as e:
+            #    return self.error(f'Cannot post event: {str(e)}')
 
             return self.success(data={'gcnevent_id': event_id})
 
@@ -1274,36 +1274,8 @@ def add_skymap_properties(localization_id, user_id):
             sa.select(Localization).where(Localization.id == localization_id)
         )
         user = session.scalar(sa.select(User).where(User.id == user_id))
-        sky_map = localization.table
 
-        properties_dict = {}
-        tags_list = []
-        result = crossmatch(sky_map, contours=(0.9,), areas=(500,))
-        area = result.contour_areas[0]
-        prob = result.area_probs[0]
-
-        if not np.isnan(area):
-            properties_dict["area_90"] = area
-            if properties_dict["area_90"] < 500:
-                tags_list.append("< 500 sq. deg.")
-        if not np.isnan(prob):
-            properties_dict["probability_500"] = prob
-            if properties_dict["probability_500"] >= 0.9:
-                tags_list.append("> 0.9 in 500 sq. deg.")
-
-        # Distance stats
-        if 'DISTMU' in sky_map.dtype.names:
-            # Calculate the cumulative area in deg2 and the cumulative probability.
-            dA = moc.uniq2pixarea(sky_map['UNIQ'])
-            dP = sky_map['PROBDENSITY'] * dA
-            mu = sky_map['DISTMU']
-            sigma = sky_map['DISTSIGMA']
-
-            distmean, _ = distance.parameters_to_marginal_moments(dP, mu, sigma)
-            if not np.isnan(distmean):
-                properties_dict["distance"] = distmean
-                if distmean <= 150:
-                    tags_list.append("< 150 Mpc")
+        properties_dict, tags_list = get_skymap_properties(localization)
 
         properties = LocalizationProperty(
             localization_id=localization_id, sent_by_id=user.id, data=properties_dict
