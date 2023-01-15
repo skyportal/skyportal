@@ -16,6 +16,7 @@ import UserAvatar from "./UserAvatar";
 
 import CommentAttachmentPreview from "./CommentAttachmentPreview";
 import DeleteComment from "./DeleteComment";
+import EditComment from "./EditComment";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
@@ -91,6 +92,18 @@ const RegularCommentList = ({
                 <GroupIcon fontSize="small" viewBox="0 -2 24 24" />
               </Tooltip>
             </span>
+          </div>
+          <div className={styles.defaultCommentEdit}>
+            <EditComment
+              associatedResourceType={associatedResourceType}
+              objID={objID}
+              gcnEventID={gcnEventID}
+              earthquakeID={earthquakeID}
+              spectrum_id={spectrum_id}
+              shift_id={shift_id}
+              hoverID={hoverID}
+              id={id}
+            />
           </div>
           <div className={styles.defaultCommentDelete}>
             <DeleteComment

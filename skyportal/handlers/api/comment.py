@@ -406,17 +406,12 @@ class CommentHandler(BaseHandler):
                 and 'body' in data['attachment']
                 and 'name' in data['attachment']
             ):
-                # attachment_bytes = str.encode(
-                #     data['attachment']['body'].split('base64,')[-1]
-                # )
                 attachment_name = data['attachment']['name']
                 data_to_disk = base64.b64decode(
                     data['attachment']['body'].split('base64,')[-1]
                 )
             else:
                 return self.error("Malformed comment attachment")
-        else:
-            attachment_bytes, attachment_name = None, None
 
         author = self.associated_user_object
         is_bot_request = isinstance(self.current_user, Token)
@@ -792,7 +787,21 @@ class CommentHandler(BaseHandler):
             data = self.get_json()
             group_ids = data.pop("group_ids", None)
             data['id'] = comment_id
-            attachment_bytes = data.pop('attachment_bytes', None)
+
+            attachment_name, data_to_disk = None, None
+            attachment = data.pop('attachment', None)
+            if attachment:
+                if (
+                    isinstance(attachment, dict)
+                    and 'body' in attachment
+                    and 'name' in attachment
+                ):
+                    attachment_name = attachment['name']
+                    data_to_disk = base64.b64decode(
+                        attachment['body'].split('base64,')[-1]
+                    )
+                else:
+                    return self.error("Malformed comment attachment")
 
             try:
                 schema.load(data, partial=True)
@@ -803,27 +812,8 @@ class CommentHandler(BaseHandler):
 
             if 'text' in data:
                 c.text = data['text']
-            attachment_name = None
-            if 'attachment_name' in data:
-                attachment_name = data['attachment_name']
+            if attachment_name:
                 c.attachment_name = attachment_name
-            data_to_disk = None
-            if attachment_bytes is not None:
-                # attachment_bytes = str.encode(attachment_bytes.split('base64,')[-1])
-                data_to_disk = base64.b64decode(
-                    data['attachment']['body'].split('base64,')[-1]
-                )
-                # c.attachment_bytes = attachment_bytes
-
-            bytes_is_none = data_to_disk is None
-            name_is_none = attachment_name is None
-
-            if bytes_is_none ^ name_is_none:
-                return self.error(
-                    'This update leaves one of attachment name or '
-                    'attachment bytes null. Both fields must be '
-                    'filled, or both must be null.'
-                )
 
             if group_ids is not None:
                 groups = session.scalars(
@@ -858,7 +848,7 @@ class CommentHandler(BaseHandler):
                 )
             elif isinstance(c, CommentOnGCN):  # also update the gcn
                 self.push_all(
-                    action='skyportal/REFRESH_SOURCE_GCN',
+                    action='skyportal/REFRESH_GCN_EVENT',
                     payload={'gcnEvent_dateobs': c.gcn.dateobs},
                 )
             elif isinstance(c, CommentOnEarthquake):  # also update the earthquake
