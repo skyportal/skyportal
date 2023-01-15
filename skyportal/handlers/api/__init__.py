@@ -5,6 +5,7 @@ from .analysis import (
     AnalysisHandler,
     AnalysisProductsHandler,
 )
+from .api_stats import APIStatsHandler
 from .candidate import CandidateHandler
 from .classification import (
     ClassificationHandler,
