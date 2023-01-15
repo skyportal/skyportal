@@ -274,7 +274,6 @@ def test_problematic_put_comment_attachment_1275(
         data=payload,
         token=super_admin_token,
     )
-    print(status2, data2)
     assert status2 == 200
     assert data2['status'] == 'success'
 
@@ -285,7 +284,7 @@ def test_problematic_put_comment_attachment_1275(
     )
     assert status3 == 200
     assert data3["status"] == 'success'
-    assert data3['data']['attachment_name'] == payload['attachment_name']
+    assert data3["data"]["attachment_name"] == "ampel_test.json"
 
     status4, data4 = api(
         'GET',
@@ -293,7 +292,7 @@ def test_problematic_put_comment_attachment_1275(
         token=super_admin_token,
     )
     assert status4 == 200
-    assert data4 == json.loads(base64.b64decode(payload['attachment_bytes']).decode())
+    assert data4 == json.loads(base64.b64decode(payload['attachment']['body']).decode())
 
 
 def test_problematic_post_comment_attachment_1275(
