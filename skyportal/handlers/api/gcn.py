@@ -762,10 +762,8 @@ class GcnEventHandler(BaseHandler):
         gcn_properties_filter = self.get_query_argument("gcnPropertiesFilter", None)
 
         if tag_keep is not None:
-            if isinstance(tag_keep, str) and "," in tag_keep:
+            if isinstance(tag_keep, str):
                 tag_keep = [c.strip() for c in tag_keep.split(",")]
-            elif isinstance(tag_keep, str):
-                tag_keep = [tag_keep]
             else:
                 raise ValueError(
                     "Invalid tagKeep value -- must provide at least one string value"
