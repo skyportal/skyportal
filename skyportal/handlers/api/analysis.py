@@ -800,7 +800,7 @@ class AnalysisHandler(BaseHandler):
             # if any analysis_parameters is a file, we discard it and just keep its name (if possible)
             keys_to_delete = []
             for k, v in analysis_parameters.items():
-                if isinstance(optional_analysis_parameters[k], str):
+                if isinstance(v, str):
                     if 'data:' in v and ';name=' in v:
                         keys_to_delete.append(k)
             for k in keys_to_delete:
