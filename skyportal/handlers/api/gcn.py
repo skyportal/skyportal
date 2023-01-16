@@ -769,49 +769,38 @@ class GcnEventHandler(BaseHandler):
                 )
 
         if tag_remove is not None:
-            if isinstance(tag_remove, str) and "," in tag_remove:
+            if isinstance(tag_remove, str):
                 tag_remove = [c.strip() for c in tag_remove.split(",")]
-            elif isinstance(tag_remove, str):
-                tag_remove = [tag_remove]
             else:
                 raise ValueError(
                     "Invalid tagRemove value -- must provide at least one string value"
                 )
 
         if localization_tag_keep is not None:
-            if isinstance(localization_tag_keep, str) and "," in localization_tag_keep:
+            if isinstance(localization_tag_keep, str):
                 localization_tag_keep = [
                     c.strip() for c in localization_tag_keep.split(",")
                 ]
-            elif isinstance(localization_tag_keep, str):
-                localization_tag_keep = [localization_tag_keep]
             else:
                 raise ValueError(
                     "Invalid localizationTagKeep value -- must provide at least one string value"
                 )
 
         if localization_tag_remove is not None:
-            if (
-                isinstance(localization_tag_remove, str)
-                and "," in localization_tag_remove
-            ):
+            if isinstance(localization_tag_remove, str):
                 localization_tag_remove = [
                     c.strip() for c in localization_tag_remove.split(",")
                 ]
-            elif isinstance(localization_tag_remove, str):
-                localization_tag_remove = [localization_tag_remove]
             else:
                 raise ValueError(
                     "Invalid localizationTagRemove value -- must provide at least one string value"
                 )
 
         if gcn_properties_filter is not None:
-            if isinstance(gcn_properties_filter, str) and "," in gcn_properties_filter:
+            if isinstance(gcn_properties_filter, str):
                 gcn_properties_filter = [
                     c.strip() for c in gcn_properties_filter.split(",")
                 ]
-            elif isinstance(gcn_properties_filter, str):
-                gcn_properties_filter = [gcn_properties_filter]
             else:
                 raise ValueError(
                     "Invalid gcnPropertiesFilter value -- must provide at least one string value"
@@ -822,15 +811,10 @@ class GcnEventHandler(BaseHandler):
         )
 
         if localization_properties_filter is not None:
-            if (
-                isinstance(localization_properties_filter, str)
-                and "," in localization_properties_filter
-            ):
+            if isinstance(localization_properties_filter, str):
                 localization_properties_filter = [
                     c.strip() for c in localization_properties_filter.split(",")
                 ]
-            elif isinstance(localization_properties_filter, str):
-                localization_properties_filter = [localization_properties_filter]
             else:
                 raise ValueError(
                     "Invalid localizationPropertiesFilter value -- must provide at least one string value"

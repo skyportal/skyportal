@@ -618,7 +618,7 @@ def add_user_notifications(mapper, connection, target):
                                 )
                                 if len(intersection) == 0:
                                     send_notification = False
-                                    break
+                                    continue
 
                         if "gcn_properties" in pref["gcn_events"].keys():
                             if len(pref['gcn_events']["gcn_properties"]) > 0:
@@ -658,7 +658,7 @@ def add_user_notifications(mapper, connection, target):
                                     properties_bool.append(properties_pass)
                                 if not any(properties_bool):
                                     send_notification = False
-                                    break
+                                    continue
 
                         (
                             localization_properties_dict,
@@ -672,35 +672,35 @@ def add_user_notifications(mapper, connection, target):
                                 )
                                 if len(intersection) == 0:
                                     send_notification = False
-                                    break
+                                    continue
 
                         if pref['gcn_events'].get('localization_properties'):
-                                for prop_filt in pref['gcn_events'][
-                                    "localization_properties"
-                                ]:
-                                    prop_split = prop_filt.split(":")
-                                    if not len(prop_split) == 3:
+                            for prop_filt in pref['gcn_events'][
+                                "localization_properties"
+                            ]:
+                                prop_split = prop_filt.split(":")
+                                if not len(prop_split) == 3:
+                                    raise ValueError(
+                                        "Invalid propertiesFilter value -- property filter must have 3 values"
+                                    )
+                                name = prop_split[0].strip()
+                                if name in localization_properties_dict:
+                                    value = prop_split[1].strip()
+                                    try:
+                                        value = float(value)
+                                    except ValueError as e:
                                         raise ValueError(
-                                            "Invalid propertiesFilter value -- property filter must have 3 values"
+                                            f"Invalid propertiesFilter value: {e}"
                                         )
-                                    name = prop_split[0].strip()
-                                    if name in localization_properties_dict:
-                                        value = prop_split[1].strip()
-                                        try:
-                                            value = float(value)
-                                        except ValueError as e:
-                                            raise ValueError(
-                                                f"Invalid propertiesFilter value: {e}"
-                                            )
-                                        op = prop_split[2].strip()
-                                        if op not in op_options:
-                                            raise ValueError(f"Invalid operator: {op}")
-                                        comp_function = getattr(operator, op)
-                                        if not comp_function(
-                                            localization_properties_dict[name], value
-                                        ):
-                                            send_notification = False
-                                            break
+                                    op = prop_split[2].strip()
+                                    if op not in op_options:
+                                        raise ValueError(f"Invalid operator: {op}")
+                                    comp_function = getattr(operator, op)
+                                    if not comp_function(
+                                        localization_properties_dict[name], value
+                                    ):
+                                        send_notification = False
+                                        break
 
                         if send_notification:
                             stmt = sa.select(GcnNotice).where(
@@ -709,23 +709,17 @@ def add_user_notifications(mapper, connection, target):
                             count_stmt = sa.select(func.count()).select_from(stmt)
                             count_notices = session.execute(count_stmt).scalar()
                             if count_notices > 1:
-                                session.add(
-                                    UserNotification(
-                                        user=user,
-                                        text=f"New Notice for GCN Event *{target.dateobs}*, with Notice Type *{gcn.NoticeType(notice.notice_type).name}*",
-                                        notification_type="gcn_events",
-                                        url=f"/gcn_events/{str(target.dateobs).replace(' ','T')}",
-                                    )
-                                )
+                                text = f"New Notice for GCN Event *{target.dateobs}*, with Notice Type *{gcn.NoticeType(notice.notice_type).name}*"
                             else:
-                                session.add(
-                                    UserNotification(
-                                        user=user,
-                                        text=f"New GCN Event *{target.dateobs}*, with Notice Type *{gcn.NoticeType(notice.notice_type).name}*",
-                                        notification_type="gcn_events",
-                                        url=f"/gcn_events/{str(target.dateobs).replace(' ','T')}",
-                                    )
+                                text = f"New GCN Event *{target.dateobs}*, with Notice Type *{gcn.NoticeType(notice.notice_type).name}*"
+                            session.add(
+                                UserNotification(
+                                    user=user,
+                                    text=text,
+                                    notification_type="gcn_events",
+                                    url=f"/gcn_events/{str(target.dateobs).replace(' ','T')}",
                                 )
+                            )
 
                 elif is_facility_transaction:
                     if "observation_plan_request" in target.to_dict():
