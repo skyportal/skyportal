@@ -606,8 +606,7 @@ class GcnEventHandler(BaseHandler):
                 )
 
         with self.Session() as session:
-            # try:
-            if True:
+            try:
                 if 'xml' in data:
                     event_id = post_gcnevent_from_xml(
                         data['xml'], self.associated_user_object.id, session
@@ -618,8 +617,8 @@ class GcnEventHandler(BaseHandler):
                     )
 
                 self.push(action='skyportal/REFRESH_GCN_EVENTS')
-            # except Exception as e:
-            #    return self.error(f'Cannot post event: {str(e)}')
+            except Exception as e:
+                return self.error(f'Cannot post event: {str(e)}')
 
             return self.success(data={'gcnevent_id': event_id})
 
@@ -659,33 +658,33 @@ class GcnEventHandler(BaseHandler):
                 Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
                 dateobs <= endDate
             - in: query
-              name: tagKeep
+              name: gcnTagKeep
               nullable: true
               schema:
                 type: string
               description: |
-                Comma-separated string of `GcnTag`s. Returns localizations that match any of them.
+                Comma-separated string of `GcnTag`s. Returns events that match any of them.
             - in: query
-              name: tagRemove
+              name: gcnTagRemove
               nullable: true
               schema:
                 type: string
               description: |
-                Comma-separated string of `GcnTag`s. Returns localizations that do not have any of these tags. 
+                Comma-separated string of `GcnTag`s. Returns events that do not have any of these tags.
             - in: query
               name: localizationTagKeep
               nullable: true
               schema:
                 type: string
               description: |
-                Comma-separated string of `LocalizationTag`s to match against.
+                Comma-separated string of `LocalizationTag`s. Returns events that match any of them.
             - in: query
               name: localizationTagRemove
               nullable: true
               schema:
                 type: string
               description: |
-                Comma-separated string of `LocalizationTag`s to filter out
+                Comma-separated string of `LocalizationTag`s. Returns events that do not have any of these tags.
             - in: query
               name: gcnPropertiesFilter
               nullable: true
