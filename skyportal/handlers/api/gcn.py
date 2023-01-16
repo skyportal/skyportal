@@ -754,26 +754,26 @@ class GcnEventHandler(BaseHandler):
 
         start_date = self.get_query_argument('startDate', None)
         end_date = self.get_query_argument('endDate', None)
-        tag_keep = self.get_query_argument('tagKeep', None)
-        tag_remove = self.get_query_argument('tagRemove', None)
+        gcn_tag_keep = self.get_query_argument('gcnTagKeep', None)
+        gcn_tag_remove = self.get_query_argument('gcnTagRemove', None)
         localization_tag_keep = self.get_query_argument('localizationTagKeep', None)
         localization_tag_remove = self.get_query_argument('localizationTagRemove', None)
         gcn_properties_filter = self.get_query_argument("gcnPropertiesFilter", None)
 
-        if tag_keep is not None:
-            if isinstance(tag_keep, str):
-                tag_keep = [c.strip() for c in tag_keep.split(",")]
+        if gcn_tag_keep is not None:
+            if isinstance(gcn_tag_keep, str):
+                gcn_tag_keep = [c.strip() for c in gcn_tag_keep.split(",")]
             else:
                 raise ValueError(
-                    "Invalid tagKeep value -- must provide at least one string value"
+                    "Invalid gcnTagKeep value -- must provide at least one string value"
                 )
 
-        if tag_remove is not None:
-            if isinstance(tag_remove, str):
-                tag_remove = [c.strip() for c in tag_remove.split(",")]
+        if gcn_tag_remove is not None:
+            if isinstance(gcn_tag_remove, str):
+                gcn_tag_remove = [c.strip() for c in gcn_tag_remove.split(",")]
             else:
                 raise ValueError(
-                    "Invalid tagRemove value -- must provide at least one string value"
+                    "Invalid gcnTagRemove value -- must provide at least one string value"
                 )
 
         if localization_tag_keep is not None:
@@ -917,23 +917,23 @@ class GcnEventHandler(BaseHandler):
             if end_date:
                 end_date = arrow.get(end_date.strip()).datetime
                 query = query.where(GcnEvent.dateobs <= end_date)
-            if tag_keep:
-                tag_subquery = (
+            if gcn_tag_keep:
+                gcn_tag_subquery = (
                     GcnTag.select(session.user_or_token)
-                    .where(GcnTag.text.in_(tag_keep))
+                    .where(GcnTag.text.in_(gcn_tag_keep))
                     .subquery()
                 )
                 query = query.join(
-                    tag_subquery, GcnEvent.dateobs == tag_subquery.c.dateobs
+                    gcn_tag_subquery, GcnEvent.dateobs == gcn_tag_subquery.c.dateobs
                 )
-            if tag_remove:
-                tag_subquery = (
+            if gcn_tag_remove:
+                gcn_tag_subquery = (
                     GcnTag.select(session.user_or_token)
-                    .where(GcnTag.text.in_(tag_remove))
+                    .where(GcnTag.text.in_(gcn_tag_remove))
                     .subquery()
                 )
                 query = query.join(
-                    tag_subquery, GcnEvent.dateobs != tag_subquery.c.dateobs
+                    gcn_tag_subquery, GcnEvent.dateobs != gcn_tag_subquery.c.dateobs
                 )
             if localization_tag_keep:
                 tag_subquery = (

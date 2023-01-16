@@ -157,8 +157,8 @@ const GcnEventsFilterForm = ({ handleFilterSubmit }) => {
   };
 
   const handleFilterPreSubmit = (formData) => {
-    formData.tagKeep = selectedGcnTags;
-    formData.tagRemove = rejectedGcnTags;
+    formData.gcnTagKeep = selectedGcnTags;
+    formData.gcnTagRemove = rejectedGcnTags;
     formData.gcnPropertiesFilter = selectedGcnProperties;
     formData.localizationTagKeep = selectedLocalizationTags;
     formData.localizationTagRemove = rejectedLocalizationTags;
