@@ -671,7 +671,7 @@ class GcnEventHandler(BaseHandler):
               schema:
                 type: string
               description: |
-                Comma-separated string of `GcnTag`s to filter out
+                Comma-separated string of `GcnTag`s. Returns localizations that do not have any of these tags. 
             - in: query
               name: localizationTagKeep
               nullable: true
