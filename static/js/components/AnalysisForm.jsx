@@ -145,8 +145,51 @@ const AnalysisForm = ({ obj_id }) => {
       const params =
         analysisServiceLookUp[selectedAnalysisServiceId]
           ?.optional_analysis_parameters[key];
-      if (["True", "False"].every((val) => params.includes(val))) {
-        OptionalParameters[key] = { type: "boolean" };
+
+      if (Array.isArray(params)) {
+        if (["True", "False"].every((val) => params.includes(val))) {
+          OptionalParameters[key] = { type: "boolean" };
+        } else {
+          OptionalParameters[key] = { type: "string", enum: params };
+          RequiredParameters.push(key);
+        }
+      } else if (typeof params === "object") {
+        if (params?.type === "number") {
+          OptionalParameters[key] = {
+            type: "number",
+            title: key,
+          };
+        } else if (params?.type === "file") {
+          OptionalParameters[key] = {
+            type: "string",
+            format: "data-url",
+            title: key,
+            description: key, // we set a description by default for file as the title doesn't show up in the rjsf form
+          };
+        } else if (params?.type === "string") {
+          OptionalParameters[key] = {
+            type: "string",
+            title: key,
+          };
+        }
+
+        if (params?.default) {
+          OptionalParameters[key].default = params.default;
+        }
+
+        if (params?.description) {
+          OptionalParameters[key].description = params.description;
+        }
+
+        if (params?.title) {
+          OptionalParameters[key].title = params.title;
+        }
+
+        if (params?.required) {
+          if (["True", "true", "t"].includes(params.required)) {
+            RequiredParameters.push(key);
+          }
+        }
       } else {
         OptionalParameters[key] = { type: "string", enum: params };
         RequiredParameters.push(key);

@@ -96,8 +96,6 @@ const FETCH_ASSOCIATED_GCNS_OK = "skyportal/FETCH_ASSOCIATED_GCNS_OK";
 const START_ANALYSIS_FOR_OBJ = "skyportal/START_SERVICE_FOR_OBJ";
 const DELETE_ANALYSIS = "skyportal/DELETE_ANALYSIS";
 
-const SUBMIT_SPECTRUM_ANALYSIS = "skyportal/SUBMIT_SPECTRUM_ANALYSIS";
-
 const FETCH_ANALYSES_FOR_OBJ = "skyportal/FETCH_ANALYSES_FOR_OBJ";
 const FETCH_ANALYSIS_FOR_OBJ = "skyportal/FETCH_ANALYSIS_FOR_OBJ";
 const FETCH_ANALYSIS_RESULTS_FOR_OBJ = "skyportal/FETCH_ANALYSIS_FOR_OBJ";
@@ -121,14 +119,6 @@ export function addClassificationVote(classification_id, data = {}) {
 
 export function addSourceTNS(id, formData) {
   return API.POST(`/api/sources/${id}/tns`, ADD_SOURCE_TNS, formData);
-}
-
-export function submitSpectrumAnalysis(id, formData) {
-  return API.POST(
-    `/api/sources/${id}/spectrum_analysis`,
-    SUBMIT_SPECTRUM_ANALYSIS,
-    formData
-  );
 }
 
 export function startAnalysis(id, analysis_service_id, formData = {}) {

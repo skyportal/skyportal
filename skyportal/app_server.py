@@ -119,7 +119,6 @@ from skyportal.handlers.api import (
     SpectrumASCIIFileHandler,
     SpectrumASCIIFileParser,
     SpectrumRangeHandler,
-    SpectrumAnalysisHandler,
     SyntheticPhotometryHandler,
     ObjSpectraHandler,
     ReminderHandler,
@@ -392,7 +391,6 @@ skyportal_handlers = [
     (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/groups', ObjGroupsHandler),
     (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/labels', SourceLabelsHandler),
     (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/color_mag', ObjColorMagHandler),
-    (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/spectrum_analysis', SpectrumAnalysisHandler),
     (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/tns', ObjTNSHandler),
     (
         r'/api/sources(/[0-9A-Za-z-_\.\+]+)/observability',

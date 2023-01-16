@@ -139,7 +139,6 @@ from .spectrum import (
     SyntheticPhotometryHandler,
 )
 from .source_labels import SourceLabelsHandler
-from .spectrum_analysis import SpectrumAnalysisHandler
 from .survey_efficiency import (
     DefaultSurveyEfficiencyRequestHandler,
     SurveyEfficiencyForObservationPlanHandler,

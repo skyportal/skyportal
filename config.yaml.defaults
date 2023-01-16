@@ -126,8 +126,6 @@ app:
       component: UploadSpectrum
     - path: "/observability/:id"
       component: Observability
-    - path: "/source/:id/spectrum_analysis"
-      component: SpectrumAnalysisPage
     - path: "/source/:id/finder"
       component: FindingChart
     - path: "/source/:id/periodogram"
@@ -665,3 +663,5 @@ analysis_services:
     port: 6801
   ngsf_analysis_service:
     port: 7001
+  spectral_cube_analysis_service:
+    port: 7002

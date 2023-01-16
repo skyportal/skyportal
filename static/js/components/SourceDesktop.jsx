@@ -239,8 +239,6 @@ const SourceDesktop = ({ source }) => {
 
   const associatedGCNs = useSelector((state) => state.source.associatedGCNs);
 
-  const currentUser = useSelector((state) => state.profile);
-
   useEffect(() => {
     dispatch(spectraActions.fetchSourceSpectra(source.id));
     dispatch(sourceActions.fetchAssociatedGCNs(source.id));
@@ -600,14 +598,6 @@ const SourceDesktop = ({ source }) => {
                   <Link to={`/manage_data/${source.id}`} role="link">
                     <Button secondary>Manage data</Button>
                   </Link>
-                  {currentUser?.permissions?.includes("Upload data") && (
-                    <Link
-                      to={`/source/${source.id}/spectrum_analysis`}
-                      role="link"
-                    >
-                      <Button variant="contained">Spectrum Analysis</Button>
-                    </Link>
-                  )}
                 </div>
               </Grid>
             </AccordionDetails>
