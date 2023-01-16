@@ -664,7 +664,7 @@ class GcnEventHandler(BaseHandler):
               schema:
                 type: string
               description: |
-                Comma-separated string of `GcnTag`s to match against.
+                Comma-separated string of `GcnTag`s. Returns localizations that match any of them.
             - in: query
               name: tagRemove
               nullable: true
