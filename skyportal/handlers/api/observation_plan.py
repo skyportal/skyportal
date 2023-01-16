@@ -1280,6 +1280,11 @@ class ObservationPlanSurveyEfficiencyHandler(BaseHandler):
                     f'Could not find observation_plan_request with ID {observation_plan_request_id}'
                 )
 
+            if len(observation_plan_request.observation_plans) == 0:
+                return self.error(
+                    f'Could not find an observation_plan associated with observation_plan_request ID {observation_plan_request_id}'
+                )
+
             observation_plan = observation_plan_request.observation_plans[0]
             analysis_data = []
             for analysis in observation_plan.survey_efficiency_analyses:
@@ -1412,6 +1417,11 @@ class ObservationPlanFieldsHandler(BaseHandler):
             if observation_plan_request is None:
                 return self.error(
                     f'Could not find observation_plan_request with ID {observation_plan_request_id}'
+                )
+
+            if len(observation_plan_request.observation_plans) == 0:
+                return self.error(
+                    f'Could not find an observation_plan associated with observation_plan_request ID {observation_plan_request_id}'
                 )
 
             observation_plan = observation_plan_request.observation_plans[0]
@@ -1831,6 +1841,11 @@ class ObservationPlanCreateObservingRunHandler(BaseHandler):
                 )
 
             instrument = allocation.instrument
+
+            if len(observation_plan_request.observation_plans) == 0:
+                return self.error(
+                    f'Could not find an observation_plan associated with observation_plan_request ID {observation_plan_request_id}'
+                )
 
             observation_plan = observation_plan_request.observation_plans[0]
             planned_observations = observation_plan.planned_observations
