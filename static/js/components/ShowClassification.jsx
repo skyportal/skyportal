@@ -6,6 +6,8 @@ import Chip from "@mui/material/Chip";
 import DeleteIcon from "@mui/icons-material/Delete";
 import ThumbUp from "@mui/icons-material/ThumbUp";
 import ThumbDown from "@mui/icons-material/ThumbDown";
+import VisibilityIcon from "@mui/icons-material/Visibility";
+import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import makeStyles from "@mui/styles/makeStyles";
 
 import { showNotification } from "baselayer/components/Notifications";
@@ -59,6 +61,7 @@ const ClassificationRow = ({ classifications }) => {
     window.localStorage.getItem("CURRENT_GROUP_ADMIN")
   );
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [votesVisible, setVotesVisible] = useState(false);
   const [classificationToDelete, setClassificationToDelete] = useState(null);
   const openDialog = (id) => {
     setDialogOpen(true);
@@ -77,6 +80,10 @@ const ClassificationRow = ({ classifications }) => {
         dispatch(showNotification("Vote registered"));
       }
     });
+  };
+
+  const switchVotesVisible = () => {
+    setVotesVisible(!votesVisible);
   };
 
   const deleteClassification = () => {
@@ -167,12 +174,32 @@ const ClassificationRow = ({ classifications }) => {
               <Button
                 key={classification.id}
                 id="down_vote"
+                onClick={() => switchVotesVisible()}
+              >
+                <font color="white">
+                  {votesVisible ? (
+                    <VisibilityOffIcon color="primary" />
+                  ) : (
+                    <VisibilityIcon color="primary" />
+                  )}{" "}
+                  &nbsp; Votes Visible?
+                </font>
+              </Button>
+            </div>
+            <div>
+              <Button
+                key={classification.id}
+                id="down_vote"
                 onClick={() => addVote(classification.id, downvoteValue)}
               >
                 <ThumbDown color={downvoteColor} />
                 <font color="white">
                   {" "}
-                  &nbsp; {`${downvoterIds.length} vote(s)`}{" "}
+                  {votesVisible ? (
+                    <> &nbsp; {`${downvoterIds.length} vote(s)`} </>
+                  ) : (
+                    <> </>
+                  )}
                 </font>
               </Button>
             </div>
@@ -185,7 +212,11 @@ const ClassificationRow = ({ classifications }) => {
                 <ThumbUp color={upvoteColor} />
                 <font color="white">
                   {" "}
-                  &nbsp; {`${upvoterIds.length} vote(s)`}{" "}
+                  {votesVisible ? (
+                    <> &nbsp; {`${upvoterIds.length} vote(s)`} </>
+                  ) : (
+                    <> </>
+                  )}
                 </font>
               </Button>
             </div>

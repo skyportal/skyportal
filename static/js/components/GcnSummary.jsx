@@ -13,6 +13,9 @@ import TextField from "@mui/material/TextField";
 import Grid from "@mui/material/Grid";
 import Paper from "@mui/material/Paper";
 import Checkbox from "@mui/material/Checkbox";
+import InputLabel from "@mui/material/InputLabel";
+import MenuItem from "@mui/material/MenuItem";
+import Select from "@mui/material/Select";
 import CircularProgress from "@mui/material/CircularProgress";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import LoadingButton from "@mui/lab/LoadingButton";
@@ -147,7 +150,9 @@ const GcnSummary = ({ dateobs }) => {
   const [subject, setSubject] = useState(`Follow-up on GCN Event ...`);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [localizationName, setLocalizationName] = useState(null);
   const [localizationCumprob, setLocalizationCumprob] = useState("0.95");
+  const [numberDetections, setNumberDetections] = useState("2");
   const [showSources, setShowSources] = useState(false);
   const [showGalaxies, setShowGalaxies] = useState(false);
   const [showObservations, setShowObservations] = useState(false);
@@ -298,7 +303,9 @@ const GcnSummary = ({ dateobs }) => {
         groupId: selectedGroup?.id,
         startDate,
         endDate,
+        localizationName,
         localizationCumprob,
+        numberDetections,
         showSources,
         showGalaxies,
         showObservations,
@@ -391,11 +398,38 @@ const GcnSummary = ({ dateobs }) => {
                     value={endDate}
                     onChange={(e) => setEndDate(e.target.value)}
                   />
+                  <div>
+                    <InputLabel id="localizationSelectLabel">
+                      Localization Name
+                    </InputLabel>
+                    <Select
+                      inputProps={{ MenuProps: { disableScrollLock: true } }}
+                      labelId="localizationSelectLabel"
+                      value={localizationName || ""}
+                      onChange={(e) => setLocalizationName(e.target.value)}
+                      name="gcnSummaryLocalizationSelect"
+                    >
+                      {gcnEvent.localizations?.map((localization) => (
+                        <MenuItem
+                          value={localization.localization_name}
+                          key={localization.localization_name}
+                        >
+                          {`${localization.localization_name}`}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </div>
                   <TextField
                     id="localizationCumprob"
-                    label="Localization Cumprob"
+                    label="Localization Cumulative Probability"
                     value={localizationCumprob}
                     onChange={(e) => setLocalizationCumprob(e.target.value)}
+                  />
+                  <TextField
+                    id="numberDetections"
+                    label="Minimum Number of Detections"
+                    value={numberDetections}
+                    onChange={(e) => setNumberDetections(e.target.value)}
                   />
                   <div className={classes.checkboxes}>
                     <FormControlLabel

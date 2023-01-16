@@ -630,7 +630,7 @@ def generate_plan(
     flow = Flow()
     flow.push(
         '*',
-        "skyportal/REFRESH_GCNEVENT",
+        "skyportal/REFRESH_GCN_EVENT",
         payload={"gcnEvent_dateobs": request.gcnevent.dateobs},
     )
 
@@ -781,7 +781,7 @@ class MMAAPI(FollowUpAPI):
                 flow = Flow()
                 flow.push(
                     '*',
-                    "skyportal/REFRESH_GCNEVENT",
+                    "skyportal/REFRESH_GCN_EVENT",
                     payload={"gcnEvent_dateobs": request.gcnevent.dateobs},
                 )
 
@@ -908,7 +908,7 @@ class MMAAPI(FollowUpAPI):
                 flow = Flow()
                 flow.push(
                     '*',
-                    "skyportal/REFRESH_GCNEVENT",
+                    "skyportal/REFRESH_GCN_EVENT",
                     payload={"gcnEvent_dateobs": request.gcnevent.dateobs},
                 )
 
