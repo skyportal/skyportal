@@ -2632,13 +2632,16 @@ class SourceHandler(BaseHandler):
         refresh_source = data.pop('refresh_source', True)
 
         with self.Session() as session:
-            obj_id = post_source(
-                data,
-                self.associated_user_object.id,
-                session,
-                refresh_source=refresh_source,
-            )
-            return self.success(data={"id": obj_id})
+            try:
+                obj_id = post_source(
+                    data,
+                    self.associated_user_object.id,
+                    session,
+                    refresh_source=refresh_source,
+                )
+                return self.success(data={"id": obj_id})
+            except Exception as e:
+                return self.error(f'Failed to post source: {str(e)}')
 
     @permissions(['Upload data'])
     def patch(self, obj_id):
