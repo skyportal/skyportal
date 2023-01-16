@@ -674,8 +674,7 @@ def add_user_notifications(mapper, connection, target):
                                     send_notification = False
                                     break
 
-                        if "localization_properties" in pref["gcn_events"].keys():
-                            if len(pref['gcn_events']["localization_properties"]) > 0:
+                        if pref['gcn_events'].get('localization_properties'):
                                 for prop_filt in pref['gcn_events'][
                                     "localization_properties"
                                 ]:
