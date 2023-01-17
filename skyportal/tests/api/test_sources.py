@@ -404,7 +404,7 @@ def test_cannot_post_source_with_null_radec(
         },
         token=upload_data_token,
     )
-    assert status == 500
+    assert status == 400
 
 
 def test_add_source_without_group_id(upload_data_token, view_only_token, public_group):
