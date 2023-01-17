@@ -168,30 +168,35 @@ def run_spectral_cube_model(data_dict):
             result_data = base64.b64encode(open(f.name, "rb").read())
             local_temp_files.append(f.name)
 
-            # SPECTRUM PLOT
-            figsize = (10, 8)
+            figsize = (16, 6)
             fig = plt.figure(figsize=figsize, constrained_layout=False)
-            spectrum.show(ax=plt.gca())
-            buf = io.BytesIO()
-            fig.savefig(buf, format='png')
-            plt.close(fig)
-            buf.seek(0)
-            plot_spectrum_data = base64.b64encode(buf.read())
+            ax1 = fig.add_subplot(1, 3, (1, 2))
+            ax2 = fig.add_subplot(1, 3, 3)
+
+            # SPECTRUM PLOT
+            spectrum.show(ax=ax1)
+            ax1.set_title("Spectrum plot: Flux (AU) vs Wavelength (Å)")
+            ax1.set_xlabel("Wavelength (Å)")
+            ax1.set_ylabel("Flux (AU)")
 
             # CUBE PLOT
-            plot_cube = cube.extractstar.show_mla(ax=plt.gca())
-            fig = plot_cube['fig']
+            cube.extractstar.show_mla(ax=ax2)
+            ax2.set_title("Cube plot: RA vs Dec (spaxels)")
+            ax2.set_xlabel("RA (spaxels)")
+            ax2.set_ylabel("Dec (spaxels)")
+
+            fig.suptitle("Spectrum at the centroid", fontsize=16)
+
             buf = io.BytesIO()
             fig.savefig(buf, format='png')
             plt.close(fig)
             buf.seek(0)
 
-            plot_cube_data = base64.b64encode(buf.read())
+            plot_data = base64.b64encode(buf.read())
 
             analysis_results = {
                 "plots": [
-                    {"format": "png", "data": plot_cube_data},
-                    {"format": "png", "data": plot_spectrum_data},
+                    {"format": "png", "data": plot_data},
                 ],
                 "results": {"format": "joblib", "data": result_data},
             }

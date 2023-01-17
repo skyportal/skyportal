@@ -53,10 +53,12 @@ const useStyles = makeStyles((theme) => ({
     width: "95%",
   },
   corner: {
-    height: "70vh",
+    maxHeight: "70vh",
+    maxWidth: "100%",
   },
   media: {
-    height: "70vh",
+    maxHeight: "70vh",
+    maxWidth: "100%",
   },
   downTriangle: {
     width: 0,
