@@ -46,7 +46,7 @@ class CommentAttachmentUpdateHandler(BaseHandler):
             count_stmt = sa.select(func.count()).select_from(stmt.distinct())
             total_missing = session.execute(count_stmt).scalar()
 
-            # get the number of Objs with CommentAttachment
+            # get the number of Comments with Attachments
             stmt = sa.select(Comment).where(Comment.attachment_bytes.isnot(None))
             count_stmt = sa.select(func.count()).select_from(stmt.distinct())
             total_with = session.execute(count_stmt).scalar()

@@ -344,5 +344,5 @@ class CommentOnShift(Base, CommentMixin):
 @event.listens_for(CommentOnGCN, 'after_delete')
 @event.listens_for(CommentOnShift, 'after_delete')
 def delete_comment_data_from_disk(mapper, connection, target):
-    log(f'Deleting analysis data for analysis id={target.id}')
+    log(f'Deleting comment data for comment id={target.id}')
     target.delete_data()
