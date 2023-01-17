@@ -107,6 +107,7 @@ const NotificationSettingsSelect = ({ notificationResourceType }) => {
     if (!valueSMS) {
       const valSMS =
         profile?.notifications[notificationResourceType]?.sms?.time_slot;
+      console.log("valSMS", valSMS);
       if (valSMS?.length > 0) {
         setValueSMS(valSMS);
         if (valSMS[0] > valSMS[1]) {
@@ -223,7 +224,7 @@ const NotificationSettingsSelect = ({ notificationResourceType }) => {
           notifications: {
             [notificationResourceType]: {
               sms: {
-                time_slot: valueSMS.reverse(),
+                time_slot: valueSMS,
               },
             },
           },
@@ -236,7 +237,7 @@ const NotificationSettingsSelect = ({ notificationResourceType }) => {
           notifications: {
             [notificationResourceType]: {
               phone: {
-                time_slot: valuePhone.reverse(),
+                time_slot: valuePhone,
               },
             },
           },
@@ -249,7 +250,7 @@ const NotificationSettingsSelect = ({ notificationResourceType }) => {
           notifications: {
             [notificationResourceType]: {
               whatsapp: {
-                time_slot: valueWhatsapp.reverse(),
+                time_slot: valueWhatsapp,
               },
             },
           },

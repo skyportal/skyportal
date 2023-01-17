@@ -69,5 +69,6 @@ class ConfigHandler(BaseHandler):
                 "defaultSpectrumType": default_spectrum_type,
                 "gcnNoticeTypes": GCN_NOTICE_TYPES,
                 "maxNumDaysUsingLocalization": MAX_NUM_DAYS_USING_LOCALIZATION,
+                "image_analysis": True if 'image_analysis' in cfg else False,
             }
         )

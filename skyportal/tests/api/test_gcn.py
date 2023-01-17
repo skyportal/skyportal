@@ -322,6 +322,7 @@ def test_gcn_summary_sources(
         "startDate": "2019-08-13 08:18:05",
         "endDate": "2019-08-19 08:18:05",
         "localizationCumprob": 0.99,
+        "numberDetections": 1,
         "showSources": True,
         "showGalaxies": False,
         "showObservations": False,
