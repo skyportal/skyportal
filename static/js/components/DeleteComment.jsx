@@ -46,7 +46,7 @@ const DeleteComment = ({
       case "spectrum":
         deleteCommentOnSpectrum(spectrum_id, id);
         break;
-      case "gcnEvent":
+      case "gcn_event":
         deleteCommentOnGcnEvent(gcnEventID, id);
         break;
       case "shift":
