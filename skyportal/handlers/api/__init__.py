@@ -104,6 +104,7 @@ from .observation_plan import (
     ObservationPlanAirmassChartHandler,
     ObservationPlanCreateObservingRunHandler,
     ObservationPlanFieldsHandler,
+    ObservationPlanManualRequestHandler,
 )
 from .photometry import (
     PhotometryHandler,
