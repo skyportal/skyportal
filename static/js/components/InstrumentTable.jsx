@@ -1,5 +1,7 @@
 import React, { useState } from "react";
+import { useDispatch } from "react-redux";
 import PropTypes from "prop-types";
+import { showNotification } from "baselayer/components/Notifications";
 import Paper from "@mui/material/Paper";
 import {
   createTheme,
@@ -9,8 +11,12 @@ import {
 } from "@mui/material/styles";
 import makeStyles from "@mui/styles/makeStyles";
 import CircularProgress from "@mui/material/CircularProgress";
+import DeleteIcon from "@mui/icons-material/Delete";
 
 import MUIDataTable from "mui-datatables";
+import Button from "./Button";
+import ConfirmDeletionDialog from "./ConfirmDeletionDialog";
+import * as instrumentActions from "../ducks/instrument";
 
 const useStyles = makeStyles((theme) => ({
   container: {
@@ -63,6 +69,7 @@ const getMuiTheme = (theme) =>
 const InstrumentTable = ({
   instruments,
   telescopes,
+  deletePermission,
   paginateCallback,
   totalMatches,
   numPerPage,
@@ -71,6 +78,30 @@ const InstrumentTable = ({
 }) => {
   const classes = useStyles();
   const theme = useTheme();
+  const dispatch = useDispatch();
+
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [instrumentToDelete, setInstrumentToDelete] = useState(null);
+
+  const openDialog = (id) => {
+    setDialogOpen(true);
+    setInstrumentToDelete(id);
+  };
+  const closeDialog = () => {
+    setDialogOpen(false);
+    setInstrumentToDelete(null);
+  };
+
+  const deleteInstrument = () => {
+    dispatch(instrumentActions.deleteInstrument(instrumentToDelete)).then(
+      (result) => {
+        if (result.status === "success") {
+          dispatch(showNotification("Instrument deleted"));
+          closeDialog();
+        }
+      }
+    );
+  };
 
   const [rowsPerPage, setRowsPerPage] = useState(numPerPage);
 
@@ -134,6 +165,32 @@ const InstrumentTable = ({
     return <div>{instrument ? instrument.type : ""}</div>;
   };
 
+  const renderDelete = (dataIndex) => {
+    const instrument = instruments[dataIndex];
+    return (
+      <div>
+        <Button
+          key={instrument.id}
+          id="delete_button"
+          classes={{
+            root: classes.instrumentDelete,
+            disabled: classes.instrumentDeleteDisabled,
+          }}
+          onClick={() => openDialog(instrument.id)}
+          disabled={!deletePermission}
+        >
+          <DeleteIcon />
+        </Button>
+        <ConfirmDeletionDialog
+          deleteFunction={deleteInstrument}
+          dialogOpen={dialogOpen}
+          closeDialog={closeDialog}
+          resourceName="instrument"
+        />
+      </div>
+    );
+  };
+
   const handleSearchChange = (searchText) => {
     const data = { name: searchText };
     paginateCallback(1, rowsPerPage, {}, data);
@@ -167,7 +224,7 @@ const InstrumentTable = ({
       label: "Instrument Name",
       options: {
         filter: true,
-        sort: true,
+        // sort: true,
         sortThirdClickReset: true,
         customBodyRenderLite: renderInstrumentName,
       },
@@ -252,13 +309,22 @@ const InstrumentTable = ({
         customBodyRenderLite: renderType,
       },
     },
+    {
+      name: "delete",
+      label: " ",
+      options: {
+        customBodyRenderLite: renderDelete,
+      },
+    },
   ];
 
   const options = {
     search: true,
     onSearchChange: handleSearchChange,
     selectableRows: "none",
-    elevation: 0,
+    rowHover: false,
+    print: false,
+    elevation: 1,
     onTableChange: handleTableChange,
     jumpToPage: true,
     serverSide: true,
@@ -301,6 +367,7 @@ InstrumentTable.propTypes = {
   numPerPage: PropTypes.number,
   hideTitle: PropTypes.bool,
   filter: PropTypes.func.isRequired,
+  deletePermission: PropTypes.bool.isRequired,
 };
 
 InstrumentTable.defaultProps = {
