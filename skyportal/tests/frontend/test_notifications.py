@@ -428,19 +428,19 @@ def test_notification_setting_select(driver, user):
 
     # sms settings appeared, so we can test them
     sms_on_shift_setting = driver.wait_for_xpath(
-        '//*[@name="on_shift" and contains(@class, "MuiSwitch-input")]'
+        '//*[@name="on_shift_sms" and contains(@class, "MuiSwitch-input")]'
     )
     driver.scroll_to_element_and_click(sms_on_shift_setting)
     driver.wait_for_xpath(
-        '//*[@name="on_shift" and contains(@class, "MuiSwitch-input")]/../../span[contains(@class,"Mui-checked")]'
+        '//*[@name="on_shift_sms" and contains(@class, "MuiSwitch-input")]/../../span[contains(@class,"Mui-checked")]'
     )
 
     sms_time_slot_setting = driver.wait_for_xpath(
-        '//*[@name="time_slot" and contains(@class, "MuiSwitch-input")]'
+        '//*[@name="time_slot_sms" and contains(@class, "MuiSwitch-input")]'
     )
     driver.scroll_to_element_and_click(sms_time_slot_setting)
     driver.wait_for_xpath(
-        '//*[@name="time_slot" and contains(@class, "MuiSwitch-input")]/../../span[contains(@class,"Mui-checked")]'
+        '//*[@name="time_slot_sms" and contains(@class, "MuiSwitch-input")]/../../span[contains(@class,"Mui-checked")]'
     )
 
     driver.wait_for_xpath('//*[@aria-label="time_slot_slider" and @value="8"]')
@@ -494,10 +494,10 @@ def test_notification_setting_select(driver, user):
         '//*[@name="sms" and contains(@class, "MuiSwitch-input")]/../../span[contains(@class,"Mui-checked")]'
     )
     driver.wait_for_xpath(
-        '//*[@name="on_shift" and contains(@class, "MuiSwitch-input")]/../../span[contains(@class,"Mui-checked")]'
+        '//*[@name="on_shift_sms" and contains(@class, "MuiSwitch-input")]/../../span[contains(@class,"Mui-checked")]'
     )
     driver.wait_for_xpath(
-        '//*[@name="time_slot" and contains(@class, "MuiSwitch-input")]/../../span[contains(@class,"Mui-checked")]'
+        '//*[@name="time_slot_sms" and contains(@class, "MuiSwitch-input")]/../../span[contains(@class,"Mui-checked")]'
     )
 
     driver.wait_for_xpath('//*[@aria-label="time_slot_slider" and @value="3"]')

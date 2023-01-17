@@ -92,12 +92,17 @@ class CatalogQueryHandler(BaseHandler):
         if 'catalogName' not in data['payload']:
             return self.error('catalogName required in query payload')
 
-        with self.Session():
+        with self.Session() as session:
 
+            allocation = session.scalar(
+                sa.select(Allocation).where(Allocation.id == data['allocation_id'])
+            )
+
+            group_ids = []
             if 'target_group_ids' in data and len(data['target_group_ids']) > 0:
                 group_ids = data['target_group_ids']
-            else:
-                group_ids = [g.id for g in self.current_user.accessible_groups]
+            group_ids.append(allocation.group_id)
+            group_ids = list(set(group_ids))
 
             fetch_tr = functools.partial(
                 fetch_transients,
@@ -194,10 +199,13 @@ def fetch_transients(allocation_id, user_id, group_ids, payload):
                     Obj.select(user).where(Obj.id == source['id'])
                 ).first()
                 if s is None:
+                    log(f"Posting {source['id']} as source")
+                    source['group_ids'] = group_ids
                     obj_id = post_source(source, user_id, session)
                     obj_ids.append(obj_id)
 
                 if alert_available:
+                    log(f"Posting photometry from {source['id']}")
                     post_alert(
                         source['id'],
                         group_ids,

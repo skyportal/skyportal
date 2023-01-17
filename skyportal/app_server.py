@@ -1,4 +1,5 @@
 import tornado.web
+import shutil
 
 from baselayer.app.app_server import MainPageHandler
 from baselayer.app.model_util import create_tables
@@ -57,6 +58,7 @@ from skyportal.handlers.api import (
     HealpixUpdateHandler,
     LocalizationHandler,
     LocalizationDownloadHandler,
+    LocalizationCrossmatchHandler,
     LocalizationPropertiesHandler,
     GroupHandler,
     GroupUserHandler,
@@ -283,7 +285,7 @@ skyportal_handlers = [
     (r'/api/earthquake/status', EarthquakeStatusHandler),
     (r'/api/earthquake(/.*)?', EarthquakeHandler),
     (r'/api/gcn_event(/.*)/tach', GcnTachHandler),
-    (r'/api/gcn_event/summary(/.*)?', GcnSummaryHandler),
+    (r'/api/gcn_event/(.*)/summary(/.*)?', GcnSummaryHandler),
     (r'/api/gcn_event/tags', GcnEventTagsHandler),
     (r'/api/gcn_event/properties', GcnEventPropertiesHandler),
     (r'/api/gcn_event(/.*)?', GcnEventHandler),
@@ -308,6 +310,7 @@ skyportal_handlers = [
     (r'/api/localization/properties', LocalizationPropertiesHandler),
     (r'/api/localization(/.*)/name(/.*)/download', LocalizationDownloadHandler),
     (r'/api/localization(/.*)/name(/.*)?', LocalizationHandler),
+    (r'/api/localizationcrossmatch', LocalizationCrossmatchHandler),
     (r'/api/groups/public', PublicGroupHandler),
     (r'/api/groups(/[0-9]+)/streams(/[0-9]+)?', GroupStreamHandler),
     (r'/api/groups(/[0-9]+)/users(/.*)?', GroupUserHandler),
@@ -531,6 +534,32 @@ def make_app(cfg, baselayer_handlers, baselayer_settings, process=None, env=None
         print('  Your server is insecure. Please update the secret string ')
         print('  in the configuration file!')
         print('!' * 80)
+
+    if 'image_analysis' in cfg:
+        missing_bins = []
+        for exe in ['scamp', 'psfex']:
+            bin = shutil.which(exe)
+            if bin is None:
+                missing_bins.append(exe)
+
+        if len(missing_bins) > 0:
+            log('!' * 80)
+            log(
+                f"  Can't run image analysis. Missing dependencies: {', '.join(missing_bins)}"
+            )
+            log('!' * 80)
+            return
+
+        # ignore the flake8 error due to the import being before in this file
+
+        from skyportal.handlers.api.internal import ImageAnalysisHandler
+
+        baselayer_handlers = baselayer_handlers + [
+            (
+                r'/api/internal/sources(/[0-9A-Za-z-_\.\+]+)/image_analysis',
+                ImageAnalysisHandler,
+            ),
+        ]
 
     handlers = baselayer_handlers + skyportal_handlers
 

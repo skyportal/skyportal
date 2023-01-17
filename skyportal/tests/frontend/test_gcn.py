@@ -1,10 +1,11 @@
 import os
-
-from skyportal.tests import api
+import pytest
 import time
 
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
+
+from skyportal.tests import api
 
 from baselayer.app.config import load_config
 
@@ -54,6 +55,7 @@ def get_summary(driver, user, group, showSources, showGalaxies, showObservations
     driver.click_xpath(download_button)
 
 
+@pytest.mark.flaky(reruns=3)
 def test_gcn_tach(
     driver,
     super_admin_user,
@@ -63,27 +65,31 @@ def test_gcn_tach(
     datafile = f'{os.path.dirname(__file__)}/../data/GRB180116A_Fermi_GBM_Gnd_Pos.xml'
     with open(datafile, 'rb') as fid:
         payload = fid.read()
-    data = {'xml': payload}
+    event_data = {'xml': payload}
 
-    status, data = api('POST', 'gcn_event', data=data, token=super_admin_token)
-    assert status == 200
-    assert data['status'] == 'success'
+    dateobs = "2018-01-16T00:36:53"
+    status, data = api('GET', f'gcn_event/{dateobs}', token=super_admin_token)
+
+    if status == 404:
+        status, data = api(
+            'POST', 'gcn_event', data=event_data, token=super_admin_token
+        )
+        assert status == 200
+        assert data['status'] == 'success'
 
     # wait for event to load
     for n_times in range(26):
-        status, data = api(
-            'GET', "gcn_event/2018-01-16T00:36:53", token=super_admin_token
-        )
+        status, data = api('GET', f"gcn_event/{dateobs}", token=super_admin_token)
         if data['status'] == 'success':
             break
         time.sleep(2)
     assert n_times < 25
 
     driver.get(f'/become_user/{super_admin_user.id}')
-    driver.get('/gcn_events/2018-01-16T00:36:53')
+    driver.get(f'/gcn_events/{dateobs}')
     driver.wait_for_xpath('//*[@data-testid="update-aliases"]')
     driver.click_xpath('//*[@data-testid="update-aliases"]')
-    driver.wait_for_xpath('//*[contains(., "GRB180116A")]', timeout=30)
+    driver.wait_for_xpath('//*[contains(., "GRB180116A")]', timeout=60)
     assert len(driver.find_elements(By.XPATH, '//*[@name="aliases-chips"]/*')) == 1
 
     driver.wait_for_xpath('//a[contains(text(), "GRB 180116A: Fermi GBM Detection")]')

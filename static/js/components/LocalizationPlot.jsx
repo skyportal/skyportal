@@ -317,7 +317,7 @@ const GeoJSONGlobePlot = ({
         const y = (d) => projection(d.geometry.coordinates)[1];
 
         svg
-          .selectAll("circle")
+          .selectAll("circle_skymap")
           .data(data.skymap.features)
           .enter()
           .append("circle")
@@ -373,7 +373,7 @@ const GeoJSONGlobePlot = ({
         const y = (d) => projection(d.geometry.coordinates)[1];
 
         svg
-          .selectAll("circle")
+          .selectAll("circle_sources")
           .data(sources.features)
           .enter()
           .append("circle")
