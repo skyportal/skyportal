@@ -58,6 +58,11 @@ class DefaultObservationPlanRequest(Base):
         doc="Content of the default observation plan request.",
     )
 
+    filters = sa.Column(
+        psql.JSONB,
+        doc="Filters of the default observation plan request.",
+    )
+
     allocation_id = sa.Column(
         sa.ForeignKey('allocations.id', ondelete='CASCADE'), nullable=False, index=True
     )
