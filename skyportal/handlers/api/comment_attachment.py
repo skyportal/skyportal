@@ -18,7 +18,7 @@ class CommentAttachmentUpdateHandler(BaseHandler):
         ---
         description: find the number of comments with and without attachment_bytes
         tags:
-          - source
+          - comments
         responses:
             200:
               content:
