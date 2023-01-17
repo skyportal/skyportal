@@ -712,7 +712,8 @@ def add_user_notifications(mapper, connection, target):
                                 text = f"New Notice for GCN Event *{target.dateobs}*, "
                                           f"with Notice Type *{gcn.NoticeType(notice.notice_type).name}*"
                             else:
-                                text = f"New GCN Event *{target.dateobs}*, with Notice Type *{gcn.NoticeType(notice.notice_type).name}*"
+                                text = f"New GCN Event *{target.dateobs}*, "
+                                          f"with Notice Type *{gcn.NoticeType(notice.notice_type).name}*"
                             session.add(
                                 UserNotification(
                                     user=user,
