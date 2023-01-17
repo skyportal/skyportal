@@ -6,12 +6,12 @@ SkyPortal requires the following software to be installed.  We show
 how to install them on MacOS and Debian-based systems below.
 
 - Python 3.8 or later
-- Supervisor (v>=3.0b2)
+- Supervisor (v>=4.2.1)
 - NGINX (v>=1.7)
 - PostgreSQL (v>=14.0)
-- Node.JS/npm (v>=5.8.0)
+- Node.JS/npm (v>=16.14.0/8.3.2)
 
-When installing SkyPortal on Debian-based systems, 2 additional packages are required to be able to install pycurl later on:
+When installing SkyPortal on Debian-based systems, 2 additional packages are required to be able to install `pycurl` later on:
 
 - libcurl4-gnutls-dev
 - libgnutls28-dev
