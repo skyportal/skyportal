@@ -45,6 +45,17 @@ const useStyles = makeStyles((theme) => ({
   title: {
     margin: "0.5rem 0rem 0rem 0rem",
   },
+  instrumentDelete: {
+    cursor: "pointer",
+    fontSize: "2em",
+    position: "absolute",
+    padding: 0,
+    right: 0,
+    top: 0,
+  },
+  instrumentDeleteDisabled: {
+    opacity: 0,
+  },
 }));
 
 export function instrumentTitle(instrument, telescopeList) {
@@ -119,6 +130,10 @@ const InstrumentList = () => {
     currentUser.permissions?.includes("Manage instruments") ||
     currentUser.permissions?.includes("System admin");
 
+  const delete_permission =
+    currentUser.permissions?.includes("Delete instrument") ||
+    currentUser.permissions?.includes("System admin");
+
   useEffect(() => {
     dispatch(instrumentsActions.fetchInstruments());
   }, [dispatch]);
@@ -169,6 +184,7 @@ const InstrumentList = () => {
               <InstrumentTable
                 instruments={instrumentsState.instrumentList}
                 telescopes={telescopesState.telescopeList}
+                deletePermission={delete_permission}
                 paginateCallback={handleInstrumentTablePagination}
                 totalMatches={instrumentsState.totalMatches}
                 pageNumber={instrumentsState.pageNumber}

@@ -667,3 +667,5 @@ analysis_services:
     port: 7001
   spectral_cube_analysis_service:
     port: 7002
+
+comment_folder: persistentdata/comments

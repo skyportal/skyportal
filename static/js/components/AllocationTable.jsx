@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { useDispatch } from "react-redux";
 import PropTypes from "prop-types";
-import { showNotification } from "baselayer/components/Notifications";
 import Paper from "@mui/material/Paper";
 import {
   createTheme,
@@ -11,12 +10,15 @@ import {
 } from "@mui/material/styles";
 import makeStyles from "@mui/styles/makeStyles";
 import CircularProgress from "@mui/material/CircularProgress";
-import DeleteIcon from "@mui/icons-material/Delete";
+import { Link } from "react-router-dom";
 
 import MUIDataTable from "mui-datatables";
+
+import { showNotification } from "baselayer/components/Notifications";
+import DeleteIcon from "@mui/icons-material/Delete";
+import * as allocationActions from "../ducks/allocation";
 import Button from "./Button";
 import ConfirmDeletionDialog from "./ConfirmDeletionDialog";
-import * as instrumentActions from "../ducks/instrument";
 
 const useStyles = makeStyles((theme) => ({
   container: {
@@ -66,10 +68,11 @@ const getMuiTheme = (theme) =>
     },
   });
 
-const InstrumentTable = ({
-  instruments,
+const AllocationTable = ({
+  groups,
+  allocations,
   telescopes,
-  deletePermission,
+  instruments,
   paginateCallback,
   totalMatches,
   numPerPage,
@@ -78,122 +81,182 @@ const InstrumentTable = ({
 }) => {
   const classes = useStyles();
   const theme = useTheme();
+
   const dispatch = useDispatch();
 
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [instrumentToDelete, setInstrumentToDelete] = useState(null);
+  const [setRowsPerPage] = useState(numPerPage);
 
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [allocationToDelete, setAllocationToDelete] = useState(null);
   const openDialog = (id) => {
     setDialogOpen(true);
-    setInstrumentToDelete(id);
+    setAllocationToDelete(id);
   };
   const closeDialog = () => {
     setDialogOpen(false);
-    setInstrumentToDelete(null);
+    setAllocationToDelete(null);
   };
 
-  const deleteInstrument = () => {
-    dispatch(instrumentActions.deleteInstrument(instrumentToDelete)).then(
+  const deleteAllocation = () => {
+    dispatch(allocationActions.deleteAllocation(allocationToDelete)).then(
       (result) => {
         if (result.status === "success") {
-          dispatch(showNotification("Instrument deleted"));
+          dispatch(showNotification("Allocation deleted"));
           closeDialog();
         }
       }
     );
   };
 
-  const [rowsPerPage, setRowsPerPage] = useState(numPerPage);
+  const userLabel = (user) => {
+    let label = user.username;
+    if (user.first_name && user.last_name) {
+      label = `${user.first_name} ${user.last_name} (${user.username})`;
+      if (user.contact_email) {
+        label = `${label} (${user.contact_email})`;
+      }
+      if (user.affiliations && user.affiliations.length > 0) {
+        label = `${label} (${user.affiliations.join()})`;
+      }
+    }
+    return label;
+  };
 
   const renderInstrumentName = (dataIndex) => {
-    const instrument = instruments[dataIndex];
+    const allocation = allocations[dataIndex];
+    const { instrument_id } = allocation;
+    const instrument = instruments?.filter((i) => i.id === instrument_id)[0];
 
-    return <div>{instrument ? instrument.name : ""}</div>;
-  };
-
-  const renderTelescopeName = (dataIndex) => {
-    const instrument = instruments[dataIndex];
-    const telescope_id = instrument?.telescope_id;
-    const telescope = telescopes?.filter((t) => t.id === telescope_id)[0];
-
-    return <div>{telescope ? telescope.nickname : ""}</div>;
-  };
-
-  const renderTelescopeLat = (dataIndex) => {
-    const instrument = instruments[dataIndex];
-    const telescope_id = instrument?.telescope_id;
-    const telescope = telescopes?.filter((t) => t.id === telescope_id)[0];
-
-    return <div>{telescope ? telescope.lat : ""}</div>;
-  };
-
-  const renderTelescopeLon = (dataIndex) => {
-    const instrument = instruments[dataIndex];
-    const telescope_id = instrument?.telescope_id;
-    const telescope = telescopes?.filter((t) => t.id === telescope_id)[0];
-
-    return <div>{telescope ? telescope.lon : ""}</div>;
-  };
-
-  const renderFilters = (dataIndex) => {
-    const instrument = instruments[dataIndex];
-
-    return <div>{instrument ? instrument.filters.join("\n") : ""}</div>;
-  };
-
-  const renderAPIClassname = (dataIndex) => {
-    const instrument = instruments[dataIndex];
-
-    return <div>{instrument ? instrument.api_classname : ""}</div>;
-  };
-
-  const renderAPIClassnameObsPlan = (dataIndex) => {
-    const instrument = instruments[dataIndex];
-
-    return <div>{instrument ? instrument.api_classname_obsplan : ""}</div>;
-  };
-
-  const renderBand = (dataIndex) => {
-    const instrument = instruments[dataIndex];
-
-    return <div>{instrument ? instrument.band : ""}</div>;
-  };
-
-  const renderType = (dataIndex) => {
-    const instrument = instruments[dataIndex];
-
-    return <div>{instrument ? instrument.type : ""}</div>;
-  };
-
-  const renderDelete = (dataIndex) => {
-    const instrument = instruments[dataIndex];
     return (
       <div>
-        <Button
-          key={instrument.id}
-          id="delete_button"
-          classes={{
-            root: classes.instrumentDelete,
-            disabled: classes.instrumentDeleteDisabled,
-          }}
-          onClick={() => openDialog(instrument.id)}
-          disabled={!deletePermission}
+        <Link
+          to={`/allocation/${allocation.id}`}
+          role="link"
+          className={classes.hover}
         >
-          <DeleteIcon />
-        </Button>
-        <ConfirmDeletionDialog
-          deleteFunction={deleteInstrument}
-          dialogOpen={dialogOpen}
-          closeDialog={closeDialog}
-          resourceName="instrument"
-        />
+          {instrument ? instrument.name : ""}
+        </Link>
       </div>
     );
   };
 
-  const handleSearchChange = (searchText) => {
-    const data = { name: searchText };
-    paginateCallback(1, rowsPerPage, {}, data);
+  const renderTelescopeName = (dataIndex) => {
+    const allocation = allocations[dataIndex];
+
+    const { instrument_id } = allocation;
+    const instrument = instruments?.filter((i) => i.id === instrument_id)[0];
+
+    const telescope_id = instrument?.telescope_id;
+    const telescope = telescopes?.filter((t) => t.id === telescope_id)[0];
+
+    return (
+      <div>
+        <Link
+          to={`/allocation/${allocation.id}`}
+          role="link"
+          className={classes.hover}
+        >
+          {telescope ? telescope.nickname : ""}
+        </Link>
+      </div>
+    );
+  };
+
+  const renderGroup = (dataIndex) => {
+    const allocation = allocations[dataIndex];
+    const group = groups?.filter((g) => g.id === allocation.group_id)[0];
+
+    return <div>{group ? group.name : ""}</div>;
+  };
+
+  const renderShareGroups = (dataIndex) => {
+    const allocation = allocations[dataIndex];
+
+    const share_groups = [];
+    if (allocation.default_share_group_ids?.length > 0) {
+      allocation.default_share_group_ids.forEach((share_group_id) => {
+        share_groups.push(
+          groups?.filter((g) => g.id === share_group_id)[0].name
+        );
+      });
+    }
+
+    return <div>{share_groups.length > 0 ? share_groups.join("\n") : ""}</div>;
+  };
+
+  const renderAllocationUsers = (dataIndex) => {
+    const allocation = allocations[dataIndex];
+
+    const allocation_users = [];
+    if (allocation.allocation_users?.length > 0) {
+      allocation.allocation_users.forEach((user) => {
+        allocation_users.push(userLabel(user));
+      });
+    }
+
+    return (
+      <div>
+        {allocation_users.length > 0 ? allocation_users.join("\n") : ""}
+      </div>
+    );
+  };
+
+  const renderStartDate = (dataIndex) => {
+    const allocation = allocations[dataIndex];
+
+    return (
+      <div>
+        {allocation
+          ? new Date(`${allocation.start_date}Z`).toLocaleString("en-US", {
+              hour12: false,
+            })
+          : ""}
+      </div>
+    );
+  };
+
+  const renderEndDate = (dataIndex) => {
+    const allocation = allocations[dataIndex];
+
+    return (
+      <div>
+        {allocation
+          ? new Date(`${allocation.end_date}Z`).toLocaleString("en-US", {
+              hour12: false,
+            })
+          : ""}
+      </div>
+    );
+  };
+
+  const renderPI = (dataIndex) => {
+    const allocation = allocations[dataIndex];
+
+    return <div>{allocation ? allocation.pi : ""}</div>;
+  };
+
+  const renderDelete = (dataIndex) => {
+    const allocation = allocations[dataIndex];
+    return (
+      <div>
+        <Button
+          key={allocation.id}
+          id="delete_button"
+          classes={{
+            root: classes.allocationDelete,
+          }}
+          onClick={() => openDialog(allocation.id)}
+        >
+          <DeleteIcon />
+        </Button>
+        <ConfirmDeletionDialog
+          deleteFunction={deleteAllocation}
+          dialogOpen={dialogOpen}
+          closeDialog={closeDialog}
+          resourceName="allocation"
+        />
+      </div>
+    );
   };
 
   const handleTableChange = (action, tableState) => {
@@ -224,7 +287,7 @@ const InstrumentTable = ({
       label: "Instrument Name",
       options: {
         filter: true,
-        // sort: true,
+        sort: true,
         sortThirdClickReset: true,
         customBodyRenderLite: renderInstrumentName,
       },
@@ -240,73 +303,63 @@ const InstrumentTable = ({
       },
     },
     {
-      name: "Latitude",
-      label: "Latitude",
+      name: "start_date",
+      label: "Start Date",
       options: {
         filter: false,
         sort: true,
         sortThirdClickReset: true,
-        customBodyRenderLite: renderTelescopeLat,
+        customBodyRenderLite: renderStartDate,
       },
     },
     {
-      name: "Longitude",
-      label: "Longitude",
+      name: "end_date",
+      label: "End Date",
       options: {
         filter: false,
         sort: true,
         sortThirdClickReset: true,
-        customBodyRenderLite: renderTelescopeLon,
+        customBodyRenderLite: renderEndDate,
       },
     },
     {
-      name: "filters",
-      label: "Filters",
+      name: "PI",
+      label: "PI",
       options: {
         filter: false,
         sort: true,
         sortThirdClickReset: true,
-        customBodyRenderLite: renderFilters,
+        customBodyRenderLite: renderPI,
       },
     },
     {
-      name: "API_classname",
-      label: "API Classname",
+      name: "Group",
+      label: "Group",
       options: {
         filter: false,
         sort: true,
         sortThirdClickReset: true,
-        customBodyRenderLite: renderAPIClassname,
+        customBodyRenderLite: renderGroup,
       },
     },
     {
-      name: "API_classname_obsplan",
-      label: "API Observation Plan Classname",
+      name: "default_share_group",
+      label: "Default Share Groups",
       options: {
         filter: false,
         sort: true,
         sortThirdClickReset: true,
-        customBodyRenderLite: renderAPIClassnameObsPlan,
+        customBodyRenderLite: renderShareGroups,
       },
     },
     {
-      name: "Band",
-      label: "Band",
+      name: "admins",
+      label: "Admins",
       options: {
         filter: false,
         sort: true,
         sortThirdClickReset: true,
-        customBodyRenderLite: renderBand,
-      },
-    },
-    {
-      name: "Type",
-      label: "Type",
-      options: {
-        filter: false,
-        sort: true,
-        sortThirdClickReset: true,
-        customBodyRenderLite: renderType,
+        customBodyRenderLite: renderAllocationUsers,
       },
     },
     {
@@ -319,12 +372,10 @@ const InstrumentTable = ({
   ];
 
   const options = {
-    search: true,
-    onSearchChange: handleSearchChange,
+    search: false,
+    draggableColumns: { enabled: true },
     selectableRows: "none",
-    rowHover: false,
-    print: false,
-    elevation: 1,
+    elevation: 0,
     onTableChange: handleTableChange,
     jumpToPage: true,
     serverSide: true,
@@ -336,13 +387,13 @@ const InstrumentTable = ({
 
   return (
     <div>
-      {instruments ? (
+      {allocations ? (
         <Paper className={classes.container}>
           <StyledEngineProvider injectFirst>
             <ThemeProvider theme={getMuiTheme(theme)}>
               <MUIDataTable
                 title={!hideTitle ? "" : ""}
-                data={instruments}
+                data={allocations}
                 options={options}
                 columns={columns}
               />
@@ -356,25 +407,28 @@ const InstrumentTable = ({
   );
 };
 
-InstrumentTable.propTypes = {
+AllocationTable.propTypes = {
+  // eslint-disable-next-line react/forbid-prop-types
+  allocations: PropTypes.arrayOf(PropTypes.any).isRequired,
   // eslint-disable-next-line react/forbid-prop-types
   instruments: PropTypes.arrayOf(PropTypes.any).isRequired,
   // eslint-disable-next-line react/forbid-prop-types
   telescopes: PropTypes.arrayOf(PropTypes.any).isRequired,
+  // eslint-disable-next-line react/forbid-prop-types
+  groups: PropTypes.arrayOf(PropTypes.any).isRequired,
   paginateCallback: PropTypes.func.isRequired,
   sortingCallback: PropTypes.func,
   totalMatches: PropTypes.number,
   numPerPage: PropTypes.number,
   hideTitle: PropTypes.bool,
   filter: PropTypes.func.isRequired,
-  deletePermission: PropTypes.bool.isRequired,
 };
 
-InstrumentTable.defaultProps = {
+AllocationTable.defaultProps = {
   totalMatches: 0,
   numPerPage: 10,
   sortingCallback: null,
   hideTitle: false,
 };
 
-export default InstrumentTable;
+export default AllocationTable;

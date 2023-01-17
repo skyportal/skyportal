@@ -13,6 +13,7 @@ from .classification import (
     ObjClassificationQueryHandler,
 )
 from .comment import CommentHandler, CommentAttachmentHandler
+from .comment_attachment import CommentAttachmentUpdateHandler
 from .annotation import AnnotationHandler
 from .annotation_services import (
     GaiaQueryHandler,
