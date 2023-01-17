@@ -13,6 +13,7 @@ const CURRENT_SHIFT = "skyportal/CURRENT_SHIFT";
 
 const ADD_COMMENT_ON_SHIFT = "skyportal/ADD_COMMENT_ON_SHIFT";
 const DELETE_COMMENT_ON_SHIFT = "skyportal/DELETE_COMMENT_ON_SHIFT";
+const EDIT_COMMENT_ON_SHIFT = "skyportal/EDIT_COMMENT_ON_SHIFT";
 
 const REFRESH_CURRENT_SHIFT_COMMENTS =
   "skyportal/REFRESH_CURRENT_SHIFT_COMMENTS";
@@ -67,6 +68,37 @@ export function addCommentOnShift(formData) {
   return API.POST(
     `/api/shift/${formData.shift_id}/comments`,
     ADD_COMMENT_ON_SHIFT,
+    formData
+  );
+}
+
+export function editCommentOnShift(commentID, formData) {
+  function fileReaderPromise(file) {
+    return new Promise((resolve) => {
+      const filereader = new FileReader();
+      filereader.readAsDataURL(file);
+      filereader.onloadend = () =>
+        resolve({ body: filereader.result, name: file.name });
+    });
+  }
+  if (formData.attachment) {
+    return (dispatch) => {
+      fileReaderPromise(formData.attachment).then((fileData) => {
+        formData.attachment = fileData;
+
+        dispatch(
+          API.PUT(
+            `/api/shift/${formData.shift_id}/comments/${commentID}`,
+            EDIT_COMMENT_ON_SHIFT,
+            formData
+          )
+        );
+      });
+    };
+  }
+  return API.PUT(
+    `/api/shift/${formData.shift_id}/comments/${commentID}`,
+    EDIT_COMMENT_ON_SHIFT,
     formData
   );
 }
