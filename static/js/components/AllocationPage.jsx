@@ -1,7 +1,6 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import DeleteIcon from "@mui/icons-material/Delete";
-import { Link } from "react-router-dom";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
 import ListItemText from "@mui/material/ListItemText";
@@ -19,9 +18,12 @@ import NewDefaultObservationPlan from "./NewDefaultObservationPlan";
 
 import * as defaultSurveyEfficienciesActions from "../ducks/default_survey_efficiencies";
 import * as defaultObservationPlansActions from "../ducks/default_observation_plans";
-import * as allocationActions from "../ducks/allocation";
+import * as allocationsActions from "../ducks/allocations";
 import Button from "./Button";
 import ConfirmDeletionDialog from "./ConfirmDeletionDialog";
+import AllocationTable from "./AllocationTable";
+import DefaultObservationPlanTable from "./DefaultObservationPlanTable";
+import Spinner from "./Spinner";
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -220,74 +222,78 @@ export function defaultObservationPlanInfo(default_observation_plan) {
   return result;
 }
 
-const AllocationList = ({ allocations, deletePermission }) => {
+const AllocationList = () => {
   const dispatch = useDispatch();
   const classes = useStyles();
-  const textClasses = textStyles();
-  const { instrumentList } = useSelector((state) => state.instruments);
-  const { telescopeList } = useSelector((state) => state.telescopes);
+
+  const allocationsState = useSelector((state) => state.allocations);
+  const instrumentsState = useSelector((state) => state.instruments);
+  const telescopesState = useSelector((state) => state.telescopes);
   const groups = useSelector((state) => state.groups.all);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [allocationToDelete, setAllocationToDelete] = useState(null);
-  const openDialog = (id) => {
-    setDialogOpen(true);
-    setAllocationToDelete(id);
-  };
-  const closeDialog = () => {
-    setDialogOpen(false);
-    setAllocationToDelete(null);
+  const currentUser = useSelector((state) => state.profile);
+  const [rowsPerPage, setRowsPerPage] = useState(100);
+
+  const permission =
+    currentUser.permissions?.includes("System admin") ||
+    currentUser.permissions?.includes("Manage allocations");
+
+  useEffect(() => {
+    dispatch(allocationsActions.fetchAllocations());
+  }, [dispatch]);
+
+  const handleAllocationTablePagination = (
+    pageNumber,
+    numPerPage,
+    sortData,
+    filterData
+  ) => {
+    setRowsPerPage(numPerPage);
+    const data = {
+      ...filterData,
+      pageNumber,
+      numPerPage,
+    };
+    if (sortData && Object.keys(sortData).length > 0) {
+      data.sortBy = sortData.name;
+      data.sortOrder = sortData.direction;
+    }
+    dispatch(allocationsActions.fetchAllocations(data));
   };
 
-  const deleteAllocation = () => {
-    dispatch(allocationActions.deleteAllocation(allocationToDelete)).then(
-      (result) => {
-        if (result.status === "success") {
-          dispatch(showNotification("Allocation deleted"));
-          closeDialog();
-        }
-      }
-    );
+  const handleAllocationTableSorting = (sortData, filterData) => {
+    const data = {
+      ...filterData,
+      pageNumber: 1,
+      rowsPerPage,
+      sortBy: sortData.name,
+      sortOrder: sortData.direction,
+    };
+    dispatch(allocationsActions.fetchAllocations(data));
   };
+
+  if (!allocationsState.allocationList) {
+    return <Spinner />;
+  }
 
   return (
-    <div className={classes.root}>
-      <List component="nav">
-        {allocations?.map((allocation) => (
-          <ListItem button key={allocation.id}>
-            <ListItemText
-              primary={
-                <Link
-                  to={`/allocation/${allocation.id}`}
-                  role="link"
-                  className={classes.hover}
-                >
-                  {allocationTitle(allocation, instrumentList, telescopeList)}
-                </Link>
-              }
-              secondary={allocationInfo(allocation, groups)}
-              classes={textClasses}
-            />
-            <Button
-              key={allocation.id}
-              id="delete_button"
-              classes={{
-                root: classes.allocationDelete,
-                disabled: classes.allocationDeleteDisabled,
-              }}
-              onClick={() => openDialog(allocation.id)}
-              disabled={!deletePermission}
-            >
-              <DeleteIcon />
-            </Button>
-            <ConfirmDeletionDialog
-              deleteFunction={deleteAllocation}
-              dialogOpen={dialogOpen}
-              closeDialog={closeDialog}
-              resourceName="allocation"
-            />
-          </ListItem>
-        ))}
-      </List>
+    <div className={classes.paper}>
+      <Typography variant="h6" display="inline">
+        List of Allocations
+      </Typography>
+      {allocationsState.allocationList && (
+        <AllocationTable
+          instruments={instrumentsState.instrumentList}
+          telescopes={telescopesState.telescopeList}
+          groups={groups}
+          allocations={allocationsState.allocationList}
+          deletePermission={permission}
+          paginateCallback={handleAllocationTablePagination}
+          totalMatches={allocationsState.totalMatches}
+          pageNumber={allocationsState.pageNumber}
+          numPerPage={allocationsState.numPerPage}
+          sortingCallback={handleAllocationTableSorting}
+        />
+      )}
     </div>
   );
 };
@@ -367,41 +373,12 @@ const DefaultSurveyEfficiencyList = ({
   );
 };
 
-const DefaultObservationPlanList = ({
-  default_observation_plans,
-  deletePermission,
-}) => {
-  const dispatch = useDispatch();
+const DefaultObservationPlanList = ({ default_observation_plans }) => {
   const classes = useStyles();
   const textClasses = textStyles();
   const { instrumentList } = useSelector((state) => state.instruments);
   const { telescopeList } = useSelector((state) => state.telescopes);
   const groups = useSelector((state) => state.groups.all);
-
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [defaultObservationPlanToDelete, setDefaultObservationPlanToDelete] =
-    useState(null);
-  const openDialog = (id) => {
-    setDialogOpen(true);
-    setDefaultObservationPlanToDelete(id);
-  };
-  const closeDialog = () => {
-    setDialogOpen(false);
-    setDefaultObservationPlanToDelete(null);
-  };
-
-  const deleteDefaultObservationPlan = () => {
-    dispatch(
-      defaultObservationPlansActions.deleteDefaultObservationPlan(
-        defaultObservationPlanToDelete
-      )
-    ).then((result) => {
-      if (result.status === "success") {
-        dispatch(showNotification("Default observation plan deleted"));
-        closeDialog();
-      }
-    });
-  };
 
   return (
     <div className={classes.root}>
@@ -420,24 +397,6 @@ const DefaultObservationPlanList = ({
               )}
               classes={textClasses}
             />
-            <Button
-              key={default_observation_plan.id}
-              id="delete_button"
-              classes={{
-                root: classes.defaultObservationPlanDelete,
-                disabled: classes.defaultObservationPlanDeleteDisabled,
-              }}
-              onClick={() => openDialog(default_observation_plan.id)}
-              disabled={!deletePermission}
-            >
-              <DeleteIcon />
-            </Button>
-            <ConfirmDeletionDialog
-              deleteFunction={deleteDefaultObservationPlan}
-              dialogOpen={dialogOpen}
-              closeDialog={closeDialog}
-              resourceName="default observation plan"
-            />
           </ListItem>
         ))}
       </List>
@@ -446,30 +405,62 @@ const DefaultObservationPlanList = ({
 };
 
 const AllocationPage = () => {
-  const { allocationList } = useSelector((state) => state.allocations);
   const { defaultObservationPlanList } = useSelector(
     (state) => state.default_observation_plans
   );
   const { defaultSurveyEfficiencyList } = useSelector(
     (state) => state.default_survey_efficiencies
   );
+
+  const [rowsPerPage, setRowsPerPage] = useState(100);
+  const { instrumentList } = useSelector((state) => state.instruments);
+  const { telescopeList } = useSelector((state) => state.telescopes);
   const currentUser = useSelector((state) => state.profile);
   const classes = useStyles();
+
+  const dispatch = useDispatch();
 
   const permission =
     currentUser.permissions?.includes("System admin") ||
     currentUser.permissions?.includes("Manage allocations");
 
+  const handleDefaultObservationPlanTablePagination = (
+    pageNumber,
+    numPerPage,
+    sortData,
+    filterData
+  ) => {
+    setRowsPerPage(numPerPage);
+    const data = {
+      ...filterData,
+      pageNumber,
+      numPerPage,
+    };
+    if (sortData && Object.keys(sortData).length > 0) {
+      data.sortBy = sortData.name;
+      data.sortOrder = sortData.direction;
+    }
+    dispatch(defaultObservationPlansActions.fetchDefaultObservationPlans(data));
+  };
+
+  const handleDefaultObservationPlanTableSorting = (sortData, filterData) => {
+    const data = {
+      ...filterData,
+      pageNumber: 1,
+      rowsPerPage,
+      sortBy: sortData.name,
+      sortOrder: sortData.direction,
+    };
+    dispatch(defaultObservationPlansActions.fetchDefaultObservationPlans(data));
+  };
+
   return (
     <Grid container spacing={3}>
-      <Grid item md={6} sm={12}>
+      <Grid item md={8} sm={12}>
         <Paper elevation={1}>
           <div className={classes.paperContent}>
-            <Typography variant="h6">List of Allocations</Typography>
-            <AllocationList
-              allocations={allocationList}
-              deletePermission={permission}
-            />
+            <Typography variant="h6">Allocations</Typography>
+            <AllocationList deletePermission={permission} />
           </div>
         </Paper>
         <Paper elevation={1}>
@@ -477,10 +468,19 @@ const AllocationPage = () => {
             <Typography variant="h6">
               List of Default Observation Plans
             </Typography>
-            <DefaultObservationPlanList
-              default_observation_plans={defaultObservationPlanList}
-              deletePermission={permission}
-            />
+            {defaultObservationPlanList && (
+              <DefaultObservationPlanTable
+                default_observation_plans={defaultObservationPlanList}
+                instruments={instrumentList}
+                telescopes={telescopeList}
+                paginateCallback={handleDefaultObservationPlanTablePagination}
+                totalMatches={defaultObservationPlanList.totalMatches}
+                deletePermission={permission}
+                pageNumber={defaultObservationPlanList.pageNumber}
+                numPerPage={defaultObservationPlanList.numPerPage}
+                sortingCallback={handleDefaultObservationPlanTableSorting}
+              />
+            )}
           </div>
         </Paper>
         <Paper elevation={1}>
@@ -497,7 +497,7 @@ const AllocationPage = () => {
       </Grid>
       {permission && (
         <>
-          <Grid item md={6} sm={12}>
+          <Grid item md={4} sm={12}>
             <Paper>
               <div className={classes.paperContent}>
                 <Typography variant="h6">Add a New Allocation</Typography>
@@ -535,16 +535,9 @@ const AllocationPage = () => {
   );
 };
 
-AllocationList.propTypes = {
-  // eslint-disable-next-line react/forbid-prop-types
-  allocations: PropTypes.arrayOf(PropTypes.any).isRequired,
-  deletePermission: PropTypes.bool.isRequired,
-};
-
 DefaultObservationPlanList.propTypes = {
   // eslint-disable-next-line react/forbid-prop-types
   default_observation_plans: PropTypes.arrayOf(PropTypes.any).isRequired,
-  deletePermission: PropTypes.bool.isRequired,
 };
 
 DefaultSurveyEfficiencyList.propTypes = {
