@@ -60,7 +60,7 @@ class DefaultObservationPlanRequest(Base):
 
     filters = sa.Column(
         psql.JSONB,
-        doc="Filters of the default observation plan request.",
+        doc="Filters to determine which of the default observation plan request. get executed for which events",
     )
 
     allocation_id = sa.Column(
