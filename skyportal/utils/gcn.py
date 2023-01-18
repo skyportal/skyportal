@@ -494,8 +494,10 @@ def get_skymap_properties(localization):
 
     if not np.isnan(area):
         properties_dict["area_90"] = area
-        if properties_dict["area_90"] < 500:
-            tags_list.append("< 500 sq. deg.")
+        thresholds = [500, 1000]
+        for threshold in thresholds:
+            if properties_dict["area_90"] < threshold:
+                tags_list.append(f"< {threshold} sq. deg.")
     if not np.isnan(prob):
         properties_dict["probability_500"] = prob
         if properties_dict["probability_500"] >= 0.9:
