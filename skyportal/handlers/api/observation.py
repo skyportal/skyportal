@@ -15,7 +15,8 @@ from sqlalchemy.orm import joinedload, undefer
 from sqlalchemy.orm import sessionmaker, scoped_session
 from tornado.ioloop import IOLoop
 import urllib
-from astropy.time import Time
+from astropy.time import Time, TimeDelta
+import astropy.units as u
 import io
 from io import StringIO
 
@@ -1212,6 +1213,14 @@ class ObservationExternalAPIHandler(BaseHandler):
         """
 
         data = self.get_json()
+        if 'start_date' in data:
+            data['start_date'] = arrow.get(data['start_date'].strip()).datetime
+        else:
+            data['start_date'] = Time.now() - TimeDelta(3 * u.day)
+        if 'end_date' in data:
+            data['end_date'] = arrow.get(data['end_date'].strip()).datetime
+        else:
+            data['end_date'] = Time.now()
 
         try:
             data = ObservationExternalAPIHandlerPost.load(data)
@@ -1223,8 +1232,6 @@ class ObservationExternalAPIHandler(BaseHandler):
         data["requester_id"] = self.associated_user_object.id
         data["last_modified_by_id"] = self.associated_user_object.id
         data['allocation_id'] = int(data['allocation_id'])
-        data['start_date'] = arrow.get(data['start_date'].strip()).datetime
-        data['end_date'] = arrow.get(data['end_date'].strip()).datetime
 
         with self.Session() as session:
 
