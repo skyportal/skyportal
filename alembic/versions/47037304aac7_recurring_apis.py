@@ -1,7 +1,7 @@
 """Recurring APIs migration
 
 Revision ID: 47037304aac7
-Revises: 99c470d77682
+Revises: fa832ea0ee8d
 Create Date: 2023-01-18 20:54:15.427323
 
 """
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision = '47037304aac7'
+revision = 'fa832ea0ee8d'
 down_revision = '99c470d77682'
 branch_labels = None
 depends_on = None
