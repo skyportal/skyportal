@@ -241,14 +241,13 @@ def post_gcnevent_from_xml(payload, user_id, session):
         session.add(localization)
         session.commit()
 
-        log(f"Generating tiles/contours for localization {localization.id}")
+        log(f"Generating tiles/properties/contours for localization {localization.id}")
 
         IOLoop.current().run_in_executor(
-            None, lambda: add_skymap_properties(localization.id, user_id)
-        )
-
-        IOLoop.current().run_in_executor(
-            None, lambda: add_tiles_and_observation_plans(localization.id, user_id)
+            None,
+            lambda: add_tiles_and_properties_and_observation_plans(
+                localization.id, user_id
+            ),
         )
         IOLoop.current().run_in_executor(None, lambda: add_contour(localization.id))
 
@@ -360,13 +359,13 @@ def post_gcnevent_from_dictionary(payload, user_id, session):
         session.add(localization)
         session.commit()
 
-        log(f"Generating tiles/contours for localization {localization.id}")
+        log(f"Generating tiles/properties/contours for localization {localization.id}")
 
         IOLoop.current().run_in_executor(
-            None, lambda: add_skymap_properties(localization.id, user.id)
-        )
-        IOLoop.current().run_in_executor(
-            None, lambda: add_tiles_and_observation_plans(localization.id, user_id)
+            None,
+            lambda: add_tiles_and_properties_and_observation_plans(
+                localization.id, user_id
+            ),
         )
         IOLoop.current().run_in_executor(None, lambda: add_contour(localization.id))
 
@@ -1133,13 +1132,30 @@ class GcnEventHandler(BaseHandler):
             return self.success()
 
 
-def add_tiles_and_observation_plans(localization_id, user_id):
+def add_tiles_and_properties_and_observation_plans(localization_id, user_id):
     session = Session()
     try:
         localization = session.scalar(
             sa.select(Localization).where(Localization.id == localization_id)
         )
         user = session.scalar(sa.select(User).where(User.id == user_id))
+
+        properties_dict, tags_list = get_skymap_properties(localization)
+
+        properties = LocalizationProperty(
+            localization_id=localization_id, sent_by_id=user.id, data=properties_dict
+        )
+        session.add(properties)
+
+        tags = [
+            LocalizationTag(
+                localization_id=localization_id,
+                text=text,
+                sent_by_id=user.id,
+            )
+            for text in tags_list
+        ]
+        session.add_all(tags)
 
         tiles = [
             LocalizationTile(
@@ -1192,6 +1208,7 @@ def add_tiles_and_observation_plans(localization_id, user_id):
 
             gcn_observation_plan = {
                 'allocation_id': allocation.id,
+                'filters': plan.filters,
                 'payload': plan.payload,
                 'survey_efficiencies': [
                     survey_efficiency.to_dict()
@@ -1229,6 +1246,36 @@ def add_tiles_and_observation_plans(localization_id, user_id):
                     'localization_id': localization.id,
                 }
 
+                if 'filters' in gcn_observation_plan:
+                    filters = gcn_observation_plan['filters']
+                    if filters is not None:
+                        if 'gcn_notices' in filters and len(filters['gcn_notices']) > 0:
+                            if not any(
+                                [
+                                    gcn.NoticeType(notice.notice_type).name
+                                    in filters['gcn_notices']
+                                    for notice in event.gcn_notices
+                                ]
+                            ):
+                                continue
+
+                        if 'gcn_tags' in filters and len(filters['gcn_tags']) > 0:
+                            intersection = list(
+                                set(event.tags) & set(filters["gcn_tags"])
+                            )
+                            if len(intersection) == 0:
+                                continue
+
+                        if (
+                            "localization_tags" in filters
+                            and len(filters["localization_tags"]) > 0
+                        ):
+                            intersection = list(
+                                set(tags_list) & set(filters["localization_tags"])
+                            )
+                            if len(intersection) == 0:
+                                continue
+
                 plan_id = post_observation_plan(
                     plan, user_id, session, asynchronous=False
                 )
@@ -1238,45 +1285,12 @@ def add_tiles_and_observation_plans(localization_id, user_id):
                     )
 
         return log(
-            f"Generated tiles / observation plans for localization {localization_id}"
+            f"Generated tiles / properties / observation plans for localization {localization_id}"
         )
     except Exception as e:
         log(
-            f"Unable to generate tiles / observation plans for localization {localization_id}: {e}"
+            f"Unable to generate tiles / properties / observation plans for localization {localization_id}: {e}"
         )
-    finally:
-        Session.remove()
-
-
-def add_skymap_properties(localization_id, user_id):
-    session = Session()
-    try:
-        localization = session.scalar(
-            sa.select(Localization).where(Localization.id == localization_id)
-        )
-        user = session.scalar(sa.select(User).where(User.id == user_id))
-
-        properties_dict, tags_list = get_skymap_properties(localization)
-
-        properties = LocalizationProperty(
-            localization_id=localization_id, sent_by_id=user.id, data=properties_dict
-        )
-        session.add(properties)
-
-        tags = [
-            LocalizationTag(
-                localization_id=localization_id,
-                text=text,
-                sent_by_id=user.id,
-            )
-            for text in tags_list
-        ]
-        session.add_all(tags)
-
-        session.commit()
-        log(f"Generated properties for localization {localization_id}")
-    except Exception as e:
-        log(f"Unable to generate properties for localization {localization_id}: {e}")
     finally:
         Session.remove()
 
