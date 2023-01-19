@@ -85,10 +85,17 @@ def post_classification(data, user_id, session):
     )
     session.add(classification)
 
-    new_vote = ClassificationVote(
-        classification=classification, voter_id=user.id, vote=1
-    )
-    session.add(new_vote)
+    # voting
+    add_vote = True
+    if 'vote' in data:
+        if data['vote'] is False:
+            add_vote = False
+
+    if add_vote:
+        new_vote = ClassificationVote(
+            classification=classification, voter_id=user.id, vote=1
+        )
+        session.add(new_vote)
 
     for group_id in group_ids:
         source_label = session.scalars(
