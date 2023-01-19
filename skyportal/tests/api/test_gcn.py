@@ -50,7 +50,7 @@ def test_gcn_GW(super_admin_token, view_only_token):
     params = {
         'startDate': "2019-04-25T00:00:00",
         'endDate': "2019-04-26T00:00:00",
-        'tagKeep': 'GW',
+        'gcnTagKeep': 'GW',
     }
 
     status, data = api('GET', 'gcn_event', token=super_admin_token, params=params)
@@ -64,7 +64,7 @@ def test_gcn_GW(super_admin_token, view_only_token):
     params = {
         'startDate': "2019-04-25T00:00:00",
         'endDate': "2019-04-26T00:00:00",
-        'tagKeep': 'Fermi',
+        'gcnTagKeep': 'Fermi',
     }
 
     status, data = api('GET', 'gcn_event', token=super_admin_token, params=params)

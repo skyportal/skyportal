@@ -127,6 +127,18 @@ const DefaultObservationPlanTable = ({
     );
   };
 
+  const renderGcnEventFilters = (dataIndex) => {
+    const default_observation_plan = default_observation_plans[dataIndex];
+
+    return (
+      <div>
+        {default_observation_plan?.filters
+          ? JSON.stringify(default_observation_plan.filters)
+          : ""}
+      </div>
+    );
+  };
+
   const renderFilters = (dataIndex) => {
     const default_observation_plan = default_observation_plans[dataIndex];
 
@@ -134,18 +146,6 @@ const DefaultObservationPlanTable = ({
       <div>
         {default_observation_plan
           ? default_observation_plan.payload.filters
-          : ""}
-      </div>
-    );
-  };
-
-  const renderEnd_Date = (dataIndex) => {
-    const default_observation_plan = default_observation_plans[dataIndex];
-
-    return (
-      <div>
-        {default_observation_plan
-          ? default_observation_plan.payload.end_date
           : ""}
       </div>
     );
@@ -170,18 +170,6 @@ const DefaultObservationPlanTable = ({
       <div>
         {default_observation_plan
           ? default_observation_plan.payload.queue_name
-          : ""}
-      </div>
-    );
-  };
-
-  const renderStart_Date = (dataIndex) => {
-    const default_observation_plan = default_observation_plans[dataIndex];
-
-    return (
-      <div>
-        {default_observation_plan
-          ? default_observation_plan.payload.start_date
           : ""}
       </div>
     );
@@ -355,6 +343,16 @@ const DefaultObservationPlanTable = ({
       },
     },
     {
+      name: "Event Filters",
+      label: "GCN Event Filters",
+      options: {
+        filter: true,
+        sort: true,
+        sortThirdClickReset: true,
+        customBodyRenderLite: renderGcnEventFilters,
+      },
+    },
+    {
       name: "filters",
       label: "Filters",
       options: {
@@ -362,26 +360,6 @@ const DefaultObservationPlanTable = ({
         sort: true,
         sortThirdClickReset: true,
         customBodyRenderLite: renderFilters,
-      },
-    },
-    {
-      name: "start_date",
-      label: "Start Date",
-      options: {
-        filter: false,
-        sort: true,
-        sortThirdClickReset: true,
-        customBodyRenderLite: renderStart_Date,
-      },
-    },
-    {
-      name: "end_date",
-      label: "End Date",
-      options: {
-        filter: false,
-        sort: true,
-        sortThirdClickReset: true,
-        customBodyRenderLite: renderEnd_Date,
       },
     },
     {

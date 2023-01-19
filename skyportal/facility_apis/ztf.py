@@ -12,6 +12,7 @@ from sqlalchemy.orm import sessionmaker, scoped_session
 from tornado.ioloop import IOLoop
 import pandas as pd
 import pyvo
+import sqlalchemy as sa
 import urllib
 
 from . import FollowUpAPI, MMAAPI
@@ -41,7 +42,7 @@ class ZTFRequest:
 
     """A dictionary structure for ZTF ToO requests."""
 
-    def _build_triggered_payload(self, request):
+    def _build_triggered_payload(self, request, session):
         """Payload json for ZTF object queue requests.
 
         Parameters
@@ -49,12 +50,23 @@ class ZTFRequest:
 
         request : skyportal.models.FollowupRequest
             The request to add to the observation queue and the SkyPortal database.
+        session: sqlalchemy.Session
+            Database session for this transaction
 
         Returns
         ----------
         payload : json
             payload for requests.
         """
+
+        from ..models import Allocation, InstrumentField
+
+        allocation = (
+            session.scalars(
+                sa.select(Allocation).where(Allocation.id == request.allocation_id)
+            )
+        ).first()
+        instrument = allocation.instrument
 
         start_mjd = Time(request.payload["start_date"], format='iso').mjd
         end_mjd = Time(request.payload["end_date"], format='iso').mjd
@@ -78,12 +90,19 @@ class ZTFRequest:
             for field_id in request.payload["field_ids"].split(","):
                 field_id = int(field_id)
 
+                field = session.scalars(
+                    sa.select(InstrumentField).where(
+                        InstrumentField.instrument_id == instrument.id,
+                        InstrumentField.field_id == field_id,
+                    )
+                ).first()
+
                 target = {
                     'request_id': cnt,
                     'program_id': program_id,
                     'field_id': field_id,
-                    'ra': request.obj.ra,
-                    'dec': request.obj.dec,
+                    'ra': field.ra,
+                    'dec': field.dec,
                     'filter_id': filter_id,
                     'exposure_time': float(request.payload["exposure_time"]),
                     'program_pi': 'Kulkarni' + '/' + request.requester.username,
@@ -93,7 +112,6 @@ class ZTFRequest:
                 cnt = cnt + 1
 
         json_data['targets'] = targets
-
         return json_data
 
     def _build_forced_payload(self, request):
@@ -506,7 +524,7 @@ class ZTFAPI(FollowUpAPI):
             raise ValueError('Missing allocation information.')
 
         if request.payload["request_type"] == "triggered":
-            requestgroup = req._build_triggered_payload(request)
+            requestgroup = req._build_triggered_payload(request, session)
             url = urllib.parse.urljoin(ZTF_URL, 'api/triggers/ztf')
         elif request.payload["request_type"] == "forced_photometry":
             requestgroup = req._build_forced_payload(request)

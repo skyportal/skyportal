@@ -20,6 +20,7 @@ from astropy_healpix import HEALPix, nside_to_level, pixel_resolution_to_nside
 import ligo.skymap.io
 import ligo.skymap.postprocess
 import ligo.skymap.moc
+import ligo.skymap.distance
 import ligo.skymap.bayestar as ligo_bayestar
 from mocpy.mocpy import flatten_pixels
 from mocpy import MOC
@@ -479,3 +480,41 @@ def get_contour(localization):
     }
 
     return localization
+
+
+def get_skymap_properties(localization):
+
+    sky_map = localization.table
+
+    properties_dict = {}
+    tags_list = []
+    result = ligo.skymap.postprocess.crossmatch(sky_map, contours=(0.9,), areas=(500,))
+    area = result.contour_areas[0]
+    prob = result.area_probs[0]
+
+    if not np.isnan(area):
+        properties_dict["area_90"] = area
+        thresholds = [500, 1000]
+        for threshold in thresholds:
+            if properties_dict["area_90"] < threshold:
+                tags_list.append(f"< {threshold} sq. deg.")
+    if not np.isnan(prob):
+        properties_dict["probability_500"] = prob
+        if properties_dict["probability_500"] >= 0.9:
+            tags_list.append("> 0.9 in 500 sq. deg.")
+
+    # Distance stats
+    if 'DISTMU' in sky_map.dtype.names:
+        # Calculate the cumulative area in deg2 and the cumulative probability.
+        dA = ligo.skymap.moc.uniq2pixarea(sky_map['UNIQ'])
+        dP = sky_map['PROBDENSITY'] * dA
+        mu = sky_map['DISTMU']
+        sigma = sky_map['DISTSIGMA']
+
+        distmean, _ = ligo.skymap.distance.parameters_to_marginal_moments(dP, mu, sigma)
+        if not np.isnan(distmean):
+            properties_dict["distance"] = distmean
+            if distmean <= 150:
+                tags_list.append("< 150 Mpc")
+
+    return properties_dict, tags_list

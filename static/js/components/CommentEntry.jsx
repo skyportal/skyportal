@@ -28,12 +28,13 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-const CommentEntry = ({ addComment }) => {
+const CommentEntry = ({ addComment, editComment }) => {
   const styles = useStyles();
   const { userAccessible: groups } = useSelector((state) => state.groups);
   const [textValue, setTextValue] = useState("");
   const [textInputCursorIndex, setTextInputCursorIndex] = useState(0);
   const [autosuggestVisible, setAutosuggestVisible] = useState(false);
+  const [textRequired, setTextRequired] = useState(false);
   const [usernamePrefixMatches, setUsernamePrefixMatches] = useState({});
   const [instrumentPrefixMatches, setInstrumentPrefixMatches] = useState({});
   const textAreaRef = useRef(null);
@@ -81,6 +82,14 @@ const CommentEntry = ({ addComment }) => {
   }, [register]);
 
   useEffect(() => {
+    if (addComment) {
+      setTextRequired(true);
+    } else if (editComment) {
+      setTextRequired(false);
+    }
+  }, [addComment, editComment]);
+
+  useEffect(() => {
     reset({
       group_ids: Array(groups.length).fill(true),
     });
@@ -95,7 +104,11 @@ const CommentEntry = ({ addComment }) => {
     const groupIDs = groups?.map((g) => g.id);
     const selectedGroupIDs = groupIDs?.filter((ID, idx) => data.group_ids[idx]);
     data.group_ids = selectedGroupIDs;
-    addComment(data);
+    if (addComment) {
+      addComment(data);
+    } else if (editComment) {
+      editComment(data);
+    }
     reset();
     setGroupSelectVisible(false);
     setTextValue("");
@@ -185,37 +198,71 @@ const CommentEntry = ({ addComment }) => {
 
   return (
     <form className={styles.commentEntry} onSubmit={handleSubmit(onSubmit)}>
-      <Typography variant="h6">Add comment</Typography>
+      {addComment ? <Typography variant="h6">Add comment</Typography> : <></>}
+      {editComment ? <Typography variant="h6">Edit comment</Typography> : <></>}
       <div className={styles.inputDiv}>
         <Controller
           render={() => (
-            <TextField
-              id="root_comment"
-              value={textValue}
-              onChange={(event) => {
-                handleTextInputChange(event);
-              }}
-              label="Comment text"
-              name="text"
-              error={!!errors.text}
-              helperText={errors.text ? "Required" : ""}
-              fullWidth
-              multiline
-              inputRef={textAreaRef}
-              onKeyDown={(event) => {
-                // On down arrow, move focus to autocomplete
-                if (event.key === "ArrowDown" && autosuggestVisible) {
-                  autoSuggestRootItem.current.focus();
-                  // Do not scroll the list
-                  event.preventDefault();
-                }
-              }}
-            />
+            <div>
+              <div>
+                {addComment ? (
+                  <TextField
+                    id="root_comment"
+                    value={textValue}
+                    onChange={(event) => {
+                      handleTextInputChange(event);
+                    }}
+                    label="Comment text"
+                    name="text"
+                    error={!!errors.text}
+                    helperText={errors.text ? "Required" : ""}
+                    fullWidth
+                    multiline
+                    inputRef={textAreaRef}
+                    onKeyDown={(event) => {
+                      // On down arrow, move focus to autocomplete
+                      if (event.key === "ArrowDown" && autosuggestVisible) {
+                        autoSuggestRootItem.current.focus();
+                        // Do not scroll the list
+                        event.preventDefault();
+                      }
+                    }}
+                  />
+                ) : (
+                  <></>
+                )}
+              </div>
+              <div>
+                {editComment ? (
+                  <TextField
+                    id="root_comment"
+                    value={textValue}
+                    onChange={(event) => {
+                      handleTextInputChange(event);
+                    }}
+                    label="Comment text"
+                    name="text"
+                    fullWidth
+                    multiline
+                    inputRef={textAreaRef}
+                    onKeyDown={(event) => {
+                      // On down arrow, move focus to autocomplete
+                      if (event.key === "ArrowDown" && autosuggestVisible) {
+                        autoSuggestRootItem.current.focus();
+                        // Do not scroll the list
+                        event.preventDefault();
+                      }
+                    }}
+                  />
+                ) : (
+                  <></>
+                )}
+              </div>
+            </div>
           )}
           name="text"
           control={control}
-          rules={{ required: true }}
-          defaultValue=""
+          rules={{ required: textRequired }}
         />
       </div>
       <div
@@ -347,7 +394,8 @@ const CommentEntry = ({ addComment }) => {
       </div>
       <div className={styles.inputDiv}>
         <Button primary type="submitComment" name="submitCommentButton">
-          Add Comment
+          {addComment ? <>Add Comment</> : ""}
+          {editComment ? <>Edit Comment</> : ""}
         </Button>
       </div>
     </form>
@@ -355,7 +403,13 @@ const CommentEntry = ({ addComment }) => {
 };
 
 CommentEntry.propTypes = {
-  addComment: PropTypes.func.isRequired,
+  addComment: PropTypes.func,
+  editComment: PropTypes.func,
+};
+
+CommentEntry.defaultProps = {
+  addComment: null,
+  editComment: null,
 };
 
 export default CommentEntry;

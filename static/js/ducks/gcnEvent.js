@@ -12,6 +12,8 @@ export const SUBMIT_GCNEVENT = "skyportal/SUBMIT_GCNEVENT";
 
 const ADD_COMMENT_ON_GCNEVENT = "skyportal/ADD_COMMENT_ON_GCNEVENT";
 
+const EDIT_COMMENT_ON_GCNEVENT = "skyportal/EDIT_COMMENT_ON_GCNEVENT";
+
 const DELETE_COMMENT_ON_GCNEVENT = "skyportal/DELETE_COMMENT_ON_GCNEVENT";
 
 const GET_COMMENT_ON_GCNEVENT_ATTACHMENT =
@@ -85,6 +87,37 @@ export function addCommentOnGcnEvent(formData) {
   return API.POST(
     `/api/gcn_event/${formData.gcnevent_id}/comments`,
     ADD_COMMENT_ON_GCNEVENT,
+    formData
+  );
+}
+
+export function editCommentOnGcnEvent(commentID, gcnEventID, formData) {
+  function fileReaderPromise(file) {
+    return new Promise((resolve) => {
+      const filereader = new FileReader();
+      filereader.readAsDataURL(file);
+      filereader.onloadend = () =>
+        resolve({ body: filereader.result, name: file.name });
+    });
+  }
+  if (formData.attachment) {
+    return (dispatch) => {
+      fileReaderPromise(formData.attachment).then((fileData) => {
+        formData.attachment = fileData;
+
+        dispatch(
+          API.PUT(
+            `/api/gcn_event/${gcnEventID}/comments/${commentID}`,
+            EDIT_COMMENT_ON_GCNEVENT,
+            formData
+          )
+        );
+      });
+    };
+  }
+  return API.PUT(
+    `/api/gcn_event/${gcnEventID}/comments/${commentID}`,
+    EDIT_COMMENT_ON_GCNEVENT,
     formData
   );
 }

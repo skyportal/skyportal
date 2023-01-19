@@ -16,6 +16,8 @@ import ClassificationSelect from "./ClassificationSelect";
 import GcnNoticeTypesSelect from "./GcnNoticeTypesSelect";
 import GcnTagsSelect from "./GcnTagsSelect";
 import GcnPropertiesSelect from "./GcnPropertiesSelect";
+import LocalizationTagsSelect from "./LocalizationTagsSelect";
+import LocalizationPropertiesSelect from "./LocalizationPropertiesSelect";
 import NotificationSettingsSelect from "./NotificationSettingsSelect";
 import * as profileActions from "../ducks/profile";
 
@@ -72,6 +74,13 @@ const NotificationPreferences = () => {
     profile?.notications?.gcn_events?.gcn_properties || []
   );
 
+  const [selectedLocalizationTags, setSelectedLocalizationTags] = useState(
+    profile?.notications?.gcn_events?.localization_tags || []
+  );
+
+  const [selectedLocalizationProperties, setSelectedLocalizationProperties] =
+    useState(profile?.notications?.gcn_events?.localization_properties || []);
+
   useEffect(() => {
     setSelectedClassifications(
       profile?.notifications?.sources?.classifications || []
@@ -82,6 +91,12 @@ const NotificationPreferences = () => {
     setSelectedGcnTags(profile?.notifications?.gcn_events?.gcn_tags || []);
     setSelectedGcnProperties(
       profile?.notifications?.gcn_events?.gcn_properties || []
+    );
+    setSelectedLocalizationTags(
+      profile?.notifications?.gcn_events?.localization_tags || []
+    );
+    setSelectedLocalizationProperties(
+      profile?.notifications?.gcn_events?.localization_properties || []
     );
   }, [profile]);
 
@@ -138,6 +153,8 @@ const NotificationPreferences = () => {
           gcn_notice_types: [...new Set(selectedGcnNoticeTypes)],
           gcn_tags: [...new Set(selectedGcnTags)],
           gcn_properties: [...new Set(selectedGcnProperties)],
+          localization_tags: [...new Set(selectedLocalizationTags)],
+          localization_properties: [...new Set(selectedLocalizationProperties)],
         },
       },
     };
@@ -145,6 +162,10 @@ const NotificationPreferences = () => {
     setSelectedGcnNoticeTypes([...new Set(selectedGcnNoticeTypes)]);
     setSelectedGcnTags([...new Set(selectedGcnTags)]);
     setSelectedGcnProperties([...new Set(selectedGcnProperties)]);
+    setSelectedLocalizationTags([...new Set(selectedLocalizationTags)]);
+    setSelectedLocalizationProperties([
+      ...new Set(selectedLocalizationProperties),
+    ]);
     dispatch(showNotification("Gcn notice types updated"));
   };
 
@@ -231,6 +252,18 @@ const NotificationPreferences = () => {
                 <GcnPropertiesSelect
                   selectedGcnProperties={selectedGcnProperties}
                   setSelectedGcnProperties={setSelectedGcnProperties}
+                />
+                <LocalizationTagsSelect
+                  selectedLocalizationTags={selectedLocalizationTags}
+                  setSelectedLocalizationTags={setSelectedLocalizationTags}
+                />
+                <LocalizationPropertiesSelect
+                  selectedLocalizationProperties={
+                    selectedLocalizationProperties
+                  }
+                  setSelectedLocalizationProperties={
+                    setSelectedLocalizationProperties
+                  }
                 />
                 <Button
                   secondary
