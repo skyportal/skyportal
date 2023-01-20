@@ -70,7 +70,7 @@ export function recurringAPIInfo(recurringAPI) {
     );
   }
 
-  const result = `Next call: ${recurringAPI.next_call} / Delay [days]: ${recurringAPI.call_delay}`;
+  const result = `Next call: ${recurringAPI.next_call} / Delay [days]: ${recurringAPI.call_delay} / Active: ${recurringAPI.active}`;
 
   return result;
 }

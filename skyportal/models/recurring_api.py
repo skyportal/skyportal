@@ -50,3 +50,14 @@ class RecurringAPI(Base):
     call_delay = sa.Column(
         sa.Float, nullable=False, doc="Delay until next API call in days."
     )
+
+    number_of_retries = sa.Column(
+        sa.Integer, nullable=False, default=10, doc="Number of remaining API retries."
+    )
+
+    active = sa.Column(
+        sa.Boolean(),
+        nullable=False,
+        server_default="true",
+        doc="Boolean indicating whether this Recurring API remains active.",
+    )

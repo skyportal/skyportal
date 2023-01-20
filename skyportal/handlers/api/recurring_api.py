@@ -23,6 +23,8 @@ _, cfg = load_env()
 
 Session = scoped_session(sessionmaker(bind=DBSession.session_factory.kw["bind"]))
 
+MAX_RETRIES = 10
+
 
 class RecurringAPIHandler(BaseHandler):
     """Handler for recurring APIs."""
@@ -52,6 +54,9 @@ class RecurringAPIHandler(BaseHandler):
                   call_delay:
                     type: number
                     description: Delay until next API call in days.
+                  number_of_retries:
+                    type: integer
+                    description: Number of retries before service is deactivated.
                   payload:
                     type: object
                     description: Payload of the API call.
@@ -80,11 +85,17 @@ class RecurringAPIHandler(BaseHandler):
         data = self.get_json()
 
         try:
-            data['next_call'] = str(arrow.get(data.get('next_call')).datetime)
+            data['next_call'] = str(
+                arrow.get(data.get('next_call')).datetime.replace(tzinfo=None)
+            )
         except arrow.ParserError:
-            raise arrow.ParserError(
+            return self.error(
                 f"Invalid input for parameter next_call:{data.get('next_call')}"
             )
+
+        if 'number_of_retries' in data:
+            if data['number_of_retries'] > MAX_RETRIES:
+                return self.error(f'number_of_retries must be <= {MAX_RETRIES}')
 
         with self.Session() as session:
 
