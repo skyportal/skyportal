@@ -355,6 +355,7 @@ def test_gcn_summary_observations(
             'queue_name': queue_name,
             'program_id': 'Partnership',
             'subprogram_name': 'GRB',
+            'galactic_latitude': 10,
         },
     }
 

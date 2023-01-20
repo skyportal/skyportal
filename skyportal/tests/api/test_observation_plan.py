@@ -167,6 +167,7 @@ def test_observation_plan_tiling(
             'queue_name': queue_name,
             'program_id': 'Partnership',
             'subprogram_name': 'GRB',
+            'galactic_latitude': 10,
         },
     }
 
@@ -410,6 +411,7 @@ def test_observation_plan_galaxy(
             'queue_name': queue_name,
             'program_id': 'Partnership',
             'subprogram_name': 'GRB',
+            'galactic_latitude': 10,
         },
     }
 
