@@ -385,6 +385,10 @@ def generate_plan(
                 [request.payload["exposure_time"]]
                 * len(request.payload["filters"].split(","))
             ),
+            # avoid the galactic plane?
+            'doAvoidGalacticPlane': requests[0].payload.get("galactic_plane", False),
+            # galactic latitude to exclude
+            'galactic_limit': request.payload["galactic_latitude"],
         }
 
         config = {}
@@ -760,6 +764,7 @@ class MMAAPI(FollowUpAPI):
                     'maximum_airmass',
                     'integrated_probability',
                     'minimum_time_difference',
+                    'galactic_latitude',
                 }
 
                 if not required_parameters.issubset(set(request.payload.keys())):
@@ -1080,6 +1085,17 @@ class MMAAPI(FollowUpAPI):
                     "default": 30.0,
                     "minimum": 0,
                     "maximum": 180,
+                },
+                "galactic_plane": {
+                    "title": "Avoid the Galactic Plane?",
+                    "type": "boolean",
+                },
+                "galactic_latitude": {
+                    "title": "Galactic latitude to exclude",
+                    "type": "number",
+                    "default": 10.0,
+                    "minimum": 0,
+                    "maximum": 90,
                 },
                 "queue_name": {
                     "type": "string",
