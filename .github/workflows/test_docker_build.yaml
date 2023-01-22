@@ -5,6 +5,9 @@ on:
     branches:
       - main
       - test-docker
+  pull_request:
+    labels:
+      - docker
 
 jobs:
   test:
