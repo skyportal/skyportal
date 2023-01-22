@@ -1,5 +1,5 @@
 import React from "react";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 // eslint-disable-next-line import/no-unresolved
 import Form from "@rjsf/material-ui/v5";
 import { showNotification } from "baselayer/components/Notifications";
@@ -22,6 +22,9 @@ const NewRecurringAPI = () => {
     .add(1, "day")
     .utc()
     .format("YYYY-MM-DDTHH:mm:ssZ");
+  const allowedRecurringAPIMethods = useSelector(
+    (state) => state.config.allowedRecurringAPIMethods
+  );
 
   const handleSubmit = async ({ formData }) => {
     formData.next_call = formData.next_call
@@ -43,7 +46,12 @@ const NewRecurringAPI = () => {
       },
       method: {
         type: "string",
-        title: "HTTP method [get, post, etc.]",
+        oneOf: allowedRecurringAPIMethods.map((allowedRecurringAPIMethod) => ({
+          enum: [allowedRecurringAPIMethod],
+          title: allowedRecurringAPIMethod,
+        })),
+        title: "HTTP Method",
+        default: allowedRecurringAPIMethods[0],
       },
       next_call: {
         type: "string",

@@ -23,6 +23,7 @@ _, cfg = load_env()
 
 Session = scoped_session(sessionmaker(bind=DBSession.session_factory.kw["bind"]))
 
+ALLOWED_RECURRING_API_METHODS = ['POST']
 MAX_RETRIES = 10
 
 
@@ -94,8 +95,11 @@ class RecurringAPIHandler(BaseHandler):
             )
 
         if 'method' in data:
-            if not data['method'] in ['POST']:
-                return self.error('method must be POST')
+            data['method'] = data['method'].upper()
+            if not data['method'] in ALLOWED_RECURRING_API_METHODS:
+                return self.error(
+                    'method must be in {",".join(ALLOWED_RECURRING_API_METHODS)}'
+                )
 
         if 'number_of_retries' in data:
             if data['number_of_retries'] > MAX_RETRIES:
