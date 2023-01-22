@@ -93,9 +93,7 @@ def perform_api_calls():
 
             if response_status == 200:
                 recurring_api.number_of_retries = MAX_RETRIES
-                text_to_send = (
-                    f'Successfully called recurring API {recurring_api.id}: {str(data)}'
-                )
+                text_to_send = f'Successfully called recurring API {recurring_api.id}'
             else:
                 recurring_api.number_of_retries = recurring_api.number_of_retries - 1
                 if recurring_api.number_of_retries == 0:

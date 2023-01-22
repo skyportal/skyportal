@@ -93,6 +93,10 @@ class RecurringAPIHandler(BaseHandler):
                 f"Invalid input for parameter next_call:{data.get('next_call')}"
             )
 
+        if 'method' in data:
+            if not data['method'] in ['POST']:
+                return self.error('method must be POST')
+
         if 'number_of_retries' in data:
             if data['number_of_retries'] > MAX_RETRIES:
                 return self.error(f'number_of_retries must be <= {MAX_RETRIES}')
