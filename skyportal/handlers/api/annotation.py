@@ -9,7 +9,14 @@ from baselayer.log import make_log
 
 from ...utils.sizeof import sizeof, SIZE_WARNING_THRESHOLD
 from ..base import BaseHandler
-from ...models import Annotation, Spectrum, AnnotationOnSpectrum, Group
+from ...models import (
+    Annotation,
+    Photometry,
+    Spectrum,
+    AnnotationOnSpectrum,
+    AnnotationOnPhotometry,
+    Group,
+)
 
 log = make_log('api/annotation')
 
@@ -26,6 +33,11 @@ class AnnotationHandler(BaseHandler):
             "spectra": {
                 "class": AnnotationOnSpectrum,
                 "id_attr": 'spectrum_id',
+                "obj_associated": True,
+            },
+            "photometry": {
+                "class": AnnotationOnPhotometry,
+                "id_attr": 'photometry_id',
                 "obj_associated": True,
             },
         }
@@ -46,16 +58,17 @@ class AnnotationHandler(BaseHandler):
             - annotations
             - sources
             - spectra
+            - photometry
           parameters:
             - in: path
               name: associated_resource_type
               required: true
               schema:
                 type: string
-                enum: [sources, spectra]
+                enum: [sources, spectra, photometry]
               description: |
                  What underlying data the annotation is on:
-                 must be one of either "sources" or "spectra".
+                 must be one of "sources," "spectra", or "photometry."
             - in: path
               name: resource_id
               required: true
@@ -85,6 +98,7 @@ class AnnotationHandler(BaseHandler):
             - annotations
             - sources
             - spectra
+            - photometry
           parameters:
             - in: path
               name: associated_resource_type
@@ -194,7 +208,7 @@ class AnnotationHandler(BaseHandler):
               type: string
             description: |
                What underlying data the annotation is on:
-               must be one of either "sources" or "spectra".
+               must be one of "sources," "spectra", or "photometry."
           - in: path
             name: resource_id
             required: true
@@ -330,6 +344,35 @@ class AnnotationHandler(BaseHandler):
                     author=author,
                     groups=groups,
                 )
+            elif associated_resource_type.lower() == "photometry":
+                photometry_id = resource_id
+                photometry = session.scalars(
+                    Photometry.select(session.user_or_token).where(
+                        Photometry.id == photometry_id
+                    )
+                ).first()
+                if photometry is None:
+                    return self.error(
+                        f'Could not access photometry {photometry_id}.', status=403
+                    )
+                data['photometry_id'] = photometry_id
+                data['obj_id'] = photometry.obj_id
+                schema = AnnotationOnPhotometry.__schema__(exclude=["author_id"])
+                try:
+                    schema.load(data)
+                except ValidationError as e:
+                    return self.error(
+                        f'Invalid/missing parameters: {e.normalized_messages()}'
+                    )
+
+                annotation = AnnotationOnPhotometry(
+                    data=annotation_data,
+                    photometry_id=photometry_id,
+                    obj_id=photometry.obj_id,
+                    origin=origin,
+                    author=author,
+                    groups=groups,
+                )
             else:
                 return self.error(
                     f'Unknown resource type "{associated_resource_type}".'
@@ -371,7 +414,7 @@ class AnnotationHandler(BaseHandler):
               type: string
             description: |
                What underlying data the annotation is on:
-               must be one of either "sources" or "spectra".
+               must be one of "sources," "spectra", or "photometry."
           - in: path
             name: resource_id
             required: true
@@ -497,7 +540,7 @@ class AnnotationHandler(BaseHandler):
               type: string
             description: |
                What underlying data the annotation is on:
-               must be one of either "sources" or "spectra".
+               must be one of "sources," "spectra", or "photometry."
           - in: path
             name: resource_id
             required: true

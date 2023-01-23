@@ -170,6 +170,15 @@ class Photometry(conesearch_alchemy.Point, Base):
         doc="The User who uploaded the photometry.",
     )
 
+    annotations = relationship(
+        'AnnotationOnPhotometry',
+        back_populates='photometry',
+        cascade='save-update, merge, refresh-expire, expunge, delete',
+        passive_deletes=True,
+        order_by="AnnotationOnPhotometry.created_at",
+        doc="Annotations posted about this photometry.",
+    )
+
     @hybrid_property
     def mag(self):
         """The magnitude of the photometry point in the AB system."""
