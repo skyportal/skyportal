@@ -475,12 +475,28 @@ class CandidateHandler(BaseHandler):
                     )
 
                 if include_photometry:
-                    candidate_info['photometry'] = session.scalars(
-                        Photometry.select(
-                            session.user_or_token,
-                            options=[joinedload(Photometry.instrument)],
-                        ).where(Photometry.obj_id == obj_id)
-                    ).all()
+                    candidate_info['photometry'] = (
+                        session.scalars(
+                            Photometry.select(
+                                session.user_or_token,
+                                options=[
+                                    joinedload(Photometry.instrument),
+                                    joinedload(Photometry.annotations),
+                                ],
+                            ).where(Photometry.obj_id == obj_id)
+                        )
+                        .unique()
+                        .all()
+                    )
+                    candidate_info['photometry'] = [
+                        {
+                            **phot.to_dict(),
+                            'annotations': [
+                                annotation.to_dict() for annotation in phot.annotations
+                            ],
+                        }
+                        for phot in candidate_info['photometry']
+                    ]
                 if include_spectra:
                     candidate_info['spectra'] = session.scalars(
                         Spectrum.select(

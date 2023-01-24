@@ -112,8 +112,11 @@ def serialize(phot, outsys, format):
         'dec_unc': phot.dec_unc,
         'origin': phot.origin,
         'id': phot.id,
-        'groups': phot.groups,
+        'groups': [group.to_dict() for group in phot.groups],
         'altdata': phot.altdata,
+        'annotations': [annotation.to_dict() for annotation in phot.annotations]
+        if hasattr(phot, 'annotations')
+        else [],
     }
     if (
         phot.ref_flux is not None
