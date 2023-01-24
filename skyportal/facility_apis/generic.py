@@ -163,7 +163,7 @@ class GENERICAPI(FollowUpAPI):
         from ..models import DBSession, FollowupRequest, FacilityTransaction
 
         altdata = request.allocation.altdata
-        has_transaction = False
+        has_valid_transaction = False
         if altdata:
             req = (
                 DBSession()
@@ -175,27 +175,28 @@ class GENERICAPI(FollowUpAPI):
                 getattr(req, 'transactions', None) is not None
                 and getattr(req, 'transactions', None) != []
             ):
-                content = req.transactions[0].response["content"]
-                content = json.loads(content)
+                if getattr(req.transactions[0], 'response', None) is not None:
+                    content = req.transactions[0].response["content"]
+                    content = json.loads(content)
 
-                uid = content["data"]["id"]
+                    uid = content["data"]["id"]
 
-                r = requests.delete(
-                    f"{altdata['endpoint']}/{uid}",
-                    headers={"Authorization": f"token {altdata['api_token']}"},
-                )
-                r.raise_for_status()
-                request.status = "deleted"
+                    r = requests.delete(
+                        f"{altdata['endpoint']}/{uid}",
+                        headers={"Authorization": f"token {altdata['api_token']}"},
+                    )
+                    r.raise_for_status()
+                    request.status = "deleted"
 
-                transaction = FacilityTransaction(
-                    request=http.serialize_requests_request(r.request),
-                    response=http.serialize_requests_response(r),
-                    followup_request=request,
-                    initiator_id=request.last_modified_by_id,
-                )
-                has_transaction = True
+                    transaction = FacilityTransaction(
+                        request=http.serialize_requests_request(r.request),
+                        response=http.serialize_requests_response(r),
+                        followup_request=request,
+                        initiator_id=request.last_modified_by_id,
+                    )
+                    has_valid_transaction = True
 
-        if not has_transaction:
+        if not has_valid_transaction:
             request.status = 'deleted'
 
             transaction = FacilityTransaction(
