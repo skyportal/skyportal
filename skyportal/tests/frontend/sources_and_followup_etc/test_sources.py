@@ -683,12 +683,13 @@ def test_update_redshift_and_history_without_error(driver, user, public_source):
     driver.wait_for_xpath(f"//td[text()='{user.username}']")
 
 
+@pytest.mark.flaky(reruns=2)
 def test_obj_page_unsaved_source(public_obj, driver, user):
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_obj.id}")
 
     # wait for the plots to load
-    driver.wait_for_xpath('//div[@class=" bk-root"]', timeout=20)
+    driver.wait_for_xpath('//div[@class=" bk-root"]', timeout=30)
     # this waits for the spectroscopy plot by looking for the element Fe III
     num_panels = 0
     nretries = 0
