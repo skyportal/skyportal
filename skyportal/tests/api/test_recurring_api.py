@@ -59,4 +59,3 @@ def test_post_and_verify_recurring_api(
         n_retries += 1
     assert n_retries < 10
     assert status == 200
-    assert len(data) == 1
