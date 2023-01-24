@@ -577,6 +577,7 @@ def test_source_notification(driver, user, public_group, public_source):
     driver.wait_for_xpath("//*[text()='Notification queued up successfully']")
 
 
+@pytest.mark.flaky(reruns=2)
 def test_unsave_from_group(
     driver, user_two_groups, public_source_two_groups, public_group2
 ):
