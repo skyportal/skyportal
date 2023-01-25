@@ -540,7 +540,7 @@ class AnnotationHandler(BaseHandler):
               type: string
             description: |
                What underlying data the annotation is on:
-               must be one of "sources," "spectra", or "photometry."
+               must be one of "sources", "spectra", or "photometry."
           - in: path
             name: resource_id
             required: true
