@@ -68,7 +68,7 @@ class AnnotationHandler(BaseHandler):
                 enum: [sources, spectra, photometry]
               description: |
                  What underlying data the annotation is on:
-                 must be one of "sources," "spectra", or "photometry."
+                 must be one of "sources", "spectra", or "photometry."
             - in: path
               name: resource_id
               required: true
