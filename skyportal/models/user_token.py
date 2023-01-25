@@ -184,6 +184,13 @@ User.annotations_on_spectra = relationship(
     cascade="delete",
     passive_deletes=True,
 )
+User.annotations_on_photometry = relationship(
+    "AnnotationOnPhotometry",
+    back_populates="author",
+    foreign_keys="AnnotationOnPhotometry.author_id",
+    cascade="delete",
+    passive_deletes=True,
+)
 User.comments_on_gcns = relationship(
     "CommentOnGCN",
     back_populates="author",

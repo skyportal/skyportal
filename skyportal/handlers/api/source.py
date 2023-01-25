@@ -303,9 +303,15 @@ async def get_source(
     source_info["ebv"] = s.ebv
 
     if include_photometry:
-        photometry = session.scalars(
-            Photometry.select(user).where(Photometry.obj_id == obj_id)
-        ).all()
+        photometry = (
+            session.scalars(
+                Photometry.select(
+                    user, options=[joinedload(Photometry.annotations)]
+                ).where(Photometry.obj_id == obj_id)
+            )
+            .unique()
+            .all()
+        )
         source_info["photometry"] = [
             serialize(phot, 'ab', 'flux') for phot in photometry
         ]

@@ -425,11 +425,11 @@ skyportal_handlers = [
     (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/annotations/vizier', VizierQueryHandler),
     (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/annotations/datalab', DatalabQueryHandler),
     (
-        r'/api/(sources|spectra)(/[0-9A-Za-z-_\.\+]+)/annotations',
+        r'/api/(sources|spectra|photometry)(/[0-9A-Za-z-_\.\+]+)/annotations',
         AnnotationHandler,
     ),
     (
-        r'/api/(sources|spectra)(/[0-9A-Za-z-_\.\+]+)/annotations(/[0-9]+)?',
+        r'/api/(sources|spectra|photometry)(/[0-9A-Za-z-_\.\+]+)/annotations(/[0-9]+)?',
         AnnotationHandler,
     ),
     (r'/api/sources(/[^/]*)?', SourceHandler),

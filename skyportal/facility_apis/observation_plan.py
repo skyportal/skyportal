@@ -386,9 +386,9 @@ def generate_plan(
                 * len(request.payload["filters"].split(","))
             ),
             # avoid the galactic plane?
-            'doAvoidGalacticPlane': requests[0].payload.get("galactic_plane", False),
+            'doAvoidGalacticPlane': request.payload.get("galactic_plane", False),
             # galactic latitude to exclude
-            'galactic_limit': request.payload["galactic_latitude"],
+            'galactic_limit': request.payload.get("galactic_latitude", 10),
         }
 
         config = {}
