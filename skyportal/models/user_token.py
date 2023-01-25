@@ -295,6 +295,13 @@ User.assignments = relationship(
     doc="Objs the User has assigned to ObservingRuns.",
     foreign_keys="ClassicalAssignment.requester_id",
 )
+User.recurring_apis = relationship(
+    "RecurringAPI",
+    back_populates="owner",
+    foreign_keys="RecurringAPI.owner_id",
+    cascade="delete",
+    passive_deletes=True,
+)
 User.gcnevents = relationship(
     'GcnEvent',
     back_populates='sent_by',

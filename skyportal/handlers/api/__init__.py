@@ -120,6 +120,7 @@ from .photometry_request import PhotometryRequestHandler
 from .public_group import PublicGroupHandler
 from .roles import RoleHandler, UserRoleHandler
 from .obj import ObjHandler
+from .recurring_api import RecurringAPIHandler
 from .reminder import ReminderHandler
 from .sharing import SharingHandler
 from .shift import ShiftHandler, ShiftUserHandler, ShiftSummary

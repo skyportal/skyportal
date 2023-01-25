@@ -8,6 +8,7 @@ from ...enum_types import (
     GCN_NOTICE_TYPES,
 )
 
+from .recurring_api import ALLOWED_RECURRING_API_METHODS
 from .source import MAX_NUM_DAYS_USING_LOCALIZATION
 
 from skyportal.models import cosmo
@@ -70,5 +71,6 @@ class ConfigHandler(BaseHandler):
                 "gcnNoticeTypes": GCN_NOTICE_TYPES,
                 "maxNumDaysUsingLocalization": MAX_NUM_DAYS_USING_LOCALIZATION,
                 "image_analysis": True if 'image_analysis' in cfg else False,
+                "allowedRecurringAPIMethods": ALLOWED_RECURRING_API_METHODS,
             }
         )
