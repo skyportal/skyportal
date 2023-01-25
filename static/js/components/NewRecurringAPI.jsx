@@ -14,8 +14,6 @@ import {
 
 dayjs.extend(utc);
 
-dayjs.extend(utc);
-
 const NewRecurringAPI = () => {
   const dispatch = useDispatch();
   const defaultDate = dayjs()

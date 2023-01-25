@@ -150,10 +150,6 @@ const RecurringAPIPage = () => {
 
   useEffect(() => {
     const getRecurringAPIs = async () => {
-      // Wait for the analysis services to update before setting
-      // the new default form fields, so that the instruments list can
-      // update
-
       await dispatch(recurringAPIsActions.fetchRecurringAPIs());
     };
 
