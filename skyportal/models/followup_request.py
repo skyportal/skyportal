@@ -33,6 +33,13 @@ from .instrument import Instrument
 from .allocation import Allocation
 from .classification import Classification
 
+from baselayer.app.env import load_env
+from baselayer.log import make_log
+
+_, cfg = load_env()
+
+log = make_log('model/followup_request')
+
 
 def updatable_by_token_with_listener_acl(cls, user_or_token):
     if user_or_token.is_admin:
@@ -327,18 +334,20 @@ def add_followup(mapper, connection, target):
         start_date = str(datetime.utcnow()).replace("T", "")
         end_date = str(datetime.utcnow() + timedelta(days=1)).replace("T", "")
         obj_id = target_data['obj_id']
-
         for ii, default_followup_request in enumerate(default_followup_requests):
-            followup_request = default_followup_request.to_dict()
-            allocation_id = followup_request['allocation_id']
-            payload = {
-                **followup_request['payload'],
-                'start_date': start_date,
-                'end_date': end_date,
-            }
-            data = {
-                'payload': payload,
-                'allocation_id': allocation_id,
-                'obj_id': obj_id,
-            }
-            post_followup_request(data, session, refresh_source=False)
+            try:
+                followup_request = default_followup_request.to_dict()
+                allocation_id = followup_request['allocation_id']
+                payload = {
+                    **followup_request['payload'],
+                    'start_date': start_date,
+                    'end_date': end_date,
+                }
+                data = {
+                    'payload': payload,
+                    'allocation_id': allocation_id,
+                    'obj_id': obj_id,
+                }
+                post_followup_request(data, session, refresh_source=False)
+            except Exception as e:
+                log(f"Error posting followup request: {e}")

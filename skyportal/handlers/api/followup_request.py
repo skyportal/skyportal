@@ -375,7 +375,12 @@ def post_followup_request(data, session, refresh_source=True):
         Allocation.id == data['allocation_id'],
     )
     allocation = session.scalars(stmt).first()
+    if allocation is None:
+        raise ValueError(f'Could not find allocation with ID {data["allocation_id"]}.')
+
     instrument = allocation.instrument
+    if instrument is None:
+        raise ValueError(f'Could not find instrument for allocation {allocation.id}.')
 
     if instrument.api_classname is None:
         raise ValueError('Instrument has no remote API.')
