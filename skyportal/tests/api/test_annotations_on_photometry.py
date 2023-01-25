@@ -1,4 +1,4 @@
-from skyportal.tests import api, assert_api
+from skyportal.tests import api, assert_api, assert_api_fail
 
 
 def test_add_and_retrieve_annotation_group_id(
@@ -37,8 +37,7 @@ def test_add_and_retrieve_annotation_group_id(
         },
         token=annotation_token,
     )
-    assert status in [400]
-    assert 'origin must be specified' in data["message"]
+    assert_api_fail(status, data, 400, "origin must be specified")
 
     # this should not work, since "origin" is empty
     status, data = api(

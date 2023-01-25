@@ -1,7 +1,7 @@
 """Photometry annotations migration
 
 Revision ID: 3aa873458eb7
-Revises: fa832ea0ee8d
+Revises: 82edc4878f70
 Create Date: 2023-01-24 00:05:26.030572
 
 """
