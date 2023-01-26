@@ -616,6 +616,7 @@ class GcnEventHandler(BaseHandler):
                     )
 
                 self.push(action='skyportal/REFRESH_GCN_EVENTS')
+                self.push(action='skyportal/REFRESH_RECENT_GCNEVENTS')
             except Exception as e:
                 return self.error(f'Cannot post event: {str(e)}')
 
