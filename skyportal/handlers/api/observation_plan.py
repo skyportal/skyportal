@@ -77,6 +77,9 @@ from ...utils.simsurvey import (
 from skyportal.handlers.api.source import post_source
 from skyportal.handlers.api.followup_request import post_assignment
 from skyportal.handlers.api.observingrun import post_observing_run
+from skyportal.facility_apis.observation_plan import (
+    generate_observation_plan_statistics,
+)
 
 env, cfg = load_env()
 TREASUREMAP_URL = cfg['app.treasuremap_endpoint']
@@ -337,7 +340,7 @@ def post_observation_plans(plans, user_id, session, asynchronous=True):
     for observation_plan_request in observation_plan_requests:
         flow.push(
             '*',
-            "skyportal/REFRESH_GCNEVENT",
+            "skyportal/REFRESH_GCN_EVENT",
             payload={"gcnEvent_dateobs": observation_plan_request.gcnevent.dateobs},
         )
 
@@ -418,7 +421,7 @@ def post_observation_plan(plan, user_id, session, asynchronous=True):
 
     flow.push(
         '*',
-        "skyportal/REFRESH_GCNEVENT",
+        "skyportal/REFRESH_GCN_EVENT",
         payload={"gcnEvent_dateobs": dateobs},
     )
 
@@ -432,7 +435,7 @@ def post_observation_plan(plan, user_id, session, asynchronous=True):
 
     flow.push(
         '*',
-        "skyportal/REFRESH_GCNEVENT",
+        "skyportal/REFRESH_GCN_EVENT",
         payload={"gcnEvent_dateobs": observation_plan_request.gcnevent.dateobs},
     )
 
@@ -623,11 +626,128 @@ class ObservationPlanRequestHandler(BaseHandler):
             session.commit()
 
             self.push_all(
-                action="skyportal/REFRESH_GCNEVENT",
+                action="skyportal/REFRESH_GCN_EVENT",
                 payload={"gcnEvent_dateobs": dateobs},
             )
 
             return self.success()
+
+
+class ObservationPlanManualRequestHandler(BaseHandler):
+    @auth_or_token
+    def post(self):
+        """
+        ---
+        description: Submit manual observation plan.
+        tags:
+          - observation_plan_requests
+        requestBody:
+          content:
+            application/json:
+              schema: ObservationPlanManualHandlerPost
+        responses:
+          200:
+            content:
+              application/json:
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              description: New observation plan request ID
+        """
+        json_data = self.get_json()
+
+        with self.Session() as session:
+            stmt = GcnEvent.select(session.user_or_token)
+            if 'gcnevent_id' in json_data:
+                stmt = stmt.where(GcnEvent.id == json_data['gcnevent_id'])
+            elif 'dateobs' in json_data:
+                stmt = stmt.where(GcnEvent.dateobs == json_data['dateobs'])
+            else:
+                return self.error(
+                    message="Need to specify either gcnevent_id or dateobs"
+                )
+            event = session.scalars(stmt).first()
+            if event is None:
+                return self.error(message="Cannot find associated GcnEvent")
+
+            stmt = Localization.select(session.user_or_token)
+            if 'localization_id' in json_data:
+                stmt = stmt.where(Localization.id == json_data['localization_id'])
+            elif 'localization_name' in json_data:
+                stmt = stmt.where(
+                    Localization.localization_name == json_data['localization_name']
+                )
+            else:
+                return self.error(
+                    message="Need to specify either localization_id or localization_name"
+                )
+            localization = session.scalars(stmt).first()
+            if localization is None:
+                return self.error(message="Cannot find associated Localization")
+
+            observation_plan_request = ObservationPlanRequest(
+                requester_id=self.associated_user_object.id,
+                gcnevent=event,
+                localization=localization,
+                payload=json_data['payload'],
+                status=json_data['status'],
+                allocation_id=json_data['allocation_id'],
+            )
+            session.add(observation_plan_request)
+            session.commit()
+
+            stmt = Allocation.select(session.user_or_token).where(
+                Allocation.id == observation_plan_request.allocation_id,
+            )
+            allocation = session.scalars(stmt).first()
+            instrument = allocation.instrument
+
+            observation_plan = json_data['observation_plans'][0]
+            event_observation_plan = EventObservationPlan(
+                observation_plan_request_id=observation_plan_request.id,
+                instrument_id=instrument.id,
+                dateobs=event.dateobs,
+                plan_name=json_data['plan_name'],
+                validity_window_start=observation_plan['validity_window_start'],
+                validity_window_end=observation_plan['validity_window_end'],
+                status=observation_plan['status'],
+            )
+            session.add(event_observation_plan)
+            session.commit()
+
+            planned_observations = []
+            for planned_obs in observation_plan['planned_observations']:
+                tt = Time(planned_obs['dateobs'], format='isot')
+
+                planned_observation = PlannedObservation(
+                    obstime=tt.datetime,
+                    dateobs=event.dateobs,
+                    field_id=planned_obs['field_id'],
+                    exposure_time=planned_obs['exposure_time'],
+                    weight=planned_obs['weight'],
+                    filt=planned_obs['filt'],
+                    instrument_id=instrument.id,
+                    planned_observation_id=planned_obs['planned_observation_id'],
+                    observation_plan_id=event_observation_plan.id,
+                    overhead_per_exposure=planned_obs['overhead_per_exposure'],
+                )
+            planned_observations.append(planned_observation)
+
+            session.add_all(planned_observations)
+            session.commit()
+
+            generate_observation_plan_statistics(
+                [event_observation_plan.id], [observation_plan_request.id], session
+            )
+
+            return self.success(data={"id": observation_plan_request.id})
 
 
 class ObservationPlanSubmitHandler(BaseHandler):
@@ -682,7 +802,7 @@ class ObservationPlanSubmitHandler(BaseHandler):
             finally:
                 session.commit()
             self.push_all(
-                action="skyportal/REFRESH_GCNEVENT",
+                action="skyportal/REFRESH_GCN_EVENT",
                 payload={"gcnEvent_dateobs": observation_plan_request.gcnevent.dateobs},
             )
 
@@ -737,7 +857,7 @@ class ObservationPlanSubmitHandler(BaseHandler):
             finally:
                 session.commit()
             self.push_all(
-                action="skyportal/REFRESH_GCNEVENT",
+                action="skyportal/REFRESH_GCN_EVENT",
                 payload={"gcnEvent_dateobs": observation_plan_request.gcnevent.dateobs},
             )
 
@@ -1280,6 +1400,11 @@ class ObservationPlanSurveyEfficiencyHandler(BaseHandler):
                     f'Could not find observation_plan_request with ID {observation_plan_request_id}'
                 )
 
+            if len(observation_plan_request.observation_plans) == 0:
+                return self.error(
+                    f'Could not find an observation_plan associated with observation_plan_request ID {observation_plan_request_id}'
+                )
+
             observation_plan = observation_plan_request.observation_plans[0]
             analysis_data = []
             for analysis in observation_plan.survey_efficiency_analyses:
@@ -1414,6 +1539,11 @@ class ObservationPlanFieldsHandler(BaseHandler):
                     f'Could not find observation_plan_request with ID {observation_plan_request_id}'
                 )
 
+            if len(observation_plan_request.observation_plans) == 0:
+                return self.error(
+                    f'Could not find an observation_plan associated with observation_plan_request ID {observation_plan_request_id}'
+                )
+
             observation_plan = observation_plan_request.observation_plans[0]
             dateobs = observation_plan_request.gcnevent.dateobs
 
@@ -1425,7 +1555,7 @@ class ObservationPlanFieldsHandler(BaseHandler):
                 session.commit()
 
             self.push_all(
-                action="skyportal/REFRESH_GCNEVENT",
+                action="skyportal/REFRESH_GCN_EVENT",
                 payload={"gcnEvent_dateobs": dateobs},
             )
 
@@ -1831,6 +1961,11 @@ class ObservationPlanCreateObservingRunHandler(BaseHandler):
                 )
 
             instrument = allocation.instrument
+
+            if len(observation_plan_request.observation_plans) == 0:
+                return self.error(
+                    f'Could not find an observation_plan associated with observation_plan_request ID {observation_plan_request_id}'
+                )
 
             observation_plan = observation_plan_request.observation_plans[0]
             planned_observations = observation_plan.planned_observations

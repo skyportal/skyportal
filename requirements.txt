@@ -9,7 +9,7 @@ seaborn==0.12.0
 bokeh==3.0.3
 pytest-randomly==3.12.0
 factory-boy==3.2.1
-astropy==5.1.1
+astropy==5.2.1
 distributed==2022.10.2
 dustmaps==1.0.10
 reproject==0.9.1
@@ -62,7 +62,7 @@ geojson==2.5.0
 typing-extensions>=4.0.1  # astropy v5.0 needs this, but does not correctly specify as much in its install config
 swifttools==3.0.10
 pip==22.3.1
-gwemopt==0.0.76
+gwemopt==0.0.77
 humanize==4.4.0
 xarray>=21.1
 simsurvey==0.7.5

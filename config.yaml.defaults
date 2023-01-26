@@ -130,6 +130,8 @@ app:
       component: FindingChart
     - path: "/source/:id/periodogram"
       component: Periodogram
+    # - path: "/source/:id/image_analysis"
+      # component: ImageAnalysisPage
     - path: "/db_stats"
       component: DBStats
     - path: "/gcn_events"
@@ -146,6 +148,8 @@ app:
       component: EarthquakePage
     - path: "/services"
       component: AnalysisServicePage
+    - path: "/recurring_apis"
+      component: RecurringAPIPage
     - path: "/shifts"
       component: ShiftNoId
     - path: "/shifts/:id"
@@ -234,6 +238,10 @@ app:
         - name: Analysis Services
           icon: SentimentSatisfied
           url: /services
+
+        - name: Recurring API
+          icon: Restore
+          url: /recurring_apis
 
         - name: Taxonomies
           icon: WallpaperOutlined
@@ -414,6 +422,7 @@ server:
   # - Authorized redirect URLs: http://localhost:5000/complete/google-oauth2/
   #
   # You need to have Google+ API enabled; it takes a few minutes to activate.
+  protocol: http
   host: localhost
   port: 5000  # This is the public-facing port
 
@@ -663,3 +672,5 @@ analysis_services:
     port: 6801
   ngsf_analysis_service:
     port: 7001
+
+comment_folder: persistentdata/comments

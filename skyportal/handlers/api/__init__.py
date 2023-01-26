@@ -13,6 +13,7 @@ from .classification import (
     ObjClassificationQueryHandler,
 )
 from .comment import CommentHandler, CommentAttachmentHandler
+from .comment_attachment import CommentAttachmentUpdateHandler
 from .annotation import AnnotationHandler
 from .annotation_services import (
     GaiaQueryHandler,
@@ -54,7 +55,9 @@ from .gcn import (
     GcnSummaryHandler,
     LocalizationHandler,
     LocalizationDownloadHandler,
+    LocalizationCrossmatchHandler,
     LocalizationPropertiesHandler,
+    LocalizationTagsHandler,
 )
 from .gcn_tach import GcnTachHandler
 from .group import (
@@ -102,6 +105,7 @@ from .observation_plan import (
     ObservationPlanAirmassChartHandler,
     ObservationPlanCreateObservingRunHandler,
     ObservationPlanFieldsHandler,
+    ObservationPlanManualRequestHandler,
 )
 from .photometry import (
     PhotometryHandler,
@@ -116,6 +120,7 @@ from .photometry_request import PhotometryRequestHandler
 from .public_group import PublicGroupHandler
 from .roles import RoleHandler, UserRoleHandler
 from .obj import ObjHandler
+from .recurring_api import RecurringAPIHandler
 from .reminder import ReminderHandler
 from .sharing import SharingHandler
 from .shift import ShiftHandler, ShiftUserHandler, ShiftSummary

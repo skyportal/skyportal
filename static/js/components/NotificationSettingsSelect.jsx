@@ -96,17 +96,42 @@ const NotificationSettingsSelect = ({ notificationResourceType }) => {
   const [open, setOpen] = useState(false);
   const profile = useSelector((state) => state.profile.preferences);
   const dispatch = useDispatch();
-  const [value, setValue] = React.useState();
-  const [inverted, setInverted] = React.useState(false);
+  const [valueSMS, setValueSMS] = useState();
+  const [invertedSMS, setInvertedSMS] = useState(false);
+  const [valuePhone, setValuePhone] = useState();
+  const [invertedPhone, setInvertedPhone] = useState(false);
+  const [valueWhatsapp, setValueWhatsapp] = useState();
+  const [invertedWhatsapp, setInvertedWhatsapp] = useState(false);
 
   useEffect(() => {
-    if (!value) {
-      const val =
+    if (!valueSMS) {
+      const valSMS =
         profile?.notifications[notificationResourceType]?.sms?.time_slot;
-      if (val?.length > 0) {
-        setValue(val);
-        if (val[0] > val[1]) {
-          setInverted(true);
+      console.log("valSMS", valSMS);
+      if (valSMS?.length > 0) {
+        setValueSMS(valSMS);
+        if (valSMS[0] > valSMS[1]) {
+          setInvertedSMS(true);
+        }
+      }
+    }
+    if (!valuePhone) {
+      const valPhone =
+        profile?.notifications[notificationResourceType]?.phone?.time_slot;
+      if (valPhone?.length > 0) {
+        setValuePhone(valPhone);
+        if (valPhone[0] > valPhone[1]) {
+          setInvertedPhone(true);
+        }
+      }
+    }
+    if (!valueWhatsapp) {
+      const valWhatsapp =
+        profile?.notifications[notificationResourceType]?.whatsapp?.time_slot;
+      if (valWhatsapp?.length > 0) {
+        setValueWhatsapp(valWhatsapp);
+        if (valWhatsapp[0] > valWhatsapp[1]) {
+          setInvertedWhatsapp(true);
         }
       }
     }
@@ -131,20 +156,48 @@ const NotificationSettingsSelect = ({ notificationResourceType }) => {
           [notificationResourceType]: {},
         },
       };
-      if (event.target.name === "on_shift") {
+      if (event.target.name === "on_shift_sms") {
         prefs.notifications[notificationResourceType].sms = {};
-        prefs.notifications[notificationResourceType].sms[event.target.name] =
+        prefs.notifications[notificationResourceType].sms.on_shift =
           event.target.checked;
-      } else if (event.target.name === "time_slot") {
+      } else if (event.target.name === "time_slot_sms") {
         prefs.notifications[notificationResourceType].sms = {};
         if (event.target.checked) {
-          prefs.notifications[notificationResourceType].sms[event.target.name] =
-            [8, 20];
-          setValue([8, 20]);
+          prefs.notifications[notificationResourceType].sms.time_slot = [8, 20];
+          setValueSMS([8, 20]);
         } else {
-          prefs.notifications[notificationResourceType].sms[event.target.name] =
-            [];
-          setValue([]);
+          prefs.notifications[notificationResourceType].sms.time_slot = [];
+          setValueSMS([]);
+        }
+      } else if (event.target.name === "on_shift_phone") {
+        prefs.notifications[notificationResourceType].phone = {};
+        prefs.notifications[notificationResourceType].phone.on_shift =
+          event.target.checked;
+      } else if (event.target.name === "time_slot_phone") {
+        prefs.notifications[notificationResourceType].phone = {};
+        if (event.target.checked) {
+          prefs.notifications[notificationResourceType].phone.time_slot = [
+            8, 20,
+          ];
+          setValuePhone([8, 20]);
+        } else {
+          prefs.notifications[notificationResourceType].phone.time_slot = [];
+          setValuePhone([]);
+        }
+      } else if (event.target.name === "on_shift_whatsapp") {
+        prefs.notifications[notificationResourceType].whatsapp = {};
+        prefs.notifications[notificationResourceType].whatsapp.on_shift =
+          event.target.checked;
+      } else if (event.target.name === "time_slot_whatsapp") {
+        prefs.notifications[notificationResourceType].whatsapp = {};
+        if (event.target.checked) {
+          prefs.notifications[notificationResourceType].whatsapp.time_slot = [
+            8, 20,
+          ];
+          setValueWhatsapp([8, 20]);
+        } else {
+          prefs.notifications[notificationResourceType].whatsapp.time_slot = [];
+          setValueWhatsapp([]);
         }
       } else {
         prefs.notifications[notificationResourceType][event.target.name] = {
@@ -156,7 +209,7 @@ const NotificationSettingsSelect = ({ notificationResourceType }) => {
     }
   };
 
-  const onChangeInverted = () => {
+  const onChangeInverted = (type) => {
     if (
       notificationResourceType === "gcn_events" ||
       notificationResourceType === "sources" ||
@@ -166,39 +219,77 @@ const NotificationSettingsSelect = ({ notificationResourceType }) => {
       notificationResourceType === "analysis_services" ||
       notificationResourceType === "observation_plans"
     ) {
-      const prefs = {
-        notifications: {
-          [notificationResourceType]: {
-            sms: {
-              time_slot: value.reverse(),
+      if (type === "sms") {
+        const prefs = {
+          notifications: {
+            [notificationResourceType]: {
+              sms: {
+                time_slot: valueSMS,
+              },
             },
           },
-        },
-      };
-
-      dispatch(profileActions.updateUserPreferences(prefs));
+        };
+        setValueSMS(valueSMS.reverse());
+        setInvertedSMS(!invertedSMS);
+        dispatch(profileActions.updateUserPreferences(prefs));
+      } else if (type === "phone") {
+        const prefs = {
+          notifications: {
+            [notificationResourceType]: {
+              phone: {
+                time_slot: valuePhone,
+              },
+            },
+          },
+        };
+        setValuePhone(valuePhone.reverse());
+        setInvertedPhone(!invertedPhone);
+        dispatch(profileActions.updateUserPreferences(prefs));
+      } else if (type === "whatsapp") {
+        const prefs = {
+          notifications: {
+            [notificationResourceType]: {
+              whatsapp: {
+                time_slot: valueWhatsapp,
+              },
+            },
+          },
+        };
+        setValueWhatsapp(valueWhatsapp.reverse());
+        setInvertedWhatsapp(!invertedWhatsapp);
+        dispatch(profileActions.updateUserPreferences(prefs));
+      }
     }
-    setValue(value.reverse());
-    setInverted(!inverted);
   };
 
   const handleChecked = (type) => {
     let checked = false;
-    if (type === "on_shift") {
-      checked = profile?.notifications[notificationResourceType]?.sms?.on_shift;
-    } else if (type === "time_slot") {
+    checked = profile?.notifications[notificationResourceType][type]?.active;
+    return checked;
+  };
+
+  const handleSliders = (type, slider_type) => {
+    let checked = false;
+    if (slider_type === "on_shift") {
       checked =
-        profile?.notifications[notificationResourceType]?.sms?.time_slot
+        profile?.notifications[notificationResourceType][type]?.on_shift;
+    } else if (slider_type === "time_slot") {
+      checked =
+        profile?.notifications[notificationResourceType][type]?.time_slot
           ?.length > 0;
-    } else {
-      checked = profile?.notifications[notificationResourceType][type]?.active;
     }
     return checked;
   };
 
   const valuetext = (val) => `${val}H`;
   const handleChange = (event, newValue) => {
-    setValue(newValue);
+    if (event.target.name === "time_slot_slider_sms") {
+      setValueSMS(newValue);
+    } else if (event.target.name === "time_slot_slider_phone") {
+      setValuePhone(newValue);
+    } else if (event.target.name === "time_slot_slider_whatsapp") {
+      setValueWhatsapp(newValue);
+    }
   };
 
   const handleChangeCommitted = () => {
@@ -215,7 +306,13 @@ const NotificationSettingsSelect = ({ notificationResourceType }) => {
         notifications: {
           [notificationResourceType]: {
             sms: {
-              [`time_slot`]: value,
+              [`time_slot`]: valueSMS,
+            },
+            phone: {
+              [`time_slot`]: valuePhone,
+            },
+            whatsapp: {
+              [`time_slot`]: valueWhatsapp,
             },
           },
         },
@@ -316,27 +413,6 @@ const NotificationSettingsSelect = ({ notificationResourceType }) => {
                   </Tooltip>
                 </FormGroup>
               </div>
-              <div className={classes.pref}>
-                <FormGroup row className={classes.form_group}>
-                  <FormControlLabel
-                    control={
-                      <Switch
-                        checked={handleChecked("phone")}
-                        name="phone"
-                        onChange={prefToggled}
-                      />
-                    }
-                    label=" By Phone Call"
-                  />
-                  <Tooltip
-                    title="Click here to receive notifications by phone call about the selected notification type. You also need to set your phone number in your user profile. Two options will appear, please select at least one."
-                    placement="right"
-                    classes={{ tooltip: classes.tooltip }}
-                  >
-                    <HelpOutlineOutlinedIcon />
-                  </Tooltip>
-                </FormGroup>
-              </div>
               {profile?.notifications?.[notificationResourceType]?.sms
                 ?.active && (
                 <div className={classes.options}>
@@ -344,8 +420,8 @@ const NotificationSettingsSelect = ({ notificationResourceType }) => {
                     <FormControlLabel
                       control={
                         <Switch
-                          checked={handleChecked("on_shift")}
-                          name="on_shift"
+                          checked={handleSliders("sms", "on_shift")}
+                          name="on_shift_sms"
                           onChange={prefToggled}
                         />
                       }
@@ -363,8 +439,8 @@ const NotificationSettingsSelect = ({ notificationResourceType }) => {
                     <FormControlLabel
                       control={
                         <Switch
-                          checked={handleChecked("time_slot")}
-                          name="time_slot"
+                          checked={handleSliders("sms", "time_slot")}
+                          name="time_slot_sms"
                           onChange={prefToggled}
                         />
                       }
@@ -388,7 +464,7 @@ const NotificationSettingsSelect = ({ notificationResourceType }) => {
                     >
                       <Slider
                         getAriaLabel={() => "time_slot_slider"}
-                        value={value}
+                        value={valueSMS}
                         onChange={handleChange}
                         onChangeCommitted={handleChangeCommitted}
                         valueLabelDisplay="on"
@@ -397,11 +473,213 @@ const NotificationSettingsSelect = ({ notificationResourceType }) => {
                         max={24}
                         step={1}
                         marks
-                        track={inverted ? "inverted" : "normal"}
+                        track={invertedSMS ? "inverted" : "normal"}
+                        name="time_slot_slider_sms"
                       />
                       <Checkbox
-                        checked={inverted === true}
-                        onChange={() => onChangeInverted()}
+                        checked={invertedSMS === true}
+                        onChange={() => onChangeInverted("sms")}
+                        label="Invert"
+                        name="time_slot_slider_sms"
+                      />
+                      <Tooltip
+                        title="Select a start and end time on the slider. If you want to receive notifications outside and not inside the time slot, check the Invert option."
+                        placement="right"
+                        classes={{ tooltip: classes.tooltip }}
+                      >
+                        <HelpOutlineOutlinedIcon />
+                      </Tooltip>
+                    </Box>
+                  )}
+                </div>
+              )}
+              <div className={classes.pref}>
+                <FormGroup row className={classes.form_group}>
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={handleChecked("phone")}
+                        name="phone"
+                        onChange={prefToggled}
+                      />
+                    }
+                    label=" By Phone Call"
+                  />
+                  <Tooltip
+                    title="Click here to receive notifications by phone call about the selected notification type. You also need to set your phone number in your user profile. Two options will appear, please select at least one."
+                    placement="right"
+                    classes={{ tooltip: classes.tooltip }}
+                  >
+                    <HelpOutlineOutlinedIcon />
+                  </Tooltip>
+                </FormGroup>
+              </div>
+              {profile?.notifications?.[notificationResourceType]?.phone
+                ?.active && (
+                <div className={classes.options}>
+                  <FormGroup row className={classes.form_group}>
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          checked={handleSliders("phone", "on_shift")}
+                          name="on_shift_phone"
+                          onChange={prefToggled}
+                        />
+                      }
+                      label="On Shift"
+                    />
+                    <Tooltip
+                      title="Click here to receive notifications by Phone Call when you are on shift. This is in addition to the time slot option. "
+                      placement="right"
+                      classes={{ tooltip: classes.tooltip }}
+                    >
+                      <HelpOutlineOutlinedIcon />
+                    </Tooltip>
+                  </FormGroup>
+                  <FormGroup row className={classes.form_group}>
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          checked={handleSliders("phone", "time_slot")}
+                          name="time_slot_phone"
+                          onChange={prefToggled}
+                        />
+                      }
+                      label="Time Slot (UTC)"
+                    />
+                    <Tooltip
+                      title="Click here to receive notifications by Phone Call during a specific time slot. Outside of the time slot, you will not receive any messages on your phone. This is in addition to notifications during shifts, if configured."
+                      placement="right"
+                      classes={{ tooltip: classes.tooltip }}
+                    >
+                      <HelpOutlineOutlinedIcon />
+                    </Tooltip>
+                  </FormGroup>
+                  {profile?.notifications?.[notificationResourceType]?.phone
+                    ?.time_slot?.length > 0 && (
+                    <Box
+                      sx={{ width: 300 }}
+                      display="flex"
+                      flexDirection="row"
+                      alignItems="center"
+                    >
+                      <Slider
+                        getAriaLabel={() => "time_slot_slider"}
+                        value={valuePhone}
+                        onChange={handleChange}
+                        onChangeCommitted={handleChangeCommitted}
+                        valueLabelDisplay="on"
+                        getAriaValueText={valuetext}
+                        min={0}
+                        max={24}
+                        step={1}
+                        marks
+                        track={invertedPhone ? "inverted" : "normal"}
+                        name="time_slot_slider_phone"
+                      />
+                      <Checkbox
+                        checked={invertedPhone === true}
+                        onChange={() => onChangeInverted("phone")}
+                        label="Invert"
+                      />
+                      <Tooltip
+                        title="Select a start and end time on the slider. If you want to receive notifications outside and not inside the time slot, check the Invert option."
+                        placement="right"
+                        classes={{ tooltip: classes.tooltip }}
+                      >
+                        <HelpOutlineOutlinedIcon />
+                      </Tooltip>
+                    </Box>
+                  )}
+                </div>
+              )}
+              <div className={classes.pref}>
+                <FormGroup row className={classes.form_group}>
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={handleChecked("whatsapp")}
+                        name="whatsapp"
+                        onChange={prefToggled}
+                      />
+                    }
+                    label=" Message on WhatsApp"
+                  />
+                  <Tooltip
+                    title="Click here to receive notifications on WhatsApp about the selected notification type. You also need to set your phone number in your user profile. Two options will appear, please select at least one."
+                    placement="right"
+                    classes={{ tooltip: classes.tooltip }}
+                  >
+                    <HelpOutlineOutlinedIcon />
+                  </Tooltip>
+                </FormGroup>
+              </div>
+              {profile?.notifications?.[notificationResourceType]?.whatsapp
+                ?.active && (
+                <div className={classes.options}>
+                  <FormGroup row className={classes.form_group}>
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          checked={handleSliders("whatsapp", "on_shift")}
+                          name="on_shift_whatsapp"
+                          onChange={prefToggled}
+                        />
+                      }
+                      label="On Shift"
+                    />
+                    <Tooltip
+                      title="Click here to receive notifications on WhatsApp when you are on shift. This is in addition to the time slot option. "
+                      placement="right"
+                      classes={{ tooltip: classes.tooltip }}
+                    >
+                      <HelpOutlineOutlinedIcon />
+                    </Tooltip>
+                  </FormGroup>
+                  <FormGroup row className={classes.form_group}>
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          checked={handleSliders("whatsapp", "time_slot")}
+                          name="time_slot_whatsapp"
+                          onChange={prefToggled}
+                        />
+                      }
+                      label="Time Slot (UTC)"
+                    />
+                    <Tooltip
+                      title="Click here to receive notifications on WhatsApp during a specific time slot. Outside of the time slot, you will not receive any messages on your phone. This is in addition to notifications during shifts, if configured."
+                      placement="right"
+                      classes={{ tooltip: classes.tooltip }}
+                    >
+                      <HelpOutlineOutlinedIcon />
+                    </Tooltip>
+                  </FormGroup>
+                  {profile?.notifications?.[notificationResourceType]?.whatsapp
+                    ?.time_slot?.length > 0 && (
+                    <Box
+                      sx={{ width: 300 }}
+                      display="flex"
+                      flexDirection="row"
+                      alignItems="center"
+                    >
+                      <Slider
+                        getAriaLabel={() => "time_slot_slider"}
+                        value={valueWhatsapp}
+                        onChange={handleChange}
+                        onChangeCommitted={handleChangeCommitted}
+                        valueLabelDisplay="on"
+                        getAriaValueText={valuetext}
+                        min={0}
+                        max={24}
+                        step={1}
+                        marks
+                        track={invertedWhatsapp ? "inverted" : "normal"}
+                        name="time_slot_slider_whatsapp"
+                      />
+                      <Checkbox
+                        checked={invertedWhatsapp === true}
+                        onChange={() => onChangeInverted("whatsapp")}
                         label="Invert"
                       />
                       <Tooltip

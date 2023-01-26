@@ -102,6 +102,7 @@ User Guide
    spatial_catalog
    advanced_usage
    analysis
+   image_analysis
    extensions
 
 Contributing

@@ -1,4 +1,4 @@
-__all__ = ['Annotation', 'AnnotationOnSpectrum']
+__all__ = ['Annotation', 'AnnotationOnSpectrum', 'AnnotationOnPhotometry']
 
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB
@@ -41,6 +41,8 @@ class AnnotationMixin:
             return "annotations"
         if cls.__name__ == 'AnnotationOnSpectrum':
             return 'annotations_on_spectra'
+        if cls.__name__ == 'AnnotationOnPhotometry':
+            return 'annotations_on_photometry'
 
     @declared_attr
     def author(cls):
@@ -134,3 +136,31 @@ class AnnotationOnSpectrum(Base, AnnotationMixin):
     )
 
     __table_args__ = (UniqueConstraint('spectrum_id', 'origin'),)
+
+
+class AnnotationOnPhotometry(Base, AnnotationMixin):
+
+    __tablename__ = 'annotations_on_photometry'
+
+    create = AccessibleIfRelatedRowsAreAccessible(obj='read', photometry='read')
+
+    read = accessible_by_groups_members & AccessibleIfRelatedRowsAreAccessible(
+        obj='read',
+        photometry='read',
+    )
+
+    update = delete = AccessibleIfUserMatches('author')
+
+    photometry_id = sa.Column(
+        sa.ForeignKey('photometry.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+        doc="ID of the Annotation's Photometry.",
+    )
+    photometry = relationship(
+        'Photometry',
+        back_populates='annotations',
+        doc="The Photometry referred to by this annotation.",
+    )
+
+    __table_args__ = (UniqueConstraint('photometry_id', 'origin'),)

@@ -9,7 +9,6 @@ from sqlalchemy import func
 from sqlalchemy import event, inspect
 import arrow
 import datetime
-import lxml
 import operator  # noqa: F401
 import requests
 
@@ -22,7 +21,7 @@ from ..app_utils import get_app_base_url
 from .allocation import Allocation
 from .analysis import ObjAnalysis
 from .classification import Classification
-from .gcn import GcnNotice
+from .gcn import GcnNotice, GcnEvent
 from .localization import Localization
 from .spectrum import Spectrum
 from .comment import Comment
@@ -38,7 +37,7 @@ import gcn
 from sqlalchemy import or_
 
 from skyportal.models import Shift, ShiftUser
-from skyportal.utils.gcn import get_tags, get_properties
+from skyportal.utils.gcn import get_skymap_properties
 
 from skyportal.utils.notifications import (
     gcn_slack_notification,
@@ -61,6 +60,16 @@ if account_sid and auth_token and from_number:
 email = False
 if cfg["email_service"] == "sendgrid" or cfg["email_service"] == "smtp":
     email = True
+
+
+op_options = [
+    "lt",
+    "le",
+    "eq",
+    "ne",
+    "ge",
+    "gt",
+]
 
 
 class UserNotification(Base):
@@ -315,19 +324,17 @@ def send_sms_notification(mapper, connection, target):
         )
         if current_shift is not None:
             sending = True
-    else:
-        timeslot = prefs[resource_type]['sms'].get("time_slot", [])
-        if len(timeslot) > 0:
-            current_time = arrow.utcnow().datetime
-            if timeslot[0] < timeslot[1]:
-                if (
-                    current_time.hour >= timeslot[0]
-                    and current_time.hour <= timeslot[1]
-                ):
-                    sending = True
-            else:
-                if current_time.hour <= timeslot[1] or current_time.hour >= timeslot[0]:
-                    sending = True
+
+    timeslot = prefs[resource_type]['sms'].get("time_slot", [])
+    if len(timeslot) > 0:
+        current_time = arrow.utcnow().datetime
+        if timeslot[0] < timeslot[1]:
+            if current_time.hour >= timeslot[0] and current_time.hour <= timeslot[1]:
+                sending = True
+        else:
+            if current_time.hour <= timeslot[1] or current_time.hour >= timeslot[0]:
+                sending = True
+
     if sending:
         try:
             client.messages.create(
@@ -346,6 +353,7 @@ def send_sms_notification(mapper, connection, target):
 def send_phone_notification(mapper, connection, target):
     resource_type = notification_resource_type(target)
     prefs = user_preferences(target, "phone", resource_type)
+
     if not prefs:
         return
 
@@ -360,19 +368,17 @@ def send_phone_notification(mapper, connection, target):
         )
         if current_shift is not None:
             sending = True
-    else:
-        timeslot = prefs[resource_type]['phone'].get("time_slot", [])
-        if len(timeslot) > 0:
-            current_time = arrow.utcnow().datetime
-            if timeslot[0] < timeslot[1]:
-                if (
-                    current_time.hour >= timeslot[0]
-                    and current_time.hour <= timeslot[1]
-                ):
-                    sending = True
-            else:
-                if current_time.hour <= timeslot[1] or current_time.hour >= timeslot[0]:
-                    sending = True
+
+    timeslot = prefs[resource_type]['phone'].get("time_slot", [])
+    if len(timeslot) > 0:
+        current_time = arrow.utcnow().datetime
+        if timeslot[0] < timeslot[1]:
+            if current_time.hour >= timeslot[0] and current_time.hour <= timeslot[1]:
+                sending = True
+        else:
+            if current_time.hour <= timeslot[1] or current_time.hour >= timeslot[0]:
+                sending = True
+
     if sending:
         try:
             message = f"Greetings. This is the SkyPortal robot. {target.text}"
@@ -386,6 +392,49 @@ def send_phone_notification(mapper, connection, target):
             )
         except Exception as e:
             log(f"Error sending phone call notification: {e}")
+
+
+@event.listens_for(UserNotification, 'after_insert')
+def send_whatsapp_notification(mapper, connection, target):
+    resource_type = notification_resource_type(target)
+    prefs = user_preferences(target, "whatsapp", resource_type)
+    if not prefs:
+        return
+
+    sending = False
+    if prefs[resource_type]['whatsapp'].get("on_shift", False):
+        current_shift = (
+            Shift.query.join(ShiftUser)
+            .filter(ShiftUser.user_id == target.user.id)
+            .filter(Shift.start_date <= arrow.utcnow().datetime)
+            .filter(Shift.end_date >= arrow.utcnow().datetime)
+            .first()
+        )
+        if current_shift is not None:
+            sending = True
+
+    timeslot = prefs[resource_type]['whatsapp'].get("time_slot", [])
+    if len(timeslot) > 0:
+        current_time = arrow.utcnow().datetime
+        if timeslot[0] < timeslot[1]:
+            if current_time.hour >= timeslot[0] and current_time.hour <= timeslot[1]:
+                sending = True
+        else:
+            if current_time.hour <= timeslot[1] or current_time.hour >= timeslot[0]:
+                sending = True
+
+    if sending:
+        try:
+            client.messages.create(
+                body=f"{cfg['app.title']} - {target.text}",
+                from_="whatsapp:" + str(from_number),
+                to="whatsapp" + str(target.user.contact_phone.e164),
+            )
+            log(
+                f"Sent WhatsApp notification to user {target.user.id} at phone number: {target.user.contact_phone.e164}, body: {target.text}, resource_type: {resource_type}"
+            )
+        except Exception as e:
+            log(f"Error sending WhatsApp notification: {e}")
 
 
 @event.listens_for(UserNotification, 'after_insert')
@@ -416,7 +465,7 @@ def push_frontend_notification(mapper, connection, target):
 @event.listens_for(Classification, 'after_insert')
 @event.listens_for(Spectrum, 'after_insert')
 @event.listens_for(Comment, 'after_insert')
-@event.listens_for(GcnNotice, 'after_insert')
+@event.listens_for(Localization, 'after_insert')
 @event.listens_for(FacilityTransaction, 'after_insert')
 @event.listens_for(GroupAdmissionRequest, 'after_insert')
 @event.listens_for(ObjAnalysis, 'after_update')
@@ -429,7 +478,7 @@ def add_user_notifications(mapper, connection, target):
     def receive_after_flush(session, context):
 
         is_facility_transaction = target.__class__.__name__ == "FacilityTransaction"
-        is_gcnevent = target.__class__.__name__ == "GcnNotice"
+        is_gcnevent = target.__class__.__name__ == "Localization"
         is_classification = target.__class__.__name__ == "Classification"
         is_spectra = target.__class__.__name__ == "Spectrum"
         is_comment = target.__class__.__name__ == "Comment"
@@ -543,27 +592,41 @@ def add_user_notifications(mapper, connection, target):
                     if (pref is not None) and "gcn_notice_types" in pref[
                         "gcn_events"
                     ].keys():
-                        if (
-                            gcn.NoticeType(target.notice_type).name
-                            in pref['gcn_events']['gcn_notice_types']
+
+                        send_notification = True
+                        event = session.scalars(
+                            sa.select(GcnEvent).where(
+                                GcnEvent.dateobs == target.dateobs
+                            )
+                        ).first()
+                        if not any(
+                            [
+                                gcn.NoticeType(notice.notice_type).name
+                                in pref['gcn_events']['gcn_notice_types']
+                                for notice in event.gcn_notices
+                            ]
                         ):
-                            send_notification = True
-                            if "gcn_tags" in pref["gcn_events"].keys():
-                                if len(pref['gcn_events']["gcn_tags"]) > 0:
-                                    root = lxml.etree.fromstring(target.content)
-                                    tags = [text for text in get_tags(root)]
-                                    intersection = list(
-                                        set(tags) & set(pref['gcn_events']["gcn_tags"])
-                                    )
-                                    if len(intersection) == 0:
-                                        send_notification = False
-                                        break
+                            send_notification = False
+                            break
+                        notice = event.gcn_notices[-1]
 
-                            if "gcn_properties" in pref["gcn_events"].keys():
-                                if len(pref['gcn_events']["gcn_properties"]) > 0:
-                                    root = lxml.etree.fromstring(target.content)
-                                    properties_dict = get_properties(root)
+                        if "gcn_tags" in pref["gcn_events"].keys():
+                            if len(pref['gcn_events']["gcn_tags"]) > 0:
+                                intersection = list(
+                                    set(event.tags)
+                                    & set(pref['gcn_events']["gcn_tags"])
+                                )
+                                if len(intersection) == 0:
+                                    send_notification = False
+                                    continue
 
+                        if "gcn_properties" in pref["gcn_events"].keys():
+                            if len(pref['gcn_events']["gcn_properties"]) > 0:
+                                properties_bool = []
+                                for properties in event.properties:
+                                    properties_dict = properties.data
+
+                                    properties_pass = True
                                     for prop_filt in pref['gcn_events'][
                                         "gcn_properties"
                                     ]:
@@ -579,17 +642,9 @@ def add_user_notifications(mapper, connection, target):
                                                 value = float(value)
                                             except ValueError as e:
                                                 raise ValueError(
-                                                    f"Invalid propotation filter value: {e}"
+                                                    f"Invalid propertiesFilter value: {e}"
                                                 )
                                             op = prop_split[2].strip()
-                                            op_options = [
-                                                "lt",
-                                                "le",
-                                                "eq",
-                                                "ne",
-                                                "ge",
-                                                "gt",
-                                            ]
                                             if op not in op_options:
                                                 raise ValueError(
                                                     f"Invalid operator: {op}"
@@ -598,32 +653,79 @@ def add_user_notifications(mapper, connection, target):
                                             if not comp_function(
                                                 properties_dict[name], value
                                             ):
-                                                send_notification = False
+                                                properties_pass = False
                                                 break
-                            if send_notification:
-                                stmt = sa.select(GcnNotice).where(
-                                    GcnNotice.dateobs == target.dateobs
+                                    properties_bool.append(properties_pass)
+                                if not any(properties_bool):
+                                    send_notification = False
+                                    continue
+
+                        (
+                            localization_properties_dict,
+                            localization_tags_list,
+                        ) = get_skymap_properties(target)
+                        if "localization_tags" in pref["gcn_events"].keys():
+                            if len(pref['gcn_events']["localization_tags"]) > 0:
+                                intersection = list(
+                                    set(localization_tags_list)
+                                    & set(pref['gcn_events']["localization_tags"])
                                 )
-                                count_stmt = sa.select(func.count()).select_from(stmt)
-                                count_notices = session.execute(count_stmt).scalar()
-                                if count_notices > 1:
-                                    session.add(
-                                        UserNotification(
-                                            user=user,
-                                            text=f"New Notice for GCN Event *{target.dateobs}*, with Notice Type *{gcn.NoticeType(target.notice_type).name}*",
-                                            notification_type="gcn_events",
-                                            url=f"/gcn_events/{str(target.dateobs).replace(' ','T')}",
-                                        )
+                                if len(intersection) == 0:
+                                    send_notification = False
+                                    continue
+
+                        if pref['gcn_events'].get('localization_properties'):
+                            for prop_filt in pref['gcn_events'][
+                                "localization_properties"
+                            ]:
+                                prop_split = prop_filt.split(":")
+                                if not len(prop_split) == 3:
+                                    raise ValueError(
+                                        "Invalid propertiesFilter value -- property filter must have 3 values"
                                     )
-                                else:
-                                    session.add(
-                                        UserNotification(
-                                            user=user,
-                                            text=f"New GCN Event *{target.dateobs}*, with Notice Type *{gcn.NoticeType(target.notice_type).name}*",
-                                            notification_type="gcn_events",
-                                            url=f"/gcn_events/{str(target.dateobs).replace(' ','T')}",
+                                name = prop_split[0].strip()
+                                if name in localization_properties_dict:
+                                    value = prop_split[1].strip()
+                                    try:
+                                        value = float(value)
+                                    except ValueError as e:
+                                        raise ValueError(
+                                            f"Invalid propertiesFilter value: {e}"
                                         )
-                                    )
+                                    op = prop_split[2].strip()
+                                    if op not in op_options:
+                                        raise ValueError(f"Invalid operator: {op}")
+                                    comp_function = getattr(operator, op)
+                                    if not comp_function(
+                                        localization_properties_dict[name], value
+                                    ):
+                                        send_notification = False
+                                        break
+
+                        if send_notification:
+                            stmt = sa.select(GcnNotice).where(
+                                GcnNotice.dateobs == target.dateobs
+                            )
+                            count_stmt = sa.select(func.count()).select_from(stmt)
+                            count_notices = session.execute(count_stmt).scalar()
+                            if count_notices > 1:
+                                text = (
+                                    f"New Notice for GCN Event *{target.dateobs}*, "
+                                    f"with Notice Type *{gcn.NoticeType(notice.notice_type).name}*"
+                                )
+                            else:
+                                text = (
+                                    f"New GCN Event *{target.dateobs}*, "
+                                    f"with Notice Type *{gcn.NoticeType(notice.notice_type).name}*"
+                                )
+                            session.add(
+                                UserNotification(
+                                    user=user,
+                                    text=text,
+                                    notification_type="gcn_events",
+                                    url=f"/gcn_events/{str(target.dateobs).replace(' ','T')}",
+                                )
+                            )
 
                 elif is_facility_transaction:
                     if "observation_plan_request" in target.to_dict():

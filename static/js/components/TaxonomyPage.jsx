@@ -1,22 +1,15 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
-import { JSONTree } from "react-json-tree";
-import DeleteIcon from "@mui/icons-material/Delete";
-import List from "@mui/material/List";
-import ListItem from "@mui/material/ListItem";
-import ListItemText from "@mui/material/ListItemText";
 import Typography from "@mui/material/Typography";
 import Paper from "@mui/material/Paper";
 import Grid from "@mui/material/Grid";
 import makeStyles from "@mui/styles/makeStyles";
-import PropTypes from "prop-types";
-import { showNotification } from "baselayer/components/Notifications";
 import CircularProgress from "@mui/material/CircularProgress";
 import ModifyTaxonomy from "./ModifyTaxonomy";
 import NewTaxonomy from "./NewTaxonomy";
-// eslint-disable-next-line import/no-cycle
-import Button from "./Button";
-import ConfirmDeletionDialog from "./ConfirmDeletionDialog";
+
+import TaxonomyTable from "./TaxonomyTable";
+import Spinner from "./Spinner";
 
 import * as taxonomyActions from "../ducks/taxonomies";
 
@@ -39,13 +32,6 @@ const useStyles = makeStyles((theme) => ({
   },
   taxonomyDeleteDisabled: {
     opacity: 0,
-  },
-}));
-
-const textStyles = makeStyles(() => ({
-  primary: {
-    fontWeight: "bold",
-    fontSize: "110%",
   },
 }));
 
@@ -100,74 +86,74 @@ export function taxonomyInfo(taxonomy) {
   return result;
 }
 
-const TaxonomyList = ({ taxonomyList, deletePermission }) => {
+const TaxonomyList = () => {
   const dispatch = useDispatch();
   const classes = useStyles();
-  const textClasses = textStyles();
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [taxonomyToDelete, setTaxonomyToDelete] = useState(null);
-  const openDialog = (id) => {
-    setDialogOpen(true);
-    setTaxonomyToDelete(id);
-  };
-  const closeDialog = () => {
-    setDialogOpen(false);
-    setTaxonomyToDelete(null);
+
+  const taxonomiesState = useSelector((state) => state.taxonomies);
+
+  const currentUser = useSelector((state) => state.profile);
+  const permission = currentUser.permissions?.includes("System admin");
+
+  const [rowsPerPage, setRowsPerPage] = useState(100);
+
+  useEffect(() => {
+    dispatch(taxonomyActions.fetchTaxonomies());
+  }, [dispatch]);
+
+  const handleTaxonomyTablePagination = (
+    pageNumber,
+    numPerPage,
+    sortData,
+    filterData
+  ) => {
+    setRowsPerPage(numPerPage);
+    const data = {
+      ...filterData,
+      pageNumber,
+      numPerPage,
+    };
+    if (sortData && Object.keys(sortData).length > 0) {
+      data.sortBy = sortData.name;
+      data.sortOrder = sortData.direction;
+    }
+    dispatch(taxonomyActions.fetchTaxonomies(data));
   };
 
-  const deleteTaxonomy = () => {
-    dispatch(taxonomyActions.deleteTaxonomy(taxonomyToDelete)).then(
-      (result) => {
-        if (result.status === "success") {
-          dispatch(showNotification("Taxonomy deleted"));
-          closeDialog();
-        }
-      }
-    );
+  const handleTaxonomyTableSorting = (sortData, filterData) => {
+    const data = {
+      ...filterData,
+      pageNumber: 1,
+      rowsPerPage,
+      sortBy: sortData.name,
+      sortOrder: sortData.direction,
+    };
+    dispatch(taxonomyActions.fetchTaxonomies(data));
   };
+
+  if (!taxonomiesState.taxonomyList) {
+    return <Spinner />;
+  }
 
   return (
-    <div className={classes.root}>
-      <List component="nav">
-        {taxonomyList?.map((taxonomy) => (
-          <div key={taxonomy.id}>
-            <ListItem button key={taxonomy.id}>
-              <ListItemText
-                primary={taxonomyTitle(taxonomy)}
-                secondary={taxonomyInfo(taxonomy)}
-                classes={textClasses}
-              />
-              <Button
-                key={taxonomy.id}
-                id="delete_button"
-                classes={{
-                  root: classes.taxonomyDelete,
-                  disabled: classes.taxonomyDeleteDisabled,
-                }}
-                onClick={() => openDialog(taxonomy.id)}
-                disabled={!deletePermission}
-              >
-                <DeleteIcon />
-              </Button>
-              <ConfirmDeletionDialog
-                deleteFunction={deleteTaxonomy}
-                dialogOpen={dialogOpen}
-                closeDialog={closeDialog}
-                resourceName="taxonomy"
-              />
-            </ListItem>
-            <ListItem key={taxonomy.id}>
-              <JSONTree data={taxonomy?.hierarchy} />
-            </ListItem>
-          </div>
-        ))}
-      </List>
+    <div className={classes.paper}>
+      <Typography variant="h6" display="inline" />
+      {taxonomiesState.taxonomyList && (
+        <TaxonomyTable
+          taxonomies={taxonomiesState.taxonomyList}
+          deletePermission={permission}
+          paginateCallback={handleTaxonomyTablePagination}
+          totalMatches={taxonomiesState.totalMatches}
+          pageNumber={taxonomiesState.pageNumber}
+          numPerPage={taxonomiesState.numPerPage}
+          sortingCallback={handleTaxonomyTableSorting}
+        />
+      )}
     </div>
   );
 };
 
 const TaxonomyPage = () => {
-  const { taxonomyList } = useSelector((state) => state.taxonomies);
   const currentUser = useSelector((state) => state.profile);
 
   const permission = currentUser.permissions?.includes("System admin");
@@ -175,19 +161,16 @@ const TaxonomyPage = () => {
   const classes = useStyles();
   return (
     <Grid container spacing={3}>
-      <Grid item md={6} sm={12}>
+      <Grid item md={7} sm={12}>
         <Paper elevation={1}>
           <div className={classes.paperContent}>
             <Typography variant="h6">List of Taxonomies</Typography>
-            <TaxonomyList
-              taxonomyList={taxonomyList}
-              deletePermission={permission}
-            />
+            <TaxonomyList />
           </div>
         </Paper>
       </Grid>
       {permission && (
-        <Grid item md={6} sm={12}>
+        <Grid item md={5} sm={12}>
           <Paper>
             <div className={classes.paperContent}>
               <Typography variant="h6">Add a New Taxonomy</Typography>
@@ -204,11 +187,6 @@ const TaxonomyPage = () => {
       )}
     </Grid>
   );
-};
-
-TaxonomyList.propTypes = {
-  taxonomyList: PropTypes.arrayOf(PropTypes.any).isRequired, // eslint-disable-line react/forbid-prop-types
-  deletePermission: PropTypes.bool.isRequired,
 };
 
 export default TaxonomyPage;

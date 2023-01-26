@@ -73,30 +73,54 @@ class GENERICAPI(FollowUpAPI):
             Database session for this transaction
         """
 
-        from ..models import FacilityTransaction
+        from ..models import FacilityTransaction, Allocation
+
+        if (
+            getattr(request, 'allocation', None) is None
+            and getattr(request, 'allocation_id', None) is None
+        ):
+            raise ValueError('No allocation associated with this request.')
+        elif (
+            getattr(request, 'allocation', None) is None
+            and getattr(request, 'allocation_id', None) is not None
+        ):
+            allocation = session.scalars(
+                Allocation.select(session.user_or_token).where(
+                    Allocation.id == request.allocation_id
+                )
+            ).first()
+            request.allocation = allocation
 
         validate_request(request, request.allocation.instrument.to_dict()["filters"])
 
-        altdata = request.allocation.altdata
+        altdata = (
+            request.allocation.altdata
+            if getattr(request.allocation, 'altdata', None) is not None
+            else None
+        )
 
-        if altdata:
+        if altdata is not None:
+            if 'endpoint' in altdata and 'api_token' in altdata:
+                payload = {
+                    'obj_id': request.obj_id,
+                    'allocation_id': request.allocation.id,
+                    'payload': request.payload,
+                }
 
-            payload = {
-                'obj_id': request.obj_id,
-                'allocation_id': request.allocation.id,
-                'payload': request.payload,
-            }
+                r = requests.post(
+                    altdata['endpoint'],
+                    json=payload,
+                    headers={"Authorization": f"token {altdata['api_token']}"},
+                )
 
-            r = requests.post(
-                altdata['endpoint'],
-                json=payload,
-                headers={"Authorization": f"token {altdata['api_token']}"},
-            )
-
-            if r.status_code == 200:
-                request.status = 'submitted'
+                if r.status_code == 200:
+                    request.status = 'submitted'
+                else:
+                    request.status = f'rejected: {r.content}'
             else:
-                request.status = f'rejected: {r.content}'
+                request.status = (
+                    'rejected: missing endpoint or API token in allocation altdata'
+                )
 
             transaction = FacilityTransaction(
                 request=http.serialize_requests_request(r.request),
@@ -139,35 +163,40 @@ class GENERICAPI(FollowUpAPI):
         from ..models import DBSession, FollowupRequest, FacilityTransaction
 
         altdata = request.allocation.altdata
-
+        has_valid_transaction = False
         if altdata:
-
             req = (
                 DBSession()
                 .query(FollowupRequest)
                 .filter(FollowupRequest.id == request.id)
                 .one()
             )
+            if (
+                getattr(req, 'transactions', None) is not None
+                and getattr(req, 'transactions', None) != []
+            ):
+                if getattr(req.transactions[0], 'response', None) is not None:
+                    content = req.transactions[0].response["content"]
+                    content = json.loads(content)
 
-            content = req.transactions[0].response["content"]
-            content = json.loads(content)
+                    uid = content["data"]["id"]
 
-            uid = content["data"]["id"]
+                    r = requests.delete(
+                        f"{altdata['endpoint']}/{uid}",
+                        headers={"Authorization": f"token {altdata['api_token']}"},
+                    )
+                    r.raise_for_status()
+                    request.status = "deleted"
 
-            r = requests.delete(
-                f"{altdata['endpoint']}/{uid}",
-                headers={"Authorization": f"token {altdata['api_token']}"},
-            )
-            r.raise_for_status()
-            request.status = "deleted"
+                    transaction = FacilityTransaction(
+                        request=http.serialize_requests_request(r.request),
+                        response=http.serialize_requests_response(r),
+                        followup_request=request,
+                        initiator_id=request.last_modified_by_id,
+                    )
+                    has_valid_transaction = True
 
-            transaction = FacilityTransaction(
-                request=http.serialize_requests_request(r.request),
-                response=http.serialize_requests_response(r),
-                followup_request=request,
-                initiator_id=request.last_modified_by_id,
-            )
-        else:
+        if not has_valid_transaction:
             request.status = 'deleted'
 
             transaction = FacilityTransaction(

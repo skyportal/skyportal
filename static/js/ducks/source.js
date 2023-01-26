@@ -27,6 +27,8 @@ const ADD_COMMENT = "skyportal/ADD_COMMENT";
 
 const DELETE_ANNOTATION = "skyportal/DELETE_ANNOTATION";
 
+const EDIT_COMMENT = "skyportal/EDIT_COMMENT";
+
 const DELETE_COMMENT = "skyportal/DELETE_COMMENT";
 const DELETE_COMMENT_ON_SPECTRUM = "skyportal/DELETE_COMMENT_ON_SPECTRUM";
 
@@ -100,10 +102,20 @@ const FETCH_ANALYSES_FOR_OBJ = "skyportal/FETCH_ANALYSES_FOR_OBJ";
 const FETCH_ANALYSIS_FOR_OBJ = "skyportal/FETCH_ANALYSIS_FOR_OBJ";
 const FETCH_ANALYSIS_RESULTS_FOR_OBJ = "skyportal/FETCH_ANALYSIS_FOR_OBJ";
 
+const SUBMIT_IMAGE_ANALYSIS = "skyportal/SUBMIT_IMAGE_ANALYSIS";
+
 export const shareData = (data) => API.POST("/api/sharing", SHARE_DATA, data);
 
 export const uploadPhotometry = (data) =>
   API.POST("/api/photometry", UPLOAD_PHOTOMETRY, data);
+
+export function submitImageAnalysis(id, formData) {
+  return API.POST(
+    `/api/internal/sources/${id}/image_analysis`,
+    SUBMIT_IMAGE_ANALYSIS,
+    formData
+  );
+}
 
 export function addClassification(formData) {
   return API.POST(`/api/classification`, ADD_CLASSIFICATION, formData);
@@ -256,6 +268,54 @@ export function deleteCommentOnSpectrum(spectrumID, commentID) {
   return API.DELETE(
     `/api/spectra/${spectrumID}/comments/${commentID}`,
     DELETE_COMMENT_ON_SPECTRUM
+  );
+}
+
+export function editComment(commentID, formData) {
+  function fileReaderPromise(file) {
+    return new Promise((resolve) => {
+      const filereader = new FileReader();
+      filereader.readAsDataURL(file);
+      filereader.onloadend = () =>
+        resolve({ body: filereader.result, name: file.name });
+    });
+  }
+  if (formData.attachment) {
+    return (dispatch) => {
+      fileReaderPromise(formData.attachment).then((fileData) => {
+        formData.attachment = fileData;
+
+        if (formData.spectrum_id) {
+          dispatch(
+            API.PUT(
+              `/api/spectra/${formData.spectrum_id}/comments/${commentID}`,
+              EDIT_COMMENT,
+              formData
+            )
+          );
+        } else {
+          dispatch(
+            API.PUT(
+              `/api/sources/${formData.obj_id}/comments/${commentID}`,
+              EDIT_COMMENT,
+              formData
+            )
+          );
+        }
+      });
+    };
+  }
+  if (formData.spectrum_id) {
+    return API.POST(
+      `/api/spectra/${formData.spectrum_id}/comments`,
+      ADD_COMMENT,
+      formData
+    );
+  }
+  return API.POST(
+    `/api/sources/${formData.obj_id}/comments`,
+    ADD_COMMENT,
+    formData
   );
 }
 
