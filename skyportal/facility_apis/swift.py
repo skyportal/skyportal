@@ -360,7 +360,9 @@ def download_observations(request_id, oq):
         session.commit()
 
     except Exception as e:
-        return log(f"Unable to post data for {request_id}: {e}")
+        log(f"Unable to post data for {request_id}: {e}")
+
+    Session.remove()
 
 
 class UVOTXRTAPI(FollowUpAPI):

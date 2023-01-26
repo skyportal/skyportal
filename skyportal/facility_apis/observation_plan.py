@@ -720,6 +720,8 @@ def generate_plan(
 
                     session.commit()
 
+    Session.remove()
+
 
 class GenericRequest:
 
