@@ -699,6 +699,7 @@ def generate_plan(
         except Exception as e:
             NTRIES = NTRIES + 1
             if NTRIES < NRETRIES:
+                session.rollback()
                 log(
                     f"Failed to generate plans for ID(s): {','.join(observation_plan_id_strings)}: {str(e)}. Retrying {NTRIES}/{NRETRIES}."
                 )
