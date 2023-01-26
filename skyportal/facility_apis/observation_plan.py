@@ -357,6 +357,9 @@ def generate_plan(
                 requests.append(request)
 
             user = session.query(User).get(user_id)
+            log(
+                f"Running observation plan(s) for ID(s): {','.join(observation_plan_id_strings)} in session {user._sa_instance_state.session_id}"
+            )
 
             event_time = Time(
                 requests[0].gcnevent.dateobs, format='datetime', scale='utc'
@@ -867,6 +870,10 @@ class MMAAPI(FollowUpAPI):
                 DBSession().merge(request)
                 DBSession().commit()
 
+                log(
+                    f"Created observation plan request for ID {plan.id} in session {plan._sa_instance_state.session_id}"
+                )
+
                 flow = Flow()
                 flow.push(
                     '*',
@@ -993,6 +1000,10 @@ class MMAAPI(FollowUpAPI):
                 request.status = 'running'
                 session.merge(request)
                 session.commit()
+
+                log(
+                    f"Created observation plan request for ID {plan.id} in session {plan._sa_instance_state.session_id}"
+                )
 
                 flow = Flow()
                 flow.push(
