@@ -328,7 +328,9 @@ def post_observation_plans(plans, user_id, session, asynchronous=True):
         observation_plan_requests.append(observation_plan_request)
 
     try:
-        instrument.api_class_obsplan.submit_multiple(observation_plan_requests)
+        instrument.api_class_obsplan.submit_multiple(
+            observation_plan_requests, asynchronous=asynchronous
+        )
     except Exception as e:
         for observation_plan_request in observation_plan_requests:
             observation_plan_request.status = 'failed to submit'
