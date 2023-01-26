@@ -103,7 +103,9 @@ def commit_photometry(text_response, request_id, instrument_id, user_id):
         )
 
     except Exception as e:
-        return log(f"Unable to commit photometry for {request_id}: {e}")
+        log(f"Unable to commit photometry for {request_id}: {e}")
+
+    Session.remove()
 
 
 class PS1API(FollowUpAPI):

@@ -326,7 +326,9 @@ def commit_photometry(url, altdata, df_request, request_id, instrument_id, user_
             payload={"obj_key": request.obj.internal_key},
         )
     except Exception as e:
-        return log(f"Unable to commit photometry for {request_id}: {e}")
+        log(f"Unable to commit photometry for {request_id}: {e}")
+
+    Session.remove()
 
 
 class ZTFAPI(FollowUpAPI):
