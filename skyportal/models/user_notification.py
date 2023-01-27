@@ -589,24 +589,19 @@ def add_user_notifications(mapper, connection, target):
                 is not None
             ):
                 if is_gcnevent and (pref is not None):
+                    event = session.scalars(
+                        sa.select(GcnEvent).where(GcnEvent.dateobs == target.dateobs)
+                    ).first()
+                    notice = event.gcn_notices[-1]
                     if "gcn_notice_types" in pref["gcn_events"].keys():
                         send_notification = True
-                        event = session.scalars(
-                            sa.select(GcnEvent).where(
-                                GcnEvent.dateobs == target.dateobs
-                            )
-                        ).first()
-                        if not any(
-                            [
-                                gcn.NoticeType(notice.notice_type).name
-                                in pref['gcn_events']['gcn_notice_types']
-                                for notice in event.gcn_notices
-                            ]
+                        if (
+                            not gcn.NoticeType(notice.notice_type).name
+                            in pref['gcn_events']['gcn_notice_types']
                         ):
                             send_notification = False
                             continue
 
-                    notice = event.gcn_notices[-1]
                     if "gcn_tags" in pref["gcn_events"].keys():
                         if len(pref['gcn_events']["gcn_tags"]) > 0:
                             intersection = list(
