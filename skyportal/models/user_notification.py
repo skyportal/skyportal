@@ -588,144 +588,129 @@ def add_user_notifications(mapper, connection, target):
                 ).first()
                 is not None
             ):
-                if is_gcnevent:
-                    if (pref is not None) and "gcn_notice_types" in pref[
-                        "gcn_events"
-                    ].keys():
-
+                if is_gcnevent and (pref is not None):
+                    event = session.scalars(
+                        sa.select(GcnEvent).where(GcnEvent.dateobs == target.dateobs)
+                    ).first()
+                    notice = event.gcn_notices[-1]
+                    if "gcn_notice_types" in pref["gcn_events"].keys():
                         send_notification = True
-                        event = session.scalars(
-                            sa.select(GcnEvent).where(
-                                GcnEvent.dateobs == target.dateobs
-                            )
-                        ).first()
-                        if not any(
-                            [
-                                gcn.NoticeType(notice.notice_type).name
-                                in pref['gcn_events']['gcn_notice_types']
-                                for notice in event.gcn_notices
-                            ]
+                        if (
+                            not gcn.NoticeType(notice.notice_type).name
+                            in pref['gcn_events']['gcn_notice_types']
                         ):
                             send_notification = False
-                            break
-                        notice = event.gcn_notices[-1]
+                            continue
 
-                        if "gcn_tags" in pref["gcn_events"].keys():
-                            if len(pref['gcn_events']["gcn_tags"]) > 0:
-                                intersection = list(
-                                    set(event.tags)
-                                    & set(pref['gcn_events']["gcn_tags"])
-                                )
-                                if len(intersection) == 0:
-                                    send_notification = False
-                                    continue
+                    if "gcn_tags" in pref["gcn_events"].keys():
+                        if len(pref['gcn_events']["gcn_tags"]) > 0:
+                            intersection = list(
+                                set(event.tags) & set(pref['gcn_events']["gcn_tags"])
+                            )
+                            if len(intersection) == 0:
+                                send_notification = False
+                                continue
 
-                        if "gcn_properties" in pref["gcn_events"].keys():
-                            if len(pref['gcn_events']["gcn_properties"]) > 0:
-                                properties_bool = []
-                                for properties in event.properties:
-                                    properties_dict = properties.data
+                    if "gcn_properties" in pref["gcn_events"].keys():
+                        if len(pref['gcn_events']["gcn_properties"]) > 0:
+                            properties_bool = []
+                            for properties in event.properties:
+                                properties_dict = properties.data
 
-                                    properties_pass = True
-                                    for prop_filt in pref['gcn_events'][
-                                        "gcn_properties"
-                                    ]:
-                                        prop_split = prop_filt.split(":")
-                                        if not len(prop_split) == 3:
-                                            raise ValueError(
-                                                "Invalid propertiesFilter value -- property filter must have 3 values"
-                                            )
-                                        name = prop_split[0].strip()
-                                        if name in properties_dict:
-                                            value = prop_split[1].strip()
-                                            try:
-                                                value = float(value)
-                                            except ValueError as e:
-                                                raise ValueError(
-                                                    f"Invalid propertiesFilter value: {e}"
-                                                )
-                                            op = prop_split[2].strip()
-                                            if op not in op_options:
-                                                raise ValueError(
-                                                    f"Invalid operator: {op}"
-                                                )
-                                            comp_function = getattr(operator, op)
-                                            if not comp_function(
-                                                properties_dict[name], value
-                                            ):
-                                                properties_pass = False
-                                                break
-                                    properties_bool.append(properties_pass)
-                                if not any(properties_bool):
-                                    send_notification = False
-                                    continue
-
-                        (
-                            localization_properties_dict,
-                            localization_tags_list,
-                        ) = get_skymap_properties(target)
-                        if "localization_tags" in pref["gcn_events"].keys():
-                            if len(pref['gcn_events']["localization_tags"]) > 0:
-                                intersection = list(
-                                    set(localization_tags_list)
-                                    & set(pref['gcn_events']["localization_tags"])
-                                )
-                                if len(intersection) == 0:
-                                    send_notification = False
-                                    continue
-
-                        if pref['gcn_events'].get('localization_properties'):
-                            for prop_filt in pref['gcn_events'][
-                                "localization_properties"
-                            ]:
-                                prop_split = prop_filt.split(":")
-                                if not len(prop_split) == 3:
-                                    raise ValueError(
-                                        "Invalid propertiesFilter value -- property filter must have 3 values"
-                                    )
-                                name = prop_split[0].strip()
-                                if name in localization_properties_dict:
-                                    value = prop_split[1].strip()
-                                    try:
-                                        value = float(value)
-                                    except ValueError as e:
+                                properties_pass = True
+                                for prop_filt in pref['gcn_events']["gcn_properties"]:
+                                    prop_split = prop_filt.split(":")
+                                    if not len(prop_split) == 3:
                                         raise ValueError(
-                                            f"Invalid propertiesFilter value: {e}"
+                                            "Invalid propertiesFilter value -- property filter must have 3 values"
                                         )
-                                    op = prop_split[2].strip()
-                                    if op not in op_options:
-                                        raise ValueError(f"Invalid operator: {op}")
-                                    comp_function = getattr(operator, op)
-                                    if not comp_function(
-                                        localization_properties_dict[name], value
-                                    ):
-                                        send_notification = False
-                                        break
+                                    name = prop_split[0].strip()
+                                    if name in properties_dict:
+                                        value = prop_split[1].strip()
+                                        try:
+                                            value = float(value)
+                                        except ValueError as e:
+                                            raise ValueError(
+                                                f"Invalid propertiesFilter value: {e}"
+                                            )
+                                        op = prop_split[2].strip()
+                                        if op not in op_options:
+                                            raise ValueError(f"Invalid operator: {op}")
+                                        comp_function = getattr(operator, op)
+                                        if not comp_function(
+                                            properties_dict[name], value
+                                        ):
+                                            properties_pass = False
+                                            break
+                                properties_bool.append(properties_pass)
+                            if not any(properties_bool):
+                                send_notification = False
+                                continue
 
-                        if send_notification:
-                            stmt = sa.select(GcnNotice).where(
-                                GcnNotice.dateobs == target.dateobs
+                    (
+                        localization_properties_dict,
+                        localization_tags_list,
+                    ) = get_skymap_properties(target)
+                    if "localization_tags" in pref["gcn_events"].keys():
+                        if len(pref['gcn_events']["localization_tags"]) > 0:
+                            intersection = list(
+                                set(localization_tags_list)
+                                & set(pref['gcn_events']["localization_tags"])
                             )
-                            count_stmt = sa.select(func.count()).select_from(stmt)
-                            count_notices = session.execute(count_stmt).scalar()
-                            if count_notices > 1:
-                                text = (
-                                    f"New Notice for GCN Event *{target.dateobs}*, "
-                                    f"with Notice Type *{gcn.NoticeType(notice.notice_type).name}*"
+                            if len(intersection) == 0:
+                                send_notification = False
+                                continue
+
+                    if pref['gcn_events'].get('localization_properties'):
+                        for prop_filt in pref['gcn_events']["localization_properties"]:
+                            prop_split = prop_filt.split(":")
+                            if not len(prop_split) == 3:
+                                raise ValueError(
+                                    "Invalid propertiesFilter value -- property filter must have 3 values"
                                 )
-                            else:
-                                text = (
-                                    f"New GCN Event *{target.dateobs}*, "
-                                    f"with Notice Type *{gcn.NoticeType(notice.notice_type).name}*"
-                                )
-                            session.add(
-                                UserNotification(
-                                    user=user,
-                                    text=text,
-                                    notification_type="gcn_events",
-                                    url=f"/gcn_events/{str(target.dateobs).replace(' ','T')}",
-                                )
+                            name = prop_split[0].strip()
+                            if name in localization_properties_dict:
+                                value = prop_split[1].strip()
+                                try:
+                                    value = float(value)
+                                except ValueError as e:
+                                    raise ValueError(
+                                        f"Invalid propertiesFilter value: {e}"
+                                    )
+                                op = prop_split[2].strip()
+                                if op not in op_options:
+                                    raise ValueError(f"Invalid operator: {op}")
+                                comp_function = getattr(operator, op)
+                                if not comp_function(
+                                    localization_properties_dict[name], value
+                                ):
+                                    send_notification = False
+                                    break
+
+                    if send_notification:
+                        stmt = sa.select(GcnNotice).where(
+                            GcnNotice.dateobs == target.dateobs
+                        )
+                        count_stmt = sa.select(func.count()).select_from(stmt)
+                        count_notices = session.execute(count_stmt).scalar()
+                        if count_notices > 1:
+                            text = (
+                                f"New Notice for GCN Event *{target.dateobs}*, "
+                                f"with Notice Type *{gcn.NoticeType(notice.notice_type).name}*"
                             )
+                        else:
+                            text = (
+                                f"New GCN Event *{target.dateobs}*, "
+                                f"with Notice Type *{gcn.NoticeType(notice.notice_type).name}*"
+                            )
+                        session.add(
+                            UserNotification(
+                                user=user,
+                                text=text,
+                                notification_type="gcn_events",
+                                url=f"/gcn_events/{str(target.dateobs).replace(' ','T')}",
+                            )
+                        )
 
                 elif is_facility_transaction:
                     if "observation_plan_request" in target.to_dict():
