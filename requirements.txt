@@ -82,3 +82,4 @@ iminuit==2.18.0
 watchdog==2.1.9
 PyAstronomy==0.18.0
 shapely==1.8.0
+stdpipe==0.1
