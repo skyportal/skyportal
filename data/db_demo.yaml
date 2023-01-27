@@ -406,6 +406,7 @@ instrument:
     #   file: ../data/DECam_Fields.csv
     # field_region:
     #   file: ../data/DECam_Region.reg
+    sensitivity_data: {'sdssu': {'limiting_magnitude': 21.6, 'magsys': 'ab', 'exposure_time': 30, 'zeropoint': 23.6,}, 'desg': {'limiting_magnitude': 23.3, 'magsys': 'ab', 'exposure_time': 30, 'zeropoint': 25.4,}, 'desr': {'limiting_magnitude': 25.5, 'magsys': 'ab', 'exposure_time': 30, 'zeropoint': 25.4,}, 'desi': {'limiting_magnitude': 22.8, 'magsys': 'ab', 'exposure_time': 30, 'zeropoint': 25.3,}, 'desz': {'limiting_magnitude': 22.1, 'magsys': 'ab', 'exposure_time': 30, 'zeropoint': 25.0,}, 'desy': {'limiting_magnitude': 20.9, 'magsys': 'ab', 'exposure_time': 30, 'zeropoint': 24.0,}}
   - band: optical
     name: UVOTXRT
     api_classname: UVOTXRTAPI
