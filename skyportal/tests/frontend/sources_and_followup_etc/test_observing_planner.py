@@ -91,7 +91,7 @@ def test_assignment_posts_to_observing_run(
         func(f'//span[text()="{group.name[:15]}"]')
 
 
-@pytest.mark.flaky(reruns=2)
+@pytest.mark.flaky(reruns=3)
 def test_observing_run_skycam_component(
     driver, super_admin_user, public_source, red_transients_run, super_admin_token
 ):

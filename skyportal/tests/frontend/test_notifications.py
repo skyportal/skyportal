@@ -218,6 +218,7 @@ def test_classification_on_favorite_source_triggers_notification(
     )
 
 
+@pytest.mark.flaky(reruns=3)
 def test_spectra_on_favorite_source_triggers_notification(
     driver, user, public_source, lris, upload_data_token, public_group
 ):

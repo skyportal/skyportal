@@ -1,4 +1,5 @@
 import time
+import pytest
 from selenium.webdriver.common.by import By
 
 from baselayer.app.config import load_config
@@ -11,6 +12,7 @@ def expand_shadow_element(driver, element):
     return shadow_root
 
 
+@pytest.mark.flaky(reruns=3)
 def test_export_bold_light_curve_as_csv_button(driver, user, public_source):
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_source.id}")
