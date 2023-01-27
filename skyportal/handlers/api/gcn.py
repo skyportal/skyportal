@@ -1511,7 +1511,12 @@ def add_gcn_summary(
     no_text,
     photometry_in_window,
 ):
-    session = Session(bind=DBSession.session_factory.kw["bind"])
+
+    if Session.registry.has():
+        session = Session()
+    else:
+        session = Session(bind=DBSession.session_factory.kw["bind"])
+
     try:
         user = session.query(User).get(user_id)
         session.user_or_token = user

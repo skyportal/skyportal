@@ -127,7 +127,11 @@ def fetch_transients(allocation_id, user_id, group_ids, payload):
         Payload for the catalog query
     """
 
-    session = Session(bind=DBSession.session_factory.kw["bind"])
+    if Session.registry.has():
+        session = Session()
+    else:
+        session = Session(bind=DBSession.session_factory.kw["bind"])
+
     obj_ids = []
 
     try:

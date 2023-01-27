@@ -450,7 +450,11 @@ class GalaxyCatalogHandler(BaseHandler):
 
 def add_galaxies(catalog_name, catalog_data):
 
-    session = Session(bind=DBSession.session_factory.kw["bind"])
+    if Session.registry.has():
+        session = Session()
+    else:
+        session = Session(bind=DBSession.session_factory.kw["bind"])
+
     try:
         galaxies = [
             Galaxy(
@@ -499,6 +503,7 @@ def add_galaxies(catalog_name, catalog_data):
     except Exception as e:
         return log(f"Unable to generate galaxy table: {e}")
     finally:
+        session.close()
         Session.remove()
 
 

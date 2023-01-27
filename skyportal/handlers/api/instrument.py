@@ -744,7 +744,10 @@ def add_tiles(
 ):
     field_ids = []
     if session is None:
-        session = Session(bind=DBSession.session_factory.kw["bind"])
+        if Session.registry.has():
+            session = Session()
+        else:
+            session = Session(bind=DBSession.session_factory.kw["bind"])
 
     try:
         # Loop over the telescope tiles and create fields for each
