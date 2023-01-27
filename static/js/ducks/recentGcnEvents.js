@@ -3,6 +3,8 @@ import messageHandler from "baselayer/MessageHandler";
 import * as API from "../API";
 import store from "../store";
 
+const REFRESH_RECENT_GCNEVENTS = "skyportal/REFRESH_RECENT_GCNEVENTS";
+
 const FETCH_RECENT_GCNEVENTS = "skyportal/FETCH_RECENT_GCNEVENTS";
 const FETCH_RECENT_GCNEVENTS_OK = "skyportal/FETCH_RECENT_GCNEVENTS_OK";
 
@@ -12,7 +14,7 @@ export const fetchRecentGcnEvents = () =>
 
 // Websocket message handler
 messageHandler.add((actionType, payload, dispatch) => {
-  if (actionType === FETCH_RECENT_GCNEVENTS) {
+  if (actionType === REFRESH_RECENT_GCNEVENTS) {
     dispatch(fetchRecentGcnEvents());
   }
 });

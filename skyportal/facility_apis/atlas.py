@@ -202,7 +202,9 @@ def commit_photometry(json_response, altdata, request_id, instrument_id, user_id
         )
 
     except Exception as e:
-        return log(f"Unable to commit photometry for {request_id}: {e}")
+        log(f"Unable to commit photometry for {request_id}: {e}")
+
+    Session.remove()
 
 
 class ATLASAPI(FollowUpAPI):

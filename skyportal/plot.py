@@ -1903,7 +1903,6 @@ async def photometry_plot(obj_id, user_id, session, width=600, device="browser")
         result = serialize(p, 'ab', 'both')
         result['telescope'] = telescope
         result['instrument'] = instrument
-        result['groups'] = [g.to_dict() for g in result['groups']]
         query_result.append(result)
 
     data = pd.DataFrame.from_dict(query_result)
