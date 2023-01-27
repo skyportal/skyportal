@@ -231,8 +231,11 @@ def commit_photometry(url, altdata, df_request, request_id, instrument_id, user_
         User,
     )
 
-    Session = scoped_session(sessionmaker(bind=DBSession.session_factory.kw["bind"]))
-    session = Session()
+    Session = scoped_session(sessionmaker())
+    if Session.registry.has():
+        session = Session()
+    else:
+        session = Session(bind=DBSession.session_factory.kw["bind"])
 
     try:
         request = session.query(FollowupRequest).get(request_id)
@@ -327,8 +330,9 @@ def commit_photometry(url, altdata, df_request, request_id, instrument_id, user_
         )
     except Exception as e:
         log(f"Unable to commit photometry for {request_id}: {e}")
-
-    Session.remove()
+    finally:
+        session.close()
+        Session.remove()
 
 
 class ZTFAPI(FollowUpAPI):

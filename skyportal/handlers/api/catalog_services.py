@@ -49,7 +49,7 @@ _, cfg = load_env()
 
 log = make_log('api/catalogs')
 
-Session = scoped_session(sessionmaker(bind=DBSession.session_factory.kw["bind"]))
+Session = scoped_session(sessionmaker())
 
 
 class CatalogQueryHandler(BaseHandler):
@@ -127,7 +127,7 @@ def fetch_transients(allocation_id, user_id, group_ids, payload):
         Payload for the catalog query
     """
 
-    session = Session()
+    session = Session(bind=DBSession.session_factory.kw["bind"])
     obj_ids = []
 
     try:
@@ -358,7 +358,7 @@ def fetch_swift_transients(instrument_id, user_id):
         ID of the User
     """
 
-    session = Session()
+    session = Session(bind=DBSession.session_factory.kw["bind"])
     obj_ids = []
 
     try:
@@ -576,7 +576,7 @@ def fetch_gaia_transients(instrument_id, user_id, payload):
         Dictionary containing filtering parameters
     """
 
-    session = Session()
+    session = Session(bind=DBSession.session_factory.kw["bind"])
     obj_ids = []
 
     lightcurve_url = "https://gsaweb.ast.cam.ac.uk/alerts/alert"

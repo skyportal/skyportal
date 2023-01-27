@@ -93,7 +93,7 @@ log = make_log('api/gcn_event')
 
 env, cfg = load_env()
 
-Session = scoped_session(sessionmaker(bind=DBSession.session_factory.kw["bind"]))
+Session = scoped_session(sessionmaker())
 
 MAX_GCNEVENTS = 1000
 
@@ -1134,7 +1134,12 @@ class GcnEventHandler(BaseHandler):
 
 
 def add_tiles_and_properties_and_observation_plans(localization_id, user_id):
-    session = Session()
+
+    if Session.registry.has():
+        session = Session()
+    else:
+        session = Session(bind=DBSession.session_factory.kw["bind"])
+
     try:
         localization = session.scalar(
             sa.select(Localization).where(Localization.id == localization_id)
@@ -1293,11 +1298,16 @@ def add_tiles_and_properties_and_observation_plans(localization_id, user_id):
             f"Unable to generate tiles / properties / observation plans for localization {localization_id}: {e}"
         )
     finally:
-        Session.remove()
+        session.close()
 
 
 def add_contour(localization_id):
-    session = Session()
+
+    if Session.registry.has():
+        session = Session()
+    else:
+        session = Session(bind=DBSession.session_factory.kw["bind"])
+
     try:
         localization = session.query(Localization).get(localization_id)
         localization = get_contour(localization)
@@ -1307,6 +1317,7 @@ def add_contour(localization_id):
     except Exception as e:
         log(f"Unable to generate contour for localization {localization_id}: {e}")
     finally:
+        session.close()
         Session.remove()
 
 
@@ -1500,7 +1511,7 @@ def add_gcn_summary(
     no_text,
     photometry_in_window,
 ):
-    session = Session()
+    session = Session(bind=DBSession.session_factory.kw["bind"])
     try:
         user = session.query(User).get(user_id)
         session.user_or_token = user
@@ -1907,6 +1918,9 @@ def add_gcn_summary(
         except Exception:
             pass
         log(f"Unable to create GCN summary: {e}")
+    finally:
+        session.close()
+        Session.remove()
 
 
 class GcnSummaryHandler(BaseHandler):

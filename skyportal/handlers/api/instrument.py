@@ -33,7 +33,7 @@ from ...enum_types import ALLOWED_BANDPASSES
 
 log = make_log('api/instrument')
 
-Session = scoped_session(sessionmaker(bind=DBSession.session_factory.kw["bind"]))
+Session = scoped_session(sessionmaker())
 
 
 class InstrumentHandler(BaseHandler):
@@ -740,9 +740,11 @@ InstrumentHandler.post.__doc__ = f"""
 
 
 def add_tiles(
-    instrument_id, instrument_name, regions, field_data, modify=False, session=Session()
+    instrument_id, instrument_name, regions, field_data, modify=False, session=None
 ):
     field_ids = []
+    if session is None:
+        session = Session(bind=DBSession.session_factory.kw["bind"])
 
     try:
         # Loop over the telescope tiles and create fields for each

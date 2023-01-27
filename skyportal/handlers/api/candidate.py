@@ -57,11 +57,12 @@ cache = Cache(
 )
 log = make_log('api/candidate')
 
-Session = scoped_session(sessionmaker(bind=DBSession.session_factory.kw["bind"]))
+Session = scoped_session(sessionmaker())
 
 
 def add_linked_thumbnails_and_push_ws_msg(obj_id, user_id):
     with Session() as session:
+        session.bind = DBSession.session_factory.kw["bind"]
         try:
             user = session.query(User).get(user_id)
             if Obj.get_if_accessible_by(obj_id, user) is None:
@@ -885,8 +886,8 @@ class CandidateHandler(BaseHandler):
                 # Define a custom sort order to have annotations from the correct
                 # origin first, all others afterwards
                 origin_sort_order = case(
+                    {sort_by_origin: 1},
                     value=Annotation.origin,
-                    whens={sort_by_origin: 1},
                     else_=None,
                 )
                 annotation_sort_criterion = (

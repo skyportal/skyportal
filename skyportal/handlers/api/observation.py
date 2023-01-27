@@ -55,7 +55,7 @@ TREASUREMAP_URL = cfg['app.treasuremap_endpoint']
 
 log = make_log('api/observation')
 
-Session = scoped_session(sessionmaker(bind=DBSession.session_factory.kw["bind"]))
+Session = scoped_session(sessionmaker())
 
 MAX_OBSERVATIONS = 1000
 
@@ -68,7 +68,7 @@ def add_queued_observations(instrument_id, obstable):
         A dataframe returned from the ZTF scheduler queue
     """
 
-    session = Session()
+    session = Session(bind=DBSession.session_factory.kw["bind"])
 
     try:
         observations = []
@@ -135,7 +135,7 @@ def add_observations(instrument_id, obstable):
 4   ztfr                 1.0    None
      """
 
-    session = Session()
+    session = Session(bind=DBSession.session_factory.kw["bind"])
     # if the fields do not yet exist, we need to add them
     if ('RA' in obstable) and ('Dec' in obstable) and not ('field_id' in obstable):
         instrument = session.query(Instrument).get(instrument_id)

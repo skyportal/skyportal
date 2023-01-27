@@ -13,7 +13,7 @@ from baselayer.log import make_log
 import sqlalchemy as sa
 from sqlalchemy.orm import sessionmaker, scoped_session
 
-Session = scoped_session(sessionmaker(bind=DBSession.session_factory.kw["bind"]))
+Session = scoped_session(sessionmaker())
 
 log = make_log('api/gcn_tach')
 
@@ -201,7 +201,7 @@ def get_tach_event_aliases(id, gcn_event):
 def post_aliases(dateobs, tach_id, user_id):
     try:
         flow = Flow()
-        with Session() as session:
+        with Session(bind=DBSession.session_factory.kw["bind"]) as session:
             user = session.scalars(sa.select(User).where(User.id == user_id)).first()
             stmt = GcnEvent.select(user).where(GcnEvent.dateobs == dateobs)
             gcn_event = session.scalars(stmt).first()

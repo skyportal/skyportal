@@ -21,7 +21,7 @@ import datetime
 
 log = make_log('api/galaxy')
 
-Session = scoped_session(sessionmaker(bind=DBSession.session_factory.kw["bind"]))
+Session = scoped_session(sessionmaker())
 
 MAX_GALAXIES = 10000
 
@@ -450,7 +450,7 @@ class GalaxyCatalogHandler(BaseHandler):
 
 def add_galaxies(catalog_name, catalog_data):
 
-    session = Session()
+    session = Session(bind=DBSession.session_factory.kw["bind"])
     try:
         galaxies = [
             Galaxy(

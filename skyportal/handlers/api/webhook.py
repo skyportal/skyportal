@@ -16,7 +16,7 @@ log = make_log('app/webhook')
 
 _, cfg = load_env()
 
-Session = scoped_session(sessionmaker(bind=DBSession.session_factory.kw["bind"]))
+Session = scoped_session(sessionmaker())
 
 
 class AnalysisWebhookHandler(BaseHandler):
@@ -71,7 +71,7 @@ class AnalysisWebhookHandler(BaseHandler):
 
         # Authenticate the token, then lock this analysis, before going on.
         try:
-            session = Session()
+            session = Session(bind=DBSession.session_factory.kw["bind"])
             analysis = (
                 session.query(ObjAnalysis).filter(ObjAnalysis.token == token).first()
             )

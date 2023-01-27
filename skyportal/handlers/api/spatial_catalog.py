@@ -24,7 +24,7 @@ from ...utils.gcn import (
 
 log = make_log('api/spatial_catalog')
 
-Session = scoped_session(sessionmaker(bind=DBSession.session_factory.kw["bind"]))
+Session = scoped_session(sessionmaker())
 
 MAX_SPATIAL_CATALOG_ENTRIES = 1000
 
@@ -34,7 +34,7 @@ def add_catalog(catalog_id, catalog_data):
     log(f"Generating catalog with ID {catalog_id}")
     start = time.time()
 
-    session = Session()
+    session = Session(bind=DBSession.session_factory.kw["bind"])
     try:
         entries = []
         # check for cone key
@@ -116,7 +116,7 @@ def delete_catalog(catalog_id):
 
     log(f"Deleting catalog with ID {catalog_id}")
 
-    session = Session()
+    session = Session(bind=DBSession.session_factory.kw["bind"])
     try:
         catalog = session.scalar(
             sa.select(SpatialCatalog).where(SpatialCatalog.id == int(catalog_id))

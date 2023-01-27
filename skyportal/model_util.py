@@ -99,12 +99,13 @@ def add_user(username, roles=[], auth=False, first_name=None, last_name=None):
 
 
 def refresh_enums():
-    for type in sqla_enum_types:
-        for key in type.enums:
-            DBSession().execute(
-                f"ALTER TYPE {type.name} ADD VALUE IF NOT EXISTS '{key}'"
-            )
-    DBSession().commit()
+    with DBSession() as session:
+        for type in sqla_enum_types:
+            for key in type.enums:
+                session.execute(
+                    sa.text(f"ALTER TYPE {type.name} ADD VALUE IF NOT EXISTS '{key}'")
+                )
+        session.commit()
 
 
 def make_super_user(username):
