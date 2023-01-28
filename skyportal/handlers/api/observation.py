@@ -68,7 +68,10 @@ def add_queued_observations(instrument_id, obstable):
         A dataframe returned from the ZTF scheduler queue
     """
 
-    session = Session(bind=DBSession.session_factory.kw["bind"])
+    if Session.registry.has():
+        session = Session()
+    else:
+        session = Session(bind=DBSession.session_factory.kw["bind"])
 
     try:
         observations = []
@@ -113,6 +116,7 @@ def add_queued_observations(instrument_id, obstable):
             f"Unable to add queued observations for instrument {instrument_id}: {e}"
         )
     finally:
+        session.close()
         Session.remove()
 
 
@@ -135,7 +139,11 @@ def add_observations(instrument_id, obstable):
 4   ztfr                 1.0    None
      """
 
-    session = Session(bind=DBSession.session_factory.kw["bind"])
+    if Session.registry.has():
+        session = Session()
+    else:
+        session = Session(bind=DBSession.session_factory.kw["bind"])
+
     # if the fields do not yet exist, we need to add them
     if ('RA' in obstable) and ('Dec' in obstable) and not ('field_id' in obstable):
         instrument = session.query(Instrument).get(instrument_id)
@@ -208,6 +216,7 @@ def add_observations(instrument_id, obstable):
     except Exception as e:
         return log(f"Unable to add observations for instrument {instrument_id}: {e}")
     finally:
+        session.close()
         Session.remove()
 
 
