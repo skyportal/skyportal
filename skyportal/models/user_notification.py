@@ -589,29 +589,36 @@ def add_user_notifications(mapper, connection, target):
                 is not None
             ):
                 if is_gcnevent and (pref is not None):
+                    send_notification = True
+
                     event = session.scalars(
                         sa.select(GcnEvent).where(GcnEvent.dateobs == target.dateobs)
                     ).first()
                     notice = event.gcn_notices[-1]
-                    if "gcn_notice_types" in pref["gcn_events"].keys():
-                        send_notification = True
-                        if (
-                            not gcn.NoticeType(notice.notice_type).name
-                            in pref['gcn_events']['gcn_notice_types']
-                        ):
-                            send_notification = False
-                            continue
 
-                    if "gcn_tags" in pref["gcn_events"].keys():
+                    if (
+                        "gcn_notice_types" in pref["gcn_events"].keys()
+                        and send_notification
+                    ):
+                        if len(pref['gcn_events']["gcn_notice_types"]) > 0:
+                            if (
+                                not gcn.NoticeType(notice.notice_type).name
+                                in pref['gcn_events']['gcn_notice_types']
+                            ):
+                                send_notification = False
+
+                    if "gcn_tags" in pref["gcn_events"].keys() and send_notification:
                         if len(pref['gcn_events']["gcn_tags"]) > 0:
                             intersection = list(
                                 set(event.tags) & set(pref['gcn_events']["gcn_tags"])
                             )
                             if len(intersection) == 0:
                                 send_notification = False
-                                continue
 
-                    if "gcn_properties" in pref["gcn_events"].keys():
+                    if (
+                        "gcn_properties" in pref["gcn_events"].keys()
+                        and send_notification
+                    ):
                         if len(pref['gcn_events']["gcn_properties"]) > 0:
                             properties_bool = []
                             for properties in event.properties:
@@ -645,13 +652,15 @@ def add_user_notifications(mapper, connection, target):
                                 properties_bool.append(properties_pass)
                             if not any(properties_bool):
                                 send_notification = False
-                                continue
 
                     (
                         localization_properties_dict,
                         localization_tags_list,
                     ) = get_skymap_properties(target)
-                    if "localization_tags" in pref["gcn_events"].keys():
+                    if (
+                        "localization_tags" in pref["gcn_events"].keys()
+                        and send_notification
+                    ):
                         if len(pref['gcn_events']["localization_tags"]) > 0:
                             intersection = list(
                                 set(localization_tags_list)
@@ -659,9 +668,11 @@ def add_user_notifications(mapper, connection, target):
                             )
                             if len(intersection) == 0:
                                 send_notification = False
-                                continue
 
-                    if pref['gcn_events'].get('localization_properties'):
+                    if (
+                        pref['gcn_events'].get('localization_properties')
+                        and send_notification
+                    ):
                         for prop_filt in pref['gcn_events']["localization_properties"]:
                             prop_split = prop_filt.split(":")
                             if not len(prop_split) == 3:
