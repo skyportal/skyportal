@@ -84,7 +84,7 @@ from skyportal.facility_apis.observation_plan import (
 env, cfg = load_env()
 TREASUREMAP_URL = cfg['app.treasuremap_endpoint']
 
-Session = scoped_session(sessionmaker(bind=DBSession.session_factory.kw["bind"]))
+Session = scoped_session(sessionmaker())
 
 log = make_log('api/observation_plan')
 
@@ -2078,7 +2078,10 @@ def observation_simsurvey(
         Optional parameters to specify the injection type, along with a list of possible values (to be used in a dropdown UI)
     """
 
-    session = Session()
+    if Session.registry.has():
+        session = Session()
+    else:
+        session = Session(bind=DBSession.session_factory.kw["bind"])
 
     try:
 
@@ -2332,6 +2335,7 @@ def observation_simsurvey(
             f"Unable to complete survey efficiency analysis {survey_efficiency_analysis.id}: {e}"
         )
     finally:
+        session.close()
         Session.remove()
 
 

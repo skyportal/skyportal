@@ -297,8 +297,11 @@ def download_observations(request_id, oq):
         Group,
     )
 
-    Session = scoped_session(sessionmaker(bind=DBSession.session_factory.kw["bind"]))
-    session = Session()
+    Session = scoped_session(sessionmaker())
+    if Session.registry.has():
+        session = Session()
+    else:
+        session = Session(bind=DBSession.session_factory.kw["bind"])
 
     try:
         req = session.scalars(
@@ -361,8 +364,9 @@ def download_observations(request_id, oq):
 
     except Exception as e:
         log(f"Unable to post data for {request_id}: {e}")
-
-    Session.remove()
+    finally:
+        session.close()
+        Session.remove()
 
 
 class UVOTXRTAPI(FollowUpAPI):

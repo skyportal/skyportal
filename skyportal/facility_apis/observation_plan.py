@@ -315,8 +315,6 @@ def generate_plan(
     from ..models import DBSession
     from skyportal.handlers.api.instrument import add_tiles
 
-    Session = scoped_session(sessionmaker(bind=DBSession.session_factory.kw["bind"]))
-
     import gwemopt
     import gwemopt.utils
     import gwemopt.segments
@@ -331,6 +329,12 @@ def generate_plan(
         PlannedObservation,
         User,
     )
+
+    Session = scoped_session(sessionmaker())
+    if Session.registry.has():
+        session = Session()
+    else:
+        session = Session(bind=DBSession.session_factory.kw["bind"])
 
     NRETRIES = 10
     NTRIES = 0
@@ -724,7 +728,8 @@ def generate_plan(
 
                     session.commit()
 
-    Session.remove()
+        session.close()
+        Session.remove()
 
 
 class GenericRequest:

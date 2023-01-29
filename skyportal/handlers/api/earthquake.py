@@ -9,7 +9,6 @@ from obspy.taup import TauPyModel
 from obspy.taup.helper_classes import TauModelError
 import sqlalchemy as sa
 from sqlalchemy.orm import joinedload
-from sqlalchemy.orm import sessionmaker, scoped_session
 
 from baselayer.app.access import auth_or_token
 from baselayer.app.custom_exceptions import AccessError
@@ -17,7 +16,6 @@ from baselayer.log import make_log
 
 from ..base import BaseHandler
 from ...models import (
-    DBSession,
     EarthquakeEvent,
     EarthquakeMeasured,
     EarthquakeNotice,
@@ -30,9 +28,6 @@ from ...utils.earthquake import (
 )
 
 log = make_log('earthquake')
-
-
-Session = scoped_session(sessionmaker(bind=DBSession.session_factory.kw["bind"]))
 
 
 def post_earthquake_from_xml(payload, user_id, session):
