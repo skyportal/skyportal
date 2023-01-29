@@ -405,9 +405,9 @@ class InstrumentHandler(BaseHandler):
 
                     if includeGeoJSON or includeGeoJSONSummary:
                         if includeGeoJSON:
-                            undefer_column = 'contour'
+                            options = [undefer(InstrumentField.contour)]
                         elif includeGeoJSONSummary:
-                            undefer_column = 'contour_summary'
+                            options = [undefer(InstrumentField.contour_summary)]
                         tiles = (
                             session.scalars(
                                 sa.select(InstrumentField)
@@ -421,7 +421,7 @@ class InstrumentHandler(BaseHandler):
                                         LocalizationTile.healpix
                                     ),
                                 )
-                                .options(undefer(undefer_column))
+                                .options(options)
                             )
                             .unique()
                             .all()
