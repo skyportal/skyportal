@@ -71,7 +71,10 @@ class AnalysisWebhookHandler(BaseHandler):
 
         # Authenticate the token, then lock this analysis, before going on.
         try:
-            session = Session(bind=DBSession.session_factory.kw["bind"])
+            if Session.registry.has():
+                session = Session()
+            else:
+                session = Session(bind=DBSession.session_factory.kw["bind"])
             analysis = (
                 session.query(ObjAnalysis).filter(ObjAnalysis.token == token).first()
             )
