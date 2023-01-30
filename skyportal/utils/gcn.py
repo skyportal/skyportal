@@ -488,7 +488,12 @@ def get_skymap_properties(localization):
 
     properties_dict = {}
     tags_list = []
-    result = ligo.skymap.postprocess.crossmatch(sky_map, contours=(0.9,), areas=(500,))
+    try:
+        result = ligo.skymap.postprocess.crossmatch(
+            sky_map, contours=(0.9,), areas=(500,)
+        )
+    except Exception:
+        return properties_dict, tags_list
     area = result.contour_areas[0]
     prob = result.area_probs[0]
 
