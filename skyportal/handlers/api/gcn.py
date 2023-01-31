@@ -1228,9 +1228,6 @@ def add_tiles_and_properties_and_observation_plans(localization_id, user_id):
             GcnEvent.select(user).where(GcnEvent.dateobs == localization.dateobs)
         ).first()
         start_date = str(datetime.datetime.utcnow()).replace("T", "")
-        end_date = str(datetime.datetime.utcnow() + datetime.timedelta(days=1)).replace(
-            "T", ""
-        )
 
         for ii, gcn_observation_plan in enumerate(gcn_observation_plans):
             allocation_id = gcn_observation_plan['allocation_id']
@@ -1239,6 +1236,15 @@ def add_tiles_and_properties_and_observation_plans(localization_id, user_id):
             ).first()
 
             if allocation is not None:
+
+                end_date = allocation.instrument.telescope.next_sunrise()
+                if end_date is None:
+                    end_date = str(
+                        datetime.datetime.utcnow() + datetime.timedelta(days=1)
+                    ).replace("T", "")
+                else:
+                    end_date = Time(end_date, format='jd').iso
+
                 payload = {
                     **gcn_observation_plan['payload'],
                     'start_date': start_date,

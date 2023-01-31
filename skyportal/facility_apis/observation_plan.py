@@ -1091,6 +1091,11 @@ class MMAAPI(FollowUpAPI):
         from ..models import DBSession, Galaxy
 
         galaxies = [g for g, in DBSession().query(Galaxy.catalog_name).distinct().all()]
+        end_date = instrument.telescope.next_sunrise()
+        if end_date is None:
+            end_date = str(datetime.utcnow() + timedelta(days=1))
+        else:
+            end_date = Time(end_date, format='jd').isot
 
         form_json_schema = {
             "type": "object",
@@ -1103,7 +1108,7 @@ class MMAAPI(FollowUpAPI):
                 "end_date": {
                     "type": "string",
                     "title": "End Date (UT)",
-                    "default": str(datetime.utcnow() + timedelta(days=1)),
+                    "default": end_date,
                 },
                 "filter_strategy": {
                     "type": "string",
