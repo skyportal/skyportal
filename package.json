@@ -17,7 +17,7 @@
     "@mui/material": "5.11.0",
     "@mui/styled-engine": "5.8.7",
     "@mui/styles": "5.9.2",
-    "@mui/x-date-pickers": "5.0.6",
+    "@mui/x-date-pickers": "5.0.16",
     "@rjsf/core": "4.2.3",
     "@rjsf/material-ui": "4.2.3",
     "autosuggest-highlight": "3.2.1",
