@@ -63,7 +63,7 @@ geojson==2.5.0
 typing-extensions>=4.0.1  # astropy v5.0 needs this, but does not correctly specify as much in its install config
 swifttools==3.0.10
 pip==22.3.1
-gwemopt==0.0.77
+gwemopt==0.0.79
 humanize==4.4.0
 xarray>=21.1
 simsurvey==0.7.5
