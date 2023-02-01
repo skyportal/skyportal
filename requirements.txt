@@ -15,7 +15,7 @@ distributed==2022.10.2
 dustmaps==1.0.10
 reproject==0.9.1
 avro-python3==1.10.2
-fastavro==1.7.0
+fastavro==1.7.1
 tqdm>=4.27,<4.65
 matplotlib==3.6.2
 astroquery==0.4.6
