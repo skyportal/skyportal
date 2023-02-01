@@ -4,7 +4,7 @@ import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
 import ListItemText from "@mui/material/ListItemText";
 // eslint-disable-next-line import/no-unresolved
-import Form from "@rjsf/material-ui/v5";
+import Form from "@rjsf/core";
 import CircularProgress from "@mui/material/CircularProgress";
 import Select from "@mui/material/Select";
 import InputLabel from "@mui/material/InputLabel";

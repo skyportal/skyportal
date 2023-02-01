@@ -1,7 +1,7 @@
 import React from "react";
 import { useDispatch } from "react-redux";
 // eslint-disable-next-line import/no-unresolved
-import Form from "@rjsf/material-ui/v5";
+import Form from "@rjsf/core";
 import dataUriToBuffer from "data-uri-to-buffer";
 import { showNotification } from "baselayer/components/Notifications";
 import {

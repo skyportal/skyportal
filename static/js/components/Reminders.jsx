@@ -24,7 +24,7 @@ import AddIcon from "@mui/icons-material/Add";
 import grey from "@mui/material/colors/grey";
 
 // eslint-disable-next-line import/no-unresolved
-import Form from "@rjsf/material-ui/v5";
+import Form from "@rjsf/core";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 

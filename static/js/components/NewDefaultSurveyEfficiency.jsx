@@ -4,7 +4,7 @@ import Select from "@mui/material/Select";
 import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
 // eslint-disable-next-line import/no-unresolved
-import Form from "@rjsf/material-ui/v5";
+import Form from "@rjsf/core";
 import makeStyles from "@mui/styles/makeStyles";
 
 import * as defaultSurveyEfficienciesActions from "../ducks/default_survey_efficiencies";

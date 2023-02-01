@@ -24,7 +24,7 @@ import Tooltip from "@mui/material/Tooltip";
 import Popover from "@mui/material/Popover";
 import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
 // eslint-disable-next-line import/no-unresolved
-import Form from "@rjsf/material-ui/v5";
+import Form from "@rjsf/core";
 
 import { showNotification } from "baselayer/components/Notifications";
 import * as candidatesActions from "../ducks/candidates";

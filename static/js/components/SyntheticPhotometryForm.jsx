@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import PropTypes from "prop-types";
 import makeStyles from "@mui/styles/makeStyles";
 // eslint-disable-next-line import/no-unresolved
-import Form from "@rjsf/material-ui/v5";
+import Form from "@rjsf/core";
 
 import { showNotification } from "baselayer/components/Notifications";
 import * as spectraActions from "../ducks/spectra";

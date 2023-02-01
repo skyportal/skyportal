@@ -9,7 +9,7 @@ import InputLabel from "@mui/material/InputLabel";
 import Chip from "@mui/material/Chip";
 import makeStyles from "@mui/styles/makeStyles";
 // eslint-disable-next-line import/no-unresolved
-import Form from "@rjsf/material-ui/v5";
+import Form from "@rjsf/core";
 
 import { showNotification } from "baselayer/components/Notifications";
 import * as Actions from "../ducks/source";

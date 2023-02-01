@@ -30,7 +30,7 @@ import {
 } from "@mui/material/styles";
 import makeStyles from "@mui/styles/makeStyles";
 // eslint-disable-next-line import/no-unresolved
-import Form from "@rjsf/material-ui/v5";
+import Form from "@rjsf/core";
 import PapaParse from "papaparse";
 
 import dayjs from "dayjs";
