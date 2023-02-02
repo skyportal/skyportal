@@ -57,29 +57,35 @@ cache = Cache(
 )
 log = make_log('api/candidate')
 
-Session = scoped_session(sessionmaker(bind=DBSession.session_factory.kw["bind"]))
+Session = scoped_session(sessionmaker())
 
 
 def add_linked_thumbnails_and_push_ws_msg(obj_id, user_id):
-    with Session() as session:
-        try:
-            user = session.query(User).get(user_id)
-            if Obj.get_if_accessible_by(obj_id, user) is None:
-                raise AccessError(
-                    f"Insufficient permissions for User {user_id} to read Obj {obj_id}"
-                )
-            obj = session.query(Obj).get(obj_id)
-            obj.add_linked_thumbnails(session=session)
-            flow = Flow()
-            flow.push(
-                '*', "skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}
+
+    if Session.registry.has():
+        session = Session()
+    else:
+        session = Session(bind=DBSession.session_factory.kw["bind"])
+
+    try:
+        user = session.query(User).get(user_id)
+        if Obj.get_if_accessible_by(obj_id, user) is None:
+            raise AccessError(
+                f"Insufficient permissions for User {user_id} to read Obj {obj_id}"
             )
-            flow.push(
-                '*', "skyportal/REFRESH_CANDIDATE", payload={"id": obj.internal_key}
-            )
-        except Exception as e:
-            log(f"Unable to add linked thumbnails to {obj_id}: {e}")
-            session.rollback()
+        obj = session.query(Obj).get(obj_id)
+        obj.add_linked_thumbnails(session=session)
+        flow = Flow()
+        flow.push(
+            '*', "skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}
+        )
+        flow.push('*', "skyportal/REFRESH_CANDIDATE", payload={"id": obj.internal_key})
+    except Exception as e:
+        log(f"Unable to add linked thumbnails to {obj_id}: {e}")
+        session.rollback()
+    finally:
+        session.close()
+        Session.remove()
 
 
 def update_redshift_history_if_relevant(request_data, obj, user):
@@ -475,12 +481,28 @@ class CandidateHandler(BaseHandler):
                     )
 
                 if include_photometry:
-                    candidate_info['photometry'] = session.scalars(
-                        Photometry.select(
-                            session.user_or_token,
-                            options=[joinedload(Photometry.instrument)],
-                        ).where(Photometry.obj_id == obj_id)
-                    ).all()
+                    candidate_info['photometry'] = (
+                        session.scalars(
+                            Photometry.select(
+                                session.user_or_token,
+                                options=[
+                                    joinedload(Photometry.instrument),
+                                    joinedload(Photometry.annotations),
+                                ],
+                            ).where(Photometry.obj_id == obj_id)
+                        )
+                        .unique()
+                        .all()
+                    )
+                    candidate_info['photometry'] = [
+                        {
+                            **phot.to_dict(),
+                            'annotations': [
+                                annotation.to_dict() for annotation in phot.annotations
+                            ],
+                        }
+                        for phot in candidate_info['photometry']
+                    ]
                 if include_spectra:
                     candidate_info['spectra'] = session.scalars(
                         Spectrum.select(
@@ -869,8 +891,8 @@ class CandidateHandler(BaseHandler):
                 # Define a custom sort order to have annotations from the correct
                 # origin first, all others afterwards
                 origin_sort_order = case(
+                    {sort_by_origin: 1},
                     value=Annotation.origin,
-                    whens={sort_by_origin: 1},
                     else_=None,
                 )
                 annotation_sort_criterion = (

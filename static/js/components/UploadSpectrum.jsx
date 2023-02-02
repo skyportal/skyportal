@@ -377,6 +377,7 @@ const UploadSpectrumForm = ({ route }) => {
       },
     },
     required: [
+      "file",
       "has_fluxerr",
       "mjd",
       "wave_column",

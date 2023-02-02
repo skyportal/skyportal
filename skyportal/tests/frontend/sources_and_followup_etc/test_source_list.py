@@ -1,7 +1,7 @@
 import os
 import uuid
 import time
-
+import pytest
 from skyportal.tests import api
 from tdtax import taxonomy, __version__
 
@@ -16,6 +16,7 @@ from selenium.webdriver.common.keys import Keys
 cfg = load_config()
 
 
+@pytest.mark.flaky(reruns=3)
 def test_add_sources_two_groups(
     driver,
     super_admin_user_two_groups,

@@ -179,7 +179,7 @@ const NewPhotometryForm = ({ obj_id }) => {
     if (!formData.mag && !formData.limiting_mag) {
       errors.mag.addError("Please enter a magnitude or a limiting magnitude");
     }
-    if ((formData.mag || formData.limiting_mag) && !formData.magerr) {
+    if (formData.mag && !formData.magerr) {
       errors.magerr.addError("Please enter a magnitude error");
     }
     if (formData.mag && Number.isNaN(formData.mag)) {

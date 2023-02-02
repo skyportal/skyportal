@@ -112,8 +112,11 @@ def serialize(phot, outsys, format):
         'dec_unc': phot.dec_unc,
         'origin': phot.origin,
         'id': phot.id,
-        'groups': phot.groups,
+        'groups': [group.to_dict() for group in phot.groups],
         'altdata': phot.altdata,
+        'annotations': [annotation.to_dict() for annotation in phot.annotations]
+        if hasattr(phot, 'annotations')
+        else [],
     }
     if (
         phot.ref_flux is not None
@@ -163,7 +166,7 @@ def serialize(phot, outsys, format):
                 magsys_packet = sncosmo.get_magsystem(phot.original_user_data['magsys'])
                 relzp_packet = 2.5 * np.log10(magsys_packet.zpbandflux(filter))
                 packet_correction = relzp_out - relzp_packet
-                maglimit = phot.original_user_data['limiting_mag']
+                maglimit = float(phot.original_user_data['limiting_mag'])
                 maglimit_out = maglimit + packet_correction
             else:
                 # calculate the limiting mag
@@ -550,7 +553,9 @@ def insert_new_photometry_data(
     # to be unique in the table and thus can be used to "reserve"
     # PK slots for uninserted rows
 
-    pkq = f"SELECT nextval('photometry_id_seq') FROM " f"generate_series(1, {len(df)})"
+    pkq = sa.text(
+        f"SELECT nextval('photometry_id_seq') FROM " f"generate_series(1, {len(df)})"
+    )
 
     proxy = session.execute(pkq)
 
@@ -803,7 +808,9 @@ def add_external_photometry(json, user):
     with DBSession() as session:
         try:
             session.execute(
-                f'LOCK TABLE {Photometry.__tablename__} IN SHARE ROW EXCLUSIVE MODE'
+                sa.text(
+                    f'LOCK TABLE {Photometry.__tablename__} IN SHARE ROW EXCLUSIVE MODE'
+                )
             )
             ids, upload_id = insert_new_photometry_data(
                 df, instrument_cache, group_ids, stream_ids, user, session
@@ -891,7 +898,9 @@ class PhotometryHandler(BaseHandler):
         with DBSession() as session:
             try:
                 session.execute(
-                    f'LOCK TABLE {Photometry.__tablename__} IN SHARE ROW EXCLUSIVE MODE'
+                    sa.text(
+                        f'LOCK TABLE {Photometry.__tablename__} IN SHARE ROW EXCLUSIVE MODE'
+                    )
                 )
                 ids, upload_id = insert_new_photometry_data(
                     df,
@@ -989,7 +998,9 @@ class PhotometryHandler(BaseHandler):
         with DBSession() as session:
             try:
                 session.execute(
-                    f'LOCK TABLE {Photometry.__tablename__} IN SHARE ROW EXCLUSIVE MODE'
+                    sa.text(
+                        f'LOCK TABLE {Photometry.__tablename__} IN SHARE ROW EXCLUSIVE MODE'
+                    )
                 )
                 new_photometry_query = session.execute(
                     sa.select(values_table.c.pdidx)

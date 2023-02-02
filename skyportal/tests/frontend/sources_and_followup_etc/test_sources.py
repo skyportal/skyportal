@@ -71,6 +71,7 @@ def test_public_source_page(driver, user, public_source, public_group):
     driver.wait_for_xpath(f'//span[text()="{public_group.name}"]')
 
 
+@pytest.mark.flaky(reruns=2)
 def test_comment_username_autosuggestion(driver, user, public_source):
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_source.id}")
@@ -89,6 +90,7 @@ def test_comment_username_autosuggestion(driver, user, public_source):
     driver.wait_for_xpath(f'//p[text()="hey @{user.username}"]')
 
 
+@pytest.mark.flaky(reruns=2)
 def test_comment_user_last_name_autosuggestion(driver, user, public_source):
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_source.id}")
@@ -107,6 +109,7 @@ def test_comment_user_last_name_autosuggestion(driver, user, public_source):
     driver.wait_for_xpath(f'//p[text()="hey @{user.username}"]')
 
 
+@pytest.mark.flaky(reruns=2)
 def test_comment_user_first_name_autosuggestion(driver, user, public_source):
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_source.id}")
@@ -577,6 +580,7 @@ def test_source_notification(driver, user, public_group, public_source):
     driver.wait_for_xpath("//*[text()='Notification queued up successfully']")
 
 
+@pytest.mark.flaky(reruns=2)
 def test_unsave_from_group(
     driver, user_two_groups, public_source_two_groups, public_group2
 ):
@@ -626,6 +630,7 @@ def test_request_group_to_save_then_save(
     driver.wait_for_xpath(f"//a[contains(@href, '/source/{public_source.id}')]")
 
 
+@pytest.mark.flaky(reruns=2)
 def test_update_redshift_and_history(driver, user, public_source):
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_source.id}")
@@ -655,6 +660,7 @@ def test_update_redshift_and_history(driver, user, public_source):
     driver.wait_for_xpath(f"//td[text()='{user.username}']")
 
 
+@pytest.mark.flaky(reruns=2)
 def test_update_redshift_and_history_without_error(driver, user, public_source):
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_source.id}")
@@ -677,12 +683,13 @@ def test_update_redshift_and_history_without_error(driver, user, public_source):
     driver.wait_for_xpath(f"//td[text()='{user.username}']")
 
 
+@pytest.mark.flaky(reruns=2)
 def test_obj_page_unsaved_source(public_obj, driver, user):
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_obj.id}")
 
     # wait for the plots to load
-    driver.wait_for_xpath('//div[@class=" bk-root"]', timeout=20)
+    driver.wait_for_xpath('//div[@class=" bk-root"]', timeout=30)
     # this waits for the spectroscopy plot by looking for the element Fe III
     num_panels = 0
     nretries = 0

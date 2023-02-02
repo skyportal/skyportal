@@ -1238,6 +1238,44 @@ class ObservationPlanPost(_Schema):
     )
 
 
+class ObservationPlanManualHandlerPost(_Schema):
+
+    gcnevent_id = fields.Integer(
+        required=True,
+        metadata={'description': "ID of the GcnEvent."},
+    )
+
+    status = fields.String(
+        load_default="pending submission",
+        metadata={'description': "The status of the request."},
+        required=False,
+    )
+
+    allocation_id = fields.Integer(
+        required=True,
+        metadata={'description': "Observation plan request allocation ID."},
+    )
+
+    localization_id = fields.Integer(
+        required=True,
+        metadata={'description': "Localization ID."},
+    )
+
+    target_group_ids = fields.List(
+        fields.Integer,
+        required=False,
+        metadata={
+            'description': (
+                'IDs of groups to share the results of the observation plan request with.'
+            )
+        },
+    )
+
+    observation_plan_data = fields.Field(
+        metadata={'description': 'Observation plan data json'}
+    )
+
+
 class CatalogQueryPost(_Schema):
 
     payload = fields.Field(
