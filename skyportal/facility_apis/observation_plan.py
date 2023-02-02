@@ -324,6 +324,7 @@ def generate_plan(
         EventObservationPlan,
         Galaxy,
         InstrumentField,
+        InstrumentFieldTile,
         LocalizationTile,
         ObservationPlanRequest,
         PlannedObservation,
@@ -492,36 +493,32 @@ def generate_plan(
                 params, is3D=params["do3D"], map_struct=params['map_struct']
             )
 
+            cum_prob = (
+                sa.func.sum(
+                    LocalizationTile.probdensity * LocalizationTile.healpix.area
+                )
+                .over(order_by=LocalizationTile.probdensity.desc())
+                .label('cum_prob')
+            )
+            localizationtile_subquery = (
+                sa.select(LocalizationTile.probdensity, cum_prob).filter(
+                    LocalizationTile.localization_id == request.localization.id
+                )
+            ).subquery()
+
+            # convert to 0-1
+            integrated_probability = request.payload["integrated_probability"] * 0.01
+            min_probdensity = (
+                sa.select(
+                    sa.func.min(localizationtile_subquery.columns.probdensity)
+                ).filter(
+                    localizationtile_subquery.columns.cum_prob <= integrated_probability
+                )
+            ).scalar_subquery()
+
             if params["tilesType"] == "galaxy":
                 query = Galaxy.query_records_accessible_by(user, mode="read")
                 query = query.filter(Galaxy.catalog_name == params["galaxy_catalog"])
-
-                cum_prob = (
-                    sa.func.sum(
-                        LocalizationTile.probdensity * LocalizationTile.healpix.area
-                    )
-                    .over(order_by=LocalizationTile.probdensity.desc())
-                    .label('cum_prob')
-                )
-                localizationtile_subquery = (
-                    sa.select(LocalizationTile.probdensity, cum_prob).filter(
-                        LocalizationTile.localization_id == request.localization.id
-                    )
-                ).subquery()
-
-                # convert to 0-1
-                integrated_probability = (
-                    request.payload["integrated_probability"] * 0.01
-                )
-                min_probdensity = (
-                    sa.select(
-                        sa.func.min(localizationtile_subquery.columns.probdensity)
-                    ).filter(
-                        localizationtile_subquery.columns.cum_prob
-                        <= integrated_probability
-                    )
-                ).scalar_subquery()
-
                 tiles_subquery = (
                     sa.select(Galaxy.id)
                     .filter(
@@ -577,11 +574,27 @@ def generate_plan(
                 catalog_struct["Sloc"] = values
                 catalog_struct["Smass"] = values
 
+            elif params["tilesType"] == "moc":
+
+                field_ids = {}
+                for request in requests:
+                    field_tiles_query = sa.select(InstrumentField.id).where(
+                        LocalizationTile.localization_id == request.localization.id,
+                        LocalizationTile.probdensity >= min_probdensity,
+                        InstrumentFieldTile.instrument_id == request.instrument.id,
+                        InstrumentFieldTile.instrument_field_id == InstrumentField.id,
+                        InstrumentFieldTile.healpix.overlaps(LocalizationTile.healpix),
+                    )
+                    field_tiles = session.scalars(field_tiles_query).unique().all()
+                    field_ids[request.instrument.name] = field_tiles
+
             log(f"Retrieving fields for ID(s): {','.join(observation_plan_id_strings)}")
 
             if params["tilesType"] == "moc":
                 moc_structs = gwemopt.skyportal.create_moc_from_skyportal(
-                    params, map_struct=map_struct
+                    params,
+                    map_struct=map_struct,
+                    field_ids=field_ids,
                 )
                 tile_structs = gwemopt.tiles.moc(params, map_struct, moc_structs)
             elif params["tilesType"] == "galaxy":
@@ -1095,7 +1108,7 @@ class MMAAPI(FollowUpAPI):
         if end_date is None:
             end_date = str(datetime.utcnow() + timedelta(days=1))
         else:
-            end_date = Time(end_date, format='jd').isot
+            end_date = Time(end_date, format='jd').iso
 
         form_json_schema = {
             "type": "object",
