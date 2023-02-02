@@ -212,7 +212,7 @@ const NewReminder = ({ resourceId, resourceType, handleClose }) => {
       id="reminder-form"
       onSubmit={handleSubmit}
       // eslint-disable-next-line react/jsx-no-bind
-      validate={validate}
+      customValidate={validate}
       liveValidate
     />
   );

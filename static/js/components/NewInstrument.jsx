@@ -201,7 +201,7 @@ const NewInstrument = () => {
       validator={validator}
       onSubmit={handleSubmit}
       // eslint-disable-next-line react/jsx-no-bind
-      validate={validate}
+      customValidate={validate}
       liveValidate
     />
   );

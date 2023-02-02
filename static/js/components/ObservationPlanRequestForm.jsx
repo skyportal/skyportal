@@ -562,7 +562,7 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
                 : {}
             }
             liveValidate
-            validate={validate}
+            customValidate={validate}
             onSubmit={handleQueueSubmit}
             disabled={isSubmitting}
           >

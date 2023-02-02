@@ -85,7 +85,7 @@ const EditFollowupRequestDialog = ({
                 .uiSchema
             }
             onSubmit={handleSubmit}
-            validate={validate}
+            customValidate={validate}
             liveValidate
           />
         </DialogContent>

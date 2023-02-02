@@ -273,7 +273,7 @@ const NewPhotometryForm = ({ obj_id }) => {
           schema={photoFormSchema}
           validator={validator}
           onSubmit={submit}
-          validate={validate}
+          customValidate={validate}
           liveValidate
         />
       ) : (

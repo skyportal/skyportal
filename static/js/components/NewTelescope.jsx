@@ -117,7 +117,7 @@ const NewTelescope = () => {
       uiSchema={uiSchema}
       onSubmit={handleSubmit}
       // eslint-disable-next-line react/jsx-no-bind
-      validate={validate}
+      customValidate={validate}
     />
   );
 };
