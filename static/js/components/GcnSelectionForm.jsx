@@ -2,7 +2,8 @@ import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { PropTypes } from "prop-types";
 // eslint-disable-next-line import/no-unresolved
-import Form from "@rjsf/material-ui/v5";
+import Form from "@rjsf/mui";
+import validator from "@rjsf/validator-ajv8";
 import Select from "@mui/material/Select";
 import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
@@ -442,9 +443,10 @@ const GcnSelectionForm = ({
       <div data-testid="gcnsource-selection-form" className={classes.form}>
         <Form
           schema={GcnSourceSelectionFormSchema}
+          validator={validator}
           onSubmit={handleSubmit}
           // eslint-disable-next-line react/jsx-no-bind
-          validate={validate}
+          customValidate={validate}
           disabled={isSubmitting}
           liveValidate
         />

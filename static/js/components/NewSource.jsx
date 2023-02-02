@@ -2,7 +2,8 @@ import React, { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 // eslint-disable-next-line import/no-unresolved
-import Form from "@rjsf/material-ui/v5";
+import Form from "@rjsf/mui";
+import validator from "@rjsf/validator-ajv8";
 import Paper from "@mui/material/Paper";
 import Typography from "@mui/material/Typography";
 import DragHandleIcon from "@mui/icons-material/DragHandle";
@@ -86,9 +87,10 @@ const NewSource = ({ classes }) => {
             />
             <Form
               schema={sourceFormSchema}
+              validator={validator}
               onSubmit={handleSubmit}
               // eslint-disable-next-line react/jsx-no-bind
-              validate={validate}
+              customValidate={validate}
             />
           </div>
         </div>

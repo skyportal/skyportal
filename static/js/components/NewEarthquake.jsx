@@ -1,7 +1,8 @@
 import React from "react";
 import { useDispatch } from "react-redux";
 // eslint-disable-next-line import/no-unresolved
-import Form from "@rjsf/material-ui/v5";
+import Form from "@rjsf/mui";
+import validator from "@rjsf/validator-ajv8";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
@@ -80,9 +81,10 @@ const NewEarthquake = () => {
   return (
     <Form
       schema={earthquakeFormSchema}
+      validator={validator}
       onSubmit={handleSubmit}
       // eslint-disable-next-line react/jsx-no-bind
-      validate={validate}
+      customValidate={validate}
     />
   );
 };

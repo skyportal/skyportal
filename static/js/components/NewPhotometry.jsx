@@ -3,7 +3,8 @@ import PropTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
 import { showNotification } from "baselayer/components/Notifications";
 // eslint-disable-next-line import/no-unresolved
-import Form from "@rjsf/material-ui/v5";
+import Form from "@rjsf/mui";
+import validator from "@rjsf/validator-ajv8";
 
 import { submitPhotometry } from "../ducks/photometry";
 
@@ -270,8 +271,9 @@ const NewPhotometryForm = ({ obj_id }) => {
       {instrumentList?.length > 0 && groups?.length > 0 ? (
         <Form
           schema={photoFormSchema}
+          validator={validator}
           onSubmit={submit}
-          validate={validate}
+          customValidate={validate}
           liveValidate
         />
       ) : (

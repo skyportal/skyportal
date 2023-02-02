@@ -24,7 +24,8 @@ import AddIcon from "@mui/icons-material/Add";
 import grey from "@mui/material/colors/grey";
 
 // eslint-disable-next-line import/no-unresolved
-import Form from "@rjsf/material-ui/v5";
+import Form from "@rjsf/mui";
+import validator from "@rjsf/validator-ajv8";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
@@ -207,10 +208,11 @@ const NewReminder = ({ resourceId, resourceType, handleClose }) => {
   return (
     <Form
       schema={reminderFormSchema}
+      validator={validator}
       id="reminder-form"
       onSubmit={handleSubmit}
       // eslint-disable-next-line react/jsx-no-bind
-      validate={validate}
+      customValidate={validate}
       liveValidate
     />
   );
