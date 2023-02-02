@@ -5,7 +5,7 @@ import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import makeStyles from "@mui/styles/makeStyles";
 // eslint-disable-next-line import/no-unresolved
-import Form from "@rjsf/core";
+import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import Button from "./Button";
 import * as Actions from "../ducks/source";

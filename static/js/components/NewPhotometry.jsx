@@ -3,7 +3,7 @@ import PropTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
 import { showNotification } from "baselayer/components/Notifications";
 // eslint-disable-next-line import/no-unresolved
-import Form from "@rjsf/core";
+import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 
 import { submitPhotometry } from "../ducks/photometry";

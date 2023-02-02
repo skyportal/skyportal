@@ -1,7 +1,7 @@
 import React from "react";
 import { useDispatch } from "react-redux";
 // eslint-disable-next-line import/no-unresolved
-import Form from "@rjsf/core";
+import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 
 import dayjs from "dayjs";

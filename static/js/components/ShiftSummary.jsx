@@ -3,7 +3,7 @@ import { useSelector, useDispatch } from "react-redux";
 import makeStyles from "@mui/styles/makeStyles";
 import dayjs from "dayjs";
 // eslint-disable-next-line import/no-unresolved
-import Form from "@rjsf/core";
+import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import {
   Paper,
