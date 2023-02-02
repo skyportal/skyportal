@@ -9,6 +9,7 @@ ar = requests.post('https://archive-api.lco.global/api-token-auth/',
                        data = {'username': username, 'password': password})
 ar_token = ar.json()['token']
 * LT: A proposal ID, username, and password are passed as `{"username": "username", "password": "password", "LT_proposalID": "your_proposal_ID"}`.
+* MMA: There are two generic methods for distributing observation plans. The first is through API, where the user provides {"protocol": "http/https", "host": "host", "port": "port", "access_token": "token"}, and the second through scp, where the user provides {"host": "host", "port": "port", "username": "username", "password": "password", "directory": "output_directory"}.
 * NICER: A username and password (as entered at https://heasarc.gsfc.nasa.gov/ark/nicertoo/) are passed as `{"username": "username", "password": "password"}`.
 * SLACK: As discussed further [here](./slack.html), slack information is pass as `{"slack_workspace": "XXX", "slack_channel": "YYY", "slack_token": "ZZZ"}`.
 * SWIFT Triggering: A username and password are passed as `{"username": "username", "secret": "password"}`.

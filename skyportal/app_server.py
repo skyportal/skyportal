@@ -1,4 +1,5 @@
 import tornado.web
+import shutil
 
 from baselayer.app.app_server import MainPageHandler
 from baselayer.app.model_util import create_tables
@@ -17,8 +18,10 @@ from skyportal.handlers.api import (
     CandidateHandler,
     CatalogQueryHandler,
     ClassificationHandler,
+    ClassificationVotesHandler,
     CommentHandler,
     CommentAttachmentHandler,
+    CommentAttachmentUpdateHandler,
     EarthquakeHandler,
     EarthquakeMeasurementHandler,
     EarthquakePredictionHandler,
@@ -29,10 +32,12 @@ from skyportal.handlers.api import (
     IRSAQueryWISEHandler,
     VizierQueryHandler,
     DatalabQueryHandler,
+    DefaultFollowupRequestHandler,
     DefaultObservationPlanRequestHandler,
     DefaultSurveyEfficiencyRequestHandler,
     FilterHandler,
     FollowupRequestHandler,
+    FollowupRequestWatcherHandler,
     FollowupRequestSchedulerHandler,
     FollowupRequestPrioritizationHandler,
     FacilityMessageHandler,
@@ -53,6 +58,9 @@ from skyportal.handlers.api import (
     MMADetectorSpectrumHandler,
     HealpixUpdateHandler,
     LocalizationHandler,
+    LocalizationTagsHandler,
+    LocalizationDownloadHandler,
+    LocalizationCrossmatchHandler,
     LocalizationPropertiesHandler,
     GroupHandler,
     GroupUserHandler,
@@ -80,6 +88,7 @@ from skyportal.handlers.api import (
     ObservationPlanAirmassChartHandler,
     ObservationPlanCreateObservingRunHandler,
     ObservationPlanFieldsHandler,
+    ObservationPlanManualRequestHandler,
     PhotometryHandler,
     PhotStatHandler,
     PhotStatUpdateHandler,
@@ -104,6 +113,7 @@ from skyportal.handlers.api import (
     SharingHandler,
     SourceHandler,
     SourceExistsHandler,
+    SourceObservabilityPlotHandler,
     SourceOffsetsHandler,
     SourceFinderHandler,
     SourceNotificationHandler,
@@ -116,7 +126,9 @@ from skyportal.handlers.api import (
     SpectrumRangeHandler,
     SyntheticPhotometryHandler,
     ObjSpectraHandler,
+    RecurringAPIHandler,
     ReminderHandler,
+    SourceLabelsHandler,
     SpectrumTNSHandler,
     ShiftHandler,
     ShiftUserHandler,
@@ -124,6 +136,8 @@ from skyportal.handlers.api import (
     StatsHandler,
     StreamHandler,
     StreamUserHandler,
+    SpatialCatalogHandler,
+    SpatialCatalogASCIIFileHandler,
     SurveyEfficiencyForObservationsHandler,
     SurveyEfficiencyForObservationPlanHandler,
     SwiftLSXPSQueryHandler,
@@ -200,9 +214,14 @@ skyportal_handlers = [
     (r'/api/catalogs/swift_lsxps', SwiftLSXPSQueryHandler),
     (r'/api/catalogs/gaia_alerts', GaiaPhotometricAlertsQueryHandler),
     (r'/api/catalog_queries', CatalogQueryHandler),
+    (r'/api/classification/votes(/.*)?', ClassificationVotesHandler),
     (r'/api/classification/sources(/.*)?', ObjClassificationQueryHandler),
     (r'/api/classification(/[0-9]+)?', ClassificationHandler),
     (r'/api/enum_types(/.*)?', EnumTypesHandler),
+    (
+        r'/api/default_followup_request(/[0-9A-Za-z-_\.\+]+)?',
+        DefaultFollowupRequestHandler,
+    ),
     (
         r'/api/default_observation_plan(/[0-9A-Za-z-_\.\+]+)?',
         DefaultObservationPlanRequestHandler,
@@ -213,6 +232,7 @@ skyportal_handlers = [
     ),
     (r'/api/facility', FacilityMessageHandler),
     (r'/api/filters(/.*)?', FilterHandler),
+    (r'/api/followup_request/watch(/[0-9]+)', FollowupRequestWatcherHandler),
     (r'/api/followup_request/schedule(/[0-9]+)', FollowupRequestSchedulerHandler),
     (
         r'/api/followup_request/prioritization(/.*)?',
@@ -269,7 +289,7 @@ skyportal_handlers = [
     (r'/api/earthquake/status', EarthquakeStatusHandler),
     (r'/api/earthquake(/.*)?', EarthquakeHandler),
     (r'/api/gcn_event(/.*)/tach', GcnTachHandler),
-    (r'/api/gcn_event/summary(/.*)?', GcnSummaryHandler),
+    (r'/api/gcn_event/(.*)/summary(/.*)?', GcnSummaryHandler),
     (r'/api/gcn_event/tags', GcnEventTagsHandler),
     (r'/api/gcn_event/properties', GcnEventPropertiesHandler),
     (r'/api/gcn_event(/.*)?', GcnEventHandler),
@@ -289,10 +309,14 @@ skyportal_handlers = [
         ObservationPlanWorldmapPlotHandler,
     ),
     (r'/api/healpix', HealpixUpdateHandler),
+    (r'/api/comment_attachment', CommentAttachmentUpdateHandler),
     (r'/api/sources/([0-9A-Za-z-_\.\+]+)/phot_stat', PhotStatHandler),
     (r'/api/phot_stats', PhotStatUpdateHandler),
+    (r'/api/localization/tags', LocalizationTagsHandler),
     (r'/api/localization/properties', LocalizationPropertiesHandler),
+    (r'/api/localization(/.*)/name(/.*)/download', LocalizationDownloadHandler),
     (r'/api/localization(/.*)/name(/.*)?', LocalizationHandler),
+    (r'/api/localizationcrossmatch', LocalizationCrossmatchHandler),
     (r'/api/groups/public', PublicGroupHandler),
     (r'/api/groups(/[0-9]+)/streams(/[0-9]+)?', GroupStreamHandler),
     (r'/api/groups(/[0-9]+)/users(/.*)?', GroupUserHandler),
@@ -316,6 +340,7 @@ skyportal_handlers = [
     (r'/api/observation/treasuremap(/[0-9]+)', ObservationTreasureMapHandler),
     (r'/api/observation/external_api(/[0-9]+)?', ObservationExternalAPIHandler),
     (r'/api/observing_run(/[0-9]+)?', ObservingRunHandler),
+    (r'/api/observation_plan/manual', ObservationPlanManualRequestHandler),
     (r'/api/observation_plan/plan_names', ObservationPlanNameHandler),
     (r'/api/observation_plan(/[0-9A-Za-z-_\.\+]+)?', ObservationPlanRequestHandler),
     (
@@ -367,6 +392,7 @@ skyportal_handlers = [
     (r'/api/photometry/bulk_delete/(.*)', BulkDeletePhotometryHandler),
     (r'/api/photometry/range(/.*)?', PhotometryRangeHandler),
     (r'/api/photometry/origins', PhotometryOriginHandler),
+    (r'/api/recurring_api(/.*)?', RecurringAPIHandler),
     (r'/api/roles', RoleHandler),
     (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/photometry', ObjPhotometryHandler),
     (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/spectra', ObjSpectraHandler),
@@ -374,8 +400,13 @@ skyportal_handlers = [
     (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/finder', SourceFinderHandler),
     (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/classifications', ObjClassificationHandler),
     (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/groups', ObjGroupsHandler),
+    (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/labels', SourceLabelsHandler),
     (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/color_mag', ObjColorMagHandler),
     (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/tns', ObjTNSHandler),
+    (
+        r'/api/sources(/[0-9A-Za-z-_\.\+]+)/observability',
+        SourceObservabilityPlotHandler,
+    ),
     (r'/api/(sources|spectra)/([0-9A-Za-z-_\.\+]+)/comments', CommentHandler),
     (r'/api/(sources|spectra)/([0-9A-Za-z-_\.\+]+)/comments(/[0-9]+)?', CommentHandler),
     (
@@ -394,17 +425,19 @@ skyportal_handlers = [
     (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/annotations/vizier', VizierQueryHandler),
     (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/annotations/datalab', DatalabQueryHandler),
     (
-        r'/api/(sources|spectra)(/[0-9A-Za-z-_\.\+]+)/annotations',
+        r'/api/(sources|spectra|photometry)(/[0-9A-Za-z-_\.\+]+)/annotations',
         AnnotationHandler,
     ),
     (
-        r'/api/(sources|spectra)(/[0-9A-Za-z-_\.\+]+)/annotations(/[0-9]+)?',
+        r'/api/(sources|spectra|photometry)(/[0-9A-Za-z-_\.\+]+)/annotations(/[0-9]+)?',
         AnnotationHandler,
     ),
     (r'/api/sources(/[^/]*)?', SourceHandler),
     (r'/api/source_exists(/.*)?', SourceExistsHandler),
     (r'/api/source_notifications', SourceNotificationHandler),
     (r'/api/source_groups(/.*)?', SourceGroupsHandler),
+    (r'/api/spatial_catalog/ascii', SpatialCatalogASCIIFileHandler),
+    (r'/api/spatial_catalog(/[0-9A-Za-z-_\.\+]+)?', SpatialCatalogHandler),
     (r'/api/spectra(/[0-9]+)?', SpectrumHandler),
     (r'/api/spectra/parse/ascii', SpectrumASCIIFileParser),
     (r'/api/spectra/ascii(/[0-9]+)?', SpectrumASCIIFileHandler),
@@ -509,6 +542,32 @@ def make_app(cfg, baselayer_handlers, baselayer_settings, process=None, env=None
         print('  Your server is insecure. Please update the secret string ')
         print('  in the configuration file!')
         print('!' * 80)
+
+    if 'image_analysis' in cfg:
+        missing_bins = []
+        for exe in ['scamp', 'psfex']:
+            bin = shutil.which(exe)
+            if bin is None:
+                missing_bins.append(exe)
+
+        if len(missing_bins) > 0:
+            log('!' * 80)
+            log(
+                f"  Can't run image analysis. Missing dependencies: {', '.join(missing_bins)}"
+            )
+            log('!' * 80)
+            return
+
+        # ignore the flake8 error due to the import being before in this file
+
+        from skyportal.handlers.api.internal import ImageAnalysisHandler
+
+        baselayer_handlers = baselayer_handlers + [
+            (
+                r'/api/internal/sources(/[0-9A-Za-z-_\.\+]+)/image_analysis',
+                ImageAnalysisHandler,
+            ),
+        ]
 
     handlers = baselayer_handlers + skyportal_handlers
 

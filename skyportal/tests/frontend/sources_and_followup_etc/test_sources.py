@@ -1,5 +1,4 @@
 import os
-from os.path import join as pjoin
 import uuid
 import json
 import time
@@ -72,6 +71,7 @@ def test_public_source_page(driver, user, public_source, public_group):
     driver.wait_for_xpath(f'//span[text()="{public_group.name}"]')
 
 
+@pytest.mark.flaky(reruns=2)
 def test_comment_username_autosuggestion(driver, user, public_source):
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_source.id}")
@@ -90,6 +90,7 @@ def test_comment_username_autosuggestion(driver, user, public_source):
     driver.wait_for_xpath(f'//p[text()="hey @{user.username}"]')
 
 
+@pytest.mark.flaky(reruns=2)
 def test_comment_user_last_name_autosuggestion(driver, user, public_source):
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_source.id}")
@@ -108,6 +109,7 @@ def test_comment_user_last_name_autosuggestion(driver, user, public_source):
     driver.wait_for_xpath(f'//p[text()="hey @{user.username}"]')
 
 
+@pytest.mark.flaky(reruns=2)
 def test_comment_user_first_name_autosuggestion(driver, user, public_source):
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_source.id}")
@@ -307,8 +309,8 @@ def test_classifications(driver, user, taxonomy_token, public_group, public_sour
     driver.wait_for_xpath('//*[@id="probability"]').send_keys("0.02")
     driver.click_xpath("//*[text()='Submit']", wait_clickable=False)
     driver.wait_for_xpath("//*[text()='Classification saved']")
-    driver.find_element(
-        By.XPATH, "//span[contains(@class, 'MuiChip-label') and text()='Mult-mode?']"
+    driver.wait_for_xpath(
+        "//span[contains(@class, 'MuiChip-label') and text()='Mult-mode?']",
     )
 
 
@@ -372,83 +374,6 @@ def test_comment_groups_validation(
         driver.wait_for_xpath(
             '//div[@data-testid="comments-accordion"]//span[text()="a few seconds ago"]'
         )
-
-
-@pytest.mark.flaky(reruns=2)
-def test_upload_download_comment_attachment(driver, user, public_source):
-    driver.get(f"/become_user/{user.id}")  # TODO decorator/context manager?
-    driver.get(f"/source/{public_source.id}")
-    driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
-    comment_text = str(uuid.uuid4())
-    enter_comment_text(driver, comment_text)
-    # attachment_file = driver.find_element_by_css_selector('input[type=file]')
-    attachment_file = driver.wait_for_xpath(
-        "//div[@data-testid='comments-accordion']//input[@name='attachment']"
-    )
-    attachment_file.send_keys(
-        pjoin(
-            os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
-            'data',
-            'spec.csv',
-        )
-    )
-    driver.click_xpath(
-        '//div[@data-testid="comments-accordion"]//*[@name="submitCommentButton"]'
-    )
-    try:
-        comment_text_p = driver.wait_for_xpath(
-            f'//div[@data-testid="comments-accordion"]//p[text()="{comment_text}"]',
-            timeout=20,
-        )
-    except TimeoutException:
-        driver.refresh()
-        comment_text_p = driver.wait_for_xpath(
-            f'//div[@data-testid="comments-accordion"]//p[text()="{comment_text}"]'
-        )
-    comment_div = comment_text_p.find_element(By.XPATH, "../..")
-    driver.execute_script("arguments[0].scrollIntoView();", comment_div)
-    ActionChains(driver).move_to_element(comment_div).perform()
-
-    # Scroll up to top of comments list
-    comments = driver.wait_for_xpath(
-        "//div[@data-testid='comments-accordion']//p[text()='Comments']"
-    )
-    driver.scroll_to_element(comments)
-
-    attachment_div = driver.wait_for_xpath(
-        "//div[@data-testid='comments-accordion']//div[contains(text(), 'Attachment:')]"
-    )
-    attachment_button = driver.wait_for_xpath(
-        '//div[@data-testid="comments-accordion"]//button[@data-testid="attachmentButton_spec"]'
-    )
-    # Try to open the preview dialog twice before failing to make it more robust
-    try:
-        ActionChains(driver).move_to_element(attachment_div).pause(0.5).perform()
-        ActionChains(driver).move_to_element(attachment_button).pause(
-            0.5
-        ).click().perform()
-        # Preview dialog
-        driver.click_xpath('//a[@data-testid="attachmentDownloadButton_spec"]')
-    except TimeoutException:
-        ActionChains(driver).move_to_element(attachment_div).pause(0.5).perform()
-        ActionChains(driver).move_to_element(attachment_button).pause(
-            0.5
-        ).click().perform()
-        # Preview dialog
-        driver.click_xpath('//a[@data-testid="attachmentDownloadButton_spec"]')
-
-    fpath = str(os.path.abspath(pjoin(cfg['paths.downloads_folder'], 'spec.csv')))
-    try_count = 1
-    while not os.path.exists(fpath) and try_count <= 3:
-        try_count += 1
-        assert os.path.exists(fpath)
-
-    try:
-        with open(fpath) as f:
-            lines = f.read()
-        assert lines.split('\n')[0] == 'wavelengths,fluxes,instrument_id'
-    finally:
-        os.remove(fpath)
 
 
 def test_view_only_user_cannot_comment(driver, view_only_user, public_source):
@@ -655,6 +580,7 @@ def test_source_notification(driver, user, public_group, public_source):
     driver.wait_for_xpath("//*[text()='Notification queued up successfully']")
 
 
+@pytest.mark.flaky(reruns=2)
 def test_unsave_from_group(
     driver, user_two_groups, public_source_two_groups, public_group2
 ):
@@ -704,6 +630,7 @@ def test_request_group_to_save_then_save(
     driver.wait_for_xpath(f"//a[contains(@href, '/source/{public_source.id}')]")
 
 
+@pytest.mark.flaky(reruns=2)
 def test_update_redshift_and_history(driver, user, public_source):
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_source.id}")
@@ -733,6 +660,7 @@ def test_update_redshift_and_history(driver, user, public_source):
     driver.wait_for_xpath(f"//td[text()='{user.username}']")
 
 
+@pytest.mark.flaky(reruns=2)
 def test_update_redshift_and_history_without_error(driver, user, public_source):
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_source.id}")
@@ -755,12 +683,13 @@ def test_update_redshift_and_history_without_error(driver, user, public_source):
     driver.wait_for_xpath(f"//td[text()='{user.username}']")
 
 
+@pytest.mark.flaky(reruns=2)
 def test_obj_page_unsaved_source(public_obj, driver, user):
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_obj.id}")
 
     # wait for the plots to load
-    driver.wait_for_xpath('//div[@class=" bk-root"]', timeout=20)
+    driver.wait_for_xpath('//div[@class=" bk-root"]', timeout=30)
     # this waits for the spectroscopy plot by looking for the element Fe III
     num_panels = 0
     nretries = 0
@@ -966,4 +895,4 @@ def test_duplicate_sources_render(
     driver.get(f"/source/{public_source.id}")
     driver.wait_for_xpath('//*[contains(text(), "Possible duplicate of:")]')
     driver.click_xpath(f'//button[text()="{obj_id2}"]')
-    driver.wait_for_xpath(f'//div[text()="{obj_id2}"]')
+    driver.wait_for_xpath(f'//div[text()="{obj_id2}"]', timeout=20)

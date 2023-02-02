@@ -99,8 +99,10 @@ User Guide
    slack
    followup
    mma
+   spatial_catalog
    advanced_usage
    analysis
+   image_analysis
    extensions
 
 Contributing

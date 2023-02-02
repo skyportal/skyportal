@@ -1,9 +1,13 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import PropTypes from "prop-types";
 import Tooltip from "@mui/material/Tooltip";
 import Chip from "@mui/material/Chip";
 import DeleteIcon from "@mui/icons-material/Delete";
+import ThumbUp from "@mui/icons-material/ThumbUp";
+import ThumbDown from "@mui/icons-material/ThumbDown";
+import VisibilityIcon from "@mui/icons-material/Visibility";
+import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import makeStyles from "@mui/styles/makeStyles";
 
 import { showNotification } from "baselayer/components/Notifications";
@@ -36,7 +40,28 @@ const ClassificationRow = ({ classifications }) => {
   const dispatch = useDispatch();
 
   const currentUser = useSelector((state) => state.profile);
+  const groupUsers = useSelector((state) => state.group?.group_users);
+  const currentGroupUser = groupUsers?.filter(
+    (groupUser) => groupUser.user_id === currentUser.id
+  )[0];
+
+  useEffect(() => {
+    if (
+      currentGroupUser?.admin !== undefined &&
+      currentGroupUser?.admin !== null
+    ) {
+      window.localStorage.setItem(
+        "CURRENT_GROUP_ADMIN",
+        JSON.stringify(currentGroupUser.admin)
+      );
+    }
+  }, [currentGroupUser]);
+
+  const isGroupAdmin = JSON.parse(
+    window.localStorage.getItem("CURRENT_GROUP_ADMIN")
+  );
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [votesVisible, setVotesVisible] = useState(false);
   const [classificationToDelete, setClassificationToDelete] = useState(null);
   const openDialog = (id) => {
     setDialogOpen(true);
@@ -45,6 +70,20 @@ const ClassificationRow = ({ classifications }) => {
   const closeDialog = () => {
     setDialogOpen(false);
     setClassificationToDelete(null);
+  };
+
+  const addVote = (classification_id, vote) => {
+    dispatch(
+      sourceActions.addClassificationVote(classification_id, { vote })
+    ).then((result) => {
+      if (result.status === "success") {
+        dispatch(showNotification("Vote registered"));
+      }
+    });
+  };
+
+  const switchVotesVisible = () => {
+    setVotesVisible(!votesVisible);
   };
 
   const deleteClassification = () => {
@@ -60,9 +99,33 @@ const ClassificationRow = ({ classifications }) => {
 
   const classification = classifications[0];
 
+  const upvoterIds = [];
+  const downvoterIds = [];
+  let upvoteValue = 1;
+  let downvoteValue = -1;
+  let upvoteColor = "disabled";
+  let downvoteColor = "disabled";
+
+  classification.votes?.forEach((s) => {
+    if (s.vote === 1) {
+      upvoterIds.push(s.id);
+      if (s.voter_id === currentUser.id) {
+        upvoteValue = 0;
+        upvoteColor = "success";
+      }
+    } else if (s.vote === -1) {
+      downvoterIds.push(s.id);
+      if (s.voter_id === currentUser.id) {
+        downvoteValue = 0;
+        downvoteColor = "error";
+      }
+    }
+  });
+
   const permission =
     currentUser.permissions.includes("System admin") ||
     currentUser.permissions.includes("Manage groups") ||
+    isGroupAdmin ||
     currentUser.username === classification.author_name;
 
   const clsProb = classification.probability
@@ -107,6 +170,56 @@ const ClassificationRow = ({ classifications }) => {
                 resourceName="classification"
               />
             </div>
+            <div>
+              <Button
+                key={classification.id}
+                id="down_vote"
+                onClick={() => switchVotesVisible()}
+              >
+                <font color="white">
+                  {votesVisible ? (
+                    <VisibilityOffIcon color="primary" />
+                  ) : (
+                    <VisibilityIcon color="primary" />
+                  )}{" "}
+                  &nbsp; Votes Visible?
+                </font>
+              </Button>
+            </div>
+            <div>
+              <Button
+                key={classification.id}
+                id="down_vote"
+                onClick={() => addVote(classification.id, downvoteValue)}
+              >
+                <ThumbDown color={downvoteColor} />
+                <font color="white">
+                  {" "}
+                  {votesVisible ? (
+                    <> &nbsp; {`${downvoterIds.length} vote(s)`} </>
+                  ) : (
+                    <> </>
+                  )}
+                </font>
+              </Button>
+            </div>
+            <div>
+              <Button
+                key={classification.id}
+                id="up_vote"
+                onClick={() => addVote(classification.id, upvoteValue)}
+              >
+                <ThumbUp color={upvoteColor} />
+                <font color="white">
+                  {" "}
+                  {votesVisible ? (
+                    <> &nbsp; {`${upvoterIds.length} vote(s)`} </>
+                  ) : (
+                    <> </>
+                  )}
+                </font>
+              </Button>
+            </div>
           </div>
         }
       >
@@ -138,6 +251,12 @@ ClassificationRow.propTypes = {
         PropTypes.shape({
           id: PropTypes.number,
           name: PropTypes.string,
+        })
+      ),
+      votes: PropTypes.arrayOf(
+        PropTypes.shape({
+          id: PropTypes.number,
+          vote: PropTypes.number,
         })
       ),
     })

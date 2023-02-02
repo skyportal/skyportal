@@ -1,7 +1,8 @@
 import React from "react";
 import { useDispatch, useSelector } from "react-redux";
 // eslint-disable-next-line import/no-unresolved
-import Form from "@rjsf/material-ui/v5";
+import Form from "@rjsf/mui";
+import validator from "@rjsf/validator-ajv8";
 import { showNotification } from "baselayer/components/Notifications";
 import { submitTelescope } from "../ducks/telescope";
 import { fetchTelescopes } from "../ducks/telescopes";
@@ -112,10 +113,11 @@ const NewTelescope = () => {
   return (
     <Form
       schema={telescopeFormSchema}
+      validator={validator}
       uiSchema={uiSchema}
       onSubmit={handleSubmit}
       // eslint-disable-next-line react/jsx-no-bind
-      validate={validate}
+      customValidate={validate}
     />
   );
 };

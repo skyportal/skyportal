@@ -12,15 +12,20 @@ all_acl_ids = [
     'Manage sources',
     'Manage groups',
     'Manage shifts',
+    'Manage instruments',
     'Manage allocations',
     'Manage observing runs',
+    'Manage telescopes',
     'Manage Analysis Services',
+    'Manage Recurring APIs',
     'Manage GCNs',
     'Upload data',
     'Run Analyses',
     'System admin',
     'Post taxonomy',
     'Delete taxonomy',
+    'Delete instrument',
+    'Delete telescope',
     'Classify',
 ] + [c.get_acl_id() for c in LISTENER_CLASSES]
 
@@ -33,6 +38,7 @@ role_acls = {
         'Manage shifts',
         'Manage sources',
         'Manage Analysis Services',
+        'Manage Recurring APIs',
         'Manage GCNs',
         'Upload data',
         'Run Analyses',
@@ -93,12 +99,13 @@ def add_user(username, roles=[], auth=False, first_name=None, last_name=None):
 
 
 def refresh_enums():
-    for type in sqla_enum_types:
-        for key in type.enums:
-            DBSession().execute(
-                f"ALTER TYPE {type.name} ADD VALUE IF NOT EXISTS '{key}'"
-            )
-    DBSession().commit()
+    with DBSession() as session:
+        for type in sqla_enum_types:
+            for key in type.enums:
+                session.execute(
+                    sa.text(f"ALTER TYPE {type.name} ADD VALUE IF NOT EXISTS '{key}'")
+                )
+        session.commit()
 
 
 def make_super_user(username):

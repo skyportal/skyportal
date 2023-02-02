@@ -1867,7 +1867,7 @@ def make_photometry_panel(
     return TabPanel(child=layout, title=panel_name.capitalize())
 
 
-def photometry_plot(obj_id, user_id, session, width=600, device="browser"):
+async def photometry_plot(obj_id, user_id, session, width=600, device="browser"):
     """Create object photometry scatter plot.
 
     Parameters
@@ -1903,7 +1903,6 @@ def photometry_plot(obj_id, user_id, session, width=600, device="browser"):
         result = serialize(p, 'ab', 'both')
         result['telescope'] = telescope
         result['instrument'] = instrument
-        result['groups'] = [g.to_dict() for g in result['groups']]
         query_result.append(result)
 
     data = pd.DataFrame.from_dict(query_result)
@@ -2023,7 +2022,7 @@ def smoothing_function(values, window_size):
     return output
 
 
-def spectroscopy_plot(
+async def spectroscopy_plot(
     obj_id,
     session,
     spec_id=None,

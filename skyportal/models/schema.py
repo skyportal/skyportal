@@ -1238,6 +1238,44 @@ class ObservationPlanPost(_Schema):
     )
 
 
+class ObservationPlanManualHandlerPost(_Schema):
+
+    gcnevent_id = fields.Integer(
+        required=True,
+        metadata={'description': "ID of the GcnEvent."},
+    )
+
+    status = fields.String(
+        load_default="pending submission",
+        metadata={'description': "The status of the request."},
+        required=False,
+    )
+
+    allocation_id = fields.Integer(
+        required=True,
+        metadata={'description': "Observation plan request allocation ID."},
+    )
+
+    localization_id = fields.Integer(
+        required=True,
+        metadata={'description': "Localization ID."},
+    )
+
+    target_group_ids = fields.List(
+        fields.Integer,
+        required=False,
+        metadata={
+            'description': (
+                'IDs of groups to share the results of the observation plan request with.'
+            )
+        },
+    )
+
+    observation_plan_data = fields.Field(
+        metadata={'description': 'Observation plan data json'}
+    )
+
+
 class CatalogQueryPost(_Schema):
 
     payload = fields.Field(
@@ -1285,6 +1323,29 @@ class DefaultObservationPlanPost(_Schema):
         metadata={
             'description': (
                 'IDs of groups to share the results of the default observation plan request with.'
+            )
+        },
+    )
+
+
+class DefaultFollowupRequestPost(_Schema):
+
+    payload = fields.Field(
+        required=False,
+        metadata={'description': "Content of the default follow-up request."},
+    )
+
+    allocation_id = fields.Integer(
+        required=True,
+        metadata={'description': "Follow-up request allocation ID."},
+    )
+
+    target_group_ids = fields.List(
+        fields.Integer,
+        required=False,
+        metadata={
+            'description': (
+                'IDs of groups to share the results of the default follow-up request with.'
             )
         },
     )
@@ -1887,6 +1948,18 @@ class GalaxyHandlerPost(_Schema):
 class GalaxyASCIIFileHandlerPost(_Schema):
     catalogName = fields.String(metadata={"description": 'Galaxy catalog name.'})
 
+    catalogData = fields.Field(metadata={'description': 'Catalog data Ascii string'})
+
+
+class SpatialCatalogHandlerPost(_Schema):
+    catalog_name = fields.String(metadata={"description": 'Spatial catalog name.'})
+    catalog_data = fields.List(
+        fields.Field(), metadata={"description": 'Spatial catalog data'}
+    )
+
+
+class SpatialCatalogASCIIFileHandlerPost(_Schema):
+    catalogName = fields.String(metadata={"description": 'Spatial catalog name.'})
     catalogData = fields.Field(metadata={'description': 'Catalog data Ascii string'})
 
 

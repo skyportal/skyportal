@@ -1,6 +1,7 @@
 from baselayer.app.access import permissions, auth_or_token
 from baselayer.log import make_log
 import arrow
+import time
 import functools
 import healpix_alchemy as ha
 import json
@@ -14,7 +15,8 @@ from sqlalchemy.orm import joinedload, undefer
 from sqlalchemy.orm import sessionmaker, scoped_session
 from tornado.ioloop import IOLoop
 import urllib
-from astropy.time import Time
+from astropy.time import Time, TimeDelta
+import astropy.units as u
 import io
 from io import StringIO
 
@@ -45,13 +47,15 @@ from ...utils.simsurvey import (
 )
 from .instrument import add_tiles
 from .observation_plan import observation_simsurvey, observation_simsurvey_plot
+from ...facility_apis.observation_plan import combine_healpix_tuples
+
 
 env, cfg = load_env()
 TREASUREMAP_URL = cfg['app.treasuremap_endpoint']
 
 log = make_log('api/observation')
 
-Session = scoped_session(sessionmaker(bind=DBSession.session_factory.kw["bind"]))
+Session = scoped_session(sessionmaker())
 
 MAX_OBSERVATIONS = 1000
 
@@ -64,7 +68,10 @@ def add_queued_observations(instrument_id, obstable):
         A dataframe returned from the ZTF scheduler queue
     """
 
-    session = Session()
+    if Session.registry.has():
+        session = Session()
+    else:
+        session = Session(bind=DBSession.session_factory.kw["bind"])
 
     try:
         observations = []
@@ -109,6 +116,7 @@ def add_queued_observations(instrument_id, obstable):
             f"Unable to add queued observations for instrument {instrument_id}: {e}"
         )
     finally:
+        session.close()
         Session.remove()
 
 
@@ -131,7 +139,11 @@ def add_observations(instrument_id, obstable):
 4   ztfr                 1.0    None
      """
 
-    session = Session()
+    if Session.registry.has():
+        session = Session()
+    else:
+        session = Session(bind=DBSession.session_factory.kw["bind"])
+
     # if the fields do not yet exist, we need to add them
     if ('RA' in obstable) and ('Dec' in obstable) and not ('field_id' in obstable):
         instrument = session.query(Instrument).get(instrument_id)
@@ -204,6 +216,7 @@ def add_observations(instrument_id, obstable):
     except Exception as e:
         return log(f"Unable to add observations for instrument {instrument_id}: {e}")
     finally:
+        session.close()
         Session.remove()
 
 
@@ -217,6 +230,8 @@ def get_observations(
     localization_name=None,
     localization_cumprob=0.95,
     return_statistics=False,
+    stats_method='python',
+    stats_logging=False,
     includeGeoJSON=False,
     observation_status='executed',
     n_per_page=100,
@@ -255,6 +270,11 @@ def get_observations(
     return_statistics: bool
         Boolean indicating whether to include integrated probability and area.
         Defaults to false.
+    stats_method: str
+        Method to use for calculating statistics. Defaults to 'python'.
+        To use the database/postgres based method, use 'db'.
+    stats_logging: bool
+        Boolean indicating whether to log the stats computation time. Defaults to false.
     includeGeoJSON: bool
                 Boolean indicating whether to include associated GeoJSON fields. Defaults to false.
     observation_status: str
@@ -386,74 +406,184 @@ def get_observations(
             ).filter(localizationtile_subquery.columns.cum_prob <= localization_cumprob)
         ).scalar_subquery()
 
-        if telescope_name is not None and instrument_name is not None:
-            tiles_subquery = (
-                sa.select(InstrumentField.id)
-                .filter(
-                    LocalizationTile.localization_id == localization.id,
-                    LocalizationTile.probdensity >= min_probdensity,
-                    InstrumentFieldTile.instrument_id == instrument.id,
-                    InstrumentFieldTile.instrument_field_id == InstrumentField.id,
-                    InstrumentFieldTile.healpix.overlaps(LocalizationTile.healpix),
-                )
-                .distinct()
-                .subquery()
-            )
-        else:
-            tiles_subquery = (
-                sa.select(InstrumentField.id)
-                .filter(
-                    LocalizationTile.localization_id == localization.id,
-                    LocalizationTile.probdensity >= min_probdensity,
-                    InstrumentFieldTile.instrument_field_id == InstrumentField.id,
-                    InstrumentFieldTile.healpix.overlaps(LocalizationTile.healpix),
-                )
-                .distinct()
-                .subquery()
-            )
-
-        obs_query = obs_query.join(
-            tiles_subquery,
-            Observation.instrument_field_id == tiles_subquery.c.id,
+        field_tiles_query = sa.select(InstrumentField.id).where(
+            LocalizationTile.localization_id == localization.id,
+            LocalizationTile.probdensity >= min_probdensity,
+            InstrumentFieldTile.instrument_field_id == InstrumentField.id,
+            InstrumentFieldTile.healpix.overlaps(LocalizationTile.healpix),
         )
 
+        if telescope_name is not None and instrument_name is not None:
+            field_tiles_query = field_tiles_query.where(
+                InstrumentFieldTile.instrument_id == instrument.id
+            )
+
+        field_tiles_subquery = field_tiles_query.distinct().subquery()
+
+        obs_query = obs_query.join(
+            field_tiles_subquery,
+            Observation.instrument_field_id == field_tiles_subquery.c.id,
+        ).distinct()
+        obs_subquery = obs_query.subquery()
+
         if return_statistics:
-            obs_subquery = obs_query.subquery()
-            fields_query = sa.select(InstrumentField.id).join(
-                obs_subquery, InstrumentField.id == obs_subquery.c.instrument_field_id
-            )
-            field_ids = session.scalars(fields_query).unique().all()
 
-            union = (
-                sa.select(ha.func.union(InstrumentFieldTile.healpix).label('healpix'))
-                .where(InstrumentFieldTile.instrument_field_id.in_(field_ids))
-                .distinct()
-                .subquery()
-            )
+            if stats_method == 'python':
+                t0 = time.time()
+                localization_tiles = session.scalars(
+                    sa.select(LocalizationTile)
+                    .where(
+                        LocalizationTile.localization_id == localization.id,
+                        LocalizationTile.probdensity >= min_probdensity,
+                    )
+                    .order_by(LocalizationTile.probdensity.desc())
+                    .distinct()
+                ).all()
+                if stats_logging:
+                    log(
+                        "STATS: ",
+                        f'Number of localization tiles= {len(localization_tiles)}. '
+                        f'Runtime= {time.time() - t0:.2f}s. ',
+                    )
 
-            area = sa.func.sum(union.columns.healpix.area)
-            prob = sa.func.sum(
-                LocalizationTile.probdensity
-                * (union.columns.healpix * LocalizationTile.healpix).area
-            )
-            query_area = sa.select(area).filter(
-                LocalizationTile.localization_id == localization.id,
-                LocalizationTile.probdensity >= min_probdensity,
-                union.columns.healpix.overlaps(LocalizationTile.healpix),
-            )
-            query_prob = sa.select(prob).filter(
-                LocalizationTile.localization_id == localization.id,
-                LocalizationTile.probdensity >= min_probdensity,
-                union.columns.healpix.overlaps(LocalizationTile.healpix),
-            )
-            intprob = session.execute(query_prob).scalar_one()
-            intarea = session.execute(query_area).scalar_one()
+                t0 = time.time()
+                instrument_field_tuples = session.execute(
+                    sa.select(
+                        InstrumentFieldTile.healpix.lower,
+                        InstrumentFieldTile.healpix.upper,
+                    )
+                    .join(
+                        obs_subquery,
+                        InstrumentFieldTile.instrument_field_id
+                        == obs_subquery.c.instrument_field_id,
+                    )
+                    .order_by(InstrumentFieldTile.healpix.lower)
+                    .distinct()
+                ).all()
 
-            if intprob is None:
-                intprob = 0.0
-            if intarea is None:
-                intarea = 0.0
+                field_lower_bounds = np.array([f[0] for f in instrument_field_tuples])
+                field_upper_bounds = np.array([f[1] for f in instrument_field_tuples])
 
+                if stats_logging:
+                    log(
+                        "STATS: ",
+                        f'Number of field tiles= {len(instrument_field_tuples)}. '
+                        f'Runtime= {time.time() - t0:.2f}s. ',
+                    )
+
+                t0 = time.time()
+                merged_tuples = combine_healpix_tuples(instrument_field_tuples)
+                total_area = sum(t[1] - t[0] for t in merged_tuples)
+                total_area *= ha.constants.PIXEL_AREA
+                if stats_logging:
+                    log(
+                        "STATS: ",
+                        f'len(merged_tuples)= {len(merged_tuples)}, '
+                        f'total_area= {total_area:.2f}. '
+                        f'Runtime= {time.time() - t0:.2f}s. ',
+                    )
+
+                t0 = time.time()
+                intarea = 0  # total area covered by instrument field tiles
+                intprob = 0  # total probability covered by instrument field tiles
+
+                for i, t in enumerate(localization_tiles):
+                    # has True values where tile t has any overlap with one of the fields
+                    overlap_array = np.logical_and(
+                        t.healpix.lower <= field_upper_bounds,
+                        t.healpix.upper >= field_lower_bounds,
+                    )
+                    overlap_indices = np.where(overlap_array)[0]
+
+                    # only add area/prob if there's any overlap
+                    overlap = 0
+                    if len(overlap_indices) > 0:
+                        # print(f'sum(overlap_array): {np.sum(overlap_array)}')
+                        lower_upper = zip(
+                            field_lower_bounds[overlap_indices],
+                            field_upper_bounds[overlap_indices],
+                        )
+                        # tuples of (lower, upper) for all fields that overlap with tile t
+                        new_fields = [(tup[0], tup[1]) for tup in lower_upper]
+
+                        # combine any overlapping fields
+                        output_fields = combine_healpix_tuples(new_fields)
+
+                        # get the area of the combined fields that overlaps with tile t
+                        for lower, upper in output_fields:
+                            mx = np.minimum(t.healpix.upper, upper)
+                            mn = np.maximum(t.healpix.lower, lower)
+                            overlap += mx - mn
+
+                    intarea += overlap
+                    intprob += t.probdensity * overlap
+
+                # sum_probability *= ha.constants.PIXEL_AREA
+                intarea *= ha.constants.PIXEL_AREA
+                intprob *= ha.constants.PIXEL_AREA
+
+                if stats_logging:
+                    log(
+                        "STATS: ",
+                        f'area= {intarea}, prob= {intprob}. Runtime= {time.time() - t0:.2f}s. ',
+                    )
+
+            elif stats_method == 'db':
+                # below is old code that is too slow to use at scale
+                # we may be able to speed it up at some point, then
+                # it may be good to have this as reference for what
+                # the queries should look like
+
+                t0 = time.time()
+                obs_subquery = obs_query.subquery()
+                fields_query = sa.select(InstrumentField.id).join(
+                    obs_subquery,
+                    InstrumentField.id == obs_subquery.c.instrument_field_id,
+                )
+                field_ids = session.scalars(fields_query).unique().all()
+
+                union = (
+                    sa.select(
+                        ha.func.union(InstrumentFieldTile.healpix).label('healpix')
+                    )
+                    .where(InstrumentFieldTile.instrument_field_id.in_(field_ids))
+                    .distinct()
+                    .subquery()
+                )
+
+                area = sa.func.sum(union.columns.healpix.area)
+                prob = sa.func.sum(
+                    LocalizationTile.probdensity
+                    * (union.columns.healpix * LocalizationTile.healpix).area
+                )
+                query_area = sa.select(area).filter(
+                    LocalizationTile.localization_id == localization.id,
+                    LocalizationTile.probdensity >= min_probdensity,
+                    union.columns.healpix.overlaps(LocalizationTile.healpix),
+                )
+                query_prob = sa.select(prob).filter(
+                    LocalizationTile.localization_id == localization.id,
+                    LocalizationTile.probdensity >= min_probdensity,
+                    union.columns.healpix.overlaps(LocalizationTile.healpix),
+                )
+                intprob = session.execute(query_prob).scalar_one()
+                intarea = session.execute(query_area).scalar_one()
+
+                if intprob is None:
+                    intprob = 0.0
+                if intarea is None:
+                    intarea = 0.0
+
+                if stats_logging:
+                    log(
+                        f'STATS: area= {intarea}, prob= {intprob}. Runtime= {time.time() - t0:.2f}s. '
+                    )
+            else:
+                raise ValueError(
+                    f'Invalid stats_method: {stats_method}. Use "db" or "python"'
+                )
+
+    t0 = time.time()
     total_matches = session.scalar(sa.select(sa.func.count()).select_from(obs_query))
 
     order_by = None
@@ -538,7 +668,9 @@ def get_observations(
             .offset((page_number - 1) * n_per_page)
         )
 
+    t0 = time.time()
     observations = session.scalars(obs_query).all()
+
     observations_list = []
     for o in observations:
         obs_dict = o.to_dict()
@@ -775,6 +907,21 @@ class ObservationHandler(BaseHandler):
               description: |
                 Boolean indicating whether to include integrated probability and area. Defaults to false.
             - in: query
+              name: statsMethod
+              nullable: true
+              schema:
+                type: string
+              description: |
+                Method to use for computing integrated probability and area. Defaults to 'python'.
+                To use the database/postgres based method, use 'db'.
+            - in: query
+              name: statsLogging
+              nullable: true
+              schema:
+                type: boolean
+              description: |
+                Boolean indicating whether to log the stats computation time. Defaults to false.
+            - in: query
               name: includeGeoJSON
               nullable: true
               schema:
@@ -837,6 +984,8 @@ class ObservationHandler(BaseHandler):
         localization_name = self.get_query_argument('localizationName', None)
         localization_cumprob = self.get_query_argument("localizationCumprob", 0.95)
         return_statistics = self.get_query_argument("returnStatistics", False)
+        stats_method = self.get_query_argument("statsMethod", "python")
+        stats_logging = self.get_query_argument("statsLogging", False)
         includeGeoJSON = self.get_query_argument("includeGeoJSON", False)
         observation_status = self.get_query_argument("observationStatus", 'executed')
         page_number = self.get_query_argument("pageNumber", 1)
@@ -879,6 +1028,8 @@ class ObservationHandler(BaseHandler):
                 localization_name=localization_name,
                 localization_cumprob=localization_cumprob,
                 return_statistics=return_statistics,
+                stats_method=stats_method,
+                stats_logging=stats_logging,
                 includeGeoJSON=includeGeoJSON,
                 observation_status=observation_status,
                 n_per_page=n_per_page,
@@ -1071,6 +1222,14 @@ class ObservationExternalAPIHandler(BaseHandler):
         """
 
         data = self.get_json()
+        if 'start_date' in data:
+            data['start_date'] = arrow.get(data['start_date'].strip()).datetime
+        else:
+            data['start_date'] = Time.now() - TimeDelta(3 * u.day)
+        if 'end_date' in data:
+            data['end_date'] = arrow.get(data['end_date'].strip()).datetime
+        else:
+            data['end_date'] = Time.now()
 
         try:
             data = ObservationExternalAPIHandlerPost.load(data)
@@ -1082,8 +1241,6 @@ class ObservationExternalAPIHandler(BaseHandler):
         data["requester_id"] = self.associated_user_object.id
         data["last_modified_by_id"] = self.associated_user_object.id
         data['allocation_id'] = int(data['allocation_id'])
-        data['start_date'] = arrow.get(data['start_date'].strip()).datetime
-        data['end_date'] = arrow.get(data['end_date'].strip()).datetime
 
         with self.Session() as session:
 

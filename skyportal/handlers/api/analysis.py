@@ -12,7 +12,6 @@ from requests.auth import HTTPBasicAuth, HTTPDigestAuth
 from tornado.ioloop import IOLoop
 from marshmallow.exceptions import ValidationError
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import sessionmaker, scoped_session
 
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.model_util import recursive_to_dict
@@ -26,7 +25,6 @@ from ...enum_types import ANALYSIS_INPUT_TYPES, AUTHENTICATION_TYPES, ANALYSIS_T
 from ..base import BaseHandler
 
 from ...models import (
-    DBSession,
     AnalysisService,
     Group,
     Photometry,
@@ -42,8 +40,6 @@ from .photometry import serialize
 log = make_log('app/analysis')
 
 _, cfg = load_env()
-
-Session = scoped_session(sessionmaker(bind=DBSession.session_factory.kw["bind"]))
 
 
 def valid_url(trial_url):
@@ -281,20 +277,20 @@ class AnalysisServiceHandler(BaseHandler):
         group_ids = data.pop('group_ids', None)
         with self.Session() as session:
             if not group_ids:
-                groups = self.current_user.accessible_groups
-            else:
-                groups = (
-                    session.scalars(
-                        Group.select(self.current_user).where(Group.id.in_(group_ids))
-                    )
-                    .unique()
-                    .all()
+                group_ids = [g.id for g in self.current_user.accessible_groups]
+
+            groups = (
+                session.scalars(
+                    Group.select(self.current_user).where(Group.id.in_(group_ids))
                 )
-                if {g.id for g in groups} != set(group_ids):
-                    return self.error(
-                        f'Cannot find one or more groups with IDs: {group_ids}.',
-                        status=403,
-                    )
+                .unique()
+                .all()
+            )
+            if {g.id for g in groups} != set(group_ids):
+                return self.error(
+                    f'Cannot find one or more groups with IDs: {group_ids}.',
+                    status=403,
+                )
 
             schema = AnalysisService.__schema__()
             try:

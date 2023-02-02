@@ -4,7 +4,8 @@ import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
 import ListItemText from "@mui/material/ListItemText";
 // eslint-disable-next-line import/no-unresolved
-import Form from "@rjsf/material-ui/v5";
+import Form from "@rjsf/mui";
+import validator from "@rjsf/validator-ajv8";
 import CircularProgress from "@mui/material/CircularProgress";
 import Select from "@mui/material/Select";
 import InputLabel from "@mui/material/InputLabel";
@@ -325,9 +326,10 @@ const ModifyInstrument = () => {
       </List>
       <Form
         schema={instrumentFormSchema}
+        validator={validator}
         onSubmit={handleSubmit}
         // eslint-disable-next-line react/jsx-no-bind
-        validate={validate}
+        customValidate={validate}
         liveValidate
       />
     </div>

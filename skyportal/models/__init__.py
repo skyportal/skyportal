@@ -28,11 +28,14 @@ from .observation_plan import *
 from .observing_run import *
 from .photometry import *
 from .phot_stat import *
+from .recurring_api import *
 from .reminder import *
 from .shift import *
 from .source import *
+from .source_label import *
 from .source_view import *
 from .source_notification import *
+from .spatial_catalog import *
 from .spectrum import *
 from .survey_efficiency import *
 from .stream import *

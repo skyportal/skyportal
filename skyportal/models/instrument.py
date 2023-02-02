@@ -340,6 +340,7 @@ class InstrumentFieldTile(Base):
 
     instrument_id = sa.Column(
         sa.ForeignKey('instruments.id', ondelete="CASCADE"),
+        index=True,
         nullable=False,
         doc='Instrument ID',
     )

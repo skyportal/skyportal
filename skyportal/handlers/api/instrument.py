@@ -33,11 +33,11 @@ from ...enum_types import ALLOWED_BANDPASSES
 
 log = make_log('api/instrument')
 
-Session = scoped_session(sessionmaker(bind=DBSession.session_factory.kw["bind"]))
+Session = scoped_session(sessionmaker())
 
 
 class InstrumentHandler(BaseHandler):
-    @permissions(['Manage allocations'])
+    @permissions(['Manage instruments'])
     def post(self):
         # See bottom of this file for redoc docstring -- moved it there so that
         # it could be made an f-string.
@@ -405,9 +405,9 @@ class InstrumentHandler(BaseHandler):
 
                     if includeGeoJSON or includeGeoJSONSummary:
                         if includeGeoJSON:
-                            undefer_column = 'contour'
+                            undefer_column = InstrumentField.contour
                         elif includeGeoJSONSummary:
-                            undefer_column = 'contour_summary'
+                            undefer_column = InstrumentField.contour_summary
                         tiles = (
                             session.scalars(
                                 sa.select(InstrumentField)
@@ -464,10 +464,13 @@ class InstrumentHandler(BaseHandler):
             if inst_name is not None:
                 stmt = stmt.filter(Instrument.name == inst_name)
             instruments = session.scalars(stmt).all()
-            data = [instrument.to_dict() for instrument in instruments]
+            data = [
+                {**instrument.to_dict(), 'telescope': instrument.telescope.to_dict()}
+                for instrument in instruments
+            ]
             return self.success(data=data)
 
-    @permissions(['Manage allocations'])
+    @permissions(['Manage instruments'])
     def put(self, instrument_id):
         """
         ---
@@ -609,7 +612,7 @@ class InstrumentHandler(BaseHandler):
             self.push_all(action="skyportal/REFRESH_INSTRUMENTS")
             return self.success()
 
-    @permissions(['Manage allocations'])
+    @permissions(['Delete instrument'])
     def delete(self, instrument_id):
         """
         ---
@@ -737,9 +740,14 @@ InstrumentHandler.post.__doc__ = f"""
 
 
 def add_tiles(
-    instrument_id, instrument_name, regions, field_data, modify=False, session=Session()
+    instrument_id, instrument_name, regions, field_data, modify=False, session=None
 ):
     field_ids = []
+    if session is None:
+        if Session.registry.has():
+            session = Session()
+        else:
+            session = Session(bind=DBSession.session_factory.kw["bind"])
 
     try:
         # Loop over the telescope tiles and create fields for each

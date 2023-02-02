@@ -183,7 +183,7 @@ ObservationPlanGlobe.propTypes = {
 
 const ObservationPlanSummaryStatistics = ({ observationplanRequest }) => {
   const summaryStatistics =
-    observationplanRequest.observation_plans[0].statistics;
+    observationplanRequest?.observation_plans[0]?.statistics;
 
   return (
     <div>
@@ -421,7 +421,7 @@ const ObservationPlanRequestLists = ({ gcnEvent }) => {
 
       return (
         <div>
-          {!(observationplanRequest.status === "complete") ? (
+          {observationplanRequest.status === "running" ? (
             <div>
               <CircularProgress />
             </div>
@@ -487,7 +487,7 @@ const ObservationPlanRequestLists = ({ gcnEvent }) => {
 
       return (
         <div>
-          {!(observationplanRequest.status === "complete") ? (
+          {observationplanRequest.status === "running" ? (
             <div>
               <CircularProgress />
             </div>
@@ -559,7 +559,7 @@ const ObservationPlanRequestLists = ({ gcnEvent }) => {
           requestsGroupedByInstId[instrument_id][dataIndex];
         return (
           <div>
-            {!(observationplanRequest.status === "complete") ? (
+            {observationplanRequest.status === "running" ? (
               <div>
                 <CircularProgress />
               </div>
@@ -623,7 +623,7 @@ const ObservationPlanRequestLists = ({ gcnEvent }) => {
         requestsGroupedByInstId[instrument_id][dataIndex];
       return (
         <div>
-          {!(observationplanRequest.status === "complete") ? (
+          {observationplanRequest.status === "running" ? (
             <div>
               <CircularProgress />
             </div>

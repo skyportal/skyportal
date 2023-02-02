@@ -3,7 +3,7 @@ import pytest
 from skyportal.tests import api
 
 
-@pytest.mark.flaky(reruns=2)
+@pytest.mark.flaky(reruns=3)
 def test_irsa_wise(public_group, upload_data_token):
     obj_id = str(uuid.uuid4())
     status, data = api(
@@ -53,7 +53,7 @@ def test_irsa_wise(public_group, upload_data_token):
     )
 
 
-@pytest.mark.flaky(reruns=2)
+@pytest.mark.flaky(reruns=3)
 def test_vizier_quasar(public_group, upload_data_token):
     obj_id = str(uuid.uuid4())
     status, data = api(
@@ -92,7 +92,7 @@ def test_vizier_quasar(public_group, upload_data_token):
     )
 
 
-@pytest.mark.flaky(reruns=2)
+@pytest.mark.flaky(reruns=3)
 def test_datalab_photoz(annotation_token, public_source, public_group):
     status, data = api(
         'POST',

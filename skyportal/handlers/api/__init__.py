@@ -8,10 +8,12 @@ from .analysis import (
 from .candidate import CandidateHandler
 from .classification import (
     ClassificationHandler,
+    ClassificationVotesHandler,
     ObjClassificationHandler,
     ObjClassificationQueryHandler,
 )
 from .comment import CommentHandler, CommentAttachmentHandler
+from .comment_attachment import CommentAttachmentUpdateHandler
 from .annotation import AnnotationHandler
 from .annotation_services import (
     GaiaQueryHandler,
@@ -34,7 +36,9 @@ from .earthquake import (
 from .enum_types import EnumTypesHandler
 from .filter import FilterHandler
 from .followup_request import (
+    DefaultFollowupRequestHandler,
     FollowupRequestHandler,
+    FollowupRequestWatcherHandler,
     FollowupRequestPrioritizationHandler,
     FollowupRequestSchedulerHandler,
     AssignmentHandler,
@@ -50,7 +54,10 @@ from .gcn import (
     GcnEventTagsHandler,
     GcnSummaryHandler,
     LocalizationHandler,
+    LocalizationDownloadHandler,
+    LocalizationCrossmatchHandler,
     LocalizationPropertiesHandler,
+    LocalizationTagsHandler,
 )
 from .gcn_tach import GcnTachHandler
 from .group import (
@@ -98,6 +105,7 @@ from .observation_plan import (
     ObservationPlanAirmassChartHandler,
     ObservationPlanCreateObservingRunHandler,
     ObservationPlanFieldsHandler,
+    ObservationPlanManualRequestHandler,
 )
 from .photometry import (
     PhotometryHandler,
@@ -112,6 +120,7 @@ from .photometry_request import PhotometryRequestHandler
 from .public_group import PublicGroupHandler
 from .roles import RoleHandler, UserRoleHandler
 from .obj import ObjHandler
+from .recurring_api import RecurringAPIHandler
 from .reminder import ReminderHandler
 from .sharing import SharingHandler
 from .shift import ShiftHandler, ShiftUserHandler, ShiftSummary
@@ -120,10 +129,12 @@ from .source import (
     SourceOffsetsHandler,
     SourceFinderHandler,
     SourceNotificationHandler,
+    SourceObservabilityPlotHandler,
     PS1ThumbnailHandler,
 )
 from .source_exists import SourceExistsHandler
 from .source_groups import SourceGroupsHandler
+from .spatial_catalog import SpatialCatalogHandler, SpatialCatalogASCIIFileHandler
 from .spectrum import (
     SpectrumHandler,
     ObjSpectraHandler,
@@ -132,6 +143,7 @@ from .spectrum import (
     SpectrumRangeHandler,
     SyntheticPhotometryHandler,
 )
+from .source_labels import SourceLabelsHandler
 from .survey_efficiency import (
     DefaultSurveyEfficiencyRequestHandler,
     SurveyEfficiencyForObservationPlanHandler,

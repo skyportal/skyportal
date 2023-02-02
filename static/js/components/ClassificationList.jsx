@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import DeleteIcon from "@mui/icons-material/Delete";
 import Tooltip from "@mui/material/Tooltip";
@@ -75,8 +75,28 @@ const ClassificationList = () => {
   const source = useSelector((state) => state.source);
   const obj = source;
   const userProfile = useSelector((state) => state.profile);
+  const groupUsers = useSelector((state) => state.group?.group_users);
+  const currentGroupUser = groupUsers?.filter(
+    (groupUser) => groupUser.user_id === userProfile.id
+  )[0];
   // const acls = useSelector((state) => state.profile.acls);
   let { classifications } = obj;
+
+  useEffect(() => {
+    if (
+      currentGroupUser?.admin !== undefined &&
+      currentGroupUser?.admin !== null
+    ) {
+      window.localStorage.setItem(
+        "CURRENT_GROUP_ADMIN",
+        JSON.stringify(currentGroupUser.admin)
+      );
+    }
+  }, [currentGroupUser]);
+
+  const isGroupAdmin = JSON.parse(
+    window.localStorage.getItem("CURRENT_GROUP_ADMIN")
+  );
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [classificationToDelete, setClassificationToDelete] = useState(null);
@@ -126,6 +146,7 @@ const ClassificationList = () => {
       const permission =
         userProfile.permissions.includes("System admin") ||
         userProfile.permissions.includes("Manage groups") ||
+        isGroupAdmin ||
         userProfile.username === author_name;
       return (
         <ListItem key={id} className={styles.classification}>

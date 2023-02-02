@@ -319,6 +319,15 @@ class Obj(Base, conesearch_alchemy.Point):
         doc="Auto-annotations posted about a spectrum belonging to the object.",
     )
 
+    annotations_on_photometry = relationship(
+        'AnnotationOnPhotometry',
+        back_populates='obj',
+        cascade='save-update, merge, refresh-expire, expunge, delete',
+        passive_deletes=True,
+        order_by="AnnotationOnPhotometry.created_at",
+        doc="Auto-annotations posted about photometry belonging to the object.",
+    )
+
     classifications = relationship(
         'Classification',
         back_populates='obj',

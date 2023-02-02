@@ -58,6 +58,11 @@ class DefaultObservationPlanRequest(Base):
         doc="Content of the default observation plan request.",
     )
 
+    filters = sa.Column(
+        psql.JSONB,
+        doc="Filters to determine which of the default observation plan requests get executed for which events",
+    )
+
     allocation_id = sa.Column(
         sa.ForeignKey('allocations.id', ondelete='CASCADE'), nullable=False, index=True
     )
@@ -350,6 +355,7 @@ class PlannedObservation(Base):
     observation_plan_id = sa.Column(
         sa.ForeignKey('eventobservationplans.id', ondelete="CASCADE"),
         nullable=False,
+        index=True,
         doc='Event observation plan ID',
     )
 
@@ -375,6 +381,7 @@ class PlannedObservation(Base):
 
     field_id = sa.Column(
         sa.ForeignKey("instrumentfields.id", ondelete="CASCADE"),
+        index=True,
         primary_key=True,
         doc='Field ID',
     )

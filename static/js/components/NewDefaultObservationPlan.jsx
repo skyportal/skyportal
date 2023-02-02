@@ -4,9 +4,14 @@ import Select from "@mui/material/Select";
 import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
 // eslint-disable-next-line import/no-unresolved
-import Form from "@rjsf/material-ui/v5";
+import Form from "@rjsf/mui";
+import validator from "@rjsf/validator-ajv8";
 import CircularProgress from "@mui/material/CircularProgress";
 import makeStyles from "@mui/styles/makeStyles";
+
+import GcnNoticeTypesSelect from "./GcnNoticeTypesSelect";
+import GcnTagsSelect from "./GcnTagsSelect";
+import LocalizationTagsSelect from "./LocalizationTagsSelect";
 
 import * as defaultObservationPlansActions from "../ducks/default_observation_plans";
 import * as allocationActions from "../ducks/allocations";
@@ -41,6 +46,10 @@ const useStyles = makeStyles(() => ({
 const NewDefaultObservationPlan = () => {
   const classes = useStyles();
   const dispatch = useDispatch();
+
+  const [selectedGcnNoticeTypes, setSelectedGcnNoticeTypes] = useState([]);
+  const [selectedGcnTags, setSelectedGcnTags] = useState([]);
+  const [selectedLocalizationTags, setSelectedLocalizationTags] = useState([]);
 
   const { telescopeList } = useSelector((state) => state.telescopes);
   const { allocationListApiObsplan } = useSelector(
@@ -139,12 +148,19 @@ const NewDefaultObservationPlan = () => {
   const handleSubmit = async ({ formData }) => {
     const { default_plan_name } = formData;
     delete formData.default_plan_name;
+    const filters = {
+      notice_types: selectedGcnNoticeTypes,
+      gcn_tags: selectedGcnTags,
+      localization_tags: selectedLocalizationTags,
+    };
     const json = {
       allocation_id: selectedAllocationId,
       target_group_ids: selectedGroupIds,
       payload: formData,
+      filters,
       default_plan_name,
     };
+
     await dispatch(
       defaultObservationPlansActions.submitDefaultObservationPlan(json)
     );
@@ -198,10 +214,23 @@ const NewDefaultObservationPlan = () => {
         setGroupIDs={setSelectedGroupIds}
         groupIDs={selectedGroupIds}
       />
+      <GcnNoticeTypesSelect
+        selectedGcnNoticeTypes={selectedGcnNoticeTypes}
+        setSelectedGcnNoticeTypes={setSelectedGcnNoticeTypes}
+      />
+      <GcnTagsSelect
+        selectedGcnTags={selectedGcnTags}
+        setSelectedGcnTags={setSelectedGcnTags}
+      />
+      <LocalizationTagsSelect
+        selectedLocalizationTags={selectedLocalizationTags}
+        setSelectedLocalizationTags={setSelectedLocalizationTags}
+      />
       <div data-testid="observationplan-request-form">
         <div>
           <Form
             schema={formSchema}
+            validator={validator}
             uiSchema={uiSchema}
             onSubmit={handleSubmit}
           />

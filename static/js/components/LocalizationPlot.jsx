@@ -35,9 +35,14 @@ const LocalizationPlot = ({
   const dispatch = useDispatch();
 
   useEffect(() => {
-    dispatch(
-      localizationActions.fetchLocalization(loc.dateobs, loc.localization_name)
-    );
+    if (loc) {
+      dispatch(
+        localizationActions.fetchLocalization(
+          loc.dateobs,
+          loc.localization_name
+        )
+      );
+    }
   }, [loc, dispatch]);
 
   if (!loc) {
@@ -312,7 +317,7 @@ const GeoJSONGlobePlot = ({
         const y = (d) => projection(d.geometry.coordinates)[1];
 
         svg
-          .selectAll("circle")
+          .selectAll("circle_skymap")
           .data(data.skymap.features)
           .enter()
           .append("circle")
@@ -368,7 +373,7 @@ const GeoJSONGlobePlot = ({
         const y = (d) => projection(d.geometry.coordinates)[1];
 
         svg
-          .selectAll("circle")
+          .selectAll("circle_sources")
           .data(sources.features)
           .enter()
           .append("circle")

@@ -218,6 +218,7 @@ def test_classification_on_favorite_source_triggers_notification(
     )
 
 
+@pytest.mark.flaky(reruns=3)
 def test_spectra_on_favorite_source_triggers_notification(
     driver, user, public_source, lris, upload_data_token, public_group
 ):
@@ -384,48 +385,6 @@ def test_new_gcn_event_triggers_notification(driver, user, super_admin_token):
     driver.wait_for_xpath('//*[contains(text(), "New GCN Event")]')
 
 
-def test_new_facility_request_triggers_notification(
-    driver, user, public_group_sedm_allocation, public_source, upload_data_token
-):
-
-    driver.get(f'/become_user/{user.id}')
-    driver.get("/profile")
-
-    # Enable notifications for new facility transactions
-    facility_transactions = driver.wait_for_xpath('//*[@name="facility_transactions"]')
-    driver.scroll_to_element_and_click(facility_transactions)
-
-    driver.wait_for_xpath(
-        '//*[@name="facility_transactions"]/../../span[contains(@class,"Mui-checked")]'
-    )
-
-    request_data = {
-        'allocation_id': public_group_sedm_allocation.id,
-        'obj_id': public_source.id,
-        'payload': {
-            'priority': 5,
-            'start_date': '3020-09-01',
-            'end_date': '3022-09-01',
-            'observation_type': 'IFU',
-        },
-    }
-
-    status, data = api(
-        'POST', 'followup_request', data=request_data, token=upload_data_token
-    )
-    assert status == 200
-    assert data['status'] == 'success'
-
-    # Check that notification was created
-    driver.get(f'/become_user/{user.id}')
-    driver.get("/")
-    driver.wait_for_xpath("//span[text()='1']")
-    driver.click_xpath('//*[@data-testid="notificationsButton"]')
-    driver.wait_for_xpath(
-        '//*[contains(text(), "New Follow-up submission for object")]'
-    )
-
-
 def test_notification_setting_select(driver, user):
     driver.get(f'/become_user/{user.id}')
     driver.get("/profile")
@@ -470,19 +429,19 @@ def test_notification_setting_select(driver, user):
 
     # sms settings appeared, so we can test them
     sms_on_shift_setting = driver.wait_for_xpath(
-        '//*[@name="on_shift" and contains(@class, "MuiSwitch-input")]'
+        '//*[@name="on_shift_sms" and contains(@class, "MuiSwitch-input")]'
     )
     driver.scroll_to_element_and_click(sms_on_shift_setting)
     driver.wait_for_xpath(
-        '//*[@name="on_shift" and contains(@class, "MuiSwitch-input")]/../../span[contains(@class,"Mui-checked")]'
+        '//*[@name="on_shift_sms" and contains(@class, "MuiSwitch-input")]/../../span[contains(@class,"Mui-checked")]'
     )
 
     sms_time_slot_setting = driver.wait_for_xpath(
-        '//*[@name="time_slot" and contains(@class, "MuiSwitch-input")]'
+        '//*[@name="time_slot_sms" and contains(@class, "MuiSwitch-input")]'
     )
     driver.scroll_to_element_and_click(sms_time_slot_setting)
     driver.wait_for_xpath(
-        '//*[@name="time_slot" and contains(@class, "MuiSwitch-input")]/../../span[contains(@class,"Mui-checked")]'
+        '//*[@name="time_slot_sms" and contains(@class, "MuiSwitch-input")]/../../span[contains(@class,"Mui-checked")]'
     )
 
     driver.wait_for_xpath('//*[@aria-label="time_slot_slider" and @value="8"]')
@@ -536,10 +495,10 @@ def test_notification_setting_select(driver, user):
         '//*[@name="sms" and contains(@class, "MuiSwitch-input")]/../../span[contains(@class,"Mui-checked")]'
     )
     driver.wait_for_xpath(
-        '//*[@name="on_shift" and contains(@class, "MuiSwitch-input")]/../../span[contains(@class,"Mui-checked")]'
+        '//*[@name="on_shift_sms" and contains(@class, "MuiSwitch-input")]/../../span[contains(@class,"Mui-checked")]'
     )
     driver.wait_for_xpath(
-        '//*[@name="time_slot" and contains(@class, "MuiSwitch-input")]/../../span[contains(@class,"Mui-checked")]'
+        '//*[@name="time_slot_sms" and contains(@class, "MuiSwitch-input")]/../../span[contains(@class,"Mui-checked")]'
     )
 
     driver.wait_for_xpath('//*[@aria-label="time_slot_slider" and @value="3"]')

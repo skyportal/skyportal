@@ -77,46 +77,47 @@ from ...utils.simsurvey import (
 from skyportal.handlers.api.source import post_source
 from skyportal.handlers.api.followup_request import post_assignment
 from skyportal.handlers.api.observingrun import post_observing_run
+from skyportal.facility_apis.observation_plan import (
+    generate_observation_plan_statistics,
+)
 
 env, cfg = load_env()
 TREASUREMAP_URL = cfg['app.treasuremap_endpoint']
 
-Session = scoped_session(sessionmaker(bind=DBSession.session_factory.kw["bind"]))
+Session = scoped_session(sessionmaker())
 
 log = make_log('api/observation_plan')
 
 
 def post_survey_efficiency_analysis(
-    survey_efficiency_analysis, plan_id, user_id, session
+    survey_efficiency_analysis, plan_id, user_id, session, asynchronous=True
 ):
     """Post survey efficiency analysis to database.
 
     Parameters
     ----------
-    survey_efficiency_analysis: dict
+    survey_efficiency_analysis : dict
         Dictionary describing survey efficiency analysis
-    plan_id: int
+    plan_id : int
         SkyPortal ID of Observation plan request
     user_id : int
         SkyPortal ID of User posting the GcnEvent
-    session: sqlalchemy.Session
+    session : sqlalchemy.Session
         Database session for this transaction
+    asynchronous : bool
+        Create asynchronous efficiency analysis. Defaults to True.
     """
 
     status_complete = False
     while not status_complete:
-        observation_plan_request = (
-            session.scalars(
-                sa.select(ObservationPlanRequest)
-                .options(
-                    joinedload(ObservationPlanRequest.observation_plans)
-                    .joinedload(EventObservationPlan.planned_observations)
-                    .joinedload(PlannedObservation.field)
-                )
-                .where(ObservationPlanRequest.id == plan_id)
+        observation_plan_request = session.scalar(
+            sa.select(ObservationPlanRequest)
+            .options(
+                joinedload(ObservationPlanRequest.observation_plans)
+                .joinedload(EventObservationPlan.planned_observations)
+                .joinedload(PlannedObservation.field)
             )
-            .unique()
-            .all()
+            .where(ObservationPlanRequest.id == plan_id)
         )
         status_complete = observation_plan_request.status == "complete"
 
@@ -207,40 +208,60 @@ def post_survey_efficiency_analysis(
         f'Simsurvey analysis in progress for ID {survey_efficiency_analysis.id}. Should be available soon.'
     )
 
-    simsurvey_analysis = functools.partial(
-        observation_simsurvey,
-        observations,
-        localization.id,
-        instrument.id,
-        survey_efficiency_analysis.id,
-        "SurveyEfficiencyForObservationPlan",
-        width=width,
-        height=height,
-        number_of_injections=payload['numberInjections'],
-        number_of_detections=payload['numberDetections'],
-        detection_threshold=payload['detectionThreshold'],
-        minimum_phase=payload['minimumPhase'],
-        maximum_phase=payload['maximumPhase'],
-        model_name=payload['modelName'],
-        optional_injection_parameters=payload['optionalInjectionParameters'],
-    )
+    if asynchronous:
+        simsurvey_analysis = functools.partial(
+            observation_simsurvey,
+            observations,
+            localization.id,
+            instrument.id,
+            survey_efficiency_analysis.id,
+            "SurveyEfficiencyForObservationPlan",
+            width=width,
+            height=height,
+            number_of_injections=payload['numberInjections'],
+            number_of_detections=payload['numberDetections'],
+            detection_threshold=payload['detectionThreshold'],
+            minimum_phase=payload['minimumPhase'],
+            maximum_phase=payload['maximumPhase'],
+            model_name=payload['modelName'],
+            optional_injection_parameters=payload['optionalInjectionParameters'],
+        )
 
-    IOLoop.current().run_in_executor(None, simsurvey_analysis)
+        IOLoop.current().run_in_executor(None, simsurvey_analysis)
+    else:
+        observation_simsurvey(
+            observations,
+            localization.id,
+            instrument.id,
+            survey_efficiency_analysis.id,
+            "SurveyEfficiencyForObservationPlan",
+            width=width,
+            height=height,
+            number_of_injections=payload['numberInjections'],
+            number_of_detections=payload['numberDetections'],
+            detection_threshold=payload['detectionThreshold'],
+            minimum_phase=payload['minimumPhase'],
+            maximum_phase=payload['maximumPhase'],
+            model_name=payload['modelName'],
+            optional_injection_parameters=payload['optionalInjectionParameters'],
+        )
 
     return survey_efficiency_analysis.id
 
 
-def post_observation_plans(plans, user_id, session):
+def post_observation_plans(plans, user_id, session, asynchronous=True):
     """Post combined ObservationPlans to database.
 
     Parameters
     ----------
-    plan: dict
+    plan : dict
         Observation plan dictionary
     user_id : int
         SkyPortal ID of User posting the GcnEvent
-    session: sqlalchemy.Session
+    session : sqlalchemy.Session
         Database session for this transaction
+    asynchronous : bool
+        Create asynchronous request. Defaults to True.
     """
 
     user = session.query(User).get(user_id)
@@ -307,7 +328,9 @@ def post_observation_plans(plans, user_id, session):
         observation_plan_requests.append(observation_plan_request)
 
     try:
-        instrument.api_class_obsplan.submit_multiple(observation_plan_requests)
+        instrument.api_class_obsplan.submit_multiple(
+            observation_plan_requests, asynchronous=asynchronous
+        )
     except Exception as e:
         for observation_plan_request in observation_plan_requests:
             observation_plan_request.status = 'failed to submit'
@@ -319,22 +342,24 @@ def post_observation_plans(plans, user_id, session):
     for observation_plan_request in observation_plan_requests:
         flow.push(
             '*',
-            "skyportal/REFRESH_GCNEVENT",
+            "skyportal/REFRESH_GCN_EVENT",
             payload={"gcnEvent_dateobs": observation_plan_request.gcnevent.dateobs},
         )
 
 
-def post_observation_plan(plan, user_id, session):
+def post_observation_plan(plan, user_id, session, asynchronous=True):
     """Post ObservationPlan to database.
 
     Parameters
     ----------
-    plan: dict
+    plan : dict
         Observation plan dictionary
     user_id : int
         SkyPortal ID of User posting the GcnEvent
-    session: sqlalchemy.Session
+    session : sqlalchemy.Session
         Database session for this transaction
+    asynchronous : bool
+        Create asynchronous request. Defaults to True.
     """
 
     user = session.query(User).get(user_id)
@@ -391,29 +416,32 @@ def post_observation_plan(plan, user_id, session):
     session.add(observation_plan_request)
     session.commit()
 
+    dateobs = observation_plan_request.gcnevent.dateobs
+    observation_plan_request_id = observation_plan_request.id
+
     flow = Flow()
 
     flow.push(
         '*',
-        "skyportal/REFRESH_GCNEVENT",
-        payload={"gcnEvent_dateobs": observation_plan_request.gcnevent.dateobs},
+        "skyportal/REFRESH_GCN_EVENT",
+        payload={"gcnEvent_dateobs": dateobs},
     )
 
     try:
-        instrument.api_class_obsplan.submit(observation_plan_request)
+        instrument.api_class_obsplan.submit(
+            observation_plan_request_id, asynchronous=asynchronous
+        )
     except Exception as e:
         observation_plan_request.status = 'failed to submit'
         raise AttributeError(f'Error submitting observation plan: {e.args[0]}')
-    finally:
-        session.commit()
 
     flow.push(
         '*',
-        "skyportal/REFRESH_GCNEVENT",
+        "skyportal/REFRESH_GCN_EVENT",
         payload={"gcnEvent_dateobs": observation_plan_request.gcnevent.dateobs},
     )
 
-    return observation_plan_request.id
+    return observation_plan_request_id
 
 
 class ObservationPlanRequestHandler(BaseHandler):
@@ -600,11 +628,128 @@ class ObservationPlanRequestHandler(BaseHandler):
             session.commit()
 
             self.push_all(
-                action="skyportal/REFRESH_GCNEVENT",
+                action="skyportal/REFRESH_GCN_EVENT",
                 payload={"gcnEvent_dateobs": dateobs},
             )
 
             return self.success()
+
+
+class ObservationPlanManualRequestHandler(BaseHandler):
+    @auth_or_token
+    def post(self):
+        """
+        ---
+        description: Submit manual observation plan.
+        tags:
+          - observation_plan_requests
+        requestBody:
+          content:
+            application/json:
+              schema: ObservationPlanManualHandlerPost
+        responses:
+          200:
+            content:
+              application/json:
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              description: New observation plan request ID
+        """
+        json_data = self.get_json()
+
+        with self.Session() as session:
+            stmt = GcnEvent.select(session.user_or_token)
+            if 'gcnevent_id' in json_data:
+                stmt = stmt.where(GcnEvent.id == json_data['gcnevent_id'])
+            elif 'dateobs' in json_data:
+                stmt = stmt.where(GcnEvent.dateobs == json_data['dateobs'])
+            else:
+                return self.error(
+                    message="Need to specify either gcnevent_id or dateobs"
+                )
+            event = session.scalars(stmt).first()
+            if event is None:
+                return self.error(message="Cannot find associated GcnEvent")
+
+            stmt = Localization.select(session.user_or_token)
+            if 'localization_id' in json_data:
+                stmt = stmt.where(Localization.id == json_data['localization_id'])
+            elif 'localization_name' in json_data:
+                stmt = stmt.where(
+                    Localization.localization_name == json_data['localization_name']
+                )
+            else:
+                return self.error(
+                    message="Need to specify either localization_id or localization_name"
+                )
+            localization = session.scalars(stmt).first()
+            if localization is None:
+                return self.error(message="Cannot find associated Localization")
+
+            observation_plan_request = ObservationPlanRequest(
+                requester_id=self.associated_user_object.id,
+                gcnevent=event,
+                localization=localization,
+                payload=json_data['payload'],
+                status=json_data['status'],
+                allocation_id=json_data['allocation_id'],
+            )
+            session.add(observation_plan_request)
+            session.commit()
+
+            stmt = Allocation.select(session.user_or_token).where(
+                Allocation.id == observation_plan_request.allocation_id,
+            )
+            allocation = session.scalars(stmt).first()
+            instrument = allocation.instrument
+
+            observation_plan = json_data['observation_plans'][0]
+            event_observation_plan = EventObservationPlan(
+                observation_plan_request_id=observation_plan_request.id,
+                instrument_id=instrument.id,
+                dateobs=event.dateobs,
+                plan_name=json_data['plan_name'],
+                validity_window_start=observation_plan['validity_window_start'],
+                validity_window_end=observation_plan['validity_window_end'],
+                status=observation_plan['status'],
+            )
+            session.add(event_observation_plan)
+            session.commit()
+
+            planned_observations = []
+            for planned_obs in observation_plan['planned_observations']:
+                tt = Time(planned_obs['dateobs'], format='isot')
+
+                planned_observation = PlannedObservation(
+                    obstime=tt.datetime,
+                    dateobs=event.dateobs,
+                    field_id=planned_obs['field_id'],
+                    exposure_time=planned_obs['exposure_time'],
+                    weight=planned_obs['weight'],
+                    filt=planned_obs['filt'],
+                    instrument_id=instrument.id,
+                    planned_observation_id=planned_obs['planned_observation_id'],
+                    observation_plan_id=event_observation_plan.id,
+                    overhead_per_exposure=planned_obs['overhead_per_exposure'],
+                )
+            planned_observations.append(planned_observation)
+
+            session.add_all(planned_observations)
+            session.commit()
+
+            generate_observation_plan_statistics(
+                [event_observation_plan.id], [observation_plan_request.id], session
+            )
+
+            return self.success(data={"id": observation_plan_request.id})
 
 
 class ObservationPlanSubmitHandler(BaseHandler):
@@ -650,7 +795,7 @@ class ObservationPlanSubmitHandler(BaseHandler):
                 return self.error('Cannot send observation plans on this instrument.')
 
             try:
-                api.send(observation_plan_request)
+                api.send(observation_plan_request, session)
             except Exception as e:
                 observation_plan_request.status = 'failed to send'
                 return self.error(
@@ -659,7 +804,7 @@ class ObservationPlanSubmitHandler(BaseHandler):
             finally:
                 session.commit()
             self.push_all(
-                action="skyportal/REFRESH_GCNEVENT",
+                action="skyportal/REFRESH_GCN_EVENT",
                 payload={"gcnEvent_dateobs": observation_plan_request.gcnevent.dateobs},
             )
 
@@ -714,7 +859,7 @@ class ObservationPlanSubmitHandler(BaseHandler):
             finally:
                 session.commit()
             self.push_all(
-                action="skyportal/REFRESH_GCNEVENT",
+                action="skyportal/REFRESH_GCN_EVENT",
                 payload={"gcnEvent_dateobs": observation_plan_request.gcnevent.dateobs},
             )
 
@@ -1257,6 +1402,11 @@ class ObservationPlanSurveyEfficiencyHandler(BaseHandler):
                     f'Could not find observation_plan_request with ID {observation_plan_request_id}'
                 )
 
+            if len(observation_plan_request.observation_plans) == 0:
+                return self.error(
+                    f'Could not find an observation_plan associated with observation_plan_request ID {observation_plan_request_id}'
+                )
+
             observation_plan = observation_plan_request.observation_plans[0]
             analysis_data = []
             for analysis in observation_plan.survey_efficiency_analyses:
@@ -1391,6 +1541,11 @@ class ObservationPlanFieldsHandler(BaseHandler):
                     f'Could not find observation_plan_request with ID {observation_plan_request_id}'
                 )
 
+            if len(observation_plan_request.observation_plans) == 0:
+                return self.error(
+                    f'Could not find an observation_plan associated with observation_plan_request ID {observation_plan_request_id}'
+                )
+
             observation_plan = observation_plan_request.observation_plans[0]
             dateobs = observation_plan_request.gcnevent.dateobs
 
@@ -1402,7 +1557,7 @@ class ObservationPlanFieldsHandler(BaseHandler):
                 session.commit()
 
             self.push_all(
-                action="skyportal/REFRESH_GCNEVENT",
+                action="skyportal/REFRESH_GCN_EVENT",
                 payload={"gcnEvent_dateobs": dateobs},
             )
 
@@ -1809,6 +1964,11 @@ class ObservationPlanCreateObservingRunHandler(BaseHandler):
 
             instrument = allocation.instrument
 
+            if len(observation_plan_request.observation_plans) == 0:
+                return self.error(
+                    f'Could not find an observation_plan associated with observation_plan_request ID {observation_plan_request_id}'
+                )
+
             observation_plan = observation_plan_request.observation_plans[0]
             planned_observations = observation_plan.planned_observations
 
@@ -1918,7 +2078,10 @@ def observation_simsurvey(
         Optional parameters to specify the injection type, along with a list of possible values (to be used in a dropdown UI)
     """
 
-    session = Session()
+    if Session.registry.has():
+        session = Session()
+    else:
+        session = Session(bind=DBSession.session_factory.kw["bind"])
 
     try:
 
@@ -2008,7 +2171,7 @@ def observation_simsurvey(
         order = hp.nside2order(localization.nside)
         t = rasterize(localization.table, order)
 
-        if 'DISTMU' in t:
+        if {'DISTMU', 'DISTSIGMA', 'DISTNORM'}.issubset(set(t.colnames)):
             result = t['PROB'], t['DISTMU'], t['DISTSIGMA'], t['DISTNORM']
             hp_data = hp.reorder(result, 'NESTED', 'RING')
             map_struct = {}
@@ -2172,6 +2335,7 @@ def observation_simsurvey(
             f"Unable to complete survey efficiency analysis {survey_efficiency_analysis.id}: {e}"
         )
     finally:
+        session.close()
         Session.remove()
 
 

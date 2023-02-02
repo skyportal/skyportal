@@ -2,12 +2,17 @@ import React, { Suspense, useState, useEffect } from "react";
 import PropTypes from "prop-types";
 import { useSelector, useDispatch } from "react-redux";
 import { Link, useNavigate } from "react-router-dom";
+import { useForm, Controller } from "react-hook-form";
 
 import TableCell from "@mui/material/TableCell";
 import TableRow from "@mui/material/TableRow";
 import IconButton from "@mui/material/IconButton";
+import FormControlLabel from "@mui/material/FormControlLabel";
 import Grid from "@mui/material/Grid";
 import Chip from "@mui/material/Chip";
+import DeleteIcon from "@mui/icons-material/Delete";
+import ThumbUp from "@mui/icons-material/ThumbUp";
+import ThumbDown from "@mui/icons-material/ThumbDown";
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 import MUIDataTable from "mui-datatables";
 import {
@@ -18,6 +23,7 @@ import {
   adaptV4Theme,
 } from "@mui/material/styles";
 import makeStyles from "@mui/styles/makeStyles";
+import Checkbox from "@mui/material/Checkbox";
 import CheckIcon from "@mui/icons-material/Check";
 import ClearIcon from "@mui/icons-material/Clear";
 import InfoIcon from "@mui/icons-material/Info";
@@ -34,6 +40,7 @@ import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 
 import { isMobileOnly } from "react-device-detect";
+import { showNotification } from "baselayer/components/Notifications";
 import Button from "./Button";
 
 import { ra_to_hours, dec_to_dms, mjd_to_utc } from "../units";
@@ -49,6 +56,7 @@ import * as sourcesingcnActions from "../ducks/confirmedsourcesingcn";
 import { filterOutEmptyValues } from "../API";
 import { getAnnotationValueString } from "./ScanningPageCandidateAnnotations";
 import ConfirmSourceInGCN from "./ConfirmSourceInGCN";
+import ConfirmDeletionDialog from "./ConfirmDeletionDialog";
 
 const VegaSpectrum = React.lazy(() => import("./VegaSpectrum"));
 const VegaHR = React.lazy(() => import("./VegaHR"));
@@ -186,6 +194,17 @@ const useStyles = makeStyles((theme) => ({
     paddingTop: 0,
     paddingBottom: 0,
   },
+  classificationDelete: {
+    cursor: "pointer",
+    fontSize: "2em",
+    position: "absolute",
+    padding: 0,
+    right: 0,
+    top: 0,
+  },
+  classificationDeleteDisabled: {
+    opacity: 0,
+  },
 }));
 
 const getMuiTheme = (theme) =>
@@ -287,6 +306,352 @@ let defaultDisplayedColumns = [
   "Finder",
 ];
 
+const RenderShowClassification = ({ source }) => {
+  const classes = useStyles();
+  const dispatch = useDispatch();
+  const currentUser = useSelector((state) => state.profile);
+  const groupUsers = useSelector((state) => state.group?.group_users);
+  const currentGroupUser = groupUsers?.filter(
+    (groupUser) => groupUser.user_id === currentUser.id
+  )[0];
+
+  useEffect(() => {
+    if (
+      currentGroupUser?.admin !== undefined &&
+      currentGroupUser?.admin !== null
+    ) {
+      window.localStorage.setItem(
+        "CURRENT_GROUP_ADMIN",
+        JSON.stringify(currentGroupUser.admin)
+      );
+    }
+  }, [currentGroupUser]);
+
+  const isGroupAdmin = JSON.parse(
+    window.localStorage.getItem("CURRENT_GROUP_ADMIN")
+  );
+
+  const { taxonomyList } = useSelector((state) => state.taxonomies);
+
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [classificationSourceToDelete, setClassificationSourceToDelete] =
+    useState(null);
+  const openDialog = () => {
+    setDialogOpen(true);
+    setClassificationSourceToDelete(source.id);
+  };
+  const closeDialog = () => {
+    setDialogOpen(false);
+    setClassificationSourceToDelete(null);
+  };
+
+  const deleteClassifications = () => {
+    dispatch(
+      sourceActions.deleteClassifications(classificationSourceToDelete)
+    ).then((result) => {
+      if (result.status === "success") {
+        dispatch(showNotification("Classification deleted"));
+        closeDialog();
+      }
+    });
+  };
+
+  const addVotes = (vote) => {
+    let success = true;
+    source.classifications?.forEach((c) => {
+      dispatch(sourceActions.addClassificationVote(c.id, { vote })).then(
+        (result) => {
+          if (result.status !== "success") {
+            success = false;
+          }
+        }
+      );
+    });
+    if (success) {
+      dispatch(showNotification("Votes registered"));
+    }
+  };
+
+  let upvoteColor = "disabled";
+  let downvoteColor = "disabled";
+  let upvoteValue = 1;
+  let downvoteValue = -1;
+  const upvoterIds = [];
+  const downvoterIds = [];
+
+  source.classifications?.forEach((classification) => {
+    classification.votes?.forEach((s) => {
+      if (s.voter_id === currentUser.id) {
+        if (s.vote === 1) {
+          upvoterIds.push(classification.id);
+        } else if (s.vote === -1) {
+          downvoterIds.push(classification.id);
+        }
+      }
+    });
+  });
+
+  if (source.classifications?.length === upvoterIds.length) {
+    upvoteColor = "success";
+    upvoteValue = 0;
+  } else if (source.classifications?.length === downvoterIds.length) {
+    downvoteColor = "error";
+    downvoteValue = 0;
+  }
+
+  const permission =
+    currentUser.permissions.includes("System admin") ||
+    currentUser.permissions.includes("Manage groups") ||
+    isGroupAdmin;
+
+  return (
+    <div>
+      <Tooltip
+        key={`${source.id}`}
+        placement="top-end"
+        disableFocusListener
+        disableTouchListener
+        title={
+          <>
+            <br />
+            <b>All Classifications:</b>
+            <br />
+            <Button
+              key={source.id}
+              id="delete_classifications"
+              classes={{
+                root: classes.classificationDelete,
+                disabled: classes.classificationDeleteDisabled,
+              }}
+              onClick={() => openDialog(source.id)}
+              disabled={!permission}
+            >
+              <DeleteIcon />
+            </Button>
+            <ConfirmDeletionDialog
+              deleteFunction={deleteClassifications}
+              dialogOpen={dialogOpen}
+              closeDialog={closeDialog}
+              resourceName="classifications"
+            />
+            <div>
+              <Button
+                key={source.id}
+                id="down_vote"
+                onClick={() => addVotes(downvoteValue)}
+              >
+                <ThumbDown color={downvoteColor} />
+              </Button>
+            </div>
+            <div>
+              <Button
+                key={source.id}
+                id="up_vote"
+                onClick={() => addVotes(upvoteValue)}
+              >
+                <ThumbUp color={upvoteColor} />
+              </Button>
+            </div>
+          </>
+        }
+      >
+        <div>
+          <ShowClassification
+            classifications={source.classifications}
+            taxonomyList={taxonomyList}
+            shortened
+          />
+        </div>
+      </Tooltip>
+    </div>
+  );
+};
+
+RenderShowClassification.propTypes = {
+  source: PropTypes.shape({
+    id: PropTypes.string,
+    ra: PropTypes.number,
+    dec: PropTypes.number,
+    gal_lon: PropTypes.number,
+    gal_lat: PropTypes.number,
+    origin: PropTypes.string,
+    alias: PropTypes.arrayOf(PropTypes.string),
+    redshift: PropTypes.number,
+    annotations: PropTypes.arrayOf(
+      PropTypes.shape({
+        origin: PropTypes.string.isRequired,
+        data: PropTypes.object.isRequired, // eslint-disable-line react/forbid-prop-types
+        author: PropTypes.shape({
+          username: PropTypes.string.isRequired,
+        }).isRequired,
+        created_at: PropTypes.string.isRequired,
+      })
+    ).isRequired,
+    classifications: PropTypes.arrayOf(
+      PropTypes.shape({
+        id: PropTypes.number,
+        classification: PropTypes.string,
+        created_at: PropTypes.string,
+        groups: PropTypes.arrayOf(
+          PropTypes.shape({
+            id: PropTypes.number,
+            name: PropTypes.string,
+          })
+        ),
+      })
+    ),
+    altdata: PropTypes.shape({
+      tns: PropTypes.shape({
+        name: PropTypes.string,
+      }),
+    }),
+    spectrum_exists: PropTypes.bool,
+    last_detected_at: PropTypes.string,
+    last_detected_mag: PropTypes.number,
+    peak_detected_at: PropTypes.string,
+    peak_detected_mag: PropTypes.number,
+    groups: PropTypes.arrayOf(
+      PropTypes.shape({
+        id: PropTypes.number,
+        name: PropTypes.string,
+      })
+    ),
+    photstats: PropTypes.arrayOf(
+      PropTypes.shape({
+        peak_mag_global: PropTypes.number,
+        peak_mjd_global: PropTypes.number,
+        last_detected_mag: PropTypes.number,
+        last_detected_mjd: PropTypes.number,
+      })
+    ),
+  }).isRequired,
+};
+
+const RenderShowLabelling = ({ source }) => {
+  const dispatch = useDispatch();
+  const { control } = useForm();
+  const [checked, setChecked] = useState(false);
+
+  const currentUser = useSelector((state) => state.profile);
+
+  const labellerUsernames = source.labellers
+    ? source.labellers.map((s) => s.username)
+    : [];
+  const defaultChecked = labellerUsernames.includes(currentUser.username);
+
+  useEffect(() => {
+    setChecked(defaultChecked);
+  }, [setChecked, defaultChecked]);
+
+  const labelledSource = (check) => {
+    const groupIds = [];
+    source.groups?.forEach((g) => {
+      groupIds.push(g.id);
+    });
+
+    if (check === true) {
+      dispatch(sourceActions.addSourceLabels(source.id, { groupIds }));
+    } else {
+      dispatch(sourceActions.deleteSourceLabels(source.id, { groupIds }));
+    }
+  };
+
+  const checkBox = (event) => {
+    setChecked(event.target.checked);
+  };
+
+  return (
+    <div>
+      <FormControlLabel
+        key={source.id}
+        control={
+          <Controller
+            render={() => (
+              <Checkbox
+                onChange={(event) => {
+                  checkBox(event);
+                  labelledSource(event.target.checked);
+                }}
+                checked={checked}
+                data-testid={`labellingCheckBox${source.id}`}
+              />
+            )}
+            name={`labellingCheckBox${source.id}`}
+            control={control}
+          />
+        }
+        label={`Labelled By:  ${labellerUsernames.join(",")}`}
+      />
+    </div>
+  );
+};
+
+RenderShowLabelling.propTypes = {
+  source: PropTypes.shape({
+    id: PropTypes.string,
+    ra: PropTypes.number,
+    dec: PropTypes.number,
+    gal_lon: PropTypes.number,
+    gal_lat: PropTypes.number,
+    origin: PropTypes.string,
+    alias: PropTypes.arrayOf(PropTypes.string),
+    redshift: PropTypes.number,
+    annotations: PropTypes.arrayOf(
+      PropTypes.shape({
+        origin: PropTypes.string.isRequired,
+        data: PropTypes.object.isRequired, // eslint-disable-line react/forbid-prop-types
+        author: PropTypes.shape({
+          username: PropTypes.string.isRequired,
+        }).isRequired,
+        created_at: PropTypes.string.isRequired,
+      })
+    ).isRequired,
+    classifications: PropTypes.arrayOf(
+      PropTypes.shape({
+        id: PropTypes.number,
+        classification: PropTypes.string,
+        created_at: PropTypes.string,
+        groups: PropTypes.arrayOf(
+          PropTypes.shape({
+            id: PropTypes.number,
+            name: PropTypes.string,
+          })
+        ),
+      })
+    ),
+    altdata: PropTypes.shape({
+      tns: PropTypes.shape({
+        name: PropTypes.string,
+      }),
+    }),
+    spectrum_exists: PropTypes.bool,
+    last_detected_at: PropTypes.string,
+    last_detected_mag: PropTypes.number,
+    peak_detected_at: PropTypes.string,
+    peak_detected_mag: PropTypes.number,
+    groups: PropTypes.arrayOf(
+      PropTypes.shape({
+        id: PropTypes.number,
+        name: PropTypes.string,
+      })
+    ),
+    photstats: PropTypes.arrayOf(
+      PropTypes.shape({
+        peak_mag_global: PropTypes.number,
+        peak_mjd_global: PropTypes.number,
+        last_detected_mag: PropTypes.number,
+        last_detected_mjd: PropTypes.number,
+      })
+    ),
+    labellers: PropTypes.arrayOf(
+      PropTypes.shape({
+        id: PropTypes.number,
+        username: PropTypes.string,
+      })
+    ),
+  }).isRequired,
+};
+
 // MUI data table with pull out rows containing a summary of each source.
 // This component is used in GroupSources, SourceList and Favorites page.
 const SourceTable = ({
@@ -359,7 +724,6 @@ const SourceTable = ({
     switch (action) {
       case "changePage":
       case "changeRowsPerPage":
-        setQueryInProgress(true);
         setRowsPerPage(tableState.rowsPerPage);
         paginateCallback(
           tableState.page + 1,
@@ -702,11 +1066,27 @@ const SourceTable = ({
           </div>
         }
       >
-        <ShowClassification
-          classifications={source.classifications}
-          taxonomyList={taxonomyList}
-          shortened
-        />
+        <div>
+          <RenderShowClassification source={source} />
+        </div>
+      </Suspense>
+    );
+  };
+
+  const renderLabelling = (dataIndex) => {
+    const source = sources[dataIndex];
+
+    return (
+      <Suspense
+        fallback={
+          <div>
+            <CircularProgress color="secondary" />
+          </div>
+        }
+      >
+        <div>
+          <RenderShowLabelling source={source} />
+        </div>
       </Suspense>
     );
   };
@@ -935,14 +1315,19 @@ const SourceTable = ({
     );
   };
 
+  const handleSearchChange = (searchText) => {
+    const data = { sourceID: searchText };
+    paginateCallback(1, rowsPerPage, {}, data);
+  };
+
   const handleFilterSubmit = async (formData) => {
     setQueryInProgress(true);
 
     // Remove empty position
     if (
-      formData.position.ra === "" &&
-      formData.position.dec === "" &&
-      formData.position.radius === ""
+      !formData.position.ra &&
+      !formData.position.dec &&
+      !formData.position.radius
     ) {
       delete formData.position;
     }
@@ -986,8 +1371,16 @@ const SourceTable = ({
           data[key] = value;
         }
       });
-      setTableFilterList(sourceFilterList);
-      setFilterFormData(data);
+
+      dispatch(sourcesActions.fetchSources(data)).then((response) => {
+        if (response.status === "success") {
+          setTableFilterList(sourceFilterList);
+          setFilterFormData(data);
+        } else {
+          setTableFilterList([]);
+          setFilterFormData([]);
+        }
+      });
       paginateCallback(1, rowsPerPage, {}, data);
     }
   };
@@ -1136,6 +1529,17 @@ const SourceTable = ({
       },
     },
     {
+      name: "labelling",
+      label: "Labelling",
+      options: {
+        filter: false,
+        sort: true,
+        sortThirdClickReset: true,
+        display: displayedColumns.includes("Labelling"),
+        customBodyRenderLite: renderLabelling,
+      },
+    },
+    {
       name: "groups",
       label: "Groups",
       options: {
@@ -1247,7 +1651,7 @@ const SourceTable = ({
     serverSide: true,
     rowsPerPage: numPerPage,
     page: pageNumber - 1,
-    rowsPerPageOptions: [10, 25, 50, 75, 100, 200],
+    rowsPerPageOptions: [1, 5, 10, 25, 50, 75, 100, 200],
     jumpToPage: true,
     pagination: true,
     count: totalMatches,
@@ -1255,7 +1659,8 @@ const SourceTable = ({
     customFilterDialogFooter: customFilterDisplay,
     onFilterChange: handleTableFilterChipChange,
     onFilterDialogOpen: () => setFilterFormSubmitted(false),
-    search: false,
+    search: true,
+    onSearchChange: handleSearchChange,
     download: true,
     rowsExpanded: openedRows,
     onRowExpansionChange: (_, allRowsExpanded) => {

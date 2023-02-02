@@ -509,8 +509,11 @@ def download_observations(request_id, ar):
         Group,
     )
 
-    Session = scoped_session(sessionmaker(bind=DBSession.session_factory.kw["bind"]))
-    session = Session()
+    Session = scoped_session(sessionmaker())
+    if Session.registry.has():
+        session = Session()
+    else:
+        session = Session(bind=DBSession.session_factory.kw["bind"])
 
     try:
         req = session.scalars(
@@ -539,6 +542,8 @@ def download_observations(request_id, ar):
         session.commit()
     except Exception as e:
         return log(f"Unable to post data for {request_id}: {e}")
+    finally:
+        session.close()
 
 
 class LCOAPI(FollowUpAPI):
@@ -665,7 +670,7 @@ class SINISTROAPI(LCOAPI):
 
     # subclasses *must* implement the method below
     @staticmethod
-    def submit(request, session):
+    def submit(request, session, **kwargs):
 
         """Submit a follow-up request to LCO's SINISTRO.
 

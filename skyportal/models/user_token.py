@@ -18,7 +18,7 @@ from baselayer.app.models import (
 
 from .catalog import CatalogQuery
 from .group import Group, GroupUser
-from .followup_request import FollowupRequest
+from .followup_request import DefaultFollowupRequest, FollowupRequest
 from .observation_plan import DefaultObservationPlanRequest, ObservationPlanRequest
 from .stream import Stream
 from .invitation import Invitation
@@ -184,6 +184,13 @@ User.annotations_on_spectra = relationship(
     cascade="delete",
     passive_deletes=True,
 )
+User.annotations_on_photometry = relationship(
+    "AnnotationOnPhotometry",
+    back_populates="author",
+    foreign_keys="AnnotationOnPhotometry.author_id",
+    cascade="delete",
+    passive_deletes=True,
+)
 User.comments_on_gcns = relationship(
     "CommentOnGCN",
     back_populates="author",
@@ -247,6 +254,13 @@ User.followup_requests = relationship(
     doc="The follow-up requests this User has made.",
     foreign_keys=[FollowupRequest.requester_id],
 )
+User.default_followup_requests = relationship(
+    'DefaultFollowupRequest',
+    back_populates='requester',
+    passive_deletes=True,
+    doc="The default follow-up requests this User has made.",
+    foreign_keys=[DefaultFollowupRequest.requester_id],
+)
 User.observationplan_requests = relationship(
     'ObservationPlanRequest',
     back_populates='requester',
@@ -288,6 +302,13 @@ User.assignments = relationship(
     doc="Objs the User has assigned to ObservingRuns.",
     foreign_keys="ClassicalAssignment.requester_id",
 )
+User.recurring_apis = relationship(
+    "RecurringAPI",
+    back_populates="owner",
+    foreign_keys="RecurringAPI.owner_id",
+    cascade="delete",
+    passive_deletes=True,
+)
 User.gcnevents = relationship(
     'GcnEvent',
     back_populates='sent_by',
@@ -299,6 +320,12 @@ User.gcnnotices = relationship(
     back_populates='sent_by',
     passive_deletes=True,
     doc='The GcnNotices saved by this user',
+)
+User.gcnsummaries = relationship(
+    'GcnSummary',
+    back_populates='sent_by',
+    passive_deletes=True,
+    doc='The gcnsummaries saved by this user',
 )
 User.gcntags = relationship(
     'GcnTag',

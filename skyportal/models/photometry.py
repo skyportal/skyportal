@@ -170,6 +170,15 @@ class Photometry(conesearch_alchemy.Point, Base):
         doc="The User who uploaded the photometry.",
     )
 
+    annotations = relationship(
+        'AnnotationOnPhotometry',
+        back_populates='photometry',
+        cascade='save-update, merge, refresh-expire, expunge, delete',
+        passive_deletes=True,
+        order_by="AnnotationOnPhotometry.created_at",
+        doc="Annotations posted about this photometry.",
+    )
+
     @hybrid_property
     def mag(self):
         """The magnitude of the photometry point in the AB system."""
@@ -190,12 +199,10 @@ class Photometry(conesearch_alchemy.Point, Base):
     def mag(cls):
         """The magnitude of the photometry point in the AB system."""
         return sa.case(
-            [
-                (
-                    sa.and_(cls.flux != 'NaN', cls.flux > 0),  # noqa
-                    -2.5 * sa.func.log(cls.flux) + PHOT_ZP,
-                )
-            ],
+            (
+                sa.and_(cls.flux != 'NaN', cls.flux > 0),  # noqa
+                -2.5 * sa.func.log(cls.flux) + PHOT_ZP,
+            ),
             else_=None,
         )
 
@@ -203,14 +210,10 @@ class Photometry(conesearch_alchemy.Point, Base):
     def e_mag(cls):
         """The error on the magnitude of the photometry point."""
         return sa.case(
-            [
-                (
-                    sa.and_(
-                        cls.flux != 'NaN', cls.flux > 0, cls.fluxerr > 0
-                    ),  # noqa: E711
-                    2.5 / sa.func.ln(10) * cls.fluxerr / cls.flux,
-                )
-            ],
+            (
+                sa.and_(cls.flux != 'NaN', cls.flux > 0, cls.fluxerr > 0),  # noqa: E711
+                2.5 / sa.func.ln(10) * cls.fluxerr / cls.flux,
+            ),
             else_=None,
         )
 
@@ -243,16 +246,14 @@ class Photometry(conesearch_alchemy.Point, Base):
     def magref(cls):
         """The magnitude of the photometry point in the AB system."""
         return sa.case(
-            [
-                (
-                    sa.and_(
-                        cls.ref_flux != None,  # noqa: E711
-                        cls.ref_flux != 'NaN',
-                        cls.ref_flux > 0,
-                    ),
-                    -2.5 * sa.func.log(cls.ref_flux) + PHOT_ZP,
-                )
-            ],
+            (
+                sa.and_(
+                    cls.ref_flux != None,  # noqa: E711
+                    cls.ref_flux != 'NaN',
+                    cls.ref_flux > 0,
+                ),
+                -2.5 * sa.func.log(cls.ref_flux) + PHOT_ZP,
+            ),
             else_=None,
         )
 
@@ -260,17 +261,15 @@ class Photometry(conesearch_alchemy.Point, Base):
     def e_magref(cls):
         """The error on the magnitude of the photometry point."""
         return sa.case(
-            [
-                (
-                    sa.and_(
-                        cls.ref_flux != None,  # noqa: E711
-                        cls.ref_flux != 'NaN',
-                        cls.ref_flux > 0,
-                        cls.ref_fluxerr > 0,
-                    ),  # noqa: E711
-                    (2.5 / sa.func.ln(10)) * (cls.ref_fluxerr / cls.ref_flux),
-                )
-            ],
+            (
+                sa.and_(
+                    cls.ref_flux != None,  # noqa: E711
+                    cls.ref_flux != 'NaN',
+                    cls.ref_flux > 0,
+                    cls.ref_fluxerr > 0,
+                ),  # noqa: E711
+                (2.5 / sa.func.ln(10)) * (cls.ref_fluxerr / cls.ref_flux),
+            ),
             else_=None,
         )
 
@@ -311,18 +310,16 @@ class Photometry(conesearch_alchemy.Point, Base):
     def magtot(cls):
         """The total magnitude of the photometry point in the AB system."""
         return sa.case(
-            [
-                (
-                    sa.and_(
-                        cls.ref_flux != None,  # noqa: E711
-                        cls.ref_flux != 'NaN',
-                        cls.ref_flux > 0,
-                        cls.flux != 'NaN',
-                        cls.flux > 0,
-                    ),  # noqa
-                    -2.5 * sa.func.log(cls.ref_flux + cls.flux) + PHOT_ZP,
-                )
-            ],
+            (
+                sa.and_(
+                    cls.ref_flux != None,  # noqa: E711
+                    cls.ref_flux != 'NaN',
+                    cls.ref_flux > 0,
+                    cls.flux != 'NaN',
+                    cls.flux > 0,
+                ),  # noqa
+                -2.5 * sa.func.log(cls.ref_flux + cls.flux) + PHOT_ZP,
+            ),
             else_=None,
         )
 
@@ -330,26 +327,24 @@ class Photometry(conesearch_alchemy.Point, Base):
     def e_magtot(cls):
         """The error on the total magnitude of the photometry point."""
         return sa.case(
-            [
-                (
-                    sa.and_(
-                        cls.ref_flux != None,  # noqa: E711
-                        cls.ref_flux != 'NaN',
-                        cls.ref_flux > 0,
-                        cls.ref_fluxerr > 0,
-                        cls.flux != None,
-                        cls.flux != 'NaN',
-                        cls.flux > 0,
-                        cls.fluxerr > 0,
-                    ),  # noqa: E711
-                    2.5
-                    / sa.func.ln(10)
-                    * sa.func.sqrt(
-                        sa.func.pow(cls.ref_fluxerr, 2) + sa.func.pow(cls.fluxerr, 2)
-                    )
-                    / (cls.ref_flux + cls.flux),
+            (
+                sa.and_(
+                    cls.ref_flux != None,  # noqa: E711
+                    cls.ref_flux != 'NaN',
+                    cls.ref_flux > 0,
+                    cls.ref_fluxerr > 0,
+                    cls.flux != None,
+                    cls.flux != 'NaN',
+                    cls.flux > 0,
+                    cls.fluxerr > 0,
+                ),  # noqa: E711
+                2.5
+                / sa.func.ln(10)
+                * sa.func.sqrt(
+                    sa.func.pow(cls.ref_fluxerr, 2) + sa.func.pow(cls.fluxerr, 2)
                 )
-            ],
+                / (cls.ref_flux + cls.flux),
+            ),
             else_=None,
         )
 
@@ -378,18 +373,16 @@ class Photometry(conesearch_alchemy.Point, Base):
     def tot_flux(cls):
         """The total flux of the photometry point."""
         return sa.case(
-            [
-                (
-                    sa.and_(
-                        cls.ref_flux != None,  # noqa: E711
-                        cls.ref_flux != 'NaN',
-                        cls.ref_flux > 0,
-                        cls.flux != 'NaN',
-                        cls.flux > 0,
-                    ),  # noqa
-                    cls.ref_flux + cls.flux,
-                )
-            ],
+            (
+                sa.and_(
+                    cls.ref_flux != None,  # noqa: E711
+                    cls.ref_flux != 'NaN',
+                    cls.ref_flux > 0,
+                    cls.flux != 'NaN',
+                    cls.flux > 0,
+                ),  # noqa
+                cls.ref_flux + cls.flux,
+            ),
             else_=None,
         )
 
@@ -397,21 +390,19 @@ class Photometry(conesearch_alchemy.Point, Base):
     def tot_fluxerr(cls):
         """The error on the total flux of the photometry point."""
         return sa.case(
-            [
-                (
-                    sa.and_(
-                        cls.ref_fluxerr != None,  # noqa: E711
-                        cls.ref_fluxerr != 'NaN',
-                        cls.ref_fluxerr > 0,
-                        cls.fluxerr != None,  # noqa: E711
-                        cls.fluxerr != 'NaN',
-                        cls.fluxerr > 0,
-                    ),  # noqa
-                    sa.func.sqrt(
-                        sa.func.pow(cls.ref_fluxerr, 2) + sa.func.pow(cls.fluxerr, 2)
-                    ),
-                )
-            ],
+            (
+                sa.and_(
+                    cls.ref_fluxerr != None,  # noqa: E711
+                    cls.ref_fluxerr != 'NaN',
+                    cls.ref_fluxerr > 0,
+                    cls.fluxerr != None,  # noqa: E711
+                    cls.fluxerr != 'NaN',
+                    cls.fluxerr > 0,
+                ),  # noqa
+                sa.func.sqrt(
+                    sa.func.pow(cls.ref_fluxerr, 2) + sa.func.pow(cls.fluxerr, 2)
+                ),
+            ),
             else_=None,
         )
 

@@ -12,6 +12,7 @@ from sqlalchemy.orm import sessionmaker, scoped_session
 from tornado.ioloop import IOLoop
 import pandas as pd
 import pyvo
+import sqlalchemy as sa
 import urllib
 
 from . import FollowUpAPI, MMAAPI
@@ -31,7 +32,7 @@ else:
 
 ZTF_FORCED_URL = cfg['app.ztf_forced_endpoint']
 
-bands = {'g': 1, 'ztfg': 1, 'r': 1, 'ztfr': 2, 'i': 3, 'ztfi': 3}
+bands = {'g': 1, 'ztfg': 1, 'r': 2, 'ztfr': 2, 'i': 3, 'ztfi': 3}
 inv_bands = {1: 'ztfg', 2: 'ztfr', 3: 'ztfi'}
 
 log = make_log('facility_apis/ztf')
@@ -41,7 +42,7 @@ class ZTFRequest:
 
     """A dictionary structure for ZTF ToO requests."""
 
-    def _build_triggered_payload(self, request):
+    def _build_triggered_payload(self, request, session):
         """Payload json for ZTF object queue requests.
 
         Parameters
@@ -49,12 +50,23 @@ class ZTFRequest:
 
         request : skyportal.models.FollowupRequest
             The request to add to the observation queue and the SkyPortal database.
+        session: sqlalchemy.Session
+            Database session for this transaction
 
         Returns
         ----------
         payload : json
             payload for requests.
         """
+
+        from ..models import Allocation, InstrumentField
+
+        allocation = (
+            session.scalars(
+                sa.select(Allocation).where(Allocation.id == request.allocation_id)
+            )
+        ).first()
+        instrument = allocation.instrument
 
         start_mjd = Time(request.payload["start_date"], format='iso').mjd
         end_mjd = Time(request.payload["end_date"], format='iso').mjd
@@ -78,12 +90,19 @@ class ZTFRequest:
             for field_id in request.payload["field_ids"].split(","):
                 field_id = int(field_id)
 
+                field = session.scalars(
+                    sa.select(InstrumentField).where(
+                        InstrumentField.instrument_id == instrument.id,
+                        InstrumentField.field_id == field_id,
+                    )
+                ).first()
+
                 target = {
                     'request_id': cnt,
                     'program_id': program_id,
                     'field_id': field_id,
-                    'ra': request.obj.ra,
-                    'dec': request.obj.dec,
+                    'ra': field.ra,
+                    'dec': field.dec,
                     'filter_id': filter_id,
                     'exposure_time': float(request.payload["exposure_time"]),
                     'program_pi': 'Kulkarni' + '/' + request.requester.username,
@@ -93,7 +112,6 @@ class ZTFRequest:
                 cnt = cnt + 1
 
         json_data['targets'] = targets
-
         return json_data
 
     def _build_forced_payload(self, request):
@@ -213,8 +231,11 @@ def commit_photometry(url, altdata, df_request, request_id, instrument_id, user_
         User,
     )
 
-    Session = scoped_session(sessionmaker(bind=DBSession.session_factory.kw["bind"]))
-    session = Session()
+    Session = scoped_session(sessionmaker())
+    if Session.registry.has():
+        session = Session()
+    else:
+        session = Session(bind=DBSession.session_factory.kw["bind"])
 
     try:
         request = session.query(FollowupRequest).get(request_id)
@@ -308,7 +329,10 @@ def commit_photometry(url, altdata, df_request, request_id, instrument_id, user_
             payload={"obj_key": request.obj.internal_key},
         )
     except Exception as e:
-        return log(f"Unable to commit photometry for {request_id}: {e}")
+        log(f"Unable to commit photometry for {request_id}: {e}")
+    finally:
+        session.close()
+        Session.remove()
 
 
 class ZTFAPI(FollowUpAPI):
@@ -485,7 +509,7 @@ class ZTFAPI(FollowUpAPI):
 
     # subclasses *must* implement the method below
     @staticmethod
-    def submit(request, session):
+    def submit(request, session, **kwargs):
 
         """Submit a follow-up request to ZTF.
 
@@ -506,7 +530,7 @@ class ZTFAPI(FollowUpAPI):
             raise ValueError('Missing allocation information.')
 
         if request.payload["request_type"] == "triggered":
-            requestgroup = req._build_triggered_payload(request)
+            requestgroup = req._build_triggered_payload(request, session)
             url = urllib.parse.urljoin(ZTF_URL, 'api/triggers/ztf')
         elif request.payload["request_type"] == "forced_photometry":
             requestgroup = req._build_forced_payload(request)
@@ -608,7 +632,7 @@ class ZTFMMAAPI(MMAAPI):
 
     # subclasses *must* implement the method below
     @staticmethod
-    def send(request):
+    def send(request, session):
 
         """Submit an EventObservationPlan to ZTF.
 
@@ -618,7 +642,7 @@ class ZTFMMAAPI(MMAAPI):
             The request to add to the queue and the SkyPortal database.
         """
 
-        from ..models import FacilityTransaction, DBSession
+        from ..models import FacilityTransaction
 
         req = ZTFRequest()
         requestgroup = req._build_observation_plan_payload(request)
@@ -655,7 +679,7 @@ class ZTFMMAAPI(MMAAPI):
             initiator_id=request.last_modified_by_id,
         )
 
-        DBSession().add(transaction)
+        session.add(transaction)
 
     @staticmethod
     def remove(request):

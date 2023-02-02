@@ -22,6 +22,7 @@ from ...models import (
     EarthquakeEvent,
     Spectrum,
     GcnEvent,
+    Instrument,
     Shift,
     Group,
     User,
@@ -39,6 +40,42 @@ def users_mentioned(text, session):
         word = word.strip(punctuation)
         if word.startswith("@"):
             usernames.append(word.replace("@", ""))
+    users = session.scalars(
+        User.select(session.user_or_token).where(
+            User.username.in_(usernames),
+            User.preferences["notifications"]["mention"]["active"]
+            .astext.cast(sa.Boolean)
+            .is_(True),
+        )
+    ).all()
+
+    return users
+
+
+def instruments_mentioned(text, session):
+    punctuation = string.punctuation.replace("-", "").replace("#", "")
+    instruments = []
+    for word in text.replace(",", " ").split():
+        word = word.strip(punctuation)
+        if word.startswith("#"):
+            instruments.append(word.replace("#", ""))
+
+    instruments = session.scalars(
+        Instrument.select(session.user_or_token).where(
+            Instrument.name.in_(instruments),
+        )
+    ).all()
+
+    usernames = []
+    for instrument in instruments:
+        allocations = instrument.allocations
+        for allocation in allocations:
+            allocation_users = [
+                user.user.username for user in allocation.allocation_users
+            ]
+            usernames = usernames + allocation_users
+    usernames = list(set(usernames))
+
     users = session.scalars(
         User.select(session.user_or_token).where(
             User.username.in_(usernames),
@@ -361,6 +398,7 @@ class CommentHandler(BaseHandler):
         data = self.get_json()
 
         comment_text = data.get("text")
+        attachment_bytes, attachment_name, data_to_disk = None, None, None
 
         if 'attachment' in data:
             if (
@@ -368,14 +406,12 @@ class CommentHandler(BaseHandler):
                 and 'body' in data['attachment']
                 and 'name' in data['attachment']
             ):
-                attachment_bytes = str.encode(
+                attachment_name = data['attachment']['name']
+                data_to_disk = base64.b64decode(
                     data['attachment']['body'].split('base64,')[-1]
                 )
-                attachment_name = data['attachment']['name']
             else:
                 return self.error("Malformed comment attachment")
-        else:
-            attachment_bytes, attachment_name = None, None
 
         author = self.associated_user_object
         is_bot_request = isinstance(self.current_user, Token)
@@ -518,7 +554,63 @@ class CommentHandler(BaseHandler):
                         )
                     )
 
+            users_mentioned_in_instrument_comment = instruments_mentioned(
+                comment_text, session
+            )
+            if associated_resource_type.lower() == "sources":
+                text_to_send = (
+                    f"*@{self.associated_user_object.username}* "
+                    "mentioned an instrument you have an "
+                    f"allocation on in a comment on *{obj_id}*"
+                )
+                url_endpoint = f"/source/{obj_id}"
+            elif associated_resource_type.lower() == "spectra":
+                text_to_send = (
+                    f"*@{self.associated_user_object.username}* "
+                    "mentioned an instrument you have an "
+                    f"allocation on in a comment on *{spectrum_id}*"
+                )
+                url_endpoint = f"/source/{spectrum_id}"
+            elif associated_resource_type.lower() == "gcn_event":
+                text_to_send = (
+                    f"*@{self.associated_user_object.username}* "
+                    "mentioned an instrument you have an "
+                    f"allocation on in a comment on *{gcnevent_id}*"
+                )
+                url_endpoint = f"/gcn_events/{gcnevent_id}"
+            elif associated_resource_type.lower() == "shift":
+                text_to_send = (
+                    f"*@{self.associated_user_object.username}* "
+                    "mentioned an instrument you have an "
+                    "allocation on in a comment on *shift {shift_id}*"
+                )
+                url_endpoint = "/shifts"
+            elif associated_resource_type.lower() == "earthquake":
+                text_to_send = (
+                    f"*@{self.associated_user_object.username}* "
+                    "mentioned an instrument you have an "
+                    "allocation on in a comment on *{earthquake_id}*"
+                )
+                url_endpoint = f"/earthquakes/{earthquake_id}"
+            else:
+                return self.error(
+                    f'Unknown resource type "{associated_resource_type}".'
+                )
+
+            if users_mentioned_in_instrument_comment:
+                for user_mentioned in users_mentioned_in_instrument_comment:
+                    session.add(
+                        UserNotification(
+                            user=user_mentioned,
+                            text=text_to_send,
+                            notification_type="mention",
+                            url=url_endpoint,
+                        )
+                    )
+
             session.add(comment)
+            if data_to_disk is not None:
+                comment.save_data(attachment_name, data_to_disk)
             session.commit()
             if users_mentioned_in_comment:
                 for user_mentioned in users_mentioned_in_comment:
@@ -536,7 +628,7 @@ class CommentHandler(BaseHandler):
 
             if isinstance(comment, CommentOnGCN):
                 self.push_all(
-                    action='skyportal/REFRESH_GCNEVENT',
+                    action='skyportal/REFRESH_GCN_EVENT',
                     payload={'gcnEvent_dateobs': comment.gcn.dateobs},
                 )
             elif isinstance(comment, CommentOnEarthquake):
@@ -694,7 +786,21 @@ class CommentHandler(BaseHandler):
             data = self.get_json()
             group_ids = data.pop("group_ids", None)
             data['id'] = comment_id
-            attachment_bytes = data.pop('attachment_bytes', None)
+
+            attachment_name, data_to_disk = None, None
+            attachment = data.pop('attachment', None)
+            if attachment:
+                if (
+                    isinstance(attachment, dict)
+                    and 'body' in attachment
+                    and 'name' in attachment
+                ):
+                    attachment_name = attachment['name']
+                    data_to_disk = base64.b64decode(
+                        attachment['body'].split('base64,')[-1]
+                    )
+                else:
+                    return self.error("Malformed comment attachment")
 
             try:
                 schema.load(data, partial=True)
@@ -705,23 +811,8 @@ class CommentHandler(BaseHandler):
 
             if 'text' in data:
                 c.text = data['text']
-
-            if 'attachment_name' in data:
-                c.attachment_name = data['attachment_name']
-
-            if attachment_bytes is not None:
-                attachment_bytes = str.encode(attachment_bytes.split('base64,')[-1])
-                c.attachment_bytes = attachment_bytes
-
-            bytes_is_none = c.attachment_bytes is None
-            name_is_none = c.attachment_name is None
-
-            if bytes_is_none ^ name_is_none:
-                return self.error(
-                    'This update leaves one of attachment name or '
-                    'attachment bytes null. Both fields must be '
-                    'filled, or both must be null.'
-                )
+            if attachment_name:
+                c.attachment_name = attachment_name
 
             if group_ids is not None:
                 groups = session.scalars(
@@ -740,6 +831,9 @@ class CommentHandler(BaseHandler):
 
             session.add(c)
             session.commit()
+            if data_to_disk is not None:
+                c.save_data(attachment_name, data_to_disk)
+                session.commit()
 
             if hasattr(c, 'obj'):  # comment on object, or object related resources
                 self.push_all(
@@ -753,7 +847,7 @@ class CommentHandler(BaseHandler):
                 )
             elif isinstance(c, CommentOnGCN):  # also update the gcn
                 self.push_all(
-                    action='skyportal/REFRESH_SOURCE_GCN',
+                    action='skyportal/REFRESH_GCN_EVENT',
                     payload={'gcnEvent_dateobs': c.gcn.dateobs},
                 )
             elif isinstance(c, CommentOnEarthquake):  # also update the earthquake
@@ -901,7 +995,7 @@ class CommentHandler(BaseHandler):
 
             if isinstance(c, CommentOnGCN):  # also update the GcnEvent
                 self.push_all(
-                    action='skyportal/REFRESH_GCNEVENT',
+                    action='skyportal/REFRESH_GCN_EVENT',
                     payload={'gcnEvent_dateobs': gcnevent_dateobs},
                 )
             elif isinstance(c, CommentOnEarthquake):  # also update the earthquake
@@ -1073,23 +1167,26 @@ class CommentAttachmentHandler(BaseHandler):
                     f'Comment resource ID does not match resource ID given in path ({resource_id})'
                 )
 
-            if not comment.attachment_bytes:
+            if not comment.attachment_bytes and not comment.get_attachment_path():
                 return self.error('Comment has no attachment')
 
-            # validate decoding
-            decoded_attachment = base64.b64decode(comment.attachment_bytes)
+            data_path = comment.get_attachment_path()
+
             attachment_name = ''.join(
                 c
                 for c in unicodedata.normalize('NFD', comment.attachment_name)
                 if unicodedata.category(c) != 'Mn'
             )
-
             if download:
-                attachment = decoded_attachment
+                if data_path is None:
+                    attachment = base64.b64decode(comment.attachment_bytes)
+                else:
+                    with open(data_path, 'rb') as f:
+                        attachment = f.read()
 
                 if preview and attachment_name.lower().endswith(("fit", "fits")):
                     try:
-                        attachment = get_fits_preview(io.BytesIO(decoded_attachment))
+                        attachment = get_fits_preview(io.BytesIO(attachment))
                         attachment_name = os.path.splitext(attachment_name)[0] + ".png"
                     except Exception as e:
                         log(f'Cannot render {attachment_name} as image: {str(e)}')
@@ -1099,11 +1196,18 @@ class CommentAttachmentHandler(BaseHandler):
                     "attachment; " f"filename={attachment_name}",
                 )
                 self.set_header("Content-type", "application/octet-stream")
+
                 self.write(attachment)
             else:
+                if data_path is None:
+                    data = base64.b64decode(comment.attachment_bytes).decode()
+                else:
+                    with open(data_path, 'rb') as f:
+                        data = f.read()
+
                 comment_data = {
                     "commentId": int(comment_id),
-                    "attachment": decoded_attachment.decode(),
+                    "attachment": data,
                 }
 
                 query_size = sizeof(comment_data)
