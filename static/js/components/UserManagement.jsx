@@ -27,6 +27,7 @@ import {
 import makeStyles from "@mui/styles/makeStyles";
 // eslint-disable-next-line import/no-unresolved
 import Form from "@rjsf/core";
+import validator from "@rjsf/validator-ajv8";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
@@ -728,6 +729,7 @@ const UserManagement = () => {
       <div>
         <Form
           schema={filterFormSchema}
+          validator={validator}
           onSubmit={({ formData }) => {
             handleFilterSubmit(formData);
           }}

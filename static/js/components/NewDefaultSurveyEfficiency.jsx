@@ -5,6 +5,7 @@ import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
 // eslint-disable-next-line import/no-unresolved
 import Form from "@rjsf/core";
+import validator from "@rjsf/validator-ajv8";
 import makeStyles from "@mui/styles/makeStyles";
 
 import * as defaultSurveyEfficienciesActions from "../ducks/default_survey_efficiencies";
@@ -200,6 +201,7 @@ const NewDefaultSurveyEfficiency = () => {
         <div>
           <Form
             schema={SimSurveySelectionFormSchema}
+            validator={validator}
             onSubmit={handleSubmit}
             // eslint-disable-next-line react/jsx-no-bind
             validate={validate}

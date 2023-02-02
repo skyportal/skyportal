@@ -2,6 +2,7 @@ import React, { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 // eslint-disable-next-line import/no-unresolved
 import Form from "@rjsf/core";
+import validator from "@rjsf/validator-ajv8";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
@@ -144,6 +145,7 @@ const NewAPIQueuedObservation = () => {
   return (
     <Form
       schema={observationFormSchema}
+      validator={validator}
       onSubmit={handleSubmit}
       // eslint-disable-next-line react/jsx-no-bind
       validate={validate}

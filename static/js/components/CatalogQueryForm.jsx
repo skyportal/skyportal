@@ -6,6 +6,7 @@ import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
 // eslint-disable-next-line import/no-unresolved
 import Form from "@rjsf/core";
+import validator from "@rjsf/validator-ajv8";
 import CircularProgress from "@mui/material/CircularProgress";
 import makeStyles from "@mui/styles/makeStyles";
 import dayjs from "dayjs";
@@ -264,6 +265,7 @@ const CatalogQueryForm = ({ gcnevent }) => {
         <div>
           <Form
             schema={CatalogQueryFormSchema}
+            validator={validator}
             onSubmit={handleSubmit}
             // eslint-disable-next-line react/jsx-no-bind
             validate={validate}

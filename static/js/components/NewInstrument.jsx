@@ -2,6 +2,7 @@ import React from "react";
 import { useDispatch, useSelector } from "react-redux";
 // eslint-disable-next-line import/no-unresolved
 import Form from "@rjsf/core";
+import validator from "@rjsf/validator-ajv8";
 import CircularProgress from "@mui/material/CircularProgress";
 import dataUriToBuffer from "data-uri-to-buffer";
 import { showNotification } from "baselayer/components/Notifications";
@@ -197,6 +198,7 @@ const NewInstrument = () => {
   return (
     <Form
       schema={instrumentFormSchema}
+      validator={validator}
       onSubmit={handleSubmit}
       // eslint-disable-next-line react/jsx-no-bind
       validate={validate}

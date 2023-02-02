@@ -5,6 +5,7 @@ import ListItem from "@mui/material/ListItem";
 import ListItemText from "@mui/material/ListItemText";
 // eslint-disable-next-line import/no-unresolved
 import Form from "@rjsf/core";
+import validator from "@rjsf/validator-ajv8";
 import CircularProgress from "@mui/material/CircularProgress";
 import Select from "@mui/material/Select";
 import InputLabel from "@mui/material/InputLabel";
@@ -325,6 +326,7 @@ const ModifyInstrument = () => {
       </List>
       <Form
         schema={instrumentFormSchema}
+        validator={validator}
         onSubmit={handleSubmit}
         // eslint-disable-next-line react/jsx-no-bind
         validate={validate}

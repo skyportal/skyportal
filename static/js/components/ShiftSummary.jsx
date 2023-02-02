@@ -4,6 +4,7 @@ import makeStyles from "@mui/styles/makeStyles";
 import dayjs from "dayjs";
 // eslint-disable-next-line import/no-unresolved
 import Form from "@rjsf/core";
+import validator from "@rjsf/validator-ajv8";
 import {
   Paper,
   Collapse,
@@ -309,6 +310,7 @@ const ShiftSummary = () => {
         </div>
         <Form
           schema={shiftFormSchema}
+          validator={validator}
           onSubmit={handleSubmit}
           // eslint-disable-next-line react/jsx-no-bind
           validate={validate}

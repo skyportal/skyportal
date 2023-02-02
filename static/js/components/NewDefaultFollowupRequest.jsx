@@ -5,6 +5,7 @@ import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
 // eslint-disable-next-line import/no-unresolved
 import Form from "@rjsf/core";
+import validator from "@rjsf/validator-ajv8";
 import CircularProgress from "@mui/material/CircularProgress";
 import makeStyles from "@mui/styles/makeStyles";
 
@@ -216,6 +217,7 @@ const NewDefaultFollowupRequest = () => {
         <div>
           <Form
             schema={formSchema}
+            validator={validator}
             uiSchema={uiSchema}
             onSubmit={handleSubmit}
           />

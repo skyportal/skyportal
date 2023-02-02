@@ -6,6 +6,7 @@ import DialogContent from "@mui/material/DialogContent";
 import makeStyles from "@mui/styles/makeStyles";
 // eslint-disable-next-line import/no-unresolved
 import Form from "@rjsf/core";
+import validator from "@rjsf/validator-ajv8";
 import Button from "./Button";
 import * as Actions from "../ducks/source";
 
@@ -78,6 +79,7 @@ const EditFollowupRequestDialog = ({
         <DialogContent>
           <Form
             schema={formSchema}
+            validator={validator}
             uiSchema={
               instrumentFormParams[followupRequest.allocation.instrument.id]
                 .uiSchema

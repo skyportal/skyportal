@@ -6,6 +6,7 @@ import TextField from "@mui/material/TextField";
 import makeStyles from "@mui/styles/makeStyles";
 // eslint-disable-next-line import/no-unresolved
 import Form from "@rjsf/core";
+import validator from "@rjsf/validator-ajv8";
 import { showNotification } from "baselayer/components/Notifications";
 
 import dayjs from "dayjs";
@@ -243,6 +244,7 @@ const NewAllocation = () => {
       </div>
       <Form
         schema={allocationFormSchema}
+        validator={validator}
         onSubmit={handleSubmit}
         // eslint-disable-next-line react/jsx-no-bind
         validate={validate}

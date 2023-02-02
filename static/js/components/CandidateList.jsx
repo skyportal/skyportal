@@ -25,6 +25,7 @@ import Popover from "@mui/material/Popover";
 import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
 // eslint-disable-next-line import/no-unresolved
 import Form from "@rjsf/core";
+import validator from "@rjsf/validator-ajv8";
 
 import { showNotification } from "baselayer/components/Notifications";
 import * as candidatesActions from "../ducks/candidates";
@@ -1141,7 +1142,11 @@ const CandidateList = () => {
   const annotationsFilterDisplay = () =>
     !queryInProgress ? (
       <div>
-        <Form schema={filterFormSchema} onSubmit={handleFilterAdd} />
+        <Form
+          schema={filterFormSchema}
+          validator={validator}
+          onSubmit={handleFilterAdd}
+        />
       </div>
     ) : (
       <div />

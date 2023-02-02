@@ -13,6 +13,7 @@ import MenuItem from "@mui/material/MenuItem";
 import TextField from "@mui/material/TextField";
 // eslint-disable-next-line import/no-unresolved
 import Form from "@rjsf/core";
+import validator from "@rjsf/validator-ajv8";
 import CircularProgress from "@mui/material/CircularProgress";
 import makeStyles from "@mui/styles/makeStyles";
 import { showNotification } from "baselayer/components/Notifications";
@@ -552,6 +553,7 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
                   ]?.formSchema
                 : {}
             }
+            validator={validator}
             uiSchema={
               instrumentFormParams
                 ? instrumentFormParams[

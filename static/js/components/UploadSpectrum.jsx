@@ -5,6 +5,7 @@ import { Link } from "react-router-dom";
 import MUIDataTable from "mui-datatables";
 // eslint-disable-next-line import/no-unresolved
 import Form from "@rjsf/core";
+import validator from "@rjsf/validator-ajv8";
 import dataUriToBuffer from "data-uri-to-buffer";
 import Typography from "@mui/material/Typography";
 import Accordion from "@mui/material/Accordion";
@@ -613,6 +614,7 @@ const UploadSpectrumForm = ({ route }) => {
           </Typography>
           <Form
             schema={uploadFormSchema}
+            validator={validator}
             onSubmit={parseAscii}
             formData={persistentFormData}
             onChange={({ formData }) => {

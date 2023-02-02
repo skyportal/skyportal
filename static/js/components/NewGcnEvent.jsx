@@ -2,6 +2,7 @@ import React, { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 // eslint-disable-next-line import/no-unresolved
 import Form from "@rjsf/core";
+import validator from "@rjsf/validator-ajv8";
 import dataUriToBuffer from "data-uri-to-buffer";
 import { showNotification } from "baselayer/components/Notifications";
 import { submitGcnEvent } from "../ducks/gcnEvent";
@@ -134,6 +135,7 @@ const NewGcnEvent = () => {
   return (
     <Form
       schema={gcnEventFormSchema}
+      validator={validator}
       onSubmit={handleSubmit}
       // eslint-disable-next-line react/jsx-no-bind
       validate={validate}

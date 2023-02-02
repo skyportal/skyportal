@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 // eslint-disable-next-line import/no-unresolved
 import Form from "@rjsf/core";
+import validator from "@rjsf/validator-ajv8";
 import dataUriToBuffer from "data-uri-to-buffer";
 import { showNotification } from "baselayer/components/Notifications";
 import { submitTaxonomy, fetchTaxonomies } from "../ducks/taxonomies";
@@ -75,6 +76,7 @@ const NewTaxonomy = () => {
     <div>
       <Form
         schema={taxonomyFormSchema}
+        validator={validator}
         onSubmit={handleSubmit}
         // eslint-disable-next-line react/jsx-no-bind
         validate={validate}

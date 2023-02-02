@@ -2,6 +2,7 @@ import React from "react";
 import { useDispatch, useSelector } from "react-redux";
 // eslint-disable-next-line import/no-unresolved
 import Form from "@rjsf/core";
+import validator from "@rjsf/validator-ajv8";
 import { showNotification } from "baselayer/components/Notifications";
 import { submitMMADetector, fetchMMADetectors } from "../ducks/mmadetector";
 
@@ -81,6 +82,7 @@ const NewMMADetector = () => {
   return (
     <Form
       schema={mmadetectorFormSchema}
+      validator={validator}
       uiSchema={uiSchema}
       onSubmit={handleSubmit}
       // eslint-disable-next-line react/jsx-no-bind
