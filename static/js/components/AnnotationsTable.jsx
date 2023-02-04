@@ -104,13 +104,7 @@ const AnnotationsTable = ({ annotations, spectrumAnnotations = [] }) => {
   };
 
   // Curate data
-  annotations?.forEach((annotation) => {
-    annotation.type = "source";
-  });
-  spectrumAnnotations?.forEach((spectrumAnnotation) => {
-    spectrumAnnotation.type = "spectrum";
-    annotations?.push(spectrumAnnotation);
-  });
+  annotations?.push(...spectrumAnnotations);
   const tableData = [];
   annotations?.forEach((annotation) => {
     const {
