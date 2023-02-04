@@ -272,7 +272,7 @@ async def get_source(
         )
         source_info["labellers"] = [user.to_dict() for user in users]
 
-    source_info["annotations"] = sorted(
+    annotations = sorted(
         session.scalars(
             Annotation.select(user)
             .options(joinedload(Annotation.author))
@@ -282,6 +282,9 @@ async def get_source(
         .all(),
         key=lambda x: x.origin,
     )
+    source_info["annotations"] = [
+        {**annotation.to_dict(), 'type': 'source'} for annotation in annotations
+    ]
     readable_classifications = (
         session.scalars(
             Classification.select(user).where(Classification.obj_id == obj_id)
@@ -357,7 +360,7 @@ async def get_source(
                 else None
             )
     if include_color_mag:
-        source_info["color_magnitude"] = get_color_mag(source_info["annotations"])
+        source_info["color_magnitude"] = get_color_mag(annotations)
 
     source_info = recursive_to_dict(source_info)
     return source_info

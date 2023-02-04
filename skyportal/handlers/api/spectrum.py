@@ -1252,7 +1252,8 @@ class ObjSpectraHandler(BaseHandler):
                     reverse=True,
                 )
                 annotations = [
-                    {**a.to_dict(), 'author': a.author.to_dict()} for a in annotations
+                    {**a.to_dict(), 'author': a.author.to_dict(), 'type': 'spectrum'}
+                    for a in annotations
                 ]
                 spec_dict["annotations"] = annotations
                 spec_dict["instrument_name"] = spec.instrument.name
