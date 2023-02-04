@@ -20,6 +20,7 @@ import { getAnnotationValueString } from "./ScanningPageCandidateAnnotations";
 import Button from "./Button";
 
 import * as sourceActions from "../ducks/source";
+import * as spectraActions from "../ducks/spectra";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
@@ -90,15 +91,27 @@ const AnnotationsTable = ({ annotations, spectrumAnnotations = [] }) => {
   };
 
   const [isRemoving, setIsRemoving] = useState(null);
-  const handleDelete = async (obj_id, id) => {
-    setIsRemoving(id);
-    await dispatch(sourceActions.deleteAnnotation(obj_id, id));
+  const handleDelete = async (id, spectrum_id, annotation_id, type) => {
+    setIsRemoving(annotation_id);
+    if (type === "source") {
+      await dispatch(sourceActions.deleteAnnotation(id, annotation_id));
+    } else if (type === "spectrum") {
+      await dispatch(
+        spectraActions.deleteAnnotation(spectrum_id, annotation_id)
+      );
+    }
     setIsRemoving(null);
   };
 
   // Curate data
+  annotations?.forEach((annotation) => {
+    annotation.type = "source";
+  });
+  spectrumAnnotations?.forEach((spectrumAnnotation) => {
+    spectrumAnnotation.type = "spectrum";
+    annotations?.push(spectrumAnnotation);
+  });
   const tableData = [];
-  annotations?.push(...spectrumAnnotations);
   annotations?.forEach((annotation) => {
     const {
       id,
@@ -107,6 +120,8 @@ const AnnotationsTable = ({ annotations, spectrumAnnotations = [] }) => {
       data,
       author,
       created_at,
+      type,
+      spectrum_id = null,
       spectrum_observed_at: observed_at = null,
     } = annotation;
     Object.entries(data).forEach(([key, value]) => {
@@ -118,6 +133,8 @@ const AnnotationsTable = ({ annotations, spectrumAnnotations = [] }) => {
         value,
         author,
         created_at,
+        type,
+        spectrum_id,
         observed_at,
       });
     });
@@ -137,7 +154,12 @@ const AnnotationsTable = ({ annotations, spectrumAnnotations = [] }) => {
             <Button
               secondary
               onClick={() => {
-                handleDelete(annotation.obj_id, annotation.id);
+                handleDelete(
+                  annotation.obj_id,
+                  annotation.spectrum_id,
+                  annotation.id,
+                  annotation.type
+                );
               }}
               size="small"
               type="submit"
