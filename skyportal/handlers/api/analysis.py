@@ -11,6 +11,7 @@ from requests_oauthlib import OAuth1
 from requests.auth import HTTPBasicAuth, HTTPDigestAuth
 from tornado.ioloop import IOLoop
 from marshmallow.exceptions import ValidationError
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
 from baselayer.app.access import auth_or_token, permissions
@@ -812,6 +813,31 @@ class AnalysisHandler(BaseHandler):
                 data["obj_id"] = obj_id
                 data["obj"] = obj
 
+                # make sure the user has not exceeded the maximum number of analyses
+                # for this object. This will help save space on the disk
+                # an enforce a reasonable limit on the number of analyses.
+                stmt = ObjAnalysis.select(self.current_user).where(
+                    ObjAnalysis.obj_id == obj_id
+                )
+                stmt = stmt.where(ObjAnalysis.author == author)
+                stmt = stmt.where(ObjAnalysis.status == "completed")
+
+                total_matches = session.execute(
+                    select(func.count()).select_from(stmt)
+                ).scalar()
+
+                if (
+                    total_matches
+                    >= cfg["analysis_services.max_analysis_per_obj_per_user"]
+                ):
+                    return self.error(
+                        (
+                            'You have reached the maximum number of analyses for this object.'
+                            ' Please delete some analyses before attempting to start more analyses.'
+                        ),
+                        status=403,
+                    )
+
                 # Let's assemble the input data for this Obj
                 for input_type in input_data_types:
                     associated_resource = self.get_associated_obj_resource(input_type)
@@ -1448,6 +1474,30 @@ class AnalysisUploadHandler(BaseHandler):
                 data["obj_id"] = obj_id
                 data["obj"] = obj
 
+                # make sure the user has not exceeded the maximum number of analyses
+                # for this object. This will help save space on the disk
+                # an enforce a reasonable limit on the number of analyses.
+                stmt = ObjAnalysis.select(self.current_user).where(
+                    ObjAnalysis.obj_id == obj_id
+                )
+                stmt = stmt.where(ObjAnalysis.author == author)
+                stmt = stmt.where(ObjAnalysis.status == "completed")
+
+                total_matches = session.execute(
+                    select(func.count()).select_from(stmt)
+                ).scalar()
+
+                if (
+                    total_matches
+                    >= cfg["analysis_services.max_analysis_per_obj_per_user"]
+                ):
+                    return self.error(
+                        (
+                            'You have reached the maximum number of analyses for this object.'
+                            ' Please delete some analyses before uploading more.'
+                        ),
+                        status=403,
+                    )
                 invalid_after = datetime.datetime.utcnow() + datetime.timedelta(
                     seconds=10
                 )
