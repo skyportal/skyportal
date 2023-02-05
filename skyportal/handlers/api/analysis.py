@@ -1421,7 +1421,6 @@ class AnalysisUploadHandler(BaseHandler):
                     status=403,
                 )
 
-            # analysis_parameters = data.get('analysis_parameters', {})
             group_ids = data.pop('group_ids', None)
             if not group_ids:
                 group_ids = [g.id for g in self.current_user.accessible_groups]
@@ -1484,12 +1483,9 @@ class AnalysisUploadHandler(BaseHandler):
             if len(results.keys()) > 0:
                 analysis._data = results
                 analysis.save_data()
-                log(
-                    f"Saved upload_only analysis data at {analysis.filename}. Message: {analysis.status_message}"
-                )
+                message = f"Saved upload_only analysis data at {analysis.filename}. Message: {analysis.status_message}"
             else:
-                log(
-                    f"Note: empty analysis upload_only results. Message: {analysis.status_message}"
-                )
+                message = f"Note: empty analysis upload_only results. Message: {analysis.status_message}"
+            log(message)
             session.commit()
-            return self.success(data={"id": analysis.id})
+            return self.success(data={"id": analysis.id, "message": message})
