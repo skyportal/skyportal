@@ -1477,6 +1477,9 @@ def post_source(data, user_id, session, refresh_source=True):
 
     user = session.scalar(sa.select(User).where(User.id == user_id))
 
+    if ' ' in data["id"]:
+        raise AttributeError("No spaces allowed in source ID")
+
     obj = session.scalars(Obj.select(user).where(Obj.id == data["id"])).first()
     if obj is None:
         obj_already_exists = False
