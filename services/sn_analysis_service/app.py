@@ -5,6 +5,7 @@ import base64
 import traceback
 import json
 
+# import PIL
 import joblib
 import numpy as np
 import matplotlib

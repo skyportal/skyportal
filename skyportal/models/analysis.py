@@ -403,7 +403,7 @@ class AnalysisMixin:
         else:
             reg = RE_NO_SLASHES
 
-        if not reg.match(string):
+        if string is None or not reg.match(string):
             raise ValueError(f'Illegal characters in string "{string}". ')
 
     @hybrid_property

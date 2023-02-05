@@ -1,6 +1,7 @@
 from .acls import ACLHandler, UserACLHandler
 from .allocation import AllocationHandler, AllocationReportHandler
 from .analysis import (
+    AnalysisUploadHandler,
     AnalysisServiceHandler,
     AnalysisHandler,
     AnalysisProductsHandler,

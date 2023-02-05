@@ -755,6 +755,16 @@ class AnalysisHandler(BaseHandler):
                     message=f'Could not access Analysis Service ID: {analysis_service_id}.',
                     status=403,
                 )
+
+            if analysis_service.upload_only:
+                return self.error(
+                    message=(
+                        f'Analysis Service ID: {analysis_service_id} is of type upload_only.'
+                        ' Please use the analysis_upload endpoint.'
+                    ),
+                    status=403,
+                )
+
             input_data_types = analysis_service.input_data_types.copy()
 
             analysis_parameters = data.get('analysis_parameters', {})
@@ -1310,3 +1320,176 @@ class AnalysisProductsHandler(BaseHandler):
                 )
 
             return self.error("No data found for this Analysis.", status=404)
+
+
+class AnalysisUploadHandler(BaseHandler):
+    @permissions(['Run Analyses'])
+    def post(self, analysis_resource_type, resource_id, analysis_service_id):
+        """
+        ---
+        description: Upload an upload_only analysis result
+        tags:
+          - analysis
+        parameters:
+          - in: path
+            name: analysis_resource_type
+            required: true
+            schema:
+              type: string
+            description: |
+               What underlying data the analysis is on:
+               must be "obj" (more to be added in the future)
+          - in: path
+            name: resource_id
+            required: true
+            schema:
+              type: string
+            description: |
+               The ID of the underlying data.
+               This would be a string for an object ID.
+          - in: path
+            name: analysis_service_id
+            required: true
+            schema:
+              type: string
+            description: the analysis service id to be used
+        requestBody:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  results:
+                    type: object
+                    description: Results data of this analysis
+                  show_parameters:
+                    type: boolean
+                    description: Whether to render the parameters of this analysis
+                  show_plots:
+                    type: boolean
+                    description: Whether to render the plots of this analysis
+                  show_corner:
+                    type: boolean
+                    description: Whether to render the corner plots of this analysis
+                  group_ids:
+                    type: array
+                    items:
+                      type: integer
+                    description: |
+                      List of group IDs corresponding to which groups should be
+                      able to view analysis results. Defaults to all of requesting user's
+                      groups.
+        responses:
+          200:
+            content:
+              application/json:
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          type: object
+                          properties:
+                            analysis_id:
+                              type: integer
+                              description: New analysis ID
+        """
+        # allowable resources now are [obj]. Can be extended in the future.
+        if analysis_resource_type.lower() not in ['obj']:
+            return self.error("Invalid analysis resource type", status=403)
+
+        try:
+            data = self.get_json()
+        except Exception as e:
+            return self.error(f'Error parsing JSON: {e}')
+
+        with self.Session() as session:
+
+            stmt = AnalysisService.select(self.current_user).where(
+                AnalysisService.id == analysis_service_id
+            )
+            analysis_service = session.scalars(stmt).first()
+            if analysis_service is None:
+                return self.error(
+                    message=f'Could not access Analysis Service ID: {analysis_service_id}.',
+                    status=403,
+                )
+            if not analysis_service.upload_only:
+                return self.error(
+                    message=f'Analysis Service ID: {analysis_service_id} is not of type upload_only.',
+                    status=403,
+                )
+
+            # analysis_parameters = data.get('analysis_parameters', {})
+            group_ids = data.pop('group_ids', None)
+            if not group_ids:
+                group_ids = [g.id for g in self.current_user.accessible_groups]
+
+            groups = session.scalars(
+                Group.select(self.current_user).where(Group.id.in_(group_ids))
+            ).all()
+            if {g.id for g in groups} != set(group_ids):
+                return self.error(
+                    f'Cannot find one or more groups with IDs: {group_ids}.'
+                )
+
+            data["groups"] = groups
+            author = self.associated_user_object
+            data["author"] = author
+
+            status_message = data.get("message", "")
+
+            if analysis_resource_type.lower() == 'obj':
+                obj_id = resource_id
+                stmt = Obj.select(self.current_user).where(Obj.id == obj_id)
+                obj = session.scalars(stmt).first()
+                if obj is None:
+                    return self.error(f'Obj {obj_id} not found', status=404)
+                data["obj_id"] = obj_id
+                data["obj"] = obj
+
+                invalid_after = datetime.datetime.utcnow() + datetime.timedelta(
+                    seconds=10
+                )
+                analysis = ObjAnalysis(
+                    obj=obj,
+                    author=author,
+                    groups=groups,
+                    analysis_service=analysis_service,
+                    show_parameters=data.get('show_parameters', True),
+                    show_plots=data.get('show_plots', True),
+                    show_corner=data.get('show_corner', True),
+                    analysis_parameters={},
+                    status='completed',
+                    status_message=status_message,
+                    handled_by_url="/",
+                    invalid_after=invalid_after,
+                    last_activity=datetime.datetime.utcnow(),
+                )
+            else:
+                return self.error(
+                    f'analysis_resource_type must be one of {", ".join(["obj"])}',
+                    status=404,
+                )
+            session.add(analysis)
+            try:
+                session.commit()
+            except IntegrityError as e:
+                return self.error(f'Analysis already exists: {str(e)}')
+            except Exception as e:
+                return self.error(f'Unexpected error creating analysis: {str(e)}')
+
+            results = data.get("analysis", {})
+            if len(results.keys()) > 0:
+                analysis._data = results
+                analysis.save_data()
+                log(
+                    f"Saved upload_only analysis data at {analysis.filename}. Message: {analysis.status_message}"
+                )
+            else:
+                log(
+                    f"Note: empty analysis upload_only results. Message: {analysis.status_message}"
+                )
+            session.commit()
+            return self.success(data={"id": analysis.id})
