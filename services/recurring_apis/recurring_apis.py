@@ -57,7 +57,7 @@ def perform_api_calls():
     now = datetime.utcnow()
     with DBSession() as session:
         try:
-            user = session.query(User).get(1)
+            user = session.query(User).where(User.id == 1).first()
             recurring_apis = session.scalars(
                 RecurringAPI.select(user).where(
                     RecurringAPI.next_call <= now, RecurringAPI.active.is_(True)

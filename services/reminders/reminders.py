@@ -60,7 +60,7 @@ def send_reminders():
     reminders = []
     with DBSession() as session:
         try:
-            user = session.query(User).get(1)
+            user = session.query(User).where(User.id == 1).first()
             reminders = (
                 (
                     session.scalars(
