@@ -43,6 +43,9 @@ const NewSource = ({ classes }) => {
   };
 
   function validate(formData, errors) {
+    if (formData.id.indexOf(" ") >= 0) {
+      errors.id.addError("IDs are not allowed to have spaces, please fix.");
+    }
     if (formData.ra < 0 || formData.ra >= 360) {
       errors.ra.addError("0 <= RA < 360, please fix.");
     }
@@ -91,6 +94,7 @@ const NewSource = ({ classes }) => {
               onSubmit={handleSubmit}
               // eslint-disable-next-line react/jsx-no-bind
               customValidate={validate}
+              liveValidate
             />
           </div>
         </div>
