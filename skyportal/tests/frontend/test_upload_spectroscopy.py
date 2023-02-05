@@ -47,7 +47,7 @@ def test_upload_spectroscopy(
     driver.click_xpath(preview_button_xpath, scroll_parent=True)
 
     submit_button_xpath = '//button[contains(.,"Upload Spectrum")]'
-    driver.click_xpath(submit_button_xpath, scroll_parent=True)
+    driver.click_xpath(submit_button_xpath, scroll_parent=True, timeout=30)
 
     driver.wait_for_xpath('//*[contains(.,"successful")]')
 
