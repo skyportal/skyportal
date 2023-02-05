@@ -798,10 +798,7 @@ class AnalysisHandler(BaseHandler):
                     f'Cannot find one or more groups with IDs: {group_ids}.'
                 )
 
-            data["groups"] = groups
             author = self.associated_user_object
-            data["author"] = author
-
             inputs = {"analysis_parameters": analysis_parameters}
 
             if analysis_resource_type.lower() == 'obj':
@@ -810,8 +807,6 @@ class AnalysisHandler(BaseHandler):
                 obj = session.scalars(stmt).first()
                 if obj is None:
                     return self.error(f'Obj {obj_id} not found', status=404)
-                data["obj_id"] = obj_id
-                data["obj"] = obj
 
                 # make sure the user has not exceeded the maximum number of analyses
                 # for this object. This will help save space on the disk
@@ -1348,7 +1343,7 @@ class AnalysisProductsHandler(BaseHandler):
             return self.error("No data found for this Analysis.", status=404)
 
 
-class AnalysisUploadHandler(BaseHandler):
+class AnalysisUploadOnlyHandler(BaseHandler):
     @permissions(['Run Analyses'])
     def post(self, analysis_resource_type, resource_id, analysis_service_id):
         """
@@ -1459,10 +1454,7 @@ class AnalysisUploadHandler(BaseHandler):
                     f'Cannot find one or more groups with IDs: {group_ids}.'
                 )
 
-            data["groups"] = groups
             author = self.associated_user_object
-            data["author"] = author
-
             status_message = data.get("message", "")
 
             if analysis_resource_type.lower() == 'obj':
@@ -1471,8 +1463,6 @@ class AnalysisUploadHandler(BaseHandler):
                 obj = session.scalars(stmt).first()
                 if obj is None:
                     return self.error(f'Obj {obj_id} not found', status=404)
-                data["obj_id"] = obj_id
-                data["obj"] = obj
 
                 # make sure the user has not exceeded the maximum number of analyses
                 # for this object. This will help save space on the disk
