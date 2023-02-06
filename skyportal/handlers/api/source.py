@@ -768,7 +768,11 @@ async def get_sources(
                     classification_accessible_subquery,
                     Obj.id == classification_accessible_subquery.c.obj_id,
                 )
-                classification_id_subquery = classification_id_query.subquery()
+                # classification_id_subquery = classification_id_query.subquery()
+                classification_id_subquery = (
+                    session.scalars(classification_id_query).unique().all()
+                )
+
             else:
                 classification_query = (
                     session.query(
@@ -792,7 +796,10 @@ async def get_sources(
                     classification_accessible_subquery,
                     Obj.id == classification_accessible_subquery.c.obj_id,
                 )
-                classification_id_subquery = classification_id_query.subquery()
+                # classification_id_subquery = classification_id_query.subquery()
+                classification_id_subquery = (
+                    session.scalars(classification_id_query).unique().all()
+                )
 
             obj_query = obj_query.where(Obj.id.in_(classification_id_subquery))
 
