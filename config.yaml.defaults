@@ -678,4 +678,4 @@ analysis_services:
   ngsf_analysis_service:
     port: 7001
 
-comment_folder: persistentdata/comments
+comments_folder: persistentdata/comments

@@ -609,9 +609,11 @@ class CommentHandler(BaseHandler):
                     )
 
             session.add(comment)
+            session.commit()
             if data_to_disk is not None:
                 comment.save_data(attachment_name, data_to_disk)
-            session.commit()
+                session.commit()
+
             if users_mentioned_in_comment:
                 for user_mentioned in users_mentioned_in_comment:
                     self.flow.push(
