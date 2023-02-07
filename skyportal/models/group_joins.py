@@ -31,7 +31,8 @@ import sqlalchemy as sa
 from baselayer.app.models import join_model, User, AccessibleIfUserMatches
 
 from baselayer.app.models import DBSession, restricted, CustomUserAccessControl
-from .photometry import Photometry, PhotometricSeries
+from .photometry import Photometry
+from .photometric_series import PhotometricSeries
 from .taxonomy import Taxonomy
 from .comment import (
     Comment,

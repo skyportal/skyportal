@@ -7,8 +7,7 @@ import arrow
 
 import numpy as np
 
-# import pandas as pd
-import xarray as xr
+import pandas as pd
 
 import sqlalchemy as sa
 from sqlalchemy.orm import relationship
@@ -24,7 +23,7 @@ from ..enum_types import allowed_bandpasses, time_stamp_alignment_types
 from .group import accessible_by_groups_members, accessible_by_streams_members
 
 
-from photometry import PHOT_ZP
+from .photometry import PHOT_ZP
 
 _, cfg = load_env()
 
@@ -42,18 +41,13 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
     continuously from mjd_first to mjd_last.
 
     To initialize this function user must provide:
-    - data: an xarray dataset.
-            The data must contain a "mjds" coordinate,
-            and either a "fluxes" or a "mags" dataset.
-            Other datasets can include "fluxerr" or "magerr",
+    - data: a pandas dataframe.
+            The data must contain a "mjds" column,
+            and either a "fluxes" or a "mags" columns.
+            Other columns can include "fluxerr" or "magerr",
             and any other auxiliary measurements that are stored
             but generally not used by SkyPortal like raw counts,
             backgrounds, fluxes in other apertures, ra/dec, etc.
-            All the datasets must have the same length along
-            the mjd dimension.
-            Auxiliary data (not mags/fluxes) may have additional
-            dimensions that are saved but do not affect
-            calculations/plotting in SkyPortal.
       - series_name: a unique identifier of the set of images from
             which this series was extracted. This is useful
             for finding other objects that were observed
@@ -85,8 +79,8 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         self.series_name = str(series_name)
         self.series_obj_id = str(series_obj_id)
 
-        if not isinstance(data, xr.Dataset) or len(data) == 0:
-            raise ValueError('Must supply a non-empty Dataset.')
+        if not isinstance(data, pd.DataFrame) or len(data.index) == 0:
+            raise ValueError('Must supply a non-empty DataFrame. ')
 
         # verify data has all required fields
         if 'fluxes' not in data and 'mags' not in data:
@@ -109,9 +103,6 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
 
         # figure out some of the summary statistics saved in the DB
         self.calculate_stats()
-
-        # save an MD5 hash of the data to avoid duplications
-        self.calc_hash()
 
         # ingest any kwargs with these keys:
         keys = [
@@ -377,16 +368,17 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
 
         return mean_value, scatter
 
-    def calc_hash(self):
-        md5_hash = hashlib.md5()
-        md5_hash.update(self._data.to_netcdf())
-        self.hash = md5_hash.hexdigest()
+    # def calc_hash(self):
+    #     md5_hash = hashlib.md5()
+    #     md5_hash.update(self._data.to_netcdf())
+    #     self.hash = md5_hash.hexdigest()
 
     def load_data(self):
         """
         Load the underlying photometric data from disk.
         """
-        self._data = xr.load_dataset(self.filename)
+        with pd.HDFStore(self.filename, mode='r') as store:
+            self._data = store[self.data_table]
 
     def save_data(self):
         """
@@ -418,7 +410,11 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
                 f'Full path to file {full_name} is longer than {MAX_FILEPATH_LENGTH} characters.'
             )
 
-        self._data.to_netcdf(full_name)
+        with pd.HDFStore(full_name, mode='w') as store:
+            store['phot_series'] = self._data
+            mem_buf = store._handle.get_file_image()
+            self.hash = hashlib.md5()
+            self.hash.update(mem_buf)
 
         self.filename = full_name
 
