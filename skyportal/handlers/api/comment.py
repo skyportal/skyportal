@@ -307,7 +307,6 @@ class CommentHandler(BaseHandler):
                     f'Unsupported associated_resource_type "{associated_resource_type}".'
                 )
 
-            print(comment_resource_id_str, resource_id)
             if comment_resource_id_str != resource_id:
                 return self.error(
                     f'Comment resource ID does not match resource ID given in path ({resource_id})'
@@ -982,7 +981,6 @@ class CommentHandler(BaseHandler):
             elif not isinstance(c, CommentOnShift):
                 obj_key = c.obj.internal_key
 
-            print(comment_resource_id_str, resource_id)
             if comment_resource_id_str != resource_id:
                 return self.error(
                     f'Comment resource ID does not match resource ID given in path ({resource_id})'
