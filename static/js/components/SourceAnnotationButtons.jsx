@@ -5,6 +5,8 @@ import { useDispatch } from "react-redux";
 import CircularProgress from "@mui/material/CircularProgress";
 import Button from "./Button";
 
+import SourceAnnotationButtonPlugins from "./SourceAnnotationButtonPlugins";
+
 import * as sourceActions from "../ducks/source";
 
 const SourceAnnotationButtons = ({ source }) => {
@@ -137,6 +139,7 @@ const SourceAnnotationButtons = ({ source }) => {
           Photoz
         </Button>
       )}
+      <SourceAnnotationButtonPlugins source={source} />
     </div>
   );
 };
