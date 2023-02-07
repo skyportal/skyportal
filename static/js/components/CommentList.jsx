@@ -267,6 +267,9 @@ const CommentList = ({
 
   if (associatedResourceType === "object") {
     comments = obj.comments;
+    comments?.forEach((comment) => {
+      comment.resourceType = associatedResourceType;
+    });
     if (
       includeCommentsOnAllResourceTypes &&
       typeof spectra === "object" &&
@@ -274,6 +277,9 @@ const CommentList = ({
       objID in spectra
     ) {
       specComments = spectra[objID]?.map((spec) => spec.comments)?.flat();
+      specComments?.forEach((specComment) => {
+        specComment.resourceType = "spectra";
+      });
     }
     if (comments !== null && specComments !== null) {
       comments = specComments.concat(comments);
@@ -285,16 +291,25 @@ const CommentList = ({
     }
     const spectrum = spectra[objID].find((spec) => spec.id === spectrumID);
     comments = spectrum?.comments;
+    comments?.forEach((comment) => {
+      comment.resourceType = associatedResourceType;
+    });
   } else if (associatedResourceType === "gcn_event") {
     if (gcnEventID === null) {
       throw new Error("Must specify a gcnEventID for comments on gcnEvent");
     }
     comments = gcnEvent.comments;
+    comments?.forEach((comment) => {
+      comment.resourceType = associatedResourceType;
+    });
   } else if (associatedResourceType === "shift") {
     if (shift_id === null) {
       throw new Error("Must specify a shiftID for comments on shift");
     }
     comments = currentShift?.comments;
+    comments?.forEach((comment) => {
+      comment.resourceType = associatedResourceType;
+    });
   } else if (associatedResourceType === "earthquake") {
     if (earthquakeID === null) {
       throw new Error(
@@ -302,6 +317,9 @@ const CommentList = ({
       );
     }
     comments = earthquake.comments;
+    comments?.forEach((comment) => {
+      comment.resourceType = associatedResourceType;
+    });
   } else {
     throw new Error(`Illegal input ${associatedResourceType} to CommentList. `);
   }
@@ -327,6 +345,7 @@ const CommentList = ({
             attachment_name,
             groups,
             spectrum_id,
+            resourceType,
           }) => (
             <span
               id="comment"
@@ -341,7 +360,7 @@ const CommentList = ({
             >
               {compactComments ? (
                 <CompactCommentList
-                  associatedResourceType={associatedResourceType}
+                  associatedResourceType={resourceType}
                   styles={styles}
                   id={id}
                   objID={objID}
@@ -356,7 +375,7 @@ const CommentList = ({
                 />
               ) : (
                 <RegularCommentList
-                  associatedResourceType={associatedResourceType}
+                  associatedResourceType={resourceType}
                   styles={styles}
                   id={id}
                   objID={objID}
