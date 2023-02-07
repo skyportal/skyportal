@@ -230,7 +230,10 @@ class CommentHandler(BaseHandler):
                         f'Unsupported associated resource type "{associated_resource_type}".'
                     )
 
-                query_output = [c.to_dict() for c in comments]
+                query_output = [
+                    {**c.to_dict(), 'resourceType': associated_resource_type.lower()}
+                    for c in comments
+                ]
                 query_size = sizeof(query_output)
                 if query_size >= SIZE_WARNING_THRESHOLD:
                     end = time.time()
@@ -312,7 +315,10 @@ class CommentHandler(BaseHandler):
                     f'Comment resource ID does not match resource ID given in path ({resource_id})'
                 )
 
-            comment_data = comment.to_dict()
+            comment_data = {
+                **comment.to_dict(),
+                'resourceType': associated_resource_type.lower(),
+            }
             query_size = sizeof(comment_data)
             if query_size >= SIZE_WARNING_THRESHOLD:
                 end = time.time()
@@ -1183,8 +1189,11 @@ class CommentAttachmentHandler(BaseHandler):
                 if data_path is None:
                     attachment = base64.b64decode(comment.attachment_bytes)
                 else:
-                    with open(data_path, 'rb') as f:
-                        attachment = f.read()
+                    if os.path.isfile(data_path):
+                        with open(data_path, 'rb') as f:
+                            attachment = f.read()
+                    else:
+                        return self.error(f'Comment file missing: {data_path}')
 
                 if preview and attachment_name.lower().endswith(("fit", "fits")):
                     try:
@@ -1204,8 +1213,11 @@ class CommentAttachmentHandler(BaseHandler):
                 if data_path is None:
                     data = base64.b64decode(comment.attachment_bytes).decode()
                 else:
-                    with open(data_path, 'rb') as f:
-                        data = f.read()
+                    if os.path.isfile(data_path):
+                        with open(data_path, 'rb') as f:
+                            data = f.read()
+                    else:
+                        return self.error(f'Comment file missing: {data_path}')
 
                 comment_data = {
                     "commentId": int(comment_id),
