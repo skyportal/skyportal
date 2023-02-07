@@ -331,7 +331,7 @@ class EventObservationPlanStatistics(Base):
         "EventObservationPlan",
         foreign_keys=observation_plan_id,
         doc="The EventObservationPlan that this planned observation belongs to",
-        overlaps='planned_observations',
+        overlaps='statistics',
     )
 
     localization_id = sa.Column(
