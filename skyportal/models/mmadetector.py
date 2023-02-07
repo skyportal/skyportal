@@ -100,7 +100,9 @@ class MMADetector(Base):
     )
 
 
-GcnEventMMADetector = join_model("gcnevents_mmadetectors", GcnEvent, MMADetector)
+GcnEventMMADetector = join_model(
+    "gcnevents_mmadetectors", GcnEvent, MMADetector, overlaps="detectors,events"
+)
 GcnEventMMADetector.__doc__ = "Join table mapping GcnEvents to MMADetectors."
 
 
