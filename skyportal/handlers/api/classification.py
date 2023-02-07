@@ -493,17 +493,12 @@ class ClassificationHandler(BaseHandler):
                 )
 
             data = self.get_json()
+            add_label = data.get('label', True)
 
             obj_key = c.obj.internal_key
             obj_id = c.obj.id
             group_ids = [group.id for group in c.groups]
             session.delete(c)
-
-            # labelling
-            add_label = True
-            if 'label' in data:
-                if data['label'] is False:
-                    add_label = False
 
             if add_label:
                 for group_id in group_ids:
@@ -629,12 +624,7 @@ class ObjClassificationHandler(BaseHandler):
             )
 
             data = self.get_json()
-
-            # labelling
-            add_label = True
-            if 'label' in data:
-                if data['label'] is False:
-                    add_label = False
+            add_label = data.get('label', True)
 
             for c in classifications:
                 obj_key = c.obj.internal_key
