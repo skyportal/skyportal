@@ -674,6 +674,7 @@ health_monitor:
 
 analysis_services:
   analysis_folder: persistentdata/analysis
+  max_analysis_per_obj_per_user: 50
   sn_analysis_service:
     port: 6801
   ngsf_analysis_service:

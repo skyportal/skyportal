@@ -8,6 +8,7 @@ from baselayer.log import make_log
 from skyportal.handlers import BecomeUserHandler, LogoutHandler
 from skyportal.handlers.api import (
     ACLHandler,
+    AnalysisUploadOnlyHandler,
     AnalysisServiceHandler,
     AnalysisHandler,
     AnalysisProductsHandler,
@@ -202,6 +203,10 @@ skyportal_handlers = [
     (r'/api/allocation/report(/[0-9]+)', AllocationReportHandler),
     (r'/api/allocation(/.*)?', AllocationHandler),
     (r'/api/analysis_service(/.*)?', AnalysisServiceHandler),
+    (
+        r'/api/(obj)/([0-9A-Za-z-_]+)/analysis_upload(/[0-9]+)?',
+        AnalysisUploadOnlyHandler,
+    ),
     (r'/api/(obj)/([0-9A-Za-z-_]+)/analysis(/[0-9]+)?', AnalysisHandler),
     (r'/api/(obj)/analysis(/[0-9]+)?', AnalysisHandler),
     (

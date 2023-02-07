@@ -108,7 +108,7 @@ class AnalysisWebhookHandler(BaseHandler):
             analysis.duration = (analysis.last_activity - last_active).total_seconds()
             session.commit()
         except Exception as e:
-            log(f'Troubling accessing Analysis with token {token} {e}.')
+            log(f'Trouble accessing Analysis with token {token} {e}.')
             return self.error("Invalid token", status=403)
 
         data = self.get_json()
