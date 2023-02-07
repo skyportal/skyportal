@@ -26,12 +26,12 @@ REQUEST_TIMEOUT_SECONDS = cfg['health_monitor.request_timeout_seconds']
 MAX_RETRIES = 10
 
 
+host = f'{cfg["server.protocol"]}://{cfg["server.host"]}:{cfg["server.port"]}'
+
+
 def is_loaded():
-    port = cfg['ports.app_internal']
     try:
-        r = requests.get(
-            f'http://localhost:{port}/api/sysinfo', timeout=REQUEST_TIMEOUT_SECONDS
-        )
+        r = requests.get(f'{host}/api/sysinfo', timeout=REQUEST_TIMEOUT_SECONDS)
     except:  # noqa: E722
         status_code = 0
     else:
@@ -69,9 +69,6 @@ def perform_api_calls():
 
         for recurring_api in recurring_apis:
             token = recurring_api.owner.tokens[0].id
-            host = (
-                f'{cfg["server.protocol"]}://{cfg["server.host"]}:{cfg["server.port"]}'
-            )
             if isinstance(recurring_api.payload, str):
                 data = json.loads(recurring_api.payload)
             elif isinstance(recurring_api.payload, dict):
