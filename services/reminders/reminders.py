@@ -27,13 +27,12 @@ log = make_log('reminders')
 
 REQUEST_TIMEOUT_SECONDS = cfg['health_monitor.request_timeout_seconds']
 
+host = f'{cfg["server.protocol"]}://{cfg["server.host"]}:{cfg["server.port"]}'
+
 
 def is_loaded():
-    port = cfg['ports.app_internal']
     try:
-        r = requests.get(
-            f'http://localhost:{port}/api/sysinfo', timeout=REQUEST_TIMEOUT_SECONDS
-        )
+        r = requests.get(f'{host}/api/sysinfo', timeout=REQUEST_TIMEOUT_SECONDS)
     except:  # noqa: E722
         status_code = 0
     else:
