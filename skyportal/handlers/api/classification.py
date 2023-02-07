@@ -473,7 +473,6 @@ class ClassificationHandler(BaseHandler):
                     nullable: true
                     description: |
                       Add label associated with classification.
-                required:
         responses:
           200:
             content:
@@ -610,7 +609,6 @@ class ObjClassificationHandler(BaseHandler):
                     nullable: true
                     description: |
                       Add label associated with classification.
-                required:
         responses:
           200:
             content:
