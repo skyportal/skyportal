@@ -477,25 +477,27 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
 
     To initialize this function user must provide:
     - data: an xarray dataset.
-            The data must contain an "mjds" coordinate,
+            The data must contain a "mjds" coordinate,
             and either a "fluxes" or a "mags" dataset.
             Other datasets can include "fluxerr" or "magerr",
             and any other auxiliary measurements that are stored
-            but generally not used by Skyportal like raw counts,
+            but generally not used by SkyPortal like raw counts,
             backgrounds, fluxes in other apertures, ra/dec, etc.
             All the datasets must have the same length along
             the mjd dimension.
             Auxiliary data (not mags/fluxes) may have additional
             dimensions that are saved but do not affect
-            calculations/plotting in Skyportal.
-      - series_id: a unique identifier of the set of images from
+            calculations/plotting in SkyPortal.
+      - series_name: a unique identifier of the set of images from
             which this series was extracted. This is useful
             for finding other objects that were observed
             at the same time as this series.
             Must be a string with only alphanumeric
             characters, underscores, plus/minus signs,
             and slashes (which are respected when
-            using the series_id to build the folder tree).
+            using the series_name to build the folder tree).
+            Examples of series names could be TESS sector number,
+            or "date/object_name" or "date/field_number".
     - series_obj_id: a unique index or name of the object inside
             this observation series. Can be an index of the
             star in the images, or an official designation.
@@ -505,26 +507,28 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
             Must be an integer or string with only
             alphanumeric characters, underscores and "+-".
             The total length of the folder tree,
-            including the root folder, series_id
+            including the root folder, series_name
             and series_obj_id must be less than
             255 characters.
     """
 
     __tablename__ = 'photometric_series'
 
-    def __init__(self, data, series_identifier, series_obj_id, **kwargs):
+    def __init__(self, data, series_name, series_obj_id, **kwargs):
 
-        self.series_identifier = str(series_identifier)
+        self.series_name = str(series_name)
         self.series_obj_id = str(series_obj_id)
 
         if not isinstance(data, xr.Dataset) or len(data) == 0:
             raise ValueError('Must supply a non-empty Dataset.')
 
         # verify data has all required fields
-        if 'fluxes' not in data and 'mags' not in data or 'mjds' not in data:
+        if 'fluxes' not in data and 'mags' not in data:
             raise KeyError(
-                'Data input to photometric series must contain at least ["fluxes"|"mags"] and "mjds". '
+                'Data input to photometric series must contain at least "fluxes" or "mags". '
             )
+        if 'mjds' not in data:
+            raise KeyError('Data input to photometric series must contain "mjds". ')
 
         # these can be lazy loaded from file
         self._data = data
@@ -543,6 +547,7 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         # save an MD5 hash of the data to avoid duplications
         self.calc_hash()
 
+        # ingest any kwargs with these keys:
         keys = [
             'obj_id',
             'instrument_id',
@@ -575,7 +580,7 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         Parameters
         ----------
         fluxes: float array
-            Array or list of fluxes in units of micro Jansky
+            Array or list of fluxes in units of micro-Jansky
 
         Returns
         -------
@@ -656,7 +661,7 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         """
         Use the available fluxes to calculate the magnitudes,
         or the available magnitudes to calculate the fluxes.
-        Also fills in the mjds field, and the errors if
+        Also, fills-in the mjds field, and the errors if
         they are included in the dataset.
         """
 
@@ -709,11 +714,16 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
             self.maxima[key] = float(self._data.mjds.max())
             self.stds[key] = float(self._data.mjds.std())
 
+        # This assumes the data is sorted by mjd!
         self.mjd_first = self.mjds[0]
+        self.mag_first = self.mags[0]
         self.mjd_last = self.mjds[-1]
+        self.mag_last = self.mags[-1]
         self.mjd_mid = (self.mjd_first + self.mjd_last) / 2
+
         detection_indices = np.where(self.snr > PHOT_DETECTION_THRESHOLD)[0]
         self.mjd_last_detected = self.mjds[detection_indices[-1]]
+        self.mag_last_detected = self.mags[detection_indices[-1]]
         self.is_detected = len(detection_indices) > 0
         self.num_exp = len(self.mjds)
 
@@ -738,9 +748,8 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
                 self.exp_time = self._data[key].median()
                 break
 
-        dt = (
-            np.nanmedian(np.diff(self.mjds)) * 24 * 3600
-        )  # time between exposures, in seconds
+        # time between exposures, in seconds
+        dt = np.nanmedian(np.diff(self.mjds)) * 24 * 3600
         self.frame_rate = 1 / dt
 
     @staticmethod
@@ -804,7 +813,6 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
 
     def calc_hash(self):
         md5_hash = hashlib.md5()
-
         md5_hash.update(self._data.to_netcdf())
         self.hash = md5_hash.hexdigest()
 
@@ -819,17 +827,17 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         Save the underlying photometric data to disk.
         """
 
-        # there's a default value but it is best to provide a full path in the config
-        root_folder = cfg.get('photometric_series_folder', 'phot_series')
+        # there's a default value, but it is best to provide a full path in the config
+        root_folder = cfg.get('photometric_series_folder', 'persistentdata/phot_series')
 
         # the filename can have alphanumeric, underscores, + or -
         self.check_path_string(self.series_obj_id)
 
-        # we can let series_identifier have slashes, which makes subdirs
-        self.check_path_string(self.series_identifier, allow_slashes=True)
+        # we can let series_name have slashes, which makes subdirs
+        self.check_path_string(self.series_name, allow_slashes=True)
 
         # make sure to replace windows style slashes
-        subfolder = self.series_identifier.replace("\\", "/")
+        subfolder = self.series_name.replace("\\", "/")
 
         filename = f'photo_series_{self.series_obj_id}.nc'
 
@@ -876,6 +884,12 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         doc='MJD of the first exposure of the series.',
         index=True,
     )
+    mag_first = sa.Column(
+        sa.Float,
+        nullable=False,
+        doc='Magnitude of the first exposure of the series.',
+        index=True,
+    )
 
     mjd_mid = sa.Column(
         sa.Float,
@@ -890,11 +904,23 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         doc='MJD of the last exposure of the series.',
         index=True,
     )
+    mag_last = sa.Column(
+        sa.Float,
+        nullable=False,
+        doc='Magnitude of the last exposure of the series.',
+        index=True,
+    )
 
     mjd_last_detected = sa.Column(
         sa.Float,
         nullable=False,
         doc='MJD of the last exposure that was above threshold.',
+        index=True,
+    )
+    mag_last_detected = sa.Column(
+        sa.Float,
+        nullable=False,
+        doc='Magnitude of the last exposure that was above threshold.',
         index=True,
     )
 
@@ -905,7 +931,7 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         index=True,
     )
 
-    series_identifier = sa.Column(
+    series_name = sa.Column(
         sa.String,
         nullable=False,
         doc='Unique identifier of the series of images out of which the photometry is generated.',
@@ -1086,11 +1112,18 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         sa.String,
         nullable=False,
         unique=True,
+        index=True,
         doc='MD5sum hash of the data to be saved to file. Prevents duplications.',
     )
 
     @staticmethod
     def check_path_string(string, allow_slashes=False):
+        """
+        Checks that a string is a valid path string.
+        Will only allow alphanumeric, plus/minus and underscores.
+        If allow_slashes is True, will also allow (back) slashes
+        Returns none, but will raise ValueError if string is invalid.
+        """
         if allow_slashes:
             reg = RE_SLASHES
         else:
@@ -1099,14 +1132,14 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         if not reg.match(string):
             raise ValueError(f'Illegal characters in string "{string}". ')
 
-    @hybrid_property
+    @property
     def data(self):
         """Lazy load the data dictionary"""
         if self._data is None:
             self.load_data()
         return self._data
 
-    @hybrid_property
+    @property
     def mjds(self):
         """
         Modified Julian dates for each exposure.
@@ -1117,7 +1150,7 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
             self.calc_flux_mag()  # do this once, cache all the hidden variables
         return np.array(self._mjds)
 
-    @hybrid_property
+    @property
     def fluxes(self):
         """
         Fluxes of each observation in µJy.
@@ -1129,7 +1162,7 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
             self.calc_flux_mag()  # do this once, cache all the hidden variables
         return np.array(self._fluxes)
 
-    @hybrid_property
+    @property
     def fluxerr(self):
         """
         Gaussian error on the flux in µJy.
@@ -1140,7 +1173,7 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
             self.calc_flux_mag()  # do this once, cache all the hidden variables
         return np.array(self._fluxerr)
 
-    @hybrid_property
+    @property
     def mags(self):
         """The magnitude of each point in the AB system."""
         if self._mags is None:  # lazy load
@@ -1149,7 +1182,7 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
             self.calc_flux_mag()  # do this once, cache all the hidden variables
         return np.array(self._mags)
 
-    @hybrid_property
+    @property
     def magerr(self):
         """The error on the magnitude of each photometry point."""
         if self._magerr is None:  # lazy load
@@ -1158,17 +1191,17 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
             self.calc_flux_mag()  # do this once, cache all the hidden variables
         return np.array(self._magerr)
 
-    @hybrid_property
+    @property
     def jd_first(self):
         """Julian Date of the first exposure of the series."""
         return self.mjd_first + 2_400_000.5
 
-    @hybrid_property
+    @property
     def jd_mid(self):
         """Julian Date of the middle of the series."""
         return self.mjd_mid + 2_400_000.5
 
-    @hybrid_property
+    @property
     def jd_last(self):
         """Julian Date of the last exposure of the series."""
         return self.mjd_last + 2_400_000.5
@@ -1217,7 +1250,7 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         # converts MJD to unix timestamp
         return sa.func.to_timestamp((cls.mjd_last_detected - 40_587) * 86400.0)
 
-    @hybrid_property
+    @property
     def snr(self):
         """Signal-to-noise ratio of each measurement"""
         if self.fluxerr is not None and np.all(self.fluxerr.shape == self.fluxes.shape):
