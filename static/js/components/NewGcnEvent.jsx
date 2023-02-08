@@ -21,11 +21,11 @@ const NewGcnEvent = () => {
   }, [dispatch]);
 
   const handleSubmit = async ({ formData }) => {
-    if (Object.keys(formData).includes("xml")) {
+    if (Object.keys(formData).includes("xml") && formData.xml !== undefined) {
       // eslint-disable-next-line prefer-destructuring
       formData.xml = dataUriToBuffer(formData.xml).toString();
     }
-    if (Object.keys(formData).includes("ra")) {
+    if (Object.keys(formData).includes("ra") && formData.ra !== undefined) {
       // eslint-disable-next-line prefer-destructuring
       formData.skymap = {
         ra: formData.ra,
@@ -33,7 +33,10 @@ const NewGcnEvent = () => {
         error: formData.error,
       };
     }
-    if (Object.keys(formData).includes("polygon")) {
+    if (
+      Object.keys(formData).includes("polygon") &&
+      formData.polygon !== undefined
+    ) {
       // eslint-disable-next-line prefer-destructuring
       formData.skymap = {
         localization_name: formData.localization_name,
