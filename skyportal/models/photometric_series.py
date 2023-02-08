@@ -1,7 +1,6 @@
 __all__ = ['PhotometricSeries']
 import os
 import re
-import uuid
 import hashlib
 import arrow
 
@@ -32,6 +31,56 @@ PHOT_DETECTION_THRESHOLD = cfg["misc.photometry_detection_threshold_nsigma"]
 RE_SLASHES = re.compile(r'^[\w_\-\+\/\\]*$')
 RE_NO_SLASHES = re.compile(r'^[\w_\-\+]*$')
 MAX_FILEPATH_LENGTH = 255
+
+# these must be given explicitly to the initialization function
+REQUIRED_ATTRIBUTES = [
+    'series_name',
+    'series_obj_id',
+    'obj_id',
+    'instrument_id',
+    'owner_id',
+    'group_ids',
+    'stream_ids',
+]
+# these can either be given directly to the constructor or inferred from the data columns
+INFERABLE_ATTRIBUTES = ['ra', 'dec', 'exp_time', 'filter']
+# these are optional and can be given to the constructor
+OPTIONAL_ATTRIBUTES = [
+    'channel_id',
+    'time_stamp_alignment',
+    'magref',
+    'magref_unc',
+    'ra_unc',
+    'dec_unc',
+    'altdata',
+    'origin',
+    'followup_request_id',
+    'assignment_id',
+]
+
+DATA_TYPES = {
+    'series_name': str,
+    'series_obj_id': str,
+    'obj_id': str,
+    'instrument_id': int,
+    'owner_id': int,
+    'group_ids': [int],
+    'stream_ids': [int],
+    'channel_id': int,
+    'time_stamp_alignment': str,
+    'magref': float,
+    'magref_unc': float,
+    'ra': float,
+    'dec': float,
+    'ra_unc': float,
+    'dec_unc': float,
+    'exp_time': float,
+    'filter': str,
+    'altdata': dict,
+    'origin': str,
+    'followup_request_id': int,
+    'assignment_id': int,
+}
 
 
 class PhotometricSeries(conesearch_alchemy.Point, Base):
@@ -74,10 +123,57 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
 
     __tablename__ = 'photometric_series'
 
-    def __init__(self, data, series_name, series_obj_id, **kwargs):
+    def __init__(self, data, **kwargs):
+        """
+        Creat a photometric series object.
+        When initializing, the user must provide:
+        data as a pandas DataFrame.
+        The data must have at least two columns:
+        "mjds" and either "fluxes" or "mags".
+        Some other keywords that can be given
+        are included in three lists:
+        REQUIRED_ATTRIBUTES, INFERABLE_ATTRIBUTES, OPTIONAL_ATTRIBUTES.
+        The REQUIRED_ATTRIBUTES must be given explicitly,
+        as they identify the object and series.
+        The INFERABLE_ATTRIBUTES can be given either
+        directly to the constructor or inferred from the data columns
+        (e.g., if there's an "ra" column, the median of that column
+        is used, if it doesn't exist it MUST be supplied directly).
+        The OPTIONAL_ATTRIBUTES can be given or they remain None
+        (or the default value for each attribute).
 
-        self.series_name = str(series_name)
-        self.series_obj_id = str(series_obj_id)
+        """
+        verified_kwargs = {}
+        for key in kwargs.keys():
+            if (
+                key
+                not in REQUIRED_ATTRIBUTES + INFERABLE_ATTRIBUTES + OPTIONAL_ATTRIBUTES
+            ):
+                raise ValueError(f'Unknown keyword argument "{key}"')
+            # make sure each value can be cast to the correct type
+            data_type = DATA_TYPES.get(key)
+            if isinstance(data_type, str):
+                verified_kwargs[key] = str(kwargs[key])
+            elif isinstance(data_type, int):
+                verified_kwargs[key] = int(kwargs[key])
+            elif isinstance(data_type, float):
+                verified_kwargs[key] = float(kwargs[key])
+            elif isinstance(data_type, dict):
+                verified_kwargs[key] = dict(kwargs[key])
+            elif isinstance(data_type, list):
+                verified_kwargs[key] = list(kwargs[key])
+                if len(data_type) == 1:  # e.g., [int]
+                    verified_kwargs[key] = [
+                        data_type[0](v) for v in verified_kwargs[key]
+                    ]
+            # can add more types here if needed
+            else:
+                verified_kwargs[key] = kwargs[key]
+
+        for key in REQUIRED_ATTRIBUTES:
+            if key not in verified_kwargs:
+                raise ValueError(f'"{key}" is a required attribute.')
+            setattr(self, key, verified_kwargs[key])
 
         if not isinstance(data, pd.DataFrame) or len(data.index) == 0:
             raise ValueError('Must supply a non-empty DataFrame. ')
@@ -85,10 +181,10 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         # verify data has all required fields
         if 'fluxes' not in data and 'mags' not in data:
             raise KeyError(
-                'Data input to photometric series must contain at least "fluxes" or "mags". '
+                'Input to photometric series must contain "fluxes" or "mags". '
             )
         if 'mjds' not in data:
-            raise KeyError('Data input to photometric series must contain "mjds". ')
+            raise KeyError('Input to photometric series must contain "mjds". ')
 
         # these can be lazy loaded from file
         self._data = data
@@ -102,29 +198,16 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         self.calc_flux_mag()
 
         # figure out some of the summary statistics saved in the DB
-        self.calculate_stats()
+        self.calculate_stats()  # also find exp_time, ra, dec, etc.
 
-        # ingest any kwargs with these keys:
-        keys = [
-            'obj_id',
-            'instrument_id',
-            'filter',
-            'exp_time',
-            'frame_rate',
-            'ra',
-            'dec',
-            'ra_unc',
-            'dec_unc',
-            'channel_id',
-            'time_stamp_alignment',
-            'upload_id',
-            'followup_request_id',
-            'assignment_id',
-            'owner_id',
-        ]
-        for k in keys:
-            if k in kwargs:
-                setattr(self, k, kwargs[k])
+        for k in INFERABLE_ATTRIBUTES + OPTIONAL_ATTRIBUTES:
+            if k in verified_kwargs:
+                setattr(self, k, verified_kwargs[k])
+
+        # verify we have all we need
+        for key in REQUIRED_ATTRIBUTES + INFERABLE_ATTRIBUTES:
+            if getattr(self, key) is None:
+                raise ValueError(f'Could not infer "{key}" from the data given. ')
 
     @staticmethod
     def flux2mag(fluxes):
@@ -284,7 +367,7 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         self.is_detected = len(detection_indices) > 0
         self.num_exp = len(self.mjds)
 
-        # if RA, Dec or exposure time are given in the auxiliary data:
+        # check if inferables are given as columns
         for key in ['RA', 'ra', 'Ra']:
             if key in self._data:
                 self.ra = self._data[key].median()
@@ -304,7 +387,10 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
             if key in self._data:
                 self.exp_time = self._data[key].median()
                 break
-
+        for key in ['filter', 'FILTER', 'Filter', 'filtercode']:
+            if key in self._data and len(self._data[key].unique()) == 0:
+                self.filter = self._data[key][0]
+                break
         # time between exposures, in seconds
         dt = np.nanmedian(np.diff(self.mjds)) * 24 * 3600
         self.frame_rate = 1 / dt
@@ -368,11 +454,6 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
 
         return mean_value, scatter
 
-    # def calc_hash(self):
-    #     md5_hash = hashlib.md5()
-    #     md5_hash.update(self._data.to_netcdf())
-    #     self.hash = md5_hash.hexdigest()
-
     def load_data(self):
         """
         Load the underlying photometric data from disk.
@@ -400,8 +481,6 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         filename = f'photo_series_{self.series_obj_id}.nc'
 
         path = os.path.join(root_folder, subfolder)
-        if not os.path.exists(path):
-            os.makedirs(path)
 
         full_name = os.path.join(path, filename)
 
@@ -409,6 +488,9 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
             raise ValueError(
                 f'Full path to file {full_name} is longer than {MAX_FILEPATH_LENGTH} characters.'
             )
+
+        if not os.path.exists(path):
+            os.makedirs(path)
 
         with pd.HDFStore(full_name, mode='w') as store:
             store['phot_series'] = self._data
@@ -422,7 +504,6 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         """
         Delete the underlying photometric data from disk
         """
-
         if os.path.exists(self.filename):
             os.remove(self.filename)
 
@@ -437,7 +518,7 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         sa.String,
         nullable=False,
         index=True,
-        doc="Full path and filename, or URI to the netCDF file storing photometric data.",
+        doc="Full path and filename, or URI to the HDF5 file storing photometric data.",
     )
 
     mjd_first = sa.Column(
@@ -496,18 +577,23 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
     series_name = sa.Column(
         sa.String,
         nullable=False,
-        doc='Unique identifier of the series of images out of which the photometry is generated.',
+        doc='Unique identifier of the series of images '
+        'out of which the photometry is generated. '
+        'E.g., the TESS sector number. ',
         index=True,
     )
 
     series_obj_id = sa.Column(
         sa.String,
         nullable=False,
-        doc='Unique identifier of an object inside the series of images out of which the photometry is generated.',
+        doc='Unique identifier of an object inside '
+        'the series of images out of which the '
+        'photometry is generated. '
+        'E.g., could be the TESS TICID. ',
     )
 
     channel_id = sa.Column(
-        sa.String, nullable=False, default='0', doc='Channel of the photometric series.'
+        sa.String, nullable=True, doc='Channel of the photometric series.'
     )
 
     filter = sa.Column(
@@ -537,8 +623,12 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         default='middle',
     )
 
-    ra_unc = sa.Column(sa.Float, doc="Uncertainty of ra position [arcsec]")
-    dec_unc = sa.Column(sa.Float, doc="Uncertainty of dec position [arcsec]")
+    ra_unc = sa.Column(
+        sa.Float, nullable=True, doc="Uncertainty of ra position [arcsec]"
+    )
+    dec_unc = sa.Column(
+        sa.Float, nullable=True, doc="Uncertainty of dec position [arcsec]"
+    )
 
     magref = sa.Column(
         sa.Float,
@@ -553,14 +643,7 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         sa.Float, nullable=True, doc="Uncertainty on the reference mag."
     )
 
-    altdata = sa.Column(JSONB, doc="Arbitrary metadata in JSON format.")
-
-    upload_id = sa.Column(
-        sa.String,
-        nullable=False,
-        default=lambda: str(uuid.uuid4()),
-        doc="ID of the batch in which this Photometry was uploaded (for bulk deletes).",
-    )
+    altdata = sa.Column(JSONB, default={}, doc="Arbitrary metadata in JSON format.")
 
     origin = sa.Column(
         sa.String,
