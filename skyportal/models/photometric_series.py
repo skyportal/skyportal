@@ -1,4 +1,10 @@
-__all__ = ['PhotometricSeries']
+__all__ = [
+    'PhotometricSeries',
+    'REQUIRED_ATTRIBUTES',
+    'INFERABLE_ATTRIBUTES',
+    'OPTIONAL_ATTRIBUTES',
+    'DATA_TYPES',
+]
 import os
 import re
 import hashlib
@@ -20,7 +26,6 @@ from baselayer.app.env import load_env
 
 from ..enum_types import allowed_bandpasses, time_stamp_alignment_types
 from .group import accessible_by_groups_members, accessible_by_streams_members
-
 
 from .photometry import PHOT_ZP
 
@@ -92,8 +97,8 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
     To initialize this function user must provide:
     - data: a pandas dataframe.
             The data must contain a "mjds" column,
-            and either a "fluxes" or a "mags" columns.
-            Other columns can include "fluxerr" or "magerr",
+            and either a "flux", "fluxes" "mags" or a "magnitudes"
+            columns. Other columns can include "fluxerr" or "magerr",
             and any other auxiliary measurements that are stored
             but generally not used by SkyPortal like raw counts,
             backgrounds, fluxes in other apertures, ra/dec, etc.
@@ -143,48 +148,32 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         (or the default value for each attribute).
 
         """
-        verified_kwargs = {}
-        for key in kwargs.keys():
-            if (
-                key
-                not in REQUIRED_ATTRIBUTES + INFERABLE_ATTRIBUTES + OPTIONAL_ATTRIBUTES
-            ):
-                raise ValueError(f'Unknown keyword argument "{key}"')
-            # make sure each value can be cast to the correct type
-            data_type = DATA_TYPES.get(key)
-            if isinstance(data_type, str):
-                verified_kwargs[key] = str(kwargs[key])
-            elif isinstance(data_type, int):
-                verified_kwargs[key] = int(kwargs[key])
-            elif isinstance(data_type, float):
-                verified_kwargs[key] = float(kwargs[key])
-            elif isinstance(data_type, dict):
-                verified_kwargs[key] = dict(kwargs[key])
-            elif isinstance(data_type, list):
-                verified_kwargs[key] = list(kwargs[key])
-                if len(data_type) == 1:  # e.g., [int]
-                    verified_kwargs[key] = [
-                        data_type[0](v) for v in verified_kwargs[key]
-                    ]
-            # can add more types here if needed
-            else:
-                verified_kwargs[key] = kwargs[key]
 
-        for key in REQUIRED_ATTRIBUTES:
-            if key not in verified_kwargs:
+        all_keys = REQUIRED_ATTRIBUTES + INFERABLE_ATTRIBUTES + OPTIONAL_ATTRIBUTES
+        for key in kwargs.keys():
+            if key not in all_keys:
+                raise ValueError(f'Unknown keyword argument "{key}"')
+
+        required_keys = REQUIRED_ATTRIBUTES + INFERABLE_ATTRIBUTES
+        for key in required_keys:
+            if key not in kwargs.keys():
                 raise ValueError(f'"{key}" is a required attribute.')
-            setattr(self, key, verified_kwargs[key])
+            setattr(self, key, kwargs[key])
 
         if not isinstance(data, pd.DataFrame) or len(data.index) == 0:
             raise ValueError('Must supply a non-empty DataFrame. ')
 
         # verify data has all required fields
-        if 'fluxes' not in data and 'mags' not in data:
+        for colname in ['flux', 'fluxes', 'mags', 'magnitudes']:
+            if colname not in data:
+                raise KeyError(
+                    'Input to photometric series must contain '
+                    '"flux", "fluxes", "mags" or "magnitudes". '
+                )
+        if 'mjd' not in data and 'mjds' not in data:
             raise KeyError(
-                'Input to photometric series must contain "fluxes" or "mags". '
+                'Input to photometric series must contain ' 'a "mjd" or "mjds" column. '
             )
-        if 'mjds' not in data:
-            raise KeyError('Input to photometric series must contain "mjds". ')
 
         # these can be lazy loaded from file
         self._data = data
@@ -200,14 +189,9 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         # figure out some of the summary statistics saved in the DB
         self.calculate_stats()  # also find exp_time, ra, dec, etc.
 
-        for k in INFERABLE_ATTRIBUTES + OPTIONAL_ATTRIBUTES:
-            if k in verified_kwargs:
-                setattr(self, k, verified_kwargs[k])
-
-        # verify we have all we need
-        for key in REQUIRED_ATTRIBUTES + INFERABLE_ATTRIBUTES:
-            if getattr(self, key) is None:
-                raise ValueError(f'Could not infer "{key}" from the data given. ')
+        for k in all_keys:
+            if k in kwargs:
+                setattr(self, k, kwargs[k])
 
     @staticmethod
     def flux2mag(fluxes):
@@ -305,11 +289,17 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         they are included in the dataset.
         """
 
-        if 'fluxes' in self._data:
+        if 'flux' in self._data:
+            self._fluxes = self._data['flux']
+            self._mags = self.flux2mag(self._fluxes)
+        elif 'fluxes' in self._data:
             self._fluxes = self._data['fluxes']
             self._mags = self.flux2mag(self._fluxes)
         elif 'mags' in self._data:
             self._mags = self._data['mags']
+            self._fluxes = self.mag2flux(self._mags)
+        elif 'magnitudes' in self._data:
+            self._mags = self._data['magnitudes']
             self._fluxes = self.mag2flux(self._mags)
         else:
             raise KeyError('Cannot find "fluxes" or "mags" in photometric data')
@@ -323,7 +313,13 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         else:
             self._magerr = np.array([])
             self._fluxerr = np.array([])
-        self._mjds = self._data['mjds']
+
+        if 'mjd' in self._data:
+            self._mjds = self._data['mjds']
+        elif 'mjds' in self._data:
+            self._mjds = self._data['mjds']
+        else:
+            raise KeyError('Cannot find "mjd" or "mjds" in photometric data')
 
     def calculate_stats(self):
         """
@@ -367,30 +363,6 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         self.is_detected = len(detection_indices) > 0
         self.num_exp = len(self.mjds)
 
-        # check if inferables are given as columns
-        for key in ['RA', 'ra', 'Ra']:
-            if key in self._data:
-                self.ra = self._data[key].median()
-                break
-        for key in ['Dec', 'DEC', 'dec']:
-            if key in self._data:
-                self.dec = self._data[key].median()
-                break
-        for key in [
-            'exptime',
-            'exp_time',
-            'exposure',
-            'exposure_time',
-            'EXPTIME',
-            'EXP_TIME',
-        ]:
-            if key in self._data:
-                self.exp_time = self._data[key].median()
-                break
-        for key in ['filter', 'FILTER', 'Filter', 'filtercode']:
-            if key in self._data and len(self._data[key].unique()) == 0:
-                self.filter = self._data[key][0]
-                break
         # time between exposures, in seconds
         dt = np.nanmedian(np.diff(self.mjds)) * 24 * 3600
         self.frame_rate = 1 / dt
@@ -494,6 +466,7 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
 
         with pd.HDFStore(full_name, mode='w') as store:
             store['phot_series'] = self._data
+            store.get_storer('phot_series').attrs.metadata = self.get_metadata()
             mem_buf = store._handle.get_file_image()
             self.hash = hashlib.md5()
             self.hash.update(mem_buf)
@@ -783,6 +756,22 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         if self._data is None:
             self.load_data()
         return self._data
+
+    def get_metadata(self):
+        """
+        Get all the properties that cannot be
+        ascertained directly from the data
+        into a single dictionary.
+
+        Any attributes that are None will not
+        be added to the dictionary.
+        """
+        output = {}
+        for key in REQUIRED_ATTRIBUTES + INFERABLE_ATTRIBUTES + OPTIONAL_ATTRIBUTES:
+            if getattr(self, key) is not None:
+                output[key] = getattr(self, key)
+
+        return output
 
     @property
     def mjds(self):
