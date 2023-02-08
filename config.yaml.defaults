@@ -468,6 +468,7 @@ server:
     debug_login: True
     google_oauth2_key:
     google_oauth2_secret:
+    google_oauth2_timeout: 15
 
 services:
   dask: False
