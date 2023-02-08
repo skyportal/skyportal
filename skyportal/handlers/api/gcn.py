@@ -317,6 +317,7 @@ def post_gcnevent_from_dictionary(payload, user_id, session):
         if not required_keys.issubset(set(skymap.keys())):
             required_cone_keys = {'ra', 'dec', 'error'}
             required_polygon_keys = {'localization_name', 'polygon'}
+            print(skymap)
             if required_cone_keys.issubset(set(skymap.keys())):
                 skymap = from_cone(skymap['ra'], skymap['dec'], skymap['error'])
             elif required_polygon_keys.issubset(set(skymap.keys())):
@@ -1292,9 +1293,17 @@ def add_tiles_and_properties_and_observation_plans(localization_id, user_id):
                     plan, user_id, session, asynchronous=False
                 )
                 for survey_efficiency in gcn_observation_plan['survey_efficiencies']:
-                    post_survey_efficiency_analysis(
-                        survey_efficiency, plan_id, user_id, session, asynchronous=False
-                    )
+                    try:
+                        post_survey_efficiency_analysis(
+                            survey_efficiency,
+                            plan_id,
+                            user_id,
+                            session,
+                            asynchronous=False,
+                        )
+                    except Exception as e:
+                        log(f"Survey efficiency analysis failed: {str(e)}")
+                        continue
 
         return log(
             f"Generated tiles / properties / observation plans for localization {localization_id}"
