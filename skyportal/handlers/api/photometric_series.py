@@ -514,6 +514,7 @@ class PhotometricSeriesHandler(BaseHandler):
                 ps.delete_data()  # make sure not to leave files behind
                 return self.error(f'Could not save photometric series: {e}')
 
+    @permissions(['Upload data'])
     def patch(self, photometric_series_id):
         f"""
         ---
@@ -689,6 +690,7 @@ class PhotometricSeriesHandler(BaseHandler):
 
             return self.success(data={'id': ps.id})
 
+    @permissions(['Upload data'])
     def get(self, photometric_series_id=None):
         """
         ---
@@ -1553,3 +1555,52 @@ class PhotometricSeriesHandler(BaseHandler):
                 'pageNumber': page_number,
             }
             return self.success(data=results)
+
+    @permissions(['Upload data'])
+    def delete(self, photometric_series_id):
+        """
+        ---
+        description: Delete a photometric series
+        tags:
+          - photometry
+          - photometric series
+        parameters:
+          - in: path
+            name: photometric_series_id
+            required: true
+            schema:
+              type: integer
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+
+        with self.Session() as session:
+            ps = session.scalars(
+                PhotometricSeries.select(session.user_or_token, mode="delete").where(
+                    PhotometricSeries.id == photometric_series_id
+                )
+            ).first()
+
+            if ps is None:
+                return self.error(
+                    f'Cannot find photometry point with ID: {photometric_series_id}.'
+                )
+
+            obj_id = ps.obj_id
+
+            session.delete(ps)
+            session.commit()
+
+            self.push_all(
+                action="skyportal/FETCH_SOURCE_PHOTOMETRY",
+                payload={"obj_id": obj_id},
+            )
+
+            return self.success()
