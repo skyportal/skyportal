@@ -920,7 +920,7 @@ class ASCIIHandler:
 
         # pass ascii in as a file-like object
         try:
-            file = io.BytesIO(ascii.encode('ascii'))
+            file = io.BytesIO(ascii.encode('ascii', 'ignore'))
         except UnicodeEncodeError:
             raise ValueError(
                 'Unable to parse uploaded spectrum file as ascii. '
