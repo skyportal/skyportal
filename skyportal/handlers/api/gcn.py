@@ -317,7 +317,6 @@ def post_gcnevent_from_dictionary(payload, user_id, session):
         if not required_keys.issubset(set(skymap.keys())):
             required_cone_keys = {'ra', 'dec', 'error'}
             required_polygon_keys = {'localization_name', 'polygon'}
-            print(skymap)
             if required_cone_keys.issubset(set(skymap.keys())):
                 skymap = from_cone(skymap['ra'], skymap['dec'], skymap['error'])
             elif required_polygon_keys.issubset(set(skymap.keys())):
