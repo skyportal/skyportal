@@ -1,151 +1,93 @@
+import os
 import base64
 
-# import numpy as np
+# import traceback
+
 import pandas as pd
 
-from baselayer.app.access import permissions  # , auth_or_token
+import sqlalchemy as sa
 
-# from baselayer.app.env import load_env
-# from baselayer.log import make_log
+from baselayer.app.access import permissions  # , auth_or_token
+from marshmallow.exceptions import ValidationError
+
+from baselayer.app.env import load_env
+
 from ..base import BaseHandler
 
-# from .photometry import get_group_ids, get_stream_ids
 from ...models.photometric_series import (
-    REQUIRED_ATTRIBUTES,
-    INFERABLE_ATTRIBUTES,
-    OPTIONAL_ATTRIBUTES,
-    DATA_TYPES,
+    PhotometricSeries,
+    # REQUIRED_ATTRIBUTES,
+    # INFERABLE_ATTRIBUTES,
+    # OPTIONAL_ATTRIBUTES,
+    # DATA_TYPES,
+    verify_data,
+    infer_metadata,
+    verify_metadata,
 )
+from ...models.group import Group
+from ...models.stream import Stream
+from ...models.obj import Obj
+from ...models.instrument import Instrument
+from ...models.followup_request import FollowupRequest
+from ...models.assignment import ClassicalAssignment
 
 
-def verify_data(data):
-    """
-    Verifies that the given data
-    is a pandas DataFrame.
-    Raises a TypeError if not.
-    Checks that the data contains the required
-    columns (flux or mag, and mjd).
-    Will raise a KeyError if not.
+_, cfg = load_env()
 
-    Parameters
-    ----------
-    data: pandas.DataFrame
-        The data to verify.
 
-    """
-    if not isinstance(data, pd.DataFrame) or len(data.index) == 0:
-        raise ValueError('Must supply a non-empty DataFrame. ')
-
-    for colname in ['flux', 'fluxes', 'mags', 'magnitudes']:
-        if colname not in data:
-            raise KeyError(
-                'Input to photometric series must contain '
-                '"flux", "fluxes", "mags" or "magnitudes". '
-            )
-    if 'mjd' not in data and 'mjds' not in data:
-        raise KeyError(
-            'Input to photometric series must contain ' 'a "mjd" or "mjds" column. '
+def get_group_ids(data, user, session):
+    group_ids = data.pop("group_ids", [])
+    if isinstance(group_ids, str) and group_ids == "all":
+        public_group = session.scalars(
+            sa.select(Group).where(Group.name == cfg["misc.public_group_name"])
+        ).first()
+        group_ids = [public_group.id]
+    if isinstance(group_ids, (int, str)):
+        group_ids = [group_ids]
+    if not isinstance(group_ids, (list, tuple)):
+        raise ValidationError(
+            "Invalid group_ids parameter value. Must be a list of IDs "
+            "(integers) or the string 'all'."
         )
+    for group_id in group_ids:
+        try:
+            group_id = int(group_id)
+        except TypeError:
+            raise ValidationError(
+                f"Invalid format for group id {group_id}, must be an integer."
+            )
+        group = session.scalars(Group.select(user).where(Group.id == group_id)).first()
+        if group is None:
+            raise ValidationError(f'Invalid group ID: {group_id}')
+
+    # always add the single user group
+    group_ids.append(user.single_user_group.id)
+    group_ids = list(set(group_ids))
+    return group_ids
 
 
-def infer_metadata(data):
-    """
-    Attempts to recover some object
-    parameters (metadata) like ra/dec,
-    from the given dataframe.
+def get_stream_ids(data, user, session):
+    stream_ids = data.pop("stream_ids", [])
+    if not isinstance(stream_ids, (list, tuple)):
+        raise ValidationError(
+            "Invalid stream_ids parameter value. Must be a list of IDs (integers)."
+        )
+    for stream_id in stream_ids:
+        try:
+            stream_id = int(stream_id)
+        except TypeError:
+            raise ValidationError(
+                f"Invalid format for stream id {stream_id}, must be an integer."
+            )
+        stream = session.scalars(
+            Stream.select(user).where(Stream.id == stream_id)
+        ).first()
 
-    Parameters
-    ----------
-    data: pandas.DataFrame
-        The data to extract metadata from.
+        if stream is None:
+            raise ValidationError(f'No stream with ID {stream_id}')
 
-    Returns
-    -------
-    metadata: dict
-        The metadata recovered from the data.
-        Could include ra, dec, filter, exp_time.
-    """
-    metadata = {}
-
-    for key in ['RA', 'ra', 'Ra']:
-        if key in data:
-            metadata['ra'] = data[key].median()
-            break
-    for key in ['Dec', 'DEC', 'dec']:
-        if key in data:
-            metadata['dec'] = data[key].median()
-            break
-    for key in [
-        'exptime',
-        'exp_time',
-        'exposure',
-        'exposure_time',
-        'EXPTIME',
-        'EXP_TIME',
-    ]:
-        if key in data:
-            metadata['exp_time'] = data[key].median()
-            break
-    for key in ['filter', 'FILTER', 'Filter', 'filtercode']:
-        if key in data and len(data[key].unique()) == 0:
-            metadata['filter'] = data[key][0]
-            break
-
-
-def verify_metadata(metadata):
-    """
-    Verifies that the required arguments
-    are all given in the metadata dictionary,
-    and that there are no unidentified keys.
-    Raises a KeyError if not.
-    Assumes that metadata that could have been
-    inferred from the data has already been added to metadata.
-    Verifies that all values are in the correct format.
-    Will convert values that can be cast into the
-    correct format if possible. Raises a ValueError
-    if it cannot cast any of the values.
-
-    Parameters
-    ----------
-    metadata: dict
-        The metadata to verify.
-        Assumes that metadata that could have been
-        inferred from the data has already been added to metadata.
-
-    Returns
-    -------
-    verified_metadata: dict
-        The verified metadata.
-        Any values that could be cast into the correct format
-        have been cast.
-    """
-    for key in REQUIRED_ATTRIBUTES + INFERABLE_ATTRIBUTES:
-        if key not in metadata:
-            raise ValueError(f'"{key}" is a required attribute.')
-
-    verified_metadata = {}
-    for key in metadata.keys():
-        if key not in REQUIRED_ATTRIBUTES + INFERABLE_ATTRIBUTES + OPTIONAL_ATTRIBUTES:
-            raise ValueError(f'Unknown keyword argument "{key}"')
-        # make sure each value can be cast to the correct type
-        data_type = DATA_TYPES.get(key)
-        if isinstance(data_type, str):
-            verified_metadata[key] = str(metadata[key])
-        elif isinstance(data_type, int):
-            verified_metadata[key] = int(metadata[key])
-        elif isinstance(data_type, float):
-            verified_metadata[key] = float(metadata[key])
-        elif isinstance(data_type, dict):
-            verified_metadata[key] = dict(metadata[key])
-        elif isinstance(data_type, list):
-            verified_metadata[key] = list(metadata[key])
-            if len(data_type) == 1:  # e.g., [int]
-                verified_metadata[key] = [
-                    data_type[0](v) for v in verified_metadata[key]
-                ]
-        # can add more types here if needed
-        else:
-            verified_metadata[key] = metadata[key]
+    stream_ids = list(set(stream_ids))
+    return stream_ids
 
 
 class PhotometricSeriesHandler(BaseHandler):
@@ -158,11 +100,13 @@ class PhotometricSeriesHandler(BaseHandler):
         """
         json_data = self.get_json()
         data = json_data.pop('data')
-
         if data is None:
             return self.error(
                 'Must supply data as a dictionary (JSON) or dataframe in HDF5 format. '
             )
+
+        # do not allow user input to change the owner_id (current user id)
+        json_data.pop('owner_id', None)
 
         attributes_metadata = {}
         if isinstance(data, dict):
@@ -213,12 +157,121 @@ class PhotometricSeriesHandler(BaseHandler):
             # now load any additional metadata from the json_data:
             metadata.update(json_data)
 
+        except Exception as e:
+            return self.error(f'Problem parsing data/metadata: {e}')
+
+        # check all the related DB objects are valid:
+        with self.Session() as session:
+            try:
+                group_ids = get_group_ids(
+                    json_data, self.associated_user_object, session
+                )
+            except Exception as e:
+                return self.error(f'Could not parse group IDs: {e}')
+            try:
+                stream_ids = get_stream_ids(
+                    json_data, self.associated_user_object, session
+                )
+            except Exception as e:
+                return self.error(f'Could not parse stream IDs: {e}')
+
+            obj_id = json_data.pop('obj_id', None)
+            if obj_id is None:
+                return self.error('Must supply an obj_id')
+            obj = session.scalars(
+                Obj.select(self.associated_user_object).where(Obj.id == obj_id)
+            ).first()
+            if obj is None:
+                return self.error(f'Invalid obj_id: {obj_id}')
+
+            instrument_id = json_data.get('instrument_id')
+            if instrument_id is not None:
+                instrument = session.scalars(
+                    Instrument.select(self.current_user).where(
+                        Instrument.id == instrument_id
+                    )
+                ).first()
+                if instrument is None:
+                    return self.error(f'Invalid instrument_id: {instrument_id}')
+
+            followup_request_id = json_data.get('followup_request_id')
+            if followup_request_id is not None:
+                followup_request = session.scalars(
+                    FollowupRequest.select(self.current_user).where(
+                        FollowupRequest.id == followup_request_id
+                    )
+                ).first()
+                if followup_request is None:
+                    return self.error(
+                        f'Invalid followup_request_id: {followup_request_id}'
+                    )
+
+            assignment_id = json_data.get('assignment_id')
+            if assignment_id is not None:
+                assignment = session.scalars(
+                    ClassicalAssignment.select(self.current_user).where(
+                        ClassicalAssignment.id == assignment_id
+                    )
+                ).first()
+                if assignment is None:
+                    return self.error(f'Invalid assignment_id: {assignment_id}')
+
+        try:
+            # load the group and stream IDs:
+            metadata.update(
+                {
+                    'group_ids': group_ids,
+                    'stream_ids': stream_ids,
+                    'owner_id': self.associated_user_object.id,
+                }
+            )
+
             # make sure all required attributes are present
             # make sure no unknown attributes are present
-            verify_metadata(metadata)
+            # parse all attributes into correct type
+            metadata = verify_metadata(metadata)
 
         except Exception as e:
-            return self.error(f'Problem parsing data/metadata. {e} ')
+            return self.error(f'Problem parsing data/metadata: {e}')
 
-        print(data)
-        print(metadata)
+        try:
+            ps = PhotometricSeries(data, **metadata)
+        except Exception as e:
+            return self.error(f'Could not create PhotometricSeries object: {e}')
+
+        try:
+            # make sure we can get the file name:
+            full_name, path = ps.make_full_name()
+
+            # make sure the file does not exist:
+            if os.path.isfile(full_name):
+                return self.error(f'File already exists: {full_name}')
+
+            # make sure this file is not already saved using the hash:
+            with self.Session() as session:
+                exiting_ps = session.scalars(
+                    sa.select(PhotometricSeries).where(
+                        PhotometricSeries.hash == ps.hash
+                    )
+                ).first()
+                if exiting_ps is not None:
+                    return self.error(
+                        'A PhotometricSeries with the same hash already exists, '
+                        f'with filename: {exiting_ps.make_full_name()[0]}'
+                    )
+
+        except Exception as e:
+            return self.error(f'Errors when making file name or hash: {e}')
+
+        with self.Session() as session:
+            try:
+                ps.save_data()
+                session.add(ps)
+                session.commit()
+
+                return self.success(data={'id': ps.id})
+
+            except Exception as e:
+                session.rollback()
+                ps.delete_data()  # make sure not to leave files behind
+                return self.error(f'Could not save photometric series: {e}')

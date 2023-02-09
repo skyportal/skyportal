@@ -4,6 +4,9 @@ __all__ = [
     'INFERABLE_ATTRIBUTES',
     'OPTIONAL_ATTRIBUTES',
     'DATA_TYPES',
+    'verify_data',
+    'infer_metadata',
+    'verify_metadata',
 ]
 import os
 import re
@@ -15,6 +18,7 @@ import numpy as np
 import pandas as pd
 
 import sqlalchemy as sa
+from sqlalchemy import event
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.hybrid import hybrid_property
@@ -51,7 +55,7 @@ REQUIRED_ATTRIBUTES = [
 INFERABLE_ATTRIBUTES = ['ra', 'dec', 'exp_time', 'filter']
 # these are optional and can be given to the constructor
 OPTIONAL_ATTRIBUTES = [
-    'channel_id',
+    'channel',
     'time_stamp_alignment',
     'magref',
     'magref_unc',
@@ -71,7 +75,7 @@ DATA_TYPES = {
     'owner_id': int,
     'group_ids': [int],
     'stream_ids': [int],
-    'channel_id': int,
+    'channel': int,
     'time_stamp_alignment': str,
     'magref': float,
     'magref_unc': float,
@@ -86,6 +90,144 @@ DATA_TYPES = {
     'followup_request_id': int,
     'assignment_id': int,
 }
+
+
+def verify_data(data):
+    """
+    Verifies that the given data
+    is a pandas DataFrame.
+    Raises a TypeError if not.
+    Checks that the data contains the required
+    columns (flux or mag, and mjd).
+    Will raise a KeyError if not.
+
+    Parameters
+    ----------
+    data: pandas.DataFrame
+        The data to verify.
+
+    """
+    if not isinstance(data, pd.DataFrame) or len(data.index) == 0:
+        raise ValueError('Must supply a non-empty DataFrame. ')
+
+    if not any([c in data for c in ['flux', 'fluxes', 'mags', 'magnitudes']]):
+        raise KeyError(
+            'Input to photometric series must contain '
+            '"flux", "fluxes", "mags" or "magnitudes". '
+        )
+    if not any([c in data for c in ['mjd', 'mjds']]):
+        raise KeyError(
+            'Input to photometric series must contain ' 'a "mjd" or "mjds" column. '
+        )
+
+
+def infer_metadata(data):
+    """
+    Attempts to recover some object
+    parameters (metadata) like ra/dec,
+    from the given dataframe.
+
+    Parameters
+    ----------
+    data: pandas.DataFrame
+        The data to extract metadata from.
+
+    Returns
+    -------
+    metadata: dict
+        The metadata recovered from the data.
+        Could include ra, dec, filter, exp_time.
+    """
+    metadata = {}
+
+    for key in ['RA', 'ra', 'Ra']:
+        if key in data:
+            metadata['ra'] = data[key].median()
+            break
+    for key in ['Dec', 'DEC', 'dec']:
+        if key in data:
+            metadata['dec'] = data[key].median()
+            break
+    for key in [
+        'exptime',
+        'exp_time',
+        'exposure',
+        'exposure_time',
+        'EXPTIME',
+        'EXP_TIME',
+    ]:
+        if key in data:
+            metadata['exp_time'] = data[key].median()
+            break
+    for key in ['filter', 'FILTER', 'Filter', 'filtercode']:
+        if key in data and len(data[key].unique()) == 1:
+            metadata['filter'] = data[key][0]
+            break
+
+    return metadata
+
+
+def verify_metadata(metadata):
+    """
+    Verifies that the required arguments
+    are all given in the metadata dictionary,
+    and that there are no unidentified keys.
+    Raises a KeyError if not.
+    Assumes that metadata that could have been
+    inferred from the data has already been added to metadata.
+    Verifies that all values are in the correct format.
+    Will convert values that can be cast into the
+    correct format if possible. Raises a ValueError
+    if it cannot cast any of the values.
+
+    Parameters
+    ----------
+    metadata: dict
+        The metadata to verify.
+        Assumes that metadata that could have been
+        inferred from the data has already been added to metadata.
+
+    Returns
+    -------
+    verified_metadata: dict
+        The verified metadata.
+        Any values that could be cast into the correct format
+        have been cast.
+    """
+    missing_keys = []
+    for key in REQUIRED_ATTRIBUTES + INFERABLE_ATTRIBUTES:
+        if key not in metadata:
+            missing_keys.append(key)
+    if len(missing_keys) > 0:
+        raise ValueError(f'The following keys are missing: {missing_keys}')
+
+    unknown_keys = []
+    for key in metadata.keys():
+        if key not in REQUIRED_ATTRIBUTES + INFERABLE_ATTRIBUTES + OPTIONAL_ATTRIBUTES:
+            unknown_keys.append(key)
+    if len(unknown_keys) > 0:
+        raise ValueError(f'Unknown keys in metadata: {unknown_keys}')
+
+    verified_metadata = {}
+    for key in metadata.keys():
+        try:
+            # make sure each value can be cast to the correct type
+            data_type = DATA_TYPES.get(key)
+            if data_type in (str, int, float, dict):
+                verified_metadata[key] = data_type(metadata[key])
+            elif data_type == list:
+                verified_metadata[key] = list(metadata[key])
+                if len(data_type) == 1:  # e.g., [int]
+                    verified_metadata[key] = [
+                        data_type[0](v) for v in verified_metadata[key]
+                    ]
+            # can add more types here if needed
+            else:
+                verified_metadata[key] = metadata[key]
+        except Exception as e:
+            raise ValueError(f'Could not cast {key} to the correct type: {e}')
+
+    return verified_metadata
 
 
 class PhotometricSeries(conesearch_alchemy.Point, Base):
@@ -130,7 +272,7 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
 
     def __init__(self, data, **kwargs):
         """
-        Creat a photometric series object.
+        Create a photometric series object.
         When initializing, the user must provide:
         data as a pandas DataFrame.
         The data must have at least two columns:
@@ -160,20 +302,9 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
                 raise ValueError(f'"{key}" is a required attribute.')
             setattr(self, key, kwargs[key])
 
-        if not isinstance(data, pd.DataFrame) or len(data.index) == 0:
-            raise ValueError('Must supply a non-empty DataFrame. ')
+        verify_data(data)
 
-        # verify data has all required fields
-        for colname in ['flux', 'fluxes', 'mags', 'magnitudes']:
-            if colname not in data:
-                raise KeyError(
-                    'Input to photometric series must contain '
-                    '"flux", "fluxes", "mags" or "magnitudes". '
-                )
-        if 'mjd' not in data and 'mjds' not in data:
-            raise KeyError(
-                'Input to photometric series must contain ' 'a "mjd" or "mjds" column. '
-            )
+        # additional verification is done in the handler!
 
         # these can be lazy loaded from file
         self._data = data
@@ -182,6 +313,7 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         self._fluxerr = None
         self._mags = None
         self._magerr = None
+        self._data_bytes = None
 
         # calculate mags from fluxes or vice-versa
         self.calc_flux_mag()
@@ -192,6 +324,8 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         for k in all_keys:
             if k in kwargs:
                 setattr(self, k, kwargs[k])
+
+        self.calc_hash()
 
     @staticmethod
     def flux2mag(fluxes):
@@ -315,7 +449,7 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
             self._fluxerr = np.array([])
 
         if 'mjd' in self._data:
-            self._mjds = self._data['mjds']
+            self._mjds = self._data['mjd']
         elif 'mjds' in self._data:
             self._mjds = self._data['mjds']
         else:
@@ -345,10 +479,10 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         self.maxima = {}
         self.stds = {}
         for key in self._data:
-            self.medians[key] = float(self._data.mjds.median())
-            self.minima[key] = float(self._data.mjds.min())
-            self.maxima[key] = float(self._data.mjds.max())
-            self.stds[key] = float(self._data.mjds.std())
+            self.medians[key] = np.nanmedian(self.mjds)
+            self.minima[key] = np.nanmin(self.mjds)
+            self.maxima[key] = np.nanmax(self.mjds)
+            self.stds[key] = np.nanstd(self.mjds)
 
         # This assumes the data is sorted by mjd!
         self.mjd_first = self.mjds[0]
@@ -433,11 +567,71 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         with pd.HDFStore(self.filename, mode='r') as store:
             self._data = store[self.data_table]
 
-    def save_data(self):
+    def get_data_bytes(self):
         """
-        Save the underlying photometric data to disk.
-        """
+        Return a bytes array representation of the
+        data that is going to be saved to disk.
+        This is lazy loaded if it is saved in self._data_bytes,
+        which is calculated from self.data along with
+        some metadata from this object.
 
+        Returns
+        -------
+        bytes
+            The data to be saved to disk.
+        """
+        if self._data_bytes is None:
+            # get the data to be saved to disk
+            # without actually writing anything yet
+            # ref: https://github.com/pandas-dev/pandas/issues/9246#issuecomment-74041497
+            with pd.HDFStore(
+                'test_file.h5',
+                mode='w',
+                driver="H5FD_CORE",
+                driver_core_backing_store=0,
+            ) as store:
+                # store['phot_series'] = self._data
+                # to avoid HDF5 storing the current timestamp in the file
+                # and thus messing up the checksum, we use track_times=False
+                # the index=None appears to also be needed:
+                # ref: https://github.com/pandas-dev/pandas/pull/32700#issuecomment-666383395
+                # ref: https://github.com/pandas-dev/pandas/blob/b1b70c7390e589bbfa0d8896aa76e64bec0cf51e/pandas/tests/io/pytables/test_store.py#L324
+                store.put(
+                    'phot_series',
+                    self._data,
+                    format='table',
+                    index=None,
+                    track_times=False,
+                )
+                store.get_storer('phot_series').attrs.metadata = self.get_metadata()
+                self._data_bytes = store._handle.get_file_image()
+
+        return self._data_bytes
+
+    def calc_hash(self):
+        """
+        Calculate the hash of the data on disk.
+        This uses the data_bytes property,
+        and could cause it to be compiled on the
+        first call to this function.
+        That data is kept for later when
+        it can be dumped to file.
+        """
+        self.hash = hashlib.md5()
+        self.hash.update(self.get_data_bytes())
+        self.hash = self.hash.hexdigest()
+
+    def make_full_name(self):
+        """
+        Make the full name for the data associated
+        with this photometry series on disk.
+        This includes the full path.
+
+        Returns
+        -------
+        full_name: str
+            The full name of the file on disk.
+        """
         # there's a default value, but it is best to provide a full path in the config
         root_folder = cfg.get('photometric_series_folder', 'persistentdata/phot_series')
 
@@ -450,7 +644,10 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         # make sure to replace windows style slashes
         subfolder = self.series_name.replace("\\", "/")
 
-        filename = f'photo_series_{self.series_obj_id}.nc'
+        origin = '_' + self.origin.replace(" ", "_") if self.origin else ''
+        channel = '_' + self.channel.replace(" ", "_") if self.channel else ''
+
+        filename = f'phot_series_{self.series_obj_id}_inst{self.instrument_id}{origin}{channel}.h5'
 
         path = os.path.join(root_folder, subfolder)
 
@@ -461,15 +658,23 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
                 f'Full path to file {full_name} is longer than {MAX_FILEPATH_LENGTH} characters.'
             )
 
+        return full_name, path
+
+    def save_data(self):
+        """
+        Save the underlying photometric data to disk.
+        """
+
+        # make sure no changes were made since object was initialized
+        self.calc_hash()
+
+        full_name, path = self.make_full_name()
+
         if not os.path.exists(path):
             os.makedirs(path)
 
-        with pd.HDFStore(full_name, mode='w') as store:
-            store['phot_series'] = self._data
-            store.get_storer('phot_series').attrs.metadata = self.get_metadata()
-            mem_buf = store._handle.get_file_image()
-            self.hash = hashlib.md5()
-            self.hash.update(mem_buf)
+        with open(full_name, 'wb') as f:
+            f.write(self.get_data_bytes())
 
         self.filename = full_name
 
@@ -477,7 +682,7 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         """
         Delete the underlying photometric data from disk
         """
-        if os.path.exists(self.filename):
+        if self.filename and os.path.exists(self.filename):
             os.remove(self.filename)
 
     read = (
@@ -491,6 +696,7 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         sa.String,
         nullable=False,
         index=True,
+        unique=True,
         doc="Full path and filename, or URI to the HDF5 file storing photometric data.",
     )
 
@@ -565,8 +771,8 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         'E.g., could be the TESS TICID. ',
     )
 
-    channel_id = sa.Column(
-        sa.String, nullable=True, doc='Channel of the photometric series.'
+    channel = sa.Column(
+        sa.String, nullable=True, doc='Name of channel of the photometric series.'
     )
 
     filter = sa.Column(
@@ -621,7 +827,6 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
     origin = sa.Column(
         sa.String,
         nullable=False,
-        unique=False,
         index=True,
         doc="Origin from which this photometric series was extracted (if any).",
         server_default='',
@@ -732,6 +937,14 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         unique=True,
         index=True,
         doc='MD5sum hash of the data to be saved to file. Prevents duplications.',
+    )
+
+    autodelete = sa.Column(
+        sa.Boolean,
+        nullable=False,
+        default=True,
+        doc='Whether the data file should be automatically deleted '
+        'from disk when this row is deleted from database. ',
     )
 
     @staticmethod
@@ -894,3 +1107,32 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
             return self.fluxes / err
 
         return self.fluxes / self.robust_rms
+
+
+PhotometricSeries.__table_args__ = (
+    sa.Index(
+        'phot_series_deduplication_index',
+        PhotometricSeries.obj_id,
+        PhotometricSeries.instrument_id,
+        PhotometricSeries.origin,
+        PhotometricSeries.filter,
+        PhotometricSeries.series_name,
+        PhotometricSeries.series_obj_id,
+        PhotometricSeries.channel,
+        unique=True,
+    ),
+)
+
+
+@event.listens_for(PhotometricSeries, "before_insert")
+def insert_new_dataset(mapper, connection, target):
+    """
+    This function is called before a new photometric series
+    is inserted into the database. It checks that a file is
+    associated with this object and raises a ValueError if not.
+    """
+    if target.filename is None:
+        raise ValueError(
+            "No filename specified for this PhotometricSeries. "
+            "Save the data to disk to generate a filename. "
+        )

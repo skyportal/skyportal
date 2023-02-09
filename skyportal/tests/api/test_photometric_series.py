@@ -27,8 +27,8 @@ def test_hdf5_file_vs_memory_hash():
             store.append('df', df)
 
         with open(filename, 'rb') as f:
-            file_hash = hashlib.md5()
             file_buf = f.read()
+            file_hash = hashlib.md5()
             file_hash.update(file_buf)
 
         assert len(file_buf) == len(mem_buf)
