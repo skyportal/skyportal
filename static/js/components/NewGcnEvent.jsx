@@ -74,6 +74,11 @@ const NewGcnEvent = () => {
           "Either (i) ra, dec, and error or (ii) polygon or (iii) skymap must be defined if not uploading VOEvent"
         );
       }
+      if (formData.polygon && !formData.localization_name) {
+        errors.polygon.addError(
+          "If polygon, must also specify localization name"
+        );
+      }
     }
     return errors;
   }
