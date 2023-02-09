@@ -50,7 +50,7 @@ def service():
                 perform_api_calls()
             except Exception as e:
                 log(e)
-        time.sleep(5)
+        time.sleep(30)
 
 
 def perform_api_calls():
