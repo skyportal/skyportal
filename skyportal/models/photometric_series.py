@@ -56,15 +56,15 @@ INFERABLE_ATTRIBUTES = ['ra', 'dec', 'exp_time', 'filter']
 # these are optional and can be given to the constructor
 OPTIONAL_ATTRIBUTES = [
     'channel',
-    'time_stamp_alignment',
+    'origin',
     'magref',
     'magref_unc',
     'ra_unc',
     'dec_unc',
-    'altdata',
-    'origin',
     'followup_request_id',
     'assignment_id',
+    'time_stamp_alignment',
+    'altdata',
 ]
 
 DATA_TYPES = {
@@ -306,8 +306,7 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
 
         # additional verification is done in the handler!
 
-        # these can be lazy loaded from file
-        self._data = data
+        # these can be lazy loaded from data
         self._mjds = None
         self._fluxes = None
         self._fluxerr = None
@@ -315,11 +314,10 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         self._magerr = None
         self._data_bytes = None
 
-        # calculate mags from fluxes or vice-versa
-        self.calc_flux_mag()
-
-        # figure out some of the summary statistics saved in the DB
-        self.calculate_stats()  # also find exp_time, ra, dec, etc.
+        # when setting data into the the public "data"
+        # attribute, we check the validity of the data
+        # and also call calc_flux_mag() and calc_stats()
+        self.data = data
 
         for k in all_keys:
             if k in kwargs:
@@ -455,7 +453,7 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         else:
             raise KeyError('Cannot find "mjd" or "mjds" in photometric data')
 
-    def calculate_stats(self):
+    def calc_stats(self):
         """
         Calculate some summary statistics to be saved in the DB.
 
@@ -472,6 +470,10 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         self.mean_mag = np.nanmean(self.mags)
         self.rms_mag = np.nanstd(self.mags)
         (self.robust_mag, self.robust_rms) = self.sigma_clipping(self.mags)
+
+        self.median_snr = np.nanmedian(self.snr)
+        self.best_snr = np.nanmax(self.snr)
+        self.worst_snr = np.nanmin(self.snr)
 
         # get the min/max/media for each column of data
         self.medians = {}
@@ -559,6 +561,22 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
             scatter = np.nanstd(values)
 
         return mean_value, scatter
+
+    def get_metadata(self):
+        """
+        Get all the properties that cannot be
+        ascertained directly from the data
+        into a single dictionary.
+
+        Any attributes that are None will not
+        be added to the dictionary.
+        """
+        output = {}
+        for key in REQUIRED_ATTRIBUTES + INFERABLE_ATTRIBUTES + OPTIONAL_ATTRIBUTES:
+            if getattr(self, key) is not None:
+                output[key] = getattr(self, key)
+
+        return output
 
     def load_data(self):
         """
@@ -660,9 +678,28 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
 
         return full_name, path
 
-    def save_data(self):
+    @staticmethod
+    def check_path_string(string, allow_slashes=False):
+        """
+        Checks that a string is a valid path string.
+        Will only allow alphanumeric, plus/minus and underscores.
+        If allow_slashes is True, will also allow (back) slashes
+        Returns none, but will raise ValueError if string is invalid.
+        """
+        if allow_slashes:
+            reg = RE_SLASHES
+        else:
+            reg = RE_NO_SLASHES
+
+        if not reg.match(string):
+            raise ValueError(f'Illegal characters in string "{string}". ')
+
+    def save_data(self, temp=False):
         """
         Save the underlying photometric data to disk.
+
+        Use temp=True to save a temporary file
+        (same file, appended with .tmp).
         """
 
         # make sure no changes were made since object was initialized
@@ -673,17 +710,30 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         if not os.path.exists(path):
             os.makedirs(path)
 
-        with open(full_name, 'wb') as f:
+        file_to_write = full_name
+        if temp:
+            full_name += '.tmp'
+
+        with open(file_to_write, 'wb') as f:
             f.write(self.get_data_bytes())
 
         self.filename = full_name
 
-    def delete_data(self):
+    def move_temp_data(self):
+        """Rename a temp data file to not have the .tmp extension."""
+        (full_name,) = self.make_full_name()
+        os.rename(full_name + '.tmp', full_name)
+
+    def delete_data(self, temp=False):
         """
-        Delete the underlying photometric data from disk
+        Delete the underlying photometric data from disk.
+        If temp=True, delete the temporary file.
         """
         if self.filename and os.path.exists(self.filename):
-            os.remove(self.filename)
+            file_to_delete = self.filename
+            if temp:
+                file_to_delete += '.tmp'
+            os.remove(file_to_delete)
 
     read = (
         accessible_by_groups_members
@@ -691,6 +741,56 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         | accessible_by_owner
     )
     update = delete = accessible_by_owner
+
+    obj_id = sa.Column(
+        sa.ForeignKey('objs.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+        doc="ID of the photometric series' Obj.",
+    )
+    obj = relationship(
+        'Obj', back_populates='photometric_series', doc="The photometric series' Obj."
+    )
+
+    series_name = sa.Column(
+        sa.String,
+        nullable=False,
+        index=True,
+        doc='Unique identifier of the series of images '
+        'out of which the photometry is generated. '
+        'E.g., the TESS sector number. ',
+    )
+
+    series_obj_id = sa.Column(
+        sa.String,
+        nullable=False,
+        index=True,
+        doc='Unique identifier of an object inside '
+        'the series of images out of which the '
+        'photometry is generated. '
+        'E.g., could be the TESS TICID. ',
+    )
+
+    filter = sa.Column(
+        allowed_bandpasses,
+        nullable=False,
+        index=True,
+        doc='Filter with which the observation was taken.',
+    )
+
+    channel = sa.Column(
+        sa.String,
+        nullable=True,
+        index=True,
+        doc='Name of channel of the photometric series.',
+    )
+
+    origin = sa.Column(
+        sa.String,
+        nullable=True,
+        index=True,
+        doc="Origin from which this photometric series was extracted (if any).",
+    )
 
     filename = sa.Column(
         sa.String,
@@ -703,103 +803,82 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
     mjd_first = sa.Column(
         sa.Float,
         nullable=False,
-        doc='MJD of the first exposure of the series.',
         index=True,
+        doc='MJD of the first exposure of the series.',
     )
     mag_first = sa.Column(
         sa.Float,
         nullable=False,
-        doc='Magnitude of the first exposure of the series.',
         index=True,
+        doc='Magnitude of the first exposure of the series.',
     )
 
     mjd_mid = sa.Column(
         sa.Float,
         nullable=False,
-        doc='MJD of the middle of the observation series.',
         index=True,
+        doc='MJD of the middle of the observation series.',
     )
 
     mjd_last = sa.Column(
         sa.Float,
         nullable=False,
-        doc='MJD of the last exposure of the series.',
         index=True,
+        doc='MJD of the last exposure of the series.',
     )
     mag_last = sa.Column(
         sa.Float,
         nullable=False,
-        doc='Magnitude of the last exposure of the series.',
         index=True,
+        doc='Magnitude of the last exposure of the series.',
     )
 
     mjd_last_detected = sa.Column(
         sa.Float,
         nullable=False,
-        doc='MJD of the last exposure that was above threshold.',
         index=True,
+        doc='MJD of the last exposure that was above threshold.',
     )
     mag_last_detected = sa.Column(
         sa.Float,
         nullable=False,
-        doc='Magnitude of the last exposure that was above threshold.',
         index=True,
+        doc='Magnitude of the last exposure that was above threshold.',
     )
 
     is_detected = sa.Column(
         sa.Boolean,
         nullable=False,
+        index=True,
         doc='True if any of the data points are above threshold.',
-        index=True,
-    )
-
-    series_name = sa.Column(
-        sa.String,
-        nullable=False,
-        doc='Unique identifier of the series of images '
-        'out of which the photometry is generated. '
-        'E.g., the TESS sector number. ',
-        index=True,
-    )
-
-    series_obj_id = sa.Column(
-        sa.String,
-        nullable=False,
-        doc='Unique identifier of an object inside '
-        'the series of images out of which the '
-        'photometry is generated. '
-        'E.g., could be the TESS TICID. ',
-    )
-
-    channel = sa.Column(
-        sa.String, nullable=True, doc='Name of channel of the photometric series.'
-    )
-
-    filter = sa.Column(
-        allowed_bandpasses,
-        nullable=False,
-        doc='Filter with which the observation was taken.',
     )
 
     exp_time = sa.Column(
-        sa.Float, nullable=False, doc='Median exposure time of each frame, in seconds.'
+        sa.Float,
+        nullable=False,
+        index=True,
+        doc='Median exposure time of each frame, in seconds.',
     )
 
     frame_rate = sa.Column(
         sa.Float,
         nullable=False,
+        index=True,
         doc='Median frame rate (frequency) of exposures in Hz.',
     )
 
     num_exp = sa.Column(
-        sa.Integer, nullable=False, doc='Number of exposures in the series. '
+        sa.Integer,
+        nullable=False,
+        index=True,
+        doc='Number of exposures in the series. ',
     )
 
     time_stamp_alignment = sa.Column(
         time_stamp_alignment_types,
         nullable=False,
-        doc='When in each exposure is the mjd timestamp measured: start, middle, or end.',
         default='middle',
+        doc='When in each exposure is the mjd timestamp measured: start, middle, or end.',
     )
 
     ra_unc = sa.Column(
@@ -823,24 +902,6 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
     )
 
     altdata = sa.Column(JSONB, default={}, doc="Arbitrary metadata in JSON format.")
-
-    origin = sa.Column(
-        sa.String,
-        nullable=False,
-        index=True,
-        doc="Origin from which this photometric series was extracted (if any).",
-        server_default='',
-    )
-
-    obj_id = sa.Column(
-        sa.ForeignKey('objs.id', ondelete='CASCADE'),
-        nullable=False,
-        index=True,
-        doc="ID of the photometric series' Obj.",
-    )
-    obj = relationship(
-        'Obj', back_populates='photometric_series', doc="The photometric series' Obj."
-    )
 
     groups = relationship(
         "Group",
@@ -901,8 +962,12 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         doc="The User who uploaded the photometric series.",
     )
 
-    mean_mag = sa.Column(sa.Float, doc='The average magnitude using nanmean.')
-    rms_mag = sa.Column(sa.Float, doc='Root Mean Square of the magnitudes. ')
+    mean_mag = sa.Column(
+        sa.Float, index=True, doc='The average magnitude using nanmean.'
+    )
+    rms_mag = sa.Column(
+        sa.Float, index=True, doc='Root Mean Square of the magnitudes. '
+    )
     robust_mag = sa.Column(
         sa.Float,
         doc='Robust estimate of the median magnitude, using outlier rejection.',
@@ -911,23 +976,45 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         sa.Float, doc='Robust estimate of the magnitude RMS, using outlier rejection.'
     )
 
+    median_snr = sa.Column(
+        sa.Float,
+        index=True,
+        doc='Median signal to noise ratio of all measurements.',
+    )
+
+    best_snr = sa.Column(
+        sa.Float,
+        index=True,
+        doc='Highest signal to noise ratio among all measurements.',
+    )
+
+    worst_snr = sa.Column(
+        sa.Float,
+        index=True,
+        doc='Lowest signal to noise ratio among all measurements.',
+    )
+
     medians = sa.Column(
         JSONB,
+        index=True,
         doc='Summary statistics on this series. The nanmedian value of each column in data.',
     )
 
     maxima = sa.Column(
         JSONB,
+        index=True,
         doc='Summary statistics on this series. The nanmax value of each column in data.',
     )
 
     minima = sa.Column(
         JSONB,
+        index=True,
         doc='Summary statistics on this series. The nanmin value of each column in data.',
     )
 
     stds = sa.Column(
         JSONB,
+        index=True,
         doc='Summary statistics on this series. The nanstd value of each column in data.',
     )
 
@@ -947,22 +1034,6 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         'from disk when this row is deleted from database. ',
     )
 
-    @staticmethod
-    def check_path_string(string, allow_slashes=False):
-        """
-        Checks that a string is a valid path string.
-        Will only allow alphanumeric, plus/minus and underscores.
-        If allow_slashes is True, will also allow (back) slashes
-        Returns none, but will raise ValueError if string is invalid.
-        """
-        if allow_slashes:
-            reg = RE_SLASHES
-        else:
-            reg = RE_NO_SLASHES
-
-        if not reg.match(string):
-            raise ValueError(f'Illegal characters in string "{string}". ')
-
     @property
     def data(self):
         """Lazy load the data dictionary"""
@@ -970,21 +1041,15 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
             self.load_data()
         return self._data
 
-    def get_metadata(self):
-        """
-        Get all the properties that cannot be
-        ascertained directly from the data
-        into a single dictionary.
+    @data.setter
+    def data(self, data):
+        """Set the underlying pandas dataframe"""
+        verify_data(data)
 
-        Any attributes that are None will not
-        be added to the dictionary.
-        """
-        output = {}
-        for key in REQUIRED_ATTRIBUTES + INFERABLE_ATTRIBUTES + OPTIONAL_ATTRIBUTES:
-            if getattr(self, key) is not None:
-                output[key] = getattr(self, key)
+        self._data = data
 
-        return output
+        self.calc_flux_mag()
+        self.calc_stats()
 
     @property
     def mjds(self):
@@ -1136,3 +1201,19 @@ def insert_new_dataset(mapper, connection, target):
             "No filename specified for this PhotometricSeries. "
             "Save the data to disk to generate a filename. "
         )
+
+
+@event.listens_for(PhotometricSeries, "after_delete")
+def delete_dataset(mapper, connection, target):
+    """
+    This function is called after a PhotometricSeries
+    is deleted from the database. If it is associated
+    with a file, and it has autodelete=True, then
+    the file will be automatically deleted.
+    """
+    if (
+        target.autodelete
+        and target.filename is not None
+        and os.path.isfile(target.filename)
+    ):
+        os.remove(target.filename)
