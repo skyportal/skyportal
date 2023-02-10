@@ -339,9 +339,12 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         self._magerr = None
         self._data_bytes = None
 
-        self.load_data()
-        self.calc_flux_mag()
-        self.calc_stats()
+        try:
+            self.load_data()
+            self.calc_flux_mag()
+            self.calc_stats()
+        except Exception:
+            pass  # silently fail to load
 
     def to_dict(self):
         """
@@ -818,14 +821,16 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
 
     channel = sa.Column(
         sa.String,
-        nullable=True,
+        nullable=False,
+        default='',
         index=True,
         doc='Name of channel of the photometric series.',
     )
 
     origin = sa.Column(
         sa.String,
-        nullable=True,
+        nullable=False,
+        default='',
         index=True,
         doc="Origin from which this photometric series was extracted (if any).",
     )

@@ -228,6 +228,28 @@ MAX_SERIES_PER_PAGE = 500
 
 
 def get_group_ids(data, user, session):
+    """
+    Get group IDs from the request data.
+
+    Parameters
+    ----------
+    data: dict
+        Dictionary that can contain a "group_ids" key.
+    user: skyportal.models.User
+        The user associated with the request.
+    session: sqlalchemy.orm.Session
+        The database session.
+
+    Returns
+    -------
+    group_ids: list of int
+        If input data['group_ids'] is "all",
+        returns the public group ID.
+        Otherwise will return the list of ints.
+        In any case, it will append the user's
+        single user group ID to the list,
+        and return only unique values.
+    """
     group_ids = data.pop("group_ids", [])
     if isinstance(group_ids, str) and group_ids == "all":
         public_group = session.scalars(
@@ -259,6 +281,24 @@ def get_group_ids(data, user, session):
 
 
 def get_stream_ids(data, user, session):
+    """
+    Get stream IDs from the request data.
+
+    Parameters
+    ----------
+    data: dict
+        Dictionary that can contain a "stream_ids" key.
+    user: skyportal.models.User
+        The user associated with the request.
+    session: sqlalchemy.orm.Session
+        The database session.
+
+    Returns
+    -------
+    stream_ids: list of int
+        Verifies each of the stream IDs in the input list
+        and returns the list of unique values.
+    """
     stream_ids = data.pop("stream_ids", [])
     if not isinstance(stream_ids, (list, tuple)):
         raise ValidationError(
@@ -311,6 +351,13 @@ def load_dataframe_from_bytestream(data):
 
 
 def individual_enum_checks(metadata):
+    """
+    Check that the metadata dictionary contains
+    the correct values for columns that are enums.
+    E.g., checks that the 'filter' column contains
+    a valid filter name.
+    If not, will raise a ValueError.
+    """
     # check filter is legal
     if metadata['filter'] not in ALLOWED_BANDPASSES:
         raise ValueError(
@@ -319,7 +366,7 @@ def individual_enum_checks(metadata):
         )
 
     # check time_stamp_alignement is legal
-    tsa = metadata.get('time_stamp_alignement', 'middle')
+    tsa = metadata.get('time_stamp_alignment', 'middle')
     if tsa not in ['start', 'middle', 'end']:
         raise ValueError(
             f'Time stamp alignment {tsa} is not allowed. '
@@ -328,6 +375,23 @@ def individual_enum_checks(metadata):
 
 
 def check_objects_exist(metadata, user, session):
+    """
+    Check that the objects referenced by their IDs
+    in the metadata dictionary exist and are accessible.
+    Will raise a ValueError if any of the objects
+    cannot be accessed by the user.
+
+    Parameters
+    ----------
+    metadata: dict
+        Dictionary containing the metadata for the photometric series.
+        Must have at least an 'object_id' and 'instrument_id' keys.
+    user: skyportal.models.User
+        The user associated with the request.
+    session: sqlalchemy.orm.Session
+        The database session.
+
+    """
     obj_id = metadata.get('obj_id', None)
     if obj_id is None:
         raise ValueError('Must supply an obj_id')
@@ -443,7 +507,7 @@ class PhotometricSeriesHandler(BaseHandler):
         with self.Session() as session:
             try:
                 group_ids = get_group_ids(
-                    json_data, self.associated_user_object, session
+                    metadata, self.associated_user_object, session
                 )
             except Exception:
                 return self.error(
@@ -451,7 +515,7 @@ class PhotometricSeriesHandler(BaseHandler):
                 )
             try:
                 stream_ids = get_stream_ids(
-                    json_data, self.associated_user_object, session
+                    metadata, self.associated_user_object, session
                 )
             except Exception:
                 return self.error(
@@ -459,7 +523,7 @@ class PhotometricSeriesHandler(BaseHandler):
                 )
 
             try:
-                check_objects_exist(json_data, self.associated_user_object, session)
+                check_objects_exist(metadata, self.associated_user_object, session)
             except Exception:
                 return self.error(
                     f'Problems accessing database objects: {traceback.format_exc()}'

@@ -3,6 +3,7 @@
 import os
 import shutil
 import uuid
+import base64
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -1645,7 +1646,7 @@ def analysis_token(user):
 def phot_series_maker():
     def _phot_series_maker(
         number=10,
-        pandas=False,
+        format='dict',
         use_mags=True,
         ra=None,
         dec=None,
@@ -1676,8 +1677,8 @@ def phot_series_maker():
             data['ra'] = np.mod(np.random.normal(ra, 0.001, number), 360)
         if 'dec' in extra_columns:
             data['dec'] = np.random.normal(dec, 0.001, number)
-            data['dec'] = np.max([data['dec'], -90], axis=0)
-            data['dec'] = np.min([data['dec'], 90], axis=0)
+            data['dec'] = np.maximum(data['dec'], -90)
+            data['dec'] = np.minimum(data['dec'], 90)
         if 'exp_time' in extra_columns:
             data['exp_time'] = np.array([exptime] * number)
         if 'filter' in extra_columns:
@@ -1687,11 +1688,27 @@ def phot_series_maker():
             if name not in ['ra', 'dec', 'exp_time', 'filter']:
                 data[name] = np.random.uniform(0, 1, number)
 
-        if pandas:
-            data = pd.DataFrame(data)
-        else:
+        if format == 'dict':
             for k, v in data.items():
                 data[k] = v.tolist()
+        elif format == 'pandas':
+            data = pd.DataFrame(data)
+        elif format == 'bytes':
+            # this store should work without writing to disk
+            # if you open a regular store you'd just need
+            # to delete the file at the end
+            with pd.HDFStore(
+                'test_file.h5',
+                mode='w',
+                driver="H5FD_CORE",
+                driver_core_backing_store=0,
+            ) as store:
+                store.put('phot_series', pd.DataFrame(data), format='table')
+                data = store._handle.get_file_image()
+                data = base64.b64encode(data)
+
+            # should not be any file like this
+            assert not os.path.isfile('test_file.h5')
 
         return data
 
