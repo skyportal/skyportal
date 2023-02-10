@@ -1,5 +1,6 @@
 import os
 import base64
+import traceback
 
 import pandas as pd
 import arrow
@@ -335,12 +336,15 @@ def check_objects_exist(metadata, user, session):
         raise ValueError(f'Invalid obj_id: {obj_id}')
 
     instrument_id = metadata.get('instrument_id')
-    if instrument_id is not None:
-        instrument = session.scalars(
-            Instrument.select(user).where(Instrument.id == instrument_id)
-        ).first()
-        if instrument is None:
-            raise ValueError(f'Invalid instrument_id: {instrument_id}')
+
+    if instrument_id is None:
+        raise ValueError('Must supply an instrument_id')
+
+    instrument = session.scalars(
+        Instrument.select(user).where(Instrument.id == instrument_id)
+    ).first()
+    if instrument is None:
+        raise ValueError(f'Invalid instrument_id: {instrument_id}')
 
     followup_request_id = metadata.get('followup_request_id')
     if followup_request_id is not None:
@@ -391,7 +395,7 @@ class PhotometricSeriesHandler(BaseHandler):
                               description: New photometric series ID
         """
         json_data = self.get_json()
-        data = json_data.pop('data')
+        data = json_data.pop('data', None)
         if data is None:
             return self.error(
                 'Must supply data as a dictionary (JSON) or dataframe in HDF5 format. '
@@ -401,13 +405,17 @@ class PhotometricSeriesHandler(BaseHandler):
         if isinstance(data, dict):
             try:
                 data = pd.DataFrame(data)
-            except Exception as e:
-                return self.error(f'Could not convert data to a DataFrame. {e} ')
+            except Exception:
+                return self.error(
+                    f'Could not convert data to a DataFrame. {traceback.format_exc()} '
+                )
         elif isinstance(data, str):
             try:
                 data, attributes_metadata = load_dataframe_from_bytestream(data)
-            except Exception as e:
-                return self.error(f'Could not load DataFrame from HDF5 file. {e} ')
+            except Exception:
+                return self.error(
+                    f'Could not load DataFrame from HDF5 file. {traceback.format_exc()} '
+                )
         else:
             return self.error(
                 'Data must be a dictionary (JSON) or dataframe in HDF5 format. '
@@ -426,13 +434,10 @@ class PhotometricSeriesHandler(BaseHandler):
             # now load any additional metadata from the json_data:
             metadata.update(json_data)
 
-        except Exception as e:
-            return self.error(f'Problem parsing data/metadata: {e}')
-
-        try:
-            individual_enum_checks(metadata)
-        except Exception as e:
-            return self.error(f'Problem parsing metadata: {e}')
+        except Exception:
+            return self.error(
+                f'Problem parsing data/metadata: {traceback.format_exc()}'
+            )
 
         # check all the related DB objects are valid:
         with self.Session() as session:
@@ -440,22 +445,28 @@ class PhotometricSeriesHandler(BaseHandler):
                 group_ids = get_group_ids(
                     json_data, self.associated_user_object, session
                 )
-            except Exception as e:
-                return self.error(f'Could not parse group IDs: {e}')
+            except Exception:
+                return self.error(
+                    f'Could not parse group IDs: {traceback.format_exc()}'
+                )
             try:
                 stream_ids = get_stream_ids(
                     json_data, self.associated_user_object, session
                 )
-            except Exception as e:
-                return self.error(f'Could not parse stream IDs: {e}')
+            except Exception:
+                return self.error(
+                    f'Could not parse stream IDs: {traceback.format_exc()}'
+                )
 
             try:
                 check_objects_exist(json_data, self.associated_user_object, session)
-            except Exception as e:
-                return self.error(f'Problems accessing database objects: {e}')
+            except Exception:
+                return self.error(
+                    f'Problems accessing database objects: {traceback.format_exc()}'
+                )
 
         try:
-            # load the group and stream IDs:
+            # load the group, stream and owner IDs:
             metadata.update(
                 {
                     'group_ids': group_ids,
@@ -469,13 +480,22 @@ class PhotometricSeriesHandler(BaseHandler):
             # parse all attributes into correct type
             metadata = verify_metadata(metadata)
 
-        except Exception as e:
-            return self.error(f'Problem parsing data/metadata: {e}')
+        except Exception:
+            return self.error(
+                f'Problem parsing data/metadata: {traceback.format_exc()}'
+            )
+
+        try:
+            individual_enum_checks(metadata)
+        except Exception:
+            return self.error(f'Problem parsing metadata: {traceback.format_exc()}')
 
         try:
             ps = PhotometricSeries(data, **metadata)
-        except Exception as e:
-            return self.error(f'Could not create PhotometricSeries object: {e}')
+        except Exception:
+            return self.error(
+                f'Could not create PhotometricSeries object: {traceback.format_exc()}'
+            )
 
         try:
             # make sure we can get the file name:
@@ -498,8 +518,10 @@ class PhotometricSeriesHandler(BaseHandler):
                         f'with filename: {existing_ps.make_full_name()[0]}'
                     )
 
-        except Exception as e:
-            return self.error(f'Errors when making file name or hash: {e}')
+        except Exception:
+            return self.error(
+                f'Errors when making file name or hash: {traceback.format_exc()}'
+            )
 
         with self.Session() as session:
             try:
@@ -509,10 +531,12 @@ class PhotometricSeriesHandler(BaseHandler):
 
                 return self.success(data={'id': ps.id})
 
-            except Exception as e:
+            except Exception:
                 session.rollback()
                 ps.delete_data()  # make sure not to leave files behind
-                return self.error(f'Could not save photometric series: {e}')
+                return self.error(
+                    f'Could not save photometric series: {traceback.format_exc()}'
+                )
 
     @permissions(['Upload data'])
     def patch(self, photometric_series_id):
@@ -567,19 +591,23 @@ class PhotometricSeriesHandler(BaseHandler):
 
             prev_filename = ps.filename
             json_data = self.get_json()
-            data = json_data.pop('data')  # allowed to be None
+            data = json_data.pop('data', None)  # allowed to be None
 
             attributes_metadata = {}
             if isinstance(data, dict):
                 try:
                     data = pd.DataFrame(data)
-                except Exception as e:
-                    return self.error(f'Could not convert data to a DataFrame. {e} ')
+                except Exception:
+                    return self.error(
+                        f'Could not convert data to a DataFrame. {traceback.format_exc()} '
+                    )
             elif isinstance(data, str):
                 try:
                     data, attributes_metadata = load_dataframe_from_bytestream(data)
-                except Exception as e:
-                    return self.error(f'Could not load DataFrame from HDF5 file. {e} ')
+                except Exception:
+                    return self.error(
+                        f'Could not load DataFrame from HDF5 file. {traceback.format_exc()} '
+                    )
 
             # check that the data is valid:
             inferred_metadata = {}
@@ -587,8 +615,10 @@ class PhotometricSeriesHandler(BaseHandler):
                 try:
                     verify_data(data)
                     inferred_metadata = infer_metadata(data)
-                except Exception as e:
-                    return self.error(f'Problem parsing data/metadata: {e}')
+                except Exception:
+                    return self.error(
+                        f'Problem parsing data/metadata: {traceback.format_exc()}'
+                    )
 
             # apply parameters from existing, inferred, bytes stream, and json body.
             existing_metadata = ps.get_metadata()
@@ -603,19 +633,25 @@ class PhotometricSeriesHandler(BaseHandler):
                 group_ids = get_group_ids(
                     metadata, self.associated_user_object, session
                 )
-            except Exception as e:
-                return self.error(f'Could not parse group IDs: {e}')
+            except Exception:
+                return self.error(
+                    f'Could not parse group IDs: {traceback.format_exc()}'
+                )
             try:
                 stream_ids = get_stream_ids(
                     metadata, self.associated_user_object, session
                 )
-            except Exception as e:
-                return self.error(f'Could not parse stream IDs: {e}')
+            except Exception:
+                return self.error(
+                    f'Could not parse stream IDs: {traceback.format_exc()}'
+                )
 
             try:
                 check_objects_exist(metadata, self.associated_user_object, session)
-            except Exception as e:
-                return self.error(f'Problems accessing database objects: {e}')
+            except Exception:
+                return self.error(
+                    f'Problems accessing database objects: {traceback.format_exc()}'
+                )
 
             try:
                 # load the group and stream IDs:
@@ -632,15 +668,24 @@ class PhotometricSeriesHandler(BaseHandler):
                 # parse all attributes into correct type
                 metadata = verify_metadata(metadata)
 
-            except Exception as e:
-                return self.error(f'Problem parsing data/metadata: {e}')
+            except Exception:
+                return self.error(
+                    f'Problem parsing data/metadata: {traceback.format_exc()}'
+                )
+
+            try:
+                individual_enum_checks(metadata)
+            except Exception:
+                return self.error(f'Problem parsing metadata: {traceback.format_exc()}')
 
             # update the underlying data (if given)
             if data is not None:
                 try:
                     ps.data = data  # also run calc_flux_mag() and calc_stats()
-                except Exception as e:
-                    return self.error(f'Could not update data: {e}')
+                except Exception:
+                    return self.error(
+                        f'Could not update data: {traceback.format_exc()}'
+                    )
 
             # update the metadata on the PhotometricSeries object
             for k, v in metadata.items():
@@ -667,25 +712,31 @@ class PhotometricSeriesHandler(BaseHandler):
                         f'with filename: {existing_ps.make_full_name()[0]}'
                     )
 
-            except Exception as e:
-                return self.error(f'Errors when making file name or hash: {e}')
+            except Exception:
+                return self.error(
+                    f'Errors when making file name or hash: {traceback.format_exc()}'
+                )
             try:
                 # save the new data as temporary file:
                 ps.save_data(temp=True)
                 session.add(ps)
                 session.commit()
 
-            except Exception as e:
+            except Exception:
                 session.rollback()
                 ps.delete_data(temp=True)  # make sure not to leave files behind
-                return self.error(f'Could not save photometric series: {e}')
+                return self.error(
+                    f'Could not save photometric series: {traceback.format_exc()}'
+                )
 
             # get rid of the old data, regardless of new name
             try:
                 if os.path.isfile(prev_filename):
                     os.remove(prev_filename)
-            except Exception as e:
-                log(f'Could not remove old file {prev_filename}: {e}')
+            except Exception:
+                log(
+                    f'Could not remove old file {prev_filename}: {traceback.format_exc()}'
+                )
             ps.move_temp_data()  # make the temp file permanent
 
             return self.success(data={'id': ps.id})
@@ -1009,7 +1060,7 @@ class PhotometricSeriesHandler(BaseHandler):
                 Get only series where the median S/N is less than this.
                 The S/N is calculated using the robust RMS.
             - in: query
-              name: maxMedianSNR
+              name: minMedianSNR
               nullable: true
               schema:
                 type: number
@@ -1025,7 +1076,7 @@ class PhotometricSeriesHandler(BaseHandler):
                 Get only series where the maximum S/N is less than this.
                 The S/N is calculated using the robust RMS.
             - in: query
-              name: maxBestSNR
+              name: minBestSNR
               nullable: true
               schema:
                 type: number
@@ -1041,7 +1092,7 @@ class PhotometricSeriesHandler(BaseHandler):
                 Get only series where the lowest S/N is less than this.
                 The S/N is calculated using the robust RMS.
             - in: query
-              name: maxWorstSNR
+              name: minWorstSNR
               nullable: true
               schema:
                 type: number
@@ -1121,7 +1172,7 @@ class PhotometricSeriesHandler(BaseHandler):
                 ).first()
                 if ps is None:
                     return self.error('Invalid photometric series ID.')
-                return self.success(data=ps)
+                return self.success(data=ps.to_dict())
 
         # get all photometric series
         ra = self.get_query_argument('ra', None)
@@ -1211,14 +1262,17 @@ class PhotometricSeriesHandler(BaseHandler):
             stmt = stmt.where(PhotometricSeries.origin == origin)
 
         if filename:
-            root_folder = cfg.get(
+            persistent_folder = cfg.get(
                 'photometric_series_folder', 'persistentdata/phot_series'
             )
-            abs_root_folder = os.path.abspath(root_folder)
-            if filename.startswith(abs_root_folder):
-                filename = filename[len(abs_root_folder) - len(root_folder) + 1 :]
+            basedir = os.path.abspath(
+                os.path.join(os.path.dirname(__file__), os.pardir, os.pardir)
+            )
+            root_folder = os.path.join(basedir, persistent_folder)
             if filename.startswith(root_folder):
                 pass
+            elif filename.startswith(persistent_folder):
+                filename = os.path.join(basedir, filename)
             else:
                 filename = os.path.join(root_folder, filename)
 
@@ -1227,38 +1281,50 @@ class PhotometricSeriesHandler(BaseHandler):
         if start_after is not None:
             try:
                 start_after_mjd = Time(arrow.get(start_after).datetime).mjd
-            except Exception as e:
-                return self.error(f'Cannot parse time {start_after}: {e}')
+            except Exception:
+                return self.error(
+                    f'Cannot parse time {start_after}: {traceback.format_exc()}'
+                )
             stmt = stmt.where(PhotometricSeries.mjd_first > start_after_mjd)
         if start_before is not None:
             try:
                 start_before_mjd = Time(arrow.get(start_before).datetime).mjd
-            except Exception as e:
-                return self.error(f'Cannot parse time {start_before}: {e}')
+            except Exception:
+                return self.error(
+                    f'Cannot parse time {start_before}: {traceback.format_exc()}'
+                )
             stmt = stmt.where(PhotometricSeries.mjd_first < start_before_mjd)
         if middle_after is not None:
             try:
                 middle_after_mjd = Time(arrow.get(middle_after).datetime).mjd
-            except Exception as e:
-                return self.error(f'Cannot parse time {middle_after}: {e}')
+            except Exception:
+                return self.error(
+                    f'Cannot parse time {middle_after}: {traceback.format_exc()}'
+                )
             stmt = stmt.where(PhotometricSeries.mjd_mid > middle_after_mjd)
         if middle_before is not None:
             try:
                 middle_before_mjd = Time(arrow.get(middle_before).datetime).mjd
-            except Exception as e:
-                return self.error(f'Cannot parse time {middle_before}: {e}')
+            except Exception:
+                return self.error(
+                    f'Cannot parse time {middle_before}: {traceback.format_exc()}'
+                )
             stmt = stmt.where(PhotometricSeries.mjd_mid < middle_before_mjd)
         if end_after is not None:
             try:
                 end_after_mjd = Time(arrow.get(end_after).datetime).mjd
-            except Exception as e:
-                return self.error(f'Cannot parse time {end_after}: {e}')
+            except Exception:
+                return self.error(
+                    f'Cannot parse time {end_after}: {traceback.format_exc()}'
+                )
             stmt = stmt.where(PhotometricSeries.mjd_last > end_after_mjd)
         if end_before is not None:
             try:
                 end_before_mjd = Time(arrow.get(end_before).datetime).mjd
-            except Exception as e:
-                return self.error(f'Cannot parse time {end_before}: {e}')
+            except Exception:
+                return self.error(
+                    f'Cannot parse time {end_before}: {traceback.format_exc()}'
+                )
             stmt = stmt.where(PhotometricSeries.mjd_last < end_before_mjd)
 
         if detected:

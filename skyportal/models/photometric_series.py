@@ -19,7 +19,7 @@ import pandas as pd
 
 import sqlalchemy as sa
 from sqlalchemy import event
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, reconstructor
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.hybrid import hybrid_property
 
@@ -110,10 +110,10 @@ def verify_data(data):
     if not isinstance(data, pd.DataFrame) or len(data.index) == 0:
         raise ValueError('Must supply a non-empty DataFrame. ')
 
-    if not any([c in data for c in ['flux', 'fluxes', 'mags', 'magnitudes']]):
+    if not any([c in data for c in ['flux', 'fluxes', 'mag', 'mags', 'magnitudes']]):
         raise KeyError(
             'Input to photometric series must contain '
-            '"flux", "fluxes", "mags" or "magnitudes". '
+            '"flux", "fluxes", "mag", "mags" or "magnitudes". '
         )
     if not any([c in data for c in ['mjd', 'mjds']]):
         raise KeyError(
@@ -239,7 +239,7 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
     To initialize this function user must provide:
     - data: a pandas dataframe.
             The data must contain a "mjds" column,
-            and either a "flux", "fluxes" "mags" or a "magnitudes"
+            and either a "flux", "fluxes", "mag", "mags" or a "magnitudes"
             columns. Other columns can include "fluxerr" or "magerr",
             and any other auxiliary measurements that are stored
             but generally not used by SkyPortal like raw counts,
@@ -324,6 +324,32 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
                 setattr(self, k, kwargs[k])
 
         self.calc_hash()
+
+    @reconstructor
+    def init_on_load(self):
+        """
+        This is called when the object
+        is loaded from the database.
+        ref: https://docs.sqlalchemy.org/en/14/orm/constructors.html
+        """
+        self._mjds = None
+        self._fluxes = None
+        self._fluxerr = None
+        self._mags = None
+        self._magerr = None
+        self._data_bytes = None
+
+        self.load_data()
+        self.calc_flux_mag()
+        self.calc_stats()
+
+    def to_dict(self):
+        """
+        Convert the object into a dictionary.
+        """
+        d = super().to_dict()
+        d['data'] = self.data.to_dict(orient='list')
+        return d
 
     @staticmethod
     def flux2mag(fluxes):
@@ -427,6 +453,9 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         elif 'fluxes' in self._data:
             self._fluxes = self._data['fluxes']
             self._mags = self.flux2mag(self._fluxes)
+        elif 'mag' in self._data:
+            self._mags = self._data['mag']
+            self._fluxes = self.mag2flux(self._mags)
         elif 'mags' in self._data:
             self._mags = self._data['mags']
             self._fluxes = self.mag2flux(self._mags)
@@ -583,7 +612,10 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         Load the underlying photometric data from disk.
         """
         with pd.HDFStore(self.filename, mode='r') as store:
-            self._data = store[self.data_table]
+            keys = list(store.keys())
+            if len(keys) != 1:
+                raise ValueError('HDF5 file must contain exactly one data table')
+            self._data = store[keys[0]]
 
     def get_data_bytes(self):
         """
@@ -652,6 +684,10 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         """
         # there's a default value, but it is best to provide a full path in the config
         root_folder = cfg.get('photometric_series_folder', 'persistentdata/phot_series')
+        basedir = os.path.abspath(
+            os.path.join(os.path.dirname(__file__), os.pardir, os.pardir)
+        )
+        root_folder = os.path.join(basedir, root_folder)
 
         # the filename can have alphanumeric, underscores, + or -
         self.check_path_string(self.series_obj_id)
@@ -665,7 +701,9 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         origin = '_' + self.origin.replace(" ", "_") if self.origin else ''
         channel = '_' + self.channel.replace(" ", "_") if self.channel else ''
 
-        filename = f'phot_series_{self.series_obj_id}_inst{self.instrument_id}{origin}{channel}.h5'
+        filename = (
+            f'series_{self.series_obj_id}_inst_{self.instrument_id}{channel}{origin}.h5'
+        )
 
         path = os.path.join(root_folder, subfolder)
 

@@ -8,6 +8,7 @@ from pathlib import Path
 
 import astroplan
 import numpy as np
+import pandas as pd
 import pytest
 import sqlalchemy as sa
 
@@ -1638,3 +1639,60 @@ def analysis_token(user):
     )
     yield token_id
     delete_token(token_id)
+
+
+@pytest.fixture()
+def phot_series_maker():
+    def _phot_series_maker(
+        number=10,
+        pandas=False,
+        use_mags=True,
+        ra=None,
+        dec=None,
+        exptime=30,
+        filter=None,
+        extra_columns=None,
+    ):
+        flux = np.random.uniform(15, 16, number)
+        mjds = np.sort(np.random.uniform(59000, 60000, number))
+        if ra is None:
+            ra = np.random.uniform(0, 360)
+        if dec is None:
+            dec = np.random.uniform(-90, 90)
+        if filter is None:
+            filter = np.random.choice(["ztfg", "ztfr", "ztfi"])
+
+        if use_mags:
+            data = {'mag': flux}
+        else:
+            data = {'flux': flux}
+
+        data['mjd'] = mjds
+
+        if extra_columns is None:
+            extra_columns = []
+
+        if 'ra' in extra_columns:
+            data['ra'] = np.mod(np.random.normal(ra, 0.001, number), 360)
+        if 'dec' in extra_columns:
+            data['dec'] = np.random.normal(dec, 0.001, number)
+            data['dec'] = np.max([data['dec'], -90], axis=0)
+            data['dec'] = np.min([data['dec'], 90], axis=0)
+        if 'exp_time' in extra_columns:
+            data['exp_time'] = np.array([exptime] * number)
+        if 'filter' in extra_columns:
+            data['filter'] = np.array([filter] * number)
+
+        for name in extra_columns:
+            if name not in ['ra', 'dec', 'exp_time', 'filter']:
+                data[name] = np.random.uniform(0, 1, number)
+
+        if pandas:
+            data = pd.DataFrame(data)
+        else:
+            for k, v in data.items():
+                data[k] = v.tolist()
+
+        return data
+
+    return _phot_series_maker
