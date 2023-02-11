@@ -594,18 +594,19 @@ def add_user_notifications(mapper, connection, target):
                     event = session.scalars(
                         sa.select(GcnEvent).where(GcnEvent.dateobs == target.dateobs)
                     ).first()
-                    notice = event.gcn_notices[-1]
-
-                    if (
-                        "gcn_notice_types" in pref["gcn_events"].keys()
-                        and send_notification
-                    ):
-                        if len(pref['gcn_events']["gcn_notice_types"]) > 0:
-                            if (
-                                not gcn.NoticeType(notice.notice_type).name
-                                in pref['gcn_events']['gcn_notice_types']
-                            ):
-                                send_notification = False
+                    notices = event.gcn_notices
+                    if len(notices) > 0:
+                        notice = notices[-1]
+                        if (
+                            "gcn_notice_types" in pref["gcn_events"].keys()
+                            and send_notification
+                        ):
+                            if len(pref['gcn_events']["gcn_notice_types"]) > 0:
+                                if (
+                                    not gcn.NoticeType(notice.notice_type).name
+                                    in pref['gcn_events']['gcn_notice_types']
+                                ):
+                                    send_notification = False
 
                     if "gcn_tags" in pref["gcn_events"].keys() and send_notification:
                         if len(pref['gcn_events']["gcn_tags"]) > 0:
