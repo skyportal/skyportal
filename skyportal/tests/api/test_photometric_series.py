@@ -766,72 +766,363 @@ def test_cannot_repost_series(
 
 
 def test_unique_constraint(phot_series_maker, user, public_source, ztf_camera):
-    df = pd.DataFrame(phot_series_maker())
-    filename = str(uuid.uuid4())
-    series_obj_id = np.random.randint(1e3, 1e4)
-    metadata = {
-        'obj_id': public_source.id,
-        'instrument_id': ztf_camera.id,
-        'ra': 1.0,
-        'dec': 1.0,
-        'series_name': 'dedup_test',
-        'series_obj_id': series_obj_id,
-        'exp_time': 30.0,
-        'filter': 'ztfg',
-        'owner_id': user.id,
-        'group_ids': [1],
-        'stream_ids': [],
-        'origin': 'ZTF',
-        'channel': 0,
-    }
-    session = DBSession()
-    ps = PhotometricSeries(data=df, **metadata)
-    ps.filename = filename
-    original_hash = ps.hash
-    session.add(ps)
-    session.commit()
-
-    # try to post the same data again
-    metadata.update({'channel': 1})
-    ps = PhotometricSeries(data=df, **metadata)
-    ps.filename = filename
-    ps.hash = original_hash
-    session.add(ps)
-    with pytest.raises(IntegrityError) as e:
+    try:
+        df = pd.DataFrame(phot_series_maker())
+        filename = str(uuid.uuid4())
+        series_obj_id = np.random.randint(1e3, 1e4)
+        metadata = {
+            'obj_id': public_source.id,
+            'instrument_id': ztf_camera.id,
+            'ra': 1.0,
+            'dec': 1.0,
+            'series_name': 'dedup_test',
+            'series_obj_id': series_obj_id,
+            'exp_time': 30.0,
+            'filter': 'ztfg',
+            'owner_id': user.id,
+            'group_ids': [1],
+            'stream_ids': [],
+            'origin': 'ZTF',
+            'channel': 0,
+        }
+        session = DBSession()
+        ps = PhotometricSeries(data=df, **metadata)
+        ps.filename = filename
+        original_hash = ps.hash
+        session.add(ps)
         session.commit()
 
-    assert 'violates unique constraint "ix_photometric_series_hash"' in str(e)
-    session.rollback()
+        # try to post the same data again
+        metadata.update({'channel': 1})
+        ps = PhotometricSeries(data=df, **metadata)
+        ps.filename = filename
+        ps.hash = original_hash
+        session.add(ps)
+        with pytest.raises(IntegrityError) as e:
+            session.commit()
 
-    # try to post the same data but deliberately change the hash
-    ps = PhotometricSeries(data=df, **metadata)
-    ps.filename = filename
-    ps.hash = str(uuid.uuid4())
-    session.add(ps)
-    with pytest.raises(IntegrityError) as e:
+        assert 'violates unique constraint "ix_photometric_series_hash"' in str(e)
+        session.rollback()
+
+        # try to post the same data but deliberately change the hash
+        ps = PhotometricSeries(data=df, **metadata)
+        ps.filename = filename
+        ps.hash = str(uuid.uuid4())
+        session.add(ps)
+        with pytest.raises(IntegrityError) as e:
+            session.commit()
+
+        assert 'violates unique constraint "ix_photometric_series_filename"' in str(e)
+        session.rollback()
+
+        # try to post the same data and change both filename and hash
+        # but make sure to go back to channel=0
+        metadata.update({'channel': 0})
+        ps = PhotometricSeries(data=df, **metadata)
+        ps.filename = filename
+        ps.hash = str(uuid.uuid4())
+        session.add(ps)
+        with pytest.raises(IntegrityError) as e:
+            session.commit()
+
+        assert 'violates unique constraint "phot_series_dedup' in str(e)
+        session.rollback()
+
+    finally:
+        # make sure to cleanup:
+        series = session.scalars(
+            sa.select(PhotometricSeries).where(
+                PhotometricSeries.series_name == 'dedup_test'
+            )
+        ).all()
+        [session.delete(s) for s in series]
         session.commit()
 
-    assert 'violates unique constraint "ix_photometric_series_filename"' in str(e)
-    session.rollback()
 
-    # try to post the same data and change both filename and hash
-    # but make sure to go back to channel=0
-    metadata.update({'channel': 0})
-    ps = PhotometricSeries(data=df, **metadata)
-    ps.filename = filename
-    ps.hash = str(uuid.uuid4())
-    session.add(ps)
-    with pytest.raises(IntegrityError) as e:
-        session.commit()
+def test_autodelete_series(photometric_series):
 
-    assert 'violates unique constraint "phot_series_dedup' in str(e)
-    session.rollback()
+    filename = photometric_series.filename
+    assert os.path.isfile(filename)
+    assert photometric_series.autodelete
 
-    # make sure to cleanup:
-    series = session.scalars(
-        sa.select(PhotometricSeries).where(
-            PhotometricSeries.series_name == 'dedup_test'
+    DBSession().delete(photometric_series)
+    DBSession().commit()
+
+    assert not os.path.isfile(filename)
+
+
+def test_no_autodelete_series(photometric_series):
+    filename = photometric_series.filename
+    assert os.path.isfile(filename)
+    photometric_series.autodelete = False
+
+    DBSession().delete(photometric_series)
+    DBSession().commit()
+
+    assert os.path.isfile(filename)
+    os.remove(filename)
+
+
+def test_patch_series_data(
+    phot_series_maker, upload_data_token, public_source, ztf_camera
+):
+
+    filename = None
+    ps_id = None
+
+    try:  # cleanup file at the end
+        input_data = phot_series_maker()
+        series_data = {
+            'data': input_data,
+            'obj_id': public_source.id,
+            'instrument_id': ztf_camera.id,
+            'ra': 234.22,
+            'dec': 52.31,
+            'series_name': '2020/summer',
+            'series_obj_id': np.random.randint(1e3, 1e4),
+            'exp_time': 30.0,
+            'filter': 'ztfg',
+            'origin': 'ZTF',
+        }
+
+        status, data = api(
+            'POST',
+            'photometric_series',
+            data=series_data,
+            token=upload_data_token,
         )
-    ).all()
-    [session.delete(s) for s in series]
-    session.commit()
+        assert_api(status, data)
+        ps_id = data["data"]["id"]
+
+        status, data = api(
+            'GET',
+            f'photometric_series/{ps_id}',
+            token=upload_data_token,
+        )
+        assert_api(status, data)
+        output_data = data['data']['data']
+
+        # make sure the data is the same
+        assert input_data == output_data
+
+        # now change the data
+        df = pd.DataFrame(input_data)
+
+        new_df = df.copy()
+        new_df['mjd'][-1] += 1
+
+        status, data = api(
+            'PATCH',
+            f'photometric_series/{ps_id}',
+            data={'data': new_df.to_dict(orient='list')},
+            token=upload_data_token,
+        )
+        assert_api(status, data)
+
+        status, data = api(
+            'GET',
+            f'photometric_series/{ps_id}',
+            token=upload_data_token,
+        )
+        assert_api(status, data)
+        filename = data['data']['filename']
+        output_data = data['data']['data']
+
+        # make sure the data is the same
+        assert input_data != output_data
+        assert input_data['mjd'][:-1] == output_data['mjd'][:-1] - 1
+
+    finally:
+        if ps_id is not None:
+            status, data = api(
+                'DELETE',
+                f'photometric_series/{ps_id}',
+                token=upload_data_token,
+            )
+            assert_api(status, data)
+
+        if filename is not None and os.path.isfile(filename):
+            os.remove(filename)
+
+
+def test_patch_series_metadata(
+    phot_series_maker, upload_data_token, public_source, ztf_camera
+):
+
+    filename = None
+    ps_id = None
+
+    try:  # cleanup file at the end
+        input_data = phot_series_maker()
+        series_data = {
+            'data': input_data,
+            'obj_id': public_source.id,
+            'instrument_id': ztf_camera.id,
+            'ra': 234.22,
+            'dec': 52.31,
+            'series_name': '2020/summer',
+            'series_obj_id': np.random.randint(1e3, 1e4),
+            'exp_time': 30.0,
+            'filter': 'ztfg',
+            'origin': 'ZTF',
+        }
+
+        status, data = api(
+            'POST',
+            'photometric_series',
+            data=series_data,
+            token=upload_data_token,
+        )
+        assert_api(status, data)
+        ps_id = data["data"]["id"]
+
+        status, data = api(
+            'GET',
+            f'photometric_series/{ps_id}',
+            token=upload_data_token,
+        )
+        assert_api(status, data)
+        filename = data['data']['filename']
+        output_data = data['data']['data']
+
+        # make sure the data is the same
+        assert input_data == output_data
+
+        # now change the metadata
+        status, data = api(
+            'PATCH',
+            f'photometric_series/{ps_id}',
+            data={'ra': series_data['ra'] + 1},
+            token=upload_data_token,
+        )
+        assert_api(status, data)
+
+        status, data = api(
+            'GET',
+            f'photometric_series/{ps_id}',
+            token=upload_data_token,
+        )
+        assert_api(status, data)
+        output_metadata = data['data']
+
+        # make sure the data is the same
+        assert series_data != output_metadata
+        assert series_data['ra'] == output_metadata['ra'] - 1
+
+    finally:
+        if ps_id is not None:
+            status, data = api(
+                'DELETE',
+                f'photometric_series/{ps_id}',
+                token=upload_data_token,
+            )
+            assert_api(status, data)
+
+        if filename is not None and os.path.isfile(filename):
+            os.remove(filename)
+
+
+def test_patch_series_data_file_and_metadata(
+    phot_series_maker, upload_data_token, public_source, ztf_camera
+):
+
+    filename = None
+    ps_id = None
+
+    try:  # cleanup file at the end
+        input_data = phot_series_maker()
+        metadata = {
+            'obj_id': public_source.id,
+            'instrument_id': ztf_camera.id,
+            'ra': 234.22,
+            'dec': 52.31,
+            'series_name': '2020/summer',
+            'series_obj_id': np.random.randint(1e3, 1e4),
+            'exp_time': 30.0,
+            'filter': 'ztfg',
+            'origin': 'ZTF',
+        }
+        byte_data = convert_dataframe_to_bytes(pd.DataFrame(input_data), metadata)
+        series_data = {**metadata, 'data': byte_data}
+
+        status, data = api(
+            'POST',
+            'photometric_series',
+            data=series_data,
+            token=upload_data_token,
+        )
+        assert_api(status, data)
+        ps_id = data["data"]["id"]
+
+        status, data = api(
+            'GET',
+            f'photometric_series/{ps_id}',
+            token=upload_data_token,
+        )
+        assert_api(status, data)
+
+        filename = data['data']['filename']
+        output_data = data['data']['data']
+
+        # make sure the data is the same
+        assert input_data == output_data
+
+        # now change the metadata
+        metadata['dec'] += 1
+        byte_data = convert_dataframe_to_bytes(pd.DataFrame(input_data), metadata)
+
+        status, data = api(
+            'PATCH',
+            f'photometric_series/{ps_id}',
+            data={'data': byte_data},
+            token=upload_data_token,
+        )
+        assert_api(status, data)
+
+        status, data = api(
+            'GET',
+            f'photometric_series/{ps_id}',
+            token=upload_data_token,
+        )
+        assert_api(status, data)
+        output_metadata = data['data']
+
+        # make sure the data is the same
+        assert series_data != output_metadata
+        assert series_data['dec'] == output_metadata['dec'] - 1
+
+        # now change the metadata, both in file and in direct input
+        metadata['exp_time'] += 10
+        byte_data = convert_dataframe_to_bytes(pd.DataFrame(input_data), metadata)
+
+        status, data = api(
+            'PATCH',
+            f'photometric_series/{ps_id}',
+            data={'data': byte_data, 'exp_time': 20},
+            token=upload_data_token,
+        )
+        assert_api(status, data)
+
+        status, data = api(
+            'GET',
+            f'photometric_series/{ps_id}',
+            token=upload_data_token,
+        )
+        assert_api(status, data)
+        output_metadata = data['data']
+
+        # make sure the data is the same
+        assert series_data != output_metadata
+        assert series_data['exp_time'] == output_metadata['exp_time'] + 10
+
+    finally:
+        if ps_id is not None:
+            status, data = api(
+                'DELETE',
+                f'photometric_series/{ps_id}',
+                token=upload_data_token,
+            )
+            assert_api(status, data)
+
+        if filename is not None and os.path.isfile(filename):
+            os.remove(filename)

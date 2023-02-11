@@ -75,7 +75,7 @@ DATA_TYPES = {
     'owner_id': int,
     'group_ids': [int],
     'stream_ids': [int],
-    'channel': int,
+    'channel': str,
     'time_stamp_alignment': str,
     'magref': float,
     'magref_unc': float,
@@ -314,6 +314,10 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         self._magerr = None
         self._data_bytes = None
 
+        # these should be filled out by sqlalchemy when committing
+        self.group_ids = None
+        self.stream_ids = None
+
         # when setting data into the the public "data"
         # attribute, we check the validity of the data
         # and also call calc_flux_mag() and calc_stats()
@@ -338,6 +342,10 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         self._mags = None
         self._magerr = None
         self._data_bytes = None
+
+        # these should be filled out by sqlalchemy when loading relationships
+        self.group_ids = None
+        self.stream_ids = None
 
         try:
             self.load_data()
@@ -670,6 +678,12 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         That data is kept for later when
         it can be dumped to file.
         """
+
+        # first make sure to order the lists
+        # so that the hash is the same
+        self.group_ids = sorted(self.group_ids)
+        self.stream_ids = sorted(self.stream_ids)
+
         self.hash = hashlib.md5()
         self.hash.update(self.get_data_bytes())
         self.hash = self.hash.hexdigest()
@@ -753,7 +767,7 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
 
         file_to_write = full_name
         if temp:
-            full_name += '.tmp'
+            file_to_write += '.tmp'
 
         with open(file_to_write, 'wb') as f:
             f.write(self.get_data_bytes())
@@ -762,8 +776,9 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
 
     def move_temp_data(self):
         """Rename a temp data file to not have the .tmp extension."""
-        (full_name,) = self.make_full_name()
-        os.rename(full_name + '.tmp', full_name)
+        full_name, _ = self.make_full_name()
+        if os.path.isfile(full_name + '.tmp'):
+            os.rename(full_name + '.tmp', full_name)
 
     def delete_data(self, temp=False):
         """

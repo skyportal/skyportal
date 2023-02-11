@@ -32,6 +32,7 @@ from skyportal.models import (
     GroupSpectrum,
     FollowupRequestTargetGroup,
     Thumbnail,
+    PhotometricSeries,
 )
 from skyportal.tests.fixtures import (
     ObjFactory,
@@ -1713,3 +1714,47 @@ def phot_series_maker():
         return data
 
     return _phot_series_maker
+
+
+@pytest.fixture()
+def photometric_series(
+    user, public_source, public_group, ztf_camera, phot_series_maker
+):
+    df = pd.DataFrame(phot_series_maker())
+    data = {
+        'obj_id': public_source.id,
+        'data': df,
+        'instrument_id': ztf_camera.id,
+        'owner_id': user.id,
+        'series_name': 'test_series',
+        'series_obj_id': str(np.random.randint(0, 1e6)),
+        'ra': np.round(np.random.uniform(0, 360), 3),
+        'dec': np.round(np.random.uniform(-90, 90), 3),
+        'exp_time': 30.0,
+        'filter': 'ztfg',
+        'group_ids': [public_group.id, user.single_user_group.id],
+        'stream_ids': [],
+        'origin': '',
+        'channel': '',
+    }
+    ps = PhotometricSeries(**data)
+
+    try:
+        DBSession().add(ps)
+        ps.save_data(temp=True)
+        DBSession().commit()
+        ps.move_temp_data()
+
+    except Exception as e:
+        DBSession().rollback()
+        ps.delete_data(temp=True)
+        raise e
+
+    yield ps
+
+    # tear down
+    filename = ps.filename
+    DBSession().delete(ps)
+    DBSession().commit()
+    if os.path.isfile(filename):
+        os.remove(filename)
