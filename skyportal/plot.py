@@ -1463,7 +1463,7 @@ def make_period_controls(
         ),
     )
     phase_selection.js_on_event(
-        'button_click',
+        'active',
         CustomJS(
             args={
                 'textinput': period_textinput,
