@@ -913,14 +913,12 @@ def add_tiles(
                     ).first()
 
                     if field is not None:
-                        field_tiles = session.scalars(
-                            sa.select(InstrumentFieldTile).where(
+                        session.execute(
+                            sa.delete(InstrumentFieldTile).where(
                                 InstrumentFieldTile.instrument_id == instrument_id,
                                 InstrumentFieldTile.instrument_field_id == field.id,
                             )
-                        ).all()
-                        for field_tile in field_tiles:
-                            session.delete(field_tile)
+                        )
                         session.commit()
 
                         create_field = False
@@ -956,4 +954,4 @@ def add_tiles(
         log(f"Unable to generate fields for instrument {instrument_id}: {e}")
     finally:
         Session.remove()
-        return field_ids
+    return field_ids
