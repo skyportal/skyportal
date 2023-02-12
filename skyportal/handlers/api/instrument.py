@@ -954,4 +954,4 @@ def add_tiles(
         log(f"Unable to generate fields for instrument {instrument_id}: {e}")
     finally:
         Session.remove()
-    return field_ids
+        return field_ids
