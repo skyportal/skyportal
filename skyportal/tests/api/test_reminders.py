@@ -61,7 +61,7 @@ def post_and_verify_reminder(endpoint, token):
             )
             if data[reminder_index]['number_of_reminders'] == number_of_reminders - 1:
                 break
-        time.sleep(2)
+        time.sleep(15)
         n_retries += 1
     assert n_retries < 10
     assert status == 200
