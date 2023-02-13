@@ -578,7 +578,7 @@ def generate_plan(
 
                 field_ids = {}
                 for request in requests:
-                    field_tiles_query = sa.select(InstrumentField.id).where(
+                    field_tiles_query = sa.select(InstrumentField.field_id).where(
                         LocalizationTile.localization_id == request.localization.id,
                         LocalizationTile.probdensity >= min_probdensity,
                         InstrumentFieldTile.instrument_id == request.instrument.id,
