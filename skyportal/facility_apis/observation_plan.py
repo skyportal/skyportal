@@ -578,7 +578,7 @@ def generate_plan(
 
                 field_ids = {}
                 for request in requests:
-                    field_tiles_query = sa.select(InstrumentField.id).where(
+                    field_tiles_query = sa.select(InstrumentField.field_id).where(
                         LocalizationTile.localization_id == request.localization.id,
                         LocalizationTile.probdensity >= min_probdensity,
                         InstrumentFieldTile.instrument_id == request.instrument.id,
@@ -641,6 +641,73 @@ def generate_plan(
             log(
                 f"Writing planned observations to database for ID(s): {','.join(observation_plan_id_strings)}"
             )
+
+            if request.instrument.name == "LSST":
+                from rubin_sim.scheduler.model_observatory import ModelObservatory
+                from rubin_sim.scheduler.surveys import BaseSurvey
+                from rubin_sim.scheduler.utils import empty_observation
+                from rubin_sim.scheduler.schedulers import (
+                    CoreScheduler,
+                )
+                from rubin_sim.scheduler import sim_runner
+
+                # load up a model observatory.
+                nside = (
+                    32  # Specify the HEALpix resolution we want to do everything in.
+                )
+                mo = ModelObservatory(nside=nside, mjd_start=start_time.mjd)
+                conditions = mo.return_conditions()
+
+                class MMASurvey(BaseSurvey):
+                    """A MMA ToO survey"""
+
+                    def generate_observations_rough(self, conditions):
+
+                        planned_observations = []
+                        for ii in range(len(coverage_struct["ipix"])):
+                            data = coverage_struct["data"][ii, :]
+                            filt = coverage_struct["filters"][ii]
+                            # mjd = data[2]
+                            # tt = Time(mjd, format='mjd')
+                            instrument_name = coverage_struct["telescope"][ii]
+
+                            exposure_time = data[4]
+                            field_id = data[5]
+
+                            for plan, request in zip(plans, requests):
+                                if request.instrument.name == instrument_name:
+                                    break
+                            field = InstrumentField.query.filter(
+                                InstrumentField.instrument_id == request.instrument.id,
+                                InstrumentField.field_id == field_id,
+                            ).first()
+                            if field is None:
+                                return log(f"Missing field {field_id} from list")
+                            obs = empty_observation()
+                            obs['RA'] = field.ra
+                            obs['dec'] = field.dec
+                            obs['exptime'] = exposure_time
+                            obs['nexp'] = 1
+                            obs['filter'] = filt[-1]
+                            obs['flush_by_mjd'] = conditions.mjd + 0.5
+                            obs['note'] = 'mma'
+
+                        planned_observations.append(obs)
+
+                        return planned_observations
+
+                mma_survey = MMASurvey([])
+                observations = mma_survey.generate_observations(conditions)
+                print(pd.DataFrame(np.hstack(observations)))
+
+                mma_survey.calc_reward_function(conditions)
+
+                scheduler = CoreScheduler([mma_survey], nside=nside)
+                mo, scheduler, observations = sim_runner(
+                    mo, scheduler, survey_length=1.0, verbose=True
+                )
+
+                print(observations)
 
             planned_observations = []
             for ii in range(len(coverage_struct["ipix"])):
