@@ -534,9 +534,14 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         self.mjd_mid = (self.mjd_first + self.mjd_last) / 2
 
         detection_indices = np.where(self.snr > PHOT_DETECTION_THRESHOLD)[0]
-        self.mjd_last_detected = self.mjds[detection_indices[-1]]
-        self.mag_last_detected = self.mags[detection_indices[-1]]
-        self.is_detected = len(detection_indices) > 0
+        if len(detection_indices) > 0:
+            self.mjd_last_detected = self.mjds[detection_indices[-1]]
+            self.mag_last_detected = self.mags[detection_indices[-1]]
+            self.is_detected = True
+        else:
+            self.mjd_last_detected = None
+            self.mag_last_detected = None
+            self.is_detected = False
         self.num_exp = len(self.mjds)
 
         # time between exposures, in seconds
@@ -893,13 +898,13 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
 
     mjd_last_detected = sa.Column(
         sa.Float,
-        nullable=False,
+        nullable=True,
         index=True,
         doc='MJD of the last exposure that was above threshold.',
     )
     mag_last_detected = sa.Column(
         sa.Float,
-        nullable=False,
+        nullable=True,
         index=True,
         doc='Magnitude of the last exposure that was above threshold.',
     )
@@ -1223,13 +1228,14 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
     @property
     def snr(self):
         """Signal-to-noise ratio of each measurement"""
+        average_flux = abs(np.nanmedian(self.fluxes))
+        robust_flux_err = self.robust_rms * np.log(10) / 2.5 * average_flux
         if self.fluxerr is not None and np.all(self.fluxerr.shape == self.fluxes.shape):
-            err = np.maximum(
-                self.fluxerr, self.robust_rms
-            )  # assume the worst of the two errors
+            # assume the worst of the two errors:
+            err = np.maximum(self.fluxerr, robust_flux_err)
             return self.fluxes / err
 
-        return self.fluxes / self.robust_rms
+        return self.fluxes / robust_flux_err
 
 
 PhotometricSeries.__table_args__ = (

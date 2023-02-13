@@ -9,6 +9,7 @@ from astropy.time import Time
 
 import sqlalchemy as sa
 from sqlalchemy import func
+from sqlalchemy.sql.expression import case
 import conesearch_alchemy as ca
 
 from baselayer.app.access import permissions  # , auth_or_token
@@ -982,7 +983,10 @@ class PhotometricSeriesHandler(BaseHandler):
               nullable: true
               schema:
                 type: boolean
-              description: Get only series with one or more detections.
+              description: |
+                If true, get only series with one or more detections.
+                If false, get only series with no detections.
+                If left out, do not filter at all on detection status.
             - in: query
               name: expTime
               nullable: true
@@ -1028,14 +1032,14 @@ class PhotometricSeriesHandler(BaseHandler):
                 Frame rates are the inverse of the median time between
                 exposures, in units of 1/s (Hz).
             - in: query
-              name: minNumFrames
+              name: minNumExposures
               nullable: true
               schema:
                 type: number
               description: |
                 Get only series with this many exposures, or more.
             - in: query
-              name: maxNumFrames
+              name: maxNumExposures
               nullable: true
               schema:
                 type: number
@@ -1066,13 +1070,13 @@ class PhotometricSeriesHandler(BaseHandler):
                 type: number
               description: get only series uploaded by this user.
             - in: query
-              name: magnitudeBrighterThan
+              name: magBrighterThan
               nullable: true
               schema:
                 type: number
               description: get only series with mean_mag brighter than this.
             - in: query
-              name: magnitudeFainterThan
+              name: magFainterThan
               nullable: true
               schema:
                 type: number
@@ -1256,14 +1260,14 @@ class PhotometricSeriesHandler(BaseHandler):
         middle_after = self.get_query_argument('midAfter', None)
         end_before = self.get_query_argument('endBefore', None)
         end_after = self.get_query_argument('endAfter', None)
-        detected = self.get_query_argument('detected', False)
+        detected = self.get_query_argument('detected', None)
         exp_time_exact = self.get_query_argument('expTime', None)
         min_exp_time = self.get_query_argument('minExpTime', None)
         max_exp_time = self.get_query_argument('maxExpTime', None)
         min_frame_rate = self.get_query_argument('minFrameRate', None)
         max_frame_rate = self.get_query_argument('maxFrameRate', None)
-        min_num_frames = self.get_query_argument('minNumFrames', None)
-        max_num_frames = self.get_query_argument('maxNumFrames', None)
+        min_num_exp = self.get_query_argument('minNumExposures', None)
+        max_num_exp = self.get_query_argument('maxNumExposures', None)
         instrument_id = self.get_query_argument('instrumentID', None)
         followup_id = self.get_query_argument('followupRequestID', None)
         assignment_id = self.get_query_argument('assignmentID', None)
@@ -1302,22 +1306,23 @@ class PhotometricSeriesHandler(BaseHandler):
                     "Invalid values for ra, dec or radius - could not convert to float"
                 )
             other = ca.Point(ra=ra, dec=dec)
-            stmt = stmt.where(Obj.within(other, radius))
+            stmt = stmt.where(PhotometricSeries.within(other, radius))
 
         if object_id:
             stmt = stmt.where(
-                func.lower(Obj.id).contains(func.lower(object_id.strip()))
+                func.lower(PhotometricSeries.obj_id).contains(
+                    func.lower(object_id.strip())
+                )
             )
         if rejected_id:
-            stmt = stmt.where(Obj.id.notin_(rejected_id.strip()))
+            rejected_id = rejected_id.split(',')
+            rejected_id = [x.strip() for x in rejected_id]
+            stmt = stmt.where(PhotometricSeries.obj_id.notin_(rejected_id))
+
         if series_name:
-            stmt = stmt.where(
-                func.lower(PhotometricSeries.series_name == series_name.strip())
-            )
+            stmt = stmt.where(PhotometricSeries.series_name == series_name.strip())
         if series_obj_id:
-            stmt = stmt.where(
-                func.lower(PhotometricSeries.series_obj_id == series_obj_id.strip())
-            )
+            stmt = stmt.where(PhotometricSeries.series_obj_id == series_obj_id.strip())
         if filter:
             stmt = stmt.where(PhotometricSeries.filter == filter)
         if channel:
@@ -1391,8 +1396,19 @@ class PhotometricSeriesHandler(BaseHandler):
                 )
             stmt = stmt.where(PhotometricSeries.mjd_last < end_before_mjd)
 
-        if detected:
-            stmt = stmt.where(PhotometricSeries.detected.is_(True))
+        if detected is not None:
+            if isinstance(detected, str) and detected.lower() in ['true', 't', '1']:
+                detected = True
+            elif isinstance(detected, str) and detected.lower() in ['false', 'f', '0']:
+                detected = False
+
+            try:
+                detected = bool(detected)
+            except ValueError:
+                return self.error(
+                    f'Cannot parse detected value {detected}: {traceback.format_exc()}'
+                )
+            stmt = stmt.where(PhotometricSeries.is_detected.is_(detected))
 
         if exp_time_exact is not None:
             try:
@@ -1444,25 +1460,25 @@ class PhotometricSeriesHandler(BaseHandler):
                 )
             stmt = stmt.where(PhotometricSeries.frame_rate <= max_frame_rate)
 
-        if min_num_frames is not None:
+        if min_num_exp is not None:
             try:
-                min_num_frames = int(min_num_frames)
+                min_num_exp = int(min_num_exp)
             except ValueError:
                 return self.error(
-                    f'Invalid value for minNumFrames {min_num_frames}. '
+                    f'Invalid value for minNumExposures {min_num_exp}. '
                     'Could not convert to int. '
                 )
-            stmt = stmt.where(PhotometricSeries.num_frames >= min_num_frames)
+            stmt = stmt.where(PhotometricSeries.num_exp >= min_num_exp)
 
-        if max_num_frames is not None:
+        if max_num_exp is not None:
             try:
-                max_num_frames = int(max_num_frames)
+                max_num_exp = int(max_num_exp)
             except ValueError:
                 return self.error(
-                    f'Invalid value for maxNumFrames {max_num_frames}. '
+                    f'Invalid value for maxNumExposures {max_num_exp}. '
                     'Could not convert to int. '
                 )
-            stmt = stmt.where(PhotometricSeries.num_frames <= max_num_frames)
+            stmt = stmt.where(PhotometricSeries.num_exp <= max_num_exp)
 
         if instrument_id is not None:
             try:
@@ -1561,7 +1577,7 @@ class PhotometricSeriesHandler(BaseHandler):
             if use_robust:
                 stmt = stmt.where(PhotometricSeries.robust_rms <= max_rms)
             else:
-                stmt = stmt.where(PhotometricSeries.mag_rms <= max_rms)
+                stmt = stmt.where(PhotometricSeries.rms_mag <= max_rms)
 
         if min_rms is not None:
             try:
@@ -1640,20 +1656,32 @@ class PhotometricSeriesHandler(BaseHandler):
             stmt = stmt.where(PhotometricSeries.hash == hash)
 
         try:
-            order_by = getattr(PhotometricSeries, sort_by)
+            # add any additional enums to this list:
+            if sort_by in ['filter']:
+                # sorting enums is done by default using their order in the original
+                # definition, which is not alphabetical order (which is what the user expects)
+                # ref: https://stackoverflow.com/a/23618085
+                whens = {
+                    name: name
+                    for name in getattr(PhotometricSeries, sort_by).type.enums
+                }
+                order_by_column = case(whens, value=getattr(PhotometricSeries, sort_by))
+            else:
+                order_by_column = getattr(PhotometricSeries, sort_by)
         except AttributeError:
             return self.error(
-                f'Invalid value for sortBy {sort_by}. ' 'Could not find column. '
+                f'Invalid value for sortBy {sort_by}. Could not find column. '
             )
+
         if sort_order not in ['asc', 'desc']:
             return self.error(
                 f'Invalid value "{sort_order}" for sortOrder. '
                 'Must be "asc" or "desc". '
             )
         if sort_order == 'desc':
-            order_by = order_by.desc()
+            order_by_column = order_by_column.desc()
 
-        stmt = stmt.order_by(order_by)
+        stmt = stmt.order_by(order_by_column)
 
         try:
             page_number = max(int(page_number), 1)
@@ -1672,7 +1700,7 @@ class PhotometricSeriesHandler(BaseHandler):
             )
 
         with self.Session() as session:
-            count_stmt = sa.select(func.count()).select_from(stmt.distinct())
+            count_stmt = sa.select(func.count()).select_from(stmt)
             total_matches = session.execute(count_stmt).scalar()
             stmt = stmt.offset((page_number - 1) * num_per_page)
             stmt = stmt.limit(num_per_page)
