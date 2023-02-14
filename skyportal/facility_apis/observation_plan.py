@@ -835,8 +835,8 @@ def generate_plan(
 
                     session.commit()
 
-        session.close()
-        Session.remove()
+    session.close()
+    Session.remove()
 
 
 class GenericRequest:

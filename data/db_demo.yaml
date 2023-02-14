@@ -487,8 +487,10 @@ instrument:
     =id: GIT
     api_classname_obsplan: GROWTHINDIAMMAAPI
     filters: ["sdssu", "sdssg", "sdssr", "sdssi", "sdssz"]
-    field_fov_type: rectangle
-    field_fov_attributes: [0.7,0.7]
+    field_fov_type: circle
+    field_fov_attributes: 0.38
+    # field_data:
+    #   file: ../data/GROWTH-India_Fields.csv.bz2
 
 allocation:
   - pi: Michael Coughlin
