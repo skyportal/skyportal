@@ -644,8 +644,11 @@ def generate_plan(
 
             if request.instrument.name == "LSST":
                 from rubin_sim.scheduler.model_observatory import ModelObservatory
-                from rubin_sim.scheduler.surveys import BaseSurvey
-                from rubin_sim.scheduler.utils import empty_observation
+                from rubin_sim.scheduler.surveys import BaseSurvey, ScriptedSurvey
+                from rubin_sim.scheduler.utils import (
+                    empty_observation,
+                    scheduled_observation,
+                )
                 from rubin_sim.scheduler.schedulers import (
                     CoreScheduler,
                 )
@@ -658,56 +661,80 @@ def generate_plan(
                 mo = ModelObservatory(nside=nside, mjd_start=start_time.mjd)
                 conditions = mo.return_conditions()
 
-                class MMASurvey(BaseSurvey):
-                    """A MMA ToO survey"""
+                # Our friend the SCP survey from previous notebook
+                class ScpSurvey(BaseSurvey):
+                    """A South Celestial Pole survey"""
 
                     def generate_observations_rough(self, conditions):
+                        obs = empty_observation()
+                        obs['RA'] = 0.0
+                        obs['dec'] = np.radians(-87.0)
+                        obs['exptime'] = 30.0
+                        obs['nexp'] = 1
+                        obs['filter'] = 'r'
+                        # If it's been 12 hours or more, don't try to execute the observation anymore
+                        obs['flush_by_mjd'] = conditions.mjd + 0.5
+                        obs[
+                            'note'
+                        ] = 'scp'  # Always good to set the note to which survey generated the observation
+                        result = [obs] * 1
+                        return result
 
-                        planned_observations = []
-                        for ii in range(len(coverage_struct["ipix"])):
-                            data = coverage_struct["data"][ii, :]
-                            filt = coverage_struct["filters"][ii]
-                            # mjd = data[2]
-                            # tt = Time(mjd, format='mjd')
-                            instrument_name = coverage_struct["telescope"][ii]
+                scp = ScpSurvey([])
 
-                            exposure_time = data[4]
-                            field_id = data[5]
+                scheduled_observations = []
+                for ii in range(len(coverage_struct["ipix"])):
+                    data = coverage_struct["data"][ii, :]
+                    filt = coverage_struct["filters"][ii]
+                    mjd = data[2]
+                    tt = Time(mjd, format='mjd')
+                    instrument_name = coverage_struct["telescope"][ii]
 
-                            for plan, request in zip(plans, requests):
-                                if request.instrument.name == instrument_name:
-                                    break
-                            field = InstrumentField.query.filter(
-                                InstrumentField.instrument_id == request.instrument.id,
-                                InstrumentField.field_id == field_id,
-                            ).first()
-                            if field is None:
-                                return log(f"Missing field {field_id} from list")
-                            obs = empty_observation()
-                            obs['RA'] = field.ra
-                            obs['dec'] = field.dec
-                            obs['exptime'] = exposure_time
-                            obs['nexp'] = 1
-                            obs['filter'] = filt[-1]
-                            obs['flush_by_mjd'] = conditions.mjd + 0.5
-                            obs['note'] = 'mma'
+                    exposure_time = data[4]
+                    field_id = data[5]
 
-                        planned_observations.append(obs)
+                    for plan, request in zip(plans, requests):
+                        if request.instrument.name == instrument_name:
+                            break
+                    field = InstrumentField.query.filter(
+                        InstrumentField.instrument_id == request.instrument.id,
+                        InstrumentField.field_id == field_id,
+                    ).first()
+                    if field is None:
+                        return log(f"Missing field {field_id} from list")
+                    obs = scheduled_observation()
+                    obs['RA'] = field.ra
+                    obs['dec'] = field.dec
+                    obs['exptime'] = exposure_time
+                    obs['nexp'] = 1
+                    obs['filter'] = filt[-1]
+                    obs['mjd'] = mjd
+                    obs['note'] = 'mma'
+                    obs['flush_by_mjd'] = conditions.mjd + 10
 
-                        return planned_observations
+                    # How early an observation can be attempted
+                    obs['mjd_tol'] = 1800.0 / 3600 / 24.0  # Seconds to days
+                    # distance away from the desired RA,Dec to consider an observation as counting
+                    obs['dist_tol'] = np.radians(0.5)
+                    obs['alt_min'] = 0
+                    obs['alt_max'] = np.radians(85.0)
+                    # This is effectively no hour angle limit. XXX--need to document better
+                    obs['HA_max'] = 0.0  # Hours
+                    obs['HA_min'] = 24.0
 
-                mma_survey = MMASurvey([])
-                observations = mma_survey.generate_observations(conditions)
-                print(pd.DataFrame(np.hstack(observations)))
+                    scheduled_observations.append(obs)
 
-                mma_survey.calc_reward_function(conditions)
+                ss = ScriptedSurvey([])
+                ss.set_script(obs)
 
-                scheduler = CoreScheduler([mma_survey], nside=nside)
+                scheduler = CoreScheduler([[ss], [scp]], nside=nside)
                 mo, scheduler, observations = sim_runner(
                     mo, scheduler, survey_length=1.0, verbose=True
                 )
 
-                print(observations)
+                for obs in observations:
+                    if obs['note'] == 'mma':
+                        print(obs)
 
             planned_observations = []
             for ii in range(len(coverage_struct["ipix"])):
