@@ -1,5 +1,4 @@
 import os
-import base64
 import traceback
 
 import pandas as pd
@@ -32,7 +31,7 @@ from ...models.obj import Obj
 from ...models.instrument import Instrument
 from ...models.followup_request import FollowupRequest
 from ...models.assignment import ClassicalAssignment
-
+from ...utils.hdf5_files import load_dataframe_from_bytestream
 
 _, cfg = load_env()
 
@@ -321,34 +320,6 @@ def get_stream_ids(data, user, session):
 
     stream_ids = list(set(stream_ids))
     return stream_ids
-
-
-def load_dataframe_from_bytestream(data):
-    """
-    Load the pandas data frame from a byte stream.
-    Will return a DataFrame and a metadata dictionary,
-    if such a dictionary is found in the data file's attributes.
-
-    ref: https://github.com/pandas-dev/pandas/issues/9246#issuecomment-74041497
-    """
-    with pd.HDFStore(
-        "data.h5",
-        mode="r",
-        driver="H5FD_CORE",
-        driver_core_backing_store=0,
-        driver_core_image=base64.b64decode(data),
-    ) as store:
-        keys = store.keys()
-        if len(keys) != 1:
-            raise ValueError(f'Expected 1 table in HDF5 file, got {len(keys)}. ')
-        data = store[keys[0]]
-        attributes = store.get_storer(keys[0]).attrs
-        if 'metadata' in attributes and isinstance(attributes['metadata'], dict):
-            metadata = attributes['metadata']
-        else:
-            metadata = {}
-
-    return data, metadata
 
 
 def individual_enum_checks(metadata):
@@ -1305,6 +1276,9 @@ class PhotometricSeriesHandler(BaseHandler):
                 return self.error(
                     "Invalid values for ra, dec or radius - could not convert to float"
                 )
+            if ra > 360 or ra < 0 or dec > 90 or dec < -90:
+                return self.error(f"Invalid values for ra ({ra}) or dec ({dec})")
+
             other = ca.Point(ra=ra, dec=dec)
             stmt = stmt.where(PhotometricSeries.within(other, radius))
 

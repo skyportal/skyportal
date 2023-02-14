@@ -1,7 +1,6 @@
 import os
 import time
 import hashlib
-import base64
 import pytest
 import uuid
 
@@ -15,63 +14,14 @@ from sqlalchemy.exc import IntegrityError
 
 from skyportal.tests import api, assert_api, assert_api_fail
 from skyportal.models import DBSession, PhotometricSeries
-
-
-def convert_dataframe_to_bytes(df, metadata=None, encode=True):
-    """
-    Convert a pandas dataframe to bytes.
-
-    Parameters
-    ----------
-    df: pandas.DataFrame
-        The dataframe to convert to bytes.
-    metadata: dict
-        A dictionary of metadata to store in the HDF5 file.
-    encode: bool
-        Whether to encode the bytes as a base64 string.
-
-    Returns
-    -------
-    bytes:
-        The bytes of the dataframe.
-        If encode=True, the bytes are encoded as a base64 string
-        that can be sent over API calls.
-        If encode=False, the bytes are the raw bytes of the HDF5 file.
-    """
-
-    # this store should work without writing to disk
-    # if you open a regular store you'd just need
-    # to delete the file at the end
-    # ref: https://github.com/pandas-dev/pandas/issues/9246#issuecomment-74041497
-    with pd.HDFStore(
-        'test_file.h5', mode='w', driver="H5FD_CORE", driver_core_backing_store=0
-    ) as store:
-        store.put(
-            'phot_series',
-            df,
-            format='table',
-            index=None,
-            track_times=False,
-        )
-        if metadata is not None:
-            store.get_storer('phot_series').attrs.metadata = metadata
-
-        data = store._handle.get_file_image()
-
-        if encode:
-            data = base64.b64encode(data)
-
-    # should not be any file like this
-    assert not os.path.isfile('test_file.h5')
-
-    return data
+from skyportal.utils.hdf5_files import dump_dataframe_to_bytestream
 
 
 def test_hdf5_file_vs_memory_hash():
     df = pd.DataFrame(
         data=[[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12]], columns=['a', 'b', 'c', 'd']
     )
-    mem_buf = convert_dataframe_to_bytes(df, encode=False)
+    mem_buf = dump_dataframe_to_bytestream(df, encode=False)
     mem_hash = hashlib.md5()
     mem_hash.update(mem_buf)
 
@@ -515,7 +465,7 @@ def test_post_dataframe_file(
     try:  # cleanup file at the end
         input_data = phot_series_maker()
         df = pd.DataFrame(input_data)
-        byte_stream = convert_dataframe_to_bytes(df)
+        byte_stream = dump_dataframe_to_bytestream(df)
         assert isinstance(byte_stream, bytes)
 
         series_data = {
@@ -584,7 +534,7 @@ def test_post_dataframe_file_with_metadata(
             'series_name': '2020/summer',
             'series_obj_id': np.random.randint(1e3, 1e4),
         }
-        byte_stream = convert_dataframe_to_bytes(df, metadata)
+        byte_stream = dump_dataframe_to_bytestream(df, metadata)
         assert isinstance(byte_stream, bytes)
 
         series_data = {
@@ -1067,7 +1017,7 @@ def test_patch_series_data_file_and_metadata(
             'filter': 'ztfg',
             'origin': 'ZTF',
         }
-        byte_data = convert_dataframe_to_bytes(pd.DataFrame(input_data), metadata)
+        byte_data = dump_dataframe_to_bytestream(pd.DataFrame(input_data), metadata)
         series_data = {**metadata, 'data': byte_data}
 
         status, data = api(
@@ -1094,7 +1044,7 @@ def test_patch_series_data_file_and_metadata(
 
         # now change the metadata
         metadata['dec'] += 1
-        byte_data = convert_dataframe_to_bytes(pd.DataFrame(input_data), metadata)
+        byte_data = dump_dataframe_to_bytestream(pd.DataFrame(input_data), metadata)
 
         status, data = api(
             'PATCH',
@@ -1118,7 +1068,7 @@ def test_patch_series_data_file_and_metadata(
 
         # now change the metadata, both in file and in direct input
         metadata['exp_time'] += 10
-        byte_data = convert_dataframe_to_bytes(pd.DataFrame(input_data), metadata)
+        byte_data = dump_dataframe_to_bytestream(pd.DataFrame(input_data), metadata)
 
         status, data = api(
             'PATCH',
@@ -1143,7 +1093,7 @@ def test_patch_series_data_file_and_metadata(
         # now change the data to have different inferred values
         input_data['dec'] = np.ones(len(input_data['mjd'])) * 123.45
         # don't add any metadata:
-        byte_data = convert_dataframe_to_bytes(pd.DataFrame(input_data), {})
+        byte_data = dump_dataframe_to_bytestream(pd.DataFrame(input_data), {})
 
         status, data = api(
             'PATCH',
