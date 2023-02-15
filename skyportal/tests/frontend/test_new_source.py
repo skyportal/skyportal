@@ -1,12 +1,11 @@
 import uuid
 import pytest
 import numpy as np
+from selenium.common.exceptions import TimeoutException
 
 
 @pytest.mark.flaky(reruns=2)
-def test_new_source(
-    driver, user, super_admin_token, upload_data_token, view_only_token, ztf_camera
-):
+def test_new_source(driver, user):
 
     driver.get(f'/become_user/{user.id}')
     driver.get('/')
@@ -24,4 +23,10 @@ def test_new_source(
     driver.wait_for_xpath(submit_button_xpath)
     driver.click_xpath(submit_button_xpath)
 
-    driver.wait_for_xpath('//*[text()="Source saved"]')
+    try:
+        driver.wait_for_xpath('//*[text()="Source saved"]')
+    except TimeoutException:
+        pass
+
+    driver.get('/')
+    driver.wait_for_xpath(f'//*[text()="{source_name}"]')

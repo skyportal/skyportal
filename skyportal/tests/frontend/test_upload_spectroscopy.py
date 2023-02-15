@@ -2,6 +2,7 @@ import os
 import uuid
 import pytest
 from skyportal.enum_types import ALLOWED_SPECTRUM_TYPES
+from selenium.common.exceptions import TimeoutException
 
 
 @pytest.mark.flaky(reruns=3)
@@ -49,7 +50,10 @@ def test_upload_spectroscopy(
     driver.click_xpath(preview_button_xpath, scroll_parent=True)
 
     submit_button_xpath = '//button[contains(.,"Upload Spectrum")]'
-    driver.click_xpath(submit_button_xpath, scroll_parent=True, timeout=30)
+    try:
+        driver.click_xpath(submit_button_xpath, scroll_parent=True, timeout=30)
+    except TimeoutException:
+        driver.click_xpath(submit_button_xpath, scroll_parent=False, timeout=30)
 
     driver.wait_for_xpath('//*[contains(.,"successful")]')
 
