@@ -246,3 +246,70 @@ class ProfileHandler(BaseHandler):
             if "sourceCounts" in preferences:
                 self.push(action="skyportal/FETCH_SOURCE_COUNTS")
             return self.success(action="skyportal/FETCH_USER_PROFILE")
+
+    @auth_or_token
+    def post(self, user_id=None):
+        """
+        ---
+        description: add gcn preference
+        requestBody:
+          content:
+            application/json:
+              type: object
+                properties:
+                  preferences:
+                    schema: AddUserPreferencesRequestJSON
+                    description: JSON describing updates to user preferences dict
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        data = self.get_json()
+
+        with self.Session() as session:
+            if 'user_id' in data:
+                user_id = data['user_id']
+                user = session.scalars(
+                    User.select(session.user_or_token).where(User.id == user_id)
+                ).first()
+            else:
+                user = self.associated_user_object
+                user_id = user.id
+
+            token_acls = set(data['acls'])
+            if not all([acl_id in user.permissions for acl_id in token_acls]):
+                return self.error(
+                    "User has attempted to grant token ACLs they do not have "
+                    "access to. Please try again."
+                )
+
+            preferences = data.get("preferences", {})
+
+            # Do not save blank fields (empty strings)
+            for k, v in preferences.items():
+                if isinstance(v, dict):
+                    preferences[k] = {key: val for key, val in v.items() if val != ""}
+            user_prefs = deepcopy(user.preferences)
+
+            if not user_prefs:
+                user_prefs = {}
+            for key, value in preferences.items():
+                if key not in user_prefs:
+                    user_prefs[key] = value
+            try:
+                session.add(user_prefs)
+                session.commit()
+            except IntegrityError as e:
+                if "duplicate key value violates unique constraint" in str(e):
+                    return self.error(
+                        "Username already exists. Please try another username."
+                    )
+                raise
+            if "recentGcnEvents" in preferences:
+                self.push(action="skyportal/FETCH_RECENT_GCNEVENTS")

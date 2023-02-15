@@ -10,12 +10,28 @@ const GENERATE_TOKEN = "skyportal/GENERATE_TOKEN";
 
 const UPDATE_USER_PREFERENCES = "skyportal/UPDATE_USER_PREFERENCES";
 
+const ADD_USER_GCN_PREFERENCES = "skyportal/ADD_USER_GCN_PREFERENCES";
+
+const DELETE_USER_GCN_PREFERENCES = "skyportal/DELETE_USER_GCN_PREFERENCES";
+
 const UPDATE_BASIC_USER_INFO = "skyportal/UPDATE_BASIC_USER_INFO";
 
 const DELETE_TOKEN = "skyportal/DELETE_TOKEN";
 
 export function updateUserPreferences(preferences) {
   return API.PATCH("/api/internal/profile", UPDATE_USER_PREFERENCES, {
+    preferences,
+  });
+}
+
+export function addUserGcnPreferences(preferences) {
+  return API.POST("/api/internal/profile", ADD_USER_GCN_PREFERENCES, {
+    preferences,
+  });
+}
+
+export function deleteUserGcnPreferences(preferences) {
+  return API.DELETE("/api/internal/profile", DELETE_USER_GCN_PREFERENCES, {
     preferences,
   });
 }
