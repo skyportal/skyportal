@@ -311,5 +311,3 @@ class ProfileHandler(BaseHandler):
                         "Username already exists. Please try another username."
                     )
                 raise
-            if "recentGcnEvents" in preferences:
-                self.push(action="skyportal/FETCH_RECENT_GCNEVENTS")
