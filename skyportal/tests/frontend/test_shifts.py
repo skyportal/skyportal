@@ -74,8 +74,7 @@ def test_shift(
 
     # check for shift in calendar and click it
     event_shift_xpath = f'//*/strong[contains(.,"{form_name}")]'
-    driver.wait_for_xpath(event_shift_xpath)
-    driver.click_xpath(event_shift_xpath)
+    driver.scroll_to_element_and_click(driver.wait_for_xpath(event_shift_xpath))
 
     # add a comment to the shift
     driver.wait_for_xpath('//*[@id="root_comment"]').send_keys('This is a comment')
