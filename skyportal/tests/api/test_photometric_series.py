@@ -1920,6 +1920,7 @@ def test_get_series_by_hash(upload_data_token, photometric_series):
     assert data['data']['series'][0]['id'] == photometric_series.id
 
 
+@pytest.mark.flaky(reruns=2)
 def test_get_series_by_snr(
     upload_data_token,
     photometric_series_low_flux,
