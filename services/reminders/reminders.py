@@ -51,7 +51,7 @@ def service():
                 send_reminders()
             except Exception as e:
                 log(e)
-        time.sleep(5)
+        time.sleep(60)
 
 
 def send_reminders():
