@@ -340,9 +340,12 @@ const CommentList = ({
               onFocus={() => handleMouseHover(id, userProfile, author.username)}
               onBlur={() => handleMouseLeave()}
             >
+              {console.log("shiftID", shift_id)}
+              {console.log("associatedResourceType", resourceType)}
+              {console.log("comments", comments)}
               {compactComments ? (
                 <CompactCommentList
-                  associatedResourceType={resourceType}
+                  associatedResourceType={associatedResourceType}
                   styles={styles}
                   id={id}
                   objID={objID}
@@ -357,7 +360,7 @@ const CommentList = ({
                 />
               ) : (
                 <RegularCommentList
-                  associatedResourceType={resourceType}
+                  associatedResourceType={associatedResourceType}
                   styles={styles}
                   id={id}
                   objID={objID}
