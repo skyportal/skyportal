@@ -625,6 +625,14 @@ class InstrumentHandler(BaseHandler):
             required: true
             schema:
               type: integer
+          - in: query
+            name: fieldsOnly
+            nullable: true
+            schema:
+              type: boolean
+            description: |
+              Boolean indicating whether to just delete the associated fields.
+              Defaults to false.
         responses:
           200:
             content:
@@ -635,7 +643,12 @@ class InstrumentHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+
+        data = self.get_json()
+        fieldsOnly = data.get("fieldsOnly", False)
+
         with self.Session() as session:
+
             stmt = Instrument.select(session.user_or_token, mode="delete").where(
                 Instrument.id == int(instrument_id)
             )
@@ -643,7 +656,14 @@ class InstrumentHandler(BaseHandler):
             if instrument is None:
                 return self.error(f'Missing instrument with ID {instrument_id}')
 
-            session.delete(instrument)
+            if fieldsOnly:
+                session.execute(
+                    sa.delete(InstrumentField).where(
+                        InstrumentFieldTile.instrument_id == instrument.id,
+                    )
+                )
+            else:
+                session.delete(instrument)
             session.commit()
 
         self.push_all(action="skyportal/REFRESH_INSTRUMENTS")
