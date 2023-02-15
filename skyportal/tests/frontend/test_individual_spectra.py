@@ -1,6 +1,5 @@
 import uuid
 
-import pytest
 from selenium.common.exceptions import TimeoutException
 
 from skyportal.tests import api
@@ -24,13 +23,14 @@ def add_comment_and_wait_for_display(driver, comment_text):
     add_comment(driver, comment_text)
 
     try:
-        driver.wait_for_xpath(f'//p[text()="{comment_text}"]', timeout=30)
+        driver.wait_for_xpath(f'//p[contains(text(), "{comment_text}")]', timeout=30)
     except TimeoutException:
         driver.refresh()
-        driver.wait_for_xpath(f'//p[text()="{comment_text}"]')
+        # little triangle you push to expand the table
+        driver.click_xpath("//*[@id='expandable-button']")
+        driver.wait_for_xpath(f'//p[contains(text(), "{comment_text}")]')
 
 
-@pytest.mark.flaky(reruns=3)
 def test_comments(driver, user, public_source):
 
     driver.get(f"/become_user/{user.id}")

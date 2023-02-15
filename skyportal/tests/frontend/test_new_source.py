@@ -1,4 +1,6 @@
+import uuid
 import pytest
+import numpy as np
 
 
 @pytest.mark.flaky(reruns=2)
@@ -11,10 +13,12 @@ def test_new_source(
 
     driver.wait_for_xpath('//*[text()="Add a Source"]')
 
+    source_name = uuid.uuid4().hex
+
     # test add sources form
-    driver.wait_for_xpath('//*[@id="root_id"]').send_keys('nobel_prize')
-    driver.wait_for_xpath('//*[@id="root_ra"]').send_keys(5)
-    driver.wait_for_xpath('//*[@id="root_dec"]').send_keys(10)
+    driver.wait_for_xpath('//*[@id="root_id"]').send_keys(source_name)
+    driver.wait_for_xpath('//*[@id="root_ra"]').send_keys(np.random.uniform(0, 360))
+    driver.wait_for_xpath('//*[@id="root_dec"]').send_keys(np.random.uniform(-90, 90))
 
     submit_button_xpath = '//button[@type="submit"]'
     driver.wait_for_xpath(submit_button_xpath)
