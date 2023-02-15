@@ -972,7 +972,7 @@ class InstrumentFieldHandler(BaseHandler):
     def delete(self, instrument_id):
         """
         ---
-        description: Delete an instrument
+        description: Delete fields associated with an instrument
         tags:
           - instruments
         parameters:
