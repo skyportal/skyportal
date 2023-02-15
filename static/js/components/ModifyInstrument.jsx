@@ -65,25 +65,43 @@ const ModifyInstrument = () => {
   const dispatch = useDispatch();
 
   const handleSubmit = async ({ formData }) => {
-    if (Object.keys(formData).includes("api_classname")) {
+    if (
+      Object.keys(formData).includes("api_classname") &&
+      formData.api_classname !== undefined
+    ) {
       // eslint-disable-next-line prefer-destructuring
       formData.api_classname = formData.api_classname[0];
     }
-    if (Object.keys(formData).includes("api_classname_obsplan")) {
+    if (
+      Object.keys(formData).includes("api_classname_obsplan") &&
+      formData.api_classname_obsplan !== undefined
+    ) {
       // eslint-disable-next-line prefer-destructuring
       formData.api_classname_obsplan = formData.api_classname_obsplan[0];
     }
-    if (Object.keys(formData).includes("field_data")) {
+    if (
+      Object.keys(formData).includes("field_data") &&
+      formData.field_data !== undefined
+    ) {
       formData.field_data = dataUriToBuffer(formData.field_data).toString();
     }
-    if (Object.keys(formData).includes("field_region")) {
+    if (
+      Object.keys(formData).includes("field_region") &&
+      formData.field_region !== undefined
+    ) {
       formData.field_region = dataUriToBuffer(formData.field_region).toString();
     }
-    if (Object.keys(formData).includes("field_fov_type")) {
+    if (
+      Object.keys(formData).includes("field_fov_type") &&
+      formData.field_fov_type !== undefined
+    ) {
       // eslint-disable-next-line prefer-destructuring
       formData.field_fov_type = formData.field_fov_type[0];
     }
-    if (Object.keys(formData).includes("field_fov_attributes")) {
+    if (
+      Object.keys(formData).includes("field_fov_attributes") &&
+      formData.field_fov_attributes !== undefined
+    ) {
       // eslint-disable-next-line prefer-destructuring
       formData.field_fov_attributes = formData.field_fov_attributes.split(",");
     }

@@ -327,6 +327,7 @@ const CommentList = ({
             attachment_name,
             groups,
             spectrum_id,
+            resourceType,
           }) => (
             <span
               id="comment"
@@ -341,7 +342,7 @@ const CommentList = ({
             >
               {compactComments ? (
                 <CompactCommentList
-                  associatedResourceType={associatedResourceType}
+                  associatedResourceType={resourceType}
                   styles={styles}
                   id={id}
                   objID={objID}
@@ -356,7 +357,7 @@ const CommentList = ({
                 />
               ) : (
                 <RegularCommentList
-                  associatedResourceType={associatedResourceType}
+                  associatedResourceType={resourceType}
                   styles={styles}
                   id={id}
                   objID={objID}

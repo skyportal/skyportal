@@ -142,7 +142,10 @@ GroupPhotometricSeries.delete = GroupPhotometricSeries.update = (
 )
 
 GroupMMADetectorSpectrum = join_model(
-    "group_mmadetector_spectra", Group, MMADetectorSpectrum
+    "group_mmadetector_spectra",
+    Group,
+    MMADetectorSpectrum,
+    overlaps='mmadetector_spectra',
 )
 GroupMMADetectorSpectrum.__doc__ = 'Join table mapping Groups to MMADetectorSpectra.'
 GroupMMADetectorSpectrum.update = GroupMMADetectorSpectrum.delete = (
@@ -150,7 +153,10 @@ GroupMMADetectorSpectrum.update = GroupMMADetectorSpectrum.delete = (
 )
 
 GroupMMADetectorTimeInterval = join_model(
-    "group_mmadetector_time_intervals", Group, MMADetectorTimeInterval
+    "group_mmadetector_time_intervals",
+    Group,
+    MMADetectorTimeInterval,
+    overlaps='mmadetector_time_intervals',
 )
 GroupMMADetectorTimeInterval.__doc__ = (
     'Join table mapping Groups to MMADetectorTimeInterval.'

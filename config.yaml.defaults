@@ -468,6 +468,7 @@ server:
     debug_login: True
     google_oauth2_key:
     google_oauth2_secret:
+    google_oauth2_timeout: 15
 
 services:
   dask: False
@@ -647,6 +648,7 @@ gcn:
     # - AMON_ICECUBE_HESE
     - ICECUBE_ASTROTRACK_GOLD
     - ICECUBE_ASTROTRACK_BRONZE
+    - MAXI_UNKNOWN
 
   observation_plans:
     - allocation-proposal_id: ZTF-001
@@ -673,6 +675,7 @@ health_monitor:
 
 analysis_services:
   analysis_folder: persistentdata/analysis
+  max_analysis_per_obj_per_user: 50
   sn_analysis_service:
     port: 6801
   ngsf_analysis_service:

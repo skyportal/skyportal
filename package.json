@@ -91,6 +91,7 @@
     "redux-thunk": "2.4.2",
     "regl": "2.1.0",
     "semver": "7.3.7",
+    "sprintf-js": "1.1.2",
     "style-loader": "2.0.0",
     "styled-components": "5.3.5",
     "timezone": "1.0.23",

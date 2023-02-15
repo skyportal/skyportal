@@ -157,15 +157,18 @@ const SurveyEfficiencyForm = ({ gcnevent, observationplanRequest }) => {
     formData.localizationName = locLookUp[selectedLocalizationId].name;
 
     const optionalInjectionParameters = {};
-    if (Object.keys(formData).includes("log10_E0")) {
+    if (
+      Object.keys(formData).includes("log10_E0") &&
+      formData.log10_E0 !== undefined
+    ) {
       optionalInjectionParameters.log10_E0 = formData.log10_E0;
       delete formData.log10_E0;
     }
-    if (Object.keys(formData).includes("mag")) {
+    if (Object.keys(formData).includes("mag") && formData.mag !== undefined) {
       optionalInjectionParameters.mag = formData.mag;
       delete formData.mag;
     }
-    if (Object.keys(formData).includes("dmag")) {
+    if (Object.keys(formData).includes("dmag") && formData.dmag !== undefined) {
       optionalInjectionParameters.dmag = formData.dmag;
       delete formData.dmag;
     }
@@ -365,7 +368,7 @@ const SurveyEfficiencyForm = ({ gcnevent, observationplanRequest }) => {
         <div>
           <Form
             schema={SimSurveySelectionFormSchema}
-            validaor={validator}
+            validator={validator}
             onSubmit={handleSubmit}
             // eslint-disable-next-line react/jsx-no-bind
             customValidate={validate}
