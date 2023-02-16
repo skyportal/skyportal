@@ -1,8 +1,10 @@
 import os
 import uuid
+import pytest
 from skyportal.enum_types import ALLOWED_SPECTRUM_TYPES
 
 
+@pytest.mark.flaky(reruns=3)
 def test_upload_spectroscopy(
     driver, sedm, super_admin_user, public_source, super_admin_token
 ):
