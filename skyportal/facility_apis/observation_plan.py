@@ -517,24 +517,14 @@ def generate_plan(
             ).scalar_subquery()
 
             if params["tilesType"] == "galaxy":
-                query = Galaxy.query_records_accessible_by(user, mode="read")
-                query = query.filter(Galaxy.catalog_name == params["galaxy_catalog"])
-                tiles_subquery = (
-                    sa.select(Galaxy.id)
-                    .filter(
-                        LocalizationTile.localization_id == request.localization.id,
-                        LocalizationTile.healpix.contains(Galaxy.healpix),
-                        LocalizationTile.probdensity >= min_probdensity,
-                    )
-                    .subquery()
+                galaxies_query = sa.select(Galaxy, LocalizationTile.probdensity).where(
+                    LocalizationTile.localization_id == request.localization.id,
+                    LocalizationTile.healpix.contains(Galaxy.healpix),
+                    LocalizationTile.probdensity >= min_probdensity,
+                    Galaxy.catalog_name == params["galaxy_catalog"],
                 )
+                galaxies, probs = zip(*session.execute(galaxies_query).all())
 
-                query = query.join(
-                    tiles_subquery,
-                    Galaxy.id == tiles_subquery.c.id,
-                )
-
-                galaxies = query.all()
                 catalog_struct = {}
                 catalog_struct["ra"] = np.array([g.ra for g in galaxies])
                 catalog_struct["dec"] = np.array([g.dec for g in galaxies])
@@ -560,6 +550,7 @@ def generate_plan(
                 if len(idx) == 0:
                     raise ValueError('No galaxies available for scheduling.')
 
+                probs = np.array(probs)[idx]
                 values = values[idx]
                 if galaxy_sorting in ["magb", "magk"]:
                     # weigh brighter more heavily
@@ -570,9 +561,9 @@ def generate_plan(
 
                 catalog_struct["ra"] = catalog_struct["ra"][idx]
                 catalog_struct["dec"] = catalog_struct["dec"][idx]
-                catalog_struct["S"] = values
-                catalog_struct["Sloc"] = values
-                catalog_struct["Smass"] = values
+                catalog_struct["S"] = values * probs
+                catalog_struct["Sloc"] = values * probs
+                catalog_struct["Smass"] = values * probs
 
             elif params["tilesType"] == "moc":
 
@@ -637,7 +628,6 @@ def generate_plan(
                         field_data,
                         session=session,
                     )
-
             log(
                 f"Writing planned observations to database for ID(s): {','.join(observation_plan_id_strings)}"
             )
