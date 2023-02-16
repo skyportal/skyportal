@@ -5,7 +5,7 @@ import { Link } from "react-router-dom";
 import MUIDataTable from "mui-datatables";
 // eslint-disable-next-line import/no-unresolved
 import Form from "@rjsf/mui";
-import validator from "@rjsf/validator-ajv8";
+import validator from "@rjsf/validator-ajv6";
 import dataUriToBuffer from "data-uri-to-buffer";
 import Typography from "@mui/material/Typography";
 import Accordion from "@mui/material/Accordion";
