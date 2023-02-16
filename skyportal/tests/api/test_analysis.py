@@ -1135,9 +1135,13 @@ def test_add_default_analysis(
     assert status == 200
     assert data['status'] == 'success'
 
-    time.sleep(10)
+    analysis_service_id = data['data']['id']
+    status, data = api(
+        'GET', f'analysis_service/{analysis_service_id}', token=analysis_service_token
+    )
+    assert status == 200
+    assert data['status'] == 'success'
 
-    # get the current datetime in UTC
     now = datetime.datetime.utcnow()
 
     status, data = api(
@@ -1154,18 +1158,22 @@ def test_add_default_analysis(
     )
     assert status == 200
 
-    time.sleep(10)
+    n_retries = 0
+    while n_retries < 30:
+        # get the list of analyses for the source
+        status, data = api(
+            'GET',
+            'obj/analysis',
+            params={'objID': public_source.id},
+            token=analysis_token,
+        )
+        if status == 200 and data['status'] == 'success' and len(data['data']) != 0:
+            break
+        else:
+            time.sleep(1)
+            n_retries += 1
 
-    # get the list of analyses for the source
-    status, data = api(
-        'GET',
-        'obj/analysis',
-        params={'objID': public_source.id},
-        token=analysis_token,
-    )
-    assert status == 200
-    assert data['status'] == 'success'
-    assert len(data['data']) != 0
+    assert n_retries < 30
 
     assert (
         any(
