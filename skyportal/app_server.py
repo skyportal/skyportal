@@ -23,6 +23,7 @@ from skyportal.handlers.api import (
     CommentHandler,
     CommentAttachmentHandler,
     CommentAttachmentUpdateHandler,
+    DefaultAnalysisHandler,
     EarthquakeHandler,
     EarthquakeMeasurementHandler,
     EarthquakePredictionHandler,
@@ -203,6 +204,7 @@ skyportal_handlers = [
     (r'/api/acls', ACLHandler),
     (r'/api/allocation/report(/[0-9]+)', AllocationReportHandler),
     (r'/api/allocation(/.*)?', AllocationHandler),
+    (r'/api/analysis_service/([0-9]+)/default_analysis(/.*)?', DefaultAnalysisHandler),
     (r'/api/analysis_service(/.*)?', AnalysisServiceHandler),
     (
         r'/api/(obj)/([0-9A-Za-z-_]+)/analysis_upload(/[0-9]+)?',

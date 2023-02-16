@@ -1,4 +1,4 @@
-__all__ = ['AnalysisService', 'ObjAnalysis']
+__all__ = ['AnalysisService', 'ObjAnalysis', 'DefaultAnalysis']
 
 import os
 import io
@@ -14,9 +14,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 import corner
 import arviz
+import operator  # noqa: F401
 import sqlalchemy as sa
 from sqlalchemy.orm import relationship
-from sqlalchemy import event
+from sqlalchemy import event, inspect
+from sqlalchemy.sql.expression import cast
+from sqlalchemy.dialects import postgresql as psql
 from sqlalchemy_utils.types import JSONType
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.dialects.postgresql import ARRAY
@@ -32,6 +35,7 @@ from baselayer.app.models import (
     Base,
     AccessibleIfRelatedRowsAreAccessible,
     AccessibleIfUserMatches,
+    DBSession,
 )
 from baselayer.app.env import load_env
 from baselayer.log import make_log
@@ -46,6 +50,7 @@ from ..enum_types import (
 
 from .webhook import WebhookMixin
 from .group import accessible_by_groups_members
+from .classification import Classification
 
 _, cfg = load_env()
 
@@ -197,6 +202,15 @@ class AnalysisService(Base):
     @authinfo.setter
     def authinfo(self, value):
         self._authinfo = value
+
+    # add the relationship to the DefaultAnalysis table
+    default_analyses = relationship(
+        'DefaultAnalysis',
+        back_populates='analysis_service',
+        cascade='save-update, merge, refresh-expire, expunge, delete-orphan, delete',
+        passive_deletes=True,
+        doc="Instances of analysis applied to specific objects",
+    )
 
 
 class DictNumpyEncoder(json.JSONEncoder):
@@ -539,6 +553,154 @@ class ObjAnalysis(Base, AnalysisMixin, WebhookMixin):
             back_populates=cls.backref_name(),
             doc="The ObjAnalysis's Obj.",
         )
+
+
+class DefaultAnalysis(Base):
+
+    # this is a table that stores a default analysis for a given analysis service
+    # this default analysis will be triggered based on a set of criteria
+    # the criteria will be defined here as well, in a JSONB column called source_filter
+
+    __tablename__ = 'default_analyses'
+
+    create = read = update = delete = accessible_by_groups_members
+
+    analysis_service_id = sa.Column(
+        sa.ForeignKey('analysis_services.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+        doc="ID of the associated analysis service.",
+    )
+
+    analysis_service = relationship(
+        "AnalysisService",
+        back_populates="default_analyses",
+        doc="Analysis Service associated with this analysis.",
+    )
+
+    show_parameters = sa.Column(
+        sa.Boolean,
+        default=False,
+        nullable=False,
+        doc="Whether to render the parameters of this analysis",
+    )
+
+    show_plots = sa.Column(
+        sa.Boolean,
+        default=False,
+        nullable=False,
+        doc="Whether to render the plots of this analysis",
+    )
+
+    show_corner = sa.Column(
+        sa.Boolean,
+        default=False,
+        nullable=False,
+        doc="Whether to render the corner plots of this analysis",
+    )
+
+    default_analysis_parameters = sa.Column(
+        JSONType,
+        nullable=True,
+        doc=('Optional parameters that are passed to the analysis service'),
+    )
+
+    source_filter = sa.Column(
+        psql.JSONB,
+        nullable=False,
+        doc="""
+            JSONB column that defines the criteria for which this default analysis will be triggered.
+            Example: {"classifications": {"name": "Kilonova", "probability": 0.9}}
+        """,
+    )
+
+    groups = relationship(
+        "Group",
+        secondary="group_default_analyses",
+        cascade="save-update, merge, refresh-expire, expunge",
+        passive_deletes=True,
+        doc="Groups that can edit the default analysis, and see the analyses created by it.",
+    )
+
+    @declared_attr
+    def author_id(cls):
+        return sa.Column(
+            sa.ForeignKey('users.id', ondelete='CASCADE'),
+            nullable=False,
+            index=True,
+            doc="ID of the Annotation author's User instance.",
+        )
+
+    @declared_attr
+    def author(cls):
+        return relationship(
+            "User",
+            doc="Annotation's author.",
+        )
+
+
+@event.listens_for(Classification, 'after_insert')
+def create_default_analysis(mapper, connection, target):
+    log(f'Checking for default analyses for classification {target.id}')
+
+    @event.listens_for(inspect(target).session, "after_flush", once=True)
+    def receive_after_flush(session, context):
+        target_data = target.to_dict()
+
+        analyses_query = sa.select(DefaultAnalysis)
+
+        new_classification = target_data['classification']
+        new_probability = target_data['probability']
+
+        string_classification = f'"name": "{new_classification}"'
+
+        analyses_query = analyses_query.where(
+            DefaultAnalysis.source_filter.isnot(None),
+            cast(DefaultAnalysis.source_filter, sa.String).contains(
+                string_classification
+            ),
+        )
+
+        default_analyses = session.scalars(analyses_query).all()
+
+        for default_analysis in default_analyses:
+            source_filter = default_analysis.source_filter
+
+            # in classifications, find the classification who's name matches the classification of the new classification
+            classification_filter = next(
+                (
+                    classification
+                    for classification in source_filter["classifications"]
+                    if classification["name"] == new_classification
+                ),
+                None,
+            )
+            if classification_filter['probability'] <= new_probability:
+                log(
+                    f'Creating default analysis {default_analysis.analysis_service.name} for classification {target.id}'
+                )
+
+            from skyportal.handlers.api.analysis import post_analysis
+
+            with DBSession() as db_session:
+                default_analysis = (
+                    db_session.query(DefaultAnalysis)
+                    .filter(DefaultAnalysis.id == default_analysis.id)
+                    .first()
+                )
+                post_analysis(
+                    "obj",
+                    target.obj_id,
+                    current_user=default_analysis.author,
+                    author=default_analysis.author,
+                    groups=default_analysis.groups,
+                    session=db_session,
+                    analysis_service=default_analysis.analysis_service,
+                    analysis_parameters=default_analysis.default_analysis_parameters,
+                    show_parameters=default_analysis.show_parameters,
+                    show_plots=default_analysis.show_plots,
+                    show_corner=default_analysis.show_corner,
+                )
 
 
 @event.listens_for(ObjAnalysis, 'after_delete')

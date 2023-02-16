@@ -5,6 +5,7 @@ from .analysis import (
     AnalysisServiceHandler,
     AnalysisHandler,
     AnalysisProductsHandler,
+    DefaultAnalysisHandler,
 )
 from .candidate import CandidateHandler
 from .classification import (

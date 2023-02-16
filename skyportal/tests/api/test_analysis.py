@@ -3,6 +3,9 @@ import json
 import socketserver
 import time
 import os
+import datetime
+
+from tdtax import taxonomy, __version__
 
 from skyportal.tests import api
 
@@ -1054,3 +1057,125 @@ def test_upload_analysis(
         data=params,
     )
     assert status == 401
+
+
+def test_add_default_analysis(
+    analysis_service_token,
+    analysis_token,
+    public_group,
+    public_source,
+    taxonomy_token,
+    classification_token,
+):
+
+    taxonomy_name = "test taxonomy" + str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "taxonomy",
+        data={
+            "name": taxonomy_name,
+            "hierarchy": taxonomy,
+            "group_ids": [public_group.id],
+            "provenance": f"tdtax_{__version__}",
+            "version": __version__,
+            "isLatest": True,
+        },
+        token=taxonomy_token,
+    )
+    assert status == 200
+    taxonomy_id = data["data"]["taxonomy_id"]
+
+    name = str(uuid.uuid4())
+
+    optional_analysis_parameters = {"test_parameters": ["test_value_1", "test_value_2"]}
+
+    post_data = {
+        'name': name,
+        'display_name': "test analysis service name",
+        'description': "A test analysis service description",
+        'version': "1.0",
+        'contact_name': "Vera Rubin",
+        'contact_email': "vr@ls.st",
+        # this is the URL/port of the SN analysis service that will be running during testing
+        'url': f"http://localhost:{analysis_port}/analysis/demo_analysis",
+        'optional_analysis_parameters': json.dumps(optional_analysis_parameters),
+        'authentication_type': "none",
+        'analysis_type': 'lightcurve_fitting',
+        'input_data_types': ['photometry', 'redshift'],
+        'timeout': 60,
+        'group_ids': [public_group.id],
+    }
+
+    status, data = api(
+        'POST', 'analysis_service', data=post_data, token=analysis_service_token
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    analysis_service_id = data['data']['id']
+
+    data = {
+        "default_analysis_parameters": {
+            "test_parameters": "test_value_1",
+        },
+        "groups": [public_group.id],
+        "source_filter": {"classifications": [{"name": "Algol", "probability": 1.0}]},
+    }
+
+    url = f'analysis_service/{analysis_service_id}/default_analysis'
+    # analysis_service/1/default_analysis
+
+    status, data = api(
+        'PUT',
+        url,
+        data=data,
+        token=analysis_token,
+    )
+
+    assert status == 200
+    assert data['status'] == 'success'
+
+    time.sleep(10)
+
+    # get the current datetime in UTC
+    now = datetime.datetime.utcnow()
+
+    status, data = api(
+        "POST",
+        "classification",
+        data={
+            "obj_id": public_source.id,
+            "classification": "Algol",
+            "taxonomy_id": taxonomy_id,
+            "probability": 0.5,
+            "group_ids": [public_group.id],
+        },
+        token=classification_token,
+    )
+    assert status == 200
+
+    time.sleep(10)
+
+    # get the list of analyses for the source
+    status, data = api(
+        'GET',
+        'obj/analysis',
+        params={'objID': public_source.id},
+        token=analysis_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+    assert len(data['data']) != 0
+
+    assert (
+        any(
+            (
+                analysis['analysis_service_id'] == analysis_service_id
+                and 'test_parameters' in analysis['analysis_parameters'].keys()
+                and analysis['obj_id'] == public_source.id
+                and analysis['created_at'] > now.isoformat()
+            )
+            for analysis in data['data']
+        )
+        is True
+    )
