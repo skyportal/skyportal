@@ -903,12 +903,19 @@ def add_tiles(
                 contour_summary = contour
 
             if field_id == -1:
+                max_field_id = session.execute(
+                    sa.select(sa.func.max(InstrumentField.field_id)).where(
+                        InstrumentField.instrument_id == instrument_id,
+                    )
+                ).scalar_one()
+
                 field = InstrumentField(
                     instrument_id=instrument_id,
                     contour=contour,
                     contour_summary=contour_summary,
                     ra=ra,
                     dec=dec,
+                    field_id=max_field_id + 1,
                 )
                 session.add(field)
                 session.commit()

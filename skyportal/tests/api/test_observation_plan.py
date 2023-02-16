@@ -238,12 +238,21 @@ def test_observation_plan_galaxy(
     datafile = f'{os.path.dirname(__file__)}/../../../data/GW190814.xml'
     with open(datafile, 'rb') as fid:
         payload = fid.read()
-    data = {'xml': payload}
+    event_data = {'xml': payload}
 
-    status, data = api('POST', 'gcn_event', data=data, token=super_admin_token)
-    assert status == 200
-    assert data['status'] == 'success'
-    gcnevent_id = data['data']['gcnevent_id']
+    dateobs = "2019-08-14T21:10:39"
+    status, data = api('GET', f'gcn_event/{dateobs}', token=super_admin_token)
+
+    if status == 404:
+        status, data = api(
+            'POST', 'gcn_event', data=event_data, token=super_admin_token
+        )
+        assert status == 200
+        assert data['status'] == 'success'
+
+        gcnevent_id = data['data']['gcnevent_id']
+    else:
+        gcnevent_id = data['data']['id']
 
     # wait for event to load
     for n_times in range(26):
@@ -460,7 +469,7 @@ def test_observation_plan_galaxy(
             nretries = nretries + 1
             time.sleep(10)
 
-    assert len(planned_observations) == 29
+    assert len(planned_observations) == 23
     assert all(
         [
             obs['filt'] == request_data["payload"]['filters']
