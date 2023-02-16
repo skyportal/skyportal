@@ -1621,29 +1621,42 @@ class DefaultAnalysisHandler(BaseHandler):
     def get(self, analysis_service_id, default_analysis_id):
         """
         ---
-        description: Retrieve a default analysis or all default analyses if no id is provided
-        parameters:
-          - in: path
-            name: analysis_service_id
-            required: true
-            schema:
-              type: integer
-            description: Analysis service ID
-          - in: path
-            name: default_analysis_id
-            required: false
-            schema:
-              type: integer
-            description: Default analysis ID
-        responses:
-          200:
-            content:
-              application/json:
-                schema: SingleDefaultAnalysis
-          400:
-            content:
-              application/json:
-                schema: Error
+        single:
+          description: Retrieve a default analysis
+          parameters:
+            - in: path
+              name: analysis_service_id
+              required: true
+              description: Analysis service ID
+            - in: path
+              name: default_analysis_id
+              required: true
+              description: Default analysis ID
+          responses:
+            200:
+              content:
+                application/json:
+                  schema: SingleDefaultAnalysis
+            400:
+              content:
+                application/json:
+                  schema: Error
+        multiple:
+          description: Retrieve all default analyses
+          parameters:
+            - in: path
+              name: analysis_service_id
+              required: false
+              description: Analysis service ID, if not provided, return all default analyses for all analysis services
+          responses:
+            200:
+              content:
+                application/json:
+                  schema: ArrayOfDefaultAnalyses
+            400:
+              content:
+                application/json:
+                  schema: Error
         """
 
         with self.Session() as session:
@@ -1676,81 +1689,150 @@ class DefaultAnalysisHandler(BaseHandler):
                 )
 
     @auth_or_token
-    def put(self, analysis_service_id, default_analysis_id=None):
-
+    def post(self, analysis_service_id, default_analysis_id=None):
         data = self.get_json()
-
         with self.Session() as session:
-            analysis_service = session.scalars(
-                AnalysisService.select(self.current_user).where(
-                    AnalysisService.id == analysis_service_id
-                )
-            ).first()
-            if analysis_service is None:
-                return self.error(
-                    f'Analysis service {analysis_service_id} not found', status=404
-                )
+            try:
+                analysis_service = session.scalars(
+                    AnalysisService.select(self.current_user).where(
+                        AnalysisService.id == analysis_service_id
+                    )
+                ).first()
+                if analysis_service is None:
+                    return self.error(
+                        f'Analysis service {analysis_service_id} not found', status=404
+                    )
 
-            analysis_parameters = data.get('default_analysis_parameters', {})
-
-            if isinstance(analysis_service.optional_analysis_parameters, str):
-                optional_analysis_parameters = json.loads(
-                    analysis_service.optional_analysis_parameters
-                )
-            else:
-                optional_analysis_parameters = (
-                    analysis_service.optional_analysis_parameters
+                default_analysis_parameters = data.get(
+                    'default_analysis_parameters', {}
                 )
 
-            if not set(analysis_parameters.keys()).issubset(
-                set(optional_analysis_parameters.keys())
-            ):
-                return self.error(
-                    f'Invalid analysis_parameters: {analysis_parameters}.', status=400
-                )
+                if not isinstance(default_analysis_parameters, dict):
+                    try:
+                        default_analysis_parameters = json.loads(
+                            default_analysis_parameters
+                        )
+                    except Exception:
+                        return self.error(
+                            f'Invalid analysis_parameters: {default_analysis_parameters}.',
+                            status=400,
+                        )
 
-            group_ids = data.pop('group_ids', None)
-            if not group_ids:
-                group_ids = [g.id for g in self.current_user.accessible_groups]
+                if isinstance(analysis_service.optional_analysis_parameters, str):
+                    optional_analysis_parameters = json.loads(
+                        analysis_service.optional_analysis_parameters
+                    )
+                else:
+                    optional_analysis_parameters = (
+                        analysis_service.optional_analysis_parameters
+                    )
 
-            groups = session.scalars(
-                Group.select(self.current_user).where(Group.id.in_(group_ids))
-            ).all()
-            if {g.id for g in groups} != set(group_ids):
-                return self.error(
-                    f'Cannot find one or more groups with IDs: {group_ids}.'
-                )
+                if not set(default_analysis_parameters.keys()).issubset(
+                    set(optional_analysis_parameters.keys())
+                ):
+                    return self.error(
+                        f'Invalid default_analysis_parameters: {default_analysis_parameters}.',
+                        status=400,
+                    )
 
-            source_filter = data.get('source_filter', None)
+                group_ids = data.pop('group_ids', None)
+                if not group_ids:
+                    group_ids = [g.id for g in self.current_user.accessible_groups]
 
-            if source_filter is None:
-                return self.error('No source_filter provided.')
+                groups = session.scalars(
+                    Group.select(self.current_user).where(Group.id.in_(group_ids))
+                ).all()
+                if {g.id for g in groups} != set(group_ids):
+                    return self.error(
+                        f'Cannot find one or more groups with IDs: {group_ids}.'
+                    )
 
-            if isinstance(source_filter, str):
-                try:
-                    source_filter = json.loads(source_filter)
-                except Exception:
+                source_filter = data.get('source_filter', None)
+
+                if source_filter is None:
+                    return self.error('No source_filter provided.')
+
+                if isinstance(source_filter, str):
+                    try:
+                        source_filter = json.loads(source_filter)
+                    except Exception:
+                        return self.error(f'Invalid source_filter: {source_filter}.')
+
+                # check that the keys of the source_filter are valid from the enum DEFAULT_ANALYSIS_SOURCE_FILTERS
+                if not set(source_filter.keys()).issubset(
+                    set(DEFAULT_ANALYSIS_FILTER_TYPES)
+                ):
                     return self.error(f'Invalid source_filter: {source_filter}.')
 
-            # check that the keys of the source_filter are valid from the enum DEFAULT_ANALYSIS_SOURCE_FILTERS
-            if not set(source_filter.keys()).issubset(
-                set(DEFAULT_ANALYSIS_FILTER_TYPES)
-            ):
-                return self.error(f'Invalid source_filter: {source_filter}.')
+                author = self.associated_user_object
 
-            author = self.associated_user_object
+                default_analysis = DefaultAnalysis(
+                    analysis_service=analysis_service,
+                    groups=groups,
+                    default_analysis_parameters=default_analysis_parameters,
+                    show_parameters=data.get('show_parameters', True),
+                    show_plots=data.get('show_plots', True),
+                    show_corner=data.get('show_corner', True),
+                    source_filter=data.get('source_filter', None),
+                    author=author,
+                )
 
-            default_analysis = DefaultAnalysis(
-                analysis_service=analysis_service,
-                groups=groups,
-                default_analysis_parameters=analysis_parameters,
-                show_parameters=data.get('show_parameters', True),
-                show_plots=data.get('show_plots', True),
-                show_corner=data.get('show_corner', True),
-                source_filter=data.get('source_filter', None),
-                author=author,
-            )
+                session.add(default_analysis)
+                session.commit()
+                return self.success(data={"id": default_analysis.id})
+            except Exception as e:
+                return self.error(
+                    f'Unexpected error posting default analysis: {str(e)}'
+                )
 
-            session.add(default_analysis)
-            session.commit()
-            return self.success(data={"id": default_analysis.id})
+    @auth_or_token
+    def delete(self, analysis_service_id, default_analysis_id):
+        """
+        ---
+        description: Delete a default analysis
+        parameters:
+          - in: path
+            name: analysis_service_id
+            required: true
+            schema:
+              type: integer
+            description: Analysis service ID
+          - in: path
+            name: default_analysis_id
+            required: true
+            schema:
+              type: integer
+            description: Default analysis ID
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        if default_analysis_id is None:
+            return self.error("Missing required parameter: default_analysis_id")
+
+        with self.Session() as session:
+            try:
+                default_analysis = session.scalars(
+                    DefaultAnalysis.select(self.current_user).where(
+                        DefaultAnalysis.analysis_service_id == analysis_service_id,
+                        DefaultAnalysis.id == default_analysis_id,
+                    )
+                ).first()
+                if default_analysis is None:
+                    return self.error(
+                        f"Could not find default analysis {default_analysis_id}",
+                        status=400,
+                    )
+                session.delete(default_analysis)
+                session.commit()
+                return self.success()
+            except Exception as e:
+                return self.error(
+                    f'Unexpected error deleting default analysis: {str(e)}'
+                )

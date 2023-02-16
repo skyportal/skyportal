@@ -1106,6 +1106,7 @@ analysis_service:
     group_ids:
       - =program_A
       - =program_B
+    =id: Demo_Analysis
   - name: "NGSF_Analysis"
     display_name: "NGSF analysis"
     description: "Use NGSF to fit spectra"
@@ -1120,3 +1121,10 @@ analysis_service:
     group_ids:
       - =program_A
       - =program_B
+
+analysis_service/=Demo_Analysis/default_analysis:
+  - default_analysis_parameters: '{"source": "salt3"}'
+    groups:
+      - =program_A
+      - =program_B
+    source_filter: '{"classifications": {"classification": "SN", "probability": 0.9}}'

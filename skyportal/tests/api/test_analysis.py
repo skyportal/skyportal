@@ -1126,7 +1126,7 @@ def test_add_default_analysis(
     # analysis_service/1/default_analysis
 
     status, data = api(
-        'PUT',
+        'POST',
         url,
         data=data,
         token=analysis_token,
@@ -1141,6 +1141,7 @@ def test_add_default_analysis(
     )
     assert status == 200
     assert data['status'] == 'success'
+    default_analysis_id = data['data']['id']
 
     now = datetime.datetime.utcnow()
 
@@ -1187,3 +1188,10 @@ def test_add_default_analysis(
         )
         is True
     )
+
+    status, data = api(
+        'DELETE',
+        f'{url}/{default_analysis_id}',
+        token=analysis_token,
+    )
+    assert status == 200
