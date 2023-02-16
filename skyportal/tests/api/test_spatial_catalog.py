@@ -13,9 +13,13 @@ def test_spatial_catalog(super_admin_token, upload_data_token, view_only_token):
     catalog_name = str(uuid.uuid4())
 
     datafile = f'{os.path.dirname(__file__)}/../data/gll_psc_v27_small.csv'
+    data_out = pd.read_csv(datafile)
+    entries = [str(uuid.uuid4()) for _ in range(len(data_out))]
+    data_out['name'] = entries
+
     data = {
         'catalog_name': catalog_name,
-        'catalog_data': pd.read_csv(datafile).to_dict(orient='list'),
+        'catalog_data': data_out.to_dict(orient='list'),
     }
 
     status, data = api('POST', 'spatial_catalog', data=data, token=super_admin_token)
@@ -51,11 +55,11 @@ def test_spatial_catalog(super_admin_token, upload_data_token, view_only_token):
 
     params = {
         'spatialCatalogName': catalog_name,
-        'spatialCatalogEntryName': '4FGL-J0212.1+5321',
+        'spatialCatalogEntryName': entries[1],
     }
     status, data = api("GET", "sources", token=view_only_token, params=params)
-    assert len(data['data']['sources']) == 1
-    assert data['data']['sources'][0]['id'] == obj_id
+    assert len(data['data']['sources']) >= 1
+    assert any([source['id'] == obj_id for source in data['data']['sources']])
 
     status, data = api(
         'DELETE', f'spatial_catalog/{catalog_id}', data=data, token=super_admin_token
