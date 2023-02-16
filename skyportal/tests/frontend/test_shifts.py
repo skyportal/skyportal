@@ -111,7 +111,9 @@ def test_shift(
     driver.wait_for_xpath(select_users)
     driver.click_xpath(select_users)
     driver.wait_for_xpath(f'//li[@id="select_users"]/*[@id="{user.id}"]')
-    driver.click_xpath(f'//li[@id="select_users"]/*[@id="{user.id}"]')
+    driver.click_xpath(
+        f'//li[@id="select_users"]/*[@id="{user.id}"]', scroll_parent=True
+    )
 
     # check for button to add users
     remove_users_button = '//*[@id="deactivated-remove-users-button"]'
@@ -129,7 +131,9 @@ def test_shift(
     driver.wait_for_xpath(select_users)
     driver.click_xpath(select_users)
     driver.wait_for_xpath(f'//li[@id="select_users"]/*[@id="{user.id}"]')
-    driver.click_xpath(f'//li[@id="select_users"]/*[@id="{user.id}"]')
+    driver.click_xpath(
+        f'//li[@id="select_users"]/*[@id="{user.id}"]', scroll_parent=True
+    )
 
     driver.wait_for_xpath(f'//li[@id="select_users"]/*[@id="{view_only_user.id}"]')
     driver.click_xpath(f'//li[@id="select_users"]/*[@id="{view_only_user.id}"]')
@@ -162,7 +166,9 @@ def test_shift(
     driver.click_xpath(select_users)
 
     driver.wait_for_xpath(f'//li[@id="select_users"]/*[@id="{view_only_user.id}"]')
-    driver.click_xpath(f'//li[@id="select_users"]/*[@id="{view_only_user.id}"]')
+    driver.click_xpath(
+        f'//li[@id="select_users"]/*[@id="{view_only_user.id}"]', scroll_parent=True
+    )
 
     # check for button to remove users
     deactivated_add_users_button = '//*[@id="deactivated-add-users-button"]'

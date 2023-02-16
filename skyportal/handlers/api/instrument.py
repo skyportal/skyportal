@@ -625,6 +625,14 @@ class InstrumentHandler(BaseHandler):
             required: true
             schema:
               type: integer
+          - in: query
+            name: fieldsOnly
+            nullable: true
+            schema:
+              type: boolean
+            description: |
+              Boolean indicating whether to just delete the associated fields.
+              Defaults to false.
         responses:
           200:
             content:
@@ -635,7 +643,9 @@ class InstrumentHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+
         with self.Session() as session:
+
             stmt = Instrument.select(session.user_or_token, mode="delete").where(
                 Instrument.id == int(instrument_id)
             )
@@ -955,3 +965,48 @@ def add_tiles(
     finally:
         Session.remove()
         return field_ids
+
+
+class InstrumentFieldHandler(BaseHandler):
+    @permissions(['Delete instrument'])
+    def delete(self, instrument_id):
+        """
+        ---
+        description: Delete fields associated with an instrument
+        tags:
+          - instruments
+        parameters:
+          - in: path
+            name: instrument_id
+            required: true
+            schema:
+              type: integer
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+
+        with self.Session() as session:
+
+            stmt = Instrument.select(session.user_or_token, mode="delete").where(
+                Instrument.id == int(instrument_id)
+            )
+            instrument = session.scalars(stmt).first()
+            if instrument is None:
+                return self.error(f'Missing instrument with ID {instrument_id}')
+
+            session.execute(
+                sa.delete(InstrumentField).where(
+                    InstrumentFieldTile.instrument_id == instrument.id,
+                )
+            )
+            session.commit()
+
+        self.push_all(action="skyportal/REFRESH_INSTRUMENTS")
+        return self.success()

@@ -43,6 +43,9 @@ const NewSource = ({ classes }) => {
   };
 
   function validate(formData, errors) {
+    if (selectedGroupIds.length === 0) {
+      errors.id.addError("Select at least one group.");
+    }
     if (formData.id.indexOf(" ") >= 0) {
       errors.id.addError("IDs are not allowed to have spaces, please fix.");
     }
