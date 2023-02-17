@@ -17,6 +17,8 @@ from ..enum_types import thumbnail_types
 
 log = make_log('models.thumbnail')
 
+# random string to use as a placeholder for thumbnails that are not yet
+
 
 class Thumbnail(Base):
     """Thumbnail image centered on the location of an Obj."""
