@@ -1,7 +1,9 @@
 import React from "react";
 import { useDispatch, useSelector } from "react-redux";
 // eslint-disable-next-line import/no-unresolved
-import Form from "@rjsf/material-ui/v5";
+import Form from "@rjsf/mui";
+import validator from "@rjsf/validator-ajv8";
+
 import { showNotification } from "baselayer/components/Notifications";
 
 import dayjs from "dayjs";
@@ -74,6 +76,7 @@ const NewRecurringAPI = () => {
     <div>
       <Form
         schema={analysisServiceFormSchema}
+        validator={validator}
         onSubmit={handleSubmit}
         liveValidate
       />

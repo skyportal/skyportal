@@ -3,7 +3,8 @@ import { useSelector, useDispatch } from "react-redux";
 import makeStyles from "@mui/styles/makeStyles";
 import dayjs from "dayjs";
 // eslint-disable-next-line import/no-unresolved
-import Form from "@rjsf/material-ui/v5";
+import Form from "@rjsf/mui";
+import validator from "@rjsf/validator-ajv8";
 import {
   Paper,
   Collapse,
@@ -309,9 +310,10 @@ const ShiftSummary = () => {
         </div>
         <Form
           schema={shiftFormSchema}
+          validator={validator}
           onSubmit={handleSubmit}
           // eslint-disable-next-line react/jsx-no-bind
-          validate={validate}
+          customValidate={validate}
           liveValidate
         />
       </Paper>

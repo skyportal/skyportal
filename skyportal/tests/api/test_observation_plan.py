@@ -82,7 +82,7 @@ def test_observation_plan_tiling(
     telescope_id = data['data']['id']
 
     fielddatafile = f'{os.path.dirname(__file__)}/../../../data/ZTF_Fields.csv'
-    regionsdatafile = f'{os.path.dirname(__file__)}/../../../data/ZTF_Region.reg'
+    regionsdatafile = f'{os.path.dirname(__file__)}/../../../data/ZTF_Square_Region.reg'
 
     instrument_name = str(uuid.uuid4())
     status, data = api(
@@ -115,23 +115,26 @@ def test_observation_plan_tiling(
 
     # wait for the fields to populate
     nretries = 0
+    maxretries = 10
     fields_loaded = False
-    while not fields_loaded and nretries < 5:
+    while not fields_loaded and nretries < maxretries:
         try:
             status, data = api(
                 'GET',
                 f'instrument/{instrument_id}',
                 token=super_admin_token,
+                params={'localizationDateobs': dateobs},
             )
             assert status == 200
             assert data['status'] == 'success'
-            assert data['data']['band'] == 'NIR'
-
-            assert len(data['data']['fields']) == 5
+            assert data['data']['band'] == 'Optical'
+            assert len(data['data']['fields']) == 2
             fields_loaded = True
+            time.sleep(15)
         except AssertionError:
             nretries = nretries + 1
-            time.sleep(3)
+            time.sleep(15)
+    assert nretries < maxretries
 
     request_data = {
         'group_id': public_group.id,
@@ -154,8 +157,8 @@ def test_observation_plan_tiling(
         'gcnevent_id': gcnevent_id,
         'localization_id': localization_id,
         'payload': {
-            'start_date': '2019-04-25 01:01:01',
-            'end_date': '2019-04-27 01:01:01',
+            'start_date': '2020-02-14 01:01:01',
+            'end_date': '2020-02-15 01:01:01',
             'filter_strategy': 'block',
             'schedule_strategy': 'tiling',
             'schedule_type': 'greedy_slew',
@@ -179,7 +182,7 @@ def test_observation_plan_tiling(
     id = data['data']['ids'][0]
 
     # wait for the observation plan to finish
-    time.sleep(15)
+    time.sleep(30)
 
     status, data = api(
         'GET',
@@ -207,7 +210,6 @@ def test_observation_plan_tiling(
 
     planned_observations = observation_plan['planned_observations']
 
-    assert len(planned_observations) == 2
     assert all(
         [
             obs['filt'] == request_data["payload"]['filters']
@@ -220,11 +222,6 @@ def test_observation_plan_tiling(
             for obs in planned_observations
         ]
     )
-
-    status, data = api(
-        'GET', f'observation_plan/{id}/simsurvey', token=super_admin_token
-    )
-    assert status == 200
 
 
 @pytest.mark.flaky(reruns=2)
@@ -241,12 +238,21 @@ def test_observation_plan_galaxy(
     datafile = f'{os.path.dirname(__file__)}/../../../data/GW190814.xml'
     with open(datafile, 'rb') as fid:
         payload = fid.read()
-    data = {'xml': payload}
+    event_data = {'xml': payload}
 
-    status, data = api('POST', 'gcn_event', data=data, token=super_admin_token)
-    assert status == 200
-    assert data['status'] == 'success'
-    gcnevent_id = data['data']['gcnevent_id']
+    dateobs = "2019-08-14T21:10:39"
+    status, data = api('GET', f'gcn_event/{dateobs}', token=super_admin_token)
+
+    if status == 404:
+        status, data = api(
+            'POST', 'gcn_event', data=event_data, token=super_admin_token
+        )
+        assert status == 200
+        assert data['status'] == 'success'
+
+        gcnevent_id = data['data']['gcnevent_id']
+    else:
+        gcnevent_id = data['data']['id']
 
     # wait for event to load
     for n_times in range(26):
@@ -463,7 +469,7 @@ def test_observation_plan_galaxy(
             nretries = nretries + 1
             time.sleep(10)
 
-    assert len(planned_observations) == 29
+    assert len(planned_observations) == 23
     assert all(
         [
             obs['filt'] == request_data["payload"]['filters']

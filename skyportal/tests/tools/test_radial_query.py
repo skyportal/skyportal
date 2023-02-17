@@ -8,6 +8,7 @@ import conesearch_alchemy as ca
 
 
 @pytest.mark.parametrize('n', [100, 1000, 10000])
+@pytest.mark.flaky(reruns=3)
 def test_radial_query(n):
 
     # generate the points

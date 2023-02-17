@@ -345,7 +345,7 @@ class PhotBaseFlexible:
             )
         },
         load_default=None,
-        default=None,
+        dump_default=None,
         required=False,
     )
 
@@ -637,7 +637,7 @@ class PhotBase:
             )
         },
         load_default=None,
-        default=None,
+        dump_default=None,
     )
     dec = fields.Number(
         metadata={
@@ -645,19 +645,19 @@ class PhotBase:
             'of the photometric aperture [deg].'
         },
         load_default=None,
-        default=None,
+        dump_default=None,
     )
 
     ra_unc = fields.Number(
         metadata={'description': 'Uncertainty on RA [arcsec].'},
         load_default=None,
-        default=None,
+        dump_default=None,
     )
 
     dec_unc = fields.Number(
         metadata={'description': 'Uncertainty on dec [arcsec].'},
         load_default=None,
-        default=None,
+        dump_default=None,
     )
 
     alert_id = fields.Integer(
@@ -670,7 +670,7 @@ class PhotBase:
             )
         },
         load_default=None,
-        default=None,
+        dump_default=None,
     )
 
     altdata = fields.Dict(
@@ -683,7 +683,7 @@ class PhotBase:
             )
         },
         load_default=None,
-        default=None,
+        dump_default=None,
     )
 
     @post_load
@@ -712,7 +712,7 @@ class PhotometryFlux(_Schema, PhotBase):
         },
         required=False,
         load_default=None,
-        default=None,
+        dump_default=None,
     )
 
     fluxerr = fields.Number(
@@ -884,7 +884,7 @@ class PhotometryMag(_Schema, PhotBase):
         },
         required=False,
         load_default=None,
-        default=None,
+        dump_default=None,
     )
     magerr = fields.Number(
         metadata={
@@ -894,7 +894,7 @@ class PhotometryMag(_Schema, PhotBase):
         },
         required=False,
         load_default=None,
-        default=None,
+        dump_default=None,
     )
     limiting_mag = fields.Number(
         metadata={
@@ -1394,7 +1394,7 @@ class PhotometryRangeQuery(_Schema):
         },
         required=False,
         load_default=None,
-        default=None,
+        dump_default=None,
     )
 
     min_date = fields.DateTime(
@@ -1407,7 +1407,7 @@ class PhotometryRangeQuery(_Schema):
             )
         },
         load_default=None,
-        default=None,
+        dump_default=None,
     )
 
     max_date = fields.DateTime(
@@ -1420,7 +1420,7 @@ class PhotometryRangeQuery(_Schema):
             )
         },
         load_default=None,
-        default=None,
+        dump_default=None,
     )
 
 

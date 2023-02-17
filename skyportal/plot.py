@@ -1463,7 +1463,7 @@ def make_period_controls(
         ),
     )
     phase_selection.js_on_event(
-        'button_click',
+        'active',
         CustomJS(
             args={
                 'textinput': period_textinput,
@@ -1900,10 +1900,9 @@ async def photometry_plot(obj_id, user_id, session, width=600, device="browser")
     for p in data:
         telescope = p.instrument.telescope.nickname
         instrument = p.instrument.name
-        result = serialize(p, 'ab', 'both')
+        result = serialize(p, 'ab', 'both', groups=False, annotations=False)
         result['telescope'] = telescope
         result['instrument'] = instrument
-        result['groups'] = [g.to_dict() for g in result['groups']]
         query_result.append(result)
 
     data = pd.DataFrame.from_dict(query_result)

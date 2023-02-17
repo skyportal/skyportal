@@ -1,7 +1,8 @@
 import React from "react";
 import { useDispatch, useSelector } from "react-redux";
 // eslint-disable-next-line import/no-unresolved
-import Form from "@rjsf/material-ui/v5";
+import Form from "@rjsf/mui";
+import validator from "@rjsf/validator-ajv8";
 import { showNotification } from "baselayer/components/Notifications";
 
 import dayjs from "dayjs";
@@ -71,7 +72,13 @@ const NewObservingRun = () => {
     required: ["pi", "calendar_date", "instrument_id"],
   };
 
-  return <Form schema={observingRunFormSchema} onSubmit={handleSubmit} />;
+  return (
+    <Form
+      schema={observingRunFormSchema}
+      validator={validator}
+      onSubmit={handleSubmit}
+    />
+  );
 };
 
 export default NewObservingRun;

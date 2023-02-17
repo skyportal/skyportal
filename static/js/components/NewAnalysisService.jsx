@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 // eslint-disable-next-line import/no-unresolved
-import Form from "@rjsf/material-ui/v5";
+import Form from "@rjsf/mui";
+import validator from "@rjsf/validator-ajv8";
 import CircularProgress from "@mui/material/CircularProgress";
 import { showNotification } from "baselayer/components/Notifications";
 
@@ -129,6 +130,7 @@ const NewAnalysisService = () => {
     <div>
       <Form
         schema={analysisServiceFormSchema}
+        validator={validator}
         onSubmit={handleSubmit}
         liveValidate
       />

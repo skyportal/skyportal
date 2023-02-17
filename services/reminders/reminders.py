@@ -27,13 +27,12 @@ log = make_log('reminders')
 
 REQUEST_TIMEOUT_SECONDS = cfg['health_monitor.request_timeout_seconds']
 
+host = f'{cfg["server.protocol"]}://{cfg["server.host"]}:{cfg["server.port"]}'
+
 
 def is_loaded():
-    port = cfg['ports.app_internal']
     try:
-        r = requests.get(
-            f'http://localhost:{port}/api/sysinfo', timeout=REQUEST_TIMEOUT_SECONDS
-        )
+        r = requests.get(f'{host}/api/sysinfo', timeout=REQUEST_TIMEOUT_SECONDS)
     except:  # noqa: E722
         status_code = 0
     else:
@@ -52,7 +51,7 @@ def service():
                 send_reminders()
             except Exception as e:
                 log(e)
-        time.sleep(5)
+        time.sleep(60)
 
 
 def send_reminders():
@@ -60,7 +59,7 @@ def send_reminders():
     reminders = []
     with DBSession() as session:
         try:
-            user = session.query(User).get(1)
+            user = session.query(User).where(User.id == 1).first()
             reminders = (
                 (
                     session.scalars(
