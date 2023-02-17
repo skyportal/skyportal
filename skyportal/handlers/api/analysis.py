@@ -1652,7 +1652,7 @@ class DefaultAnalysisHandler(BaseHandler):
             200:
               content:
                 application/json:
-                  schema: ArrayOfDefaultAnalyses
+                  schema: ArrayOfDefaultAnalysiss
             400:
               content:
                 application/json:
