@@ -8,6 +8,7 @@ from baselayer.log import make_log
 from skyportal.handlers import BecomeUserHandler, LogoutHandler
 from skyportal.handlers.api import (
     ACLHandler,
+    AnalysisUploadOnlyHandler,
     AnalysisServiceHandler,
     AnalysisHandler,
     AnalysisProductsHandler,
@@ -69,6 +70,7 @@ from skyportal.handlers.api import (
     PublicGroupHandler,
     GroupStreamHandler,
     InstrumentHandler,
+    InstrumentFieldHandler,
     InvalidEndpointHandler,
     InvitationHandler,
     UserObjListHandler,
@@ -93,6 +95,7 @@ from skyportal.handlers.api import (
     PhotStatHandler,
     PhotStatUpdateHandler,
     BulkDeletePhotometryHandler,
+    PhotometricSeriesHandler,
     ObjHandler,
     ObjPhotometryHandler,
     ObjClassificationHandler,
@@ -202,6 +205,10 @@ skyportal_handlers = [
     (r'/api/allocation/report(/[0-9]+)', AllocationReportHandler),
     (r'/api/allocation(/.*)?', AllocationHandler),
     (r'/api/analysis_service(/.*)?', AnalysisServiceHandler),
+    (
+        r'/api/(obj)/([0-9A-Za-z-_]+)/analysis_upload(/[0-9]+)?',
+        AnalysisUploadOnlyHandler,
+    ),
     (r'/api/(obj)/([0-9A-Za-z-_]+)/analysis(/[0-9]+)?', AnalysisHandler),
     (r'/api/(obj)/analysis(/[0-9]+)?', AnalysisHandler),
     (
@@ -330,6 +337,7 @@ skyportal_handlers = [
     (r'/api/mmadetector/time_intervals(/[0-9]+)?', MMADetectorTimeIntervalHandler),
     (r'/api/listing(/[0-9]+)?', UserObjListHandler),
     (r'/api/group_admission_requests(/[0-9]+)?', GroupAdmissionRequestHandler),
+    (r'/api/instrument(/[0-9]+)/fields', InstrumentFieldHandler),
     (r'/api/instrument(/[0-9]+)?', InstrumentHandler),
     (r'/api/invitations(/.*)?', InvitationHandler),
     (r'/api/newsfeed', NewsFeedHandler),
@@ -385,6 +393,7 @@ skyportal_handlers = [
     ),
     (r'/api/objs(/[0-9A-Za-z-_\.\+]+)', ObjHandler),
     (r'/api/photometry(/[0-9]+)?', PhotometryHandler),
+    (r'/api/photometric_series(/[0-9]+)?', PhotometricSeriesHandler),
     (r'/api/sharing', SharingHandler),
     (r'/api/shifts/summary(/[0-9]+)?', ShiftSummary),
     (r'/api/shifts(/[0-9]+)?', ShiftHandler),

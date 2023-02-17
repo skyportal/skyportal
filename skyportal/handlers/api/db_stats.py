@@ -87,7 +87,9 @@ class StatsHandler(BaseHandler):
         with DBSession() as session:
             data["Number of photometry (approx)"] = list(
                 session.execute(
-                    "SELECT reltuples::bigint FROM pg_catalog.pg_class WHERE relname = 'photometry'"
+                    sa.text(
+                        "SELECT reltuples::bigint FROM pg_catalog.pg_class WHERE relname = 'photometry'"
+                    )
                 )
             )[0][0]
 

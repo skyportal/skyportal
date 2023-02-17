@@ -8,7 +8,8 @@ import Select from "@mui/material/Select";
 import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
 // eslint-disable-next-line import/no-unresolved
-import Form from "@rjsf/material-ui/v5";
+import Form from "@rjsf/mui";
+import validator from "@rjsf/validator-ajv8";
 import { showNotification } from "baselayer/components/Notifications";
 
 import dayjs from "dayjs";
@@ -320,6 +321,7 @@ const ModifyAllocation = () => {
       </div>
       <Form
         schema={allocationFormSchema}
+        validator={validator}
         onSubmit={handleSubmit}
         // eslint-disable-next-line react/jsx-no-bind
         validate={validate}

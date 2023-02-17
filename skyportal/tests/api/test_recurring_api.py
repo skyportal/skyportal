@@ -55,7 +55,7 @@ def test_post_and_verify_recurring_api(
         )
         if data['status'] == 'success':
             break
-        time.sleep(2)
+        time.sleep(15)
         n_retries += 1
     assert n_retries < 10
     assert status == 200

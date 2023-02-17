@@ -93,7 +93,7 @@ log = make_log('api/gcn_event')
 
 env, cfg = load_env()
 
-Session = scoped_session(sessionmaker(bind=DBSession.session_factory.kw["bind"]))
+Session = scoped_session(sessionmaker())
 
 MAX_GCNEVENTS = 1000
 
@@ -616,6 +616,7 @@ class GcnEventHandler(BaseHandler):
                     )
 
                 self.push(action='skyportal/REFRESH_GCN_EVENTS')
+                self.push(action='skyportal/REFRESH_RECENT_GCNEVENTS')
             except Exception as e:
                 return self.error(f'Cannot post event: {str(e)}')
 
@@ -1133,7 +1134,12 @@ class GcnEventHandler(BaseHandler):
 
 
 def add_tiles_and_properties_and_observation_plans(localization_id, user_id):
-    session = Session()
+
+    if Session.registry.has():
+        session = Session()
+    else:
+        session = Session(bind=DBSession.session_factory.kw["bind"])
+
     try:
         localization = session.scalar(
             sa.select(Localization).where(Localization.id == localization_id)
@@ -1222,9 +1228,6 @@ def add_tiles_and_properties_and_observation_plans(localization_id, user_id):
             GcnEvent.select(user).where(GcnEvent.dateobs == localization.dateobs)
         ).first()
         start_date = str(datetime.datetime.utcnow()).replace("T", "")
-        end_date = str(datetime.datetime.utcnow() + datetime.timedelta(days=1)).replace(
-            "T", ""
-        )
 
         for ii, gcn_observation_plan in enumerate(gcn_observation_plans):
             allocation_id = gcn_observation_plan['allocation_id']
@@ -1233,6 +1236,15 @@ def add_tiles_and_properties_and_observation_plans(localization_id, user_id):
             ).first()
 
             if allocation is not None:
+
+                end_date = allocation.instrument.telescope.next_sunrise()
+                if end_date is None:
+                    end_date = str(
+                        datetime.datetime.utcnow() + datetime.timedelta(days=1)
+                    ).replace("T", "")
+                else:
+                    end_date = Time(end_date, format='jd').iso
+
                 payload = {
                     **gcn_observation_plan['payload'],
                     'start_date': start_date,
@@ -1280,9 +1292,17 @@ def add_tiles_and_properties_and_observation_plans(localization_id, user_id):
                     plan, user_id, session, asynchronous=False
                 )
                 for survey_efficiency in gcn_observation_plan['survey_efficiencies']:
-                    post_survey_efficiency_analysis(
-                        survey_efficiency, plan_id, user_id, session, asynchronous=False
-                    )
+                    try:
+                        post_survey_efficiency_analysis(
+                            survey_efficiency,
+                            plan_id,
+                            user_id,
+                            session,
+                            asynchronous=False,
+                        )
+                    except Exception as e:
+                        log(f"Survey efficiency analysis failed: {str(e)}")
+                        continue
 
         return log(
             f"Generated tiles / properties / observation plans for localization {localization_id}"
@@ -1292,11 +1312,16 @@ def add_tiles_and_properties_and_observation_plans(localization_id, user_id):
             f"Unable to generate tiles / properties / observation plans for localization {localization_id}: {e}"
         )
     finally:
-        Session.remove()
+        session.close()
 
 
 def add_contour(localization_id):
-    session = Session()
+
+    if Session.registry.has():
+        session = Session()
+    else:
+        session = Session(bind=DBSession.session_factory.kw["bind"])
+
     try:
         localization = session.query(Localization).get(localization_id)
         localization = get_contour(localization)
@@ -1306,6 +1331,7 @@ def add_contour(localization_id):
     except Exception as e:
         log(f"Unable to generate contour for localization {localization_id}: {e}")
     finally:
+        session.close()
         Session.remove()
 
 
@@ -1499,7 +1525,12 @@ def add_gcn_summary(
     no_text,
     photometry_in_window,
 ):
-    session = Session()
+
+    if Session.registry.has():
+        session = Session()
+    else:
+        session = Session(bind=DBSession.session_factory.kw["bind"])
+
     try:
         user = session.query(User).get(user_id)
         session.user_or_token = user
@@ -1906,6 +1937,9 @@ def add_gcn_summary(
         except Exception:
             pass
         log(f"Unable to create GCN summary: {e}")
+    finally:
+        session.close()
+        Session.remove()
 
 
 class GcnSummaryHandler(BaseHandler):

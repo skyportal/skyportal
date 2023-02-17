@@ -29,7 +29,8 @@ from baselayer.app.models import (
 )
 from baselayer.log import make_log
 
-from .photometry import Photometry, PhotometricSeries
+from .photometry import Photometry
+from .photometric_series import PhotometricSeries
 from .spectrum import Spectrum
 from .candidate import Candidate
 from .thumbnail import Thumbnail

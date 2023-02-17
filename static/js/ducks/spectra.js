@@ -11,6 +11,8 @@ const DELETE_SPECTRUM = "skyportal/DELETE_SPECTRUM";
 const UPLOAD_SPECTRUM = "skyportal/UPLOAD_SPECTRUM";
 const UPLOAD_SPECTRUM_OK = "skyportal/UPLOAD_SPECTRUM_OK";
 
+const DELETE_ANNOTATION_SPECTRUM = "skyportal/DELETE_ANNOTATION_SPECTRUM";
+
 const PARSE_SOURCE_SPECTRUM_ASCII = "skyportal/PARSE_SOURCE_SPECTRUM_ASCII";
 const PARSE_SOURCE_SPECTRUM_ASCII_OK =
   "skyportal/PARSE_SOURCE_SPECTRUM_ASCII_OK";
@@ -51,6 +53,13 @@ export function deleteSpectrum(id) {
 
 export function uploadASCIISpectrum(data) {
   return API.POST(`/api/spectrum/ascii`, UPLOAD_SPECTRUM, data);
+}
+
+export function deleteAnnotation(id, annotationID) {
+  return API.DELETE(
+    `/api/spectra/${id}/annotations/${annotationID}`,
+    DELETE_ANNOTATION_SPECTRUM
+  );
 }
 
 // Websocket message handler

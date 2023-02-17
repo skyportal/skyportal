@@ -1,7 +1,8 @@
 import React from "react";
 import { useDispatch } from "react-redux";
 // eslint-disable-next-line import/no-unresolved
-import Form from "@rjsf/material-ui/v5";
+import Form from "@rjsf/mui";
+import validator from "@rjsf/validator-ajv8";
 import dataUriToBuffer from "data-uri-to-buffer";
 import { showNotification } from "baselayer/components/Notifications";
 import {
@@ -45,7 +46,13 @@ const NewSpatialCatalog = () => {
     required: ["file", "catalogName"],
   };
 
-  return <Form schema={spatialCatalogFormSchema} onSubmit={handleSubmit} />;
+  return (
+    <Form
+      schema={spatialCatalogFormSchema}
+      validator={validator}
+      onSubmit={handleSubmit}
+    />
+  );
 };
 
 export default NewSpatialCatalog;

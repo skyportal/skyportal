@@ -2,7 +2,6 @@ import arrow
 import json
 
 from marshmallow.exceptions import ValidationError
-from sqlalchemy.orm import sessionmaker, scoped_session
 
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.model_util import recursive_to_dict
@@ -13,15 +12,12 @@ from baselayer.app.env import load_env
 from ..base import BaseHandler
 
 from ...models import (
-    DBSession,
     RecurringAPI,
 )
 
 log = make_log('app/recurring_api')
 
 _, cfg = load_env()
-
-Session = scoped_session(sessionmaker(bind=DBSession.session_factory.kw["bind"]))
 
 ALLOWED_RECURRING_API_METHODS = ['POST']
 MAX_RETRIES = 10

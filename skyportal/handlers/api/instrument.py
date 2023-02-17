@@ -33,7 +33,7 @@ from ...enum_types import ALLOWED_BANDPASSES
 
 log = make_log('api/instrument')
 
-Session = scoped_session(sessionmaker(bind=DBSession.session_factory.kw["bind"]))
+Session = scoped_session(sessionmaker())
 
 
 class InstrumentHandler(BaseHandler):
@@ -405,9 +405,9 @@ class InstrumentHandler(BaseHandler):
 
                     if includeGeoJSON or includeGeoJSONSummary:
                         if includeGeoJSON:
-                            undefer_column = 'contour'
+                            undefer_column = InstrumentField.contour
                         elif includeGeoJSONSummary:
-                            undefer_column = 'contour_summary'
+                            undefer_column = InstrumentField.contour_summary
                         tiles = (
                             session.scalars(
                                 sa.select(InstrumentField)
@@ -625,6 +625,14 @@ class InstrumentHandler(BaseHandler):
             required: true
             schema:
               type: integer
+          - in: query
+            name: fieldsOnly
+            nullable: true
+            schema:
+              type: boolean
+            description: |
+              Boolean indicating whether to just delete the associated fields.
+              Defaults to false.
         responses:
           200:
             content:
@@ -635,7 +643,9 @@ class InstrumentHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+
         with self.Session() as session:
+
             stmt = Instrument.select(session.user_or_token, mode="delete").where(
                 Instrument.id == int(instrument_id)
             )
@@ -740,9 +750,14 @@ InstrumentHandler.post.__doc__ = f"""
 
 
 def add_tiles(
-    instrument_id, instrument_name, regions, field_data, modify=False, session=Session()
+    instrument_id, instrument_name, regions, field_data, modify=False, session=None
 ):
     field_ids = []
+    if session is None:
+        if Session.registry.has():
+            session = Session()
+        else:
+            session = Session(bind=DBSession.session_factory.kw["bind"])
 
     try:
         # Loop over the telescope tiles and create fields for each
@@ -888,12 +903,19 @@ def add_tiles(
                 contour_summary = contour
 
             if field_id == -1:
+                max_field_id = session.execute(
+                    sa.select(sa.func.max(InstrumentField.field_id)).where(
+                        InstrumentField.instrument_id == instrument_id,
+                    )
+                ).scalar_one()
+
                 field = InstrumentField(
                     instrument_id=instrument_id,
                     contour=contour,
                     contour_summary=contour_summary,
                     ra=ra,
                     dec=dec,
+                    field_id=max_field_id + 1,
                 )
                 session.add(field)
                 session.commit()
@@ -908,14 +930,12 @@ def add_tiles(
                     ).first()
 
                     if field is not None:
-                        field_tiles = session.scalars(
-                            sa.select(InstrumentFieldTile).where(
+                        session.execute(
+                            sa.delete(InstrumentFieldTile).where(
                                 InstrumentFieldTile.instrument_id == instrument_id,
                                 InstrumentFieldTile.instrument_field_id == field.id,
                             )
-                        ).all()
-                        for field_tile in field_tiles:
-                            session.delete(field_tile)
+                        )
                         session.commit()
 
                         create_field = False
@@ -952,3 +972,48 @@ def add_tiles(
     finally:
         Session.remove()
         return field_ids
+
+
+class InstrumentFieldHandler(BaseHandler):
+    @permissions(['Delete instrument'])
+    def delete(self, instrument_id):
+        """
+        ---
+        description: Delete fields associated with an instrument
+        tags:
+          - instruments
+        parameters:
+          - in: path
+            name: instrument_id
+            required: true
+            schema:
+              type: integer
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+
+        with self.Session() as session:
+
+            stmt = Instrument.select(session.user_or_token, mode="delete").where(
+                Instrument.id == int(instrument_id)
+            )
+            instrument = session.scalars(stmt).first()
+            if instrument is None:
+                return self.error(f'Missing instrument with ID {instrument_id}')
+
+            session.execute(
+                sa.delete(InstrumentField).where(
+                    InstrumentFieldTile.instrument_id == instrument.id,
+                )
+            )
+            session.commit()
+
+        self.push_all(action="skyportal/REFRESH_INSTRUMENTS")
+        return self.success()

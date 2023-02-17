@@ -5,7 +5,7 @@
 SkyPortal requires the following software to be installed.  We show
 how to install them on MacOS and Debian-based systems below.
 
-- Python 3.8 or later
+- Python 3.8 or later (<3.11, since `numba` requires <3.11)
 - Supervisor (v>=4.2.1)
 - NGINX (v>=1.7)
 - PostgreSQL (v>=14.0)
@@ -34,7 +34,7 @@ If you developing on a Mac with an ARM (M1/M2) you might consider using a Rosett
 
 ```
 CONDA_SUBDIR=osx-64 conda create -n skyportal_env \
-      python=3.9
+      python=3.10
 conda activate skyportal_env
 conda config --env --set subdir osx-64
 conda config --add channels conda-forge
@@ -78,6 +78,13 @@ These instructions assume that you have [Homebrew](http://brew.sh/) installed.
 
 	```
 	brew install graphviz
+	```
+
+5. Activate the environment and add a few (hard-to install-with-pip) packages by hand:
+
+	```
+	conda activate skyportal_env
+	conda install pyproj numba Shapely
 	```
 
 5. (ARM M1/M2) Explicitly [install ligo.skymap using conda rather than pip](https://lscsoft.docs.ligo.org/ligo.skymap/quickstart/install.html#option-2-conda):
@@ -145,6 +152,7 @@ These instructions assume that you have [Homebrew](http://brew.sh/) installed.
 
 ## Launch
 
+0. Make sure you are in the skyportal env: `conda activate skyportal_env`
 1. Initialize the database with `make db_init` (this only needs to
    happen once).
 2. Copy `config.yaml.defaults` to `config.yaml`.
