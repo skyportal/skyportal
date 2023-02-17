@@ -1,7 +1,8 @@
 import React, { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 // eslint-disable-next-line import/no-unresolved
-import Form from "@rjsf/material-ui/v5";
+import Form from "@rjsf/mui";
+import validator from "@rjsf/validator-ajv8";
 import dataUriToBuffer from "data-uri-to-buffer";
 import { showNotification } from "baselayer/components/Notifications";
 import { submitGcnEvent } from "../ducks/gcnEvent";
@@ -20,11 +21,11 @@ const NewGcnEvent = () => {
   }, [dispatch]);
 
   const handleSubmit = async ({ formData }) => {
-    if (Object.keys(formData).includes("xml")) {
+    if (Object.keys(formData).includes("xml") && formData.xml !== undefined) {
       // eslint-disable-next-line prefer-destructuring
       formData.xml = dataUriToBuffer(formData.xml).toString();
     }
-    if (Object.keys(formData).includes("ra")) {
+    if (Object.keys(formData).includes("ra") && formData.ra !== undefined) {
       // eslint-disable-next-line prefer-destructuring
       formData.skymap = {
         ra: formData.ra,
@@ -32,7 +33,10 @@ const NewGcnEvent = () => {
         error: formData.error,
       };
     }
-    if (Object.keys(formData).includes("polygon")) {
+    if (
+      Object.keys(formData).includes("polygon") &&
+      formData.polygon !== undefined
+    ) {
       // eslint-disable-next-line prefer-destructuring
       formData.skymap = {
         localization_name: formData.localization_name,
@@ -68,6 +72,11 @@ const NewGcnEvent = () => {
       ) {
         errors.skymap.addError(
           "Either (i) ra, dec, and error or (ii) polygon or (iii) skymap must be defined if not uploading VOEvent"
+        );
+      }
+      if (formData.polygon && !formData.localization_name) {
+        errors.polygon.addError(
+          "If polygon, must also specify localization name"
         );
       }
     }
@@ -134,9 +143,10 @@ const NewGcnEvent = () => {
   return (
     <Form
       schema={gcnEventFormSchema}
+      validator={validator}
       onSubmit={handleSubmit}
       // eslint-disable-next-line react/jsx-no-bind
-      validate={validate}
+      customValidate={validate}
       liveValidate
     />
   );

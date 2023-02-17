@@ -3,16 +3,17 @@ import { useDispatch, useSelector } from "react-redux";
 import Checkbox from "@mui/material/Checkbox";
 import Chip from "@mui/material/Chip";
 import FormControlLabel from "@mui/material/FormControlLabel";
-import DateTimePicker from "@mui/lab/DateTimePicker";
-import AdapterDateFns from "@mui/lab/AdapterDateFns";
-import LocalizationProvider from "@mui/lab/LocalizationProvider";
+import { DateTimePicker } from "@mui/x-date-pickers/DateTimePicker";
+import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
+import { LocalizationProvider } from "@mui/x-date-pickers";
 import PropTypes from "prop-types";
 import Select from "@mui/material/Select";
 import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
 import TextField from "@mui/material/TextField";
 // eslint-disable-next-line import/no-unresolved
-import Form from "@rjsf/material-ui/v5";
+import Form from "@rjsf/mui";
+import validator from "@rjsf/validator-ajv8";
 import CircularProgress from "@mui/material/CircularProgress";
 import makeStyles from "@mui/styles/makeStyles";
 import { showNotification } from "baselayer/components/Notifications";
@@ -552,6 +553,7 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
                   ]?.formSchema
                 : {}
             }
+            validator={validator}
             uiSchema={
               instrumentFormParams
                 ? instrumentFormParams[
@@ -560,7 +562,7 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
                 : {}
             }
             liveValidate
-            validate={validate}
+            customValidate={validate}
             onSubmit={handleQueueSubmit}
             disabled={isSubmitting}
           >

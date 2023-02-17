@@ -3,11 +3,13 @@
 import os
 import shutil
 import uuid
+import base64
 from datetime import datetime, timedelta
 from pathlib import Path
 
 import astroplan
 import numpy as np
+import pandas as pd
 import pytest
 import sqlalchemy as sa
 
@@ -30,6 +32,7 @@ from skyportal.models import (
     GroupSpectrum,
     FollowupRequestTargetGroup,
     Thumbnail,
+    PhotometricSeries,
 )
 from skyportal.tests.fixtures import (
     ObjFactory,
@@ -1638,3 +1641,398 @@ def analysis_token(user):
     )
     yield token_id
     delete_token(token_id)
+
+
+@pytest.fixture()
+def phot_series_maker():
+    def _phot_series_maker(
+        number=20,
+        format='dict',
+        use_mags=True,
+        ra=None,
+        dec=None,
+        exptime=30,
+        filter=None,
+        extra_columns=None,
+    ):
+        flux = np.random.uniform(15, 16, number)
+        mjds = np.sort(np.random.uniform(59000, 60000, number))
+        if ra is None:
+            ra = np.random.uniform(0, 360)
+        if dec is None:
+            dec = np.random.uniform(-90, 90)
+        if filter is None:
+            filter = np.random.choice(["ztfg", "ztfr", "ztfi"])
+
+        if use_mags:
+            data = {'mag': flux}
+        else:
+            data = {'flux': flux}
+
+        data['mjd'] = mjds
+
+        if extra_columns is None:
+            extra_columns = []
+
+        if 'ra' in extra_columns:
+            data['ra'] = np.mod(np.random.normal(ra, 0.001, number), 360)
+        if 'dec' in extra_columns:
+            data['dec'] = np.random.normal(dec, 0.001, number)
+            data['dec'] = np.maximum(data['dec'], -90)
+            data['dec'] = np.minimum(data['dec'], 90)
+        if 'exp_time' in extra_columns:
+            data['exp_time'] = np.array([exptime] * number)
+        if 'filter' in extra_columns:
+            data['filter'] = np.array([filter] * number)
+
+        for name in extra_columns:
+            if name not in ['ra', 'dec', 'exp_time', 'filter']:
+                data[name] = np.random.uniform(0, 1, number)
+
+        if format == 'dict':
+            for k, v in data.items():
+                data[k] = v.tolist()
+        elif format == 'pandas':
+            data = pd.DataFrame(data)
+        elif format == 'bytes':
+            # this store should work without writing to disk
+            # if you open a regular store you'd just need
+            # to delete the file at the end
+            with pd.HDFStore(
+                'test_file.h5',
+                mode='w',
+                driver="H5FD_CORE",
+                driver_core_backing_store=0,
+            ) as store:
+                store.put(
+                    'phot_series',
+                    pd.DataFrame(data),
+                    format='table',
+                    index=None,
+                    track_times=False,
+                )
+                data = store._handle.get_file_image()
+                data = base64.b64encode(data)
+
+            # should not be any file like this
+            assert not os.path.isfile('test_file.h5')
+
+        return data
+
+    return _phot_series_maker
+
+
+@pytest.fixture()
+def photometric_series(
+    user, public_source, public_group, ztf_camera, phot_series_maker
+):
+    df = phot_series_maker(format='pandas', number=20)
+    data = {
+        'obj_id': public_source.id,
+        'data': df,
+        'instrument_id': ztf_camera.id,
+        'owner_id': user.id,
+        'series_name': 'test_series1',
+        'series_obj_id': str(np.random.randint(0, 1e6)),
+        'ra': np.round(np.random.uniform(0, 360), 3),
+        'dec': np.round(np.random.uniform(-90, 90), 3),
+        'exp_time': 30.0,
+        'filter': 'ztfg',
+        'magref': 18.1,
+        'group_ids': [public_group.id, user.single_user_group.id],
+        'stream_ids': [],
+        'origin': uuid.uuid4().hex,
+        'channel': np.random.choice(['A', 'B']),
+    }
+    ps = PhotometricSeries(**data)
+
+    try:
+        DBSession().add(ps)
+        ps.save_data(temp=True)
+        DBSession().commit()
+        ps.move_temp_data()
+
+    except Exception as e:
+        DBSession().rollback()
+        ps.delete_data(temp=True)
+        raise e
+
+    yield ps
+
+    # tear down
+    filename = ps.filename
+    DBSession().delete(ps)
+    DBSession().commit()
+    if os.path.isfile(filename):
+        os.remove(filename)
+
+
+@pytest.fixture()
+def photometric_series2(
+    user, public_source_group2, public_group2, ztf_camera, phot_series_maker
+):
+    df = phot_series_maker(format='pandas', number=19)
+    data = {
+        'obj_id': public_source_group2.id,
+        'data': df,
+        'instrument_id': ztf_camera.id,
+        'owner_id': user.id,
+        'series_name': 'test_series2',
+        'series_obj_id': str(np.random.randint(0, 1e6)),
+        'ra': np.round(np.random.uniform(0, 360), 3),
+        'dec': np.round(np.random.uniform(-90, 90), 3),
+        'exp_time': 35.0,
+        'filter': 'ztfr',
+        'magref': 19.2,
+        'group_ids': [public_group2.id, user.single_user_group.id],
+        'stream_ids': [],
+        'origin': uuid.uuid4().hex,
+        'channel': 'A',
+    }
+    ps = PhotometricSeries(**data)
+
+    try:
+        DBSession().add(ps)
+        ps.save_data(temp=True)
+        DBSession().commit()
+        ps.move_temp_data()
+
+    except Exception as e:
+        DBSession().rollback()
+        ps.delete_data(temp=True)
+        raise e
+
+    yield ps
+
+    # tear down
+    filename = ps.filename
+    DBSession().delete(ps)
+    DBSession().commit()
+    if os.path.isfile(filename):
+        os.remove(filename)
+
+
+@pytest.fixture()
+def photometric_series3(
+    user, public_source_two_groups, public_group, public_group2, sedm, phot_series_maker
+):
+    df = phot_series_maker(format='pandas', number=18)
+    data = {
+        'obj_id': public_source_two_groups.id,
+        'data': df,
+        'instrument_id': sedm.id,
+        'owner_id': user.id,
+        'series_name': 'test_series3',
+        'series_obj_id': str(np.random.randint(0, 1e6)),
+        'ra': np.round(np.random.uniform(0, 360), 3),
+        'dec': np.round(np.random.uniform(-90, 90), 3),
+        'exp_time': 25.0,
+        'filter': 'ztfi',
+        'magref': 20.3,
+        'group_ids': [public_group.id, public_group2.id, user.single_user_group.id],
+        'stream_ids': [],
+        'origin': uuid.uuid4().hex,
+        'channel': 'B',
+    }
+    ps = PhotometricSeries(**data)
+
+    try:
+        DBSession().add(ps)
+        ps.save_data(temp=True)
+        DBSession().commit()
+        ps.move_temp_data()
+
+    except Exception as e:
+        DBSession().rollback()
+        ps.delete_data(temp=True)
+        raise e
+
+    yield ps
+
+    # tear down
+    filename = ps.filename
+    DBSession().delete(ps)
+    DBSession().commit()
+    if os.path.isfile(filename):
+        os.remove(filename)
+
+
+@pytest.fixture()
+def photometric_series_low_flux(
+    user, public_source, public_group, public_group2, ztf_camera, phot_series_maker
+):
+    df = phot_series_maker(number=100, use_mags=False, format='pandas')
+    df['flux'] = np.random.normal(100, 10, 100)
+
+    data = {
+        'obj_id': public_source.id,
+        'data': df,
+        'instrument_id': ztf_camera.id,
+        'owner_id': user.id,
+        'series_name': 'test_series',
+        'series_obj_id': str(np.random.randint(0, 1e6)),
+        'ra': np.round(np.random.uniform(0, 360), 3),
+        'dec': np.round(np.random.uniform(-90, 90), 3),
+        'exp_time': 25.0,
+        'filter': 'ztfi',
+        'group_ids': [public_group.id, public_group2.id, user.single_user_group.id],
+        'stream_ids': [],
+    }
+    ps = PhotometricSeries(**data)
+
+    try:
+        DBSession().add(ps)
+        ps.save_data(temp=True)
+        DBSession().commit()
+        ps.move_temp_data()
+
+    except Exception as e:
+        DBSession().rollback()
+        ps.delete_data(temp=True)
+        raise e
+
+    yield ps
+
+    # tear down
+    filename = ps.filename
+    DBSession().delete(ps)
+    DBSession().commit()
+    if os.path.isfile(filename):
+        os.remove(filename)
+
+
+@pytest.fixture()
+def photometric_series_high_flux(
+    user, public_source, public_group, public_group2, ztf_camera, phot_series_maker
+):
+    df = phot_series_maker(number=100, use_mags=False, format='pandas')
+    df['flux'] = np.random.normal(10000, 100, 100)
+
+    data = {
+        'obj_id': public_source.id,
+        'data': df,
+        'instrument_id': ztf_camera.id,
+        'owner_id': user.id,
+        'series_name': 'test_series',
+        'series_obj_id': str(np.random.randint(0, 1e6)),
+        'ra': np.round(np.random.uniform(0, 360), 3),
+        'dec': np.round(np.random.uniform(-90, 90), 3),
+        'exp_time': 25.0,
+        'filter': 'ztfi',
+        'group_ids': [public_group.id, public_group2.id, user.single_user_group.id],
+        'stream_ids': [],
+    }
+    ps = PhotometricSeries(**data)
+
+    try:
+        DBSession().add(ps)
+        ps.save_data(temp=True)
+        DBSession().commit()
+        ps.move_temp_data()
+
+    except Exception as e:
+        DBSession().rollback()
+        ps.delete_data(temp=True)
+        raise e
+
+    yield ps
+
+    # tear down
+    filename = ps.filename
+    DBSession().delete(ps)
+    DBSession().commit()
+    if os.path.isfile(filename):
+        os.remove(filename)
+
+
+@pytest.fixture()
+def photometric_series_low_flux_with_outliers(
+    user, public_source, public_group, public_group2, ztf_camera, phot_series_maker
+):
+    df = phot_series_maker(number=100, use_mags=False, format='pandas')
+    df['flux'] = np.random.normal(100, 10, 100)
+
+    # add some outliers
+    df['flux'].iloc[5] = 5000
+    df['flux'].iloc[50] = 6000
+    df['flux'].iloc[95] = 0
+
+    data = {
+        'obj_id': public_source.id,
+        'data': df,
+        'instrument_id': ztf_camera.id,
+        'owner_id': user.id,
+        'series_name': 'test_series_outliers',
+        'series_obj_id': str(np.random.randint(0, 1e6)),
+        'ra': np.round(np.random.uniform(0, 360), 3),
+        'dec': np.round(np.random.uniform(-90, 90), 3),
+        'exp_time': 25.0,
+        'filter': 'ztfi',
+        'group_ids': [public_group.id, public_group2.id, user.single_user_group.id],
+        'stream_ids': [],
+    }
+    ps = PhotometricSeries(**data)
+
+    try:
+        DBSession().add(ps)
+        ps.save_data(temp=True)
+        DBSession().commit()
+        ps.move_temp_data()
+
+    except Exception as e:
+        DBSession().rollback()
+        ps.delete_data(temp=True)
+        raise e
+
+    yield ps
+
+    # tear down
+    filename = ps.filename
+    DBSession().delete(ps)
+    DBSession().commit()
+    if os.path.isfile(filename):
+        os.remove(filename)
+
+
+@pytest.fixture()
+def photometric_series_undetected(
+    user, public_source, public_group, public_group2, ztf_camera, phot_series_maker
+):
+    df = phot_series_maker(number=100, use_mags=False, format='pandas')
+    df['flux'] = np.random.normal(-50, 50, 100)
+
+    data = {
+        'obj_id': public_source.id,
+        'data': df,
+        'instrument_id': ztf_camera.id,
+        'owner_id': user.id,
+        'series_name': 'test_series',
+        'series_obj_id': str(np.random.randint(0, 1e6)),
+        'ra': np.round(np.random.uniform(0, 360), 3),
+        'dec': np.round(np.random.uniform(-90, 90), 3),
+        'exp_time': 25.0,
+        'filter': 'ztfi',
+        'group_ids': [public_group.id, public_group2.id, user.single_user_group.id],
+        'stream_ids': [],
+    }
+    ps = PhotometricSeries(**data)
+
+    try:
+        DBSession().add(ps)
+        ps.save_data(temp=True)
+        DBSession().commit()
+        ps.move_temp_data()
+
+    except Exception as e:
+        DBSession().rollback()
+        ps.delete_data(temp=True)
+        raise e
+
+    yield ps
+
+    # tear down
+    filename = ps.filename
+    DBSession().delete(ps)
+    DBSession().commit()
+    if os.path.isfile(filename):
+        os.remove(filename)

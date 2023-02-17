@@ -97,7 +97,7 @@ def allscalar(d):
     return all(np.isscalar(v) or v is None for v in d.values())
 
 
-def serialize(phot, outsys, format):
+def serialize(phot, outsys, format, groups=True, annotations=True):
 
     return_value = {
         'obj_id': phot.obj_id,
@@ -112,12 +112,17 @@ def serialize(phot, outsys, format):
         'dec_unc': phot.dec_unc,
         'origin': phot.origin,
         'id': phot.id,
-        'groups': [group.to_dict() for group in phot.groups],
         'altdata': phot.altdata,
-        'annotations': [annotation.to_dict() for annotation in phot.annotations]
-        if hasattr(phot, 'annotations')
-        else [],
     }
+    if groups:
+        return_value['groups'] = [group.to_dict() for group in phot.groups]
+    if annotations:
+        return_value['annotations'] = (
+            [annotation.to_dict() for annotation in phot.annotations]
+            if hasattr(phot, 'annotations')
+            else []
+        )
+
     if (
         phot.ref_flux is not None
         and not np.isnan(phot.ref_flux)
@@ -553,7 +558,9 @@ def insert_new_photometry_data(
     # to be unique in the table and thus can be used to "reserve"
     # PK slots for uninserted rows
 
-    pkq = f"SELECT nextval('photometry_id_seq') FROM " f"generate_series(1, {len(df)})"
+    pkq = sa.text(
+        f"SELECT nextval('photometry_id_seq') FROM " f"generate_series(1, {len(df)})"
+    )
 
     proxy = session.execute(pkq)
 
@@ -806,7 +813,9 @@ def add_external_photometry(json, user):
     with DBSession() as session:
         try:
             session.execute(
-                f'LOCK TABLE {Photometry.__tablename__} IN SHARE ROW EXCLUSIVE MODE'
+                sa.text(
+                    f'LOCK TABLE {Photometry.__tablename__} IN SHARE ROW EXCLUSIVE MODE'
+                )
             )
             ids, upload_id = insert_new_photometry_data(
                 df, instrument_cache, group_ids, stream_ids, user, session
@@ -894,7 +903,9 @@ class PhotometryHandler(BaseHandler):
         with DBSession() as session:
             try:
                 session.execute(
-                    f'LOCK TABLE {Photometry.__tablename__} IN SHARE ROW EXCLUSIVE MODE'
+                    sa.text(
+                        f'LOCK TABLE {Photometry.__tablename__} IN SHARE ROW EXCLUSIVE MODE'
+                    )
                 )
                 ids, upload_id = insert_new_photometry_data(
                     df,
@@ -992,7 +1003,9 @@ class PhotometryHandler(BaseHandler):
         with DBSession() as session:
             try:
                 session.execute(
-                    f'LOCK TABLE {Photometry.__tablename__} IN SHARE ROW EXCLUSIVE MODE'
+                    sa.text(
+                        f'LOCK TABLE {Photometry.__tablename__} IN SHARE ROW EXCLUSIVE MODE'
+                    )
                 )
                 new_photometry_query = session.execute(
                     sa.select(values_table.c.pdidx)

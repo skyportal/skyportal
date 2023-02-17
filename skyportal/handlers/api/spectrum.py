@@ -920,7 +920,7 @@ class ASCIIHandler:
 
         # pass ascii in as a file-like object
         try:
-            file = io.BytesIO(ascii.encode('ascii'))
+            file = io.BytesIO(ascii.encode('ascii', 'ignore'))
         except UnicodeEncodeError:
             raise ValueError(
                 'Unable to parse uploaded spectrum file as ascii. '
@@ -1252,7 +1252,8 @@ class ObjSpectraHandler(BaseHandler):
                     reverse=True,
                 )
                 annotations = [
-                    {**a.to_dict(), 'author': a.author.to_dict()} for a in annotations
+                    {**a.to_dict(), 'author': a.author.to_dict(), 'type': 'spectrum'}
+                    for a in annotations
                 ]
                 spec_dict["annotations"] = annotations
                 spec_dict["instrument_name"] = spec.instrument.name
