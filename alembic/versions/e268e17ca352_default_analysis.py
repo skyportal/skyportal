@@ -1,8 +1,8 @@
 """default_analysis
 
-Revision ID: d950cfae85f9
+Revision ID: e268e17ca352
 Revises: c276f6343274
-Create Date: 2023-02-16 16:17:40.431986
+Create Date: 2023-02-17 14:30:24.725925
 
 """
 from alembic import op
@@ -11,7 +11,7 @@ import sqlalchemy_utils
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision = 'd950cfae85f9'
+revision = 'e268e17ca352'
 down_revision = 'c276f6343274'
 branch_labels = None
 depends_on = None
@@ -33,6 +33,7 @@ def upgrade():
         sa.Column(
             'source_filter', postgresql.JSONB(astext_type=sa.Text()), nullable=False
         ),
+        sa.Column('stats', postgresql.JSONB(astext_type=sa.Text()), nullable=False),
         sa.Column('author_id', sa.Integer(), nullable=False),
         sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
         sa.Column('created_at', sa.DateTime(), nullable=False),
