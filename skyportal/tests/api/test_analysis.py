@@ -1059,7 +1059,7 @@ def test_upload_analysis(
     assert status == 401
 
 
-def test_add_default_analysis(
+def test_default_analysis(
     analysis_service_token,
     analysis_token,
     public_group,

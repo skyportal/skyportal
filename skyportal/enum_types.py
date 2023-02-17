@@ -84,7 +84,7 @@ ANALYSIS_INPUT_TYPES = (
     'comments',
     'classifications',
 )
-DEFAULT_ANALYSIS_FILTER_TYPES = ('classifications',)
+DEFAULT_ANALYSIS_FILTER_TYPES = {'classifications': ['name', 'probability']}
 AUTHENTICATION_TYPES = (
     'none',
     'header_token',

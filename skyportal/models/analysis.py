@@ -14,11 +14,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 import corner
 import arviz
-import operator  # noqa: F401
 import sqlalchemy as sa
 from sqlalchemy.orm import relationship
 from sqlalchemy import event, inspect
-from sqlalchemy.sql.expression import cast
 from sqlalchemy.dialects import postgresql as psql
 from sqlalchemy_utils.types import JSONType
 from sqlalchemy.ext.declarative import declared_attr
@@ -35,10 +33,11 @@ from baselayer.app.models import (
     Base,
     AccessibleIfRelatedRowsAreAccessible,
     AccessibleIfUserMatches,
-    DBSession,
 )
 from baselayer.app.env import load_env
 from baselayer.log import make_log
+
+from skyportal.models import DBSession
 
 from ..enum_types import (
     allowed_analysis_types,
@@ -614,6 +613,13 @@ class DefaultAnalysis(Base):
         """,
     )
 
+    stats = sa.Column(
+        psql.JSONB,
+        nullable=False,
+        default={},
+        doc="JSONB column that stores the stats for this default analysis",
+    )
+
     groups = relationship(
         "Group",
         secondary="group_default_analyses",
@@ -639,70 +645,6 @@ class DefaultAnalysis(Base):
         )
 
 
-@event.listens_for(Classification, 'after_insert')
-def create_default_analysis(mapper, connection, target):
-    log(f'Checking for default analyses for classification {target.id}')
-
-    @event.listens_for(inspect(target).session, "after_flush", once=True)
-    def receive_after_flush(session, context):
-        target_data = target.to_dict()
-
-        analyses_query = sa.select(DefaultAnalysis)
-
-        new_classification = target_data['classification']
-        new_probability = target_data['probability']
-
-        string_classification = f'"name": "{new_classification}"'
-
-        analyses_query = analyses_query.where(
-            DefaultAnalysis.source_filter.isnot(None),
-            cast(DefaultAnalysis.source_filter, sa.String).contains(
-                string_classification
-            ),
-        )
-
-        default_analyses = session.scalars(analyses_query).all()
-
-        for default_analysis in default_analyses:
-            source_filter = default_analysis.source_filter
-
-            # in classifications, find the classification who's name matches the classification of the new classification
-            classification_filter = next(
-                (
-                    classification
-                    for classification in source_filter["classifications"]
-                    if classification["name"] == new_classification
-                ),
-                None,
-            )
-            if classification_filter['probability'] <= new_probability:
-                log(
-                    f'Creating default analysis {default_analysis.analysis_service.name} for classification {target.id}'
-                )
-
-            from skyportal.handlers.api.analysis import post_analysis
-
-            with DBSession() as db_session:
-                default_analysis = (
-                    db_session.query(DefaultAnalysis)
-                    .filter(DefaultAnalysis.id == default_analysis.id)
-                    .first()
-                )
-                post_analysis(
-                    "obj",
-                    target.obj_id,
-                    current_user=default_analysis.author,
-                    author=default_analysis.author,
-                    groups=default_analysis.groups,
-                    session=db_session,
-                    analysis_service=default_analysis.analysis_service,
-                    analysis_parameters=default_analysis.default_analysis_parameters,
-                    show_parameters=default_analysis.show_parameters,
-                    show_plots=default_analysis.show_plots,
-                    show_corner=default_analysis.show_corner,
-                )
-
-
 @event.listens_for(ObjAnalysis, 'after_delete')
 def delete_analysis_data_from_disk(mapper, connection, target):
     log(f'Deleting analysis data for analysis id={target.id}')
@@ -715,3 +657,75 @@ def delete_assoc_analysis_data_from_disk(mapper, connection, target):
     for analysis in target.obj_analyses:
         log(f' ... deleting analysis data for analysis id={analysis.id}')
         analysis.delete_data()
+
+
+@event.listens_for(Classification, 'after_insert')
+def create_default_analysis(mapper, connection, target):
+    log(f'Checking for default analyses for classification {target.id}')
+
+    @event.listens_for(inspect(target).session, "after_flush", once=True)
+    def receive_after_flush(session, context):
+        try:
+            from skyportal.handlers.api.analysis import post_analysis
+
+            target_data = target.to_dict()
+
+            stmt = sa.select(DefaultAnalysis).where(
+                DefaultAnalysis.source_filter['classifications'].contains(
+                    [{"name": target_data['classification']}]
+                )
+            )
+            default_analyses = session.scalars(stmt).all()
+
+            for default_analysis in default_analyses:
+                classification_filter = next(
+                    (
+                        classification
+                        for classification in default_analysis.source_filter[
+                            "classifications"
+                        ]
+                        if classification["name"] == target_data['classification']
+                    ),
+                    None,
+                )
+                if classification_filter['probability'] <= target_data['probability']:
+                    log(
+                        f'Creating default analysis {default_analysis.analysis_service.name} for classification {target.id}'
+                    )
+
+                with DBSession() as db_session:
+
+                    try:
+                        default_analysis = db_session.scalars(
+                            DefaultAnalysis.select(
+                                default_analysis.author, mode="update"
+                            ).where(DefaultAnalysis.id == default_analysis.id)
+                        ).first()
+
+                        if 'num_analyses' not in default_analysis.stats:
+                            default_analysis.stats = {'num_analyses': 0}
+                        default_analysis.stats = {
+                            'num_analyses': default_analysis.stats['num_analyses'] + 1
+                        }
+                        db_session.add(default_analysis)
+
+                        post_analysis(
+                            "obj",
+                            target.obj_id,
+                            current_user=default_analysis.author,
+                            author=default_analysis.author,
+                            groups=default_analysis.groups,
+                            session=db_session,
+                            analysis_service=default_analysis.analysis_service,
+                            analysis_parameters=default_analysis.default_analysis_parameters,
+                            show_parameters=default_analysis.show_parameters,
+                            show_plots=default_analysis.show_plots,
+                            show_corner=default_analysis.show_corner,
+                        )
+                    except Exception as e:
+                        log(
+                            f'Error creating default analysis with id {default_analysis.id}: {e}'
+                        )
+                        db_session.rollback()
+        except Exception as e:
+            log(f'Error creating default analyses on classification {target.id}: {e}')

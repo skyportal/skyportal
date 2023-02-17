@@ -373,7 +373,7 @@ def post_analysis(
         current_user.id,
         action_type="baselayer/SHOW_NOTIFICATION",
         payload={
-            "note": 'Sending data to analysis service to start the analysis.',
+            "note": f'Sending data to analysis service {analysis_service.name} to start the analysis.',
             "type": "info",
         },
     )
@@ -1706,6 +1706,16 @@ class DefaultAnalysisHandler(BaseHandler):
                 default_analysis_parameters = data.get(
                     'default_analysis_parameters', {}
                 )
+                source_filter = data.get('source_filter', {})
+
+                if not isinstance(source_filter, dict):
+                    try:
+                        source_filter = json.loads(source_filter)
+                    except Exception:
+                        return self.error(
+                            f'Invalid source_filter: {source_filter}.',
+                            status=400,
+                        )
 
                 if not isinstance(default_analysis_parameters, dict):
                     try:
@@ -1747,34 +1757,42 @@ class DefaultAnalysisHandler(BaseHandler):
                         f'Cannot find one or more groups with IDs: {group_ids}.'
                     )
 
-                source_filter = data.get('source_filter', None)
-
-                if source_filter is None:
-                    return self.error('No source_filter provided.')
-
-                if isinstance(source_filter, str):
-                    try:
-                        source_filter = json.loads(source_filter)
-                    except Exception:
-                        return self.error(f'Invalid source_filter: {source_filter}.')
-
-                # check that the keys of the source_filter are valid from the enum DEFAULT_ANALYSIS_SOURCE_FILTERS
+                # # check that the keys of the source_filter are valid from the enum DEFAULT_ANALYSIS_SOURCE_FILTERS
                 if not set(source_filter.keys()).issubset(
-                    set(DEFAULT_ANALYSIS_FILTER_TYPES)
+                    set(DEFAULT_ANALYSIS_FILTER_TYPES.keys())
                 ):
                     return self.error(f'Invalid source_filter: {source_filter}.')
+
+                for key, value in source_filter.items():
+                    if isinstance(value, list):
+                        for v in value:
+                            if isinstance(v, dict):
+                                if not set(v.keys()).issubset(
+                                    set(DEFAULT_ANALYSIS_FILTER_TYPES[key])
+                                ):
+                                    return self.error(
+                                        f'Invalid source_filter. Key {key} must be a list of dicts with keys {str(DEFAULT_ANALYSIS_FILTER_TYPES[key])}.'
+                                    )
+                            else:
+                                return self.error(
+                                    f'Invalid source_filter. Key {key} must be a list of dicts.'
+                                )
+                    else:
+                        return self.error(
+                            f'Invalid source_filter with key {key}. Value must be a list.'
+                        )
 
                 author = self.associated_user_object
 
                 default_analysis = DefaultAnalysis(
                     analysis_service=analysis_service,
-                    groups=groups,
                     default_analysis_parameters=default_analysis_parameters,
+                    source_filter=source_filter,
                     show_parameters=data.get('show_parameters', True),
                     show_plots=data.get('show_plots', True),
                     show_corner=data.get('show_corner', True),
-                    source_filter=data.get('source_filter', None),
                     author=author,
+                    groups=groups,
                 )
 
                 session.add(default_analysis)
