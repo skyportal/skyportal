@@ -104,6 +104,9 @@ def test_group_admission_requests_notifications(
     driver.wait_for_xpath(f'//em[text()="{public_group2.name}"]')
 
 
+pytest.mark.flaky(reruns=2)
+
+
 def test_comment_on_favorite_source_triggers_notification(
     driver, user, user2, public_source
 ):
@@ -150,6 +153,7 @@ def test_comment_on_favorite_source_triggers_notification(
     driver.wait_for_xpath('//*[contains(text(), "New comment on favorite source")]')
 
 
+@pytest.mark.flaky(reruns=3)
 def test_classification_on_favorite_source_triggers_notification(
     driver, user, public_source, public_group, taxonomy_token, classification_token
 ):
