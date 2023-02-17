@@ -1142,7 +1142,7 @@ analysis_service:
       - =program_A
       - =program_B
 
-analysis_service/=Demo_Analysis/analysis_requests:
+analysis_service/=Demo_Analysis/default_analysis:
   - default_analysis_parameters: '{"source": "salt3"}'
     groups:
       - =program_A
