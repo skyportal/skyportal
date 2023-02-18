@@ -218,25 +218,14 @@ def get_associated_obj_resource(associated_resource_type):
     return associated_resource_types[associated_resource_type]
 
 
-# for the methods below, we will need the following:
-
-# analysis_resource_type: the type of resource we are analyzing
-# resource_id: the ID of the resource we are analyzing
-# current_user: the user who is requesting the analysis
-# inputs: the inputs to the analysis
-# input_data_types: the data types that the analysis service accepts
-# author: the user who will be the author of the analysis
-# groups: the groups that will be able to view the analysis
-# session: the database session
-# analysis_service_id: the ID of the analysis service
 def post_analysis(
     analysis_resource_type,
     resource_id,
     current_user,
     author,
     groups,
-    session,
     analysis_service,
+    session,
     analysis_parameters=None,
     show_parameters=False,
     show_plots=False,
@@ -253,18 +242,27 @@ def post_analysis(
         The ID of the resource we are analyzing.
     current_user: baselayer.app.models.User
         The user who is requesting the analysis.
-    inputs: dict
-        The inputs to the analysis.
-    input_data_types: dict
-        The data types that the analysis service accepts.
     author: baselayer.app.models.User
         The user who will be the author of the analysis.
     groups: list of baselayer.app.models.Group
         The groups that will be able to view the analysis.
+    analysis_service: skyportal.models.AnalysisService
+        The analysis service to use.
     session: sqlalchemy.orm.session.Session
         The database session.
-    analysis_service_id: int
-        The ID of the analysis service.
+    analysis_parameters: dict
+        The parameters to pass to the analysis service.
+    show_parameters: bool
+        Whether to show the parameters in the analysis.
+    show_plots: bool
+        Whether to show the plots in the analysis.
+    show_corner: bool
+        Whether to show the corner plot in the analysis.
+
+    Returns
+    -------
+    analysis_id: int
+        The ID of the analysis.
     """
 
     input_data_types = analysis_service.input_data_types.copy()
@@ -275,7 +273,7 @@ def post_analysis(
         stmt = Obj.select(current_user).where(Obj.id == obj_id)
         obj = session.scalars(stmt).first()
         if obj is None:
-            raise f'Obj {obj_id} not found'
+            raise ValueError(f'Obj {obj_id} not found')
 
         # make sure the user has not exceeded the maximum number of analyses
         # for this object. This will help save space on the disk
@@ -287,9 +285,11 @@ def post_analysis(
         total_matches = session.execute(select(func.count()).select_from(stmt)).scalar()
 
         if total_matches >= cfg["analysis_services.max_analysis_per_obj_per_user"]:
-            raise """'You have reached the maximum number of analyses for this object.'
+            raise Exception(
+                """'You have reached the maximum number of analyses for this object.'
                   ' Please delete some analyses before attempting to start more analyses.'
                   """
+            )
 
         # Let's assemble the input data for this Obj
         for input_type in input_data_types:
@@ -340,15 +340,15 @@ def post_analysis(
         )
     # Add more analysis_resource_types here one day (eg. GCN)
     else:
-        raise f'analysis_resource_type must be one of {", ".join(["obj"])}'
+        raise ValueError(f'analysis_resource_type must be one of {", ".join(["obj"])}')
 
     session.add(analysis)
     try:
         session.commit()
     except IntegrityError as e:
-        raise f'Analysis already exists: {str(e)}'
+        raise Exception(f'Analysis already exists: {str(e)}')
     except Exception as e:
-        raise f'Unexpected error creating analysis: {str(e)}'
+        raise Exception(f'Unexpected error creating analysis: {str(e)}')
 
     # Now call the analysis service to start the analysis, using the `input` data
     # that we assembled above.
@@ -1014,20 +1014,6 @@ class AnalysisHandler(BaseHandler):
 
             author = self.associated_user_object
 
-            # for everything that follows, we will use these variables:
-            # analysis_resource_type: the type of resource we are analyzing
-            # resource_id: the ID of the resource we are analyzing
-            # current_user: the user who is requesting the analysis
-            # inputs: the inputs to the analysis
-            # input_data_types: the data types that the analysis service accepts
-            # author: the user who will be the author of the analysis
-            # groups: the groups that will be able to view the analysis
-
-            show_parameters = data.get('show_parameters', False)
-            show_plots = data.get('show_plots', False)
-            show_corner = data.get('show_corner', False)
-
-            analysis_parameters = data.get('analysis_parameters', {})
             try:
                 analysis_id = post_analysis(
                     analysis_resource_type,
@@ -1035,12 +1021,12 @@ class AnalysisHandler(BaseHandler):
                     self.current_user,
                     author,
                     groups,
-                    session,
                     analysis_service,
-                    analysis_parameters,
-                    show_parameters,
-                    show_plots,
-                    show_corner,
+                    analysis_parameters=data.get('analysis_parameters', {}),
+                    show_parameters=data.get('show_parameters', False),
+                    show_plots=data.get('show_plots', False),
+                    show_corner=data.get('show_corner', False),
+                    session=session,
                 )
                 return self.success(data={"id": analysis_id})
             except Exception as e:

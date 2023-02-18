@@ -1134,13 +1134,6 @@ def test_default_analysis(
 
     assert status == 200
     assert data['status'] == 'success'
-
-    analysis_service_id = data['data']['id']
-    status, data = api(
-        'GET', f'analysis_service/{analysis_service_id}', token=analysis_service_token
-    )
-    assert status == 200
-    assert data['status'] == 'success'
     default_analysis_id = data['data']['id']
 
     now = datetime.datetime.utcnow()

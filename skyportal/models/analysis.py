@@ -715,12 +715,12 @@ def create_default_analysis(mapper, connection, target):
                             current_user=default_analysis.author,
                             author=default_analysis.author,
                             groups=default_analysis.groups,
-                            session=db_session,
                             analysis_service=default_analysis.analysis_service,
                             analysis_parameters=default_analysis.default_analysis_parameters,
                             show_parameters=default_analysis.show_parameters,
                             show_plots=default_analysis.show_plots,
                             show_corner=default_analysis.show_corner,
+                            session=db_session,
                         )
                     except Exception as e:
                         log(
