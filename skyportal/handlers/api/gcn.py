@@ -62,6 +62,9 @@ from ...models import (
     GcnProperty,
     GcnSummary,
     GcnTag,
+    Instrument,
+    InstrumentField,
+    InstrumentFieldTile,
     Localization,
     LocalizationProperty,
     LocalizationTile,
@@ -69,7 +72,6 @@ from ...models import (
     MMADetector,
     ObservationPlanRequest,
     User,
-    Instrument,
     Group,
     UserNotification,
 )
@@ -2448,3 +2450,114 @@ class LocalizationCrossmatchHandler(BaseHandler):
                         os.remove(f)
                     except:  # noqa E722
                         pass
+
+
+class GcnEventInstrumentFieldHandler(BaseHandler):
+    @auth_or_token
+    async def get(self, dateobs, instrument_id):
+        """
+        ---
+        description: Compute instrument field probabilities for a skymap
+        tags:
+          - localizations
+          - instruments
+        parameters:
+          - in: path
+            name: dateobs
+            required: true
+            schema:
+              type: string
+          - in: path
+            name: Instrument ID
+            required: true
+            schema:
+              type: integer
+          - in: query
+            name: localization_name
+            required: true
+            schema:
+              type: string
+            description: Localization map name
+          - in: query
+            name: integrated_probability
+            nullable: true
+            schema:
+              type: float
+            description: Cumulative integrated probability threshold
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+
+        dateobs = dateobs.strip()
+        try:
+            arrow.get(dateobs)
+        except arrow.parser.ParserError as e:
+            return self.error(f'Failed to parse dateobs: str({e})')
+
+        localization_name = self.get_query_argument("localization_name", None)
+        integrated_probability = self.get_query_argument("integrated_probability", 0.95)
+
+        with self.Session() as session:
+            stmt = Localization.select(session.user_or_token).where(
+                Localization.dateobs == dateobs
+            )
+            if localization_name is not None:
+                stmt = stmt.where(Localization.localization_name == localization_name)
+            localization = session.scalars(stmt).first()
+            if localization is None:
+                return self.error("Localization not found", status=404)
+
+            stmt = Instrument.select(session.user_or_token).where(
+                Instrument.id == int(instrument_id)
+            )
+            instrument = session.scalars(stmt).first()
+            if instrument is None:
+                return self.error(f'No instrument with ID: {instrument_id}')
+
+            cum_prob = (
+                sa.func.sum(
+                    LocalizationTile.probdensity * LocalizationTile.healpix.area
+                )
+                .over(order_by=LocalizationTile.probdensity.desc())
+                .label('cum_prob')
+            )
+            localizationtile_subquery = (
+                sa.select(LocalizationTile.probdensity, cum_prob).filter(
+                    LocalizationTile.localization_id == localization.id
+                )
+            ).subquery()
+
+            min_probdensity = (
+                sa.select(
+                    sa.func.min(localizationtile_subquery.columns.probdensity)
+                ).filter(
+                    localizationtile_subquery.columns.cum_prob <= integrated_probability
+                )
+            ).scalar_subquery()
+
+            area = (InstrumentFieldTile.healpix * LocalizationTile.healpix).area
+            prob = sa.func.sum(LocalizationTile.probdensity * area)
+
+            field_tiles_query = (
+                sa.select(InstrumentField.field_id, prob)
+                .where(
+                    LocalizationTile.localization_id == localization.id,
+                    LocalizationTile.probdensity >= min_probdensity,
+                    InstrumentFieldTile.instrument_id == instrument.id,
+                    InstrumentFieldTile.instrument_field_id == InstrumentField.id,
+                    InstrumentFieldTile.healpix.overlaps(LocalizationTile.healpix),
+                )
+                .group_by(InstrumentField.field_id)
+            )
+
+            field_ids, probs = zip(*session.execute(field_tiles_query).all())
+
+            data_out = {'field_ids': field_ids, 'probabilities': probs}
+            return self.success(data=data_out)
