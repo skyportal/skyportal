@@ -14,6 +14,7 @@ import LocalizationTagsSelect from "./LocalizationTagsSelect";
 import LocalizationPropertiesSelect from "./LocalizationPropertiesSelect";
 import * as profileActions from "../ducks/profile";
 import DeletableChips from "./DeletableChips";
+import { leftShift } from "mathjs";
 
 const useStyles = makeStyles((theme) => ({
   typography: {
@@ -67,8 +68,8 @@ const NotificationGcnEvent = () => {
     useState([]);
 
   const onSubmitGcns = (formValues) => {
-    const currentGcnPref = notifications || {};
-    currentGcnPref.gcn_events[formValues.GcnNotificationName] = {
+    const currentGcnPref = notifications.gcn_events || {};
+    currentGcnPref[formValues.GcnNotificationName] = {
       gcn_notice_types: selectedGcnNoticeTypes,
       gcn_tags: selectedGcnTags,
       gcn_properties: selectedGcnProperties,
@@ -76,7 +77,9 @@ const NotificationGcnEvent = () => {
       localization_properties: selectedLocalizationProperties,
     };
     const prefs = {
-      notifications: currentGcnPref,
+      notifications:{
+      gcn_events: currentGcnPref,
+    }
     };
 
     dispatch(profileActions.updateUserPreferences(prefs));
@@ -92,13 +95,15 @@ const NotificationGcnEvent = () => {
   };
 
   const onDelete = (buttonName) => {
-    const currentGcnPref = notifications;
-    delete currentGcnPref.gcn_events[buttonName];
-    const prefs = {
-      notifications: currentGcnPref.gcn_events,
+    let current = notifications.gcn_events;
+    delete current[buttonName];
+    const prefs = { 
+    notifications: {
+      gcn_events: current, 
+    }
     };
-    console.log(prefs);
     dispatch(profileActions.updateUserPreferences(prefs));
+    console.log(notifications.gcn_events);
     dispatch(showNotification("Gcn notice types deleted"));
   };
 
@@ -106,16 +111,10 @@ const NotificationGcnEvent = () => {
     <div className={classes.pref}>
       {profile?.notifications?.gcn_events?.active === true && (
         <>
-          {profile && (
-            <DeletableChips
-              items={Object.keys(profile.notifications.gcn_events)}
-              onDelete={onDelete}
-              title="Gcn notification "
-            />
-          )}
           <form onSubmit={handleSubmit(onSubmitGcns)}>
             <div className={classes.form}>
               <TextField
+              style={{ marginBottom: "1rem" }}
                 label="Name"
                 {...register("GcnNotificationName", {
                   required: true,
@@ -135,7 +134,6 @@ const NotificationGcnEvent = () => {
                     : ""
                 }
               />
-
               <GcnNoticeTypesSelect
                 selectedGcnNoticeTypes={selectedGcnNoticeTypes}
                 setSelectedGcnNoticeTypes={setSelectedGcnNoticeTypes}
@@ -170,7 +168,18 @@ const NotificationGcnEvent = () => {
           </form>
         </>
       )}
+      <div className={classes.chip}>
+         {profile && (
+            <DeletableChips
+              items={Object.keys(profile.notifications.gcn_events).filter((key) => key !== "active") }
+              onDelete={onDelete}
+              title="Gcn notification "
+              
+            />
+          )}
+          </div>
     </div>
+    
   );
 };
 export default NotificationGcnEvent;
