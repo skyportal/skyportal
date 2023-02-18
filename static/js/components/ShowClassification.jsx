@@ -33,6 +33,19 @@ export const useStyles = makeStyles((theme) => ({
   classificationDeleteDisabled: {
     opacity: 0,
   },
+
+  chip_confirmed: {
+    margin: theme.spacing(0.5),
+    fontSize: "1.2rem",
+    fontWeight: "bold",
+    background: "#03c04a!important",
+  },
+  chip_rejected: {
+    margin: theme.spacing(0.5),
+    fontSize: "1.2rem",
+    fontWeight: "bold",
+    background: "#ff0000!important",
+  },
 }));
 
 const ClassificationRow = ({ classifications }) => {
@@ -98,6 +111,23 @@ const ClassificationRow = ({ classifications }) => {
   };
 
   const classification = classifications[0];
+
+  const confirmed_classes = ["GO GRANDMA", "GO GRANDMA (HIGH PRIORITY)"];
+  const rejected_classes = ["STOP GRANDMA"];
+
+  const test_confirmed_classes = confirmed_classes.includes(
+    classification.classification
+  );
+  const test_rejected_classes = rejected_classes.includes(
+    classification.classification
+  );
+  let chip_choice = classes.chip;
+  if (test_rejected_classes) {
+    chip_choice = classes.chip_rejected;
+  }
+  if (test_confirmed_classes) {
+    chip_choice = classes.chip_confirmed;
+  }
 
   const upvoterIds = [];
   const downvoterIds = [];
@@ -231,7 +261,7 @@ const ClassificationRow = ({ classifications }) => {
           }
           key={`${classification.modified}tb`}
           size="small"
-          className={classes.chip}
+          className={chip_choice}
         />
       </Tooltip>
     </div>
