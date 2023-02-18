@@ -110,18 +110,6 @@ const SpatialCatalogSourcesPage = ({
     }
   }, [selectedSpatialCatalogEntryId]);
 
-  useEffect(() => {
-    if (spatialCatalogName && spatialCatalogEntryName) {
-      dispatch(
-        sourcesActions.fetchSpatialCatalogSources(
-          spatialCatalogName,
-          spatialCatalogEntryName
-        )
-      );
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [spatialCatalogName, spatialCatalogEntryName]);
-
   const handleSourcesTableSorting = (sortData, filterData) => {
     dispatch(
       sourcesActions.fetchSpatialCatalogSources(
