@@ -219,9 +219,7 @@ class ProfileHandler(BaseHandler):
                 user_prefs = preferences
             else:
                 if "notifications" in preferences:
-                    user_prefs["notifications"] = preferences[
-                        "notifications"
-                    ]
+                    user_prefs["notifications"] = preferences["notifications"]
                 if "classificationShortcuts" in preferences:
                     user_prefs["classificationShortcuts"] = preferences[
                         "classificationShortcuts"

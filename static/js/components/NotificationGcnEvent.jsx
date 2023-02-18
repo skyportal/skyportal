@@ -14,7 +14,6 @@ import LocalizationTagsSelect from "./LocalizationTagsSelect";
 import LocalizationPropertiesSelect from "./LocalizationPropertiesSelect";
 import * as profileActions from "../ducks/profile";
 import DeletableChips from "./DeletableChips";
-import { leftShift } from "mathjs";
 
 const useStyles = makeStyles((theme) => ({
   typography: {
@@ -77,9 +76,9 @@ const NotificationGcnEvent = () => {
       localization_properties: selectedLocalizationProperties,
     };
     const prefs = {
-      notifications:{
-      gcn_events: currentGcnPref,
-    }
+      notifications: {
+        gcn_events: currentGcnPref,
+      },
     };
 
     dispatch(profileActions.updateUserPreferences(prefs));
@@ -95,12 +94,12 @@ const NotificationGcnEvent = () => {
   };
 
   const onDelete = (buttonName) => {
-    let current = notifications.gcn_events;
+    const current = notifications.gcn_events;
     delete current[buttonName];
-    const prefs = { 
-    notifications: {
-      gcn_events: current, 
-    }
+    const prefs = {
+      notifications: {
+        gcn_events: current,
+      },
     };
     dispatch(profileActions.updateUserPreferences(prefs));
     console.log(notifications.gcn_events);
@@ -114,7 +113,7 @@ const NotificationGcnEvent = () => {
           <form onSubmit={handleSubmit(onSubmitGcns)}>
             <div className={classes.form}>
               <TextField
-              style={{ marginBottom: "1rem" }}
+                style={{ marginBottom: "1rem" }}
                 label="Name"
                 {...register("GcnNotificationName", {
                   required: true,
@@ -169,17 +168,17 @@ const NotificationGcnEvent = () => {
         </>
       )}
       <div className={classes.chip}>
-         {profile && (
-            <DeletableChips
-              items={Object.keys(profile.notifications.gcn_events).filter((key) => key !== "active") }
-              onDelete={onDelete}
-              title="Gcn notification "
-              
-            />
-          )}
-          </div>
+        {profile && (
+          <DeletableChips
+            items={Object.keys(profile.notifications.gcn_events).filter(
+              (key) => key !== "active"
+            )}
+            onDelete={onDelete}
+            title="Gcn notification "
+          />
+        )}
+      </div>
     </div>
-    
   );
 };
 export default NotificationGcnEvent;
