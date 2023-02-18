@@ -127,8 +127,8 @@ const GcnEvents = () => {
     if (filterData && Object.keys(filterData).length > 0) {
       params.startDate = filterData.startDate;
       params.endDate = filterData.endDate;
-      params.tagKeep = filterData.tagKeep;
-      params.tagRemove = filterData.tagRemove;
+      params.gcnTagKeep = filterData.gcnTagKeep;
+      params.gcnTagRemove = filterData.gcnTagRemove;
       params.gcnPropertiesFilter = filterData.gcnPropertiesFilter;
       params.localizationTagKeep = filterData.localizationTagKeep;
       params.localizationTagRemove = filterData.localizationTagRemove;

@@ -311,6 +311,14 @@ telescope:
     elevation: 4500
     diameter: 0.7
     =id: GIT-0p7m
+  - name: WINTER Telescope
+    nickname: WINTER-1m
+    lat: 33.3580556
+    lon: -116.861944
+    elevation: 1706
+    robotic: true
+    diameter: 1.0
+    =id: WINTER-1m
 
 instrument:
   - name: ZTF
@@ -487,8 +495,22 @@ instrument:
     =id: GIT
     api_classname_obsplan: GROWTHINDIAMMAAPI
     filters: ["sdssu", "sdssg", "sdssr", "sdssi", "sdssz"]
+    field_fov_type: circle
+    field_fov_attributes: 0.38
+    # field_data:
+    #   file: ../data/GROWTH-India_Fields.csv.bz2
+  - band: optical
+    name: WINTER
+    telescope_id: =WINTER-1m
+    type: imager
+    =id: WINTER
+    api_classname: GENERICAPI
+    api_classname_obsplan: MMAAPI
+    filters: ["desy", "2massj", "2massh"]
     field_fov_type: rectangle
-    field_fov_attributes: [0.7,0.7]
+    field_fov_attributes: [1.2,1]
+    # field_data:
+    #   file: ../data/WINTER_Fields.csv.bz2
 
 allocation:
   - pi: Michael Coughlin

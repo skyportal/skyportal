@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 // eslint-disable-next-line import/no-unresolved
-import Form from "@rjsf/material-ui/v5";
+import Form from "@rjsf/mui";
+import validator from "@rjsf/validator-ajv8";
 import Select from "@mui/material/Select";
 import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
@@ -130,7 +131,11 @@ const ModifyTaxonomy = () => {
           </MenuItem>
         ))}
       </Select>
-      <Form schema={taxonomyFormSchema} onSubmit={handleSubmit} />
+      <Form
+        schema={taxonomyFormSchema}
+        validator={validator}
+        onSubmit={handleSubmit}
+      />
       <GroupShareSelect
         groupList={groups}
         setGroupIDs={setSelectedGroupIds}

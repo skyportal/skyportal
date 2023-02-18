@@ -272,7 +272,7 @@ async def get_source(
         )
         source_info["labellers"] = [user.to_dict() for user in users]
 
-    source_info["annotations"] = sorted(
+    annotations = sorted(
         session.scalars(
             Annotation.select(user)
             .options(joinedload(Annotation.author))
@@ -282,6 +282,9 @@ async def get_source(
         .all(),
         key=lambda x: x.origin,
     )
+    source_info["annotations"] = [
+        {**annotation.to_dict(), 'type': 'source'} for annotation in annotations
+    ]
     readable_classifications = (
         session.scalars(
             Classification.select(user).where(Classification.obj_id == obj_id)
@@ -357,7 +360,7 @@ async def get_source(
                 else None
             )
     if include_color_mag:
-        source_info["color_magnitude"] = get_color_mag(source_info["annotations"])
+        source_info["color_magnitude"] = get_color_mag(annotations)
 
     source_info = recursive_to_dict(source_info)
     return source_info
@@ -765,7 +768,11 @@ async def get_sources(
                     classification_accessible_subquery,
                     Obj.id == classification_accessible_subquery.c.obj_id,
                 )
-                classification_id_subquery = classification_id_query.subquery()
+                # classification_id_subquery = classification_id_query.subquery()
+                classification_id_subquery = (
+                    session.scalars(classification_id_query).unique().all()
+                )
+
             else:
                 classification_query = (
                     session.query(
@@ -789,7 +796,10 @@ async def get_sources(
                     classification_accessible_subquery,
                     Obj.id == classification_accessible_subquery.c.obj_id,
                 )
-                classification_id_subquery = classification_id_query.subquery()
+                # classification_id_subquery = classification_id_query.subquery()
+                classification_id_subquery = (
+                    session.scalars(classification_id_query).unique().all()
+                )
 
             obj_query = obj_query.where(Obj.id.in_(classification_id_subquery))
 
@@ -1473,6 +1483,9 @@ def post_source(data, user_id, session, refresh_source=True):
     """
 
     user = session.scalar(sa.select(User).where(User.id == user_id))
+
+    if ' ' in data["id"]:
+        raise AttributeError("No spaces allowed in source ID")
 
     obj = session.scalars(Obj.select(user).where(Obj.id == data["id"])).first()
     if obj is None:

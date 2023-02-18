@@ -972,3 +972,85 @@ def test_retrieve_data_products(
         )
         assert status == 404
         assert data["message"].find("No data found") != -1
+
+
+def test_upload_analysis(
+    analysis_service_token, analysis_token, public_group, public_source, view_only_token
+):
+    name = str(uuid.uuid4())
+
+    post_data = {
+        'name': name,
+        'display_name': "test analysis service name",
+        'description': "A test analysis service description",
+        'version': "1.0",
+        'contact_name': "Vesto Slipher",
+        'contact_email': "vs@ls.st",
+        'url': "http://example.com",
+        'authentication_type': "none",
+        'analysis_type': 'meta_analysis',
+        'upload_only': True,
+        'group_ids': [public_group.id],
+    }
+
+    status, data = api(
+        'POST', 'analysis_service', data=post_data, token=analysis_service_token
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    analysis_service_id = data['data']['id']
+
+    # this should fail because the analysis service is an upload_only service
+    # and the normal analysis endpoint (which kicks off a webhook) is
+    # not allowed.
+    status, data = api(
+        'POST',
+        f'obj/{public_source.id}/analysis/{analysis_service_id}',
+        token=analysis_token,
+    )
+    assert status == 403
+    assert data["message"].find("analysis_upload endpoint") != -1
+
+    # this should succeed as the correct endpoint is being used for an
+    # upload_only service
+    params = {
+        "show_parameters": True,
+        "analysis": {
+            "results": {
+                "format": "json",
+                "data": {"external_provenance_id": str(uuid.uuid4())},
+            }
+        },
+    }
+    status, data = api(
+        'POST',
+        f'obj/{public_source.id}/analysis_upload/{analysis_service_id}',
+        token=analysis_token,
+        data=params,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    # this should succeed but we should be warned that we didn't
+    # provide any analysis results
+    params = {"show_parameters": True}
+    status, data = api(
+        'POST',
+        f'obj/{public_source.id}/analysis_upload/{analysis_service_id}',
+        token=analysis_token,
+        data=params,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+    assert data["data"]["message"].find("empty analysis upload_only results") != -1
+
+    # this should fail because the user's token does not have "Run Analyses"
+    # persmissions
+    status, data = api(
+        'POST',
+        f'obj/{public_source.id}/analysis_upload/{analysis_service_id}',
+        token=view_only_token,
+        data=params,
+    )
+    assert status == 401

@@ -5,7 +5,8 @@ import Select from "@mui/material/Select";
 import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
 // eslint-disable-next-line import/no-unresolved
-import Form from "@rjsf/material-ui/v5";
+import Form from "@rjsf/mui";
+import validator from "@rjsf/validator-ajv8";
 import CircularProgress from "@mui/material/CircularProgress";
 import makeStyles from "@mui/styles/makeStyles";
 import dayjs from "dayjs";
@@ -156,15 +157,18 @@ const SurveyEfficiencyForm = ({ gcnevent, observationplanRequest }) => {
     formData.localizationName = locLookUp[selectedLocalizationId].name;
 
     const optionalInjectionParameters = {};
-    if (Object.keys(formData).includes("log10_E0")) {
+    if (
+      Object.keys(formData).includes("log10_E0") &&
+      formData.log10_E0 !== undefined
+    ) {
       optionalInjectionParameters.log10_E0 = formData.log10_E0;
       delete formData.log10_E0;
     }
-    if (Object.keys(formData).includes("mag")) {
+    if (Object.keys(formData).includes("mag") && formData.mag !== undefined) {
       optionalInjectionParameters.mag = formData.mag;
       delete formData.mag;
     }
-    if (Object.keys(formData).includes("dmag")) {
+    if (Object.keys(formData).includes("dmag") && formData.dmag !== undefined) {
       optionalInjectionParameters.dmag = formData.dmag;
       delete formData.dmag;
     }
@@ -364,9 +368,10 @@ const SurveyEfficiencyForm = ({ gcnevent, observationplanRequest }) => {
         <div>
           <Form
             schema={SimSurveySelectionFormSchema}
+            validator={validator}
             onSubmit={handleSubmit}
             // eslint-disable-next-line react/jsx-no-bind
-            validate={validate}
+            customValidate={validate}
             disabled={isSubmitting}
             liveValidate
           />
