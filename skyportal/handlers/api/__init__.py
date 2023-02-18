@@ -71,7 +71,7 @@ from .group import (
 from .healpix import HealpixUpdateHandler
 from .user_obj_list import UserObjListHandler
 from .group_admission_request import GroupAdmissionRequestHandler
-from .instrument import InstrumentHandler
+from .instrument import InstrumentHandler, InstrumentFieldHandler
 from .invalid import InvalidEndpointHandler
 from .invitations import InvitationHandler
 from .mmadetector import (
@@ -115,6 +115,7 @@ from .photometry import (
     PhotometryRangeHandler,
     PhotometryOriginHandler,
 )
+from .photometric_series import PhotometricSeriesHandler
 from .phot_stat import PhotStatHandler, PhotStatUpdateHandler
 from .color_mag import ObjColorMagHandler
 from .photometry_request import PhotometryRequestHandler

@@ -21,7 +21,8 @@ from baselayer.app.models import (
 )
 
 from .group import Group, accessible_by_stream_members
-from .photometry import Photometry, PhotometricSeries
+from .photometry import Photometry
+from .photometric_series import PhotometricSeries
 from .invitation import Invitation
 
 

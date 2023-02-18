@@ -37,10 +37,12 @@ def add_comment(driver, comment_text):
 def add_comment_and_wait_for_display(driver, comment_text):
     add_comment(driver, comment_text)
     try:
-        driver.wait_for_xpath(f'//p[text()="{comment_text}"]', timeout=20)
+        driver.wait_for_xpath(f'//p[contains(text(), "{comment_text}")]', timeout=20)
     except TimeoutException:
         driver.refresh()
-        driver.wait_for_xpath(f'//p[text()="{comment_text}"]')
+        # little triangle you push to expand the table
+        driver.click_xpath("//*[@id='expandable-button']")
+        driver.wait_for_xpath(f'//p[contains(text(), "{comment_text}")]')
 
 
 @pytest.mark.flaky(reruns=2)
