@@ -2,7 +2,7 @@ import pytest
 from skyportal.tests import api
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime
 import uuid
 import time
 import os
@@ -40,7 +40,6 @@ def test_shift(
     end_date = (date.today() + timedelta(days=1)).strftime("%m/%d/%Y")
 
     driver.get(f"/become_user/{super_admin_user.id}")
-    # go to the shift page
     driver.get(f"/shifts/{data['data']['id']}")
 
     # check for API shift
@@ -49,32 +48,45 @@ def test_shift(
         timeout=30,
     )
 
+    today_button = driver.wait_for_xpath('//button[contains(.,"Today")]', timeout=30)
+    today_button.click()
+
     driver.click_xpath(
         '//*/button[@name="add_shift_button"]',
     )
 
     form_name = str(uuid.uuid4())
+    start_date = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+    end_date = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%S")
+
     driver.wait_for_xpath('//*[@id="root_name"]').send_keys(form_name)
-    driver.wait_for_xpath('//*[@id="root_start_date"]').send_keys(start_date)
-    driver.wait_for_xpath('//*[@id="root_start_date"]').send_keys(Keys.TAB)
-    driver.wait_for_xpath('//*[@id="root_start_date"]').send_keys('01:01')
-    driver.wait_for_xpath('//*[@id="root_start_date"]').send_keys('P')
-
-    driver.wait_for_xpath('//*[@id="root_end_date"]').send_keys(end_date)
-    driver.wait_for_xpath('//*[@id="root_end_date"]').send_keys(Keys.TAB)
-    driver.wait_for_xpath('//*[@id="root_end_date"]').send_keys('01:01')
-    driver.wait_for_xpath('//*[@id="root_end_date"]').send_keys('P')
-
     driver.click_xpath('//*[@id="root_group_id"]')
     driver.click_xpath('//li[contains(text(), "Sitewide Group")]')
     driver.wait_for_xpath('//*[@id="root_required_users_number"]').send_keys('5')
+
+    # first empty the start date field
+    driver.wait_for_xpath('//*[@id="root_start_date_local"]').send_keys(
+        Keys.CONTROL + "a"
+    )
+    driver.wait_for_xpath('//*[@id="root_start_date_local"]').send_keys(Keys.DELETE)
+    driver.wait_for_xpath('//*[@id="root_start_date_local"]').send_keys(start_date)
+
+    # first empty the end date field
+    driver.wait_for_xpath('//*[@id="root_end_date_local"]').send_keys(
+        Keys.CONTROL + "a"
+    )
+    driver.wait_for_xpath('//*[@id="root_end_date_local"]').send_keys(Keys.DELETE)
+    driver.wait_for_xpath('//*[@id="root_end_date_local"]').send_keys(end_date)
+
     submit_button_xpath = '//button[@type="submit"]'
     driver.wait_for_xpath(submit_button_xpath)
     driver.click_xpath(submit_button_xpath)
 
     # check for shift in calendar and click it
     event_shift_xpath = f'//*/strong[contains(.,"{form_name}")]'
-    driver.scroll_to_element_and_click(driver.wait_for_xpath(event_shift_xpath))
+    driver.scroll_to_element_and_click(
+        driver.wait_for_xpath(event_shift_xpath, timeout=30)
+    )
 
     # add a comment to the shift
     driver.wait_for_xpath('//*[@id="root_comment"]').send_keys('This is a comment')
@@ -266,8 +278,6 @@ def test_shift(
     )
 
     driver.click_xpath(shift_on_calendar)
-
-    # check for the dropdown to choose who to replace
 
     # check for the dropdown to add a user
     select_users = '//*[@id="select-user-replace-chip"]'
