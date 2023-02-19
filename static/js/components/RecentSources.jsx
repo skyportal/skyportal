@@ -13,6 +13,10 @@ import makeStyles from "@mui/styles/makeStyles";
 import DragHandleIcon from "@mui/icons-material/DragHandle";
 import CircularProgress from "@mui/material/CircularProgress";
 
+import TextField from "@mui/material/TextField";
+import Autocomplete from "@mui/material/Autocomplete";
+import SearchIcon from "@mui/icons-material/Search";
+import InputAdornment from "@mui/material/InputAdornment";
 import { ra_to_hours, dec_to_dms } from "../units";
 import * as profileActions from "../ducks/profile";
 import WidgetPrefsDialog from "./WidgetPrefsDialog";
@@ -108,13 +112,114 @@ export const useSourceListStyles = makeStyles((theme) => ({
       display: "block",
     },
   },
+  root: {
+    "& .MuiOutlinedInput-root": {
+      "& fieldset": {
+        borderColor: "#333333",
+      },
+      "&:hover fieldset": {
+        borderColor: "#333333",
+      },
+      "&.Mui-focused fieldset": {
+        borderColor: "#333333",
+      },
+    },
+  },
+  textField: {
+    color: "#333333",
+  },
+  icon: {
+    color: "#333333",
+  },
+  paper: {
+    backgroundColor: "#F0F8FF",
+  },
+  // These rules help keep the progress wheel centered. Taken from the first example: https://material-ui.com/components/progress/
+  progress: {
+    display: "flex",
+    // The below color rule is not for the progress container, but for CircularProgress. This component only accepts 'primary', 'secondary', or 'inherit'.
+    color: theme.palette.info.main,
+    "& > * + *": {
+      marginLeft: theme.spacing(2),
+    },
+  },
 }));
 
 const defaultPrefs = {
   maxNumSources: "5",
 };
 
-const RecentSourcesList = ({ sources, styles }) => {
+const RecentSourcesSearchbar = ({ recentSources, styles }) => {
+  const [inputValue, setInputValue] = useState("");
+  const [options] = useState([]);
+  const [value] = useState(null);
+  const [loading] = useState(false);
+  const [open, setOpen] = useState(false);
+
+  const classes = styles;
+
+  let results = [];
+  const handleChange = (e) => {
+    e.preventDefault();
+    setInputValue(e.target.value);
+  };
+  if (inputValue.length > 0) {
+    results = recentSources.filter((source) =>
+      source.obj_id.toLowerCase().match(inputValue.toLowerCase())
+    );
+  }
+
+  return (
+    <div>
+      <Autocomplete
+        color="primary"
+        id="recent-sources-search-bar"
+        style={{ padding: "0.3rem" }}
+        classes={{ root: classes.root, paper: classes.paper }}
+        isOptionEqualToValue={(option, val) => option.name === val.name}
+        getOptionLabel={(option) => option}
+        onInputChange={handleChange}
+        onClose={() => setOpen(false)}
+        size="small"
+        noOptionsText="No matching sources."
+        options={options}
+        open={open}
+        limitTags={15}
+        value={value}
+        popupIcon={null}
+        renderInput={(params) => (
+          <TextField
+            // eslint-disable-next-line react/jsx-props-no-spreading
+            {...params}
+            variant="outlined"
+            placeholder="Source"
+            InputProps={{
+              ...params.InputProps,
+              className: classes.textField,
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon fontSize="small" className={classes.icon} />
+                </InputAdornment>
+              ),
+              endAdornment: (
+                <div className={classes.progress}>
+                  {loading ? (
+                    <CircularProgress size={20} color="inherit" />
+                  ) : null}
+                </div>
+              ),
+            }}
+          />
+        )}
+      />
+      {results.length !== 0 && (
+        <RecentSourcesList sources={results} styles={styles} search />
+      )}
+    </div>
+  );
+};
+
+const RecentSourcesList = ({ sources, styles, search = false }) => {
   const [thumbnailIdxs, setThumbnailIdxs] = useState({});
 
   useEffect(() => {
@@ -134,7 +239,7 @@ const RecentSourcesList = ({ sources, styles }) => {
     );
   }
 
-  if (sources.length === 0) {
+  if (sources.length === 0 && !search) {
     return <div>No recent sources available.</div>;
   }
 
@@ -263,10 +368,12 @@ RecentSourcesList.propTypes = {
     })
   ),
   styles: PropTypes.shape(Object).isRequired,
+  search: PropTypes.bool,
 };
 
 RecentSourcesList.defaultProps = {
   sources: undefined,
+  search: false,
 };
 
 const RecentSources = ({ classes }) => {
@@ -296,6 +403,12 @@ const RecentSources = ({ classes }) => {
               onSubmit={profileActions.updateUserPreferences}
             />
           </div>
+          <Paper>
+            <RecentSourcesSearchbar
+              recentSources={recentSources}
+              styles={styles}
+            />
+          </Paper>
         </div>
         <RecentSourcesList sources={recentSources} styles={styles} />
       </div>
@@ -309,6 +422,44 @@ RecentSources.propTypes = {
     widgetIcon: PropTypes.string.isRequired,
     widgetPaperFillSpace: PropTypes.string.isRequired,
   }).isRequired,
+};
+
+RecentSourcesSearchbar.propTypes = {
+  recentSources: PropTypes.arrayOf(
+    PropTypes.shape({
+      obj_id: PropTypes.string.isRequired,
+      ra: PropTypes.number,
+      dec: PropTypes.number,
+      created_at: PropTypes.string.isRequired,
+      thumbnails: PropTypes.arrayOf(
+        PropTypes.shape({
+          public_url: PropTypes.string,
+          is_grayscale: PropTypes.bool,
+          type: PropTypes.string,
+        })
+      ),
+      resaved: PropTypes.bool,
+      classifications: PropTypes.arrayOf(
+        PropTypes.shape({
+          author_name: PropTypes.string,
+          probability: PropTypes.number,
+          modified: PropTypes.string,
+          classification: PropTypes.string,
+          id: PropTypes.number,
+          obj_id: PropTypes.string,
+          author_id: PropTypes.number,
+          taxonomy_id: PropTypes.number,
+          created_at: PropTypes.string,
+        })
+      ),
+    })
+  ),
+  styles: PropTypes.shape(Object).isRequired,
+  filter: PropTypes.func.isRequired,
+};
+
+RecentSourcesSearchbar.defaultProps = {
+  recentSources: undefined,
 };
 
 export default RecentSources;
