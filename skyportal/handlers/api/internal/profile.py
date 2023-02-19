@@ -209,7 +209,6 @@ class ProfileHandler(BaseHandler):
                     user.contact_email = None
 
             preferences = data.get("preferences", {})
-            print(preferences)
             # Do not save blank fields (empty strings)
             for k, v in preferences.items():
                 if isinstance(v, dict):
@@ -228,7 +227,6 @@ class ProfileHandler(BaseHandler):
                     user_prefs["photometryButtons"] = preferences["photometryButtons"]
                 user_prefs = recursive_update(user_prefs, preferences)
             user.preferences = user_prefs
-            print(user.preferences)
             try:
                 session.commit()
             except IntegrityError as e:
