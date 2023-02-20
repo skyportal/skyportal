@@ -19,6 +19,7 @@ from dateutil.parser import isoparse
 import numpy as np
 import sqlalchemy as sa
 from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import sessionmaker, scoped_session
 from sqlalchemy import func, or_, distinct
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.sql.expression import cast
@@ -48,6 +49,7 @@ from ...models import (
     Allocation,
     Annotation,
     Comment,
+    DBSession,
     GroupUser,
     Instrument,
     Obj,
@@ -88,7 +90,6 @@ from .candidate import (
     update_redshift_history_if_relevant,
     update_healpix_if_relevant,
     add_linked_thumbnails_and_push_ws_msg,
-    Session,
 )
 from .photometry import serialize
 from .color_mag import get_color_mag
@@ -100,6 +101,8 @@ _, cfg = load_env()
 log = make_log('api/source')
 
 MAX_LOCALIZATION_SOURCES = 50000
+
+Session = scoped_session(sessionmaker())
 
 
 async def get_source(
@@ -269,7 +272,7 @@ async def get_source(
         )
         source_info["labellers"] = [user.to_dict() for user in users]
 
-    source_info["annotations"] = sorted(
+    annotations = sorted(
         session.scalars(
             Annotation.select(user)
             .options(joinedload(Annotation.author))
@@ -279,6 +282,9 @@ async def get_source(
         .all(),
         key=lambda x: x.origin,
     )
+    source_info["annotations"] = [
+        {**annotation.to_dict(), 'type': 'source'} for annotation in annotations
+    ]
     readable_classifications = (
         session.scalars(
             Classification.select(user).where(Classification.obj_id == obj_id)
@@ -303,9 +309,15 @@ async def get_source(
     source_info["ebv"] = s.ebv
 
     if include_photometry:
-        photometry = session.scalars(
-            Photometry.select(user).where(Photometry.obj_id == obj_id)
-        ).all()
+        photometry = (
+            session.scalars(
+                Photometry.select(
+                    user, options=[joinedload(Photometry.annotations)]
+                ).where(Photometry.obj_id == obj_id)
+            )
+            .unique()
+            .all()
+        )
         source_info["photometry"] = [
             serialize(phot, 'ab', 'flux') for phot in photometry
         ]
@@ -348,7 +360,7 @@ async def get_source(
                 else None
             )
     if include_color_mag:
-        source_info["color_magnitude"] = get_color_mag(source_info["annotations"])
+        source_info["color_magnitude"] = get_color_mag(annotations)
 
     source_info = recursive_to_dict(source_info)
     return source_info
@@ -756,7 +768,11 @@ async def get_sources(
                     classification_accessible_subquery,
                     Obj.id == classification_accessible_subquery.c.obj_id,
                 )
-                classification_id_subquery = classification_id_query.subquery()
+                # classification_id_subquery = classification_id_query.subquery()
+                classification_id_subquery = (
+                    session.scalars(classification_id_query).unique().all()
+                )
+
             else:
                 classification_query = (
                     session.query(
@@ -780,7 +796,10 @@ async def get_sources(
                     classification_accessible_subquery,
                     Obj.id == classification_accessible_subquery.c.obj_id,
                 )
-                classification_id_subquery = classification_id_query.subquery()
+                # classification_id_subquery = classification_id_query.subquery()
+                classification_id_subquery = (
+                    session.scalars(classification_id_query).unique().all()
+                )
 
             obj_query = obj_query.where(Obj.id.in_(classification_id_subquery))
 
@@ -1465,6 +1484,9 @@ def post_source(data, user_id, session, refresh_source=True):
 
     user = session.scalar(sa.select(User).where(User.id == user_id))
 
+    if ' ' in data["id"]:
+        raise AttributeError("No spaces allowed in source ID")
+
     obj = session.scalars(Obj.select(user).where(Obj.id == data["id"])).first()
     if obj is None:
         obj_already_exists = False
@@ -1586,29 +1608,37 @@ def apply_active_or_requested_filtering(query, include_requested, requested_only
 
 
 def add_ps1_thumbnail_and_push_ws_msg(obj_ids, user_id):
-    with Session() as session:
-        user = session.query(User).get(user_id)
-        for obj_id in obj_ids:
-            try:
-                user = session.query(User).get(user_id)
-                if Obj.get_if_accessible_by(obj_id, user) is None:
-                    raise AccessError(
-                        f"Insufficient permissions for User {user_id} to read Obj {obj_id}"
-                    )
-                obj = session.query(Obj).get(obj_id)
-                obj.add_ps1_thumbnail(session=session)
-                flow = Flow()
-                flow.push(
-                    '*',
-                    "skyportal/REFRESH_SOURCE",
-                    payload={"obj_key": obj.internal_key},
+
+    if Session.registry.has():
+        session = Session()
+    else:
+        session = Session(bind=DBSession.session_factory.kw["bind"])
+
+    user = session.query(User).get(user_id)
+    for obj_id in obj_ids:
+        try:
+            user = session.query(User).get(user_id)
+            if Obj.get_if_accessible_by(obj_id, user) is None:
+                raise AccessError(
+                    f"Insufficient permissions for User {user_id} to read Obj {obj_id}"
                 )
-                flow.push(
-                    '*', "skyportal/REFRESH_CANDIDATE", payload={"id": obj.internal_key}
-                )
-            except Exception as e:
-                log(f"Unable to generate PS1 thumbnail URL for {obj_id}: {e}")
-                session.rollback()
+            obj = session.query(Obj).get(obj_id)
+            obj.add_ps1_thumbnail(session=session)
+            flow = Flow()
+            flow.push(
+                '*',
+                "skyportal/REFRESH_SOURCE",
+                payload={"obj_key": obj.internal_key},
+            )
+            flow.push(
+                '*', "skyportal/REFRESH_CANDIDATE", payload={"id": obj.internal_key}
+            )
+        except Exception as e:
+            log(f"Unable to generate PS1 thumbnail URL for {obj_id}: {e}")
+            session.rollback()
+
+    session.close()
+    Session.remove()
 
 
 def paginate_summary_query(session, query, page, num_per_page, total_matches):

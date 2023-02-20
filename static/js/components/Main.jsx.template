@@ -9,8 +9,8 @@ import ReactDOM from "react-dom";
 
 import { BrowserRouter, Routes, Route, useLocation, useParams } from "react-router-dom";
 
-import AdapterDateFns from '@mui/lab/AdapterDateFns';
-import LocalizationProvider from '@mui/lab/LocalizationProvider';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+import { LocalizationProvider } from '@mui/x-date-pickers';
 import {
   createTheme,
   ThemeProvider,

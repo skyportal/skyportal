@@ -85,25 +85,39 @@ def post_classification(data, user_id, session):
     )
     session.add(classification)
 
-    new_vote = ClassificationVote(
-        classification=classification, voter_id=user.id, vote=1
-    )
-    session.add(new_vote)
+    # voting
+    add_vote = True
+    if 'vote' in data:
+        if data['vote'] is False:
+            add_vote = False
 
-    for group_id in group_ids:
-        source_label = session.scalars(
-            SourceLabel.select(session.user_or_token)
-            .where(SourceLabel.obj_id == obj_id)
-            .where(SourceLabel.group_id == group_id)
-            .where(SourceLabel.labeller_id == user_id)
-        ).first()
-        if source_label is None:
-            label = SourceLabel(
-                obj_id=obj_id,
-                labeller_id=user_id,
-                group_id=group_id,
-            )
-            session.add(label)
+    if add_vote:
+        new_vote = ClassificationVote(
+            classification=classification, voter_id=user.id, vote=1
+        )
+        session.add(new_vote)
+
+    # labelling
+    add_label = True
+    if 'label' in data:
+        if data['label'] is False:
+            add_label = False
+
+    if add_label:
+        for group_id in group_ids:
+            source_label = session.scalars(
+                SourceLabel.select(session.user_or_token)
+                .where(SourceLabel.obj_id == obj_id)
+                .where(SourceLabel.group_id == group_id)
+                .where(SourceLabel.labeller_id == user_id)
+            ).first()
+            if source_label is None:
+                label = SourceLabel(
+                    obj_id=obj_id,
+                    labeller_id=user_id,
+                    group_id=group_id,
+                )
+                session.add(label)
 
     session.commit()
 
@@ -293,6 +307,16 @@ class ClassificationHandler(BaseHandler):
                       List of group IDs corresponding to which groups should be
                       able to view classification. Defaults to all of
                       requesting user's groups.
+                  vote:
+                    type: boolean
+                    nullable: true
+                    description: |
+                      Add vote associated with classification.
+                  label:
+                    type: boolean
+                    nullable: true
+                    description: |
+                      Add label associated with classification.
                 required:
                   - obj_id
                   - classification
@@ -438,6 +462,17 @@ class ClassificationHandler(BaseHandler):
             required: true
             schema:
               type: integer
+        requestBody:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  label:
+                    type: boolean
+                    nullable: true
+                    description: |
+                      Add label associated with classification.
         responses:
           200:
             content:
@@ -457,25 +492,31 @@ class ClassificationHandler(BaseHandler):
                     f'Cannot find a classification with ID: {classification_id}.'
                 )
 
+            data = self.get_json()
+            add_label = data.get('label', True)
+
             obj_key = c.obj.internal_key
             obj_id = c.obj.id
             group_ids = [group.id for group in c.groups]
             session.delete(c)
 
-            for group_id in group_ids:
-                source_label = session.scalars(
-                    SourceLabel.select(session.user_or_token)
-                    .where(SourceLabel.obj_id == obj_id)
-                    .where(SourceLabel.group_id == group_id)
-                    .where(SourceLabel.labeller_id == self.associated_user_object.id)
-                ).first()
-                if source_label is None:
-                    label = SourceLabel(
-                        obj_id=obj_id,
-                        labeller_id=self.associated_user_object.id,
-                        group_id=group_id,
-                    )
-                    session.add(label)
+            if add_label:
+                for group_id in group_ids:
+                    source_label = session.scalars(
+                        SourceLabel.select(session.user_or_token)
+                        .where(SourceLabel.obj_id == obj_id)
+                        .where(SourceLabel.group_id == group_id)
+                        .where(
+                            SourceLabel.labeller_id == self.associated_user_object.id
+                        )
+                    ).first()
+                    if source_label is None:
+                        label = SourceLabel(
+                            obj_id=obj_id,
+                            labeller_id=self.associated_user_object.id,
+                            group_id=group_id,
+                        )
+                        session.add(label)
 
             self.push_all(
                 action='skyportal/REFRESH_SOURCE',
@@ -552,6 +593,17 @@ class ObjClassificationHandler(BaseHandler):
             required: true
             schema:
               type: integer
+        requestBody:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  label:
+                    type: boolean
+                    nullable: true
+                    description: |
+                      Add label associated with classification.
         responses:
           200:
             content:
@@ -571,28 +623,33 @@ class ObjClassificationHandler(BaseHandler):
                 .all()
             )
 
+            data = self.get_json()
+            add_label = data.get('label', True)
+
             for c in classifications:
                 obj_key = c.obj.internal_key
                 obj_id = c.obj.id
                 group_ids = [group.id for group in c.groups]
                 session.delete(c)
 
-                for group_id in group_ids:
-                    source_label = session.scalars(
-                        SourceLabel.select(session.user_or_token)
-                        .where(SourceLabel.obj_id == obj_id)
-                        .where(SourceLabel.group_id == group_id)
-                        .where(
-                            SourceLabel.labeller_id == self.associated_user_object.id
-                        )
-                    ).first()
-                    if source_label is None:
-                        label = SourceLabel(
-                            obj_id=obj_id,
-                            labeller_id=self.associated_user_object.id,
-                            group_id=group_id,
-                        )
-                        session.add(label)
+                if add_label:
+                    for group_id in group_ids:
+                        source_label = session.scalars(
+                            SourceLabel.select(session.user_or_token)
+                            .where(SourceLabel.obj_id == obj_id)
+                            .where(SourceLabel.group_id == group_id)
+                            .where(
+                                SourceLabel.labeller_id
+                                == self.associated_user_object.id
+                            )
+                        ).first()
+                        if source_label is None:
+                            label = SourceLabel(
+                                obj_id=obj_id,
+                                labeller_id=self.associated_user_object.id,
+                                group_id=group_id,
+                            )
+                            session.add(label)
 
             session.commit()
 

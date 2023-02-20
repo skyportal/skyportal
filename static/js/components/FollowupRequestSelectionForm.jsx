@@ -2,7 +2,8 @@ import React, { useState, useEffect } from "react";
 import PropTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
 // eslint-disable-next-line import/no-unresolved
-import Form from "@rjsf/material-ui/v5";
+import Form from "@rjsf/mui";
+import validator from "@rjsf/validator-ajv8";
 import Select from "@mui/material/Select";
 import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
@@ -208,6 +209,7 @@ const FollowupRequestSelectionForm = ({ fetchParams, setFetchParams }) => {
       <div data-testid="gcnsource-selection-form">
         <Form
           schema={FollowupRequestSelectionFormSchema}
+          validator={validator}
           onSubmit={handleSubmitFilter}
           // eslint-disable-next-line react/jsx-no-bind
           validate={validateFilter}

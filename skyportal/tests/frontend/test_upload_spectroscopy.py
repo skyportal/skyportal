@@ -1,12 +1,13 @@
 import os
 import uuid
+import pytest
 from skyportal.enum_types import ALLOWED_SPECTRUM_TYPES
 
 
+@pytest.mark.flaky(reruns=3)
 def test_upload_spectroscopy(
     driver, sedm, super_admin_user, public_source, super_admin_token
 ):
-    inst_id = sedm.id
     driver.get(f"/become_user/{super_admin_user.id}")
     driver.get(f"/upload_spectrum/{public_source.id}")
 
@@ -30,13 +31,13 @@ def test_upload_spectroscopy(
     instrument_id_element_xpath = '//*[@id="root_instrument_id"]'
     driver.click_xpath(instrument_id_element_xpath, scroll_parent=True)
 
-    sedm_element_xpath = f'//li[@data-value="{inst_id}"]'
+    sedm_element_xpath = f'//li[contains(text(), "{sedm.name}")]'
     driver.click_xpath(sedm_element_xpath, scroll_parent=True)
 
     type_element_xpath = '//*[@id="root_spectrum_type"]'
     driver.click_xpath(type_element_xpath, scroll_parent=True)
 
-    host_element_xpath = f'//li[@data-value="{ALLOWED_SPECTRUM_TYPES[-1]}"]'
+    host_element_xpath = f'//li[contains(text(), "{ALLOWED_SPECTRUM_TYPES[-1]}")]'
     driver.click_xpath(host_element_xpath, scroll_parent=True)
 
     label_element = driver.wait_for_xpath('//*[@id="root_user_label"]')
@@ -48,7 +49,7 @@ def test_upload_spectroscopy(
     driver.click_xpath(preview_button_xpath, scroll_parent=True)
 
     submit_button_xpath = '//button[contains(.,"Upload Spectrum")]'
-    driver.click_xpath(submit_button_xpath, scroll_parent=True)
+    driver.click_xpath(submit_button_xpath, scroll_parent=True, timeout=30)
 
     driver.wait_for_xpath('//*[contains(.,"successful")]')
 

@@ -235,6 +235,16 @@ class LocalizationTile(Base):
     healpix = sa.Column(healpix_alchemy.Tile, primary_key=True, index=True)
 
 
+LocalizationTile.__table_args__ = (
+    sa.Index(
+        'localizationtile_id_healpix_index',
+        LocalizationTile.id,
+        LocalizationTile.healpix,
+        unique=True,
+    ),
+)
+
+
 class LocalizationProperty(Base):
     """Store properties for localizations."""
 

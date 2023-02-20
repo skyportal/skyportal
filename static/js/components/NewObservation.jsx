@@ -1,7 +1,8 @@
 import React from "react";
 import { useDispatch, useSelector } from "react-redux";
 // eslint-disable-next-line import/no-unresolved
-import Form from "@rjsf/material-ui/v5";
+import Form from "@rjsf/mui";
+import validator from "@rjsf/validator-ajv8";
 import dataUriToBuffer from "data-uri-to-buffer";
 import { showNotification } from "baselayer/components/Notifications";
 import { fetchObservations, uploadObservations } from "../ducks/observations";
@@ -50,7 +51,13 @@ const NewObservation = () => {
     required: ["file", "instrument_id"],
   };
 
-  return <Form schema={observationFormSchema} onSubmit={handleSubmit} />;
+  return (
+    <Form
+      schema={observationFormSchema}
+      validator={validator}
+      onSubmit={handleSubmit}
+    />
+  );
 };
 
 export default NewObservation;

@@ -17,6 +17,7 @@ __all__ = [
     'GroupReminderOnGCN',
     'GroupReminderOnEarthquake',
     'GroupReminderOnShift',
+    'GroupAnnotationOnPhotometry',
     'GroupAnnotationOnSpectrum',
     'GroupInvitation',
     'GroupSourceNotification',
@@ -30,7 +31,8 @@ import sqlalchemy as sa
 from baselayer.app.models import join_model, User, AccessibleIfUserMatches
 
 from baselayer.app.models import DBSession, restricted, CustomUserAccessControl
-from .photometry import Photometry, PhotometricSeries
+from .photometry import Photometry
+from .photometric_series import PhotometricSeries
 from .taxonomy import Taxonomy
 from .comment import (
     Comment,
@@ -43,7 +45,7 @@ from .annotation import Annotation
 from .classification import Classification
 from .mmadetector import MMADetectorSpectrum, MMADetectorTimeInterval
 from .spectrum import Spectrum
-from .annotation import AnnotationOnSpectrum
+from .annotation import AnnotationOnSpectrum, AnnotationOnPhotometry
 from .reminder import (
     Reminder,
     ReminderOnGCN,
@@ -140,7 +142,10 @@ GroupPhotometricSeries.delete = GroupPhotometricSeries.update = (
 )
 
 GroupMMADetectorSpectrum = join_model(
-    "group_mmadetector_spectra", Group, MMADetectorSpectrum
+    "group_mmadetector_spectra",
+    Group,
+    MMADetectorSpectrum,
+    overlaps='mmadetector_spectra',
 )
 GroupMMADetectorSpectrum.__doc__ = 'Join table mapping Groups to MMADetectorSpectra.'
 GroupMMADetectorSpectrum.update = GroupMMADetectorSpectrum.delete = (
@@ -148,7 +153,10 @@ GroupMMADetectorSpectrum.update = GroupMMADetectorSpectrum.delete = (
 )
 
 GroupMMADetectorTimeInterval = join_model(
-    "group_mmadetector_time_intervals", Group, MMADetectorTimeInterval
+    "group_mmadetector_time_intervals",
+    Group,
+    MMADetectorTimeInterval,
+    overlaps='mmadetector_time_intervals',
 )
 GroupMMADetectorTimeInterval.__doc__ = (
     'Join table mapping Groups to MMADetectorTimeInterval.'
@@ -185,6 +193,16 @@ GroupAnnotationOnSpectrum = join_model(
 GroupAnnotationOnSpectrum.__doc__ = "Join table mapping Groups to AnnotationOnSpectrum."
 GroupAnnotationOnSpectrum.delete = GroupAnnotationOnSpectrum.update = (
     accessible_by_group_admins & GroupAnnotationOnSpectrum.read
+)
+
+GroupAnnotationOnPhotometry = join_model(
+    "group_annotations_on_photometry", Group, AnnotationOnPhotometry
+)
+GroupAnnotationOnPhotometry.__doc__ = (
+    "Join table mapping Groups to AnnotationOnPhotometry."
+)
+GroupAnnotationOnPhotometry.delete = GroupAnnotationOnPhotometry.update = (
+    accessible_by_group_admins & GroupAnnotationOnPhotometry.read
 )
 
 GroupCommentOnGCN = join_model("group_comments_on_gcns", Group, CommentOnGCN)

@@ -148,6 +148,8 @@ app:
       component: EarthquakePage
     - path: "/services"
       component: AnalysisServicePage
+    - path: "/recurring_apis"
+      component: RecurringAPIPage
     - path: "/shifts"
       component: ShiftNoId
     - path: "/shifts/:id"
@@ -236,6 +238,10 @@ app:
         - name: Analysis Services
           icon: SentimentSatisfied
           url: /services
+
+        - name: Recurring API
+          icon: Restore
+          url: /recurring_apis
 
         - name: Taxonomies
           icon: WallpaperOutlined
@@ -416,6 +422,7 @@ server:
   # - Authorized redirect URLs: http://localhost:5000/complete/google-oauth2/
   #
   # You need to have Google+ API enabled; it takes a few minutes to activate.
+  protocol: http
   host: localhost
   port: 5000  # This is the public-facing port
 
@@ -438,6 +445,11 @@ server:
   # The max size of a request body in megabytes (M)
   max_body_size: 10
 
+  # nginx parameter which sets both the time in seconds before which
+  # the server is considered unavailable and the subsequent period of
+  # time the server will be unavailable
+  fail_timeout: 20
+
   # Rate limit: number of requests per second (see https://www.nginx.com/blog/rate-limiting-nginx/)
   rate_limit: 5
   # Rate limit burst size (https://www.nginx.com/blog/rate-limiting-nginx/#bursts)
@@ -456,6 +468,7 @@ server:
     debug_login: True
     google_oauth2_key:
     google_oauth2_secret:
+    google_oauth2_timeout: 15
 
 services:
   dask: False
@@ -635,6 +648,7 @@ gcn:
     # - AMON_ICECUBE_HESE
     - ICECUBE_ASTROTRACK_GOLD
     - ICECUBE_ASTROTRACK_BRONZE
+    - MAXI_UNKNOWN
 
   observation_plans:
     - allocation-proposal_id: ZTF-001
@@ -661,6 +675,7 @@ health_monitor:
 
 analysis_services:
   analysis_folder: persistentdata/analysis
+  max_analysis_per_obj_per_user: 50
   sn_analysis_service:
     port: 6801
   ngsf_analysis_service:
@@ -668,4 +683,5 @@ analysis_services:
   spectral_cube_analysis_service:
     port: 7002
 
-comment_folder: persistentdata/comments
+comments_folder: persistentdata/comments
+photometric_series_folder: persistentdata/phot_series

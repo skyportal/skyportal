@@ -131,6 +131,10 @@ const EarthquakePage = ({ route }) => {
     return <Spinner />;
   }
 
+  if (!earthquake?.event_id) {
+    return <Spinner />;
+  }
+
   let xs = 7;
   if (width < 600) {
     xs = 14;

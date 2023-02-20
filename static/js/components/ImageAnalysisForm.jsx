@@ -4,7 +4,8 @@ import Select from "@mui/material/Select";
 import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
 // eslint-disable-next-line import/no-unresolved
-import Form from "@rjsf/material-ui/v5";
+import Form from "@rjsf/mui";
+import validator from "@rjsf/validator-ajv8";
 import PropTypes from "prop-types";
 import CircularProgress from "@mui/material/CircularProgress";
 import makeStyles from "@mui/styles/makeStyles";
@@ -188,6 +189,7 @@ const ImageAnalysisForm = ({ obj_id }) => {
       <div>
         <Form
           schema={imageAnalysisFormSchema}
+          validator={validator}
           onSubmit={handleSubmit}
           // eslint-disable-next-line react/jsx-no-bind
           liveValidate

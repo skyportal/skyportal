@@ -6,7 +6,7 @@ There are a few exceptions where SkyPortal does provide in-app analysis, namely 
 
 ## External Analysis Services
 
-SkyPortal will soon enable the establishment of 3rd party analysis services, which can be interacted with both programmatically and via the webapp. The basic idea is that data available to a user on a particular source can be sent externally (via POST request) for processing. The results of this processing are written back to SP asynchronously via a webhook. Those results can be displayed and queried in the webapp.
+SkyPortal enables the establishment of 3rd party analysis services, which can be interacted with both programmatically and via the webapp. The basic idea is that data available to a user on a particular source can be sent externally (via POST request) for processing. The results of this processing are written back to SP asynchronously via a webhook. Those results can be displayed and queried in the webapp. SkyPortal also enables "requestless" analysis authenticated uploads if an analysis service is created using the `upload_only` flag.
 
 Some example use cases contemplated:
 
@@ -32,6 +32,7 @@ payload = {
     "_authinfo": '{"header_token": {"Authorization": "Bearer MY_TOKEN"}}',
     "analysis_type": "lightcurve_fitting",
     "input_data_types": ["photometry", "redshift"],
+    "upload_only": False,
     "optional_analysis_parameters": '{"rrl_type": ["ab", "c", "d", "e"}',
     'timeout': 60,
     "group_ids": [2, 4, 9]
@@ -42,9 +43,14 @@ url = "http://localhost:5000/api/analysis_service"
 r = requests.post(url, headers=header, json= payload)
 analysis_id =  r.json()['data']['id']
 ```
-We support header-based authentication and those authentications described in the `requests` package. You can also GET parameters of an analysis by ID and also modify (PATCH) and delete analyses.
+Setting `upload_only` to True will set that service as providing the results of a 3rd party analysis that does not make explicit use of SkyPortal data. Setting `upload_only` to False will mean that SkyPortal will package and send data to an external service and that service sends back data via a webhook.
 
-### Starting a new Analysis
+We support header-based authentication and those authentications described in the `requests` package. You can also GET parameters of an analysis by ID and also modify (PATCH) and delete analyses.  By default we place a cap of 50 completed analyses per object per user/token. Old or outdated analyses should be deleted as appropriate.
+
+
+
+
+### Starting a new Analysis (Webhook approach)
 
 To kick off a new analysis on a source using a known `analysis_id`:
 
@@ -111,6 +117,41 @@ results = joblib.load(base64.b64decode(data["analysis"]["results"]["data"]))
 ```
 
 A valid POST will immediately invalidate the unique token so that analysis entry cannot be posted to again (the user can simply restart an analysis with different parameters if they wish).
+
+### Upload an Analysis (non-webhook approach)
+
+If an analysis service is set up to be `upload_only` then users can POST analysis results directly SkyPortal using the `/api/obj/<source name>/analysis_upload` endpoint. The data uploaded should be in the same format expected from the webhook-method analysis services (see "What an Analysis Service Returns" above). The POST can also contain directives about whether to show the plots and results (similar to the webhook-based analysis request).
+
+As an example, a 3rd party analysis on the object named MySourceName using service number service_id can be uploaded as such:
+
+```python
+params={
+  "status": "success",
+  "message": "Ran this on my machine",
+  "show_parameters": True,
+  "analysis": {
+    "plots": ...,
+    "inference_data": ...,
+    "results": {
+      "format": "json",
+      "data": {
+        "external_provenance": {
+          "hash": "23baef56",
+          "spectrum_ids": [34, 68, 125],
+          "model": "jsbFitter23"
+        },
+        "classification": "DY Per",
+        "classification_proba": 0.94
+      }
+    }
+  }
+}
+
+url = f"http://<url>:5000/api/obj/MySourceName/analysis_upload/{service_id}"
+r = requests.post(url, headers={'Authorization':   'token uuid'}, json=params)
+```
+
+It is the responsibility of the 3rd party to maintain any provenance for the analysis (ie. what specific data was used to run the analysis), to delete outdated versions of the analysis on a given obj, and to avoid leaking sensitive data available to the 3rd party but not available to the groups that a specific analysis is attached to.
 
 ### Getting specific analysis products programmatically
 

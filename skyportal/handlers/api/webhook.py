@@ -16,7 +16,7 @@ log = make_log('app/webhook')
 
 _, cfg = load_env()
 
-Session = scoped_session(sessionmaker(bind=DBSession.session_factory.kw["bind"]))
+Session = scoped_session(sessionmaker())
 
 
 class AnalysisWebhookHandler(BaseHandler):
@@ -71,7 +71,10 @@ class AnalysisWebhookHandler(BaseHandler):
 
         # Authenticate the token, then lock this analysis, before going on.
         try:
-            session = Session()
+            if Session.registry.has():
+                session = Session()
+            else:
+                session = Session(bind=DBSession.session_factory.kw["bind"])
             analysis = (
                 session.query(ObjAnalysis).filter(ObjAnalysis.token == token).first()
             )
@@ -105,7 +108,7 @@ class AnalysisWebhookHandler(BaseHandler):
             analysis.duration = (analysis.last_activity - last_active).total_seconds()
             session.commit()
         except Exception as e:
-            log(f'Troubling accessing Analysis with token {token} {e}.')
+            log(f'Trouble accessing Analysis with token {token} {e}.')
             return self.error("Invalid token", status=403)
 
         data = self.get_json()

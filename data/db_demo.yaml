@@ -311,6 +311,14 @@ telescope:
     elevation: 4500
     diameter: 0.7
     =id: GIT-0p7m
+  - name: WINTER Telescope
+    nickname: WINTER-1m
+    lat: 33.3580556
+    lon: -116.861944
+    elevation: 1706
+    robotic: true
+    diameter: 1.0
+    =id: WINTER-1m
 
 instrument:
   - name: ZTF
@@ -406,6 +414,7 @@ instrument:
     #   file: ../data/DECam_Fields.csv
     # field_region:
     #   file: ../data/DECam_Region.reg
+    sensitivity_data: {'sdssu': {'limiting_magnitude': 21.6, 'magsys': 'ab', 'exposure_time': 30, 'zeropoint': 26.87,}, 'desg': {'limiting_magnitude': 23.3, 'magsys': 'ab', 'exposure_time': 30, 'zeropoint': 28.91,}, 'desr': {'limiting_magnitude': 25.5, 'magsys': 'ab', 'exposure_time': 30, 'zeropoint': 29.06,}, 'desi': {'limiting_magnitude': 22.8, 'magsys': 'ab', 'exposure_time': 30, 'zeropoint': 28.97,}, 'desz': {'limiting_magnitude': 22.1, 'magsys': 'ab', 'exposure_time': 30, 'zeropoint': 28.68,}, 'desy': {'limiting_magnitude': 20.9, 'magsys': 'ab', 'exposure_time': 30, 'zeropoint': 27.57,}}
   - band: optical
     name: UVOTXRT
     api_classname: UVOTXRTAPI
@@ -486,8 +495,22 @@ instrument:
     =id: GIT
     api_classname_obsplan: GROWTHINDIAMMAAPI
     filters: ["sdssu", "sdssg", "sdssr", "sdssi", "sdssz"]
+    field_fov_type: circle
+    field_fov_attributes: 0.38
+    # field_data:
+    #   file: ../data/GROWTH-India_Fields.csv.bz2
+  - band: optical
+    name: WINTER
+    telescope_id: =WINTER-1m
+    type: imager
+    =id: WINTER
+    api_classname: GENERICAPI
+    api_classname_obsplan: MMAAPI
+    filters: ["desy", "2massj", "2massh"]
     field_fov_type: rectangle
-    field_fov_attributes: [0.7,0.7]
+    field_fov_attributes: [1.2,1]
+    # field_data:
+    #   file: ../data/WINTER_Fields.csv.bz2
 
 allocation:
   - pi: Michael Coughlin
@@ -1078,7 +1101,7 @@ spatial_catalog:
 default_observation_plan:
   - allocation_id: =ZTF_allocation
     default_plan_name: "ZTF-Default-Plan"
-    payload: {'filter_strategy': 'block', 'schedule_type': 'greedy', 'schedule_strategy': 'tiling', 'galaxy_catalog': 'CLU_mini', 'exposure_time': 300, 'filters': 'g,r,g', 'maximum_airmass': 2, 'integrated_probability': 90, 'minimum_time_difference': 30, 'program_id': 'Partnership', 'subprogram_name': 'GRB'}
+    payload: {'filter_strategy': 'block', 'schedule_type': 'greedy', 'schedule_strategy': 'tiling', 'galaxy_catalog': 'CLU_mini', 'exposure_time': 300, 'filters': 'g,r,g', 'maximum_airmass': 2, 'integrated_probability': 90, 'minimum_time_difference': 30, 'program_id': 'Partnership', 'subprogram_name': 'GRB', 'galactic_plane': True, 'galactic_latitude': 10}
 
 default_followup_request:
   - allocation_id: =SEDMv2_allocation

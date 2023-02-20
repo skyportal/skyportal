@@ -1,6 +1,7 @@
 from .acls import ACLHandler, UserACLHandler
 from .allocation import AllocationHandler, AllocationReportHandler
 from .analysis import (
+    AnalysisUploadOnlyHandler,
     AnalysisServiceHandler,
     AnalysisHandler,
     AnalysisProductsHandler,
@@ -57,6 +58,7 @@ from .gcn import (
     LocalizationDownloadHandler,
     LocalizationCrossmatchHandler,
     LocalizationPropertiesHandler,
+    LocalizationTagsHandler,
 )
 from .gcn_tach import GcnTachHandler
 from .group import (
@@ -69,7 +71,7 @@ from .group import (
 from .healpix import HealpixUpdateHandler
 from .user_obj_list import UserObjListHandler
 from .group_admission_request import GroupAdmissionRequestHandler
-from .instrument import InstrumentHandler
+from .instrument import InstrumentHandler, InstrumentFieldHandler
 from .invalid import InvalidEndpointHandler
 from .invitations import InvitationHandler
 from .mmadetector import (
@@ -104,6 +106,7 @@ from .observation_plan import (
     ObservationPlanAirmassChartHandler,
     ObservationPlanCreateObservingRunHandler,
     ObservationPlanFieldsHandler,
+    ObservationPlanManualRequestHandler,
 )
 from .photometry import (
     PhotometryHandler,
@@ -112,12 +115,14 @@ from .photometry import (
     PhotometryRangeHandler,
     PhotometryOriginHandler,
 )
+from .photometric_series import PhotometricSeriesHandler
 from .phot_stat import PhotStatHandler, PhotStatUpdateHandler
 from .color_mag import ObjColorMagHandler
 from .photometry_request import PhotometryRequestHandler
 from .public_group import PublicGroupHandler
 from .roles import RoleHandler, UserRoleHandler
 from .obj import ObjHandler
+from .recurring_api import RecurringAPIHandler
 from .reminder import ReminderHandler
 from .sharing import SharingHandler
 from .shift import ShiftHandler, ShiftUserHandler, ShiftSummary

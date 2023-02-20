@@ -58,6 +58,11 @@ class DefaultObservationPlanRequest(Base):
         doc="Content of the default observation plan request.",
     )
 
+    filters = sa.Column(
+        psql.JSONB,
+        doc="Filters to determine which of the default observation plan requests get executed for which events",
+    )
+
     allocation_id = sa.Column(
         sa.ForeignKey('allocations.id', ondelete='CASCADE'), nullable=False, index=True
     )
@@ -326,7 +331,7 @@ class EventObservationPlanStatistics(Base):
         "EventObservationPlan",
         foreign_keys=observation_plan_id,
         doc="The EventObservationPlan that this planned observation belongs to",
-        overlaps='planned_observations',
+        overlaps='statistics',
     )
 
     localization_id = sa.Column(
