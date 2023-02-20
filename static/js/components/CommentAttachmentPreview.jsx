@@ -171,6 +171,7 @@ const CommentAttachmentPreview = ({
     "json",
     "fit",
     "fits",
+    "fz",
   ].includes(fileType.toLowerCase());
 
   let jsonFile = {};
