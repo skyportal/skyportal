@@ -97,7 +97,7 @@ def allscalar(d):
     return all(np.isscalar(v) or v is None for v in d.values())
 
 
-def serialize(phot, outsys, format, groups=True, annotations=True):
+def serialize(phot, outsys, format, created_at=True, groups=True, annotations=True):
 
     return_value = {
         'obj_id': phot.obj_id,
@@ -114,6 +114,8 @@ def serialize(phot, outsys, format, groups=True, annotations=True):
         'id': phot.id,
         'altdata': phot.altdata,
     }
+    if created_at:
+        return_value['created_at'] = phot.created_at
     if groups:
         return_value['groups'] = [group.to_dict() for group in phot.groups]
     if annotations:

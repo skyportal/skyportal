@@ -1,6 +1,5 @@
 import string
 import base64
-import io
 from marshmallow.exceptions import ValidationError
 import os
 import sqlalchemy as sa
@@ -1195,9 +1194,11 @@ class CommentAttachmentHandler(BaseHandler):
                     else:
                         return self.error(f'Comment file missing: {data_path}')
 
-                if preview and attachment_name.lower().endswith(("fit", "fits")):
+                if preview and attachment_name.lower().endswith(
+                    ("fit", "fits", "fit.fz", "fits.fz")
+                ):
                     try:
-                        attachment = get_fits_preview(io.BytesIO(attachment))
+                        attachment = get_fits_preview(attachment_name, attachment)
                         attachment_name = os.path.splitext(attachment_name)[0] + ".png"
                     except Exception as e:
                         log(f'Cannot render {attachment_name} as image: {str(e)}')
