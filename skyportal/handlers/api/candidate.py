@@ -460,7 +460,7 @@ class CandidateHandler(BaseHandler):
             description: |
               Only return sources that have photometry annotations after this UTC datetime.
           - in: query
-            name: photometryAnnotationsFilterThreshold
+            name: photometryAnnotationsFilterMinCount
             nullable: true
             schema:
               type: string
@@ -685,8 +685,8 @@ class CandidateHandler(BaseHandler):
         photometry_annotations_filter_before = self.get_query_argument(
             'photometryAnnotationsFilterBefore', None
         )
-        photometry_annotations_filter_threshold = self.get_query_argument(
-            'photometryAnnotationsFilterThreshold', 1
+        photometry_annotations_filter_min_count = self.get_query_argument(
+            'photometryAnnotationsFilterMinCount', 1
         )
 
         with self.Session() as session:
@@ -996,31 +996,19 @@ class CandidateHandler(BaseHandler):
                 ]
 
             if photometry_annotations_filter is not None:
-                if (
-                    isinstance(photometry_annotations_filter, str)
-                    and "," in photometry_annotations_filter
-                ):
+                if isinstance(photometry_annotations_filter, str):
                     photometry_annotations_filter = [
                         c.strip() for c in photometry_annotations_filter.split(",")
                     ]
-                elif isinstance(photometry_annotations_filter, str):
-                    photometry_annotations_filter = [photometry_annotations_filter]
                 else:
                     raise ValueError(
                         "Invalid annotationsFilter value -- must provide at least one string value"
                     )
             if photometry_annotations_filter_origin is not None:
-                if (
-                    isinstance(photometry_annotations_filter_origin, str)
-                    and "," in photometry_annotations_filter_origin
-                ):
+                if isinstance(photometry_annotations_filter_origin, str):
                     photometry_annotations_filter_origin = [
                         c.strip()
                         for c in photometry_annotations_filter_origin.split(",")
-                    ]
-                elif isinstance(photometry_annotations_filter_origin, str):
-                    photometry_annotations_filter_origin = [
-                        photometry_annotations_filter_origin
                     ]
                 else:
                     raise ValueError(
@@ -1097,7 +1085,7 @@ class CandidateHandler(BaseHandler):
                         photometry_annotations_subquery,
                         sa.and_(
                             photometry_annotations_subquery.c.count
-                            >= photometry_annotations_filter_threshold,
+                            >= photometry_annotations_filter_min_count,
                             photometry_annotations_subquery.c.obj_id == Obj.id,
                         ),
                     )
