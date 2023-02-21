@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import PropTypes from "prop-types";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import { Link } from "react-router-dom";
 
 import dayjs from "dayjs";
@@ -21,6 +21,8 @@ import { ra_to_hours, dec_to_dms } from "../units";
 import * as profileActions from "../ducks/profile";
 import WidgetPrefsDialog from "./WidgetPrefsDialog";
 import SourceQuickView from "./SourceQuickView";
+
+import * as sourcesActions from "../ducks/sources";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
@@ -149,7 +151,7 @@ const defaultPrefs = {
   maxNumSources: "5",
 };
 
-const RecentSourcesSearchbar = ({ recentSources, styles }) => {
+const RecentSourcesSearchbar = ({ styles }) => {
   const [inputValue, setInputValue] = useState("");
   const [options] = useState([]);
   const [value] = useState(null);
@@ -158,16 +160,34 @@ const RecentSourcesSearchbar = ({ recentSources, styles }) => {
 
   const classes = styles;
 
+  const dispatch = useDispatch();
+  const sourcesState = useSelector((state) => state.sources.latest);
+
+  useEffect(() => {
+    dispatch(sourcesActions.fetchSources());
+  }, [dispatch]);
+
   let results = [];
   const handleChange = (e) => {
     e.preventDefault();
     setInputValue(e.target.value);
   };
   if (inputValue.length > 0) {
-    results = recentSources.filter((source) =>
-      source.obj_id.toLowerCase().match(inputValue.toLowerCase())
+    results = sourcesState.sources.filter((source) =>
+      source.id.toLowerCase().match(inputValue.toLowerCase())
     );
   }
+
+  function formatSource(source) {
+    if (source.id) {
+      source.obj_id = source.id;
+    }
+  }
+
+  const formattedResults = [];
+  Object.assign(formattedResults, results);
+
+  formattedResults.map(formatSource);
 
   return (
     <div>
@@ -213,7 +233,7 @@ const RecentSourcesSearchbar = ({ recentSources, styles }) => {
         )}
       />
       {results.length !== 0 && (
-        <RecentSourcesList sources={results} styles={styles} search />
+        <RecentSourcesList sources={formattedResults} styles={styles} search />
       )}
     </div>
   );
@@ -404,10 +424,7 @@ const RecentSources = ({ classes }) => {
             />
           </div>
           <Paper>
-            <RecentSourcesSearchbar
-              recentSources={recentSources}
-              styles={styles}
-            />
+            <RecentSourcesSearchbar styles={styles} />
           </Paper>
         </div>
         <RecentSourcesList sources={recentSources} styles={styles} />
