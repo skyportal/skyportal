@@ -263,6 +263,18 @@ class CandidateHandler(BaseHandler):
               Used only in the case of paginating query results - if provided, this
               allows for avoiding a potentially expensive query.count() call.
           - in: query
+            name: autosave
+            nullable: true
+            schema:
+                type: boolean
+            description: Automatically save candidates passing query.
+          - in: query
+            name: autosaveGroupIds
+            nullable: true
+            schema:
+                type: boolean
+            description: Group ID(s) to save candidates to.
+          - in: query
             name: savedStatus
             nullable: true
             schema:
@@ -672,7 +684,8 @@ class CandidateHandler(BaseHandler):
         max_redshift = self.get_query_argument("maxRedshift", None)
         list_name = self.get_query_argument('listName', None)
         list_name_reject = self.get_query_argument('listNameReject', None)
-
+        autosave = self.get_query_argument("autosave", False)
+        autosave_group_ids = self.get_query_argument("autosaveGroupIds", None)
         photometry_annotations_filter = self.get_query_argument(
             "photometryAnnotationsFilter", None
         )
@@ -688,6 +701,9 @@ class CandidateHandler(BaseHandler):
         photometry_annotations_filter_min_count = self.get_query_argument(
             'photometryAnnotationsFilterMinCount', 1
         )
+
+        if autosave:
+            from .source import post_source
 
         with self.Session() as session:
             user_accessible_group_ids = [
@@ -1164,6 +1180,12 @@ class CandidateHandler(BaseHandler):
                             )
                         ).all()
                     ]
+                    if autosave:
+                        source = {
+                            'id': obj.id,
+                            'group_ids': autosave_group_ids,
+                        }
+                        post_source(source, self.associated_user_object.id, session)
                     candidate_list.append(recursive_to_dict(obj))
                     if include_photometry:
                         candidate_list[-1]["photometry"] = (
