@@ -52,6 +52,7 @@ from .gcn import (
     GcnEventPropertiesHandler,
     GcnEventSurveyEfficiencyHandler,
     GcnEventCatalogQueryHandler,
+    GcnEventInstrumentFieldHandler,
     GcnEventTagsHandler,
     GcnSummaryHandler,
     LocalizationHandler,
