@@ -2228,6 +2228,72 @@ class GcnSummaryHandler(BaseHandler):
             return self.success(data=summary)
 
     @auth_or_token
+    def patch(self, dateobs, summary_id):
+        """
+        description: Update a GCN summary
+        tags:
+          - gcn
+        parameters:
+          - in: path
+            name: dateobs
+            required: true
+            schema:
+              type: string
+          - in: path
+            name: summary_id
+            required: true
+            schema:
+              type: integer
+        requestBody:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  text:
+                    type: string
+        responses:
+          200:
+            content:
+              application/json:
+                schema: SingleGcnSummary
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        data = self.get_json()
+        if data is None or data == {}:
+            return self.error("No data provided")
+
+        if summary_id is None:
+            return self.error("Summary ID is required")
+
+        with self.Session() as session:
+            stmt = GcnSummary.select(session.user_or_token, mode="update").where(
+                GcnSummary.id == summary_id,
+                GcnSummary.dateobs == dateobs,
+            )
+            summary = session.scalars(stmt).first()
+            if summary is None:
+                return self.error("Summary not found", status=404)
+
+            if data["body"] != {}:
+                body_str = data["body"].strip('"')
+                summary.text = body_str
+            else:
+                return self.error("body not found")
+
+            session.commit()
+
+            self.push(
+                action="skyportal/REFRESH_GCN_EVENT",
+                payload={"gcnEvent_dateobs": dateobs},
+            )
+
+            return self.success(data=summary)
+
+    @auth_or_token
     def delete(self, dateobs, summary_id):
         """
         ---
