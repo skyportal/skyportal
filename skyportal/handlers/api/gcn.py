@@ -2263,8 +2263,6 @@ class GcnSummaryHandler(BaseHandler):
                 schema: Error
         """
         data = self.get_json()
-        print("COUCOU", data)
-        print(data["body"])
         if data is None or data == {}:
             return self.error("No data provided")
 
@@ -2280,10 +2278,8 @@ class GcnSummaryHandler(BaseHandler):
             if summary is None:
                 return self.error("Summary not found", status=404)
 
-            print("body", data["body"])
             if data["body"] != {}:
                 body_str = data["body"].strip('"')
-                print(body_str)
                 summary.text = body_str
             else:
                 return self.error("body not found")

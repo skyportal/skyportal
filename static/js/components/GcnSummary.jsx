@@ -340,21 +340,9 @@ const GcnSummary = ({ dateobs }) => {
 
   const handleSaveGcnSummary = () => {
     setLoading(true);
-    /* const response = await patchGcnEventSummary({
-      dateobs,
-      //summaryID: summaryId,
-      params: { text },
-    });
-    if (response.status === "success") {
-      dispatch(showNotification("Summary updated successfully"));
-    } else {
-      dispatch(showNotification("Error updating summary", "error"));
-    } */
-
     const res = {
       body: text,
     };
-    console.log(res);
     dispatch(patchGcnEventSummary(dateobs, selectedGcnSummaryId, res));
     setLoading(false);
   };
