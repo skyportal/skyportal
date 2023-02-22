@@ -1517,3 +1517,99 @@ def test_candidate_list_pagination(
     )
     assert status == 400
     assert "Page number out of range" in data["message"]
+
+
+def test_candidates_annotation_filtering(
+    public_candidate,
+    ztf_camera,
+    public_group,
+    view_only_token,
+    upload_data_token_two_groups,
+    annotation_token,
+):
+    obj_id = str(public_candidate.id)
+    # Post photometry to the object belonging to a different group
+    status, data = api(
+        'POST',
+        'photometry',
+        data={
+            'obj_id': obj_id,
+            'mjd': 58000.0,
+            'instrument_id': ztf_camera.id,
+            'flux': 12.24,
+            'fluxerr': 0.031,
+            'zp': 25.0,
+            'magsys': 'ab',
+            'filter': 'ztfg',
+            'group_ids': [public_group.id],
+            'altdata': {'some_key': 'some_value'},
+        },
+        token=upload_data_token_two_groups,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+    photometry_id = data['data']['ids'][0]
+
+    status, data = api(
+        'POST',
+        f'photometry/{photometry_id}/annotations',
+        data={
+            'origin': 'kowalski',
+            'data': {'gaia_G': 15.7},
+            'group_ids': [public_group.id],
+        },
+        token=annotation_token,
+    )
+    assert status == 200
+
+    # Check the photometry sent back with the candidate
+    status, data = api(
+        "GET",
+        "candidates",
+        params={
+            "groupIDs": f"{public_group.id}",
+            "photometryAnnotationsFilterOrigin": "kowalski",
+        },
+        token=view_only_token,
+    )
+    assert status == 200
+    assert len(data["data"]["candidates"]) == 1
+    assert data["data"]["candidates"][0]["id"] == obj_id
+
+    status, data = api(
+        "GET",
+        "candidates",
+        params={
+            "groupIDs": f"{public_group.id}",
+            "photometryAnnotationsFilter": "gaia_G",
+        },
+        token=view_only_token,
+    )
+    assert status == 200
+    assert len(data["data"]["candidates"]) == 1
+    assert data["data"]["candidates"][0]["id"] == obj_id
+
+    status, data = api(
+        "GET",
+        "candidates",
+        params={
+            "groupIDs": f"{public_group.id}",
+            "photometryAnnotationsFilter": "gaia_G : 15.0 : ge",
+        },
+        token=view_only_token,
+    )
+    assert status == 200
+    assert len(data["data"]["candidates"]) == 1
+    assert data["data"]["candidates"][0]["id"] == obj_id
+
+    status, data = api(
+        "GET",
+        "candidates",
+        params={
+            "groupIDs": f"{public_group.id}",
+            "photometryAnnotationsFilter": "gaia_G : 15.0 : le",
+        },
+        token=view_only_token,
+    )
+    assert status == 200
+    assert len(data["data"]["candidates"]) == 0
