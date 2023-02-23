@@ -225,7 +225,7 @@ AllocationList.propTypes = {
   allocations: PropTypes.arrayOf(PropTypes.any).isRequired,
 };
 
-const TelescopeInfo = () => {
+const TelescopeInfo = ({ search, searchedTelescopeList }) => {
   const classes = useStyles();
   const dispatch = useDispatch();
 
@@ -368,15 +368,33 @@ const TelescopeInfo = () => {
       <Divider />
     </div>
   );
-
   // return a list of telescopes with their information
-  return currentTelescopes ? (
-    <List className={classes.root}>
-      {currentTelescopes.telescopes.map(displaytelescope)}
-    </List>
-  ) : (
-    <List className={classes.root}>{telescopeList.map(displaytelescope)}</List>
+  return (
+    <div>
+      {search && <List>{searchedTelescopeList.map(displaytelescope)}</List>}
+      {currentTelescopes && (
+        <List className={classes.root}>
+          {currentTelescopes.telescopes.map(displaytelescope)}
+        </List>
+      )}
+      {!currentTelescopes && !search && (
+        <List className={classes.root}>
+          {telescopeList.map(displaytelescope)}
+        </List>
+      )}
+    </div>
   );
+};
+
+TelescopeInfo.propTypes = {
+  search: PropTypes.bool,
+  // eslint-disable-next-line react/forbid-prop-types
+  searchedTelescopeList: PropTypes.arrayOf(PropTypes.any),
+};
+
+TelescopeInfo.defaultProps = {
+  search: false,
+  searchedTelescopeList: [],
 };
 
 export default TelescopeInfo;
