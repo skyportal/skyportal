@@ -343,7 +343,15 @@ const GcnSummary = ({ dateobs }) => {
     const res = {
       body: text,
     };
-    dispatch(patchGcnEventSummary(dateobs, selectedGcnSummaryId, res));
+    dispatch(patchGcnEventSummary(dateobs, selectedGcnSummaryId, res)).then(
+      (response) => {
+        if (response.status === "success") {
+          dispatch(showNotification("Summary saved"));
+        } else {
+          dispatch(showNotification("Error saving summary", "error"));
+        }
+      }
+    );
     setLoading(false);
   };
 
