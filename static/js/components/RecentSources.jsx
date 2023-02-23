@@ -173,7 +173,7 @@ const RecentSourcesSearchbar = ({ styles }) => {
     setInputValue(e.target.value);
   };
   if (inputValue.length > 0) {
-    results = sourcesState.sources.filter((source) =>
+    results = sourcesState?.sources?.filter((source) =>
       source.id.toLowerCase().match(inputValue.toLowerCase())
     );
   }
