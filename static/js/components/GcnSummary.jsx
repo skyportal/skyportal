@@ -35,6 +35,7 @@ import {
   fetchGcnEventSummary,
   postGcnEventSummary,
   deleteGcnEventSummary,
+  patchGcnEventSummary,
   fetchGcnEvent,
 } from "../ducks/gcnEvent";
 import Button from "./Button";
@@ -337,6 +338,15 @@ const GcnSummary = ({ dateobs }) => {
     });
   };
 
+  const handleSaveGcnSummary = () => {
+    setLoading(true);
+    const res = {
+      body: text,
+    };
+    dispatch(patchGcnEventSummary(dateobs, selectedGcnSummaryId, res));
+    setLoading(false);
+  };
+
   return (
     <>
       <Button secondary name="gcn_summary" onClick={() => setOpen(true)}>
@@ -525,6 +535,7 @@ const GcnSummary = ({ dateobs }) => {
                   >
                     GCN Summaries List
                   </Button>
+                  <Button onClick={handleSaveGcnSummary}>Save</Button>
                   <Button
                     primary
                     id="new-telescope"
@@ -563,7 +574,7 @@ const GcnSummary = ({ dateobs }) => {
                         id="text"
                         label="Text"
                         multiline
-                        value={text}
+                        value={text.replace(/\n/g, "\n")}
                         onChange={(e) => setText(e.target.value)}
                         className={classes.textField}
                         InputProps={{
