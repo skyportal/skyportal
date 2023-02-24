@@ -1720,9 +1720,6 @@ class DefaultAnalysisHandler(BaseHandler):
                         f'Analysis service {analysis_service_id} not found', status=404
                     )
 
-                # check if there is already a default analysis for this analysis service and user
-                # if so, return an error
-
                 stmt = DefaultAnalysis.select(self.current_user).where(
                     DefaultAnalysis.analysis_service_id == analysis_service_id,
                     DefaultAnalysis.author_id == self.associated_user_object.id,

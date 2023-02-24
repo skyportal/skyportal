@@ -676,7 +676,6 @@ def create_default_analysis(mapper, connection, target):
                 DefaultAnalysis.source_filter['classifications'].contains(
                     [{"name": target_data['classification']}]
                 ),
-                # check that the daily_counter is less than the daily_limit
                 or_(
                     func.coalesce(
                         DefaultAnalysis.stats['daily_count'].astext.cast(sa.Integer), 0
@@ -686,8 +685,7 @@ def create_default_analysis(mapper, connection, target):
                     ),
                     DefaultAnalysis.stats['last_run'].astext.cast(sa.DateTime)
                     < cast(datetime.utcnow() - timedelta(days=1), sa.DateTime),
-                )
-                is True,
+                ),
                 # make sure that the default analysis is associated with a group that the classification is associated with
                 DefaultAnalysis.groups.any(
                     Group.id.in_([g.id for g in target_data["groups"]])

@@ -1123,7 +1123,6 @@ def test_default_analysis(
     }
 
     url = f'analysis_service/{analysis_service_id}/default_analysis'
-    # analysis_service/1/default_analysis
 
     status, data = api(
         'POST',
