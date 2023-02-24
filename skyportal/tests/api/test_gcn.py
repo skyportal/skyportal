@@ -579,6 +579,132 @@ def test_gcn_summary_galaxies(
     )
 
 
+def test_gcn_instrument_field(
+    super_admin_user,
+    super_admin_token,
+    view_only_token,
+    public_group,
+):
+
+    datafile = f'{os.path.dirname(__file__)}/../../../data/GW190814.xml'
+    with open(datafile, 'rb') as fid:
+        payload = fid.read()
+    event_data = {'xml': payload}
+
+    dateobs = "2019-08-14T21:10:39"
+    status, data = api('GET', f'gcn_event/{dateobs}', token=super_admin_token)
+
+    if status == 404:
+        status, data = api(
+            'POST', 'gcn_event', data=event_data, token=super_admin_token
+        )
+        assert status == 200
+        assert data['status'] == 'success'
+
+    # wait for event to load
+    for n_times in range(26):
+        status, data = api('GET', f"gcn_event/{dateobs}", token=super_admin_token)
+        if data['status'] == 'success':
+            break
+        time.sleep(2)
+    assert n_times < 25
+
+    # wait for the localization to load
+    params = {"include2DMap": True}
+    for n_times_2 in range(26):
+        status, data = api(
+            'GET',
+            'localization/2019-08-14T21:10:39/name/LALInference.v1.fits.gz',
+            token=super_admin_token,
+            params=params,
+        )
+
+        if data['status'] == 'success':
+            data = data["data"]
+            assert data["dateobs"] == "2019-08-14T21:10:39"
+            assert data["localization_name"] == "LALInference.v1.fits.gz"
+            assert np.isclose(np.sum(data["flat_2d"]), 1)
+            break
+        else:
+            time.sleep(2)
+    assert n_times_2 < 25
+
+    name = str(uuid.uuid4())
+    status, data = api(
+        'POST',
+        'telescope',
+        data={
+            'name': name,
+            'nickname': name,
+            'lat': 0.0,
+            'lon': 0.0,
+            'elevation': 0.0,
+            'diameter': 10.0,
+        },
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+    telescope_id = data['data']['id']
+
+    fielddatafile = f'{os.path.dirname(__file__)}/../../../data/ZTF_Fields.csv'
+    regionsdatafile = f'{os.path.dirname(__file__)}/../../../data/ZTF_Region.reg'
+
+    instrument_name = str(uuid.uuid4())
+    status, data = api(
+        'POST',
+        'instrument',
+        data={
+            'name': instrument_name,
+            'type': 'imager',
+            'band': 'Optical',
+            'filters': ['ztfr'],
+            'telescope_id': telescope_id,
+            'api_classname': 'ZTFAPI',
+            'api_classname_obsplan': 'ZTFMMAAPI',
+            'field_data': pd.read_csv(fielddatafile)[199:204].to_dict(orient='list'),
+            'field_region': Regions.read(regionsdatafile).serialize(format='ds9'),
+        },
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+    instrument_id = data['data']['id']
+
+    # wait for the fields to populate
+    nretries = 0
+    fields_loaded = False
+    while not fields_loaded and nretries < 5:
+        try:
+            status, data = api(
+                'GET',
+                f'instrument/{instrument_id}',
+                token=super_admin_token,
+            )
+            assert status == 200
+            assert data['status'] == 'success'
+            assert data['data']['band'] == 'NIR'
+
+            assert len(data['data']['fields']) == 5
+            fields_loaded = True
+        except AssertionError:
+            nretries = nretries + 1
+            time.sleep(3)
+
+    status, data = api(
+        'GET',
+        f'gcn_event/{dateobs}/instrument/{instrument_id}',
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    assert 'field_ids' in data['data']
+    assert 'probabilities' in data['data']
+
+    assert set(data['data']['field_ids']) == {200, 201, 202}
+
+
 def test_gcn_summary_observations(
     super_admin_user,
     super_admin_token,

@@ -230,7 +230,7 @@ const FindingChart = () => {
                             Image Size (arcmin)
                           </InputLabel>
                           <Controller
-                            render={() => (
+                            render={({ field: { onChange, value } }) => (
                               <Input
                                 type="number"
                                 margin="dense"
@@ -241,6 +241,8 @@ const FindingChart = () => {
                                   type: "number",
                                   "aria-labelledby": "SizeSelect",
                                 }}
+                                onChange={onChange}
+                                value={value}
                               />
                             )}
                             name="findersize"
@@ -260,7 +262,7 @@ const FindingChart = () => {
                             # of Offset Stars
                           </InputLabel>
                           <Controller
-                            render={() => (
+                            render={({ field: { onChange, value } }) => (
                               <Input
                                 type="number"
                                 margin="dense"
@@ -271,6 +273,8 @@ const FindingChart = () => {
                                   type: "number",
                                   "aria-labelledby": "HowMany",
                                 }}
+                                onChange={onChange}
+                                value={value}
                               />
                             )}
                             name="numoffset"
