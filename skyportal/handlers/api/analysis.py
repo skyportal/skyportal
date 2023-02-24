@@ -42,6 +42,7 @@ from ...models import (
     Comment,
     ObjAnalysis,
     DefaultAnalysis,
+    UserNotification,
 )
 from .photometry import serialize
 
@@ -49,6 +50,7 @@ log = make_log('app/analysis')
 
 _, cfg = load_env()
 
+DEFAULT_ANALYSES_DAILY_LIMIT = 100
 
 def valid_url(trial_url):
     """
@@ -226,6 +228,7 @@ def post_analysis(
     groups,
     analysis_service,
     session,
+    notification=None,
     analysis_parameters=None,
     show_parameters=False,
     show_plots=False,
@@ -373,10 +376,23 @@ def post_analysis(
         current_user.id,
         action_type="baselayer/SHOW_NOTIFICATION",
         payload={
-            "note": f'Sending data to analysis service {analysis_service.name} to start the analysis.',
+            "note": f'Sending data to analysis service {analysis_service.name} to start the analysis.' if notification is None else notification,
             "type": "info",
         },
     )
+
+    if notification is not None and notification != "":
+        try:
+            user_notification = UserNotification(
+                user=current_user,
+                text=notification,
+                notification_type="default_analysis",
+                url=f"/source/{obj_id}/analysis/{analysis.id}",
+            )
+            session.add(user_notification)
+            session.commit()
+        except Exception as e:
+            log(f"Could not add notification: {e}")
 
     def analysis_done_callback(
         future,
@@ -1066,6 +1082,13 @@ class AnalysisHandler(BaseHandler):
                 type: string
               description: |
                 Return any analysis on an object with ID objID
+            - in: path
+              name: analysisServiceID
+              required: false
+              schema:
+                type: int
+              description: |
+                ID of the analysis service used to create the analysis, used only if no analysis_id is given
             - in: query
               name: includeAnalysisData
               nullable: true
@@ -1119,6 +1142,7 @@ class AnalysisHandler(BaseHandler):
             1,
         ]
         obj_id = self.get_query_argument('objID', None)
+        analysis_service_id = self.get_query_argument('analysisServiceID', None)
 
         with self.Session() as session:
             if obj_id is not None:
@@ -1164,7 +1188,11 @@ class AnalysisHandler(BaseHandler):
                 stmt = ObjAnalysis.select(self.current_user)
                 if obj_id:
                     stmt = stmt.where(ObjAnalysis.obj_id.contains(obj_id.strip()))
-                analyses = session.scalars(stmt).all()
+                if analysis_service_id:
+                    stmt = stmt.where(
+                        ObjAnalysis.analysis_service_id == analysis_service_id
+                    )
+                analyses = session.scalars(stmt).unique().all()
 
                 ret_array = []
                 analysis_services_dict = {}
@@ -1688,11 +1716,45 @@ class DefaultAnalysisHandler(BaseHandler):
                     return self.error(
                         f'Analysis service {analysis_service_id} not found', status=404
                     )
+                
+                # check if there is already a default analysis for this analysis service and user
+                # if so, return an error
+
+                stmt = DefaultAnalysis.select(self.current_user).where(
+                    DefaultAnalysis.analysis_service_id == analysis_service_id,
+                    DefaultAnalysis.author_id == self.associated_user_object.id,
+                )
+                default_analysis = session.scalars(stmt).first()
+                if default_analysis is not None:
+                    return self.error(
+                        f'You already have a default analysis for this analysis service. Delete it first, or update it.',
+                        status=400,
+                    )
 
                 default_analysis_parameters = data.get(
                     'default_analysis_parameters', {}
                 )
                 source_filter = data.get('source_filter', {})
+                daily_limit = data.get('daily_limit', 10)
+                if not isinstance(daily_limit, int):
+                    try:
+                        daily_limit = int(daily_limit)
+                    except Exception:
+                        return self.error(
+                            f'Invalid daily_limit: {daily_limit}.', status=400
+                        )
+
+                if daily_limit > DEFAULT_ANALYSES_DAILY_LIMIT or daily_limit <= 0:
+                    return self.error(
+                        f'Invalid daily_limit: {daily_limit}. Must be between 1 and {DEFAULT_ANALYSES_DAILY_LIMIT}',
+                        status=400,
+                    )
+                
+                stats={
+                    'daily_limit': daily_limit,
+                    'daily_count': 0,
+                    'last_run': datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%f"),
+                }
 
                 if not isinstance(source_filter, dict):
                     try:
@@ -1774,6 +1836,7 @@ class DefaultAnalysisHandler(BaseHandler):
                     analysis_service=analysis_service,
                     default_analysis_parameters=default_analysis_parameters,
                     source_filter=source_filter,
+                    stats=stats,
                     show_parameters=data.get('show_parameters', True),
                     show_plots=data.get('show_plots', True),
                     show_corner=data.get('show_corner', True),
@@ -1785,6 +1848,7 @@ class DefaultAnalysisHandler(BaseHandler):
                 session.commit()
                 return self.success(data={"id": default_analysis.id})
             except Exception as e:
+                raise e
                 return self.error(
                     f'Unexpected error posting default analysis: {str(e)}'
                 )

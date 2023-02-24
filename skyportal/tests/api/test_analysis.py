@@ -1091,8 +1091,8 @@ def test_default_analysis(
 
     post_data = {
         'name': name,
-        'display_name': "test analysis service name",
-        'description': "A test analysis service description",
+        'display_name': "test default analysis service name",
+        'description': "A test default analysis service description",
         'version': "1.0",
         'contact_name': "Vera Rubin",
         'contact_email': "vr@ls.st",
@@ -1118,8 +1118,9 @@ def test_default_analysis(
         "default_analysis_parameters": {
             "test_parameters": "test_value_1",
         },
-        "groups": [public_group.id],
-        "source_filter": {"classifications": [{"name": "Algol", "probability": 1.0}]},
+        'group_ids': [public_group.id],
+        "source_filter": {"classifications": [{"name": "Algol", "probability": 0.5}]},
+        "daily_limit": 1,
     }
 
     url = f'analysis_service/{analysis_service_id}/default_analysis'
@@ -1136,8 +1137,7 @@ def test_default_analysis(
     assert data['status'] == 'success'
     default_analysis_id = data['data']['id']
 
-    now = datetime.datetime.utcnow()
-
+    ## insert a classification which probability is too low to trigger the default analysis
     status, data = api(
         "POST",
         "classification",
@@ -1145,7 +1145,7 @@ def test_default_analysis(
             "obj_id": public_source.id,
             "classification": "Algol",
             "taxonomy_id": taxonomy_id,
-            "probability": 0.5,
+            "probability": 0.4,
             "group_ids": [public_group.id],
         },
         token=classification_token,
@@ -1153,34 +1153,78 @@ def test_default_analysis(
     assert status == 200
 
     n_retries = 0
-    while n_retries < 30:
-        # get the list of analyses for the source
+    while n_retries < 10:
         status, data = api(
             'GET',
             'obj/analysis',
-            params={'objID': public_source.id},
+            params={'objID': public_source.id, "analysisServiceID": analysis_service_id},
             token=analysis_token,
         )
-        if status == 200 and data['status'] == 'success' and len(data['data']) != 0:
+        if len(data['data']) == 1:
+            assert False
+        else:
+            time.sleep(1)
+            n_retries += 1
+
+    # insert a classification which probability is high enough to trigger the default analysis
+    status, data = api(
+        "POST",
+        "classification",
+        data={
+            "obj_id": public_source.id,
+            "classification": "Algol",
+            "taxonomy_id": taxonomy_id,
+            "probability": 0.9,
+            "group_ids": [public_group.id],
+        },
+        token=classification_token,
+    )
+    assert status == 200
+
+    n_retries = 0
+    while n_retries < 20:
+        status, data = api(
+            'GET',
+            'obj/analysis',
+            params={'objID': public_source.id, "analysisServiceID": analysis_service_id},
+            token=analysis_token,
+        )
+        if status == 200 and data['status'] == 'success' and len(data['data']) == 1:
             break
         else:
             time.sleep(1)
             n_retries += 1
 
-    assert n_retries < 30
+    assert n_retries < 20
 
-    assert (
-        any(
-            (
-                analysis['analysis_service_id'] == analysis_service_id
-                and 'test_parameters' in analysis['analysis_parameters'].keys()
-                and analysis['obj_id'] == public_source.id
-                and analysis['created_at'] > now.isoformat()
-            )
-            for analysis in data['data']
-        )
-        is True
+    # verify that the daily limit is respected, i.e. that the default analysis is not run again
+    status, data = api(
+        "POST",
+        "classification",
+        data={
+            "obj_id": public_source.id,
+            "classification": "Algol",
+            "taxonomy_id": taxonomy_id,
+            "probability": 0.9,
+            "group_ids": [public_group.id],
+        },
+        token=classification_token,
     )
+    assert status == 200
+
+    n_retries = 0
+    while n_retries < 10:
+        status, data = api(
+            'GET',
+            'obj/analysis',
+            params={'objID': public_source.id, "analysisServiceID": analysis_service_id},
+            token=analysis_token,
+        )
+        if len(data['data']) == 2:
+            assert False
+        else:
+            time.sleep(1)
+            n_retries += 1
 
     status, data = api(
         'DELETE',

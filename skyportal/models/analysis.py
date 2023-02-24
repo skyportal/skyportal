@@ -1,13 +1,14 @@
 __all__ = ['AnalysisService', 'ObjAnalysis', 'DefaultAnalysis']
 
-import os
-import io
-import tempfile
-import json
-import re
-import uuid
 import base64
+from datetime import datetime, timedelta
+import io
+import json
+import os
 from pathlib import Path
+import re
+import tempfile
+import uuid
 
 import joblib
 import numpy as np
@@ -16,7 +17,7 @@ import corner
 import arviz
 import sqlalchemy as sa
 from sqlalchemy.orm import relationship
-from sqlalchemy import event, inspect
+from sqlalchemy import event, inspect, or_, cast, func
 from sqlalchemy.dialects import postgresql as psql
 from sqlalchemy_utils.types import JSONType
 from sqlalchemy.ext.declarative import declared_attr
@@ -50,6 +51,7 @@ from ..enum_types import (
 from .webhook import WebhookMixin
 from .group import accessible_by_groups_members
 from .classification import Classification
+from .group import Group
 
 _, cfg = load_env()
 
@@ -673,8 +675,16 @@ def create_default_analysis(mapper, connection, target):
             stmt = sa.select(DefaultAnalysis).where(
                 DefaultAnalysis.source_filter['classifications'].contains(
                     [{"name": target_data['classification']}]
-                )
+                ),
+                # check that the daily_counter is less than the daily_limit
+                or_(
+                    func.coalesce(DefaultAnalysis.stats['daily_count'].astext.cast(sa.Integer), 0) < func.coalesce(DefaultAnalysis.stats['daily_limit'].astext.cast(sa.Integer), 10),
+                    DefaultAnalysis.stats['last_run'].astext.cast(sa.DateTime) < cast(datetime.utcnow() - timedelta(days=1), sa.DateTime)
+                ) == True,
+                # make sure that the default analysis is associated with a group that the classification is associated with
+                DefaultAnalysis.groups.any(Group.id.in_([g.id for g in target_data["groups"]])),
             )
+
             default_analyses = session.scalars(stmt).all()
 
             for default_analysis in default_analyses:
@@ -693,39 +703,54 @@ def create_default_analysis(mapper, connection, target):
                         f'Creating default analysis {default_analysis.analysis_service.name} for classification {target.id}'
                     )
 
-                with DBSession() as db_session:
+                    with DBSession() as db_session:
 
-                    try:
-                        default_analysis = db_session.scalars(
-                            DefaultAnalysis.select(
-                                default_analysis.author, mode="update"
-                            ).where(DefaultAnalysis.id == default_analysis.id)
-                        ).first()
+                        try:
+                            default_analysis = db_session.scalars(
+                                DefaultAnalysis.select(
+                                    default_analysis.author, mode="update"
+                                ).where(DefaultAnalysis.id == default_analysis.id)
+                            ).first()
 
-                        if 'num_analyses' not in default_analysis.stats:
-                            default_analysis.stats = {'num_analyses': 0}
-                        default_analysis.stats = {
-                            'num_analyses': default_analysis.stats['num_analyses'] + 1
-                        }
-                        db_session.add(default_analysis)
+                            if not set(['daily_limit', 'daily_count', 'last_run']).issubset(
+                                default_analysis.stats.keys()
+                            ):
+                                default_analysis.stats = {
+                                    'daily_limit': 10,
+                                    'daily_count': 1,
+                                    'last_run': datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%f"),
+                                }
+                            if datetime.strptime(default_analysis.stats['last_run'], "%Y-%m-%dT%H:%M:%S.%f") < datetime.utcnow() - timedelta(days=1):
+                                default_analysis.stats = {
+                                    'daily_limit': default_analysis.stats['daily_limit'],
+                                    'daily_count': 0,
+                                    'last_run': datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%f"),
+                                }
+                            default_analysis.stats = {
+                                'daily_limit': default_analysis.stats['daily_limit'],
+                                'daily_count': default_analysis.stats['daily_count'] + 1,
+                                'last_run': datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%f"),
+                            }
+                            db_session.add(default_analysis)
 
-                        post_analysis(
-                            "obj",
-                            target.obj_id,
-                            current_user=default_analysis.author,
-                            author=default_analysis.author,
-                            groups=default_analysis.groups,
-                            analysis_service=default_analysis.analysis_service,
-                            analysis_parameters=default_analysis.default_analysis_parameters,
-                            show_parameters=default_analysis.show_parameters,
-                            show_plots=default_analysis.show_plots,
-                            show_corner=default_analysis.show_corner,
-                            session=db_session,
-                        )
-                    except Exception as e:
-                        log(
-                            f'Error creating default analysis with id {default_analysis.id}: {e}'
-                        )
-                        db_session.rollback()
+                            post_analysis(
+                                "obj",
+                                target.obj_id,
+                                current_user=default_analysis.author,
+                                author=default_analysis.author,
+                                groups=default_analysis.groups,
+                                analysis_service=default_analysis.analysis_service,
+                                analysis_parameters=default_analysis.default_analysis_parameters,
+                                show_parameters=default_analysis.show_parameters,   
+                                show_plots=default_analysis.show_plots,
+                                show_corner=default_analysis.show_corner,
+                                notification=f"Default analysis {default_analysis.analysis_service.name} triggered by classification {target_data['classification']}",
+                                session=db_session,
+                            )
+                        except Exception as e:
+                            log(
+                                f'Error creating default analysis with id {default_analysis.id}: {e}'
+                            )
+                            db_session.rollback()
         except Exception as e:
             log(f'Error creating default analyses on classification {target.id}: {e}')
