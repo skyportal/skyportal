@@ -245,7 +245,7 @@ const RecentSourcesSearchbar = ({ styles }) => {
           />
         )}
       />
-      {results.length !== 0 && (
+      {results?.length !== 0 && (
         <RecentSourcesList sources={formattedResults} styles={styles} search />
       )}
     </div>
