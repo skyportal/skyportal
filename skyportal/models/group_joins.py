@@ -24,7 +24,7 @@ __all__ = [
     'GroupStream',
     'GroupAnalysisService',
     'GroupObjAnalysis',
-    'GroupDefaultAnalysis'
+    'GroupDefaultAnalysis',
 ]
 
 import sqlalchemy as sa

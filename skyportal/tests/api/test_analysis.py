@@ -3,7 +3,6 @@ import json
 import socketserver
 import time
 import os
-import datetime
 
 from tdtax import taxonomy, __version__
 
@@ -1137,7 +1136,7 @@ def test_default_analysis(
     assert data['status'] == 'success'
     default_analysis_id = data['data']['id']
 
-    ## insert a classification which probability is too low to trigger the default analysis
+    # insert a classification which probability is too low to trigger the default analysis
     status, data = api(
         "POST",
         "classification",
@@ -1157,7 +1156,10 @@ def test_default_analysis(
         status, data = api(
             'GET',
             'obj/analysis',
-            params={'objID': public_source.id, "analysisServiceID": analysis_service_id},
+            params={
+                'objID': public_source.id,
+                "analysisServiceID": analysis_service_id,
+            },
             token=analysis_token,
         )
         if len(data['data']) == 1:
@@ -1186,7 +1188,10 @@ def test_default_analysis(
         status, data = api(
             'GET',
             'obj/analysis',
-            params={'objID': public_source.id, "analysisServiceID": analysis_service_id},
+            params={
+                'objID': public_source.id,
+                "analysisServiceID": analysis_service_id,
+            },
             token=analysis_token,
         )
         if status == 200 and data['status'] == 'success' and len(data['data']) == 1:
@@ -1217,7 +1222,10 @@ def test_default_analysis(
         status, data = api(
             'GET',
             'obj/analysis',
-            params={'objID': public_source.id, "analysisServiceID": analysis_service_id},
+            params={
+                'objID': public_source.id,
+                "analysisServiceID": analysis_service_id,
+            },
             token=analysis_token,
         )
         if len(data['data']) == 2:

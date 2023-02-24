@@ -678,11 +678,20 @@ def create_default_analysis(mapper, connection, target):
                 ),
                 # check that the daily_counter is less than the daily_limit
                 or_(
-                    func.coalesce(DefaultAnalysis.stats['daily_count'].astext.cast(sa.Integer), 0) < func.coalesce(DefaultAnalysis.stats['daily_limit'].astext.cast(sa.Integer), 10),
-                    DefaultAnalysis.stats['last_run'].astext.cast(sa.DateTime) < cast(datetime.utcnow() - timedelta(days=1), sa.DateTime)
-                ) == True,
+                    func.coalesce(
+                        DefaultAnalysis.stats['daily_count'].astext.cast(sa.Integer), 0
+                    )
+                    < func.coalesce(
+                        DefaultAnalysis.stats['daily_limit'].astext.cast(sa.Integer), 10
+                    ),
+                    DefaultAnalysis.stats['last_run'].astext.cast(sa.DateTime)
+                    < cast(datetime.utcnow() - timedelta(days=1), sa.DateTime),
+                )
+                is True,
                 # make sure that the default analysis is associated with a group that the classification is associated with
-                DefaultAnalysis.groups.any(Group.id.in_([g.id for g in target_data["groups"]])),
+                DefaultAnalysis.groups.any(
+                    Group.id.in_([g.id for g in target_data["groups"]])
+                ),
             )
 
             default_analyses = session.scalars(stmt).all()
@@ -712,24 +721,36 @@ def create_default_analysis(mapper, connection, target):
                                 ).where(DefaultAnalysis.id == default_analysis.id)
                             ).first()
 
-                            if not set(['daily_limit', 'daily_count', 'last_run']).issubset(
+                            if not {'daily_limit', 'daily_count', 'last_run'}.issubset(
                                 default_analysis.stats.keys()
                             ):
                                 default_analysis.stats = {
                                     'daily_limit': 10,
                                     'daily_count': 1,
-                                    'last_run': datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%f"),
+                                    'last_run': datetime.utcnow().strftime(
+                                        "%Y-%m-%dT%H:%M:%S.%f"
+                                    ),
                                 }
-                            if datetime.strptime(default_analysis.stats['last_run'], "%Y-%m-%dT%H:%M:%S.%f") < datetime.utcnow() - timedelta(days=1):
+                            if datetime.strptime(
+                                default_analysis.stats['last_run'],
+                                "%Y-%m-%dT%H:%M:%S.%f",
+                            ) < datetime.utcnow() - timedelta(days=1):
                                 default_analysis.stats = {
-                                    'daily_limit': default_analysis.stats['daily_limit'],
+                                    'daily_limit': default_analysis.stats[
+                                        'daily_limit'
+                                    ],
                                     'daily_count': 0,
-                                    'last_run': datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%f"),
+                                    'last_run': datetime.utcnow().strftime(
+                                        "%Y-%m-%dT%H:%M:%S.%f"
+                                    ),
                                 }
                             default_analysis.stats = {
                                 'daily_limit': default_analysis.stats['daily_limit'],
-                                'daily_count': default_analysis.stats['daily_count'] + 1,
-                                'last_run': datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%f"),
+                                'daily_count': default_analysis.stats['daily_count']
+                                + 1,
+                                'last_run': datetime.utcnow().strftime(
+                                    "%Y-%m-%dT%H:%M:%S.%f"
+                                ),
                             }
                             db_session.add(default_analysis)
 
@@ -741,7 +762,7 @@ def create_default_analysis(mapper, connection, target):
                                 groups=default_analysis.groups,
                                 analysis_service=default_analysis.analysis_service,
                                 analysis_parameters=default_analysis.default_analysis_parameters,
-                                show_parameters=default_analysis.show_parameters,   
+                                show_parameters=default_analysis.show_parameters,
                                 show_plots=default_analysis.show_plots,
                                 show_corner=default_analysis.show_corner,
                                 notification=f"Default analysis {default_analysis.analysis_service.name} triggered by classification {target_data['classification']}",

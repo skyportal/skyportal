@@ -52,6 +52,7 @@ _, cfg = load_env()
 
 DEFAULT_ANALYSES_DAILY_LIMIT = 100
 
+
 def valid_url(trial_url):
     """
     determine if the URL is valid
@@ -376,7 +377,9 @@ def post_analysis(
         current_user.id,
         action_type="baselayer/SHOW_NOTIFICATION",
         payload={
-            "note": f'Sending data to analysis service {analysis_service.name} to start the analysis.' if notification is None else notification,
+            "note": f'Sending data to analysis service {analysis_service.name} to start the analysis.'
+            if notification is None
+            else notification,
             "type": "info",
         },
     )
@@ -1716,7 +1719,7 @@ class DefaultAnalysisHandler(BaseHandler):
                     return self.error(
                         f'Analysis service {analysis_service_id} not found', status=404
                     )
-                
+
                 # check if there is already a default analysis for this analysis service and user
                 # if so, return an error
 
@@ -1727,7 +1730,7 @@ class DefaultAnalysisHandler(BaseHandler):
                 default_analysis = session.scalars(stmt).first()
                 if default_analysis is not None:
                     return self.error(
-                        f'You already have a default analysis for this analysis service. Delete it first, or update it.',
+                        'You already have a default analysis for this analysis service. Delete it first, or update it.',
                         status=400,
                     )
 
@@ -1749,11 +1752,13 @@ class DefaultAnalysisHandler(BaseHandler):
                         f'Invalid daily_limit: {daily_limit}. Must be between 1 and {DEFAULT_ANALYSES_DAILY_LIMIT}',
                         status=400,
                     )
-                
-                stats={
+
+                stats = {
                     'daily_limit': daily_limit,
                     'daily_count': 0,
-                    'last_run': datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%f"),
+                    'last_run': datetime.datetime.utcnow().strftime(
+                        "%Y-%m-%dT%H:%M:%S.%f"
+                    ),
                 }
 
                 if not isinstance(source_filter, dict):

@@ -1144,7 +1144,8 @@ analysis_service:
 
 analysis_service/=Demo_Analysis/default_analysis:
   - default_analysis_parameters: '{"source": "salt3"}'
-    groups:
+    group_ids:
       - =program_A
       - =program_B
     source_filter: '{"classifications": [{"name": "Supernova", "probability": 0.9}]}'
+    daily_limit: 2
