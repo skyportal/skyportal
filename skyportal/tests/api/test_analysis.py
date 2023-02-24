@@ -1,3 +1,4 @@
+import base64
 import uuid
 import json
 import socketserver
@@ -1054,3 +1055,85 @@ def test_upload_analysis(
         data=params,
     )
     assert status == 401
+
+
+def test_run_analysis_with_file_input(
+    analysis_service_token, analysis_token, public_group, public_source
+):
+    name = str(uuid.uuid4())
+
+    optional_analysis_parameters = {
+        "image_data": {"type": "file", "required": "True", "description": "Image data"},
+        "fluxcal_data": {"type": "file", "description": "Fluxcal data"},
+        "centroid_X": {"type": "number"},
+        "centroid_Y": {"type": "number"},
+        "spaxel_buffer": {"type": "number"},
+    }
+
+    post_data = {
+        'name': name,
+        'display_name': "Spectral_Cube_Analysis",
+        'description': "Spectral_Cube_Analysis description",
+        'version': "1.0",
+        'contact_name': "Michael Coughlin",
+        # this is the URL/port of the Spectral_Cube_Analysis service that will be running during testing
+        'url': "http://localhost:7003/analysis/spectral_cube_analysis",
+        'optional_analysis_parameters': json.dumps(optional_analysis_parameters),
+        'authentication_type': "none",
+        'analysis_type': 'spectrum_fitting',
+        'input_data_types': [],
+        'timeout': 60,
+        'group_ids': [public_group.id],
+    }
+
+    status, data = api(
+        'POST', 'analysis_service', data=post_data, token=analysis_service_token
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    analysis_service_id = data['data']['id']
+
+    datafile = f'{os.path.dirname(__file__)}/../data/spectral_cube_analysis.fits'
+    with open(datafile, 'rb') as fid:
+        payload = fid.read()
+
+    payload = f"data:image/fits;name=spectral_cube_analysis.fits;base64,{base64.b64encode(payload).decode('utf-8')}"
+
+    status, data = api(
+        'POST',
+        f'obj/{public_source.id}/analysis/{analysis_service_id}',
+        token=analysis_token,
+        data={
+            "show_parameters": True,
+            "show_plots": True,
+            "show_corner": True,
+            "analysis_parameters": {"image_data": payload},
+        },
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    analysis_id = data['data'].get('id')
+    assert analysis_id is not None
+
+    max_attempts = 20
+    analysis_status = 'queued'
+    params = {"includeAnalysisData": True}
+
+    while max_attempts > 0:
+        if analysis_status != "queued":
+            break
+        status, data = api(
+            'GET', f'obj/analysis/{analysis_id}', token=analysis_token, params=params
+        )
+        assert status == 200
+        assert data["data"]["analysis_service_id"] == analysis_service_id
+        analysis_status = data["data"]["status"]
+
+        max_attempts -= 1
+        time.sleep(5)
+    else:
+        assert (
+            False
+        ), f"analysis was not started properly ({data['data']['status_message']})"
