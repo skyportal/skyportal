@@ -15,6 +15,7 @@ const ADD_COMMENT_ON_GCNEVENT = "skyportal/ADD_COMMENT_ON_GCNEVENT";
 const EDIT_COMMENT_ON_GCNEVENT = "skyportal/EDIT_COMMENT_ON_GCNEVENT";
 
 const DELETE_COMMENT_ON_GCNEVENT = "skyportal/DELETE_COMMENT_ON_GCNEVENT";
+const PATCH_GCNEVENT_SUMMARY = "skyportal/PATCH_GCNEVENT_SUMMARY";
 
 const GET_COMMENT_ON_GCNEVENT_ATTACHMENT =
   "skyportal/GET_COMMENT_ON_GCNEVENT_ATTACHMENT";
@@ -222,6 +223,14 @@ export function deleteGcnEventSummary({ dateobs, summaryID }) {
   return API.DELETE(
     `/api/gcn_event/${dateobs}/summary/${summaryID}`,
     DELETE_GCNEVENT_SUMMARY
+  );
+}
+
+export function patchGcnEventSummary(dateobs, summaryID, formData) {
+  return API.PATCH(
+    `/api/gcn_event/${dateobs}/summary/${summaryID}`,
+    PATCH_GCNEVENT_SUMMARY,
+    formData
   );
 }
 

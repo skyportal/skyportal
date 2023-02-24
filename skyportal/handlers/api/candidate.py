@@ -5,6 +5,7 @@ import json
 import uuid
 from astropy.time import Time
 import astropy.units as u
+import operator  # noqa: F401
 import string
 import arrow
 import numpy as np
@@ -15,8 +16,9 @@ from tornado.ioloop import IOLoop
 import sqlalchemy as sa
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm import sessionmaker, scoped_session
-from sqlalchemy.sql.expression import case, func
+from sqlalchemy.sql.expression import case, func, cast
 from sqlalchemy.sql import column, Values
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.types import Float, Boolean, String, Integer
 from sqlalchemy.exc import IntegrityError
 from marshmallow.exceptions import ValidationError
@@ -32,6 +34,7 @@ from baselayer.log import make_log
 from ..base import BaseHandler
 from ...models import (
     DBSession,
+    AnnotationOnPhotometry,
     User,
     Obj,
     Candidate,
@@ -126,6 +129,35 @@ def update_healpix_if_relevant(request_data, obj):
             obj.ra * u.deg, obj.dec * u.deg
         )
         return
+
+
+def create_photometry_annotations_query(
+    session,
+    photometry_annotations_filter_origin=None,
+    photometry_annotations_filter_before=None,
+    photometry_annotations_filter_after=None,
+):
+    photometry_annotations_query = AnnotationOnPhotometry.select(
+        session.user_or_token,
+        columns=[
+            AnnotationOnPhotometry.obj_id.label('obj_id'),
+            func.count(AnnotationOnPhotometry.obj_id).label('count'),
+        ],
+    ).group_by(AnnotationOnPhotometry.obj_id)
+    if photometry_annotations_filter_origin is not None:
+        photometry_annotations_query = photometry_annotations_query.where(
+            AnnotationOnPhotometry.origin.in_(photometry_annotations_filter_origin)
+        )
+    if photometry_annotations_filter_before:
+        photometry_annotations_query = photometry_annotations_query.where(
+            AnnotationOnPhotometry.created_at <= photometry_annotations_filter_before
+        )
+    if photometry_annotations_filter_after:
+        photometry_annotations_query = photometry_annotations_query.where(
+            AnnotationOnPhotometry.created_at >= photometry_annotations_filter_after
+        )
+
+    return photometry_annotations_query
 
 
 class CandidateHandler(BaseHandler):
@@ -230,6 +262,18 @@ class CandidateHandler(BaseHandler):
             description: |
               Used only in the case of paginating query results - if provided, this
               allows for avoiding a potentially expensive query.count() call.
+          - in: query
+            name: autosave
+            nullable: true
+            schema:
+                type: boolean
+            description: Automatically save candidates passing query.
+          - in: query
+            name: autosaveGroupIds
+            nullable: true
+            schema:
+                type: boolean
+            description: Group ID(s) to save candidates to.
           - in: query
             name: savedStatus
             nullable: true
@@ -395,7 +439,45 @@ class CandidateHandler(BaseHandler):
               type: string
             description: |
               Get only candidates that ARE NOT saved to the querying user's list, e.g., "rejected_candidates".
-
+          - in: query
+            name: photometryAnnotationsFilter
+            nullable: true
+            schema:
+              type: array
+              items:
+                type: string
+            explode: false
+            style: simple
+            description: |
+              Comma-separated string of "annotation: value: operator" triplet(s) to filter for sources matching
+              that/those photometry annotation(s), i.e. "drb: 0.5: lt"
+          - in: query
+            name: photometryAnnotationsFilterOrigin
+            nullable: true
+            schema:
+              type: string
+            description: Comma separated string of origins. Only photometry annotations from these origins are used when filtering with the photometryAnnotationsFilter.
+          - in: query
+            name: photometryAnnotationsFilterBefore
+            nullable: true
+            schema:
+              type: string
+            description: |
+              Only return sources that have photometry annotations before this UTC datetime.
+          - in: query
+            name: photometryAnnotationsFilterAfter
+            nullable: true
+            schema:
+              type: string
+            description: |
+              Only return sources that have photometry annotations after this UTC datetime.
+          - in: query
+            name: photometryAnnotationsFilterMinCount
+            nullable: true
+            schema:
+              type: string
+            description: |
+              Only return sources that have at least this number of photometry annotations passing the photometry annotations filtering criteria. Defaults to 1.
           responses:
             200:
               content:
@@ -602,6 +684,26 @@ class CandidateHandler(BaseHandler):
         max_redshift = self.get_query_argument("maxRedshift", None)
         list_name = self.get_query_argument('listName', None)
         list_name_reject = self.get_query_argument('listNameReject', None)
+        autosave = self.get_query_argument("autosave", False)
+        autosave_group_ids = self.get_query_argument("autosaveGroupIds", None)
+        photometry_annotations_filter = self.get_query_argument(
+            "photometryAnnotationsFilter", None
+        )
+        photometry_annotations_filter_origin = self.get_query_argument(
+            "photometryAnnotationsFilterOrigin", None
+        )
+        photometry_annotations_filter_after = self.get_query_argument(
+            'photometryAnnotationsFilterAfter', None
+        )
+        photometry_annotations_filter_before = self.get_query_argument(
+            'photometryAnnotationsFilterBefore', None
+        )
+        photometry_annotations_filter_min_count = self.get_query_argument(
+            'photometryAnnotationsFilterMinCount', 1
+        )
+
+        if autosave:
+            from .source import post_source
 
         with self.Session() as session:
             user_accessible_group_ids = [
@@ -909,6 +1011,110 @@ class CandidateHandler(BaseHandler):
                     Obj.id,
                 ]
 
+            if photometry_annotations_filter is not None:
+                if isinstance(photometry_annotations_filter, str):
+                    photometry_annotations_filter = [
+                        c.strip() for c in photometry_annotations_filter.split(",")
+                    ]
+                else:
+                    raise ValueError(
+                        "Invalid annotationsFilter value -- must provide at least one string value"
+                    )
+            if photometry_annotations_filter_origin is not None:
+                if isinstance(photometry_annotations_filter_origin, str):
+                    photometry_annotations_filter_origin = [
+                        c.strip()
+                        for c in photometry_annotations_filter_origin.split(",")
+                    ]
+                else:
+                    raise ValueError(
+                        "Invalid annotationsFilterOrigin value -- must provide at least one string value"
+                    )
+
+            if (
+                (photometry_annotations_filter_origin is not None)
+                or (photometry_annotations_filter_before is not None)
+                or (photometry_annotations_filter_after is not None)
+                or (photometry_annotations_filter is not None)
+            ):
+                if photometry_annotations_filter is not None:
+                    for ann_filt in photometry_annotations_filter:
+                        ann_split = ann_filt.split(":")
+                        if not (len(ann_split) == 1 or len(ann_split) == 3):
+                            raise ValueError(
+                                "Invalid photometryAnnotationsFilter value -- annotation filter must have 1 or 3 values"
+                            )
+                        name = ann_split[0].strip()
+
+                        photometry_annotations_query = create_photometry_annotations_query(
+                            session,
+                            photometry_annotations_filter_origin=photometry_annotations_filter_origin,
+                            photometry_annotations_filter_before=photometry_annotations_filter_before,
+                            photometry_annotations_filter_after=photometry_annotations_filter_after,
+                        )
+
+                        if len(ann_split) == 3:
+                            value = ann_split[1].strip()
+                            try:
+                                value = float(value)
+                            except ValueError as e:
+                                raise ValueError(
+                                    f"Invalid annotation filter value: {e}"
+                                )
+                            op = ann_split[2].strip()
+                            op_options = ["lt", "le", "eq", "ne", "ge", "gt"]
+                            if op not in op_options:
+                                raise ValueError(f"Invalid operator: {op}")
+                            comp_function = getattr(operator, op)
+
+                            photometry_annotations_query = (
+                                photometry_annotations_query.where(
+                                    comp_function(
+                                        AnnotationOnPhotometry.data[name],
+                                        cast(value, JSONB),
+                                    )
+                                )
+                            )
+                        else:
+                            photometry_annotations_query = (
+                                photometry_annotations_query.where(
+                                    AnnotationOnPhotometry.data[name].astext.is_not(
+                                        None
+                                    )
+                                )
+                            )
+
+                else:
+                    photometry_annotations_query = create_photometry_annotations_query(
+                        session,
+                        photometry_annotations_filter_origin=photometry_annotations_filter_origin,
+                        photometry_annotations_filter_before=photometry_annotations_filter_before,
+                        photometry_annotations_filter_after=photometry_annotations_filter_after,
+                    )
+
+                photometry_annotations_subquery = (
+                    photometry_annotations_query.subquery()
+                )
+                obj_photometry_annotations_query = sa.select(Obj.id)
+                obj_photometry_annotations_query = (
+                    obj_photometry_annotations_query.join(
+                        photometry_annotations_subquery,
+                        sa.and_(
+                            photometry_annotations_subquery.c.count
+                            >= photometry_annotations_filter_min_count,
+                            photometry_annotations_subquery.c.obj_id == Obj.id,
+                        ),
+                    )
+                )
+                obj_photometry_annotations_subquery = (
+                    obj_photometry_annotations_query.subquery()
+                )
+
+                q = q.join(
+                    obj_photometry_annotations_subquery,
+                    Obj.id == obj_photometry_annotations_subquery.c.id,
+                )
+
             try:
                 query_results = grab_query_results(
                     session,
@@ -974,6 +1180,12 @@ class CandidateHandler(BaseHandler):
                             )
                         ).all()
                     ]
+                    if autosave:
+                        source = {
+                            'id': obj.id,
+                            'group_ids': autosave_group_ids,
+                        }
+                        post_source(source, self.associated_user_object.id, session)
                     candidate_list.append(recursive_to_dict(obj))
                     if include_photometry:
                         candidate_list[-1]["photometry"] = (
