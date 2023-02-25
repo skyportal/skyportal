@@ -48,8 +48,8 @@ def test_shift(
         timeout=30,
     )
 
-    today_button = driver.wait_for_xpath('//button[contains(.,"Today")]', timeout=30)
-    today_button.click()
+    today_button = '//button[contains(.,"Today")]'
+    driver.wait_for_xpath(today_button, timeout=10).click()
 
     driver.click_xpath(
         '//*/button[@name="add_shift_button"]',
@@ -82,11 +82,13 @@ def test_shift(
     driver.wait_for_xpath(submit_button_xpath)
     driver.click_xpath(submit_button_xpath)
 
+    driver.scroll_to_element_and_click(driver.wait_for_xpath(today_button, timeout=10))
+
+    time.sleep(1)
     # check for shift in calendar and click it
     event_shift_xpath = f'//*/strong[contains(.,"{form_name}")]'
-    driver.scroll_to_element_and_click(
-        driver.wait_for_xpath(event_shift_xpath, timeout=30)
-    )
+    driver.wait_for_xpath(event_shift_xpath, timeout=30)
+    driver.click_xpath(event_shift_xpath)
 
     # add a comment to the shift
     driver.wait_for_xpath('//*[@id="root_comment"]').send_keys('This is a comment')
