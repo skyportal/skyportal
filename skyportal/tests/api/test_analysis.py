@@ -1058,6 +1058,7 @@ def test_upload_analysis(
     )
     assert status == 401
 
+
 def test_run_analysis_with_file_input(
     analysis_service_token, analysis_token, public_group, public_source
 ):
@@ -1138,6 +1139,7 @@ def test_run_analysis_with_file_input(
         assert (
             False
         ), f"analysis was not started properly ({data['data']['status_message']})"
+
 
 def test_default_analysis(
     analysis_service_token,
