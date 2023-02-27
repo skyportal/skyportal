@@ -5,6 +5,8 @@ import socketserver
 import time
 import os
 
+from tdtax import taxonomy, __version__
+
 from skyportal.tests import api
 
 analysis_port = 6802
@@ -1137,3 +1139,186 @@ def test_run_analysis_with_file_input(
         assert (
             False
         ), f"analysis was not started properly ({data['data']['status_message']})"
+
+
+def test_default_analysis(
+    analysis_service_token,
+    analysis_token,
+    public_group,
+    public_source,
+    taxonomy_token,
+    classification_token,
+):
+
+    taxonomy_name = "test taxonomy" + str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "taxonomy",
+        data={
+            "name": taxonomy_name,
+            "hierarchy": taxonomy,
+            "group_ids": [public_group.id],
+            "provenance": f"tdtax_{__version__}",
+            "version": __version__,
+            "isLatest": True,
+        },
+        token=taxonomy_token,
+    )
+    assert status == 200
+    taxonomy_id = data["data"]["taxonomy_id"]
+
+    name = str(uuid.uuid4())
+
+    optional_analysis_parameters = {"test_parameters": ["test_value_1", "test_value_2"]}
+
+    post_data = {
+        'name': name,
+        'display_name': "test default analysis service name",
+        'description': "A test default analysis service description",
+        'version': "1.0",
+        'contact_name': "Vera Rubin",
+        'contact_email': "vr@ls.st",
+        # this is the URL/port of the SN analysis service that will be running during testing
+        'url': f"http://localhost:{analysis_port}/analysis/demo_analysis",
+        'optional_analysis_parameters': json.dumps(optional_analysis_parameters),
+        'authentication_type': "none",
+        'analysis_type': 'lightcurve_fitting',
+        'input_data_types': ['photometry', 'redshift'],
+        'timeout': 60,
+        'group_ids': [public_group.id],
+    }
+
+    status, data = api(
+        'POST', 'analysis_service', data=post_data, token=analysis_service_token
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    analysis_service_id = data['data']['id']
+
+    data = {
+        "default_analysis_parameters": {
+            "test_parameters": "test_value_1",
+        },
+        'group_ids': [public_group.id],
+        "source_filter": {"classifications": [{"name": "Algol", "probability": 0.5}]},
+        "daily_limit": 1,
+    }
+
+    url = f'analysis_service/{analysis_service_id}/default_analysis'
+
+    status, data = api(
+        'POST',
+        url,
+        data=data,
+        token=analysis_token,
+    )
+
+    assert status == 200
+    assert data['status'] == 'success'
+    default_analysis_id = data['data']['id']
+
+    # insert a classification which probability is too low to trigger the default analysis
+    status, data = api(
+        "POST",
+        "classification",
+        data={
+            "obj_id": public_source.id,
+            "classification": "Algol",
+            "taxonomy_id": taxonomy_id,
+            "probability": 0.4,
+            "group_ids": [public_group.id],
+        },
+        token=classification_token,
+    )
+    assert status == 200
+
+    n_retries = 0
+    while n_retries < 10:
+        status, data = api(
+            'GET',
+            'obj/analysis',
+            params={
+                'objID': public_source.id,
+                "analysisServiceID": analysis_service_id,
+            },
+            token=analysis_token,
+        )
+        if len(data['data']) == 1:
+            assert False
+        else:
+            time.sleep(1)
+            n_retries += 1
+
+    # insert a classification which probability is high enough to trigger the default analysis
+    status, data = api(
+        "POST",
+        "classification",
+        data={
+            "obj_id": public_source.id,
+            "classification": "Algol",
+            "taxonomy_id": taxonomy_id,
+            "probability": 0.9,
+            "group_ids": [public_group.id],
+        },
+        token=classification_token,
+    )
+    assert status == 200
+
+    n_retries = 0
+    while n_retries < 20:
+        status, data = api(
+            'GET',
+            'obj/analysis',
+            params={
+                'objID': public_source.id,
+                "analysisServiceID": analysis_service_id,
+            },
+            token=analysis_token,
+        )
+        if status == 200 and data['status'] == 'success' and len(data['data']) == 1:
+            break
+        else:
+            time.sleep(1)
+            n_retries += 1
+
+    assert n_retries < 20
+
+    # verify that the daily limit is respected, i.e. that the default analysis is not run again
+    status, data = api(
+        "POST",
+        "classification",
+        data={
+            "obj_id": public_source.id,
+            "classification": "Algol",
+            "taxonomy_id": taxonomy_id,
+            "probability": 0.9,
+            "group_ids": [public_group.id],
+        },
+        token=classification_token,
+    )
+    assert status == 200
+
+    n_retries = 0
+    while n_retries < 10:
+        status, data = api(
+            'GET',
+            'obj/analysis',
+            params={
+                'objID': public_source.id,
+                "analysisServiceID": analysis_service_id,
+            },
+            token=analysis_token,
+        )
+        if len(data['data']) == 2:
+            assert False
+        else:
+            time.sleep(1)
+            n_retries += 1
+
+    status, data = api(
+        'DELETE',
+        f'{url}/{default_analysis_id}',
+        token=analysis_token,
+    )
+    assert status == 200
