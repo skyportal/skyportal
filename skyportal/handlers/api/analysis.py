@@ -799,7 +799,21 @@ class AnalysisHandler(BaseHandler):
                 )
 
             author = self.associated_user_object
-            inputs = {"analysis_parameters": analysis_parameters}
+            inputs = {"analysis_parameters": analysis_parameters.copy()}
+
+            # if any analysis_parameters is a file, we discard it and just keep its name (if possible)
+            keys_to_delete = []
+            for k, v in analysis_parameters.items():
+                if isinstance(v, str):
+                    if 'data:' in v and ';name=' in v:
+                        keys_to_delete.append(k)
+            for k in keys_to_delete:
+                try:
+                    analysis_parameters[k] = (
+                        analysis_parameters[k].split(';name=')[1].split(';')[0]
+                    )
+                except Exception:
+                    del analysis_parameters[k]
 
             if analysis_resource_type.lower() == 'obj':
                 obj_id = resource_id

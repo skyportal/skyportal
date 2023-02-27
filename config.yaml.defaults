@@ -680,6 +680,8 @@ analysis_services:
     port: 6801
   ngsf_analysis_service:
     port: 7001
+  spectral_cube_analysis_service:
+    port: 7002
 
 comments_folder: persistentdata/comments
 photometric_series_folder: persistentdata/phot_series
