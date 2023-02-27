@@ -269,7 +269,7 @@ def test_analysis_with_file_input_start(
         '//div[@data-testid="analysis-service-request-form"]//*[@type="submit"]'
     )
     driver.wait_for_xpath(
-        "//*[text()='Sending data to analysis service to start the analysis.']"
+        f"//*[text()='Sending data to analysis service {name} to start the analysis.']"
     )
 
 
