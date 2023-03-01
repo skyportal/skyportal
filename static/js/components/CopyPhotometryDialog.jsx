@@ -63,11 +63,7 @@ const CopyPhotometryDialog = ({
 
   return (
     <>
-      <Dialog
-        open={dialogOpen}
-        onClose={closeDialog}
-        style={{ position: "fixed" }}
-      >
+      <Dialog open={dialogOpen} onClose={closeDialog} sx={{ "z-index": 99999 }}>
         <DialogTitle>Copy photometry to selected groups:</DialogTitle>
         <DialogContent>
           <form onSubmit={handleSubmit(onSubmit)}>
