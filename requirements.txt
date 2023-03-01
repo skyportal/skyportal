@@ -75,7 +75,7 @@ arviz==0.14.0
 corner==2.2.1
 penquins==2.2.0
 selenium==4.8.0
-selenium-requests==2.0.0
+selenium-requests==2.0.3
 afterglowpy==0.7.3
 gcn-kafka==0.3.0
 confluent_kafka==1.9.2 # dependency of gcn-kafka: pinning to understand memory effects on GCNEvents
