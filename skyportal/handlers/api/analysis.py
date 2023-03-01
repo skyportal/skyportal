@@ -14,6 +14,7 @@ from marshmallow.exceptions import ValidationError
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
+from baselayer.app.flow import Flow
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.model_util import recursive_to_dict
 
@@ -21,7 +22,12 @@ from baselayer.log import make_log
 from baselayer.app.env import load_env
 from ...app_utils import get_app_base_url
 
-from ...enum_types import ANALYSIS_INPUT_TYPES, AUTHENTICATION_TYPES, ANALYSIS_TYPES
+from ...enum_types import (
+    ANALYSIS_INPUT_TYPES,
+    AUTHENTICATION_TYPES,
+    ANALYSIS_TYPES,
+    DEFAULT_ANALYSIS_FILTER_TYPES,
+)
 
 from ..base import BaseHandler
 
@@ -35,12 +41,16 @@ from ...models import (
     Obj,
     Comment,
     ObjAnalysis,
+    DefaultAnalysis,
+    UserNotification,
 )
 from .photometry import serialize
 
 log = make_log('app/analysis')
 
 _, cfg = load_env()
+
+DEFAULT_ANALYSES_DAILY_LIMIT = 100
 
 
 def valid_url(trial_url):
@@ -119,6 +129,334 @@ def call_external_analysis_service(
         raise Exception(f"Request to {url} had exception {e}.")
 
     return result
+
+
+def generic_serialize(row, columns):
+    return {
+        c: getattr(row, c).tolist()
+        if isinstance(getattr(row, c), np.ndarray)
+        else getattr(row, c)
+        for c in columns
+    }
+
+
+def get_associated_obj_resource(associated_resource_type):
+    """
+    What are the columns that we can allow to send to the external service
+    should not be sending internal keys
+    """
+    associated_resource_type = associated_resource_type.lower()
+    associated_resource_types = {
+        "photometry": {
+            "class": Photometry,
+            "allowed_export_columns": [
+                "mjd",
+                "flux",
+                "fluxerr",
+                "mag",
+                "magerr",
+                "filter",
+                "magsys",
+                "zp",
+                "instrument_name",
+            ],
+            "id_attr": 'obj_id',
+        },
+        "spectra": {
+            "class": Spectrum,
+            "allowed_export_columns": [
+                "observed_at",
+                "wavelengths",
+                "fluxes",
+                "errors",
+                "units",
+                "altdata",
+                "created_at",
+                "origin",
+                "modified",
+                "type",
+            ],
+            "id_attr": 'obj_id',
+        },
+        "annotations": {
+            "class": Annotation,
+            "allowed_export_columns": ["data", "modified", "origin", "created_at"],
+            "id_attr": 'obj_id',
+        },
+        "comments": {
+            "class": Comment,
+            "allowed_export_columns": [
+                "text",
+                "bot",
+                "modified",
+                "origin",
+                "created_at",
+            ],
+            "id_attr": 'obj_id',
+        },
+        "classifications": {
+            "class": Classification,
+            "allowed_export_columns": [
+                "classification",
+                "probability",
+                "modified",
+                "created_at",
+            ],
+            "id_attr": 'obj_id',
+        },
+        "redshift": {
+            "class": Obj,
+            "allowed_export_columns": [
+                "redshift",
+                "redshift_error",
+                "redshift_origin",
+            ],
+            "id_attr": 'id',
+        },
+    }
+    if associated_resource_type not in associated_resource_types:
+        raise ValueError(
+            f"Invalid associated_resource_type: {associated_resource_type}"
+        )
+    return associated_resource_types[associated_resource_type]
+
+
+def post_analysis(
+    analysis_resource_type,
+    resource_id,
+    current_user,
+    author,
+    groups,
+    analysis_service,
+    session,
+    notification=None,
+    analysis_parameters=None,
+    show_parameters=False,
+    show_plots=False,
+    show_corner=False,
+):
+    """
+    Post an analysis to the database.
+
+    Parameters
+    ----------
+    analysis_resource_type: str
+        The type of resource we are analyzing.
+    resource_id: str
+        The ID of the resource we are analyzing.
+    current_user: baselayer.app.models.User
+        The user who is requesting the analysis.
+    author: baselayer.app.models.User
+        The user who will be the author of the analysis.
+    groups: list of baselayer.app.models.Group
+        The groups that will be able to view the analysis.
+    analysis_service: skyportal.models.AnalysisService
+        The analysis service to use.
+    session: sqlalchemy.orm.session.Session
+        The database session.
+    analysis_parameters: dict
+        The parameters to pass to the analysis service.
+    show_parameters: bool
+        Whether to show the parameters in the analysis.
+    show_plots: bool
+        Whether to show the plots in the analysis.
+    show_corner: bool
+        Whether to show the corner plot in the analysis.
+
+    Returns
+    -------
+    analysis_id: int
+        The ID of the analysis.
+    """
+
+    input_data_types = analysis_service.input_data_types.copy()
+
+    inputs = {"analysis_parameters": analysis_parameters.copy()}
+
+    # if any analysis_parameters is a file, we discard it and just keep its name (if possible)
+    keys_to_delete = []
+    for k, v in analysis_parameters.items():
+        if isinstance(v, str):
+            if 'data:' in v and ';name=' in v:
+                keys_to_delete.append(k)
+    for k in keys_to_delete:
+        try:
+            analysis_parameters[k] = (
+                analysis_parameters[k].split(';name=')[1].split(';')[0]
+            )
+        except Exception:
+            del analysis_parameters[k]
+
+    if analysis_resource_type.lower() == 'obj':
+        obj_id = resource_id
+        stmt = Obj.select(current_user).where(Obj.id == obj_id)
+        obj = session.scalars(stmt).first()
+        if obj is None:
+            raise ValueError(f'Obj {obj_id} not found')
+
+        # make sure the user has not exceeded the maximum number of analyses
+        # for this object. This will help save space on the disk
+        # an enforce a reasonable limit on the number of analyses.
+        stmt = ObjAnalysis.select(current_user).where(ObjAnalysis.obj_id == obj_id)
+        stmt = stmt.where(ObjAnalysis.author == author)
+        stmt = stmt.where(ObjAnalysis.status == "completed")
+
+        total_matches = session.execute(select(func.count()).select_from(stmt)).scalar()
+
+        if total_matches >= cfg["analysis_services.max_analysis_per_obj_per_user"]:
+            raise Exception(
+                """'You have reached the maximum number of analyses for this object.'
+                  ' Please delete some analyses before attempting to start more analyses.'
+                  """
+            )
+
+        # Let's assemble the input data for this Obj
+        for input_type in input_data_types:
+            associated_resource = get_associated_obj_resource(input_type)
+            stmt = (
+                associated_resource['class']
+                .select(current_user)
+                .where(
+                    getattr(
+                        associated_resource['class'],
+                        associated_resource['id_attr'],
+                    )
+                    == obj_id
+                )
+            )
+            input_data = session.scalars(stmt).all()
+            if input_type == 'photometry':
+                input_data = [serialize(phot, 'ab', 'both') for phot in input_data]
+                df = pd.DataFrame(input_data)[
+                    associated_resource['allowed_export_columns']
+                ]
+            else:
+                input_data = [
+                    generic_serialize(
+                        row, associated_resource['allowed_export_columns']
+                    )
+                    for row in input_data
+                ]
+                df = pd.DataFrame(input_data)
+            inputs[input_type] = df.to_csv(index=False)
+
+        invalid_after = datetime.datetime.utcnow() + datetime.timedelta(
+            seconds=analysis_service.timeout
+        )
+
+        analysis = ObjAnalysis(
+            obj=obj,
+            author=author,
+            groups=groups,
+            analysis_service=analysis_service,
+            show_parameters=show_parameters,
+            show_plots=show_plots,
+            show_corner=show_corner,
+            analysis_parameters=analysis_parameters,
+            status='queued',
+            handled_by_url="api/webhook/obj_analysis",
+            invalid_after=invalid_after,
+        )
+    # Add more analysis_resource_types here one day (eg. GCN)
+    else:
+        raise ValueError(f'analysis_resource_type must be one of {", ".join(["obj"])}')
+
+    session.add(analysis)
+    try:
+        session.commit()
+    except IntegrityError as e:
+        raise Exception(f'Analysis already exists: {str(e)}')
+    except Exception as e:
+        raise Exception(f'Unexpected error creating analysis: {str(e)}')
+
+    # Now call the analysis service to start the analysis, using the `input` data
+    # that we assembled above.
+    callback_url = urljoin(
+        get_app_base_url(), f"{analysis.handled_by_url}/{analysis.token}"
+    )
+    external_analysis_service = functools.partial(
+        call_external_analysis_service,
+        analysis_service.url,
+        callback_url,
+        inputs=inputs,
+        authentication_type=analysis_service.authentication_type,
+        authinfo=analysis_service.authinfo,
+        callback_method="POST",
+        invalid_after=invalid_after,
+        analysis_resource_type=analysis_resource_type,
+        resource_id=resource_id,
+    )
+
+    flow = Flow()
+    flow.push(
+        current_user.id,
+        action_type="baselayer/SHOW_NOTIFICATION",
+        payload={
+            "note": f'Sending data to analysis service {analysis_service.name} to start the analysis.'
+            if notification is None
+            else notification,
+            "type": "info",
+        },
+    )
+
+    if notification is not None and notification != "":
+        try:
+            user_notification = UserNotification(
+                user=current_user,
+                text=notification,
+                notification_type="default_analysis",
+                url=f"/source/{obj_id}/analysis/{analysis.id}",
+            )
+            session.add(user_notification)
+            session.commit()
+        except Exception as e:
+            log(f"Could not add notification: {e}")
+
+    def analysis_done_callback(
+        future,
+        logger=log,
+        analysis_id=analysis.id,
+        analysis_service_id=analysis_service.id,
+        analysis_resource_type=analysis_resource_type,
+    ):
+        """
+        Callback function for when the analysis service is done.
+        Updates the Analysis object with the results/errors.
+        """
+        # grab the analysis (only Obj for now)
+        if analysis_resource_type.lower() == 'obj':
+            try:
+                analysis = session.query(ObjAnalysis).get(analysis_id)
+                if analysis is None:
+                    logger.error(f'Analysis {analysis_id} not found')
+                    return
+            except Exception as e:
+                log(f'Could not access Analysis {analysis_id} {e}.')
+                return
+        else:
+            log(f"Invalid analysis_resource_type: {analysis_resource_type}")
+            return
+
+        analysis.last_activity = datetime.datetime.utcnow()
+        try:
+            result = future.result()
+            analysis.status = 'pending' if result.status_code == 200 else 'failure'
+            # truncate the return just so we dont have a huge string in the database
+            analysis.status_message = result.text[:1024]
+        except Exception:
+            analysis.status = 'failure'
+            analysis.status_message = str(future.exception())[:1024]
+        finally:
+            logger(
+                f"[id={analysis_id} service={analysis_service_id}] status='{analysis.status}' message='{analysis.status_message}'"
+            )
+            session.commit()
+
+    # Start the analysis service in a separate thread and log any exceptions
+    x = IOLoop.current().run_in_executor(None, external_analysis_service)
+    x.add_done_callback(analysis_done_callback)
+
+    return analysis.id
 
 
 class AnalysisServiceHandler(BaseHandler):
@@ -578,94 +916,6 @@ class AnalysisServiceHandler(BaseHandler):
 
 
 class AnalysisHandler(BaseHandler):
-    def generic_serialize(self, row, columns):
-        return {
-            c: getattr(row, c).tolist()
-            if isinstance(getattr(row, c), np.ndarray)
-            else getattr(row, c)
-            for c in columns
-        }
-
-    def get_associated_obj_resource(self, associated_resource_type):
-        """
-        What are the columns that we can allow to send to the external service
-        should not be sending internal keys
-        """
-        associated_resource_type = associated_resource_type.lower()
-        associated_resource_types = {
-            "photometry": {
-                "class": Photometry,
-                "allowed_export_columns": [
-                    "mjd",
-                    "flux",
-                    "fluxerr",
-                    "mag",
-                    "magerr",
-                    "filter",
-                    "magsys",
-                    "zp",
-                    "instrument_name",
-                ],
-                "id_attr": 'obj_id',
-            },
-            "spectra": {
-                "class": Spectrum,
-                "allowed_export_columns": [
-                    "observed_at",
-                    "wavelengths",
-                    "fluxes",
-                    "errors",
-                    "units",
-                    "altdata",
-                    "created_at",
-                    "origin",
-                    "modified",
-                    "type",
-                ],
-                "id_attr": 'obj_id',
-            },
-            "annotations": {
-                "class": Annotation,
-                "allowed_export_columns": ["data", "modified", "origin", "created_at"],
-                "id_attr": 'obj_id',
-            },
-            "comments": {
-                "class": Comment,
-                "allowed_export_columns": [
-                    "text",
-                    "bot",
-                    "modified",
-                    "origin",
-                    "created_at",
-                ],
-                "id_attr": 'obj_id',
-            },
-            "classifications": {
-                "class": Classification,
-                "allowed_export_columns": [
-                    "classification",
-                    "probability",
-                    "modified",
-                    "created_at",
-                ],
-                "id_attr": 'obj_id',
-            },
-            "redshift": {
-                "class": Obj,
-                "allowed_export_columns": [
-                    "redshift",
-                    "redshift_error",
-                    "redshift_origin",
-                ],
-                "id_attr": 'id',
-            },
-        }
-        if associated_resource_type not in associated_resource_types:
-            raise ValueError(
-                f"Invalid associated_resource_type: {associated_resource_type}"
-            )
-        return associated_resource_types[associated_resource_type]
-
     @permissions(['Run Analyses'])
     async def post(self, analysis_resource_type, resource_id, analysis_service_id):
         """
@@ -766,8 +1016,6 @@ class AnalysisHandler(BaseHandler):
                     status=403,
                 )
 
-            input_data_types = analysis_service.input_data_types.copy()
-
             analysis_parameters = data.get('analysis_parameters', {})
 
             if isinstance(analysis_service.optional_analysis_parameters, str):
@@ -799,174 +1047,27 @@ class AnalysisHandler(BaseHandler):
                 )
 
             author = self.associated_user_object
-            inputs = {"analysis_parameters": analysis_parameters}
 
-            if analysis_resource_type.lower() == 'obj':
-                obj_id = resource_id
-                stmt = Obj.select(self.current_user).where(Obj.id == obj_id)
-                obj = session.scalars(stmt).first()
-                if obj is None:
-                    return self.error(f'Obj {obj_id} not found', status=404)
-
-                # make sure the user has not exceeded the maximum number of analyses
-                # for this object. This will help save space on the disk
-                # an enforce a reasonable limit on the number of analyses.
-                stmt = ObjAnalysis.select(self.current_user).where(
-                    ObjAnalysis.obj_id == obj_id
-                )
-                stmt = stmt.where(ObjAnalysis.author == author)
-                stmt = stmt.where(ObjAnalysis.status == "completed")
-
-                total_matches = session.execute(
-                    select(func.count()).select_from(stmt)
-                ).scalar()
-
-                if (
-                    total_matches
-                    >= cfg["analysis_services.max_analysis_per_obj_per_user"]
-                ):
-                    return self.error(
-                        (
-                            'You have reached the maximum number of analyses for this object.'
-                            ' Please delete some analyses before attempting to start more analyses.'
-                        ),
-                        status=403,
-                    )
-
-                # Let's assemble the input data for this Obj
-                for input_type in input_data_types:
-                    associated_resource = self.get_associated_obj_resource(input_type)
-                    stmt = (
-                        associated_resource['class']
-                        .select(self.current_user)
-                        .where(
-                            getattr(
-                                associated_resource['class'],
-                                associated_resource['id_attr'],
-                            )
-                            == obj_id
-                        )
-                    )
-                    input_data = session.scalars(stmt).all()
-                    if input_type == 'photometry':
-                        input_data = [
-                            serialize(phot, 'ab', 'both') for phot in input_data
-                        ]
-                        df = pd.DataFrame(input_data)[
-                            associated_resource['allowed_export_columns']
-                        ]
-                    else:
-                        input_data = [
-                            self.generic_serialize(
-                                row, associated_resource['allowed_export_columns']
-                            )
-                            for row in input_data
-                        ]
-                        df = pd.DataFrame(input_data)
-                    inputs[input_type] = df.to_csv(index=False)
-
-                invalid_after = datetime.datetime.utcnow() + datetime.timedelta(
-                    seconds=analysis_service.timeout
-                )
-
-                analysis = ObjAnalysis(
-                    obj=obj,
-                    author=author,
-                    groups=groups,
-                    analysis_service=analysis_service,
-                    show_parameters=data.get('show_parameters', True),
-                    show_plots=data.get('show_plots', True),
-                    show_corner=data.get('show_corner', True),
-                    analysis_parameters=analysis_parameters,
-                    status='queued',
-                    handled_by_url="api/webhook/obj_analysis",
-                    invalid_after=invalid_after,
-                )
-            # Add more analysis_resource_types here one day (eg. GCN)
-            else:
-                return self.error(
-                    f'analysis_resource_type must be one of {", ".join(["obj"])}',
-                    status=404,
-                )
-
-            session.add(analysis)
             try:
-                session.commit()
-            except IntegrityError as e:
-                return self.error(f'Analysis already exists: {str(e)}')
+                analysis_id = post_analysis(
+                    analysis_resource_type,
+                    resource_id,
+                    self.current_user,
+                    author,
+                    groups,
+                    analysis_service,
+                    analysis_parameters=data.get('analysis_parameters', {}),
+                    show_parameters=data.get('show_parameters', False),
+                    show_plots=data.get('show_plots', False),
+                    show_corner=data.get('show_corner', False),
+                    session=session,
+                )
+                return self.success(data={"id": analysis_id})
             except Exception as e:
-                return self.error(f'Unexpected error creating analysis: {str(e)}')
-
-            # Now call the analysis service to start the analysis, using the `input` data
-            # that we assembled above.
-            callback_url = urljoin(
-                get_app_base_url(), f"{analysis.handled_by_url}/{analysis.token}"
-            )
-            external_analysis_service = functools.partial(
-                call_external_analysis_service,
-                analysis_service.url,
-                callback_url,
-                inputs=inputs,
-                authentication_type=analysis_service.authentication_type,
-                authinfo=analysis_service.authinfo,
-                callback_method="POST",
-                invalid_after=invalid_after,
-                analysis_resource_type=analysis_resource_type,
-                resource_id=resource_id,
-            )
-
-            self.push_notification(
-                'Sending data to analysis service to start the analysis.',
-            )
-
-            def analysis_done_callback(
-                future,
-                logger=log,
-                analysis_id=analysis.id,
-                analysis_service_id=analysis_service.id,
-                analysis_resource_type=analysis_resource_type,
-            ):
-                """
-                Callback function for when the analysis service is done.
-                Updates the Analysis object with the results/errors.
-                """
-                with self.Session() as session:
-                    # grab the analysis (only Obj for now)
-                    if analysis_resource_type.lower() == 'obj':
-                        try:
-                            analysis = session.query(ObjAnalysis).get(analysis_id)
-                            if analysis is None:
-                                logger.error(f'Analysis {analysis_id} not found')
-                                return
-                        except Exception as e:
-                            log(f'Could not access Analysis {analysis_id} {e}.')
-                            return
-                    else:
-                        log(f"Invalid analysis_resource_type: {analysis_resource_type}")
-                        return
-
-                    analysis.last_activity = datetime.datetime.utcnow()
-                    try:
-                        result = future.result()
-                        analysis.status = (
-                            'pending' if result.status_code == 200 else 'failure'
-                        )
-                        # truncate the return just so we dont have a huge string in the database
-                        analysis.status_message = result.text[:1024]
-                    except Exception:
-                        analysis.status = 'failure'
-                        analysis.status_message = str(future.exception())[:1024]
-                    finally:
-                        logger(
-                            f"[id={analysis_id} service={analysis_service_id}] status='{analysis.status}' message='{analysis.status_message}'"
-                        )
-                        session.commit()
-
-            # Start the analysis service in a separate thread and log any exceptions
-            x = IOLoop.current().run_in_executor(None, external_analysis_service)
-            x.add_done_callback(analysis_done_callback)
-
-            return self.success(data={"id": analysis.id})
+                if 'not found' in str(e).lower():
+                    return self.error(f'Error posting analysis: {e}', status=404)
+                else:
+                    return self.error(f'Error posting analysis: {e}')
 
     @auth_or_token
     def get(self, analysis_resource_type, analysis_id=None):
@@ -999,6 +1100,13 @@ class AnalysisHandler(BaseHandler):
                 type: string
               description: |
                 Return any analysis on an object with ID objID
+            - in: path
+              name: analysisServiceID
+              required: false
+              schema:
+                type: int
+              description: |
+                ID of the analysis service used to create the analysis, used only if no analysis_id is given
             - in: query
               name: includeAnalysisData
               nullable: true
@@ -1052,6 +1160,7 @@ class AnalysisHandler(BaseHandler):
             1,
         ]
         obj_id = self.get_query_argument('objID', None)
+        analysis_service_id = self.get_query_argument('analysisServiceID', None)
 
         with self.Session() as session:
             if obj_id is not None:
@@ -1097,7 +1206,11 @@ class AnalysisHandler(BaseHandler):
                 stmt = ObjAnalysis.select(self.current_user)
                 if obj_id:
                     stmt = stmt.where(ObjAnalysis.obj_id.contains(obj_id.strip()))
-                analyses = session.scalars(stmt).all()
+                if analysis_service_id:
+                    stmt = stmt.where(
+                        ObjAnalysis.analysis_service_id == analysis_service_id
+                    )
+                analyses = session.scalars(stmt).unique().all()
 
                 ret_array = []
                 analysis_services_dict = {}
@@ -1529,3 +1642,282 @@ class AnalysisUploadOnlyHandler(BaseHandler):
             log(message)
             session.commit()
             return self.success(data={"id": analysis.id, "message": message})
+
+
+class DefaultAnalysisHandler(BaseHandler):
+    # this handler is a handler to post and get default analyses
+    # a DefaultAnalysis is a reference to an analysis service, and a set of parameters, and a set of source_filter, that are criteria
+    # for a default analysis to be run on an object
+
+    @auth_or_token
+    def get(self, analysis_service_id, default_analysis_id):
+        """
+        ---
+        single:
+          description: Retrieve a default analysis
+          parameters:
+            - in: path
+              name: analysis_service_id
+              required: true
+              description: Analysis service ID
+            - in: path
+              name: default_analysis_id
+              required: true
+              description: Default analysis ID
+          responses:
+            200:
+              content:
+                application/json:
+                  schema: SingleDefaultAnalysis
+            400:
+              content:
+                application/json:
+                  schema: Error
+        multiple:
+          description: Retrieve all default analyses
+          parameters:
+            - in: path
+              name: analysis_service_id
+              required: false
+              description: Analysis service ID, if not provided, return all default analyses for all analysis services
+          responses:
+            200:
+              content:
+                application/json:
+                  schema: ArrayOfDefaultAnalysiss
+            400:
+              content:
+                application/json:
+                  schema: Error
+        """
+
+        with self.Session() as session:
+            try:
+                if default_analysis_id is not None and analysis_service_id is not None:
+                    stmt = DefaultAnalysis.select(self.current_user).where(
+                        DefaultAnalysis.analysis_service_id == analysis_service_id,
+                        DefaultAnalysis.id == default_analysis_id,
+                    )
+                    default_analysis = session.scalars(stmt).first()
+                    if default_analysis is None:
+                        return self.error(
+                            f"Could not load default analysis {default_analysis_id}",
+                            status=400,
+                        )
+                    return self.success(data=default_analysis)
+                elif analysis_service_id is not None:
+                    stmt = DefaultAnalysis.select(self.current_user).where(
+                        DefaultAnalysis.analysis_service_id == analysis_service_id
+                    )
+                    default_analysis = session.scalars(stmt).all()
+                    return self.success(data=default_analysis)
+                else:
+                    stmt = DefaultAnalysis.select(self.current_user)
+                    default_analysis = session.scalars(stmt).all()
+                    return self.success(data=default_analysis)
+            except Exception as e:
+                return self.error(
+                    f'Unexpected error loading default analysis: {str(e)}'
+                )
+
+    @auth_or_token
+    def post(self, analysis_service_id, default_analysis_id=None):
+        data = self.get_json()
+        with self.Session() as session:
+            try:
+                analysis_service = session.scalars(
+                    AnalysisService.select(self.current_user).where(
+                        AnalysisService.id == analysis_service_id
+                    )
+                ).first()
+                if analysis_service is None:
+                    return self.error(
+                        f'Analysis service {analysis_service_id} not found', status=404
+                    )
+
+                stmt = DefaultAnalysis.select(self.current_user).where(
+                    DefaultAnalysis.analysis_service_id == analysis_service_id,
+                    DefaultAnalysis.author_id == self.associated_user_object.id,
+                )
+                default_analysis = session.scalars(stmt).first()
+                if default_analysis is not None:
+                    return self.error(
+                        'You already have a default analysis for this analysis service. Delete it first, or update it.',
+                        status=400,
+                    )
+
+                default_analysis_parameters = data.get(
+                    'default_analysis_parameters', {}
+                )
+                source_filter = data.get('source_filter', {})
+                daily_limit = data.get('daily_limit', 10)
+                if not isinstance(daily_limit, int):
+                    try:
+                        daily_limit = int(daily_limit)
+                    except Exception:
+                        return self.error(
+                            f'Invalid daily_limit: {daily_limit}.', status=400
+                        )
+
+                if daily_limit > DEFAULT_ANALYSES_DAILY_LIMIT or daily_limit <= 0:
+                    return self.error(
+                        f'Invalid daily_limit: {daily_limit}. Must be between 1 and {DEFAULT_ANALYSES_DAILY_LIMIT}',
+                        status=400,
+                    )
+
+                stats = {
+                    'daily_limit': daily_limit,
+                    'daily_count': 0,
+                    'last_run': datetime.datetime.utcnow().strftime(
+                        "%Y-%m-%dT%H:%M:%S.%f"
+                    ),
+                }
+
+                if not isinstance(source_filter, dict):
+                    try:
+                        source_filter = json.loads(source_filter)
+                    except Exception:
+                        return self.error(
+                            f'Invalid source_filter: {source_filter}.',
+                            status=400,
+                        )
+
+                if not isinstance(default_analysis_parameters, dict):
+                    try:
+                        default_analysis_parameters = json.loads(
+                            default_analysis_parameters
+                        )
+                    except Exception:
+                        return self.error(
+                            f'Invalid analysis_parameters: {default_analysis_parameters}.',
+                            status=400,
+                        )
+
+                if isinstance(analysis_service.optional_analysis_parameters, str):
+                    optional_analysis_parameters = json.loads(
+                        analysis_service.optional_analysis_parameters
+                    )
+                else:
+                    optional_analysis_parameters = (
+                        analysis_service.optional_analysis_parameters
+                    )
+
+                if not set(default_analysis_parameters.keys()).issubset(
+                    set(optional_analysis_parameters.keys())
+                ):
+                    return self.error(
+                        f'Invalid default_analysis_parameters: {default_analysis_parameters}.',
+                        status=400,
+                    )
+
+                group_ids = data.pop('group_ids', None)
+                if not group_ids:
+                    group_ids = [g.id for g in self.current_user.accessible_groups]
+
+                groups = session.scalars(
+                    Group.select(self.current_user).where(Group.id.in_(group_ids))
+                ).all()
+                if {g.id for g in groups} != set(group_ids):
+                    return self.error(
+                        f'Cannot find one or more groups with IDs: {group_ids}.'
+                    )
+
+                # # check that the keys of the source_filter are valid from the enum DEFAULT_ANALYSIS_SOURCE_FILTERS
+                if not set(source_filter.keys()).issubset(
+                    set(DEFAULT_ANALYSIS_FILTER_TYPES.keys())
+                ):
+                    return self.error(f'Invalid source_filter: {source_filter}.')
+
+                for key, value in source_filter.items():
+                    if isinstance(value, list):
+                        for v in value:
+                            if isinstance(v, dict):
+                                if not set(v.keys()).issubset(
+                                    set(DEFAULT_ANALYSIS_FILTER_TYPES[key])
+                                ):
+                                    return self.error(
+                                        f'Invalid source_filter. Key {key} must be a list of dicts with keys {str(DEFAULT_ANALYSIS_FILTER_TYPES[key])}.'
+                                    )
+                            else:
+                                return self.error(
+                                    f'Invalid source_filter. Key {key} must be a list of dicts.'
+                                )
+                    else:
+                        return self.error(
+                            f'Invalid source_filter with key {key}. Value must be a list.'
+                        )
+
+                author = self.associated_user_object
+
+                default_analysis = DefaultAnalysis(
+                    analysis_service=analysis_service,
+                    default_analysis_parameters=default_analysis_parameters,
+                    source_filter=source_filter,
+                    stats=stats,
+                    show_parameters=data.get('show_parameters', True),
+                    show_plots=data.get('show_plots', True),
+                    show_corner=data.get('show_corner', True),
+                    author=author,
+                    groups=groups,
+                )
+
+                session.add(default_analysis)
+                session.commit()
+                return self.success(data={"id": default_analysis.id})
+            except Exception as e:
+                raise e
+                return self.error(
+                    f'Unexpected error posting default analysis: {str(e)}'
+                )
+
+    @auth_or_token
+    def delete(self, analysis_service_id, default_analysis_id):
+        """
+        ---
+        description: Delete a default analysis
+        parameters:
+          - in: path
+            name: analysis_service_id
+            required: true
+            schema:
+              type: integer
+            description: Analysis service ID
+          - in: path
+            name: default_analysis_id
+            required: true
+            schema:
+              type: integer
+            description: Default analysis ID
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        if default_analysis_id is None:
+            return self.error("Missing required parameter: default_analysis_id")
+
+        with self.Session() as session:
+            try:
+                default_analysis = session.scalars(
+                    DefaultAnalysis.select(self.current_user).where(
+                        DefaultAnalysis.analysis_service_id == analysis_service_id,
+                        DefaultAnalysis.id == default_analysis_id,
+                    )
+                ).first()
+                if default_analysis is None:
+                    return self.error(
+                        f"Could not find default analysis {default_analysis_id}",
+                        status=400,
+                    )
+                session.delete(default_analysis)
+                session.commit()
+                return self.success()
+            except Exception as e:
+                return self.error(
+                    f'Unexpected error deleting default analysis: {str(e)}'
+                )

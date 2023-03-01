@@ -1126,6 +1126,7 @@ analysis_service:
     group_ids:
       - =program_A
       - =program_B
+    =id: Demo_Analysis
   - name: "NGSF_Analysis"
     display_name: "NGSF analysis"
     description: "Use NGSF to fit spectra"
@@ -1140,3 +1141,24 @@ analysis_service:
     group_ids:
       - =program_A
       - =program_B
+  - name: "Spectral_Cube_Analysis"
+    display_name: "Spectral_Cube_Analysis"
+    description: "Use PySEDM to get spectra from fits image"
+    version: "1.0"
+    contact_name: "Michael Coughlin"
+    url: "http://localhost:7002/analysis/spectral_cube_analysis"
+    authentication_type: "none"
+    analysis_type: "spectrum_fitting"
+    input_data_types: []
+    optional_analysis_parameters: '{"image_data": {"type": "file", "required": "True", "description": "Image data"}, "fluxcal_data": {"type": "file", "description": "Fluxcal data"}, "centroid_X": {"type": "number"}, "centroid_Y": {"type": "number"}, "spaxel_buffer": {"type": "number"}}'
+    group_ids:
+      - =program_A
+      - =program_B
+
+analysis_service/=Demo_Analysis/default_analysis:
+  - default_analysis_parameters: '{"source": "salt3"}'
+    group_ids:
+      - =program_A
+      - =program_B
+    source_filter: '{"classifications": [{"name": "Supernova", "probability": 0.9}]}'
+    daily_limit: 2

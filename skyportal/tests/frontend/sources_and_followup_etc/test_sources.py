@@ -203,7 +203,73 @@ def test_analysis_start(
         '//div[@data-testid="analysis-service-request-form"]//*[@type="submit"]'
     )
     driver.wait_for_xpath(
-        "//*[text()='Sending data to analysis service to start the analysis.']"
+        f"//*[text()='Sending data to analysis service {name} to start the analysis.']"
+    )
+
+
+@pytest.mark.flaky(reruns=3)
+def test_analysis_with_file_input_start(
+    driver, user, public_source, analysis_service_token, public_group
+):
+    name = str(uuid.uuid4())
+
+    optional_analysis_parameters = {
+        "image_data": {"type": "file", "required": "True", "description": "Image data"},
+        "fluxcal_data": {"type": "file", "description": "Fluxcal data"},
+        "centroid_X": {"type": "number"},
+        "centroid_Y": {"type": "number"},
+        "spaxel_buffer": {"type": "number"},
+    }
+
+    post_data = {
+        'name': name,
+        'display_name': "Spectral_Cube_Analysis",
+        'description': "Spectral_Cube_Analysis description",
+        'version': "1.0",
+        'contact_name': "Michael Coughlin",
+        # this is the URL/port of the Spectral_Cube_Analysis service that will be running during testing
+        'url': "http://localhost:7003/analysis/spectral_cube_analysis",
+        'optional_analysis_parameters': json.dumps(optional_analysis_parameters),
+        'authentication_type': "none",
+        'analysis_type': 'spectrum_fitting',
+        'input_data_types': [],
+        'timeout': 60,
+        'group_ids': [public_group.id],
+    }
+
+    status, data = api(
+        'POST', 'analysis_service', data=post_data, token=analysis_service_token
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    driver.get(f"/become_user/{user.id}")
+    driver.get(f"/source/{public_source.id}")
+    driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
+    driver.wait_for_xpath('//*[text()="External Analysis"]')
+
+    driver.click_xpath('//div[@data-testid="analysisServiceSelect"]')
+
+    # look for an element list with a text with the uuid name of the analysis service
+    driver.wait_for_xpath(f'//li[text()="{name}"]')
+    driver.click_xpath(f'//li[text()="{name}"]')
+
+    # look for an input element with id root_image_data
+    image_data = driver.wait_for_xpath('//input[@id="root_image_data"]')
+
+    image_data.send_keys(
+        os.path.join(
+            os.path.dirname(os.path.dirname(__file__)),
+            '../data',
+            'spectral_cube_analysis.fits',
+        ),
+    )
+
+    driver.click_xpath(
+        '//div[@data-testid="analysis-service-request-form"]//*[@type="submit"]'
+    )
+    driver.wait_for_xpath(
+        f"//*[text()='Sending data to analysis service {name} to start the analysis.']"
     )
 
 

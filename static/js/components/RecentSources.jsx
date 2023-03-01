@@ -17,6 +17,7 @@ import TextField from "@mui/material/TextField";
 import Autocomplete from "@mui/material/Autocomplete";
 import SearchIcon from "@mui/icons-material/Search";
 import InputAdornment from "@mui/material/InputAdornment";
+import { showNotification } from "baselayer/components/Notifications";
 import { ra_to_hours, dec_to_dms } from "../units";
 import * as profileActions from "../ducks/profile";
 import WidgetPrefsDialog from "./WidgetPrefsDialog";
@@ -151,6 +152,12 @@ const defaultPrefs = {
   maxNumSources: "5",
 };
 
+function containsSpecialCharacters(str) {
+  /* eslint-disable-next-line no-useless-escape */
+  const regex = /[ !@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/g;
+  return regex.test(str);
+}
+
 const RecentSourcesSearchbar = ({ styles }) => {
   const [inputValue, setInputValue] = useState("");
   const [options] = useState([]);
@@ -170,10 +177,16 @@ const RecentSourcesSearchbar = ({ styles }) => {
   let results = [];
   const handleChange = (e) => {
     e.preventDefault();
-    setInputValue(e.target.value);
+    const spec_char = containsSpecialCharacters(e.target.value);
+    if (!spec_char) {
+      setInputValue(e.target.value);
+    } else {
+      dispatch(showNotification("No special characters allowed", "error"));
+      setInputValue([]);
+    }
   };
   if (inputValue.length > 0) {
-    results = sourcesState.sources.filter((source) =>
+    results = sourcesState?.sources?.filter((source) =>
       source.id.toLowerCase().match(inputValue.toLowerCase())
     );
   }
@@ -232,7 +245,7 @@ const RecentSourcesSearchbar = ({ styles }) => {
           />
         )}
       />
-      {results.length !== 0 && (
+      {results?.length !== 0 && (
         <RecentSourcesList sources={formattedResults} styles={styles} search />
       )}
     </div>
