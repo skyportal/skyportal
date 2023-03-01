@@ -16,10 +16,12 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import Typography from "@mui/material/Typography";
 import { log10, abs, ceil } from "mathjs";
 import CircularProgress from "@mui/material/CircularProgress";
+import AddIcon from "@mui/icons-material/Add";
 import HelpOutlineOutlinedIcon from "@mui/icons-material/HelpOutlineOutlined";
 import Button from "./Button";
 
 import CommentList from "./CommentList";
+import CopyPhotometryDialog from "./CopyPhotometryDialog";
 import ClassificationList from "./ClassificationList";
 import ClassificationForm from "./ClassificationForm";
 import ShowClassification from "./ShowClassification";
@@ -202,6 +204,12 @@ export const useSourceStyles = makeStyles((theme) => ({
     borderBottomColor: "transparent",
     borderLeftColor: "transparent",
   },
+  sourceCopy: {
+    height: "2.1875rem",
+    paddingTop: "0.5em",
+    paddingBottom: "0.5em",
+    alignItems: "center",
+  },
 }));
 
 const SourceDesktop = ({ source }) => {
@@ -216,6 +224,14 @@ const SourceDesktop = ({ source }) => {
   const { instrumentList, instrumentFormParams } = useSelector(
     (state) => state.instruments
   );
+
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const openDialog = () => {
+    setDialogOpen(true);
+  };
+  const closeDialog = () => {
+    setDialogOpen(false);
+  };
 
   const photometry = useSelector((state) => state.photometry[source.id]);
 
@@ -365,9 +381,24 @@ const SourceDesktop = ({ source }) => {
                 </b>
                 &nbsp;
                 {source.duplicates.map((dupID) => (
-                  <Link to={`/source/${dupID}`} role="link" key={dupID}>
+                  <div key={dupID}>
                     <Button size="small">{dupID}</Button>
-                  </Link>
+                    <Button
+                      size="small"
+                      type="button"
+                      name={`copySourceButton${dupID}`}
+                      onClick={() => openDialog(dupID)}
+                      className={classes.sourceCopy}
+                    >
+                      <AddIcon />
+                    </Button>
+                    <CopyPhotometryDialog
+                      source={source}
+                      duplicate={dupID}
+                      dialogOpen={dialogOpen}
+                      closeDialog={closeDialog}
+                    />
+                  </div>
                 ))}
               </div>
             </div>
