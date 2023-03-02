@@ -62,6 +62,7 @@ from ...models import (
     GcnProperty,
     GcnSummary,
     GcnTag,
+    GcnTrigger,
     Instrument,
     InstrumentField,
     InstrumentFieldTile,
@@ -842,6 +843,7 @@ class GcnEventHandler(BaseHandler):
                             joinedload(GcnEvent.detectors),
                             joinedload(GcnEvent.properties),
                             joinedload(GcnEvent.summaries),
+                            joinedload(GcnEvent.gcn_triggers),
                         ],
                     ).where(GcnEvent.dateobs == dateobs)
                 ).first()
@@ -2627,3 +2629,146 @@ class GcnEventInstrumentFieldHandler(BaseHandler):
 
             data_out = {'field_ids': field_ids, 'probabilities': probs}
             return self.success(data=data_out)
+
+
+class GcnEventTriggerHandler(BaseHandler):
+    @auth_or_token
+    def get(self, dateobs, allocation_id=None):
+
+        dateobs = dateobs.strip()
+        try:
+            arrow.get(dateobs)
+        except arrow.parser.ParserError as e:
+            return self.error(f'Failed to parse dateobs: str({e})')
+
+        with self.Session() as session:
+            if allocation_id is not None:
+                try:
+                    allocation_id = int(allocation_id)
+                except ValueError as e:
+                    return self.error(f'Failed to parse allocation_id: str({e})')
+                try:
+                    gcn_triggered = session.scalars(
+                        GcnTrigger.select(session.user_or_token).where(
+                            GcnTrigger.dateobs == dateobs,
+                            GcnTrigger.allocation_id == allocation_id,
+                        )
+                    )
+                    return self.success(data=gcn_triggered)
+                except Exception as e:
+                    return self.error(
+                        f'Failed to get gcn_event triggered status: str({e})'
+                    )
+
+            else:
+                try:
+                    gcn_triggered = session.scalars(
+                        GcnTrigger.select(session.user_or_token).where(
+                            GcnTrigger.dateobs == dateobs
+                        )
+                    )
+                    return self.success(data=gcn_triggered)
+                except Exception as e:
+                    return self.error(
+                        f'Failed to get gcn_event triggered status: str({e})'
+                    )
+
+    @auth_or_token
+    def put(self, dateobs, allocation_id):
+        print("called the right function")
+        print(dateobs)
+        print(allocation_id)
+        dateobs = dateobs.strip()
+        try:
+            arrow.get(dateobs)
+        except arrow.parser.ParserError as e:
+            return self.error(f'Failed to parse dateobs: str({e})')
+
+        data = self.get_json()
+
+        triggered = data.get('triggered', None)
+        print(triggered)
+        if triggered is None:
+            return self.error("Must specify triggered status")
+        elif triggered in ['True', 'true', 't', 'T', True, 'triggered']:
+            triggered = True
+        elif triggered in ['False', 'false', 'f', 'F', False, 'passed']:
+            triggered = False
+        else:
+            return self.error("Invalid triggered status")
+
+        try:
+            allocation_id = int(allocation_id)
+        except ValueError:
+            return self.error(f'Failed to parse allocation_id: {allocation_id}')
+
+        with self.Session() as session:
+            try:
+                gcn_triggered = session.scalars(
+                    GcnTrigger.select(session.user_or_token).where(
+                        GcnTrigger.dateobs == dateobs,
+                        GcnTrigger.allocation_id == allocation_id,
+                    )
+                ).first()
+                if gcn_triggered is None:
+                    # verify that the event and allocation exist
+                    event = session.scalars(
+                        GcnEvent.select(session.user_or_token).where(
+                            GcnEvent.dateobs == dateobs
+                        )
+                    ).first()
+
+                    if event is None:
+                        return self.error(f'No event with dateobs: {dateobs}')
+                    allocation = session.scalars(
+                        Allocation.select(session.user_or_token).where(
+                            Allocation.id == allocation_id
+                        )
+                    ).first()
+                    if allocation is None:
+                        return self.error(f'No allocation with ID: {allocation_id}')
+
+                    gcn_triggered = GcnTrigger(
+                        dateobs=dateobs,
+                        allocation_id=allocation_id,
+                        triggered=triggered,
+                    )
+                    session.add(gcn_triggered)
+                else:
+                    gcn_triggered.triggered = triggered
+                session.commit()
+                return self.success(data=gcn_triggered)
+            except Exception as e:
+                raise e
+                return self.error(f'Failed to set triggered status: str({e})')
+
+    @auth_or_token
+    def delete(self, dateobs, allocation_id):
+
+        dateobs = dateobs.strip()
+        try:
+            arrow.get(dateobs)
+        except arrow.parser.ParserError as e:
+            return self.error(f'Failed to parse dateobs: str({e})')
+
+        try:
+            allocation_id = int(allocation_id)
+        except ValueError:
+            return self.error(f'Failed to parse allocation_id: {allocation_id}')
+
+        with self.Session() as session:
+            try:
+                gcn_triggered = (
+                    session.query(GcnTrigger)
+                    .filter(
+                        GcnTrigger.dateobs == dateobs,
+                        GcnTrigger.allocation_id == allocation_id,
+                    )
+                    .first()
+                )
+                if gcn_triggered is not None:
+                    session.delete(gcn_triggered)
+                    session.commit()
+                return self.success(data=gcn_triggered)
+            except Exception as e:
+                return self.error(f'Failed to delete triggered status: str({e})')

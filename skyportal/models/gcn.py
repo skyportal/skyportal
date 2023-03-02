@@ -1,4 +1,4 @@
-__all__ = ['GcnNotice', 'GcnTag', 'GcnEvent', 'GcnProperty', 'GcnSummary']
+__all__ = ['GcnNotice', 'GcnTag', 'GcnEvent', 'GcnProperty', 'GcnSummary', 'GcnTrigger']
 
 import sqlalchemy as sa
 from sqlalchemy.orm import relationship
@@ -9,7 +9,11 @@ from sqlalchemy.ext.hybrid import hybrid_property
 import gcn
 import lxml
 
-from baselayer.app.models import Base, DBSession, AccessibleIfUserMatches
+from baselayer.app.models import (
+    Base,
+    DBSession,
+    AccessibleIfUserMatches,
+)
 from .group import accessible_by_group_members
 
 SOURCE_RADIUS_THRESHOLD = 5 / 60.0  # 5 arcmin in degrees
@@ -283,6 +287,14 @@ class GcnEvent(Base):
         doc="MMA Detectors that contributed this event.",
     )
 
+    gcn_triggers = relationship(
+        "GcnTrigger",
+        back_populates="gcnevent",
+        cascade="save-update, merge, refresh-expire, expunge",
+        passive_deletes=True,
+        doc="GCN triggers that contributed this event.",
+    )
+
     @hybrid_property
     def tags(self):
         """List of tags."""
@@ -401,3 +413,45 @@ class GcnEvent(Base):
                 return 'FAR: ' + elem.attrib.get('value', '')
             except Exception:
                 return None
+
+
+class GcnTrigger(Base):
+    """Store a triggered or passed status by allocation for a gcn event."""
+
+    # this model is a link between a gcn_event, and an allocation, with a triggered bool column
+    # it can be edited only by an admin of the allocation
+    # it can be created only by an allocation admin or superadmin
+
+    # create = update = delete = CustomUserAccessControl(allocationuser_access_logic) TODO: add this back in
+
+    dateobs = sa.Column(
+        sa.ForeignKey('gcnevents.dateobs', ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    gcnevent = relationship(
+        'GcnEvent',
+        back_populates='gcn_triggers',
+        doc="GCN event associated with this allocation.",
+    )
+
+    allocation_id = sa.Column(
+        sa.Integer,
+        sa.ForeignKey('allocations.id', ondelete='CASCADE'),
+        primary_key=True,
+        doc="ID of the allocation.",
+    )
+
+    allocation = relationship(
+        'Allocation',
+        back_populates='gcn_triggers',
+        doc="Allocation associated with this GCN event.",
+    )
+
+    triggered = sa.Column(
+        sa.Boolean,
+        nullable=False,
+        default=False,
+        doc="Whether this GCN event triggered the allocation.",
+    )

@@ -38,6 +38,7 @@ import ObservationPlanRequestLists from "./ObservationPlanRequestLists";
 import CommentList from "./CommentList";
 import GcnTags from "./GcnTags";
 import GcnAliases from "./GcnAliases";
+import GcnEventAllocationTriggers from "./GcnEventAllocationTriggers";
 import GcnCirculars from "./GcnCirculars";
 import GcnLocalizationsTable from "./GcnLocalizationsTable";
 import GcnProperties from "./GcnProperties";
@@ -352,6 +353,9 @@ const GcnEventPage = ({ route }) => {
                 </div>
                 <div>
                   <GcnTags gcnEvent={gcnEvent} />
+                </div>
+                <div className={styles.gcnEventContainer}>
+                  <GcnEventAllocationTriggers gcnEvent={gcnEvent} />
                 </div>
               </AccordionDetails>
             </Accordion>

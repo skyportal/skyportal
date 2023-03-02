@@ -33,7 +33,9 @@ def allocationuser_access_logic(cls, user_or_token):
         .join(GroupUser, GroupUser.group_id == Allocation.group_id)
         .filter(sa.and_(GroupUser.user_id == user_id, GroupUser.admin.is_(True)))
     )
-    query = DBSession().query(cls).join(aliased, cls.allocation_id == aliased.shift_id)
+    query = (
+        DBSession().query(cls).join(aliased, cls.allocation_id == aliased.allocation_id)
+    )
     if not user_or_token.is_system_admin:
         query = query.filter(
             sa.or_(
@@ -135,6 +137,13 @@ class Allocation(Base):
         passive_deletes=True,
         doc='Elements of a join table mapping Users to Allocations.',
         overlaps='allocations, users',
+    )
+
+    gcn_triggers = relationship(
+        'GcnTrigger',
+        back_populates='allocation',
+        cascade='save-update, merge, refresh-expire, expunge',
+        doc='Elements of a join table mapping GCNs to Allocations with a trigger status.',
     )
 
     @property

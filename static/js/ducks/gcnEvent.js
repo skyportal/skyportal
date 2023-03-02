@@ -58,6 +58,12 @@ const POST_GCN_TACH = "skyportal/POST_GCN_TACH";
 const FETCH_GCN_TACH = "skyportal/FETCH_GCN_TACH";
 const FETCH_GCN_TACH_OK = "skyportal/FETCH_GCN_TACH_OK";
 
+const PUT_GCN_TRIGGERED = "skyportal/PUT_GCN_TRIGGERED";
+const FETCH_GCN_TRIGGERED = "skyportal/FETCH_GCN_TRIGGERED";
+// const FETCH_GCN_TRIGGERED_OK = "skyportal/FETCH_GCN_TRIGGERED_OK";
+const DELETE_GCN_TRIGGERED = "skyportal/DELETE_GCN_TRIGGERED";
+// const REFRESH_GCN_TRIGGERED = "skyportal/REFRESH_GCN_TRIGGERED";
+
 export const fetchGcnEvent = (dateobs) =>
   API.GET(`/api/gcn_event/${dateobs}`, FETCH_GCNEVENT);
 
@@ -240,6 +246,31 @@ export function postGcnTach(dateobs) {
 
 export function fetchGcnTach(dateobs) {
   return API.GET(`/api/gcn_event/${dateobs}/tach`, FETCH_GCN_TACH);
+}
+
+export function putGcnTrigger({ dateobs, allocationID, triggered }) {
+  return API.PUT(
+    `/api/gcn_event/${dateobs}/triggered/${allocationID}`,
+    PUT_GCN_TRIGGERED,
+    { triggered }
+  );
+}
+
+export function fetchGcnTrigger({ dateobs, allocationID = null }) {
+  if (allocationID) {
+    return API.GET(
+      `/api/gcn_event/${dateobs}/triggered/${allocationID}`,
+      FETCH_GCN_TRIGGERED
+    );
+  }
+  return API.GET(`/api/gcn_event/${dateobs}/triggered`, FETCH_GCN_TRIGGERED);
+}
+
+export function deleteGcnTrigger({ dateobs, allocationID }) {
+  return API.DELETE(
+    `/api/gcn_event/${dateobs}/triggered/${allocationID}`,
+    DELETE_GCN_TRIGGERED
+  );
 }
 
 // Websocket message handler
