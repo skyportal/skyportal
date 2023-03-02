@@ -3456,7 +3456,7 @@ class SourceCopyPhotometryHandler(BaseHandler):
     def post(self, obj_id):
         """
         ---
-        description: Copy photometry from one source to another
+        description: Copy all photometry points from one source to another
         tags:
           - sources
           - photometry
