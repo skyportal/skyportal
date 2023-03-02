@@ -93,14 +93,15 @@ const TokenList = ({ tokens }) => {
 
   const renderACLs = (dataIndex) => {
     const tokenId = tokens[dataIndex].id;
+    const tokenACLs = tokens[dataIndex].acls;
     return (
       <div>
         {tokens[dataIndex].acls.join(", ")}
         <div className={classes.sourceInfo}>
           <UpdateTokenACLs
             tokenId={tokenId}
-            currentACLs={tokens[dataIndex].acls}
-            availableAcls={profile.permissions}
+            currentACLs={tokenACLs}
+            availableACLs={profile.permissions}
           />
         </div>
       </div>

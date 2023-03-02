@@ -27,11 +27,10 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-const UpdateTokenACLs = ({ tokenId, currentAcls, availableAcls }) => {
+const UpdateTokenACLs = ({ tokenId, currentACLs, availableACLs }) => {
   const classes = useStyles();
   const dispatch = useDispatch();
 
-  console.log("currentAcls", currentAcls);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -39,7 +38,7 @@ const UpdateTokenACLs = ({ tokenId, currentAcls, availableAcls }) => {
 
   const handleSubmit = async () => {
     const { acls } = getValues();
-    const selectedACLs = availableAcls?.filter((include, idx) => acls[idx]);
+    const selectedACLs = availableACLs?.filter((include, idx) => acls[idx]);
     const data = {};
     data.acls = selectedACLs;
 
@@ -72,7 +71,7 @@ const UpdateTokenACLs = ({ tokenId, currentAcls, availableAcls }) => {
         <DialogTitle>Update ACLs</DialogTitle>
         <DialogContent>
           <div>
-            {availableAcls?.map((acl, idx) => (
+            {availableACLs?.map((acl, idx) => (
               <FormControlLabel
                 key={acl}
                 control={
@@ -86,7 +85,7 @@ const UpdateTokenACLs = ({ tokenId, currentAcls, availableAcls }) => {
                     )}
                     name={`acls[${idx}]`}
                     control={control}
-                    defaultValue={false}
+                    defaultValue={currentACLs?.includes(acl)}
                   />
                 }
                 label={acl}
@@ -115,8 +114,8 @@ const UpdateTokenACLs = ({ tokenId, currentAcls, availableAcls }) => {
 
 UpdateTokenACLs.propTypes = {
   tokenId: PropTypes.string.isRequired,
-  availableAcls: PropTypes.arrayOf(PropTypes.string).isRequired,
-  currentAcls: PropTypes.arrayOf(PropTypes.string).isRequired,
+  availableACLs: PropTypes.arrayOf(PropTypes.string).isRequired,
+  currentACLs: PropTypes.arrayOf(PropTypes.string).isRequired,
 };
 
 export default UpdateTokenACLs;

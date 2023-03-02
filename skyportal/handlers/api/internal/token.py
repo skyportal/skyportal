@@ -166,52 +166,51 @@ class TokenHandler(BaseHandler):
         """
 
         with self.Session() as session:
-            token = session.scalars(
-                Token.select(session.user_or_token, mode="update").where(
-                    Token.id == token_id
-                )
-            ).first()
-            if token is None:
-                return self.error(
-                    'Either the specified token does not exist, '
-                    'or the user does not have the necessary '
-                    'permissions to delete it.'
-                )
-            session.merge(token)
-
-            data = self.get_json()
-            data['id'] = token_id
-
-            if 'user_id' in data:
-                user_id = data['user_id']
-                user = session.scalars(
-                    User.select(session.user_or_token).where(User.id == user_id)
-                ).first()
-            else:
-                user = self.associated_user_object
-                user_id = user.id
-
-            schema = Token.__schema__()
             try:
-                schema.load(data, partial=True)
-            except ValidationError as e:
-                return self.error(
-                    'Invalid/missing parameters: ' f'{e.normalized_messages()}'
-                )
-            if 'name' in data:
-                token.name = data['name']
-
-            if 'acls' in data:
-                token_acls = set(data['acls'])
-                if not all([acl_id in user.permissions for acl_id in token_acls]):
+                token = session.scalars(
+                    Token.select(session.user_or_token, mode="update").where(
+                        Token.id == token_id
+                    )
+                ).first()
+                if token is None:
                     return self.error(
-                        "User has attempted to grant token ACLs they do not have "
-                        "access to. Please try again."
+                        'Either the specified token does not exist, '
+                        'or the user does not have the necessary '
+                        'permissions to delete it.'
                     )
 
-                new_acl_ids = list(token_acls - set(token.permissions))
-                if (not isinstance(new_acl_ids, (list, tuple))) or (
-                    not all(
+                data = self.get_json()
+                data['id'] = token_id
+
+                if 'user_id' in data:
+                    user_id = data['user_id']
+                    user = session.scalars(
+                        User.select(session.user_or_token).where(User.id == user_id)
+                    ).first()
+                else:
+                    user = self.associated_user_object
+                    user_id = user.id
+
+                schema = Token.__schema__()
+                try:
+                    schema.load(data, partial=True)
+                except ValidationError as e:
+                    return self.error(
+                        'Invalid/missing parameters: ' f'{e.normalized_messages()}'
+                    )
+                if 'name' in data:
+                    token.name = data['name']
+
+                if 'acls' in data:
+                    token_acls = set(data['acls'])
+                    if not all([acl_id in user.permissions for acl_id in token_acls]):
+                        return self.error(
+                            "User has attempted to grant token ACLs they do not have "
+                            "access to. Please try again."
+                        )
+
+                    new_acl_ids = list(set(token_acls))
+                    if not all(
                         [
                             session.scalars(
                                 ACL.select(session.user_or_token).where(
@@ -221,30 +220,34 @@ class TokenHandler(BaseHandler):
                             is not None
                             for acl_id in new_acl_ids
                         ]
-                    )
-                ):
-                    return self.error(
-                        "Improperly formatted parameter aclIds; must be an array of strings."
-                    )
-                if len(new_acl_ids) == 0:
-                    return self.error(f'No new ACLs to add to token {token_id}')
+                    ):
+                        return self.error(
+                            "Improperly formatted parameter aclIds; must be an array of strings."
+                        )
+                    if len(new_acl_ids) == 0:
+                        return self.error(f'No new ACLs to add to token {token_id}')
 
-                new_acls = (
-                    session.scalars(
-                        ACL.select(session.user_or_token).where(ACL.id.in_(new_acl_ids))
+                    new_acls = (
+                        session.scalars(
+                            ACL.select(session.user_or_token).where(
+                                ACL.id.in_(new_acl_ids)
+                            )
+                        )
+                        .unique()
+                        .all()
                     )
-                    .unique()
-                    .all()
+
+                    token.acls = new_acls
+                    session.add(token)
+
+                session.commit()
+                self.push(
+                    action='skyportal/FETCH_USER_PROFILE',
                 )
-                acls = []
-                for acl in new_acls:
-                    acls.append(session.merge(acl))
-                token.permissions = [acl.id for acl in acls]
 
-            session.commit()
-            self.push_all(action="skyportal/FETCH_USER_PROFILE'")
-
-            return self.success()
+                return self.success()
+            except Exception as e:
+                return self.error(f'Could not update token: {e}')
 
     @auth_or_token
     def delete(self, token_id):
