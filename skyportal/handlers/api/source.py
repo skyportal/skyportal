@@ -3480,7 +3480,7 @@ class SourceCopyPhotometryHandler(BaseHandler):
                       type: integer
                     description: |
                       List of IDs of groups to give photometry access to
-                  originId:
+                  origin_id:
                     type: string
                     description: |
                       The ID of the Source's Obj the photometry is being copied from
