@@ -2334,7 +2334,7 @@ def test_copy_photometry_sources(
     obj_id1 = str(uuid.uuid4())
     obj_id2 = str(uuid.uuid4())
     ra = 200.0 * np.random.random()
-    dec = 90.0 * np.random.random()
+    dec = 89.0 * np.random.random()
     status, data = api(
         "POST",
         "sources",
