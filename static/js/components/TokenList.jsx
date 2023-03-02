@@ -1,6 +1,6 @@
 import React from "react";
 import PropTypes from "prop-types";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
@@ -17,6 +17,7 @@ import makeStyles from "@mui/styles/makeStyles";
 
 import MUIDataTable from "mui-datatables";
 import Button from "./Button";
+import UpdateTokenACLs from "./UpdateTokenACLs";
 
 import * as Action from "../ducks/profile";
 
@@ -70,6 +71,9 @@ const TokenList = ({ tokens }) => {
   const classes = useStyles();
   const theme = useTheme();
   const dispatch = useDispatch();
+
+  const profile = useSelector((state) => state.profile);
+
   if (!tokens) {
     return <div />;
   }
@@ -87,7 +91,21 @@ const TokenList = ({ tokens }) => {
     </div>
   );
 
-  const renderACLs = (value) => value.join(", ");
+  const renderACLs = (dataIndex) => {
+    const tokenId = tokens[dataIndex].id;
+    return (
+      <div>
+        {tokens[dataIndex].acls.join(", ")}
+        <div className={classes.sourceInfo}>
+          <UpdateTokenACLs
+            tokenId={tokenId}
+            currentACLs={tokens[dataIndex].acls}
+            availableAcls={profile.permissions}
+          />
+        </div>
+      </div>
+    );
+  };
 
   const renderDelete = (dataIndex) => {
     const tokenId = tokens[dataIndex].id;
@@ -111,7 +129,7 @@ const TokenList = ({ tokens }) => {
       name: "acls",
       label: "ACLs",
       options: {
-        customBodyRender: renderACLs,
+        customBodyRenderLite: renderACLs,
       },
     },
     { name: "created_at", label: "Created" },
