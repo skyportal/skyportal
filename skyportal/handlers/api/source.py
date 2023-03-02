@@ -3453,7 +3453,7 @@ class SourceObservabilityPlotHandler(BaseHandler):
 
 class SourceCopyPhotometryHandler(BaseHandler):
     @permissions(["Upload data"])
-    def post(self, objId):
+    def post(self, obj_id):
         """
         ---
         description: Copy photometry from one source to another
