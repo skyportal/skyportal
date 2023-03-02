@@ -46,10 +46,10 @@ const CopyPhotometryDialog = ({
   };
 
   const onSubmit = async (data) => {
-    data.duplicateId = duplicate;
+    data.origin_id = duplicate;
     const savedGroupIds = savedGroups?.map((g) => g.id);
     const groupIds = savedGroupIds?.filter((ID, idx) => data.groupIds[idx]);
-    data.groupIds = groupIds;
+    data.group_ids = groupIds;
     const result = await dispatch(
       sourceActions.copySourcePhotometry(source.id, data)
     );
@@ -59,6 +59,7 @@ const CopyPhotometryDialog = ({
       );
       reset();
     }
+    closeDialog();
   };
 
   return (

@@ -3453,37 +3453,40 @@ class SourceObservabilityPlotHandler(BaseHandler):
 
 class SourceCopyPhotometryHandler(BaseHandler):
     @permissions(["Upload data"])
-    def post(self, obj_id):
+    def post(self, target_id):
         """
         ---
         description: Copy all photometry points from one source to another
         tags:
           - sources
           - photometry
+        parameters:
+          - in: path
+            name: target_id
+            required: true
+            schema:
+              type: string
+            description: |
+              The obj_id of the target Source (to which the photometry is being copied to)
         requestBody:
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  objId:
-                    type: string
-                    description: |
-                      The Obj_id of the target Source (to which the photometry is being copied to)
-                  groupIds:
+                  group_ids:
                     type: array
                     items:
                       type: integer
                     description: |
                       List of IDs of groups to give photometry access to
-                  duplicateId:
+                  originId:
                     type: string
                     description: |
                       The ID of the Source's Obj the photometry is being copied from
                 required:
-                  - groupIds
-                  - objId
-                  - duplicateId
+                  - group_ids
+                  - origin_id
         responses:
           200:
             content:
@@ -3495,33 +3498,33 @@ class SourceCopyPhotometryHandler(BaseHandler):
 
         data = self.get_json()
 
-        if data.get("groupIds") is None:
+        if data.get("group_ids") is None:
             return self.error("Missing required parameter `groupIds`")
         try:
-            group_ids = [int(gid) for gid in data["groupIds"]]
+            group_ids = [int(gid) for gid in data["group_ids"]]
         except ValueError:
             return self.error(
                 "Invalid value provided for `groupIDs`; unable to parse "
                 "all list items to integers."
             )
 
-        if data.get("duplicateId") is None:
+        if data.get("origin_id") is None:
             return self.error("Missing required parameter `duplicateId`")
 
-        duplicateId = data.get("duplicateId")
+        origin_id = data.get("origin_id")
 
         with self.Session() as session:
             s = session.scalars(
-                Obj.select(self.current_user).where(Obj.id == objId)
+                Obj.select(self.current_user).where(Obj.id == target_id)
             ).first()
             if s is None:
-                return self.error(f"Source {objId} not found")
+                return self.error(f"Source {target_id} not found")
 
             d = session.scalars(
-                Obj.select(self.current_user).where(Obj.id == duplicateId)
+                Obj.select(self.current_user).where(Obj.id == origin_id)
             ).first()
             if d is None:
-                return self.error("Duplicate source {duplicateId} not found")
+                return self.error("Duplicate source {origin_id} not found")
 
             groups = (
                 session.scalars(
@@ -3540,7 +3543,7 @@ class SourceCopyPhotometryHandler(BaseHandler):
                 .options(
                     joinedload(Photometry.instrument).joinedload(Instrument.telescope)
                 )
-                .where(Photometry.obj_id == duplicateId)
+                .where(Photometry.obj_id == origin_id)
             ).all()
 
             query_result = []
@@ -3551,7 +3554,7 @@ class SourceCopyPhotometryHandler(BaseHandler):
 
             df = pd.DataFrame.from_dict(query_result)
             if df.empty:
-                return self.error(f"No photometry found with source {duplicateId}")
+                return self.error(f"No photometry found with source {origin_id}")
 
             drop_columns = list(
                 set(df.columns.values)
@@ -3565,12 +3568,17 @@ class SourceCopyPhotometryHandler(BaseHandler):
             df['magsys'] = 'ab'
 
             data_out = {
-                'obj_id': objId,
+                'obj_id': target_id,
                 'instrument_id': instrument.id,
                 'group_ids': [g.id for g in groups],
                 **df.to_dict(orient='list'),
             }
 
             add_external_photometry(data_out, self.current_user)
+
+            self.push_all(
+                action="skyportal/REFRESH_SOURCE",
+                payload={"obj_key": s.internal_key},
+            )
 
             return self.success()
