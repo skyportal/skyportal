@@ -3458,7 +3458,8 @@ class SourceCopyPhotometryHandler(BaseHandler):
         ---
         description: Copy photometry from one source to another
         tags:
-          - notifications
+          - sources
+          - photometry
         requestBody:
           content:
             application/json:
