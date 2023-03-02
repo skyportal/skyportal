@@ -3469,7 +3469,7 @@ class SourceCopyPhotometryHandler(BaseHandler):
                   objId:
                     type: string
                     description: |
-                      The ID of the Source's Obj the photometry is being copied to
+                      The Obj_id of the target Source (to which the photometry is being copied to)
                   groupIds:
                     type: array
                     items:
