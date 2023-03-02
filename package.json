@@ -118,6 +118,7 @@
     "@types/eslint": "8.4.10",
     "@types/node": "18.14.2",
     "babel-loader": "8.2.2",
+    "dependency-cruiser": "^12.10.0",
     "eslint": "8.18.0",
     "eslint-config-airbnb": "18.2.1",
     "eslint-config-prettier": "8.5.0",
