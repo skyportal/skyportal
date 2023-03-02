@@ -3574,7 +3574,7 @@ class SourceCopyPhotometryHandler(BaseHandler):
                 **df.to_dict(orient='list'),
             }
 
-            add_external_photometry(data_out, self.current_user)
+            add_external_photometry(data_out, self.associated_user_object)
 
             self.push_all(
                 action="skyportal/REFRESH_SOURCE",

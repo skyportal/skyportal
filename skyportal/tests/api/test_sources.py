@@ -2398,7 +2398,7 @@ def test_copy_photometry_sources(
 
     status, data = api(
         "POST",
-        f"sources/{obj_id1}/copy",
+        f"sources/{obj_id1}/copy_photometry",
         data={
             "origin_id": obj_id2,
             "group_ids": [public_group.id],

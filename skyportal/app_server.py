@@ -408,7 +408,7 @@ skyportal_handlers = [
     (r'/api/photometry/origins', PhotometryOriginHandler),
     (r'/api/recurring_api(/.*)?', RecurringAPIHandler),
     (r'/api/roles', RoleHandler),
-    (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/copy', SourceCopyPhotometryHandler),
+    (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/copy_photometry', SourceCopyPhotometryHandler),
     (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/photometry', ObjPhotometryHandler),
     (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/spectra', ObjSpectraHandler),
     (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/offsets', SourceOffsetsHandler),

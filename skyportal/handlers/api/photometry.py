@@ -751,8 +751,7 @@ def get_group_ids(data, user):
         )
 
     # always add the single user group
-    if hasattr(user, 'single_user_group'):
-        group_ids.append(user.single_user_group.id)
+    group_ids.append(user.single_user_group.id)
     group_ids = list(set(group_ids))
     return group_ids
 
@@ -804,9 +803,8 @@ def add_external_photometry(json, user):
             'Please break up the data into smaller sets and try again'
         )
 
-    if hasattr(user, 'username'):
-        username = user.username
-        log(f'Pending request from {username} with {len(df.index)} rows')
+    username = user.username
+    log(f'Pending request from {username} with {len(df.index)} rows')
 
     # This lock ensures that the Photometry table data are not modified in any way
     # between when the query for duplicate photometry is first executed and
