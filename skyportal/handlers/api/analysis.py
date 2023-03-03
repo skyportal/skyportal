@@ -1392,6 +1392,7 @@ class AnalysisProductsHandler(BaseHandler):
                             await self.send_file(
                                 output_data, filename, output_type=output_type
                             )
+                            return
                     elif product_type.lower() == "results":
                         if not analysis.has_results_data:
                             return self.error(
@@ -1408,6 +1409,7 @@ class AnalysisProductsHandler(BaseHandler):
                                 buf.seek(0)
 
                                 await self.send_file(buf, filename, output_type='json')
+                                return
                             else:
                                 return self.success(data=result)
                         else:
@@ -1443,6 +1445,7 @@ class AnalysisProductsHandler(BaseHandler):
                             await self.send_file(
                                 output_data, filename, output_type=output_type
                             )
+                            return
                     else:
                         return self.error(
                             f"Invalid product type: {product_type}", status=404
