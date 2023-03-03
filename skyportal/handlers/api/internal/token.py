@@ -222,7 +222,7 @@ class TokenHandler(BaseHandler):
                         ]
                     ):
                         return self.error(
-                            "Improperly formatted parameter aclIds; must be an array of strings."
+                            "Improperly formatted parameter aclIds; must be an array of strings corresponding to valid ACLs."
                         )
                     if len(new_acl_ids) == 0:
                         return self.error(f'No new ACLs to add to token {token_id}')
