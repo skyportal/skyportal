@@ -8,6 +8,8 @@ const FETCH_USER_PROFILE_OK = "skyportal/FETCH_USER_PROFILE_OK";
 
 const GENERATE_TOKEN = "skyportal/GENERATE_TOKEN";
 
+const UPDATE_TOKEN = "skyportal/UPDATE_TOKEN";
+
 const UPDATE_USER_PREFERENCES = "skyportal/UPDATE_USER_PREFERENCES";
 
 const UPDATE_BASIC_USER_INFO = "skyportal/UPDATE_BASIC_USER_INFO";
@@ -34,6 +36,10 @@ export function fetchUserProfile() {
 
 export function createToken(form_data) {
   return API.POST("/api/internal/tokens", GENERATE_TOKEN, form_data);
+}
+
+export function updateToken(tokenID, form_data) {
+  return API.PUT(`/api/internal/tokens/${tokenID}`, UPDATE_TOKEN, form_data);
 }
 
 export function deleteToken(tokenID) {
