@@ -143,7 +143,7 @@ class TokenHandler(BaseHandler):
         ---
         description: Update token
         tags:
-          - telescopes
+          - tokens
         parameters:
           - in: path
             name: token_id
