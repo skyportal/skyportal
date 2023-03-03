@@ -176,7 +176,7 @@ class TokenHandler(BaseHandler):
                     return self.error(
                         'Either the specified token does not exist, '
                         'or the user does not have the necessary '
-                        'permissions to delete it.'
+                        'permissions to update it.'
                     )
 
                 data = self.get_json()
