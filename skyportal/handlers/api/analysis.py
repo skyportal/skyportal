@@ -1404,7 +1404,7 @@ class AnalysisProductsHandler(BaseHandler):
                             if download:
                                 filename = f"analysis_{analysis.obj_id}.json"
                                 buf = io.BytesIO()
-                                buf.write(result.encode('utf-8'))
+                                buf.write(json.dumps(result).encode('utf-8'))
                                 buf.seek(0)
 
                                 await self.send_file(buf, filename, output_type='json')
