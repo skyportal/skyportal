@@ -480,12 +480,9 @@ def annotate_analyses(plot, analyses, lower, upper):
 
     # get data from analyses
     a_mjd = [Time(a.last_activity, format='datetime').mjd for a in analyses]
-    a_mjd = [59309.0 for a in analyses]
     a_date = [a.last_activity.isoformat() for a in analyses]
     a_analysis_parameters = [str(a.analysis_parameters) for a in analyses]
     a_status_message = [a.status_message for a in analyses]
-
-    print(a_mjd, a_date, a_analysis_parameters, a_status_message)
 
     # plot the annotation using data for hover
     if len(a_mjd) > 0:
