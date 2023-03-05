@@ -382,7 +382,9 @@ const SourceDesktop = ({ source }) => {
                 &nbsp;
                 {source.duplicates.map((dupID) => (
                   <div key={dupID}>
-                    <Button size="small">{dupID}</Button>
+                    <Link to={`/source/${dupID}`} role="link" key={dupID}>
+                      <Button size="small">{dupID}</Button>
+                    </Link>
                     <Button
                       size="small"
                       type="button"
