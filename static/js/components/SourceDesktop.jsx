@@ -25,6 +25,7 @@ import CopyPhotometryDialog from "./CopyPhotometryDialog";
 import ClassificationList from "./ClassificationList";
 import ClassificationForm from "./ClassificationForm";
 import ShowClassification from "./ShowClassification";
+import ShowSummaries from "./ShowSummaries";
 import ThumbnailList from "./ThumbnailList";
 import SurveyLinkList from "./SurveyLinkList";
 import StarList from "./StarList";
@@ -38,7 +39,10 @@ import SourceNotification from "./SourceNotification";
 import EditSourceGroups from "./EditSourceGroups";
 import UpdateSourceCoordinates from "./UpdateSourceCoordinates";
 import UpdateSourceRedshift from "./UpdateSourceRedshift";
+import UpdateSourceSummary from "./UpdateSourceSummary";
+import StartBotSummary from "./StartBotSummary";
 import SourceRedshiftHistory from "./SourceRedshiftHistory";
+import ShowSummaryHistory from "./ShowSummaryHistory";
 import AnnotationsTable from "./AnnotationsTable";
 import AnalysisList from "./AnalysisList";
 import AnalysisForm from "./AnalysisForm";
@@ -336,6 +340,26 @@ const SourceDesktop = ({ source }) => {
           </div>
         ) : null}
         <div className={classes.sourceInfo}>
+          <div className={classes.redshiftInfo}>
+            <ShowSummaries summaries={source.summary_history} />
+            {source.summary_history?.length < 1 ||
+            !source.summary_history ||
+            source.summary_history[0].summary === null ? ( // eslint-disable-line
+              <div>
+                <b>Summarize: &nbsp;</b>
+              </div>
+            ) : null}
+            <UpdateSourceSummary source={source} />
+            {source.comments?.length > 1 ? (
+              <StartBotSummary obj_id={source.id} />
+            ) : null}
+            {source.summary_history?.length > 0 ? (
+              <ShowSummaryHistory
+                summaries={source.summary_history}
+                obj_id={source.id}
+              />
+            ) : null}
+          </div>
           <div className={classes.infoLine}>
             <ShowClassification
               classifications={source.classifications}
@@ -905,6 +929,8 @@ SourceDesktop.propTypes = {
     thumbnails: PropTypes.arrayOf(PropTypes.shape({})),
     redshift: PropTypes.number,
     redshift_error: PropTypes.number,
+    summary_history: PropTypes.arrayOf(PropTypes.shape({})), // eslint-disable-line react/forbid-prop-types
+    comments: PropTypes.arrayOf(PropTypes.shape({})),
     groups: PropTypes.arrayOf(PropTypes.shape({})),
     gal_lon: PropTypes.number,
     gal_lat: PropTypes.number,

@@ -538,6 +538,16 @@ class AnalysisServiceHandler(BaseHandler):
                     type: float
                     description: Max time in seconds to wait for the analysis service to complete. Default is 3600.0.
                     default: 3600.0
+                  is_summary:
+                    type: boolean
+                    description: |
+                        Established that the results on the resource as a summary
+                    default: false
+                  display_on_resource_dropdown:
+                    type: boolean
+                    description: |
+                        Show this analysis service on the analysis dropdown on the resource
+                    default: true
                   group_ids:
                     type: array
                     items:
@@ -810,6 +820,16 @@ class AnalysisServiceHandler(BaseHandler):
                     type: float
                     description: Max time in seconds to wait for the analysis service to complete. Default is 3600.0.
                     default: 3600.0
+                  is_summary:
+                    type: boolean
+                    description: |
+                        Establish results on the resource as a summary
+                    default: false
+                  display_on_resource_dropdown:
+                    type: boolean
+                    description: |
+                        Show this analysis service on the analysis dropdown on the resource
+                    default: true
                   group_ids:
                     type: array
                     items:
@@ -1100,7 +1120,7 @@ class AnalysisHandler(BaseHandler):
                 type: string
               description: |
                 Return any analysis on an object with ID objID
-            - in: path
+            - in: query
               name: analysisServiceID
               required: false
               schema:
@@ -1116,6 +1136,15 @@ class AnalysisHandler(BaseHandler):
                 Boolean indicating whether to include the data associated
                 with the analysis in the response. Could be a large
                 amount of data. Only works for single analysis requests.
+                Defaults to false.
+            - in: query
+              name: summaryOnly
+              nullable: true
+              schema:
+                type: boolean
+              description: |
+                Boolean indicating whether to return only analyses that
+                use analysis services with `is_summary` set to true.
                 Defaults to false.
             - in: query
               name: includeFilename
@@ -1152,6 +1181,15 @@ class AnalysisHandler(BaseHandler):
             "includeAnalysisData", False
         ) in ["True", "t", "true", "1", True, 1]
         include_filename = self.get_query_argument("includeFilename", False) in [
+            "True",
+            "t",
+            "true",
+            "1",
+            True,
+            1,
+        ]
+
+        summary_only = self.get_query_argument("summaryOnly", False) in [
             "True",
             "t",
             "true",
@@ -1226,6 +1264,7 @@ class AnalysisHandler(BaseHandler):
                                 a.analysis_service_id: {
                                     "analysis_service_name": analysis_service.display_name,
                                     "analysis_service_description": analysis_service.description,
+                                    "analysis_serivce_display_as_summary": analysis_service.is_summary,
                                 }
                             }
                         )
@@ -1241,6 +1280,12 @@ class AnalysisHandler(BaseHandler):
                     analysis_dict["groups"] = a.groups
                     if include_filename:
                         analysis_dict["filename"] = a._full_name
+                    if (
+                        summary_only
+                        and not service_info["analysis_serivce_display_as_summary"]
+                    ):
+                        # the analysis service is not a summary service, so skip returning this analysis
+                        continue
                     ret_array.append(analysis_dict)
             else:
                 return self.error(

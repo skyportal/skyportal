@@ -1,15 +1,17 @@
 import datetime
 
-from sqlalchemy.orm import sessionmaker, scoped_session
+from sqlalchemy.orm import sessionmaker, scoped_session, contains_eager
 
 from baselayer.log import make_log
 from baselayer.app.env import load_env
+from baselayer.app.flow import Flow
 
 from ..base import BaseHandler
 
-from ...models import (
-    DBSession,
-    ObjAnalysis,
+from ...models import DBSession, ObjAnalysis
+
+from .candidate import (
+    update_summary_history_if_relevant,
 )
 
 log = make_log('app/webhook')
@@ -76,7 +78,13 @@ class AnalysisWebhookHandler(BaseHandler):
             else:
                 session = Session(bind=DBSession.session_factory.kw["bind"])
             analysis = (
-                session.query(ObjAnalysis).filter(ObjAnalysis.token == token).first()
+                session.query(ObjAnalysis)
+                .join(ObjAnalysis.analysis_service)
+                .join(ObjAnalysis.obj)
+                .options(contains_eager(ObjAnalysis.analysis_service))
+                .options(contains_eager(ObjAnalysis.obj))
+                .filter(ObjAnalysis.token == token)
+                .first()
             )
             if not analysis:
                 return self.error("Invalid token", status=403)
@@ -130,6 +138,31 @@ class AnalysisWebhookHandler(BaseHandler):
             )
 
         session.commit()
+
+        # check the analysis type and push to the source
+        # if the analysis type is a summary
+        try:
+            if analysis.analysis_service.is_summary:
+                summary = {"summary": analysis.serialize_results_data()['summary']}
+                summary["created_at"] = analysis.created_at
+                summary["is_bot"] = True
+                summary["analysis_id"] = analysis.id
+                update_summary_history_if_relevant(
+                    summary, analysis.obj, analysis.author
+                )
+                session.commit()
+                log("analysis is a summary. Pushing to source.")
+                flow = Flow()
+                flow.push(
+                    '*',
+                    'skyportal/REFRESH_SOURCE',
+                    payload={'obj_key': analysis.obj.internal_key},
+                )
+            else:
+                log("analysis is not a summary. Not pushing to source.")
+        except Exception as e:
+            log(f"Error pushing to source: {e}")
+
         session.close()
 
         return self.success(data={"status": "success"})

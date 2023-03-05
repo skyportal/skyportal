@@ -116,6 +116,17 @@ const NewAnalysisService = () => {
         type: "string",
         title: "Authentication credentials for the service.",
       },
+      is_summary: {
+        type: "boolean",
+        title: "Establishes the results on the resource as a summary",
+        default: false,
+      },
+      display_on_resource_dropdown: {
+        type: "boolean",
+        title:
+          "Show this analysis service on the analysis dropdown on the resource",
+        default: true,
+      },
     },
     required: [
       "name",

@@ -241,15 +241,18 @@ const AnalysisForm = ({ obj_id }) => {
           data-testid="analysisServiceSelect"
           className={classes.Select}
         >
-          {analysisServiceList?.map((analysisService) => (
-            <MenuItem
-              value={analysisService.id}
-              key={analysisService.id}
-              className={classes.SelectItem}
-            >
-              {analysisService.name}
-            </MenuItem>
-          ))}
+          {analysisServiceList?.map(
+            (analysisService) =>
+              analysisService.display_on_resource_dropdown && (
+                <MenuItem
+                  value={analysisService.id}
+                  key={analysisService.id}
+                  className={classes.SelectItem}
+                >
+                  {analysisService.name}
+                </MenuItem>
+              )
+          )}
         </Select>
       </div>
       <GroupShareSelect

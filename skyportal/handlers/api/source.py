@@ -90,6 +90,7 @@ from ...utils.offset import (
 from .candidate import (
     grab_query_results,
     update_redshift_history_if_relevant,
+    update_summary_history_if_relevant,
     update_healpix_if_relevant,
     add_linked_thumbnails_and_push_ws_msg,
 )
@@ -2734,6 +2735,7 @@ class SourceHandler(BaseHandler):
                 'Invalid/missing parameters: ' f'{e.normalized_messages()}'
             )
         update_redshift_history_if_relevant(data, obj, self.associated_user_object)
+        update_summary_history_if_relevant(data, obj, self.associated_user_object)
 
         update_healpix_if_relevant(data, obj)
 

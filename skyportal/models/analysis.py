@@ -185,6 +185,28 @@ class AnalysisService(Base):
         ),
     )
 
+    display_on_resource_dropdown = sa.Column(
+        sa.Boolean,
+        default=True,
+        doc=(
+            "If true, this analysis service will be displayed as a possible option"
+            " for an end-user to run on an resource page (e.g. a source)."
+            " If false, then the analysis will still be available programmatically,"
+            " but will not be displayed as an option to end-users. Default: True."
+        ),
+    )
+
+    is_summary = sa.Column(
+        sa.Boolean,
+        default=False,
+        doc=(
+            "If true, the results of an analysis using this service will be saved"
+            " as a summary on the resource page (e.g. a source)."
+            " This is useful for AI generated summaries of a source that should be displayed"
+            " differently than the full results of an analysis. Default: False."
+        ),
+    )
+
     obj_analyses = relationship(
         'ObjAnalysis',
         back_populates='analysis_service',
