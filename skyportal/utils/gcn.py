@@ -325,7 +325,7 @@ def from_ellipse(localization_name, ra, dec, amaj, amin, phi):
         lat=Latitude(dec, u.deg),
         a=Angle(amaj, unit="deg"),
         b=Angle(amin, unit="deg"),
-        pa=Angle(np.mod(phi, 90.0), unit="deg"),
+        pa=Angle(np.mod(phi, 180.0), unit="deg"),
         max_depth=max_depth,
     ).flatten()
 
