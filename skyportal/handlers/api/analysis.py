@@ -1238,6 +1238,11 @@ class AnalysisHandler(BaseHandler):
                         return self.error('Cannot access this Analysis.', status=403)
 
                     analysis_dict = recursive_to_dict(analysis)
+
+                    # dont return the openai api key if its there
+                    if "analysis_parameters" in analysis_dict:
+                        analysis_dict["analysis_parameters"].pop("openai_api_key", None)
+
                     stmt = AnalysisService.select(self.current_user).where(
                         AnalysisService.id == analysis.analysis_service_id
                     )
@@ -1272,6 +1277,9 @@ class AnalysisHandler(BaseHandler):
                 analysis_services_dict = {}
                 for a in analyses:
                     analysis_dict = recursive_to_dict(a)
+                    if "analysis_parameters" in analysis_dict:
+                        analysis_dict["analysis_parameters"].pop("openai_api_key", None)
+
                     if a.analysis_service_id not in analysis_services_dict.keys():
                         stmt = AnalysisService.select(self.current_user).where(
                             AnalysisService.id == a.analysis_service_id
@@ -1487,6 +1495,9 @@ class AnalysisProductsHandler(BaseHandler):
                             )
 
                         result = analysis.serialize_results_data()
+                        if isinstance(result, dict):
+                            result = json.dumps(result)
+
                         if result:
                             download = self.get_query_argument("download", False)
                             if download:
