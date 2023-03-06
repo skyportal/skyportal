@@ -685,6 +685,11 @@ analysis_services:
   openai_analysis_service:
     port: 7003
     summary:
+      # set this global API key if the project
+      # will pay for the OpenAI costs. Otherwise
+      # individual users need to set their own key
+      # in the user preferences
+      api_key:
       temperature: 0.15
       max_tokens: 300
       top_p: 1.0

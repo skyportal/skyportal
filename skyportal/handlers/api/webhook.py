@@ -158,10 +158,8 @@ class AnalysisWebhookHandler(BaseHandler):
                     'skyportal/REFRESH_SOURCE',
                     payload={'obj_key': analysis.obj.internal_key},
                 )
-            else:
-                log("analysis is not a summary. Not pushing to source.")
         except Exception as e:
-            log(f"Error pushing to source: {e}")
+            log(f"Error pushing update to source: {e}")
 
         session.close()
 

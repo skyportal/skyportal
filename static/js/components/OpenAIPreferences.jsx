@@ -23,11 +23,10 @@ const useStyles = makeStyles((theme) => ({
 
 const OpenAIPreferences = () => {
   const classes = useStyles();
-  const OpenAI_preamble = useSelector((state) => state.config.OpenAIPreamble);
   const profile = useSelector((state) => state.profile.preferences);
   const dispatch = useDispatch();
   const [OpenAIapikey, setOpenAIapikey] = useState(
-    profile.OpenAI_integration?.apikey
+    profile.summary?.OpenAI?.openai_apikey
   );
   const [OpenAIapikeyerror, setOpenAIapikeyerror] = useState(false);
 
@@ -36,11 +35,13 @@ const OpenAIPreferences = () => {
   };
 
   const handleBlur = () => {
-    if (OpenAIapikey?.startsWith(OpenAI_preamble)) {
+    if (OpenAIapikey?.startsWith("sk-")) {
       setOpenAIapikeyerror(false);
       const prefs = {
-        OpenAI_integration: {
-          openai_apikey: OpenAIapikey,
+        summary: {
+          OpenAI: {
+            apikey: OpenAIapikey,
+          },
         },
       };
       dispatch(profileActions.updateUserPreferences(prefs));
@@ -51,11 +52,12 @@ const OpenAIPreferences = () => {
 
   const prefToggled = (event) => {
     const prefs = {
-      OpenAI_integration: {
-        [event.target.name]: event.target.checked,
+      summary: {
+        OpenAI: {
+          [event.target.name]: event.target.checked,
+        },
       },
     };
-
     dispatch(profileActions.updateUserPreferences(prefs));
   };
 
@@ -72,16 +74,16 @@ const OpenAIPreferences = () => {
         <FormControlLabel
           control={
             <Switch
-              checked={profile.OpenAI_integration?.active === true}
+              checked={profile.summary?.OpenAI?.active === true}
               name="active"
               onChange={prefToggled}
               data-testid="OpenAI_toggle"
             />
           }
-          label={profile.OpenAI_integration?.active ? "Active" : "Inactive"}
+          label={profile.summary?.OpenAI?.active ? "Active" : "Inactive"}
         />
       </FormGroup>
-      {profile.OpenAI_integration?.active && (
+      {profile.summary?.OpenAI?.active && (
         <div>
           <TextField
             name="apikey"
@@ -89,7 +91,7 @@ const OpenAIPreferences = () => {
             className={classes.textField}
             fullWidth
             placeholder="API KEY"
-            defaultValue={profile.OpenAI_integration?.apikey}
+            defaultValue={profile.summary?.OpenAI?.apikey}
             onChange={handleChange}
             onBlur={handleBlur}
             margin="normal"

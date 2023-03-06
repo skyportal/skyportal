@@ -13,6 +13,7 @@ from tornado.ioloop import IOLoop
 from marshmallow.exceptions import ValidationError
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import contains_eager
 
 from baselayer.app.flow import Flow
 from baselayer.app.access import auth_or_token, permissions
@@ -39,6 +40,7 @@ from ...models import (
     Annotation,
     Classification,
     Obj,
+    User,
     Comment,
     ObjAnalysis,
     DefaultAnalysis,
@@ -1054,6 +1056,22 @@ class AnalysisHandler(BaseHandler):
                     f'Invalid analysis_parameters: {analysis_parameters}.', status=400
                 )
 
+            if analysis_service.is_summary:
+                user_id = self.associated_user_object.id
+                user = session.scalars(
+                    User.select(session.user_or_token, mode="update").where(
+                        User.id == user_id
+                    )
+                ).first()
+                if user is None:
+                    return self.error('Cannot find user.', status=400)
+                if "summary" in user.preferences:
+                    if "OpenAI" in user.preferences["summary"]:
+                        if user.preferences["summary"]["OpenAI"]["active"]:
+                            analysis_parameters["openai_api_key"] = user.preferences[
+                                "summary"
+                            ]["OpenAI"]["apikey"]
+
             group_ids = data.pop('group_ids', None)
             if not group_ids:
                 group_ids = [g.id for g in self.current_user.accessible_groups]
@@ -1316,14 +1334,38 @@ class AnalysisHandler(BaseHandler):
 
         with self.Session() as session:
             if analysis_resource_type.lower() == 'obj':
-                stmt = ObjAnalysis.select(self.current_user).where(
-                    ObjAnalysis.id == analysis_id
+                stmt = (
+                    ObjAnalysis.select(self.current_user)
+                    .join(ObjAnalysis.obj)
+                    .join(ObjAnalysis.analysis_service)
+                    .options(contains_eager(ObjAnalysis.analysis_service))
+                    .options(contains_eager(ObjAnalysis.obj))
+                    .where(ObjAnalysis.id == analysis_id)
                 )
                 analysis = session.scalars(stmt).first()
                 if analysis is None:
                     return self.error('Cannot access this Analysis.', status=403)
+
+                if analysis.obj.summary_history is not None:
+                    analysis.obj.summary_history = [
+                        x
+                        for x in analysis.obj.summary_history
+                        if x.get("analysis_id", -1) != analysis.id
+                    ]
                 session.delete(analysis)
                 session.commit()
+
+                try:
+                    if analysis.analysis_service.is_summary:
+                        flow = Flow()
+                        flow.push(
+                            '*',
+                            'skyportal/REFRESH_SOURCE',
+                            payload={'obj_key': analysis.obj.internal_key},
+                        )
+                except Exception as e:
+                    log(f"Error pushing updates to source: {e}")
+
                 return self.success()
             else:
                 return self.error(
