@@ -73,6 +73,9 @@ const StartBotSummary = ({ obj_id }) => {
   );
 
   const allGroups = useSelector((state) => state.groups.all);
+  const prefs = useSelector((state) => state.profile.preferences);
+  const config = useSelector((state) => state.config);
+
   const [selectedAnalysisServiceId, setSelectedAnalysisServiceId] =
     useState(null);
   const [selectedGroupIds, setSelectedGroupIds] = useState([]);
@@ -215,10 +218,21 @@ const StartBotSummary = ({ obj_id }) => {
       ...OptionalParameters,
     },
   };
+
+  const showBotIcon = () => {
+    if (
+      analysisServiceList?.filter((service) => service.is_summary).length > 0 &&
+      (prefs?.summary?.OpenAI?.active === true ||
+        config?.openai_summary_apikey_set === true)
+    ) {
+      return true;
+    }
+    return false;
+  };
+
   return (
     <>
-      {analysisServiceList?.filter((service) => service.is_summary).length >
-      0 ? (
+      {showBotIcon() ? (
         <Tooltip title="Start AI Summary">
           <SmartToyTwoToneIcon
             data-testid="runSummaryIconButton"

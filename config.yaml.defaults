@@ -689,9 +689,11 @@ analysis_services:
       # will pay for the OpenAI costs. Otherwise
       # individual users need to set their own key
       # in the user preferences
+      # Get a global key at:
+      #   https://platform.openai.com/account/api-keys
       api_key:
-      temperature: 0.15
-      max_tokens: 300
+      temperature: 0.2
+      max_tokens: 350
       top_p: 1.0
       frequency_penalty: 0.0
       model: gpt-3.5-turbo
