@@ -57,6 +57,7 @@ from ...models import (
     DBSession,
     EventObservationPlan,
     GcnEvent,
+    GcnTrigger,
     Group,
     Instrument,
     InstrumentField,
@@ -803,6 +804,22 @@ class ObservationPlanSubmitHandler(BaseHandler):
                 )
             finally:
                 session.commit()
+
+            try:
+                if (
+                    'submit' in observation_plan_request.status
+                    and 'fail' not in observation_plan_request.status
+                ):
+                    gcn_triggered = GcnTrigger(
+                        dateobs=observation_plan_request.gcnevent.dateobs,
+                        allocation_id=observation_plan_request.allocation_id,
+                        triggered=True,
+                    )
+                    session.add(gcn_triggered)
+                    session.commit()
+            except Exception:
+                pass  # this is not a critical error, we can continue
+
             self.push_all(
                 action="skyportal/REFRESH_GCN_EVENT",
                 payload={"gcnEvent_dateobs": observation_plan_request.gcnevent.dateobs},

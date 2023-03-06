@@ -60,9 +60,9 @@ const FETCH_GCN_TACH_OK = "skyportal/FETCH_GCN_TACH_OK";
 
 const PUT_GCN_TRIGGERED = "skyportal/PUT_GCN_TRIGGERED";
 const FETCH_GCN_TRIGGERED = "skyportal/FETCH_GCN_TRIGGERED";
-// const FETCH_GCN_TRIGGERED_OK = "skyportal/FETCH_GCN_TRIGGERED_OK";
+const FETCH_GCN_TRIGGERED_OK = "skyportal/FETCH_GCN_TRIGGERED_OK";
 const DELETE_GCN_TRIGGERED = "skyportal/DELETE_GCN_TRIGGERED";
-// const REFRESH_GCN_TRIGGERED = "skyportal/REFRESH_GCN_TRIGGERED";
+const REFRESH_GCN_TRIGGERED = "skyportal/REFRESH_GCN_TRIGGERED";
 
 export const fetchGcnEvent = (dateobs) =>
   API.GET(`/api/gcn_event/${dateobs}`, FETCH_GCNEVENT);
@@ -294,6 +294,12 @@ messageHandler.add((actionType, payload, dispatch, getState) => {
       });
     }
   }
+  if (actionType === REFRESH_GCN_TRIGGERED) {
+    const loaded_gcnevent_key = gcnEvent?.dateobs;
+    if (loaded_gcnevent_key === payload.gcnEvent_dateobs) {
+      dispatch(fetchGcnTrigger({ dateobs: gcnEvent.dateobs }));
+    }
+  }
 });
 
 const reducer = (state = null, action) => {
@@ -329,6 +335,12 @@ const reducer = (state = null, action) => {
       return {
         ...state,
         circulars: action.data.circulars,
+      };
+    }
+    case FETCH_GCN_TRIGGERED_OK: {
+      return {
+        ...state,
+        gcn_triggers: action.data,
       };
     }
     default:

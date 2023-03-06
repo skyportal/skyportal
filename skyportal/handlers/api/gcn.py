@@ -40,7 +40,7 @@ from tabulate import tabulate
 import datetime
 from ...utils.UTCTZnaiveDateTime import UTCTZnaiveDateTime
 
-from baselayer.app.access import auth_or_token
+from baselayer.app.access import auth_or_token, permissions
 from baselayer.log import make_log
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
@@ -2632,7 +2632,7 @@ class GcnEventInstrumentFieldHandler(BaseHandler):
 
 
 class GcnEventTriggerHandler(BaseHandler):
-    @auth_or_token
+    @permissions(['Manage allocations'])
     def get(self, dateobs, allocation_id=None):
 
         dateobs = dateobs.strip()
@@ -2653,7 +2653,7 @@ class GcnEventTriggerHandler(BaseHandler):
                             GcnTrigger.dateobs == dateobs,
                             GcnTrigger.allocation_id == allocation_id,
                         )
-                    )
+                    ).all()
                     return self.success(data=gcn_triggered)
                 except Exception as e:
                     return self.error(
@@ -2666,18 +2666,15 @@ class GcnEventTriggerHandler(BaseHandler):
                         GcnTrigger.select(session.user_or_token).where(
                             GcnTrigger.dateobs == dateobs
                         )
-                    )
+                    ).all()
                     return self.success(data=gcn_triggered)
                 except Exception as e:
                     return self.error(
                         f'Failed to get gcn_event triggered status: str({e})'
                     )
 
-    @auth_or_token
+    @permissions(['Manage allocations'])
     def put(self, dateobs, allocation_id):
-        print("called the right function")
-        print(dateobs)
-        print(allocation_id)
         dateobs = dateobs.strip()
         try:
             arrow.get(dateobs)
@@ -2687,7 +2684,6 @@ class GcnEventTriggerHandler(BaseHandler):
         data = self.get_json()
 
         triggered = data.get('triggered', None)
-        print(triggered)
         if triggered is None:
             return self.error("Must specify triggered status")
         elif triggered in ['True', 'true', 't', 'T', True, 'triggered']:
@@ -2737,12 +2733,16 @@ class GcnEventTriggerHandler(BaseHandler):
                 else:
                     gcn_triggered.triggered = triggered
                 session.commit()
+                self.push_all(
+                    "skyportal/REFRESH_GCN_TRIGGERED",
+                    payload={"gcnEvent_dateobs": dateobs},
+                )
                 return self.success(data=gcn_triggered)
             except Exception as e:
                 raise e
                 return self.error(f'Failed to set triggered status: str({e})')
 
-    @auth_or_token
+    @permissions(['Manage allocations'])
     def delete(self, dateobs, allocation_id):
 
         dateobs = dateobs.strip()
@@ -2769,6 +2769,14 @@ class GcnEventTriggerHandler(BaseHandler):
                 if gcn_triggered is not None:
                     session.delete(gcn_triggered)
                     session.commit()
-                return self.success(data=gcn_triggered)
+                    self.push_all(
+                        "skyportal/REFRESH_GCN_TRIGGERED",
+                        payload={"gcnEvent_dateobs": dateobs},
+                    )
+                    return self.success(data=gcn_triggered)
+                else:
+                    return self.error(
+                        f'No gcn triggered status for dateobs={dateobs} and allocation_id={allocation_id}'
+                    )
             except Exception as e:
                 return self.error(f'Failed to delete triggered status: str({e})')

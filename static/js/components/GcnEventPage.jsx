@@ -352,7 +352,7 @@ const GcnEventPage = ({ route }) => {
                   ({dayjs().to(dayjs.utc(`${gcnEvent.dateobs}Z`))})
                 </div>
                 <div>
-                  <GcnTags gcnEvent={gcnEvent} />
+                  <GcnTags gcnEvent={gcnEvent} show_title />
                 </div>
                 <div className={styles.gcnEventContainer}>
                   <GcnEventAllocationTriggers gcnEvent={gcnEvent} />

@@ -22,9 +22,17 @@ const useStyles = makeStyles(() => ({
   Terrestrial: {
     background: "#999999!important",
   },
+  gcnTags: {
+    display: "flex",
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  title: {
+    marginRight: "0.5rem",
+  },
 }));
 
-const RenderTags = ({ gcnEvent }) => {
+const RenderTags = ({ gcnEvent, show_title = false }) => {
   const styles = useStyles();
 
   const gcnTags = [];
@@ -42,17 +50,14 @@ const RenderTags = ({ gcnEvent }) => {
   const localizationTagsUnique = [...new Set(localizationTags)];
 
   return (
-    <div>
-      <div>
-        {gcnTagsUnique.map((tag) => (
-          <Chip className={styles[tag]} size="small" label={tag} key={tag} />
-        ))}
-      </div>
-      <div>
-        {localizationTagsUnique.map((tag) => (
-          <Chip className={styles[tag]} size="small" label={tag} key={tag} />
-        ))}
-      </div>
+    <div className={styles.gcnTags}>
+      {show_title && <h4 className={styles.title}>Tags:</h4>}
+      {gcnTagsUnique.map((tag) => (
+        <Chip className={styles[tag]} size="small" label={tag} key={tag} />
+      ))}
+      {localizationTagsUnique.map((tag) => (
+        <Chip className={styles[tag]} size="small" label={tag} key={tag} />
+      ))}
     </div>
   );
 };
@@ -68,6 +73,10 @@ RenderTags.propTypes = {
       })
     ),
   }).isRequired,
+  show_title: PropTypes.bool,
 };
 
+RenderTags.defaultProps = {
+  show_title: false,
+};
 export default RenderTags;

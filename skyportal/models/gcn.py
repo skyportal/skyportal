@@ -13,8 +13,12 @@ from baselayer.app.models import (
     Base,
     DBSession,
     AccessibleIfUserMatches,
+    CustomUserAccessControl,
+    UserAccessControl,
+    safe_aliased,
 )
 from .group import accessible_by_group_members
+from .allocation import Allocation, AllocationUser
 
 SOURCE_RADIUS_THRESHOLD = 5 / 60.0  # 5 arcmin in degrees
 
@@ -415,6 +419,27 @@ class GcnEvent(Base):
                 return None
 
 
+def gcntrigger_allocationuser_access_logic(cls, user_or_token):
+    aliased = safe_aliased(cls)
+    user_id = UserAccessControl.user_id_from_user_or_token(user_or_token)
+    user_allocation_admin = (
+        DBSession()
+        .query(Allocation)
+        .join(AllocationUser, AllocationUser.allocation_id == Allocation.id)
+        .filter(sa.and_(AllocationUser.user_id == user_id))
+    )
+    query = (
+        DBSession().query(cls).join(aliased, cls.allocation_id == aliased.allocation_id)
+    )
+    if not user_or_token.is_system_admin:
+        query = query.filter(
+            aliased.allocation_id.in_(
+                [allocation.id for allocation in user_allocation_admin.all()]
+            )
+        )
+    return query
+
+
 class GcnTrigger(Base):
     """Store a triggered or passed status by allocation for a gcn event."""
 
@@ -422,7 +447,9 @@ class GcnTrigger(Base):
     # it can be edited only by an admin of the allocation
     # it can be created only by an allocation admin or superadmin
 
-    # create = update = delete = CustomUserAccessControl(allocationuser_access_logic) TODO: add this back in
+    create = update = delete = CustomUserAccessControl(
+        gcntrigger_allocationuser_access_logic
+    )
 
     dateobs = sa.Column(
         sa.ForeignKey('gcnevents.dateobs', ondelete="CASCADE"),
