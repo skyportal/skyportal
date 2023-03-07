@@ -176,7 +176,6 @@ def post_gcnevent_from_xml(payload, user_id, session):
         dateobs=event.dateobs,
         sent_by_id=user.id,
     )
-    print(gcn_notice)
 
     detectors = []
     for tag in tags:
