@@ -33,6 +33,30 @@ export const useStyles = makeStyles((theme) => ({
   classificationDeleteDisabled: {
     opacity: 0,
   },
+  chip_confirmed: {
+    margin: theme.spacing(0.5),
+    fontSize: "1.2rem",
+    fontWeight: "bold",
+    background: "#03c04a!important",
+  },
+  chip_rejected: {
+    margin: theme.spacing(0.5),
+    fontSize: "1.2rem",
+    fontWeight: "bold",
+    background: "#ff0000!important",
+  },
+  chip_not_confirmed: {
+    margin: theme.spacing(0.5),
+    fontSize: "1.2rem",
+    fontWeight: "bold",
+    background: "#3a87ad!important",
+  },
+  chip_obs: {
+    margin: theme.spacing(0.5),
+    fontSize: "1.2rem",
+    fontWeight: "bold",
+    background: "#f89406!important",
+  },
 }));
 
 const ClassificationRow = ({ classifications }) => {
@@ -98,6 +122,44 @@ const ClassificationRow = ({ classifications }) => {
   };
 
   const classification = classifications[0];
+
+  const confirmed_classes = useSelector(
+    (state) => state.config.classificationsConfirmedClasses
+  );
+  const rejected_classes = useSelector(
+    (state) => state.config.classificationsRejectedClasses
+  );
+  const not_confirmed_classes = useSelector(
+    (state) => state.config.classificationsNotConfirmedClasses
+  );
+  const obs_classes = useSelector(
+    (state) => state.config.classificationsObsClasses
+  );
+
+  const test_confirmed_classes = confirmed_classes.includes(
+    classification.classification
+  );
+  const test_rejected_classes = rejected_classes.includes(
+    classification.classification
+  );
+  const test_not_confirmed_classes = not_confirmed_classes.includes(
+    classification.classification
+  );
+  const test_obs_classes = obs_classes.includes(classification.classification);
+
+  let chip_choice = classes.chip;
+  if (test_rejected_classes) {
+    chip_choice = classes.chip_rejected;
+  }
+  if (test_confirmed_classes) {
+    chip_choice = classes.chip_confirmed;
+  }
+  if (test_obs_classes) {
+    chip_choice = classes.chip_obs;
+  }
+  if (test_not_confirmed_classes) {
+    chip_choice = classes.chip_not_confirmed;
+  }
 
   const upvoterIds = [];
   const downvoterIds = [];
@@ -231,7 +293,7 @@ const ClassificationRow = ({ classifications }) => {
           }
           key={`${classification.modified}tb`}
           size="small"
-          className={classes.chip}
+          className={chip_choice}
         />
       </Tooltip>
     </div>
