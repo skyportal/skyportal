@@ -176,6 +176,7 @@ def post_gcnevent_from_xml(payload, user_id, session):
         dateobs=event.dateobs,
         sent_by_id=user.id,
     )
+    print(gcn_notice)
 
     detectors = []
     for tag in tags:
@@ -852,7 +853,7 @@ class GcnEventHandler(BaseHandler):
                             joinedload(GcnEvent.localizations).joinedload(
                                 Localization.properties
                             ),
-                            joinedload(GcnEvent.gcn_notices),
+                            joinedload(GcnEvent.gcn_notices).undefer(GcnNotice.content),
                             joinedload(GcnEvent.observationplan_requests)
                             .joinedload(ObservationPlanRequest.allocation)
                             .joinedload(Allocation.instrument),
@@ -916,6 +917,7 @@ class GcnEventHandler(BaseHandler):
                         key=lambda x: x["created_at"],
                         reverse=True,
                     ),
+                    "gcn_notices": [notice.to_dict() for notice in event.gcn_notices],
                 }
 
                 return self.success(data=data)
