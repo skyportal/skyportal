@@ -68,7 +68,11 @@ const NewGcnEvent = () => {
       if (
         !formData.polygon &&
         !formData.skymap &&
-        (!formData.ra || !formData.dec || !formData.error)
+        !(
+          formData.ra !== undefined &&
+          formData.dec !== undefined &&
+          formData.error !== undefined
+        )
       ) {
         errors.skymap.addError(
           "Either (i) ra, dec, and error or (ii) polygon or (iii) skymap must be defined if not uploading VOEvent"

@@ -1,6 +1,8 @@
+from marshmallow.exceptions import ValidationError
+
 from ...base import BaseHandler
 from baselayer.app.access import auth_or_token
-from ....models import Token, User
+from ....models import ACL, Token, User
 from ....model_util import create_token
 
 
@@ -134,6 +136,118 @@ class TokenHandler(BaseHandler):
                 stmt = stmt.where(Token.created_by == user_id)
             data = session.scalars(stmt).all()
             return self.success(data=data)
+
+    @auth_or_token
+    def put(self, token_id):
+        """
+        ---
+        description: Update token
+        tags:
+          - tokens
+        parameters:
+          - in: path
+            name: token_id
+            required: true
+            schema:
+              type: integer
+        requestBody:
+          content:
+            application/json:
+              schema: Token
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+
+        with self.Session() as session:
+            try:
+                token = session.scalars(
+                    Token.select(session.user_or_token, mode="update").where(
+                        Token.id == token_id
+                    )
+                ).first()
+                if token is None:
+                    return self.error(
+                        'Either the specified token does not exist, '
+                        'or the user does not have the necessary '
+                        'permissions to update it.'
+                    )
+
+                data = self.get_json()
+                data['id'] = token_id
+
+                if 'user_id' in data:
+                    user_id = data['user_id']
+                    user = session.scalars(
+                        User.select(session.user_or_token).where(User.id == user_id)
+                    ).first()
+                else:
+                    user = self.associated_user_object
+                    user_id = user.id
+
+                schema = Token.__schema__()
+                try:
+                    schema.load(data, partial=True)
+                except ValidationError as e:
+                    return self.error(
+                        'Invalid/missing parameters: ' f'{e.normalized_messages()}'
+                    )
+                if 'name' in data:
+                    token.name = data['name']
+
+                if 'acls' in data:
+                    token_acls = set(data['acls'])
+                    if not all([acl_id in user.permissions for acl_id in token_acls]):
+                        return self.error(
+                            "User has attempted to grant token ACLs they do not have "
+                            "access to. Please try again."
+                        )
+
+                    new_acl_ids = list(set(token_acls))
+                    if not all(
+                        [
+                            session.scalars(
+                                ACL.select(session.user_or_token).where(
+                                    ACL.id == acl_id
+                                )
+                            ).first()
+                            is not None
+                            for acl_id in new_acl_ids
+                        ]
+                    ):
+                        return self.error(
+                            "Improperly formatted parameter aclIds; must be an array of strings corresponding to valid ACLs."
+                        )
+                    if len(new_acl_ids) == 0:
+                        return self.error(f'No new ACLs to add to token {token_id}')
+
+                    new_acls = (
+                        session.scalars(
+                            ACL.select(session.user_or_token).where(
+                                ACL.id.in_(new_acl_ids)
+                            )
+                        )
+                        .unique()
+                        .all()
+                    )
+
+                    token.acls = new_acls
+                    session.add(token)
+
+                session.commit()
+                self.push(
+                    action='skyportal/FETCH_USER_PROFILE',
+                )
+
+                return self.success()
+            except Exception as e:
+                return self.error(f'Could not update token: {e}')
 
     @auth_or_token
     def delete(self, token_id):

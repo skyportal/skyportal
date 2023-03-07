@@ -17,6 +17,7 @@ from tornado.ioloop import IOLoop
 import io
 from dateutil.parser import isoparse
 import numpy as np
+import pandas as pd
 import sqlalchemy as sa
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm import sessionmaker, scoped_session
@@ -91,7 +92,7 @@ from .candidate import (
     update_healpix_if_relevant,
     add_linked_thumbnails_and_push_ws_msg,
 )
-from .photometry import serialize
+from .photometry import serialize, add_external_photometry
 from .color_mag import get_color_mag
 
 DEFAULT_SOURCES_PER_PAGE = 100
@@ -3448,3 +3449,136 @@ class SourceObservabilityPlotHandler(BaseHandler):
             data = io.BytesIO(buf.read())
 
             await self.send_file(data, filename, output_type=output_format)
+
+
+class SourceCopyPhotometryHandler(BaseHandler):
+    @permissions(["Upload data"])
+    def post(self, target_id):
+        """
+        ---
+        description: Copy all photometry points from one source to another
+        tags:
+          - sources
+          - photometry
+        parameters:
+          - in: path
+            name: target_id
+            required: true
+            schema:
+              type: string
+            description: |
+              The obj_id of the target Source (to which the photometry is being copied to)
+        requestBody:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  group_ids:
+                    type: array
+                    items:
+                      type: integer
+                    description: |
+                      List of IDs of groups to give photometry access to
+                  origin_id:
+                    type: string
+                    description: |
+                      The ID of the Source's Obj the photometry is being copied from
+                required:
+                  - group_ids
+                  - origin_id
+        responses:
+          200:
+            content:
+              application/json:
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+        """
+
+        data = self.get_json()
+
+        if data.get("group_ids") is None:
+            return self.error("Missing required parameter `groupIds`")
+        try:
+            group_ids = [int(gid) for gid in data["group_ids"]]
+        except ValueError:
+            return self.error(
+                "Invalid value provided for `groupIDs`; unable to parse "
+                "all list items to integers."
+            )
+
+        if data.get("origin_id") is None:
+            return self.error("Missing required parameter `duplicateId`")
+
+        origin_id = data.get("origin_id")
+
+        with self.Session() as session:
+            s = session.scalars(
+                Obj.select(self.current_user).where(Obj.id == target_id)
+            ).first()
+            if s is None:
+                return self.error(f"Source {target_id} not found")
+
+            d = session.scalars(
+                Obj.select(self.current_user).where(Obj.id == origin_id)
+            ).first()
+            if d is None:
+                return self.error("Duplicate source {origin_id} not found")
+
+            groups = (
+                session.scalars(
+                    Group.select(self.current_user).where(Group.id.in_(group_ids))
+                )
+                .unique()
+                .all()
+            )
+            if {g.id for g in groups} != set(group_ids):
+                return self.error(
+                    f'Cannot find one or more groups with IDs: {group_ids}.'
+                )
+
+            data = session.scalars(
+                Photometry.select(self.current_user)
+                .options(
+                    joinedload(Photometry.instrument).joinedload(Instrument.telescope)
+                )
+                .where(Photometry.obj_id == origin_id)
+            ).all()
+
+            query_result = []
+            for p in data:
+                instrument = p.instrument
+                result = serialize(p, 'ab', 'both', groups=False, annotations=False)
+                query_result.append(result)
+
+            df = pd.DataFrame.from_dict(query_result)
+            if df.empty:
+                return self.error(f"No photometry found with source {origin_id}")
+
+            drop_columns = list(
+                set(df.columns.values)
+                - {'mjd', 'ra', 'dec', 'mag', 'magerr', 'limiting_mag', 'filter'}
+            )
+
+            df.drop(
+                columns=drop_columns,
+                inplace=True,
+            )
+            df['magsys'] = 'ab'
+
+            data_out = {
+                'obj_id': target_id,
+                'instrument_id': instrument.id,
+                'group_ids': [g.id for g in groups],
+                **df.to_dict(orient='list'),
+            }
+
+            add_external_photometry(data_out, self.associated_user_object)
+
+            self.push_all(
+                action="skyportal/REFRESH_SOURCE",
+                payload={"obj_key": s.internal_key},
+            )
+
+            return self.success()

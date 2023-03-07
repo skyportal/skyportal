@@ -46,6 +46,7 @@ import os
 from baselayer.app.env import load_env
 from skyportal.models import (
     Obj,
+    ObjAnalysis,
     Annotation,
     AnnotationOnSpectrum,
     Photometry,
@@ -452,6 +453,66 @@ def annotate_spec(plot, spectra, lower, upper):
                     ("inst", "@s_inst"),
                 ],
                 renderers=[spec_r],
+            )
+        )
+
+
+def annotate_analyses(plot, analyses, lower, upper):
+    """Annotate photometry plot with analysis markers.
+
+    Parameters
+    ----------
+    plot : bokeh figure object
+        Figure to be annotated.
+    analyses : DBSession object
+        Results of query for analyses of object.
+    lower, upper : float
+        Plot limits allowing calculation of annotation symbol y value.
+
+    Returns
+    -------
+    None
+    """
+    # get y position of annotation
+    text_y = upper - (upper - lower) * 0.05
+    a_y = [text_y] * len(analyses)
+    a_text = ['A'] * len(analyses)
+
+    # get data from analyses
+    a_mjd = [Time(a.last_activity, format='datetime').mjd for a in analyses]
+    a_date = [a.last_activity.isoformat() for a in analyses]
+    a_analysis_parameters = [str(a.analysis_parameters) for a in analyses]
+    a_status_message = [a.status_message for a in analyses]
+
+    # plot the annotation using data for hover
+    if len(a_mjd) > 0:
+        analysis_r = plot.text(
+            x='a_mjd',
+            y='a_y',
+            text='a_text',
+            text_alpha=0.3,
+            text_align='center',
+            source=ColumnDataSource(
+                data=dict(
+                    a_mjd=a_mjd,
+                    a_y=a_y,
+                    a_date=a_date,
+                    a_analysis_parameters=a_analysis_parameters,
+                    a_status_message=a_status_message,
+                    a_text=a_text,
+                )
+            ),
+        )
+        plot.add_tools(
+            HoverTool(
+                tooltips=[
+                    ("Analysis", ""),
+                    ("mjd", "@a_mjd{0.000000}"),
+                    ("date", "@a_date"),
+                    ("params", "@a_analysis_parameters"),
+                    ("status", "@a_status_message"),
+                ],
+                renderers=[analysis_r],
             )
         )
 
@@ -1612,7 +1673,7 @@ def add_widgets(
 
 
 def make_photometry_panel(
-    panel_name, device, width, user, data, obj_id, spectra, session
+    panel_name, device, width, user, data, obj_id, spectra, analyses, session
 ):
     """Makes a panel for the photometry plot.
 
@@ -1633,6 +1694,8 @@ def make_photometry_panel(
         ID of the source/object the photometry is for
     spectra : list of Spectra objects
         The source/object's spectra
+    analyses : list of ObjAnalysis objects
+        The source/object's analyses
     session: sqlalchemy.Session
         Database session for this transaction
 
@@ -1844,6 +1907,7 @@ def make_photometry_panel(
 
     if panel_name == 'mag' or panel_name == 'flux':
         annotate_spec(plot, spectra, y_range[0], y_range[1])
+        annotate_analyses(plot, analyses, y_range[0], y_range[1])
 
     layout = column(
         plot,
@@ -1963,12 +2027,22 @@ async def photometry_plot(obj_id, user_id, session, width=600, device="browser")
     # keep track of things that are only upper limits
     data['hasflux'] = ~data['flux'].isna()
 
+    analyses = (
+        session.scalars(
+            ObjAnalysis.select(session.user_or_token)
+            .where(ObjAnalysis.obj_id == obj_id)
+            .where(ObjAnalysis.status == "completed")
+        )
+        .unique()
+        .all()
+    )
+
     panel_names = ['mag', 'flux', 'period']
     panels = []
 
     for panel_name in panel_names:
         panel = make_photometry_panel(
-            panel_name, device, width, user, data, obj_id, spectra, session
+            panel_name, device, width, user, data, obj_id, spectra, analyses, session
         )
         panels.append(panel)
     tabs = Tabs(
