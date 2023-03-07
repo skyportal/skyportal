@@ -184,6 +184,13 @@ User.annotations_on_spectra = relationship(
     cascade="delete",
     passive_deletes=True,
 )
+User.annotations_on_photometry = relationship(
+    "AnnotationOnPhotometry",
+    back_populates="author",
+    foreign_keys="AnnotationOnPhotometry.author_id",
+    cascade="delete",
+    passive_deletes=True,
+)
 User.comments_on_gcns = relationship(
     "CommentOnGCN",
     back_populates="author",
@@ -295,6 +302,13 @@ User.assignments = relationship(
     doc="Objs the User has assigned to ObservingRuns.",
     foreign_keys="ClassicalAssignment.requester_id",
 )
+User.recurring_apis = relationship(
+    "RecurringAPI",
+    back_populates="owner",
+    foreign_keys="RecurringAPI.owner_id",
+    cascade="delete",
+    passive_deletes=True,
+)
 User.gcnevents = relationship(
     'GcnEvent',
     back_populates='sent_by',
@@ -306,6 +320,12 @@ User.gcnnotices = relationship(
     back_populates='sent_by',
     passive_deletes=True,
     doc='The GcnNotices saved by this user',
+)
+User.gcnsummaries = relationship(
+    'GcnSummary',
+    back_populates='sent_by',
+    passive_deletes=True,
+    doc='The gcnsummaries saved by this user',
 )
 User.gcntags = relationship(
     'GcnTag',

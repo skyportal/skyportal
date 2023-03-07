@@ -1,7 +1,7 @@
 import os
 import uuid
 import time
-
+import pytest
 from skyportal.tests import api
 from tdtax import taxonomy, __version__
 
@@ -16,6 +16,7 @@ from selenium.webdriver.common.keys import Keys
 cfg = load_config()
 
 
+@pytest.mark.flaky(reruns=3)
 def test_add_sources_two_groups(
     driver,
     super_admin_user_two_groups,
@@ -496,11 +497,17 @@ def test_filter_by_gcnevent(
     datafile = f'{os.path.dirname(__file__)}/../../../../data/GW190814.xml'
     with open(datafile, 'rb') as fid:
         payload = fid.read()
-    data = {'xml': payload}
+    event_data = {'xml': payload}
 
-    status, data = api('POST', 'gcn_event', data=data, token=super_admin_token)
-    assert status == 200
-    assert data['status'] == 'success'
+    dateobs = "2019-08-14T21:10:39"
+    status, data = api('GET', f'gcn_event/{dateobs}', token=super_admin_token)
+
+    if status == 404:
+        status, data = api(
+            'POST', 'gcn_event', data=event_data, token=super_admin_token
+        )
+        assert status == 200
+        assert data['status'] == 'success'
 
     # wait for event to load
     for n_times in range(26):

@@ -315,8 +315,6 @@ def generate_plan(
     from ..models import DBSession
     from skyportal.handlers.api.instrument import add_tiles
 
-    Session = scoped_session(sessionmaker(bind=DBSession.session_factory.kw["bind"]))
-
     import gwemopt
     import gwemopt.utils
     import gwemopt.segments
@@ -326,313 +324,415 @@ def generate_plan(
         EventObservationPlan,
         Galaxy,
         InstrumentField,
+        InstrumentFieldTile,
         LocalizationTile,
         ObservationPlanRequest,
         PlannedObservation,
         User,
     )
 
-    plans, requests = [], []
-
-    session = Session()
-    for observation_plan_id, request_id in zip(observation_plan_ids, request_ids):
-        plan = session.query(EventObservationPlan).get(observation_plan_id)
-        request = session.query(ObservationPlanRequest).get(request_id)
-
-        plans.append(plan)
-        requests.append(request)
-
-    user = session.query(User).get(user_id)
-
-    event_time = Time(requests[0].gcnevent.dateobs, format='datetime', scale='utc')
-    start_time = Time(requests[0].payload["start_date"], format='iso', scale='utc')
-    end_time = Time(requests[0].payload["end_date"], format='iso', scale='utc')
-
-    params = {
-        # gwemopt filter strategy
-        # options: block (blocks of single filters), integrated (series of alternating filters)
-        'doAlternativeFilters': request.payload["filter_strategy"] == "block",
-        # flag to indicate fields come from DB
-        'doDatabase': True,
-        # only keep tiles within powerlaw_cl
-        'doMinimalTiling': True,
-        # single set of scheduled observations
-        'doSingleExposure': True,
-        # gwemopt scheduling algorithms
-        # options: greedy, greedy_slew, sear, airmass_weighted
-        'scheduleType': request.payload["schedule_type"],
-        # list of filters to use for observations
-        'filters': request.payload["filters"].split(","),
-        # GPS time for event
-        'gpstime': event_time.gps,
-        # Healpix nside for the skymap
-        'nside': 512,
-        # maximum integrated probability of the skymap to consider
-        'powerlaw_cl': request.payload["integrated_probability"],
-        'telescopes': [request.instrument.name for request in requests],
-        # minimum difference between observations of the same field
-        'mindiff': request.payload["minimum_time_difference"],
-        # maximum airmass with which to observae
-        'airmass': request.payload["maximum_airmass"],
-        # array of exposure times (same length as filter array)
-        'exposuretimes': np.array(
-            [request.payload["exposure_time"]]
-            * len(request.payload["filters"].split(","))
-        ),
-    }
-
-    config = {}
-    for request in requests:
-        if "field_ids" in request.payload and len(request.payload["field_ids"]) > 0:
-            fields = [
-                f
-                for f in request.instrument.fields
-                if f.field_id in request.payload["field_ids"]
-            ]
-        else:
-            fields = request.instrument.fields
-        config[request.instrument.name] = {
-            # field list from skyportal
-            'tesselation': fields,
-            # telescope longitude [deg]
-            'longitude': request.instrument.telescope.lon,
-            # telescope latitude [deg]
-            'latitude': request.instrument.telescope.lat,
-            # telescope elevation [m]
-            'elevation': request.instrument.telescope.elevation,
-            # telescope name
-            'telescope': request.instrument.name,
-            # telescope horizon
-            'horizon': -12.0,
-            # time in seconds to change the filter
-            'filt_change_time': 0.0,
-            # extra overhead in seconds
-            'overhead_per_exposure': 0.0,
-            # slew rate for the telescope [deg/s]
-            'slew_rate': 2.6,
-            # camera readout time
-            'readout': 0.0,
-            # telescope field of view
-            'FOV': 0.0,
-            # exposure time for the given limiting magnitude
-            'exposuretime': 1.0,
-            # limiting magnitude given telescope time
-            'magnitude': 0.0,
-        }
-    params['config'] = config
-
-    if request.payload["schedule_strategy"] == "galaxy":
-        params = {
-            **params,
-            'tilesType': 'galaxy',
-            'galaxy_catalog': request.payload["galaxy_catalog"],
-            'galaxy_grade': 'S',
-            'writeCatalog': False,
-            'catalog_n': 1.0,
-            'powerlaw_dist_exp': 1.0,
-        }
-    elif request.payload["schedule_strategy"] == "tiling":
-        params = {**params, 'tilesType': 'moc'}
+    Session = scoped_session(sessionmaker())
+    if Session.registry.has():
+        session = Session()
     else:
-        raise AttributeError('scheduling_strategy should be tiling or galaxy')
+        session = Session(bind=DBSession.session_factory.kw["bind"])
 
-    params = gwemopt.utils.params_checker(params)
-    params = gwemopt.segments.get_telescope_segments(params)
+    NRETRIES = 10
+    NTRIES = 0
+    PLAN_SUCCESS = False
 
-    params["Tobs"] = [
-        start_time.mjd - event_time.mjd,
-        end_time.mjd - event_time.mjd,
-    ]
+    while (not PLAN_SUCCESS) and (NTRIES < NRETRIES):
 
-    params['map_struct'] = dict(
-        zip(['prob', 'distmu', 'distsigma', 'distnorm'], request.localization.flat)
-    )
+        plans, requests = [], []
+        observation_plan_id_strings = [str(x) for x in observation_plan_ids]
 
-    params['is3D'] = request.localization.is_3d
-
-    # Function to read maps
-    map_struct = gwemopt.utils.read_skymap(
-        params, is3D=params["do3D"], map_struct=params['map_struct']
-    )
-
-    if params["tilesType"] == "galaxy":
-        query = Galaxy.query_records_accessible_by(user, mode="read")
-        query = query.filter(Galaxy.catalog_name == params["galaxy_catalog"])
-
-        cum_prob = (
-            sa.func.sum(LocalizationTile.probdensity * LocalizationTile.healpix.area)
-            .over(order_by=LocalizationTile.probdensity.desc())
-            .label('cum_prob')
-        )
-        localizationtile_subquery = (
-            sa.select(LocalizationTile.probdensity, cum_prob).filter(
-                LocalizationTile.localization_id == request.localization.id
-            )
-        ).subquery()
-
-        # convert to 0-1
-        integrated_probability = request.payload["integrated_probability"] * 0.01
-        min_probdensity = (
-            sa.select(
-                sa.func.min(localizationtile_subquery.columns.probdensity)
-            ).filter(
-                localizationtile_subquery.columns.cum_prob <= integrated_probability
-            )
-        ).scalar_subquery()
-
-        tiles_subquery = (
-            sa.select(Galaxy.id)
-            .filter(
-                LocalizationTile.localization_id == request.localization.id,
-                LocalizationTile.healpix.contains(Galaxy.healpix),
-                LocalizationTile.probdensity >= min_probdensity,
-            )
-            .subquery()
-        )
-
-        query = query.join(
-            tiles_subquery,
-            Galaxy.id == tiles_subquery.c.id,
-        )
-
-        galaxies = query.all()
-        catalog_struct = {}
-        catalog_struct["ra"] = np.array([g.ra for g in galaxies])
-        catalog_struct["dec"] = np.array([g.dec for g in galaxies])
-
-        if "galaxy_sorting" not in request.payload:
-            galaxy_sorting = "equal"
-        else:
-            galaxy_sorting = request.payload["galaxy_sorting"]
-
-        if galaxy_sorting == "equal":
-            values = np.array([1.0 for g in galaxies])
-        elif galaxy_sorting == "sfr_fuv":
-            values = np.array([g.sfr_fuv for g in galaxies])
-        elif galaxy_sorting == "mstar":
-            values = np.array([g.mstar for g in galaxies])
-        elif galaxy_sorting == "magb":
-            values = np.array([g.magb for g in galaxies])
-        elif galaxy_sorting == "magk":
-            values = np.array([g.magk for g in galaxies])
-
-        idx = np.where(values != None)[0]  # noqa: E711
-
-        if len(idx) == 0:
-            raise ValueError('No galaxies available for scheduling.')
-
-        values = values[idx]
-        if galaxy_sorting in ["magb", "magk"]:
-            # weigh brighter more heavily
-            values = -values
-            values = (values - np.min(values)) / (np.max(values) - np.min(values))
-
-        catalog_struct["ra"] = catalog_struct["ra"][idx]
-        catalog_struct["dec"] = catalog_struct["dec"][idx]
-        catalog_struct["S"] = values
-        catalog_struct["Sloc"] = values
-        catalog_struct["Smass"] = values
-
-    if params["tilesType"] == "moc":
-        moc_structs = gwemopt.skyportal.create_moc_from_skyportal(
-            params, map_struct=map_struct
-        )
-        tile_structs = gwemopt.tiles.moc(params, map_struct, moc_structs)
-    elif params["tilesType"] == "galaxy":
-        for request in requests:
-            if request.instrument.region is None:
-                raise ValueError(
-                    'Must define the instrument region in the case of galaxy requests'
-                )
-            regions = Regions.parse(request.instrument.region, format='ds9')
-            tile_structs = gwemopt.skyportal.create_galaxy_from_skyportal(
-                params, map_struct, catalog_struct, regions=regions
+        try:
+            log(
+                f"Creating observation plan(s) for ID(s): {','.join(observation_plan_id_strings)}"
             )
 
-    tile_structs, coverage_struct = gwemopt.coverage.timeallocation(
-        params, map_struct, tile_structs
-    )
+            session = Session()
+            for observation_plan_id, request_id in zip(
+                observation_plan_ids, request_ids
+            ):
+                plan = session.query(EventObservationPlan).get(observation_plan_id)
+                request = session.query(ObservationPlanRequest).get(request_id)
 
-    # if the fields do not yet exist, we need to add them
-    if params["tilesType"] == "galaxy":
-        field_ids = np.array([-1] * len(coverage_struct["data"]))
-        for request in requests:
-            regions = Regions.parse(request.instrument.region, format='ds9')
-            idx = np.where(coverage_struct["telescope"] == request.instrument.name)[0]
-            data = {
-                'RA': coverage_struct["data"][idx, 0],
-                'Dec': coverage_struct["data"][idx, 1],
+                plans.append(plan)
+                requests.append(request)
+
+            user = session.query(User).get(user_id)
+            log(
+                f"Running observation plan(s) for ID(s): {','.join(observation_plan_id_strings)} in session {user._sa_instance_state.session_id}"
+            )
+
+            event_time = Time(
+                requests[0].gcnevent.dateobs, format='datetime', scale='utc'
+            )
+            start_time = Time(
+                requests[0].payload["start_date"], format='iso', scale='utc'
+            )
+            end_time = Time(requests[0].payload["end_date"], format='iso', scale='utc')
+
+            params = {
+                # gwemopt filter strategy
+                # options: block (blocks of single filters), integrated (series of alternating filters)
+                'doAlternativeFilters': request.payload["filter_strategy"] == "block",
+                # flag to indicate fields come from DB
+                'doDatabase': True,
+                # only keep tiles within powerlaw_cl
+                'doMinimalTiling': True,
+                # single set of scheduled observations
+                'doSingleExposure': True,
+                # gwemopt scheduling algorithms
+                # options: greedy, greedy_slew, sear, airmass_weighted
+                'scheduleType': request.payload["schedule_type"],
+                # list of filters to use for observations
+                'filters': request.payload["filters"].split(","),
+                # GPS time for event
+                'gpstime': event_time.gps,
+                # Healpix nside for the skymap
+                'nside': 512,
+                # maximum integrated probability of the skymap to consider
+                'powerlaw_cl': request.payload["integrated_probability"],
+                'telescopes': [request.instrument.name for request in requests],
+                # minimum difference between observations of the same field
+                'mindiff': request.payload["minimum_time_difference"],
+                # maximum airmass with which to observae
+                'airmass': request.payload["maximum_airmass"],
+                # array of exposure times (same length as filter array)
+                'exposuretimes': np.array(
+                    [request.payload["exposure_time"]]
+                    * len(request.payload["filters"].split(","))
+                ),
+                # avoid the galactic plane?
+                'doAvoidGalacticPlane': request.payload.get("galactic_plane", False),
+                # galactic latitude to exclude
+                'galactic_limit': request.payload.get("galactic_latitude", 10),
             }
-            field_data = pd.DataFrame.from_dict(data)
-            idx = np.array(idx).astype(int)
-            field_ids[idx] = add_tiles(
-                request.instrument.id,
-                request.instrument.name,
-                regions,
-                field_data,
-                session=session,
+
+            config = {}
+            for request in requests:
+                if (
+                    "field_ids" in request.payload
+                    and len(request.payload["field_ids"]) > 0
+                ):
+                    fields = [
+                        f
+                        for f in request.instrument.fields
+                        if f.field_id in request.payload["field_ids"]
+                    ]
+                else:
+                    fields = request.instrument.fields
+                config[request.instrument.name] = {
+                    # field list from skyportal
+                    'tesselation': fields,
+                    # telescope longitude [deg]
+                    'longitude': request.instrument.telescope.lon,
+                    # telescope latitude [deg]
+                    'latitude': request.instrument.telescope.lat,
+                    # telescope elevation [m]
+                    'elevation': request.instrument.telescope.elevation,
+                    # telescope name
+                    'telescope': request.instrument.name,
+                    # telescope horizon
+                    'horizon': -12.0,
+                    # time in seconds to change the filter
+                    'filt_change_time': 0.0,
+                    # extra overhead in seconds
+                    'overhead_per_exposure': 0.0,
+                    # slew rate for the telescope [deg/s]
+                    'slew_rate': 2.6,
+                    # camera readout time
+                    'readout': 0.0,
+                    # telescope field of view
+                    'FOV': 0.0,
+                    # exposure time for the given limiting magnitude
+                    'exposuretime': 1.0,
+                    # limiting magnitude given telescope time
+                    'magnitude': 0.0,
+                }
+            params['config'] = config
+
+            if request.payload["schedule_strategy"] == "galaxy":
+                params = {
+                    **params,
+                    'tilesType': 'galaxy',
+                    'galaxy_catalog': request.payload["galaxy_catalog"],
+                    'galaxy_grade': 'S',
+                    'writeCatalog': False,
+                    'catalog_n': 1.0,
+                    'powerlaw_dist_exp': 1.0,
+                }
+            elif request.payload["schedule_strategy"] == "tiling":
+                params = {**params, 'tilesType': 'moc'}
+            else:
+                raise AttributeError('scheduling_strategy should be tiling or galaxy')
+
+            params = gwemopt.utils.params_checker(params)
+            params = gwemopt.segments.get_telescope_segments(params)
+
+            params["Tobs"] = [
+                start_time.mjd - event_time.mjd,
+                end_time.mjd - event_time.mjd,
+            ]
+
+            params['map_struct'] = dict(
+                zip(
+                    ['prob', 'distmu', 'distsigma', 'distnorm'],
+                    request.localization.flat,
+                )
             )
 
-    planned_observations = []
-    for ii in range(len(coverage_struct["ipix"])):
-        data = coverage_struct["data"][ii, :]
-        filt = coverage_struct["filters"][ii]
-        mjd = data[2]
-        tt = Time(mjd, format='mjd')
-        instrument_name = coverage_struct["telescope"][ii]
+            params['is3D'] = request.localization.is_3d
 
-        overhead_per_exposure = params["config"][instrument_name][
-            "overhead_per_exposure"
-        ]
+            log(f"Reading skymap for ID(s): {','.join(observation_plan_id_strings)}")
 
-        exposure_time, prob = data[4], data[6]
-        if params["tilesType"] == "galaxy":
-            field_id = int(field_ids[ii])
-        else:
-            field_id = data[5]
+            # Function to read maps
+            map_struct = gwemopt.utils.read_skymap(
+                params, is3D=params["do3D"], map_struct=params['map_struct']
+            )
 
-        for plan, request in zip(plans, requests):
-            if request.instrument.name == instrument_name:
-                break
-        field = InstrumentField.query.filter(
-            InstrumentField.instrument_id == request.instrument.id,
-            InstrumentField.field_id == field_id,
-        ).first()
-        if field is None:
-            return log(f"Missing field {field_id} from list")
+            cum_prob = (
+                sa.func.sum(
+                    LocalizationTile.probdensity * LocalizationTile.healpix.area
+                )
+                .over(order_by=LocalizationTile.probdensity.desc())
+                .label('cum_prob')
+            )
+            localizationtile_subquery = (
+                sa.select(LocalizationTile.probdensity, cum_prob).filter(
+                    LocalizationTile.localization_id == request.localization.id
+                )
+            ).subquery()
 
-        planned_observation = PlannedObservation(
-            obstime=tt.datetime,
-            dateobs=request.gcnevent.dateobs,
-            field_id=field.id,
-            exposure_time=exposure_time,
-            weight=prob,
-            filt=filt,
-            instrument_id=request.instrument.id,
-            planned_observation_id=ii,
-            observation_plan_id=plan.id,
-            overhead_per_exposure=overhead_per_exposure,
-        )
-        planned_observations.append(planned_observation)
+            # convert to 0-1
+            integrated_probability = request.payload["integrated_probability"] * 0.01
+            min_probdensity = (
+                sa.select(
+                    sa.func.min(localizationtile_subquery.columns.probdensity)
+                ).filter(
+                    localizationtile_subquery.columns.cum_prob <= integrated_probability
+                )
+            ).scalar_subquery()
 
-    session.add_all(planned_observations)
-    for plan in plans:
-        setattr(plan, 'status', 'complete')
-        session.merge(plan)
+            if params["tilesType"] == "galaxy":
+                galaxies_query = sa.select(Galaxy, LocalizationTile.probdensity).where(
+                    LocalizationTile.localization_id == request.localization.id,
+                    LocalizationTile.healpix.contains(Galaxy.healpix),
+                    LocalizationTile.probdensity >= min_probdensity,
+                    Galaxy.catalog_name == params["galaxy_catalog"],
+                )
+                galaxies, probs = zip(*session.execute(galaxies_query).all())
 
-    for request in requests:
-        setattr(request, 'status', 'complete')
-        session.merge(request)
-    session.commit()
+                catalog_struct = {}
+                catalog_struct["ra"] = np.array([g.ra for g in galaxies])
+                catalog_struct["dec"] = np.array([g.dec for g in galaxies])
 
-    generate_observation_plan_statistics(observation_plan_ids, request_ids, session)
+                if "galaxy_sorting" not in request.payload:
+                    galaxy_sorting = "equal"
+                else:
+                    galaxy_sorting = request.payload["galaxy_sorting"]
 
-    flow = Flow()
-    flow.push(
-        '*',
-        "skyportal/REFRESH_GCNEVENT",
-        payload={"gcnEvent_dateobs": request.gcnevent.dateobs},
-    )
+                if galaxy_sorting == "equal":
+                    values = np.array([1.0 for g in galaxies])
+                elif galaxy_sorting == "sfr_fuv":
+                    values = np.array([g.sfr_fuv for g in galaxies])
+                elif galaxy_sorting == "mstar":
+                    values = np.array([g.mstar for g in galaxies])
+                elif galaxy_sorting == "magb":
+                    values = np.array([g.magb for g in galaxies])
+                elif galaxy_sorting == "magk":
+                    values = np.array([g.magk for g in galaxies])
+
+                idx = np.where(values != None)[0]  # noqa: E711
+
+                if len(idx) == 0:
+                    raise ValueError('No galaxies available for scheduling.')
+
+                probs = np.array(probs)[idx]
+                values = values[idx]
+                if galaxy_sorting in ["magb", "magk"]:
+                    # weigh brighter more heavily
+                    values = -values
+                    values = (values - np.min(values)) / (
+                        np.max(values) - np.min(values)
+                    )
+
+                catalog_struct["ra"] = catalog_struct["ra"][idx]
+                catalog_struct["dec"] = catalog_struct["dec"][idx]
+                catalog_struct["S"] = values * probs
+                catalog_struct["Sloc"] = values * probs
+                catalog_struct["Smass"] = values * probs
+
+            elif params["tilesType"] == "moc":
+
+                field_ids = {}
+                for request in requests:
+                    field_tiles_query = sa.select(InstrumentField.field_id).where(
+                        LocalizationTile.localization_id == request.localization.id,
+                        LocalizationTile.probdensity >= min_probdensity,
+                        InstrumentFieldTile.instrument_id == request.instrument.id,
+                        InstrumentFieldTile.instrument_field_id == InstrumentField.id,
+                        InstrumentFieldTile.healpix.overlaps(LocalizationTile.healpix),
+                    )
+                    field_tiles = session.scalars(field_tiles_query).unique().all()
+                    field_ids[request.instrument.name] = field_tiles
+
+            log(f"Retrieving fields for ID(s): {','.join(observation_plan_id_strings)}")
+
+            if params["tilesType"] == "moc":
+                moc_structs = gwemopt.skyportal.create_moc_from_skyportal(
+                    params,
+                    map_struct=map_struct,
+                    field_ids=field_ids,
+                )
+                tile_structs = gwemopt.tiles.moc(params, map_struct, moc_structs)
+            elif params["tilesType"] == "galaxy":
+                for request in requests:
+                    if request.instrument.region is None:
+                        raise ValueError(
+                            'Must define the instrument region in the case of galaxy requests'
+                        )
+                    regions = Regions.parse(request.instrument.region, format='ds9')
+                    tile_structs = gwemopt.skyportal.create_galaxy_from_skyportal(
+                        params, map_struct, catalog_struct, regions=regions
+                    )
+
+            log(
+                f"Creating schedule(s) for ID(s): {','.join(observation_plan_id_strings)}"
+            )
+
+            tile_structs, coverage_struct = gwemopt.coverage.timeallocation(
+                params, map_struct, tile_structs
+            )
+
+            # if the fields do not yet exist, we need to add them
+            if params["tilesType"] == "galaxy":
+                field_ids = np.array([-1] * len(coverage_struct["data"]))
+                for request in requests:
+                    regions = Regions.parse(request.instrument.region, format='ds9')
+                    idx = np.where(
+                        coverage_struct["telescope"] == request.instrument.name
+                    )[0]
+                    data = {
+                        'RA': coverage_struct["data"][idx, 0],
+                        'Dec': coverage_struct["data"][idx, 1],
+                    }
+                    field_data = pd.DataFrame.from_dict(data)
+                    idx = np.array(idx).astype(int)
+                    field_ids[idx] = add_tiles(
+                        request.instrument.id,
+                        request.instrument.name,
+                        regions,
+                        field_data,
+                        session=session,
+                    )
+            log(
+                f"Writing planned observations to database for ID(s): {','.join(observation_plan_id_strings)}"
+            )
+
+            planned_observations = []
+            for ii in range(len(coverage_struct["ipix"])):
+                data = coverage_struct["data"][ii, :]
+                filt = coverage_struct["filters"][ii]
+                mjd = data[2]
+                tt = Time(mjd, format='mjd')
+                instrument_name = coverage_struct["telescope"][ii]
+
+                overhead_per_exposure = params["config"][instrument_name][
+                    "overhead_per_exposure"
+                ]
+
+                exposure_time, prob = data[4], data[6]
+                if params["tilesType"] == "galaxy":
+                    field_id = int(field_ids[ii])
+                else:
+                    field_id = data[5]
+
+                for plan, request in zip(plans, requests):
+                    if request.instrument.name == instrument_name:
+                        break
+                field = InstrumentField.query.filter(
+                    InstrumentField.instrument_id == request.instrument.id,
+                    InstrumentField.field_id == field_id,
+                ).first()
+                if field is None:
+                    return log(f"Missing field {field_id} from list")
+
+                planned_observation = PlannedObservation(
+                    obstime=tt.datetime,
+                    dateobs=request.gcnevent.dateobs,
+                    field_id=field.id,
+                    exposure_time=exposure_time,
+                    weight=prob,
+                    filt=filt,
+                    instrument_id=request.instrument.id,
+                    planned_observation_id=ii,
+                    observation_plan_id=plan.id,
+                    overhead_per_exposure=overhead_per_exposure,
+                )
+                planned_observations.append(planned_observation)
+
+            session.add_all(planned_observations)
+            for plan in plans:
+                setattr(plan, 'status', 'complete')
+                session.merge(plan)
+
+            for request in requests:
+                setattr(request, 'status', 'complete')
+                session.merge(request)
+            session.commit()
+
+            log(
+                f"Generating statistics for ID(s): {','.join(observation_plan_id_strings)}"
+            )
+
+            generate_observation_plan_statistics(
+                observation_plan_ids, request_ids, session
+            )
+
+            flow = Flow()
+            flow.push(
+                '*',
+                "skyportal/REFRESH_GCN_EVENT",
+                payload={"gcnEvent_dateobs": request.gcnevent.dateobs},
+            )
+
+            log(f"Finished plan(s) for ID(s): {','.join(observation_plan_id_strings)}")
+
+            PLAN_SUCCESS = True
+
+        except Exception as e:
+            NTRIES = NTRIES + 1
+            if NTRIES < NRETRIES:
+                session.rollback()
+                log(
+                    f"Failed to generate plans for ID(s): {','.join(observation_plan_id_strings)}: {str(e)}. Retrying {NTRIES}/{NRETRIES}."
+                )
+                time.sleep(60)
+            else:
+                log(
+                    f"Failed to generate plans for ID(s): {','.join(observation_plan_id_strings)}: {str(e)}. Giving up."
+                )
+
+                session = Session()
+                for observation_plan_id, request_id in zip(
+                    observation_plan_ids, request_ids
+                ):
+                    plan = session.query(EventObservationPlan).get(observation_plan_id)
+                    request = session.query(ObservationPlanRequest).get(request_id)
+
+                    setattr(plan, 'status', f'failed: {str(e)}')
+                    session.merge(plan)
+
+                    setattr(request, 'status', f'failed: {str(e)}')
+                    session.merge(request)
+
+                    session.commit()
+
+    session.close()
+    Session.remove()
 
 
 class GenericRequest:
@@ -731,6 +831,7 @@ class MMAAPI(FollowUpAPI):
                     'maximum_airmass',
                     'integrated_probability',
                     'minimum_time_difference',
+                    'galactic_latitude',
                 }
 
                 if not required_parameters.issubset(set(request.payload.keys())):
@@ -778,10 +879,14 @@ class MMAAPI(FollowUpAPI):
                 DBSession().merge(request)
                 DBSession().commit()
 
+                log(
+                    f"Created observation plan request for ID {plan.id} in session {plan._sa_instance_state.session_id}"
+                )
+
                 flow = Flow()
                 flow.push(
                     '*',
-                    "skyportal/REFRESH_GCNEVENT",
+                    "skyportal/REFRESH_GCN_EVENT",
                     payload={"gcnEvent_dateobs": request.gcnevent.dateobs},
                 )
 
@@ -905,10 +1010,14 @@ class MMAAPI(FollowUpAPI):
                 session.merge(request)
                 session.commit()
 
+                log(
+                    f"Created observation plan request for ID {plan.id} in session {plan._sa_instance_state.session_id}"
+                )
+
                 flow = Flow()
                 flow.push(
                     '*',
-                    "skyportal/REFRESH_GCNEVENT",
+                    "skyportal/REFRESH_GCN_EVENT",
                     payload={"gcnEvent_dateobs": request.gcnevent.dateobs},
                 )
 
@@ -985,6 +1094,11 @@ class MMAAPI(FollowUpAPI):
         from ..models import DBSession, Galaxy
 
         galaxies = [g for g, in DBSession().query(Galaxy.catalog_name).distinct().all()]
+        end_date = instrument.telescope.next_sunrise()
+        if end_date is None:
+            end_date = str(datetime.utcnow() + timedelta(days=1))
+        else:
+            end_date = Time(end_date, format='jd').iso
 
         form_json_schema = {
             "type": "object",
@@ -997,7 +1111,7 @@ class MMAAPI(FollowUpAPI):
                 "end_date": {
                     "type": "string",
                     "title": "End Date (UT)",
-                    "default": str(datetime.utcnow() + timedelta(days=1)),
+                    "default": end_date,
                 },
                 "filter_strategy": {
                     "type": "string",
@@ -1051,6 +1165,17 @@ class MMAAPI(FollowUpAPI):
                     "default": 30.0,
                     "minimum": 0,
                     "maximum": 180,
+                },
+                "galactic_plane": {
+                    "title": "Avoid the Galactic Plane?",
+                    "type": "boolean",
+                },
+                "galactic_latitude": {
+                    "title": "Galactic latitude to exclude",
+                    "type": "number",
+                    "default": 10.0,
+                    "minimum": 0,
+                    "maximum": 90,
                 },
                 "queue_name": {
                     "type": "string",

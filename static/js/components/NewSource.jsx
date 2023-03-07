@@ -2,7 +2,8 @@ import React, { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 // eslint-disable-next-line import/no-unresolved
-import Form from "@rjsf/material-ui/v5";
+import Form from "@rjsf/mui";
+import validator from "@rjsf/validator-ajv8";
 import Paper from "@mui/material/Paper";
 import Typography from "@mui/material/Typography";
 import DragHandleIcon from "@mui/icons-material/DragHandle";
@@ -42,6 +43,12 @@ const NewSource = ({ classes }) => {
   };
 
   function validate(formData, errors) {
+    if (selectedGroupIds.length === 0) {
+      errors.id.addError("Select at least one group.");
+    }
+    if (formData.id.indexOf(" ") >= 0) {
+      errors.id.addError("IDs are not allowed to have spaces, please fix.");
+    }
     if (formData.ra < 0 || formData.ra >= 360) {
       errors.ra.addError("0 <= RA < 360, please fix.");
     }
@@ -86,9 +93,11 @@ const NewSource = ({ classes }) => {
             />
             <Form
               schema={sourceFormSchema}
+              validator={validator}
               onSubmit={handleSubmit}
               // eslint-disable-next-line react/jsx-no-bind
-              validate={validate}
+              customValidate={validate}
+              liveValidate
             />
           </div>
         </div>

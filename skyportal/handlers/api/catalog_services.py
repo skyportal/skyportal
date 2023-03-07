@@ -49,7 +49,7 @@ _, cfg = load_env()
 
 log = make_log('api/catalogs')
 
-Session = scoped_session(sessionmaker(bind=DBSession.session_factory.kw["bind"]))
+Session = scoped_session(sessionmaker())
 
 
 class CatalogQueryHandler(BaseHandler):
@@ -92,12 +92,17 @@ class CatalogQueryHandler(BaseHandler):
         if 'catalogName' not in data['payload']:
             return self.error('catalogName required in query payload')
 
-        with self.Session():
+        with self.Session() as session:
 
+            allocation = session.scalar(
+                sa.select(Allocation).where(Allocation.id == data['allocation_id'])
+            )
+
+            group_ids = []
             if 'target_group_ids' in data and len(data['target_group_ids']) > 0:
                 group_ids = data['target_group_ids']
-            else:
-                group_ids = [g.id for g in self.current_user.accessible_groups]
+            group_ids.append(allocation.group_id)
+            group_ids = list(set(group_ids))
 
             fetch_tr = functools.partial(
                 fetch_transients,
@@ -122,7 +127,11 @@ def fetch_transients(allocation_id, user_id, group_ids, payload):
         Payload for the catalog query
     """
 
-    session = Session()
+    if Session.registry.has():
+        session = Session()
+    else:
+        session = Session(bind=DBSession.session_factory.kw["bind"])
+
     obj_ids = []
 
     try:
@@ -194,10 +203,13 @@ def fetch_transients(allocation_id, user_id, group_ids, payload):
                     Obj.select(user).where(Obj.id == source['id'])
                 ).first()
                 if s is None:
+                    log(f"Posting {source['id']} as source")
+                    source['group_ids'] = group_ids
                     obj_id = post_source(source, user_id, session)
                     obj_ids.append(obj_id)
 
                 if alert_available:
+                    log(f"Posting photometry from {source['id']}")
                     post_alert(
                         source['id'],
                         group_ids,
@@ -350,7 +362,7 @@ def fetch_swift_transients(instrument_id, user_id):
         ID of the User
     """
 
-    session = Session()
+    session = Session(bind=DBSession.session_factory.kw["bind"])
     obj_ids = []
 
     try:
@@ -568,7 +580,7 @@ def fetch_gaia_transients(instrument_id, user_id, payload):
         Dictionary containing filtering parameters
     """
 
-    session = Session()
+    session = Session(bind=DBSession.session_factory.kw["bind"])
     obj_ids = []
 
     lightcurve_url = "https://gsaweb.ast.cam.ac.uk/alerts/alert"

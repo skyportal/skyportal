@@ -61,7 +61,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'skyportal'
-copyright = '2020, The SkyPortal Team'
+copyright = '2020–2023, The SkyPortal Team'
 author = 'The SkyPortal Team'
 
 # The version info for the project you're documenting, acts as replacement for

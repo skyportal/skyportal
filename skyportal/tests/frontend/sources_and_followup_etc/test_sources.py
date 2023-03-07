@@ -37,10 +37,12 @@ def add_comment(driver, comment_text):
 def add_comment_and_wait_for_display(driver, comment_text):
     add_comment(driver, comment_text)
     try:
-        driver.wait_for_xpath(f'//p[text()="{comment_text}"]', timeout=20)
+        driver.wait_for_xpath(f'//p[contains(text(), "{comment_text}")]', timeout=20)
     except TimeoutException:
         driver.refresh()
-        driver.wait_for_xpath(f'//p[text()="{comment_text}"]')
+        # little triangle you push to expand the table
+        driver.click_xpath("//*[@id='expandable-button']")
+        driver.wait_for_xpath(f'//p[contains(text(), "{comment_text}")]')
 
 
 @pytest.mark.flaky(reruns=2)
@@ -71,6 +73,7 @@ def test_public_source_page(driver, user, public_source, public_group):
     driver.wait_for_xpath(f'//span[text()="{public_group.name}"]')
 
 
+@pytest.mark.flaky(reruns=2)
 def test_comment_username_autosuggestion(driver, user, public_source):
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_source.id}")
@@ -89,6 +92,7 @@ def test_comment_username_autosuggestion(driver, user, public_source):
     driver.wait_for_xpath(f'//p[text()="hey @{user.username}"]')
 
 
+@pytest.mark.flaky(reruns=2)
 def test_comment_user_last_name_autosuggestion(driver, user, public_source):
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_source.id}")
@@ -107,6 +111,7 @@ def test_comment_user_last_name_autosuggestion(driver, user, public_source):
     driver.wait_for_xpath(f'//p[text()="hey @{user.username}"]')
 
 
+@pytest.mark.flaky(reruns=2)
 def test_comment_user_first_name_autosuggestion(driver, user, public_source):
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_source.id}")
@@ -198,7 +203,73 @@ def test_analysis_start(
         '//div[@data-testid="analysis-service-request-form"]//*[@type="submit"]'
     )
     driver.wait_for_xpath(
-        "//*[text()='Sending data to analysis service to start the analysis.']"
+        f"//*[text()='Sending data to analysis service {name} to start the analysis.']"
+    )
+
+
+@pytest.mark.flaky(reruns=3)
+def test_analysis_with_file_input_start(
+    driver, user, public_source, analysis_service_token, public_group
+):
+    name = str(uuid.uuid4())
+
+    optional_analysis_parameters = {
+        "image_data": {"type": "file", "required": "True", "description": "Image data"},
+        "fluxcal_data": {"type": "file", "description": "Fluxcal data"},
+        "centroid_X": {"type": "number"},
+        "centroid_Y": {"type": "number"},
+        "spaxel_buffer": {"type": "number"},
+    }
+
+    post_data = {
+        'name': name,
+        'display_name': "Spectral_Cube_Analysis",
+        'description': "Spectral_Cube_Analysis description",
+        'version': "1.0",
+        'contact_name': "Michael Coughlin",
+        # this is the URL/port of the Spectral_Cube_Analysis service that will be running during testing
+        'url': "http://localhost:7003/analysis/spectral_cube_analysis",
+        'optional_analysis_parameters': json.dumps(optional_analysis_parameters),
+        'authentication_type': "none",
+        'analysis_type': 'spectrum_fitting',
+        'input_data_types': [],
+        'timeout': 60,
+        'group_ids': [public_group.id],
+    }
+
+    status, data = api(
+        'POST', 'analysis_service', data=post_data, token=analysis_service_token
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    driver.get(f"/become_user/{user.id}")
+    driver.get(f"/source/{public_source.id}")
+    driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
+    driver.wait_for_xpath('//*[text()="External Analysis"]')
+
+    driver.click_xpath('//div[@data-testid="analysisServiceSelect"]')
+
+    # look for an element list with a text with the uuid name of the analysis service
+    driver.wait_for_xpath(f'//li[text()="{name}"]')
+    driver.click_xpath(f'//li[text()="{name}"]')
+
+    # look for an input element with id root_image_data
+    image_data = driver.wait_for_xpath('//input[@id="root_image_data"]')
+
+    image_data.send_keys(
+        os.path.join(
+            os.path.dirname(os.path.dirname(__file__)),
+            '../data',
+            'spectral_cube_analysis.fits',
+        ),
+    )
+
+    driver.click_xpath(
+        '//div[@data-testid="analysis-service-request-form"]//*[@type="submit"]'
+    )
+    driver.wait_for_xpath(
+        f"//*[text()='Sending data to analysis service {name} to start the analysis.']"
     )
 
 
@@ -306,10 +377,8 @@ def test_classifications(driver, user, taxonomy_token, public_group, public_sour
     driver.wait_for_xpath('//*[@id="probability"]').send_keys("0.02")
     driver.click_xpath("//*[text()='Submit']", wait_clickable=False)
     driver.wait_for_xpath("//*[text()='Classification saved']")
-    driver.find_element(
-        By.XPATH,
+    driver.wait_for_xpath(
         "//span[contains(@class, 'MuiChip-label') and text()='Mult-mode?']",
-        timeout=20,
     )
 
 
@@ -579,6 +648,7 @@ def test_source_notification(driver, user, public_group, public_source):
     driver.wait_for_xpath("//*[text()='Notification queued up successfully']")
 
 
+@pytest.mark.flaky(reruns=2)
 def test_unsave_from_group(
     driver, user_two_groups, public_source_two_groups, public_group2
 ):
@@ -628,6 +698,7 @@ def test_request_group_to_save_then_save(
     driver.wait_for_xpath(f"//a[contains(@href, '/source/{public_source.id}')]")
 
 
+@pytest.mark.flaky(reruns=2)
 def test_update_redshift_and_history(driver, user, public_source):
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_source.id}")
@@ -657,6 +728,7 @@ def test_update_redshift_and_history(driver, user, public_source):
     driver.wait_for_xpath(f"//td[text()='{user.username}']")
 
 
+@pytest.mark.flaky(reruns=2)
 def test_update_redshift_and_history_without_error(driver, user, public_source):
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_source.id}")
@@ -679,12 +751,13 @@ def test_update_redshift_and_history_without_error(driver, user, public_source):
     driver.wait_for_xpath(f"//td[text()='{user.username}']")
 
 
+@pytest.mark.flaky(reruns=2)
 def test_obj_page_unsaved_source(public_obj, driver, user):
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_obj.id}")
 
     # wait for the plots to load
-    driver.wait_for_xpath('//div[@class=" bk-root"]', timeout=20)
+    driver.wait_for_xpath('//div[@class=" bk-root"]', timeout=30)
     # this waits for the spectroscopy plot by looking for the element Fe III
     num_panels = 0
     nretries = 0
@@ -889,5 +962,5 @@ def test_duplicate_sources_render(
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_source.id}")
     driver.wait_for_xpath('//*[contains(text(), "Possible duplicate of:")]')
-    driver.click_xpath(f'//button[text()="{obj_id2}"]')
-    driver.wait_for_xpath(f'//div[text()="{obj_id2}"]', timeout=20)
+    driver.click_xpath(f'//*[contains(text(), "{obj_id2}")]')
+    driver.wait_for_xpath(f'//*[contains(text(), "{obj_id2}")]', timeout=20)

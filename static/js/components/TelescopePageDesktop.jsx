@@ -10,6 +10,8 @@ import Button from "./Button";
 import NewTelescope from "./NewTelescope";
 import TelescopeInfo from "./TelescopeInfo";
 
+import TelescopeSearchBar from "./TelescopeSearchBar";
+
 // lazy import the TelescopeMap component
 const TelescopeMap = lazy(() => import("./TelescopeMap"));
 
@@ -205,6 +207,9 @@ const TelescopePage = () => {
             )}
           </Paper>
           <Paper className={classes.paperContent}>
+            <Paper>
+              <TelescopeSearchBar id="search" telescopeList={telescopeList} />
+            </Paper>
             {currentTelescopeMenu === "Telescope List" ? (
               <TelescopeInfo />
             ) : (

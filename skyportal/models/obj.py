@@ -29,7 +29,8 @@ from baselayer.app.models import (
 )
 from baselayer.log import make_log
 
-from .photometry import Photometry, PhotometricSeries
+from .photometry import Photometry
+from .photometric_series import PhotometricSeries
 from .spectrum import Spectrum
 from .candidate import Candidate
 from .thumbnail import Thumbnail
@@ -317,6 +318,15 @@ class Obj(Base, conesearch_alchemy.Point):
         passive_deletes=True,
         order_by="AnnotationOnSpectrum.created_at",
         doc="Auto-annotations posted about a spectrum belonging to the object.",
+    )
+
+    annotations_on_photometry = relationship(
+        'AnnotationOnPhotometry',
+        back_populates='obj',
+        cascade='save-update, merge, refresh-expire, expunge, delete',
+        passive_deletes=True,
+        order_by="AnnotationOnPhotometry.created_at",
+        doc="Auto-annotations posted about photometry belonging to the object.",
     )
 
     classifications = relationship(

@@ -6,6 +6,7 @@ from arrow import ParserError
 import numpy as np
 import pandas as pd
 import sncosmo
+import sqlalchemy as sa
 from sqlalchemy.orm import joinedload
 from sqlalchemy import or_
 
@@ -14,6 +15,7 @@ from baselayer.app.access import permissions, auth_or_token
 from baselayer.app.model_util import recursive_to_dict
 from baselayer.app.env import load_env
 from baselayer.log import make_log
+from baselayer.app.flow import Flow
 from baselayer.app.custom_exceptions import AccessError
 
 from .photometry import add_external_photometry
@@ -101,6 +103,103 @@ def parse_string_list(str_list):
         raise TypeError('Must input a string!')
 
 
+def post_spectrum(data, user_id, session):
+    """Post spectrum to database.
+    data: dict
+        Spectrum dictionary
+    user_id : int
+        SkyPortal ID of User posting the GcnEvent
+    session: sqlalchemy.Session
+        Database session for this transaction
+    """
+
+    user = session.scalar(sa.select(User).where(User.id == user_id))
+
+    stmt = Instrument.select(user).where(Instrument.id == data['instrument_id'])
+    instrument = session.scalars(stmt).first()
+    if instrument is None:
+        raise ValueError(f'Cannot find instrument with ID: {data["instrument_id"]}')
+
+    reducers = []
+    external_reducer = data.pop("external_reducer", None)
+    for reducer_id in data.pop('reduced_by', []):
+        stmt = User.select(user).where(User.id == reducer_id)
+        reducer = session.scalars(stmt).first()
+        if reducer is None:
+            raise ValueError(f'Invalid reducer ID: {reducer_id}.')
+        reducer_association = SpectrumReducer(external_reducer=external_reducer)
+        reducer_association.user = reducer
+        reducers.append(reducer_association)
+
+    if len(reducers) == 0 and external_reducer is not None:
+        raise ValueError(
+            "At least one valid user must be provided as a reducer point of contact via the 'reduced_by' parameter."
+        )
+
+    observers = []
+    external_observer = data.pop("external_observer", None)
+    for observer_id in data.pop('observed_by', []):
+        stmt = User.select(user).where(User.id == observer_id)
+        observer = session.scalars(stmt).first()
+        if observer is None:
+            raise ValueError(f'Invalid observer ID: {observer_id}.')
+        observer_association = SpectrumObserver(external_observer=external_observer)
+        observer_association.user = observer
+        observers.append(observer_association)
+
+    if len(observers) == 0 and external_observer is not None:
+        raise ValueError(
+            "At least one valid user must be provided as an "
+            "observer point of contact via the 'observed_by' parameter."
+        )
+
+    if "units" in data:
+        if not data["units"] in ["Jy", "AB", "erg/s/cm/cm/AA"]:
+            raise ValueError("units must be Jy, AB, or erg/s/cm/cm/AA")
+
+    group_ids = data.pop("group_ids", None)
+    groups = (
+        session.scalars(Group.select(user).where(Group.id.in_(group_ids)))
+        .unique()
+        .all()
+    )
+    if {g.id for g in groups} != set(group_ids):
+        raise ValueError(f'Cannot find one or more groups with IDs: {group_ids}.')
+
+    spec = Spectrum(**data)
+    spec.instrument = instrument
+
+    spec.groups = groups
+    spec.owner_id = user_id
+    if spec.type is None:
+        spec.type = default_spectrum_type
+    session.add(spec)
+
+    for reducer in reducers:
+        reducer.spectrum = spec
+        session.add(reducer)
+    for observer in observers:
+        observer.spectrum = spec
+        session.add(observer)
+
+    session.commit()
+
+    flow = Flow()
+    flow.push(
+        '*',
+        'skyportal/REFRESH_SOURCE',
+        payload={'obj_key': spec.obj.internal_key},
+    )
+
+    flow.push(
+        '*',
+        'skyportal/REFRESH_SOURCE_SPECTRA',
+        payload={'obj_internal_key': spec.obj.internal_key},
+    )
+
+    return spec.id
+
+
 class SpectrumHandler(BaseHandler):
     @permissions(['Upload data'])
     def post(self):
@@ -143,109 +242,29 @@ class SpectrumHandler(BaseHandler):
             )
 
         with self.Session() as session:
-            stmt = Instrument.select(self.current_user).where(
-                Instrument.id == data['instrument_id']
-            )
-            instrument = session.scalars(stmt).first()
-            if instrument is None:
-                return self.error(
-                    f'Cannot find instrument with ID: {data["instrument_id"]}'
+            try:
+                # always append the single user group
+                single_user_group = self.associated_user_object.single_user_group
+
+                group_ids = data.pop("group_ids", None)
+                if group_ids == [] or group_ids is None:
+                    group_ids = [single_user_group.id]
+                elif group_ids == "all":
+                    group_ids = [g.id for g in self.current_user.accessible_groups]
+
+                if single_user_group.id not in group_ids:
+                    group_ids.append(single_user_group.id)
+
+                data['group_ids'] = group_ids
+
+                spectrum_id = post_spectrum(
+                    data,
+                    self.associated_user_object.id,
+                    session,
                 )
-
-            owner_id = self.associated_user_object.id
-
-            reducers = []
-            external_reducer = data.pop("external_reducer", None)
-            for reducer_id in data.pop('reduced_by', []):
-                stmt = User.select(self.current_user).where(User.id == reducer_id)
-                reducer = session.scalars(stmt).first()
-                if reducer is None:
-                    return self.error(f'Invalid reducer ID: {reducer_id}.')
-                reducer_association = SpectrumReducer(external_reducer=external_reducer)
-                reducer_association.user = reducer
-                reducers.append(reducer_association)
-
-            if len(reducers) == 0 and external_reducer is not None:
-                self.error(
-                    "At least one valid user must be provided as a reducer point of contact via the 'reduced_by' parameter."
-                )
-
-            observers = []
-            external_observer = data.pop("external_observer", None)
-            for observer_id in data.pop('observed_by', []):
-                stmt = User.select(self.current_user).where(User.id == observer_id)
-                observer = session.scalars(stmt).first()
-                if observer is None:
-                    return self.error(f'Invalid observer ID: {observer_id}.')
-                observer_association = SpectrumObserver(
-                    external_observer=external_observer
-                )
-                observer_association.user = observer
-                observers.append(observer_association)
-
-            if len(observers) == 0 and external_observer is not None:
-                self.error(
-                    "At least one valid user must be provided as an "
-                    "observer point of contact via the 'observed_by' parameter."
-                )
-
-            if "units" in data:
-                if not data["units"] in ["Jy", "AB", "erg/s/cm/cm/AA"]:
-                    return self.error("units must be Jy, AB, or erg/s/cm/cm/AA")
-
-            # always append the single user group
-            single_user_group = self.associated_user_object.single_user_group
-
-            group_ids = data.pop("group_ids", None)
-            if group_ids == [] or group_ids is None:
-                group_ids = [single_user_group.id]
-            elif group_ids == "all":
-                group_ids = [g.id for g in self.current_user.accessible_groups]
-
-            if single_user_group.id not in group_ids:
-                group_ids.append(single_user_group.id)
-
-            groups = (
-                session.scalars(
-                    Group.select(self.current_user).where(Group.id.in_(group_ids))
-                )
-                .unique()
-                .all()
-            )
-            if {g.id for g in groups} != set(group_ids):
-                return self.error(
-                    f'Cannot find one or more groups with IDs: {group_ids}.'
-                )
-
-            spec = Spectrum(**data)
-            spec.instrument = instrument
-
-            spec.groups = groups
-            spec.owner_id = owner_id
-            if spec.type is None:
-                spec.type = default_spectrum_type
-            session.add(spec)
-
-            for reducer in reducers:
-                reducer.spectrum = spec
-                session.add(reducer)
-            for observer in observers:
-                observer.spectrum = spec
-                session.add(observer)
-
-            session.commit()
-
-            self.push_all(
-                action='skyportal/REFRESH_SOURCE',
-                payload={'obj_key': spec.obj.internal_key},
-            )
-
-            self.push_all(
-                action='skyportal/REFRESH_SOURCE_SPECTRA',
-                payload={'obj_internal_key': spec.obj.internal_key},
-            )
-
-            return self.success(data={"id": spec.id})
+                return self.success(data={"id": spectrum_id})
+            except Exception as e:
+                return self.error(f'Failed to post spectrum: {str(e)}')
 
     @auth_or_token
     def get(self, spectrum_id=None):
@@ -901,7 +920,7 @@ class ASCIIHandler:
 
         # pass ascii in as a file-like object
         try:
-            file = io.BytesIO(ascii.encode('ascii'))
+            file = io.BytesIO(ascii.encode('ascii', 'ignore'))
         except UnicodeEncodeError:
             raise ValueError(
                 'Unable to parse uploaded spectrum file as ascii. '
@@ -1233,7 +1252,8 @@ class ObjSpectraHandler(BaseHandler):
                     reverse=True,
                 )
                 annotations = [
-                    {**a.to_dict(), 'author': a.author.to_dict()} for a in annotations
+                    {**a.to_dict(), 'author': a.author.to_dict(), 'type': 'spectrum'}
+                    for a in annotations
                 ]
                 spec_dict["annotations"] = annotations
                 spec_dict["instrument_name"] = spec.instrument.name

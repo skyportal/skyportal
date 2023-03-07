@@ -404,7 +404,7 @@ def test_cannot_post_source_with_null_radec(
         },
         token=upload_data_token,
     )
-    assert status == 500
+    assert status == 400
 
 
 def test_add_source_without_group_id(upload_data_token, view_only_token, public_group):
@@ -1316,6 +1316,110 @@ def test_sources_filter_by_classifications(
     assert any([source["id"] == obj_id2 for source in data["data"]["sources"]])
 
 
+def test_sources_filter_by_unclassified(
+    upload_data_token,
+    taxonomy_token,
+    classification_token,
+    view_only_token,
+    public_group,
+):
+    # Post a source with a classification, and one without
+    obj_id = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "sources",
+        data={
+            "id": obj_id,
+            "ra": 234.22,
+            "dec": -22.33,
+            "group_ids": [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+
+    taxonomy_name = "test taxonomy" + str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "taxonomy",
+        data={
+            "name": taxonomy_name,
+            "hierarchy": taxonomy,
+            "group_ids": [public_group.id],
+            "provenance": f"tdtax_{__version__}",
+            "version": __version__,
+            "isLatest": True,
+        },
+        token=taxonomy_token,
+    )
+    assert status == 200
+    taxonomy_id = data["data"]["taxonomy_id"]
+
+    status, data = api(
+        "POST",
+        "classification",
+        data={
+            "obj_id": obj_id,
+            "classification": "Algol",
+            "taxonomy_id": taxonomy_id,
+            "probability": 1.0,
+            "group_ids": [public_group.id],
+        },
+        token=classification_token,
+    )
+    assert status == 200
+    classification_id = data["data"]["classification_id"]
+
+    # Filter for all sources
+    status, data = api(
+        "GET",
+        "sources",
+        params={
+            "unclassified": False,
+            "group_ids": f"{public_group.id}",
+        },
+        token=view_only_token,
+    )
+    assert status == 200
+    assert len(data["data"]["sources"]) == 1
+    assert data["data"]["sources"][0]["id"] == obj_id
+
+    # Filter for unclassified sources
+    status, data = api(
+        "GET",
+        "sources",
+        params={
+            "unclassified": True,
+            "group_ids": f"{public_group.id}",
+        },
+        token=view_only_token,
+    )
+    assert status == 200
+    assert len(data["data"]["sources"]) == 0
+
+    # now delete that classification
+    status, data = api(
+        "DELETE",
+        f"classification/{classification_id}",
+        token=classification_token,
+    )
+    assert status == 200
+
+    # now filter for unclassified sources again
+    status, data = api(
+        "GET",
+        "sources",
+        params={
+            "unclassified": True,
+            "group_ids": f"{public_group.id}",
+        },
+        token=view_only_token,
+    )
+    assert status == 200
+    assert len(data["data"]["sources"]) == 1
+    assert data["data"]["sources"][0]["id"] == obj_id
+
+
 def test_sources_filter_by_redshift(upload_data_token, view_only_token, public_group):
     obj_id1 = str(uuid.uuid4())
     obj_id2 = str(uuid.uuid4())
@@ -2222,3 +2326,93 @@ def test_add_and_delete_source_label(upload_data_token, view_only_token, public_
     assert data["data"]["id"] == obj_id
 
     assert len(data["data"]["labellers"]) == 0
+
+
+def test_copy_photometry_sources(
+    public_group, upload_data_token, ztf_camera, view_only_token
+):
+    obj_id1 = str(uuid.uuid4())
+    obj_id2 = str(uuid.uuid4())
+    ra = 200.0 * np.random.random()
+    dec = 89.0 * np.random.random()
+    status, data = api(
+        "POST",
+        "sources",
+        data={
+            "id": obj_id1,
+            "ra": ra,
+            "dec": dec,
+            "redshift": 3,
+            "group_ids": [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    status, data = api(
+        "POST",
+        "sources",
+        data={
+            "id": obj_id2,
+            "ra": ra + 0.0001,
+            "dec": dec + 0.0005,
+            "redshift": 3,
+            "group_ids": [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    status, data = api(
+        "POST",
+        "photometry",
+        data={
+            "obj_id": obj_id1,
+            "mjd": 59801.4,
+            "instrument_id": ztf_camera.id,
+            "filter": "ztfg",
+            "group_ids": [public_group.id],
+            "mag": 12.4,
+            "magerr": 0.3,
+            "limiting_mag": 22,
+            "magsys": "ab",
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    status, data = api(
+        "POST",
+        "photometry",
+        data={
+            "obj_id": obj_id2,
+            "mjd": 59801.3,
+            "instrument_id": ztf_camera.id,
+            "filter": "ztfg",
+            "group_ids": [public_group.id],
+            "mag": 12.4,
+            "magerr": 0.3,
+            "limiting_mag": 22,
+            "magsys": "ab",
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+
+    status, data = api(
+        "POST",
+        f"sources/{obj_id1}/copy_photometry",
+        data={
+            "origin_id": obj_id2,
+            "group_ids": [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+
+    status, data = api(
+        "GET",
+        f"sources/{obj_id1}",
+        params={"includePhotometry": "true"},
+        token=view_only_token,
+    )
+    assert status == 200
+    assert data["status"] == "success"
+    assert any([np.isclose(p['mjd'], 59801.3) for p in data["data"]["photometry"]])

@@ -1,7 +1,6 @@
 # Inspired by https://github.com/growth-astro/growth-too-marshal/blob/main/growth/too/gcn.py
 
 import base64
-from cdshealpix import elliptical_cone_search
 import os
 import numpy as np
 import scipy
@@ -20,8 +19,8 @@ from astropy_healpix import HEALPix, nside_to_level, pixel_resolution_to_nside
 import ligo.skymap.io
 import ligo.skymap.postprocess
 import ligo.skymap.moc
+import ligo.skymap.distance
 import ligo.skymap.bayestar as ligo_bayestar
-from mocpy.mocpy import flatten_pixels
 from mocpy import MOC
 
 
@@ -318,21 +317,20 @@ def from_polygon(localization_name, polygon):
 
 def from_ellipse(localization_name, ra, dec, amaj, amin, phi):
 
-    NSIDE = int(2**13)
+    max_depth = 10
+    NSIDE = int(2**max_depth)
     hpx = HEALPix(NSIDE, 'nested', frame=ICRS())
-    ipix, depth, fully_covered = elliptical_cone_search(
-        Longitude(ra, u.deg),
-        Latitude(dec, u.deg),
-        Angle(amaj, unit="deg"),
-        Angle(amin, unit="deg"),
-        Angle(phi, unit="deg"),
-        nside_to_level(hpx.nside),
-    )
-    moc = MOC.from_healpix_cells(ipix, depth, fully_covered)
-    ipix = flatten_pixels(moc._interval_set._intervals, int(np.log2(NSIDE)))
+    ipix = MOC.from_elliptical_cone(
+        lon=Longitude(ra, u.deg),
+        lat=Latitude(dec, u.deg),
+        a=Angle(amaj, unit="deg"),
+        b=Angle(amin, unit="deg"),
+        pa=Angle(np.mod(phi, 180.0), unit="deg"),
+        max_depth=max_depth,
+    ).flatten()
 
     # Convert to multi-resolution pixel indices and sort.
-    uniq = ligo.skymap.moc.nest2uniq(nside_to_level(hpx.nside), ipix.astype(np.int64))
+    uniq = ligo.skymap.moc.nest2uniq(nside_to_level(NSIDE), ipix.astype(np.int64))
     i = np.argsort(uniq)
     ipix = ipix[i]
     uniq = uniq[i]
@@ -479,3 +477,46 @@ def get_contour(localization):
     }
 
     return localization
+
+
+def get_skymap_properties(localization):
+
+    sky_map = localization.table
+
+    properties_dict = {}
+    tags_list = []
+    try:
+        result = ligo.skymap.postprocess.crossmatch(
+            sky_map, contours=(0.9,), areas=(500,)
+        )
+    except Exception:
+        return properties_dict, tags_list
+    area = result.contour_areas[0]
+    prob = result.area_probs[0]
+
+    if not np.isnan(area):
+        properties_dict["area_90"] = area
+        thresholds = [500, 1000]
+        for threshold in thresholds:
+            if properties_dict["area_90"] < threshold:
+                tags_list.append(f"< {threshold} sq. deg.")
+    if not np.isnan(prob):
+        properties_dict["probability_500"] = prob
+        if properties_dict["probability_500"] >= 0.9:
+            tags_list.append("> 0.9 in 500 sq. deg.")
+
+    # Distance stats
+    if 'DISTMU' in sky_map.dtype.names:
+        # Calculate the cumulative area in deg2 and the cumulative probability.
+        dA = ligo.skymap.moc.uniq2pixarea(sky_map['UNIQ'])
+        dP = sky_map['PROBDENSITY'] * dA
+        mu = sky_map['DISTMU']
+        sigma = sky_map['DISTSIGMA']
+
+        distmean, _ = ligo.skymap.distance.parameters_to_marginal_moments(dP, mu, sigma)
+        if not np.isnan(distmean):
+            properties_dict["distance"] = distmean
+            if distmean <= 150:
+                tags_list.append("< 150 Mpc")
+
+    return properties_dict, tags_list

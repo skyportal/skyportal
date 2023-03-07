@@ -30,7 +30,8 @@ import {
 } from "@mui/material/styles";
 import makeStyles from "@mui/styles/makeStyles";
 // eslint-disable-next-line import/no-unresolved
-import Form from "@rjsf/material-ui/v5";
+import Form from "@rjsf/mui";
+import validator from "@rjsf/validator-ajv8";
 import PapaParse from "papaparse";
 
 import dayjs from "dayjs";
@@ -524,6 +525,7 @@ const UserInvitations = () => {
       <div>
         <Form
           schema={filterFormSchema}
+          validator={validator}
           onSubmit={({ formData }) => {
             handleFilterSubmit(formData);
           }}

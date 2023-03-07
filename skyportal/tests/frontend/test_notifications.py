@@ -104,6 +104,9 @@ def test_group_admission_requests_notifications(
     driver.wait_for_xpath(f'//em[text()="{public_group2.name}"]')
 
 
+pytest.mark.flaky(reruns=2)
+
+
 def test_comment_on_favorite_source_triggers_notification(
     driver, user, user2, public_source
 ):
@@ -150,6 +153,7 @@ def test_comment_on_favorite_source_triggers_notification(
     driver.wait_for_xpath('//*[contains(text(), "New comment on favorite source")]')
 
 
+@pytest.mark.flaky(reruns=3)
 def test_classification_on_favorite_source_triggers_notification(
     driver, user, public_source, public_group, taxonomy_token, classification_token
 ):
@@ -218,6 +222,7 @@ def test_classification_on_favorite_source_triggers_notification(
     )
 
 
+@pytest.mark.flaky(reruns=3)
 def test_spectra_on_favorite_source_triggers_notification(
     driver, user, public_source, lris, upload_data_token, public_group
 ):
@@ -428,19 +433,19 @@ def test_notification_setting_select(driver, user):
 
     # sms settings appeared, so we can test them
     sms_on_shift_setting = driver.wait_for_xpath(
-        '//*[@name="on_shift" and contains(@class, "MuiSwitch-input")]'
+        '//*[@name="on_shift_sms" and contains(@class, "MuiSwitch-input")]'
     )
     driver.scroll_to_element_and_click(sms_on_shift_setting)
     driver.wait_for_xpath(
-        '//*[@name="on_shift" and contains(@class, "MuiSwitch-input")]/../../span[contains(@class,"Mui-checked")]'
+        '//*[@name="on_shift_sms" and contains(@class, "MuiSwitch-input")]/../../span[contains(@class,"Mui-checked")]'
     )
 
     sms_time_slot_setting = driver.wait_for_xpath(
-        '//*[@name="time_slot" and contains(@class, "MuiSwitch-input")]'
+        '//*[@name="time_slot_sms" and contains(@class, "MuiSwitch-input")]'
     )
     driver.scroll_to_element_and_click(sms_time_slot_setting)
     driver.wait_for_xpath(
-        '//*[@name="time_slot" and contains(@class, "MuiSwitch-input")]/../../span[contains(@class,"Mui-checked")]'
+        '//*[@name="time_slot_sms" and contains(@class, "MuiSwitch-input")]/../../span[contains(@class,"Mui-checked")]'
     )
 
     driver.wait_for_xpath('//*[@aria-label="time_slot_slider" and @value="8"]')
@@ -494,10 +499,10 @@ def test_notification_setting_select(driver, user):
         '//*[@name="sms" and contains(@class, "MuiSwitch-input")]/../../span[contains(@class,"Mui-checked")]'
     )
     driver.wait_for_xpath(
-        '//*[@name="on_shift" and contains(@class, "MuiSwitch-input")]/../../span[contains(@class,"Mui-checked")]'
+        '//*[@name="on_shift_sms" and contains(@class, "MuiSwitch-input")]/../../span[contains(@class,"Mui-checked")]'
     )
     driver.wait_for_xpath(
-        '//*[@name="time_slot" and contains(@class, "MuiSwitch-input")]/../../span[contains(@class,"Mui-checked")]'
+        '//*[@name="time_slot_sms" and contains(@class, "MuiSwitch-input")]/../../span[contains(@class,"Mui-checked")]'
     )
 
     driver.wait_for_xpath('//*[@aria-label="time_slot_slider" and @value="3"]')

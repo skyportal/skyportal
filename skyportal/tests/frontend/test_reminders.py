@@ -62,7 +62,7 @@ def post_and_verify_reminder(endpoint, token):
             )
             if data[reminder_index]['number_of_reminders'] == number_of_reminders - 1:
                 break
-        time.sleep(1)
+        time.sleep(15)
         n_retries += 1
     assert n_retries < 10
     assert status == 200
@@ -77,8 +77,9 @@ def post_and_verify_reminder(endpoint, token):
 
 
 def post_and_verify_reminder_frontend(driver, reminder_text):
+
     search_button_xpath = driver.wait_for_xpath(
-        '//button[@data-testid="Search-iconButton"]'
+        '//*[@data-testid="Reminders"]//button[@aria-label="Search"]'
     )
     driver.scroll_to_element_and_click(search_button_xpath)
     search_bar = driver.wait_for_xpath('//input[@aria-label="Search"]')

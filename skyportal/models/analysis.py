@@ -1,13 +1,14 @@
-__all__ = ['AnalysisService', 'ObjAnalysis']
+__all__ = ['AnalysisService', 'ObjAnalysis', 'DefaultAnalysis']
 
-import os
-import io
-import tempfile
-import json
-import re
-import uuid
 import base64
+from datetime import datetime, timedelta
+import io
+import json
+import os
 from pathlib import Path
+import re
+import tempfile
+import uuid
 
 import joblib
 import numpy as np
@@ -16,7 +17,8 @@ import corner
 import arviz
 import sqlalchemy as sa
 from sqlalchemy.orm import relationship
-from sqlalchemy import event
+from sqlalchemy import event, inspect, or_, cast, func
+from sqlalchemy.dialects import postgresql as psql
 from sqlalchemy_utils.types import JSONType
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.dialects.postgresql import ARRAY
@@ -36,6 +38,8 @@ from baselayer.app.models import (
 from baselayer.app.env import load_env
 from baselayer.log import make_log
 
+from skyportal.models import DBSession
+
 from ..enum_types import (
     allowed_analysis_types,
     allowed_analysis_input_types,
@@ -46,6 +50,8 @@ from ..enum_types import (
 
 from .webhook import WebhookMixin
 from .group import accessible_by_groups_members
+from .classification import Classification
+from .group import Group
 
 _, cfg = load_env()
 
@@ -197,6 +203,15 @@ class AnalysisService(Base):
     @authinfo.setter
     def authinfo(self, value):
         self._authinfo = value
+
+    # add the relationship to the DefaultAnalysis table
+    default_analyses = relationship(
+        'DefaultAnalysis',
+        back_populates='analysis_service',
+        cascade='save-update, merge, refresh-expire, expunge, delete-orphan, delete',
+        passive_deletes=True,
+        doc="Instances of analysis applied to specific objects",
+    )
 
 
 class DictNumpyEncoder(json.JSONEncoder):
@@ -403,8 +418,10 @@ class AnalysisMixin:
         else:
             reg = RE_NO_SLASHES
 
+        if string is None:
+            raise ValueError("String cannot be None.")
         if not reg.match(string):
-            raise ValueError(f'Illegal characters in string "{string}". ')
+            raise ValueError(f'Illegal characters in string "{string}".')
 
     @hybrid_property
     def data(self):
@@ -539,6 +556,97 @@ class ObjAnalysis(Base, AnalysisMixin, WebhookMixin):
         )
 
 
+class DefaultAnalysis(Base):
+
+    # this is a table that stores a default analysis for a given analysis service
+    # this default analysis will be triggered based on a set of criteria
+    # the criteria will be defined here as well, in a JSONB column called source_filter
+
+    __tablename__ = 'default_analyses'
+
+    create = read = update = delete = accessible_by_groups_members
+
+    analysis_service_id = sa.Column(
+        sa.ForeignKey('analysis_services.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+        doc="ID of the associated analysis service.",
+    )
+
+    analysis_service = relationship(
+        "AnalysisService",
+        back_populates="default_analyses",
+        doc="Analysis Service associated with this analysis.",
+    )
+
+    show_parameters = sa.Column(
+        sa.Boolean,
+        default=False,
+        nullable=False,
+        doc="Whether to render the parameters of this analysis",
+    )
+
+    show_plots = sa.Column(
+        sa.Boolean,
+        default=False,
+        nullable=False,
+        doc="Whether to render the plots of this analysis",
+    )
+
+    show_corner = sa.Column(
+        sa.Boolean,
+        default=False,
+        nullable=False,
+        doc="Whether to render the corner plots of this analysis",
+    )
+
+    default_analysis_parameters = sa.Column(
+        JSONType,
+        nullable=True,
+        doc=('Optional parameters that are passed to the analysis service'),
+    )
+
+    source_filter = sa.Column(
+        psql.JSONB,
+        nullable=False,
+        doc="""
+            JSONB column that defines the criteria for which this default analysis will be triggered.
+            Example: {"classifications": {"name": "Kilonova", "probability": 0.9}}
+        """,
+    )
+
+    stats = sa.Column(
+        psql.JSONB,
+        nullable=False,
+        default={},
+        doc="JSONB column that stores the stats for this default analysis",
+    )
+
+    groups = relationship(
+        "Group",
+        secondary="group_default_analyses",
+        cascade="save-update, merge, refresh-expire, expunge",
+        passive_deletes=True,
+        doc="Groups that can edit the default analysis, and see the analyses created by it.",
+    )
+
+    @declared_attr
+    def author_id(cls):
+        return sa.Column(
+            sa.ForeignKey('users.id', ondelete='CASCADE'),
+            nullable=False,
+            index=True,
+            doc="ID of the Annotation author's User instance.",
+        )
+
+    @declared_attr
+    def author(cls):
+        return relationship(
+            "User",
+            doc="Annotation's author.",
+        )
+
+
 @event.listens_for(ObjAnalysis, 'after_delete')
 def delete_analysis_data_from_disk(mapper, connection, target):
     log(f'Deleting analysis data for analysis id={target.id}')
@@ -551,3 +659,117 @@ def delete_assoc_analysis_data_from_disk(mapper, connection, target):
     for analysis in target.obj_analyses:
         log(f' ... deleting analysis data for analysis id={analysis.id}')
         analysis.delete_data()
+
+
+@event.listens_for(Classification, 'after_insert')
+def create_default_analysis(mapper, connection, target):
+    log(f'Checking for default analyses for classification {target.id}')
+
+    @event.listens_for(inspect(target).session, "after_flush", once=True)
+    def receive_after_flush(session, context):
+        try:
+            from skyportal.handlers.api.analysis import post_analysis
+
+            target_data = target.to_dict()
+
+            stmt = sa.select(DefaultAnalysis).where(
+                DefaultAnalysis.source_filter['classifications'].contains(
+                    [{"name": target_data['classification']}]
+                ),
+                or_(
+                    func.coalesce(
+                        DefaultAnalysis.stats['daily_count'].astext.cast(sa.Integer), 0
+                    )
+                    < func.coalesce(
+                        DefaultAnalysis.stats['daily_limit'].astext.cast(sa.Integer), 10
+                    ),
+                    DefaultAnalysis.stats['last_run'].astext.cast(sa.DateTime)
+                    < cast(datetime.utcnow() - timedelta(days=1), sa.DateTime),
+                ),
+                # make sure that the default analysis is associated with a group that the classification is associated with
+                DefaultAnalysis.groups.any(
+                    Group.id.in_([g.id for g in target_data["groups"]])
+                ),
+            )
+
+            default_analyses = session.scalars(stmt).all()
+
+            for default_analysis in default_analyses:
+                classification_filter = next(
+                    (
+                        classification
+                        for classification in default_analysis.source_filter[
+                            "classifications"
+                        ]
+                        if classification["name"] == target_data['classification']
+                    ),
+                    None,
+                )
+                if classification_filter['probability'] <= target_data['probability']:
+                    log(
+                        f'Creating default analysis {default_analysis.analysis_service.name} for classification {target.id}'
+                    )
+
+                    with DBSession() as db_session:
+
+                        try:
+                            default_analysis = db_session.scalars(
+                                DefaultAnalysis.select(
+                                    default_analysis.author, mode="update"
+                                ).where(DefaultAnalysis.id == default_analysis.id)
+                            ).first()
+
+                            if not {'daily_limit', 'daily_count', 'last_run'}.issubset(
+                                default_analysis.stats.keys()
+                            ):
+                                default_analysis.stats = {
+                                    'daily_limit': 10,
+                                    'daily_count': 1,
+                                    'last_run': datetime.utcnow().strftime(
+                                        "%Y-%m-%dT%H:%M:%S.%f"
+                                    ),
+                                }
+                            if datetime.strptime(
+                                default_analysis.stats['last_run'],
+                                "%Y-%m-%dT%H:%M:%S.%f",
+                            ) < datetime.utcnow() - timedelta(days=1):
+                                default_analysis.stats = {
+                                    'daily_limit': default_analysis.stats[
+                                        'daily_limit'
+                                    ],
+                                    'daily_count': 0,
+                                    'last_run': datetime.utcnow().strftime(
+                                        "%Y-%m-%dT%H:%M:%S.%f"
+                                    ),
+                                }
+                            default_analysis.stats = {
+                                'daily_limit': default_analysis.stats['daily_limit'],
+                                'daily_count': default_analysis.stats['daily_count']
+                                + 1,
+                                'last_run': datetime.utcnow().strftime(
+                                    "%Y-%m-%dT%H:%M:%S.%f"
+                                ),
+                            }
+                            db_session.add(default_analysis)
+
+                            post_analysis(
+                                "obj",
+                                target.obj_id,
+                                current_user=default_analysis.author,
+                                author=default_analysis.author,
+                                groups=default_analysis.groups,
+                                analysis_service=default_analysis.analysis_service,
+                                analysis_parameters=default_analysis.default_analysis_parameters,
+                                show_parameters=default_analysis.show_parameters,
+                                show_plots=default_analysis.show_plots,
+                                show_corner=default_analysis.show_corner,
+                                notification=f"Default analysis {default_analysis.analysis_service.name} triggered by classification {target_data['classification']}",
+                                session=db_session,
+                            )
+                        except Exception as e:
+                            log(
+                                f'Error creating default analysis with id {default_analysis.id}: {e}'
+                            )
+                            db_session.rollback()
+        except Exception as e:
+            log(f'Error creating default analyses on classification {target.id}: {e}')

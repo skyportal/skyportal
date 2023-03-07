@@ -17,8 +17,10 @@ from tornado.ioloop import IOLoop
 import io
 from dateutil.parser import isoparse
 import numpy as np
+import pandas as pd
 import sqlalchemy as sa
 from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import sessionmaker, scoped_session
 from sqlalchemy import func, or_, distinct
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.sql.expression import cast
@@ -48,6 +50,7 @@ from ...models import (
     Allocation,
     Annotation,
     Comment,
+    DBSession,
     GroupUser,
     Instrument,
     Obj,
@@ -88,9 +91,8 @@ from .candidate import (
     update_redshift_history_if_relevant,
     update_healpix_if_relevant,
     add_linked_thumbnails_and_push_ws_msg,
-    Session,
 )
-from .photometry import serialize
+from .photometry import serialize, add_external_photometry
 from .color_mag import get_color_mag
 
 DEFAULT_SOURCES_PER_PAGE = 100
@@ -101,8 +103,10 @@ log = make_log('api/source')
 
 MAX_LOCALIZATION_SOURCES = 50000
 
+Session = scoped_session(sessionmaker())
 
-def get_source(
+
+async def get_source(
     obj_id,
     user_id,
     session,
@@ -269,7 +273,7 @@ def get_source(
         )
         source_info["labellers"] = [user.to_dict() for user in users]
 
-    source_info["annotations"] = sorted(
+    annotations = sorted(
         session.scalars(
             Annotation.select(user)
             .options(joinedload(Annotation.author))
@@ -279,6 +283,9 @@ def get_source(
         .all(),
         key=lambda x: x.origin,
     )
+    source_info["annotations"] = [
+        {**annotation.to_dict(), 'type': 'source'} for annotation in annotations
+    ]
     readable_classifications = (
         session.scalars(
             Classification.select(user).where(Classification.obj_id == obj_id)
@@ -303,9 +310,15 @@ def get_source(
     source_info["ebv"] = s.ebv
 
     if include_photometry:
-        photometry = session.scalars(
-            Photometry.select(user).where(Photometry.obj_id == obj_id)
-        ).all()
+        photometry = (
+            session.scalars(
+                Photometry.select(
+                    user, options=[joinedload(Photometry.annotations)]
+                ).where(Photometry.obj_id == obj_id)
+            )
+            .unique()
+            .all()
+        )
         source_info["photometry"] = [
             serialize(phot, 'ab', 'flux') for phot in photometry
         ]
@@ -348,7 +361,7 @@ def get_source(
                 else None
             )
     if include_color_mag:
-        source_info["color_magnitude"] = get_color_mag(source_info["annotations"])
+        source_info["color_magnitude"] = get_color_mag(annotations)
 
     source_info = recursive_to_dict(source_info)
     return source_info
@@ -378,7 +391,7 @@ def create_annotations_query(
     return annotations_query
 
 
-def get_sources(
+async def get_sources(
     user_id,
     session,
     include_thumbnails=False,
@@ -400,6 +413,7 @@ def get_sources(
     has_followup_request=False,
     has_been_labelled=False,
     has_not_been_labelled=False,
+    current_user_labeller=False,
     sourceID=None,
     rejectedSourceIDs=None,
     ra=None,
@@ -423,7 +437,9 @@ def get_sources(
     max_latest_magnitude=None,
     number_of_detections=None,
     classifications=None,
+    classifications_simul=False,
     nonclassifications=None,
+    unclassified=False,
     annotations_filter=None,
     annotations_filter_origin=None,
     annotations_filter_before=None,
@@ -606,12 +622,18 @@ def get_sources(
             followup_request_subquery, Obj.id == followup_request_subquery.c.obj_id
         )
     if has_been_labelled:
-        labels_subquery = SourceLabel.select(session.user_or_token).subquery()
+        labels_query = SourceLabel.select(session.user_or_token)
+        if current_user_labeller:
+            labels_query = labels_query.where(SourceLabel.labeller_id == user.id)
+        labels_subquery = labels_query.subquery()
         obj_query = obj_query.join(labels_subquery, Obj.id == labels_subquery.c.obj_id)
     if has_not_been_labelled:
-        labels_subquery = SourceLabel.select(
+        labels_query = SourceLabel.select(
             session.user_or_token, columns=[SourceLabel.obj_id]
-        ).subquery()
+        )
+        if current_user_labeller:
+            labels_query = labels_query.where(SourceLabel.labeller_id == user.id)
+        labels_subquery = labels_query.subquery()
         obj_query = obj_query.where(Obj.id.notin_(labels_subquery))
 
     if min_redshift is not None:
@@ -717,31 +739,70 @@ def get_sources(
                     )
                 )
             )
-            classification_accessible_query = Classification.select(user).subquery()
+            classification_accessible_subquery = Classification.select(user).subquery()
 
-            classification_query = (
-                session.query(
-                    distinct(Classification.obj_id).label("obj_id"),
-                    Classification.classification,
+            if classifications_simul:
+                classification_id_query = Obj.select(
+                    session.user_or_token, columns=[Obj.id]
                 )
-                .join(Taxonomy)
-                .where(Classification.classification.in_(classifications))
-                .where(Taxonomy.name.in_(taxonomy_names))
-            )
-            classification_subquery = classification_query.subquery()
+                for taxonomy_name, classification in zip(
+                    taxonomy_names, classifications
+                ):
+                    classification_query = (
+                        session.query(
+                            distinct(Classification.obj_id).label("obj_id"),
+                            Classification.classification,
+                        )
+                        .join(Taxonomy)
+                        .where(Classification.classification == classification)
+                        .where(Taxonomy.name == taxonomy_name)
+                    )
+                    classification_subquery = classification_query.subquery()
 
-            # We join in the classifications being filtered for first before
-            # the filter for accessible classifications to speed up the query
-            # (this way seems to help the query planner come to more optimal join
-            # strategies)
-            obj_query = obj_query.join(
-                classification_subquery,
-                Obj.id == classification_subquery.c.obj_id,
-            )
-            obj_query = obj_query.join(
-                classification_accessible_query,
-                Obj.id == classification_accessible_query.c.obj_id,
-            )
+                    classification_id_query = classification_id_query.where(
+                        Obj.id == classification_subquery.c.obj_id
+                    )
+                # We join in the classifications being filtered for first before
+                # the filter for accessible classifications to speed up the query                                                                                               # (this way seems to help the query planner come to more optimal join
+                # strategies)
+                classification_id_query = classification_id_query.join(
+                    classification_accessible_subquery,
+                    Obj.id == classification_accessible_subquery.c.obj_id,
+                )
+                # classification_id_subquery = classification_id_query.subquery()
+                classification_id_subquery = (
+                    session.scalars(classification_id_query).unique().all()
+                )
+
+            else:
+                classification_query = (
+                    session.query(
+                        distinct(Classification.obj_id).label("obj_id"),
+                        Classification.classification,
+                    )
+                    .join(Taxonomy)
+                    .where(Classification.classification.in_(classifications))
+                    .where(Taxonomy.name.in_(taxonomy_names))
+                )
+                classification_subquery = classification_query.subquery()
+
+                classification_id_query = Obj.select(
+                    session.user_or_token, columns=[Obj.id]
+                ).where(Obj.id == classification_subquery.c.obj_id)
+                # We join in the classifications being filtered for first before
+                # the filter for accessible classifications to speed up the query
+                # (this way seems to help the query planner come to more optimal join
+                # strategies)
+                classification_id_query = classification_id_query.join(
+                    classification_accessible_subquery,
+                    Obj.id == classification_accessible_subquery.c.obj_id,
+                )
+                # classification_id_subquery = classification_id_query.subquery()
+                classification_id_subquery = (
+                    session.scalars(classification_id_query).unique().all()
+                )
+
+            obj_query = obj_query.where(Obj.id.in_(classification_id_subquery))
 
         else:
             # Not filtering on classifications, but ordering on them
@@ -790,18 +851,27 @@ def get_sources(
         )
         nonclassification_subquery = nonclassification_query.subquery()
 
+        nonclassification_id_query = Obj.select(
+            session.user_or_token, columns=[Obj.id]
+        ).where(Obj.id == nonclassification_subquery.c.obj_id)
         # We join in the nonclassifications being filtered for first before
         # the filter for accessible classifications to speed up the query
         # (this way seems to help the query planner come to more optimal join
         # strategies)
-        obj_query = obj_query.join(
-            nonclassification_subquery,
-            Obj.id != nonclassification_subquery.c.obj_id,
-        )
-        obj_query = obj_query.join(
+        nonclassification_id_query = nonclassification_id_query.join(
             classification_accessible_subquery,
             Obj.id == classification_accessible_subquery.c.obj_id,
         )
+        nonclassification_id_subquery = nonclassification_id_query.subquery()
+
+        obj_query = obj_query.where(Obj.id.notin_(nonclassification_id_subquery))
+
+    if unclassified:
+        unclassified_subquery = Classification.select(
+            session.user_or_token, columns=[Classification.obj_id]
+        ).subquery()
+        obj_query = obj_query.where(Obj.id.notin_(unclassified_subquery))
+
     if annotations_filter is not None:
         if isinstance(annotations_filter, str) and "," in annotations_filter:
             annotations_filter = [c.strip() for c in annotations_filter.split(",")]
@@ -1415,6 +1485,9 @@ def post_source(data, user_id, session, refresh_source=True):
 
     user = session.scalar(sa.select(User).where(User.id == user_id))
 
+    if ' ' in data["id"]:
+        raise AttributeError("No spaces allowed in source ID")
+
     obj = session.scalars(Obj.select(user).where(Obj.id == data["id"])).first()
     if obj is None:
         obj_already_exists = False
@@ -1536,29 +1609,37 @@ def apply_active_or_requested_filtering(query, include_requested, requested_only
 
 
 def add_ps1_thumbnail_and_push_ws_msg(obj_ids, user_id):
-    with Session() as session:
-        user = session.query(User).get(user_id)
-        for obj_id in obj_ids:
-            try:
-                user = session.query(User).get(user_id)
-                if Obj.get_if_accessible_by(obj_id, user) is None:
-                    raise AccessError(
-                        f"Insufficient permissions for User {user_id} to read Obj {obj_id}"
-                    )
-                obj = session.query(Obj).get(obj_id)
-                obj.add_ps1_thumbnail(session=session)
-                flow = Flow()
-                flow.push(
-                    '*',
-                    "skyportal/REFRESH_SOURCE",
-                    payload={"obj_key": obj.internal_key},
+
+    if Session.registry.has():
+        session = Session()
+    else:
+        session = Session(bind=DBSession.session_factory.kw["bind"])
+
+    user = session.query(User).get(user_id)
+    for obj_id in obj_ids:
+        try:
+            user = session.query(User).get(user_id)
+            if Obj.get_if_accessible_by(obj_id, user) is None:
+                raise AccessError(
+                    f"Insufficient permissions for User {user_id} to read Obj {obj_id}"
                 )
-                flow.push(
-                    '*', "skyportal/REFRESH_CANDIDATE", payload={"id": obj.internal_key}
-                )
-            except Exception as e:
-                log(f"Unable to generate PS1 thumbnail URL for {obj_id}: {e}")
-                session.rollback()
+            obj = session.query(Obj).get(obj_id)
+            obj.add_ps1_thumbnail(session=session)
+            flow = Flow()
+            flow.push(
+                '*',
+                "skyportal/REFRESH_SOURCE",
+                payload={"obj_key": obj.internal_key},
+            )
+            flow.push(
+                '*', "skyportal/REFRESH_CANDIDATE", payload={"id": obj.internal_key}
+            )
+        except Exception as e:
+            log(f"Unable to generate PS1 thumbnail URL for {obj_id}: {e}")
+            session.rollback()
+
+    session.close()
+    Session.remove()
 
 
 def paginate_summary_query(session, query, page, num_per_page, total_matches):
@@ -1615,7 +1696,7 @@ class SourceHandler(BaseHandler):
                 self.finish()
 
     @auth_or_token
-    def get(self, obj_id=None):
+    async def get(self, obj_id=None):
         """
         ---
         single:
@@ -1756,6 +1837,13 @@ class SourceHandler(BaseHandler):
               type: boolean
             description: |
               If true, return only those objects which have not been labelled
+          - in: query
+            name: currentUserLabeller
+            nullable: true
+            schema:
+              type: boolean
+            description: |
+              If true and one of hasBeenLabeller or hasNotBeenLabelled is true, return only those objects which have been labelled/not labelled by the current user. Otherwise, return results for all users.
           - in: query
             name: numPerPage
             nullable: true
@@ -1970,6 +2058,14 @@ class SourceHandler(BaseHandler):
               Comma-separated string of "taxonomy: classification" pair(s) to filter for sources matching
               that/those classification(s), i.e. "Sitewide Taxonomy: Type II, Sitewide Taxonomy: AGN"
           - in: query
+            name: classifications_simul
+            nullable: true
+            schema:
+              type: boolean
+            description: |
+              Boolean indicating whether object must satisfy all classifications if query (i.e. an AND rather than an OR).
+              Defaults to false.
+          - in: query
             name: nonclassifications
             nullable: true
             schema:
@@ -1981,6 +2077,14 @@ class SourceHandler(BaseHandler):
             description: |
               Comma-separated string of "taxonomy: classification" pair(s) to filter for sources NOT matching
               that/those classification(s), i.e. "Sitewide Taxonomy: Type II, Sitewide Taxonomy: AGN"
+          - in: query
+            name: unclassified
+            nullable: true
+            schema:
+              type: boolean
+            description: |
+              Boolean indicating whether to reject any sources with classifications.
+              Defaults to false.
           - in: query
             name: annotationsFilter
             nullable: true
@@ -2239,7 +2343,9 @@ class SourceHandler(BaseHandler):
             "includeDetectionStats", False
         )
         classifications = self.get_query_argument("classifications", None)
+        classifications_simul = self.get_query_argument("classifications_simul", False)
         nonclassifications = self.get_query_argument("nonclassifications", None)
+        unclassified = self.get_query_argument("unclassified", False)
         annotations_filter = self.get_query_argument("annotationsFilter", None)
         annotations_filter_origin = self.get_query_argument(
             "annotationsFilterOrigin", None
@@ -2379,13 +2485,14 @@ class SourceHandler(BaseHandler):
         has_tns_name = self.get_query_argument('hasTNSname', None)
         has_been_labelled = self.get_query_argument('hasBeenLabelled', False)
         has_not_been_labelled = self.get_query_argument('hasNotBeenLabelled', False)
+        current_user_labeller = self.get_query_argument('currentUserLabeller', False)
         total_matches = self.get_query_argument('totalMatches', None)
         is_token_request = isinstance(self.current_user, Token)
 
         if obj_id is not None:
             with self.Session() as session:
                 try:
-                    source_info = get_source(
+                    source_info = await get_source(
                         obj_id,
                         self.associated_user_object.id,
                         session,
@@ -2417,7 +2524,7 @@ class SourceHandler(BaseHandler):
 
         with self.Session() as session:
             try:
-                query_results = get_sources(
+                query_results = await get_sources(
                     self.associated_user_object.id,
                     session,
                     include_thumbnails=include_thumbnails,
@@ -2451,6 +2558,7 @@ class SourceHandler(BaseHandler):
                     has_tns_name=has_tns_name,
                     has_been_labelled=has_been_labelled,
                     has_not_been_labelled=has_not_been_labelled,
+                    current_user_labeller=current_user_labeller,
                     has_spectrum=has_spectrum,
                     has_followup_request=has_followup_request,
                     followup_request_status=followup_request_status,
@@ -2462,7 +2570,9 @@ class SourceHandler(BaseHandler):
                     max_latest_magnitude=max_latest_magnitude,
                     number_of_detections=number_of_detections,
                     classifications=classifications,
+                    classifications_simul=classifications_simul,
                     nonclassifications=nonclassifications,
+                    unclassified=unclassified,
                     annotations_filter=annotations_filter,
                     annotations_filter_origin=annotations_filter_origin,
                     annotations_filter_before=annotations_filter_before,
@@ -2552,13 +2662,16 @@ class SourceHandler(BaseHandler):
         refresh_source = data.pop('refresh_source', True)
 
         with self.Session() as session:
-            obj_id = post_source(
-                data,
-                self.associated_user_object.id,
-                session,
-                refresh_source=refresh_source,
-            )
-            return self.success(data={"id": obj_id})
+            try:
+                obj_id = post_source(
+                    data,
+                    self.associated_user_object.id,
+                    session,
+                    refresh_source=refresh_source,
+                )
+                return self.success(data={"id": obj_id})
+            except Exception as e:
+                return self.error(f'Failed to post source: {str(e)}')
 
     @permissions(['Upload data'])
     def patch(self, obj_id):
@@ -3336,3 +3449,136 @@ class SourceObservabilityPlotHandler(BaseHandler):
             data = io.BytesIO(buf.read())
 
             await self.send_file(data, filename, output_type=output_format)
+
+
+class SourceCopyPhotometryHandler(BaseHandler):
+    @permissions(["Upload data"])
+    def post(self, target_id):
+        """
+        ---
+        description: Copy all photometry points from one source to another
+        tags:
+          - sources
+          - photometry
+        parameters:
+          - in: path
+            name: target_id
+            required: true
+            schema:
+              type: string
+            description: |
+              The obj_id of the target Source (to which the photometry is being copied to)
+        requestBody:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  group_ids:
+                    type: array
+                    items:
+                      type: integer
+                    description: |
+                      List of IDs of groups to give photometry access to
+                  origin_id:
+                    type: string
+                    description: |
+                      The ID of the Source's Obj the photometry is being copied from
+                required:
+                  - group_ids
+                  - origin_id
+        responses:
+          200:
+            content:
+              application/json:
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+        """
+
+        data = self.get_json()
+
+        if data.get("group_ids") is None:
+            return self.error("Missing required parameter `groupIds`")
+        try:
+            group_ids = [int(gid) for gid in data["group_ids"]]
+        except ValueError:
+            return self.error(
+                "Invalid value provided for `groupIDs`; unable to parse "
+                "all list items to integers."
+            )
+
+        if data.get("origin_id") is None:
+            return self.error("Missing required parameter `duplicateId`")
+
+        origin_id = data.get("origin_id")
+
+        with self.Session() as session:
+            s = session.scalars(
+                Obj.select(self.current_user).where(Obj.id == target_id)
+            ).first()
+            if s is None:
+                return self.error(f"Source {target_id} not found")
+
+            d = session.scalars(
+                Obj.select(self.current_user).where(Obj.id == origin_id)
+            ).first()
+            if d is None:
+                return self.error("Duplicate source {origin_id} not found")
+
+            groups = (
+                session.scalars(
+                    Group.select(self.current_user).where(Group.id.in_(group_ids))
+                )
+                .unique()
+                .all()
+            )
+            if {g.id for g in groups} != set(group_ids):
+                return self.error(
+                    f'Cannot find one or more groups with IDs: {group_ids}.'
+                )
+
+            data = session.scalars(
+                Photometry.select(self.current_user)
+                .options(
+                    joinedload(Photometry.instrument).joinedload(Instrument.telescope)
+                )
+                .where(Photometry.obj_id == origin_id)
+            ).all()
+
+            query_result = []
+            for p in data:
+                instrument = p.instrument
+                result = serialize(p, 'ab', 'both', groups=False, annotations=False)
+                query_result.append(result)
+
+            df = pd.DataFrame.from_dict(query_result)
+            if df.empty:
+                return self.error(f"No photometry found with source {origin_id}")
+
+            drop_columns = list(
+                set(df.columns.values)
+                - {'mjd', 'ra', 'dec', 'mag', 'magerr', 'limiting_mag', 'filter'}
+            )
+
+            df.drop(
+                columns=drop_columns,
+                inplace=True,
+            )
+            df['magsys'] = 'ab'
+
+            data_out = {
+                'obj_id': target_id,
+                'instrument_id': instrument.id,
+                'group_ids': [g.id for g in groups],
+                **df.to_dict(orient='list'),
+            }
+
+            add_external_photometry(data_out, self.associated_user_object)
+
+            self.push_all(
+                action="skyportal/REFRESH_SOURCE",
+                payload={"obj_key": s.internal_key},
+            )
+
+            return self.success()

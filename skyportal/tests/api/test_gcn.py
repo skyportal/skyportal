@@ -50,7 +50,7 @@ def test_gcn_GW(super_admin_token, view_only_token):
     params = {
         'startDate': "2019-04-25T00:00:00",
         'endDate': "2019-04-26T00:00:00",
-        'tagKeep': 'GW',
+        'gcnTagKeep': 'GW',
     }
 
     status, data = api('GET', 'gcn_event', token=super_admin_token, params=params)
@@ -64,7 +64,7 @@ def test_gcn_GW(super_admin_token, view_only_token):
     params = {
         'startDate': "2019-04-25T00:00:00",
         'endDate': "2019-04-26T00:00:00",
-        'tagKeep': 'Fermi',
+        'gcnTagKeep': 'Fermi',
     }
 
     status, data = api('GET', 'gcn_event', token=super_admin_token, params=params)
@@ -314,7 +314,7 @@ def test_gcn_summary_sources(
     assert data['status'] == 'success'
 
     # get the gcn event summary
-    params = {
+    data = {
         "title": "gcn summary",
         "subject": "follow-up",
         "userIds": super_admin_user.id,
@@ -322,6 +322,7 @@ def test_gcn_summary_sources(
         "startDate": "2019-08-13 08:18:05",
         "endDate": "2019-08-19 08:18:05",
         "localizationCumprob": 0.99,
+        "numberDetections": 1,
         "showSources": True,
         "showGalaxies": False,
         "showObservations": False,
@@ -329,14 +330,38 @@ def test_gcn_summary_sources(
     }
 
     status, data = api(
-        'GET',
-        'gcn_event/summary/2019-08-14T21:10:39',
-        params=params,
+        'POST',
+        'gcn_event/2019-08-14T21:10:39/summary',
+        data=data,
         token=super_admin_token,
     )
-
     assert status == 200
-    data = data["data"]
+    summary_id = data["data"]["id"]
+
+    nretries = 0
+    summaries_loaded = False
+    while nretries < 40:
+        status, data = api(
+            'GET',
+            f'gcn_event/2019-08-14T21:10:39/summary/{summary_id}',
+            token=view_only_token,
+            params=params,
+        )
+        if status == 404:
+            nretries = nretries + 1
+            time.sleep(5)
+        if status == 200:
+            data = data["data"]
+            if data["text"] == "pending":
+                nretries = nretries + 1
+                time.sleep(5)
+            else:
+                summaries_loaded = True
+                break
+
+    assert nretries < 40
+    assert summaries_loaded
+    data = list(filter(None, data["text"].split("\n")))
 
     assert "TITLE: GCN SUMMARY" in data[0]
     assert "SUBJECT: Follow-up" in data[1]
@@ -356,7 +381,11 @@ def test_gcn_summary_sources(
         "Found" in data[6]
         and "in the event's localization, given the specified date range:" in data[6]
     )
-    sources_table = data[7].split('\n')
+    table = data[7:]
+    idx = ["Photometry for source" in line for line in table].index(True)
+    sources_table = table[: idx - 1]
+    photometry_table = table[idx + 1 :]
+
     assert (
         len(sources_table) >= 6
     )  # other sources have probably been added in previous tests
@@ -367,16 +396,16 @@ def test_gcn_summary_sources(
     assert "redshift" in sources_table[1]
 
     # source phot
-    assert "Photometry for source" in data[8]
-    source_table = data[9].split('\n')
+    assert "Photometry for source" in table[idx]
+
     assert (
-        len(source_table) >= 6
+        len(photometry_table) >= 5
     )  # other photometry have probably been added in previous tests
-    assert "mjd" in source_table[1]
-    assert "mag±err (ab)" in source_table[1]
-    assert "filter" in source_table[1]
-    assert "origin" in source_table[1]
-    assert "instrument" in source_table[1]
+    assert "mjd" in photometry_table[1]
+    assert "mag±err (ab)" in photometry_table[1]
+    assert "filter" in photometry_table[1]
+    assert "origin" in photometry_table[1]
+    assert "instrument" in photometry_table[1]
 
 
 def test_gcn_summary_galaxies(
@@ -472,7 +501,7 @@ def test_gcn_summary_galaxies(
     assert galaxies_loaded
 
     # get the gcn event summary
-    params = {
+    data = {
         "title": "gcn summary",
         "subject": "follow-up",
         "userIds": super_admin_user.id,
@@ -487,13 +516,38 @@ def test_gcn_summary_galaxies(
     }
 
     status, data = api(
-        'GET',
-        'gcn_event/summary/2019-08-14T21:10:39',
-        params=params,
+        'POST',
+        'gcn_event/2019-08-14T21:10:39/summary',
+        data=data,
         token=super_admin_token,
     )
     assert status == 200
-    data = data["data"]
+    summary_id = data["data"]["id"]
+
+    nretries = 0
+    summaries_loaded = False
+    while nretries < 40:
+        status, data = api(
+            'GET',
+            f'gcn_event/2019-08-14T21:10:39/summary/{summary_id}',
+            token=view_only_token,
+            params=params,
+        )
+        if status == 404:
+            nretries = nretries + 1
+            time.sleep(5)
+        if status == 200:
+            data = data["data"]
+            if data["text"] == "pending":
+                nretries = nretries + 1
+                time.sleep(5)
+            else:
+                summaries_loaded = True
+                break
+
+    assert nretries < 40
+    assert summaries_loaded
+    data = list(filter(None, data["text"].split("\n")))
 
     assert "TITLE: GCN SUMMARY" in data[0]
     assert "SUBJECT: Follow-up" in data[1]
@@ -511,8 +565,8 @@ def test_gcn_summary_galaxies(
     # galaxies
     assert "Found 82 galaxies in the event's localization:" in data[6]
 
-    galaxy_table = data[7].split('\n')
-    assert len(galaxy_table) == 87
+    galaxy_table = data[7:]
+    assert len(galaxy_table) == 86
     assert "catalog" in galaxy_table[1]
     assert "name" in galaxy_table[1]
     assert "ra" in galaxy_table[1]
@@ -525,9 +579,10 @@ def test_gcn_summary_galaxies(
     )
 
 
-def test_gcn_summary_observations(
+def test_gcn_instrument_field(
     super_admin_user,
     super_admin_token,
+    view_only_token,
     public_group,
 ):
 
@@ -546,7 +601,135 @@ def test_gcn_summary_observations(
         assert status == 200
         assert data['status'] == 'success'
 
-    gcnevent_id = data['data']['gcnevent_id']
+    # wait for event to load
+    for n_times in range(26):
+        status, data = api('GET', f"gcn_event/{dateobs}", token=super_admin_token)
+        if data['status'] == 'success':
+            break
+        time.sleep(2)
+    assert n_times < 25
+
+    # wait for the localization to load
+    params = {"include2DMap": True}
+    for n_times_2 in range(26):
+        status, data = api(
+            'GET',
+            'localization/2019-08-14T21:10:39/name/LALInference.v1.fits.gz',
+            token=super_admin_token,
+            params=params,
+        )
+
+        if data['status'] == 'success':
+            data = data["data"]
+            assert data["dateobs"] == "2019-08-14T21:10:39"
+            assert data["localization_name"] == "LALInference.v1.fits.gz"
+            assert np.isclose(np.sum(data["flat_2d"]), 1)
+            break
+        else:
+            time.sleep(2)
+    assert n_times_2 < 25
+
+    name = str(uuid.uuid4())
+    status, data = api(
+        'POST',
+        'telescope',
+        data={
+            'name': name,
+            'nickname': name,
+            'lat': 0.0,
+            'lon': 0.0,
+            'elevation': 0.0,
+            'diameter': 10.0,
+        },
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+    telescope_id = data['data']['id']
+
+    fielddatafile = f'{os.path.dirname(__file__)}/../../../data/ZTF_Fields.csv'
+    regionsdatafile = f'{os.path.dirname(__file__)}/../../../data/ZTF_Region.reg'
+
+    instrument_name = str(uuid.uuid4())
+    status, data = api(
+        'POST',
+        'instrument',
+        data={
+            'name': instrument_name,
+            'type': 'imager',
+            'band': 'Optical',
+            'filters': ['ztfr'],
+            'telescope_id': telescope_id,
+            'api_classname': 'ZTFAPI',
+            'api_classname_obsplan': 'ZTFMMAAPI',
+            'field_data': pd.read_csv(fielddatafile)[199:204].to_dict(orient='list'),
+            'field_region': Regions.read(regionsdatafile).serialize(format='ds9'),
+        },
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+    instrument_id = data['data']['id']
+
+    # wait for the fields to populate
+    nretries = 0
+    fields_loaded = False
+    while not fields_loaded and nretries < 5:
+        try:
+            status, data = api(
+                'GET',
+                f'instrument/{instrument_id}',
+                token=super_admin_token,
+            )
+            assert status == 200
+            assert data['status'] == 'success'
+            assert data['data']['band'] == 'NIR'
+
+            assert len(data['data']['fields']) == 5
+            fields_loaded = True
+        except AssertionError:
+            nretries = nretries + 1
+            time.sleep(3)
+
+    status, data = api(
+        'GET',
+        f'gcn_event/{dateobs}/instrument/{instrument_id}',
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    assert 'field_ids' in data['data']
+    assert 'probabilities' in data['data']
+
+    assert set(data['data']['field_ids']) == {200, 201, 202}
+
+
+def test_gcn_summary_observations(
+    super_admin_user,
+    super_admin_token,
+    view_only_token,
+    public_group,
+):
+
+    datafile = f'{os.path.dirname(__file__)}/../../../data/GW190814.xml'
+    with open(datafile, 'rb') as fid:
+        payload = fid.read()
+    event_data = {'xml': payload}
+
+    dateobs = "2019-08-14T21:10:39"
+    status, data = api('GET', f'gcn_event/{dateobs}', token=super_admin_token)
+
+    if status == 404:
+        status, data = api(
+            'POST', 'gcn_event', data=event_data, token=super_admin_token
+        )
+        assert status == 200
+        assert data['status'] == 'success'
+
+        gcnevent_id = data['data']['gcnevent_id']
+    else:
+        gcnevent_id = data['data']['id']
 
     # wait for event to load
     for n_times in range(26):
@@ -742,7 +925,7 @@ def test_gcn_summary_observations(
     assert observations_loaded is True
 
     # get the gcn event summary
-    params = {
+    data = {
         "title": "gcn summary",
         "subject": "follow-up",
         "userIds": super_admin_user.id,
@@ -757,13 +940,38 @@ def test_gcn_summary_observations(
     }
 
     status, data = api(
-        'GET',
-        'gcn_event/summary/2019-08-14T21:10:39',
-        params=params,
+        'POST',
+        'gcn_event/2019-08-14T21:10:39/summary',
+        data=data,
         token=super_admin_token,
     )
     assert status == 200
-    data = data["data"]
+    summary_id = data["data"]["id"]
+
+    nretries = 0
+    summaries_loaded = False
+    while nretries < 40:
+        status, data = api(
+            'GET',
+            f'gcn_event/2019-08-14T21:10:39/summary/{summary_id}',
+            token=view_only_token,
+            params=params,
+        )
+        if status == 404:
+            nretries = nretries + 1
+            time.sleep(5)
+        if status == 200:
+            data = data["data"]
+            if data["text"] == "pending":
+                nretries = nretries + 1
+                time.sleep(5)
+            else:
+                summaries_loaded = True
+                break
+
+    assert nretries < 40
+    assert summaries_loaded
+    data = list(filter(None, data["text"].split("\n")))
 
     assert "TITLE: GCN SUMMARY" in data[0]
     assert "SUBJECT: Follow-up" in data[1]
@@ -789,10 +997,10 @@ def test_gcn_summary_observations(
         'of the probability enclosed in the localization region.'
     )
 
-    assert obs_summary_text in data[7]
+    assert obs_summary_text in data[8]
 
-    obs_table = data[8].split('\n')
-    assert len(obs_table) >= 14  # other obs have probably been added in previous tests
+    obs_table = data[10:]
+    assert len(obs_table) >= 13  # other obs have probably been added in previous tests
     assert "T-T0 (hr)" in obs_table[1]
     assert "mjd" in obs_table[1]
     assert "ra" in obs_table[1]

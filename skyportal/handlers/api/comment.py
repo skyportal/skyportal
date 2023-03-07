@@ -1,6 +1,5 @@
 import string
 import base64
-import io
 from marshmallow.exceptions import ValidationError
 import os
 import sqlalchemy as sa
@@ -230,7 +229,10 @@ class CommentHandler(BaseHandler):
                         f'Unsupported associated resource type "{associated_resource_type}".'
                     )
 
-                query_output = [c.to_dict() for c in comments]
+                query_output = [
+                    {**c.to_dict(), 'resourceType': associated_resource_type.lower()}
+                    for c in comments
+                ]
                 query_size = sizeof(query_output)
                 if query_size >= SIZE_WARNING_THRESHOLD:
                     end = time.time()
@@ -312,7 +314,10 @@ class CommentHandler(BaseHandler):
                     f'Comment resource ID does not match resource ID given in path ({resource_id})'
                 )
 
-            comment_data = comment.to_dict()
+            comment_data = {
+                **comment.to_dict(),
+                'resourceType': associated_resource_type.lower(),
+            }
             query_size = sizeof(comment_data)
             if query_size >= SIZE_WARNING_THRESHOLD:
                 end = time.time()
@@ -398,6 +403,7 @@ class CommentHandler(BaseHandler):
         data = self.get_json()
 
         comment_text = data.get("text")
+        attachment_bytes, attachment_name, data_to_disk = None, None, None
 
         if 'attachment' in data:
             if (
@@ -405,14 +411,12 @@ class CommentHandler(BaseHandler):
                 and 'body' in data['attachment']
                 and 'name' in data['attachment']
             ):
-                attachment_bytes = str.encode(
+                attachment_name = data['attachment']['name']
+                data_to_disk = base64.b64decode(
                     data['attachment']['body'].split('base64,')[-1]
                 )
-                attachment_name = data['attachment']['name']
             else:
                 return self.error("Malformed comment attachment")
-        else:
-            attachment_bytes, attachment_name = None, None
 
         author = self.associated_user_object
         is_bot_request = isinstance(self.current_user, Token)
@@ -611,6 +615,10 @@ class CommentHandler(BaseHandler):
 
             session.add(comment)
             session.commit()
+            if data_to_disk is not None:
+                comment.save_data(attachment_name, data_to_disk)
+                session.commit()
+
             if users_mentioned_in_comment:
                 for user_mentioned in users_mentioned_in_comment:
                     self.flow.push(
@@ -627,7 +635,7 @@ class CommentHandler(BaseHandler):
 
             if isinstance(comment, CommentOnGCN):
                 self.push_all(
-                    action='skyportal/REFRESH_GCNEVENT',
+                    action='skyportal/REFRESH_GCN_EVENT',
                     payload={'gcnEvent_dateobs': comment.gcn.dateobs},
                 )
             elif isinstance(comment, CommentOnEarthquake):
@@ -785,7 +793,21 @@ class CommentHandler(BaseHandler):
             data = self.get_json()
             group_ids = data.pop("group_ids", None)
             data['id'] = comment_id
-            attachment_bytes = data.pop('attachment_bytes', None)
+
+            attachment_name, data_to_disk = None, None
+            attachment = data.pop('attachment', None)
+            if attachment:
+                if (
+                    isinstance(attachment, dict)
+                    and 'body' in attachment
+                    and 'name' in attachment
+                ):
+                    attachment_name = attachment['name']
+                    data_to_disk = base64.b64decode(
+                        attachment['body'].split('base64,')[-1]
+                    )
+                else:
+                    return self.error("Malformed comment attachment")
 
             try:
                 schema.load(data, partial=True)
@@ -796,23 +818,8 @@ class CommentHandler(BaseHandler):
 
             if 'text' in data:
                 c.text = data['text']
-
-            if 'attachment_name' in data:
-                c.attachment_name = data['attachment_name']
-
-            if attachment_bytes is not None:
-                attachment_bytes = str.encode(attachment_bytes.split('base64,')[-1])
-                c.attachment_bytes = attachment_bytes
-
-            bytes_is_none = c.attachment_bytes is None
-            name_is_none = c.attachment_name is None
-
-            if bytes_is_none ^ name_is_none:
-                return self.error(
-                    'This update leaves one of attachment name or '
-                    'attachment bytes null. Both fields must be '
-                    'filled, or both must be null.'
-                )
+            if attachment_name:
+                c.attachment_name = attachment_name
 
             if group_ids is not None:
                 groups = session.scalars(
@@ -831,6 +838,9 @@ class CommentHandler(BaseHandler):
 
             session.add(c)
             session.commit()
+            if data_to_disk is not None:
+                c.save_data(attachment_name, data_to_disk)
+                session.commit()
 
             if hasattr(c, 'obj'):  # comment on object, or object related resources
                 self.push_all(
@@ -844,7 +854,7 @@ class CommentHandler(BaseHandler):
                 )
             elif isinstance(c, CommentOnGCN):  # also update the gcn
                 self.push_all(
-                    action='skyportal/REFRESH_SOURCE_GCN',
+                    action='skyportal/REFRESH_GCN_EVENT',
                     payload={'gcnEvent_dateobs': c.gcn.dateobs},
                 )
             elif isinstance(c, CommentOnEarthquake):  # also update the earthquake
@@ -992,7 +1002,7 @@ class CommentHandler(BaseHandler):
 
             if isinstance(c, CommentOnGCN):  # also update the GcnEvent
                 self.push_all(
-                    action='skyportal/REFRESH_GCNEVENT',
+                    action='skyportal/REFRESH_GCN_EVENT',
                     payload={'gcnEvent_dateobs': gcnevent_dateobs},
                 )
             elif isinstance(c, CommentOnEarthquake):  # also update the earthquake
@@ -1164,23 +1174,31 @@ class CommentAttachmentHandler(BaseHandler):
                     f'Comment resource ID does not match resource ID given in path ({resource_id})'
                 )
 
-            if not comment.attachment_bytes:
+            if not comment.attachment_bytes and not comment.get_attachment_path():
                 return self.error('Comment has no attachment')
 
-            # validate decoding
-            decoded_attachment = base64.b64decode(comment.attachment_bytes)
+            data_path = comment.get_attachment_path()
+
             attachment_name = ''.join(
                 c
                 for c in unicodedata.normalize('NFD', comment.attachment_name)
                 if unicodedata.category(c) != 'Mn'
             )
-
             if download:
-                attachment = decoded_attachment
+                if data_path is None:
+                    attachment = base64.b64decode(comment.attachment_bytes)
+                else:
+                    if os.path.isfile(data_path):
+                        with open(data_path, 'rb') as f:
+                            attachment = f.read()
+                    else:
+                        return self.error(f'Comment file missing: {data_path}')
 
-                if preview and attachment_name.lower().endswith(("fit", "fits")):
+                if preview and attachment_name.lower().endswith(
+                    ("fit", "fits", "fit.fz", "fits.fz")
+                ):
                     try:
-                        attachment = get_fits_preview(io.BytesIO(decoded_attachment))
+                        attachment = get_fits_preview(attachment_name, attachment)
                         attachment_name = os.path.splitext(attachment_name)[0] + ".png"
                     except Exception as e:
                         log(f'Cannot render {attachment_name} as image: {str(e)}')
@@ -1190,11 +1208,21 @@ class CommentAttachmentHandler(BaseHandler):
                     "attachment; " f"filename={attachment_name}",
                 )
                 self.set_header("Content-type", "application/octet-stream")
+
                 self.write(attachment)
             else:
+                if data_path is None:
+                    data = base64.b64decode(comment.attachment_bytes).decode()
+                else:
+                    if os.path.isfile(data_path):
+                        with open(data_path, 'rb') as f:
+                            data = f.read()
+                    else:
+                        return self.error(f'Comment file missing: {data_path}')
+
                 comment_data = {
                     "commentId": int(comment_id),
-                    "attachment": decoded_attachment.decode(),
+                    "attachment": data,
                 }
 
                 query_size = sizeof(comment_data)

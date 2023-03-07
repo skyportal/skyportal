@@ -1,8 +1,11 @@
+import base64
 import uuid
 import json
 import socketserver
 import time
 import os
+
+from tdtax import taxonomy, __version__
 
 from skyportal.tests import api
 
@@ -972,3 +975,350 @@ def test_retrieve_data_products(
         )
         assert status == 404
         assert data["message"].find("No data found") != -1
+
+
+def test_upload_analysis(
+    analysis_service_token, analysis_token, public_group, public_source, view_only_token
+):
+    name = str(uuid.uuid4())
+
+    post_data = {
+        'name': name,
+        'display_name': "test analysis service name",
+        'description': "A test analysis service description",
+        'version': "1.0",
+        'contact_name': "Vesto Slipher",
+        'contact_email': "vs@ls.st",
+        'url': "http://example.com",
+        'authentication_type': "none",
+        'analysis_type': 'meta_analysis',
+        'upload_only': True,
+        'group_ids': [public_group.id],
+    }
+
+    status, data = api(
+        'POST', 'analysis_service', data=post_data, token=analysis_service_token
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    analysis_service_id = data['data']['id']
+
+    # this should fail because the analysis service is an upload_only service
+    # and the normal analysis endpoint (which kicks off a webhook) is
+    # not allowed.
+    status, data = api(
+        'POST',
+        f'obj/{public_source.id}/analysis/{analysis_service_id}',
+        token=analysis_token,
+    )
+    assert status == 403
+    assert data["message"].find("analysis_upload endpoint") != -1
+
+    # this should succeed as the correct endpoint is being used for an
+    # upload_only service
+    params = {
+        "show_parameters": True,
+        "analysis": {
+            "results": {
+                "format": "json",
+                "data": {"external_provenance_id": str(uuid.uuid4())},
+            }
+        },
+    }
+    status, data = api(
+        'POST',
+        f'obj/{public_source.id}/analysis_upload/{analysis_service_id}',
+        token=analysis_token,
+        data=params,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    # this should succeed but we should be warned that we didn't
+    # provide any analysis results
+    params = {"show_parameters": True}
+    status, data = api(
+        'POST',
+        f'obj/{public_source.id}/analysis_upload/{analysis_service_id}',
+        token=analysis_token,
+        data=params,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+    assert data["data"]["message"].find("empty analysis upload_only results") != -1
+
+    # this should fail because the user's token does not have "Run Analyses"
+    # persmissions
+    status, data = api(
+        'POST',
+        f'obj/{public_source.id}/analysis_upload/{analysis_service_id}',
+        token=view_only_token,
+        data=params,
+    )
+    assert status == 401
+
+
+def test_run_analysis_with_file_input(
+    analysis_service_token, analysis_token, public_group, public_source
+):
+    name = str(uuid.uuid4())
+
+    optional_analysis_parameters = {
+        "image_data": {"type": "file", "required": "True", "description": "Image data"},
+        "fluxcal_data": {"type": "file", "description": "Fluxcal data"},
+        "centroid_X": {"type": "number"},
+        "centroid_Y": {"type": "number"},
+        "spaxel_buffer": {"type": "number"},
+    }
+
+    post_data = {
+        'name': name,
+        'display_name': "Spectral_Cube_Analysis",
+        'description': "Spectral_Cube_Analysis description",
+        'version': "1.0",
+        'contact_name': "Michael Coughlin",
+        # this is the URL/port of the Spectral_Cube_Analysis service that will be running during testing
+        'url': "http://localhost:7003/analysis/spectral_cube_analysis",
+        'optional_analysis_parameters': json.dumps(optional_analysis_parameters),
+        'authentication_type': "none",
+        'analysis_type': 'spectrum_fitting',
+        'input_data_types': [],
+        'timeout': 60,
+        'group_ids': [public_group.id],
+    }
+
+    status, data = api(
+        'POST', 'analysis_service', data=post_data, token=analysis_service_token
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    analysis_service_id = data['data']['id']
+
+    datafile = f'{os.path.dirname(__file__)}/../data/spectral_cube_analysis.fits'
+    with open(datafile, 'rb') as fid:
+        payload = fid.read()
+
+    payload = f"data:image/fits;name=spectral_cube_analysis.fits;base64,{base64.b64encode(payload).decode('utf-8')}"
+
+    status, data = api(
+        'POST',
+        f'obj/{public_source.id}/analysis/{analysis_service_id}',
+        token=analysis_token,
+        data={
+            "show_parameters": True,
+            "show_plots": True,
+            "show_corner": True,
+            "analysis_parameters": {"image_data": payload},
+        },
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    analysis_id = data['data'].get('id')
+    assert analysis_id is not None
+
+    max_attempts = 20
+    analysis_status = 'queued'
+    params = {"includeAnalysisData": True}
+
+    while max_attempts > 0:
+        if analysis_status != "queued":
+            break
+        status, data = api(
+            'GET', f'obj/analysis/{analysis_id}', token=analysis_token, params=params
+        )
+        assert status == 200
+        assert data["data"]["analysis_service_id"] == analysis_service_id
+        analysis_status = data["data"]["status"]
+
+        max_attempts -= 1
+        time.sleep(5)
+    else:
+        assert (
+            False
+        ), f"analysis was not started properly ({data['data']['status_message']})"
+
+
+def test_default_analysis(
+    analysis_service_token,
+    analysis_token,
+    public_group,
+    public_source,
+    taxonomy_token,
+    classification_token,
+):
+
+    taxonomy_name = "test taxonomy" + str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "taxonomy",
+        data={
+            "name": taxonomy_name,
+            "hierarchy": taxonomy,
+            "group_ids": [public_group.id],
+            "provenance": f"tdtax_{__version__}",
+            "version": __version__,
+            "isLatest": True,
+        },
+        token=taxonomy_token,
+    )
+    assert status == 200
+    taxonomy_id = data["data"]["taxonomy_id"]
+
+    name = str(uuid.uuid4())
+
+    optional_analysis_parameters = {"test_parameters": ["test_value_1", "test_value_2"]}
+
+    post_data = {
+        'name': name,
+        'display_name': "test default analysis service name",
+        'description': "A test default analysis service description",
+        'version': "1.0",
+        'contact_name': "Vera Rubin",
+        'contact_email': "vr@ls.st",
+        # this is the URL/port of the SN analysis service that will be running during testing
+        'url': f"http://localhost:{analysis_port}/analysis/demo_analysis",
+        'optional_analysis_parameters': json.dumps(optional_analysis_parameters),
+        'authentication_type': "none",
+        'analysis_type': 'lightcurve_fitting',
+        'input_data_types': ['photometry', 'redshift'],
+        'timeout': 60,
+        'group_ids': [public_group.id],
+    }
+
+    status, data = api(
+        'POST', 'analysis_service', data=post_data, token=analysis_service_token
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    analysis_service_id = data['data']['id']
+
+    data = {
+        "default_analysis_parameters": {
+            "test_parameters": "test_value_1",
+        },
+        'group_ids': [public_group.id],
+        "source_filter": {"classifications": [{"name": "Algol", "probability": 0.5}]},
+        "daily_limit": 1,
+    }
+
+    url = f'analysis_service/{analysis_service_id}/default_analysis'
+
+    status, data = api(
+        'POST',
+        url,
+        data=data,
+        token=analysis_token,
+    )
+
+    assert status == 200
+    assert data['status'] == 'success'
+    default_analysis_id = data['data']['id']
+
+    # insert a classification which probability is too low to trigger the default analysis
+    status, data = api(
+        "POST",
+        "classification",
+        data={
+            "obj_id": public_source.id,
+            "classification": "Algol",
+            "taxonomy_id": taxonomy_id,
+            "probability": 0.4,
+            "group_ids": [public_group.id],
+        },
+        token=classification_token,
+    )
+    assert status == 200
+
+    n_retries = 0
+    while n_retries < 10:
+        status, data = api(
+            'GET',
+            'obj/analysis',
+            params={
+                'objID': public_source.id,
+                "analysisServiceID": analysis_service_id,
+            },
+            token=analysis_token,
+        )
+        if len(data['data']) == 1:
+            assert False
+        else:
+            time.sleep(1)
+            n_retries += 1
+
+    # insert a classification which probability is high enough to trigger the default analysis
+    status, data = api(
+        "POST",
+        "classification",
+        data={
+            "obj_id": public_source.id,
+            "classification": "Algol",
+            "taxonomy_id": taxonomy_id,
+            "probability": 0.9,
+            "group_ids": [public_group.id],
+        },
+        token=classification_token,
+    )
+    assert status == 200
+
+    n_retries = 0
+    while n_retries < 20:
+        status, data = api(
+            'GET',
+            'obj/analysis',
+            params={
+                'objID': public_source.id,
+                "analysisServiceID": analysis_service_id,
+            },
+            token=analysis_token,
+        )
+        if status == 200 and data['status'] == 'success' and len(data['data']) == 1:
+            break
+        else:
+            time.sleep(1)
+            n_retries += 1
+
+    assert n_retries < 20
+
+    # verify that the daily limit is respected, i.e. that the default analysis is not run again
+    status, data = api(
+        "POST",
+        "classification",
+        data={
+            "obj_id": public_source.id,
+            "classification": "Algol",
+            "taxonomy_id": taxonomy_id,
+            "probability": 0.9,
+            "group_ids": [public_group.id],
+        },
+        token=classification_token,
+    )
+    assert status == 200
+
+    n_retries = 0
+    while n_retries < 10:
+        status, data = api(
+            'GET',
+            'obj/analysis',
+            params={
+                'objID': public_source.id,
+                "analysisServiceID": analysis_service_id,
+            },
+            token=analysis_token,
+        )
+        if len(data['data']) == 2:
+            assert False
+        else:
+            time.sleep(1)
+            n_retries += 1
+
+    status, data = api(
+        'DELETE',
+        f'{url}/{default_analysis_id}',
+        token=analysis_token,
+    )
+    assert status == 200
