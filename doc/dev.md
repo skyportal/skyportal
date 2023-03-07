@@ -14,6 +14,26 @@ conform with our code style standards. We use black to reformat Python
 code, and PrettierJS for JavaScript. We also run ESLint to catch
 several common Redux usage bugs.
 
+## aicommits (optional)
+
+We use [aicommits](https://github.com/Nutlope/aicommits) to automatically generate commit messages. To install:
+
+```bash
+sudo npm install -g aicommits
+```
+
+Then, you'll need to retrive an API key from OpenAI. You can set the API key by running:
+
+```bash
+aicommits config set OPENAI_KEY=<your_key>
+```
+
+When you are done with your changes and ready to commit, run:
+
+```bash
+aicommits
+```
+
 ## Testing
 
 To execute the test suite:
