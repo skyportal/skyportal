@@ -69,6 +69,7 @@ from ...models import (
     Localization,
     LocalizationTile,
     Listing,
+    ObjAnalysis,
     PhotStat,
     Spectrum,
     SourceLabel,
@@ -112,6 +113,7 @@ async def get_source(
     session,
     include_thumbnails=False,
     include_comments=False,
+    include_analyses=False,
     include_photometry=False,
     include_photometry_exists=False,
     include_spectrum_exists=False,
@@ -242,6 +244,17 @@ async def get_source(
             key=lambda x: x["created_at"],
             reverse=True,
         )
+    if include_analyses:
+        analyses = (
+            session.scalars(
+                ObjAnalysis.select(
+                    user,
+                ).where(ObjAnalysis.obj_id == obj_id)
+            )
+            .unique()
+            .all()
+        )
+        source_info["analyses"] = [analysis.to_dict() for analysis in analyses]
     if include_period_exists:
         annotations = session.scalars(
             Annotation.select(user).where(Annotation.obj_id == obj_id)
@@ -1726,6 +1739,14 @@ class SourceHandler(BaseHandler):
                 Boolean indicating whether to include comment metadata in response.
                 Defaults to false.
             - in: query
+              name: includeAnalyses
+              nullable: true
+              schema:
+                type: boolean
+              description: |
+                Boolean indicating whether to include associated analyses. Defaults to
+                false.
+            - in: query
               name: includePhotometryExists
               nullable: true
               schema:
@@ -2330,6 +2351,7 @@ class SourceHandler(BaseHandler):
         sort_by = self.get_query_argument("sortBy", None)
         sort_order = self.get_query_argument("sortOrder", "asc")
         include_comments = self.get_query_argument("includeComments", False)
+        include_analyses = self.get_query_argument("includeAnalyses", False)
         include_photometry_exists = self.get_query_argument(
             "includePhotometryExists", False
         )
@@ -2498,6 +2520,7 @@ class SourceHandler(BaseHandler):
                         session,
                         include_thumbnails=include_thumbnails,
                         include_comments=include_comments,
+                        include_analyses=include_analyses,
                         include_photometry=include_photometry,
                         include_photometry_exists=include_photometry_exists,
                         include_spectrum_exists=include_spectrum_exists,
