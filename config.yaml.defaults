@@ -685,3 +685,22 @@ analysis_services:
 
 comments_folder: persistentdata/comments
 photometric_series_folder: persistentdata/phot_series
+
+classifications:
+  {
+    "Kilonova": "#3a87ad",
+    "GRB": "#f89406",
+    "GW Counterpart": "#468847",
+    "GW Candidate": "#568775",
+    "Supernova": "#b94a48",
+    "Not Kilonova": "#eabe07",
+    "Not GRB": "#ee8096",
+    "Not GW Counterpart": "#9e648c",
+    "Not GW Candidate": "#020270",
+    "Not Supernova": "#8888fd",
+    "I-care": "#999999",
+    "Not I-care": "#f0f0f0",
+    "GO GRANDMA": "#03c04a",
+    "STOP GRANDMA": "#ff0000",
+    "GO GRANDMA (HIGH PRIORITY)": "#1414fb"
+  }

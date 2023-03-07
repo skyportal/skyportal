@@ -58,18 +58,9 @@ class ConfigHandler(BaseHandler):
                             defaultSpectrumType:
                               type: string
                               description: assigned to any spectrum posted without a type.
-                            classificationsConfirmedClasses:
+                            classificationsClasses:
                               type: array
-                              description: allowed confirmed classifications classes.
-                            classificationsRejectedClasses:
-                              type: array
-                              description: allowed rejected classifications classes.
-                            classificationsNotConfirmedClasses:
-                              type: array
-                              description: allowed unconfirmed classifications classes.
-                            classificationsObsClasses:
-                              type: array
-                              description: allowed obs classifications classes.
+                              description: allowed classifications classes.
         """
 
         return self.success(
@@ -84,15 +75,6 @@ class ConfigHandler(BaseHandler):
                 "maxNumDaysUsingLocalization": MAX_NUM_DAYS_USING_LOCALIZATION,
                 "image_analysis": True if 'image_analysis' in cfg else False,
                 "allowedRecurringAPIMethods": ALLOWED_RECURRING_API_METHODS,
-                "classificationsConfirmedClasses": cfg[
-                    "classifications.confirmed_classes"
-                ],
-                "classificationsRejectedClasses": cfg[
-                    "classifications.rejected_classes"
-                ],
-                "classificationsNotConfirmedClasses": cfg[
-                    "classifications.not_confirmed_classes"
-                ],
-                "classificationsObsClasses": cfg["classifications.obs_classes"],
+                "classificationsClasses": cfg["classifications"],
             }
         )
