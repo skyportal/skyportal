@@ -58,12 +58,18 @@ class ConfigHandler(BaseHandler):
                             defaultSpectrumType:
                               type: string
                               description: assigned to any spectrum posted without a type.
-                            classifications_confirmed_classes:
+                            classificationsConfirmedClasses:
                               type: array
                               description: allowed confirmed classifications classes.
-                            classifications_rejected_classes:
+                            classificationsRejectedClasses:
                               type: array
                               description: allowed rejected classifications classes.
+                            classificationsNotConfirmedClasses:
+                              type: array
+                              description: allowed unconfirmed classifications classes.
+                            classificationsObsClasses:
+                              type: array
+                              description: allowed obs classifications classes.
         """
 
         return self.success(
