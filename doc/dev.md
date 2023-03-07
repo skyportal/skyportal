@@ -34,6 +34,14 @@ When you are done with your changes and ready to commit, run:
 aicommits
 ```
 
+To install it as a git hook, run:
+
+```bash
+sudo aicommits hook install
+```
+
+When added as a commit hook, aicommits will run automatically when you commit with a simple `git commit`. If you still want to write your own message, just run `git commit -m "my message"` as usual.
+
 ## Testing
 
 To execute the test suite:
