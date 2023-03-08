@@ -595,109 +595,105 @@ def add_user_notifications(mapper, connection, target):
                         sa.select(GcnEvent).where(GcnEvent.dateobs == target.dateobs)
                     ).first()
                     notices = event.gcn_notices
-                    if len(notices) > 0:
-                        notice = notices[-1]
-                        if (
-                            "gcn_notice_types" in pref["gcn_events"].keys()
-                            and send_notification
-                        ):
-                            if len(pref['gcn_events']["gcn_notice_types"]) > 0:
-                                if (
-                                    not gcn.NoticeType(notice.notice_type).name
-                                    in pref['gcn_events']['gcn_notice_types']
-                                ):
-                                    send_notification = False
 
-                    if "gcn_tags" in pref["gcn_events"].keys() and send_notification:
-                        if len(pref['gcn_events']["gcn_tags"]) > 0:
-                            intersection = list(
-                                set(event.tags) & set(pref['gcn_events']["gcn_tags"])
-                            )
-                            if len(intersection) == 0:
-                                send_notification = False
+                    for gcn_elt in pref["gcn_events"]:
 
-                    if (
-                        "gcn_properties" in pref["gcn_events"].keys()
-                        and send_notification
-                    ):
-                        if len(pref['gcn_events']["gcn_properties"]) > 0:
-                            properties_bool = []
-                            for properties in event.properties:
-                                properties_dict = properties.data
+                        if len(notices) > 0:
+                            notice = notices[-1]
+                            if (
+                                "gcn_notice_types" in gcn_elt.keys()
+                                and send_notification
+                            ):
+                                if len(gcn_elt["gcn_notice_types"]) > 0:
+                                    if (
+                                        not gcn.NoticeType(notice.notice_type).name
+                                        in gcn_elt['gcn_notice_types']
+                                    ):
+                                        send_notification = False
 
-                                properties_pass = True
-                                for prop_filt in pref['gcn_events']["gcn_properties"]:
-                                    prop_split = prop_filt.split(":")
-                                    if not len(prop_split) == 3:
-                                        raise ValueError(
-                                            "Invalid propertiesFilter value -- property filter must have 3 values"
-                                        )
-                                    name = prop_split[0].strip()
-                                    if name in properties_dict:
-                                        value = prop_split[1].strip()
-                                        try:
-                                            value = float(value)
-                                        except ValueError as e:
-                                            raise ValueError(
-                                                f"Invalid propertiesFilter value: {e}"
-                                            )
-                                        op = prop_split[2].strip()
-                                        if op not in op_options:
-                                            raise ValueError(f"Invalid operator: {op}")
-                                        comp_function = getattr(operator, op)
-                                        if not comp_function(
-                                            properties_dict[name], value
-                                        ):
-                                            properties_pass = False
-                                            break
-                                properties_bool.append(properties_pass)
-                            if not any(properties_bool):
-                                send_notification = False
-
-                    (
-                        localization_properties_dict,
-                        localization_tags_list,
-                    ) = get_skymap_properties(target)
-                    if (
-                        "localization_tags" in pref["gcn_events"].keys()
-                        and send_notification
-                    ):
-                        if len(pref['gcn_events']["localization_tags"]) > 0:
-                            intersection = list(
-                                set(localization_tags_list)
-                                & set(pref['gcn_events']["localization_tags"])
-                            )
-                            if len(intersection) == 0:
-                                send_notification = False
-
-                    if (
-                        pref['gcn_events'].get('localization_properties')
-                        and send_notification
-                    ):
-                        for prop_filt in pref['gcn_events']["localization_properties"]:
-                            prop_split = prop_filt.split(":")
-                            if not len(prop_split) == 3:
-                                raise ValueError(
-                                    "Invalid propertiesFilter value -- property filter must have 3 values"
+                        if "gcn_tags" in gcn_elt.keys() and send_notification:
+                            if len(gcn_elt["gcn_tags"]) > 0:
+                                intersection = list(
+                                    set(event.tags) & set(gcn_elt["gcn_tags"])
                                 )
-                            name = prop_split[0].strip()
-                            if name in localization_properties_dict:
-                                value = prop_split[1].strip()
-                                try:
-                                    value = float(value)
-                                except ValueError as e:
-                                    raise ValueError(
-                                        f"Invalid propertiesFilter value: {e}"
-                                    )
-                                op = prop_split[2].strip()
-                                if op not in op_options:
-                                    raise ValueError(f"Invalid operator: {op}")
-                                comp_function = getattr(operator, op)
-                                if not comp_function(
-                                    localization_properties_dict[name], value
-                                ):
+                                if len(intersection) == 0:
                                     send_notification = False
-                                    break
+
+                        if "gcn_properties" in gcn_elt.keys() and send_notification:
+                            if len(gcn_elt["gcn_properties"]) > 0:
+                                properties_bool = []
+                                for properties in event.properties:
+                                    properties_dict = properties.data
+
+                                    properties_pass = True
+                                    for prop_filt in gcn_elt["gcn_properties"]:
+                                        prop_split = prop_filt.split(":")
+                                        if not len(prop_split) == 3:
+                                            raise ValueError(
+                                                "Invalid propertiesFilter value -- property filter must have 3 values"
+                                            )
+                                        name = prop_split[0].strip()
+                                        if name in properties_dict:
+                                            value = prop_split[1].strip()
+                                            try:
+                                                value = float(value)
+                                            except ValueError as e:
+                                                raise ValueError(
+                                                    f"Invalid propertiesFilter value: {e}"
+                                                )
+                                            op = prop_split[2].strip()
+                                            if op not in op_options:
+                                                raise ValueError(
+                                                    f"Invalid operator: {op}"
+                                                )
+                                            comp_function = getattr(operator, op)
+                                            if not comp_function(
+                                                properties_dict[name], value
+                                            ):
+                                                properties_pass = False
+                                                break
+                                    properties_bool.append(properties_pass)
+                                if not any(properties_bool):
+                                    send_notification = False
+
+                        (
+                            localization_properties_dict,
+                            localization_tags_list,
+                        ) = get_skymap_properties(target)
+                        if "localization_tags" in gcn_elt.keys() and send_notification:
+                            if len(gcn_elt["localization_tags"]) > 0:
+                                intersection = list(
+                                    set(localization_tags_list)
+                                    & set(gcn_elt["localization_tags"])
+                                )
+                                if len(intersection) == 0:
+                                    send_notification = False
+
+                        if gcn_elt.get('localization_properties') and send_notification:
+                            for prop_filt in gcn_elt["localization_properties"]:
+                                prop_split = prop_filt.split(":")
+                                if not len(prop_split) == 3:
+                                    raise ValueError(
+                                        "Invalid propertiesFilter value -- property filter must have 3 values"
+                                    )
+                                name = prop_split[0].strip()
+                                if name in localization_properties_dict:
+                                    value = prop_split[1].strip()
+                                    try:
+                                        value = float(value)
+                                    except ValueError as e:
+                                        raise ValueError(
+                                            f"Invalid propertiesFilter value: {e}"
+                                        )
+                                    op = prop_split[2].strip()
+                                    if op not in op_options:
+                                        raise ValueError(f"Invalid operator: {op}")
+                                    comp_function = getattr(operator, op)
+                                    if not comp_function(
+                                        localization_properties_dict[name], value
+                                    ):
+                                        send_notification = False
+                                        break
 
                     if send_notification:
                         stmt = sa.select(GcnNotice).where(
