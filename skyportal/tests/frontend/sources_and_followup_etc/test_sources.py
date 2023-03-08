@@ -962,5 +962,5 @@ def test_duplicate_sources_render(
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_source.id}")
     driver.wait_for_xpath('//*[contains(text(), "Possible duplicate of:")]')
-    driver.click_xpath(f'//button[text()="{obj_id2}"]')
-    driver.wait_for_xpath(f'//div[text()="{obj_id2}"]', timeout=20)
+    driver.click_xpath(f'//*[contains(text(), "{obj_id2}")]')
+    driver.wait_for_xpath(f'//*[contains(text(), "{obj_id2}")]', timeout=20)

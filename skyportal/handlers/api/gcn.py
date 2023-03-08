@@ -86,6 +86,7 @@ from ...utils.gcn import (
     from_url,
     from_bytes,
     from_cone,
+    from_ellipse,
     from_polygon,
 )
 
@@ -319,8 +320,25 @@ def post_gcnevent_from_dictionary(payload, user_id, session):
         if not required_keys.issubset(set(skymap.keys())):
             required_cone_keys = {'ra', 'dec', 'error'}
             required_polygon_keys = {'localization_name', 'polygon'}
+            required_ellipse_keys = {
+                'localization_name',
+                'ra',
+                'dec',
+                'amaj',
+                'amin',
+                'phi',
+            }
             if required_cone_keys.issubset(set(skymap.keys())):
                 skymap = from_cone(skymap['ra'], skymap['dec'], skymap['error'])
+            elif required_ellipse_keys.issubset(set(skymap.keys())):
+                skymap = from_ellipse(
+                    skymap['localization_name'],
+                    skymap['ra'],
+                    skymap['dec'],
+                    skymap['amaj'],
+                    skymap['amin'],
+                    skymap['phi'],
+                )
             elif required_polygon_keys.issubset(set(skymap.keys())):
                 if type(skymap['polygon']) == str:
                     polygon = ast.literal_eval(skymap['polygon'])
@@ -834,7 +852,7 @@ class GcnEventHandler(BaseHandler):
                             joinedload(GcnEvent.localizations).joinedload(
                                 Localization.properties
                             ),
-                            joinedload(GcnEvent.gcn_notices),
+                            joinedload(GcnEvent.gcn_notices).undefer(GcnNotice.content),
                             joinedload(GcnEvent.observationplan_requests)
                             .joinedload(ObservationPlanRequest.allocation)
                             .joinedload(Allocation.instrument),
@@ -898,6 +916,7 @@ class GcnEventHandler(BaseHandler):
                         key=lambda x: x["created_at"],
                         reverse=True,
                     ),
+                    "gcn_notices": [notice.to_dict() for notice in event.gcn_notices],
                 }
 
                 return self.success(data=data)

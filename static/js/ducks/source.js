@@ -104,6 +104,8 @@ const FETCH_ANALYSIS_RESULTS_FOR_OBJ = "skyportal/FETCH_ANALYSIS_FOR_OBJ";
 
 const SUBMIT_IMAGE_ANALYSIS = "skyportal/SUBMIT_IMAGE_ANALYSIS";
 
+const COPY_SOURCE_PHOTOMETRY = "skyportal/COPY_SOURCE_PHOTOMETRY";
+
 export const shareData = (data) => API.POST("/api/sharing", SHARE_DATA, data);
 
 export const uploadPhotometry = (data) =>
@@ -115,6 +117,10 @@ export function submitImageAnalysis(id, formData) {
     SUBMIT_IMAGE_ANALYSIS,
     formData
   );
+}
+
+export function copySourcePhotometry(id, formData = {}) {
+  return API.POST(`/api/sources/${id}/copy`, COPY_SOURCE_PHOTOMETRY, formData);
 }
 
 export function addClassification(formData) {
