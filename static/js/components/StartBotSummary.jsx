@@ -72,6 +72,12 @@ const StartBotSummary = ({ obj_id }) => {
     (state) => state.analysis_services
   );
 
+  const uniqueNames = [
+    ...new Set(analysisServiceList.map((item) => item.name)),
+  ];
+  const uniqueAnalysisServiceList = uniqueNames.map((name) =>
+    analysisServiceList.find((item) => item.name === name)
+  );
   const allGroups = useSelector((state) => state.groups.all);
   const prefs = useSelector((state) => state.profile.preferences);
   const config = useSelector((state) => state.config);
@@ -113,11 +119,7 @@ const StartBotSummary = ({ obj_id }) => {
     analysisServiceList.length === 0 ||
     !selectedAnalysisServiceId
   ) {
-    return (
-      <div>
-        <CircularProgress color="secondary" />
-      </div>
-    );
+    return null;
   }
 
   const handleSubmit = async ({ formData }) => {
@@ -267,7 +269,7 @@ const StartBotSummary = ({ obj_id }) => {
               data-testid="analysisServiceSelect"
               className={classes.Select}
             >
-              {analysisServiceList?.map(
+              {uniqueAnalysisServiceList?.map(
                 (analysisService) =>
                   analysisService.is_summary && (
                     <MenuItem
