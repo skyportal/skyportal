@@ -59,7 +59,7 @@ class ConfigHandler(BaseHandler):
                               type: string
                               description: assigned to any spectrum posted without a type.
                             classificationsClasses:
-                              type: array
+                              type: object
                               description: allowed classifications classes.
         """
 
