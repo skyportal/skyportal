@@ -1067,8 +1067,7 @@ class AnalysisHandler(BaseHandler):
                     return self.error('Cannot find user.', status=400)
 
                 if (
-                    user.get('preferences', {})
-                    .get("summary", {})
+                    user.preferences.get("summary", {})
                     .get("OpenAI", {})
                     .get('active', False)
                 ):
@@ -1485,8 +1484,6 @@ class AnalysisProductsHandler(BaseHandler):
                             )
 
                         result = analysis.serialize_results_data()
-                        if isinstance(result, dict):
-                            result = json.dumps(result)
 
                         if result:
                             download = self.get_query_argument("download", False)
