@@ -110,6 +110,7 @@ def update_summary_history_if_relevant(results_data, obj, user):
             summary_params["origin"] = results_data["summary_origin"]
 
         summary_history.insert(0, summary_params)
+        obj.summary = results_data["summary"]
         obj.summary_history = summary_history
 
 
