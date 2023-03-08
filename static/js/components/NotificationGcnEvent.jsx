@@ -4,7 +4,10 @@ import { useForm } from "react-hook-form";
 import { makeStyles } from "@mui/styles";
 import { showNotification } from "baselayer/components/Notifications";
 
-import { TextField } from "@mui/material";
+import { TextField, Typography } from "@mui/material";
+import Dialog from "@mui/material/Dialog";
+import DialogContent from "@mui/material/DialogContent";
+import DialogTitle from "@mui/material/DialogTitle";
 import Button from "./Button";
 
 import GcnNoticeTypesSelect from "./GcnNoticeTypesSelect";
@@ -13,7 +16,6 @@ import GcnPropertiesSelect from "./GcnPropertiesSelect";
 import LocalizationTagsSelect from "./LocalizationTagsSelect";
 import LocalizationPropertiesSelect from "./LocalizationPropertiesSelect";
 import * as profileActions from "../ducks/profile";
-import DeletableChips from "./DeletableChips";
 
 const useStyles = makeStyles((theme) => ({
   typography: {
@@ -66,6 +68,35 @@ const NotificationGcnEvent = () => {
   const [selectedLocalizationProperties, setSelectedLocalizationProperties] =
     useState([]);
 
+  const [selectedNotification, setSelectedNotification] = useState(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
+
+  // Extract the existing GCN event notifications from the state
+  const existingGcnEvents = notifications?.gcn_events || {};
+
+  // Convert the existing notifications to a list format, so that they can be easily modified
+  if (notifications?.gcn_events.gcn_notice_types) {
+    const prefs = {
+      notifications: {
+        gcn_events: {
+          active: true,
+          first: existingGcnEvents,
+        },
+      },
+    };
+
+    dispatch(profileActions.updateUserPreferences(prefs));
+  }
+
+  const openDialog = (key) => {
+    setSelectedNotification(key);
+    setDialogOpen(true);
+  };
+
+  const closeDialog = () => {
+    setDialogOpen(false);
+  };
+
   const onSubmitGcns = (formValues) => {
     const currentGcnPref = notifications.gcn_events || {};
     currentGcnPref[formValues.GcnNotificationName] = {
@@ -93,17 +124,23 @@ const NotificationGcnEvent = () => {
     dispatch(showNotification("Gcn notice types updated"));
   };
 
-  const onDelete = (buttonName) => {
+  const onDelete = (selected) => {
     const current = notifications.gcn_events;
-    delete current[buttonName];
+    delete current[selected];
     const prefs = {
       notifications: {
         gcn_events: current,
       },
     };
-    dispatch(profileActions.updateUserPreferences(prefs));
-    console.log(notifications.gcn_events);
-    dispatch(showNotification("Gcn notice types deleted"));
+    setSelectedNotification(null);
+    closeDialog();
+    dispatch(profileActions.updateUserPreferences(prefs)).then((response) => {
+      if (response.status === "success") {
+        dispatch(showNotification("Gcn notice types deleted"));
+      } else {
+        dispatch(showNotification("Can not delete gcn notice", "error"));
+      }
+    });
   };
 
   return (
@@ -168,15 +205,73 @@ const NotificationGcnEvent = () => {
         </>
       )}
       <div className={classes.chip}>
-        {profile && (
-          <DeletableChips
-            items={Object.keys(profile.notifications.gcn_events).filter(
-              (key) => key !== "active"
-            )}
-            onDelete={onDelete}
-            title="Gcn notification "
-          />
-        )}
+        <Typography> Gcn notification </Typography>
+
+        {Object.keys(profile.notifications.gcn_events)
+          .filter((key) => key !== "active")
+          .map((key) => (
+            <Button
+              key={key}
+              secondary
+              size="small"
+              onClick={() => openDialog(key)}
+            >
+              {`${key}`}
+            </Button>
+          ))}
+        <Dialog
+          open={dialogOpen}
+          onClose={closeDialog}
+          style={{ position: "fixed" }}
+        >
+          <DialogTitle>{selectedNotification}</DialogTitle>
+          <DialogContent>
+            <div>
+              {selectedNotification && (
+                <div>
+                  <p>
+                    Notice Types:{" "}
+                    {
+                      profile.notifications.gcn_events[selectedNotification]
+                        .gcn_notice_types
+                    }
+                  </p>
+                  <p>
+                    Tags:{" "}
+                    {
+                      profile.notifications.gcn_events[selectedNotification]
+                        .gcn_tags
+                    }
+                  </p>
+                  <p>
+                    Properties:{" "}
+                    {
+                      profile.notifications.gcn_events[selectedNotification]
+                        .gcn_properties
+                    }
+                  </p>
+                  <p>
+                    Localization Tags:{" "}
+                    {
+                      profile.notifications.gcn_events[selectedNotification]
+                        .localization_tags
+                    }
+                  </p>
+                  <p>
+                    Localization Properties:{" "}
+                    {
+                      profile.notifications.gcn_events[selectedNotification]
+                        .localization_properties
+                    }
+                  </p>
+                </div>
+              )}
+              <Button secondary onClick={() => onDelete(selectedNotification)}>
+                Delete
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );
