@@ -190,7 +190,7 @@ class AnalysisService(Base):
         default=True,
         doc=(
             "If true, this analysis service will be displayed as a possible option"
-            " for an end-user to run on an resource page (e.g. a source)."
+            " for an end-user to run on a resource page (e.g. a source)."
             " If false, then the analysis will still be available programmatically,"
             " but will not be displayed as an option to end-users. Default: True."
         ),

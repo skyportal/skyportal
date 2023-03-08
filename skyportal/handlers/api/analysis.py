@@ -543,12 +543,12 @@ class AnalysisServiceHandler(BaseHandler):
                   is_summary:
                     type: boolean
                     description: |
-                        Established that the results on the resource as a summary
+                        Establishes that analysis results on the resource should be considered a summary
                     default: false
                   display_on_resource_dropdown:
                     type: boolean
                     description: |
-                        Show this analysis service on the analysis dropdown on the resource
+                        Show this analysis service on the analysis dropdown of the resource
                     default: true
                   group_ids:
                     type: array
@@ -825,12 +825,12 @@ class AnalysisServiceHandler(BaseHandler):
                   is_summary:
                     type: boolean
                     description: |
-                        Establish results on the resource as a summary
+                        Establishes that analysis results on the resource should be considered a summary
                     default: false
                   display_on_resource_dropdown:
                     type: boolean
                     description: |
-                        Show this analysis service on the analysis dropdown on the resource
+                        Show this analysis service on the analysis dropdown of the resource
                     default: true
                   group_ids:
                     type: array
@@ -1065,12 +1065,16 @@ class AnalysisHandler(BaseHandler):
                 ).first()
                 if user is None:
                     return self.error('Cannot find user.', status=400)
-                if "summary" in user.preferences:
-                    if "OpenAI" in user.preferences["summary"]:
-                        if user.preferences["summary"]["OpenAI"]["active"]:
-                            analysis_parameters["openai_api_key"] = user.preferences[
-                                "summary"
-                            ]["OpenAI"]["apikey"]
+
+                if (
+                    user.get('preferences', {})
+                    .get("summary", {})
+                    .get("OpenAI", {})
+                    .get('active', False)
+                ):
+                    analysis_parameters["openai_api_key"] = user.preferences["summary"][
+                        "OpenAI"
+                    ]["apikey"]
 
             group_ids = data.pop('group_ids', None)
             if not group_ids:
@@ -1198,23 +1202,9 @@ class AnalysisHandler(BaseHandler):
         include_analysis_data = self.get_query_argument(
             "includeAnalysisData", False
         ) in ["True", "t", "true", "1", True, 1]
-        include_filename = self.get_query_argument("includeFilename", False) in [
-            "True",
-            "t",
-            "true",
-            "1",
-            True,
-            1,
-        ]
+        include_filename = self.get_query_argument("includeFilename", False)
+        summary_only = self.get_query_argument("summaryOnly", False)
 
-        summary_only = self.get_query_argument("summaryOnly", False) in [
-            "True",
-            "t",
-            "true",
-            "1",
-            True,
-            1,
-        ]
         obj_id = self.get_query_argument('objID', None)
         analysis_service_id = self.get_query_argument('analysisServiceID', None)
 
