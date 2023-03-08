@@ -131,6 +131,7 @@ from .sharing import SharingHandler
 from .shift import ShiftHandler, ShiftUserHandler, ShiftSummary
 from .source import (
     SourceHandler,
+    SourceCopyPhotometryHandler,
     SourceOffsetsHandler,
     SourceFinderHandler,
     SourceNotificationHandler,

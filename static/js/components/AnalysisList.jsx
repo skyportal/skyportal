@@ -13,6 +13,7 @@ import Chip from "@mui/material/Chip";
 import DeleteIcon from "@mui/icons-material/Delete";
 import { showNotification } from "baselayer/components/Notifications";
 import dayjs from "dayjs";
+import calendar from "dayjs/plugin/calendar";
 
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
@@ -33,6 +34,7 @@ import Button from "./Button";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
+dayjs.extend(calendar);
 
 const useStyles = makeStyles(() => ({
   observationplanRequestTable: {
@@ -203,6 +205,32 @@ const AnalysisList = ({ obj_id }) => {
       },
     });
 
+    const renderLastActivity = (dataIndex) => {
+      const analysis = analysesList[dataIndex];
+      const last_active_str = `${dayjs().to(
+        dayjs.utc(`${analysis?.last_activity}Z`)
+      )}`;
+      const duration_str = `${analysis?.duration?.toFixed(2)} sec`;
+      const info_str = `${last_active_str} (duration ${duration_str})`;
+      return (
+        <div>
+          <Chip
+            label={info_str}
+            key={`chip${analysis.id}_${analysis.analysis_service_id}_activity`}
+            size="small"
+            className={classes.chip}
+          />
+        </div>
+      );
+    };
+    columns.push({
+      name: "Last Activity",
+      label: "Last Activity",
+      options: {
+        customBodyRenderLite: renderLastActivity,
+      },
+    });
+
     const renderService = (dataIndex) => {
       const analysis = analysesList[dataIndex];
       return (
@@ -221,8 +249,8 @@ const AnalysisList = ({ obj_id }) => {
       );
     };
     columns.push({
-      name: "Anaylsis Service",
-      label: "Anaylsis Service",
+      name: "Analysis Service",
+      label: "Analysis Service",
       options: {
         customBodyRenderLite: renderService,
       },
@@ -322,15 +350,30 @@ const AnalysisList = ({ obj_id }) => {
       return (
         <div>
           {analysis?.status === "completed" && (
-            <Button
-              primary
-              href={`/api/obj/analysis/${analysis.id}/results?download=True`}
-              size="small"
-              type="submit"
-              data-testid={`analysis_results_${analysis.id}`}
-            >
-              Download Results
-            </Button>
+            <div>
+              <div>
+                <Button
+                  primary
+                  href={`/api/obj/analysis/${analysis.id}/results?download=True`}
+                  size="small"
+                  type="submit"
+                  data-testid={`analysis_results_${analysis.id}`}
+                >
+                  Download Results
+                </Button>
+              </div>
+              <div>
+                <Button
+                  primary
+                  href={`/api/obj/analysis/${analysis.id}/results`}
+                  size="small"
+                  type="submit"
+                  data-testid={`analysis_results_display_${analysis.id}`}
+                >
+                  Display Results
+                </Button>
+              </div>
+            </div>
           )}
         </div>
       );

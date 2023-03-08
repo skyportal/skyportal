@@ -16,6 +16,7 @@ import Typography from "@mui/material/Typography";
 import Paper from "@mui/material/Paper";
 import CircularProgress from "@mui/material/CircularProgress";
 import Popover from "@mui/material/Popover";
+import AddIcon from "@mui/icons-material/Add";
 import IconButton from "@mui/material/IconButton";
 import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
 
@@ -30,6 +31,7 @@ import { log10, abs, ceil } from "mathjs";
 import Button from "./Button";
 
 import CommentListMobile from "./CommentListMobile";
+import CopyPhotometryDialog from "./CopyPhotometryDialog";
 import ClassificationList from "./ClassificationList";
 import ClassificationForm from "./ClassificationForm";
 import ShowClassification from "./ShowClassification";
@@ -264,6 +266,14 @@ const SourceMobile = WidthProvider(
     const { instrumentList, instrumentFormParams } = useSelector(
       (state) => state.instruments
     );
+    const [dialogOpen, setDialogOpen] = useState(false);
+    const openDialog = () => {
+      setDialogOpen(true);
+    };
+    const closeDialog = () => {
+      setDialogOpen(false);
+    };
+
     const dispatch = useDispatch();
     const { observingRunList } = useSelector((state) => state.observingRuns);
     const { taxonomyList } = useSelector((state) => state.taxonomies);
@@ -393,11 +403,35 @@ const SourceMobile = WidthProvider(
                   {source.duplicates && (
                     <div className={classes.infoLine}>
                       <div className={classes.sourceInfo}>
-                        Possible duplicate of:&nbsp;
+                        <b>
+                          <font color="#457b9d">Possible duplicate of:</font>
+                        </b>
+                        &nbsp;
                         {source.duplicates.map((dupID) => (
-                          <Link to={`/source/${dupID}`} role="link" key={dupID}>
-                            <Button size="small">{dupID}</Button>
-                          </Link>
+                          <div key={dupID}>
+                            <Link
+                              to={`/source/${dupID}`}
+                              role="link"
+                              key={dupID}
+                            >
+                              <Button size="small">{dupID}</Button>
+                            </Link>
+                            <Button
+                              size="small"
+                              type="button"
+                              name={`copySourceButton${dupID}`}
+                              onClick={() => openDialog(dupID)}
+                              className={classes.sourceCopy}
+                            >
+                              <AddIcon />
+                            </Button>
+                            <CopyPhotometryDialog
+                              source={source}
+                              duplicate={dupID}
+                              dialogOpen={dialogOpen}
+                              closeDialog={closeDialog}
+                            />
+                          </div>
                         ))}
                       </div>
                     </div>
