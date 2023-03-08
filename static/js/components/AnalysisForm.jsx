@@ -56,6 +56,12 @@ const AnalysisForm = ({ obj_id }) => {
   const { analysisServiceList } = useSelector(
     (state) => state.analysis_services
   );
+  const uniqueNames = [
+    ...new Set(analysisServiceList.map((item) => item.name)),
+  ];
+  const uniqueAnalysisServiceList = uniqueNames.map((name) =>
+    analysisServiceList.find((item) => item.name === name)
+  );
 
   const allGroups = useSelector((state) => state.groups.all);
   const [selectedAnalysisServiceId, setSelectedAnalysisServiceId] =
@@ -95,11 +101,7 @@ const AnalysisForm = ({ obj_id }) => {
     analysisServiceList.length === 0 ||
     !selectedAnalysisServiceId
   ) {
-    return (
-      <div>
-        <CircularProgress color="secondary" />
-      </div>
-    );
+    return null;
   }
 
   const handleSubmit = async ({ formData }) => {
@@ -241,7 +243,7 @@ const AnalysisForm = ({ obj_id }) => {
           data-testid="analysisServiceSelect"
           className={classes.Select}
         >
-          {analysisServiceList?.map(
+          {uniqueAnalysisServiceList?.map(
             (analysisService) =>
               analysisService.display_on_resource_dropdown && (
                 <MenuItem
