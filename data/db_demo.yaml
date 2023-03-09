@@ -1154,6 +1154,21 @@ analysis_service:
     group_ids:
       - =program_A
       - =program_B
+  - name: "OpenAI Summarization & Embedding"
+    display_name: "OpenAI Summarization & Embedding"
+    description: "Use OpenAI tools to summarize sources"
+    version: "1.0"
+    contact_name: "Josh Bloom"
+    url: "http://localhost:7003/summarize"
+    authentication_type: "none"
+    analysis_type: "meta_analysis"
+    input_data_types: ["redshift", "annotations", "classifications", "comments"]
+    optional_analysis_parameters: '{}'
+    is_summary: true
+    display_on_resource_dropdown: false
+    group_ids:
+      - =program_A
+      - =program_B
 
 analysis_service/=Demo_Analysis/default_analysis:
   - default_analysis_parameters: '{"source": "salt3"}'
