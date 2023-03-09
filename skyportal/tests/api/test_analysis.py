@@ -1322,3 +1322,52 @@ def test_default_analysis(
         token=analysis_token,
     )
     assert status == 200
+
+
+def test_source_analysis(
+    analysis_service_token, view_only_token, analysis_token, public_group, public_source
+):
+    name = str(uuid.uuid4())
+
+    post_data = {
+        'name': name,
+        'display_name': "test analysis service name",
+        'description': "A test analysis service description",
+        'version': "1.0",
+        'contact_name': "Vera Rubin",
+        'contact_email': "vr@ls.st",
+        'url': f"http://localhost:{analysis_port}/analysis/demo_analysis",
+        'authentication_type': "none",
+        'analysis_type': 'lightcurve_fitting',
+        'input_data_types': ['photometry', 'redshift'],
+        'timeout': 60,
+        'group_ids': [public_group.id],
+    }
+
+    status, data = api(
+        'POST', 'analysis_service', data=post_data, token=analysis_service_token
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    analysis_service_id = data['data']['id']
+
+    status, data = api(
+        'POST',
+        f'obj/{public_source.id}/analysis/{analysis_service_id}',
+        token=analysis_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    analysis_id = data['data'].get('id')
+    assert analysis_id is not None
+
+    params = {"includeAnalyses": True}
+    status, data = api(
+        "GET", f"sources/{public_source.id}", token=view_only_token, params=params
+    )
+    assert status == 200
+    assert data["status"] == "success"
+    assert "analyses" in data["data"]
+    assert any([analysis['id'] == analysis_id for analysis in data["data"]["analyses"]])

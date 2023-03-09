@@ -216,6 +216,12 @@ class Obj(Base, conesearch_alchemy.Point):
         nullable=True,
         doc="Record of who set which redshift values and when.",
     )
+    summary = sa.Column(sa.String, nullable=True, doc="Summary of the obj.")
+    summary_history = sa.Column(
+        JSONB,
+        nullable=True,
+        doc="Record of the summaries generated and written about this obj",
+    )
     # Contains all external metadata, e.g. simbad, pan-starrs, tns, gaia
     altdata = sa.Column(
         JSONB,
