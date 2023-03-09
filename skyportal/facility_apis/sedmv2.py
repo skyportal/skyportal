@@ -308,22 +308,13 @@ class SEDMV2API(FollowUpAPI):
             },
             "start_date": {
                 "type": "string",
-                "default": Time.now().iso,
+                "default": Time.now().isot,
                 "title": "Start Date (UT)",
             },
             "end_date": {
                 "type": "string",
                 "title": "End Date (UT)",
-                "default": (Time.now() + TimeDelta(7, format='jd')).iso,
-            },
-            "observation_type": {
-                "title": "What type of observation is this?",
-                "type": "string",
-                "enum": [
-                    "transient",
-                    "variable",
-                ],
-                "default": "transient",
+                "default": (Time.now() + TimeDelta(7, format='jd')).isot,
             },
             "too": {
                 "title": "Is this a Target of Opportunity observation?",
@@ -334,9 +325,19 @@ class SEDMV2API(FollowUpAPI):
                 ],
                 "default": "N",
             },
+            "observation_type": {
+                "title": "What type of observation is this?",
+                "type": "string",
+                "enum": [
+                    "transient",
+                    "variable",
+                ],
+                "default": "transient",
+            },
         },
         "required": [
             "observation_choices",
+            "observation_type",
             "priority",
             "start_date",
             "end_date",
@@ -346,8 +347,32 @@ class SEDMV2API(FollowUpAPI):
             "minimum_lunar_distance",
             "too",
         ],
+        "dependencies": {
+            "observation_type": {
+                "oneOf": [
+                    {
+                        "properties": {
+                            "observation_type": {
+                                "enum": ["variable"],
+                            },
+                            "frame_exposure_time": {
+                                "title": "Exposure time per frame",
+                                "type": "number",
+                                "default": 1.0,
+                            },
+                        },
+                    },
+                    {
+                        "properties": {
+                            "observation_type": {
+                                "enum": ["transient"],
+                            },
+                        }
+                    },
+                ],
+            },
+        },
     }
-
     ui_json_schema = {
         "observation_choices": {"ui:widget": "checkboxes"},
     }
