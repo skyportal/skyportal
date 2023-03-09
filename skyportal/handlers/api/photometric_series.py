@@ -85,7 +85,7 @@ body_schema_docstring = """
             type: string
             description: |
               Name or number of the object inside the photometric series. This can
-              be a global object ID from the specific survey (e.g., a TESS TIC IC),
+              be a global object ID from the specific survey (e.g., a TESS TIC ID),
               or a casual index of the object in the series (e.g., star number 3).
               This does not have to correspond to the object ID in SkyPortal.
               It must be a unique identifier inside the series to be able to upload
@@ -469,6 +469,11 @@ class PhotometricSeriesHandler(BaseHandler):
 
             # now load any additional metadata from the json_data:
             metadata.update(json_data)
+
+            # remove any metadata items that are None (equivalent to not given):
+            for k, v in metadata.items():
+                if v is None:
+                    metadata.pop(k)
 
         except Exception:
             return self.error(

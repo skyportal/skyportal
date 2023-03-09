@@ -2125,3 +2125,12 @@ def test_get_series_paged(
     assert 1 <= len(data['data']['series']) <= 2
     page2_ids = [ps['id'] for ps in data['data']['series']]
     assert set(page1_ids).isdisjoint(page2_ids)
+
+
+def test_allowed_bandpasses():
+    # will remove this test once I add TESS to the bandpasses
+    from skyportal.enum_types import ALLOWED_BANDPASSES
+    from pprint import pprint
+
+    pprint(ALLOWED_BANDPASSES)
+    print('tess' in ALLOWED_BANDPASSES)

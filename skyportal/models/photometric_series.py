@@ -406,7 +406,9 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
             in every position where the flux is not positive.
         """
 
-        good_points = np.logical_and(np.invert(np.isnan(fluxes)), fluxes > 0, fluxerr)
+        good_points = np.logical_and(
+            np.invert(np.isnan(fluxes)), fluxes > 0, fluxerr > 0
+        )
         magerr = (2.5 / np.log(10)) * (fluxerr / fluxes)
         magerr[np.invert(good_points)] = np.nan
         # should we turn this into a list and convert the NaNs into Nones?
@@ -507,13 +509,13 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         and the robust RMS using sigma-clipping.
         """
         # calculate the mean mag, rms and robust median/rms
-        self.mean_mag = np.nanmean(self.mags)
-        self.rms_mag = np.nanstd(self.mags)
+        self.mean_mag = float(np.nanmean(self.mags))
+        self.rms_mag = float(np.nanstd(self.mags))
         (self.robust_mag, self.robust_rms) = self.sigma_clipping(self.mags)
 
-        self.median_snr = np.nanmedian(self.snr)
-        self.best_snr = np.nanmax(self.snr)
-        self.worst_snr = np.nanmin(self.snr)
+        self.median_snr = float(np.nanmedian(self.snr))
+        self.best_snr = float(np.nanmax(self.snr))
+        self.worst_snr = float(np.nanmin(self.snr))
 
         # get the min/max/media for each column of data
         self.medians = {}
@@ -521,22 +523,22 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         self.maxima = {}
         self.stds = {}
         for key in self._data:
-            self.medians[key] = np.nanmedian(self.mjds)
-            self.minima[key] = np.nanmin(self.mjds)
-            self.maxima[key] = np.nanmax(self.mjds)
-            self.stds[key] = np.nanstd(self.mjds)
+            self.medians[key] = float(np.nanmedian(self.mjds))
+            self.minima[key] = float(np.nanmin(self.mjds))
+            self.maxima[key] = float(np.nanmax(self.mjds))
+            self.stds[key] = float(np.nanstd(self.mjds))
 
         # This assumes the data is sorted by mjd!
-        self.mjd_first = self.mjds[0]
-        self.mag_first = self.mags[0]
-        self.mjd_last = self.mjds[-1]
-        self.mag_last = self.mags[-1]
+        self.mjd_first = float(self.mjds[0])
+        self.mag_first = float(self.mags[0])
+        self.mjd_last = float(self.mjds[-1])
+        self.mag_last = float(self.mags[-1])
         self.mjd_mid = (self.mjd_first + self.mjd_last) / 2
 
         detection_indices = np.where(self.snr > PHOT_DETECTION_THRESHOLD)[0]
         if len(detection_indices) > 0:
-            self.mjd_last_detected = self.mjds[detection_indices[-1]]
-            self.mag_last_detected = self.mags[detection_indices[-1]]
+            self.mjd_last_detected = float(self.mjds[detection_indices[-1]])
+            self.mag_last_detected = float(self.mags[detection_indices[-1]])
             self.is_detected = True
         else:
             self.mjd_last_detected = None
@@ -545,7 +547,7 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         self.num_exp = len(self.mjds)
 
         # time between exposures, in seconds
-        dt = np.nanmedian(np.diff(self.mjds)) * 24 * 3600
+        dt = float(np.nanmedian(np.diff(self.mjds)) * 24 * 3600)
         self.frame_rate = 1 / dt
 
     @staticmethod
@@ -602,10 +604,10 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
                 break
 
             num_values_prev = num_values
-            mean_value = np.nanmedian(values)
+            mean_value = np.nanmean(values)
             scatter = np.nanstd(values)
 
-        return mean_value, scatter
+        return float(mean_value), float(scatter)
 
     def get_metadata(self):
         """
