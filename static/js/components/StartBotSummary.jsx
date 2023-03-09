@@ -1,14 +1,20 @@
 import React, { useState, useEffect } from "react";
-import { useDispatch, useSelector } from "react-redux";
 import PropTypes from "prop-types";
+import { useDispatch, useSelector } from "react-redux";
+import Dialog from "@mui/material/Dialog";
+import DialogContent from "@mui/material/DialogContent";
+import DialogTitle from "@mui/material/DialogTitle";
+import makeStyles from "@mui/styles/makeStyles";
+import SmartToyTwoToneIcon from "@mui/icons-material/SmartToyTwoTone";
 import Select from "@mui/material/Select";
 import InputLabel from "@mui/material/InputLabel";
+import Tooltip from "@mui/material/Tooltip";
+
 import MenuItem from "@mui/material/MenuItem";
 // eslint-disable-next-line import/no-unresolved
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import CircularProgress from "@mui/material/CircularProgress";
-import makeStyles from "@mui/styles/makeStyles";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
@@ -23,6 +29,14 @@ dayjs.extend(relativeTime);
 dayjs.extend(utc);
 
 const useStyles = makeStyles(() => ({
+  saveButton: {
+    textAlign: "center",
+    margin: "1rem",
+  },
+  editIcon: {
+    height: "0.75rem",
+    cursor: "pointer",
+  },
   chips: {
     display: "flex",
     flexWrap: "wrap",
@@ -49,21 +63,25 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-const AnalysisForm = ({ obj_id }) => {
+const StartBotSummary = ({ obj_id }) => {
   const classes = useStyles();
   const dispatch = useDispatch();
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   const { analysisServiceList } = useSelector(
     (state) => state.analysis_services
   );
+
   const uniqueNames = [
     ...new Set(analysisServiceList.map((item) => item.name)),
   ];
   const uniqueAnalysisServiceList = uniqueNames.map((name) =>
     analysisServiceList.find((item) => item.name === name)
   );
-
   const allGroups = useSelector((state) => state.groups.all);
+  const prefs = useSelector((state) => state.profile.preferences);
+  const config = useSelector((state) => state.config);
+
   const [selectedAnalysisServiceId, setSelectedAnalysisServiceId] =
     useState(null);
   const [selectedGroupIds, setSelectedGroupIds] = useState([]);
@@ -110,14 +128,10 @@ const AnalysisForm = ({ obj_id }) => {
       ...formData,
     };
 
-    delete analysis_parameters.show_parameters;
-    delete analysis_parameters.show_plots;
-    delete analysis_parameters.show_corner;
-
     const params = {
-      show_parameters: formData.show_parameters,
-      show_plots: formData.show_plots,
-      show_corner: formData.show_corner,
+      show_parameters: true,
+      show_plots: false,
+      show_corner: false,
       analysis_parameters,
     };
 
@@ -128,6 +142,7 @@ const AnalysisForm = ({ obj_id }) => {
       sourceActions.startAnalysis(obj_id, selectedAnalysisServiceId, params)
     );
     setIsSubmitting(false);
+    setDialogOpen(false);
   };
 
   const handleSelectedAnalysisServiceChange = (e) => {
@@ -199,92 +214,105 @@ const AnalysisForm = ({ obj_id }) => {
       }
     });
   }
-
   const AnalysisSelectionFormSchema = {
     type: "object",
     properties: {
       ...OptionalParameters,
-      show_parameters: {
-        type: "boolean",
-        title: "Show Parameters",
-        description: "Whether to render the parameters of this analysis",
-        default: true,
-      },
-      show_plots: {
-        type: "boolean",
-        title: "Show Plots",
-        description: "Whether to render the plots of this analysis",
-        default: true,
-      },
-      show_corner: {
-        type: "boolean",
-        title: "Show Corner",
-        description: "Whether to render the corner of this analysis",
-        default: true,
-      },
     },
-    required: ["show_parameters", "show_plots", "show_corner"].concat(
-      RequiredParameters
-    ),
+  };
+
+  const showBotIcon = () => {
+    if (
+      analysisServiceList?.filter((service) => service.is_summary).length > 0 &&
+      (prefs?.summary?.OpenAI?.active === true ||
+        config?.openai_summary_apikey_set === true)
+    ) {
+      return true;
+    }
+    return false;
   };
 
   return (
-    <div className={classes.container}>
-      <div>
-        <InputLabel id="analysisServiceSelectLabel">
-          Start New Analysis
-        </InputLabel>
-        <Select
-          inputProps={{ MenuProps: { disableScrollLock: true } }}
-          labelId="analysisServiceSelectLabel"
-          value={selectedAnalysisServiceId || ""}
-          onChange={handleSelectedAnalysisServiceChange}
-          name="analysisServiceSelect"
-          data-testid="analysisServiceSelect"
-          className={classes.Select}
-        >
-          {uniqueAnalysisServiceList?.map(
-            (analysisService) =>
-              analysisService.display_on_resource_dropdown && (
-                <MenuItem
-                  value={analysisService.id}
-                  key={analysisService.id}
-                  className={classes.SelectItem}
-                >
-                  {analysisService.name}
-                </MenuItem>
-              )
-          )}
-        </Select>
-      </div>
-      <GroupShareSelect
-        groupList={allGroups}
-        setGroupIDs={setSelectedGroupIds}
-        groupIDs={selectedGroupIds}
-      />
-      <div data-testid="analysis-service-request-form">
-        <div>
-          <Form
-            schema={AnalysisSelectionFormSchema}
-            validator={validator}
-            onSubmit={handleSubmit}
-            // eslint-disable-next-line react/jsx-no-bind
-            disabled={isSubmitting}
-            liveValidate
+    <>
+      {showBotIcon() ? (
+        <Tooltip title="Start AI Summary">
+          <SmartToyTwoToneIcon
+            data-testid="runSummaryIconButton"
+            fontSize="small"
+            className={classes.editIcon}
+            onClick={() => {
+              setDialogOpen(true);
+            }}
           />
-        </div>
-        {isSubmitting && (
-          <div className={classes.marginTop}>
-            <CircularProgress />
+        </Tooltip>
+      ) : null}
+      <Dialog
+        open={dialogOpen}
+        maxWidth="sm"
+        onClose={() => {
+          setDialogOpen(false);
+        }}
+        style={{ position: "fixed" }}
+      >
+        <DialogTitle>Run AI Summary</DialogTitle>
+        <DialogContent>
+          <div>
+            <InputLabel id="analysisServiceSelectLabel">
+              Select AI Summary Service
+            </InputLabel>
+            <Select
+              inputProps={{ MenuProps: { disableScrollLock: true } }}
+              labelId="analysisServiceSelectLabel"
+              value={selectedAnalysisServiceId || ""}
+              onChange={handleSelectedAnalysisServiceChange}
+              name="analysisServiceSelect"
+              data-testid="analysisServiceSelect"
+              className={classes.Select}
+            >
+              {uniqueAnalysisServiceList?.map(
+                (analysisService) =>
+                  analysisService.is_summary && (
+                    <MenuItem
+                      value={analysisService.id}
+                      key={analysisService.id}
+                      className={classes.SelectItem}
+                    >
+                      {analysisService.name}
+                    </MenuItem>
+                  )
+              )}
+            </Select>
           </div>
-        )}
-      </div>
-    </div>
+          <GroupShareSelect
+            groupList={allGroups}
+            setGroupIDs={setSelectedGroupIds}
+            groupIDs={selectedGroupIds}
+          />
+          <div data-testid="analysis-service-request-form">
+            <div>
+              <Form
+                schema={AnalysisSelectionFormSchema}
+                validator={validator}
+                onSubmit={handleSubmit}
+                // eslint-disable-next-line react/jsx-no-bind
+                disabled={isSubmitting}
+                liveValidate
+              />
+            </div>
+            {isSubmitting && (
+              <div className={classes.marginTop}>
+                <CircularProgress />
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 };
 
-AnalysisForm.propTypes = {
+StartBotSummary.propTypes = {
   obj_id: PropTypes.string.isRequired,
 };
 
-export default AnalysisForm;
+export default StartBotSummary;

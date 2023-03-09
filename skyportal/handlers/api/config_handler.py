@@ -68,6 +68,10 @@ class ConfigHandler(BaseHandler):
                 "slackPreamble": cfg["slack.expected_url_preamble"],
                 "invitationsEnabled": cfg["invitations.enabled"],
                 "cosmology": str(cosmo),
+                "openai_summary_apikey_set": cfg[
+                    "analysis_services.openai_analysis_service.summary.api_key"
+                ]
+                is not None,
                 "cosmoref": cosmo.__doc__,
                 "allowedSpectrumTypes": ALLOWED_SPECTRUM_TYPES,
                 "defaultSpectrumType": default_spectrum_type,
