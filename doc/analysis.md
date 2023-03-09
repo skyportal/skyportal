@@ -14,7 +14,6 @@ Some example use cases contemplated:
   - **Light curve fitting** to template models
   - **Redshift fitting** on spectra
 
-(analysis_services)=
 ### Creating a new Analysis Service
 
 The first step is to tell SkyPortal where your analysis service lives (URL/port), what data it expects, what type of analysis it performs, etc.
