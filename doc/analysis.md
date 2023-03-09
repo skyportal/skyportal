@@ -14,6 +14,7 @@ Some example use cases contemplated:
   - **Light curve fitting** to template models
   - **Redshift fitting** on spectra
 
+(analysis_services)=
 ### Creating a new Analysis Service
 
 The first step is to tell SkyPortal where your analysis service lives (URL/port), what data it expects, what type of analysis it performs, etc.
@@ -211,3 +212,15 @@ url = f"http://localhost:5000/api/obj/analysis/{r["data"]["id"]}?includeAnalysis
 r = requests.get(url, headers=<token info>)
 data = r.json()
 ```
+
+## Summaries
+
+[Analysis services](analysis_services) in SkyPortal can be declared as providing a summary of a source. When `is_summary` is `True` in an analysis service, the results of an analysis using this service will be stored in the `obj.summary` and `obj.summary_history` (akin to how redshifts are stored and updated). If the associated analysis is deleted then it will be removed from `obj.summary_history`. The frontend allows a user to see the summary history and edit the results of a summary analysis.
+
+### AI Summarization
+
+Following the dramatic quality, speed, and cost improvements of publicly assessable large language models (LLMs), the ability to programmatically summarize what is known about (many SkyPortal) sources became feasible. Shipped with SkyPortal is a microservice served by default at the endpoint `http://localhost:7003/summarize`. This service packages source information such as comments, redshift, and classification, and obtains a human-readable summary by wrapping the ChatGPT API from OpenAI. Summaries (AI or human generated) appear below the source name on the source page and can be returned as part of a query on `objs`.
+
+To use this service the SkyPortal config must set a valid API key from OpenAI to be shared with all users of the service or each individual user must supply their own API key and set the OpenAI integration to `active` in their user profiles. Specifics of the  ChatGPT interaction (such as model, model parameters, and prompt) are established in the site-wide config. See the `openai_analysis_service` section of `analysis_services` in the config file.
+
+Note: only data that the user who initiates a summary analysis has access to is shipped to the 3rd party. However summaries, like redshifts, are public on the source. So anyone who has access to the source can see the summaries. Users are advised to check for any sensitive information that might leak into summaries that other SkyPortal users might not know otherwise. If information has leaked in an AI summary they can delete the appropriate analysis and manually add a summary as they see fit.
