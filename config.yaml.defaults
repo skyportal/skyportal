@@ -715,17 +715,6 @@ photometric_series_folder: persistentdata/phot_series
 classifications:
   # A few examples that show up in the demo data. You can modify the config on deploy to fill out the colors and types you want.
   {
-    "Kilonova": "#3a87ad",
-    "GRB": "#f89406",
-    "GW Counterpart": "#468847",
-    "GW Candidate": "#568775",
-    "Supernova": "#b94a48",
-    "Not Kilonova": "#eabe07",
-    "Not GRB": "#ee8096",
-    "Not GW Counterpart": "#9e648c",
-    "Not GW Candidate": "#020270",
-    "Not Supernova": "#8888fd",
-    "DM annihilation": "#03c04a",
+    "variable": "#3a87ad",
     "Time-domain Source": "#ff0000",
-    "AGN": "#1414fb"
   }
