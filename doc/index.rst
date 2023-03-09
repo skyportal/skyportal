@@ -101,6 +101,7 @@ User Guide
    mma
    spatial_catalog
    advanced_usage
+   photometric_series
    analysis
    image_analysis
    extensions

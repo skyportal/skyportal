@@ -165,6 +165,18 @@ body_schema_docstring = """
               Series with different channels can have the same or different filters.
               This field is entirely optional.
             required: false
+          limiting_mag:
+            type: number
+            description: |
+              The limiting magnitude of the photometric series.
+              Can specify the value for the entire series,
+              or add an "limiting_mag" column to the data file.
+              If not specified, the median limit from the data
+              will be used as the representative limiting mag for this series.
+              If specified, will override the median value,
+              but will not affect the individual measured limits.
+              If no limit is given and no such column exists in the data file,
+              the photometric series will be posted with None as the limit.
           magref:
             type: number
             description: |
@@ -1050,13 +1062,34 @@ class PhotometricSeriesHandler(BaseHandler):
               nullable: true
               schema:
                 type: number
-              description: get only series with mean_mag brighter than this.
+              description: get only series with mean_mag brighter or equal to this value.
             - in: query
               name: magFainterThan
               nullable: true
               schema:
                 type: number
-              description: get only series with mean_mag fainter than this.
+              description: get only series with mean_mag fainter or equal to this value.
+            - in: query
+              name: limitingMagBrighterThan
+              nullable: true
+              schema:
+                type: number
+              description: |
+                Retrieve only series with limiting mags brighter or equal to this value.
+            - in: query
+              name: limitingMagFainterThan
+              nullable: true
+              schema:
+                type: number
+              description: |
+                Retrieve only series with limiting mags fainter or equal to this value.
+            - in: query
+              name: limitingMagIsNone
+              nullable: true
+              schema:
+                  type: boolean
+              description: |
+                  Retrieve only series that do not have limiting mag.
             - in: query
               name: magrefBrighterThan
               nullable: true
@@ -1064,7 +1097,7 @@ class PhotometricSeriesHandler(BaseHandler):
                 type: number
               description: |
                 Get only series that have a magref,
-                and that the magref is brighter than this.
+                and that the magref is brighter or equal to this value.
             - in: query
               name: magrefFainterThan
               nullable: true
@@ -1072,7 +1105,7 @@ class PhotometricSeriesHandler(BaseHandler):
                 type: number
               description: |
                 Get only series that have a magref,
-                and that the magref is fainter than this.
+                and that the magref is fainter or equal to this value.
             - in: query
               name: maxRMS
               nullable: true
@@ -1250,6 +1283,9 @@ class PhotometricSeriesHandler(BaseHandler):
         owner_id = self.get_query_argument('ownerID', None)
         mag_brighter = self.get_query_argument('magBrighterThan', None)
         mag_fainter = self.get_query_argument('magFainterThan', None)
+        lim_mag_brighter = self.get_query_argument('limitingMagBrighterThan', None)
+        lim_mag_fainter = self.get_query_argument('limitingMagFainterThan', None)
+        lim_mag_none = self.get_query_argument('limitingMagIsNaN', False)
         magref_brighter = self.get_query_argument('magrefBrighterThan', None)
         magref_fainter = self.get_query_argument('magrefFainterThan', None)
         max_rms = self.get_query_argument('maxRMS', None)
@@ -1524,6 +1560,29 @@ class PhotometricSeriesHandler(BaseHandler):
                 stmt = stmt.where(PhotometricSeries.robust_mag <= mag_brighter)
             else:
                 stmt = stmt.where(PhotometricSeries.mean_mag <= mag_brighter)
+
+        if lim_mag_fainter is not None:
+            try:
+                lim_mag_fainter = float(lim_mag_fainter)
+            except ValueError:
+                return self.error(
+                    f'Invalid value for limMagFainterThan {lim_mag_fainter}. '
+                    'Could not convert to float. '
+                )
+            stmt = stmt.where(PhotometricSeries.limiting_mag >= lim_mag_fainter)
+
+        if lim_mag_brighter is not None:
+            try:
+                lim_mag_brighter = float(lim_mag_brighter)
+            except ValueError:
+                return self.error(
+                    f'Invalid value for limMagBrighterThan {lim_mag_brighter}. '
+                    'Could not convert to float. '
+                )
+            stmt = stmt.where(PhotometricSeries.limiting_mag <= lim_mag_brighter)
+
+        if lim_mag_none:
+            stmt = stmt.where(PhotometricSeries.limiting_mag.is_(None))
 
         if magref_fainter is not None:
             try:

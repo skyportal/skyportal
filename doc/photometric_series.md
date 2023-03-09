@@ -22,7 +22,7 @@ The format of the binary file is discussed below.
 
 There are some required fields that must be defined in the request body
 in addition to the data field. These include:
-- obj_id: the skyportal object ID of the source that will recieve the new data.
+- obj_id: the skyportal object ID of the source that will receive the new data.
 - instrument_id: the skyportal ID of the instrument used to make the photometry.
 - group_ids: a list of skyportal group IDs that will have access to the photometry.
   Can also specify "all" to give access to all groups.

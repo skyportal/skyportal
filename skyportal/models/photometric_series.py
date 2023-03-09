@@ -57,6 +57,7 @@ INFERABLE_ATTRIBUTES = ['ra', 'dec', 'exp_time', 'filter']
 OPTIONAL_ATTRIBUTES = [
     'channel',
     'origin',
+    'limiting_mag',
     'magref',
     'magref_unc',
     'ra_unc',
@@ -162,6 +163,10 @@ def infer_metadata(data):
     for key in ['filter', 'FILTER', 'Filter', 'filtercode']:
         if key in data and len(data[key].unique()) == 1:
             metadata['filter'] = data[key][0]
+            break
+    for key in ['lim_mag', 'limmag', 'limiting_mag', 'limiting_magnitude']:
+        if key in data:
+            metadata['limiting_mag'] = data[key].median()
             break
 
     return metadata
@@ -951,6 +956,16 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
     )
     dec_unc = sa.Column(
         sa.Float, nullable=True, doc="Uncertainty of dec position [arcsec]"
+    )
+
+    limiting_mag = sa.Column(
+        sa.Float,
+        nullable=False,
+        default=np.nan,
+        index=True,
+        doc='Limiting magnitude of the photometric series. '
+        'If each point in the series has a limiting magnitude, '
+        'this will be the median value of those limiting magnitudes. ',
     )
 
     magref = sa.Column(

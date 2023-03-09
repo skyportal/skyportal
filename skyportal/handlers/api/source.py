@@ -59,6 +59,7 @@ from ...models import (
     Thumbnail,
     Token,
     Photometry,
+    PhotometricSeries,
     Group,
     FollowupRequest,
     ClassicalAssignment,
@@ -323,12 +324,23 @@ async def get_source(
             serialize(phot, 'ab', 'flux') for phot in photometry
         ]
     if include_photometry_exists:
-        source_info["photometry_exists"] = (
-            session.scalars(
-                Photometry.select(user).where(Photometry.obj_id == obj_id)
+        # Use columns=[] to avoid loading entire photometry objects
+        # In the case of photometric series, that could include disk I/O
+        phot = session.scalars(
+            Photometry.select(user, columns=[Photometry.id]).where(
+                Photometry.obj_id == obj_id
+            )
+        ).first()
+        # only load the photometric series if there are no regular photometry points
+        if phot is None:
+            phot_series = session.scalars(
+                PhotometricSeries.select(user, columns=[PhotometricSeries.id]).where(
+                    PhotometricSeries.obj_id == obj_id
+                )
             ).first()
-            is not None
-        )
+        else:
+            phot_series = None
+        source_info["photometry_exists"] = phot is not None or phot_series is not None
     if include_spectrum_exists:
         source_info["spectrum_exists"] = (
             session.scalars(
