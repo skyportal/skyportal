@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from astropy.time import Time, TimeDelta
 import json
 import requests
 
@@ -32,6 +32,7 @@ def validate_request_to_sedmv2(request):
         "priority",
         "start_date",
         "end_date",
+        "observation_type",
         "too",
     ]:
         if param not in request.payload:
@@ -40,6 +41,9 @@ def validate_request_to_sedmv2(request):
     for filt in request.payload["observation_choices"]:
         if filt not in ["IFU", "g", "r", "i", "z"]:
             raise ValueError(f'Filter configuration {filt} unknown.')
+
+    if request.payload["observation_type"] not in ["transient", "variable"]:
+        raise ValueError('observation_type must be either transient or variable')
 
     if request.payload["exposure_time"] < 0:
         raise ValueError('exposure_time must be positive.')
@@ -304,15 +308,13 @@ class SEDMV2API(FollowUpAPI):
             },
             "start_date": {
                 "type": "string",
-                "format": "date",
-                "default": datetime.utcnow().date().isoformat(),
+                "default": Time.now().isot,
                 "title": "Start Date (UT)",
             },
             "end_date": {
                 "type": "string",
-                "format": "date",
                 "title": "End Date (UT)",
-                "default": (datetime.utcnow().date() + timedelta(days=7)).isoformat(),
+                "default": (Time.now() + TimeDelta(7, format='jd')).isot,
             },
             "too": {
                 "title": "Is this a Target of Opportunity observation?",
@@ -323,9 +325,19 @@ class SEDMV2API(FollowUpAPI):
                 ],
                 "default": "N",
             },
+            "observation_type": {
+                "title": "What type of observation is this?",
+                "type": "string",
+                "enum": [
+                    "transient",
+                    "variable",
+                ],
+                "default": "transient",
+            },
         },
         "required": [
             "observation_choices",
+            "observation_type",
             "priority",
             "start_date",
             "end_date",
@@ -335,8 +347,32 @@ class SEDMV2API(FollowUpAPI):
             "minimum_lunar_distance",
             "too",
         ],
+        "dependencies": {
+            "observation_type": {
+                "oneOf": [
+                    {
+                        "properties": {
+                            "observation_type": {
+                                "enum": ["variable"],
+                            },
+                            "frame_exposure_time": {
+                                "title": "Exposure time per frame",
+                                "type": "number",
+                                "default": 1.0,
+                            },
+                        },
+                    },
+                    {
+                        "properties": {
+                            "observation_type": {
+                                "enum": ["transient"],
+                            },
+                        }
+                    },
+                ],
+            },
+        },
     }
-
     ui_json_schema = {
         "observation_choices": {"ui:widget": "checkboxes"},
     }
