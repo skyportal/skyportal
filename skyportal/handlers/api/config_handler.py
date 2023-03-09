@@ -58,6 +58,9 @@ class ConfigHandler(BaseHandler):
                             defaultSpectrumType:
                               type: string
                               description: assigned to any spectrum posted without a type.
+                            classificationsClasses:
+                              type: object
+                              description: allowed classifications classes.
         """
 
         return self.success(
@@ -76,5 +79,6 @@ class ConfigHandler(BaseHandler):
                 "maxNumDaysUsingLocalization": MAX_NUM_DAYS_USING_LOCALIZATION,
                 "image_analysis": True if 'image_analysis' in cfg else False,
                 "allowedRecurringAPIMethods": ALLOWED_RECURRING_API_METHODS,
+                "classificationsClasses": cfg["classifications"],
             }
         )

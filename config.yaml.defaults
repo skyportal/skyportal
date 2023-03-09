@@ -711,3 +711,10 @@ analysis_services:
 
 comments_folder: persistentdata/comments
 photometric_series_folder: persistentdata/phot_series
+
+classifications:
+  # A few examples that show up in the demo data. You can modify the config on deploy to fill out the colors and types you want.
+  {
+    "variable": "#3a87ad",
+    "Time-domain Source": "#ff0000",
+  }
