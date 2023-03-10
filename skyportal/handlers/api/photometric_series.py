@@ -545,6 +545,9 @@ class PhotometricSeriesHandler(BaseHandler):
 
         try:
             ps = PhotometricSeries(data, **metadata)
+            # allow the config to change the default behavior:
+            ps.autodelete = cfg.get('photometric_series_autodelete', True)
+
         except Exception:
             return self.error(
                 f'Could not create PhotometricSeries object: {traceback.format_exc()}'
@@ -809,6 +812,19 @@ class PhotometricSeriesHandler(BaseHandler):
               required: true
               schema:
                 type: integer
+            - in: query
+              name: dataFormat
+              required: false
+              default: 'json'
+              schema:
+                type: string
+                enum: [json, hdf5, none]
+              description: |
+                Format of the data to return. If `none`, the data will not be returned.
+                If `hdf5`, the data will be returned as a bytestream in HDF5 format.
+                (to see how to unpack this data format, look at `photometric_series.md`)
+                If `json`, the data will be returned as a JSON object, where each key
+                is a list of values for that column.
           responses:
             200:
               content:
@@ -820,6 +836,23 @@ class PhotometricSeriesHandler(BaseHandler):
             - photometry
             - photometric series
           parameters:
+            - in: query
+              name: dataFormat
+              required: false
+              default: 'none'
+              schema:
+                type: string
+                enum: [json, hdf5, none]
+              description: |
+                Format of the data to return. If `none`, the data will not be returned.
+                If `hdf5`, the data will be returned as a bytestream in HDF5 format.
+                (to see how to unpack this data format, look at `photometric_series.md`)
+                If `json`, the data will be returned as a JSON object, where each key
+                is a list of values for that column.
+                Note that when querying multiple series, the actual data is not returned
+                by default. To specifically request the data, use `dataFormat=json`
+                or `dataFormat=hdf5`. Keep in mind this could be a large amount of data
+                if the query arguments do not filter down the number of returned series.
             - in: query
               name: ra
               nullable: true
@@ -1249,9 +1282,25 @@ class PhotometricSeriesHandler(BaseHandler):
                 ).first()
                 if ps is None:
                     return self.error('Invalid photometric series ID.')
-                return self.success(data=ps.to_dict())
+                data_format = self.get_query_argument('dataFormat', 'json')
+
+                try:
+                    output_dict = ps.to_dict(data_format=data_format)
+                except Exception:
+                    return self.error(
+                        f'Cannot convert photometric series to dictionary: {traceback.format_exc()}'
+                    )
+
+                return self.success(data=output_dict)
 
         # get all photometric series
+        data_format = self.get_query_argument('dataFormat', 'none')
+
+        # verify the format is valid before going through the whole query
+        if data_format.lower() not in ['none', 'json', 'hdf5']:
+            return self.error(
+                f'Invalid dataFormat: "{data_format}". Must be one of "none", "json", "hdf5".'
+            )
         ra = self.get_query_argument('ra', None)
         dec = self.get_query_argument('dec', None)
         radius = self.get_query_argument('radius', None)
@@ -1744,12 +1793,17 @@ class PhotometricSeriesHandler(BaseHandler):
             stmt = stmt.limit(num_per_page)
             series = session.scalars(stmt).unique().all()
 
-            results = {
-                'series': [s.to_dict() for s in series],
-                'totalMatches': total_matches,
-                'numPerPage': num_per_page,
-                'pageNumber': page_number,
-            }
+            try:
+                results = {
+                    'series': [s.to_dict(data_format) for s in series],
+                    'totalMatches': total_matches,
+                    'numPerPage': num_per_page,
+                    'pageNumber': page_number,
+                }
+            except Exception:
+                return self.error(
+                    f'Could not convert series to dict {traceback.format_exc()}'
+                )
             return self.success(data=results)
 
     @permissions(['Upload data'])

@@ -32,6 +32,8 @@ from ..enum_types import allowed_bandpasses, time_stamp_alignment_types
 from .group import accessible_by_groups_members, accessible_by_streams_members
 
 from .photometry import PHOT_ZP
+from ..utils.hdf5_files import dump_dataframe_to_bytestream
+
 
 _, cfg = load_env()
 
@@ -363,12 +365,33 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         except Exception:
             pass  # silently fail to load
 
-    def to_dict(self):
+    def to_dict(self, data_format='json'):
         """
         Convert the object into a dictionary.
+
+        Parameters
+        ----------
+        data_format : str
+            The format of the data to return.
+            Can be "json" or "hdf5' or 'none'.
         """
+        # use the baselayer base model's method
         d = super().to_dict()
-        d['data'] = self.data.to_dict(orient='list')
+
+        if data_format.lower() == 'json':
+            output_data = self.data.to_dict(orient='list')
+        elif data_format.lower() == 'hdf5':
+            output_data = dump_dataframe_to_bytestream(
+                self.data, self.get_metadata(), encode=True
+            )
+        elif data_format.lower() == 'none':
+            output_data = None
+        else:
+            raise ValueError(
+                f'Invalid dataFormat: "{data_format}". Use "json", "hdf5", or "none".'
+            )
+
+        d['data'] = output_data
         return d
 
     @staticmethod

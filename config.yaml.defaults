@@ -685,3 +685,4 @@ analysis_services:
 
 comments_folder: persistentdata/comments
 photometric_series_folder: persistentdata/phot_series
+photometric_series_autodelete: True
