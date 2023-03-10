@@ -1138,7 +1138,7 @@ default_observation_plan:
 default_followup_request:
   - allocation_id: =SEDMv2_allocation
     default_followup_name: "SEDMv2-Default-Plan"
-    payload: {'priority': 1, 'exposure_time': 300, 'exposure_counts': 1, 'maximum_airmass': 2, 'observation_choices': ['g', 'r'], 'minimum_lunar_distance': 30, 'too': 'Y'}
+    payload: {'priority': 1, 'exposure_time': 300, 'exposure_counts': 1, 'maximum_airmass': 2, 'observation_choices': ['g', 'r'], 'minimum_lunar_distance': 30, 'too': 'Y', 'observation_type': 'transient'}
     source_filter: {'classification': 'microlensing'}
 
 
@@ -1183,6 +1183,21 @@ analysis_service:
     analysis_type: "spectrum_fitting"
     input_data_types: []
     optional_analysis_parameters: '{"image_data": {"type": "file", "required": "True", "description": "Image data"}, "fluxcal_data": {"type": "file", "description": "Fluxcal data"}, "centroid_X": {"type": "number"}, "centroid_Y": {"type": "number"}, "spaxel_buffer": {"type": "number"}}'
+    group_ids:
+      - =program_A
+      - =program_B
+  - name: "OpenAI Summarization & Embedding"
+    display_name: "OpenAI Summarization & Embedding"
+    description: "Use OpenAI tools to summarize sources"
+    version: "1.0"
+    contact_name: "Josh Bloom"
+    url: "http://localhost:7003/summarize"
+    authentication_type: "none"
+    analysis_type: "meta_analysis"
+    input_data_types: ["redshift", "annotations", "classifications", "comments"]
+    optional_analysis_parameters: '{}'
+    is_summary: true
+    display_on_resource_dropdown: false
     group_ids:
       - =program_A
       - =program_B
