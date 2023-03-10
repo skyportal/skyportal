@@ -1956,7 +1956,7 @@ def test_get_series_by_snr(
     assert ps_h.id in ids
     assert ps_o.id in ids
 
-    # should get non of the series:
+    # should get none of the series:
     status, data = api(
         'GET',
         'photometric_series',
