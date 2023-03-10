@@ -1374,7 +1374,12 @@ class ObjPhotometryHandler(BaseHandler):
                     .unique()
                     .all()
                 )
-                series_data = series.data  # TODO: finish this!
+                series_data = []
+                for s in series:
+                    series_data += s.get_data_with_extra_columns().to_dict(
+                        orient='records'
+                    )
+
             data = phot_data + series_data
 
             if phase_fold_data:

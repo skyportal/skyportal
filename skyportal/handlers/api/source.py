@@ -107,6 +107,47 @@ MAX_LOCALIZATION_SOURCES = 50000
 Session = scoped_session(sessionmaker())
 
 
+def check_if_obj_has_photometry(obj_id, user, session):
+    """
+    Check if an object has photometry that is
+    accessible to the current user.
+    This includes regular (individual point)
+    photometry and also photometric series.
+
+    Parameters
+    ----------
+    obj_id: str
+        The ID of the object to check.
+    user: baselayer.app.models.User
+        The user to check.
+    session: sqlalchemy.orm.session.Session
+        The session to use to query the database.
+
+    Returns
+    -------
+    bool
+        True if the object has photometry that is accessible to the current user.
+    """
+    # Use columns=[] to avoid loading entire photometry objects
+    # In the case of photometric series, that could include disk I/O
+    phot = session.scalars(
+        Photometry.select(user, columns=[Photometry.id]).where(
+            Photometry.obj_id == obj_id
+        )
+    ).first()
+    # only load the photometric series if there are no regular photometry points
+    if phot is None:
+        phot_series = session.scalars(
+            PhotometricSeries.select(user, columns=[PhotometricSeries.id]).where(
+                PhotometricSeries.obj_id == obj_id
+            )
+        ).first()
+    else:
+        phot_series = None
+
+    return phot is not None or phot_series is not None
+
+
 async def get_source(
     obj_id,
     user_id,
@@ -133,7 +174,6 @@ async def get_source(
         Database session for this transaction
     See Source Handler for optional arguments
     """
-
     user = session.scalar(sa.select(User).where(User.id == user_id))
 
     options = []
@@ -324,23 +364,10 @@ async def get_source(
             serialize(phot, 'ab', 'flux') for phot in photometry
         ]
     if include_photometry_exists:
-        # Use columns=[] to avoid loading entire photometry objects
-        # In the case of photometric series, that could include disk I/O
-        phot = session.scalars(
-            Photometry.select(user, columns=[Photometry.id]).where(
-                Photometry.obj_id == obj_id
-            )
-        ).first()
-        # only load the photometric series if there are no regular photometry points
-        if phot is None:
-            phot_series = session.scalars(
-                PhotometricSeries.select(user, columns=[PhotometricSeries.id]).where(
-                    PhotometricSeries.obj_id == obj_id
-                )
-            ).first()
-        else:
-            phot_series = None
-        source_info["photometry_exists"] = phot is not None or phot_series is not None
+        source_info["photometry_exists"] = check_if_obj_has_photometry(
+            obj_id, user, session
+        )
+
     if include_spectrum_exists:
         source_info["spectrum_exists"] = (
             session.scalars(
@@ -1366,12 +1393,15 @@ async def get_sources(
                 obj_list[-1]["labellers"] = [user.to_dict() for user in users]
 
             if include_photometry_exists:
-                stmt = Photometry.select(session.user_or_token).where(
-                    Photometry.obj_id == obj.id
+                # stmt = Photometry.select(session.user_or_token).where(
+                #     Photometry.obj_id == obj.id
+                # )
+                # count_stmt = sa.select(func.count()).select_from(stmt.distinct())
+                # total_phot = session.execute(count_stmt).scalar()
+                # obj_list[-1]["photometry_exists"] = total_phot > 0
+                obj_list[-1]["photometry_exists"] = check_if_obj_has_photometry(
+                    obj.id, user, session
                 )
-                count_stmt = sa.select(func.count()).select_from(stmt.distinct())
-                total_phot = session.execute(count_stmt).scalar()
-                obj_list[-1]["photometry_exists"] = total_phot > 0
             if include_spectrum_exists:
                 stmt = Spectrum.select(session.user_or_token).where(
                     Spectrum.obj_id == obj.id

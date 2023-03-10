@@ -691,6 +691,8 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
             if 'tot_fluxerr' not in df:
                 df['tot_fluxerr'] = self.tot_fluxerr
 
+        return df
+
     def load_data(self):
         """
         Load the underlying photometric data from disk.
