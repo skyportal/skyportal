@@ -1984,33 +1984,7 @@ async def photometry_plot(obj_id, user_id, session, width=600, device="browser")
     series_df = []
 
     for ps in series:
-        df = ps.data
-        df['id'] = ps.id
-        df['origin'] = ps.origin
-        df['obj_id'] = ps.obj_id
-        if 'ra' not in df:
-            df['ra'] = ps.ra
-        if 'dec' not in df:
-            df['dec'] = ps.dec
-        if 'ra_unc' not in df:
-            df['ra_unc'] = ps.ra_unc
-        if 'dec_unc' not in df:
-            df['dec_unc'] = ps.dec_unc
-        if 'filter' not in df:
-            df['filter'] = ps.filter
-        # TODO: what happens when the fluxerr is NaN??
-        # for key in ['limmag', 'lim_mag', 'limiting_magnitude']:
-        #     if key in df:
-        #         df.rename(columns={key: 'lim_mag'}, inplace=True)
-        # if 'limiting_mag' not in df:
-        #     df['limiting_mag'] = ps.limiting_mag
-
-        df['instrument_id'] = ps.instrument_id
-        df['instrument'] = ps.instrument.name
-        df['telescope'] = ps.instrument.telescope.nickname
-        df['created_at'] = ps.created_at
-
-        # TODO: add the magref to use as magtot like below
+        df = ps.get_data_with_extra_columns()
         series_df.append(df)
 
     if len(series_df) > 0:

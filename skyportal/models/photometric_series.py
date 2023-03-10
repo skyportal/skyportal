@@ -59,7 +59,9 @@ OPTIONAL_ATTRIBUTES = [
     'origin',
     'limiting_mag',
     'magref',
-    'magref_unc',
+    'e_magref',
+    'ref_flux',
+    'ref_fluxerr',
     'ra_unc',
     'dec_unc',
     'followup_request_id',
@@ -79,7 +81,9 @@ DATA_TYPES = {
     'channel': str,
     'time_stamp_alignment': str,
     'magref': float,
-    'magref_unc': float,
+    'e_magref': float,
+    'ref_flux': float,
+    'ref_fluxerr': float,
     'ra': float,
     'dec': float,
     'ra_unc': float,
@@ -630,6 +634,63 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
 
         return output
 
+    def get_data_with_extra_columns(self):
+        """
+        Return a copy of the underlying dataframe,
+        but add a few columns that could be needed
+        for e.g., plotting.
+
+        The columns are only added if they do not already
+        exist in the dataframe, and the values would
+        simply be copied from the global value.
+        E.g., if there isn't an exp_time column,
+        it will be added with the value of the global
+        self.exp_time.
+
+        Columns that can be added include:
+        id, ra, dec, ra_unc, dec_unc, exp_time,
+        filter, limiting_mag, snr, obj_id,
+        instrument_id, instrument_name,
+        created_at, origin.
+
+        If magref/ref_flux is given for this series,
+        will also add the relevant columns:
+        magtot, magtot_err, tot_flux, tot_flux_err.
+        If any of these columns exsit, they are
+        left unchanged.
+        """
+        df = self.data.copy()
+        df['id'] = self.id
+        df['origin'] = self.origin
+        df['obj_id'] = self.obj_id
+        if 'ra' not in df:
+            df['ra'] = self.ra
+        if 'dec' not in df:
+            df['dec'] = self.dec
+        if 'ra_unc' not in df:
+            df['ra_unc'] = self.ra_unc
+        if 'dec_unc' not in df:
+            df['dec_unc'] = self.dec_unc
+        if 'filter' not in df:
+            df['filter'] = self.filter
+        if 'snr' not in df:
+            df['snr'] = self.snr
+
+        df['instrument_id'] = self.instrument_id
+        df['instrument'] = self.instrument.name
+        df['telescope'] = self.instrument.telescope.nickname
+        df['created_at'] = self.created_at
+
+        if self.ref_flux is not None:
+            if 'magtot' not in df:
+                df['magtot'] = self.magtot
+            if 'e_magtot' not in df:
+                df['e_magtot'] = self.e_magtot
+            if 'tot_flux' not in df:
+                df['tot_flux'] = self.tot_flux
+            if 'tot_fluxerr' not in df:
+                df['tot_fluxerr'] = self.tot_fluxerr
+
     def load_data(self):
         """
         Load the underlying photometric data from disk.
@@ -677,6 +738,7 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
                     track_times=False,
                 )
                 store.get_storer('phot_series').attrs.metadata = self.get_metadata()
+
                 self._data_bytes = store._handle.get_file_image()
 
         return self._data_bytes
@@ -968,17 +1030,17 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         'this will be the median value of those limiting magnitudes. ',
     )
 
-    magref = sa.Column(
+    ref_flux = sa.Column(
         sa.Float,
         nullable=True,
         index=True,
-        doc="Reference magnitude. E.g., "
-        "magnitude of source before transient started, "
-        "or the mean magnitude of a variable source.",
+        doc="Reference flux. E.g., "
+        "of the source before transient started, "
+        "or the mean flux of a variable source.",
     )
 
-    magref_unc = sa.Column(
-        sa.Float, nullable=True, doc="Uncertainty on the reference mag."
+    ref_fluxerr = sa.Column(
+        sa.Float, nullable=True, doc="Uncertainty on the reference flux."
     )
 
     altdata = sa.Column(JSONB, default={}, doc="Arbitrary metadata in JSON format.")
@@ -1182,6 +1244,130 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
                 self.load_data()
             self.calc_flux_mag()  # do this once, cache all the hidden variables
         return np.array(self._magerr)
+
+    @hybrid_property
+    def magref(self):
+        """
+        Reference magnitude, e.g.,
+        the mean magnitude of a variable source,
+        or the magnitude of a source before a transient started.
+        This value is based on the ref_flux property.
+        """
+        if self.ref_flux is not None and self.ref_flux > 0:
+            return -2.5 * np.log10(self.ref_flux) + PHOT_ZP
+        else:
+            return None
+
+    @magref.setter
+    def magref(self, magref):
+        if magref is not None:
+            self.ref_flux = 10 ** (-0.4 * (magref - PHOT_ZP))
+        else:
+            self.ref_flux = None
+
+    @magref.expression
+    def magref(cls):
+        return sa.case(
+            (
+                sa.and_(
+                    cls.ref_flux != None,  # noqa: E711
+                    cls.ref_flux != 'NaN',
+                    cls.ref_flux > 0,
+                ),
+                -2.5 * sa.func.log(cls.ref_flux) + PHOT_ZP,
+            ),
+            else_=None,
+        )
+
+    @hybrid_property
+    def e_magref(self):
+        """The error on the reference magnitude."""
+        if (
+            self.ref_flux is not None
+            and self.ref_flux > 0
+            and self.ref_fluxerr is not None
+            and self.ref_fluxerr > 0
+        ):
+            return (2.5 / np.log(10)) * (self.ref_fluxerr / self.ref_flux)
+        else:
+            return None
+
+    @e_magref.setter
+    def e_magref(self, e_magref):
+        if e_magref is not None:
+            self.ref_fluxerr = e_magref * self.ref_flux / (2.5 / np.log(10))
+        else:
+            self.ref_fluxerr = None
+
+    @e_magref.expression
+    def e_magref(cls):
+        """The error on the magnitude of the photometry point."""
+        return sa.case(
+            (
+                sa.and_(
+                    cls.ref_flux != None,  # noqa: E711
+                    cls.ref_flux != 'NaN',
+                    cls.ref_flux > 0,
+                    cls.ref_fluxerr > 0,
+                ),  # noqa: E711
+                (2.5 / sa.func.ln(10)) * (cls.ref_fluxerr / cls.ref_flux),
+            ),
+            else_=None,
+        )
+
+    @property
+    def magtot(self):
+        """
+        Total magnitude, e.g.,
+        the combined magnitudes of a variable source,
+        as opposed to the regular magnitudes which may come
+        from subtraction images, etc.
+        """
+        if self.ref_flux is not None and self.ref_flux > 0:
+            flux = self.fluxes
+            bad_idx = np.isnan(flux) | (flux <= 0)
+            flux[bad_idx] = 1
+            mag = -2.5 * np.log10(self.ref_flux + flux) + PHOT_ZP
+            mag[bad_idx] = np.nan
+            return mag
+        else:
+            return None
+
+    @property
+    def e_magtot(self):
+        """The error on the total magnitude."""
+        if self.ref_flux is not None and self.ref_flux > 0 and self.ref_fluxerr > 0:
+            flux = self.fluxes
+            err = self.fluxerr
+            bad_idx = np.isnan(flux) | np.isnan(err) | (flux <= 0) | (err <= 0)
+            magerr = np.sqrt(err**2 + self.ref_fluxerr**2)
+            magerr /= self.ref_flux + flux
+            magerr *= 2.5 / np.log(10)
+            magerr[bad_idx] = np.nan
+
+            return magerr
+        else:
+            return None
+
+    @property
+    def tot_fluxes(self):
+        """Total fluxes, e.g., the combined fluxes of a variable source."""
+        if self.ref_flux is not None and self.ref_flux > 0:
+            return self.ref_flux + self.fluxes
+        else:
+            return None
+
+    @property
+    def tot_fluxerr(self):
+        """The errors on the total fluxes."""
+        if self.ref_fluxerr is not None and self.ref_fluxerr > 0:
+            err = self.fluxerr
+            bad_idx = np.isnan(err) | (err <= 0)
+            tot_err = np.sqrt(self.ref_fluxerr**2 + err**2)
+            tot_err[bad_idx] = np.nan
+            return tot_err
+        else:
+            return None
 
     @property
     def jd_first(self):

@@ -52,7 +52,7 @@ Some optional information can be given to the request body:
   as subtraction results on transient/variable sources.
   This magnitude represents the mean magnitude of a variable source,
   or the magnitude before or after a transient event.
-- magref_unc: uncertainty on the magref value.
+- e_magref: uncertainty on the magref value.
 - ra_unc: uncertainty on the right ascension of the source, in degrees.
 - dec_unc: uncertainty on the declination of the source, in degrees.
 - followup_request_id: the skyportal ID of the followup request that generated this photometry.

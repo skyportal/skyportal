@@ -188,7 +188,7 @@ body_schema_docstring = """
               or the mean magnitude of a variable.
               For absolute photometry this is left as None.
             required: false
-          magref_unc:
+          e_magref:
             type: number
             description: uncertainty on the magref.
             required: false
