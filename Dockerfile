@@ -62,7 +62,12 @@ RUN bash -c "\
     chown -R skyportal.skyportal /skyportal/persistentdata/analysis && \
     \
     mkdir -p /skyportal/persistentdata/dustmap && \
-    chown -R skyportal.skyportal /skyportal/persistentdata/dustmap"
+    chown -R skyportal.skyportal /skyportal/persistentdata/dustmap && \
+    \
+    mkdir -p /skyportal/persistentdata/sncosmo && \
+    chown -R skyportal.skyportal /skyportal/persistentdata/sncosmo"
+
+ENV SNCOSMO_DATA_DIR=/skyportal/persistentdata/sncosmo
 
 USER skyportal
 
