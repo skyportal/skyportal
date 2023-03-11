@@ -16,6 +16,7 @@ import utc from "dayjs/plugin/utc";
 
 import GroupShareSelect from "./GroupShareSelect";
 import { saveSource, checkSource } from "../ducks/source";
+import { hours_to_ra, dms_to_dec } from "../units";
 
 dayjs.extend(utc);
 
@@ -27,6 +28,16 @@ const NewSource = ({ classes }) => {
 
   const handleSubmit = async ({ formData }) => {
     let data = null;
+    if (formData.ra?.includes(":")) {
+      formData.ra = hours_to_ra(formData.ra);
+    } else {
+      formData.ra = parseFloat(formData.ra);
+    }
+    if (formData.dec?.includes(":")) {
+      formData.dec = dms_to_dec(formData.dec);
+    } else {
+      formData.dec = parseFloat(formData.dec);
+    }
     data = await dispatch(checkSource(formData.id, formData));
     if (data.data !== "A source of that name does not exist.") {
       dispatch(showNotification(data.data, "error"));
@@ -49,8 +60,18 @@ const NewSource = ({ classes }) => {
     if (formData.id.indexOf(" ") >= 0) {
       errors.id.addError("IDs are not allowed to have spaces, please fix.");
     }
+    if (formData.ra?.includes(":")) {
+      formData.ra = hours_to_ra(formData.ra);
+    } else {
+      formData.ra = parseFloat(formData.ra);
+    }
     if (formData.ra < 0 || formData.ra >= 360) {
       errors.ra.addError("0 <= RA < 360, please fix.");
+    }
+    if (formData.dec?.includes(":")) {
+      formData.dec = dms_to_dec(formData.dec);
+    } else {
+      formData.dec = parseFloat(formData.dec);
     }
     if (formData.dec < -90 || formData.dec > 90) {
       errors.ra.addError("-90 <= Declination <= 90, please fix.");
@@ -66,12 +87,12 @@ const NewSource = ({ classes }) => {
         title: "object ID",
       },
       ra: {
-        type: "number",
-        title: "Right Ascension [deg]",
+        type: "string",
+        title: "Right Ascension [decimal deg. or HH:MM:SS]",
       },
       dec: {
-        type: "number",
-        title: "Declination [deg]",
+        type: "string",
+        title: "Declination [decimal deg. or DD:MM:SS]",
       },
     },
     required: ["id", "ra", "dec"],
