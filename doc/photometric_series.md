@@ -15,8 +15,9 @@ where multiple images are taken in the same pointing.
 To upload a photometric series use the `POST /api/photometric_series` endpoint.
 The request body must contain a `data` field,
 that can contain either a JSON representation of the photometric series,
-(where the columns of the data table are the keys of the JSON object:
-{'mjd': [1, 2, 3], 'flux': [1, 2, 3], 'fluxerr': [1, 2, 3]}),
+where the columns of the data table are the keys of the JSON object:
+{'mjd': [1, 2, 3], 'flux': [1, 2, 3], 'fluxerr': [1, 2, 3]}
+(can also use 'mag' and 'magerr'),
 or a binary file (HDF5) where the data is stored as a pandas DataFrame.
 The format of the binary file is discussed below.
 
@@ -163,7 +164,37 @@ metadata, and that must be sent as request body parameters.
 ### Downloading photometric series
 
 To download a photometric series, use the `GET /api/photometric_series` endpoint.
-The data will be returned as a JSON style dictionary,
-unless other formats are specified.
+By changing the `dataFormat` query argument,
+the data would be returned as either a JSON style dictionary (`json`),
+or an HDF5 file (`hdf5`),
+or the photometric series is returned without data (`none`).
+The default for fetching one photometric series (by giving the ID in the path)
+is `json`, and when querying multiple photometric series (by not giving the ID in the path)
+the default is `none`.
 
-... to be continued ...
+If the data is returned as an HDF5 file, it can be saved to file
+and then read back using the `pandas.HDFStore` to unpack the data.
+The metadata is stored as an attribute of the HDF5 file,
+and can be accessed using `store.get_storer(key).attrs.metadata`.
+To get the data without saving it to disk, use the following code
+(see `skyportal/utils/hdf5_files.py`):
+
+```python
+    with pd.HDFStore(
+        "data.h5",
+        mode="r",
+        driver="H5FD_CORE",
+        driver_core_backing_store=0,
+        driver_core_image=base64.b64decode(data),
+    ) as store:
+        keys = store.keys()
+        if len(keys) != 1:
+            raise ValueError(f'Expected 1 table in HDF5 file, got {len(keys)}. ')
+        data = store[keys[0]]
+        attributes = store.get_storer(keys[0]).attrs
+        if 'metadata' in attributes and isinstance(attributes['metadata'], dict):
+            metadata = attributes['metadata']
+        else:
+            metadata = {}
+
+```

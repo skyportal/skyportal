@@ -1382,6 +1382,8 @@ class ObjPhotometryHandler(BaseHandler):
 
             data = phot_data + series_data
 
+            data.sort(key=lambda x: x['mjd'])
+
             if phase_fold_data:
                 period, modified = None, arrow.Arrow(1, 1, 1)
 
