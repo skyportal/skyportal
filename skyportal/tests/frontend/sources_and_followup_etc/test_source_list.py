@@ -194,6 +194,7 @@ def test_add_sources_two_groups(
     assert saved_group2 > saved_group1
 
 
+@pytest.mark.flaky(reruns=2)
 def test_filter_by_classification(
     driver,
     user,
