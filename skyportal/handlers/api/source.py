@@ -1407,12 +1407,6 @@ async def get_sources(
                 obj_list[-1]["labellers"] = [user.to_dict() for user in users]
 
             if include_photometry_exists:
-                # stmt = Photometry.select(session.user_or_token).where(
-                #     Photometry.obj_id == obj.id
-                # )
-                # count_stmt = sa.select(func.count()).select_from(stmt.distinct())
-                # total_phot = session.execute(count_stmt).scalar()
-                # obj_list[-1]["photometry_exists"] = total_phot > 0
                 obj_list[-1]["photometry_exists"] = check_if_obj_has_photometry(
                     obj.id, user, session
                 )
