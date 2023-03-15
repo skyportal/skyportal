@@ -150,8 +150,14 @@ def post_gcnevent_from_xml(payload, user_id, session):
         session.add(event)
         session.commit()
         event_id = event.id
+        dateobs = event.dateobs
     else:
         event_id = event.id
+        dateobs = event.dateobs
+        # we grab the dateobs from the event to overwrite the dateobs from the gcn notice
+        # this is important because unfortunately the dateobs in a gcn notice is not always the same as the dateobs in the event
+        # what matters is the trigger id if it exists, that allows us to find the actual dateobs of the event
+
         if not event.is_accessible_by(user, mode="update"):
             raise ValueError(
                 "Insufficient permissions: GCN event can only be updated by original poster"
