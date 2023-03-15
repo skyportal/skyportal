@@ -4,6 +4,13 @@ import PropTypes from "prop-types";
 import makeStyles from "@mui/styles/makeStyles";
 
 const useStyles = makeStyles(() => ({
+  root: {
+    margin: "0",
+    padding: "0",
+    display: "flex",
+    flexDirection: "row",
+    alignItems: "center",
+  },
   BNS: {
     background: "#468847!important",
   },
@@ -22,13 +29,20 @@ const useStyles = makeStyles(() => ({
   Terrestrial: {
     background: "#999999!important",
   },
-  gcnTags: {
-    display: "flex",
-    flexDirection: "row",
-    alignItems: "center",
-  },
   title: {
-    marginRight: "0.5rem",
+    margin: 0,
+    marginRight: "0.45rem",
+    padding: "0",
+  },
+  chips: {
+    padding: "0",
+    margin: "0",
+    "& > div": {
+      marginTop: 0,
+      marginBottom: 0,
+      marginLeft: "0.05rem",
+      marginRight: "0.05rem",
+    },
   },
 }));
 
@@ -50,14 +64,16 @@ const RenderTags = ({ gcnEvent, show_title = false }) => {
   const localizationTagsUnique = [...new Set(localizationTags)];
 
   return (
-    <div className={styles.gcnTags}>
+    <div className={styles.root}>
       {show_title && <h4 className={styles.title}>Tags:</h4>}
-      {gcnTagsUnique.map((tag) => (
-        <Chip className={styles[tag]} size="small" label={tag} key={tag} />
-      ))}
-      {localizationTagsUnique.map((tag) => (
-        <Chip className={styles[tag]} size="small" label={tag} key={tag} />
-      ))}
+      <div className={styles.chips} name="gcn_triggers-tags">
+        {gcnTagsUnique.map((tag) => (
+          <Chip className={styles[tag]} size="small" label={tag} key={tag} />
+        ))}
+        {localizationTagsUnique.map((tag) => (
+          <Chip className={styles[tag]} size="small" label={tag} key={tag} />
+        ))}
+      </div>
     </div>
   );
 };

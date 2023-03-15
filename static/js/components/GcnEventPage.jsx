@@ -355,7 +355,12 @@ const GcnEventPage = ({ route }) => {
                   <GcnTags gcnEvent={gcnEvent} show_title />
                 </div>
                 <div className={styles.gcnEventContainer}>
-                  <GcnEventAllocationTriggers gcnEvent={gcnEvent} />
+                  <GcnEventAllocationTriggers
+                    gcnEvent={gcnEvent}
+                    showPassed
+                    showUnset
+                    showTitle
+                  />
                 </div>
               </AccordionDetails>
             </Accordion>
@@ -658,7 +663,7 @@ const GcnEventPage = ({ route }) => {
                             galaxies={gcnEventGalaxies.galaxies}
                             totalMatches={gcnEventGalaxies.totalMatches}
                             serverSide={false}
-                            hideTitle
+                            showTitle
                           />
                         </div>
                       )}

@@ -7,10 +7,17 @@ import ListItemText from "@mui/material/ListItemText";
 import Typography from "@mui/material/Typography";
 import Paper from "@mui/material/Paper";
 import Grid from "@mui/material/Grid";
-import makeStyles from "@mui/styles/makeStyles";
+import { withStyles, makeStyles } from "@mui/styles";
 import { showNotification } from "baselayer/components/Notifications";
 import PropTypes from "prop-types";
-import Button from "./Button";
+
+import IconButton from "@mui/material/IconButton";
+import AddIcon from "@mui/icons-material/Add";
+import Close from "@mui/icons-material/Close";
+import grey from "@mui/material/colors/grey";
+import Dialog from "@mui/material/Dialog";
+import DialogContent from "@mui/material/DialogContent";
+import MuiDialogTitle from "@mui/material/DialogTitle";
 import ConfirmDeletionDialog from "./ConfirmDeletionDialog";
 
 import GalaxyTable from "./GalaxyTable";
@@ -21,7 +28,6 @@ import * as galaxiesActions from "../ducks/galaxies";
 const useStyles = makeStyles((theme) => ({
   root: {
     width: "100%",
-    maxWidth: "22.5rem",
     backgroundColor: theme.palette.background.paper,
     whiteSpace: "pre-line",
   },
@@ -56,6 +62,18 @@ const useStyles = makeStyles((theme) => ({
   catalogDeleteDisabled: {
     opacity: 0,
   },
+  galaxyList: {
+    padding: 0,
+    margin: 0,
+  },
+  galaxyListItem: {
+    display: "flex",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 0,
+    margin: 0,
+  },
 }));
 
 const textStyles = makeStyles(() => ({
@@ -65,12 +83,53 @@ const textStyles = makeStyles(() => ({
   },
 }));
 
-const GalaxyList = ({ catalogs, deletePermission, setCatalogs }) => {
+const dialogTitleStyles = (theme) => ({
+  root: {
+    margin: 0,
+    padding: theme.spacing(2),
+  },
+  title: {
+    marginRight: theme.spacing(2),
+    fontSize: "1.5rem",
+  },
+  closeButton: {
+    position: "absolute",
+    right: theme.spacing(1),
+    top: theme.spacing(1),
+    color: grey[500],
+  },
+});
+
+const DialogTitle = withStyles(dialogTitleStyles)(
+  ({ children, classes, onClose }) => (
+    <MuiDialogTitle className={classes.root}>
+      <Typography className={classes.title}>{children}</Typography>
+      {onClose ? (
+        <IconButton
+          aria-label="close"
+          className={classes.closeButton}
+          onClick={onClose}
+        >
+          <Close />
+        </IconButton>
+      ) : null}
+    </MuiDialogTitle>
+  )
+);
+
+const GalaxyList = ({ catalogs, setCatalogs }) => {
   const dispatch = useDispatch();
   const classes = useStyles();
   const textClasses = textStyles();
+
+  const currentUser = useSelector((state) => state.profile);
+  const permission = currentUser.permissions?.includes("System admin");
+
   const [dialogOpen, setDialogOpen] = useState(false);
   const [catalogToDelete, setCatalogToDelete] = useState(null);
+
+  const [openNew, setOpenNew] = useState(false);
+
   const openDialog = (id) => {
     setDialogOpen(true);
     setCatalogToDelete(id);
@@ -78,6 +137,10 @@ const GalaxyList = ({ catalogs, deletePermission, setCatalogs }) => {
   const closeDialog = () => {
     setDialogOpen(false);
     setCatalogToDelete(null);
+  };
+
+  const handleCloseNew = () => {
+    setOpenNew(false);
   };
 
   const deleteCatalog = () => {
@@ -97,26 +160,37 @@ const GalaxyList = ({ catalogs, deletePermission, setCatalogs }) => {
 
   return (
     <div className={classes.root}>
-      <List component="nav">
+      <div className={classes.header}>
+        <Typography variant="h6">List of Galaxy Catalogs</Typography>
+        {permission && (
+          <IconButton
+            name="new_gcnevent"
+            onClick={() => {
+              setOpenNew(true);
+            }}
+          >
+            <AddIcon />
+          </IconButton>
+        )}
+      </div>
+      <List component="nav" className={classes.galaxyList}>
         {catalogs?.map((catalog) => (
-          <ListItem button key={catalog}>
+          <ListItem button key={catalog} className={classes.galaxyListItem}>
             <ListItemText
               primary={catalog.catalog_name}
               secondary={`${catalog.catalog_count} galaxies`}
               classes={textClasses}
             />
-            <Button
-              key={catalog}
-              id="delete_button"
-              classes={{
-                root: classes.catalogDelete,
-                disabled: classes.catalogDeleteDisabled,
-              }}
-              onClick={() => openDialog(catalog.catalog_name)}
-              disabled={!deletePermission}
-            >
-              <DeleteIcon />
-            </Button>
+            {permission && (
+              <IconButton
+                key={catalog}
+                id="delete_button"
+                onClick={() => openDialog(catalog.catalog_name)}
+                disabled={!permission}
+              >
+                <DeleteIcon />
+              </IconButton>
+            )}
             <ConfirmDeletionDialog
               deleteFunction={deleteCatalog}
               dialogOpen={dialogOpen}
@@ -126,6 +200,19 @@ const GalaxyList = ({ catalogs, deletePermission, setCatalogs }) => {
           </ListItem>
         ))}
       </List>
+      {openNew && (
+        <Dialog
+          open={openNew}
+          onClose={handleCloseNew}
+          style={{ position: "fixed" }}
+          maxWidth="md"
+        >
+          <DialogTitle onClose={handleCloseNew}>New Galaxy Catalog</DialogTitle>
+          <DialogContent dividers>
+            <NewGalaxy handleClose={handleCloseNew} />
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 };
@@ -137,7 +224,6 @@ GalaxyList.propTypes = {
       catalog_count: PropTypes.number,
     })
   ),
-  deletePermission: PropTypes.bool.isRequired,
   setCatalogs: PropTypes.func.isRequired,
 };
 
@@ -149,7 +235,6 @@ const defaultNumPerPage = 10;
 
 const GalaxyPage = () => {
   const galaxies = useSelector((state) => state.galaxies?.galaxies);
-  const currentUser = useSelector((state) => state.profile);
   const dispatch = useDispatch();
   const classes = useStyles();
   const [catalogs, setCatalogs] = useState([]);
@@ -196,44 +281,29 @@ const GalaxyPage = () => {
     }
   };
 
-  const permission = currentUser.permissions?.includes("System admin");
-
   return (
     <Grid container spacing={3}>
-      <Grid item md={6} sm={12}>
+      <Grid item md={3} sm={12}>
         <Paper elevation={1}>
           <div className={classes.paperContent}>
-            <Typography variant="h6">List of Galaxy Catalogs</Typography>
-            <GalaxyList
-              catalogs={catalogs}
-              deletePermission={permission}
-              setCatalogs={setCatalogs}
-            />
+            <GalaxyList catalogs={catalogs} setCatalogs={setCatalogs} />
           </div>
         </Paper>
+      </Grid>
+      <Grid item md={9} sm={12}>
         <Paper elevation={1}>
           <div className={classes.paperContent}>
-            <Typography variant="h5">List of Galaxies</Typography>
             <GalaxyTable
               galaxies={galaxies.galaxies}
               pageNumber={fetchParams.pageNumber}
               numPerPage={fetchParams.numPerPage}
               handleTableChange={handleTableChange}
               totalMatches={galaxies.totalMatches}
+              showTitle
             />
           </div>
         </Paper>
       </Grid>
-      {currentUser.permissions?.includes("System admin") && (
-        <Grid item md={6} sm={12}>
-          <Paper>
-            <div className={classes.paperContent}>
-              <Typography variant="h5">Add New Galaxies</Typography>
-              <NewGalaxy />
-            </div>
-          </Paper>
-        </Grid>
-      )}
     </Grid>
   );
 };

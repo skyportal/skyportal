@@ -91,7 +91,7 @@ const AboutPlugins = () => {
         SkyPortal is an open source codebase that serves as a dynamic
         collaborative platform for time-domain astronomy. It is being jointly
         developed at Caltech, UC Berkeley, the University of Minnesota, and the
-        Observatoire de la Côte d`&apos;`Azur.
+        Observatoire de la Côte d&apos;Azur.
       </Typography>
       <Typography variant="body1">
         The project homepage is at&nbsp;

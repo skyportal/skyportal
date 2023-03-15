@@ -1,9 +1,9 @@
 import React, { useState } from "react";
-import Chip from "@mui/material/Chip";
+import { useSelector, useDispatch } from "react-redux";
 import PropTypes from "prop-types";
 import makeStyles from "@mui/styles/makeStyles";
-import { useSelector, useDispatch } from "react-redux";
 
+import Chip from "@mui/material/Chip";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
@@ -31,8 +31,8 @@ const useStyles = makeStyles(() => ({
     "& > div": {
       marginTop: 0,
       marginBottom: 0,
-      marginLeft: "0.1rem",
-      marginRight: "0.1rem",
+      marginLeft: "0.05rem",
+      marginRight: "0.05rem",
     },
   },
   addIcon: {
@@ -74,7 +74,13 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-const GcnEventAllocationTriggers = ({ gcnEvent }) => {
+const GcnEventAllocationTriggers = ({
+  gcnEvent,
+  showTriggered = true,
+  showPassed = false,
+  showUnset = false,
+  showTitle = false,
+}) => {
   const classes = useStyles();
   const dispatch = useDispatch();
 
@@ -82,6 +88,8 @@ const GcnEventAllocationTriggers = ({ gcnEvent }) => {
   const { allocationListApiObsplan } = useSelector(
     (state) => state.allocations
   );
+  const { allocationList } = useSelector((state) => state.allocations);
+
   const { instrumentList } = useSelector((state) => state.instruments);
 
   const [selectedInstrument, setSelectedInstrument] = useState(null);
@@ -99,15 +107,27 @@ const GcnEventAllocationTriggers = ({ gcnEvent }) => {
   const allocationLookUp = {};
   // link the allocation_id to the instrument name
   // eslint-disable-next-line no-unused-expressions
-  allocationListApiObsplan?.forEach((allocation) => {
-    allocationLookUp[allocation.id] = instNameLookUp[allocation.instrument_id];
-  });
-  // created a nested object with the instrument as the key, and the value is an array of all the allocations for that instrument with the triggered state
+  if (showUnset === false) {
+    // we do not need to find instruments that haven't set a triggered status
+    allocationList?.forEach((allocation) => {
+      allocationLookUp[allocation.id] =
+        instNameLookUp[allocation.instrument_id];
+    });
+  } else {
+    allocationListApiObsplan?.forEach((allocation) => {
+      allocationLookUp[allocation.id] =
+        instNameLookUp[allocation.instrument_id];
+    });
+  }
+
   const triggers = gcnEvent?.gcn_triggers || [];
   const instruments_triggered = {};
+
   instrumentList.forEach((instrument) => {
-    // if there is any allocation for this instrument, add it to the object
-    if (Object.values(allocationLookUp).includes(instrument.name)) {
+    if (
+      Object.values(allocationLookUp).includes(instrument.name) &&
+      !Object.keys(instruments_triggered).includes(instrument.name)
+    ) {
       instruments_triggered[instrument.name] = {
         triggered: "not_set",
         allocation_triggered: [],
@@ -115,7 +135,6 @@ const GcnEventAllocationTriggers = ({ gcnEvent }) => {
     }
   });
 
-  // for each key in the allocationLookUp object
   Object.keys(allocationLookUp).forEach((allocation_id) => {
     const t =
       triggers.find(
@@ -124,34 +143,26 @@ const GcnEventAllocationTriggers = ({ gcnEvent }) => {
 
     if (
       t?.triggered === true &&
-      instruments_triggered[allocationLookUp[allocation_id]].triggered ===
+      instruments_triggered[allocationLookUp[allocation_id]]?.triggered ===
         "not_set"
     ) {
       instruments_triggered[allocationLookUp[allocation_id]].triggered =
         "triggered";
     } else if (
       t?.triggered === false &&
-      instruments_triggered[allocationLookUp[allocation_id]].triggered ===
+      instruments_triggered[allocationLookUp[allocation_id]]?.triggered ===
         "not_set"
     ) {
       instruments_triggered[allocationLookUp[allocation_id]].triggered =
         "passed";
     } else if (
-      t === null &&
-      instruments_triggered[allocationLookUp[allocation_id]].triggered ===
-        "not_set"
-    ) {
-      instruments_triggered[allocationLookUp[allocation_id]].triggered =
-        "not_set";
-    } else if (
       t !== null &&
-      instruments_triggered[allocationLookUp[allocation_id]].triggered !==
+      instruments_triggered[allocationLookUp[allocation_id]]?.triggered !==
         "not_set"
     ) {
       instruments_triggered[allocationLookUp[allocation_id]].triggered =
         "mixed";
     }
-
     let triggered = "not_set";
     let triggeredText = "Not set";
     if (t?.triggered === true) {
@@ -173,19 +184,62 @@ const GcnEventAllocationTriggers = ({ gcnEvent }) => {
     });
   });
 
-  return Object.keys(instruments_triggered).length > 0 ? (
+  // now, bassed on the showTriggered, showPassed, and showUnset props, filter out the instruments_triggered object
+  const filtered_instruments_triggered = {};
+  Object.keys(instruments_triggered).forEach((instrument) => {
+    if (
+      showTriggered === false &&
+      instruments_triggered[instrument].triggered === "triggered"
+    ) {
+      // empty
+    } else if (
+      showPassed === false &&
+      instruments_triggered[instrument].triggered === "passed"
+    ) {
+      // empty
+    } else if (
+      showUnset === false &&
+      instruments_triggered[instrument].triggered === "not_set"
+    ) {
+      // empty
+    } else if (
+      showTriggered === false &&
+      showPassed === false &&
+      showUnset === true &&
+      instruments_triggered[instrument].triggered === "mixed"
+    ) {
+      // empty
+    } else {
+      filtered_instruments_triggered[instrument] =
+        instruments_triggered[instrument];
+    }
+  });
+
+  return Object.keys(filtered_instruments_triggered).length > 0 ? (
     <div className={classes.root}>
-      <h4 className={classes.title}>Instruments triggered:</h4>
+      {showTitle && <h4 className={classes.title}>Instruments triggered:</h4>}
       <div className={classes.chips} name="gcn_triggers-chips">
-        {Object.keys(instruments_triggered).map((instrument) => (
+        {Object.keys(filtered_instruments_triggered).map((instrument) => (
           <Chip
             size="small"
             label={instrument}
             key={instrument}
             clickable={permission || false}
-            className={classes[instruments_triggered[instrument].triggered]}
+            className={
+              classes[filtered_instruments_triggered[instrument].triggered]
+            }
             onClick={() => {
-              setSelectedInstrument(instruments_triggered[instrument]);
+              if (permission) {
+                setSelectedInstrument(
+                  filtered_instruments_triggered[instrument]
+                );
+              } else {
+                dispatch(
+                  showNotification(
+                    "You do not have permission to edit this GCN event allocation triggers"
+                  )
+                );
+              }
             }}
           />
         ))}
@@ -356,6 +410,17 @@ GcnEventAllocationTriggers.propTypes = {
       })
     ),
   }).isRequired,
+  showTriggered: PropTypes.bool,
+  showPassed: PropTypes.bool,
+  showUnset: PropTypes.bool,
+  showTitle: PropTypes.bool,
+};
+
+GcnEventAllocationTriggers.defaultProps = {
+  showTriggered: true,
+  showPassed: false,
+  showUnset: false,
+  showTitle: false,
 };
 
 export default GcnEventAllocationTriggers;

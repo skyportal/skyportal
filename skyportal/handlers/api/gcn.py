@@ -931,6 +931,7 @@ class GcnEventHandler(BaseHandler):
                     joinedload(GcnEvent.localizations),
                     joinedload(GcnEvent.gcn_notices),
                     joinedload(GcnEvent.observationplan_requests),
+                    joinedload(GcnEvent.gcn_triggers),
                 ],
             )
 

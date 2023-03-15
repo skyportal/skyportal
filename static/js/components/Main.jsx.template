@@ -57,7 +57,7 @@ const useStyles = makeStyles((theme) => ({
       easing: theme.transitions.easing.sharp,
       duration: theme.transitions.duration.leavingScreen,
     }),
-    marginTop: "6em", // top bar height
+    marginTop: "4em", // top bar height
     marginLeft: isMobile ? "0" : "190px",
     "& a": {
       textDecoration: "none",

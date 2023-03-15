@@ -17,6 +17,7 @@ import * as profileActions from "../ducks/profile";
 import * as recentGcnEventsActions from "../ducks/recentGcnEvents";
 import WidgetPrefsDialog from "./WidgetPrefsDialog";
 import GcnTags from "./GcnTags";
+import GcnEventAllocationTriggers from "./GcnEventAllocationTriggers";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
@@ -36,21 +37,44 @@ const useStyles = makeStyles((theme) => ({
     paddingLeft: 0,
     marginTop: 0,
   },
-  eventNameContainer: {
+  eventContainer: {
     display: "flex",
     flexDirection: "row",
     alignItems: "center",
   },
-  eventNameLink: {
+  eventName: {
+    display: "flex",
+    flexDirection: "column",
+    // justify to the left
+    justifyContent: "flex-start",
+    // align to the left
+    alignItems: "flex-start",
+    "& > *": {
+      whiteSpace: "nowrap",
+      height: "1rem",
+      lineHeight: "1rem",
+    },
+  },
+  eventDateobs: {
+    margin: 0,
+    padding: 0,
+    fontSize: "0.85rem",
     color: theme.palette.primary.main,
   },
+  eventTimeAgo: {
+    margin: 0,
+    padding: 0,
+    fontSize: "0.75rem",
+    color: theme.palette.grey[600],
+  },
   eventTags: {
-    marginLeft: "1rem",
-    "& > div": {
-      margin: "0.25rem",
-      color: "white",
-      background: theme.palette.primary.main,
-    },
+    marginLeft: "0.5rem",
+  },
+  eventListDivider: {
+    width: "100%",
+    height: "1px",
+    background: theme.palette.grey[300],
+    margin: "0.5rem 0",
   },
 }));
 
@@ -97,18 +121,24 @@ const RecentGcnEvents = ({ classes }) => {
           <ul className={styles.eventList}>
             {gcnEvents?.map((gcnEvent) => (
               <li key={gcnEvent.dateobs}>
-                <div className={styles.eventNameContainer}>
+                <div className={styles.eventContainer}>
                   &nbsp; -&nbsp;
                   <Link to={`/gcn_events/${gcnEvent.dateobs}`}>
-                    <Button>
-                      {dayjs(gcnEvent.dateobs).format("YYMMDD HH:mm:ss")}
+                    <Button className={styles.eventName}>
+                      <div className={styles.eventDateobs}>
+                        {dayjs(gcnEvent.dateobs).format("YYMMDD HH:mm:ss")}
+                      </div>
+                      <div className={styles.eventTimeAgo}>
+                        ({dayjs().to(dayjs.utc(`${gcnEvent.dateobs}Z`))})
+                      </div>
                     </Button>
                   </Link>
-                  <div>({dayjs().to(dayjs.utc(`${gcnEvent.dateobs}Z`))})</div>
                   <div>
                     <GcnTags gcnEvent={gcnEvent} />
+                    <GcnEventAllocationTriggers gcnEvent={gcnEvent} />
                   </div>
                 </div>
+                <div className={styles.eventListDivider} />
               </li>
             ))}
           </ul>

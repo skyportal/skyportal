@@ -119,7 +119,7 @@ const ShiftPage = ({ route }) => {
     currentUser.permissions?.includes("Manage shifts");
   return (
     <Grid container spacing={3}>
-      <Grid item md={6} sm={12}>
+      <Grid item md={8} sm={12}>
         <Paper elevation={1}>
           {shiftList ? (
             <MyCalendar
@@ -133,7 +133,7 @@ const ShiftPage = ({ route }) => {
         </Paper>
       </Grid>
 
-      <Grid item md={6} sm={12}>
+      <Grid item md={4} sm={12}>
         {permission && (
           <Paper>
             <div className={classes.paperContent}>
