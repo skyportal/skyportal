@@ -1283,7 +1283,7 @@ def test_gcn_Swift(super_admin_token, view_only_token):
         status, data = api(
             'POST', 'gcn_event', data=event_data_1, token=super_admin_token
         )
-        assert status in [200, 400]
+        assert status == 200
         assert data['status'] == 'success'
 
         status, data = api(
@@ -1308,6 +1308,10 @@ def test_gcn_Swift(super_admin_token, view_only_token):
             for loc in data["localizations"]
         ]
     )
+
+    # wait for the async tasks to finish before finishing the tests, which will delete the user
+    # from the db, causing failures in the session.commit() in the async tasks (because the user is not in the db anymore)
+    time.sleep(5)
 
 
 def test_gcn_tach(

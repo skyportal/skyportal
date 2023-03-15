@@ -130,7 +130,7 @@ def provision_token():
 
     if token is None:
         token_id = create_token(all_acl_ids, user_id=admin.id, name=token_name)
-        token = DBSession().query(Token).get(token_id)
+        token = DBSession().get(Token, token_id)
 
     return token
 
@@ -155,17 +155,17 @@ def setup_permissions():
     DBSession().commit()
 
     for r, acl_ids in role_acls.items():
-        role = DBSession().query(Role).get(r)
+        role = DBSession().get(Role, r)
         if role is None:
             role = Role(id=r)
-        role.acls = [DBSession().query(ACL).get(a) for a in acl_ids]
+        role.acls = [DBSession().get(ACL, a) for a in acl_ids]
         DBSession().add(role)
     DBSession().commit()
 
 
 def create_token(ACLs, user_id, name):
     t = Token(permissions=ACLs, name=name)
-    u = DBSession().query(User).get(user_id)
+    u = DBSession().get(User, user_id)
     u.tokens.append(t)
     t.created_by = u
     DBSession().add(u)
@@ -175,7 +175,7 @@ def create_token(ACLs, user_id, name):
 
 
 def delete_token(token_id):
-    t = DBSession().query(Token).get(token_id)
+    t = DBSession().get(Token, token_id)
     if t is not None:
         DBSession().delete(t)
         DBSession().commit()
