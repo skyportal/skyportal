@@ -58,6 +58,9 @@ class ConfigHandler(BaseHandler):
                             defaultSpectrumType:
                               type: string
                               description: assigned to any spectrum posted without a type.
+                            classificationsClasses:
+                              type: object
+                              description: allowed classifications classes.
         """
 
         return self.success(
@@ -65,6 +68,10 @@ class ConfigHandler(BaseHandler):
                 "slackPreamble": cfg["slack.expected_url_preamble"],
                 "invitationsEnabled": cfg["invitations.enabled"],
                 "cosmology": str(cosmo),
+                "openai_summary_apikey_set": cfg[
+                    "analysis_services.openai_analysis_service.summary.api_key"
+                ]
+                is not None,
                 "cosmoref": cosmo.__doc__,
                 "allowedSpectrumTypes": ALLOWED_SPECTRUM_TYPES,
                 "defaultSpectrumType": default_spectrum_type,
@@ -72,5 +79,6 @@ class ConfigHandler(BaseHandler):
                 "maxNumDaysUsingLocalization": MAX_NUM_DAYS_USING_LOCALIZATION,
                 "image_analysis": True if 'image_analysis' in cfg else False,
                 "allowedRecurringAPIMethods": ALLOWED_RECURRING_API_METHODS,
+                "classificationsClasses": cfg["classifications"],
             }
         )

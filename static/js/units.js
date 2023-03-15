@@ -7,6 +7,25 @@ import relativeTime from "dayjs/plugin/relativeTime";
 dayjs.extend(utc);
 dayjs.extend(relativeTime);
 
+const hours_to_ra = (hours) => {
+  const hoursSplit = hours.split(/[^\d\w]+/);
+  return (
+    (360 / 24) *
+    (parseInt(hoursSplit[0], 10) +
+      parseInt(hoursSplit[1], 10) / 60 +
+      parseInt(hoursSplit[2], 10) / (60 * 60))
+  );
+};
+
+const dms_to_dec = (dms) => {
+  const dmsSplit = dms.split(/[^\d\w]+/);
+  return (
+    parseInt(dmsSplit[0], 10) +
+    parseInt(dmsSplit[1], 10) / 60 +
+    parseInt(dmsSplit[2], 10) / (60 * 60)
+  );
+};
+
 const ra_to_hours = (ra, sep = null) => {
   const ra_h = numeral(Math.floor(ra / 15)).format("00");
   const ra_m = numeral(Math.floor((ra % 15) * 4)).format("00");
@@ -62,6 +81,8 @@ const flux_to_mag = (flux, zp) =>
 export {
   ra_to_hours,
   dec_to_dms,
+  hours_to_ra,
+  dms_to_dec,
   time_relative_to_local,
   mjd_to_utc,
   flux_to_mag,

@@ -682,6 +682,39 @@ analysis_services:
     port: 7001
   spectral_cube_analysis_service:
     port: 7002
+  openai_analysis_service:
+    port: 7003
+    summary:
+      # set this global API key if the project
+      # will pay for the OpenAI costs. Otherwise
+      # individual users need to set their own key
+      # in the user preferences
+      # Get a global key at:
+      #   https://platform.openai.com/account/api-keys
+      api_key:
+      temperature: 0.2
+      max_tokens: 350
+      top_p: 1.0
+      frequency_penalty: 0.0
+      model: gpt-3.5-turbo
+      presence_penalty: 1.0
+      prompt: Using markdown (with appropriate URL links), in one human-readable paragraph please summarize the following comments about this astronomical source. If classification and/or redshift are given, then note those in the summary. This summary will be primarily read by professional astronomers to help them with their work.
+    embeddings_store:
+      summary:
+        location: pinecone
+        environment: us-east1-gcp
+        api_key:
+        index_name: openai-skyportal-summary
+        index_size: 1536
+        model: text-embedding-ada-002
+
 
 comments_folder: persistentdata/comments
 photometric_series_folder: persistentdata/phot_series
+
+classifications:
+  # A few examples that show up in the demo data. You can modify the config on deploy to fill out the colors and types you want.
+  {
+    "variable": "#3a87ad",
+    "Time-domain Source": "#ff0000",
+  }

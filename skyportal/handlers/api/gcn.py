@@ -75,6 +75,7 @@ from ...models import (
     User,
     Group,
     UserNotification,
+    Source,
 )
 from ...utils.gcn import (
     get_dateobs,
@@ -134,6 +135,7 @@ def post_gcnevent_from_xml(payload, user_id, session):
 
     dateobs = get_dateobs(root)
     trigger_id = get_trigger(root)
+    event_id = None
 
     if trigger_id is not None:
         event = session.scalars(
@@ -145,28 +147,22 @@ def post_gcnevent_from_xml(payload, user_id, session):
         ).first()
 
     if event is None:
-        event = GcnEvent(dateobs=dateobs, sent_by_id=user.id, trigger_id=trigger_id)
+        event = GcnEvent(dateobs=dateobs, sent_by_id=user_id, trigger_id=trigger_id)
         session.add(event)
+        session.commit()
+        event_id = event.id
+        dateobs = event.dateobs
     else:
+        event_id = event.id
+        dateobs = event.dateobs
+        # we grab the dateobs from the event to overwrite the dateobs from the gcn notice
+        # this is important because unfortunately the dateobs in a gcn notice is not always the same as the dateobs in the event
+        # what matters is the trigger id if it exists, that allows us to find the actual dateobs of the event
+
         if not event.is_accessible_by(user, mode="update"):
             raise ValueError(
                 "Insufficient permissions: GCN event can only be updated by original poster"
             )
-
-    properties_dict = get_properties(root)
-    properties = GcnProperty(
-        dateobs=event.dateobs, sent_by_id=user.id, data=properties_dict
-    )
-    session.add(properties)
-
-    tags = [
-        GcnTag(
-            dateobs=event.dateobs,
-            text=text,
-            sent_by_id=user.id,
-        )
-        for text in get_tags(root)
-    ]
 
     gcn_notice = GcnNotice(
         content=payload,
@@ -174,69 +170,39 @@ def post_gcnevent_from_xml(payload, user_id, session):
         notice_type=gcn.get_notice_type(root),
         stream=urlparse(root.attrib['ivorn']).path.lstrip('/'),
         date=root.find('./Who/Date').text,
-        dateobs=event.dateobs,
-        sent_by_id=user.id,
+        dateobs=dateobs,
+        sent_by_id=user_id,
     )
-
-    detectors = []
-    for tag in tags:
-        session.add(tag)
-
-        mma_detector = session.scalars(
-            MMADetector.select(user).where(MMADetector.nickname == tag.text)
-        ).first()
-        if mma_detector is not None:
-            detectors.append(mma_detector)
     session.add(gcn_notice)
-    event.detectors = detectors
     session.commit()
+
+    properties_dict = get_properties(root)
+    properties = GcnProperty(dateobs=dateobs, sent_by_id=user_id, data=properties_dict)
+    session.add(properties)
+    session.commit()
+
+    tags_text = get_tags(root)
+    tags = [
+        GcnTag(
+            dateobs=dateobs,
+            text=text,
+            sent_by_id=user_id,
+        )
+        for text in tags_text
+    ]
+    session.add_all(tags)
 
     skymap = get_skymap(root, gcn_notice)
     if skymap is None:
-        return event.id
+        log(f"No skymap found for event {dateobs}")
+        return event_id
 
-    skymap["dateobs"] = event.dateobs
-    skymap["sent_by_id"] = user.id
-
-    try:
-        ra, dec, error = (float(val) for val in skymap["localization_name"].split("_"))
-        if error < SOURCE_RADIUS_THRESHOLD:
-            name = root.find('./Why/Inference/Name')
-            if name is not None:
-                source = {
-                    'id': (name.text).replace(' ', ''),
-                    'ra': ra,
-                    'dec': dec,
-                }
-            elif any([True if 'GRB' in tag.text.upper() else False for tag in tags]):
-                dateobs_txt = Time(dateobs).isot
-                source_name = f"GRB{dateobs_txt[2:4]}{dateobs_txt[5:7]}{dateobs_txt[8:10]}.{dateobs_txt[11:13]}{dateobs_txt[14:16]}{dateobs_txt[17:19]}"
-                source = {
-                    'id': source_name,
-                    'ra': ra,
-                    'dec': dec,
-                }
-            elif any([True if 'GW' in tag.text.upper() else False for tag in tags]):
-                dateobs_txt = Time(dateobs).isot
-                source_name = f"GW{dateobs_txt[2:4]}{dateobs_txt[5:7]}{dateobs_txt[8:10]}.{dateobs_txt[11:13]}{dateobs_txt[14:16]}{dateobs_txt[17:19]}"
-                source = {
-                    'id': source_name,
-                    'ra': ra,
-                    'dec': dec,
-                }
-            else:
-                source = {
-                    'id': Time(event.dateobs).isot.replace(":", "-"),
-                    'ra': ra,
-                    'dec': dec,
-                }
-            post_source(source, user_id, session)
-    except Exception:
-        pass
+    skymap["dateobs"] = dateobs
+    skymap["sent_by_id"] = user_id
 
     localization = session.scalars(
         Localization.select(user).where(
-            Localization.dateobs == dateobs,
+            Localization.dateobs == skymap["dateobs"],
             Localization.localization_name == skymap["localization_name"],
         )
     ).first()
@@ -244,18 +210,84 @@ def post_gcnevent_from_xml(payload, user_id, session):
         localization = Localization(**skymap)
         session.add(localization)
         session.commit()
+        localization_id = localization.id
 
         log(f"Generating tiles/properties/contours for localization {localization.id}")
 
         IOLoop.current().run_in_executor(
             None,
             lambda: add_tiles_and_properties_and_observation_plans(
-                localization.id, user_id
+                localization_id, user_id
             ),
         )
-        IOLoop.current().run_in_executor(None, lambda: add_contour(localization.id))
+        IOLoop.current().run_in_executor(None, lambda: add_contour(localization_id))
 
-    return event.id
+        mma_detectors = session.scalars(
+            MMADetector.select(user).where(MMADetector.nickname.in_(tags_text))
+        ).all()
+        if len(mma_detectors) > 0:
+            event_to_update = session.scalars(
+                GcnEvent.select(user).where(GcnEvent.dateobs == dateobs)
+            ).first()
+            event_to_update.mma_detectors = mma_detectors
+            session.commit()
+
+            try:
+                ra, dec, error = (
+                    float(val) for val in skymap["localization_name"].split("_")
+                )
+                if error < SOURCE_RADIUS_THRESHOLD:
+                    source = {}
+                    name = root.find('./Why/Inference/Name')
+                    if name is not None:
+                        source = {
+                            'id': (name.text).replace(' ', ''),
+                            'ra': ra,
+                            'dec': dec,
+                        }
+                    elif any(
+                        [
+                            True if 'GRB' in tag.text.upper() else False
+                            for tag in tags_text
+                        ]
+                    ):
+                        dateobs_txt = Time(dateobs).isot
+                        source_name = f"GRB{dateobs_txt[2:4]}{dateobs_txt[5:7]}{dateobs_txt[8:10]}.{dateobs_txt[11:13]}{dateobs_txt[14:16]}{dateobs_txt[17:19]}"
+                        source = {
+                            'id': source_name,
+                            'ra': ra,
+                            'dec': dec,
+                        }
+                    elif any(
+                        [
+                            True if 'GW' in tag.text.upper() else False
+                            for tag in tags_text
+                        ]
+                    ):
+                        dateobs_txt = Time(dateobs).isot
+                        source_name = f"GW{dateobs_txt[2:4]}{dateobs_txt[5:7]}{dateobs_txt[8:10]}.{dateobs_txt[11:13]}{dateobs_txt[14:16]}{dateobs_txt[17:19]}"
+                        source = {
+                            'id': source_name,
+                            'ra': ra,
+                            'dec': dec,
+                        }
+                    else:
+                        source = {
+                            'id': Time(dateobs).isot.replace(":", "-"),
+                            'ra': ra,
+                            'dec': dec,
+                        }
+
+                    if source.get('id', None) is not None:
+                        existing_source = session.scalars(
+                            Source.select(user).where(Source.id == source['id'])
+                        ).first()
+                        if existing_source is None:
+                            post_source(source, user_id, session)
+            except Exception:
+                pass
+
+    return event_id
 
 
 def post_gcnevent_from_dictionary(payload, user_id, session):

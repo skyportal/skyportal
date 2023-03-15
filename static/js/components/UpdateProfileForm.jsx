@@ -24,6 +24,7 @@ import * as ProfileActions from "../ducks/profile";
 import UIPreferences from "./UIPreferences";
 import NotificationPreferences from "./NotificationPreferences";
 import SlackPreferences from "./SlackPreferences";
+import OpenAIPreferences from "./OpenAIPreferences";
 import ObservabilityPreferences from "./ObservabilityPreferences";
 import FollowupRequestPreferences from "./FollowupRequestPreferences";
 import PhotometryPlottingPreferences from "./PhotometryPlottingPreferences";
@@ -253,6 +254,9 @@ const UpdateProfileForm = () => {
         </CardContent>
         <CardContent>
           <SlackPreferences />
+        </CardContent>
+        <CardContent>
+          <OpenAIPreferences />
         </CardContent>
         <CardContent>
           <UIPreferences />
