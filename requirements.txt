@@ -84,3 +84,5 @@ watchdog==2.2.1
 PyAstronomy==0.18.0
 shapely==1.8.1
 stdpipe==0.1
+openai[embeddings]==0.27.0
+pinecone-client==2.2.1

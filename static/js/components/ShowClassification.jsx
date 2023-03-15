@@ -99,6 +99,10 @@ const ClassificationRow = ({ classifications }) => {
 
   const classification = classifications[0];
 
+  const classifications_classes = useSelector(
+    (state) => state.config.classificationsClasses
+  );
+
   const upvoterIds = [];
   const downvoterIds = [];
   let upvoteValue = 1;
@@ -232,6 +236,10 @@ const ClassificationRow = ({ classifications }) => {
           key={`${classification.modified}tb`}
           size="small"
           className={classes.chip}
+          style={{
+            backgroundColor:
+              classifications_classes[classification.classification],
+          }}
         />
       </Tooltip>
     </div>

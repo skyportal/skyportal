@@ -13,6 +13,8 @@ import json
 from scipy.stats import norm
 import sqlalchemy as sa
 from sqlalchemy import func
+from sqlalchemy.orm import joinedload
+import time
 
 from astropy import units as u
 from astropy.coordinates import SkyCoord
@@ -39,6 +41,8 @@ import matplotlib.pyplot as plt
 
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.flow import Flow
+from baselayer.log import make_log
+
 from ..base import BaseHandler
 from ...models import (
     DefaultFollowupRequest,
@@ -54,10 +58,9 @@ from ...models import (
     Allocation,
     cosmo,
 )
-
-from sqlalchemy.orm import joinedload
-
 from ...models.schema import AssignmentSchema, FollowupRequestPost
+
+log = make_log('api/followup_request')
 
 MAX_FOLLOWUP_REQUESTS = 1000
 
@@ -846,11 +849,14 @@ class HourAngleConstraint(Constraint):
 
     def compute_constraint(self, times, observer, targets):
 
-        has = np.zeros((len(targets), len(times)))
-        for ii, tt in enumerate(times):
-            tt = Time(tt, format='jd', scale='utc', location=observer.location)
-            lst = tt.sidereal_time('mean')
-            has[:, ii] = [(lst - target.ra).hour for target in targets]
+        jds = np.array([t.jd for t in times])
+        GMST = 18.697374558 + 24.06570982441908 * (jds - 2451545)
+        GMST = np.mod(GMST, 24)
+
+        lon = observer.location.lon.value / 15
+        lst = np.tile(np.mod(GMST + lon, 24), (len(targets), 1))
+        ras = np.tile([target.ra.hour for target in targets], len(times))
+        has = lst - ras
 
         if self.min is None and self.max is not None:
             mask = has <= self.max
@@ -887,9 +893,8 @@ class TargetOfOpportunityConstraint(Constraint):
         exp_func = exp_func / np.max(exp_func)
 
         reward_function = np.ones((len(targets), len(times)))
-        for ii, too in enumerate(self.toos):
-            if too:
-                reward_function[ii, :] = exp_func
+        idx = np.where(self.toos)[0]
+        reward_function[idx, :] = exp_func
 
         return reward_function
 
@@ -944,6 +949,10 @@ def observation_schedule(
 
     # FIXME: account for different instrument readout times
     read_out = 10.0 * u.s
+
+    log(f"Generating requested schedule for {instrument.name}")
+
+    start_time = time.time()
 
     for ii, followup_request in enumerate(followup_requests):
         obj = followup_request.obj
@@ -1001,6 +1010,18 @@ def observation_schedule(
                 )
             )
 
+        other_keys = set(payload.keys()) - {
+            "observation_choices",
+            "priority",
+            "start_date",
+            "end_date",
+            "exposure_time",
+            "exposure_counts",
+            "maximum_airmass",
+            "minimum_lunar_distance",
+            "too",
+        }
+
         if "observation_choices" in payload:
             configurations = [
                 {
@@ -1009,6 +1030,7 @@ def observation_schedule(
                     'request_id': followup_request.id,
                     'filter': bandpass,
                     'exposure_time': exposure_time,
+                    **{key: payload[key] for key in other_keys},
                 }
                 for bandpass in payload["observation_choices"]
             ]
@@ -1020,6 +1042,7 @@ def observation_schedule(
                     'request_id': followup_request.id,
                     'filter': 'default',
                     'exposure_time': exposure_time,
+                    **{key: payload[key] for key in other_keys},
                 }
             ]
 
@@ -1038,6 +1061,12 @@ def observation_schedule(
                 toos.append(True)
             else:
                 toos.append(False)
+
+    log(
+        f"Assembled {len(blocks)} observations in schedule for {instrument.name} in {time.time() - start_time} s"
+    )
+
+    start_time = time.time()
 
     global_constraints = [
         AirmassConstraint(max=2.50, boolean_constraint=False),
@@ -1064,6 +1093,8 @@ def observation_schedule(
 
     # Call the schedule with the observing blocks and schedule to schedule the blocks
     prior_scheduler(blocks, priority_schedule)
+
+    log(f"Generated schedule for {instrument.name} in {time.time() - start_time} s")
 
     if output_format in ["png", "pdf"]:
         matplotlib.use("Agg")
@@ -1097,11 +1128,12 @@ def observation_schedule(
             if target == "TransitionBlock":
                 continue
 
-            filt = block["configuration"]["filter"]
-            request_id = block["configuration"]["request_id"]
-            group_id = block["configuration"]["group_id"]
-            requester = block["configuration"]["requester"]
-            exposure_time = int(block["configuration"]["exposure_time"].value)
+            configuration = block["configuration"]
+            filt = configuration["filter"]
+            request_id = configuration["request_id"]
+            group_id = configuration["group_id"]
+            requester = configuration["requester"]
+            exposure_time = int(configuration["exposure_time"].value)
 
             obs_start = Time(block["start time (UTC)"], format='iso')
             obs_end = Time(block["end time (UTC)"], format='iso')
@@ -1112,6 +1144,13 @@ def observation_schedule(
             ra = c.ra.to_string(unit=u.hour, sep=':')
             dec = c.dec.to_string(unit=u.degree, sep=':')
 
+            other_keys = set(configuration.keys()) - {
+                "requester",
+                "group_id",
+                "request_id",
+                "filter",
+                "exposure_time",
+            }
             observation = {
                 'request_id': request_id,
                 'group_id': group_id,
@@ -1124,6 +1163,7 @@ def observation_schedule(
                 'exposure_time': exposure_time,
                 'filter': filt,
                 'requester': requester,
+                **{key: configuration[key] for key in other_keys},
             }
             schedule.append(observation)
 
