@@ -914,20 +914,20 @@ def fetch_depot_observations(instrument_id, session, depot_url, jd_start, jd_end
             # only want successfully reduced images
             obstable = obstable[obstable['status'] == 0]
 
-            obs_grouped_by_obsjd = obstable.groupby('obsjd')
-            for ii, (jd, df_group) in enumerate(obs_grouped_by_obsjd):
+            obs_grouped_by_exp = obstable.groupby('exposure_id')
+            for expid, df_group in obs_grouped_by_exp:
                 df_group_median = df_group.median()
-                df_group_median['observation_id'] = ii
-                df_group_median['processed_fraction'] = len(df_group["fieldid"]) / 64.0
-                df_group_median['filter'] = inv_bands[int(1)]
-            dfs.append(df_group_median)
+                df_group_median['observation_id'] = int(expid)
+                df_group_median['processed_fraction'] = len(df_group["field_id"]) / 64.0
+                df_group_median['filter'] = inv_bands[int(df_group_median["filter_id"])]
+                dfs.append(df_group_median)
 
     obstable = pd.concat(dfs, axis=1).T
     obstable.rename(
         columns={
             'obsjd': 'obstime',
-            'fieldid': 'field_id',
             'maglim': 'limmag',
+            'fwhm': 'seeing',  # equivalent as plate scale is 1"/pixel
         },
         inplace=True,
     )

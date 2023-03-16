@@ -1,3 +1,4 @@
+import numpy as np
 from tornado.ioloop import IOLoop
 import sqlalchemy as sa
 from sqlalchemy import func
@@ -71,7 +72,10 @@ def add_catalog(catalog_id, catalog_data):
             ):
 
                 name = name.strip().replace(" ", "-")
-                skymap = from_ellipse(name, ra, dec, amaj, amin, phi)
+                if np.isclose(amaj, amin):
+                    skymap = from_cone(ra, dec, amaj, n_sigma=1)
+                else:
+                    skymap = from_ellipse(name, ra, dec, amaj, amin, phi)
                 skymap['entry_name'] = skymap['localization_name']
                 del skymap['localization_name']
 
