@@ -16,6 +16,7 @@ from baselayer.app.models import (
     CustomUserAccessControl,
     UserAccessControl,
     safe_aliased,
+    join_model,
 )
 from .group import accessible_by_group_members
 from .allocation import Allocation, AllocationUser
@@ -440,45 +441,24 @@ def gcntrigger_allocationuser_access_logic(cls, user_or_token):
     return query
 
 
-class GcnTrigger(Base):
-    """Store a triggered or passed status by allocation for a gcn event."""
+GcnTrigger = join_model(
+    'gcntriggers',
+    GcnEvent,
+    Allocation,
+    "dateobs",
+    "allocation_id",
+    "dateobs",
+    "id",
+    new_name='GcnTrigger',
+)
 
-    # this model is a link between a gcn_event, and an allocation, with a triggered bool column
-    # it can be edited only by an admin of the allocation
-    # it can be created only by an allocation admin or superadmin
+GcnTrigger.triggered = sa.Column(
+    sa.Boolean,
+    nullable=False,
+    default=False,
+    doc="Whether this GCN event triggered the allocation.",
+)
 
-    create = update = delete = CustomUserAccessControl(
-        gcntrigger_allocationuser_access_logic
-    )
-
-    dateobs = sa.Column(
-        sa.ForeignKey('gcnevents.dateobs', ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
-
-    gcnevent = relationship(
-        'GcnEvent',
-        back_populates='gcn_triggers',
-        doc="GCN event associated with this allocation.",
-    )
-
-    allocation_id = sa.Column(
-        sa.Integer,
-        sa.ForeignKey('allocations.id', ondelete='CASCADE'),
-        primary_key=True,
-        doc="ID of the allocation.",
-    )
-
-    allocation = relationship(
-        'Allocation',
-        back_populates='gcn_triggers',
-        doc="Allocation associated with this GCN event.",
-    )
-
-    triggered = sa.Column(
-        sa.Boolean,
-        nullable=False,
-        default=False,
-        doc="Whether this GCN event triggered the allocation.",
-    )
+GcnTrigger.create = GcnTrigger.update = GcnTrigger.delete = CustomUserAccessControl(
+    gcntrigger_allocationuser_access_logic
+)

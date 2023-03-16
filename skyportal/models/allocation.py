@@ -143,7 +143,9 @@ class Allocation(Base):
         'GcnTrigger',
         back_populates='allocation',
         cascade='save-update, merge, refresh-expire, expunge',
+        passive_deletes=True,
         doc='Elements of a join table mapping GCNs to Allocations with a trigger status.',
+        overlaps='allocations, gcnevents',
     )
 
     @property
