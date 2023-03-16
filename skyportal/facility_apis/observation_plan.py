@@ -653,9 +653,11 @@ def generate_plan(
                 for plan, request in zip(plans, requests):
                     if request.instrument.name == instrument_name:
                         break
-                field = InstrumentField.query.filter(
-                    InstrumentField.instrument_id == request.instrument.id,
-                    InstrumentField.field_id == field_id,
+                field = session.scalars(
+                    sa.select(InstrumentField).where(
+                        InstrumentField.instrument_id == request.instrument.id,
+                        InstrumentField.field_id == field_id,
+                    )
                 ).first()
                 if field is None:
                     return log(f"Missing field {field_id} from list")

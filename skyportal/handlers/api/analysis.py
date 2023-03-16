@@ -13,6 +13,7 @@ from tornado.ioloop import IOLoop
 from marshmallow.exceptions import ValidationError
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import contains_eager
 
 from baselayer.app.flow import Flow
 from baselayer.app.access import auth_or_token, permissions
@@ -39,6 +40,7 @@ from ...models import (
     Annotation,
     Classification,
     Obj,
+    User,
     Comment,
     ObjAnalysis,
     DefaultAnalysis,
@@ -538,6 +540,16 @@ class AnalysisServiceHandler(BaseHandler):
                     type: float
                     description: Max time in seconds to wait for the analysis service to complete. Default is 3600.0.
                     default: 3600.0
+                  is_summary:
+                    type: boolean
+                    description: |
+                        Establishes that analysis results on the resource should be considered a summary
+                    default: false
+                  display_on_resource_dropdown:
+                    type: boolean
+                    description: |
+                        Show this analysis service on the analysis dropdown of the resource
+                    default: true
                   group_ids:
                     type: array
                     items:
@@ -810,6 +822,16 @@ class AnalysisServiceHandler(BaseHandler):
                     type: float
                     description: Max time in seconds to wait for the analysis service to complete. Default is 3600.0.
                     default: 3600.0
+                  is_summary:
+                    type: boolean
+                    description: |
+                        Establishes that analysis results on the resource should be considered a summary
+                    default: false
+                  display_on_resource_dropdown:
+                    type: boolean
+                    description: |
+                        Show this analysis service on the analysis dropdown of the resource
+                    default: true
                   group_ids:
                     type: array
                     items:
@@ -1034,6 +1056,25 @@ class AnalysisHandler(BaseHandler):
                     f'Invalid analysis_parameters: {analysis_parameters}.', status=400
                 )
 
+            if analysis_service.is_summary:
+                user_id = self.associated_user_object.id
+                user = session.scalars(
+                    User.select(session.user_or_token, mode="update").where(
+                        User.id == user_id
+                    )
+                ).first()
+                if user is None:
+                    return self.error('Cannot find user.', status=400)
+
+                if (
+                    user.preferences.get("summary", {})
+                    .get("OpenAI", {})
+                    .get('active', False)
+                ):
+                    analysis_parameters["openai_api_key"] = user.preferences["summary"][
+                        "OpenAI"
+                    ]["apikey"]
+
             group_ids = data.pop('group_ids', None)
             if not group_ids:
                 group_ids = [g.id for g in self.current_user.accessible_groups]
@@ -1100,7 +1141,7 @@ class AnalysisHandler(BaseHandler):
                 type: string
               description: |
                 Return any analysis on an object with ID objID
-            - in: path
+            - in: query
               name: analysisServiceID
               required: false
               schema:
@@ -1116,6 +1157,15 @@ class AnalysisHandler(BaseHandler):
                 Boolean indicating whether to include the data associated
                 with the analysis in the response. Could be a large
                 amount of data. Only works for single analysis requests.
+                Defaults to false.
+            - in: query
+              name: summaryOnly
+              nullable: true
+              schema:
+                type: boolean
+              description: |
+                Boolean indicating whether to return only analyses that
+                use analysis services with `is_summary` set to true.
                 Defaults to false.
             - in: query
               name: includeFilename
@@ -1151,14 +1201,9 @@ class AnalysisHandler(BaseHandler):
         include_analysis_data = self.get_query_argument(
             "includeAnalysisData", False
         ) in ["True", "t", "true", "1", True, 1]
-        include_filename = self.get_query_argument("includeFilename", False) in [
-            "True",
-            "t",
-            "true",
-            "1",
-            True,
-            1,
-        ]
+        include_filename = self.get_query_argument("includeFilename", False)
+        summary_only = self.get_query_argument("summaryOnly", False)
+
         obj_id = self.get_query_argument('objID', None)
         analysis_service_id = self.get_query_argument('analysisServiceID', None)
 
@@ -1182,6 +1227,11 @@ class AnalysisHandler(BaseHandler):
                         return self.error('Cannot access this Analysis.', status=403)
 
                     analysis_dict = recursive_to_dict(analysis)
+
+                    # dont return the openai api key if its there
+                    if "analysis_parameters" in analysis_dict:
+                        analysis_dict["analysis_parameters"].pop("openai_api_key", None)
+
                     stmt = AnalysisService.select(self.current_user).where(
                         AnalysisService.id == analysis.analysis_service_id
                     )
@@ -1216,6 +1266,9 @@ class AnalysisHandler(BaseHandler):
                 analysis_services_dict = {}
                 for a in analyses:
                     analysis_dict = recursive_to_dict(a)
+                    if "analysis_parameters" in analysis_dict:
+                        analysis_dict["analysis_parameters"].pop("openai_api_key", None)
+
                     if a.analysis_service_id not in analysis_services_dict.keys():
                         stmt = AnalysisService.select(self.current_user).where(
                             AnalysisService.id == a.analysis_service_id
@@ -1226,6 +1279,7 @@ class AnalysisHandler(BaseHandler):
                                 a.analysis_service_id: {
                                     "analysis_service_name": analysis_service.display_name,
                                     "analysis_service_description": analysis_service.description,
+                                    "analysis_serivce_display_as_summary": analysis_service.is_summary,
                                 }
                             }
                         )
@@ -1241,6 +1295,12 @@ class AnalysisHandler(BaseHandler):
                     analysis_dict["groups"] = a.groups
                     if include_filename:
                         analysis_dict["filename"] = a._full_name
+                    if (
+                        summary_only
+                        and not service_info["analysis_serivce_display_as_summary"]
+                    ):
+                        # the analysis service is not a summary service, so skip returning this analysis
+                        continue
                     ret_array.append(analysis_dict)
             else:
                 return self.error(
@@ -1271,14 +1331,38 @@ class AnalysisHandler(BaseHandler):
 
         with self.Session() as session:
             if analysis_resource_type.lower() == 'obj':
-                stmt = ObjAnalysis.select(self.current_user).where(
-                    ObjAnalysis.id == analysis_id
+                stmt = (
+                    ObjAnalysis.select(self.current_user)
+                    .join(ObjAnalysis.obj)
+                    .join(ObjAnalysis.analysis_service)
+                    .options(contains_eager(ObjAnalysis.analysis_service))
+                    .options(contains_eager(ObjAnalysis.obj))
+                    .where(ObjAnalysis.id == analysis_id)
                 )
                 analysis = session.scalars(stmt).first()
                 if analysis is None:
                     return self.error('Cannot access this Analysis.', status=403)
+
+                if analysis.obj.summary_history is not None:
+                    analysis.obj.summary_history = [
+                        x
+                        for x in analysis.obj.summary_history
+                        if x.get("analysis_id", -1) != analysis.id
+                    ]
                 session.delete(analysis)
                 session.commit()
+
+                try:
+                    if analysis.analysis_service.is_summary:
+                        flow = Flow()
+                        flow.push(
+                            '*',
+                            'skyportal/REFRESH_SOURCE',
+                            payload={'obj_key': analysis.obj.internal_key},
+                        )
+                except Exception as e:
+                    log(f"Error pushing updates to source: {e}")
+
                 return self.success()
             else:
                 return self.error(
@@ -1392,6 +1476,7 @@ class AnalysisProductsHandler(BaseHandler):
                             await self.send_file(
                                 output_data, filename, output_type=output_type
                             )
+                            return
                     elif product_type.lower() == "results":
                         if not analysis.has_results_data:
                             return self.error(
@@ -1399,15 +1484,17 @@ class AnalysisProductsHandler(BaseHandler):
                             )
 
                         result = analysis.serialize_results_data()
+
                         if result:
                             download = self.get_query_argument("download", False)
                             if download:
                                 filename = f"analysis_{analysis.obj_id}.json"
                                 buf = io.BytesIO()
-                                buf.write(result.encode('utf-8'))
+                                buf.write(json.dumps(result).encode('utf-8'))
                                 buf.seek(0)
 
                                 await self.send_file(buf, filename, output_type='json')
+                                return
                             else:
                                 return self.success(data=result)
                         else:
@@ -1443,6 +1530,7 @@ class AnalysisProductsHandler(BaseHandler):
                             await self.send_file(
                                 output_data, filename, output_type=output_type
                             )
+                            return
                     else:
                         return self.error(
                             f"Invalid product type: {product_type}", status=404

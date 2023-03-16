@@ -16,13 +16,16 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import Typography from "@mui/material/Typography";
 import { log10, abs, ceil } from "mathjs";
 import CircularProgress from "@mui/material/CircularProgress";
+import AddIcon from "@mui/icons-material/Add";
 import HelpOutlineOutlinedIcon from "@mui/icons-material/HelpOutlineOutlined";
 import Button from "./Button";
 
 import CommentList from "./CommentList";
+import CopyPhotometryDialog from "./CopyPhotometryDialog";
 import ClassificationList from "./ClassificationList";
 import ClassificationForm from "./ClassificationForm";
 import ShowClassification from "./ShowClassification";
+import ShowSummaries from "./ShowSummaries";
 import ThumbnailList from "./ThumbnailList";
 import SurveyLinkList from "./SurveyLinkList";
 import StarList from "./StarList";
@@ -36,7 +39,10 @@ import SourceNotification from "./SourceNotification";
 import EditSourceGroups from "./EditSourceGroups";
 import UpdateSourceCoordinates from "./UpdateSourceCoordinates";
 import UpdateSourceRedshift from "./UpdateSourceRedshift";
+import UpdateSourceSummary from "./UpdateSourceSummary";
+import StartBotSummary from "./StartBotSummary";
 import SourceRedshiftHistory from "./SourceRedshiftHistory";
+import ShowSummaryHistory from "./ShowSummaryHistory";
 import AnnotationsTable from "./AnnotationsTable";
 import AnalysisList from "./AnalysisList";
 import AnalysisForm from "./AnalysisForm";
@@ -202,6 +208,12 @@ export const useSourceStyles = makeStyles((theme) => ({
     borderBottomColor: "transparent",
     borderLeftColor: "transparent",
   },
+  sourceCopy: {
+    height: "2.1875rem",
+    paddingTop: "0.5em",
+    paddingBottom: "0.5em",
+    alignItems: "center",
+  },
 }));
 
 const SourceDesktop = ({ source }) => {
@@ -216,6 +228,14 @@ const SourceDesktop = ({ source }) => {
   const { instrumentList, instrumentFormParams } = useSelector(
     (state) => state.instruments
   );
+
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const openDialog = () => {
+    setDialogOpen(true);
+  };
+  const closeDialog = () => {
+    setDialogOpen(false);
+  };
 
   const photometry = useSelector((state) => state.photometry[source.id]);
 
@@ -320,6 +340,26 @@ const SourceDesktop = ({ source }) => {
           </div>
         ) : null}
         <div className={classes.sourceInfo}>
+          <div className={classes.redshiftInfo}>
+            <ShowSummaries summaries={source.summary_history} />
+            {source.summary_history?.length < 1 ||
+            !source.summary_history ||
+            source.summary_history[0].summary === null ? ( // eslint-disable-line
+              <div>
+                <b>Summarize: &nbsp;</b>
+              </div>
+            ) : null}
+            <UpdateSourceSummary source={source} />
+            {source.comments?.length > 1 ? (
+              <StartBotSummary obj_id={source.id} />
+            ) : null}
+            {source.summary_history?.length > 0 ? (
+              <ShowSummaryHistory
+                summaries={source.summary_history}
+                obj_id={source.id}
+              />
+            ) : null}
+          </div>
           <div className={classes.infoLine}>
             <ShowClassification
               classifications={source.classifications}
@@ -365,9 +405,26 @@ const SourceDesktop = ({ source }) => {
                 </b>
                 &nbsp;
                 {source.duplicates.map((dupID) => (
-                  <Link to={`/source/${dupID}`} role="link" key={dupID}>
-                    <Button size="small">{dupID}</Button>
-                  </Link>
+                  <div key={dupID}>
+                    <Link to={`/source/${dupID}`} role="link" key={dupID}>
+                      <Button size="small">{dupID}</Button>
+                    </Link>
+                    <Button
+                      size="small"
+                      type="button"
+                      name={`copySourceButton${dupID}`}
+                      onClick={() => openDialog(dupID)}
+                      className={classes.sourceCopy}
+                    >
+                      <AddIcon />
+                    </Button>
+                    <CopyPhotometryDialog
+                      source={source}
+                      duplicate={dupID}
+                      dialogOpen={dialogOpen}
+                      closeDialog={closeDialog}
+                    />
+                  </div>
                 ))}
               </div>
             </div>
@@ -872,6 +929,8 @@ SourceDesktop.propTypes = {
     thumbnails: PropTypes.arrayOf(PropTypes.shape({})),
     redshift: PropTypes.number,
     redshift_error: PropTypes.number,
+    summary_history: PropTypes.arrayOf(PropTypes.shape({})), // eslint-disable-line react/forbid-prop-types
+    comments: PropTypes.arrayOf(PropTypes.shape({})),
     groups: PropTypes.arrayOf(PropTypes.shape({})),
     gal_lon: PropTypes.number,
     gal_lat: PropTypes.number,

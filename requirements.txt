@@ -28,8 +28,8 @@ pyproj==3.4.1
 pytest==7.1.0
 sncosmo==2.9.0
 tdtax==0.1.4
-healpix-alchemy==1.0.1
-mocpy==0.11.0
+healpix-alchemy==1.0.2
+mocpy==0.12.3
 obspy==1.4.0
 conesearch-alchemy==1.0.0
 regions==0.7
@@ -57,14 +57,14 @@ aiosmtpd==1.4.2
 ligo.skymap>=0.6
 healpy==1.16.2
 pygcn==1.1.2
-pysedm==0.27.4
+pysedm==0.31.0
 xmlschema==2.1.1
 requests==2.28.1
 geojson==3.0.1
 typing-extensions>=4.0.1  # astropy v5.0 needs this, but does not correctly specify as much in its install config
 swifttools==3.0.12
 pip==22.3.1
-gwemopt==0.0.79
+gwemopt==0.0.80
 humanize==4.5.0
 xarray>=21.1
 simsurvey==0.7.5
@@ -79,8 +79,10 @@ selenium-requests==2.0.3
 afterglowpy==0.7.3
 gcn-kafka==0.3.0
 confluent_kafka==1.9.2 # dependency of gcn-kafka: pinning to understand memory effects on GCNEvents
-iminuit==1.5.4
+iminuit==2.21.0
 watchdog==2.2.1
 PyAstronomy==0.18.0
-shapely==1.8.0
+shapely==1.8.1
 stdpipe==0.1
+openai[embeddings]==0.27.0
+pinecone-client==2.2.1

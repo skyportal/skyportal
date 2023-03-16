@@ -91,6 +91,29 @@ def add_linked_thumbnails_and_push_ws_msg(obj_id, user_id):
         Session.remove()
 
 
+def update_summary_history_if_relevant(results_data, obj, user):
+    if "summary" in results_data:
+        if obj.summary_history is None:
+            summary_history = []
+        else:
+            summary_history = copy(obj.summary_history)
+
+        summary_params = {
+            "set_by_user_id": user.id,
+            "set_at_utc": datetime.datetime.utcnow().isoformat(),
+            "summary": results_data["summary"],
+            "is_bot": results_data.get("is_bot", False),
+            "analysis_id": results_data.get("analysis_id", None),
+        }
+
+        if "summary_origin" in results_data:
+            summary_params["origin"] = results_data["summary_origin"]
+
+        summary_history.insert(0, summary_params)
+        obj.summary = results_data["summary"]
+        obj.summary_history = summary_history
+
+
 def update_redshift_history_if_relevant(request_data, obj, user):
     if "redshift" in request_data:
         if obj.redshift_history is None:
