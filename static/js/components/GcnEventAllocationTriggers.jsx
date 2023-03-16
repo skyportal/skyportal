@@ -224,6 +224,7 @@ const GcnEventAllocationTriggers = ({
             size="small"
             label={instrument}
             key={instrument}
+            id={`${instrument}_${filtered_instruments_triggered[instrument].triggered}`}
             clickable={permission || false}
             className={
               classes[filtered_instruments_triggered[instrument].triggered]
@@ -236,7 +237,8 @@ const GcnEventAllocationTriggers = ({
               } else {
                 dispatch(
                   showNotification(
-                    "You do not have permission to edit this GCN event allocation triggers"
+                    "You do not have permission to edit this GCN event allocation triggers",
+                    "error"
                   )
                 );
               }
@@ -270,6 +272,7 @@ const GcnEventAllocationTriggers = ({
                       size="small"
                       label={allocationTrigger.triggeredText}
                       key="trigger"
+                      id={`${allocationTrigger?.allocation?.id}_current`}
                       className={classes[allocationTrigger.triggered]}
                     />
                   </td>
@@ -278,6 +281,7 @@ const GcnEventAllocationTriggers = ({
                       size="small"
                       label="Triggered"
                       key="triggered"
+                      id={`${allocationTrigger?.allocation?.id}_triggered`}
                       clickable
                       className={classes.triggered}
                       onClick={() => {
@@ -316,6 +320,7 @@ const GcnEventAllocationTriggers = ({
                       size="small"
                       label="Passed"
                       key="passed"
+                      id={`${allocationTrigger?.allocation?.id}_passed`}
                       clickable
                       className={classes.passed}
                       onClick={() => {
@@ -354,6 +359,7 @@ const GcnEventAllocationTriggers = ({
                       size="small"
                       label="Not Set"
                       key="not-set"
+                      id={`${allocationTrigger?.allocation?.id}_not-set`}
                       clickable
                       className={classes.not_set}
                       onClick={() => {
