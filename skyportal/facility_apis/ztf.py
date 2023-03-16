@@ -11,7 +11,6 @@ import numpy as np
 from sqlalchemy.orm import sessionmaker, scoped_session
 from tornado.ioloop import IOLoop
 import pandas as pd
-import pyvo
 import sqlalchemy as sa
 import urllib
 
@@ -841,19 +840,19 @@ class ZTFMMAAPI(MMAAPI):
             raise ValueError('start_date must be before end_date.')
 
         s = Session()
-        s.auth = (altdata['tap_username'], altdata['tap_password'])
-        client = pyvo.dal.TAPService(altdata['tap_service'], session=s)
+        s.auth = (altdata['depot_username'], altdata['depot_password'])
 
-        request_str = f"""
-            SELECT field,rcid,fid,expid,obsjd,exptime,maglimit,ipac_gid,seeing
-            FROM ztf.ztf_current_meta_sci WHERE (obsjd BETWEEN {jd_start} AND {jd_end})
-        """
+        fetch_depot_observations(
+            allocation.instrument.id, s, altdata['depot'], jd_start, jd_end
+        )
 
         fetch_obs = functools.partial(
-            fetch_observations,
+            fetch_depot_observations,
             allocation.instrument.id,
-            client,
-            request_str,
+            s,
+            altdata['depot'],
+            jd_start,
+            jd_end,
         )
 
         IOLoop.current().run_in_executor(None, fetch_obs)
@@ -882,7 +881,64 @@ class ZTFMMAAPI(MMAAPI):
         return form_json_schema
 
 
-def fetch_observations(instrument_id, client, request_str):
+def fetch_depot_observations(instrument_id, session, depot_url, jd_start, jd_end):
+    """Fetch executed observations from a TAP client.
+    instrument_id : int
+        ID of the instrument
+    session : request.Session()
+        An authenticated request session.
+    depot_url : str
+        URL of the depot server
+    jd_start : float
+        JD of the start time of observations
+    jd_end : float
+        JD of the end time of observations
+    """
+
+    dfs = []
+
+    jds = np.arange(np.floor(jd_start), np.ceil(jd_end))
+    for jd in jds:
+        date = Time(jd, format='jd').datetime.strftime("%Y%m%d")
+        url = f'{depot_url}/{date}/ztf_recentproc_{date}.json'
+        r = session.head(url)
+
+        # file exists
+        if r.status_code == 200:
+            r = session.get(url)
+            obstable = pd.DataFrame(r.json())
+
+            if obstable.empty:
+                log(f'No observations for instrument ID {instrument_id} for JD: {jd}')
+                continue
+            # only want successfully reduced images
+            obstable = obstable[obstable['status'] == 0]
+
+            obs_grouped_by_obsjd = obstable.groupby('obsjd')
+            for ii, (jd, df_group) in enumerate(obs_grouped_by_obsjd):
+                df_group_median = df_group.median()
+                df_group_median['observation_id'] = ii
+                df_group_median['processed_fraction'] = len(df_group["fieldid"]) / 64.0
+                df_group_median['filter'] = inv_bands[int(1)]
+            dfs.append(df_group_median)
+
+    obstable = pd.concat(dfs, axis=1).T
+    obstable.rename(
+        columns={
+            'obsjd': 'obstime',
+            'fieldid': 'field_id',
+            'maglim': 'limmag',
+        },
+        inplace=True,
+    )
+    obstable['target_name'] = None
+
+    from skyportal.handlers.api.observation import add_observations
+
+    add_observations(instrument_id, obstable)
+
+
+def fetch_tap_observations(instrument_id, client, request_str):
     """Fetch executed observations from a TAP client.
     instrument_id : int
         ID of the instrument
