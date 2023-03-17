@@ -231,8 +231,10 @@ def post_gcnevent_from_xml(payload, user_id, session, asynchronous=True):
             )
             IOLoop.current().run_in_executor(None, lambda: add_contour(localization_id))
         else:
-            add_tiles_and_properties_and_observation_plans(localization_id, user_id)
-            add_contour(localization_id)
+            add_tiles_and_properties_and_observation_plans(
+                localization_id, user_id, session
+            )
+            add_contour(localization_id, session)
 
         mma_detectors = session.scalars(
             MMADetector.select(user).where(MMADetector.nickname.in_(tags_text))
@@ -1201,17 +1203,23 @@ class GcnEventHandler(BaseHandler):
             return self.success()
 
 
-def add_tiles_and_properties_and_observation_plans(localization_id, user_id):
-
-    if Session.registry.has():
-        session = Session()
+def add_tiles_and_properties_and_observation_plans(
+    localization_id, user_id, parent_session=None
+):
+    if parent_session is None:
+        if Session.registry.has():
+            session = Session()
+        else:
+            session = Session(bind=DBSession.session_factory.kw["bind"])
     else:
-        session = Session(bind=DBSession.session_factory.kw["bind"])
+        session = parent_session
 
     try:
         localization = session.scalar(
             sa.select(Localization).where(Localization.id == localization_id)
         )
+        localization_id = localization.id
+        dateobs = localization.dateobs
         user = session.scalar(sa.select(User).where(User.id == user_id))
 
         properties_dict, tags_list = get_skymap_properties(localization)
@@ -1233,12 +1241,13 @@ def add_tiles_and_properties_and_observation_plans(localization_id, user_id):
 
         tiles = [
             LocalizationTile(
-                localization_id=localization.id, healpix=uniq, probdensity=probdensity
+                localization_id=localization_id, healpix=uniq, probdensity=probdensity
             )
             for uniq, probdensity in zip(localization.uniq, localization.probdensity)
         ]
 
-        session.add(localization)
+        if parent_session is None:
+            session.add(localization)
         session.add_all(tiles)
         session.commit()
 
@@ -1254,9 +1263,12 @@ def add_tiles_and_properties_and_observation_plans(localization_id, user_id):
                 )
             ).first()
             if allocation is not None:
-                config_gcn_observation_plan["allocation_id"] = allocation.id
+                allocation_id = allocation.id
+                config_gcn_observation_plan["allocation_id"] = allocation_id
                 config_gcn_observation_plan["survey_efficiencies"] = []
                 config_gcn_observation_plans.append(config_gcn_observation_plan)
+            else:
+                allocation_id = None
 
         default_observation_plans = (
             (
@@ -1281,7 +1293,7 @@ def add_tiles_and_properties_and_observation_plans(localization_id, user_id):
             ).first()
 
             gcn_observation_plan = {
-                'allocation_id': allocation.id,
+                'allocation_id': allocation_id,
                 'filters': plan.filters,
                 'payload': plan.payload,
                 'survey_efficiencies': [
@@ -1293,7 +1305,7 @@ def add_tiles_and_properties_and_observation_plans(localization_id, user_id):
         gcn_observation_plans = gcn_observation_plans + config_gcn_observation_plans
 
         event = session.scalars(
-            GcnEvent.select(user).where(GcnEvent.dateobs == localization.dateobs)
+            GcnEvent.select(user).where(GcnEvent.dateobs == dateobs)
         ).first()
         start_date = str(datetime.datetime.utcnow()).replace("T", "")
 
@@ -1323,7 +1335,7 @@ def add_tiles_and_properties_and_observation_plans(localization_id, user_id):
                     'payload': payload,
                     'allocation_id': allocation.id,
                     'gcnevent_id': event.id,
-                    'localization_id': localization.id,
+                    'localization_id': localization_id,
                 }
 
                 if 'filters' in gcn_observation_plan:
@@ -1379,16 +1391,22 @@ def add_tiles_and_properties_and_observation_plans(localization_id, user_id):
         log(
             f"Unable to generate tiles / properties / observation plans for localization {localization_id}: {e}"
         )
+        session.rollback()
     finally:
-        session.close()
+        if parent_session is None:
+            session.close()
+            Session.remove()
 
 
-def add_contour(localization_id):
+def add_contour(localization_id, parent_session=None):
 
-    if Session.registry.has():
-        session = Session()
+    if parent_session is None:
+        if Session.registry.has():
+            session = Session()
+        else:
+            session = Session(bind=DBSession.session_factory.kw["bind"])
     else:
-        session = Session(bind=DBSession.session_factory.kw["bind"])
+        session = parent_session
 
     try:
         localization = session.query(Localization).get(localization_id)
@@ -1399,8 +1417,9 @@ def add_contour(localization_id):
     except Exception as e:
         log(f"Unable to generate contour for localization {localization_id}: {e}")
     finally:
-        session.close()
-        Session.remove()
+        if parent_session is None:
+            session.close()
+            Session.remove()
 
 
 class LocalizationHandler(BaseHandler):

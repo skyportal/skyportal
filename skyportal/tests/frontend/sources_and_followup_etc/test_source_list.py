@@ -255,7 +255,7 @@ def test_filter_by_classification(
     driver.get("/sources")
 
     # Filter for classification
-    driver.click_xpath("//button[@data-testid='Filter Table-iconButton']")
+    driver.click_xpath("//button[@data-testid='Filter Table-iconButton']", timeout=30)
     driver.click_xpath(
         "//div[@data-testid='classifications-select']",
         scroll_parent=True,
