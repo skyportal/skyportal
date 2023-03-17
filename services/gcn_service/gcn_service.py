@@ -69,7 +69,7 @@ def service():
                 if payload.find(b'Broker: Unknown topic or partition') != -1:
                     continue
                 with DBSession() as session:
-                    post_gcnevent_from_xml(payload, user_id, session)
+                    post_gcnevent_from_xml(payload, user_id, session, False)
 
         except Exception as e:
             log(f'Failed to consume gcn event: {e}')
