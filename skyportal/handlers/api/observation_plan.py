@@ -1,3 +1,10 @@
+from datetime import datetime, timedelta
+import functools
+import io
+import random
+import tempfile
+import time
+
 import astropy
 from astropy.coordinates import EarthLocation
 from astropy.time import Time
@@ -8,7 +15,7 @@ from astroplan import (
     Observer,
     is_event_observable,
 )
-from datetime import datetime, timedelta
+import asyncio
 import geopandas
 import healpy as hp
 import humanize
@@ -21,9 +28,7 @@ from sqlalchemy.orm import joinedload, undefer
 from sqlalchemy.orm import sessionmaker, scoped_session
 import urllib
 import numpy as np
-import io
 from tornado.ioloop import IOLoop
-import functools
 import ligo.skymap
 from ligo.skymap.tool.ligo_skymap_plot_airmass import main as plot_airmass
 from ligo.skymap import plot  # noqa: F401
@@ -36,14 +41,11 @@ import pandas as pd
 import simsurvey
 from simsurvey.utils import model_tools
 from simsurvey.models import AngularTimeSeriesSource
-import tempfile
 from ligo.skymap.distance import parameters_to_marginal_moments
 from ligo.skymap.bayestar import rasterize
 from ligo.skymap import plot  # noqa: F401 F811
-import random
 import afterglowpy
 import sncosmo
-import time
 
 from baselayer.app.access import auth_or_token
 from baselayer.app.env import load_env
@@ -209,6 +211,11 @@ def post_survey_efficiency_analysis(
     )
 
     if asynchronous:
+        try:
+            loop = asyncio.get_event_loop()
+        except Exception:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
         simsurvey_analysis = functools.partial(
             observation_simsurvey,
             observations,

@@ -102,7 +102,7 @@ Session = scoped_session(sessionmaker())
 MAX_GCNEVENTS = 1000
 
 
-def post_gcnevent_from_xml(payload, user_id, session):
+def post_gcnevent_from_xml(payload, user_id, session, asynchronous=True):
     """Post GcnEvent to database from voevent xml.
     payload: str
         VOEvent readable string
@@ -190,8 +190,12 @@ def post_gcnevent_from_xml(payload, user_id, session):
         for text in tags_text
     ]
     session.add_all(tags)
+    skymap = None
+    try:
+        skymap = get_skymap(root, gcn_notice)
+    except Exception as e:
+        log(f"Failed to get skymap from gcn notice {gcn_notice.id}: {e}")
 
-    skymap = get_skymap(root, gcn_notice)
     if skymap is None:
         log(f"No skymap found for event {dateobs}")
         return event_id
@@ -212,14 +216,22 @@ def post_gcnevent_from_xml(payload, user_id, session):
         localization_id = localization.id
 
         log(f"Generating tiles/properties/contours for localization {localization.id}")
-
-        IOLoop.current().run_in_executor(
-            None,
-            lambda: add_tiles_and_properties_and_observation_plans(
-                localization_id, user_id
-            ),
-        )
-        IOLoop.current().run_in_executor(None, lambda: add_contour(localization_id))
+        if asynchronous:
+            try:
+                loop = asyncio.get_event_loop()
+            except Exception:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+            IOLoop.current().run_in_executor(
+                None,
+                lambda: add_tiles_and_properties_and_observation_plans(
+                    localization_id, user_id
+                ),
+            )
+            IOLoop.current().run_in_executor(None, lambda: add_contour(localization_id))
+        else:
+            add_tiles_and_properties_and_observation_plans(localization_id, user_id)
+            add_contour(localization_id)
 
         mma_detectors = session.scalars(
             MMADetector.select(user).where(MMADetector.nickname.in_(tags_text))
