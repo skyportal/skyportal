@@ -436,7 +436,7 @@ const RecentSources = ({ classes }) => {
               onSubmit={profileActions.updateUserPreferences}
             />
           </div>
-          <Paper>
+          <Paper elevation={0}>
             <RecentSourcesSearchbar styles={styles} />
           </Paper>
         </div>

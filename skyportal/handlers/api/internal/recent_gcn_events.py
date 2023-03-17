@@ -38,7 +38,10 @@ class RecentGcnEventsHandler(BaseHandler):
                 session.scalars(
                     GcnEvent.select(
                         session.user_or_token,
-                        options=[joinedload(GcnEvent.localizations)],
+                        options=[
+                            joinedload(GcnEvent.localizations),
+                            joinedload(GcnEvent.gcn_triggers),
+                        ],
                     )
                     .order_by(GcnEvent.dateobs.desc())
                     .limit(max_num_events)

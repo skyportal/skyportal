@@ -56,6 +56,7 @@ from .gcn import (
     GcnEventInstrumentFieldHandler,
     GcnEventTagsHandler,
     GcnSummaryHandler,
+    GcnEventTriggerHandler,
     LocalizationHandler,
     LocalizationDownloadHandler,
     LocalizationCrossmatchHandler,

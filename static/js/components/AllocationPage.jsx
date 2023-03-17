@@ -110,9 +110,6 @@ const AllocationList = () => {
 
   return (
     <div className={classes.paper}>
-      <Typography variant="h6" display="inline">
-        List of Allocations
-      </Typography>
       {allocationsState.allocationList && (
         <AllocationTable
           instruments={instrumentsState.instrumentList}
@@ -220,7 +217,6 @@ const AllocationPage = () => {
       <Grid item md={8} sm={12}>
         <Paper elevation={1}>
           <div className={classes.paperContent}>
-            <Typography variant="h6">Allocations</Typography>
             <AllocationList deletePermission={permission} />
           </div>
         </Paper>

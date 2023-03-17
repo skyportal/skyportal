@@ -38,6 +38,7 @@ import ObservationPlanRequestLists from "./ObservationPlanRequestLists";
 import CommentList from "./CommentList";
 import GcnTags from "./GcnTags";
 import GcnAliases from "./GcnAliases";
+import GcnEventAllocationTriggers from "./GcnEventAllocationTriggers";
 import GcnCirculars from "./GcnCirculars";
 import GcnLocalizationsTable from "./GcnLocalizationsTable";
 import GcnProperties from "./GcnProperties";
@@ -351,7 +352,15 @@ const GcnEventPage = ({ route }) => {
                   ({dayjs().to(dayjs.utc(`${gcnEvent.dateobs}Z`))})
                 </div>
                 <div>
-                  <GcnTags gcnEvent={gcnEvent} />
+                  <GcnTags gcnEvent={gcnEvent} show_title />
+                </div>
+                <div className={styles.gcnEventContainer}>
+                  <GcnEventAllocationTriggers
+                    gcnEvent={gcnEvent}
+                    showPassed
+                    showUnset
+                    showTitle
+                  />
                 </div>
               </AccordionDetails>
             </Accordion>
@@ -654,7 +663,7 @@ const GcnEventPage = ({ route }) => {
                             galaxies={gcnEventGalaxies.galaxies}
                             totalMatches={gcnEventGalaxies.totalMatches}
                             serverSide={false}
-                            hideTitle
+                            showTitle
                           />
                         </div>
                       )}

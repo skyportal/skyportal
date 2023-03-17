@@ -1,6 +1,5 @@
 import React from "react";
 import PropTypes from "prop-types";
-import Paper from "@mui/material/Paper";
 import {
   createTheme,
   ThemeProvider,
@@ -8,25 +7,9 @@ import {
   useTheme,
   adaptV4Theme,
 } from "@mui/material/styles";
-import makeStyles from "@mui/styles/makeStyles";
 import CircularProgress from "@mui/material/CircularProgress";
 
 import MUIDataTable from "mui-datatables";
-
-const useStyles = makeStyles((theme) => ({
-  container: {
-    width: "100%",
-    overflow: "scroll",
-  },
-  eventTags: {
-    marginLeft: "0.5rem",
-    "& > div": {
-      margin: "0.25rem",
-      color: "white",
-      background: theme.palette.primary.main,
-    },
-  },
-}));
 
 // Tweak responsive styling
 const getMuiTheme = (theme) =>
@@ -68,9 +51,8 @@ const GalaxyTable = ({
   pageNumber = 1,
   numPerPage = 10,
   serverSide = true,
-  hideTitle = false,
+  showTitle = false,
 }) => {
-  const classes = useStyles();
   const theme = useTheme();
 
   if (!galaxies || galaxies.length === 0) {
@@ -257,18 +239,16 @@ const GalaxyTable = ({
   return (
     <div>
       {galaxies ? (
-        <Paper className={classes.container}>
-          <StyledEngineProvider injectFirst>
-            <ThemeProvider theme={getMuiTheme(theme)}>
-              <MUIDataTable
-                title={!hideTitle ? "Galaxies" : ""}
-                data={galaxies}
-                options={options}
-                columns={columns}
-              />
-            </ThemeProvider>
-          </StyledEngineProvider>
-        </Paper>
+        <StyledEngineProvider injectFirst>
+          <ThemeProvider theme={getMuiTheme(theme)}>
+            <MUIDataTable
+              title={showTitle ? "Galaxies" : ""}
+              data={galaxies}
+              options={options}
+              columns={columns}
+            />
+          </ThemeProvider>
+        </StyledEngineProvider>
       ) : (
         <CircularProgress />
       )}
@@ -302,7 +282,7 @@ GalaxyTable.propTypes = {
   pageNumber: PropTypes.number,
   totalMatches: PropTypes.number,
   numPerPage: PropTypes.number,
-  hideTitle: PropTypes.bool,
+  showTitle: PropTypes.bool,
   serverSide: PropTypes.bool,
 };
 
@@ -311,7 +291,7 @@ GalaxyTable.defaultProps = {
   pageNumber: 1,
   totalMatches: 0,
   numPerPage: 10,
-  hideTitle: false,
+  showTitle: false,
   serverSide: true,
 };
 

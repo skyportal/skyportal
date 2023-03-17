@@ -1,5 +1,6 @@
 import React, { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import PropTypes from "prop-types";
 // eslint-disable-next-line import/no-unresolved
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
@@ -9,7 +10,7 @@ import { submitGcnEvent } from "../ducks/gcnEvent";
 
 import * as gcnTagsActions from "../ducks/gcnTags";
 
-const NewGcnEvent = () => {
+const NewGcnEvent = ({ handleClose = null }) => {
   const dispatch = useDispatch();
 
   let gcnTags = [];
@@ -46,6 +47,9 @@ const NewGcnEvent = () => {
     const result = await dispatch(submitGcnEvent(formData));
     if (result.status === "success") {
       dispatch(showNotification("GCN Event saved"));
+      if (handleClose) {
+        handleClose();
+      }
     }
   };
 
@@ -154,6 +158,14 @@ const NewGcnEvent = () => {
       liveValidate
     />
   );
+};
+
+NewGcnEvent.propTypes = {
+  handleClose: PropTypes.func,
+};
+
+NewGcnEvent.defaultProps = {
+  handleClose: null,
 };
 
 export default NewGcnEvent;
