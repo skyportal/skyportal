@@ -356,6 +356,12 @@ def test_new_gcn_event_triggers_notification(driver, user, super_admin_token):
         '//*[@name="gcn_events"]/../../span[contains(@class,"Mui-checked")]'
     )
 
+    gcn_name_input = driver.wait_for_xpath(
+        '//*[@aria-labelledby=="GcnNotificationNameInput"]'
+    )
+
+    gcn_name_input.send_keys("My GCN Name")
+
     gcn_events_notice_types = driver.wait_for_xpath(
         '//*[@aria-labelledby="selectGcns"]'
     )
