@@ -567,6 +567,17 @@ class QueueHandler(tornado.web.RequestHandler):
                     .to_dict()
                 )
             elif is_group_admission_request:
+                target_class = GroupAdmissionRequest
+                target_data = (
+                    session.scalars(
+                        sa.select(GroupAdmissionRequest).where(
+                            GroupAdmissionRequest.id == target_id
+                        )
+                    )
+                    .first()
+                    .to_dict()
+                )
+
                 users = []
                 group_admins_gu = session.scalars(
                     sa.select(GroupUser).where(
@@ -581,16 +592,6 @@ class QueueHandler(tornado.web.RequestHandler):
 
                     if group_admin is not None:
                         users.append(group_admin)
-                target_class = GroupAdmissionRequest
-                target_data = (
-                    session.scalars(
-                        sa.select(GroupAdmissionRequest).where(
-                            GroupAdmissionRequest.id == target_id
-                        )
-                    )
-                    .first()
-                    .to_dict()
-                )
             else:
 
                 if is_classification:
@@ -1043,17 +1044,15 @@ class QueueHandler(tornado.web.RequestHandler):
                                         target_data['classification']
                                         in pref['sources']['classifications']
                                     ):
-                                        session.add(
-                                            UserNotification(
-                                                user=user,
-                                                text=f"New classification *{target_data['classification']}* for source *{target_data['obj_id']}*",
-                                                notification_type="sources",
-                                                url=f"/source/{target_data['obj_id']}",
-                                            )
+                                        notification = UserNotification(
+                                            user=user,
+                                            text=f"New classification *{target_data['classification']}* for source *{target_data['obj_id']}*",
+                                            notification_type="sources",
+                                            url=f"/source/{target_data['obj_id']}",
                                         )
-                                session.add(notification)
-                                session.commit()
-                                await queue.put(notification.id)
+                                        session.add(notification)
+                                        session.commit()
+                                        await queue.put(notification.id)
                         elif is_spectra:
                             if (
                                 len(favorite_sources) > 0
