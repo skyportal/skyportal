@@ -84,14 +84,14 @@ def add_user_notifications(mapper, connection, target):
         if target is None:
             return
 
-        target_class = target.__class__
+        target_class_name = target.__class__.__name__
         try:
             target_id = target.id
         except Exception:
             return
 
         request_body = {
-            'target_class_name': target_class.__name__,
+            'target_class_name': target_class_name,
             'target_id': target_id,
         }
 
@@ -100,4 +100,9 @@ def add_user_notifications(mapper, connection, target):
         )
 
         r = requests.post(notifications_microservice_url, json=request_body)
-        print(r.json())
+        if r.status_code == 200:
+            log(f'Notification requested for {target_class_name} with ID {target_id}')
+        else:
+            log(
+                f'Notification request failed for {target_class_name} with ID {target_id}: {r.content}'
+            )
