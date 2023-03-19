@@ -356,6 +356,9 @@ def test_new_gcn_event_triggers_notification(driver, user, super_admin_token):
         '//*[@name="gcn_events"]/../../span[contains(@class,"Mui-checked")]'
     )
 
+    gcn_events_name = driver.wait_for_xpath('//*[@id="GcnNotificationNameInput"]')
+    gcn_events_name.send_keys('test')
+
     gcn_events_notice_types = driver.wait_for_xpath(
         '//*[@aria-labelledby="selectGcns"]'
     )
@@ -370,7 +373,7 @@ def test_new_gcn_event_triggers_notification(driver, user, super_admin_token):
         '//*[@data-testid="addShortcutButton" and contains(., "Update")]'
     )
 
-    driver.wait_for_xpath('//*[contains(text(), "Gcn notice types updated")]')
+    driver.wait_for_xpath('//*[contains(text(), "Gcn notice preferences updated")]')
 
     datafile = f'{os.path.dirname(__file__)}/../data/GRB180116A_Fermi_GBM_Gnd_Pos.xml'
     with open(datafile, 'rb') as fid:
