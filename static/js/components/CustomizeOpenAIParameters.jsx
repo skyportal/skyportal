@@ -225,6 +225,7 @@ const CustomizeOpenAIParameters = () => {
             schema={formSchema}
             validator={validator}
             uiSchema={uiSchema}
+            data-testid="UpdateOpenAIform"
             onSubmit={handleAISubmit}
             customValidate={validate}
           />

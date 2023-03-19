@@ -88,7 +88,7 @@ const OpenAIPreferences = () => {
       {profile.summary?.OpenAI?.active && (
         <div>
           <TextField
-            name="apikey"
+            name="openai_apikey"
             label="OpenAI API KEY"
             className={classes.textField}
             fullWidth
