@@ -174,7 +174,7 @@ const GcnEventAllocationTriggers = ({
     }
     instruments_triggered[
       allocationLookUp[allocation_id]
-    ].allocation_triggered.push({
+    ]?.allocation_triggered.push({
       triggered,
       triggeredText,
       trigger_id: t?.id || null,

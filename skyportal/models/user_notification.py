@@ -1,10 +1,12 @@
 __all__ = ['UserNotification']
 
+import asyncio
 import sqlalchemy as sa
 from sqlalchemy.orm import relationship
 
 from sqlalchemy import event, inspect
 import requests
+from tornado.ioloop import IOLoop
 
 from baselayer.app.models import Base, AccessibleIfUserMatches
 from baselayer.app.env import load_env
@@ -99,10 +101,26 @@ def add_user_notifications(mapper, connection, target):
             f'http://127.0.0.1:{cfg["ports.notification_queue"]}'
         )
 
-        r = requests.post(notifications_microservice_url, json=request_body)
-        if r.status_code == 200:
-            log(f'Notification requested for {target_class_name} with ID {target_id}')
-        else:
-            log(
-                f'Notification request failed for {target_class_name} with ID {target_id}: {r.content}'
-            )
+        try:
+            loop = asyncio.get_event_loop()
+        except Exception:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+
+        IOLoop.current().run_in_executor(
+            None,
+            lambda: post_notification(notifications_microservice_url, request_body),
+        )
+
+
+def post_notification(notifications_microservice_url, request_body):
+
+    resp = requests.post(notifications_microservice_url, json=request_body)
+    if resp.status_code == 200:
+        log(
+            f'Notification requested for {request_body["target_class_name"]} with ID {request_body["target_id"]}'
+        )
+    else:
+        log(
+            f'Notification request failed for {request_body["target_class_name"]} with ID {request_body["target_id"]}: {resp.content}'
+        )
