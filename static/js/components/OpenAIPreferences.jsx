@@ -10,6 +10,7 @@ import makeStyles from "@mui/styles/makeStyles";
 
 import * as profileActions from "../ducks/profile";
 import UserPreferencesHeader from "./UserPreferencesHeader";
+import CustomizeOpenAIParameters from "./CustomizeOpenAIParameters";
 
 const useStyles = makeStyles((theme) => ({
   textField: {
@@ -82,6 +83,7 @@ const OpenAIPreferences = () => {
           }
           label={profile.summary?.OpenAI?.active ? "Active" : "Inactive"}
         />
+        {profile.summary?.OpenAI?.active && <CustomizeOpenAIParameters />}
       </FormGroup>
       {profile.summary?.OpenAI?.active && (
         <div>
