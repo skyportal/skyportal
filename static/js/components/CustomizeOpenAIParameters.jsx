@@ -130,7 +130,7 @@ const CustomizeOpenAIParameters = () => {
     temperature: {
       "ui:widget": "updown",
       "ui:help":
-        "What sampling temperature to use, between 0 and 2. Higher values like 0.8 will make the output more random, while lower values like 0.2 will make it more focused and deterministic.",
+        "What sampling temperature to use, between 0 and 1. Higher values like 0.8 will make the output more random, while lower values like 0.2 will make it more focused and deterministic.",
     },
     top_p: {
       "ui:widget": "updown",
@@ -143,7 +143,7 @@ const CustomizeOpenAIParameters = () => {
     max_tokens: {
       "ui:widget": "range",
       "ui:help":
-        "The maximum number of tokens to generate. Must be between 1 and 2048.",
+        "The maximum number of tokens to generate in the summary. For reference, 100 tokens is about 75 words. Must be between 10 and 1000.",
     },
     frequency_penalty: {
       "ui:widget": "updown",
@@ -156,11 +156,7 @@ const CustomizeOpenAIParameters = () => {
         "Number between -2.0 and 2.0. Positive values penalize new tokens based on whether they appear in the text so far, increasing the model's likelihood to talk about new topics.",
     },
   };
-  // Since we are editing exsiting follow-up requests,
-  // it makes more sense to set default form values to current request data
   Object.keys(formSchema.properties).forEach((key) => {
-    // Set the form value for "key" to the value in the existing request's
-    // payload, which is the form data sent to the external follow-up API
     formSchema.properties[key].default = default_openai_summary_parameters[key];
   });
 
@@ -176,7 +172,7 @@ const CustomizeOpenAIParameters = () => {
     if (formData.top_p < 0.0 || formData.top_p > 1.0) {
       errors.top_p.addError("top_p must be between 0.0 and 1.0");
     }
-    if (formData.frequency_penalty < 0.0 || formData.frequency_penalty > 1.0) {
+    if (formData.frequency_penalty < -2.0 || formData.frequency_penalty > 2.0) {
       errors.frequency_penalty.addError(
         "frequency_penalty must be between 0.0 and 1.0"
       );
@@ -188,7 +184,7 @@ const CustomizeOpenAIParameters = () => {
         "must be an Open AI gpt model. See https://platform.openai.com/docs/models/overview for more information."
       );
     }
-    if (formData.presence_penalty < 0.0 || formData.presence_penalty > 1.0) {
+    if (formData.presence_penalty < -2.0 || formData.presence_penalty > 2.0) {
       errors.presence_penalty.addError(
         "presence_penalty must be between 0.0 and 1.0"
       );

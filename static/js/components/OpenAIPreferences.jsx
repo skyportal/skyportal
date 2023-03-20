@@ -81,11 +81,11 @@ const OpenAIPreferences = () => {
               data-testid="OpenAI_toggle"
             />
           }
-          label={profile.summary?.OpenAI?.active ? "Active" : "Inactive"}
+          label={profile?.summary?.OpenAI?.active ? "Active" : "Inactive"}
         />
-        {profile.summary?.OpenAI?.active && <CustomizeOpenAIParameters />}
+        {profile?.summary?.OpenAI?.active && <CustomizeOpenAIParameters />}
       </FormGroup>
-      {profile.summary?.OpenAI?.active && (
+      {profile?.summary?.OpenAI?.active && (
         <div>
           <TextField
             name="openai_apikey"
