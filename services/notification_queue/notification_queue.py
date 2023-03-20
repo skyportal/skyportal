@@ -431,6 +431,9 @@ class NotificationQueue(asyncio.Queue):
         while True:
 
             notification_id = await queue.get()
+            if notification_id is None:
+                continue
+
             with DBSession() as session:
                 notification = session.scalars(
                     sa.select(UserNotification).where(

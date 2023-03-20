@@ -115,7 +115,7 @@ def add_user_notifications(mapper, connection, target):
 
 def post_notification(notifications_microservice_url, request_body):
 
-    resp = requests.post(notifications_microservice_url, json=request_body)
+    resp = requests.post(notifications_microservice_url, json=request_body, timeout=2)
     if resp.status_code == 200:
         log(
             f'Notification requested for {request_body["target_class_name"]} with ID {request_body["target_id"]}'
