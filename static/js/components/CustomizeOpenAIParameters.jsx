@@ -165,8 +165,8 @@ const CustomizeOpenAIParameters = () => {
       errors.temperature.addError("Temperature must be between 0.0 and 1.0");
     }
 
-    if (formData.max_tokens < 1 || formData.max_tokens > 2048) {
-      errors.max_tokens.addError("max_tokens must be between 1 and 2048");
+    if (formData.max_tokens < 10 || formData.max_tokens > 1000) {
+      errors.max_tokens.addError("max_tokens must be between 10 and 1000");
     }
 
     if (formData.top_p < 0.0 || formData.top_p > 1.0) {
@@ -174,7 +174,7 @@ const CustomizeOpenAIParameters = () => {
     }
     if (formData.frequency_penalty < -2.0 || formData.frequency_penalty > 2.0) {
       errors.frequency_penalty.addError(
-        "frequency_penalty must be between 0.0 and 1.0"
+        "frequency_penalty must be between -2 and 2"
       );
     }
     if (
@@ -186,7 +186,7 @@ const CustomizeOpenAIParameters = () => {
     }
     if (formData.presence_penalty < -2.0 || formData.presence_penalty > 2.0) {
       errors.presence_penalty.addError(
-        "presence_penalty must be between 0.0 and 1.0"
+        "presence_penalty must be between -2 and 2"
       );
     }
 
