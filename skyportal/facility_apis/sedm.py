@@ -147,7 +147,7 @@ def convert_request_to_sedm(request, method_value='new'):
         'ra': request.obj.ra,
         'dec': request.obj.dec,
         'exptime': request.payload['exposure_time'],
-        'max_airmass': request.payload['maximum_airmass'],
+        'maxairmass': request.payload['maximum_airmass'],
         'max_fwhm': request.payload['maximum_fwhm'],
     }
 
