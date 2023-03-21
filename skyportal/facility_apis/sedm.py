@@ -146,6 +146,9 @@ def convert_request_to_sedm(request, method_value='new'):
         'username': request.requester.username,
         'ra': request.obj.ra,
         'dec': request.obj.dec,
+        'exptime': request.payload['exposure_time'],
+        'maxairmass': request.payload['maximum_airmass'],
+        'max_fwhm': request.payload['maximum_fwhm'],
     }
 
     return payload
@@ -317,6 +320,25 @@ class SEDMAPI(FollowUpAPI):
                 "enum": _observation_types,
                 "title": "Mode",
                 "default": "IFU",
+            },
+            "exposure_time": {
+                "title": "Exposure Time (Photometry) [s]",
+                "type": "number",
+                "default": 0,
+            },
+            "maximum_airmass": {
+                "title": "Maximum Airmass (1-3)",
+                "type": "number",
+                "default": 2.8,
+                "minimum": 1,
+                "maximum": 3,
+            },
+            "maximum_fwhm": {
+                "title": "Maximum FWHM (1-10)",
+                "type": "number",
+                "default": 10,
+                "minimum": 1,
+                "maximum": 10,
             },
             "priority": {
                 "type": "number",
