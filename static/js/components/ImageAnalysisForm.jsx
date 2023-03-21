@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { Link, useParams } from "react-router-dom";
+import { useImage } from "react-image";
 import Select from "@mui/material/Select";
 import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
@@ -19,11 +21,27 @@ import * as sourceActions from "../ducks/source";
 
 dayjs.extend(utc);
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles((theme) => ({
   SelectItem: {
     whiteSpace: "break-spaces",
   },
+  linkButton: {
+    textDecoration: "none",
+    color: theme.palette.info.dark,
+    fontWeight: "bold",
+    verticalAlign: "baseline",
+    backgroundColor: "transparent",
+    border: "none",
+    cursor: "pointer",
+    display: "inline",
+    margin: 0,
+    padding: 0,
+    "&:hover": {
+      textDecoration: "underline",
+    },
+  }
 }));
+
 
 const ImageAnalysisForm = ({ obj_id }) => {
   const classes = useStyles();
@@ -34,13 +52,21 @@ const ImageAnalysisForm = ({ obj_id }) => {
   const dispatch = useDispatch();
 
   const [selectedInstrumentId, setSelectedInstrumentId] = useState(null);
-
+  const [selectedPostAnalysis, setSelectedPostAnalysis] = useState(null);
+  
   const defaultDate = dayjs().utc().format("YYYY-MM-DDTHH:mm:ssZ");
+
+  let url = null;
 
   const handleSubmit = async ({ formData }) => {
     const data = { ...formData };
     data.instrument_id = selectedInstrumentId;
     data.obstime = data.obstime.replace("+00:00", "").replace(".000Z", "");
+
+    if (selectedPostAnalysis === null) {
+      data.post_analysis = "Post";
+    }
+    else {data.post_analysis = selectedPostAnalysis;}
 
     const result = await dispatch(
       sourceActions.submitImageAnalysis(obj_id, data)
@@ -49,6 +75,7 @@ const ImageAnalysisForm = ({ obj_id }) => {
       dispatch(showNotification("Image analysis submitted"));
     }
   };
+
 
   if (enum_types.length === 0) {
     return (
@@ -72,6 +99,10 @@ const ImageAnalysisForm = ({ obj_id }) => {
 
   const handleSelectedInstrumentChange = (e) => {
     setSelectedInstrumentId(e.target.value);
+  };
+
+  const handleSelectedPostAnalysis = (e) => {
+    setSelectedPostAnalysis(e.target.value);
   };
 
   const catalogs = [
@@ -163,6 +194,9 @@ const ImageAnalysisForm = ({ obj_id }) => {
 
   return (
     <div>
+      {(url !=null ) && 
+        <img src={url} alt="image" />
+      }
       <div>
         <InputLabel id="instrumentSelectLabel">Instrument</InputLabel>
         <Select
@@ -184,6 +218,19 @@ const ImageAnalysisForm = ({ obj_id }) => {
               }`}
             </MenuItem>
           ))}
+        </Select>
+      </div>
+      <div>
+        <InputLabel id="postAnalysisSelectLabel">Post or preview image analysis</InputLabel>
+        <Select
+          inputProps={{ MenuProps: { disableScrollLock: true } }}
+          labelId="postAnalysisSelectLabel"
+          value={selectedPostAnalysis || ""}
+          onChange={handleSelectedPostAnalysis}
+          className={classes.SelectItem}
+        >
+            <MenuItem value = {"Post"}>Post</MenuItem>
+            <MenuItem value = {"Preview"}>Preview</MenuItem>
         </Select>
       </div>
       <div>

@@ -31,10 +31,17 @@ import tempfile
 from tqdm.auto import tqdm
 from tornado.ioloop import IOLoop
 import shutil
+import io
+import functools
+import json
+import matplotlib.pyplot as plt
+import matplotlib
 
 from ..photometry import add_external_photometry
 from ...base import BaseHandler
 from ....models import Instrument, User, DBSession
+
+from ....utils.fits_display import get_fits_preview
 
 _, cfg = load_env()
 
@@ -60,6 +67,43 @@ catalogs_enum = [
 templates_enum = ["PanSTARRS/DR1/g", "PanSTARRS/DR1/r", "PanSTARRS/DR1/i"]
 
 methods_enum = ["scamp", "astropy", "astrometrynet"]
+
+def image_analysis_preview(image_data):
+
+    output_format='png'
+
+    matplotlib.use("Agg")
+    fig = plt.figure(figsize=(11, 8.5), constrained_layout=False)
+    widths = [2.6, 1]
+    heights = [2.6, 1]
+    spec = fig.add_gridspec(
+        ncols=2,
+        nrows=2,
+        width_ratios=widths,
+        height_ratios=heights,
+        left=0.05,
+        right=0.95,
+    )
+
+    ax = fig.add_subplot(spec[0, 0])
+    ax_text = fig.add_subplot(spec[0, 1])
+    ax_text.axis('off') 
+
+    ax.imshow(image_data, origin='lower', cmap='gray_r') 
+
+    ax.set_autoscale_on(False)
+    ax.grid(color='white', ls='dotted')
+    ax.set_title(
+        'preview for image analysis',
+        fontsize='large',
+        fontweight='bold',
+    )
+    buf = io.BytesIO()
+    fig.savefig(buf,format=output_format)
+    plt.close(fig)
+    buf.seek(0)
+
+    return {"success": True,"name": "preview.png","data":buf.read(),"reason": ""}
 
 
 def spherical_match(ra1, dec1, ra2, dec2, sr=1 / 3600):
@@ -144,6 +188,7 @@ def reduce_image(
     method,
     s_n_detection,
     s_n_blind_match,
+    post_analysis,
     detect_cosmics=False,
 ):
     """
@@ -180,6 +225,8 @@ def reduce_image(
         Number used to simulate N stars
     detect_cosmics: bool
         Run LACosmic on the image
+    post_analysis: bool
+        Add photometry to the database
 
     Returns
     -------
@@ -448,7 +495,9 @@ def reduce_image(
             shutil.rmtree(workdir_psfex)
             shutil.rmtree(workdir_sextractor_obj1)
 
-            add_external_photometry(data_out, user)
+            if post_analysis:
+                add_external_photometry(data_out, user)
+
     except Exception as e:
         try:
             if workdir_sextractor_obj is not None:
@@ -465,7 +514,7 @@ def reduce_image(
 
 class ImageAnalysisHandler(BaseHandler):
     @permissions(["Upload data"])
-    def post(self, obj_id):
+    async def post(self, obj_id):
         """
         ---
         description: Submit a new image for analysis
@@ -512,6 +561,12 @@ class ImageAnalysisHandler(BaseHandler):
                 return self.error(
                     message=f'Found no instrument with id {instrument_id}'
                 )
+
+            post_analysis = data.get('post_analysis')
+            if post_analysis == 'Post':
+                post_analysis=True
+            else:
+                post_analysis=False
 
             matching_radius = data.get('matching_radius')
             if matching_radius is None:
@@ -603,6 +658,7 @@ class ImageAnalysisHandler(BaseHandler):
                 suffix = '.fits.fz'
             else:
                 suffix = '.fits'
+
             with tempfile.NamedTemporaryFile(
                 suffix=suffix, mode="wb", delete=True
             ) as f:
@@ -622,7 +678,8 @@ class ImageAnalysisHandler(BaseHandler):
                 image_data = hdul[hdul_index].data.astype(np.double)
                 header['FILTER'] = filt
                 header['DATE-OBS'] = obstime.isot
-                IOLoop.current().run_in_executor(
+                if post_analysis:
+                    IOLoop.current().run_in_executor(
                     None,
                     lambda: reduce_image(
                         image_data,
@@ -638,9 +695,30 @@ class ImageAnalysisHandler(BaseHandler):
                         method,
                         s_n_detection,
                         s_n_blind_match,
+                        post_analysis,
                     ),
                 )
+                else: 
+                    rez = image_analysis_preview(image_data)
+                    filename = rez["name"]
+                    data = io.BytesIO(rez["data"])
+                    output_type="png"
+
+                    await self.send_file(data, filename, output_type=output_type)
+        
+                    #data = get_fits_preview(file_name,file_data)
+                    #filename = "preview.png"
+
+                    #self.set_header(
+                    #"Content-Disposition",
+                    #"attachment; " f"filename={filename}",
+                    #)
+                    #self.set_header("Content-type", "application/octet-stream")
+
+                    #self.write(data)
+                                    
                 return self.success()
+                
         except Exception as e:
             log(e)
             return self.error(str(e))
