@@ -66,6 +66,14 @@ def validate_request_to_sedmv2(request):
     if request.payload["too"] not in ["Y", "N"]:
         raise ValueError('too must be Y or N')
 
+    if (request.payload["observation_type"] == "variable") and (
+        request.payload["frame_exposure_time"]
+        not in [1, 2, 3, 5, 10, 15, 20, 25, 30, 60]
+    ):
+        raise ValueError(
+            'frame_exposure_time must be [1, 2, 3, 5, 10, 15, 20, 25, 30, 60]'
+        )
+
 
 class SEDMV2API(FollowUpAPI):
     """SkyPortal interface to the Spectral Energy Distribution machine (SEDMv2)."""
@@ -356,9 +364,9 @@ class SEDMV2API(FollowUpAPI):
                                 "enum": ["variable"],
                             },
                             "frame_exposure_time": {
-                                "title": "Exposure time per frame",
-                                "type": "number",
-                                "default": 1.0,
+                                "title": "Exposure time per frame (s)",
+                                "enum": [1, 2, 3, 5, 10, 15, 20, 25, 30, 60],
+                                "default": 10,
                             },
                         },
                     },
