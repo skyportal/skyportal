@@ -65,9 +65,7 @@ elif os.path.exists(".secret"):
 else:
     openai_api_key = None
 
-default_analysis_parameters = summary_config.copy()
 default_analysis_parameters = {
-    **default_analysis_parameters,
     **dict(
         model="gpt-3.5-turbo",
         temperature=0.1,
@@ -76,8 +74,8 @@ default_analysis_parameters = {
         frequency_penalty=0.0,
         presence_penalty=1,
     ),
+    **summary_config.copy(),
 }
-
 default_analysis_parameters["openai_api_key"] = openai_api_key
 
 
@@ -146,8 +144,12 @@ def run_openai_summarization(data_dict):
        - redshift: the (known) redshift of the object
 
     """
-    analysis_parameters = data_dict["inputs"].get("analysis_parameters", {})
-    analysis_parameters = {**default_analysis_parameters, **analysis_parameters}
+    tmp_analysis_parameters = data_dict["inputs"].get("analysis_parameters", {})
+    analysis_parameters = {
+        **default_analysis_parameters,
+        **tmp_analysis_parameters["summary_parameters"],
+        **dict(openai_api_key=tmp_analysis_parameters["openai_api_key"]),
+    }
     #
     # the following code transforms these inputs from SkyPortal
     # to the format that will give us a good summary from OpenAI.
@@ -224,7 +226,7 @@ def run_openai_summarization(data_dict):
             messages=[
                 {
                     "role": "system",
-                    "content": "You are the world expert in astronomical time-domain research.",
+                    "content": "You are an authoritative expert in astronomical time-domain research.",
                 },
                 {
                     "role": "user",
@@ -239,6 +241,7 @@ def run_openai_summarization(data_dict):
             presence_penalty=analysis_parameters["presence_penalty"],
         )
     except Exception as e:
+        log(f"OpenAI summarization failed {e}")
         rez.update(
             {
                 "status": "failure",
@@ -249,6 +252,18 @@ def run_openai_summarization(data_dict):
 
     openai_summary = response["choices"][0]["message"]["content"]
 
+    # remove dislaimers & newlines
+    sentences = openai_summary.split(". ")
+    temp_summary = []
+    for s in sentences:
+        if s.startswith("This is an automated summary"):
+            continue
+        if s.find("As an AI language model") != -1:
+            continue
+        if s.find("OpenAI") != -1:
+            continue
+        temp_summary.append(s)
+    openai_summary = ". ".join(temp_summary).replace("\n", " ")
     result = {"summary": openai_summary}
 
     if USE_PINECONE:

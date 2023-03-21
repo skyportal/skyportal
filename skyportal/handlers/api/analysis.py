@@ -1071,9 +1071,11 @@ class AnalysisHandler(BaseHandler):
                     .get("OpenAI", {})
                     .get('active', False)
                 ):
-                    analysis_parameters["openai_api_key"] = user.preferences["summary"][
-                        "OpenAI"
-                    ]["apikey"]
+                    user_pref_openai = user.preferences["summary"]["OpenAI"].copy()
+                    analysis_parameters["openai_api_key"] = user_pref_openai["apikey"]
+                    user_pref_openai.pop("apikey", None)
+                    user_pref_openai.pop("active", None)
+                    analysis_parameters["summary_parameters"] = user_pref_openai
 
             group_ids = data.pop('group_ids', None)
             if not group_ids:

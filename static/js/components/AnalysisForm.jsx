@@ -62,7 +62,6 @@ const AnalysisForm = ({ obj_id }) => {
   const uniqueAnalysisServiceList = uniqueNames.map((name) =>
     analysisServiceList.find((item) => item.name === name)
   );
-
   const allGroups = useSelector((state) => state.groups.all);
   const [selectedAnalysisServiceId, setSelectedAnalysisServiceId] =
     useState(null);
@@ -245,7 +244,7 @@ const AnalysisForm = ({ obj_id }) => {
         >
           {uniqueAnalysisServiceList?.map(
             (analysisService) =>
-              analysisService.display_on_resource_dropdown && (
+              analysisService.display_on_resource_dropdown !== false && (
                 <MenuItem
                   value={analysisService.id}
                   key={analysisService.id}
