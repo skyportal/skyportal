@@ -11,7 +11,6 @@ import {
   ThemeProvider,
   StyledEngineProvider,
   useTheme,
-  adaptV4Theme,
 } from "@mui/material/styles";
 import makeStyles from "@mui/styles/makeStyles";
 import MUIDataTable from "mui-datatables";
@@ -35,49 +34,47 @@ const useStyles = makeStyles(() => ({
 
 // Tweak responsive styling
 const getMuiTheme = (theme) =>
-  createTheme(
-    adaptV4Theme({
-      palette: theme.palette,
-      overrides: {
-        MUIDataTable: {
-          paper: {
-            width: "100%",
-          },
+  createTheme({
+    palette: theme.palette,
+    overrides: {
+      MUIDataTable: {
+        paper: {
+          width: "100%",
         },
-        MUIDataTableBodyCell: {
-          stackedCommon: {
-            overflow: "hidden",
-            "&:last-child": {
-              paddingLeft: "0.25rem",
-            },
-          },
-        },
-        MUIDataTablePagination: {
-          toolbar: {
-            flexFlow: "row wrap",
-            justifyContent: "flex-end",
-            padding: "0.5rem 1rem 0",
-            [theme.breakpoints.up("sm")]: {
-              // Cancel out small screen styling and replace
-              padding: "0px",
-              paddingRight: "2px",
-              flexFlow: "row nowrap",
-            },
-          },
-          tableCellContainer: {
-            padding: "1rem",
-          },
-          selectRoot: {
-            marginRight: "0.5rem",
-            [theme.breakpoints.up("sm")]: {
-              marginLeft: "0",
-              marginRight: "2rem",
-            },
+      },
+      MUIDataTableBodyCell: {
+        stackedCommon: {
+          overflow: "hidden",
+          "&:last-child": {
+            paddingLeft: "0.25rem",
           },
         },
       },
-    })
-  );
+      MUIDataTablePagination: {
+        toolbar: {
+          flexFlow: "row wrap",
+          justifyContent: "flex-end",
+          padding: "0.5rem 1rem 0",
+          [theme.breakpoints.up("sm")]: {
+            // Cancel out small screen styling and replace
+            padding: "0px",
+            paddingRight: "2px",
+            flexFlow: "row nowrap",
+          },
+        },
+        tableCellContainer: {
+          padding: "1rem",
+        },
+        selectRoot: {
+          marginRight: "0.5rem",
+          [theme.breakpoints.up("sm")]: {
+            marginLeft: "0",
+            marginRight: "2rem",
+          },
+        },
+      },
+    },
+  });
 
 const EarthquakePredictionLists = ({ earthquake }) => {
   const classes = useStyles();
