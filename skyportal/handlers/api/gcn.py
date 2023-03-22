@@ -262,16 +262,12 @@ def post_skymap_from_notice(dateobs, notice_id, user_id, session, asynchronous=T
                 asyncio.set_event_loop(loop)
             IOLoop.current().run_in_executor(
                 None,
-                lambda: add_tiles_and_properties_and_observation_plans(
+                lambda: add_tiles_properties_obsplan_and_contour(
                     localization_id, user_id
                 ),
             )
-            IOLoop.current().run_in_executor(None, lambda: add_contour(localization_id))
         else:
-            add_tiles_and_properties_and_observation_plans(
-                localization_id, user_id, session
-            )
-            add_contour(localization_id, session)
+            add_tiles_properties_obsplan_and_contour(localization_id, user_id, session)
 
         gcn_notice.localization_ingested = True
         session.add(gcn_notice)
@@ -338,7 +334,7 @@ def post_skymap_from_notice(dateobs, notice_id, user_id, session, asynchronous=T
     return localization_id
 
 
-def post_gcnevent_from_dictionary(payload, user_id, session):
+def post_gcnevent_from_dictionary(payload, user_id, session, asynchronous=True):
     """Post GcnEvent to database from dictionary.
     payload: dict
         Dictionary containing dateobs and skymap
@@ -459,16 +455,23 @@ def post_gcnevent_from_dictionary(payload, user_id, session):
         localization = Localization(**skymap)
         session.add(localization)
         session.commit()
+        localization_id = localization.id
 
-        log(f"Generating tiles/properties/contours for localization {localization.id}")
-
-        IOLoop.current().run_in_executor(
-            None,
-            lambda: add_tiles_and_properties_and_observation_plans(
-                localization.id, user_id
-            ),
-        )
-        IOLoop.current().run_in_executor(None, lambda: add_contour(localization.id))
+        log(f"Generating tiles/properties/contours for localization {localization_id}")
+        if asynchronous:
+            try:
+                loop = asyncio.get_event_loop()
+            except Exception:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+            IOLoop.current().run_in_executor(
+                None,
+                lambda: add_tiles_properties_obsplan_and_contour(
+                    localization_id, user_id
+                ),
+            )
+        else:
+            add_tiles_properties_obsplan_and_contour(localization_id, user_id, session)
 
     return event.id
 
@@ -1450,6 +1453,33 @@ def add_contour(localization_id, parent_session=None):
         return log(f"Generated contour for localization {localization_id}")
     except Exception as e:
         log(f"Unable to generate contour for localization {localization_id}: {e}")
+    finally:
+        if parent_session is None:
+            session.close()
+            Session.remove()
+
+
+def add_tiles_properties_obsplan_and_contour(
+    localization_id, user_id, parent_session=None
+):
+
+    if parent_session is None:
+        if Session.registry.has():
+            session = Session()
+        else:
+            session = Session(bind=DBSession.session_factory.kw["bind"])
+    else:
+        session = parent_session
+
+    try:
+        add_tiles_and_properties_and_observation_plans(
+            localization_id, user_id, session
+        )
+        add_contour(localization_id, session)
+    except Exception as e:
+        log(
+            f"Unable to generate tiles / properties / observation plans / contour for localization {localization_id}: {e}"
+        )
     finally:
         if parent_session is None:
             session.close()
