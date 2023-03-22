@@ -119,6 +119,7 @@ def poll_events():
                     continue
                 with DBSession() as session:
                     # event ingestion
+                    log(f'Ingesting gcn event from {message.topic()}')
                     dateobs, notice_id = post_gcnevent_from_xml(
                         payload, user_id, session, post_skymap=False, asynchronous=False
                     )
@@ -129,9 +130,14 @@ def poll_events():
                     status, _ = get_skymap_metadata(root, notice_type)
                     if status in ['available', 'cone']:
                         log(f'Ingesting skymap for gcn event {dateobs} - {notice_id}')
-                        post_skymap_from_notice(
-                            dateobs, notice_id, user_id, session, asynchronous=False
-                        )
+                        try:
+                            post_skymap_from_notice(
+                                dateobs, notice_id, user_id, session, asynchronous=False
+                            )
+                        except Exception as e:
+                            log(
+                                f'Failed to ingest skymap for gcn event {dateobs} - {notice_id}: {e}'
+                            )
                     else:
                         log(
                             f'No skymap available for gcn event {dateobs} - {notice_id}'

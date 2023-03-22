@@ -89,16 +89,13 @@ const DownloadXMLButton = ({ gcn_notice }) => {
   const blob = new Blob([gcn_notice.content], { type: "text/plain" });
 
   return (
-    <div>
-      <Chip size="small" label={gcn_notice.ivorn} key={gcn_notice.ivorn} />
-      <IconButton
-        href={URL.createObjectURL(blob)}
-        download={gcn_notice.ivorn}
-        size="large"
-      >
-        <GetAppIcon />
-      </IconButton>
-    </div>
+    <IconButton
+      href={URL.createObjectURL(blob)}
+      download={gcn_notice.ivorn}
+      size="large"
+    >
+      <GetAppIcon />
+    </IconButton>
   );
 };
 
@@ -313,7 +310,10 @@ const GcnEventPage = ({ route }) => {
       !cachedLocalization ||
       cachedLocalization?.dateobs !== gcnEvent?.dateobs
     ) {
-      if (fetchingCachedLocalization === false) {
+      if (
+        fetchingCachedLocalization === false &&
+        gcnEvent?.localizations?.length > 0
+      ) {
         dispatch(
           localizationActions.fetchLocalization(
             gcnEvent?.dateobs,
@@ -446,15 +446,37 @@ const GcnEventPage = ({ route }) => {
               </AccordionSummary>
               <AccordionDetails>
                 <div className={styles.gcnEventContainer}>
-                  {route?.dateobs === gcnEvent?.dateobs && route?.dateobs ? (
-                    <GcnSelectionForm
-                      dateobs={route.dateobs}
-                      setSelectedLocalizationName={setSelectedLocalizationName}
-                      setSourceFilteringState={setSourceFilteringState}
-                    />
-                  ) : (
+                  {route?.dateobs === gcnEvent?.dateobs &&
+                    route?.dateobs &&
+                    gcnEvent?.localizations?.length > 0 && (
+                      <>
+                        <GcnSelectionForm
+                          dateobs={route.dateobs}
+                          setSelectedLocalizationName={
+                            setSelectedLocalizationName
+                          }
+                          setSourceFilteringState={setSourceFilteringState}
+                        />
+                      </>
+                    )}
+                  {route?.dateobs && !gcnEvent?.dateobs && (
                     <p> Fetching event... </p>
                   )}
+                  {route?.dateobs &&
+                    route?.dateobs === gcnEvent?.dateobs &&
+                    (gcnEvent?.localizations?.length === 0 ||
+                      !gcnEvent?.localizations) && (
+                      <>
+                        <p>
+                          No localization available for this event (yet). Some
+                          localizations are available after the notices.{" "}
+                        </p>
+                        <p>
+                          You can try ingesting the localization from the
+                          Notices menu on the right of this page
+                        </p>
+                      </>
+                    )}
                 </div>
               </AccordionDetails>
             </Accordion>
@@ -472,17 +494,35 @@ const GcnEventPage = ({ route }) => {
               </AccordionSummary>
               <AccordionDetails>
                 <div className={styles.gcnEventContainer}>
-                  {route?.dateobs === gcnEvent?.dateobs && route?.dateobs ? (
-                    <>
-                      <ObservationPlanRequestForm
-                        dateobs={route?.dateobs}
-                        action="createNew"
-                      />
-                      <ObservationPlanRequestLists dateobs={route?.dateobs} />
-                    </>
-                  ) : (
+                  {route?.dateobs === gcnEvent?.dateobs &&
+                    route?.dateobs &&
+                    gcnEvent?.localizations?.length > 0 && (
+                      <>
+                        <ObservationPlanRequestForm
+                          dateobs={route?.dateobs}
+                          action="createNew"
+                        />
+                        <ObservationPlanRequestLists dateobs={route?.dateobs} />
+                      </>
+                    )}
+                  {route?.dateobs && !gcnEvent?.dateobs && (
                     <p> Fetching event... </p>
                   )}
+                  {route?.dateobs &&
+                    route?.dateobs === gcnEvent?.dateobs &&
+                    (gcnEvent?.localizations?.length === 0 ||
+                      !gcnEvent?.localizations) && (
+                      <>
+                        <p>
+                          No localization available for this event (yet). Some
+                          localizations are available after the notices.{" "}
+                        </p>
+                        <p>
+                          You can try ingesting the localization from the
+                          Notices menu on the right of this page
+                        </p>
+                      </>
+                    )}
                 </div>
               </AccordionDetails>
             </Accordion>
@@ -561,24 +601,50 @@ const GcnEventPage = ({ route }) => {
                   <div className={styles.gcnEventContainer}>
                     {gcnEvent.gcn_notices?.map((gcn_notice) => (
                       <li key={gcn_notice.ivorn}>
+                        <Chip
+                          size="small"
+                          label={gcn_notice.ivorn}
+                          key={gcn_notice.ivorn}
+                        />
+                        <DownloadXMLButton gcn_notice={gcn_notice} />
                         {gcn_notice?.has_localization &&
                           gcn_notice?.localization_ingested === false && (
                             <Button
                               secondary
-                              onClick={() =>
+                              onClick={() => {
+                                dispatch(
+                                  showNotification(
+                                    `Starting ingestion attempt for localization from notice ${gcn_notice.id}. Please wait...`,
+                                    "warning"
+                                  )
+                                );
                                 dispatch(
                                   postLocalizationFromNotice({
                                     dateobs: gcn_notice.dateobs,
                                     noticeID: gcn_notice.id,
                                   })
-                                )
-                              }
+                                ).then((response) => {
+                                  if (response.status === "success") {
+                                    dispatch(
+                                      showNotification(
+                                        `Localization successfully ingested from notice ${gcn_notice.id}. Please wait for the contour to be generated. Default observation plans will be created shortly.`
+                                      )
+                                    );
+                                  } else {
+                                    dispatch(
+                                      showNotification(
+                                        `Error ingesting localization from notice ${gcn_notice.id}. It might not be available yet.`,
+                                        "error"
+                                      )
+                                    );
+                                  }
+                                });
+                              }}
                               data-testid="ingest-localization-from-notice"
                             >
                               Ingest Localization
                             </Button>
                           )}
-                        <DownloadXMLButton gcn_notice={gcn_notice} />
                       </li>
                     ))}
                   </div>

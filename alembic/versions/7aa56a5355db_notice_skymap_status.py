@@ -21,7 +21,7 @@ def upgrade():
     op.add_column(
         'gcnnotices',
         sa.Column(
-            'has_localization', sa.Boolean(), nullable=False, server_default='false'
+            'has_localization', sa.Boolean(), nullable=False, server_default='true'
         ),
     )
     op.add_column(

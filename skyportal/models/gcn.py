@@ -119,7 +119,7 @@ class GcnNotice(Base):
     has_localization = sa.Column(
         sa.Boolean,
         nullable=False,
-        server_default='false',
+        server_default='true',
         doc='Whether event notice has localization',
     )
 

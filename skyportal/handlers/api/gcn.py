@@ -266,12 +266,12 @@ def post_skymap_from_notice(dateobs, notice_id, user_id, session, asynchronous=T
                 asyncio.set_event_loop(loop)
             IOLoop.current().run_in_executor(
                 None,
-                lambda: add_tiles_properties_obsplan_and_contour(
+                lambda: add_tiles_properties_contour_and_obsplan(
                     localization_id, user_id
                 ),
             )
         else:
-            add_tiles_properties_obsplan_and_contour(localization_id, user_id, session)
+            add_tiles_properties_contour_and_obsplan(localization_id, user_id, session)
 
         gcn_notice.localization_ingested = True
         session.add(gcn_notice)
@@ -470,12 +470,12 @@ def post_gcnevent_from_dictionary(payload, user_id, session, asynchronous=True):
                 asyncio.set_event_loop(loop)
             IOLoop.current().run_in_executor(
                 None,
-                lambda: add_tiles_properties_obsplan_and_contour(
+                lambda: add_tiles_properties_contour_and_obsplan(
                     localization_id, user_id
                 ),
             )
         else:
-            add_tiles_properties_obsplan_and_contour(localization_id, user_id, session)
+            add_tiles_properties_contour_and_obsplan(localization_id, user_id, session)
 
     return event.id
 
@@ -1349,9 +1349,7 @@ class GcnEventHandler(BaseHandler):
             return self.success()
 
 
-def add_tiles_and_properties_and_observation_plans(
-    localization_id, user_id, parent_session=None
-):
+def add_tiles_and_properties_and_contour(localization_id, user_id, parent_session=None):
     if parent_session is None:
         if Session.registry.has():
             session = Session()
@@ -1361,15 +1359,12 @@ def add_tiles_and_properties_and_observation_plans(
         session = parent_session
 
     try:
+        user = session.scalar(sa.select(User).where(User.id == user_id))
         localization = session.scalar(
             sa.select(Localization).where(Localization.id == localization_id)
         )
-        localization_id = localization.id
-        dateobs = localization.dateobs
-        user = session.scalar(sa.select(User).where(User.id == user_id))
 
         properties_dict, tags_list = get_skymap_properties(localization)
-
         properties = LocalizationProperty(
             localization_id=localization_id, sent_by_id=user.id, data=properties_dict
         )
@@ -1397,6 +1392,44 @@ def add_tiles_and_properties_and_observation_plans(
         session.add_all(tiles)
         session.commit()
 
+        localization = get_contour(localization)
+        session.add(localization)
+        session.commit()
+
+        return log(
+            f"Generated tiles / properties / contour for localization {localization_id}"
+        )
+    except Exception as e:
+        log(
+            f"Unable to generate tiles / properties / contour for localization {localization_id}: {e}"
+        )
+        session.rollback()
+    finally:
+        if parent_session is None:
+            session.close()
+            Session.remove()
+
+
+def add_observation_plans(localization_id, user_id, parent_session=None):
+
+    if parent_session is None:
+        if Session.registry.has():
+            session = Session()
+        else:
+            session = Session(bind=DBSession.session_factory.kw["bind"])
+    else:
+        session = parent_session
+
+    try:
+        user = session.scalar(sa.select(User).where(User.id == user_id))
+        localization = session.query(Localization).get(localization_id)
+        localization_tags = [
+            tags.text
+            for tags in session.query(LocalizationTag)
+            .filter(LocalizationTag.localization_id == localization_id)
+            .all()
+        ]
+        dateobs = localization.dateobs
         config_gcn_observation_plans_all = [
             observation_plan for observation_plan in cfg["gcn.observation_plans"]
         ]
@@ -1509,7 +1542,8 @@ def add_tiles_and_properties_and_observation_plans(
                             and len(filters["localization_tags"]) > 0
                         ):
                             intersection = list(
-                                set(tags_list) & set(filters["localization_tags"])
+                                set(localization_tags)
+                                & set(filters["localization_tags"])
                             )
                             if len(intersection) == 0:
                                 continue
@@ -1530,45 +1564,16 @@ def add_tiles_and_properties_and_observation_plans(
                         log(f"Survey efficiency analysis failed: {str(e)}")
                         continue
 
-        return log(
-            f"Generated tiles / properties / observation plans for localization {localization_id}"
-        )
+        return log(f"Generated observation plans for localization {localization_id}")
     except Exception as e:
-        log(
-            f"Unable to generate tiles / properties / observation plans for localization {localization_id}: {e}"
-        )
-        session.rollback()
+        log(f"Unable to observation plans for localization {localization_id}: {e}")
     finally:
         if parent_session is None:
             session.close()
             Session.remove()
 
 
-def add_contour(localization_id, parent_session=None):
-
-    if parent_session is None:
-        if Session.registry.has():
-            session = Session()
-        else:
-            session = Session(bind=DBSession.session_factory.kw["bind"])
-    else:
-        session = parent_session
-
-    try:
-        localization = session.query(Localization).get(localization_id)
-        localization = get_contour(localization)
-        session.add(localization)
-        session.commit()
-        return log(f"Generated contour for localization {localization_id}")
-    except Exception as e:
-        log(f"Unable to generate contour for localization {localization_id}: {e}")
-    finally:
-        if parent_session is None:
-            session.close()
-            Session.remove()
-
-
-def add_tiles_properties_obsplan_and_contour(
+def add_tiles_properties_contour_and_obsplan(
     localization_id, user_id, parent_session=None
 ):
 
@@ -1581,10 +1586,8 @@ def add_tiles_properties_obsplan_and_contour(
         session = parent_session
 
     try:
-        add_tiles_and_properties_and_observation_plans(
-            localization_id, user_id, session
-        )
-        add_contour(localization_id, session)
+        add_tiles_and_properties_and_contour(localization_id, user_id, session)
+        add_observation_plans(localization_id, user_id, session)
     except Exception as e:
         log(
             f"Unable to generate tiles / properties / observation plans / contour for localization {localization_id}: {e}"
