@@ -28,7 +28,10 @@ export const fetchLocalization = (
   localization_name,
   type = "cached"
 ) =>
-  API.GET(`/api/localization/${dateobs}/${localization_name}`, typeEnum[type]);
+  API.GET(
+    `/api/localization/${dateobs}/name/${localization_name}`,
+    typeEnum[type]
+  );
 
 export function postLocalizationFromNotice({ dateobs, noticeID }) {
   return API.POST(

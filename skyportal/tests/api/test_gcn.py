@@ -153,7 +153,7 @@ def test_gcn_Fermi(super_admin_token, view_only_token):
     assert status == 200
 
 
-def test_gcn_from_moc(super_admin_token, view_only_token):
+def test_gcn_from_moc(super_admin_token):
 
     name = str(uuid.uuid4())
     post_data = {
@@ -580,10 +580,7 @@ def test_gcn_summary_galaxies(
 
 
 def test_gcn_instrument_field(
-    super_admin_user,
     super_admin_token,
-    view_only_token,
-    public_group,
 ):
 
     datafile = f'{os.path.dirname(__file__)}/../../../data/GW190814.xml'
@@ -1242,7 +1239,7 @@ def test_confirm_reject_source_in_gcn(
     assert len(data) == 0
 
 
-def test_gcn_from_polygon(super_admin_token, view_only_token):
+def test_gcn_from_polygon(super_admin_token):
 
     localization_name = str(uuid.uuid4())
     dateobs = '2022-09-03T14:44:12'
@@ -1264,7 +1261,7 @@ def test_gcn_from_polygon(super_admin_token, view_only_token):
     assert 'IPN' in data["tags"]
 
 
-def test_gcn_Swift(super_admin_token, view_only_token):
+def test_gcn_Swift(super_admin_token):
 
     datafile = f'{os.path.dirname(__file__)}/../data/SWIFT_1125809-092.xml'
     with open(datafile, 'rb') as fid:
@@ -1336,7 +1333,7 @@ def test_gcn_tach(
 
     for n_times in range(26):
         status, data = api('GET', f"gcn_event/{dateobs}", token=super_admin_token)
-        if data['status'] == 'success':
+        if status == 200:
             break
         time.sleep(2)
     assert n_times < 25
@@ -1373,7 +1370,7 @@ def test_gcn_tach(
     assert data['tach_id'] is not None
 
 
-def test_download_localization(super_admin_token, view_only_token):
+def test_download_localization(super_admin_token):
 
     datafile = f'{os.path.dirname(__file__)}/../../../data/GW190814.xml'
     with open(datafile, 'rb') as fid:
@@ -1435,7 +1432,7 @@ def test_gcn_allocation_triggers(
 
     for n_times in range(26):
         status, data = api('GET', f"gcn_event/{dateobs}", token=super_admin_token)
-        if data['status'] == 'success':
+        if status == 200:
             break
         time.sleep(2)
     assert n_times < 25
