@@ -17,6 +17,7 @@ from twilio.twiml.voice_response import Say, VoiceResponse
 from baselayer.app.models import init_db
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
+from baselayer.log import make_log
 
 from skyportal.app_utils import get_app_base_url
 from skyportal.email_utils import send_email
@@ -52,6 +53,7 @@ from skyportal.models import (
 )
 
 env, cfg = load_env()
+log = make_log('notification_queue')
 
 init_db(**cfg['database'])
 
@@ -197,11 +199,11 @@ def send_slack_notification(session, target):
             data=data,
             headers={'Content-Type': 'application/json'},
         )
-        print(
+        log(
             f"Sent slack notification to user {target.user.id} at slack_url: {integration_url}, body: {target.text}, resource_type: {resource_type}"
         )
     except Exception as e:
-        print(f"Error sending slack notification: {e}")
+        log(f"Error sending slack notification: {e}")
 
 
 def send_email_notification(session, target):
@@ -264,14 +266,14 @@ def send_email_notification(session, target):
                     subject=subject,
                     body=body,
                 )
-                print(
+                log(
                     f"Sent email notification to user {target.user.id} at email: {target.user.contact_email}, subject: {subject}, body: {body}, resource_type: {resource_type}"
                 )
             except Exception as e:
-                print(f"Error sending email notification: {e}")
+                log(f"Error sending email notification: {e}")
 
     except Exception as e:
-        print(f"Error sending email notification: {e}")
+        log(f"Error sending email notification: {e}")
 
 
 def send_sms_notification(target):
@@ -309,11 +311,11 @@ def send_sms_notification(target):
                 from_=from_number,
                 to=target.user.contact_phone.e164,
             )
-            print(
+            log(
                 f"Sent SMS notification to user {target.user.id} at phone number: {target.user.contact_phone.e164}, body: {target.text}, resource_type: {resource_type}"
             )
         except Exception as e:
-            print(f"Error sending sms notification: {e}")
+            log(f"Error sending sms notification: {e}")
 
 
 def send_phone_notification(target):
@@ -353,11 +355,11 @@ def send_phone_notification(target):
                 from_=from_number,
                 to=target.user.contact_phone.e164,
             )
-            print(
+            log(
                 f"Sent Phone Call notification to user {target.user.id} at phone number: {target.user.contact_phone.e164}, message: {message}, resource_type: {resource_type}"
             )
         except Exception as e:
-            print(f"Error sending phone call notification: {e}")
+            log(f"Error sending phone call notification: {e}")
 
 
 def send_whatsapp_notification(target):
@@ -395,11 +397,11 @@ def send_whatsapp_notification(target):
                 from_="whatsapp:" + str(from_number),
                 to="whatsapp" + str(target.user.contact_phone.e164),
             )
-            print(
+            log(
                 f"Sent WhatsApp notification to user {target.user.id} at phone number: {target.user.contact_phone.e164}, body: {target.text}, resource_type: {resource_type}"
             )
         except Exception as e:
-            print(f"Error sending WhatsApp notification: {e}")
+            log(f"Error sending WhatsApp notification: {e}")
 
 
 def push_frontend_notification(target):
@@ -414,12 +416,12 @@ def push_frontend_notification(target):
         user_id = None
 
     if user_id is None:
-        print(
+        log(
             "Error sending frontend notification: user_id or user.id not found in notification's target"
         )
         return
     resource_type = notification_resource_type(target)
-    print(
+    log(
         f"Sent frontend notification to user {user_id}, body: {target.text}, resource_type: {resource_type}"
     )
     ws_flow = Flow()
@@ -441,7 +443,7 @@ class NotificationQueue(asyncio.Queue):
                     )
                 ).first()
                 if notification is None:
-                    print(f'Could not find UserNotification with ID {notification_id}')
+                    log(f'Could not find UserNotification with ID {notification_id}')
                     continue
 
                 push_frontend_notification(notification)
