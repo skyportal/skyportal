@@ -80,5 +80,6 @@ class ConfigHandler(BaseHandler):
                 "image_analysis": True if 'image_analysis' in cfg else False,
                 "allowedRecurringAPIMethods": ALLOWED_RECURRING_API_METHODS,
                 "classificationsClasses": cfg["classifications"],
+                "gcnTagsClasses": cfg["gcnTags"],
             }
         )

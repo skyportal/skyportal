@@ -718,3 +718,12 @@ classifications:
     "variable": "#3a87ad",
     "Time-domain Source": "#ff0000",
   }
+
+gcnTags:
+  {
+    "BNS": "#468847",
+    "NSBH": "#b94a48",
+    "BBH": "#333333",
+    "GRB": "#f89406",
+    "AMON": "#3a87ad",
+  }
