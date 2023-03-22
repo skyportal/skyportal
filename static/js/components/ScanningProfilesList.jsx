@@ -14,7 +14,6 @@ import {
   ThemeProvider,
   StyledEngineProvider,
   useTheme,
-  adaptV4Theme,
 } from "@mui/material/styles";
 
 import makeStyles from "@mui/styles/makeStyles";
@@ -70,36 +69,34 @@ const useStyles = makeStyles((theme) => ({
 
 // Tweak responsive styling
 const getMuiTheme = (theme) =>
-  createTheme(
-    adaptV4Theme({
-      palette: theme.palette,
-      overrides: {
-        MUIDataTablePagination: {
-          toolbar: {
-            flexFlow: "row wrap",
-            justifyContent: "flex-end",
-            padding: "0.5rem 1rem 0",
-            [theme.breakpoints.up("sm")]: {
-              // Cancel out small screen styling and replace
-              padding: "0px",
-              paddingRight: "2px",
-              flexFlow: "row nowrap",
-            },
+  createTheme({
+    palette: theme.palette,
+    overrides: {
+      MUIDataTablePagination: {
+        toolbar: {
+          flexFlow: "row wrap",
+          justifyContent: "flex-end",
+          padding: "0.5rem 1rem 0",
+          [theme.breakpoints.up("sm")]: {
+            // Cancel out small screen styling and replace
+            padding: "0px",
+            paddingRight: "2px",
+            flexFlow: "row nowrap",
           },
-          tableCellContainer: {
-            padding: "1rem",
-          },
-          selectRoot: {
-            marginRight: "0.5rem",
-            [theme.breakpoints.up("sm")]: {
-              marginLeft: "0",
-              marginRight: "2rem",
-            },
+        },
+        tableCellContainer: {
+          padding: "1rem",
+        },
+        selectRoot: {
+          marginRight: "0.5rem",
+          [theme.breakpoints.up("sm")]: {
+            marginLeft: "0",
+            marginRight: "2rem",
           },
         },
       },
-    })
-  );
+    },
+  });
 
 const ScanningProfilesList = ({
   selectedScanningProfile,

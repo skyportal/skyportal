@@ -174,6 +174,7 @@ def post_gcnevent_from_xml(
         stream=urlparse(root.attrib['ivorn']).path.lstrip('/'),
         date=root.find('./Who/Date').text,
         has_localization=has_skymap(root, notice_type),
+        localization_ingested=False,
         dateobs=dateobs,
         sent_by_id=user_id,
     )
@@ -209,7 +210,10 @@ def post_gcnevent_from_xml(
         session.commit()
 
     if post_skymap:
-        post_skymap_from_notice(dateobs, notice_id, user_id, session, asynchronous)
+        try:
+            post_skymap_from_notice(dateobs, notice_id, user_id, session, asynchronous)
+        except Exception:
+            pass
 
     return dateobs, notice_id
 
@@ -235,7 +239,7 @@ def post_skymap_from_notice(dateobs, notice_id, user_id, session, asynchronous=T
         raise ValueError(f"Failed to get skymap from gcn notice {gcn_notice.id}: {e}")
 
     if skymap is None:
-        raise ValueError(f"No skymap found in gcn notice {gcn_notice.id}")
+        raise Exception(f"No skymap found for event {dateobs} with notice {notice_id}")
 
     skymap["dateobs"] = dateobs
     skymap["sent_by_id"] = user_id
@@ -498,6 +502,111 @@ class GcnEventTagsHandler(BaseHandler):
         with self.Session() as session:
             tags = session.scalars(sa.select(GcnTag.text).distinct()).unique().all()
             return self.success(data=tags)
+
+    @auth_or_token
+    def post(self):
+        """
+        ---
+        description: Post a GCN Event tag
+        tags:
+          - gcntags
+        requestBody:
+          content:
+            application/json:
+              schema: GcnEventTagPost
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      gcnevent_id:
+                        type: integer
+                        description: New GcnEvent Tag ID
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        data = self.get_json()
+        dateobs = data.get('dateobs', None)
+        text = data.get('text', None)
+
+        if dateobs is None:
+            return self.error("dateobs must be present in data to add GcnTag")
+        if text is None:
+            return self.error("text must be present in data to add GcnTag")
+
+        with self.Session() as session:
+            try:
+                tag = GcnTag(
+                    dateobs=dateobs,
+                    text=text,
+                    sent_by_id=self.associated_user_object.id,
+                )
+                session.add(tag)
+                session.commit()
+
+                self.push(
+                    action='skyportal/REFRESH_GCN_EVENT',
+                    payload={"gcnEvent_dateobs": dateobs},
+                )
+            except Exception as e:
+                return self.error(f'Cannot post tag: {str(e)}')
+
+            return self.success(data={'gcntag_id': tag.id})
+
+    @auth_or_token
+    def delete(self, dateobs, tag):
+        """
+        ---
+        description: Delete a GCN event tag
+        tags:
+          - gcnevents
+        parameters:
+          - in: path
+            name: dateobs
+            required: true
+            schema:
+              type: dateobs
+          - in: path
+            name: tag
+            required: true
+            schema:
+              type: tag
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+
+        with self.Session() as session:
+            tag = session.scalars(
+                GcnTag.select(session.user_or_token, mode="delete").where(
+                    GcnTag.dateobs == dateobs,
+                    GcnTag.text == tag,
+                )
+            ).first()
+            if tag is None:
+                return self.error("GCN event tag not found", status=404)
+
+            session.delete(tag)
+            session.commit()
+
+            self.push(
+                action='skyportal/REFRESH_GCN_EVENT',
+                payload={"gcnEvent_dateobs": dateobs},
+            )
+
+            return self.success()
 
 
 class GcnEventPropertiesHandler(BaseHandler):
@@ -1227,7 +1336,7 @@ class GcnEventHandler(BaseHandler):
         """
         with self.Session() as session:
             event = session.scalars(
-                GcnEvent.select(session.user_or_token, model="delete").where(
+                GcnEvent.select(session.user_or_token, mode="delete").where(
                     GcnEvent.dateobs == dateobs
                 )
             ).first()

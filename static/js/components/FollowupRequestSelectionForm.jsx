@@ -84,7 +84,6 @@ const FollowupRequestSelectionForm = ({ fetchParams, setFetchParams }) => {
   if (
     instrumentList.length === 0 ||
     telescopeList.length === 0 ||
-    followupRequestList.length === 0 ||
     !selectedInstrumentId ||
     Object.keys(instrumentFormParams).length === 0
   ) {
@@ -120,16 +119,13 @@ const FollowupRequestSelectionForm = ({ fetchParams, setFetchParams }) => {
     value.sort();
   });
 
-  const handleSelectedInstrumentChange = (e) => {
-    setSelectedInstrumentId(e.target.value);
-  };
-
   const handleSelectedFormatChange = (e) => {
     setSelectedFormat(e.target.value);
   };
 
   const handleSubmitFilter = async ({ formData }) => {
     setIsSubmittingFilter(true);
+    setSelectedInstrumentId(formData.instrumentID);
     await dispatch(followupRequestActions.fetchFollowupRequests(formData));
     setFetchParams(formData);
     setIsSubmittingFilter(false);
@@ -163,6 +159,19 @@ const FollowupRequestSelectionForm = ({ fetchParams, setFetchParams }) => {
   const FollowupRequestSelectionFormSchema = {
     type: "object",
     properties: {
+      instrumentID: {
+        type: "integer",
+        oneOf: instrumentList.map((instrument) => ({
+          enum: [instrument.id],
+          title: `${
+            telescopeList.find(
+              (telescope) => telescope.id === instrument.telescope_id
+            )?.name
+          } / ${instrument.name}`,
+        })),
+        title: "Instrument",
+        default: instrumentList[0]?.id,
+      },
       startDate: {
         type: "string",
         format: "date-time",
@@ -223,27 +232,6 @@ const FollowupRequestSelectionForm = ({ fetchParams, setFetchParams }) => {
         )}
       </div>
       <div>
-        <InputLabel id="instrumentSelectLabel">Instrument</InputLabel>
-        <Select
-          inputProps={{ MenuProps: { disableScrollLock: true } }}
-          labelId="instrumentSelectLabel"
-          value={selectedInstrumentId}
-          onChange={handleSelectedInstrumentChange}
-          name="followupRequestInstrumentSelect"
-          className={classes.selectInstrument}
-        >
-          {sortedInstrumentList?.map((instrument) => (
-            <MenuItem
-              value={instrument.id}
-              key={instrument.id}
-              className={classes.selectItem}
-            >
-              {`${telLookUp[instrument.telescope_id].name} / ${
-                instrument.name
-              }`}
-            </MenuItem>
-          ))}
-        </Select>
         <InputLabel id="instrumentSelectLabel">Format</InputLabel>
         <Select
           inputProps={{ MenuProps: { disableScrollLock: true } }}

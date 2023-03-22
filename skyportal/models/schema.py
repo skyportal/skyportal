@@ -1153,6 +1153,12 @@ class GcnEventHandlerGet(_Schema):
     lightcurve = fields.String(metadata={'description': 'URL for light curve'})
 
 
+class GcnEventTagPost(_Schema):
+
+    dateobs = fields.Field(metadata={'description': 'UTC event timestamp'})
+    text = fields.Field(metadata={'description': 'GCN Event tag'})
+
+
 class LocalizationHandlerGet(_Schema):
     localization_name = fields.String(metadata={'description': 'Localization name'})
     dateobs = fields.String(metadata={'description': 'UTC event timestamp'})

@@ -62,16 +62,19 @@ class ConfigHandler(BaseHandler):
                               type: object
                               description: allowed classifications classes.
         """
+        openai_summary_parameters = cfg[
+            "analysis_services.openai_analysis_service.summary"
+        ]
+        openai_summary_apikey_set = openai_summary_parameters.get("api_key") is not None
+        openai_summary_parameters.pop("api_key", None)
 
         return self.success(
             data={
                 "slackPreamble": cfg["slack.expected_url_preamble"],
                 "invitationsEnabled": cfg["invitations.enabled"],
                 "cosmology": str(cosmo),
-                "openai_summary_apikey_set": cfg[
-                    "analysis_services.openai_analysis_service.summary.api_key"
-                ]
-                is not None,
+                "openai_summary_apikey_set": openai_summary_apikey_set,
+                "openai_summary_parameters": openai_summary_parameters,
                 "cosmoref": cosmo.__doc__,
                 "allowedSpectrumTypes": ALLOWED_SPECTRUM_TYPES,
                 "defaultSpectrumType": default_spectrum_type,
@@ -79,6 +82,7 @@ class ConfigHandler(BaseHandler):
                 "maxNumDaysUsingLocalization": MAX_NUM_DAYS_USING_LOCALIZATION,
                 "image_analysis": True if 'image_analysis' in cfg else False,
                 "allowedRecurringAPIMethods": ALLOWED_RECURRING_API_METHODS,
-                "classificationsClasses": cfg["classifications"],
+                "classificationsClasses": cfg["colors.classifications"],
+                "gcnTagsClasses": cfg["colors.gcnTags"],
             }
         )
