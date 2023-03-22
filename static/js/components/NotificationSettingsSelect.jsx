@@ -107,7 +107,6 @@ const NotificationSettingsSelect = ({ notificationResourceType }) => {
     if (!valueSMS) {
       const valSMS =
         profile?.notifications[notificationResourceType]?.sms?.time_slot;
-      console.log("valSMS", valSMS);
       if (valSMS?.length > 0) {
         setValueSMS(valSMS);
         if (valSMS[0] > valSMS[1]) {
