@@ -1,5 +1,6 @@
 import React from "react";
 import { useDispatch } from "react-redux";
+import PropTypes from "prop-types";
 // eslint-disable-next-line import/no-unresolved
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
@@ -7,7 +8,7 @@ import dataUriToBuffer from "data-uri-to-buffer";
 import { showNotification } from "baselayer/components/Notifications";
 import { fetchGalaxies, uploadGalaxies } from "../ducks/galaxies";
 
-const NewGalaxy = () => {
+const NewGalaxy = ({ handleClose = null }) => {
   const dispatch = useDispatch();
 
   const handleSubmit = async ({ formData }) => {
@@ -18,6 +19,9 @@ const NewGalaxy = () => {
     };
     const result = await dispatch(uploadGalaxies(payload));
     if (result.status === "success") {
+      if (handleClose) {
+        handleClose();
+      }
       dispatch(showNotification("Galaxy saved"));
       dispatch(fetchGalaxies());
     }
@@ -48,6 +52,14 @@ const NewGalaxy = () => {
       onSubmit={handleSubmit}
     />
   );
+};
+
+NewGalaxy.propTypes = {
+  handleClose: PropTypes.func,
+};
+
+NewGalaxy.defaultProps = {
+  handleClose: null,
 };
 
 export default NewGalaxy;

@@ -2,8 +2,6 @@ import React, { useEffect, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 
 import Paper from "@mui/material/Paper";
-import makeStyles from "@mui/styles/makeStyles";
-import Grid from "@mui/material/Grid";
 import Typography from "@mui/material/Typography";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
@@ -15,41 +13,7 @@ import Spinner from "./Spinner";
 import ProgressIndicator from "./ProgressIndicators";
 import * as sourcesActions from "../ducks/sources";
 
-const useStyles = makeStyles((theme) => ({
-  paperDiv: {
-    padding: "1rem",
-    height: "100%",
-  },
-  tableGrid: {
-    width: "100%",
-  },
-  formControl: {
-    margin: theme.spacing(1),
-    minWidth: 120,
-  },
-  paper: {
-    padding: "1rem",
-    marginTop: "0.625rem",
-  },
-  root: {
-    display: "flex",
-    flexWrap: "wrap",
-    "& .MuiTextField-root": {
-      margin: theme.spacing(0.2),
-      width: "10rem",
-    },
-  },
-  blockWrapper: {
-    width: "100%",
-    marginBottom: "0.5rem",
-  },
-  title: {
-    margin: "0.5rem 0rem 0rem 0rem",
-  },
-}));
-
 const SourceList = () => {
-  const classes = useStyles();
   const dispatch = useDispatch();
 
   const sourcesState = useSelector((state) => state.sources.latest);
@@ -171,26 +135,21 @@ const SourceList = () => {
   }
 
   return (
-    <Paper elevation={1} className={classes.paper}>
-      <div className={classes.paperDiv}>
-        <Typography variant="h6" display="inline">
-          Sources
-        </Typography>
-        {sourcesState.sources && (
-          <Grid item className={classes.tableGrid}>
-            <SourceTable
-              sources={sourcesState.sources}
-              paginateCallback={handleSourceTablePagination}
-              totalMatches={sourcesState.totalMatches}
-              pageNumber={sourcesState.pageNumber}
-              numPerPage={sourcesState.numPerPage}
-              sortingCallback={handleSourceTableSorting}
-              downloadCallback={handleSourcesDownload}
-            />
-          </Grid>
-        )}
-        {!sourcesState.sources && <Spinner />}
-      </div>
+    <Paper elevation={1}>
+      {sourcesState?.sources ? (
+        <SourceTable
+          title="Sources"
+          sources={sourcesState.sources}
+          paginateCallback={handleSourceTablePagination}
+          totalMatches={sourcesState.totalMatches}
+          pageNumber={sourcesState.pageNumber}
+          numPerPage={sourcesState.numPerPage}
+          sortingCallback={handleSourceTableSorting}
+          downloadCallback={handleSourcesDownload}
+        />
+      ) : (
+        <Spinner />
+      )}
       <Dialog
         open={downloadProgressTotal > 0}
         style={{ position: "fixed" }}

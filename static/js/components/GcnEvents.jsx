@@ -8,14 +8,22 @@ import {
   ThemeProvider,
   StyledEngineProvider,
   useTheme,
-  adaptV4Theme,
 } from "@mui/material/styles";
-import makeStyles from "@mui/styles/makeStyles";
+import { withStyles, makeStyles } from "@mui/styles";
 import Chip from "@mui/material/Chip";
 import Grid from "@mui/material/Grid";
+import IconButton from "@mui/material/IconButton";
+import AddIcon from "@mui/icons-material/Add";
+import JoinInnerIcon from "@mui/icons-material/JoinInner";
 import InfoIcon from "@mui/icons-material/Info";
+import Close from "@mui/icons-material/Close";
+import grey from "@mui/material/colors/grey";
 
 import MUIDataTable from "mui-datatables";
+
+import Dialog from "@mui/material/Dialog";
+import DialogContent from "@mui/material/DialogContent";
+import MuiDialogTitle from "@mui/material/DialogTitle";
 import Button from "./Button";
 
 import { filterOutEmptyValues } from "../API";
@@ -24,6 +32,7 @@ import Spinner from "./Spinner";
 import GcnEventsFilterForm from "./GcnEventsFilterForm";
 import NewGcnEvent from "./NewGcnEvent";
 import Crossmatch from "./CrossmatchGcnEvents";
+import GcnEventAllocationTriggers from "./GcnEventAllocationTriggers";
 
 const useStyles = makeStyles((theme) => ({
   container: {
@@ -48,36 +57,68 @@ const useStyles = makeStyles((theme) => ({
 
 // Tweak responsive styling
 const getMuiTheme = (theme) =>
-  createTheme(
-    adaptV4Theme({
-      palette: theme.palette,
-      overrides: {
-        MUIDataTablePagination: {
-          toolbar: {
-            flexFlow: "row wrap",
-            justifyContent: "flex-end",
-            padding: "0.5rem 1rem 0",
-            [theme.breakpoints.up("sm")]: {
-              // Cancel out small screen styling and replace
-              padding: "0px",
-              paddingRight: "2px",
-              flexFlow: "row nowrap",
-            },
+  createTheme({
+    palette: theme.palette,
+    overrides: {
+      MUIDataTablePagination: {
+        toolbar: {
+          flexFlow: "row wrap",
+          justifyContent: "flex-end",
+          padding: "0.5rem 1rem 0",
+          [theme.breakpoints.up("sm")]: {
+            // Cancel out small screen styling and replace
+            padding: "0px",
+            paddingRight: "2px",
+            flexFlow: "row nowrap",
           },
-          tableCellContainer: {
-            padding: "1rem",
-          },
-          selectRoot: {
-            marginRight: "0.5rem",
-            [theme.breakpoints.up("sm")]: {
-              marginLeft: "0",
-              marginRight: "2rem",
-            },
+        },
+        tableCellContainer: {
+          padding: "1rem",
+        },
+        selectRoot: {
+          marginRight: "0.5rem",
+          [theme.breakpoints.up("sm")]: {
+            marginLeft: "0",
+            marginRight: "2rem",
           },
         },
       },
-    })
-  );
+    },
+  });
+
+const dialogTitleStyles = (theme) => ({
+  root: {
+    margin: 0,
+    padding: theme.spacing(2),
+  },
+  title: {
+    marginRight: theme.spacing(2),
+    fontSize: "1.5rem",
+  },
+  closeButton: {
+    position: "absolute",
+    right: theme.spacing(1),
+    top: theme.spacing(1),
+    color: grey[500],
+  },
+});
+
+const DialogTitle = withStyles(dialogTitleStyles)(
+  ({ children, classes, onClose }) => (
+    <MuiDialogTitle className={classes.root}>
+      <Typography className={classes.title}>{children}</Typography>
+      {onClose ? (
+        <IconButton
+          aria-label="close"
+          className={classes.closeButton}
+          onClick={onClose}
+        >
+          <Close />
+        </IconButton>
+      ) : null}
+    </MuiDialogTitle>
+  )
+);
 
 const defaultNumPerPage = 10;
 
@@ -87,6 +128,9 @@ const GcnEvents = () => {
   const dispatch = useDispatch();
   const gcnEvents = useSelector((state) => state.gcnEvents);
   const [filterFormSubmitted, setFilterFormSubmitted] = useState(false);
+
+  const [openNew, setOpenNew] = useState(false);
+  const [openCrossmatch, setOpenCrossmatch] = useState(false);
 
   const [fetchParams, setFetchParams] = useState({
     pageNumber: 1,
@@ -102,6 +146,11 @@ const GcnEvents = () => {
   }
 
   const { events, totalMatches } = gcnEvents;
+
+  const handleClose = () => {
+    setOpenNew(false);
+    setOpenCrossmatch(false);
+  };
 
   const handlePageChange = async (pageNumber, numPerPage, sortData) => {
     const params = {
@@ -187,6 +236,10 @@ const GcnEvents = () => {
       <Chip size="small" key={tag} label={tag} className={classes.eventTags} />
     ));
   };
+
+  const renderAllocationTriggers = (dataIndex) => (
+    <GcnEventAllocationTriggers gcnEvent={events[dataIndex]} showPassed />
+  );
 
   const renderLocalizationTags = (dataIndex) => {
     const localizationTags = [];
@@ -277,6 +330,13 @@ const GcnEvents = () => {
       },
     },
     {
+      name: "allocation_triggers",
+      label: "Allocation Triggers",
+      options: {
+        customBodyRenderLite: renderAllocationTriggers,
+      },
+    },
+    {
       name: "localization_tags",
       label: "Localization Tags",
       options: {
@@ -314,18 +374,38 @@ const GcnEvents = () => {
     download: false, // Disable download button for now (not implemented yet)
     filter: true,
     customFilterDialogFooter: customFilterDisplay,
+    customToolbar: () => (
+      <>
+        <IconButton
+          name="new_gcnevent"
+          onClick={() => {
+            setOpenNew(true);
+          }}
+        >
+          <AddIcon />
+        </IconButton>
+        <IconButton
+          name="crossmatch_gcnevents"
+          onClick={() => {
+            setOpenCrossmatch(true);
+          }}
+        >
+          <JoinInnerIcon />
+        </IconButton>
+      </>
+    ),
   };
 
   return (
     <Grid container spacing={3}>
-      <Grid item md={8} sm={12}>
+      <Grid item md={12} sm={12}>
         <Paper elevation={1}>
           <div className={classes.paperContent}>
-            <Typography variant="h5">GCN Events</Typography>
             {gcnEvents ? (
               <StyledEngineProvider injectFirst>
                 <ThemeProvider theme={getMuiTheme(theme)}>
                   <MUIDataTable
+                    title="GCN Events"
                     data={gcnEvents.events}
                     options={options}
                     columns={columns}
@@ -337,20 +417,34 @@ const GcnEvents = () => {
             )}
           </div>
         </Paper>
-      </Grid>
-      <Grid item md={4} sm={12}>
-        <Paper>
-          <div className={classes.paperContent}>
-            <Typography variant="h6">Add a New GcnEvent</Typography>
-            <NewGcnEvent />
-          </div>
-        </Paper>
-        <Paper style={{ margin: "16px 0px" }} variant="outlined">
-          <div className={classes.paperContent}>
-            <Typography variant="h6">Intersect two skymaps</Typography>
-            <Crossmatch />
-          </div>
-        </Paper>
+        {openNew && (
+          <Dialog
+            open={openNew}
+            onClose={handleClose}
+            style={{ position: "fixed" }}
+            maxWidth="md"
+          >
+            <DialogTitle onClose={handleClose}>New GCN Event</DialogTitle>
+            <DialogContent dividers>
+              <NewGcnEvent handleClose={handleClose} />
+            </DialogContent>
+          </Dialog>
+        )}
+        {openCrossmatch && (
+          <Dialog
+            open={openCrossmatch}
+            onClose={handleClose}
+            style={{ position: "fixed" }}
+            maxWidth="md"
+          >
+            <DialogTitle onClose={handleClose}>
+              Crossmatch GCN Events
+            </DialogTitle>
+            <DialogContent dividers>
+              <Crossmatch />
+            </DialogContent>
+          </Dialog>
+        )}
       </Grid>
     </Grid>
   );

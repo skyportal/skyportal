@@ -6,7 +6,6 @@ import {
   createTheme,
   ThemeProvider,
   StyledEngineProvider,
-  adaptV4Theme,
 } from "@mui/material/styles";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import Popover from "@mui/material/Popover";
@@ -28,25 +27,23 @@ import AddUsersFromGroupForm from "./AddUsersFromGroupForm";
 import GroupAdmissionRequestsManagement from "./GroupAdmissionRequestsManagement";
 
 const getMuiTheme = (theme) =>
-  createTheme(
-    adaptV4Theme({
-      palette: theme.palette,
-      overrides: {
-        MUIDataTableHeadCell: {
-          hintIconAlone: {
-            marginTop: 0,
-          },
-          hintIconWithSortIcon: {
-            marginTop: 0,
-          },
-          sortLabelRoot: {
-            height: "auto",
-            marginBottom: "auto",
-          },
+  createTheme({
+    palette: theme.palette,
+    overrides: {
+      MUIDataTableHeadCell: {
+        hintIconAlone: {
+          marginTop: 0,
+        },
+        hintIconWithSortIcon: {
+          marginTop: 0,
+        },
+        sortLabelRoot: {
+          height: "auto",
+          marginBottom: "auto",
         },
       },
-    })
-  );
+    },
+  });
 
 const GroupUsers = ({ group, classes, currentUser, theme, isAdmin }) => {
   const [anchorEl, setAnchorEl] = React.useState(null);

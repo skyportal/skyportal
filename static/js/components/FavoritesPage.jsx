@@ -87,14 +87,10 @@ const FavoritesPage = () => {
 
   return (
     <div className={classes.source}>
-      <Typography variant="h4" gutterBottom align="center">
-        Favorite sources
-      </Typography>
-
       {!!sourcesState.sources && (
         <SourceTable
           sources={sourcesState.sources}
-          title="Favorites"
+          title="Favorite sources"
           paginateCallback={handleSourcesTablePagination}
           pageNumber={sourcesState.pageNumber}
           totalMatches={sourcesState.totalMatches}

@@ -3,7 +3,7 @@ __all__ = ['UserNotification']
 import json
 
 import sqlalchemy as sa
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, sessionmaker, scoped_session
 from sqlalchemy import func
 
 from sqlalchemy import event, inspect
@@ -36,7 +36,10 @@ from twilio.twiml.voice_response import Say, VoiceResponse
 import gcn
 from sqlalchemy import or_
 
-from skyportal.models import Shift, ShiftUser
+import asyncio
+from tornado.ioloop import IOLoop
+
+from skyportal.models import Shift, ShiftUser, DBSession
 from skyportal.utils.gcn import get_skymap_properties
 
 from skyportal.utils.notifications import (
@@ -465,29 +468,63 @@ def push_frontend_notification(mapper, connection, target):
 @event.listens_for(Classification, 'after_insert')
 @event.listens_for(Spectrum, 'after_insert')
 @event.listens_for(Comment, 'after_insert')
-@event.listens_for(Localization, 'after_insert')
 @event.listens_for(FacilityTransaction, 'after_insert')
 @event.listens_for(GroupAdmissionRequest, 'after_insert')
 @event.listens_for(ObjAnalysis, 'after_update')
 @event.listens_for(EventObservationPlan, 'after_insert')
 @event.listens_for(FollowupRequest, 'after_update')
+@event.listens_for(Localization, 'after_insert')
 def add_user_notifications(mapper, connection, target):
 
     # Add front-end user notifications
-    @event.listens_for(inspect(target).session, "after_flush", once=True)
-    def receive_after_flush(session, context):
+    @event.listens_for(inspect(target).session, "after_commit", once=True)
+    def receive_after_commit(session):
 
-        is_facility_transaction = target.__class__.__name__ == "FacilityTransaction"
-        is_gcnevent = target.__class__.__name__ == "Localization"
-        is_classification = target.__class__.__name__ == "Classification"
-        is_spectra = target.__class__.__name__ == "Spectrum"
-        is_comment = target.__class__.__name__ == "Comment"
-        is_group_admission_request = (
-            target.__class__.__name__ == "GroupAdmissionRequest"
+        if target is None:
+            return
+
+        target_class = target.__class__
+        try:
+            target_data = target.to_dict()
+        except Exception:
+            return
+        try:
+            target_id = target.id
+        except Exception:
+            return
+
+        # check if there is already an event loop
+        try:
+            loop = asyncio.get_event_loop()
+        except Exception:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+
+        IOLoop.current().run_in_executor(
+            None,
+            lambda: notify_users(target_class, target_id, target_data),
         )
-        is_analysis_service = target.__class__.__name__ == "ObjAnalysis"
-        is_observation_plan = target.__class__.__name__ == "EventObservationPlan"
-        is_followup_request = target.__class__.__name__ == "FollowupRequest"
+
+
+def notify_users(target_class, target_id, target_data):
+
+    is_facility_transaction = target_class.__name__ == "FacilityTransaction"
+    is_gcnevent = target_class.__name__ == "Localization"
+    is_classification = target_class.__name__ == "Classification"
+    is_spectra = target_class.__name__ == "Spectrum"
+    is_comment = target_class.__name__ == "Comment"
+    is_group_admission_request = target_class.__name__ == "GroupAdmissionRequest"
+    is_analysis_service = target_class.__name__ == "ObjAnalysis"
+    is_observation_plan = target_class.__name__ == "EventObservationPlan"
+    is_followup_request = target_class.__name__ == "FollowupRequest"
+
+    Session = scoped_session(sessionmaker())
+    if Session.registry.has():
+        session = Session()
+    else:
+        session = Session(bind=DBSession.session_factory.kw["bind"])
+
+    try:
 
         if is_gcnevent:
             users = session.scalars(
@@ -525,7 +562,7 @@ def add_user_notifications(mapper, connection, target):
             users = []
             group_admins_gu = session.scalars(
                 sa.select(GroupUser).where(
-                    GroupUser.group_id == target.group_id,
+                    GroupUser.group_id == target_data["group_id"],
                     GroupUser.admin.is_(True),
                 )
             ).all()
@@ -582,8 +619,8 @@ def add_user_notifications(mapper, connection, target):
 
             if (
                 session.scalars(
-                    target.__class__.select(user, mode='read').where(
-                        target.__class__.id == target.id
+                    target_class.select(user, mode='read').where(
+                        target_class.id == target_id
                     )
                 ).first()
                 is not None
@@ -592,7 +629,9 @@ def add_user_notifications(mapper, connection, target):
                     send_notification = True
 
                     event = session.scalars(
-                        sa.select(GcnEvent).where(GcnEvent.dateobs == target.dateobs)
+                        sa.select(GcnEvent).where(
+                            GcnEvent.dateobs == target_data["dateobs"]
+                        )
                     ).first()
                     notices = event.gcn_notices
                     if len(notices) > 0:
@@ -654,10 +693,15 @@ def add_user_notifications(mapper, connection, target):
                             if not any(properties_bool):
                                 send_notification = False
 
+                    localization = session.scalars(
+                        sa.select(Localization).where(
+                            Localization.dateobs == target_data["dateobs"]
+                        )
+                    ).first()
                     (
                         localization_properties_dict,
                         localization_tags_list,
-                    ) = get_skymap_properties(target)
+                    ) = get_skymap_properties(localization)
                     if (
                         "localization_tags" in pref["gcn_events"].keys()
                         and send_notification
@@ -701,36 +745,38 @@ def add_user_notifications(mapper, connection, target):
 
                     if send_notification:
                         stmt = sa.select(GcnNotice).where(
-                            GcnNotice.dateobs == target.dateobs
+                            GcnNotice.dateobs == target_data["dateobs"]
                         )
                         count_stmt = sa.select(func.count()).select_from(stmt)
                         count_notices = session.execute(count_stmt).scalar()
                         if len(notices) > 0:
                             if count_notices > 1:
                                 text = (
-                                    f"New Notice for GCN Event *{target.dateobs}*, "
+                                    f"New Notice for GCN Event *{target_data['dateobs']}*, "
                                     f"with Notice Type *{gcn.NoticeType(notice.notice_type).name}*"
                                 )
                             else:
                                 text = (
-                                    f"New GCN Event *{target.dateobs}*, "
+                                    f"New GCN Event *{target_data['dateobs']}*, "
                                     f"with Notice Type *{gcn.NoticeType(notice.notice_type).name}*"
                                 )
                         else:
-                            text = f"New GCN Event *{target.dateobs}*"
+                            text = f"New GCN Event *{target_data['dateobs']}*"
 
                         session.add(
                             UserNotification(
                                 user=user,
                                 text=text,
                                 notification_type="gcn_events",
-                                url=f"/gcn_events/{str(target.dateobs).replace(' ','T')}",
+                                url=f"/gcn_events/{str(target_data['dateobs']).replace(' ','T')}",
                             )
                         )
 
                 elif is_facility_transaction:
-                    if "observation_plan_request" in target.to_dict():
-                        allocation_id = target.observation_plan_request.allocation_id
+                    if "observation_plan_request" in target_data.keys():
+                        allocation_id = target_data["observation_plan_request"][
+                            "allocation_id"
+                        ]
                         allocation = session.scalars(
                             sa.select(Allocation).where(Allocation.id == allocation_id)
                         ).first()
@@ -739,12 +785,12 @@ def add_user_notifications(mapper, connection, target):
                             for allocation_user in allocation.allocation_users
                         ]
                         notification_user_ids.append(
-                            target.observation_plan_request.requester_id
+                            target_data["observation_plan_request"]["requester_id"]
                         )
                         instrument = allocation.instrument
-                        localization_id = (
-                            target.observation_plan_request.localization_id
-                        )
+                        localization_id = target_data["observation_plan_request"][
+                            "localization_id"
+                        ]
                         localization = session.scalars(
                             sa.select(Localization).where(
                                 Localization.id == localization_id
@@ -754,13 +800,13 @@ def add_user_notifications(mapper, connection, target):
                             session.add(
                                 UserNotification(
                                     user=user,
-                                    text=f"New Observation Plan submission for GcnEvent *{localization.dateobs}* for *{instrument.name}* by user *{target.observation_plan_request.requester.username}*",
+                                    text=f"New Observation Plan submission for GcnEvent *{localization.dateobs}* for *{instrument.name}* by user *{target_data['observation_plan_request']['requester']['username']}*",
                                     notification_type="facility_transactions",
                                     url=f"/gcn_events/{str(localization.dateobs).replace(' ','T')}",
                                 )
                             )
-                    elif "followup_request" in target.to_dict():
-                        allocation_id = target.followup_request.allocation_id
+                    elif "followup_request" in target_data.keys():
+                        allocation_id = target_data["followup_request"]["allocation_id"]
                         allocation = session.scalars(
                             sa.select(Allocation).where(Allocation.id == allocation_id)
                         ).first()
@@ -769,7 +815,7 @@ def add_user_notifications(mapper, connection, target):
                             for allocation_user in allocation.allocation_users
                         ]
                         notification_user_ids.append(
-                            target.followup_request.requester_id
+                            target_data["followup_request"]["requester_id"]
                         )
                         shift_user_ids = users_on_shift(session)
                         for shift_user_id in shift_user_ids:
@@ -790,24 +836,24 @@ def add_user_notifications(mapper, connection, target):
                             session.add(
                                 UserNotification(
                                     user=user,
-                                    text=f"New Follow-up submission for object *{target.followup_request.obj_id}* by *{instrument.name}* by user *{target.followup_request.requester.username}*",
+                                    text=f"New Follow-up submission for object *{target_data['followup_request']['obj_id']}* by *{instrument.name}* by user *{target_data['followup_request']['requester']['username']}*",
                                     notification_type="facility_transactions",
-                                    url=f"/source/{target.followup_request.obj_id}",
+                                    url=f"/source/{target_data['followup_request']['obj_id']}",
                                 )
                             )
                 elif is_followup_request:
-                    if target.status == "submitted":
+                    if target_data['status'] == "submitted":
                         continue
-                    allocation_id = target.allocation_id
+                    allocation_id = target_data["allocation_id"]
                     allocation = session.scalars(
                         sa.select(Allocation).where(Allocation.id == allocation_id)
                     ).first()
                     notification_user_ids = [
                         allocation_user.user.id
                         for allocation_user in allocation.allocation_users
-                    ] + [watcher.user_id for watcher in target.watchers]
-                    notification_user_ids.append(target.requester_id)
-                    notification_user_ids.append(target.last_modified_by_id)
+                    ] + [watcher['user_id'] for watcher in target_data['watchers']]
+                    notification_user_ids.append(target_data["requester_id"])
+                    notification_user_ids.append(target_data["last_modified_by_id"])
                     shift_user_ids = users_on_shift(session)
                     for shift_user_id in shift_user_ids:
                         user = session.scalar(
@@ -827,23 +873,25 @@ def add_user_notifications(mapper, connection, target):
                         session.add(
                             UserNotification(
                                 user=user,
-                                text=f"Follow-up submission for object *{target.obj_id}* by *{instrument.name}* updated by user *{target.last_modified_by.username}*",
+                                text=f"Follow-up submission for object *{target_data['obj_id']}* by *{instrument.name}* updated by user *{target_data['last_modified_by']['username']}*",
                                 notification_type="facility_transactions",
-                                url=f"/source/{target.obj_id}",
+                                url=f"/source/{target_data['obj_id']}",
                             )
                         )
                 elif is_analysis_service:
-                    if target.status == "completed":
+                    if target_data["status"] == "completed":
                         session.add(
                             UserNotification(
                                 user=user,
-                                text=f"New completed analysis service for object *{target.obj_id}* with name *{target.analysis_service.name}*",
+                                text=f"New completed analysis service for object *{target_data['obj_id']}* with name *{target_data['analysis_service']['name']}*",
                                 notification_type="analysis_services",
-                                url=f"/source/{target.obj_id}",
+                                url=f"/source/{target_data['obj_id']}",
                             )
                         )
                 elif is_observation_plan:
-                    observation_plan_request_id = target.observation_plan_request_id
+                    observation_plan_request_id = target_data[
+                        "observation_plan_request_id"
+                    ]
                     observation_plan_request = session.scalars(
                         sa.select(ObservationPlanRequest).where(
                             ObservationPlanRequest.id == observation_plan_request_id
@@ -877,10 +925,10 @@ def add_user_notifications(mapper, connection, target):
                         )
                 elif is_group_admission_request:
                     user_from_request = session.scalars(
-                        sa.select(User).where(User.id == target.user_id)
+                        sa.select(User).where(User.id == target_data["user_id"])
                     ).first()
                     group_from_request = session.scalars(
-                        sa.select(Group).where(Group.id == target.group_id)
+                        sa.select(Group).where(Group.id == target_data["group_id"])
                     ).first()
                     session.add(
                         UserNotification(
@@ -894,7 +942,7 @@ def add_user_notifications(mapper, connection, target):
                     favorite_sources = session.scalars(
                         sa.select(Listing)
                         .where(Listing.list_name == 'favorites')
-                        .where(Listing.obj_id == target.obj_id)
+                        .where(Listing.obj_id == target_data['obj_id'])
                         .where(Listing.user_id == user.id)
                     ).all()
                     if pref is None:
@@ -905,30 +953,30 @@ def add_user_notifications(mapper, connection, target):
                             len(favorite_sources) > 0
                             and "favorite_sources" in pref.keys()
                             and any(
-                                target.obj_id == source.obj_id
+                                target_data["obj_id"] == source.obj_id
                                 for source in favorite_sources
                             )
                         ):
                             session.add(
                                 UserNotification(
                                     user=user,
-                                    text=f"New classification on favorite source *{target.obj_id}*",
+                                    text=f"New classification on favorite source *{target_data['obj_id']}*",
                                     notification_type="favorite_sources_new_classification",
-                                    url=f"/source/{target.obj_id}",
+                                    url=f"/source/{target_data['obj_id']}",
                                 )
                             )
                         elif (pref is not None) and "sources" in pref.keys():
                             if "classifications" in pref['sources'].keys():
                                 if (
-                                    target.classification
+                                    target_data['classification']
                                     in pref['sources']['classifications']
                                 ):
                                     session.add(
                                         UserNotification(
                                             user=user,
-                                            text=f"New classification *{target.classification}* for source *{target.obj_id}*",
+                                            text=f"New classification *{target_data['classification']}* for source *{target_data['obj_id']}*",
                                             notification_type="sources",
-                                            url=f"/source/{target.obj_id}",
+                                            url=f"/source/{target_data['obj_id']}",
                                         )
                                     )
                     elif is_spectra:
@@ -937,15 +985,15 @@ def add_user_notifications(mapper, connection, target):
                             and "favorite_sources" in pref.keys()
                         ):
                             if any(
-                                target.obj_id == source.obj_id
+                                target_data['obj_id'] == source.obj_id
                                 for source in favorite_sources
                             ):
                                 session.add(
                                     UserNotification(
                                         user=user,
-                                        text=f"New spectrum on favorite source *{target.obj_id}*",
+                                        text=f"New spectrum on favorite source *{target_data['obj_id']}*",
                                         notification_type="favorite_sources_new_spectra",
-                                        url=f"/source/{target.obj_id}",
+                                        url=f"/source/{target_data['obj_id']}",
                                     )
                                 )
                     elif is_comment:
@@ -954,17 +1002,24 @@ def add_user_notifications(mapper, connection, target):
                             and "favorite_sources" in pref.keys()
                         ):
                             if any(
-                                target.obj_id == source.obj_id
+                                target_data['obj_id'] == source.obj_id
                                 for source in favorite_sources
                             ):
                                 session.add(
                                     UserNotification(
                                         user=user,
-                                        text=f"New comment on favorite source *{target.obj_id}*",
+                                        text=f"New comment on favorite source *{target_data['obj_id']}*",
                                         notification_type="favorite_sources_new_comment",
-                                        url=f"/source/{target.obj_id}",
+                                        url=f"/source/{target_data['obj_id']}",
                                     )
                                 )
+        session.commit()
+    except Exception as e:
+        session.rollback()
+        log(f"Error in sending notifications: {e}", "error")
+    finally:
+        session.close()
+        Session.remove()
 
 
 def users_on_shift(session):

@@ -392,7 +392,7 @@ const AllocationTable = ({
           <StyledEngineProvider injectFirst>
             <ThemeProvider theme={getMuiTheme(theme)}>
               <MUIDataTable
-                title={!hideTitle ? "" : ""}
+                title={!hideTitle ? "Allocations" : ""}
                 data={allocations}
                 options={options}
                 columns={columns}

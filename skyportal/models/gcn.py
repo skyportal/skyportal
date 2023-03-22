@@ -1,4 +1,4 @@
-__all__ = ['GcnNotice', 'GcnTag', 'GcnEvent', 'GcnProperty', 'GcnSummary']
+__all__ = ['GcnNotice', 'GcnTag', 'GcnEvent', 'GcnProperty', 'GcnSummary', 'GcnTrigger']
 
 import sqlalchemy as sa
 from sqlalchemy.orm import relationship
@@ -9,8 +9,17 @@ from sqlalchemy.ext.hybrid import hybrid_property
 import gcn
 import lxml
 
-from baselayer.app.models import Base, DBSession, AccessibleIfUserMatches
+from baselayer.app.models import (
+    Base,
+    DBSession,
+    AccessibleIfUserMatches,
+    CustomUserAccessControl,
+    UserAccessControl,
+    safe_aliased,
+    join_model,
+)
 from .group import accessible_by_group_members
+from .allocation import Allocation, AllocationUser
 
 SOURCE_RADIUS_THRESHOLD = 5 / 60.0  # 5 arcmin in degrees
 
@@ -283,6 +292,14 @@ class GcnEvent(Base):
         doc="MMA Detectors that contributed this event.",
     )
 
+    gcn_triggers = relationship(
+        "GcnTrigger",
+        back_populates="gcnevent",
+        cascade="save-update, merge, refresh-expire, expunge",
+        passive_deletes=True,
+        doc="GCN triggers that contributed this event.",
+    )
+
     @hybrid_property
     def tags(self):
         """List of tags."""
@@ -401,3 +418,47 @@ class GcnEvent(Base):
                 return 'FAR: ' + elem.attrib.get('value', '')
             except Exception:
                 return None
+
+
+def gcntrigger_allocationuser_access_logic(cls, user_or_token):
+    aliased = safe_aliased(cls)
+    user_id = UserAccessControl.user_id_from_user_or_token(user_or_token)
+    user_allocation_admin = (
+        DBSession()
+        .query(Allocation)
+        .join(AllocationUser, AllocationUser.allocation_id == Allocation.id)
+        .filter(sa.and_(AllocationUser.user_id == user_id))
+    )
+    query = (
+        DBSession().query(cls).join(aliased, cls.allocation_id == aliased.allocation_id)
+    )
+    if not user_or_token.is_system_admin:
+        query = query.filter(
+            aliased.allocation_id.in_(
+                [allocation.id for allocation in user_allocation_admin.all()]
+            )
+        )
+    return query
+
+
+GcnTrigger = join_model(
+    'gcntriggers',
+    GcnEvent,
+    Allocation,
+    "dateobs",
+    "allocation_id",
+    "dateobs",
+    "id",
+    new_name='GcnTrigger',
+)
+
+GcnTrigger.triggered = sa.Column(
+    sa.Boolean,
+    nullable=False,
+    default=False,
+    doc="Whether this GCN event triggered the allocation.",
+)
+
+GcnTrigger.create = GcnTrigger.update = GcnTrigger.delete = CustomUserAccessControl(
+    gcntrigger_allocationuser_access_logic
+)

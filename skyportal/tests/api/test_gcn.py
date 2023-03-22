@@ -1283,7 +1283,7 @@ def test_gcn_Swift(super_admin_token, view_only_token):
         status, data = api(
             'POST', 'gcn_event', data=event_data_1, token=super_admin_token
         )
-        assert status in [200, 400]
+        assert status == 200
         assert data['status'] == 'success'
 
         status, data = api(
@@ -1308,6 +1308,10 @@ def test_gcn_Swift(super_admin_token, view_only_token):
             for loc in data["localizations"]
         ]
     )
+
+    # wait for the async tasks to finish before finishing the tests, which will delete the user
+    # from the db, causing failures in the session.commit() in the async tasks (because the user is not in the db anymore)
+    time.sleep(5)
 
 
 def test_gcn_tach(
@@ -1406,3 +1410,132 @@ def test_download_localization(super_admin_token, view_only_token):
         token=super_admin_token,
     )
     assert status == 200
+
+
+def test_gcn_allocation_triggers(
+    public_group,
+    super_admin_token,
+    view_only_token,
+):
+
+    datafile = f'{os.path.dirname(__file__)}/../data/GRB180116A_Fermi_GBM_Gnd_Pos.xml'
+    with open(datafile, 'rb') as fid:
+        payload = fid.read()
+    event_data = {'xml': payload}
+
+    dateobs = "2018-01-16T00:36:53"
+    status, data = api('GET', f'gcn_event/{dateobs}', token=super_admin_token)
+
+    if status == 404:
+        status, data = api(
+            'POST', 'gcn_event', data=event_data, token=super_admin_token
+        )
+        assert status == 200
+        assert data['status'] == 'success'
+
+    for n_times in range(26):
+        status, data = api('GET', f"gcn_event/{dateobs}", token=super_admin_token)
+        if data['status'] == 'success':
+            break
+        time.sleep(2)
+    assert n_times < 25
+
+    name = str(uuid.uuid4())
+    status, data = api(
+        'POST',
+        'telescope',
+        data={
+            'name': name,
+            'nickname': name,
+            'lat': 0.0,
+            'lon': 0.0,
+            'elevation': 0.0,
+            'diameter': 10.0,
+        },
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+    telescope_id = data['data']['id']
+
+    instrument_name = str(uuid.uuid4())
+    status, data = api(
+        'POST',
+        'instrument',
+        data={
+            'name': instrument_name,
+            'type': 'imager',
+            'band': 'Optical',
+            'filters': ['ztfr'],
+            'telescope_id': telescope_id,
+            'api_classname': 'ZTFAPI',
+            'api_classname_obsplan': 'ZTFMMAAPI',
+            'field_fov_type': 'circle',
+            'field_fov_attributes': 3.0,
+            'sensitivity_data': {
+                'ztfr': {
+                    'limiting_magnitude': 20.3,
+                    'magsys': 'ab',
+                    'exposure_time': 30,
+                    'zeropoint': 26.3,
+                }
+            },
+        },
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+    instrument_id = data['data']['id']
+
+    request_data = {
+        'group_id': public_group.id,
+        'instrument_id': instrument_id,
+        'pi': 'Shri Kulkarni',
+        'hours_allocated': 200,
+        'start_date': '3021-02-27T00:00:00',
+        'end_date': '3021-07-20T00:00:00',
+        'proposal_id': 'COO-2020A-P01',
+        'default_share_group_ids': [public_group.id],
+    }
+
+    status, data = api('POST', 'allocation', data=request_data, token=super_admin_token)
+    assert status == 200
+    assert data['status'] == 'success'
+    allocation_id = data['data']['id']
+
+    status, data = api('GET', f'allocation/{allocation_id}', token=super_admin_token)
+    assert status == 200
+    assert data['status'] == 'success'
+
+    status, data = api(
+        'PUT',
+        f'gcn_event/{dateobs}/triggered/{allocation_id}',
+        data={"triggered": True},
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    status, data = api(
+        'PUT',
+        f'gcn_event/{dateobs}/triggered/{allocation_id}',
+        data={"triggered": False},
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    # now we verify that the view_only_token can't change the triggered status
+    status, data = api(
+        'PUT',
+        f'gcn_event/{dateobs}/triggered/{allocation_id}',
+        data={"triggered": True},
+        token=view_only_token,
+    )
+    assert status == 401
+
+    status, data = api('GET', f"gcn_event/{dateobs}", token=super_admin_token)
+    assert status == 200
+    assert data['status'] == 'success'
+    assert data['data']['gcn_triggers'][0]['allocation_id'] == allocation_id
+    assert data['data']['gcn_triggers'][0]['triggered'] is False

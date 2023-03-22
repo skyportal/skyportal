@@ -198,7 +198,7 @@ def add_observations(instrument_id, obstable):
                     observation_id=row["observation_id"],
                     instrument_field_id=field.id,
                     obstime=obstime.datetime,
-                    seeing=row["seeing"],
+                    seeing=row.get("seeing", None),
                     limmag=row["limmag"],
                     exposure_time=row["exposure_time"],
                     filt=row["filter"],

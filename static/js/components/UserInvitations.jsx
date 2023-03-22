@@ -26,7 +26,6 @@ import {
   ThemeProvider,
   StyledEngineProvider,
   useTheme,
-  adaptV4Theme,
 } from "@mui/material/styles";
 import makeStyles from "@mui/styles/makeStyles";
 // eslint-disable-next-line import/no-unresolved
@@ -68,18 +67,16 @@ const useStyles = makeStyles(() => ({
 }));
 
 const dataTableStyles = (theme) =>
-  createTheme(
-    adaptV4Theme({
-      overrides: {
-        MuiPaper: {
-          elevation4: {
-            boxShadow: "none !important",
-          },
+  createTheme({
+    overrides: {
+      MuiPaper: {
+        elevation4: {
+          boxShadow: "none !important",
         },
       },
-      palette: theme.palette,
-    })
-  );
+    },
+    palette: theme.palette,
+  });
 
 const sampleCSVText = `example1@gmail.com,1,3,false
 example2@gmail.com,1 2 3,2 5 9,false false true`;

@@ -7,43 +7,39 @@ import MenuItem from "@mui/material/MenuItem";
 import { useForm, Controller } from "react-hook-form";
 import Button from "./Button";
 
-const useStyles = makeStyles((theme) => ({
-  paper: {
-    padding: "1rem",
-    marginTop: "1rem",
-    maxHeight: "calc(100vh - 5rem)",
-    overflow: "scroll",
-  },
+const useStyles = makeStyles(() => ({
   root: {
     display: "flex",
-    flexWrap: "wrap",
-    justifyContent: "space-between",
-    "& .MuiTextField-root": {
-      margin: theme.spacing(0.2),
-      width: "10rem",
-    },
+    flexDirection: "column",
+    width: "100%",
   },
-  formItemRightColumn: {
-    flex: "1 1 50%",
-    margin: "0.5rem",
+  gridItem: {
+    display: "flex",
+    flexDirection: "row",
   },
   formButtons: {
+    display: "flex",
+    flexDirection: "row",
+    justifyContent: "flex-start",
+    alignItems: "center",
+    gap: "0.5rem",
     width: "100%",
     margin: "0.5rem",
+    marginLeft: "1rem",
   },
   select: {
-    width: "40%",
+    width: "100%",
     height: "3rem",
   },
   selectItems: {
+    marginLeft: "0.5rem",
     display: "flex",
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "left",
+    justifyContent: "space-between",
     gap: "0.25rem",
-  },
-  selectItem: {
-    whiteSpace: "break-spaces",
+    width: "30rem",
+    minWidth: "15rem",
   },
 }));
 
@@ -87,7 +83,8 @@ const Crossmatch = () => {
 
   return (
     <form className={classes.root}>
-      <div className={classes.formItemRightColumn}>
+      <div className={classes.gridItem}>
+        <h6> 1: </h6>
         <div className={classes.selectItems}>
           <Controller
             render={({ field: { value } }) => (
@@ -160,7 +157,9 @@ const Crossmatch = () => {
           />
         </div>
       </div>
-      <div className={classes.formItemRightColumn}>
+      <div className={classes.gridItem}>
+        <h6> 2: </h6>
+
         <div className={classes.selectItems}>
           <Controller
             render={({ field: { value } }) => (
@@ -233,23 +232,24 @@ const Crossmatch = () => {
           />
         </div>
       </div>
-      <div className={classes.formButtons}>
-        <ButtonGroup primary aria-label="contained primary button group">
-          <Button
-            secondary
-            type="submit"
-            href={`/api/localizationcrossmatch?id1=${selectedLocalizationId1}&id2=${selectedLocalizationId2}`}
-            download={`crossmatch-${selectedLocalizationId1}-${selectedLocalizationId2}.fits`}
-            size="small"
-            data-testid={`crossmatch_${selectedGcnEventId1}`}
-          >
-            Download Crossmatch
-          </Button>
-          <Button primary onClick={handleClickReset}>
-            Reset
-          </Button>
-        </ButtonGroup>
-      </div>
+      <ButtonGroup
+        primary
+        aria-label="contained primary button group"
+        className={classes.formButtons}
+      >
+        <Button
+          secondary
+          type="submit"
+          href={`/api/localizationcrossmatch?id1=${selectedLocalizationId1}&id2=${selectedLocalizationId2}`}
+          download={`crossmatch-${selectedLocalizationId1}-${selectedLocalizationId2}.fits`}
+          data-testid={`crossmatch_${selectedGcnEventId1}`}
+        >
+          Download Crossmatch
+        </Button>
+        <Button primary onClick={handleClickReset}>
+          Reset
+        </Button>
+      </ButtonGroup>
     </form>
   );
 };

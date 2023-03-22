@@ -114,6 +114,18 @@ const ExecutedObservationsTable = ({
     return <div>{field ? field.dec.toFixed(5) : ""}</div>;
   };
 
+  const renderSeeing = (dataIndex) => {
+    const { seeing } = observations[dataIndex];
+
+    return <div>{seeing ? seeing.toFixed(1) : ""}</div>;
+  };
+
+  const renderLimitingMagnitude = (dataIndex) => {
+    const { limmag } = observations[dataIndex];
+
+    return <div>{limmag ? limmag.toFixed(2) : ""}</div>;
+  };
+
   const [isSaving, setIsSaving] = useState(null);
   const handleSave = async (formData) => {
     setIsSaving(formData.id);
@@ -246,11 +258,23 @@ const ExecutedObservationsTable = ({
     },
     {
       name: "seeing",
-      label: "Seeing",
+      label: "Seeing [arcsec]",
+      options: {
+        filter: false,
+        sort: true,
+        sortThirdClickReset: true,
+        customBodyRenderLite: renderSeeing,
+      },
     },
     {
       name: "limmag",
       label: "Limiting magnitude",
+      options: {
+        filter: false,
+        sort: true,
+        sortThirdClickReset: true,
+        customBodyRenderLite: renderLimitingMagnitude,
+      },
     },
     {
       name: "save_source",

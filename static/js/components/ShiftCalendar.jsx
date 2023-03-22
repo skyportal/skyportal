@@ -365,7 +365,7 @@ function MyCalendar({ events, currentShift, setShow }) {
             defaultView={Views.WEEK}
             showMultiDayTimes
             localizer={localizer}
-            style={{ height: "70vh", width: "100%" }}
+            style={{ height: "77vh", width: "100%" }}
             components={{
               event: Event,
             }}
