@@ -143,6 +143,7 @@ const ObservationPlanGlobe = ({ observationplanRequest, loc }) => {
             options={displayOptionsDefault}
             height={300}
             width={300}
+            type="obsplan"
           />
           <Button
             secondary
@@ -269,24 +270,30 @@ ObservationPlanSummaryStatistics.propTypes = {
   }).isRequired,
 };
 
-const ObservationPlanRequestLists = ({ gcnEvent }) => {
+const ObservationPlanRequestLists = ({ dateobs }) => {
   const classes = useStyles();
   const dispatch = useDispatch();
   const theme = useTheme();
 
+  const gcnEvent = useSelector((state) => state.gcnEvent);
+
   const [observationPlanRequestList, setObservationPlanRequestList] =
     useState(null);
   useEffect(() => {
-    const fetchObservationPlanRequestList = async () => {
-      const response = await dispatch(
-        GET(
-          `/api/gcn_event/${gcnEvent.id}/observation_plan_requests`,
-          "skyportal/FETCH_GCNEVENT_OBSERVATION_PLAN_REQUESTS"
-        )
-      );
-      setObservationPlanRequestList(response.data);
-    };
-    fetchObservationPlanRequestList();
+    if (!gcnEvent) {
+      return;
+    }
+    if (dateobs !== gcnEvent.dateobs || !gcnEvent) {
+      const fetchObservationPlanRequestList = async () => {
+        dispatch(
+          GET(
+            `/api/gcn_event/${gcnEvent.id}/observation_plan_requests`,
+            "skyportal/FETCH_GCNEVENT_OBSERVATION_PLAN_REQUESTS"
+          )
+        ).then((response) => setObservationPlanRequestList(response.data));
+      };
+      fetchObservationPlanRequestList();
+    }
   }, [dispatch, setObservationPlanRequestList, gcnEvent]);
 
   const [selectedLocalizationId, setSelectedLocalizationId] = useState(null);
@@ -794,34 +801,7 @@ const ObservationPlanRequestLists = ({ gcnEvent }) => {
 };
 
 ObservationPlanRequestLists.propTypes = {
-  gcnEvent: PropTypes.shape({
-    dateobs: PropTypes.string,
-    localizations: PropTypes.arrayOf(
-      PropTypes.shape({
-        id: PropTypes.number,
-        localization_name: PropTypes.string,
-      })
-    ),
-    id: PropTypes.number,
-    observationplan_requests: PropTypes.arrayOf(
-      PropTypes.shape({
-        requester: PropTypes.shape({
-          id: PropTypes.number,
-          username: PropTypes.string,
-        }),
-        instrument: PropTypes.shape({
-          id: PropTypes.number,
-          name: PropTypes.string,
-        }),
-        status: PropTypes.string,
-        allocation: PropTypes.shape({
-          group: PropTypes.shape({
-            name: PropTypes.string,
-          }),
-        }),
-      })
-    ),
-  }).isRequired,
+  dateobs: PropTypes.string.isRequired,
 };
 
 export default ObservationPlanRequestLists;

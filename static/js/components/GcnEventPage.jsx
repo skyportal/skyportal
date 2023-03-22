@@ -45,6 +45,8 @@ import GcnProperties from "./GcnProperties";
 import Reminders from "./Reminders";
 
 import withRouter from "./withRouter";
+import { postLocalizationFromNotice } from "../ducks/localization";
+import * as localizationActions from "../ducks/localization";
 
 dayjs.extend(utc);
 
@@ -257,6 +259,8 @@ const GcnEventPage = ({ route }) => {
   const styles = useStyles();
   const [selectedLocalizationName, setSelectedLocalizationName] =
     useState(null);
+  const [fetchingCachedLocalization, setFetchingCachedLocalization] =
+    useState(false);
   const [sourceFilteringState, setSourceFilteringState] = useState({
     startDate: null,
     endDate: null,
@@ -278,6 +282,8 @@ const GcnEventPage = ({ route }) => {
     (state) => state?.observations?.gcnEventObservations
   );
 
+  const cachedLocalization = useSelector((state) => state.localization.cached);
+
   useEffect(() => {
     const handleResize = () => {
       if (ref.current !== null) {
@@ -293,8 +299,32 @@ const GcnEventPage = ({ route }) => {
       await dispatch(gcnEventActions.fetchGcnEvent(dateobs));
       await dispatch(gcnEventActions.fetchGcnTach(dateobs));
     };
-    fetchGcnEvent(route.dateobs);
+    if (route?.dateobs !== gcnEvent?.dateobs && route?.dateobs) {
+      fetchGcnEvent(route?.dateobs);
+    }
   }, [route, dispatch]);
+
+  // if there is no cached localization, then we need to fetch it
+  useEffect(() => {
+    if (!gcnEvent || fetchingCachedLocalization) {
+      return;
+    }
+    if (
+      !cachedLocalization ||
+      cachedLocalization?.dateobs !== gcnEvent?.dateobs
+    ) {
+      if (fetchingCachedLocalization === false) {
+        dispatch(
+          localizationActions.fetchLocalization(
+            gcnEvent?.dateobs,
+            gcnEvent.localizations[0]?.localization_name
+          )
+        ).then(() => {
+          setFetchingCachedLocalization(false);
+        });
+      }
+    }
+  }, [gcnEvent, dispatch]);
 
   if (!gcnEvent) {
     return <Spinner />;
@@ -416,11 +446,15 @@ const GcnEventPage = ({ route }) => {
               </AccordionSummary>
               <AccordionDetails>
                 <div className={styles.gcnEventContainer}>
-                  <GcnSelectionForm
-                    gcnEvent={gcnEvent}
-                    setSelectedLocalizationName={setSelectedLocalizationName}
-                    setSourceFilteringState={setSourceFilteringState}
-                  />
+                  {route?.dateobs === gcnEvent?.dateobs && route?.dateobs ? (
+                    <GcnSelectionForm
+                      dateobs={route.dateobs}
+                      setSelectedLocalizationName={setSelectedLocalizationName}
+                      setSourceFilteringState={setSourceFilteringState}
+                    />
+                  ) : (
+                    <p> Fetching event... </p>
+                  )}
                 </div>
               </AccordionDetails>
             </Accordion>
@@ -438,11 +472,17 @@ const GcnEventPage = ({ route }) => {
               </AccordionSummary>
               <AccordionDetails>
                 <div className={styles.gcnEventContainer}>
-                  <ObservationPlanRequestForm
-                    gcnevent={gcnEvent}
-                    action="createNew"
-                  />
-                  <ObservationPlanRequestLists gcnEvent={gcnEvent} />
+                  {route?.dateobs === gcnEvent?.dateobs && route?.dateobs ? (
+                    <>
+                      <ObservationPlanRequestForm
+                        dateobs={route?.dateobs}
+                        action="createNew"
+                      />
+                      <ObservationPlanRequestLists dateobs={route?.dateobs} />
+                    </>
+                  ) : (
+                    <p> Fetching event... </p>
+                  )}
                 </div>
               </AccordionDetails>
             </Accordion>
@@ -467,10 +507,14 @@ const GcnEventPage = ({ route }) => {
                   </Typography>
                 </AccordionSummary>
                 <AccordionDetails>
-                  <CommentList
-                    associatedResourceType="gcn_event"
-                    gcnEventID={gcnEvent.id}
-                  />
+                  {route?.dateobs === gcnEvent?.dateobs && route?.dateobs ? (
+                    <CommentList
+                      associatedResourceType="gcn_event"
+                      gcnEventID={gcnEvent.id}
+                    />
+                  ) : (
+                    <p> Fetching event... </p>
+                  )}
                 </AccordionDetails>
               </Accordion>
             </div>
@@ -487,10 +531,16 @@ const GcnEventPage = ({ route }) => {
                 </AccordionSummary>
                 <AccordionDetails>
                   <div className={styles.gcnEventContainer}>
-                    {gcnEvent.lightcurve && (
-                      <div>
-                        <img src={gcnEvent.lightcurve} alt="loading..." />
-                      </div>
+                    {route?.dateobs === gcnEvent?.dateobs && route?.dateobs ? (
+                      <>
+                        {gcnEvent?.lightcurve && (
+                          <div>
+                            <img src={gcnEvent.lightcurve} alt="loading..." />
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <p> Fetching event... </p>
                     )}
                   </div>
                 </AccordionDetails>
@@ -511,6 +561,23 @@ const GcnEventPage = ({ route }) => {
                   <div className={styles.gcnEventContainer}>
                     {gcnEvent.gcn_notices?.map((gcn_notice) => (
                       <li key={gcn_notice.ivorn}>
+                        {gcn_notice?.has_localization &&
+                          gcn_notice?.localization_ingested === false && (
+                            <Button
+                              secondary
+                              onClick={() =>
+                                dispatch(
+                                  postLocalizationFromNotice({
+                                    dateobs: gcn_notice.dateobs,
+                                    noticeID: gcn_notice.id,
+                                  })
+                                )
+                              }
+                              data-testid="ingest-localization-from-notice"
+                            >
+                              Ingest Localization
+                            </Button>
+                          )}
                         <DownloadXMLButton gcn_notice={gcn_notice} />
                       </li>
                     ))}
@@ -678,10 +745,14 @@ const GcnEventPage = ({ route }) => {
               <Accordion defaultExpanded>
                 <AccordionDetails>
                   <div className={styles.gcnEventContainer}>
-                    <Reminders
-                      resourceId={gcnEvent.id.toString()}
-                      resourceType="gcn_event"
-                    />
+                    {route?.dateobs === gcnEvent?.dateobs && route?.dateobs ? (
+                      <Reminders
+                        resourceId={gcnEvent.id.toString()}
+                        resourceType="gcn_event"
+                      />
+                    ) : (
+                      <p> Fetching event... </p>
+                    )}
                   </div>
                 </AccordionDetails>
               </Accordion>

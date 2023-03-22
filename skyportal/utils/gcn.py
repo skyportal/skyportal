@@ -228,18 +228,29 @@ def get_skymap_metadata(root, notice_type):
 
     skymap_url, available = get_skymap_url(root, notice_type)
     if skymap_url is not None and available:
-        return "available", {"url": skymap_url}
+        return "available", {"url": skymap_url, "name": skymap_url.split("/")[-1]}
     elif skymap_url is not None and not available:
-        return "unavailable", {"url": skymap_url}
+        return "unavailable", {"url": skymap_url, "name": skymap_url.split("/")[-1]}
 
     if is_retraction(root):
         return "retraction", None
 
     ra, dec, error = get_skymap_cone(root)
     if None not in (ra, dec, error):
-        return "cone", {"ra": ra, "dec": dec, "error": error}
+        return "cone", {
+            "ra": ra,
+            "dec": dec,
+            "error": error,
+            "name": f"{ra:.5f}_{dec:.5f}_{error:.5f}",
+        }
 
     return "missing", None
+
+
+def has_skymap(root, notice_type):
+    """Does this GCN notice have a skymap?"""
+    status, skymap_metadata = get_skymap_metadata(root, notice_type)
+    return status in ("available", "cone", "unavailable")
 
 
 def get_skymap(root, notice_type):
@@ -249,7 +260,11 @@ def get_skymap(root, notice_type):
     if status == "available":
         return from_url(skymap_metadata["url"])
     elif status == "cone":
-        return from_cone(**skymap_metadata)
+        return from_cone(
+            ra=skymap_metadata["ra"],
+            dec=skymap_metadata["dec"],
+            error=skymap_metadata["error"],
+        )
     else:
         return None
 

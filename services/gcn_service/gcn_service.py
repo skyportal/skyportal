@@ -1,15 +1,19 @@
-from gcn_kafka import Consumer
+import os
+import time
 import uuid
 
-from baselayer.log import make_log
-from baselayer.app.models import init_db
+import gcn
+import lxml
+import requests
+import xmlschema
+from gcn_kafka import Consumer
+
 from baselayer.app.env import load_env
-
-from skyportal.handlers.api.gcn import post_gcnevent_from_xml
-
-from skyportal.models import (
-    DBSession,
-)
+from baselayer.app.models import init_db
+from baselayer.log import make_log
+from skyportal.handlers.api.gcn import post_gcnevent_from_xml, post_skymap_from_notice
+from skyportal.models import DBSession
+from skyportal.utils.gcn import get_skymap_metadata
 
 env, cfg = load_env()
 
@@ -25,8 +29,53 @@ log = make_log('gcnserver')
 
 user_id = 1
 
+REQUEST_TIMEOUT_SECONDS = cfg['health_monitor.request_timeout_seconds']
+
+host = f'{cfg["server.protocol"]}://{cfg["server.host"]}:{cfg["server.port"]}'
+
+
+def is_loaded():
+    try:
+        r = requests.get(f'{host}/api/sysinfo', timeout=REQUEST_TIMEOUT_SECONDS)
+    except:  # noqa: E722
+        status_code = 0
+    else:
+        status_code = r.status_code
+
+    if status_code == 200:
+        return True
+    else:
+        return False
+
 
 def service():
+    while True:
+        if is_loaded():
+            try:
+                poll_events()
+            except Exception as e:
+                log(e)
+        time.sleep(15)
+
+
+def get_root_from_payload(payload):
+    schema = (
+        f'{os.path.dirname(__file__)}/../../skyportal/utils/schema/VOEvent-v2.0.xsd'
+    )
+    voevent_schema = xmlschema.XMLSchema(schema)
+    if voevent_schema.is_valid(payload):
+        # check if is string
+        try:
+            payload = payload.encode('ascii')
+        except AttributeError:
+            pass
+        root = lxml.etree.fromstring(payload)
+    else:
+        raise ValueError("xml file is not valid VOEvent")
+    return root
+
+
+def poll_events():
     if client_id is None or client_id == '':
         log('No client_id configured to poll gcn events (config: gcn.client_id')
         return
@@ -69,7 +118,24 @@ def service():
                 if payload.find(b'Broker: Unknown topic or partition') != -1:
                     continue
                 with DBSession() as session:
-                    post_gcnevent_from_xml(payload, user_id, session, False)
+                    # event ingestion
+                    dateobs, notice_id = post_gcnevent_from_xml(
+                        payload, user_id, session, post_skymap=False, asynchronous=False
+                    )
+
+                    # skymap ingestion if available or cone
+                    root = get_root_from_payload(payload)
+                    notice_type = gcn.get_notice_type(root)
+                    status, _ = get_skymap_metadata(root, notice_type)
+                    if status in ['available', 'cone']:
+                        log(f'Ingesting skymap for gcn event {dateobs} - {notice_id}')
+                        post_skymap_from_notice(
+                            dateobs, notice_id, user_id, session, asynchronous=False
+                        )
+                    else:
+                        log(
+                            f'No skymap available for gcn event {dateobs} - {notice_id}'
+                        )
 
         except Exception as e:
             log(f'Failed to consume gcn event: {e}')

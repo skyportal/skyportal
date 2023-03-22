@@ -81,6 +81,7 @@ from ...utils.gcn import (
     get_dateobs,
     get_properties,
     get_skymap_properties,
+    get_skymap_metadata,
     get_tags,
     get_trigger,
     get_skymap,
@@ -90,6 +91,7 @@ from ...utils.gcn import (
     from_cone,
     from_ellipse,
     from_polygon,
+    has_skymap,
 )
 
 from skyportal.models.gcn import SOURCE_RADIUS_THRESHOLD
@@ -103,7 +105,9 @@ Session = scoped_session(sessionmaker())
 MAX_GCNEVENTS = 1000
 
 
-def post_gcnevent_from_xml(payload, user_id, session, asynchronous=True):
+def post_gcnevent_from_xml(
+    payload, user_id, session, post_skymap=True, asynchronous=True
+):
     """Post GcnEvent to database from voevent xml.
     payload: str
         VOEvent readable string
@@ -135,7 +139,7 @@ def post_gcnevent_from_xml(payload, user_id, session, asynchronous=True):
 
     dateobs = get_dateobs(root)
     trigger_id = get_trigger(root)
-    event_id = None
+    notice_type = gcn.get_notice_type(root)
 
     if trigger_id is not None:
         event = session.scalars(
@@ -150,10 +154,8 @@ def post_gcnevent_from_xml(payload, user_id, session, asynchronous=True):
         event = GcnEvent(dateobs=dateobs, sent_by_id=user_id, trigger_id=trigger_id)
         session.add(event)
         session.commit()
-        event_id = event.id
         dateobs = event.dateobs
     else:
-        event_id = event.id
         dateobs = event.dateobs
         # we grab the dateobs from the event to overwrite the dateobs from the gcn notice
         # this is important because unfortunately the dateobs in a gcn notice is not always the same as the dateobs in the event
@@ -164,17 +166,20 @@ def post_gcnevent_from_xml(payload, user_id, session, asynchronous=True):
                 "Insufficient permissions: GCN event can only be updated by original poster"
             )
 
+    notice_id = None
     gcn_notice = GcnNotice(
         content=payload,
         ivorn=root.attrib['ivorn'],
-        notice_type=gcn.get_notice_type(root),
+        notice_type=notice_type,
         stream=urlparse(root.attrib['ivorn']).path.lstrip('/'),
         date=root.find('./Who/Date').text,
+        has_localization=has_skymap(root, notice_type),
         dateobs=dateobs,
         sent_by_id=user_id,
     )
     session.add(gcn_notice)
     session.commit()
+    notice_id = gcn_notice.id
 
     properties_dict = get_properties(root)
     properties = GcnProperty(dateobs=dateobs, sent_by_id=user_id, data=properties_dict)
@@ -191,19 +196,51 @@ def post_gcnevent_from_xml(payload, user_id, session, asynchronous=True):
         for text in tags_text
     ]
     session.add_all(tags)
+    session.commit()
+
+    mma_detectors = session.scalars(
+        MMADetector.select(user).where(MMADetector.nickname.in_(tags_text))
+    ).all()
+    if len(mma_detectors) > 0:
+        event_to_update = session.scalars(
+            GcnEvent.select(user).where(GcnEvent.dateobs == dateobs)
+        ).first()
+        event_to_update.mma_detectors = mma_detectors
+        session.commit()
+
+    if post_skymap:
+        post_skymap_from_notice(dateobs, notice_id, user_id, session, asynchronous)
+
+    return dateobs, notice_id
+
+
+def post_skymap_from_notice(dateobs, notice_id, user_id, session, asynchronous=True):
+    """Post skymap to database from gcn notice."""
+    user = session.query(User).get(user_id)
+
+    gcn_notice = session.scalars(
+        GcnNotice.select(user).where(GcnNotice.id == notice_id)
+    ).first()
+
+    if gcn_notice is None:
+        raise ValueError(f"No GcnNotice with id {notice_id} found.")
+
+    root = lxml.etree.fromstring(gcn_notice.content)
+    notice_type = gcn.get_notice_type(root)
+
     skymap = None
     try:
-        skymap = get_skymap(root, gcn_notice)
+        skymap = get_skymap(root, notice_type)
     except Exception as e:
-        log(f"Failed to get skymap from gcn notice {gcn_notice.id}: {e}")
+        raise ValueError(f"Failed to get skymap from gcn notice {gcn_notice.id}: {e}")
 
     if skymap is None:
-        log(f"No skymap found for event {dateobs}")
-        return event_id
+        raise ValueError(f"No skymap found in gcn notice {gcn_notice.id}")
 
     skymap["dateobs"] = dateobs
     skymap["sent_by_id"] = user_id
 
+    localization_id = None
     localization = session.scalars(
         Localization.select(user).where(
             Localization.dateobs == skymap["dateobs"],
@@ -236,72 +273,69 @@ def post_gcnevent_from_xml(payload, user_id, session, asynchronous=True):
             )
             add_contour(localization_id, session)
 
-        mma_detectors = session.scalars(
-            MMADetector.select(user).where(MMADetector.nickname.in_(tags_text))
-        ).all()
-        if len(mma_detectors) > 0:
-            event_to_update = session.scalars(
-                GcnEvent.select(user).where(GcnEvent.dateobs == dateobs)
-            ).first()
-            event_to_update.mma_detectors = mma_detectors
-            session.commit()
+        gcn_notice.localization_ingested = True
+        session.add(gcn_notice)
+        session.commit()
+        try:
+            ra, dec, error = (
+                float(val) for val in skymap["localization_name"].split("_")
+            )
+            if error < SOURCE_RADIUS_THRESHOLD:
+                source = {}
+                name = root.find('./Why/Inference/Name')
+                if name is not None:
+                    source = {
+                        'id': (name.text).replace(' ', ''),
+                        'ra': ra,
+                        'dec': dec,
+                    }
+                elif any(
+                    [
+                        True if 'GRB' in tag.text.upper() else False
+                        for tag in get_tags(root)
+                    ]
+                ):
+                    dateobs_txt = Time(dateobs).isot
+                    source_name = f"GRB{dateobs_txt[2:4]}{dateobs_txt[5:7]}{dateobs_txt[8:10]}.{dateobs_txt[11:13]}{dateobs_txt[14:16]}{dateobs_txt[17:19]}"
+                    source = {
+                        'id': source_name,
+                        'ra': ra,
+                        'dec': dec,
+                    }
+                elif any(
+                    [
+                        True if 'GW' in tag.text.upper() else False
+                        for tag in get_tags(root)
+                    ]
+                ):
+                    dateobs_txt = Time(dateobs).isot
+                    source_name = f"GW{dateobs_txt[2:4]}{dateobs_txt[5:7]}{dateobs_txt[8:10]}.{dateobs_txt[11:13]}{dateobs_txt[14:16]}{dateobs_txt[17:19]}"
+                    source = {
+                        'id': source_name,
+                        'ra': ra,
+                        'dec': dec,
+                    }
+                else:
+                    source = {
+                        'id': Time(dateobs).isot.replace(":", "-"),
+                        'ra': ra,
+                        'dec': dec,
+                    }
 
-            try:
-                ra, dec, error = (
-                    float(val) for val in skymap["localization_name"].split("_")
-                )
-                if error < SOURCE_RADIUS_THRESHOLD:
-                    source = {}
-                    name = root.find('./Why/Inference/Name')
-                    if name is not None:
-                        source = {
-                            'id': (name.text).replace(' ', ''),
-                            'ra': ra,
-                            'dec': dec,
-                        }
-                    elif any(
-                        [
-                            True if 'GRB' in tag.text.upper() else False
-                            for tag in tags_text
-                        ]
-                    ):
-                        dateobs_txt = Time(dateobs).isot
-                        source_name = f"GRB{dateobs_txt[2:4]}{dateobs_txt[5:7]}{dateobs_txt[8:10]}.{dateobs_txt[11:13]}{dateobs_txt[14:16]}{dateobs_txt[17:19]}"
-                        source = {
-                            'id': source_name,
-                            'ra': ra,
-                            'dec': dec,
-                        }
-                    elif any(
-                        [
-                            True if 'GW' in tag.text.upper() else False
-                            for tag in tags_text
-                        ]
-                    ):
-                        dateobs_txt = Time(dateobs).isot
-                        source_name = f"GW{dateobs_txt[2:4]}{dateobs_txt[5:7]}{dateobs_txt[8:10]}.{dateobs_txt[11:13]}{dateobs_txt[14:16]}{dateobs_txt[17:19]}"
-                        source = {
-                            'id': source_name,
-                            'ra': ra,
-                            'dec': dec,
-                        }
-                    else:
-                        source = {
-                            'id': Time(dateobs).isot.replace(":", "-"),
-                            'ra': ra,
-                            'dec': dec,
-                        }
+                if source.get('id', None) is not None:
+                    existing_source = session.scalars(
+                        Source.select(user).where(Source.id == source['id'])
+                    ).first()
+                    if existing_source is None:
+                        post_source(source, user_id, session)
+        except Exception:
+            pass
 
-                    if source.get('id', None) is not None:
-                        existing_source = session.scalars(
-                            Source.select(user).where(Source.id == source['id'])
-                        ).first()
-                        if existing_source is None:
-                            post_source(source, user_id, session)
-            except Exception:
-                pass
+    else:
+        localization_id = localization.id
+        log(f"Localization {localization_id} already exists.")
 
-    return event_id
+    return localization_id
 
 
 def post_gcnevent_from_dictionary(payload, user_id, session):
@@ -1530,6 +1564,63 @@ class LocalizationHandler(BaseHandler):
             session.commit()
 
             return self.success()
+
+
+class LocalizationNoticeHandler(BaseHandler):
+    @auth_or_token
+    async def post(self, dateobs, notice_id):
+        # first get the notice, if it exists
+        with self.Session() as session:
+            gcn_notice = session.scalars(
+                GcnNotice.select(session.user_or_token).where(
+                    GcnNotice.dateobs == dateobs, GcnNotice.id == notice_id
+                )
+            ).first()
+
+            if gcn_notice is None:
+                return self.error("Notice not found", status=404)
+
+            # then get the localization, if it exists
+            root = lxml.etree.fromstring(gcn_notice.content)
+            notice_type = gcn_notice.notice_type
+            status, skymap_metadata = get_skymap_metadata(root, notice_type)
+            if status == "unavailable":
+                return self.error(
+                    "Skymap present in notice isn't available (yet)", status=404
+                )
+            elif status in ["available", "cone"]:
+                localization = session.scalars(
+                    Localization.select(session.user_or_token).where(
+                        Localization.dateobs == dateobs,
+                        Localization.localization_name == skymap_metadata["name"],
+                    )
+                ).first()
+                if localization is not None:
+                    return self.error("Localization already exists", status=409)
+                else:
+                    try:
+                        post_skymap_from_notice(
+                            dateobs,
+                            gcn_notice.id,
+                            self.associated_user_object.id,
+                            session,
+                        )
+                        flow = Flow()
+                        flow.push(
+                            '*',
+                            "skyportal/REFRESH_GCN_EVENT",
+                            payload={"gcnEvent_dateobs": dateobs},
+                        )
+                        return self.success()
+                    except Exception as e:
+                        return self.error(f"Error posting skymap from notice: {e}")
+            elif status == "retracted":
+                return self.error(
+                    "Notice is for a retraction, no skymap needs to be posted",
+                    status=404,
+                )
+            else:
+                return self.error("Notice is missing skymap metadata", status=404)
 
 
 class LocalizationPropertiesHandler(BaseHandler):

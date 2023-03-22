@@ -201,6 +201,7 @@ const ObservationPlanGlobe = ({
               setRotation={setRotation}
               selectedFields={selectedFields}
               setSelectedFields={setSelectedFields}
+              type="obsplan"
             />
           </div>
         )}
@@ -255,10 +256,11 @@ ObservationPlanGlobe.defaultProps = {
   skymapInstrument: null,
 };
 
-const ObservationPlanRequestForm = ({ gcnevent }) => {
+const ObservationPlanRequestForm = ({ dateobs }) => {
   const classes = useStyles();
   const dispatch = useDispatch();
 
+  const gcnEvent = useSelector((state) => state.gcnEvent);
   const { telescopeList } = useSelector((state) => state.telescopes);
   const { allocationListApiObsplan } = useSelector(
     (state) => state.allocations
@@ -277,7 +279,7 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
   const [multiPlansChecked, setMultiPlansChecked] = useState(false);
 
   const defaultAirmassTime = new Date(
-    dayjs(gcnevent?.dateobs).format("YYYY-MM-DDTHH:mm:ssZ")
+    dayjs(gcnEvent?.dateobs).format("YYYY-MM-DDTHH:mm:ssZ")
   );
   const [airmassTime, setAirmassTime] = useState(defaultAirmassTime);
   const [temporaryAirmassTime, setTemporaryAirmassTime] =
@@ -311,22 +313,21 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
     instLookUp[instrumentObj.id] = instrumentObj;
   });
 
-  const loc = gcnevent?.localizations[0];
+  const loc = gcnEvent?.localizations[0];
 
   useEffect(() => {
     const fetchSkymapInstrument = async () => {
-      const response = await dispatch(
+      dispatch(
         instrumentActions.fetchInstrumentSkymap(
           instLookUp[allocationLookUp[selectedAllocationId]?.instrument_id]?.id,
           loc,
           airmassTime.toJSON()
         )
-      );
-      setSkymapInstrument(response.data);
+      ).then((response) => setSkymapInstrument(response.data));
     };
     if (
       instLookUp[allocationLookUp[selectedAllocationId]?.instrument_id]?.id &&
-      gcnevent &&
+      gcnEvent &&
       airmassTime
     ) {
       fetchSkymapInstrument();
@@ -339,29 +340,41 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
       // the new default form fields, so that the allocations list can
       // update
 
-      const result = await dispatch(
-        allocationActions.fetchAllocationsApiObsplan()
-      );
-
-      const { data } = result;
-      setSelectedAllocationId(data[0]?.id);
-      setSelectedGroupIds([data[0]?.group_id]);
-      setSelectedLocalizationId(gcnevent.localizations[0]?.id);
+      if (!allocationListApiObsplan || allocationListApiObsplan?.length === 0) {
+        dispatch(allocationActions.fetchAllocationsApiObsplan()).then(
+          (response) => {
+            const { data } = response;
+            setSelectedAllocationId(data[0]?.id);
+            setSelectedGroupIds([data[0]?.group_id]);
+            setSelectedLocalizationId(gcnEvent.localizations[0]?.id);
+          }
+        );
+      } else if (
+        allocationListApiObsplan?.length > 0 &&
+        !selectedAllocationId
+      ) {
+        setSelectedAllocationId(allocationListApiObsplan[0]?.id);
+        setSelectedGroupIds([allocationListApiObsplan[0]?.group_id]);
+        setSelectedLocalizationId(gcnEvent.localizations[0]?.id);
+      }
     };
 
     getAllocations();
 
-    dispatch(
-      instrumentsActions.fetchInstrumentForms({
-        apiType: "api_classname_obsplan",
-      })
-    );
+    if (!instrumentFormParams) {
+      dispatch(
+        instrumentsActions.fetchInstrumentForms({
+          apiType: "api_classname_obsplan",
+        })
+      );
+    }
 
     // Don't want to reset everytime the component rerenders and
     // the defaultStartDate is updated, so ignore ESLint here
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     dispatch,
+    gcnEvent,
     setSelectedAllocationId,
     setSelectedGroupIds,
     setSelectedLocalizationId,
@@ -383,7 +396,8 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
     !allGroups ||
     allGroups.length === 0 ||
     telescopeList.length === 0 ||
-    instrumentList.length === 0
+    instrumentList.length === 0 ||
+    dateobs !== gcnEvent?.dateobs
   ) {
     return (
       <div>
@@ -405,7 +419,7 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
       formData.field_ids = selectedFields;
     }
     const json = {
-      gcnevent_id: gcnevent.id,
+      gcnevent_id: gcnEvent.id,
       allocation_id: selectedAllocationId,
       localization_id: selectedLocalizationId,
       target_group_ids: selectedGroupIds,
@@ -460,7 +474,7 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
     <div className={classes.container}>
       <div>
         <ObservationPlanGlobe
-          loc={gcnevent.localizations[0]}
+          loc={gcnEvent.localizations[0]}
           skymapInstrument={skymapInstrument}
           selectedFields={selectedFields}
           setSelectedFields={setSelectedFields}
@@ -527,7 +541,7 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
           name="observationPlanRequestLocalizationSelect"
           className={classes.localizationSelect}
         >
-          {gcnevent.localizations?.map((localization) => (
+          {gcnEvent.localizations?.map((localization) => (
             <MenuItem
               value={localization.id}
               key={localization.id}
@@ -655,16 +669,7 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
 };
 
 ObservationPlanRequestForm.propTypes = {
-  gcnevent: PropTypes.shape({
-    dateobs: PropTypes.string,
-    localizations: PropTypes.arrayOf(
-      PropTypes.shape({
-        id: PropTypes.number,
-        localization_name: PropTypes.string,
-      })
-    ),
-    id: PropTypes.number,
-  }).isRequired,
+  dateobs: PropTypes.string.isRequired,
   instrumentFormParams: PropTypes.shape({
     formSchema: PropTypes.objectOf(PropTypes.any), // eslint-disable-line react/forbid-prop-types
     uiSchema: PropTypes.objectOf(PropTypes.any), // eslint-disable-line react/forbid-prop-types

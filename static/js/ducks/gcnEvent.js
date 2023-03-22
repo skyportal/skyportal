@@ -64,6 +64,16 @@ const FETCH_GCN_TRIGGERED_OK = "skyportal/FETCH_GCN_TRIGGERED_OK";
 const DELETE_GCN_TRIGGERED = "skyportal/DELETE_GCN_TRIGGERED";
 const REFRESH_GCN_TRIGGERED = "skyportal/REFRESH_GCN_TRIGGERED";
 
+const FETCH_GCNEVENT_SURVEY_EFFICIENCY =
+  "skyportal/FETCH_GCNEVENT_SURVEY_EFFICIENCY";
+const FETCH_GCNEVENT_SURVEY_EFFICIENCY_OK =
+  "skyportal/FETCH_GCNEVENT_SURVEY_EFFICIENCY_OK";
+
+const FETCH_GCNEVENT_CATALOG_QUERIES =
+  "skyportal/FETCH_GCNEVENT_CATALOG_QUERIES";
+const FETCH_GCNEVENT_CATALOG_QUERIES_OK =
+  "skyportal/FETCH_GCNEVENT_CATALOG_QUERIES_OK";
+
 export const fetchGcnEvent = (dateobs) =>
   API.GET(`/api/gcn_event/${dateobs}`, FETCH_GCNEVENT);
 
@@ -273,6 +283,20 @@ export function deleteGcnTrigger({ dateobs, allocationID }) {
   );
 }
 
+export function fetchGcnEventSurveyEfficiency({ gcnID }) {
+  return API.GET(
+    `/api/gcn_event/${gcnID}/survey_efficiency`,
+    FETCH_GCNEVENT_SURVEY_EFFICIENCY
+  );
+}
+
+export function fetchGcnEventCatalogQueries({ gcnID }) {
+  return API.GET(
+    `/api/gcn_event/${gcnID}/catalog_query`,
+    FETCH_GCNEVENT_CATALOG_QUERIES
+  );
+}
+
 // Websocket message handler
 messageHandler.add((actionType, payload, dispatch, getState) => {
   const { gcnEvent } = getState();
@@ -341,6 +365,18 @@ const reducer = (state = null, action) => {
       return {
         ...state,
         gcn_triggers: action.data,
+      };
+    }
+    case FETCH_GCNEVENT_SURVEY_EFFICIENCY_OK: {
+      return {
+        ...state,
+        survey_efficiency: action.data,
+      };
+    }
+    case FETCH_GCNEVENT_CATALOG_QUERIES_OK: {
+      return {
+        ...state,
+        catalog_queries: action.data,
       };
     }
     default:
