@@ -200,7 +200,6 @@ def post_gcnevent_from_xml(payload, user_id, session, asynchronous=True):
     if skymap is None:
         log(f"No skymap found for event {dateobs}")
 
-        print(tags)
         # still need to commit the existing tags
         session.commit()
 

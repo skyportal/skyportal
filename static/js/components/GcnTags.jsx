@@ -107,7 +107,9 @@ const GcnTags = ({ gcnEvent, show_title = false }) => {
   });
   const localizationTagsUnique = [...new Set(localizationTags)];
 
-  const permission = userProfile.permissions.includes("System admin");
+  const permission =
+    userProfile.permissions.includes("System admin") ||
+    userProfile.permissions.includes("Manage GCNs");
 
   return (
     <div className={styles.root}>
