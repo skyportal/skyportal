@@ -133,6 +133,9 @@ def test_delete_allocation_cascades_to_requests(
             'start_date': '3020-09-01',
             'end_date': '3022-09-01',
             'observation_type': 'IFU',
+            'exposure_time': 300,
+            'maximum_airmass': 2,
+            'maximum_fwhm': 1.2,
         },
     }
 
