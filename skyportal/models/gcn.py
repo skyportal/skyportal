@@ -119,14 +119,14 @@ class GcnNotice(Base):
     has_localization = sa.Column(
         sa.Boolean,
         nullable=False,
-        default=False,
+        server_default='false',
         doc='Whether event notice has localization',
     )
 
     localization_ingested = sa.Column(
         sa.Boolean,
         nullable=False,
-        default=False,
+        server_default='false',
         doc='Whether localization has been ingested',
     )
 
