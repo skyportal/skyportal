@@ -16,7 +16,6 @@ import {
   ThemeProvider,
   StyledEngineProvider,
   useTheme,
-  adaptV4Theme,
 } from "@mui/material/styles";
 import makeStyles from "@mui/styles/makeStyles";
 import { isMobile } from "react-device-detect";

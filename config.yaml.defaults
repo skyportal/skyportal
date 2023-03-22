@@ -698,7 +698,7 @@ analysis_services:
       frequency_penalty: 0.0
       model: gpt-3.5-turbo
       presence_penalty: 1.0
-      prompt: Using markdown (with appropriate URL links), in one human-readable paragraph please summarize the following comments about this astronomical source. If classification and/or redshift are given, then note those in the summary. This summary will be primarily read by professional astronomers to help them with their work.
+      prompt: Using markdown (including URL links), in one succinct (less than 250 words) paragraph written in the 3rd person summarize the following comments about this astronomical source.  If classifications and/or the redshift are given, then note those in the summary. This summary should be most useful to expert astrophysicists who already know the definitions and meaning of all classifications.
     embeddings_store:
       summary:
         location: pinecone
