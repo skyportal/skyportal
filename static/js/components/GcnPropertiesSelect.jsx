@@ -102,9 +102,8 @@ const GcnPropertiesSelect = (props) => {
             <Controller
               render={({ field: { value } }) => (
                 <>
-                  <InputLabel>Propertie</InputLabel>
+                  <InputLabel>Property</InputLabel>
                   <Select
-                    label="Propertie"
                     inputProps={{ MenuProps: { disableScrollLock: true } }}
                     labelId="gcnPropertySelectLabel"
                     value={value || ""}

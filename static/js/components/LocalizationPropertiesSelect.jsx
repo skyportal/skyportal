@@ -106,7 +106,7 @@ const LocalizationPropertiesSelect = (props) => {
             <Controller
               render={({ field: { value } }) => (
                 <>
-                  <InputLabel>Propertie</InputLabel>
+                  <InputLabel>Property</InputLabel>
                   <Select
                     inputProps={{ MenuProps: { disableScrollLock: true } }}
                     labelId="localizationPropertySelectLabel"
