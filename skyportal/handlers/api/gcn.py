@@ -252,7 +252,7 @@ def post_skymap_from_notice(dateobs, notice_id, user_id, session, asynchronous=T
         )
     ).first()
     if localization is None:
-        localization = Localization(**skymap)
+        localization = Localization(**skymap, notice_id=notice_id)
         session.add(localization)
         session.commit()
         localization_id = localization.id
@@ -482,7 +482,7 @@ def post_gcnevent_from_dictionary(payload, user_id, session, asynchronous=True):
 
 class GcnEventTagsHandler(BaseHandler):
     @auth_or_token
-    async def get(self):
+    async def get(self, dateobs=None, tag=None):
         """
         ---
         description: Get all GCN Event tags
@@ -504,7 +504,7 @@ class GcnEventTagsHandler(BaseHandler):
             return self.success(data=tags)
 
     @auth_or_token
-    def post(self):
+    def post(self, dateobs=None, tag=None):
         """
         ---
         description: Post a GCN Event tag

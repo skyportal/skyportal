@@ -49,6 +49,8 @@ def is_loaded():
 
 
 def service():
+    if not is_configured():
+        return
     while True:
         if is_loaded():
             try:
@@ -75,17 +77,20 @@ def get_root_from_payload(payload):
     return root
 
 
-def poll_events():
+def is_configured():
     if client_id is None or client_id == '':
         log('No client_id configured to poll gcn events (config: gcn.client_id')
-        return
+        return False
     if client_secret is None or client_secret == '':
         log('No client_secret configured to poll gcn events (config: gcn.client_secret')
-        return
+        return False
     if notice_types is None or notice_types == '' or notice_types == []:
         log('No notice_types configured to poll gcn events (config: gcn.notice_types')
-        return
+        return False
+    return True
 
+
+def poll_events():
     client_group_id = cfg.get('gcn.client_group_id')
     if client_group_id is None or client_group_id == '':
         client_group_id = str(uuid.uuid4())

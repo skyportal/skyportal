@@ -83,6 +83,30 @@ const useStyles = makeStyles((theme) => ({
   sourceList: {
     padding: "0",
   },
+  noticeListElement: {
+    display: "flex",
+    flexDirection: "column",
+  },
+  noticeListElementHeader: {
+    display: "flex",
+    flexDirection: "row",
+    // make sure to use the whole width of the parent
+    width: "100%",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  noticeListElementIVORN: {
+    width: "100%",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  },
+  noticeListDivider: {
+    width: "100%",
+    height: "1px",
+    background: theme.palette.grey[300],
+    margin: "0.5rem 0",
+  },
 }));
 
 const DownloadXMLButton = ({ gcn_notice }) => {
@@ -600,13 +624,19 @@ const GcnEventPage = ({ route }) => {
                 <AccordionDetails>
                   <div className={styles.gcnEventContainer}>
                     {gcnEvent.gcn_notices?.map((gcn_notice) => (
-                      <li key={gcn_notice.ivorn}>
-                        <Chip
-                          size="small"
-                          label={gcn_notice.ivorn}
-                          key={gcn_notice.ivorn}
-                        />
-                        <DownloadXMLButton gcn_notice={gcn_notice} />
+                      <li
+                        key={gcn_notice.ivorn}
+                        className={styles.noticeListElement}
+                      >
+                        <div className={styles.noticeListElementHeader}>
+                          <Chip
+                            size="small"
+                            label={gcn_notice.ivorn}
+                            key={gcn_notice.ivorn}
+                            className={styles.noticeListElementIVORN}
+                          />
+                          <DownloadXMLButton gcn_notice={gcn_notice} />
+                        </div>
                         {gcn_notice?.has_localization &&
                           gcn_notice?.localization_ingested === false && (
                             <Button
@@ -645,6 +675,7 @@ const GcnEventPage = ({ route }) => {
                               Ingest Localization
                             </Button>
                           )}
+                        <div className={styles.noticeListDivider} />
                       </li>
                     ))}
                   </div>
