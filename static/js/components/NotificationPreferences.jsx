@@ -34,7 +34,7 @@ const useStyles = makeStyles((theme) => ({
   },
   button: {
     height: "3rem",
-    marginRight: theme.spacing(1),
+    marginLeft: theme.spacing(2),
   },
   form_group: {
     display: "flex",

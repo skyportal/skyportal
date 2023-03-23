@@ -4,7 +4,7 @@ import { useForm } from "react-hook-form";
 import { makeStyles } from "@mui/styles";
 import { showNotification } from "baselayer/components/Notifications";
 
-import { TextField, Typography } from "@mui/material";
+import { Chip, TextField, Typography } from "@mui/material";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
@@ -18,34 +18,66 @@ import LocalizationPropertiesSelect from "./LocalizationPropertiesSelect";
 import * as profileActions from "../ducks/profile";
 
 const useStyles = makeStyles((theme) => ({
-  typography: {
-    padding: theme.spacing(2),
-  },
   pref: {
     display: "flex",
-    flexDirection: "column",
+    flexDirection: "row",
+    justifyContent: "center",
     alignItems: "center",
-    marginBottom: theme.spacing(2),
   },
   form: {
     display: "flex",
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: "column",
+    justifyContent: "center",
+    alignItems: "left",
   },
   button: {
-    height: "3rem",
-    marginRight: theme.spacing(1),
+    marginLeft: theme.spacing(2),
   },
   form_group: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "left",
+    gap: "0.5rem",
+    width: "100%",
+    marginTop: "0.5rem",
+    marginBottom: "0.5rem",
+  },
+  form_group_title: {
+    fontSize: "1.2rem",
+  },
+  form_subgroup: {
     display: "flex",
     flexDirection: "row",
     justifyContent: "left",
     alignItems: "center",
-    marginRight: theme.spacing(2),
+    gap: "0.25rem",
+    width: "100%",
+    "& > div": {
+      width: "100%",
+    },
   },
-  tooltip: {
-    fontSize: "1rem",
-    maxWidth: "30rem",
+  chips: {
+    padding: "0",
+    margin: "0",
+    "& > *": {
+      marginTop: 0,
+      marginBottom: 0,
+      marginLeft: "0.05rem",
+      marginRight: "0.05rem",
+      fontSize: "1rem",
+    },
+  },
+  formGroupDivider: {
+    width: "100%",
+    height: "2px",
+    background: theme.palette.grey[600],
+    margin: "0.5rem 0",
+  },
+  formSubGroupDivider: {
+    width: "100%",
+    height: "2px",
+    background: theme.palette.grey[300],
+    margin: "0.5rem 0",
   },
 }));
 
@@ -69,7 +101,8 @@ const NotificationGcnEvent = () => {
     useState([]);
 
   const [selectedNotification, setSelectedNotification] = useState(null);
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const [manageProfileOpen, setManageProfileOpen] = useState(false);
+  const [newProfileOpen, setNewProfileOpen] = useState(false);
 
   // Convert the existing notifications to a list format, so that they can be easily modified
   if (!notifications?.gcn_events?.properties) {
@@ -103,13 +136,21 @@ const NotificationGcnEvent = () => {
     dispatch(profileActions.updateUserPreferences(prefs));
   }
 
-  const openDialog = (key) => {
+  const openManageProfile = (key) => {
     setSelectedNotification(key);
-    setDialogOpen(true);
+    setManageProfileOpen(true);
   };
 
-  const closeDialog = () => {
-    setDialogOpen(false);
+  const closeManageProfile = () => {
+    setManageProfileOpen(false);
+  };
+
+  const openNewProfile = () => {
+    setNewProfileOpen(true);
+  };
+
+  const closeNewProfile = () => {
+    setNewProfileOpen(false);
   };
 
   const onSubmitGcns = (formValues) => {
@@ -149,6 +190,8 @@ const NotificationGcnEvent = () => {
     setSelectedLocalizationProperties([]);
     reset({ GcnNotificationName: "" });
 
+    closeNewProfile();
+
     dispatch(showNotification("Gcn notice preferences updated"));
   };
 
@@ -163,7 +206,7 @@ const NotificationGcnEvent = () => {
       },
     };
     setSelectedNotification(null);
-    closeDialog();
+    closeManageProfile();
     dispatch(profileActions.updateUserPreferences(prefs)).then((response) => {
       if (response.status === "success") {
         dispatch(showNotification("GCN notice preference deleted"));
@@ -177,130 +220,75 @@ const NotificationGcnEvent = () => {
 
   return (
     <div className={classes.pref}>
-      {profile?.notifications?.gcn_events?.active === true && (
-        <>
-          <form onSubmit={handleSubmit(onSubmitGcns)}>
-            <div className={classes.form}>
-              <TextField
-                style={{ marginBottom: "1rem" }}
-                label="Name"
-                {...register("GcnNotificationName", {
-                  required: true,
-                  validate: (value) => {
-                    if (notifications) {
-                      return !(value in notifications.gcn_events);
-                    }
-                    return null;
-                  },
-                })}
-                name="GcnNotificationName"
-                id="GcnNotificationNameInput"
-                error={!!errors.GcnNotificationName}
-                helperText={
-                  errors.GcnNotificationName
-                    ? "Required/Button with that name already exists"
-                    : ""
-                }
-              />
-              <GcnNoticeTypesSelect
-                selectedGcnNoticeTypes={selectedGcnNoticeTypes}
-                setSelectedGcnNoticeTypes={setSelectedGcnNoticeTypes}
-              />
-              <GcnTagsSelect
-                selectedGcnTags={selectedGcnTags}
-                setSelectedGcnTags={setSelectedGcnTags}
-              />
-              <GcnPropertiesSelect
-                selectedGcnProperties={selectedGcnProperties}
-                setSelectedGcnProperties={setSelectedGcnProperties}
-              />
-              <LocalizationTagsSelect
-                selectedLocalizationTags={selectedLocalizationTags}
-                setSelectedLocalizationTags={setSelectedLocalizationTags}
-              />
-              <LocalizationPropertiesSelect
-                selectedLocalizationProperties={selectedLocalizationProperties}
-                setSelectedLocalizationProperties={
-                  setSelectedLocalizationProperties
-                }
-              />
-              <Button
-                secondary
-                type="submit"
-                data-testid="addShortcutButton"
-                className={classes.button}
-              >
-                Update
-              </Button>
-            </div>
-          </form>
-        </>
-      )}
-      <div className={classes.chip}>
-        <Typography> Gcn notification </Typography>
-
+      <div className={classes.chips}>
         {profile?.notifications?.gcn_events?.properties &&
           Object.keys(profile?.notifications?.gcn_events?.properties)
             .filter((key) => key !== "active")
             .map((key) => (
-              <Button
+              <Chip
+                label={`${key}`}
                 key={key}
                 secondary
                 size="small"
-                onClick={() => openDialog(key)}
-              >
-                {`${key}`}
-              </Button>
+                onClick={() => openManageProfile(key)}
+              />
             ))}
         <Dialog
-          open={dialogOpen}
-          onClose={closeDialog}
+          open={manageProfileOpen}
+          onClose={closeManageProfile}
           style={{ position: "fixed" }}
+          maxWidth="lg"
         >
-          <DialogTitle>{selectedNotification}</DialogTitle>
+          <DialogTitle style={{ fontSize: "1.4rem" }}>
+            {selectedNotification}
+          </DialogTitle>
           <DialogContent>
             <div>
               {selectedNotification && (
                 <div>
                   <p>
                     Notice Types:{" "}
-                    {
+                    {(
                       profile.notifications.gcn_events?.properties[
                         selectedNotification
-                      ]?.gcn_notice_types
-                    }
+                      ]?.gcn_notice_types || []
+                    ).join(", ")}
                   </p>
+                  <div className={classes.formSubGroupDivider} />
                   <p>
                     Tags:{" "}
-                    {
+                    {(
                       profile.notifications.gcn_events?.properties[
                         selectedNotification
-                      ]?.gcn_tags
-                    }
+                      ]?.gcn_tags || []
+                    ).join(", ")}
                   </p>
+                  <div className={classes.formSubGroupDivider} />
                   <p>
                     Properties:{" "}
-                    {
+                    {(
                       profile.notifications.gcn_events?.properties[
                         selectedNotification
-                      ]?.gcn_properties
-                    }
+                      ]?.gcn_properties || []
+                    ).join(", ")}
                   </p>
+                  <div className={classes.formSubGroupDivider} />
                   <p>
                     Localization Tags:{" "}
-                    {
+                    {(
                       profile.notifications.gcn_events?.properties[
                         selectedNotification
-                      ]?.localization_tags
-                    }
+                      ]?.localization_tags || []
+                    ).join(", ")}
                   </p>
+                  <div className={classes.formSubGroupDivider} />
                   <p>
                     Localization Properties:{" "}
-                    {
+                    {(
                       profile.notifications.gcn_events?.properties[
                         selectedNotification
-                      ]?.localization_properties
-                    }
+                      ]?.localization_properties || []
+                    ).join(", ")}
                   </p>
                 </div>
               )}
@@ -310,7 +298,108 @@ const NotificationGcnEvent = () => {
             </div>
           </DialogContent>
         </Dialog>
+
+        <Dialog
+          open={newProfileOpen}
+          onClose={closeNewProfile}
+          style={{ position: "fixed" }}
+          maxWidth="lg"
+        >
+          <DialogTitle>New GCN Notification Profile</DialogTitle>
+          <DialogContent>
+            <form onSubmit={handleSubmit(onSubmitGcns)}>
+              <div className={classes.form}>
+                <div className={classes.form_group}>
+                  <TextField
+                    style={{ width: "100%" }}
+                    label="Name"
+                    {...register("GcnNotificationName", {
+                      required: true,
+                      validate: (value) => {
+                        if (notifications) {
+                          return !(value in notifications.gcn_events);
+                        }
+                        return null;
+                      },
+                    })}
+                    name="GcnNotificationName"
+                    id="GcnNotificationNameInput"
+                    error={!!errors.GcnNotificationName}
+                    helperText={
+                      errors.GcnNotificationName
+                        ? "Required/Button with that name already exists"
+                        : ""
+                    }
+                  />
+                </div>
+                <div className={classes.formGroupDivider} />
+                <div className={classes.form_group}>
+                  <Typography className={classes.form_group_title}>
+                    Event Filtering
+                  </Typography>
+                  <div className={classes.form_subgroup}>
+                    <GcnNoticeTypesSelect
+                      selectedGcnNoticeTypes={selectedGcnNoticeTypes}
+                      setSelectedGcnNoticeTypes={setSelectedGcnNoticeTypes}
+                    />
+                    <GcnTagsSelect
+                      selectedGcnTags={selectedGcnTags}
+                      setSelectedGcnTags={setSelectedGcnTags}
+                    />
+                  </div>
+                  <div className={classes.formSubGroupDivider} />
+                  <div className={classes.form_subgroup}>
+                    <GcnPropertiesSelect
+                      selectedGcnProperties={selectedGcnProperties}
+                      setSelectedGcnProperties={setSelectedGcnProperties}
+                    />
+                  </div>
+                </div>
+                <div className={classes.formGroupDivider} />
+                <div className={classes.form_group}>
+                  <Typography className={classes.form_group_title}>
+                    Localization Filtering
+                  </Typography>
+                  <div className={classes.form_subgroup}>
+                    <LocalizationTagsSelect
+                      selectedLocalizationTags={selectedLocalizationTags}
+                      setSelectedLocalizationTags={setSelectedLocalizationTags}
+                    />
+                  </div>
+                  <div className={classes.formSubGroupDivider} />
+                  <div className={classes.form_subgroup}>
+                    <LocalizationPropertiesSelect
+                      selectedLocalizationProperties={
+                        selectedLocalizationProperties
+                      }
+                      setSelectedLocalizationProperties={
+                        setSelectedLocalizationProperties
+                      }
+                    />
+                  </div>
+                </div>
+                <Button
+                  secondary
+                  type="submit"
+                  data-testid="addShortcutButton"
+                  style={{ marginTop: "1rem" }}
+                >
+                  Create
+                </Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
+      {profile?.notifications?.gcn_events?.active === true && (
+        <Button
+          className={classes.button}
+          secondary
+          onClick={() => openNewProfile()}
+        >
+          Create New Profile
+        </Button>
+      )}
     </div>
   );
 };
