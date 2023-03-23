@@ -13,15 +13,13 @@ const GcnNoticeTypesSelect = (props) => {
   return (
     <div>
       {gcn_notice_types?.length > 0 && (
-        <div style={{ marginBottom: "1rem" }}>
-          <SelectWithChips
-            label="Gcn Notice Types"
-            id="selectGcns"
-            initValue={selectedGcnNoticeTypes}
-            onChange={handleChange}
-            options={gcn_notice_types}
-          />
-        </div>
+        <SelectWithChips
+          label="Gcn Notice Types"
+          id="selectGcns"
+          initValue={selectedGcnNoticeTypes}
+          onChange={handleChange}
+          options={gcn_notice_types}
+        />
       )}
     </div>
   );
