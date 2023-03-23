@@ -424,7 +424,7 @@ Now let's take a look at what we'll need to add to the back-end to make our new 
 
 The SkyPortal back-end is built using [Tornado](https://www.tornadoweb.org/en/stable/), a Python web application framework that provides its own I/O event loop for non-blocking sockets, making it ideal for use with websockets (see below).
 
-To handle HTTP requests, we define _request handlers_ that are mapped to API endpoints in the application's configuration (in `skyportal/app_server.py` -- see below). Each SkyPortal request handler is a subclass of 
+To handle HTTP requests, we define _request handlers_ that are mapped to API endpoints in the application's configuration (in `skyportal/app_server.py` -- see below). Each SkyPortal request handler is a subclass of
 Handler` (defined in `skyportal/handlers/base.py`), a handler that extends Tornado's base [RequestHandler](https://www.tornadoweb.org/en/stable/web.html#tornado.web.RequestHandler), handling authentication and providing utility methods for pushing websocket messages to the front-end and returning HTTP responses.
 
 Let's take a look at adding our own handler. We'll start by defining a new request handler in a new file `skyportal/handlers/api/test_comment.py`. Note that we've imported `BaseHandler` which serves as the base class of our new handler. We define class methods describing how to handle requests of various types, e.g. a `put` method for PUT requests, a `post` method for POST requests, etc.
@@ -589,7 +589,7 @@ skyportal_handlers = [
 
 The elements of this `skyportal_handlers` list are tuples consisting of a regex string describing the matching URL pattern, and the handler object: `(r'/api/test_comment', TestCommentHandler)`. In this case, we want to access the `TestCommentHandler` at the `/api/test_comment` path.
 
-Keep in mind that incoming requests will be routed to the first handler in the list that matches the request path. When you add a new feature, make sure to add it to the list in the correct place so that it doesn't override an existing handler (unless that is what you intend to do!). 
+Keep in mind that incoming requests will be routed to the first handler in the list that matches the request path. When you add a new feature, make sure to add it to the list in the correct place so that it doesn't override an existing handler (unless that is what you intend to do!).
 
 After defining our handler and mapping it to the API endpoint in our application, we can now expect any authenticated GET or POST requests to `<base_URL>/api/test_comment` to either fetch or create records.
 

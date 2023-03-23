@@ -36,7 +36,6 @@ import {
   postGcnEventSummary,
   deleteGcnEventSummary,
   patchGcnEventSummary,
-  fetchGcnEvent,
 } from "../ducks/gcnEvent";
 import Button from "./Button";
 import GcnSummaryTable from "./GcnSummaryTable";
@@ -176,13 +175,6 @@ const GcnSummary = ({ dateobs }) => {
   }));
 
   useEffect(() => {
-    const fetchEvent = async (gcnEvent_dateobs) => {
-      await dispatch(fetchGcnEvent(gcnEvent_dateobs));
-    };
-    fetchEvent(dateobs);
-  }, [dateobs, dispatch]);
-
-  useEffect(() => {
     const fetchSummary = (summaryID) => {
       dispatch(fetchGcnEventSummary({ dateobs, summaryID })).then(
         (response) => {
@@ -210,7 +202,7 @@ const GcnSummary = ({ dateobs }) => {
       dispatch(usersActions.fetchUsers());
       dispatch(groupsActions.fetchGroups());
     };
-    if (!dataFetched) {
+    if (!dataFetched && !groups && !users) {
       fetchData();
       setDataFetched(true);
     }

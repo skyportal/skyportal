@@ -525,7 +525,6 @@ def notify_users(target_class, target_id, target_data):
         session = Session(bind=DBSession.session_factory.kw["bind"])
 
     try:
-
         if is_gcnevent:
             users = session.scalars(
                 sa.select(User).where(
@@ -633,19 +632,31 @@ def notify_users(target_class, target_id, target_data):
                             GcnEvent.dateobs == target_data["dateobs"]
                         )
                     ).first()
+
                     notices = event.gcn_notices
+                    notices = [
+                        notice
+                        for notice in notices
+                        if notice.id == target_data["notice_id"]
+                    ]
+
                     if len(notices) > 0:
-                        notice = notices[-1]
-                        if (
-                            "gcn_notice_types" in pref["gcn_events"].keys()
-                            and send_notification
-                        ):
-                            if len(pref['gcn_events']["gcn_notice_types"]) > 0:
-                                if (
-                                    not gcn.NoticeType(notice.notice_type).name
-                                    in pref['gcn_events']['gcn_notice_types']
-                                ):
-                                    send_notification = False
+                        # the notice is the one with "localization_ingested" equal to the "id" of target_id
+                        notice = notices[0]
+                    else:
+                        # we trigger the notification on localization, but we notify only if it comes from a notice
+                        return
+
+                    if (
+                        "gcn_notice_types" in pref["gcn_events"].keys()
+                        and send_notification
+                    ):
+                        if len(pref['gcn_events']["gcn_notice_types"]) > 0:
+                            if (
+                                not gcn.NoticeType(notice.notice_type).name
+                                in pref['gcn_events']['gcn_notice_types']
+                            ):
+                                send_notification = False
 
                     if "gcn_tags" in pref["gcn_events"].keys() and send_notification:
                         if len(pref['gcn_events']["gcn_tags"]) > 0:

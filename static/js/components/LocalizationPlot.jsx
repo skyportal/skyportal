@@ -30,49 +30,69 @@ const LocalizationPlot = ({
   setRotation,
   selectedFields,
   setSelectedFields,
+  type = "cached",
 }) => {
-  const cachedLocalization = useSelector((state) => state.localization);
   const dispatch = useDispatch();
 
-  useEffect(() => {
-    if (loc) {
-      dispatch(
-        localizationActions.fetchLocalization(
-          loc.dateobs,
-          loc.localization_name
-        )
-      );
-    }
-  }, [loc, dispatch]);
+  const { cached } = useSelector((state) => state.localization);
+  const { analysis } = useSelector((state) => state.localization);
+  const { obsplan } = useSelector((state) => state.localization);
 
-  if (!loc) {
+  if (!loc?.id || !loc?.dateobs || !loc?.localization_name) {
     return <CircularProgress />;
   }
 
-  const localization =
-    loc.id === cachedLocalization?.id ? cachedLocalization : null;
+  const getCachedLocalization = (loc_no_contour, typeLoc) => {
+    let locToReturn = null;
+    if (typeLoc === "cached") {
+      locToReturn = cached;
+    }
+    if (typeLoc === "analysis") {
+      locToReturn = analysis;
+      if (!locToReturn && loc_no_contour?.id === cached?.id && cached) {
+        locToReturn = cached;
+      }
+    }
+    if (typeLoc === "obsplan") {
+      locToReturn = obsplan;
+      if (!locToReturn && loc_no_contour?.id === cached?.id && cached) {
+        locToReturn = cached;
+      }
+    }
+    return locToReturn;
+  };
+
+  const localization = getCachedLocalization(loc, type);
+  if (!localization && cached) {
+    // fetch the localization for that type
+    dispatch(
+      localizationActions.fetchLocalization(
+        loc?.dateobs,
+        loc?.localization_name,
+        type
+      )
+    );
+  }
 
   if (!localization) {
     return <CircularProgress />;
   }
 
   return (
-    <>
-      <GeoJSONGlobePlot
-        skymap={localization?.contour}
-        sources={sources?.geojson}
-        galaxies={galaxies?.geojson}
-        instrument={instrument}
-        observations={observations?.geojson}
-        options={options}
-        height={height}
-        width={width}
-        rotation={rotation}
-        setRotation={setRotation}
-        selectedFields={selectedFields}
-        setSelectedFields={setSelectedFields}
-      />
-    </>
+    <GeoJSONGlobePlot
+      skymap={localization?.contour}
+      sources={sources?.geojson}
+      galaxies={galaxies?.geojson}
+      instrument={instrument}
+      observations={observations?.geojson}
+      options={options}
+      height={height}
+      width={width}
+      rotation={rotation}
+      setRotation={setRotation}
+      selectedFields={selectedFields}
+      setSelectedFields={setSelectedFields}
+    />
   );
 };
 
@@ -197,6 +217,7 @@ LocalizationPlot.propTypes = {
   setRotation: PropTypes.func,
   selectedFields: PropTypes.arrayOf(PropTypes.number),
   setSelectedFields: PropTypes.func,
+  type: PropTypes.string,
 };
 
 LocalizationPlot.defaultProps = {
@@ -218,6 +239,7 @@ LocalizationPlot.defaultProps = {
   setRotation: () => {},
   selectedFields: [],
   setSelectedFields: () => {},
+  type: "cached",
 };
 
 const useD3 = (renderer, height, width, data) => {
@@ -316,9 +338,10 @@ const GeoJSONGlobePlot = ({
         const x = (d) => projection(d.geometry.coordinates)[0];
         const y = (d) => projection(d.geometry.coordinates)[1];
 
+        // Draw the center (0th most probable region)
         svg
           .selectAll("circle_skymap")
-          .data(data.skymap.features)
+          .data([data.skymap.features[0]])
           .enter()
           .append("circle")
           .attr("fill", (d) => (visibleOnSphere(d) ? "blue" : "none"))
@@ -328,7 +351,7 @@ const GeoJSONGlobePlot = ({
 
         svg
           .selectAll(".label")
-          .data(data.skymap.features)
+          .data([data.skymap.features[0]])
           .enter()
           .append("text")
           .attr("transform", translate)
@@ -340,6 +363,7 @@ const GeoJSONGlobePlot = ({
           .style("font-weight", "normal")
           .text("Center");
 
+        // Draw the contour (90th most probable region)
         svg
           .selectAll("path")
           .data(data.skymap.features)
