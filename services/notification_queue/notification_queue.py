@@ -701,7 +701,6 @@ class QueueHandler(tornado.web.RequestHandler):
                         gcn_prefs = pref["gcn_events"].get("properties", {})
                         if len(gcn_prefs.keys()):
                             continue
-                        print(gcn_prefs)
                         for gcn_pref in gcn_prefs.values():
                             if "gcn_notice_types" in gcn_pref.keys():
                                 if len(gcn_pref["gcn_notice_types"]) > 0:
