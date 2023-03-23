@@ -37,7 +37,6 @@ from skyportal.models import (
     FacilityTransaction,
     FollowupRequest,
     GcnEvent,
-    GcnNotice,
     Group,
     GroupAdmissionRequest,
     GroupUser,
@@ -679,8 +678,6 @@ class QueueHandler(tornado.web.RequestHandler):
                     is not None
                 ):
                     if is_gcnevent and (pref is not None):
-                        send_notification = True
-
                         event = session.scalars(
                             sa.select(GcnEvent).where(
                                 GcnEvent.dateobs == target_data["dateobs"]
@@ -688,43 +685,40 @@ class QueueHandler(tornado.web.RequestHandler):
                         ).first()
 
                         notices = event.gcn_notices
-                        notices = [
+                        filtered_notices = [
                             notice
                             for notice in notices
                             if notice.id == target_data["notice_id"]
                         ]
 
-                        if len(notices) > 0:
+                        if len(filtered_notices) > 0:
                             # the notice is the one with "localization_ingested" equal to the "id" of target_id
-                            notice = notices[0]
+                            notice = filtered_notices[0]
                         else:
                             # we trigger the notification on localization, but we notify only if it comes from a notice
-                            return
+                            continue
 
                         gcn_prefs = pref["gcn_events"].get("properties", {})
+                        if len(gcn_prefs.keys()):
+                            continue
+                        print(gcn_prefs)
                         for gcn_pref in gcn_prefs.values():
-                            if (
-                                "gcn_notice_types" in gcn_pref.keys()
-                                and send_notification
-                            ):
+                            if "gcn_notice_types" in gcn_pref.keys():
                                 if len(gcn_pref["gcn_notice_types"]) > 0:
                                     if (
                                         not gcn.NoticeType(notice.notice_type).name
                                         in gcn_pref['gcn_notice_types']
                                     ):
-                                        send_notification = False
-                            if "gcn_tags" in gcn_pref.keys() and send_notification:
+                                        continue
+                            if "gcn_tags" in gcn_pref.keys():
                                 if len(gcn_pref["gcn_tags"]) > 0:
                                     intersection = list(
                                         set(event.tags) & set(gcn_pref["gcn_tags"])
                                     )
                                     if len(intersection) == 0:
-                                        send_notification = False
+                                        continue
 
-                            if (
-                                "gcn_properties" in gcn_pref.keys()
-                                and send_notification
-                            ):
+                            if "gcn_properties" in gcn_pref.keys():
                                 if len(gcn_pref["gcn_properties"]) > 0:
                                     properties_bool = []
                                     for properties in event.properties:
@@ -759,7 +753,7 @@ class QueueHandler(tornado.web.RequestHandler):
                                                     break
                                         properties_bool.append(properties_pass)
                                     if not any(properties_bool):
-                                        send_notification = False
+                                        continue
                             localization = session.scalars(
                                 sa.select(Localization).where(
                                     Localization.dateobs == target_data["dateobs"]
@@ -769,22 +763,16 @@ class QueueHandler(tornado.web.RequestHandler):
                                 localization_properties_dict,
                                 localization_tags_list,
                             ) = get_skymap_properties(localization)
-                            if (
-                                "localization_tags" in gcn_pref.keys()
-                                and send_notification
-                            ):
+                            if "localization_tags" in gcn_pref.keys():
                                 if len(gcn_pref["localization_tags"]) > 0:
                                     intersection = list(
                                         set(localization_tags_list)
                                         & set(gcn_pref["localization_tags"])
                                     )
                                     if len(intersection) == 0:
-                                        send_notification = False
+                                        continue
 
-                            if (
-                                gcn_pref.get('localization_properties')
-                                and send_notification
-                            ):
+                            if gcn_pref.get('localization_properties'):
                                 for prop_filt in gcn_pref["localization_properties"]:
                                     prop_split = prop_filt.split(":")
                                     if not len(prop_split) == 3:
@@ -807,29 +795,18 @@ class QueueHandler(tornado.web.RequestHandler):
                                         if not comp_function(
                                             localization_properties_dict[name], value
                                         ):
-                                            send_notification = False
-                                            break
-                        if send_notification:
-                            stmt = (
-                                sa.select(GcnNotice)
-                                .where(GcnNotice.dateobs == target_data["dateobs"])
-                                .subquery()
-                            )
-                            count_stmt = sa.select(sa.func.count()).select_from(stmt)
-                            count_notices = session.execute(count_stmt).scalar()
-                            if len(notices) > 0:
-                                if count_notices > 1:
-                                    text = (
-                                        f"New Notice for GCN Event *{target_data['dateobs']}*, "
-                                        f"with Notice Type *{gcn.NoticeType(notice.notice_type).name}*"
-                                    )
-                                else:
-                                    text = (
-                                        f"New GCN Event *{target_data['dateobs']}*, "
-                                        f"with Notice Type *{gcn.NoticeType(notice.notice_type).name}*"
-                                    )
+                                            continue
+
+                            if len(notices) > 1:
+                                text = (
+                                    f"New Notice for GCN Event *{target_data['dateobs']}*, "
+                                    f"with Notice Type *{gcn.NoticeType(notice.notice_type).name}*"
+                                )
                             else:
-                                text = f"New GCN Event *{target_data['dateobs']}*"
+                                text = (
+                                    f"New GCN Event *{target_data['dateobs']}*, "
+                                    f"with Notice Type *{gcn.NoticeType(notice.notice_type).name}*"
+                                )
 
                             notification = UserNotification(
                                 user=user,
