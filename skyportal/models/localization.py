@@ -131,6 +131,12 @@ class Localization(Base):
         doc="Tags associated with this Localization.",
     )
 
+    notice_id = sa.Column(
+        sa.ForeignKey('gcnnotices.id', ondelete='CASCADE'),
+        nullable=True,
+        doc="The ID of the Notice that this Localization is associated with, if any.",
+    )
+
     @hybrid_property
     def is_3d(self):
         return (

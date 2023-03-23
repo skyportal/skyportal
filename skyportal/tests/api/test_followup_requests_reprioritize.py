@@ -7,22 +7,27 @@ def test_reprioritize_followup_request(
     public_group_sedm_allocation, public_source, upload_data_token, super_admin_token
 ):
 
-    datafile = f'{os.path.dirname(__file__)}/../data/GW190425_initial.xml'
-    with open(datafile, 'rb') as fid:
-        payload = fid.read()
-    data = {'xml': payload}
-
-    status, data = api('POST', 'gcn_event', data=data, token=super_admin_token)
-    assert status == 200
-    assert data['status'] == 'success'
-
+    # GET to see if the gcnevent already exists
     dateobs = "2019-04-25 08:18:05"
-    params = {"include2DMap": True}
+    status, data = api('GET', f'gcn_event/{dateobs}', token=super_admin_token)
+    if status != 200:
+        # POST the GCN event
+        datafile = f'{os.path.dirname(__file__)}/../data/GW190425_initial.xml'
+        with open(datafile, 'rb') as fid:
+            payload = fid.read()
+        data = {'xml': payload}
 
-    status, data = api(
-        'GET', f'gcn_event/{dateobs}', token=super_admin_token, params=params
-    )
-    assert status == 200
+        status, data = api('POST', 'gcn_event', data=data, token=super_admin_token)
+        assert status == 200
+        assert data['status'] == 'success'
+
+        params = {"include2DMap": True}
+
+        status, data = api(
+            'GET', f'gcn_event/{dateobs}', token=super_admin_token, params=params
+        )
+        assert status == 200
+
     localization_id = data['data']['localizations'][0]['id']
 
     request_data = {
@@ -33,6 +38,9 @@ def test_reprioritize_followup_request(
             'start_date': '3020-09-01',
             'end_date': '3022-09-01',
             'observation_type': 'IFU',
+            'exposure_time': 300,
+            'maximum_airmass': 2,
+            'maximum_fwhm': 1.2,
         },
     }
 

@@ -172,16 +172,19 @@ const GcnEventAllocationTriggers = ({
       triggered = "passed";
       triggeredText = "Passed";
     }
-    instruments_triggered[
-      allocationLookUp[allocation_id]
-    ].allocation_triggered.push({
-      triggered,
-      triggeredText,
-      trigger_id: t?.id || null,
-      allocation: allocationListApiObsplan.find(
-        (allocation) => allocation.id === parseInt(allocation_id, 10)
-      ),
-    });
+    // first verify that there is an "allocation_triggered" array, if not create it
+    if (instruments_triggered[allocationLookUp[allocation_id]] !== undefined) {
+      instruments_triggered[
+        allocationLookUp[allocation_id]
+      ].allocation_triggered.push({
+        triggered,
+        triggeredText,
+        trigger_id: t?.id || null,
+        allocation: allocationListApiObsplan.find(
+          (allocation) => allocation.id === parseInt(allocation_id, 10)
+        ),
+      });
+    }
   });
 
   // now, bassed on the showTriggered, showPassed, and showUnset props, filter out the instruments_triggered object

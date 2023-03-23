@@ -3,6 +3,7 @@
 import base64
 import os
 import numpy as np
+import requests
 import scipy
 import healpy as hp
 import gcn
@@ -153,50 +154,64 @@ def get_tags(root):
         yield from instruments
 
 
-def get_skymap(root, gcn_notice):
-    mission = urlparse(root.attrib['ivorn']).path.lstrip('/')
-
+def get_skymap_url(root, notice_type):
+    url = None
+    available = False
     # Try Fermi GBM convention
-    if gcn_notice.notice_type == gcn.NoticeType.FERMI_GBM_FIN_POS:
+    if notice_type == gcn.NoticeType.FERMI_GBM_FIN_POS:
         url = root.find("./What/Param[@name='LocationMap_URL']").attrib['value']
         url = url.replace('http://', 'https://')
         url = url.replace('_locplot_', '_healpix_')
         url = url.replace('.png', '.fit')
-        return from_url(url)
 
     # Try Fermi GBM **subthreshold** convention. Stupid, stupid, stupid!!
-    if gcn_notice.notice_type == gcn.NoticeType.FERMI_GBM_SUBTHRESH:
+    if notice_type == gcn.NoticeType.FERMI_GBM_SUBTHRESH:
         url = root.find("./What/Param[@name='HealPix_URL']").attrib['value']
-        return from_url(url)
 
-    # Try LVC convention
     skymap = root.find("./What/Group[@type='GW_SKYMAP']")
-    if skymap is not None:
+    if skymap is not None and url is None:
         children = skymap.getchildren()
         for child in children:
             if child.attrib['name'] == 'skymap_fits':
                 url = child.attrib['value']
                 break
 
-        return from_url(url)
+    if url is not None:
+        # we have a URL, but is it available? We don't want to download the file here,
+        # so we'll just check the HTTP status code.
+        try:
+            response = requests.head(url)
+            if response.status_code == 200:
+                available = True
+        except requests.exceptions.RequestException:
+            pass
 
+    return url, available
+
+
+def is_retraction(root):
     retraction = root.find("./What/Param[@name='Retraction']")
     if retraction is not None:
         retraction = int(retraction.attrib['value'])
         if retraction == 1:
-            return None
+            return True
+    return False
 
+
+def get_skymap_cone(root):
+    ra, dec, error = None, None, None
+    mission = urlparse(root.attrib['ivorn']).path.lstrip('/')
     # Try error cone
     loc = root.find('./WhereWhen/ObsDataLocation/ObservationLocation')
     if loc is None:
-        return None
+        return ra, dec, error
 
     ra = loc.find('./AstroCoords/Position2D/Value2/C1')
     dec = loc.find('./AstroCoords/Position2D/Value2/C2')
     error = loc.find('./AstroCoords/Position2D/Error2Radius')
 
     if None in (ra, dec, error):
-        return None
+        return ra, dec, error
 
     ra, dec, error = float(ra.text), float(dec.text), float(error.text)
 
@@ -205,7 +220,53 @@ def get_skymap(root, gcn_notice):
     if mission == 'AMON':
         error /= scipy.stats.chi(df=2).ppf(0.95)
 
-    return from_cone(ra, dec, error)
+    return ra, dec, error
+
+
+def get_skymap_metadata(root, notice_type):
+    """Get the skymap for a GCN notice."""
+
+    skymap_url, available = get_skymap_url(root, notice_type)
+    if skymap_url is not None and available:
+        return "available", {"url": skymap_url, "name": skymap_url.split("/")[-1]}
+    elif skymap_url is not None and not available:
+        return "unavailable", {"url": skymap_url, "name": skymap_url.split("/")[-1]}
+
+    if is_retraction(root):
+        return "retraction", None
+
+    ra, dec, error = get_skymap_cone(root)
+    if None not in (ra, dec, error):
+        return "cone", {
+            "ra": ra,
+            "dec": dec,
+            "error": error,
+            "name": f"{ra:.5f}_{dec:.5f}_{error:.5f}",
+        }
+
+    return "missing", None
+
+
+def has_skymap(root, notice_type):
+    """Does this GCN notice have a skymap?"""
+    status, skymap_metadata = get_skymap_metadata(root, notice_type)
+    return status in ("available", "cone", "unavailable")
+
+
+def get_skymap(root, notice_type):
+    """Get the skymap for a GCN notice."""
+    status, skymap_metadata = get_skymap_metadata(root, notice_type)
+
+    if status == "available":
+        return from_url(skymap_metadata["url"])
+    elif status == "cone":
+        return from_cone(
+            ra=skymap_metadata["ra"],
+            dec=skymap_metadata["dec"],
+            error=skymap_metadata["error"],
+        )
+    else:
+        return None
 
 
 def get_properties(root):

@@ -58,6 +58,7 @@ from .gcn import (
     GcnSummaryHandler,
     GcnEventTriggerHandler,
     LocalizationHandler,
+    LocalizationNoticeHandler,
     LocalizationDownloadHandler,
     LocalizationCrossmatchHandler,
     LocalizationPropertiesHandler,

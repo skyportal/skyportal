@@ -14,6 +14,9 @@ def test_token_user_post_robotic_followup_request(
             'start_date': '3020-09-01',
             'end_date': '3022-09-01',
             'observation_type': 'IFU',
+            'exposure_time': 300,
+            'maximum_airmass': 2,
+            'maximum_fwhm': 1.2,
         },
     }
 
@@ -44,6 +47,9 @@ def test_token_user_delete_owned_followup_request(
             'start_date': '3020-09-01',
             'end_date': '3022-09-01',
             'observation_type': 'IFU',
+            'exposure_time': 300,
+            'maximum_airmass': 2,
+            'maximum_fwhm': 1.2,
         },
     }
 
@@ -71,6 +77,9 @@ def test_token_user_modify_owned_followup_request(
             'start_date': '3020-09-01',
             'end_date': '3022-09-01',
             'observation_type': 'IFU',
+            'exposure_time': 300,
+            'maximum_airmass': 2,
+            'maximum_fwhm': 1.2,
         },
     }
 
@@ -89,6 +98,9 @@ def test_token_user_modify_owned_followup_request(
             'start_date': '3020-09-01',
             'end_date': '3022-09-01',
             'observation_type': 'IFU',
+            'exposure_time': 300,
+            'maximum_airmass': 2,
+            'maximum_fwhm': 1.2,
         },
     }
 
@@ -117,6 +129,9 @@ def test_regular_user_delete_super_admin_followup_request(
             'start_date': '3020-09-01',
             'end_date': '3022-09-01',
             'observation_type': 'IFU',
+            'exposure_time': 300,
+            'maximum_airmass': 2,
+            'maximum_fwhm': 1.2,
         },
     }
 
@@ -147,6 +162,9 @@ def test_group1_user_cannot_see_group2_followup_request(
             'start_date': '3020-09-01',
             'end_date': '3022-09-01',
             'observation_type': 'IFU',
+            'exposure_time': 300,
+            'maximum_airmass': 2,
+            'maximum_fwhm': 1.2,
         },
     }
 
@@ -180,6 +198,9 @@ def test_filter_followup_request(
             'start_date': '3020-09-01',
             'end_date': '3022-09-01',
             'observation_type': 'IFU',
+            'exposure_time': 300,
+            'maximum_airmass': 2,
+            'maximum_fwhm': 1.2,
         },
     }
 
