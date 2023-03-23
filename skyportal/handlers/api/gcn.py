@@ -81,6 +81,7 @@ from ...utils.gcn import (
     get_dateobs,
     get_properties,
     get_skymap_properties,
+    get_skymap_metadata,
     get_tags,
     get_trigger,
     get_skymap,
@@ -90,6 +91,7 @@ from ...utils.gcn import (
     from_cone,
     from_ellipse,
     from_polygon,
+    has_skymap,
 )
 
 from skyportal.models.gcn import SOURCE_RADIUS_THRESHOLD
@@ -103,7 +105,9 @@ Session = scoped_session(sessionmaker())
 MAX_GCNEVENTS = 1000
 
 
-def post_gcnevent_from_xml(payload, user_id, session, asynchronous=True):
+def post_gcnevent_from_xml(
+    payload, user_id, session, post_skymap=True, asynchronous=True
+):
     """Post GcnEvent to database from voevent xml.
     payload: str
         VOEvent readable string
@@ -135,7 +139,7 @@ def post_gcnevent_from_xml(payload, user_id, session, asynchronous=True):
 
     dateobs = get_dateobs(root)
     trigger_id = get_trigger(root)
-    event_id = None
+    notice_type = gcn.get_notice_type(root)
 
     if trigger_id is not None:
         event = session.scalars(
@@ -150,10 +154,8 @@ def post_gcnevent_from_xml(payload, user_id, session, asynchronous=True):
         event = GcnEvent(dateobs=dateobs, sent_by_id=user_id, trigger_id=trigger_id)
         session.add(event)
         session.commit()
-        event_id = event.id
         dateobs = event.dateobs
     else:
-        event_id = event.id
         dateobs = event.dateobs
         # we grab the dateobs from the event to overwrite the dateobs from the gcn notice
         # this is important because unfortunately the dateobs in a gcn notice is not always the same as the dateobs in the event
@@ -164,17 +166,23 @@ def post_gcnevent_from_xml(payload, user_id, session, asynchronous=True):
                 "Insufficient permissions: GCN event can only be updated by original poster"
             )
 
+    event_id = event.id
+
+    notice_id = None
     gcn_notice = GcnNotice(
         content=payload,
         ivorn=root.attrib['ivorn'],
-        notice_type=gcn.get_notice_type(root),
+        notice_type=notice_type,
         stream=urlparse(root.attrib['ivorn']).path.lstrip('/'),
         date=root.find('./Who/Date').text,
+        has_localization=has_skymap(root, notice_type),
+        localization_ingested=False,
         dateobs=dateobs,
         sent_by_id=user_id,
     )
     session.add(gcn_notice)
     session.commit()
+    notice_id = gcn_notice.id
 
     properties_dict = get_properties(root)
     properties = GcnProperty(dateobs=dateobs, sent_by_id=user_id, data=properties_dict)
@@ -191,19 +199,54 @@ def post_gcnevent_from_xml(payload, user_id, session, asynchronous=True):
         for text in tags_text
     ]
     session.add_all(tags)
+    session.commit()
+
+    mma_detectors = session.scalars(
+        MMADetector.select(user).where(MMADetector.nickname.in_(tags_text))
+    ).all()
+    if len(mma_detectors) > 0:
+        event_to_update = session.scalars(
+            GcnEvent.select(user).where(GcnEvent.dateobs == dateobs)
+        ).first()
+        event_to_update.mma_detectors = mma_detectors
+        session.commit()
+
+    if post_skymap:
+        try:
+            post_skymap_from_notice(dateobs, notice_id, user_id, session, asynchronous)
+        except Exception:
+            pass
+
+    return dateobs, event_id, notice_id
+
+
+def post_skymap_from_notice(dateobs, notice_id, user_id, session, asynchronous=True):
+    """Post skymap to database from gcn notice."""
+    user = session.query(User).get(user_id)
+
+    gcn_notice = session.scalars(
+        GcnNotice.select(user).where(GcnNotice.id == notice_id)
+    ).first()
+
+    if gcn_notice is None:
+        raise ValueError(f"No GcnNotice with id {notice_id} found.")
+
+    root = lxml.etree.fromstring(gcn_notice.content)
+    notice_type = gcn.get_notice_type(root)
+
     skymap = None
     try:
-        skymap = get_skymap(root, gcn_notice)
+        skymap = get_skymap(root, notice_type)
     except Exception as e:
-        log(f"Failed to get skymap from gcn notice {gcn_notice.id}: {e}")
+        raise ValueError(f"Failed to get skymap from gcn notice {gcn_notice.id}: {e}")
 
     if skymap is None:
-        log(f"No skymap found for event {dateobs}")
-        return event_id
+        raise Exception(f"No skymap found for event {dateobs} with notice {notice_id}")
 
     skymap["dateobs"] = dateobs
     skymap["sent_by_id"] = user_id
 
+    localization_id = None
     localization = session.scalars(
         Localization.select(user).where(
             Localization.dateobs == skymap["dateobs"],
@@ -211,7 +254,7 @@ def post_gcnevent_from_xml(payload, user_id, session, asynchronous=True):
         )
     ).first()
     if localization is None:
-        localization = Localization(**skymap)
+        localization = Localization(**skymap, notice_id=notice_id)
         session.add(localization)
         session.commit()
         localization_id = localization.id
@@ -225,84 +268,79 @@ def post_gcnevent_from_xml(payload, user_id, session, asynchronous=True):
                 asyncio.set_event_loop(loop)
             IOLoop.current().run_in_executor(
                 None,
-                lambda: add_tiles_and_properties_and_observation_plans(
+                lambda: add_tiles_properties_contour_and_obsplan(
                     localization_id, user_id
                 ),
             )
-            IOLoop.current().run_in_executor(None, lambda: add_contour(localization_id))
         else:
-            add_tiles_and_properties_and_observation_plans(localization_id, user_id)
-            add_contour(localization_id)
+            add_tiles_properties_contour_and_obsplan(localization_id, user_id, session)
 
-        mma_detectors = session.scalars(
-            MMADetector.select(user).where(MMADetector.nickname.in_(tags_text))
-        ).all()
-        if len(mma_detectors) > 0:
-            event_to_update = session.scalars(
-                GcnEvent.select(user).where(GcnEvent.dateobs == dateobs)
-            ).first()
-            event_to_update.mma_detectors = mma_detectors
-            session.commit()
+        gcn_notice.localization_ingested = True
+        session.add(gcn_notice)
+        session.commit()
+        try:
+            ra, dec, error = (
+                float(val) for val in skymap["localization_name"].split("_")
+            )
+            if error < SOURCE_RADIUS_THRESHOLD:
+                source = {}
+                name = root.find('./Why/Inference/Name')
+                if name is not None:
+                    source = {
+                        'id': (name.text).replace(' ', ''),
+                        'ra': ra,
+                        'dec': dec,
+                    }
+                elif any(
+                    [
+                        True if 'GRB' in tag.text.upper() else False
+                        for tag in get_tags(root)
+                    ]
+                ):
+                    dateobs_txt = Time(dateobs).isot
+                    source_name = f"GRB{dateobs_txt[2:4]}{dateobs_txt[5:7]}{dateobs_txt[8:10]}.{dateobs_txt[11:13]}{dateobs_txt[14:16]}{dateobs_txt[17:19]}"
+                    source = {
+                        'id': source_name,
+                        'ra': ra,
+                        'dec': dec,
+                    }
+                elif any(
+                    [
+                        True if 'GW' in tag.text.upper() else False
+                        for tag in get_tags(root)
+                    ]
+                ):
+                    dateobs_txt = Time(dateobs).isot
+                    source_name = f"GW{dateobs_txt[2:4]}{dateobs_txt[5:7]}{dateobs_txt[8:10]}.{dateobs_txt[11:13]}{dateobs_txt[14:16]}{dateobs_txt[17:19]}"
+                    source = {
+                        'id': source_name,
+                        'ra': ra,
+                        'dec': dec,
+                    }
+                else:
+                    source = {
+                        'id': Time(dateobs).isot.replace(":", "-"),
+                        'ra': ra,
+                        'dec': dec,
+                    }
 
-            try:
-                ra, dec, error = (
-                    float(val) for val in skymap["localization_name"].split("_")
-                )
-                if error < SOURCE_RADIUS_THRESHOLD:
-                    source = {}
-                    name = root.find('./Why/Inference/Name')
-                    if name is not None:
-                        source = {
-                            'id': (name.text).replace(' ', ''),
-                            'ra': ra,
-                            'dec': dec,
-                        }
-                    elif any(
-                        [
-                            True if 'GRB' in tag.text.upper() else False
-                            for tag in tags_text
-                        ]
-                    ):
-                        dateobs_txt = Time(dateobs).isot
-                        source_name = f"GRB{dateobs_txt[2:4]}{dateobs_txt[5:7]}{dateobs_txt[8:10]}.{dateobs_txt[11:13]}{dateobs_txt[14:16]}{dateobs_txt[17:19]}"
-                        source = {
-                            'id': source_name,
-                            'ra': ra,
-                            'dec': dec,
-                        }
-                    elif any(
-                        [
-                            True if 'GW' in tag.text.upper() else False
-                            for tag in tags_text
-                        ]
-                    ):
-                        dateobs_txt = Time(dateobs).isot
-                        source_name = f"GW{dateobs_txt[2:4]}{dateobs_txt[5:7]}{dateobs_txt[8:10]}.{dateobs_txt[11:13]}{dateobs_txt[14:16]}{dateobs_txt[17:19]}"
-                        source = {
-                            'id': source_name,
-                            'ra': ra,
-                            'dec': dec,
-                        }
-                    else:
-                        source = {
-                            'id': Time(dateobs).isot.replace(":", "-"),
-                            'ra': ra,
-                            'dec': dec,
-                        }
+                if source.get('id', None) is not None:
+                    existing_source = session.scalars(
+                        Source.select(user).where(Source.id == source['id'])
+                    ).first()
+                    if existing_source is None:
+                        post_source(source, user_id, session)
+        except Exception:
+            pass
 
-                    if source.get('id', None) is not None:
-                        existing_source = session.scalars(
-                            Source.select(user).where(Source.id == source['id'])
-                        ).first()
-                        if existing_source is None:
-                            post_source(source, user_id, session)
-            except Exception:
-                pass
+    else:
+        localization_id = localization.id
+        log(f"Localization {localization_id} already exists.")
 
-    return event_id
+    return localization_id
 
 
-def post_gcnevent_from_dictionary(payload, user_id, session):
+def post_gcnevent_from_dictionary(payload, user_id, session, asynchronous=True):
     """Post GcnEvent to database from dictionary.
     payload: dict
         Dictionary containing dateobs and skymap
@@ -423,23 +461,30 @@ def post_gcnevent_from_dictionary(payload, user_id, session):
         localization = Localization(**skymap)
         session.add(localization)
         session.commit()
+        localization_id = localization.id
 
-        log(f"Generating tiles/properties/contours for localization {localization.id}")
-
-        IOLoop.current().run_in_executor(
-            None,
-            lambda: add_tiles_and_properties_and_observation_plans(
-                localization.id, user_id
-            ),
-        )
-        IOLoop.current().run_in_executor(None, lambda: add_contour(localization.id))
+        log(f"Generating tiles/properties/contours for localization {localization_id}")
+        if asynchronous:
+            try:
+                loop = asyncio.get_event_loop()
+            except Exception:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+            IOLoop.current().run_in_executor(
+                None,
+                lambda: add_tiles_properties_contour_and_obsplan(
+                    localization_id, user_id
+                ),
+            )
+        else:
+            add_tiles_properties_contour_and_obsplan(localization_id, user_id, session)
 
     return event.id
 
 
 class GcnEventTagsHandler(BaseHandler):
     @auth_or_token
-    async def get(self):
+    async def get(self, dateobs=None, tag=None):
         """
         ---
         description: Get all GCN Event tags
@@ -459,6 +504,111 @@ class GcnEventTagsHandler(BaseHandler):
         with self.Session() as session:
             tags = session.scalars(sa.select(GcnTag.text).distinct()).unique().all()
             return self.success(data=tags)
+
+    @auth_or_token
+    def post(self, dateobs=None, tag=None):
+        """
+        ---
+        description: Post a GCN Event tag
+        tags:
+          - gcntags
+        requestBody:
+          content:
+            application/json:
+              schema: GcnEventTagPost
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      gcnevent_id:
+                        type: integer
+                        description: New GcnEvent Tag ID
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        data = self.get_json()
+        dateobs = data.get('dateobs', None)
+        text = data.get('text', None)
+
+        if dateobs is None:
+            return self.error("dateobs must be present in data to add GcnTag")
+        if text is None:
+            return self.error("text must be present in data to add GcnTag")
+
+        with self.Session() as session:
+            try:
+                tag = GcnTag(
+                    dateobs=dateobs,
+                    text=text,
+                    sent_by_id=self.associated_user_object.id,
+                )
+                session.add(tag)
+                session.commit()
+
+                self.push(
+                    action='skyportal/REFRESH_GCN_EVENT',
+                    payload={"gcnEvent_dateobs": dateobs},
+                )
+            except Exception as e:
+                return self.error(f'Cannot post tag: {str(e)}')
+
+            return self.success(data={'gcntag_id': tag.id})
+
+    @auth_or_token
+    def delete(self, dateobs, tag):
+        """
+        ---
+        description: Delete a GCN event tag
+        tags:
+          - gcnevents
+        parameters:
+          - in: path
+            name: dateobs
+            required: true
+            schema:
+              type: dateobs
+          - in: path
+            name: tag
+            required: true
+            schema:
+              type: tag
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+
+        with self.Session() as session:
+            tag = session.scalars(
+                GcnTag.select(session.user_or_token, mode="delete").where(
+                    GcnTag.dateobs == dateobs,
+                    GcnTag.text == tag,
+                )
+            ).first()
+            if tag is None:
+                return self.error("GCN event tag not found", status=404)
+
+            session.delete(tag)
+            session.commit()
+
+            self.push(
+                action='skyportal/REFRESH_GCN_EVENT',
+                payload={"gcnEvent_dateobs": dateobs},
+            )
+
+            return self.success()
 
 
 class GcnEventPropertiesHandler(BaseHandler):
@@ -669,10 +819,11 @@ class GcnEventHandler(BaseHandler):
                     "Either xml or dateobs must be present in data to parse GcnEvent"
                 )
 
+        event_id, dateobs, notice_id = None, None, None
         with self.Session() as session:
             try:
                 if 'xml' in data:
-                    event_id = post_gcnevent_from_xml(
+                    dateobs, event_id, notice_id = post_gcnevent_from_xml(
                         data['xml'], self.associated_user_object.id, session
                     )
                 else:
@@ -685,7 +836,13 @@ class GcnEventHandler(BaseHandler):
             except Exception as e:
                 return self.error(f'Cannot post event: {str(e)}')
 
-            return self.success(data={'gcnevent_id': event_id})
+            return self.success(
+                data={
+                    'gcnevent_id': event_id,
+                    'dateobs': dateobs,
+                    'notice_id': notice_id,
+                }
+            )
 
     @auth_or_token
     async def get(self, dateobs=None):
@@ -1188,7 +1345,7 @@ class GcnEventHandler(BaseHandler):
         """
         with self.Session() as session:
             event = session.scalars(
-                GcnEvent.select(session.user_or_token, model="delete").where(
+                GcnEvent.select(session.user_or_token, mode="delete").where(
                     GcnEvent.dateobs == dateobs
                 )
             ).first()
@@ -1201,21 +1358,22 @@ class GcnEventHandler(BaseHandler):
             return self.success()
 
 
-def add_tiles_and_properties_and_observation_plans(localization_id, user_id):
-
-    if Session.registry.has():
-        session = Session()
+def add_tiles_and_properties_and_contour(localization_id, user_id, parent_session=None):
+    if parent_session is None:
+        if Session.registry.has():
+            session = Session()
+        else:
+            session = Session(bind=DBSession.session_factory.kw["bind"])
     else:
-        session = Session(bind=DBSession.session_factory.kw["bind"])
+        session = parent_session
 
     try:
+        user = session.scalar(sa.select(User).where(User.id == user_id))
         localization = session.scalar(
             sa.select(Localization).where(Localization.id == localization_id)
         )
-        user = session.scalar(sa.select(User).where(User.id == user_id))
 
         properties_dict, tags_list = get_skymap_properties(localization)
-
         properties = LocalizationProperty(
             localization_id=localization_id, sent_by_id=user.id, data=properties_dict
         )
@@ -1233,15 +1391,54 @@ def add_tiles_and_properties_and_observation_plans(localization_id, user_id):
 
         tiles = [
             LocalizationTile(
-                localization_id=localization.id, healpix=uniq, probdensity=probdensity
+                localization_id=localization_id, healpix=uniq, probdensity=probdensity
             )
             for uniq, probdensity in zip(localization.uniq, localization.probdensity)
         ]
 
-        session.add(localization)
+        if parent_session is None:
+            session.add(localization)
         session.add_all(tiles)
         session.commit()
 
+        localization = get_contour(localization)
+        session.add(localization)
+        session.commit()
+
+        return log(
+            f"Generated tiles / properties / contour for localization {localization_id}"
+        )
+    except Exception as e:
+        log(
+            f"Unable to generate tiles / properties / contour for localization {localization_id}: {e}"
+        )
+        session.rollback()
+    finally:
+        if parent_session is None:
+            session.close()
+            Session.remove()
+
+
+def add_observation_plans(localization_id, user_id, parent_session=None):
+
+    if parent_session is None:
+        if Session.registry.has():
+            session = Session()
+        else:
+            session = Session(bind=DBSession.session_factory.kw["bind"])
+    else:
+        session = parent_session
+
+    try:
+        user = session.scalar(sa.select(User).where(User.id == user_id))
+        localization = session.query(Localization).get(localization_id)
+        localization_tags = [
+            tags.text
+            for tags in session.query(LocalizationTag)
+            .filter(LocalizationTag.localization_id == localization_id)
+            .all()
+        ]
+        dateobs = localization.dateobs
         config_gcn_observation_plans_all = [
             observation_plan for observation_plan in cfg["gcn.observation_plans"]
         ]
@@ -1254,9 +1451,12 @@ def add_tiles_and_properties_and_observation_plans(localization_id, user_id):
                 )
             ).first()
             if allocation is not None:
-                config_gcn_observation_plan["allocation_id"] = allocation.id
+                allocation_id = allocation.id
+                config_gcn_observation_plan["allocation_id"] = allocation_id
                 config_gcn_observation_plan["survey_efficiencies"] = []
                 config_gcn_observation_plans.append(config_gcn_observation_plan)
+            else:
+                allocation_id = None
 
         default_observation_plans = (
             (
@@ -1281,7 +1481,7 @@ def add_tiles_and_properties_and_observation_plans(localization_id, user_id):
             ).first()
 
             gcn_observation_plan = {
-                'allocation_id': allocation.id,
+                'allocation_id': allocation_id,
                 'filters': plan.filters,
                 'payload': plan.payload,
                 'survey_efficiencies': [
@@ -1293,7 +1493,7 @@ def add_tiles_and_properties_and_observation_plans(localization_id, user_id):
         gcn_observation_plans = gcn_observation_plans + config_gcn_observation_plans
 
         event = session.scalars(
-            GcnEvent.select(user).where(GcnEvent.dateobs == localization.dateobs)
+            GcnEvent.select(user).where(GcnEvent.dateobs == dateobs)
         ).first()
         start_date = str(datetime.datetime.utcnow()).replace("T", "")
 
@@ -1323,7 +1523,7 @@ def add_tiles_and_properties_and_observation_plans(localization_id, user_id):
                     'payload': payload,
                     'allocation_id': allocation.id,
                     'gcnevent_id': event.id,
-                    'localization_id': localization.id,
+                    'localization_id': localization_id,
                 }
 
                 if 'filters' in gcn_observation_plan:
@@ -1351,7 +1551,8 @@ def add_tiles_and_properties_and_observation_plans(localization_id, user_id):
                             and len(filters["localization_tags"]) > 0
                         ):
                             intersection = list(
-                                set(tags_list) & set(filters["localization_tags"])
+                                set(localization_tags)
+                                & set(filters["localization_tags"])
                             )
                             if len(intersection) == 0:
                                 continue
@@ -1372,35 +1573,38 @@ def add_tiles_and_properties_and_observation_plans(localization_id, user_id):
                         log(f"Survey efficiency analysis failed: {str(e)}")
                         continue
 
-        return log(
-            f"Generated tiles / properties / observation plans for localization {localization_id}"
-        )
+        return log(f"Generated observation plans for localization {localization_id}")
     except Exception as e:
-        log(
-            f"Unable to generate tiles / properties / observation plans for localization {localization_id}: {e}"
-        )
+        log(f"Unable to observation plans for localization {localization_id}: {e}")
     finally:
-        session.close()
+        if parent_session is None:
+            session.close()
+            Session.remove()
 
 
-def add_contour(localization_id):
+def add_tiles_properties_contour_and_obsplan(
+    localization_id, user_id, parent_session=None
+):
 
-    if Session.registry.has():
-        session = Session()
+    if parent_session is None:
+        if Session.registry.has():
+            session = Session()
+        else:
+            session = Session(bind=DBSession.session_factory.kw["bind"])
     else:
-        session = Session(bind=DBSession.session_factory.kw["bind"])
+        session = parent_session
 
     try:
-        localization = session.query(Localization).get(localization_id)
-        localization = get_contour(localization)
-        session.add(localization)
-        session.commit()
-        return log(f"Generated contour for localization {localization_id}")
+        add_tiles_and_properties_and_contour(localization_id, user_id, session)
+        add_observation_plans(localization_id, user_id, session)
     except Exception as e:
-        log(f"Unable to generate contour for localization {localization_id}: {e}")
+        log(
+            f"Unable to generate tiles / properties / observation plans / contour for localization {localization_id}: {e}"
+        )
     finally:
-        session.close()
-        Session.remove()
+        if parent_session is None:
+            session.close()
+            Session.remove()
 
 
 class LocalizationHandler(BaseHandler):
@@ -1511,6 +1715,63 @@ class LocalizationHandler(BaseHandler):
             session.commit()
 
             return self.success()
+
+
+class LocalizationNoticeHandler(BaseHandler):
+    @auth_or_token
+    async def post(self, dateobs, notice_id):
+        # first get the notice, if it exists
+        with self.Session() as session:
+            gcn_notice = session.scalars(
+                GcnNotice.select(session.user_or_token).where(
+                    GcnNotice.dateobs == dateobs, GcnNotice.id == notice_id
+                )
+            ).first()
+
+            if gcn_notice is None:
+                return self.error("Notice not found", status=404)
+
+            # then get the localization, if it exists
+            root = lxml.etree.fromstring(gcn_notice.content)
+            notice_type = gcn_notice.notice_type
+            status, skymap_metadata = get_skymap_metadata(root, notice_type)
+            if status == "unavailable":
+                return self.error(
+                    "Skymap present in notice isn't available (yet)", status=404
+                )
+            elif status in ["available", "cone"]:
+                localization = session.scalars(
+                    Localization.select(session.user_or_token).where(
+                        Localization.dateobs == dateobs,
+                        Localization.localization_name == skymap_metadata["name"],
+                    )
+                ).first()
+                if localization is not None:
+                    return self.error("Localization already exists", status=409)
+                else:
+                    try:
+                        post_skymap_from_notice(
+                            dateobs,
+                            gcn_notice.id,
+                            self.associated_user_object.id,
+                            session,
+                        )
+                        flow = Flow()
+                        flow.push(
+                            '*',
+                            "skyportal/REFRESH_GCN_EVENT",
+                            payload={"gcnEvent_dateobs": dateobs},
+                        )
+                        return self.success()
+                    except Exception as e:
+                        return self.error(f"Error posting skymap from notice: {e}")
+            elif status == "retracted":
+                return self.error(
+                    "Notice is for a retraction, no skymap needs to be posted",
+                    status=404,
+                )
+            else:
+                return self.error("Notice is missing skymap metadata", status=404)
 
 
 class LocalizationPropertiesHandler(BaseHandler):

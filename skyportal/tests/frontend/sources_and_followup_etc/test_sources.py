@@ -251,8 +251,7 @@ def test_analysis_with_file_input_start(
     driver.click_xpath('//div[@data-testid="analysisServiceSelect"]')
 
     # look for an element list with a text with the uuid name of the analysis service
-    driver.wait_for_xpath(f'//li[text()="{name}"]')
-    driver.click_xpath(f'//li[text()="{name}"]')
+    driver.click_xpath(f'//li[text()="{name}"]', timeout=30)
 
     # look for an input element with id root_image_data
     image_data = driver.wait_for_xpath('//input[@id="root_image_data"]')

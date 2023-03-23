@@ -4,7 +4,6 @@ import phonenumbers
 from phonenumbers.phonenumberutil import NumberParseException
 from validate_email import validate_email
 from sqlalchemy.exc import IntegrityError
-
 from baselayer.app.access import auth_or_token
 from baselayer.app.config import recursive_update
 from ...base import BaseHandler
@@ -209,7 +208,6 @@ class ProfileHandler(BaseHandler):
                     user.contact_email = None
 
             preferences = data.get("preferences", {})
-
             # Do not save blank fields (empty strings)
             for k, v in preferences.items():
                 if isinstance(v, dict):

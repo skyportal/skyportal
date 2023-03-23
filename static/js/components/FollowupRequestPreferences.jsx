@@ -29,8 +29,10 @@ const FollowupRequestPreferences = () => {
   const defaultAllocationId = useSelector(
     (state) => state.profile.preferences.followupDefault
   );
-  const [selectedAllocationId, setSelectedAllocationId] =
-    useState(defaultAllocationId);
+  // set the default allocation to be -1 if nothing is in the user preferences
+  const [selectedAllocationId, setSelectedAllocationId] = useState(
+    defaultAllocationId || -1
+  );
 
   const classes = useStyles();
   const dispatch = useDispatch();

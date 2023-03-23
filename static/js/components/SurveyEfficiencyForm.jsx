@@ -120,8 +120,9 @@ const SurveyEfficiencyForm = ({ gcnevent, observationplanRequest }) => {
       setSelectedInstrumentId(data[0]?.id);
       setSelectedLocalizationId(gcnevent.localizations[0]?.id);
     };
-
-    getInstruments();
+    if (!instrumentList || instrumentList.length === 0) {
+      getInstruments();
+    }
 
     // Don't want to reset everytime the component rerenders and
     // the defaultStartDate is updated, so ignore ESLint here

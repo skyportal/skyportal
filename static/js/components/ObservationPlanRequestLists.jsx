@@ -12,7 +12,6 @@ import {
   ThemeProvider,
   StyledEngineProvider,
   useTheme,
-  adaptV4Theme,
 } from "@mui/material/styles";
 import makeStyles from "@mui/styles/makeStyles";
 import MUIDataTable from "mui-datatables";
@@ -44,49 +43,47 @@ const useStyles = makeStyles(() => ({
 
 // Tweak responsive styling
 const getMuiTheme = (theme) =>
-  createTheme(
-    adaptV4Theme({
-      palette: theme.palette,
-      overrides: {
-        MUIDataTable: {
-          paper: {
-            width: "100%",
-          },
+  createTheme({
+    palette: theme.palette,
+    overrides: {
+      MUIDataTable: {
+        paper: {
+          width: "100%",
         },
-        MUIDataTableBodyCell: {
-          stackedCommon: {
-            overflow: "hidden",
-            "&:last-child": {
-              paddingLeft: "0.25rem",
-            },
-          },
-        },
-        MUIDataTablePagination: {
-          toolbar: {
-            flexFlow: "row wrap",
-            justifyContent: "flex-end",
-            padding: "0.5rem 1rem 0",
-            [theme.breakpoints.up("sm")]: {
-              // Cancel out small screen styling and replace
-              padding: "0px",
-              paddingRight: "2px",
-              flexFlow: "row nowrap",
-            },
-          },
-          tableCellContainer: {
-            padding: "1rem",
-          },
-          selectRoot: {
-            marginRight: "0.5rem",
-            [theme.breakpoints.up("sm")]: {
-              marginLeft: "0",
-              marginRight: "2rem",
-            },
+      },
+      MUIDataTableBodyCell: {
+        stackedCommon: {
+          overflow: "hidden",
+          "&:last-child": {
+            paddingLeft: "0.25rem",
           },
         },
       },
-    })
-  );
+      MUIDataTablePagination: {
+        toolbar: {
+          flexFlow: "row wrap",
+          justifyContent: "flex-end",
+          padding: "0.5rem 1rem 0",
+          [theme.breakpoints.up("sm")]: {
+            // Cancel out small screen styling and replace
+            padding: "0px",
+            paddingRight: "2px",
+            flexFlow: "row nowrap",
+          },
+        },
+        tableCellContainer: {
+          padding: "1rem",
+        },
+        selectRoot: {
+          marginRight: "0.5rem",
+          [theme.breakpoints.up("sm")]: {
+            marginLeft: "0",
+            marginRight: "2rem",
+          },
+        },
+      },
+    },
+  });
 
 const ObservationPlanGlobe = ({ observationplanRequest, loc }) => {
   const dispatch = useDispatch();
@@ -143,6 +140,7 @@ const ObservationPlanGlobe = ({ observationplanRequest, loc }) => {
             options={displayOptionsDefault}
             height={300}
             width={300}
+            type="obsplan"
           />
           <Button
             secondary
@@ -269,24 +267,30 @@ ObservationPlanSummaryStatistics.propTypes = {
   }).isRequired,
 };
 
-const ObservationPlanRequestLists = ({ gcnEvent }) => {
+const ObservationPlanRequestLists = ({ dateobs }) => {
   const classes = useStyles();
   const dispatch = useDispatch();
   const theme = useTheme();
 
+  const gcnEvent = useSelector((state) => state.gcnEvent);
+
   const [observationPlanRequestList, setObservationPlanRequestList] =
     useState(null);
   useEffect(() => {
-    const fetchObservationPlanRequestList = async () => {
-      const response = await dispatch(
-        GET(
-          `/api/gcn_event/${gcnEvent.id}/observation_plan_requests`,
-          "skyportal/FETCH_GCNEVENT_OBSERVATION_PLAN_REQUESTS"
-        )
-      );
-      setObservationPlanRequestList(response.data);
-    };
-    fetchObservationPlanRequestList();
+    if (!gcnEvent) {
+      return;
+    }
+    if (dateobs !== gcnEvent.dateobs || !gcnEvent) {
+      const fetchObservationPlanRequestList = async () => {
+        dispatch(
+          GET(
+            `/api/gcn_event/${gcnEvent.id}/observation_plan_requests`,
+            "skyportal/FETCH_GCNEVENT_OBSERVATION_PLAN_REQUESTS"
+          )
+        ).then((response) => setObservationPlanRequestList(response.data));
+      };
+      fetchObservationPlanRequestList();
+    }
   }, [dispatch, setObservationPlanRequestList, gcnEvent]);
 
   const [selectedLocalizationId, setSelectedLocalizationId] = useState(null);
@@ -794,34 +798,7 @@ const ObservationPlanRequestLists = ({ gcnEvent }) => {
 };
 
 ObservationPlanRequestLists.propTypes = {
-  gcnEvent: PropTypes.shape({
-    dateobs: PropTypes.string,
-    localizations: PropTypes.arrayOf(
-      PropTypes.shape({
-        id: PropTypes.number,
-        localization_name: PropTypes.string,
-      })
-    ),
-    id: PropTypes.number,
-    observationplan_requests: PropTypes.arrayOf(
-      PropTypes.shape({
-        requester: PropTypes.shape({
-          id: PropTypes.number,
-          username: PropTypes.string,
-        }),
-        instrument: PropTypes.shape({
-          id: PropTypes.number,
-          name: PropTypes.string,
-        }),
-        status: PropTypes.string,
-        allocation: PropTypes.shape({
-          group: PropTypes.shape({
-            name: PropTypes.string,
-          }),
-        }),
-      })
-    ),
-  }).isRequired,
+  dateobs: PropTypes.string.isRequired,
 };
 
 export default ObservationPlanRequestLists;

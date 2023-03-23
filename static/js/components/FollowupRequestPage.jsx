@@ -8,9 +8,6 @@ import ListItem from "@mui/material/ListItem";
 import ListItemText from "@mui/material/ListItemText";
 import Paper from "@mui/material/Paper";
 import Grid from "@mui/material/Grid";
-import Select from "@mui/material/Select";
-import InputLabel from "@mui/material/InputLabel";
-import MenuItem from "@mui/material/MenuItem";
 import makeStyles from "@mui/styles/makeStyles";
 import PropTypes from "prop-types";
 import dayjs from "dayjs";
@@ -26,7 +23,6 @@ import ConfirmDeletionDialog from "./ConfirmDeletionDialog";
 
 import * as defaultFollowupRequestsActions from "../ducks/default_followup_requests";
 import * as followupRequestActions from "../ducks/followup_requests";
-import * as instrumentActions from "../ducks/instruments";
 
 dayjs.extend(utc);
 
@@ -216,7 +212,6 @@ const FollowupRequestPage = () => {
     .utc()
     .format("YYYY-MM-DDTHH:mm:ssZ");
 
-  const [selectedInstrumentId, setSelectedInstrumentId] = useState(null);
   const [fetchParams, setFetchParams] = useState({
     pageNumber: 1,
     numPerPage: defaultNumPerPage,
@@ -225,40 +220,19 @@ const FollowupRequestPage = () => {
   });
 
   useEffect(() => {
-    const getInstruments = async () => {
-      // Wait for the allocations to update before setting
-      // the new default form fields, so that the allocations list can
-      // update
-
-      const result = await dispatch(instrumentActions.fetchInstruments());
-
-      const { data } = result;
-      setSelectedInstrumentId(data[0]?.id);
-    };
-
-    getInstruments();
-
-    // Don't want to reset everytime the component rerenders and
-    // the defaultStartDate is updated, so ignore ESLint here
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dispatch, setSelectedInstrumentId]);
-
-  useEffect(() => {
     const params = {
       ...fetchParams,
       numPerPage: defaultNumPerPage,
       pageNumber: 1,
-      instrumentID: selectedInstrumentId,
     };
     dispatch(followupRequestActions.fetchFollowupRequests(params));
-  }, [dispatch, selectedInstrumentId]);
+  }, [dispatch]);
 
   const handlePageChange = async (page, numPerPage) => {
     const params = {
       ...fetchParams,
       numPerPage,
       pageNumber: page + 1,
-      instrumentID: selectedInstrumentId,
     };
     // Save state for future
     setFetchParams(params);
@@ -274,7 +248,6 @@ const FollowupRequestPage = () => {
   if (
     instrumentList.length === 0 ||
     telescopeList.length === 0 ||
-    !selectedInstrumentId ||
     Object.keys(instrumentFormParams).length === 0
   ) {
     return <p>Loading information...</p>;
@@ -296,19 +269,6 @@ const FollowupRequestPage = () => {
   telescopeList?.forEach((tel) => {
     telLookUp[tel.id] = tel;
   });
-
-  const handleSelectedInstrumentChange = async (e) => {
-    setSelectedInstrumentId(e.target.value);
-    const params = {
-      ...fetchParams,
-      numPerPage: defaultNumPerPage,
-      pageNumber: 1,
-      instrumentID: e.target.value,
-    };
-    // Save state for future
-    setFetchParams(params);
-    await dispatch(followupRequestActions.fetchFollowupRequests(params));
-  };
 
   return (
     <Grid container spacing={3}>
@@ -335,29 +295,6 @@ const FollowupRequestPage = () => {
                 />
               </div>
             )}
-          </div>
-          <div>
-            <InputLabel id="instrumentSelectLabel">Instrument</InputLabel>
-            <Select
-              inputProps={{ MenuProps: { disableScrollLock: true } }}
-              labelId="instrumentSelectLabel"
-              value={selectedInstrumentId}
-              onChange={handleSelectedInstrumentChange}
-              name="followupRequestInstrumentSelect"
-              className={classes.select}
-            >
-              {sortedInstrumentList?.map((instrument) => (
-                <MenuItem
-                  value={instrument.id}
-                  key={instrument.id}
-                  className={classes.selectItem}
-                >
-                  {`${telLookUp[instrument.telescope_id].name} / ${
-                    instrument.name
-                  }`}
-                </MenuItem>
-              ))}
-            </Select>
           </div>
         </Paper>
         <Paper elevation={1}>

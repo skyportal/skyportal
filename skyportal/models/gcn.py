@@ -116,6 +116,20 @@ class GcnNotice(Base):
         sa.Column(sa.LargeBinary, nullable=False, doc='Raw VOEvent content')
     )
 
+    has_localization = sa.Column(
+        sa.Boolean,
+        nullable=False,
+        server_default='true',
+        doc='Whether event notice has localization',
+    )
+
+    localization_ingested = sa.Column(
+        sa.Boolean,
+        nullable=False,
+        server_default='false',
+        doc='Whether localization has been ingested',
+    )
+
 
 class GcnProperty(Base):
     """Store properties for events."""

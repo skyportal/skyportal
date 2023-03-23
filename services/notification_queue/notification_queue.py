@@ -686,22 +686,33 @@ class QueueHandler(tornado.web.RequestHandler):
                                 GcnEvent.dateobs == target_data["dateobs"]
                             )
                         ).first()
+
                         notices = event.gcn_notices
+                        notices = [
+                            notice
+                            for notice in notices
+                            if notice.id == target_data["notice_id"]
+                        ]
+
+                        if len(notices) > 0:
+                            # the notice is the one with "localization_ingested" equal to the "id" of target_id
+                            notice = notices[0]
+                        else:
+                            # we trigger the notification on localization, but we notify only if it comes from a notice
+                            return
 
                         gcn_prefs = pref["gcn_events"].get("properties", {})
                         for gcn_pref in gcn_prefs.values():
-                            if len(notices) > 0:
-                                notice = notices[-1]
-                                if (
-                                    "gcn_notice_types" in gcn_pref.keys()
-                                    and send_notification
-                                ):
-                                    if len(gcn_pref["gcn_notice_types"]) > 0:
-                                        if (
-                                            not gcn.NoticeType(notice.notice_type).name
-                                            in gcn_pref['gcn_notice_types']
-                                        ):
-                                            send_notification = False
+                            if (
+                                "gcn_notice_types" in gcn_pref.keys()
+                                and send_notification
+                            ):
+                                if len(gcn_pref["gcn_notice_types"]) > 0:
+                                    if (
+                                        not gcn.NoticeType(notice.notice_type).name
+                                        in gcn_pref['gcn_notice_types']
+                                    ):
+                                        send_notification = False
                             if "gcn_tags" in gcn_pref.keys() and send_notification:
                                 if len(gcn_pref["gcn_tags"]) > 0:
                                     intersection = list(
