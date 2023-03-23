@@ -5,6 +5,7 @@ from tdtax import taxonomy, __version__
 from datetime import datetime, timezone
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
 
 from skyportal.tests import api
 from skyportal.tests.frontend.sources_and_followup_etc.test_sources import (
@@ -356,6 +357,10 @@ def test_new_gcn_event_triggers_notification(driver, user, super_admin_token):
         '//*[@name="gcn_events"]/../../span[contains(@class,"Mui-checked")]'
     )
 
+    new_notif_profile = '//*[@id="new-gcn-notification-profile"]'
+    driver.wait_for_xpath(new_notif_profile)
+    driver.click_xpath(new_notif_profile)
+
     gcn_events_name = driver.wait_for_xpath('//*[@id="GcnNotificationNameInput"]')
     gcn_events_name.send_keys('test')
 
@@ -366,12 +371,17 @@ def test_new_gcn_event_triggers_notification(driver, user, super_admin_token):
 
     driver.click_xpath(
         '//li[@data-value="FERMI_GBM_GND_POS"]',
-        scroll_parent=True,
     )
 
-    driver.click_xpath(
-        '//*[@data-testid="addShortcutButton" and contains(., "Update")]'
+    # we close the dropdown list
+    element = driver.switch_to.active_element
+    element.send_keys(Keys.ESCAPE)
+
+    create = '//*[@data-testid="addShortcutButton" and contains(., "Create")]'
+    driver.execute_script(
+        "arguments[0].scrollIntoView(true);", driver.wait_for_xpath(create)
     )
+    driver.click_xpath(create)
 
     driver.wait_for_xpath('//*[contains(text(), "Gcn notice preferences updated")]')
 

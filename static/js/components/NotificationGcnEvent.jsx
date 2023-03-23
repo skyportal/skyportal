@@ -396,6 +396,7 @@ const NotificationGcnEvent = () => {
           className={classes.button}
           secondary
           onClick={() => openNewProfile()}
+          id="new-gcn-notification-profile"
         >
           Create New Profile
         </Button>
