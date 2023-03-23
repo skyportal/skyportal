@@ -166,6 +166,8 @@ def post_gcnevent_from_xml(
                 "Insufficient permissions: GCN event can only be updated by original poster"
             )
 
+    event_id = event.id
+
     notice_id = None
     gcn_notice = GcnNotice(
         content=payload,
@@ -215,7 +217,7 @@ def post_gcnevent_from_xml(
         except Exception:
             pass
 
-    return dateobs, notice_id
+    return dateobs, event_id, notice_id
 
 
 def post_skymap_from_notice(dateobs, notice_id, user_id, session, asynchronous=True):
@@ -817,10 +819,11 @@ class GcnEventHandler(BaseHandler):
                     "Either xml or dateobs must be present in data to parse GcnEvent"
                 )
 
+        event_id, dateobs, notice_id = None, None, None
         with self.Session() as session:
             try:
                 if 'xml' in data:
-                    event_id = post_gcnevent_from_xml(
+                    dateobs, event_id, notice_id = post_gcnevent_from_xml(
                         data['xml'], self.associated_user_object.id, session
                     )
                 else:
@@ -833,7 +836,13 @@ class GcnEventHandler(BaseHandler):
             except Exception as e:
                 return self.error(f'Cannot post event: {str(e)}')
 
-            return self.success(data={'gcnevent_id': event_id})
+            return self.success(
+                data={
+                    'gcnevent_id': event_id,
+                    'dateobs': dateobs,
+                    'notice_id': notice_id,
+                }
+            )
 
     @auth_or_token
     async def get(self, dateobs=None):

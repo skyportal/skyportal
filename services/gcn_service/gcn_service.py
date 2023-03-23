@@ -124,28 +124,38 @@ def poll_events():
                     continue
                 with DBSession() as session:
                     # event ingestion
-                    log(f'Ingesting gcn event from {message.topic()}')
-                    dateobs, notice_id = post_gcnevent_from_xml(
-                        payload, user_id, session, post_skymap=False, asynchronous=False
-                    )
+                    log(f'Ingesting gcn_event from {message.topic()}')
+                    try:
+                        dateobs, event_id, notice_id = post_gcnevent_from_xml(
+                            payload,
+                            user_id,
+                            session,
+                            post_skymap=False,
+                            asynchronous=False,
+                        )
+                    except Exception as e:
+                        log(f'Failed to ingest gcn_event from {message.topic()}: {e}')
+                        continue
 
                     # skymap ingestion if available or cone
                     root = get_root_from_payload(payload)
                     notice_type = gcn.get_notice_type(root)
                     status, _ = get_skymap_metadata(root, notice_type)
                     if status in ['available', 'cone']:
-                        log(f'Ingesting skymap for gcn event {dateobs} - {notice_id}')
+                        log(
+                            f'Ingesting skymap for gcn_event: {dateobs}, notice_id: {notice_id}'
+                        )
                         try:
                             post_skymap_from_notice(
                                 dateobs, notice_id, user_id, session, asynchronous=False
                             )
                         except Exception as e:
                             log(
-                                f'Failed to ingest skymap for gcn event {dateobs} - {notice_id}: {e}'
+                                f'Failed to ingest skymap for gcn_event: {dateobs}, notice_id: {notice_id}: {e}'
                             )
                     else:
                         log(
-                            f'No skymap available for gcn event {dateobs} - {notice_id}'
+                            f'No skymap available for gcn_event: {dateobs}, notice_id: {notice_id}'
                         )
 
         except Exception as e:
