@@ -180,7 +180,7 @@ def get_skymap_url(root, notice_type):
         # we have a URL, but is it available? We don't want to download the file here,
         # so we'll just check the HTTP status code.
         try:
-            response = requests.head(url)
+            response = requests.head(url, timeout=5)
             if response.status_code == 200:
                 available = True
         except requests.exceptions.RequestException:
