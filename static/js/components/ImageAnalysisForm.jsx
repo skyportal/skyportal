@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, Suspense } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Link, useParams } from "react-router-dom";
+import TextLoop from "react-text-loop";
 import { useImage } from "react-image";
 import Select from "@mui/material/Select";
 import InputLabel from "@mui/material/InputLabel";
@@ -39,7 +40,19 @@ const useStyles = makeStyles((theme) => ({
     "&:hover": {
       textDecoration: "underline",
     },
-  }
+  },
+  media: {
+    maxWidth: "100%",
+    width: "95%",
+  },
+  spinner: {
+    position: "relative",
+    margin: "auto",
+    width: "50%",
+    fontWeight: "bold",
+    fontSize: "1.25rem",
+    textAlign: "center",
+  },
 }));
 
 
@@ -56,7 +69,28 @@ const ImageAnalysisForm = ({ obj_id }) => {
   
   const defaultDate = dayjs().utc().format("YYYY-MM-DDTHH:mm:ssZ");
 
+  const { id } = useParams();
   let url = null;
+
+  const placeholder = (
+    <div className={classes.spinner}>
+      <TextLoop>
+        <span>Downloading image</span>
+        <span>Querying for offset stars</span>
+        <span>Reprojecting image</span>
+        <span>Rendering preview</span>
+      </TextLoop>{" "}
+      <br /> <br />
+      <CircularProgress color="primary" />
+    </div>
+  );
+
+  function PreviewImage(url) {
+    const { src } = useImage({
+      srcList: url,
+    });
+    return <img alt={`${id}`} src={src} className={classes.media} />;
+  }
 
   const handleSubmit = async ({ formData }) => {
     const data = { ...formData };
@@ -74,6 +108,11 @@ const ImageAnalysisForm = ({ obj_id }) => {
     if (result.status === "success") {
       dispatch(showNotification("Image analysis submitted"));
     }
+
+    url = new URL(`/api/internal/sources/${id}/image_analysis`, window.location.href);
+    url.search = new URLSearchParams({
+    type: "png",
+    });
   };
 
 
@@ -195,7 +234,11 @@ const ImageAnalysisForm = ({ obj_id }) => {
   return (
     <div>
       {(url !=null ) && 
-        <img src={url} alt="image" />
+      <div>
+        <Suspense fallback={placeholder}>
+          <PreviewImage url={url} />
+        </Suspense>
+      </div>
       }
       <div>
         <InputLabel id="instrumentSelectLabel">Instrument</InputLabel>
