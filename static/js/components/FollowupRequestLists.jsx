@@ -111,6 +111,18 @@ const FollowupRequestLists = ({
     setIsGetting(null);
   };
 
+  const [isSubmitting, setIsSubmitting] = useState(null);
+  const handleSubmit = async (followupRequest) => {
+    setIsSubmitting(followupRequest.id);
+    const json = {
+      allocation_id: followupRequest.allocation.id,
+      obj_id: followupRequest.obj_id,
+      payload: followupRequest.payload,
+    };
+    await dispatch(Actions.editFollowupRequest(json, followupRequest.id));
+    setIsSubmitting(null);
+  };
+
   if (
     instrumentList.length === 0 ||
     followupRequests.length === 0 ||
@@ -149,6 +161,8 @@ const FollowupRequestLists = ({
     if (!(instrument_id in instrumentFormParams)) {
       return columns;
     }
+    const implementSubmit =
+      instrumentFormParams[instrument_id].methodsImplemented.submit;
     const implementsDelete =
       instrumentFormParams[instrument_id].methodsImplemented.delete;
     const implementsEdit =
@@ -215,6 +229,10 @@ const FollowupRequestLists = ({
         const isDone =
           followupRequest.status === "Photometry committed to database";
 
+        const isSubmitted = followupRequest.status === "submitted";
+
+        const isFailed = followupRequest.status === "failed to submit";
+
         return (
           <div className={classes.actionButtons}>
             {implementsDelete && isDeleting === followupRequest.id ? (
@@ -236,7 +254,7 @@ const FollowupRequestLists = ({
                 </Button>
               </div>
             )}
-            {!isDone && (
+            {!isDone && isSubmitted && (
               <div>
                 {implementsGet && isGetting === followupRequest.id ? (
                   <div>
@@ -254,6 +272,29 @@ const FollowupRequestLists = ({
                       data-testid={`getRequest_${followupRequest.id}`}
                     >
                       Retrieve
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
+            {isFailed && (
+              <div>
+                {implementSubmit && isSubmitting === followupRequest.id ? (
+                  <div>
+                    <CircularProgress />
+                  </div>
+                ) : (
+                  <div>
+                    <Button
+                      primary
+                      onClick={() => {
+                        handleSubmit(followupRequest);
+                      }}
+                      size="small"
+                      type="submit"
+                      data-testid={`submitRequest_${followupRequest.id}`}
+                    >
+                      Submit
                     </Button>
                   </div>
                 )}
