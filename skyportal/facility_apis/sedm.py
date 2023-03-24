@@ -394,6 +394,8 @@ class SEDMAPI(FollowUpAPI):
                                 "title": "Exposure Time (Photometry) [s]",
                                 "type": "number",
                                 "default": -1,
+                                "minimum": -1,
+                                "maximum": 3600,
                             },
                             "maximum_airmass": {
                                 "title": "Maximum Airmass (1-3)",
