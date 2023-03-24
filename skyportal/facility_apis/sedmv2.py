@@ -67,12 +67,9 @@ def validate_request_to_sedmv2(request):
         raise ValueError('too must be Y or N')
 
     if (request.payload["observation_type"] == "variable") and (
-        request.payload["frame_exposure_time"]
-        not in [1, 2, 3, 5, 10, 15, 20, 25, 30, 60]
+        request.payload["frame_exposure_time"] not in [1, 2, 3, 5, 10, 15, 20, 25, 30]
     ):
-        raise ValueError(
-            'frame_exposure_time must be [1, 2, 3, 5, 10, 15, 20, 25, 30, 60]'
-        )
+        raise ValueError('frame_exposure_time must be [1, 2, 3, 5, 10, 15, 20, 25, 30]')
 
 
 class SEDMV2API(FollowUpAPI):
@@ -365,7 +362,7 @@ class SEDMV2API(FollowUpAPI):
                             },
                             "frame_exposure_time": {
                                 "title": "Exposure time per frame (s)",
-                                "enum": [1, 2, 3, 5, 10, 15, 20, 25, 30, 60],
+                                "enum": [1, 2, 3, 5, 10, 15, 20, 25, 30],
                                 "default": 10,
                             },
                         },
