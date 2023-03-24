@@ -371,7 +371,7 @@ export function checkSource(id, params, actionType = CHECK_SOURCE) {
     return API.GET(`/api/source_exists/${id}`, actionType);
   }
   return API.GET(
-    `/api/source_exists/${id}?ra=${params.ra}&dec=${params.dec}&radius=0.0003&nameOnly=${params.nameOnly}`,
+    `/api/source_exists/${id}?ra=${params.ra}&dec=${params.dec}&radius=0.0003`,
     actionType
   );
 }
