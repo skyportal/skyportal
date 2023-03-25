@@ -857,6 +857,34 @@ class ZTFMMAAPI(MMAAPI):
 
         IOLoop.current().run_in_executor(None, fetch_obs)
 
+    @staticmethod
+    def skymap(allocation, payload):
+
+        """Submit skymap queue to ZTF.
+
+        Parameters
+        ----------
+        allocation : skyportal.models.Allocation
+            The allocation with queue information.
+        payload : object
+            Skymap queue information to submit to instrument
+        """
+
+        altdata = allocation.altdata
+        if not altdata:
+            raise ValueError('Missing allocation information.')
+
+        headers = {"Authorization": f"Bearer {altdata['access_token']}"}
+
+        url = urllib.parse.urljoin(ZTF_URL, 'api/triggers/ztf_skymap')
+        s = Session()
+        ztfreq = Request('PUT', url, json=payload, headers=headers)
+        prepped = ztfreq.prepare()
+        r = s.send(prepped)
+
+        if r.status_code != 200:
+            raise ValueError(f'rejected from skymap queue: {r.content}')
+
     def custom_json_schema(instrument, user):
         form_json_schema = MMAAPI.custom_json_schema(instrument, user)
 
