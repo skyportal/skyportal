@@ -11,7 +11,7 @@ import CircularProgress from "@mui/material/CircularProgress";
 import makeStyles from "@mui/styles/makeStyles";
 import * as sourceActions from "../ducks/source";
 import * as allocationActions from "../ducks/allocations";
-import * as instrumentActions from "../ducks/instruments";
+import * as instrumentsActions from "../ducks/instruments";
 import GroupShareSelect from "./GroupShareSelect";
 
 import "react-datepicker/dist/react-datepicker-cssmodules.css";
@@ -97,11 +97,7 @@ const FollowupRequestForm = ({
 
     getAllocations();
 
-    dispatch(
-      instrumentActions.fetchInstrumentForms({
-        apiType: "api_classname",
-      })
-    );
+    dispatch(instrumentsActions.fetchInstrumentForms());
   }, [setSelectedAllocationId, setSelectedGroupIds, dispatch]);
 
   // need to check both of these conditions as selectedAllocationId is
