@@ -276,6 +276,7 @@ const ObservationPlanRequestLists = ({ dateobs }) => {
 
   const [observationPlanRequestList, setObservationPlanRequestList] =
     useState(null);
+
   useEffect(() => {
     if (!gcnEvent) {
       return;
@@ -330,7 +331,7 @@ const ObservationPlanRequestLists = ({ dateobs }) => {
     setIsRemoving(null);
   };
 
-  const { instrumentList, instrumentFormParams } = useSelector(
+  const { instrumentList, instrumentObsplanFormParams } = useSelector(
     (state) => state.instruments
   );
 
@@ -349,7 +350,7 @@ const ObservationPlanRequestLists = ({ dateobs }) => {
   if (
     !instrumentList ||
     instrumentList.length === 0 ||
-    Object.keys(instrumentFormParams).length === 0
+    Object.keys(instrumentObsplanFormParams).length === 0
   ) {
     return <CircularProgress />;
   }
@@ -387,11 +388,11 @@ const ObservationPlanRequestLists = ({ dateobs }) => {
 
   const getDataTableColumns = (keys, instrument_id) => {
     const implementsDelete =
-      instrumentFormParams[instrument_id]?.methodsImplemented.delete;
+      instrumentObsplanFormParams[instrument_id]?.methodsImplemented.delete;
     const implementsSend =
-      instrumentFormParams[instrument_id]?.methodsImplemented.send;
+      instrumentObsplanFormParams[instrument_id]?.methodsImplemented.send;
     const implementsRemove =
-      instrumentFormParams[instrument_id]?.methodsImplemented.remove;
+      instrumentObsplanFormParams[instrument_id]?.methodsImplemented.remove;
     const queuable = implementsSend || implementsRemove;
 
     const columns = [
@@ -402,11 +403,11 @@ const ObservationPlanRequestLists = ({ dateobs }) => {
       const renderKey = (value) =>
         Array.isArray(value) ? value.join(",") : value;
 
-      if (instrumentFormParams[instrument_id]) {
+      if (instrumentObsplanFormParams[instrument_id]) {
         const field = Object.keys(
-          instrumentFormParams[instrument_id].aliasLookup
+          instrumentObsplanFormParams[instrument_id].aliasLookup
         ).includes(key)
-          ? instrumentFormParams[instrument_id].aliasLookup[key]
+          ? instrumentObsplanFormParams[instrument_id].aliasLookup[key]
           : key;
         columns.push({
           name: `payload.${key}`,

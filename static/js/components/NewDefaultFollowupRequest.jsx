@@ -11,7 +11,7 @@ import makeStyles from "@mui/styles/makeStyles";
 
 import * as defaultFollowupRequestsActions from "../ducks/default_followup_requests";
 import * as allocationActions from "../ducks/allocations";
-import * as instrumentActions from "../ducks/instruments";
+import * as instrumentsActions from "../ducks/instruments";
 import GroupShareSelect from "./GroupShareSelect";
 
 import "react-datepicker/dist/react-datepicker-cssmodules.css";
@@ -73,11 +73,7 @@ const NewDefaultFollowupRequest = () => {
 
     getAllocations();
 
-    dispatch(
-      instrumentActions.fetchInstrumentForms({
-        apiType: "api_classname",
-      })
-    );
+    dispatch(instrumentsActions.fetchInstrumentForms());
 
     // Don't want to reset everytime the component rerenders and
     // the defaultStartDate is updated, so ignore ESLint here
