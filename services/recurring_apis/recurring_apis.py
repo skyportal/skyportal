@@ -26,7 +26,9 @@ REQUEST_TIMEOUT_SECONDS = cfg['health_monitor.request_timeout_seconds']
 MAX_RETRIES = 10
 
 
-host = f'{cfg["server.protocol"]}://{cfg["server.host"]}:{cfg["server.port"]}'
+host = f'{cfg["server.protocol"]}://{cfg["server.host"]}' + (
+    f':{cfg["server.port"]}' if cfg['server.port'] not in [80, 443] else ''
+)
 
 
 def is_loaded():
