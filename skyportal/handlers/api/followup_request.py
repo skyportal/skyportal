@@ -746,6 +746,7 @@ class FollowupRequestHandler(BaseHandler):
                 # updating status does not require instrument API interaction
                 for k in data:
                     setattr(followup_request, k, data[k])
+                session.commit()
             else:
                 try:
                     data = FollowupRequestPost.load(data)
@@ -814,11 +815,11 @@ class FollowupRequestHandler(BaseHandler):
                     except Exception as e:
                         return self.error(f'Failed to update follow-up request: {e}')
 
-                self.push_all(
-                    action="skyportal/REFRESH_SOURCE",
-                    payload={"obj_key": followup_request.obj.internal_key},
-                )
-                return self.success()
+            self.push_all(
+                action="skyportal/REFRESH_SOURCE",
+                payload={"obj_key": followup_request.obj.internal_key},
+            )
+            return self.success()
 
     @permissions(["Upload data"])
     def delete(self, request_id):
