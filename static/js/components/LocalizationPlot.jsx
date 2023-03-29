@@ -524,7 +524,13 @@ const GeoJSONGlobePlot = ({
 
   const svgRef = useD3(renderMap, height, width, data);
 
-  return <svg height={height} width={width} ref={svgRef} />;
+  return (
+    <svg
+      preserveAspectRatio="xMidYMid meet"
+      viewBox={`0 0 ${height} ${width}`}
+      ref={svgRef}
+    />
+  );
 };
 
 GeoJSONGlobePlot.propTypes = {

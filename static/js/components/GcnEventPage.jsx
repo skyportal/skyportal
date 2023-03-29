@@ -1,7 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
 import PropTypes from "prop-types";
 import { useSelector, useDispatch } from "react-redux";
-import { Link } from "react-router-dom";
 
 import Accordion from "@mui/material/Accordion";
 import AccordionSummary from "@mui/material/AccordionSummary";
@@ -16,6 +15,8 @@ import Typography from "@mui/material/Typography";
 import { showNotification } from "baselayer/components/Notifications";
 import { useTheme } from "@mui/material/styles";
 
+import Drawer from "@mui/material/Drawer";
+
 // eslint-disable-next-line
 import GeoPropTypes from "geojson-prop-types";
 
@@ -24,11 +25,7 @@ import utc from "dayjs/plugin/utc";
 import Button from "./Button";
 
 import * as gcnEventActions from "../ducks/gcnEvent";
-import * as sourcesActions from "../ducks/sources";
 
-import SourceTable from "./SourceTable";
-import GalaxyTable from "./GalaxyTable";
-import ExecutedObservationsTable from "./ExecutedObservationsTable";
 import GcnSelectionForm from "./GcnSelectionForm";
 import Spinner from "./Spinner";
 
@@ -51,7 +48,38 @@ import * as localizationActions from "../ducks/localization";
 dayjs.extend(utc);
 
 const useStyles = makeStyles((theme) => ({
-  header: {},
+  sidePanel: {
+    width: "50vw",
+    height: "100%",
+    padding: "1rem",
+  },
+  header: {
+    display: "flex",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: "1rem",
+  },
+  headerLeft: {
+    display: "flex",
+    flexDirection: "row",
+    justifyContent: "flex-start",
+    alignItems: "center",
+    gap: "1rem",
+  },
+  headerRight: {
+    display: "flex",
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    alignItems: "center",
+    alignContent: "center",
+    gap: "1rem",
+  },
+  headerName: {
+    fontSize: "2rem",
+    fontWeight: "bold",
+    color: theme.palette.primary.main,
+  },
   eventTags: {
     marginLeft: "1rem",
     "& > div": {
@@ -73,7 +101,7 @@ const useStyles = makeStyles((theme) => ({
     width: "100%",
   },
   columnItem: {
-    marginBottom: theme.spacing(2),
+    marginBottom: theme.spacing(1),
   },
   noSources: {
     padding: theme.spacing(2),
@@ -130,190 +158,40 @@ DownloadXMLButton.propTypes = {
   }).isRequired,
 };
 
-const GcnEventSourcesPage = ({
-  route,
-  sources,
-  localizationName,
-  sourceFilteringState,
-}) => {
-  const classes = useStyles();
-  const dispatch = useDispatch();
-  const [sourcesRowsPerPage, setSourcesRowsPerPage] = useState(100);
-
-  const handleSourcesTableSorting = (sortData, filterData) => {
-    dispatch(
-      sourcesActions.fetchGcnEventSources(route.dateobs, {
-        ...filterData,
-        localizationName,
-        pageNumber: 1,
-        numPerPage: sourcesRowsPerPage,
-        sortBy: sortData.name,
-        sortOrder: sortData.direction,
-      })
-    );
-  };
-
-  const handleSourcesTablePagination = (
-    pageNumber,
-    numPerPage,
-    sortData,
-    filterData
-  ) => {
-    setSourcesRowsPerPage(numPerPage);
-    const data = {
-      ...filterData,
-      localizationName,
-      pageNumber,
-      numPerPage,
-    };
-    if (sortData && Object.keys(sortData).length > 0) {
-      data.sortBy = sortData.name;
-      data.sortOrder = sortData.direction;
-    }
-    dispatch(sourcesActions.fetchGcnEventSources(route.dateobs, data));
-  };
-
-  // eslint-disable-next-line
-  if (!sources || sources?.sources?.length === 0) {
-    return (
-      <div className={classes.noSources}>
-        <Typography variant="h5">Event sources</Typography>
-        <br />
-        <Typography variant="h5" align="center">
-          No sources within localization.
-        </Typography>
-      </div>
-    );
-  }
-
-  return (
-    <div className={classes.sourceList}>
-      <SourceTable
-        sources={sources.sources}
-        title="Event Sources"
-        paginateCallback={handleSourcesTablePagination}
-        pageNumber={sources.pageNumber}
-        totalMatches={sources.totalMatches}
-        numPerPage={sources.numPerPage}
-        sortingCallback={handleSourcesTableSorting}
-        favoritesRemoveButton
-        hideTitle
-        includeGcnStatus
-        sourceInGcnFilter={sourceFilteringState}
-      />
-    </div>
-  );
-};
-
-GcnEventSourcesPage.propTypes = {
-  route: PropTypes.shape({
-    dateobs: PropTypes.string,
-  }).isRequired,
-  sources: PropTypes.shape({
-    pageNumber: PropTypes.number,
-    totalMatches: PropTypes.number,
-    numPerPage: PropTypes.number,
-    sources: PropTypes.arrayOf(
-      PropTypes.shape({
-        id: PropTypes.string,
-        ra: PropTypes.number,
-        dec: PropTypes.number,
-        origin: PropTypes.string,
-        alias: PropTypes.arrayOf(PropTypes.string),
-        redshift: PropTypes.number,
-        classifications: PropTypes.arrayOf(
-          PropTypes.shape({
-            id: PropTypes.number,
-            classification: PropTypes.string,
-            created_at: PropTypes.string,
-            groups: PropTypes.arrayOf(
-              PropTypes.shape({
-                id: PropTypes.number,
-                name: PropTypes.string,
-              })
-            ),
-          })
-        ),
-        recent_comments: PropTypes.arrayOf(PropTypes.shape({})),
-        altdata: PropTypes.shape({
-          tns: PropTypes.shape({
-            name: PropTypes.string,
-          }),
-        }),
-        spectrum_exists: PropTypes.bool,
-        last_detected_at: PropTypes.string,
-        last_detected_mag: PropTypes.number,
-        peak_detected_at: PropTypes.string,
-        peak_detected_mag: PropTypes.number,
-        groups: PropTypes.arrayOf(
-          PropTypes.shape({
-            id: PropTypes.number,
-            name: PropTypes.string,
-          })
-        ),
-      })
-    ),
-  }),
-  localizationName: PropTypes.string.isRequired,
-  sourceFilteringState: PropTypes.shape({
-    startDate: PropTypes.string,
-    endDate: PropTypes.string,
-    localizationCumprob: PropTypes.number,
-  }).isRequired,
-};
-
-GcnEventSourcesPage.defaultProps = {
-  sources: null,
-};
-
-const sidebarWidth = 190;
-
 const GcnEventPage = ({ route }) => {
   const ref = useRef(null);
   const theme = useTheme();
-  const initialWidth =
-    window.innerWidth - sidebarWidth - 2 * parseInt(theme.spacing(2), 10);
-  const [width, setWidth] = useState(initialWidth);
+  const styles = useStyles(theme);
 
   const gcnEvent = useSelector((state) => state.gcnEvent);
   const dispatch = useDispatch();
-  const styles = useStyles();
   const [selectedLocalizationName, setSelectedLocalizationName] =
     useState(null);
   const [fetchingCachedLocalization, setFetchingCachedLocalization] =
     useState(false);
-  const [sourceFilteringState, setSourceFilteringState] = useState({
-    startDate: null,
-    endDate: null,
-    localizationCumprob: null,
-  });
   const currentUser = useSelector((state) => state.profile);
   const permission =
     currentUser.permissions?.includes("System admin") ||
     currentUser.permissions?.includes("Manage GCNs");
 
-  const gcnEventSources = useSelector(
-    (state) => state?.sources?.gcnEventSources
-  );
-  const gcnEventGalaxies = useSelector(
-    (state) => state?.galaxies?.gcnEventGalaxies
-  );
-
-  const gcnEventObservations = useSelector(
-    (state) => state?.observations?.gcnEventObservations
-  );
-
   const cachedLocalization = useSelector((state) => state.localization.cached);
 
-  useEffect(() => {
-    const handleResize = () => {
-      if (ref.current !== null) {
-        setWidth(ref.current.offsetWidth);
-      }
-    };
+  const [leftPanelVisible, setLeftPanelVisible] = useState(false);
+  const [rightPanelVisible, setRightPanelVisible] = useState(false);
 
-    window.addEventListener("resize", handleResize);
-  }, [ref]);
+  const toggleDrawer = (side, open) => (event) => {
+    if (
+      event.type === "keydown" &&
+      (event.key === "Tab" || event.key === "Shift")
+    ) {
+      return;
+    }
+    if (side === "left") {
+      setLeftPanelVisible(open);
+    } else if (side === "right") {
+      setRightPanelVisible(open);
+    }
+  };
 
   useEffect(() => {
     const fetchGcnEvent = async (dateobs) => {
@@ -354,11 +232,6 @@ const GcnEventPage = ({ route }) => {
     return <Spinner />;
   }
 
-  let xs = 7;
-  if (width < 600) {
-    xs = 14;
-  }
-
   const handleUpdateAliasesCirculars = () => {
     dispatch(gcnEventActions.postGcnTach(gcnEvent.dateobs)).then((response) => {
       if (response.status === "success") {
@@ -384,78 +257,41 @@ const GcnEventPage = ({ route }) => {
   return (
     <div ref={ref}>
       <Grid container spacing={2} className={styles.source}>
-        <Grid item xs={xs}>
+        <Grid item xs={12}>
           <div className={styles.columnItem}>
-            <Accordion defaultExpanded>
-              <AccordionSummary
-                expandIcon={<ExpandMoreIcon />}
-                aria-controls="gcnEvent-content"
-                id="info-header"
-              >
-                <Typography className={styles.accordionHeading}>
-                  Event Information
+            <div className={styles.header}>
+              <div className={styles.headerLeft}>
+                <Typography variant="h5" className={styles.headerName}>
+                  {dayjs(gcnEvent.dateobs).format("YYMMDD HH:mm:ss")}
                 </Typography>
-              </AccordionSummary>
-              <AccordionDetails>
-                <div className={styles.gcnEventContainer}>
-                  <Link to={`/gcn_events/${gcnEvent.dateobs}`}>
-                    <Button>
-                      {dayjs(gcnEvent.dateobs).format("YYMMDD HH:mm:ss")}
-                    </Button>
-                  </Link>
-                  ({dayjs().to(dayjs.utc(`${gcnEvent.dateobs}Z`))})
-                </div>
-                <div>
-                  <GcnTags gcnEvent={gcnEvent} show_title />
-                </div>
-                <div className={styles.gcnEventContainer}>
-                  <GcnEventAllocationTriggers
-                    gcnEvent={gcnEvent}
-                    showPassed
-                    showUnset
-                    showTitle
-                  />
-                </div>
-              </AccordionDetails>
-            </Accordion>
-          </div>
-          <div className={styles.columnItem}>
-            <Accordion defaultExpanded>
-              <AccordionSummary
-                expandIcon={<ExpandMoreIcon />}
-                aria-controls="gcnEvent-content"
-                id="info-header"
-              >
-                <Typography className={styles.accordionHeading}>
-                  Event Properties
-                </Typography>
-              </AccordionSummary>
-              <AccordionDetails>
-                <div className={styles.eventTags}>
-                  <GcnProperties properties={gcnEvent.properties} />
-                </div>
-              </AccordionDetails>
-            </Accordion>
-          </div>
-          <div className={styles.columnItem}>
-            <Accordion defaultExpanded>
-              <AccordionSummary
-                expandIcon={<ExpandMoreIcon />}
-                aria-controls="gcnEvent-content"
-                id="info-header"
-              >
-                <Typography className={styles.accordionHeading}>
-                  Localization Properties
-                </Typography>
-              </AccordionSummary>
-              <AccordionDetails>
-                <div className={styles.eventTags}>
-                  <GcnLocalizationsTable
-                    localizations={gcnEvent.localizations}
-                  />
-                </div>
-              </AccordionDetails>
-            </Accordion>
+                ({dayjs().to(dayjs.utc(`${gcnEvent.dateobs}Z`))})
+                <GcnTags gcnEvent={gcnEvent} />
+              </div>
+              <div className={styles.headerRight}>
+                <Button
+                  secondary
+                  onClick={() => setLeftPanelVisible(!leftPanelVisible)}
+                  data-testid="hide-left-panel-button"
+                >
+                  Social Panel
+                </Button>
+                <Button
+                  secondary
+                  onClick={() => setRightPanelVisible(!rightPanelVisible)}
+                  data-testid="hide-right-panel-button"
+                >
+                  Properties Panel
+                </Button>
+              </div>
+            </div>
+            <div>
+              <GcnEventAllocationTriggers
+                gcnEvent={gcnEvent}
+                showPassed
+                showUnset
+                showTitle
+              />
+            </div>
           </div>
           <div className={styles.columnItem}>
             <Accordion defaultExpanded>
@@ -476,10 +312,10 @@ const GcnEventPage = ({ route }) => {
                       <>
                         <GcnSelectionForm
                           dateobs={route.dateobs}
+                          selectedLocalizationName={selectedLocalizationName}
                           setSelectedLocalizationName={
                             setSelectedLocalizationName
                           }
-                          setSourceFilteringState={setSourceFilteringState}
                         />
                       </>
                     )}
@@ -552,19 +388,20 @@ const GcnEventPage = ({ route }) => {
             </Accordion>
           </div>
         </Grid>
-
-        {width > 600 && (
-          <Grid item xs={5}>
+      </Grid>
+      <React.Fragment key="left">
+        <Drawer
+          anchor="left"
+          open={leftPanelVisible}
+          onClose={toggleDrawer("left", false)}
+        >
+          <div className={styles.sidePanel}>
             <div className={styles.columnItem}>
-              <Accordion
-                defaultExpanded
-                className={styles.comments}
-                data-testid="comments-accordion"
-              >
+              <Accordion defaultExpanded>
                 <AccordionSummary
                   expandIcon={<ExpandMoreIcon />}
-                  aria-controls="comments-content"
-                  id="comments-header"
+                  aria-controls="gcnEvent-content"
+                  id="observations-header"
                 >
                   <Typography className={styles.accordionHeading}>
                     Comments
@@ -575,10 +412,84 @@ const GcnEventPage = ({ route }) => {
                     <CommentList
                       associatedResourceType="gcn_event"
                       gcnEventID={gcnEvent.id}
+                      maxHeightList="60vh"
                     />
                   ) : (
                     <p> Fetching event... </p>
                   )}
+                </AccordionDetails>
+              </Accordion>
+            </div>
+            <div className={styles.columnItem}>
+              <Accordion defaultExpanded>
+                <AccordionSummary
+                  expandIcon={<ExpandMoreIcon />}
+                  aria-controls="gcnEvent-content"
+                  id="observations-header"
+                >
+                  <Typography className={styles.accordionHeading}>
+                    Reminders
+                  </Typography>
+                </AccordionSummary>
+                <AccordionDetails>
+                  {route?.dateobs === gcnEvent?.dateobs && route?.dateobs ? (
+                    <Reminders
+                      resourceId={gcnEvent.id.toString()}
+                      resourceType="gcn_event"
+                    />
+                  ) : (
+                    <p> Fetching event... </p>
+                  )}
+                </AccordionDetails>
+              </Accordion>
+            </div>
+          </div>
+        </Drawer>
+      </React.Fragment>
+      <React.Fragment key="right">
+        <Drawer
+          anchor="right"
+          open={rightPanelVisible}
+          onClose={toggleDrawer("right", false)}
+        >
+          <div className={styles.sidePanel}>
+            {/* event properties */}
+            <div className={styles.columnItem}>
+              <Accordion defaultExpanded>
+                <AccordionSummary
+                  expandIcon={<ExpandMoreIcon />}
+                  aria-controls="gcnEvent-content"
+                  id="info-header"
+                >
+                  <Typography className={styles.accordionHeading}>
+                    Event Properties
+                  </Typography>
+                </AccordionSummary>
+                <AccordionDetails>
+                  <div className={styles.eventTags}>
+                    <GcnProperties properties={gcnEvent.properties} />
+                  </div>
+                </AccordionDetails>
+              </Accordion>
+            </div>
+            {/* localization properties */}
+            <div className={styles.columnItem}>
+              <Accordion defaultExpanded>
+                <AccordionSummary
+                  expandIcon={<ExpandMoreIcon />}
+                  aria-controls="gcnEvent-content"
+                  id="info-header"
+                >
+                  <Typography className={styles.accordionHeading}>
+                    Localization Properties
+                  </Typography>
+                </AccordionSummary>
+                <AccordionDetails>
+                  <div className={styles.eventTags}>
+                    <GcnLocalizationsTable
+                      localizations={gcnEvent.localizations}
+                    />
+                  </div>
                 </AccordionDetails>
               </Accordion>
             </div>
@@ -736,127 +647,9 @@ const GcnEventPage = ({ route }) => {
                 </AccordionDetails>
               </Accordion>
             </div>
-            <div className={styles.columnItem}>
-              <Accordion defaultExpanded>
-                <AccordionSummary
-                  expandIcon={<ExpandMoreIcon />}
-                  aria-controls="gcnEvent-content"
-                  id="sources-header"
-                >
-                  <Typography className={styles.accordionHeading}>
-                    Sources within localization
-                  </Typography>
-                </AccordionSummary>
-                <AccordionDetails>
-                  {gcnEventSources?.sources ? (
-                    <div>
-                      {gcnEventSources?.sources.length === 0 ? (
-                        <Typography variant="h5">None</Typography>
-                      ) : (
-                        <div className={styles.gcnEventContainer}>
-                          {selectedLocalizationName && (
-                            <GcnEventSourcesPage
-                              route={route}
-                              sources={gcnEventSources}
-                              localizationName={selectedLocalizationName}
-                              sourceFilteringState={sourceFilteringState}
-                            />
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <Typography variant="h5">Fetching sources...</Typography>
-                  )}
-                </AccordionDetails>
-              </Accordion>
-            </div>
-            <div className={styles.columnItem}>
-              <Accordion defaultExpanded>
-                <AccordionSummary
-                  expandIcon={<ExpandMoreIcon />}
-                  aria-controls="gcnEvent-content"
-                  id="observations-header"
-                >
-                  <Typography className={styles.accordionHeading}>
-                    Observations within localization
-                  </Typography>
-                </AccordionSummary>
-                <AccordionDetails>
-                  {gcnEventObservations?.observations ? (
-                    <div>
-                      {gcnEventObservations?.observations.length === 0 ? (
-                        <Typography variant="h5">None</Typography>
-                      ) : (
-                        <div className={styles.gcnEventContainer}>
-                          <ExecutedObservationsTable
-                            observations={gcnEventObservations.observations}
-                            totalMatches={gcnEventObservations.totalMatches}
-                            serverSide={false}
-                          />
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <Typography variant="h5">
-                      Fetching observations...
-                    </Typography>
-                  )}
-                </AccordionDetails>
-              </Accordion>
-            </div>
-            <div className={styles.columnItem}>
-              <Accordion defaultExpanded>
-                <AccordionSummary
-                  expandIcon={<ExpandMoreIcon />}
-                  aria-controls="gcnEvent-content"
-                  id="galaxies-header"
-                >
-                  <Typography className={styles.accordionHeading}>
-                    Galaxies within localization
-                  </Typography>
-                </AccordionSummary>
-                <AccordionDetails>
-                  {gcnEventGalaxies?.galaxies ? (
-                    <div>
-                      {gcnEventGalaxies?.galaxies.length === 0 ? (
-                        <Typography variant="h5">None</Typography>
-                      ) : (
-                        <div className={styles.gcnEventContainer}>
-                          <GalaxyTable
-                            galaxies={gcnEventGalaxies.galaxies}
-                            totalMatches={gcnEventGalaxies.totalMatches}
-                            serverSide={false}
-                            showTitle
-                          />
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <Typography variant="h5">Fetching galaxies...</Typography>
-                  )}
-                </AccordionDetails>
-              </Accordion>
-            </div>
-            <div className={styles.columnItem}>
-              <Accordion defaultExpanded>
-                <AccordionDetails>
-                  <div className={styles.gcnEventContainer}>
-                    {route?.dateobs === gcnEvent?.dateobs && route?.dateobs ? (
-                      <Reminders
-                        resourceId={gcnEvent.id.toString()}
-                        resourceType="gcn_event"
-                      />
-                    ) : (
-                      <p> Fetching event... </p>
-                    )}
-                  </div>
-                </AccordionDetails>
-              </Accordion>
-            </div>
-          </Grid>
-        )}
-      </Grid>
+          </div>
+        </Drawer>
+      </React.Fragment>
     </div>
   );
 };

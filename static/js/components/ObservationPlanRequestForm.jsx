@@ -21,6 +21,7 @@ import GeoPropTypes from "geojson-prop-types";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
+import Grid from "@mui/material/Grid";
 import Button from "./Button";
 
 import * as gcnEventActions from "../ducks/gcnEvent";
@@ -206,11 +207,6 @@ const ObservationPlanGlobe = ({
           </div>
         )}
       </div>
-      <FieldSelect
-        selectedFields={selectedFields}
-        setSelectedFields={setSelectedFields}
-        skymapInstrument={skymapInstrument}
-      />
     </div>
   );
 };
@@ -254,6 +250,29 @@ ObservationPlanGlobe.propTypes = {
 
 ObservationPlanGlobe.defaultProps = {
   skymapInstrument: null,
+};
+
+const MyObjectFieldTemplate = (props) => {
+  const { properties } = props;
+
+  return (
+    <Grid container spacing={2}>
+      {properties.map((prop) => (
+        <Grid item xs={4} key={prop.content.key}>
+          {prop.content}
+        </Grid>
+      ))}
+    </Grid>
+  );
+};
+
+MyObjectFieldTemplate.propTypes = {
+  properties: PropTypes.arrayOf(
+    PropTypes.shape({
+      name: PropTypes.string,
+      content: PropTypes.node,
+    })
+  ).isRequired,
 };
 
 const ObservationPlanRequestForm = ({ dateobs }) => {
@@ -471,200 +490,233 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
   };
 
   return (
-    <div className={classes.container}>
-      <div>
-        <ObservationPlanGlobe
-          loc={gcnEvent.localizations[0]}
-          skymapInstrument={skymapInstrument}
-          selectedFields={selectedFields}
-          setSelectedFields={setSelectedFields}
-        />
-      </div>
-      <div style={{ display: "flex", flexDirection: "column" }}>
-        <InputLabel id="airmassTimeSelectLabel">Airmass Time</InputLabel>
-        <div style={{ display: "flex", flexDirection: "row" }}>
-          <LocalizationProvider dateAdapter={AdapterDateFns}>
-            <DateTimePicker
-              value={temporaryAirmassTime}
-              onChange={(newValue) => handleChange(newValue)}
-              label="Time to compute airmass (UTC)"
-              showTodayButton={false}
-              ampm={useAMPM}
-              renderInput={(params) => (
-                /* eslint-disable-next-line react/jsx-props-no-spreading */
-                <TextField id="airmassTimePicker" {...params} />
-              )}
-            />
-          </LocalizationProvider>
-          <Button
-            id="setAirmassSelect"
-            onClick={() => setAirmass()}
-            style={{ marginLeft: "1rem" }}
-          >
-            Update airmass calculation
-          </Button>
-        </div>
-      </div>
-      <div>
-        <InputLabel id="allocationSelectLabel">Allocation</InputLabel>
-        <Select
-          inputProps={{ MenuProps: { disableScrollLock: true } }}
-          labelId="allocationSelectLabel"
-          value={selectedAllocationId}
-          onChange={handleSelectedAllocationChange}
-          name="followupRequestAllocationSelect"
-          className={classes.allocationSelect}
-        >
-          {allocationListApiObsplan?.map((allocation) => (
-            <MenuItem
-              value={allocation.id}
-              key={allocation.id}
-              className={classes.SelectItem}
-            >
-              {`${
-                telLookUp[instLookUp[allocation.instrument_id].telescope_id]
-                  .name
-              } / ${instLookUp[allocation.instrument_id].name} - ${
-                groupLookUp[allocation.group_id]?.name
-              } (PI ${allocation.pi})`}
-            </MenuItem>
-          ))}
-        </Select>
-      </div>
-      <div>
-        <InputLabel id="allocationSelectLabel">Localization</InputLabel>
-        <Select
-          inputProps={{ MenuProps: { disableScrollLock: true } }}
-          labelId="localizationSelectLabel"
-          value={selectedLocalizationId || ""}
-          onChange={handleSelectedLocalizationChange}
-          name="observationPlanRequestLocalizationSelect"
-          className={classes.localizationSelect}
-        >
-          {gcnEvent.localizations?.map((localization) => (
-            <MenuItem
-              value={localization.id}
-              key={localization.id}
-              className={classes.SelectItem}
-            >
-              {`Skymap: ${localization.localization_name} / Created: ${localization.created_at}`}
-            </MenuItem>
-          ))}
-        </Select>
-      </div>
-      <GroupShareSelect
-        groupList={allGroups}
-        setGroupIDs={setSelectedGroupIds}
-        groupIDs={selectedGroupIds}
-      />
-      <div data-testid="observationplan-request-form">
-        <div>
-          <Form
-            schema={
-              instrumentFormParams
-                ? instrumentFormParams[
-                    allocationLookUp[selectedAllocationId].instrument_id
-                  ]?.formSchema
-                : {}
-            }
-            validator={validator}
-            uiSchema={
-              instrumentFormParams
-                ? instrumentFormParams[
-                    allocationLookUp[selectedAllocationId].instrument_id
-                  ]?.uiSchema
-                : {}
-            }
-            liveValidate
-            customValidate={validate}
-            onSubmit={handleQueueSubmit}
-            disabled={isSubmitting}
-          >
-            <Button secondary size="small" type="submit">
-              Add to Queue
-            </Button>
-          </Form>
-        </div>
-        {isSubmitting && (
-          <div className={classes.marginTop}>
-            <CircularProgress />
-          </div>
-        )}
-      </div>
-      <div>
-        {planQueues?.map((plan) => (
-          <Chip
-            key={plan.payload.queue_name}
-            label={`${
-              instLookUp[allocationLookUp[plan.allocation_id].instrument_id]
-                .name
-            }: ${plan.payload.queue_name}`}
-            data-testid={`queueName_${plan.payload.queue_name}`}
+    <Grid container spacing={4}>
+      <Grid item xs={4}>
+        <div style={{ marginTop: "2rem" }}>
+          <ObservationPlanGlobe
+            loc={gcnEvent.localizations[0]}
+            skymapInstrument={skymapInstrument}
+            selectedFields={selectedFields}
+            setSelectedFields={setSelectedFields}
           />
-        ))}
-      </div>
-      <div>
-        {planQueues.length !== 0 && (
-          <>
-            <Button secondary size="small" type="submit" onClick={handleSubmit}>
-              Generate Observation Plans
-            </Button>
-            <FormControlLabel
-              label="Combine plans"
-              control={
-                <Checkbox
-                  onChange={(event) =>
-                    setMultiPlansChecked(event.target.checked)
-                  }
-                  checked={multiPlansChecked}
-                  data-testid="combinedPlansCheckBox"
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              marginTop: "0.5rem",
+            }}
+          >
+            <InputLabel id="airmassTimeSelectLabel">Airmass Time</InputLabel>
+            <div style={{ display: "flex", flexDirection: "row" }}>
+              <LocalizationProvider dateAdapter={AdapterDateFns}>
+                <DateTimePicker
+                  value={temporaryAirmassTime}
+                  onChange={(newValue) => handleChange(newValue)}
+                  label="Time to compute airmass (UTC)"
+                  showTodayButton={false}
+                  ampm={useAMPM}
+                  renderInput={(params) => (
+                    /* eslint-disable-next-line react/jsx-props-no-spreading */
+                    <TextField id="airmassTimePicker" {...params} />
+                  )}
                 />
-              }
-            />
-          </>
-        )}
-        {isSubmitting && (
-          <div className={classes.marginTop}>
-            <CircularProgress />
+              </LocalizationProvider>
+              <Button
+                id="setAirmassSelect"
+                onClick={() => setAirmass()}
+                style={{ marginLeft: "1rem" }}
+              >
+                Update airmass calculation
+              </Button>
+            </div>
           </div>
-        )}
-      </div>
-      <div>
-        <Button
-          secondary
-          href={`/api/localization/${selectedLocalizationId}/observability`}
-          download={`observabilityChartRequest-${selectedLocalizationId}`}
-          size="small"
-          type="submit"
-          data-testid={`observabilityChartRequest_${selectedLocalizationId}`}
-        >
-          Observability Chart
-        </Button>
-        <Button
-          secondary
-          href={`/api/localization/${selectedLocalizationId}/airmass/${
-            instLookUp[allocationLookUp[selectedAllocationId].instrument_id]
-              .telescope_id
-          }`}
-          download={`airmassChartRequest-${selectedAllocationId}`}
-          size="small"
-          type="submit"
-          data-testid={`airmassChartRequest_${selectedAllocationId}`}
-        >
-          Airmass Chart
-        </Button>
-        <Button
-          secondary
-          href={`/api/localization/${selectedLocalizationId}/worldmap`}
-          download={`worldmapChartRequest-${selectedLocalizationId}`}
-          size="small"
-          type="submit"
-          data-testid={`worldmapChartRequest_${selectedLocalizationId}`}
-        >
-          World Map Chart
-        </Button>
-      </div>
-    </div>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "row",
+              marginTop: "1rem",
+              gap: "1rem",
+            }}
+          >
+            <Button
+              secondary
+              href={`/api/localization/${selectedLocalizationId}/observability`}
+              download={`observabilityChartRequest-${selectedLocalizationId}`}
+              size="small"
+              type="submit"
+              data-testid={`observabilityChartRequest_${selectedLocalizationId}`}
+            >
+              Observability Chart
+            </Button>
+            <Button
+              secondary
+              href={`/api/localization/${selectedLocalizationId}/airmass/${
+                instLookUp[allocationLookUp[selectedAllocationId].instrument_id]
+                  .telescope_id
+              }`}
+              download={`airmassChartRequest-${selectedAllocationId}`}
+              size="small"
+              type="submit"
+              data-testid={`airmassChartRequest_${selectedAllocationId}`}
+            >
+              Airmass Chart
+            </Button>
+            <Button
+              secondary
+              href={`/api/localization/${selectedLocalizationId}/worldmap`}
+              download={`worldmapChartRequest-${selectedLocalizationId}`}
+              size="small"
+              type="submit"
+              data-testid={`worldmapChartRequest_${selectedLocalizationId}`}
+            >
+              World Map Chart
+            </Button>
+          </div>
+        </div>
+      </Grid>
+      <Grid item xs={8}>
+        <div>
+          <FieldSelect
+            selectedFields={selectedFields}
+            setSelectedFields={setSelectedFields}
+            skymapInstrument={skymapInstrument}
+          />
+          <InputLabel id="allocationSelectLabel">Allocation</InputLabel>
+          <Select
+            inputProps={{ MenuProps: { disableScrollLock: true } }}
+            labelId="allocationSelectLabel"
+            value={selectedAllocationId}
+            onChange={handleSelectedAllocationChange}
+            name="followupRequestAllocationSelect"
+            className={classes.allocationSelect}
+          >
+            {allocationListApiObsplan?.map((allocation) => (
+              <MenuItem
+                value={allocation.id}
+                key={allocation.id}
+                className={classes.SelectItem}
+              >
+                {`${
+                  telLookUp[instLookUp[allocation.instrument_id].telescope_id]
+                    .name
+                } / ${instLookUp[allocation.instrument_id].name} - ${
+                  groupLookUp[allocation.group_id]?.name
+                } (PI ${allocation.pi})`}
+              </MenuItem>
+            ))}
+          </Select>
+        </div>
+        <div>
+          <InputLabel id="allocationSelectLabel">Localization</InputLabel>
+          <Select
+            inputProps={{ MenuProps: { disableScrollLock: true } }}
+            labelId="localizationSelectLabel"
+            value={selectedLocalizationId || ""}
+            onChange={handleSelectedLocalizationChange}
+            name="observationPlanRequestLocalizationSelect"
+            className={classes.localizationSelect}
+          >
+            {gcnEvent.localizations?.map((localization) => (
+              <MenuItem
+                value={localization.id}
+                key={localization.id}
+                className={classes.SelectItem}
+              >
+                {`Skymap: ${localization.localization_name} / Created: ${localization.created_at}`}
+              </MenuItem>
+            ))}
+          </Select>
+        </div>
+        <GroupShareSelect
+          groupList={allGroups}
+          setGroupIDs={setSelectedGroupIds}
+          groupIDs={selectedGroupIds}
+        />
+        <div data-testid="observationplan-request-form">
+          <div>
+            <Form
+              schema={
+                instrumentFormParams
+                  ? instrumentFormParams[
+                      allocationLookUp[selectedAllocationId].instrument_id
+                    ]?.formSchema
+                  : {}
+              }
+              validator={validator}
+              uiSchema={
+                instrumentFormParams
+                  ? instrumentFormParams[
+                      allocationLookUp[selectedAllocationId].instrument_id
+                    ]?.uiSchema
+                  : {}
+              }
+              templates={{ ObjectFieldTemplate: MyObjectFieldTemplate }}
+              liveValidate
+              customValidate={validate}
+              onSubmit={handleQueueSubmit}
+              disabled={isSubmitting}
+            >
+              <Button
+                secondary
+                size="small"
+                type="submit"
+                style={{ marginTop: "1rem" }}
+              >
+                Add to Queue
+              </Button>
+            </Form>
+          </div>
+          {isSubmitting && (
+            <div className={classes.marginTop}>
+              <CircularProgress />
+            </div>
+          )}
+        </div>
+        <div>
+          {planQueues?.map((plan) => (
+            <Chip
+              key={plan.payload.queue_name}
+              label={`${
+                instLookUp[allocationLookUp[plan.allocation_id].instrument_id]
+                  .name
+              }: ${plan.payload.queue_name}`}
+              data-testid={`queueName_${plan.payload.queue_name}`}
+            />
+          ))}
+        </div>
+        <div>
+          {planQueues.length !== 0 && (
+            <>
+              <Button
+                secondary
+                size="small"
+                type="submit"
+                onClick={handleSubmit}
+              >
+                Generate Observation Plans
+              </Button>
+              <FormControlLabel
+                label="Combine plans"
+                control={
+                  <Checkbox
+                    onChange={(event) =>
+                      setMultiPlansChecked(event.target.checked)
+                    }
+                    checked={multiPlansChecked}
+                    data-testid="combinedPlansCheckBox"
+                  />
+                }
+              />
+            </>
+          )}
+          {isSubmitting && (
+            <div className={classes.marginTop}>
+              <CircularProgress />
+            </div>
+          )}
+        </div>
+      </Grid>
+    </Grid>
   );
 };
 

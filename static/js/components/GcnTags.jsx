@@ -147,7 +147,12 @@ const GcnTags = ({ gcnEvent, show_title = false }) => {
             size="small"
             label={tag}
             key={tag}
-            style={{ backgroundColor: gcn_tags_classes[tag] }}
+            // if there is a class for this tag, apply it, otherwise use the basic grey color
+            style={{
+              backgroundColor: gcn_tags_classes
+                ? gcn_tags_classes[tag]
+                : "#999999",
+            }}
           />
         ))}
       </div>

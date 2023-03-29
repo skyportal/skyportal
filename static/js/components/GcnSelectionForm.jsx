@@ -11,11 +11,14 @@ import FormGroup from "@mui/material/FormGroup";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Checkbox from "@mui/material/Checkbox";
 import CircularProgress from "@mui/material/CircularProgress";
-import Divider from "@mui/material/Divider";
+import Typography from "@mui/material/Typography";
 import makeStyles from "@mui/styles/makeStyles";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
+import Grid from "@mui/material/Grid";
+import Tabs from "@mui/material/Tabs";
+import Tab from "@mui/material/Tab";
 import Button from "./Button";
 
 import * as sourcesActions from "../ducks/sources";
@@ -27,6 +30,9 @@ import LocalizationPlot from "./LocalizationPlot";
 import GcnSummary from "./GcnSummary";
 import AddSurveyEfficiencyObservationsPage from "./AddSurveyEfficiencyObservationsPage";
 import AddCatalogQueryPage from "./AddCatalogQueryPage";
+import GalaxyTable from "./GalaxyTable";
+import SourceTable from "./SourceTable";
+import ExecutedObservationsTable from "./ExecutedObservationsTable";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
@@ -62,13 +68,228 @@ const useStyles = makeStyles(() => ({
     display: "grid",
     gridGap: "1rem",
     gridTemplateColumns: "repeat(auto-fit, minmax(5rem, 1fr))",
+    "& > button": {
+      maxHeight: "4rem",
+      // no space between 2 lines of text
+      lineHeight: "1rem",
+    },
+  },
+  formGroup: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(8rem, 1fr))",
+    justifyContent: "space-evenly",
+    alignItems: "center",
+    width: "100%",
+  },
+  formItem: {
+    display: "flex",
+    flexDirection: "row",
+    justifyContent: "flex-start",
+    alignItems: "center",
+    margin: 0,
+  },
+  dateGroup: {
+    display: "grid",
+    gridGap: "1rem",
+    gridTemplateColumns: "repeat(auto-fit, minmax(40%, 1fr))",
+    justifyContent: "space-evenly",
+    alignItems: "center",
+    width: "100%",
+  },
+  localizationPlot: {
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "center",
+    alignItems: "center",
+    width: "100%",
+  },
+  marginBottom: {
+    marginBottom: "1rem",
   },
 }));
 
+const GcnEventSourcesPage = ({
+  dateobs,
+  sources,
+  localizationName,
+  sourceFilteringState,
+}) => {
+  const classes = useStyles();
+  const dispatch = useDispatch();
+  const [sourcesRowsPerPage, setSourcesRowsPerPage] = useState(100);
+
+  const handleSourcesTableSorting = (sortData, filterData) => {
+    dispatch(
+      sourcesActions.fetchGcnEventSources(dateobs, {
+        ...filterData,
+        localizationName,
+        pageNumber: 1,
+        numPerPage: sourcesRowsPerPage,
+        sortBy: sortData.name,
+        sortOrder: sortData.direction,
+      })
+    );
+  };
+
+  const handleSourcesTablePagination = (
+    pageNumber,
+    numPerPage,
+    sortData,
+    filterData
+  ) => {
+    setSourcesRowsPerPage(numPerPage);
+    const data = {
+      ...filterData,
+      localizationName,
+      pageNumber,
+      numPerPage,
+    };
+    if (sortData && Object.keys(sortData).length > 0) {
+      data.sortBy = sortData.name;
+      data.sortOrder = sortData.direction;
+    }
+    dispatch(sourcesActions.fetchGcnEventSources(dateobs, data));
+  };
+
+  // eslint-disable-next-line
+  if (!sources || sources?.sources?.length === 0) {
+    return (
+      <div className={classes.noSources}>
+        <Typography variant="h5">Event sources</Typography>
+        <br />
+        <Typography variant="h5" align="center">
+          No sources within localization.
+        </Typography>
+      </div>
+    );
+  }
+
+  return (
+    <div className={classes.sourceList}>
+      <SourceTable
+        sources={sources.sources}
+        title="Event Sources"
+        paginateCallback={handleSourcesTablePagination}
+        pageNumber={sources.pageNumber}
+        totalMatches={sources.totalMatches}
+        numPerPage={sources.numPerPage}
+        sortingCallback={handleSourcesTableSorting}
+        favoritesRemoveButton
+        hideTitle
+        includeGcnStatus
+        sourceInGcnFilter={sourceFilteringState}
+      />
+    </div>
+  );
+};
+
+GcnEventSourcesPage.propTypes = {
+  dateobs: PropTypes.string.isRequired,
+  sources: PropTypes.shape({
+    pageNumber: PropTypes.number,
+    totalMatches: PropTypes.number,
+    numPerPage: PropTypes.number,
+    sources: PropTypes.arrayOf(
+      PropTypes.shape({
+        id: PropTypes.string,
+        ra: PropTypes.number,
+        dec: PropTypes.number,
+        origin: PropTypes.string,
+        alias: PropTypes.arrayOf(PropTypes.string),
+        redshift: PropTypes.number,
+        classifications: PropTypes.arrayOf(
+          PropTypes.shape({
+            id: PropTypes.number,
+            classification: PropTypes.string,
+            created_at: PropTypes.string,
+            groups: PropTypes.arrayOf(
+              PropTypes.shape({
+                id: PropTypes.number,
+                name: PropTypes.string,
+              })
+            ),
+          })
+        ),
+        recent_comments: PropTypes.arrayOf(PropTypes.shape({})),
+        altdata: PropTypes.shape({
+          tns: PropTypes.shape({
+            name: PropTypes.string,
+          }),
+        }),
+        spectrum_exists: PropTypes.bool,
+        last_detected_at: PropTypes.string,
+        last_detected_mag: PropTypes.number,
+        peak_detected_at: PropTypes.string,
+        peak_detected_mag: PropTypes.number,
+        groups: PropTypes.arrayOf(
+          PropTypes.shape({
+            id: PropTypes.number,
+            name: PropTypes.string,
+          })
+        ),
+      })
+    ),
+  }),
+  localizationName: PropTypes.string.isRequired,
+  sourceFilteringState: PropTypes.shape({
+    startDate: PropTypes.string,
+    endDate: PropTypes.string,
+    localizationCumprob: PropTypes.number,
+  }).isRequired,
+};
+
+GcnEventSourcesPage.defaultProps = {
+  sources: null,
+};
+
+const MyObjectFieldTemplate = (props) => {
+  const { properties, uiSchema } = props;
+
+  return (
+    <Grid
+      container
+      direction="column"
+      justify="space-between"
+      alignItems="center"
+      spacing={2}
+    >
+      {uiSchema["ui:grid"].map((row) => (
+        <Grid
+          item
+          container
+          direction="row"
+          justify="space-between"
+          alignItems="center"
+          spacing={2}
+          key={JSON.stringify(row)}
+        >
+          {Object.keys(row).map((fieldName) => (
+            <Grid item xs={row[fieldName]} key={fieldName}>
+              {properties.find((p) => p.name === fieldName).content}
+            </Grid>
+          ))}
+        </Grid>
+      ))}
+    </Grid>
+  );
+};
+
+MyObjectFieldTemplate.propTypes = {
+  uiSchema: PropTypes.shape({
+    "ui:grid": PropTypes.arrayOf(PropTypes.shape({})),
+  }).isRequired,
+  properties: PropTypes.arrayOf(
+    PropTypes.shape({
+      name: PropTypes.string,
+      content: PropTypes.node,
+    })
+  ).isRequired,
+};
+
 const GcnSelectionForm = ({
   dateobs,
+  selectedLocalizationName,
   setSelectedLocalizationName,
-  setSourceFilteringState,
 }) => {
   const classes = useStyles();
   const dispatch = useDispatch();
@@ -99,6 +320,18 @@ const GcnSelectionForm = ({
     displayOptionsDefault
   );
   const [skymapInstrument, setSkymapInstrument] = useState(null);
+
+  const [tabIndex, setTabIndex] = useState(0);
+
+  const [sourceFilteringState, setSourceFilteringState] = useState({
+    startDate: null,
+    endDate: null,
+    localizationCumprob: null,
+  });
+
+  const handleChangeTab = (event, newValue) => {
+    setTabIndex(newValue);
+  };
 
   const defaultStartDate = dayjs
     .utc(gcnEvent?.dateobs)
@@ -136,19 +369,24 @@ const GcnSelectionForm = ({
   );
 
   useEffect(() => {
-    const getInstruments = async () => {
-      setSelectedInstrumentId(instrumentList?.id);
+    const setDefaults = async () => {
+      setSelectedInstrumentId(instrumentList[0]?.id);
       setSelectedLocalizationId(gcnEvent.localizations[0]?.id);
       setSelectedLocalizationName(gcnEvent.localizations[0]?.localization_name);
     };
-    if (dateobs === gcnEvent?.dateobs && dateobs) {
-      getInstruments();
+    if (
+      dateobs === gcnEvent?.dateobs &&
+      dateobs &&
+      instrumentList.length > 0 &&
+      gcnEvent?.localizations?.length > 0
+    ) {
+      setDefaults();
     }
 
     // Don't want to reset everytime the component rerenders and
     // the defaultStartDate is updated, so ignore ESLint here
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dispatch, selectedInstrumentId, gcnEvent]);
+  }, [dispatch, gcnEvent]);
 
   const handleOnChange = (position) => {
     const checkedDisplayStateCopy = JSON.parse(
@@ -353,151 +591,270 @@ const GcnSelectionForm = ({
     required: ["startDate", "endDate", "localizationCumprob", "queryList"],
   };
 
+  const uiSchema = {
+    "ui:grid": [
+      {
+        startDate: 6,
+        endDate: 6,
+      },
+      {
+        numberDetections: 4,
+        localizationCumprob: 4,
+        maxDistance: 4,
+      },
+      {
+        localizationRejectSources: 12,
+      },
+      {
+        queryList: 12,
+      },
+    ],
+  };
+
   if (gcnEvent?.dateobs === dateobs) {
     return (
-      <div>
-        {Object.keys(locLookUp).includes(
-          selectedLocalizationId?.toString()
-        ) && (
-          <div>
-            <LocalizationPlot
-              loc={locLookUp[selectedLocalizationId]}
-              sources={gcnEventSources}
-              galaxies={gcnEventGalaxies}
-              instrument={skymapInstrument}
-              observations={gcnEventObservations}
-              options={checkedDisplayState}
-              selectedFields={selectedFields}
-              setSelectedFields={setSelectedFields}
-              type="analysis"
-            />
-          </div>
-        )}
-        <div>
-          <InputLabel id="localizationSelectLabel">Localization</InputLabel>
-          <Select
-            inputProps={{ MenuProps: { disableScrollLock: true } }}
-            labelId="localizationSelectLabel"
-            value={selectedLocalizationId || ""}
-            onChange={handleSelectedLocalizationChange}
-            name="gcnPageLocalizationSelect"
-            className={classes.localizationSelect}
-          >
-            {gcnEvent?.localizations?.map((localization) => (
-              <MenuItem
-                value={localization.id}
-                key={localization.id}
-                className={classes.localizationSelectItem}
-              >
-                {`Skymap: ${localization.localization_name} / Created: ${localization.created_at}`}
-              </MenuItem>
-            ))}
-          </Select>
-        </div>
-        <div>
-          <InputLabel id="instrumentSelectLabel">Instrument</InputLabel>
-          <Select
-            inputProps={{ MenuProps: { disableScrollLock: true } }}
-            labelId="instrumentSelectLabel"
-            value={selectedInstrumentId || ""}
-            onChange={handleSelectedInstrumentChange}
-            name="gcnPageInstrumentSelect"
-            className={classes.instrumentSelect}
-          >
-            {sortedInstrumentList?.map((instrument) => (
-              <MenuItem
-                value={instrument.id}
-                key={instrument.id}
-                className={classes.instrumentSelectItem}
-              >
-                {`${telLookUp[instrument.telescope_id]?.name} / ${
-                  instrument.name
-                }`}
-              </MenuItem>
-            ))}
-          </Select>
-        </div>
-        <div>
-          <FormGroup>
-            {displayOptions.map((option, index) => (
-              <FormControlLabel
-                control={<Checkbox onChange={() => handleOnChange(index)} />}
-                label={option}
-                key={option}
-                disabled={!displayOptionsAvailable[option]}
+      <Grid container spacing={4}>
+        <Grid item xs={4}>
+          {Object.keys(locLookUp).includes(
+            selectedLocalizationId?.toString()
+          ) && (
+            <div style={{ marginTop: "0.5rem" }}>
+              <LocalizationPlot
+                loc={locLookUp[selectedLocalizationId]}
+                sources={gcnEventSources}
+                galaxies={gcnEventGalaxies}
+                instrument={skymapInstrument}
+                observations={gcnEventObservations}
+                options={checkedDisplayState}
+                selectedFields={selectedFields}
+                setSelectedFields={setSelectedFields}
+                type="analysis"
               />
-            ))}
-          </FormGroup>
-        </div>
-        <div data-testid="gcnsource-selection-form" className={classes.form}>
-          <Form
-            schema={GcnSourceSelectionFormSchema}
-            validator={validator}
-            onSubmit={handleSubmit}
-            // eslint-disable-next-line react/jsx-no-bind
-            customValidate={validate}
-            disabled={isSubmitting}
-            liveValidate
-          />
-          {isSubmitting && (
-            <div>
-              <CircularProgress />
+              <InputLabel
+                style={{ marginTop: "0.5rem", marginBottom: "0.25rem" }}
+                id="showOnPlot"
+              >
+                Show/Hide on Plot
+              </InputLabel>
+              <FormGroup className={classes.formGroup}>
+                {displayOptions.map((option, index) => (
+                  <FormControlLabel
+                    control={
+                      <Checkbox onChange={() => handleOnChange(index)} />
+                    }
+                    label={option}
+                    key={option}
+                    disabled={!displayOptionsAvailable[option]}
+                    className={classes.formItem}
+                  />
+                ))}
+              </FormGroup>
             </div>
           )}
-        </div>
-        <Divider />
-        <div className={classes.buttons}>
-          {gcnEvent && selectedLocalizationId ? (
-            <>
-              <GcnSummary dateobs={dateobs} />
-              <AddSurveyEfficiencyObservationsPage />
-              <AddCatalogQueryPage />
-              {isSubmittingTreasureMap === selectedInstrumentId ? (
-                <div>
-                  <CircularProgress />
+        </Grid>
+        <Grid item xs={8}>
+          <Tabs
+            value={tabIndex}
+            onChange={handleChangeTab}
+            aria-label="gcn_tabs"
+          >
+            <Tab label="Query Form" />
+            <Tab label="Sources" />
+            <Tab label="Galaxies" />
+            <Tab label="Observations" />
+          </Tabs>
+          {tabIndex === 0 && (
+            <div>
+              <div>
+                <InputLabel id="localizationSelectLabel">
+                  Localization
+                </InputLabel>
+                <Select
+                  inputProps={{ MenuProps: { disableScrollLock: true } }}
+                  labelId="localizationSelectLabel"
+                  value={selectedLocalizationId || ""}
+                  onChange={handleSelectedLocalizationChange}
+                  name="gcnPageLocalizationSelect"
+                  className={classes.localizationSelect}
+                >
+                  {gcnEvent?.localizations?.map((localization) => (
+                    <MenuItem
+                      value={localization.id}
+                      key={localization.id}
+                      className={classes.localizationSelectItem}
+                    >
+                      {`Skymap: ${localization.localization_name} / Created: ${localization.created_at}`}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </div>
+              <div className={classes.marginBottom}>
+                <InputLabel id="instrumentSelectLabel">Instrument</InputLabel>
+                <Select
+                  inputProps={{ MenuProps: { disableScrollLock: true } }}
+                  labelId="instrumentSelectLabel"
+                  value={selectedInstrumentId || ""}
+                  onChange={handleSelectedInstrumentChange}
+                  name="gcnPageInstrumentSelect"
+                  className={classes.instrumentSelect}
+                >
+                  {sortedInstrumentList?.map((instrument) => (
+                    <MenuItem
+                      value={instrument.id}
+                      key={instrument.id}
+                      className={classes.instrumentSelectItem}
+                    >
+                      {`${telLookUp[instrument.telescope_id]?.name} / ${
+                        instrument.name
+                      }`}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </div>
+              <div
+                data-testid="gcnsource-selection-form"
+                className={classes.form}
+              >
+                <Form
+                  schema={GcnSourceSelectionFormSchema}
+                  uiSchema={uiSchema}
+                  templates={{ ObjectFieldTemplate: MyObjectFieldTemplate }}
+                  validator={validator}
+                  onSubmit={handleSubmit}
+                  // eslint-disable-next-line react/jsx-no-bind
+                  customValidate={validate}
+                  disabled={isSubmitting}
+                  liveValidate
+                />
+                {isSubmitting && (
+                  <div>
+                    <CircularProgress />
+                  </div>
+                )}
+              </div>
+              {gcnEvent && selectedLocalizationId ? (
+                <div className={classes.buttons}>
+                  <GcnSummary dateobs={dateobs} />
+                  <AddSurveyEfficiencyObservationsPage />
+                  <AddCatalogQueryPage />
+                  {isSubmittingTreasureMap === selectedInstrumentId ? (
+                    <div>
+                      <CircularProgress />
+                    </div>
+                  ) : (
+                    <Button
+                      secondary
+                      onClick={() => {
+                        handleSubmitTreasureMap(
+                          selectedInstrumentId,
+                          formDataState
+                        );
+                      }}
+                      type="submit"
+                      size="small"
+                      data-testid={`treasuremapRequest_${selectedInstrumentId}`}
+                    >
+                      Send to Treasure Map
+                    </Button>
+                  )}
+                  {isDeletingTreasureMap === selectedInstrumentId ? (
+                    <div>
+                      <CircularProgress />
+                    </div>
+                  ) : (
+                    <Button
+                      secondary
+                      onClick={() => {
+                        handleDeleteTreasureMap(
+                          selectedInstrumentId,
+                          formDataState
+                        );
+                      }}
+                      type="submit"
+                      size="small"
+                      data-testid={`treasuremapDelete_${selectedInstrumentId}`}
+                    >
+                      Retract from Treasure Map
+                    </Button>
+                  )}
                 </div>
               ) : (
-                <Button
-                  secondary
-                  onClick={() => {
-                    handleSubmitTreasureMap(
-                      selectedInstrumentId,
-                      formDataState
-                    );
-                  }}
-                  type="submit"
-                  size="small"
-                  data-testid={`treasuremapRequest_${selectedInstrumentId}`}
-                >
-                  Send to Treasure Map
-                </Button>
+                <CircularProgress />
               )}
-              {isDeletingTreasureMap === selectedInstrumentId ? (
-                <div>
-                  <CircularProgress />
-                </div>
-              ) : (
-                <Button
-                  secondary
-                  onClick={() => {
-                    handleDeleteTreasureMap(
-                      selectedInstrumentId,
-                      formDataState
-                    );
-                  }}
-                  type="submit"
-                  size="small"
-                  data-testid={`treasuremapDelete_${selectedInstrumentId}`}
-                >
-                  Retract from Treasure Map
-                </Button>
-              )}
-            </>
-          ) : (
-            <CircularProgress />
+            </div>
           )}
-        </div>
-      </div>
+
+          {tabIndex === 1 && (
+            <div>
+              {gcnEventSources?.sources ? (
+                <div>
+                  {gcnEventSources?.sources.length === 0 ? (
+                    <Typography variant="h5">None</Typography>
+                  ) : (
+                    <div>
+                      {selectedLocalizationName && (
+                        <GcnEventSourcesPage
+                          dateobs={dateobs}
+                          sources={gcnEventSources}
+                          localizationName={selectedLocalizationName}
+                          sourceFilteringState={sourceFilteringState}
+                        />
+                      )}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <Typography variant="h5">Fetching sources...</Typography>
+              )}
+            </div>
+          )}
+
+          {tabIndex === 2 && (
+            <div>
+              {gcnEventGalaxies?.galaxies ? (
+                <div>
+                  {gcnEventGalaxies?.galaxies.length === 0 ? (
+                    <Typography variant="h5">None</Typography>
+                  ) : (
+                    <div>
+                      <GalaxyTable
+                        galaxies={gcnEventGalaxies.galaxies}
+                        totalMatches={gcnEventGalaxies.totalMatches}
+                        serverSide={false}
+                        showTitle
+                      />
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <Typography variant="h5">Fetching galaxies...</Typography>
+              )}
+            </div>
+          )}
+
+          {tabIndex === 3 && (
+            <div>
+              {gcnEventObservations?.observations ? (
+                <div>
+                  {gcnEventObservations?.observations.length === 0 ? (
+                    <Typography variant="h5">None</Typography>
+                  ) : (
+                    <div>
+                      <ExecutedObservationsTable
+                        observations={gcnEventObservations.observations}
+                        totalMatches={gcnEventObservations.totalMatches}
+                        serverSide={false}
+                      />
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <Typography variant="h5">Fetching observations...</Typography>
+              )}
+            </div>
+          )}
+        </Grid>
+      </Grid>
     );
   }
   return <CircularProgress />;
@@ -505,7 +862,7 @@ const GcnSelectionForm = ({
 
 GcnSelectionForm.propTypes = {
   dateobs: PropTypes.string.isRequired,
+  selectedLocalizationName: PropTypes.string.isRequired,
   setSelectedLocalizationName: PropTypes.func.isRequired,
-  setSourceFilteringState: PropTypes.func.isRequired,
 };
 export default GcnSelectionForm;
