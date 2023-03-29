@@ -24,7 +24,7 @@ def validate_request_to_sedmv2(request):
     """
 
     for param in [
-        "observation_choices",
+        "observation_choice",
         "exposure_time",
         "exposure_counts",
         "maximum_airmass",
@@ -38,9 +38,10 @@ def validate_request_to_sedmv2(request):
         if param not in request.payload:
             raise ValueError(f'Parameter {param} required.')
 
-    for filt in request.payload["observation_choices"]:
-        if filt not in ["IFU", "g", "r", "i", "z"]:
-            raise ValueError(f'Filter configuration {filt} unknown.')
+    if request.payload["observation_choice"] not in ["IFU", "g", "r", "i", "z"]:
+        raise ValueError(
+            f'Filter configuration {request.payload["observation_choice"]} unknown.'
+        )
 
     if request.payload["observation_type"] not in ["transient", "variable"]:
         raise ValueError('observation_type must be either transient or variable')
@@ -273,12 +274,11 @@ class SEDMV2API(FollowUpAPI):
     form_json_schema = {
         "type": "object",
         "properties": {
-            "observation_choices": {
-                "type": "array",
+            "observation_choice": {
+                "type": "string",
                 "title": "Desired Observations",
-                "items": {"type": "string", "enum": ["g", "r", "i", "z", "IFU"]},
-                "uniqueItems": True,
-                "minItems": 1,
+                "enum": ["g", "r", "i", "z", "IFU"],
+                "default": "IFU",
             },
             "exposure_time": {
                 "title": "Exposure Time [s]",
@@ -341,7 +341,7 @@ class SEDMV2API(FollowUpAPI):
             },
         },
         "required": [
-            "observation_choices",
+            "observation_choice",
             "observation_type",
             "priority",
             "start_date",
@@ -378,12 +378,9 @@ class SEDMV2API(FollowUpAPI):
             },
         },
     }
-    ui_json_schema = {
-        "observation_choices": {"ui:widget": "checkboxes"},
-    }
-
+    ui_json_schema = {}
     alias_lookup = {
-        'observation_choices': "Request",
+        'observation_choice': "Request",
         'start_date': "Start Date",
         'end_date': "End Date",
         'priority': "Priority",
