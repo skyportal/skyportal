@@ -367,6 +367,9 @@ export function fetchSource(id, actionType = FETCH_LOADED_SOURCE) {
 }
 
 export function checkSource(id, params, actionType = CHECK_SOURCE) {
+  if ("nameOnly" in params && params.nameOnly === true) {
+    return API.GET(`/api/source_exists/${id}`, actionType);
+  }
   return API.GET(
     `/api/source_exists/${id}?ra=${params.ra}&dec=${params.dec}&radius=0.0003`,
     actionType

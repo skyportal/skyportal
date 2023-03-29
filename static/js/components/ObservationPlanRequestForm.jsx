@@ -184,7 +184,6 @@ const ObservationPlanGlobe = ({
   );
   displayOptionsDefault.localization = true;
   displayOptionsDefault.instrument = true;
-
   return (
     <div>
       <div>
@@ -296,6 +295,10 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
   const [skymapInstrument, setSkymapInstrument] = useState(null);
   const [selectedFields, setSelectedFields] = useState([]);
   const [multiPlansChecked, setMultiPlansChecked] = useState(false);
+  const [
+    instrumentObsplanFormParamsFetched,
+    setInstrumentObsplanFormParamsFetched,
+  ] = useState(false);
 
   const defaultAirmassTime = new Date(
     dayjs(gcnEvent?.dateobs).format("YYYY-MM-DDTHH:mm:ssZ")
@@ -304,7 +307,7 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
   const [temporaryAirmassTime, setTemporaryAirmassTime] =
     useState(defaultAirmassTime);
 
-  const { instrumentList, instrumentFormParams } = useSelector(
+  const { instrumentList, instrumentObsplanFormParams } = useSelector(
     (state) => state.instruments
   );
 
@@ -380,11 +383,16 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
 
     getAllocations();
 
-    if (!instrumentFormParams) {
-      dispatch(
-        instrumentsActions.fetchInstrumentForms({
-          apiType: "api_classname_obsplan",
-        })
+    if (
+      Object.keys(instrumentObsplanFormParams).length === 0 &&
+      !instrumentObsplanFormParamsFetched
+    ) {
+      dispatch(instrumentsActions.fetchInstrumentObsplanForms()).then(
+        (response) => {
+          if (response.status === "success") {
+            setInstrumentObsplanFormParamsFetched(true);
+          }
+        }
       );
     }
 
@@ -406,7 +414,7 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
   if (
     allocationListApiObsplan.length === 0 ||
     !selectedAllocationId ||
-    Object.keys(instrumentFormParams).length === 0
+    Object.keys(instrumentObsplanFormParams).length === 0
   ) {
     return <h3>No allocations with an observation plan API...</h3>;
   }
@@ -636,16 +644,16 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
           <div>
             <Form
               schema={
-                instrumentFormParams
-                  ? instrumentFormParams[
+                instrumentObsplanFormParams
+                  ? instrumentObsplanFormParams[
                       allocationLookUp[selectedAllocationId].instrument_id
                     ]?.formSchema
                   : {}
               }
               validator={validator}
               uiSchema={
-                instrumentFormParams
-                  ? instrumentFormParams[
+                instrumentObsplanFormParams
+                  ? instrumentObsplanFormParams[
                       allocationLookUp[selectedAllocationId].instrument_id
                     ]?.uiSchema
                   : {}
@@ -722,7 +730,7 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
 
 ObservationPlanRequestForm.propTypes = {
   dateobs: PropTypes.string.isRequired,
-  instrumentFormParams: PropTypes.shape({
+  instrumentObsplanFormParams: PropTypes.shape({
     formSchema: PropTypes.objectOf(PropTypes.any), // eslint-disable-line react/forbid-prop-types
     uiSchema: PropTypes.objectOf(PropTypes.any), // eslint-disable-line react/forbid-prop-types
     implementedMethods: PropTypes.objectOf(PropTypes.any), // eslint-disable-line react/forbid-prop-types
@@ -730,7 +738,7 @@ ObservationPlanRequestForm.propTypes = {
 };
 
 ObservationPlanRequestForm.defaultProps = {
-  instrumentFormParams: {
+  instrumentObsplanFormParams: {
     formSchema: {},
     uiSchema: {},
     implementedMethods: {},

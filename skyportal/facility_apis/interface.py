@@ -116,6 +116,18 @@ class FollowUpAPI(_Base):
         """Remove a particular queue by name."""
         raise NotImplementedError
 
+    # subclasses should implement this if desired
+    @staticmethod
+    def prepare_payload(payload, existing_payload=None):
+        """Format the payload for submission to the facility.
+
+        Parameters
+        ----------
+        payload: dict
+            The payload to format.
+        """
+        raise NotImplementedError
+
     # jsonschema outlining the schema of the frontend form. See
     # https://github.com/rjsf-team/react-jsonschema-form
     # for examples.

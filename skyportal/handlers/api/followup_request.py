@@ -410,6 +410,10 @@ def post_followup_request(data, session, refresh_source=True):
     except AttributeError:
         formSchema = instrument.api_class.form_json_schema
 
+    # if the instrument has a "prepare_payload" method, call it
+    if instrument.api_class.implements()['prepare_payload']:
+        data['payload'] = instrument.api_class.prepare_payload(data['payload'])
+
     # validate the payload
     jsonschema.validate(data['payload'], formSchema)
 
@@ -678,14 +682,18 @@ class FollowupRequestHandler(BaseHandler):
             )
 
         with self.Session() as session:
+            try:
+                data["requester_id"] = self.associated_user_object.id
+                data["last_modified_by_id"] = self.associated_user_object.id
+                data['allocation_id'] = int(data['allocation_id'])
 
-            data["requester_id"] = self.associated_user_object.id
-            data["last_modified_by_id"] = self.associated_user_object.id
-            data['allocation_id'] = int(data['allocation_id'])
+                followup_request_id = post_followup_request(data, session)
 
-            followup_request_id = post_followup_request(data, session)
-
-            return self.success(data={"id": followup_request_id})
+                return self.success(data={"id": followup_request_id})
+            except ValidationError as e:
+                return self.error(
+                    f'Error submitting follow-up request: {e.normalized_messages()}'
+                )
 
     @permissions(["Upload data"])
     def put(self, request_id):
@@ -738,6 +746,7 @@ class FollowupRequestHandler(BaseHandler):
                 # updating status does not require instrument API interaction
                 for k in data:
                     setattr(followup_request, k, data[k])
+                session.commit()
             else:
                 try:
                     data = FollowupRequestPost.load(data)
@@ -750,9 +759,15 @@ class FollowupRequestHandler(BaseHandler):
                 data["last_modified_by_id"] = self.associated_user_object.id
 
                 api = followup_request.instrument.api_class
+                existing_status = followup_request.status
 
-                if not api.implements()['update']:
-                    return self.error('Cannot update requests on this instrument.')
+                if existing_status == 'failed to submit':
+                    if not api.implements()['submit']:
+                        return self.error('Cannot submit requests on this instrument.')
+
+                else:
+                    if not api.implements()['update']:
+                        return self.error('Cannot update requests on this instrument.')
 
                 group_ids = data.pop('target_group_ids', None)
                 if group_ids is not None:
@@ -767,14 +782,38 @@ class FollowupRequestHandler(BaseHandler):
                     FollowupRequest.__schema__().load(data, partial=True)
                 except ValidationError as e:
                     return self.error(
-                        f'Error parsing followup request update: "{e.normalized_messages()}"'
+                        f'Error parsing followup request submit/update: "{e.normalized_messages()}"'
+                    )
+
+                # if the instrument has a "prepare_payload" method, call it
+                if followup_request.instrument.api_class.implements()[
+                    'prepare_payload'
+                ]:
+                    data[
+                        'payload'
+                    ] = followup_request.instrument.api_class.prepare_payload(
+                        data['payload'], followup_request.payload
                     )
 
                 for k in data:
                     setattr(followup_request, k, data[k])
 
-                followup_request.instrument.api_class.update(followup_request, session)
-            session.commit()
+                if existing_status == 'failed to submit':
+                    try:
+                        followup_request.instrument.api_class.submit(
+                            followup_request, session, refresh_source=True
+                        )
+                        session.commit()
+                    except Exception as e:
+                        return self.error(f'Failed to submit follow-up request: {e}')
+                else:
+                    try:
+                        followup_request.instrument.api_class.update(
+                            followup_request, session
+                        )
+                        session.commit()
+                    except Exception as e:
+                        return self.error(f'Failed to update follow-up request: {e}')
 
             self.push_all(
                 action="skyportal/REFRESH_SOURCE",

@@ -210,11 +210,11 @@ class GaiaQueryHandler(BaseHandler):
             except IntegrityError:
                 return self.error("Annotation already posted.")
 
-        self.push_all(
-            action='skyportal/REFRESH_SOURCE',
-            payload={'obj_key': obj.internal_key},
-        )
-        return self.success()
+            self.push_all(
+                action='skyportal/REFRESH_SOURCE',
+                payload={'obj_key': obj.internal_key},
+            )
+            return self.success()
 
 
 class IRSAQueryWISEHandler(BaseHandler):
