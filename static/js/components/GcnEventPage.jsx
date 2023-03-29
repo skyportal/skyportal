@@ -272,14 +272,14 @@ const GcnEventPage = ({ route }) => {
                 <Button
                   secondary
                   onClick={() => setLeftPanelVisible(!leftPanelVisible)}
-                  data-testid="hide-left-panel-button"
+                  data-testid="left-panel-button"
                 >
                   Social Panel
                 </Button>
                 <Button
                   secondary
                   onClick={() => setRightPanelVisible(!rightPanelVisible)}
-                  data-testid="hide-right-panel-button"
+                  data-testid="right-panel-button"
                 >
                   Properties Panel
                 </Button>
