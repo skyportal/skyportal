@@ -79,6 +79,7 @@ const useStyles = makeStyles((theme) => ({
     fontSize: "2rem",
     fontWeight: "bold",
     color: theme.palette.primary.main,
+    whiteSpace: "nowrap",
   },
   eventTags: {
     marginLeft: "1rem",
