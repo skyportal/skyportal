@@ -1,38 +1,42 @@
-import React, { useState, useEffect } from "react";
-import { useDispatch, useSelector } from "react-redux";
 import { PropTypes } from "prop-types";
+import React, { useEffect, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
 // eslint-disable-next-line import/no-unresolved
-import Form from "@rjsf/mui";
-import validator from "@rjsf/validator-ajv8";
-import Select from "@mui/material/Select";
-import InputLabel from "@mui/material/InputLabel";
-import MenuItem from "@mui/material/MenuItem";
-import FormGroup from "@mui/material/FormGroup";
-import FormControlLabel from "@mui/material/FormControlLabel";
+import { useMediaQuery } from "@mui/material";
+import Box from "@mui/material/Box";
 import Checkbox from "@mui/material/Checkbox";
 import CircularProgress from "@mui/material/CircularProgress";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import FormGroup from "@mui/material/FormGroup";
+import Grid from "@mui/material/Grid";
+import InputLabel from "@mui/material/InputLabel";
+import MenuItem from "@mui/material/MenuItem";
+import Select from "@mui/material/Select";
+import { useTheme } from "@mui/material/styles";
+import Tab from "@mui/material/Tab";
+import Tabs from "@mui/material/Tabs";
 import Typography from "@mui/material/Typography";
 import makeStyles from "@mui/styles/makeStyles";
+import Form from "@rjsf/mui";
+import validator from "@rjsf/validator-ajv8";
 import dayjs from "dayjs";
-import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
-import Grid from "@mui/material/Grid";
-import Tabs from "@mui/material/Tabs";
-import Tab from "@mui/material/Tab";
+import utc from "dayjs/plugin/utc";
+
 import Button from "./Button";
 
-import * as sourcesActions from "../ducks/sources";
-import * as observationsActions from "../ducks/observations";
 import * as galaxiesActions from "../ducks/galaxies";
 import * as instrumentActions from "../ducks/instrument";
+import * as observationsActions from "../ducks/observations";
+import * as sourcesActions from "../ducks/sources";
 
-import LocalizationPlot from "./LocalizationPlot";
-import GcnSummary from "./GcnSummary";
-import AddSurveyEfficiencyObservationsPage from "./AddSurveyEfficiencyObservationsPage";
 import AddCatalogQueryPage from "./AddCatalogQueryPage";
-import GalaxyTable from "./GalaxyTable";
-import SourceTable from "./SourceTable";
+import AddSurveyEfficiencyObservationsPage from "./AddSurveyEfficiencyObservationsPage";
 import ExecutedObservationsTable from "./ExecutedObservationsTable";
+import GalaxyTable from "./GalaxyTable";
+import GcnSummary from "./GcnSummary";
+import LocalizationPlot from "./LocalizationPlot";
+import SourceTable from "./SourceTable";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
@@ -63,17 +67,6 @@ const useStyles = makeStyles(() => ({
   form: {
     marginBottom: "1rem",
   },
-  buttons: {
-    margin: "1rem 0 1rem 0",
-    display: "grid",
-    gridGap: "1rem",
-    gridTemplateColumns: "repeat(auto-fit, minmax(5rem, 1fr))",
-    "& > button": {
-      maxHeight: "4rem",
-      // no space between 2 lines of text
-      lineHeight: "1rem",
-    },
-  },
   formGroup: {
     display: "grid",
     gridTemplateColumns: "repeat(auto-fit, minmax(8rem, 1fr))",
@@ -81,12 +74,26 @@ const useStyles = makeStyles(() => ({
     alignItems: "center",
     width: "100%",
   },
+  formGroupSmall: {
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "flex-end",
+    alignItems: "right",
+  },
   formItem: {
     display: "flex",
     flexDirection: "row",
     justifyContent: "flex-start",
     alignItems: "center",
     margin: 0,
+  },
+  formContainer: {
+    maxWidth: "95vw",
+    width: "100%",
+  },
+  formContainerItem: {
+    maxWidth: "87vw",
+    width: "100%",
   },
   dateGroup: {
     display: "grid",
@@ -103,7 +110,26 @@ const useStyles = makeStyles(() => ({
     alignItems: "center",
     width: "100%",
   },
+  localizationPlotSmall: {
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "center",
+    alignItems: "center",
+    maxWidth: "90vw",
+    width: "100%",
+  },
   marginBottom: {
+    marginBottom: "1rem",
+  },
+  buttons: {
+    display: "grid",
+    gridGap: "1rem",
+    gridTemplateColumns: "repeat(auto-fit, minmax(5rem, 1fr))",
+    "& > button": {
+      maxHeight: "4rem",
+      // no space between 2 lines of text
+      lineHeight: "1rem",
+    },
     marginBottom: "1rem",
   },
 }));
@@ -291,6 +317,7 @@ const GcnSelectionForm = ({
   selectedLocalizationName,
   setSelectedLocalizationName,
 }) => {
+  const theme = useTheme();
   const classes = useStyles();
   const dispatch = useDispatch();
 
@@ -321,7 +348,7 @@ const GcnSelectionForm = ({
   );
   const [skymapInstrument, setSkymapInstrument] = useState(null);
 
-  const [tabIndex, setTabIndex] = useState(0);
+  const [tabIndex, setTabIndex] = useState(1);
 
   const [sourceFilteringState, setSourceFilteringState] = useState({
     startDate: null,
@@ -387,6 +414,14 @@ const GcnSelectionForm = ({
     // the defaultStartDate is updated, so ignore ESLint here
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dispatch, gcnEvent]);
+
+  const isBig = useMediaQuery(theme.breakpoints.up("md"));
+
+  useEffect(() => {
+    if (isBig && tabIndex === 0) {
+      setTabIndex(1);
+    }
+  });
 
   const handleOnChange = (position) => {
     const checkedDisplayStateCopy = JSON.parse(
@@ -614,7 +649,11 @@ const GcnSelectionForm = ({
   if (gcnEvent?.dateobs === dateobs) {
     return (
       <Grid container spacing={4}>
-        <Grid item xs={4}>
+        <Grid
+          item
+          sm={4}
+          sx={{ display: { xs: "none", sm: "none", md: "block" } }}
+        >
           {Object.keys(locLookUp).includes(
             selectedLocalizationId?.toString()
           ) && (
@@ -652,20 +691,87 @@ const GcnSelectionForm = ({
             </div>
           )}
         </Grid>
-        <Grid item xs={8}>
+        <Grid item sm={12} md={8}>
           <Tabs
             value={tabIndex}
             onChange={handleChangeTab}
             aria-label="gcn_tabs"
+            variant="scrollable"
+            xs={12}
+            sx={{
+              display: {
+                maxWidth: "95vw",
+                width: "100&",
+                "& > button": { lineHeight: "1.5rem" },
+              },
+            }}
           >
+            {/* the first tab called skymap has to be hidden until we reach the sm breakpoint */}
+            <Tab label="Skymap" sx={{ display: { sm: "block", md: "none" } }} />
             <Tab label="Query Form" />
             <Tab label="Sources" />
             <Tab label="Galaxies" />
             <Tab label="Observations" />
           </Tabs>
+
           {tabIndex === 0 && (
-            <div>
-              <div>
+            <Box sx={{ display: { sm: "block", md: "none" } }}>
+              {Object.keys(locLookUp).includes(
+                selectedLocalizationId?.toString()
+              ) && (
+                <Grid container spacing={2}>
+                  <Grid
+                    item
+                    sm={8}
+                    md={12}
+                    className={classes.localizationPlotSmall}
+                  >
+                    <LocalizationPlot
+                      loc={locLookUp[selectedLocalizationId]}
+                      sources={gcnEventSources}
+                      galaxies={gcnEventGalaxies}
+                      instrument={skymapInstrument}
+                      observations={gcnEventObservations}
+                      options={checkedDisplayState}
+                      selectedFields={selectedFields}
+                      setSelectedFields={setSelectedFields}
+                      type="analysis"
+                    />
+                  </Grid>
+                  <Grid item xs={9} sm={4} md={12}>
+                    <InputLabel
+                      style={{ marginTop: "0.5rem", marginBottom: "0.25rem" }}
+                      id="showOnPlot"
+                    >
+                      Show/Hide on Plot
+                    </InputLabel>
+                    <FormGroup className={classes.formGroupSmall}>
+                      {displayOptions.map((option, index) => (
+                        <FormControlLabel
+                          control={
+                            <Checkbox onChange={() => handleOnChange(index)} />
+                          }
+                          label={option}
+                          key={option}
+                          disabled={!displayOptionsAvailable[option]}
+                          className={classes.formItem}
+                        />
+                      ))}
+                    </FormGroup>
+                  </Grid>
+                </Grid>
+              )}
+            </Box>
+          )}
+
+          {tabIndex === 1 && (
+            <Grid
+              container
+              spacing={1}
+              className={classes.formContainer}
+              alignItems="center"
+            >
+              <Grid item sm={12} className={classes.formContainerItem}>
                 <InputLabel id="localizationSelectLabel">
                   Localization
                 </InputLabel>
@@ -687,8 +793,8 @@ const GcnSelectionForm = ({
                     </MenuItem>
                   ))}
                 </Select>
-              </div>
-              <div className={classes.marginBottom}>
+              </Grid>
+              <Grid item sm={12} className={classes.formContainerItem}>
                 <InputLabel id="instrumentSelectLabel">Instrument</InputLabel>
                 <Select
                   inputProps={{ MenuProps: { disableScrollLock: true } }}
@@ -710,8 +816,11 @@ const GcnSelectionForm = ({
                     </MenuItem>
                   ))}
                 </Select>
-              </div>
-              <div
+              </Grid>
+              <Grid
+                item
+                xs={11}
+                sm={12}
                 data-testid="gcnsource-selection-form"
                 className={classes.form}
               >
@@ -731,60 +840,62 @@ const GcnSelectionForm = ({
                     <CircularProgress />
                   </div>
                 )}
-              </div>
+              </Grid>
               {gcnEvent && selectedLocalizationId ? (
-                <div className={classes.buttons}>
-                  <GcnSummary dateobs={dateobs} />
-                  <AddSurveyEfficiencyObservationsPage />
-                  <AddCatalogQueryPage />
-                  {isSubmittingTreasureMap === selectedInstrumentId ? (
-                    <div>
-                      <CircularProgress />
-                    </div>
-                  ) : (
-                    <Button
-                      secondary
-                      onClick={() => {
-                        handleSubmitTreasureMap(
-                          selectedInstrumentId,
-                          formDataState
-                        );
-                      }}
-                      type="submit"
-                      size="small"
-                      data-testid={`treasuremapRequest_${selectedInstrumentId}`}
-                    >
-                      Send to Treasure Map
-                    </Button>
-                  )}
-                  {isDeletingTreasureMap === selectedInstrumentId ? (
-                    <div>
-                      <CircularProgress />
-                    </div>
-                  ) : (
-                    <Button
-                      secondary
-                      onClick={() => {
-                        handleDeleteTreasureMap(
-                          selectedInstrumentId,
-                          formDataState
-                        );
-                      }}
-                      type="submit"
-                      size="small"
-                      data-testid={`treasuremapDelete_${selectedInstrumentId}`}
-                    >
-                      Retract from Treasure Map
-                    </Button>
-                  )}
-                </div>
+                <Grid item xs={11} sm={12}>
+                  <div className={classes.buttons}>
+                    <GcnSummary dateobs={dateobs} />
+                    <AddSurveyEfficiencyObservationsPage />
+                    <AddCatalogQueryPage />
+                    {isSubmittingTreasureMap === selectedInstrumentId ? (
+                      <div>
+                        <CircularProgress />
+                      </div>
+                    ) : (
+                      <Button
+                        secondary
+                        onClick={() => {
+                          handleSubmitTreasureMap(
+                            selectedInstrumentId,
+                            formDataState
+                          );
+                        }}
+                        type="submit"
+                        size="small"
+                        data-testid={`treasuremapRequest_${selectedInstrumentId}`}
+                      >
+                        Send to Treasure Map
+                      </Button>
+                    )}
+                    {isDeletingTreasureMap === selectedInstrumentId ? (
+                      <div>
+                        <CircularProgress />
+                      </div>
+                    ) : (
+                      <Button
+                        secondary
+                        onClick={() => {
+                          handleDeleteTreasureMap(
+                            selectedInstrumentId,
+                            formDataState
+                          );
+                        }}
+                        type="submit"
+                        size="small"
+                        data-testid={`treasuremapDelete_${selectedInstrumentId}`}
+                      >
+                        Retract from Treasure Map
+                      </Button>
+                    )}
+                  </div>
+                </Grid>
               ) : (
                 <CircularProgress />
               )}
-            </div>
+            </Grid>
           )}
 
-          {tabIndex === 1 && (
+          {tabIndex === 2 && (
             <div>
               {gcnEventSources?.sources ? (
                 <div>
@@ -809,7 +920,7 @@ const GcnSelectionForm = ({
             </div>
           )}
 
-          {tabIndex === 2 && (
+          {tabIndex === 3 && (
             <div>
               {gcnEventGalaxies?.galaxies ? (
                 <div>
@@ -832,7 +943,7 @@ const GcnSelectionForm = ({
             </div>
           )}
 
-          {tabIndex === 3 && (
+          {tabIndex === 4 && (
             <div>
               {gcnEventObservations?.observations ? (
                 <div>

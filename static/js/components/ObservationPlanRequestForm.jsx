@@ -1,33 +1,33 @@
-import React, { useState, useEffect } from "react";
-import { useDispatch, useSelector } from "react-redux";
 import Checkbox from "@mui/material/Checkbox";
 import Chip from "@mui/material/Chip";
 import FormControlLabel from "@mui/material/FormControlLabel";
-import { DateTimePicker } from "@mui/x-date-pickers/DateTimePicker";
-import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
-import { LocalizationProvider } from "@mui/x-date-pickers";
-import PropTypes from "prop-types";
-import Select from "@mui/material/Select";
 import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
+import Select from "@mui/material/Select";
 import TextField from "@mui/material/TextField";
+import { LocalizationProvider } from "@mui/x-date-pickers";
+import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
+import { DateTimePicker } from "@mui/x-date-pickers/DateTimePicker";
+import PropTypes from "prop-types";
+import React, { useEffect, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
 // eslint-disable-next-line import/no-unresolved
+import CircularProgress from "@mui/material/CircularProgress";
+import Grid from "@mui/material/Grid";
+import makeStyles from "@mui/styles/makeStyles";
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
-import CircularProgress from "@mui/material/CircularProgress";
-import makeStyles from "@mui/styles/makeStyles";
-import { showNotification } from "baselayer/components/Notifications";
-import GeoPropTypes from "geojson-prop-types";
 import dayjs from "dayjs";
-import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
-import Grid from "@mui/material/Grid";
+import utc from "dayjs/plugin/utc";
+import GeoPropTypes from "geojson-prop-types";
+import { showNotification } from "baselayer/components/Notifications";
 import Button from "./Button";
 
-import * as gcnEventActions from "../ducks/gcnEvent";
 import * as allocationActions from "../ducks/allocations";
-import * as instrumentsActions from "../ducks/instruments";
+import * as gcnEventActions from "../ducks/gcnEvent";
 import * as instrumentActions from "../ducks/instrument";
+import * as instrumentsActions from "../ducks/instruments";
 import GroupShareSelect from "./GroupShareSelect";
 import LocalizationPlot from "./LocalizationPlot";
 
@@ -66,6 +66,17 @@ const useStyles = makeStyles(() => ({
       marginTop: "1rem",
       marginBottom: "1rem",
     },
+  },
+  buttons: {
+    display: "grid",
+    gridGap: "1rem",
+    gridTemplateColumns: "repeat(auto-fit, minmax(6.5rem, 1fr))",
+    "& > button": {
+      maxHeight: "4rem",
+      // no space between 2 lines of text
+      lineHeight: "1rem",
+    },
+    marginBottom: "1rem",
   },
 }));
 
@@ -184,29 +195,19 @@ const ObservationPlanGlobe = ({
   );
   displayOptionsDefault.localization = true;
   displayOptionsDefault.instrument = true;
-  return (
-    <div>
-      <div>
-        {!loc ? (
-          <div>
-            <CircularProgress />
-          </div>
-        ) : (
-          <div>
-            <LocalizationPlot
-              loc={loc}
-              instrument={skymapInstrument}
-              options={displayOptionsDefault}
-              rotation={rotation}
-              setRotation={setRotation}
-              selectedFields={selectedFields}
-              setSelectedFields={setSelectedFields}
-              type="obsplan"
-            />
-          </div>
-        )}
-      </div>
-    </div>
+  return !loc ? (
+    <CircularProgress />
+  ) : (
+    <LocalizationPlot
+      loc={loc}
+      instrument={skymapInstrument}
+      options={displayOptionsDefault}
+      rotation={rotation}
+      setRotation={setRotation}
+      selectedFields={selectedFields}
+      setSelectedFields={setSelectedFields}
+      type="obsplan"
+    />
   );
 };
 
@@ -499,90 +500,89 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
 
   return (
     <Grid container spacing={4}>
-      <Grid item xs={4}>
-        <div style={{ marginTop: "2rem" }}>
-          <ObservationPlanGlobe
-            loc={gcnEvent.localizations[0]}
-            skymapInstrument={skymapInstrument}
-            selectedFields={selectedFields}
-            setSelectedFields={setSelectedFields}
-          />
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              marginTop: "0.5rem",
-            }}
-          >
-            <InputLabel id="airmassTimeSelectLabel">Airmass Time</InputLabel>
-            <div style={{ display: "flex", flexDirection: "row" }}>
-              <LocalizationProvider dateAdapter={AdapterDateFns}>
-                <DateTimePicker
-                  value={temporaryAirmassTime}
-                  onChange={(newValue) => handleChange(newValue)}
-                  label="Time to compute airmass (UTC)"
-                  showTodayButton={false}
-                  ampm={useAMPM}
-                  renderInput={(params) => (
-                    /* eslint-disable-next-line react/jsx-props-no-spreading */
-                    <TextField id="airmassTimePicker" {...params} />
-                  )}
-                />
-              </LocalizationProvider>
+      <Grid item xs={12} sm={12} md={6} lg={4}>
+        <Grid container spacing={4} alignItems="center">
+          <Grid item xs={12} sm={7} md={12}>
+            <ObservationPlanGlobe
+              loc={gcnEvent.localizations[0]}
+              skymapInstrument={skymapInstrument}
+              selectedFields={selectedFields}
+              setSelectedFields={setSelectedFields}
+            />
+          </Grid>
+          <Grid item xs={12} sm={5} md={12}>
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                marginTop: "0.5rem",
+              }}
+            >
+              <InputLabel id="airmassTimeSelectLabel">Airmass Time</InputLabel>
+              <Grid container spacing={1} alignItems="center">
+                <Grid item>
+                  <LocalizationProvider dateAdapter={AdapterDateFns}>
+                    <DateTimePicker
+                      value={temporaryAirmassTime}
+                      onChange={(newValue) => handleChange(newValue)}
+                      label="Time to compute airmass (UTC)"
+                      showTodayButton={false}
+                      ampm={useAMPM}
+                      renderInput={(params) => (
+                        /* eslint-disable-next-line react/jsx-props-no-spreading */
+                        <TextField id="airmassTimePicker" {...params} />
+                      )}
+                      style={{ minWidth: "100%" }}
+                    />
+                  </LocalizationProvider>
+                </Grid>
+                <Grid item>
+                  <Button id="setAirmassSelect" onClick={() => setAirmass()}>
+                    Update airmass calculation
+                  </Button>
+                </Grid>
+              </Grid>
+            </div>
+            <div className={classes.buttons}>
               <Button
-                id="setAirmassSelect"
-                onClick={() => setAirmass()}
-                style={{ marginLeft: "1rem" }}
+                secondary
+                href={`/api/localization/${selectedLocalizationId}/observability`}
+                download={`observabilityChartRequest-${selectedLocalizationId}`}
+                size="small"
+                type="submit"
+                data-testid={`observabilityChartRequest_${selectedLocalizationId}`}
               >
-                Update airmass calculation
+                Observability Chart
+              </Button>
+              <Button
+                secondary
+                href={`/api/localization/${selectedLocalizationId}/airmass/${
+                  instLookUp[
+                    allocationLookUp[selectedAllocationId].instrument_id
+                  ].telescope_id
+                }`}
+                download={`airmassChartRequest-${selectedAllocationId}`}
+                size="small"
+                type="submit"
+                data-testid={`airmassChartRequest_${selectedAllocationId}`}
+              >
+                Airmass Chart
+              </Button>
+              <Button
+                secondary
+                href={`/api/localization/${selectedLocalizationId}/worldmap`}
+                download={`worldmapChartRequest-${selectedLocalizationId}`}
+                size="small"
+                type="submit"
+                data-testid={`worldmapChartRequest_${selectedLocalizationId}`}
+              >
+                World Map Chart
               </Button>
             </div>
-          </div>
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "row",
-              marginTop: "1rem",
-              gap: "1rem",
-            }}
-          >
-            <Button
-              secondary
-              href={`/api/localization/${selectedLocalizationId}/observability`}
-              download={`observabilityChartRequest-${selectedLocalizationId}`}
-              size="small"
-              type="submit"
-              data-testid={`observabilityChartRequest_${selectedLocalizationId}`}
-            >
-              Observability Chart
-            </Button>
-            <Button
-              secondary
-              href={`/api/localization/${selectedLocalizationId}/airmass/${
-                instLookUp[allocationLookUp[selectedAllocationId].instrument_id]
-                  .telescope_id
-              }`}
-              download={`airmassChartRequest-${selectedAllocationId}`}
-              size="small"
-              type="submit"
-              data-testid={`airmassChartRequest_${selectedAllocationId}`}
-            >
-              Airmass Chart
-            </Button>
-            <Button
-              secondary
-              href={`/api/localization/${selectedLocalizationId}/worldmap`}
-              download={`worldmapChartRequest-${selectedLocalizationId}`}
-              size="small"
-              type="submit"
-              data-testid={`worldmapChartRequest_${selectedLocalizationId}`}
-            >
-              World Map Chart
-            </Button>
-          </div>
-        </div>
+          </Grid>
+        </Grid>
       </Grid>
-      <Grid item xs={8}>
+      <Grid item xs={12} sm={12} md={6} lg={8}>
         <div>
           <FieldSelect
             selectedFields={selectedFields}
@@ -641,7 +641,7 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
           groupIDs={selectedGroupIds}
         />
         <div data-testid="observationplan-request-form">
-          <div>
+          <div style={{ marginTop: "1rem" }}>
             <Form
               schema={
                 instrumentObsplanFormParams
