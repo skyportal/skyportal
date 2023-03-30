@@ -293,7 +293,7 @@ const GcnEventPage = ({ route }) => {
           <div className={styles.columnItem}>
             <Grid container spacing={2}>
               <Grid item xs={9}>
-                <Grid container sx={{ marginTop: "0.5rem" }}>
+                <Grid container>
                   <Grid item md={12} lg={4}>
                     <Grid container alignItems="end" spacing={1}>
                       <Grid item>
@@ -320,35 +320,33 @@ const GcnEventPage = ({ route }) => {
                     onClick={() => setLeftPanelVisible(!leftPanelVisible)}
                     data-testid="left-panel-button"
                     style={{
-                      fontSize: isSmall ? "0.7rem" : "1rem",
-                      marginRight: isSmall ? "1rem" : "0",
+                      fontSize: isSmall ? "0.7rem" : "0.85rem",
+                      marginRight: isSmall ? "1rem" : "0rem",
                     }}
                   >
-                    Social Panel
+                    Social
                   </Button>
                   <Button
                     secondary
                     onClick={() => setRightPanelVisible(!rightPanelVisible)}
                     data-testid="right-panel-button"
                     style={{
-                      fontSize: isSmall ? "0.7rem" : "1rem",
-                      marginRight: isSmall ? "1rem" : "0",
+                      fontSize: isSmall ? "0.7rem" : "0.85rem",
+                      marginRight: isSmall ? "1rem" : "0rem",
                     }}
                   >
-                    Properties Panel
+                    Properties
                   </Button>
                 </div>
               </Grid>
             </Grid>
-            <div>
-              <GcnEventAllocationTriggers
-                gcnEvent={gcnEvent}
-                showPassed
-                showUnset
-                // we want to show the title if the breakpoint is over md
-                showTitle={isBig}
-              />
-            </div>
+            <GcnEventAllocationTriggers
+              gcnEvent={gcnEvent}
+              showPassed
+              showUnset
+              // we want to show the title if the breakpoint is over md
+              showTitle={isBig}
+            />
           </div>
           <div className={styles.columnItem}>
             <Accordion defaultExpanded>
