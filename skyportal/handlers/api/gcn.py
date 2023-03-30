@@ -562,7 +562,7 @@ class GcnEventTagsHandler(BaseHandler):
             return self.success(data={'gcntag_id': tag.id})
 
     @auth_or_token
-    def delete(self, dateobs, tag):
+    def delete(self, dateobs):
         """
         ---
         description: Delete a GCN event tag
@@ -574,7 +574,7 @@ class GcnEventTagsHandler(BaseHandler):
             required: true
             schema:
               type: dateobs
-          - in: path
+          - in: query
             name: tag
             required: true
             schema:
@@ -589,6 +589,11 @@ class GcnEventTagsHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+
+        data = self.get_json()
+        tag = data.get('tag')
+        if tag is None:
+            return self.error("tag must be present in data to remove GcnTag")
 
         with self.Session() as session:
             tag = session.scalars(
