@@ -1,27 +1,30 @@
-import React, { useEffect, useState, useRef } from "react";
 import PropTypes from "prop-types";
-import { useSelector, useDispatch } from "react-redux";
+import React, { useEffect, useRef, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
 
-import Accordion from "@mui/material/Accordion";
-import AccordionSummary from "@mui/material/AccordionSummary";
-import AccordionDetails from "@mui/material/AccordionDetails";
-import Chip from "@mui/material/Chip";
-import makeStyles from "@mui/styles/makeStyles";
+import Cancel from "@mui/icons-material/Cancel";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import IconButton from "@mui/material/IconButton";
 import GetAppIcon from "@mui/icons-material/GetApp";
-import Grid from "@mui/material/Grid";
-import Typography from "@mui/material/Typography";
-import { showNotification } from "baselayer/components/Notifications";
-import { useTheme } from "@mui/material/styles";
-
+import { useMediaQuery } from "@mui/material";
+import Accordion from "@mui/material/Accordion";
+import AccordionDetails from "@mui/material/AccordionDetails";
+import AccordionSummary from "@mui/material/AccordionSummary";
+import Chip from "@mui/material/Chip";
+import DialogTitle from "@mui/material/DialogTitle";
 import Drawer from "@mui/material/Drawer";
+import Grid from "@mui/material/Grid";
+import IconButton from "@mui/material/IconButton";
+import { useTheme } from "@mui/material/styles";
+import Typography from "@mui/material/Typography";
+import makeStyles from "@mui/styles/makeStyles";
 
 // eslint-disable-next-line
 import GeoPropTypes from "geojson-prop-types";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
+
+import { showNotification } from "baselayer/components/Notifications";
 import Button from "./Button";
 
 import * as gcnEventActions from "../ducks/gcnEvent";
@@ -33,23 +36,34 @@ import ObservationPlanRequestForm from "./ObservationPlanRequestForm";
 import ObservationPlanRequestLists from "./ObservationPlanRequestLists";
 
 import CommentList from "./CommentList";
-import GcnTags from "./GcnTags";
 import GcnAliases from "./GcnAliases";
-import GcnEventAllocationTriggers from "./GcnEventAllocationTriggers";
 import GcnCirculars from "./GcnCirculars";
+import GcnEventAllocationTriggers from "./GcnEventAllocationTriggers";
 import GcnLocalizationsTable from "./GcnLocalizationsTable";
 import GcnProperties from "./GcnProperties";
+import GcnTags from "./GcnTags";
 import Reminders from "./Reminders";
 
-import withRouter from "./withRouter";
-import { postLocalizationFromNotice } from "../ducks/localization";
 import * as localizationActions from "../ducks/localization";
+import { postLocalizationFromNotice } from "../ducks/localization";
+import withRouter from "./withRouter";
 
 dayjs.extend(utc);
 
 const useStyles = makeStyles((theme) => ({
   sidePanel: {
-    width: "50vw",
+    width: "100%",
+    height: "100%",
+    "& > .MuiPaper-root": {
+      width: "100%",
+      height: "100%",
+      [theme.breakpoints.up("md")]: {
+        width: "50%",
+      },
+    },
+  },
+  sidePanelContent: {
+    width: "100%",
     height: "100%",
     padding: "1rem",
   },
@@ -76,10 +90,24 @@ const useStyles = makeStyles((theme) => ({
     gap: "1rem",
   },
   headerName: {
+    height: "2rem",
     fontSize: "2rem",
     fontWeight: "bold",
     color: theme.palette.primary.main,
     whiteSpace: "nowrap",
+    verticalAlign: "bottom",
+    lineHeight: "1.7rem",
+  },
+  headerDate: {
+    height: "1rem",
+    fontSize: "1rem",
+    whiteSpace: "nowrap",
+  },
+  headerButtons: {
+    display: "grid",
+    // we want to have 2 columns when the screen is large enough, otherwise 1 using gridTemplateColumns
+    gridTemplateColumns: "repeat(auto-fit, minmax(100px, 1fr))",
+    gap: "0.5rem",
   },
   eventTags: {
     marginLeft: "1rem",
@@ -229,6 +257,9 @@ const GcnEventPage = ({ route }) => {
     }
   }, [gcnEvent, dispatch]);
 
+  const isBig = useMediaQuery(theme.breakpoints.up("sm"));
+  const isSmall = useMediaQuery(theme.breakpoints.down("sm"));
+
   if (!gcnEvent) {
     return <Spinner />;
   }
@@ -260,39 +291,62 @@ const GcnEventPage = ({ route }) => {
       <Grid container spacing={2} className={styles.source}>
         <Grid item xs={12}>
           <div className={styles.columnItem}>
-            <div className={styles.header}>
-              <div className={styles.headerLeft}>
-                <Typography variant="h5" className={styles.headerName}>
-                  {dayjs(gcnEvent.dateobs).format("YYMMDD HH:mm:ss")}
-                </Typography>
-                ({dayjs().to(dayjs.utc(`${gcnEvent.dateobs}Z`))})
-                <GcnTags gcnEvent={gcnEvent} />
-              </div>
-              <div className={styles.headerRight}>
-                <Button
-                  secondary
-                  onClick={() => setLeftPanelVisible(!leftPanelVisible)}
-                  data-testid="left-panel-button"
-                >
-                  Social Panel
-                </Button>
-                <Button
-                  secondary
-                  onClick={() => setRightPanelVisible(!rightPanelVisible)}
-                  data-testid="right-panel-button"
-                >
-                  Properties Panel
-                </Button>
-              </div>
-            </div>
-            <div>
-              <GcnEventAllocationTriggers
-                gcnEvent={gcnEvent}
-                showPassed
-                showUnset
-                showTitle
-              />
-            </div>
+            <Grid container spacing={2}>
+              <Grid item xs={9}>
+                <Grid container>
+                  <Grid item md={12} lg={4}>
+                    <Grid container alignItems="end" spacing={1}>
+                      <Grid item>
+                        <span className={styles.headerName}>
+                          {dayjs(gcnEvent.dateobs).format("YYMMDD HH:mm:ss")}
+                        </span>
+                      </Grid>
+                      <Grid item>
+                        <span className={styles.headerDate}>
+                          ({dayjs().to(dayjs.utc(`${gcnEvent.dateobs}Z`))})
+                        </span>
+                      </Grid>
+                    </Grid>
+                  </Grid>
+                  <Grid item md={12} lg={8}>
+                    <GcnTags gcnEvent={gcnEvent} />
+                  </Grid>
+                </Grid>
+              </Grid>
+              <Grid item xs={3}>
+                <div className={styles.headerButtons}>
+                  <Button
+                    secondary
+                    onClick={() => setLeftPanelVisible(!leftPanelVisible)}
+                    data-testid="left-panel-button"
+                    style={{
+                      fontSize: isSmall ? "0.7rem" : "0.85rem",
+                      marginRight: isSmall ? "1rem" : "0rem",
+                    }}
+                  >
+                    Social
+                  </Button>
+                  <Button
+                    secondary
+                    onClick={() => setRightPanelVisible(!rightPanelVisible)}
+                    data-testid="right-panel-button"
+                    style={{
+                      fontSize: isSmall ? "0.7rem" : "0.85rem",
+                      marginRight: isSmall ? "1rem" : "0rem",
+                    }}
+                  >
+                    Properties
+                  </Button>
+                </div>
+              </Grid>
+            </Grid>
+            <GcnEventAllocationTriggers
+              gcnEvent={gcnEvent}
+              showPassed
+              showUnset
+              // we want to show the title if the breakpoint is over md
+              showTitle={isBig}
+            />
           </div>
           <div className={styles.columnItem}>
             <Accordion defaultExpanded>
@@ -310,15 +364,13 @@ const GcnEventPage = ({ route }) => {
                   {route?.dateobs === gcnEvent?.dateobs &&
                     route?.dateobs &&
                     gcnEvent?.localizations?.length > 0 && (
-                      <>
-                        <GcnSelectionForm
-                          dateobs={route.dateobs}
-                          selectedLocalizationName={selectedLocalizationName}
-                          setSelectedLocalizationName={
-                            setSelectedLocalizationName
-                          }
-                        />
-                      </>
+                      <GcnSelectionForm
+                        dateobs={route.dateobs}
+                        selectedLocalizationName={selectedLocalizationName}
+                        setSelectedLocalizationName={
+                          setSelectedLocalizationName
+                        }
+                      />
                     )}
                   {route?.dateobs && !gcnEvent?.dateobs && (
                     <p> Fetching event... </p>
@@ -395,8 +447,17 @@ const GcnEventPage = ({ route }) => {
           anchor="left"
           open={leftPanelVisible}
           onClose={toggleDrawer("left", false)}
+          sm={12}
+          md={8}
+          lg={6}
+          className={styles.sidePanel}
         >
-          <div className={styles.sidePanel}>
+          <DialogTitle disableTypography>
+            <IconButton onClick={toggleDrawer("left", false)}>
+              <Cancel />
+            </IconButton>
+          </DialogTitle>
+          <div className={styles.sidePanelContent}>
             <div className={styles.columnItem}>
               <Accordion defaultExpanded>
                 <AccordionSummary
@@ -452,8 +513,17 @@ const GcnEventPage = ({ route }) => {
           anchor="right"
           open={rightPanelVisible}
           onClose={toggleDrawer("right", false)}
+          sm={12}
+          md={8}
+          lg={6}
+          className={styles.sidePanel}
         >
-          <div className={styles.sidePanel}>
+          <DialogTitle disableTypography>
+            <IconButton onClick={toggleDrawer("right", false)}>
+              <Cancel />
+            </IconButton>
+          </DialogTitle>
+          <div className={styles.sidePanelContent}>
             {/* event properties */}
             <div className={styles.columnItem}>
               <Accordion defaultExpanded>
@@ -467,9 +537,7 @@ const GcnEventPage = ({ route }) => {
                   </Typography>
                 </AccordionSummary>
                 <AccordionDetails>
-                  <div className={styles.eventTags}>
-                    <GcnProperties properties={gcnEvent.properties} />
-                  </div>
+                  <GcnProperties properties={gcnEvent.properties} />
                 </AccordionDetails>
               </Accordion>
             </div>
@@ -486,11 +554,9 @@ const GcnEventPage = ({ route }) => {
                   </Typography>
                 </AccordionSummary>
                 <AccordionDetails>
-                  <div className={styles.eventTags}>
-                    <GcnLocalizationsTable
-                      localizations={gcnEvent.localizations}
-                    />
-                  </div>
+                  <GcnLocalizationsTable
+                    localizations={gcnEvent.localizations}
+                  />
                 </AccordionDetails>
               </Accordion>
             </div>
