@@ -305,7 +305,7 @@ skyportal_handlers = [
     (r'/api/gcn_event(/.*)/tach', GcnTachHandler),
     (r'/api/gcn_event/(.*)/summary(/.*)?', GcnSummaryHandler),
     (r'/api/gcn_event/(.*)/instrument(/.*)?', GcnEventInstrumentFieldHandler),
-    (r'/api/gcn_event/tags(/.*)?(/.*)?', GcnEventTagsHandler),
+    (r'/api/gcn_event/tags(/.*)?', GcnEventTagsHandler),
     (r'/api/gcn_event/properties', GcnEventPropertiesHandler),
     (r'/api/gcn_event(/.*)?', GcnEventHandler),
     (r'/api/sources_in_gcn/(.*)/(.*)', SourcesConfirmedInGCNHandler),
