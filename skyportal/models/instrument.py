@@ -7,7 +7,7 @@ import astroplan
 import healpix_alchemy
 import numpy as np
 import sqlalchemy as sa
-from sqlalchemy import cast
+from sqlalchemy import cast, event
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm import deferred
@@ -214,6 +214,20 @@ class Instrument(Base):
     def listener_class(self):
         return getattr(facility_apis, self.listener_classname)
 
+    has_fields = sa.Column(
+        sa.Boolean,
+        nullable=False,
+        server_default='false',
+        doc="Whether the instrument has fields or not.",
+    )
+
+    has_region = sa.Column(
+        sa.Boolean,
+        nullable=False,
+        server_default='false',
+        doc="Whether the instrument has a region or not.",
+    )
+
     fields = relationship("InstrumentField")
     tiles = relationship("InstrumentFieldTile")
     plans = relationship("EventObservationPlan")
@@ -367,3 +381,29 @@ class InstrumentFieldTile(Base):
     )
 
     healpix = sa.Column(healpix_alchemy.Tile, primary_key=True, index=True)
+
+
+@event.listens_for(Instrument.fields, 'dispose_collection')
+def _instrument_fields_dispose_collection(target, collection, collection_adapter):
+    target.has_fields = False
+
+
+@event.listens_for(Instrument.fields, 'init_collection')
+def _instrument_fields_init_collection(target, collection, collection_adapter):
+    if len(collection) > 0:
+        target.has_fields = True
+    else:
+        target.has_fields = False
+
+
+@event.listens_for(Instrument.region, 'set')
+def _instrument_region_append(target, value, oldvalue, initiator):
+    if value is not None and value != "":
+        target.has_region = True
+    else:
+        target.has_region = False
+
+
+@event.listens_for(Instrument.region, 'remove')
+def _instrument_region_remove(target, value, initiator):
+    target.has_region = False
