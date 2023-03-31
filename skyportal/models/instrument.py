@@ -217,14 +217,14 @@ class Instrument(Base):
     has_fields = sa.Column(
         sa.Boolean,
         nullable=False,
-        default=False,
+        server_default=False,
         doc="Whether the instrument has fields or not.",
     )
 
     has_region = sa.Column(
         sa.Boolean,
         nullable=False,
-        default=False,
+        server_default=False,
         doc="Whether the instrument has a region or not.",
     )
 
