@@ -580,6 +580,14 @@ class InstrumentHandler(BaseHandler):
                     )
                 instrument.sensitivity_data = sensitivity_data
 
+            # temporary, to migrate old instruments
+            if instrument.region is not None or field_region is not None:
+                instrument.has_region = True
+            if (
+                len(instrument.fields) > 0
+            ):  # here we dont validate field_data, as the addition of fields is done later and might fail
+                instrument.has_fields = True
+
             session.commit()
 
             if field_data is not None:
