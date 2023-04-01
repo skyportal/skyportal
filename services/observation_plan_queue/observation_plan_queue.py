@@ -32,7 +32,7 @@ from skyportal.models import (
 )
 
 env, cfg = load_env()
-log = make_log('observation_plans_queue')
+log = make_log('observation_plan_queue')
 
 init_db(**cfg['database'])
 
@@ -251,7 +251,7 @@ class QueueHandler(tornado.web.RequestHandler):
 
 if __name__ == "__main__":
     app = tornado.web.Application([(r"/", QueueHandler)])
-    app.listen(cfg["ports.observation_plans_queue"])
+    app.listen(cfg["ports.observation_plan_queue"])
 
     loop = IOLoop.current()
     loop.add_callback(queue.service)

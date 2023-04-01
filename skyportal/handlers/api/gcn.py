@@ -1428,7 +1428,7 @@ def add_observation_plans(localization_id, user_id):
     }
 
     observation_plans_microservice_url = (
-        f'http://127.0.0.1:{cfg["ports.observation_plans_queue"]}'
+        f'http://127.0.0.1:{cfg["ports.observation_plan_queue"]}'
     )
 
     resp = requests.post(
