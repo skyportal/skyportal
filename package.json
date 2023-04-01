@@ -86,7 +86,7 @@
     "react-transition-group": "4.4.5",
     "react-window": "1.8.8",
     "redoc": "2.0.0",
-    "redoc-cli": "0.13.20",
+    "redoc-cli": "0.13.21",
     "redux": "4.2.0",
     "redux-logger": "3.0.6",
     "redux-thunk": "2.4.2",
