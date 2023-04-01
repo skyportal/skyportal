@@ -465,7 +465,11 @@ class InstrumentHandler(BaseHandler):
                 stmt = stmt.filter(Instrument.name == inst_name)
             instruments = session.scalars(stmt).all()
             data = [
-                {**instrument.to_dict(), 'telescope': instrument.telescope.to_dict()}
+                {
+                    **instrument.to_dict(),
+                    'telescope': instrument.telescope.to_dict(),
+                    'number_of_fields': instrument.number_of_fields,
+                }
                 for instrument in instruments
             ]
             return self.success(data=data)
@@ -974,6 +978,15 @@ def add_tiles(
                     )
             session.add_all(tiles)
             session.commit()
+
+            instrument = session.scalars(
+                sa.select(Instrument).where(
+                    Instrument.id == instrument_id,
+                )
+            ).first()
+            instrument.has_fields = True
+            session.commit()
+
         log(f"Successfully generated fields for instrument {instrument_id}")
     except Exception as e:
         log(f"Unable to generate fields for instrument {instrument_id}: {e}")
