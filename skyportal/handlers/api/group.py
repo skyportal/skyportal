@@ -74,7 +74,7 @@ class GroupHandler(BaseHandler):
                                   users:
                                     type: array
                                     items:
-                                      - $ref: '#/components/schemas/User'
+                                      $ref: '#/components/schemas/User'
                                     description: List of group users
             400:
               content:

@@ -1435,14 +1435,9 @@ class AnalysisProductsHandler(BaseHandler):
           200:
             description: Requested analysis file
             content:
-                oneOf:
-                    - image/png:
-                        schema:
-                            type: string
-                            format: binary
-                    - application/json:
-                        schema:
-                            type: object
+              application/json:
+                schema:
+                  type: object
           400:
             content:
               application/json:
