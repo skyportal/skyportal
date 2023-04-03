@@ -1478,12 +1478,8 @@ def add_observation_plans(localization_id, user_id, parent_session=None):
         )
         gcn_observation_plans = []
         for plan in default_observation_plans:
-            allocation = session.scalars(
-                Allocation.select(user).where(Allocation.id == plan.allocation_id)
-            ).first()
-
             gcn_observation_plan = {
-                'allocation_id': allocation_id,
+                'allocation_id': plan.allocation_id,
                 'filters': plan.filters,
                 'payload': plan.payload,
                 'survey_efficiencies': [
@@ -1504,7 +1500,6 @@ def add_observation_plans(localization_id, user_id, parent_session=None):
             allocation = session.scalars(
                 Allocation.select(user).where(Allocation.id == allocation_id)
             ).first()
-
             if allocation is not None:
 
                 end_date = allocation.instrument.telescope.next_sunrise()
@@ -1581,10 +1576,11 @@ def add_observation_plans(localization_id, user_id, parent_session=None):
                     log(
                         f'Observation plan request failed for Localization with ID {localization_id}: {resp.content}'
                     )
-
         log(f"Triggered observation plans for localization {localization_id}")
     except Exception as e:
-        log(f"Unable to observation plans for localization {localization_id}: {e}")
+        log(
+            f"Unable to trigger observation plans for localization {localization_id}: {e}"
+        )
     finally:
         if parent_session is None:
             session.close()
