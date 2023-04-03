@@ -32,15 +32,10 @@ queue = []
 
 def service(queue):
     while True:
-        print("GOT HERE")
         if len(queue) == 0:
             time.sleep(5)
             continue
         plan, survey_efficiencies, user_id = queue.pop(0)
-        print("GOT HERE 2")
-        print(plan)
-        print(survey_efficiencies)
-        print(user_id)
 
         with DBSession() as session:
             try:
@@ -71,14 +66,11 @@ def api(queue):
             self.write({"status": "success", "data": {"queue_length": len(queue)}})
 
         def post(self):
-            print("POST")
             try:
                 data = tornado.escape.json_decode(self.request.body)
             except json.JSONDecodeError:
                 self.set_status(400)
                 return self.write({"status": "error", "message": "Malformed JSON data"})
-
-            print(data)
 
             user_id = data.get('user_id', None)
             plan = data.get('plan', None)
@@ -118,12 +110,7 @@ def api(queue):
                     }
                 )
 
-            print("PUTTING")
-
             try:
-                # queue.put([plan, survey_efficiencies, user_id]
-                # we want to put in the queue without blocking, as the queue might be busy
-                # and we don't want to block the main thread
                 queue.append([plan, survey_efficiencies, user_id])
 
                 self.set_status(200)
