@@ -632,6 +632,11 @@ def make_app(cfg, baselayer_handlers, baselayer_settings, process=None, env=None
     database_cfg = cfg['database']
     if database_cfg.get('engine_args', {}) in [None, '', {}]:
         database_cfg['engine_args'] = default_engine_args
+    else:
+        database_cfg['engine_args'] = {
+            **default_engine_args,
+            **database_cfg['engine_args'],
+        }
 
     init_db(
         **database_cfg,
