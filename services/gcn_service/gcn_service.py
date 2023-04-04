@@ -142,7 +142,7 @@ def poll_events():
                     # skymap ingestion if available or cone
                     root = get_root_from_payload(payload)
                     notice_type = gcn.get_notice_type(root)
-                    status, _ = get_skymap_metadata(root, notice_type, 15)
+                    status, metadata = get_skymap_metadata(root, notice_type, 15)
                     if status in ['available', 'cone']:
                         log(
                             f'Ingesting skymap for gcn_event: {dateobs}, notice_id: {notice_id}'
@@ -155,6 +155,10 @@ def poll_events():
                             log(
                                 f'Failed to ingest skymap for gcn_event: {dateobs}, notice_id: {notice_id}: {e}'
                             )
+                    elif status == 'unavailable':
+                        log(
+                            f'No skymap available for gcn_event: {dateobs}, notice_id: {notice_id} with url: {metadata.get("url", None)}'
+                        )
                     else:
                         log(
                             f'No skymap available for gcn_event: {dateobs}, notice_id: {notice_id}'
