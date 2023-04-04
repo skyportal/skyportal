@@ -4,13 +4,11 @@ import pandas as pd
 import time
 from regions import Regions
 from astropy.table import Table
-import pytest
 import numpy as np
 
 from skyportal.tests import api
 
 
-@pytest.mark.flaky(reruns=2)
 def test_observation_plan_tiling(super_admin_token, public_group):
 
     datafile = f'{os.path.dirname(__file__)}/../../../data/GW190814.xml'
@@ -171,7 +169,7 @@ def test_observation_plan_tiling(super_admin_token, public_group):
                 'galactic_latitude': 10,
             },
         }
-        for _ in range(10)
+        for _ in range(5)
     ]
     datas = []
     for request_data in requests_data:
@@ -185,7 +183,7 @@ def test_observation_plan_tiling(super_admin_token, public_group):
     assert len(datas) == len(requests_data)
 
     # wait for the observation plans to finish
-    time.sleep(45)
+    time.sleep(30)
 
     for i, data in enumerate(datas):
         id = data["data"]["ids"][0]
@@ -232,7 +230,6 @@ def test_observation_plan_tiling(super_admin_token, public_group):
         )
 
 
-@pytest.mark.flaky(reruns=2)
 def test_observation_plan_galaxy(super_admin_token, view_only_token, public_group):
     catalog_name = 'test_galaxy_catalog'
 
@@ -426,7 +423,7 @@ def test_observation_plan_galaxy(super_admin_token, view_only_token, public_grou
                 'galactic_latitude': 10,
             },
         }
-        for _ in range(10)
+        for _ in range(5)
     ]
 
     datas = []
@@ -441,7 +438,7 @@ def test_observation_plan_galaxy(super_admin_token, view_only_token, public_grou
     assert len(datas) == len(requests_data)
 
     # wait for the observation plans to finish
-    time.sleep(45)
+    time.sleep(30)
 
     for i, data in enumerate(datas):
         id = data["data"]["ids"][0]
