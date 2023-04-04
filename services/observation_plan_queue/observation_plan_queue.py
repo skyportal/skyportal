@@ -147,7 +147,7 @@ if __name__ == "__main__":
         t2.start()
 
         while True:
-            log("Current queue length: ", len(queue))
+            log(f"Current queue length: {len(queue)}")
             time.sleep(60)
     except Exception as e:
         log(f"Error starting observation plan queue: {str(e)}")
