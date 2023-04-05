@@ -271,7 +271,7 @@ class ShiftHandler(BaseHandler):
 
 
 class ShiftUserHandler(BaseHandler):
-    @permissions(["Manage shifts"])
+    @auth_or_token
     def post(self, shift_id, *ignored_args):
         """
         ---
@@ -409,7 +409,7 @@ class ShiftUserHandler(BaseHandler):
                 data={'shift_id': shift_id, 'user_id': user_id, 'admin': admin}
             )
 
-    @permissions(["Manage shifts"])
+    @auth_or_token
     def patch(self, shift_id, user_id):
         """
         ---
@@ -525,7 +525,6 @@ class ShiftUserHandler(BaseHandler):
             )
             return self.success()
 
-    @permissions(["Manage shifts"])
     @auth_or_token
     def delete(self, shift_id, user_id):
         """
