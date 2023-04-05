@@ -62,8 +62,9 @@ class _Base:
             "queued": cls._isimplemented('queued'),
             "remove_queue": cls._isimplemented('remove_queue'),
             "prepare_payload": cls._isimplemented('prepare_payload'),
-            "skymap": cls._isimplemented('skymap'),
-            "skymap_queue": cls._isimplemented('skymap_queue'),
+            "send_skymap": cls._isimplemented('send_skymap'),
+            "queued_skymap": cls._isimplemented('queued_skymap'),
+            "remove_skymap": cls._isimplemented('remove_skymap'),
         }
 
     # subclasses should not modify this

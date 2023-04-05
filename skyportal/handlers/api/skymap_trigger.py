@@ -13,12 +13,12 @@ from ...models import (
 )
 
 
-class SkymapQueueAPIHandler(BaseHandler):
+class SkymapTriggerAPIHandler(BaseHandler):
     @permissions(['Upload data'])
     def post(self):
         """
         ---
-        description: Post a skymap-based queue
+        description: Post a skymap-based trigger
         tags:
           - localizations
         requestBody:
@@ -104,20 +104,19 @@ class SkymapQueueAPIHandler(BaseHandler):
                     {'field_id': field_id, 'probability': prob}
                     for field_id, prob in zip(field_ids, probs)
                 ],
+                "user": self.associated_user_object.username,
             }
 
             if instrument.api_classname_obsplan is None:
                 return self.error('Instrument has no remote observation plan API.')
 
-            if not instrument.api_class_obsplan.implements()['skymap']:
+            if not instrument.api_class_obsplan.implements()['send_skymap']:
                 return self.error(
                     'Submitting skymap requests to this Instrument is not available.'
                 )
 
             try:
-                # we now retrieve and commit to the database the
-                # executed observations
-                instrument.api_class_obsplan.skymap(
+                instrument.api_class_obsplan.send_skymap(
                     allocation,
                     payload,
                 )
@@ -129,7 +128,7 @@ class SkymapQueueAPIHandler(BaseHandler):
     def get(self, allocation_id):
         """
         ---
-        description: Retrieve skymap-based queues from external API
+        description: Retrieve skymap-based trigger from external API
         tags:
           - observations
         parameters:
@@ -150,7 +149,6 @@ class SkymapQueueAPIHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-
         data = {}
         data["requester_id"] = self.associated_user_object.id
         data["last_modified_by_id"] = self.associated_user_object.id
@@ -172,7 +170,7 @@ class SkymapQueueAPIHandler(BaseHandler):
             if instrument.api_classname_obsplan is None:
                 return self.error('Instrument has no remote observation plan API.')
 
-            if not instrument.api_class_obsplan.implements()['skymap_queues']:
+            if not instrument.api_class_obsplan.implements()['queued_skymap']:
                 return self.error(
                     'Retrieving skymap queue requests from this Instrument is not available.'
                 )
@@ -180,10 +178,8 @@ class SkymapQueueAPIHandler(BaseHandler):
             try:
                 # we now retrieve and commit to the database the
                 # executed observations
-                queue_names = instrument.api_class_obsplan.skymap_queues(
-                    allocation,
-                )
-                return self.success(data={'queue_names': queue_names})
+                trigger_names = instrument.api_class_obsplan.queued_skymap(allocation)
+                return self.success(data={'trigger_names': trigger_names})
             except Exception as e:
                 return self.error(f"Error in querying instrument API: {e}")
 
@@ -191,7 +187,7 @@ class SkymapQueueAPIHandler(BaseHandler):
     def delete(self, allocation_id):
         """
         ---
-        description: Delete skymap queues from external API
+        description: Delete skymap-based trigger from external API
         tags:
           - observations
         parameters:
@@ -218,12 +214,11 @@ class SkymapQueueAPIHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-
         data = self.get_json()
 
-        if 'queueName' not in data:
-            return self.error('queueName is a required argument')
-        queue_name = data['queueName']
+        if 'trigger_name' not in data:
+            return self.error('Missing trigger_name parameter.')
+        trigger_name = data['trigger_name']
 
         data["requester_id"] = self.associated_user_object.id
         data["last_modified_by_id"] = self.associated_user_object.id
@@ -245,14 +240,17 @@ class SkymapQueueAPIHandler(BaseHandler):
             if instrument.api_classname_obsplan is None:
                 return self.error('Instrument has no remote observation plan API.')
 
-            if not instrument.api_class_obsplan.implements()['remove_queue']:
-                return self.error('Cannot delete queues from this Instrument.')
+            if not instrument.api_class_obsplan.implements()['remove_skymap']:
+                return self.error(
+                    'Cannot delete skymap-based triggers from this Instrument.'
+                )
 
             try:
-                # we now retrieve and commit to the database the
-                # executed observations
-                instrument.api_class_obsplan.remove_queue(
-                    allocation, queue_name, self.associated_user_object.username
+                instrument.api_class_obsplan.remove_skymap(
+                    allocation,
+                    trigger_name=trigger_name,
+                    username=self.associated_user_object.username,
                 )
+                return self.success(f"Removed skymap-based trigger {trigger_name}.")
             except Exception as e:
                 return self.error(f"Error in querying instrument API: {e}")

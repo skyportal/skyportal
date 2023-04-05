@@ -118,14 +118,20 @@ class FollowUpAPI(_Base):
 
     # subclasses should implement this if desired
     @staticmethod
-    def skymap():
-        """Post a skymap-based queue."""
+    def send_skymap():
+        """Post a skymap-based trigger."""
         raise NotImplementedError
 
     # subclasses should implement this if desired
     @staticmethod
-    def skymap_queue():
-        """Retrieve skymap-based queues."""
+    def queued_skymap():
+        """Retrieve skymap-based triggers."""
+        raise NotImplementedError
+
+    # subclasses should implement this if desired
+    @staticmethod
+    def remove_skymap():
+        """Remove a skymap-based trigger."""
         raise NotImplementedError
 
     # subclasses should implement this if desired

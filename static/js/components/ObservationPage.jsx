@@ -22,7 +22,7 @@ import NewAPIObservation from "./NewAPIObservation";
 import NewAPIQueuedObservation from "./NewAPIQueuedObservation";
 import QueueAPIDisplay from "./QueueAPIDisplay";
 import ProgressIndicator from "./ProgressIndicators";
-import SkymapQueueAPIDisplay from "./SkymapQueueAPIDisplay";
+import SkymapTriggerAPIDisplay from "./SkymapTriggerAPIDisplay";
 
 import * as observationsActions from "../ducks/observations";
 import * as queuedObservationsActions from "../ducks/queued_observations";
@@ -606,12 +606,12 @@ const ObservationPage = () => {
                     id="queue-interaction-header"
                   >
                     <Typography className={classes.accordionHeading}>
-                      Skymap Queue Interaction
+                      Skymap Triggers Interaction
                     </Typography>
                   </AccordionSummary>
                   <AccordionDetails>
                     <div className={classes.Container}>
-                      <SkymapQueueAPIDisplay />
+                      <SkymapTriggerAPIDisplay />
                     </div>
                   </AccordionDetails>
                 </Accordion>

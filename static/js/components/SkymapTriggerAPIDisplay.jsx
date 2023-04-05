@@ -11,8 +11,7 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import Button from "./Button";
 
-import * as queuedObservationActions from "../ducks/queued_observations";
-import * as skymapQueueActions from "../ducks/skymap_queues";
+import * as skymapTriggerActions from "../ducks/skymap_triggers";
 import * as allocationActions from "../ducks/allocations";
 import * as gcnEventsActions from "../ducks/gcnEvents";
 
@@ -35,12 +34,12 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-const SkymapQueueAPIDisplay = () => {
+const SkymapTriggerAPIDisplay = () => {
   const classes = useStyles();
 
   const [selectedAllocationId, setSelectedAllocationId] = useState(null);
-  const [queueList, setQueueList] = useState(["None"]);
-  const [selectedQueueName, setSelectedQueueName] = useState("None");
+  const [triggerList, setTriggerList] = useState(["None"]);
+  const [selectedTriggerName, setSelectedTriggerName] = useState("None");
 
   const gcnEvents = useSelector((state) => state.gcnEvents);
   const [selectedGcnEventId, setSelectedGcnEventId] = useState(null);
@@ -85,21 +84,21 @@ const SkymapQueueAPIDisplay = () => {
   }, []);
 
   useEffect(() => {
-    const getQueues = async () => {
+    const getTriggers = async () => {
       if (selectedAllocationId && allocationListApiObsplan?.length > 0) {
         const response = await dispatch(
-          queuedObservationActions.requestAPIQueues(selectedAllocationId)
+          skymapTriggerActions.requestAPISkymapTriggers(selectedAllocationId)
         );
-        if (response?.data?.queue_names?.length > 0) {
-          setQueueList(response.data.queue_names);
-          setSelectedQueueName(response.data.queue_names[0]);
+        if (response?.data?.trigger_names?.length > 0) {
+          setTriggerList(response.data.trigger_names);
+          setSelectedTriggerName(response.data.trigger_names[0]);
         } else {
-          setQueueList(["None"]);
-          setSelectedQueueName("None");
+          setTriggerList(["None"]);
+          setSelectedTriggerName("None");
         }
       }
     };
-    getQueues();
+    getTriggers();
   }, [selectedAllocationId]);
 
   if (
@@ -161,13 +160,13 @@ const SkymapQueueAPIDisplay = () => {
       localization_id: getValues().localizationid,
     };
 
-    await dispatch(skymapQueueActions.postAPISkymapQueue(data));
+    await dispatch(skymapTriggerActions.postAPISkymapTrigger(data));
   };
 
   const handleDelete = async () => {
     await dispatch(
-      queuedObservationActions.deleteAPIQueue(selectedAllocationId, {
-        queueName: selectedQueueName,
+      skymapTriggerActions.deleteAPISkymapTrigger(selectedAllocationId, {
+        trigger_name: selectedTriggerName,
       })
     );
   };
@@ -176,8 +175,8 @@ const SkymapQueueAPIDisplay = () => {
     setSelectedAllocationId(e.target.value);
   };
 
-  const handleSelectedQueueNameChange = async (e) => {
-    setSelectedQueueName(e.target.value);
+  const handleSelectedTriggerNameChange = async (e) => {
+    setSelectedTriggerName(e.target.value);
   };
 
   return (
@@ -273,22 +272,22 @@ const SkymapQueueAPIDisplay = () => {
           defaultValue=""
         />
       </div>
-      <InputLabel id="queueNameSelectLabel">Queue Name</InputLabel>
+      <InputLabel id="triggerNameSelectLabel">Trigger Name</InputLabel>
       <Select
         inputProps={{ MenuProps: { disableScrollLock: true } }}
-        labelId="queueNameSelectLabel"
-        value={selectedQueueName}
-        onChange={handleSelectedQueueNameChange}
+        labelId="triggerNameSelectLabel"
+        value={selectedTriggerName}
+        onChange={handleSelectedTriggerNameChange}
         name="followupRequestAllocationSelect"
         className={classes.select}
       >
-        {queueList?.map((queueName) => (
+        {triggerList?.map((triggerName) => (
           <MenuItem
-            value={queueName}
-            key={queueName}
+            value={triggerName}
+            key={triggerName}
             className={classes.SelectItem}
           >
-            {queueName}
+            {triggerName}
           </MenuItem>
         ))}
       </Select>
@@ -296,20 +295,20 @@ const SkymapQueueAPIDisplay = () => {
         onClick={() => {
           handleAdd();
         }}
-        data-testid="add-queue-button"
+        data-testid="add-trigger-button"
       >
-        Add queue
+        Add trigger
       </Button>
       <Button
         onClick={() => {
           handleDelete();
         }}
-        data-testid="delete-queue-button"
+        data-testid="delete-trigger-button"
       >
-        Delete queue
+        Delete trigger
       </Button>
     </div>
   );
 };
 
-export default SkymapQueueAPIDisplay;
+export default SkymapTriggerAPIDisplay;
