@@ -171,63 +171,95 @@ def test_observation_plan_tiling(super_admin_token, public_group):
         }
         for _ in range(5)
     ]
-    datas = []
+
     for request_data in requests_data:
         status, data = api(
             'POST', 'observation_plan', data=request_data, token=super_admin_token
         )
         assert status == 200
         assert data['status'] == 'success'
-        datas.append(data)
 
-    assert len(datas) == len(requests_data)
-
-    # wait for the observation plans to finish
+    # wait for the observation plans to finish, we added some patience later, but we know that it takes at least 30 seconds
     time.sleep(30)
 
-    for i, data in enumerate(datas):
-        id = data["data"]["ids"][0]
-        status, data = api(
-            'GET',
-            f'observation_plan/{id}',
-            params={"includePlannedObservations": "true"},
-            token=super_admin_token,
-        )
-        assert status == 200
-        assert data['status'] == 'success'
+    n_retries = 0
+    while n_retries < 10:
+        try:
+            status, data = api(
+                'GET',
+                'observation_plan',
+                params={"includePlannedObservations": "true"},
+                token=super_admin_token,
+            )
+            assert status == 200
+            assert data['status'] == 'success'
 
-        assert data["data"]["gcnevent_id"] == gcnevent_id
-        assert data["data"]["allocation_id"] == allocation_id
-        assert data["data"]["payload"] == requests_data[i]["payload"]
-
-        assert len(data["data"]["observation_plans"]) == 1
-        observation_plan = data["data"]["observation_plans"][0]
-
-        assert (
-            observation_plan['plan_name'] == requests_data[i]["payload"]['queue_name']
-        )
-        assert observation_plan['validity_window_start'] == requests_data[i]["payload"][
-            'start_date'
-        ].replace(" ", "T")
-        assert observation_plan['validity_window_end'] == requests_data[i]["payload"][
-            'end_date'
-        ].replace(" ", "T")
-
-        planned_observations = observation_plan['planned_observations']
-
-        assert all(
-            [
-                obs['filt'] == requests_data[i]["payload"]['filters']
-                for obs in planned_observations
+            # get those which have been created on the right event
+            data = [
+                d
+                for d in data['data']
+                if d['gcnevent_id'] == gcnevent_id
+                and d['allocation_id'] == allocation_id
             ]
-        )
-        assert all(
-            [
-                obs['exposure_time']
-                == int(requests_data[i]["payload"]['exposure_time'])
-                for obs in planned_observations
-            ]
-        )
+            assert len(data) == len(requests_data)
+            for i, d in enumerate(data):
+                assert d["payload"] == requests_data[i]["payload"]
+                observation_plans = d['observation_plans']
+                assert len(observation_plans) == 1
+                observation_plan = observation_plans[0]
+
+                assert any(
+                    [
+                        observation_plan['plan_name']
+                        == request_data["payload"]['queue_name']
+                        for request_data in requests_data
+                    ]
+                )
+                assert any(
+                    [
+                        observation_plan['validity_window_start']
+                        == request_data["payload"]['start_date'].replace(" ", "T")
+                        for request_data in requests_data
+                    ]
+                )
+                # same with the validity window start
+                assert any(
+                    [
+                        observation_plan['validity_window_end']
+                        == request_data["payload"]['end_date'].replace(" ", "T")
+                        for request_data in requests_data
+                    ]
+                )
+                # same with the validity window end
+                assert any(
+                    [
+                        observation_plan['validity_window_end']
+                        == request_data["payload"]['end_date'].replace(" ", "T")
+                        for request_data in requests_data
+                    ]
+                )
+
+                planned_observations = observation_plan['planned_observations']
+
+                assert all(
+                    [
+                        obs['filt'] == requests_data[0]["payload"]['filters']
+                        for obs in planned_observations
+                    ]
+                )
+                assert all(
+                    [
+                        obs['exposure_time']
+                        == int(requests_data[0]["payload"]['exposure_time'])
+                        for obs in planned_observations
+                    ]
+                )
+            break
+        except AssertionError:
+            n_retries += 1
+            time.sleep(6)
+
+    assert n_retries < 10
 
 
 def test_observation_plan_galaxy(super_admin_token, view_only_token, public_group):
@@ -426,64 +458,74 @@ def test_observation_plan_galaxy(super_admin_token, view_only_token, public_grou
         for _ in range(5)
     ]
 
-    datas = []
     for request_data in requests_data:
         status, data = api(
             'POST', 'observation_plan', data=request_data, token=super_admin_token
         )
         assert status == 200
         assert data['status'] == 'success'
-        datas.append(data)
 
-    assert len(datas) == len(requests_data)
-
-    # wait for the observation plans to finish
+    # wait for the observation plans to finish, we added some patience later, but we know that it takes at least 30 seconds
     time.sleep(30)
 
-    for i, data in enumerate(datas):
-        id = data["data"]["ids"][0]
-        nretries = 0
-        status, data = api(
-            'GET',
-            f'observation_plan/{id}',
-            params={"includePlannedObservations": "true"},
-            token=super_admin_token,
-        )
+    n_retries = 0
+    while n_retries < 10:
+        try:
+            status, data = api(
+                'GET',
+                'observation_plan',
+                params={"includePlannedObservations": "true"},
+                token=super_admin_token,
+            )
+            assert status == 200
+            assert data['status'] == 'success'
 
-        assert status == 200
-        assert data['status'] == 'success'
-
-        assert data["data"]["gcnevent_id"] == gcnevent_id
-        assert data["data"]["allocation_id"] == allocation_id
-        assert data["data"]["payload"] == requests_data[i]["payload"]
-
-        assert len(data["data"]["observation_plans"]) == 1
-        observation_plan = data["data"]["observation_plans"][0]
-
-        assert (
-            observation_plan['plan_name'] == requests_data[i]["payload"]['queue_name']
-        )
-        assert observation_plan['validity_window_start'] == requests_data[i]["payload"][
-            'start_date'
-        ].replace(" ", "T")
-        assert observation_plan['validity_window_end'] == requests_data[i]["payload"][
-            'end_date'
-        ].replace(" ", "T")
-
-        planned_observations = observation_plan['planned_observations']
-        assert len(planned_observations) > 0
-
-        assert len(planned_observations) == 23
-        assert all(
-            [
-                obs['filt'] == requests_data[i]["payload"]['filters']
-                for obs in planned_observations
+            # get those which have been created on the right event
+            data = [
+                d
+                for d in data['data']
+                if d['gcnevent_id'] == gcnevent_id
+                and d['allocation_id'] == allocation_id
             ]
-        )
-        assert all(
-            [
-                obs['exposure_time']
-                == int(requests_data[i]["payload"]['exposure_time'])
-                for obs in planned_observations
-            ]
-        )
+            assert len(data) == len(requests_data)
+
+            for i, d in enumerate(data):
+                assert d["payload"] == requests_data[i]["payload"]
+                observation_plans = d['observation_plans']
+                assert len(observation_plans) == 1
+                observation_plan = observation_plans[0]
+
+                assert (
+                    observation_plan['plan_name']
+                    == requests_data[i]["payload"]['queue_name']
+                )
+                assert observation_plan['validity_window_start'] == requests_data[i][
+                    "payload"
+                ]['start_date'].replace(" ", "T")
+                assert observation_plan['validity_window_end'] == requests_data[i][
+                    "payload"
+                ]['end_date'].replace(" ", "T")
+
+                planned_observations = observation_plan['planned_observations']
+                assert len(planned_observations) > 0
+
+                assert len(planned_observations) == 23
+                assert all(
+                    [
+                        obs['filt'] == requests_data[i]["payload"]['filters']
+                        for obs in planned_observations
+                    ]
+                )
+                assert all(
+                    [
+                        obs['exposure_time']
+                        == int(requests_data[i]["payload"]['exposure_time'])
+                        for obs in planned_observations
+                    ]
+                )
+            break
+        except AssertionError:
+            n_retries = n_retries + 1
+            time.sleep(6)
+
+    assert n_retries < 10

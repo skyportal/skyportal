@@ -13,6 +13,7 @@ from baselayer.app.models import init_db
 from baselayer.log import make_log
 from skyportal.handlers.api.observation_plan import (
     post_observation_plan,
+    post_observation_plans,
     post_survey_efficiency_analysis,
 )
 from skyportal.models import DBSession
@@ -35,28 +36,44 @@ def service(queue):
         if len(queue) == 0:
             time.sleep(5)
             continue
-        plan, survey_efficiencies, user_id = queue.pop(0)
+        plans, survey_efficiencies, combine_plans, user_id = queue.pop(0)
 
         with DBSession() as session:
             try:
-                plan_id = post_observation_plan(
-                    plan, user_id, session, asynchronous=False
-                )
+                plan_ids = []
+                if len(plans) == 1:
+                    plan_id = post_observation_plan(
+                        plans[0], user_id, session, asynchronous=False
+                    )
+                    plan_ids.append(plan_id)
+                else:
+                    if combine_plans:
+                        plan_ids = post_observation_plans(
+                            plans, user_id, session, asynchronous=False
+                        )
+                    else:
+                        for plan in plans:
+                            plan_id = post_observation_plan(
+                                plan, user_id, session, asynchronous=False
+                            )
+                            plan_ids.append(plan_id)
             except Exception as e:
                 log(f"Observation plan failed: {str(e)}")
                 continue
-            for survey_efficiency in survey_efficiencies:
-                try:
-                    post_survey_efficiency_analysis(
-                        survey_efficiency,
-                        plan_id,
-                        user_id,
-                        session,
-                        asynchronous=False,
-                    )
-                except Exception as e:
-                    log(f"Survey efficiency analysis failed: {str(e)}")
-                    continue
+
+            for plan_id in plan_ids:
+                for survey_efficiency in survey_efficiencies:
+                    try:
+                        post_survey_efficiency_analysis(
+                            survey_efficiency,
+                            plan_id,
+                            user_id,
+                            session,
+                            asynchronous=False,
+                        )
+                    except Exception as e:
+                        log(f"Survey efficiency analysis failed: {str(e)}")
+                        continue
 
 
 def api(queue):
@@ -73,15 +90,22 @@ def api(queue):
                 return self.write({"status": "error", "message": "Malformed JSON data"})
 
             user_id = data.get('user_id', None)
+            plans = data.get('plans', None)
             plan = data.get('plan', None)
             survey_efficiencies = data.get('survey_efficiencies', [])
+            combine_plans = data.get('combine_plans', False)
 
             if user_id is None:
                 self.set_status(400)
                 return self.write({"status": "error", "message": "Missing user_id"})
-            if plan is None:
+            if plan is None and plans is None:
                 self.set_status(400)
-                return self.write({"status": "error", "message": "Missing plan"})
+                return self.write(
+                    {"status": "error", "message": "Missing plan or plans"}
+                )
+
+            if plan is not None:
+                plans = [plan]
 
             try:
                 user_id = int(user_id)
@@ -89,43 +113,56 @@ def api(queue):
                 self.set_status(400)
                 return self.write({"status": "error", "message": "Invalid user_id"})
 
-            if not isinstance(plan, dict):
+            if not isinstance(combine_plans, bool):
                 self.set_status(400)
-                return self.write({"status": "error", "message": "Invalid plan"})
+                return self.write(
+                    {"status": "error", "message": "Invalid combine_plans"}
+                )
+
+            if not isinstance(plans, list):
+                self.set_status(400)
+                return self.write({"status": "error", "message": "Invalid plans"})
 
             if not isinstance(survey_efficiencies, list):
                 self.set_status(400)
                 return self.write(
                     {"status": "error", "message": "Invalid survey_efficiencies"}
                 )
-            if not all(
-                isinstance(survey_efficiency, dict)
-                for survey_efficiency in survey_efficiencies
-            ):
-                self.set_status(400)
-                return self.write(
-                    {
-                        "status": "error",
-                        "message": "Invalid survey_efficiencies, not all elements are dicts",
-                    }
-                )
+
+            for plan in plans:
+                if not isinstance(plan, dict):
+                    self.set_status(400)
+                    return self.write({"status": "error", "message": "Invalid plan"})
+
+            for survey_efficiency in survey_efficiencies:
+                if not isinstance(survey_efficiency, dict):
+                    self.set_status(400)
+                    return self.write(
+                        {
+                            "status": "error",
+                            "message": "Invalid survey_efficiencies, not all elements are dicts",
+                        }
+                    )
 
             try:
-                queue.append([plan, survey_efficiencies, user_id])
+                queue.append([plans, survey_efficiencies, combine_plans, user_id])
 
                 self.set_status(200)
                 return self.write(
                     {
                         "status": "success",
-                        "message": "Observation plans accepted into queue",
+                        "message": "Observation plan(s) accepted into queue",
                         "data": {"queue_length": len(queue)},
                     }
                 )
             except Exception as e:
-                log(f"Error submitting observation plan: {str(e)}")
+                log(f"Error submitting observation plan(s): {str(e)}")
                 self.set_status(400)
                 return self.write(
-                    {"status": "error", "message": "Error processing observation plan"}
+                    {
+                        "status": "error",
+                        "message": "Error processing observation plan(s)",
+                    }
                 )
 
     app = tornado.web.Application([(r"/", QueueHandler)])

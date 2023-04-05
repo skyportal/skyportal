@@ -91,6 +91,10 @@ Session = scoped_session(sessionmaker())
 
 log = make_log('api/observation_plan')
 
+observation_plans_microservice_url = (
+    f'http://127.0.0.1:{cfg["ports.observation_plan_queue"]}'
+)
+
 
 def post_survey_efficiency_analysis(
     survey_efficiency_analysis, plan_id, user_id, session, asynchronous=True
@@ -487,20 +491,26 @@ class ObservationPlanRequestHandler(BaseHandler):
             observation_plans = [json_data]
         combine_plans = json_data.get('combine_plans', False)
 
-        with self.Session() as session:
-            ids = []
-            if combine_plans:
-                ids = post_observation_plans(
-                    observation_plans, self.associated_user_object.id, session
-                )
-            else:
-                for plan in observation_plans:
-                    observation_plan_request_id = post_observation_plan(
-                        plan, self.associated_user_object.id, session
-                    )
-                    ids = [observation_plan_request_id]
+        request_body = {
+            'plans': observation_plans,
+            'user_id': self.associated_user_object.id,
+            'combine_plans': combine_plans,
+        }
 
-            return self.success(data={"ids": ids})
+        resp = requests.post(
+            observation_plans_microservice_url, json=request_body, timeout=10
+        )
+        if resp.status_code != 200:
+            log(
+                f'Error submitting observation plan request to the queue: {resp.content}'
+            )
+            return self.error(
+                f'Error submitting observation plan request to the queue: {resp.content}'
+            )
+
+        return self.success(
+            "Observation plan request submitted successfully to the queue successfully."
+        )
 
     @auth_or_token
     def get(self, observation_plan_request_id=None):
@@ -587,9 +597,15 @@ class ObservationPlanRequestHandler(BaseHandler):
                     )
                 return self.success(data=observation_plan_request)
 
-            observation_plan_requests = session.scalars(
-                ObservationPlanRequest.select(session.user_or_token, options=options)
-            ).all()
+            observation_plan_requests = (
+                session.scalars(
+                    ObservationPlanRequest.select(
+                        session.user_or_token, options=options
+                    )
+                )
+                .unique()
+                .all()
+            )
             return self.success(data=observation_plan_requests)
 
     @auth_or_token
