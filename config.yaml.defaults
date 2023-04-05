@@ -626,6 +626,7 @@ user:
 ports:
   facility_queue: 64510
   notification_queue: 64610
+  observation_plan_queue: 64710
 
 gcn:
   server: gcn.nasa.gov
