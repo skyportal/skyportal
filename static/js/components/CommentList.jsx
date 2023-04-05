@@ -25,11 +25,6 @@ const useStyles = makeStyles(() => ({
   commentsContainer: {
     width: "100%",
   },
-  commentsList: {
-    marginTop: "1rem",
-    overflowY: "scroll",
-    maxHeight: "350px",
-  },
   comment: {
     fontSize: "90%",
     display: "flex",
@@ -179,8 +174,9 @@ const CommentList = ({
   gcnEventID = null,
   earthquakeID = null,
   includeCommentsOnAllResourceTypes = true,
+  maxHeightList = "350px",
 }) => {
-  const styles = useStyles();
+  const styles = useStyles({ maxHeightList });
   const [hoverID, setHoverID] = useState(null);
 
   const handleMouseHover = (id, userProfile, author) => {
@@ -315,9 +311,16 @@ const CommentList = ({
   const commentStyle =
     userColorTheme === "dark" ? styles.commentDark : styles.comment;
 
+  console.log("maxHeightList", maxHeightList);
   return (
     <div className={styles.commentsContainer}>
-      <div className={styles.commentsList}>
+      <div
+        style={{
+          marginTop: "1rem",
+          overflowY: "scroll",
+          maxHeight: maxHeightList,
+        }}
+      >
         {comments?.map(
           ({
             id,
@@ -410,6 +413,7 @@ CommentList.propTypes = {
   associatedResourceType: PropTypes.string,
   spectrumID: PropTypes.number,
   includeCommentsOnAllResourceTypes: PropTypes.bool,
+  maxHeightList: PropTypes.string,
 };
 
 CommentList.defaultProps = {
@@ -420,6 +424,7 @@ CommentList.defaultProps = {
   associatedResourceType: "object",
   spectrumID: null,
   includeCommentsOnAllResourceTypes: true,
+  maxHeightList: "350px",
 };
 
 export default CommentList;

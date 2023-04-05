@@ -154,9 +154,14 @@ def get_tags(root):
         yield from instruments
 
 
-def get_skymap_url(root, notice_type):
+def get_skymap_url(root, notice_type, timeout=10):
     url = None
     available = False
+
+    if notice_type == gcn.NoticeType.LVC_PRELIMINARY:
+        # we set a longer timeout here, as by experience the LVC Preliminary skymaps can be a little slow to appear
+        if timeout < 15:
+            timeout = 15
     # Try Fermi GBM convention
     if notice_type == gcn.NoticeType.FERMI_GBM_FIN_POS:
         url = root.find("./What/Param[@name='LocationMap_URL']").attrib['value']
@@ -168,6 +173,7 @@ def get_skymap_url(root, notice_type):
     if notice_type == gcn.NoticeType.FERMI_GBM_SUBTHRESH:
         url = root.find("./What/Param[@name='HealPix_URL']").attrib['value']
 
+    # Try LVC convention
     skymap = root.find("./What/Group[@type='GW_SKYMAP']")
     if skymap is not None and url is None:
         children = skymap.getchildren()
@@ -180,7 +186,7 @@ def get_skymap_url(root, notice_type):
         # we have a URL, but is it available? We don't want to download the file here,
         # so we'll just check the HTTP status code.
         try:
-            response = requests.head(url, timeout=5)
+            response = requests.head(url, timeout=timeout)
             if response.status_code == 200:
                 available = True
         except requests.exceptions.RequestException:
@@ -223,10 +229,9 @@ def get_skymap_cone(root):
     return ra, dec, error
 
 
-def get_skymap_metadata(root, notice_type):
+def get_skymap_metadata(root, notice_type, url_timeout=10):
     """Get the skymap for a GCN notice."""
-
-    skymap_url, available = get_skymap_url(root, notice_type)
+    skymap_url, available = get_skymap_url(root, notice_type, timeout=url_timeout)
     if skymap_url is not None and available:
         return "available", {"url": skymap_url, "name": skymap_url.split("/")[-1]}
     elif skymap_url is not None and not available:
@@ -247,15 +252,15 @@ def get_skymap_metadata(root, notice_type):
     return "missing", None
 
 
-def has_skymap(root, notice_type):
+def has_skymap(root, notice_type, url_timeout=10):
     """Does this GCN notice have a skymap?"""
-    status, skymap_metadata = get_skymap_metadata(root, notice_type)
+    status, _ = get_skymap_metadata(root, notice_type, url_timeout)
     return status in ("available", "cone", "unavailable")
 
 
-def get_skymap(root, notice_type):
+def get_skymap(root, notice_type, url_timeout=10):
     """Get the skymap for a GCN notice."""
-    status, skymap_metadata = get_skymap_metadata(root, notice_type)
+    status, skymap_metadata = get_skymap_metadata(root, notice_type, url_timeout)
 
     if status == "available":
         return from_url(skymap_metadata["url"])

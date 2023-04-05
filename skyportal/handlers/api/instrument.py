@@ -465,7 +465,11 @@ class InstrumentHandler(BaseHandler):
                 stmt = stmt.filter(Instrument.name == inst_name)
             instruments = session.scalars(stmt).all()
             data = [
-                {**instrument.to_dict(), 'telescope': instrument.telescope.to_dict()}
+                {
+                    **instrument.to_dict(),
+                    'telescope': instrument.telescope.to_dict(),
+                    'number_of_fields': instrument.number_of_fields,
+                }
                 for instrument in instruments
             ]
             return self.success(data=data)
@@ -579,6 +583,14 @@ class InstrumentHandler(BaseHandler):
                         'Filter names must be present in both sensitivity_data property and filters property'
                     )
                 instrument.sensitivity_data = sensitivity_data
+
+            # temporary, to migrate old instruments
+            if instrument.region is not None or field_region is not None:
+                instrument.has_region = True
+            if (
+                len(instrument.fields) > 0
+            ):  # here we dont validate field_data, as the addition of fields is done later and might fail
+                instrument.has_fields = True
 
             session.commit()
 
@@ -966,6 +978,15 @@ def add_tiles(
                     )
             session.add_all(tiles)
             session.commit()
+
+            instrument = session.scalars(
+                sa.select(Instrument).where(
+                    Instrument.id == instrument_id,
+                )
+            ).first()
+            instrument.has_fields = True
+            session.commit()
+
         log(f"Successfully generated fields for instrument {instrument_id}")
     except Exception as e:
         log(f"Unable to generate fields for instrument {instrument_id}: {e}")

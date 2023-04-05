@@ -20,6 +20,7 @@ from tornado.ioloop import IOLoop
 import arrow
 import astropy
 import humanize
+import requests
 import sqlalchemy as sa
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm import sessionmaker, scoped_session
@@ -46,10 +47,6 @@ from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 
 from .source import post_source
-from .observation_plan import (
-    post_observation_plan,
-    post_survey_efficiency_analysis,
-)
 from ..base import BaseHandler
 from ...models import (
     DBSession,
@@ -562,7 +559,7 @@ class GcnEventTagsHandler(BaseHandler):
             return self.success(data={'gcntag_id': tag.id})
 
     @auth_or_token
-    def delete(self, dateobs, tag):
+    def delete(self, dateobs):
         """
         ---
         description: Delete a GCN event tag
@@ -574,7 +571,7 @@ class GcnEventTagsHandler(BaseHandler):
             required: true
             schema:
               type: dateobs
-          - in: path
+          - in: query
             name: tag
             required: true
             schema:
@@ -589,6 +586,11 @@ class GcnEventTagsHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+
+        data = self.get_json()
+        tag = data.get('tag')
+        if tag is None:
+            return self.error("tag must be present in data to remove GcnTag")
 
         with self.Session() as session:
             tag = session.scalars(
@@ -1476,12 +1478,8 @@ def add_observation_plans(localization_id, user_id, parent_session=None):
         )
         gcn_observation_plans = []
         for plan in default_observation_plans:
-            allocation = session.scalars(
-                Allocation.select(user).where(Allocation.id == plan.allocation_id)
-            ).first()
-
             gcn_observation_plan = {
-                'allocation_id': allocation_id,
+                'allocation_id': plan.allocation_id,
                 'filters': plan.filters,
                 'payload': plan.payload,
                 'survey_efficiencies': [
@@ -1502,7 +1500,6 @@ def add_observation_plans(localization_id, user_id, parent_session=None):
             allocation = session.scalars(
                 Allocation.select(user).where(Allocation.id == allocation_id)
             ).first()
-
             if allocation is not None:
 
                 end_date = allocation.instrument.telescope.next_sunrise()
@@ -1557,25 +1554,33 @@ def add_observation_plans(localization_id, user_id, parent_session=None):
                             if len(intersection) == 0:
                                 continue
 
-                plan_id = post_observation_plan(
-                    plan, user_id, session, asynchronous=False
-                )
-                for survey_efficiency in gcn_observation_plan['survey_efficiencies']:
-                    try:
-                        post_survey_efficiency_analysis(
-                            survey_efficiency,
-                            plan_id,
-                            user_id,
-                            session,
-                            asynchronous=False,
-                        )
-                    except Exception as e:
-                        log(f"Survey efficiency analysis failed: {str(e)}")
-                        continue
+                request_body = {
+                    'plan': plan,
+                    'survey_efficiencies': gcn_observation_plan['survey_efficiencies'],
+                    'user_id': user_id,
+                }
 
-        return log(f"Generated observation plans for localization {localization_id}")
+                observation_plans_microservice_url = (
+                    f'http://127.0.0.1:{cfg["ports.observation_plan_queue"]}'
+                )
+
+                resp = requests.post(
+                    observation_plans_microservice_url, json=request_body, timeout=10
+                )
+
+                if resp.status_code == 200:
+                    log(
+                        f'Observation plan requested for Localization with ID {localization_id}'
+                    )
+                else:
+                    log(
+                        f'Observation plan request failed for Localization with ID {localization_id}: {resp.content}'
+                    )
+        log(f"Triggered observation plans for localization {localization_id}")
     except Exception as e:
-        log(f"Unable to observation plans for localization {localization_id}: {e}")
+        log(
+            f"Unable to trigger observation plans for localization {localization_id}: {e}"
+        )
     finally:
         if parent_session is None:
             session.close()

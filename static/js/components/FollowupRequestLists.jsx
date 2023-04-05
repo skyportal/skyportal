@@ -82,6 +82,22 @@ const getMuiTheme = (theme) =>
     },
   });
 
+const displayedColumns = [
+  "requester",
+  "allocation",
+  "start_date",
+  "end_date",
+  "start date",
+  "end date",
+  "mode",
+  "filters",
+  "field_ids",
+  "priority",
+  "status",
+  "modify",
+  "watch",
+];
+
 const FollowupRequestLists = ({
   followupRequests,
   instrumentList,
@@ -217,6 +233,7 @@ const FollowupRequestLists = ({
         label: field,
         options: {
           customBodyRender: renderKey,
+          display: displayedColumns.includes(field.toLowerCase()),
         },
       });
     });
@@ -375,6 +392,40 @@ const FollowupRequestLists = ({
       return 1;
     }
 
+    // if there is an observation_type, it comes before anything else except dates and priority
+    if (
+      a === "observation_type" &&
+      b !== "end_date" &&
+      b !== "start_date" &&
+      b !== "priority"
+    ) {
+      return -1;
+    }
+    if (
+      b === "observation_type" &&
+      a !== "end_date" &&
+      a !== "start_date" &&
+      a !== "priority"
+    ) {
+      return 1;
+    }
+
+    // priority comes before status
+    if (a === "priority" && b === "status") {
+      return -1;
+    }
+    if (b === "priority" && a === "status") {
+      return 1;
+    }
+
+    // priority and status go at the end, so anything else comes before them
+    if (a === "priority" || a === "status") {
+      return 1;
+    }
+    if (b === "priority" || b === "status") {
+      return -1;
+    }
+
     // Regular string comparison
     if (a < b) {
       return -1;
@@ -398,6 +449,8 @@ const FollowupRequestLists = ({
           });
           return r;
         }, []);
+
+        console.log(keys);
 
         keys.sort(keyOrder);
 

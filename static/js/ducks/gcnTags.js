@@ -18,7 +18,9 @@ export function postGcnTag(data) {
 }
 
 export function deleteGcnTag(gcnEventID, tag) {
-  return API.DELETE(`/api/gcn_event/tags/${gcnEventID}/${tag}`, DELETE_GCN_TAG);
+  return API.DELETE(`/api/gcn_event/tags/${gcnEventID}`, DELETE_GCN_TAG, {
+    tag,
+  });
 }
 
 // Websocket message handler

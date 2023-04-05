@@ -842,10 +842,6 @@ class ZTFMMAAPI(MMAAPI):
         s = Session()
         s.auth = (altdata['depot_username'], altdata['depot_password'])
 
-        fetch_depot_observations(
-            allocation.instrument.id, s, altdata['depot'], jd_start, jd_end
-        )
-
         fetch_obs = functools.partial(
             fetch_depot_observations,
             allocation.instrument.id,

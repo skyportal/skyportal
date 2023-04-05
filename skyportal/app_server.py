@@ -306,7 +306,7 @@ skyportal_handlers = [
     (r'/api/gcn_event(/.*)/tach', GcnTachHandler),
     (r'/api/gcn_event/(.*)/summary(/.*)?', GcnSummaryHandler),
     (r'/api/gcn_event/(.*)/instrument(/.*)?', GcnEventInstrumentFieldHandler),
-    (r'/api/gcn_event/tags(/.*)?(/.*)?', GcnEventTagsHandler),
+    (r'/api/gcn_event/tags(/.*)?', GcnEventTagsHandler),
     (r'/api/gcn_event/properties', GcnEventPropertiesHandler),
     (r'/api/gcn_event(/.*)?', GcnEventHandler),
     (r'/api/sources_in_gcn/(.*)/(.*)', SourcesConfirmedInGCNHandler),
@@ -629,10 +629,20 @@ def make_app(cfg, baselayer_handlers, baselayer_settings, process=None, env=None
     )
 
     app = CustomApplication(handlers, **settings)
+
+    default_engine_args = {'pool_size': 10, 'max_overflow': 15, 'pool_recycle': 3600}
+    database_cfg = cfg['database']
+    if database_cfg.get('engine_args', {}) in [None, '', {}]:
+        database_cfg['engine_args'] = default_engine_args
+    else:
+        database_cfg['engine_args'] = {
+            **default_engine_args,
+            **database_cfg['engine_args'],
+        }
+
     init_db(
-        **cfg['database'],
+        **database_cfg,
         autoflush=False,
-        engine_args={'pool_size': 10, 'max_overflow': 15, 'pool_recycle': 3600},
     )
 
     # If tables are found in the database, new tables will only be added

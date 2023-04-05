@@ -277,24 +277,44 @@ const ObservationPlanRequestLists = ({ dateobs }) => {
   const [observationPlanRequestList, setObservationPlanRequestList] =
     useState(null);
 
+  const [
+    observationPlanRequestFetchedForLocalization,
+    setObservationPlanRequestFetchedForLocalization,
+  ] = useState(null);
+
+  const [selectedLocalizationId, setSelectedLocalizationId] = useState(null);
+
   useEffect(() => {
     if (!gcnEvent) {
       return;
     }
-    if (dateobs !== gcnEvent.dateobs || !gcnEvent) {
+    if (
+      selectedLocalizationId !== observationPlanRequestFetchedForLocalization
+    ) {
       const fetchObservationPlanRequestList = async () => {
+        console.log(
+          "fetching observation plan requests of gcn event with dateobs",
+          dateobs
+        );
+        setObservationPlanRequestFetchedForLocalization(selectedLocalizationId);
         dispatch(
           GET(
             `/api/gcn_event/${gcnEvent.id}/observation_plan_requests`,
             "skyportal/FETCH_GCNEVENT_OBSERVATION_PLAN_REQUESTS"
           )
-        ).then((response) => setObservationPlanRequestList(response.data));
+        ).then((response) => {
+          setObservationPlanRequestList(response.data);
+        });
       };
       fetchObservationPlanRequestList();
     }
-  }, [dispatch, setObservationPlanRequestList, gcnEvent]);
-
-  const [selectedLocalizationId, setSelectedLocalizationId] = useState(null);
+  }, [
+    dispatch,
+    selectedLocalizationId,
+    gcnEvent,
+    observationPlanRequestFetchedForLocalization,
+    dateobs,
+  ]);
 
   const [isDeleting, setIsDeleting] = useState(null);
   const handleDelete = async (id) => {
