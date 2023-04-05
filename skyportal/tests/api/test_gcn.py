@@ -862,25 +862,36 @@ def test_gcn_summary_observations(
     )
     assert status == 200
     assert data['status'] == 'success'
-    id = data['data']['ids'][0]
 
     # wait for the observation plan to finish loading
     time.sleep(15)
+    n_retries = 0
+    while n_retries < 10:
+        try:
+            status, data = api(
+                'GET',
+                'observation_plan',
+                params={"includePlannedObservations": "true"},
+                token=super_admin_token,
+            )
+            assert status == 200
+            assert data['status'] == 'success'
 
-    status, data = api(
-        'GET',
-        f'observation_plan/{id}',
-        params={"includePlannedObservations": "true"},
-        token=super_admin_token,
-    )
-    assert status == 200
-    assert data['status'] == 'success'
+            data = [
+                d
+                for d in data['data']
+                if d['gcnevent_id'] == gcnevent_id
+                and d['allocation_id'] == allocation_id
+            ]
+            assert len(data) == 1
+            assert data[0]["payload"] == request_data["payload"]
+            assert len(data[0]["observation_plans"]) == 1
+            break
+        except AssertionError:
+            n_retries = n_retries + 1
+            time.sleep(3)
 
-    assert data["data"]["gcnevent_id"] == gcnevent_id
-    assert data["data"]["allocation_id"] == allocation_id
-    assert data["data"]["payload"] == request_data["payload"]
-
-    assert len(data["data"]["observation_plans"]) == 1
+        assert n_retries < 10
 
     datafile = f'{os.path.dirname(__file__)}/../../../data/sample_observation_gw.csv'
     data = {
