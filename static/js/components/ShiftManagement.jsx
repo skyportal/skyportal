@@ -145,6 +145,9 @@ function dailyShiftStartEnd(shift) {
 }
 
 const userLabel = (user) => {
+  if (!user) {
+    return "";
+  }
   let label = user.username;
   if (user.first_name && user.last_name) {
     label = `${user.first_name} ${user.last_name} (${user.username})`;
@@ -158,12 +161,16 @@ const userLabel = (user) => {
 export function CurrentShiftMenu({ currentShift }) {
   const classes = useStyles();
   const currentUser = useSelector((state) => state.profile);
+  const groups = useSelector((state) => state.groups.userAccessible);
   const dispatch = useDispatch();
 
+  const currentShiftGroup = groups.find(
+    (group) => group.id === currentShift.group_id
+  );
+
+  const users = currentShiftGroup?.users || [];
+
   function MultipleGroupSelectChip() {
-    const users = currentShift.group.group_users.filter(
-      (user) => user.id !== currentUser.id
-    );
     const { selectedUsers } = useSelector((state) => state.shift);
     const [selected, setSelected] = React.useState(selectedUsers || []);
 
@@ -211,7 +218,7 @@ export function CurrentShiftMenu({ currentShift }) {
               addShiftUser({
                 userID: user.id,
                 admin: false,
-                shift_id: currentShift.id,
+                shiftID: currentShift.id,
               })
             ).then((response) => {
               if (response.status === "success") {
@@ -242,7 +249,7 @@ export function CurrentShiftMenu({ currentShift }) {
           dispatch(
             deleteShiftUser({
               userID: selected_users[user].id,
-              shift_id: currentShift.id,
+              shiftID: currentShift.id,
             })
           ).then((result) => {
             if (result.status === "success") {
@@ -274,7 +281,7 @@ export function CurrentShiftMenu({ currentShift }) {
     function usersNotInShift(user) {
       return (
         !currentShift.shift_users.find(
-          (shiftUser) => shiftUser.id === user.id
+          (shiftUser) => shiftUser.user_id === user.id
         ) && currentUser.id !== user.id
       );
     }
@@ -331,7 +338,7 @@ export function CurrentShiftMenu({ currentShift }) {
     function usersInShift(user) {
       return (
         currentShift.shift_users.find(
-          (shiftUser) => shiftUser.id === user.id
+          (shiftUser) => shiftUser.user_id === user.id
         ) && currentUser.id !== user.id
       );
     }
@@ -453,7 +460,7 @@ export function CurrentShiftMenu({ currentShift }) {
   }
 
   const deleteShift = (shift) => {
-    dispatch({ type: "skyportal/CURRENT_SHIFT", data: {} });
+    dispatch({ type: "skyportal/FETCH_SHIFT_OK", data: {} });
     dispatch(shiftActions.deleteShift(shift.id)).then((result) => {
       if (result.status === "success") {
         dispatch(showNotification("Shift deleted"));
@@ -466,7 +473,7 @@ export function CurrentShiftMenu({ currentShift }) {
       addShiftUser({
         userID: currentUser.id,
         admin: false,
-        shift_id: shift.id,
+        shiftID: shift.id,
       })
     ).then((result) => {
       if (result.status === "success") {
@@ -481,21 +488,21 @@ export function CurrentShiftMenu({ currentShift }) {
       (shiftUser) => shiftUser.needs_replacement
     );
     const currentUserInShift = currentShift.shift_users.some(
-      (shiftUser) => shiftUser.id === currentUser.id
+      (shiftUser) => shiftUser.user_id === currentUser.id
     );
 
     function replaceUserInShift(selected_user) {
-      const shift_id = parseInt(currentShift.id, 10);
+      const shiftID = parseInt(currentShift.id, 10);
       dispatch(
         deleteShiftUser({
           userID: selected_user.id,
-          shift_id,
+          shiftID,
         })
       ).then((result) => {
         if (result.status === "success") {
           dispatch(
             addShiftUser({
-              shift_id,
+              shiftID,
               userID: currentUser.id,
               admin: false,
               needs_replacement: false,
@@ -550,7 +557,7 @@ export function CurrentShiftMenu({ currentShift }) {
       if (currentUserInShift && !currentUserIsAdminOfShift) {
         // check if the user has already asked for a replacement
         const userHasAlreadyAskedForReplacement = usersToReplace.some(
-          (shiftUser) => shiftUser.id === currentUser.id
+          (shiftUser) => shiftUser.user_id === currentUser.id
         );
         if (!userHasAlreadyAskedForReplacement) {
           button = (
@@ -560,14 +567,14 @@ export function CurrentShiftMenu({ currentShift }) {
                 id="ask-for-replacement-button"
                 className={classes.replacementButton}
                 onClick={() => {
-                  const shift_id = parseInt(currentShift.id, 10);
+                  const shiftID = parseInt(currentShift.id, 10);
                   const userID = parseInt(currentUser.id, 10);
                   dispatch(
                     updateShiftUser({
                       userID,
                       admin: false,
                       needs_replacement: true,
-                      shift_id,
+                      shiftID,
                     })
                   ).then((result) => {
                     if (result.status === "success") {
@@ -665,32 +672,43 @@ export function CurrentShiftMenu({ currentShift }) {
 
   const leaveShift = (shift) => {
     dispatch(
-      deleteShiftUser({ userID: currentUser.id, shift_id: shift.id })
+      deleteShiftUser({ userID: currentUser.id, shiftID: shift.id })
     ).then((result) => {
       if (result.status === "success") {
         dispatch(showNotification(`left shift: ${shift.name}`));
       }
     });
   };
-  let admins;
-  let members;
-  let participating;
-  if (currentShift.name != null) {
-    // create list names of non admin members
+
+  let admins = [];
+  let members = [];
+  let participating = false;
+
+  if (currentShift.name != null && users.length > 0) {
     admins = currentShift.shift_users
-      .filter((user) => user.admin)
+      .filter((shift_user) => shift_user.admin)
+      .map((shift_user) => shift_user?.user_id);
+    admins = users
+      .filter((user) => admins.includes(user.id))
       .map((user) => `${userLabel(user)}`);
+
     members = currentShift.shift_users
-      .filter((user) => !user.admin)
+      .filter((shift_user) => !shift_user.admin)
+      .map((shift_user) => shift_user?.user_id);
+    members = users
+      .filter((user) => members.includes(user.id))
       .map((user) => `${userLabel(user)}`);
+
     participating = currentShift.shift_users
-      .map((user) => user.id)
+      .map((user) => user.user_id)
       .includes(currentUser.id);
   }
+
   let [shiftDateStartEnd, shiftTimeStartEnd] = [null, null];
   if (currentShift.name != null && dailyShiftStartEnd(currentShift)) {
     [shiftDateStartEnd, shiftTimeStartEnd] = dailyShiftStartEnd(currentShift);
   }
+
   let currentUserIsAdminOfShift = false;
   if (currentShift.name != null) {
     if (
@@ -702,16 +720,7 @@ export function CurrentShiftMenu({ currentShift }) {
     }
   }
 
-  let currentUserIsAdminOfGroup = false;
-  if (currentShift.name != null) {
-    if (
-      currentShift.group.group_users.filter(
-        (user) => user.id === currentUser.id && user.admin
-      ).length > 0
-    ) {
-      currentUserIsAdminOfGroup = true;
-    }
-  }
+  const currentUserIsAdminOfGroup = currentShiftGroup?.has_admin_access;
 
   return (
     currentShift.name != null && (
@@ -733,7 +742,7 @@ export function CurrentShiftMenu({ currentShift }) {
             )}
             <h3 id="current_shift_group" className={classes.shiftgroup}>
               {" "}
-              Group: {currentShift.group.name}
+              Group: {currentShiftGroup?.name}
             </h3>
             <div>
               <i id="current_shift_admins">{`\n Admins : ${admins.join(
@@ -817,6 +826,7 @@ CurrentShiftMenu.propTypes = {
     id: PropTypes.number,
     name: PropTypes.string,
     description: PropTypes.string,
+    group_id: PropTypes.number,
     start_date: PropTypes.oneOfType([
       PropTypes.string,
       PropTypes.instanceOf(Date),
@@ -825,16 +835,6 @@ CurrentShiftMenu.propTypes = {
       PropTypes.string,
       PropTypes.instanceOf(Date),
     ]),
-    group: PropTypes.shape({
-      id: PropTypes.number,
-      name: PropTypes.string,
-      group_users: PropTypes.arrayOf(
-        PropTypes.shape({
-          id: PropTypes.number,
-          admin: PropTypes.bool,
-        })
-      ),
-    }),
     shift_users: PropTypes.arrayOf(
       PropTypes.shape({
         id: PropTypes.number,
@@ -850,10 +850,13 @@ export function CommentOnShift() {
   const { currentShift } = useSelector((state) => state.shift);
 
   return (
-    currentShift.name != null && (
+    currentShift?.id && (
       <div id="current_shift_comment" className={classes.root}>
         <div className={classes.content}>
-          <CommentList associatedResourceType="shift" />
+          <CommentList
+            associatedResourceType="shift"
+            shiftID={currentShift?.id}
+          />
         </div>
       </div>
     )

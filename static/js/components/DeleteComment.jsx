@@ -17,7 +17,7 @@ const DeleteComment = ({
   spectrum_id = null,
   id = null,
   hoverID = null,
-  shift_id = null,
+  shiftID = null,
 }) => {
   const dispatch = useDispatch();
   const deleteCommentOnObject = (sourceID, commentID) => {
@@ -34,8 +34,8 @@ const DeleteComment = ({
     dispatch(gcnEventActions.deleteCommentOnGcnEvent(gcnID, commentID));
   };
 
-  const deleteCommentOnShift = (shiftID, commentID) => {
-    dispatch(shiftActions.deleteCommentOnShift(shiftID, commentID));
+  const deleteCommentOnShift = (shift_id, commentID) => {
+    dispatch(shiftActions.deleteCommentOnShift(shift_id, commentID));
   };
 
   const deleteComment = (resourceType) => {
@@ -50,7 +50,7 @@ const DeleteComment = ({
         deleteCommentOnGcnEvent(gcnEventID, id);
         break;
       case "shift":
-        deleteCommentOnShift(shift_id, id);
+        deleteCommentOnShift(shiftID, id);
         break;
       default:
         break;
@@ -90,7 +90,7 @@ DeleteComment.propTypes = {
   spectrum_id: PropTypes.string,
   id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
   hoverID: PropTypes.number,
-  shift_id: PropTypes.number,
+  shiftID: PropTypes.number,
 };
 
 DeleteComment.defaultProps = {
@@ -100,7 +100,7 @@ DeleteComment.defaultProps = {
   spectrum_id: null,
   id: null,
   hoverID: null,
-  shift_id: null,
+  shiftID: null,
 };
 
 export default DeleteComment;

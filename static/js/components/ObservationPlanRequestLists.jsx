@@ -292,10 +292,6 @@ const ObservationPlanRequestLists = ({ dateobs }) => {
       selectedLocalizationId !== observationPlanRequestFetchedForLocalization
     ) {
       const fetchObservationPlanRequestList = async () => {
-        console.log(
-          "fetching observation plan requests of gcn event with dateobs",
-          dateobs
-        );
         setObservationPlanRequestFetchedForLocalization(selectedLocalizationId);
         dispatch(
           GET(

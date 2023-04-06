@@ -18,7 +18,7 @@ const EditComment = ({
   spectrum_id = null,
   id = null,
   hoverID = null,
-  shift_id = null,
+  shiftID = null,
 }) => {
   const dispatch = useDispatch();
 
@@ -41,8 +41,8 @@ const EditComment = ({
     dispatch(gcnEventActions.editCommentOnGcnEvent(commentID, gcnID, formData));
   };
 
-  const editCommentOnShift = (shiftID, commentID, formData) => {
-    formData.shift_id = shiftID;
+  const editCommentOnShift = (shift_id, commentID, formData) => {
+    formData.shift_id = shift_id;
     dispatch(shiftActions.editCommentOnShift(commentID, formData));
   };
 
@@ -58,7 +58,7 @@ const EditComment = ({
         editCommentOnGcnEvent(gcnEventID, id, data);
         break;
       case "shift":
-        editCommentOnShift(shift_id, id, data);
+        editCommentOnShift(shiftID, id, data);
         break;
       default:
         break;
@@ -116,7 +116,7 @@ EditComment.propTypes = {
   spectrum_id: PropTypes.string,
   id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
   hoverID: PropTypes.number,
-  shift_id: PropTypes.number,
+  shiftID: PropTypes.number,
 };
 
 EditComment.defaultProps = {
@@ -126,7 +126,7 @@ EditComment.defaultProps = {
   spectrum_id: null,
   id: null,
   hoverID: null,
-  shift_id: null,
+  shiftID: null,
 };
 
 export default EditComment;

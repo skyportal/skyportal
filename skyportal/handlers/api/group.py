@@ -19,11 +19,12 @@ from ...models import (
 _, cfg = load_env()
 
 
-def has_admin_access_for_group(user, group_id):
-    groupuser = (
-        GroupUser.query.filter(GroupUser.group_id == group_id)
-        .filter(GroupUser.user_id == user.id)
-        .first()
+def has_admin_access_for_group(user, group_id, session):
+
+    groupuser = session.scalar(
+        GroupUser.select(user).where(
+            GroupUser.group_id == group_id, GroupUser.user_id == user.id
+        )
     )
     return len(
         {"System admin", "Manage groups", "Manage_users"}.intersection(
@@ -209,6 +210,26 @@ class GroupHandler(BaseHandler):
                 ),
                 key=lambda g: g.name.lower(),
             )
+            # for each user_accessible_group, check if the user is an admin
+            # if so, add the is_admin flag
+            info['user_accessible_groups'] = [
+                {
+                    **g.to_dict(),
+                    "has_admin_access": has_admin_access_for_group(
+                        self.current_user, g.id, session
+                    ),
+                    "users": [
+                        {
+                            "id": gu.user.id,
+                            "username": gu.user.username,
+                            "first_name": gu.user.first_name,
+                            "last_name": gu.user.last_name,
+                        }
+                        for gu in g.group_users
+                    ],
+                }
+                for g in info['user_accessible_groups']
+            ]
             all_groups_query = Group.select(session.user_or_token)
             if not include_single_user_groups:
                 all_groups_query = all_groups_query.where(

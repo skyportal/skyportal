@@ -171,7 +171,7 @@ async function handleSelectSlot({ start, end }) {
 }
 
 function setCurrentShift({ event, setShow }) {
-  dispatch({ type: "skyportal/CURRENT_SHIFT", data: event });
+  dispatch(shiftActions.fetchShift(event?.id));
   dispatch({ type: "skyportal/CURRENT_SHIFT_SELECTED_USERS", data: [] });
   dispatch(
     shiftActions.getShiftsSummary({
@@ -179,17 +179,6 @@ function setCurrentShift({ event, setShow }) {
     })
   );
   setShow(false);
-}
-
-function Event({ event }) {
-  return (
-    <div id={`event_${event.id}`}>
-      <span>
-        <strong>{event.name}</strong>
-        <p>{event.group.name}</p>
-      </span>
-    </div>
-  );
 }
 
 function MyCalendar({ events, currentShift, setShow }) {
@@ -207,15 +196,33 @@ function MyCalendar({ events, currentShift, setShow }) {
       setSelectedGroups([groups[0]]);
     }
   }, [groups]);
+
   if (!showAllShifts) {
     events = events.filter((event) =>
-      event.shift_users.some((user) => user.id === currentUser.id)
+      event.shift_users.some(
+        (shift_user) => shift_user?.user_id === currentUser?.id
+      )
     );
   }
   if (sortByGroups) {
     events = events.filter(
       (event) =>
-        selectedGroups.filter((group) => group.id === event.group.id).length > 0
+        selectedGroups.filter((group) => group.id === event.group_id)?.length >
+        0
+    );
+  }
+
+  function Event({ event }) {
+    // find the group in the groups array which id matches the event.group_id
+    const group_name =
+      groups.find((group) => group.id === event.group_id)?.name || "";
+    return (
+      <div id={`event_${event.id}`}>
+        <span>
+          <strong>{event.name}</strong>
+          <p>{group_name}</p>
+        </span>
+      </div>
     );
   }
 
