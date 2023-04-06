@@ -118,6 +118,24 @@ class FollowUpAPI(_Base):
 
     # subclasses should implement this if desired
     @staticmethod
+    def send_skymap():
+        """Post a skymap-based trigger."""
+        raise NotImplementedError
+
+    # subclasses should implement this if desired
+    @staticmethod
+    def queued_skymap():
+        """Retrieve skymap-based triggers."""
+        raise NotImplementedError
+
+    # subclasses should implement this if desired
+    @staticmethod
+    def remove_skymap():
+        """Remove a skymap-based trigger."""
+        raise NotImplementedError
+
+    # subclasses should implement this if desired
+    @staticmethod
     def prepare_payload(payload, existing_payload=None):
         """Format the payload for submission to the facility.
 

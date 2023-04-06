@@ -1276,23 +1276,25 @@ class AnalysisHandler(BaseHandler):
                             AnalysisService.id == a.analysis_service_id
                         )
                         analysis_service = session.scalars(stmt).first()
-                        analysis_services_dict.update(
-                            {
-                                a.analysis_service_id: {
-                                    "analysis_service_name": analysis_service.display_name,
-                                    "analysis_service_description": analysis_service.description,
-                                    "analysis_serivce_display_as_summary": analysis_service.is_summary,
+                        if analysis_service is not None:
+                            analysis_services_dict.update(
+                                {
+                                    a.analysis_service_id: {
+                                        "analysis_service_name": analysis_service.display_name,
+                                        "analysis_service_description": analysis_service.description,
+                                        "analysis_serivce_display_as_summary": analysis_service.is_summary,
+                                    }
                                 }
-                            }
-                        )
+                            )
 
-                    service_info = analysis_services_dict[a.analysis_service_id]
-                    analysis_dict["analysis_service_name"] = service_info[
-                        "analysis_service_name"
-                    ]
-                    analysis_dict["analysis_service_description"] = service_info[
-                        "analysis_service_description"
-                    ]
+                    if a.analysis_service_id in analysis_services_dict.keys():
+                        service_info = analysis_services_dict[a.analysis_service_id]
+                        analysis_dict["analysis_service_name"] = service_info[
+                            "analysis_service_name"
+                        ]
+                        analysis_dict["analysis_service_description"] = service_info[
+                            "analysis_service_description"
+                        ]
 
                     analysis_dict["groups"] = a.groups
                     if include_filename:

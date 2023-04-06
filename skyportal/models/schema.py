@@ -1108,6 +1108,24 @@ class ObservationExternalAPIHandlerPost(_Schema):
     )
 
 
+class SkymapQueueAPIHandlerPost(_Schema):
+
+    allocation_id = fields.Integer(
+        required=True,
+        metadata={'description': "Followup request allocation ID."},
+    )
+
+    localization_id = fields.Integer(
+        required=True,
+        metadata={'description': "Localization ID."},
+    )
+
+    integrated_probability = fields.Number(
+        required=False,
+        metadata={'description': "Integrated probability within skymap."},
+    )
+
+
 class ObservationASCIIFileHandlerPost(_Schema):
     instrumentID = fields.String(
         required=True,

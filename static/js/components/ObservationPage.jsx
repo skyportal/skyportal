@@ -22,6 +22,7 @@ import NewAPIObservation from "./NewAPIObservation";
 import NewAPIQueuedObservation from "./NewAPIQueuedObservation";
 import QueueAPIDisplay from "./QueueAPIDisplay";
 import ProgressIndicator from "./ProgressIndicators";
+import SkymapTriggerAPIDisplay from "./SkymapTriggerAPIDisplay";
 
 import * as observationsActions from "../ducks/observations";
 import * as queuedObservationsActions from "../ducks/queued_observations";
@@ -575,26 +576,48 @@ const ObservationPage = () => {
           </div>
         </Paper>
         {currentUser.permissions?.includes("System admin") && (
-          <Paper>
-            <div className={classes.paperContent}>
-              <Accordion defaultExpanded elevation={0}>
-                <AccordionSummary
-                  expandIcon={<ExpandMoreIcon />}
-                  aria-controls="queue-interaction-content"
-                  id="queue-interaction-header"
-                >
-                  <Typography className={classes.accordionHeading}>
-                    Queue Interaction
-                  </Typography>
-                </AccordionSummary>
-                <AccordionDetails>
-                  <div className={classes.Container}>
-                    <QueueAPIDisplay />
-                  </div>
-                </AccordionDetails>
-              </Accordion>
-            </div>
-          </Paper>
+          <div>
+            <Paper>
+              <div className={classes.paperContent}>
+                <Accordion defaultExpanded elevation={0}>
+                  <AccordionSummary
+                    expandIcon={<ExpandMoreIcon />}
+                    aria-controls="queue-interaction-content"
+                    id="queue-interaction-header"
+                  >
+                    <Typography className={classes.accordionHeading}>
+                      Queue Interaction
+                    </Typography>
+                  </AccordionSummary>
+                  <AccordionDetails>
+                    <div className={classes.Container}>
+                      <QueueAPIDisplay />
+                    </div>
+                  </AccordionDetails>
+                </Accordion>
+              </div>
+            </Paper>
+            <Paper>
+              <div className={classes.paperContent}>
+                <Accordion defaultExpanded elevation={0}>
+                  <AccordionSummary
+                    expandIcon={<ExpandMoreIcon />}
+                    aria-controls="queue-interaction-content"
+                    id="queue-interaction-header"
+                  >
+                    <Typography className={classes.accordionHeading}>
+                      Skymap Triggers Interaction
+                    </Typography>
+                  </AccordionSummary>
+                  <AccordionDetails>
+                    <div className={classes.Container}>
+                      <SkymapTriggerAPIDisplay />
+                    </div>
+                  </AccordionDetails>
+                </Accordion>
+              </div>
+            </Paper>
+          </div>
         )}
       </Grid>
     </Grid>
