@@ -3,6 +3,7 @@ from sqlalchemy.orm import joinedload
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
+from .group import has_admin_access_for_group
 from ...models import (
     Group,
     Shift,
@@ -185,15 +186,37 @@ class ShiftHandler(BaseHandler):
                             key=lambda x: x["created_at"],
                             reverse=True,
                         ),
+                        "shift_users": [
+                            {
+                                **u.to_dict(),
+                                "username": u.user.username,
+                                "first_name": u.user.first_name,
+                                "last_name": u.user.last_name,
+                            }
+                            for u in shift.shift_users
+                        ],
+                        "group": {
+                            "id": shift.group.id,
+                            "name": shift.group.name,
+                            "has_admin_access": has_admin_access_for_group(
+                                self.current_user, shift.group.id, session
+                            ),
+                            "group_users": [
+                                {
+                                    "id": gu.user.id,
+                                    "username": gu.user.username,
+                                    "first_name": gu.user.first_name,
+                                    "last_name": gu.user.last_name,
+                                }
+                                for gu in shift.group.group_users
+                            ],
+                        },
                     }
                     return self.success(data)
 
                 else:
                     query = Shift.select(
                         session.user_or_token,
-                        options=[
-                            joinedload(Shift.shift_users),
-                        ],
                     )
                     if group_id is not None:
                         query = query.where(Shift.group_id == group_id)

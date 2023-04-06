@@ -161,14 +161,11 @@ const userLabel = (user) => {
 export function CurrentShiftMenu({ currentShift }) {
   const classes = useStyles();
   const currentUser = useSelector((state) => state.profile);
-  const groups = useSelector((state) => state.groups.userAccessible);
   const dispatch = useDispatch();
 
-  const currentShiftGroup = groups.find(
-    (group) => group.id === currentShift.group_id
-  );
+  const currentShiftGroup = currentShift.group;
 
-  const users = currentShiftGroup?.users || [];
+  const users = currentShiftGroup?.group_users || [];
 
   function MultipleGroupSelectChip() {
     const { selectedUsers } = useSelector((state) => state.shift);
@@ -827,6 +824,21 @@ CurrentShiftMenu.propTypes = {
     name: PropTypes.string,
     description: PropTypes.string,
     group_id: PropTypes.number,
+    group: PropTypes.arrayOf(
+      PropTypes.shape({
+        id: PropTypes.number,
+        name: PropTypes.string,
+        has_admin_access: PropTypes.bool,
+        group_users: PropTypes.arrayOf(
+          PropTypes.shape({
+            id: PropTypes.number,
+            first_name: PropTypes.string,
+            last_name: PropTypes.string,
+            username: PropTypes.string,
+          })
+        ),
+      })
+    ),
     start_date: PropTypes.oneOfType([
       PropTypes.string,
       PropTypes.instanceOf(Date),

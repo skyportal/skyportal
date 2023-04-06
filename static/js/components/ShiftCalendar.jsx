@@ -143,7 +143,6 @@ async function handleSelectSlot({ start, end }) {
             if (result.status === "success") {
               dispatch(showNotification("Shift saved"));
               const new_shift_id = result?.data?.id;
-              console.log(`new_shift_id: ${new_shift_id}`);
               if (new_shift_id) {
                 dispatch(shiftActions.fetchShift(new_shift_id));
               }
@@ -204,9 +203,7 @@ function MyCalendar({ events, currentShift, setShow }) {
 
   if (!showAllShifts) {
     events = events.filter((event) =>
-      event.shift_users.some(
-        (shift_user) => shift_user?.user_id === currentUser?.id
-      )
+      (event.shift_users_ids || []).includes(currentUser.id)
     );
   }
   if (sortByGroups) {
@@ -248,16 +245,16 @@ function MyCalendar({ events, currentShift, setShow }) {
   };
 
   const shiftStatus = (event) => {
-    const currentUserInShift = event.shift_users
-      .map((user) => user.id)
-      .includes(currentUser.id);
+    const currentUserInShift = (event.shift_users_ids || []).includes(
+      currentUser.id
+    );
     const style = {
       background: blue,
     };
     if (event?.end_date < new Date()) {
       style.background = grey;
     } else if (
-      event?.shift_users?.length < event?.required_users_number &&
+      (event.shift_users_ids || []).length < event?.required_users_number &&
       event?.end_date > new Date()
     ) {
       // if the shift will happen in less than 72 hours but more than 24h is shows as orange, less than 24hours shows as red

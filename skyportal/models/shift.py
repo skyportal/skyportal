@@ -2,6 +2,8 @@ __all__ = ['Shift', 'ShiftUser']
 
 import sqlalchemy as sa
 from sqlalchemy.orm import relationship
+from sqlalchemy import func, select
+from sqlalchemy.orm import column_property
 
 
 from baselayer.app.models import (
@@ -179,3 +181,9 @@ ShiftUser.update = CustomUserAccessControl(shiftuser_update_access_logic)
 ShiftUser.delete = CustomUserAccessControl(shiftuser_delete_access_logic)
 
 ShiftUser.create = ShiftUser.read
+
+Shift.shift_users_ids = column_property(
+    select(func.array_agg(ShiftUser.user_id))
+    .where(ShiftUser.shift_id == Shift.id)
+    .correlate_except(ShiftUser)
+)
