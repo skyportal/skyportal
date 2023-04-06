@@ -142,6 +142,11 @@ async function handleSelectSlot({ start, end }) {
           ).then((result) => {
             if (result.status === "success") {
               dispatch(showNotification("Shift saved"));
+              const new_shift_id = result?.data?.id;
+              console.log(`new_shift_id: ${new_shift_id}`);
+              if (new_shift_id) {
+                dispatch(shiftActions.fetchShift(new_shift_id));
+              }
             }
           });
         } else {

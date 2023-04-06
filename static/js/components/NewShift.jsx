@@ -9,8 +9,7 @@ import { showNotification } from "baselayer/components/Notifications";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
-import { submitShift } from "../ducks/shift";
-import { fetchShifts } from "../ducks/shifts";
+import { submitShift, fetchShift } from "../ducks/shift";
 
 dayjs.extend(utc);
 
@@ -84,7 +83,10 @@ const NewShift = () => {
       const result = await dispatch(submitShift(formData));
       if (result.status === "success") {
         dispatch(showNotification("Shift saved"));
-        dispatch(fetchShifts());
+        const new_shift_id = result?.data?.id;
+        if (new_shift_id) {
+          dispatch(fetchShift(new_shift_id));
+        }
       }
     } else {
       delete formData.repeatsDaily;
@@ -133,7 +135,10 @@ const NewShift = () => {
         const result = dispatch(submitShift(newFormData));
         if (result.status === "success") {
           dispatch(showNotification("Shift saved"));
-          dispatch(fetchShifts());
+          const new_shift_id = result?.data?.id;
+          if (new_shift_id) {
+            dispatch(fetchShift(new_shift_id));
+          }
         }
       }
     }

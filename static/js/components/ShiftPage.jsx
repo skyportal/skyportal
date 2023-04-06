@@ -76,6 +76,12 @@ const ShiftPage = ({ route }) => {
     }
   }, [route, shiftList]);
 
+  useEffect(() => {
+    if (currentShift?.id) {
+      setShow(false);
+    }
+  }, [currentShift]);
+
   return (
     <Grid container spacing={3}>
       <Grid item md={8} sm={12}>
