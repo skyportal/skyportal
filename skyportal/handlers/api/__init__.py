@@ -130,6 +130,7 @@ from .recurring_api import RecurringAPIHandler
 from .reminder import ReminderHandler
 from .sharing import SharingHandler
 from .shift import ShiftHandler, ShiftUserHandler, ShiftSummary
+from .skymap_trigger import SkymapTriggerAPIHandler
 from .source import (
     SourceHandler,
     SourceCopyPhotometryHandler,
