@@ -29,8 +29,9 @@ import {
   SelectLabelWithChips,
   SelectSingleLabelWithChips,
 } from "./SelectWithChips";
-import * as usersActions from "../ducks/users";
-import * as groupsActions from "../ducks/groups";
+
+import { fetchGroup } from "../ducks/group";
+import { fetchGroups } from "../ducks/groups";
 import {
   fetchGcnEventSummary,
   postGcnEventSummary,
@@ -137,10 +138,9 @@ const DialogTitle = withStyles(dialogTitleStyles)(
 const GcnSummary = ({ dateobs }) => {
   const classes = useStyles();
   const groups = useSelector((state) => state.groups.userAccessible);
-  const { users } = useSelector((state) => state.users);
+  const users = useSelector((state) => state.group?.users);
   const dispatch = useDispatch();
   const [open, setOpen] = useState(false);
-  const [dataFetched, setDataFetched] = useState(false);
   const [selectedUsers, setSelectedUsers] = useState([]);
   const [selectedGroup, setSelectedGroup] = useState(null);
   const gcnEvent = useSelector((state) => state.gcnEvent);
@@ -198,13 +198,8 @@ const GcnSummary = ({ dateobs }) => {
   }, [gcnEvent, selectedGcnSummaryId]);
 
   useEffect(() => {
-    const fetchData = () => {
-      dispatch(usersActions.fetchUsers());
-      dispatch(groupsActions.fetchGroups());
-    };
-    if (!dataFetched && !groups && !users) {
-      fetchData();
-      setDataFetched(true);
+    if (!groups && open) {
+      dispatch(fetchGroups());
     }
     const defaultStartDate = dayjs.utc(dateobs).format("YYYY-MM-DD HH:mm:ss");
     const defaultEndDate = dayjs
@@ -215,7 +210,13 @@ const GcnSummary = ({ dateobs }) => {
     setEndDate(defaultEndDate);
     setSubject(`Follow-up on GCN Event ${dateobs}`);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dateobs, dataFetched, dispatch]);
+  }, [dateobs, dispatch]);
+
+  useEffect(() => {
+    if (selectedGroup?.id) {
+      dispatch(fetchGroup(selectedGroup?.id));
+    }
+  }, [dispatch, selectedGroup]);
 
   const handleClose = () => {
     setOpen(false);
@@ -352,7 +353,7 @@ const GcnSummary = ({ dateobs }) => {
       <Button secondary name="gcn_summary" onClick={() => setOpen(true)}>
         Summary
       </Button>
-      {open && dataFetched && (
+      {open && (
         <Dialog
           open={open}
           onClose={handleClose}
