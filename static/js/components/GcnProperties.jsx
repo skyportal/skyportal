@@ -75,19 +75,49 @@ const GcnProperties = ({ properties }) => {
     return <p>No properties for this event...</p>;
   }
 
+  // properties list of dicts each with a "created_at" key and a "data" key
+  // we want to refactor that to a list of dicts with a "created_at" key and
+  // a key for each property name
+
+  // that means that first we need the list of all property names of all elements in the list
+  const propertyNames = properties
+    .map((property) => Object.keys(property.data))
+    .flat();
+  // then we need to remove duplicates
+  const uniquePropertyNames = [...new Set(propertyNames)];
+
+  // now we can create a list of dicts with a "created_at" key and a key for each property name
+  const propertiesWithUniqueKeys = properties.map((property) => {
+    const newProperty = { created_at: property.created_at };
+    uniquePropertyNames.forEach((name) => {
+      if (Object.keys(property.data).includes(name)) {
+        // if it is a numerical value, we want to round it to 4 decimals
+        // but if the number is something like 0.000000001, we want to show it as 0.1e-8
+        if (typeof property.data[name] === "number") {
+          if (property.data[name] > 0.0001 || property.data[name] < -0.0001) {
+            newProperty[name] = property.data[name].toFixed(4);
+          } else if (property.data[name] === 0) {
+            newProperty[name] = 0;
+          } else {
+            newProperty[name] = property.data[name].toExponential(4);
+          }
+        } else {
+          newProperty[name] = property.data[name];
+        }
+      } else {
+        newProperty[name] = null;
+      }
+    });
+    return newProperty;
+  });
+
   const getDataTableColumns = () => {
     const columns = [{ name: "created_at", label: "Created at" }];
-
-    const renderProperties = (dataIndex) => {
-      const data = properties[dataIndex];
-      return <div>{JSON.stringify(data.data)}</div>;
-    };
-    columns.push({
-      name: "Properties",
-      label: "Properties",
-      options: {
-        customBodyRenderLite: renderProperties,
-      },
+    uniquePropertyNames.forEach((name) => {
+      columns.push({
+        name,
+        label: name,
+      });
     });
 
     return columns;
@@ -119,7 +149,7 @@ const GcnProperties = ({ properties }) => {
           <StyledEngineProvider injectFirst>
             <ThemeProvider theme={getMuiTheme(theme)}>
               <MUIDataTable
-                data={properties}
+                data={propertiesWithUniqueKeys}
                 options={options}
                 columns={getDataTableColumns()}
               />

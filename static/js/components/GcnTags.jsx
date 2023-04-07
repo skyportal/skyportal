@@ -94,9 +94,11 @@ const GcnTags = ({ gcnEvent, show_title = false }) => {
   };
 
   const gcnTags = [];
-  gcnEvent.tags?.forEach((tag) => {
-    gcnTags.push(tag);
-  });
+  if (gcnEvent?.tags) {
+    gcnEvent.tags.forEach((tag) => {
+      gcnTags.push(tag);
+    });
+  }
   const gcnTagsUnique = [...new Set(gcnTags)];
 
   const localizationTags = [];

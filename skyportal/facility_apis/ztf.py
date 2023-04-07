@@ -944,8 +944,9 @@ class ZTFMMAAPI(MMAAPI):
             "subprogram_name": {
                 "type": "string",
                 "enum": ["GW", "GRB", "Neutrino", "SolarSystem", "Other"],
-                "default": "GRB",
+                "default": "GW",
             },
+            "filters": {"type": "string", "default": "ztfg,ztfr,ztfg"},
         }
         form_json_schema["required"] = form_json_schema["required"] + [
             "subprogram_name",
