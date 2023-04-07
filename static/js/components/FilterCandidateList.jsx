@@ -249,11 +249,22 @@ const FilterCandidateList = ({
         .add(7, "day")
         .format("YYYY-MM-DD HH:mm:ss");
     }
-    reset({
+    const newFormData = {
       ...getValues(),
       firstDetectionAfter: defaultFirstDetectionAfter,
       lastDetectionBefore: defaultLastDetectionBefore,
-    });
+    };
+    if (selectedGcnEventId === -1 || !selectedGcnEventId) {
+      delete newFormData.firstDetectionAfter;
+      delete newFormData.lastDetectionBefore;
+      delete newFormData.numberDetections;
+      delete newFormData.localizationCumprob;
+    } else {
+      newFormData.numberDetections = 1;
+      newFormData.localizationCumprob = 0.95;
+    }
+
+    reset(newFormData);
   }, [selectedGcnEventId]);
 
   useEffect(() => {
@@ -370,12 +381,15 @@ const FilterCandidateList = ({
         (l) => l.id === formData.localizationid
       )[0]?.localization_name;
       data.localizationCumprob = formData.localizationCumprob || 0.95;
-    }
-    if (formData.firstDetectionAfter) {
-      data.firstDetectionAfter = formData.firstDetectionAfter;
-    }
-    if (formData.lastDetectionBefore) {
-      data.lastDetectionBefore = formData.lastDetectionBefore;
+      if (formData.firstDetectionAfter) {
+        data.firstDetectionAfter = formData.firstDetectionAfter;
+      }
+      if (formData.lastDetectionBefore) {
+        data.lastDetectionBefore = formData.lastDetectionBefore;
+      }
+      if (formData.numberDetections) {
+        data.numberDetections = formData.numberDetections;
+      }
     }
     if (formData.sortingOrigin) {
       data.sortByAnnotationOrigin = formData.sortingOrigin;
@@ -709,7 +723,7 @@ const FilterCandidateList = ({
           <div>
             <Responsive
               element={FoldBox}
-              title="GCN Sorting"
+              title="GCN Filtering"
               mobileProps={{ folded: true }}
             >
               <div className={classes.formRow}>
@@ -753,6 +767,7 @@ const FilterCandidateList = ({
                   control={control}
                   defaultValue=""
                 />
+                &nbsp;
                 <Controller
                   render={({ field: { onChange, value } }) => (
                     <Select
@@ -782,6 +797,7 @@ const FilterCandidateList = ({
                   control={control}
                   defaultValue=""
                 />
+                &nbsp;
                 <Controller
                   render={({ field: { onChange, value } }) => (
                     <TextField
@@ -825,6 +841,22 @@ const FilterCandidateList = ({
                       />
                     )}
                     name="lastDetectionBefore"
+                    control={control}
+                  />
+                  &nbsp;
+                  <Controller
+                    render={({ field: { onChange, value } }) => (
+                      <TextField
+                        id="minNbDect"
+                        label="Minimum Number of Detections"
+                        type="number"
+                        value={value}
+                        inputProps={{ step: 1, min: 0 }}
+                        onChange={(event) => onChange(event.target.value)}
+                        defaultValue={1}
+                      />
+                    )}
+                    name="numberDetections"
                     control={control}
                   />
                 </div>

@@ -758,6 +758,7 @@ class CandidateHandler(BaseHandler):
 
         first_detected_date = self.get_query_argument('firstDetectionAfter', None)
         last_detected_date = self.get_query_argument('lastDetectionBefore', None)
+        number_of_detections = self.get_query_argument("numberDetections", None)
         localization_dateobs = self.get_query_argument("localizationDateobs", None)
         localization_name = self.get_query_argument("localizationName", None)
         localization_cumprob = self.get_query_argument("localizationCumprob", 0.95)
@@ -766,6 +767,13 @@ class CandidateHandler(BaseHandler):
             if first_detected_date is None or last_detected_date is None:
                 return self.error(
                     'must specify startDate and endDate when filtering by localizationDateobs or localizationName'
+                )
+            try:
+                first_detected_date = arrow.get(first_detected_date).datetime
+                last_detected_date = arrow.get(last_detected_date).datetime
+            except Exception:
+                return self.error(
+                    'firstDetectionAfter and lastDetectionBefore must be valid UTC dates'
                 )
             if first_detected_date > last_detected_date:
                 return self.error(
@@ -1191,12 +1199,7 @@ class CandidateHandler(BaseHandler):
                     Obj.id == obj_photometry_annotations_subquery.c.id,
                 )
 
-            if first_detected_date is not None and first_detected_date.strip() not in [
-                "",
-                "null",
-                "undefined",
-            ]:
-                first_detected_date = arrow.get(first_detected_date).datetime
+            if first_detected_date is not None:
                 photstat_subquery = (
                     PhotStat.select(session.user_or_token)
                     .where(PhotStat.first_detected_mjd >= Time(first_detected_date).mjd)
@@ -1206,15 +1209,20 @@ class CandidateHandler(BaseHandler):
                     photstat_subquery,
                     Obj.id == photstat_subquery.c.obj_id,
                 )
-            if last_detected_date is not None and last_detected_date.strip() not in [
-                "",
-                "null",
-                "undefined",
-            ]:
-                last_detected_date = arrow.get(last_detected_date).datetime
+            if last_detected_date is not None:
                 photstat_subquery = (
                     PhotStat.select(session.user_or_token)
                     .where(PhotStat.last_detected_mjd <= Time(last_detected_date).mjd)
+                    .subquery()
+                )
+                q = q.join(
+                    photstat_subquery,
+                    Obj.id == photstat_subquery.c.obj_id,
+                )
+            if number_of_detections and isinstance(number_of_detections, int):
+                photstat_subquery = (
+                    PhotStat.select(session.user_or_token)
+                    .where(PhotStat.num_det_global >= number_of_detections)
                     .subquery()
                 )
                 q = q.join(
