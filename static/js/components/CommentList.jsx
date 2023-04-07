@@ -173,6 +173,7 @@ const CommentList = ({
   spectrumID = null,
   gcnEventID = null,
   earthquakeID = null,
+  shiftID = null,
   includeCommentsOnAllResourceTypes = true,
   maxHeightList = "350px",
 }) => {
@@ -213,11 +214,12 @@ const CommentList = ({
   if (!gcnEventID && gcnEvent) {
     gcnEventID = gcnEvent.id;
   }
-  let shift_id = null;
-  if (currentShift) {
-    shift_id = currentShift.id;
+
+  if (!shiftID && currentShift) {
+    shiftID = currentShift.id;
   }
-  if (!earthquake && earthquake) {
+
+  if (!earthquakeID && earthquake) {
     earthquakeID = earthquake.id;
   }
 
@@ -252,7 +254,7 @@ const CommentList = ({
   const addShiftComment = (formData) => {
     dispatch(
       shiftActions.addCommentOnShift({
-        shift_id,
+        shiftID,
         ...formData,
       })
     );
@@ -287,7 +289,7 @@ const CommentList = ({
     }
     comments = gcnEvent.comments;
   } else if (associatedResourceType === "shift") {
-    if (shift_id === null) {
+    if (shiftID === null) {
       throw new Error("Must specify a shiftID for comments on shift");
     }
     comments = currentShift?.comments;
@@ -311,7 +313,6 @@ const CommentList = ({
   const commentStyle =
     userColorTheme === "dark" ? styles.commentDark : styles.comment;
 
-  console.log("maxHeightList", maxHeightList);
   return (
     <div className={styles.commentsContainer}>
       <div
@@ -356,7 +357,7 @@ const CommentList = ({
                   text={text}
                   spectrum_id={spectrum_id}
                   hoverID={hoverID}
-                  shift_id={shift_id}
+                  shiftID={shiftID}
                 />
               ) : (
                 <RegularCommentList
@@ -373,7 +374,7 @@ const CommentList = ({
                   groups={groups}
                   spectrum_id={spectrum_id}
                   hoverID={hoverID}
-                  shift_id={shift_id}
+                  shiftID={shiftID}
                 />
               )}
             </span>
@@ -392,7 +393,7 @@ const CommentList = ({
           <CommentEntry addComment={addGcnEventComment} />
         )}
       {permissions.indexOf("Comment") >= 0 &&
-        shift_id &&
+        shiftID &&
         associatedResourceType === "shift" && (
           <CommentEntry addComment={addShiftComment} />
         )}
@@ -412,6 +413,7 @@ CommentList.propTypes = {
   earthquakeID: PropTypes.string,
   associatedResourceType: PropTypes.string,
   spectrumID: PropTypes.number,
+  shiftID: PropTypes.number,
   includeCommentsOnAllResourceTypes: PropTypes.bool,
   maxHeightList: PropTypes.string,
 };
@@ -423,6 +425,7 @@ CommentList.defaultProps = {
   earthquakeID: null,
   associatedResourceType: "object",
   spectrumID: null,
+  shiftID: null,
   includeCommentsOnAllResourceTypes: true,
   maxHeightList: "350px",
 };

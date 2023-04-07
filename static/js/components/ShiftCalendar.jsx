@@ -142,6 +142,10 @@ async function handleSelectSlot({ start, end }) {
           ).then((result) => {
             if (result.status === "success") {
               dispatch(showNotification("Shift saved"));
+              const new_shift_id = result?.data?.id;
+              if (new_shift_id) {
+                dispatch(shiftActions.fetchShift(new_shift_id));
+              }
             }
           });
         } else {
@@ -171,7 +175,7 @@ async function handleSelectSlot({ start, end }) {
 }
 
 function setCurrentShift({ event, setShow }) {
-  dispatch({ type: "skyportal/CURRENT_SHIFT", data: event });
+  dispatch(shiftActions.fetchShift(event?.id));
   dispatch({ type: "skyportal/CURRENT_SHIFT_SELECTED_USERS", data: [] });
   dispatch(
     shiftActions.getShiftsSummary({
@@ -179,17 +183,6 @@ function setCurrentShift({ event, setShow }) {
     })
   );
   setShow(false);
-}
-
-function Event({ event }) {
-  return (
-    <div id={`event_${event.id}`}>
-      <span>
-        <strong>{event.name}</strong>
-        <p>{event.group.name}</p>
-      </span>
-    </div>
-  );
 }
 
 function MyCalendar({ events, currentShift, setShow }) {
@@ -207,15 +200,31 @@ function MyCalendar({ events, currentShift, setShow }) {
       setSelectedGroups([groups[0]]);
     }
   }, [groups]);
+
   if (!showAllShifts) {
     events = events.filter((event) =>
-      event.shift_users.some((user) => user.id === currentUser.id)
+      (event.shift_users_ids || []).includes(currentUser.id)
     );
   }
   if (sortByGroups) {
     events = events.filter(
       (event) =>
-        selectedGroups.filter((group) => group.id === event.group.id).length > 0
+        selectedGroups.filter((group) => group.id === event.group_id)?.length >
+        0
+    );
+  }
+
+  function Event({ event }) {
+    // find the group in the groups array which id matches the event.group_id
+    const group_name =
+      groups.find((group) => group.id === event.group_id)?.name || "";
+    return (
+      <div id={`event_${event.id}`}>
+        <span>
+          <strong>{event.name}</strong>
+          <p>{group_name}</p>
+        </span>
+      </div>
     );
   }
 
@@ -236,16 +245,16 @@ function MyCalendar({ events, currentShift, setShow }) {
   };
 
   const shiftStatus = (event) => {
-    const currentUserInShift = event.shift_users
-      .map((user) => user.id)
-      .includes(currentUser.id);
+    const currentUserInShift = (event.shift_users_ids || []).includes(
+      currentUser.id
+    );
     const style = {
       background: blue,
     };
     if (event?.end_date < new Date()) {
       style.background = grey;
     } else if (
-      event?.shift_users?.length < event?.required_users_number &&
+      (event.shift_users_ids || []).length < event?.required_users_number &&
       event?.end_date > new Date()
     ) {
       // if the shift will happen in less than 72 hours but more than 24h is shows as orange, less than 24hours shows as red

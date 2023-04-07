@@ -26,11 +26,11 @@ function datestringToDate(shiftList) {
 // eslint-disable-next-line import/prefer-default-export
 export const fetchShifts = () => API.GET("/api/shifts", FETCH_SHIFTS);
 
-export function addShiftUser({ userID, admin, shift_id }) {
-  return API.POST(`/api/shifts/${shift_id}/users`, ADD_SHIFT_USER, {
+export function addShiftUser({ userID, admin, shiftID }) {
+  return API.POST(`/api/shifts/${shiftID}/users`, ADD_SHIFT_USER, {
     userID,
     admin,
-    shift_id,
+    shiftID,
   });
 }
 
@@ -38,18 +38,18 @@ export const updateShiftUser = ({
   userID,
   admin,
   needs_replacement,
-  shift_id,
+  shiftID,
 }) =>
-  API.PATCH(`/api/shifts/${shift_id}/users/${userID}`, UPDATE_SHIFT_USER, {
+  API.PATCH(`/api/shifts/${shiftID}/users/${userID}`, UPDATE_SHIFT_USER, {
     admin,
     needs_replacement,
   });
 
-export function deleteShiftUser({ userID, shift_id }) {
+export function deleteShiftUser({ userID, shiftID }) {
   return API.DELETE(
-    `/api/shifts/${shift_id}/users/${userID}`,
+    `/api/shifts/${shiftID}/users/${userID}`,
     DELETE_SHIFT_USER,
-    { userID, shift_id }
+    { userID, shiftID }
   );
 }
 

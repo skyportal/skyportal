@@ -450,8 +450,6 @@ const FollowupRequestLists = ({
           return r;
         }, []);
 
-        console.log(keys);
-
         keys.sort(keyOrder);
 
         return (

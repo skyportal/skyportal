@@ -35,7 +35,7 @@ const RegularCommentList = ({
   groups = [],
   spectrum_id = null,
   hoverID = null,
-  shift_id = null,
+  shiftID = null,
 }) => {
   const spectra = useSelector((state) => state.spectra);
 
@@ -100,7 +100,7 @@ const RegularCommentList = ({
               gcnEventID={gcnEventID}
               earthquakeID={earthquakeID}
               spectrum_id={spectrum_id}
-              shift_id={shift_id}
+              shiftID={shiftID}
               hoverID={hoverID}
               id={id}
             />
@@ -112,7 +112,7 @@ const RegularCommentList = ({
               gcnEventID={gcnEventID}
               earthquakeID={earthquakeID}
               spectrum_id={spectrum_id}
-              shift_id={shift_id}
+              shiftID={shiftID}
               hoverID={hoverID}
               id={id}
             />
@@ -152,7 +152,7 @@ const RegularCommentList = ({
           {attachment_name && associatedResourceType === "shift" && (
             <CommentAttachmentPreview
               filename={attachment_name}
-              shiftID={shift_id}
+              shiftID={shiftID}
               commentId={id}
               associatedResourceType="shift"
             />
@@ -185,7 +185,7 @@ RegularCommentList.propTypes = {
   groups: PropTypes.arrayOf(PropTypes.shape({})),
   spectrum_id: PropTypes.string,
   hoverID: PropTypes.number,
-  shift_id: PropTypes.number,
+  shiftID: PropTypes.number,
 };
 
 RegularCommentList.defaultProps = {
@@ -202,7 +202,7 @@ RegularCommentList.defaultProps = {
   groups: [],
   spectrum_id: null,
   hoverID: null,
-  shift_id: null,
+  shiftID: null,
 };
 
 export default RegularCommentList;

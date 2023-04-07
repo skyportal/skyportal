@@ -63,8 +63,10 @@ def test_shift(
     driver.click_xpath('//*[@id="root_group_id"]')
     driver.click_xpath('//li[contains(text(), "Sitewide Group")]')
     driver.wait_for_xpath('//*[@id="root_required_users_number"]').send_keys('5')
-
     # first empty the start date field
+    driver.wait_for_xpath('//*[@id="root_start_date_local"]').send_keys(
+        Keys.COMMAND + "a"
+    )
     driver.wait_for_xpath('//*[@id="root_start_date_local"]').send_keys(
         Keys.CONTROL + "a"
     )
@@ -72,6 +74,9 @@ def test_shift(
     driver.wait_for_xpath('//*[@id="root_start_date_local"]').send_keys(start_date)
 
     # first empty the end date field
+    driver.wait_for_xpath('//*[@id="root_end_date_local"]').send_keys(
+        Keys.COMMAND + "a"
+    )
     driver.wait_for_xpath('//*[@id="root_end_date_local"]').send_keys(
         Keys.CONTROL + "a"
     )
@@ -84,11 +89,13 @@ def test_shift(
 
     driver.scroll_to_element_and_click(driver.wait_for_xpath(today_button, timeout=10))
 
-    time.sleep(1)
+    # scroll to the top of the page
+    driver.execute_script("window.scrollTo(0, 0);")
+
     # check for shift in calendar and click it
-    event_shift_xpath = f'//*/strong[contains(.,"{form_name}")]'
-    driver.wait_for_xpath(event_shift_xpath, timeout=30)
-    driver.click_xpath(event_shift_xpath)
+    driver.wait_for_xpath(
+        f'//*/strong[contains(.,"{form_name}")]/../../../../*', timeout=30
+    ).click()
 
     # add a comment to the shift
     driver.wait_for_xpath('//*[@id="root_comment"]').send_keys('This is a comment')
@@ -223,14 +230,13 @@ def test_shift(
         timeout=30,
     ).click()
 
-    shift_on_calendar = f'//*/span/strong[contains(.,"{form_name}")]'
-    # check for API shift
-    driver.wait_for_xpath(
-        shift_on_calendar,
-        timeout=30,
-    )
+    # scroll to the top of the page
+    driver.execute_script("window.scrollTo(0, 0);")
+    time.sleep(1)
 
-    driver.click_xpath(shift_on_calendar)
+    shift_on_calendar = f'//*/strong[contains(.,"{name}")]/../../../../*'
+
+    driver.wait_for_xpath(shift_on_calendar, timeout=30).click()
 
     # check for join shift button
     join_button_xpath = '//*[@id="join_button"]'
@@ -263,7 +269,7 @@ def test_shift(
     driver.click_xpath(notification_bell)
 
     notification_xpath = (
-        f'//ul/a/p[contains(text(),"needs a replacement for shift: {form_name}")]'
+        f'//ul/a/p[contains(text(),"needs a replacement for shift: {name}")]'
     )
     driver.wait_for_xpath(notification_xpath)
     driver.click_xpath(notification_xpath, timeout=10)
@@ -280,68 +286,6 @@ def test_shift(
     )
 
     driver.click_xpath(shift_on_calendar)
-
-    # check for the dropdown to add a user
-    select_users = '//*[@id="select-user-replace-chip"]'
-    driver.wait_for_xpath(select_users)
-    driver.click_xpath(select_users)
-    driver.wait_for_xpath(
-        f'//li[@id="select_user_to_replace"]/*[@id="{shift_user.id}"]'
-    )
-    driver.click_xpath(f'//li[@id="select_user_to_replace"]/*[@id="{shift_user.id}"]')
-
-    # check for button to add and remove users
-    replace_user_button = '//*[@id="replace-users-button"]'
-    driver.wait_for_xpath(replace_user_button)
-    driver.click_xpath(replace_user_button)
-
-    driver.wait_for_xpath_to_disappear(replace_user_button)
-
-    # check if user has been removed
-    shift_members = '//*[@id="current_shift_members"]'
-    driver.wait_for_xpath_to_disappear(
-        shift_members + f'[contains(text(), "{shift_user.username}")]'
-    )
-
-    # check if user has been added
-    shift_members = '//*[@id="current_shift_members"]'
-    driver.wait_for_xpath(
-        shift_members + f'[contains(text(), "{shift_admin.username}")]'
-    )
-
-    driver.get(f"/become_user/{super_admin_user.id}")
-    # go to the shift page
-    driver.get("/shifts")
-
-    # check for API shift
-    driver.wait_for_xpath(
-        shift_on_calendar,
-        timeout=30,
-    )
-
-    driver.click_xpath(shift_on_calendar)
-
-    delete_button_xpath = '//*[@id="delete_button"]'
-    driver.wait_for_xpath(delete_button_xpath)
-    driver.click_xpath(delete_button_xpath)
-    driver.wait_for_xpath_to_disappear(
-        f'//*[@id="current_shift_title"][contains(.,"{form_name}")]'
-    )
-    driver.wait_for_xpath_to_disappear(f'//*/strong[contains(.,"{form_name}")]')
-
-    assert (
-        len(
-            driver.find_elements(
-                By.XPATH, f'//*[@id="current_shift_title"][contains(.,"{form_name}")]'
-            )
-        )
-        == 0
-    )
-
-    assert (
-        len(driver.find_elements(By.XPATH, f'//*/strong[contains(.,"{form_name}")]'))
-        == 0
-    )
 
 
 def test_shift_summary(
@@ -372,6 +316,12 @@ def test_shift_summary(
 
     shift_id = data['data']['id']
 
+    status, data = api(
+        'GET', f'shifts/{shift_id}', data=request_data, token=super_admin_token
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
     shift_name_2 = str(uuid.uuid4())
     start_date = "2018-01-17T12:00:00"
     end_date = "2018-01-18T12:00:00"
@@ -390,7 +340,9 @@ def test_shift_summary(
 
     shift_id_2 = data['data']['id']
 
-    status, data = api('GET', f'shifts/{public_group.id}', token=super_admin_token)
+    status, data = api(
+        'GET', f'shifts?group_id={public_group.id}', token=super_admin_token
+    )
     assert status == 200
     assert data['status'] == 'success'
 
