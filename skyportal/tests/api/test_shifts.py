@@ -54,10 +54,7 @@ def test_shift(public_group, super_admin_token, view_only_token, super_admin_use
 
     assert any(
         [
-            len(
-                [s for s in shift['shift_users'] if s['user_id'] == super_admin_user.id]
-            )
-            == 1
+            len([s for s in shift['shift_users_ids'] if s == super_admin_user.id]) == 1
             for shift in data['data']
         ]
     )

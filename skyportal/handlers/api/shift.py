@@ -199,7 +199,7 @@ class ShiftHandler(BaseHandler):
                             "id": shift.group.id,
                             "name": shift.group.name,
                             "has_admin_access": has_admin_access_for_group(
-                                self.current_user, shift.group.id, session
+                                self.associated_user_object, shift.group.id, session
                             ),
                             "group_users": [
                                 {
