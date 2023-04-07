@@ -37,7 +37,7 @@ const AddGcnTag = ({ gcnEvent }) => {
   useEffect(() => {
     setInvalid(
       // eslint-disable-next-line no-restricted-globals
-      gcnEvent.tags.includes(tag)
+      gcnEvent?.tags?.includes(tag)
     );
   }, [gcnEvent, setInvalid, tag]);
 
