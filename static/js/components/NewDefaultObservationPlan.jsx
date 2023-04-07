@@ -180,13 +180,6 @@ const NewDefaultObservationPlan = () => {
         dispatch(
           showNotification("Successfully created default observation plan")
         );
-      } else {
-        dispatch(
-          showNotification(
-            `Failed to create default observation plan: ${response.message}`,
-            "error"
-          )
-        );
       }
     });
   };
