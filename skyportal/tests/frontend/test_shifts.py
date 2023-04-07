@@ -92,7 +92,6 @@ def test_shift(
     # scroll to the top of the page
     driver.execute_script("window.scrollTo(0, 0);")
 
-    time.sleep(1)
     # check for shift in calendar and click it
     driver.wait_for_xpath(
         f'//*/strong[contains(.,"{form_name}")]/../../../../*', timeout=30
