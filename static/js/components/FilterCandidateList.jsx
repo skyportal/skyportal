@@ -31,6 +31,8 @@ import { allowedClasses } from "./ClassificationForm";
 import ClassificationSelect from "./ClassificationSelect";
 import Button from "./Button";
 
+import * as gcnEventsActions from "../ducks/gcnEvents";
+
 dayjs.extend(utc);
 
 const useStyles = makeStyles(() => ({
@@ -195,6 +197,33 @@ const FilterCandidateList = ({
     selectedScanningProfile?.sortingOrigin
   );
 
+  const gcnEvents = useSelector((state) => state.gcnEvents);
+
+  const gcnEventsLookUp = {};
+  // eslint-disable-next-line no-unused-expressions
+  gcnEvents?.events.forEach((gcnEvent) => {
+    gcnEventsLookUp[gcnEvent.id] = gcnEvent;
+  });
+
+  const gcnEventsSelect = gcnEvents
+    ? [
+        {
+          id: -1,
+          dateobs: "Clear Selection",
+        },
+        ...gcnEvents.events,
+      ]
+    : [];
+
+  const [selectedGcnEventId, setSelectedGcnEventId] = useState(null);
+
+  useEffect(() => {
+    if (gcnEvents?.length > 0 || !gcnEvents) {
+      dispatch(gcnEventsActions.fetchGcnEvents());
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const {
     handleSubmit,
     getValues,
@@ -205,6 +234,27 @@ const FilterCandidateList = ({
     startDate: defaultStartDate,
     endDate: defaultEndDate,
   });
+
+  useEffect(() => {
+    // set the default values for the firstDetectionAfter and lastDetectionBefore
+
+    let defaultFirstDetectionAfter = "";
+    let defaultLastDetectionBefore = "";
+    if (!(selectedGcnEventId === -1 || !selectedGcnEventId)) {
+      defaultFirstDetectionAfter = dayjs
+        .utc(gcnEventsLookUp[selectedGcnEventId]?.dateobs)
+        .format("YYYY-MM-DD HH:mm:ss");
+      defaultLastDetectionBefore = dayjs
+        .utc(gcnEventsLookUp[selectedGcnEventId]?.dateobs)
+        .add(7, "day")
+        .format("YYYY-MM-DD HH:mm:ss");
+    }
+    reset({
+      ...getValues(),
+      firstDetectionAfter: defaultFirstDetectionAfter,
+      lastDetectionBefore: defaultLastDetectionBefore,
+    });
+  }, [selectedGcnEventId]);
 
   useEffect(() => {
     const selectedGroupIDs = Array(userAccessibleGroups.length).fill(false);
@@ -309,6 +359,23 @@ const FilterCandidateList = ({
     }
     if (formData.redshiftMaximum) {
       data.maxRedshift = formData.redshiftMaximum;
+    }
+    if (formData.gcneventid !== "" || formData.localizationid !== "") {
+      // data.gcneventid = formData.gcneventid;
+      // data.localizationid = formData.localizationid;
+      data.localizationDateobs = gcnEventsLookUp[formData.gcneventid]?.dateobs;
+      data.localizationName = gcnEventsLookUp[
+        formData.gcneventid
+      ]?.localizations?.filter(
+        (l) => l.id === formData.localizationid
+      )[0]?.localization_name;
+      data.localizationCumprob = formData.localizationCumprob || 0.95;
+    }
+    if (formData.firstDetectionAfter) {
+      data.firstDetectionAfter = formData.firstDetectionAfter;
+    }
+    if (formData.lastDetectionBefore) {
+      data.lastDetectionBefore = formData.lastDetectionBefore;
     }
     if (formData.sortingOrigin) {
       data.sortByAnnotationOrigin = formData.sortingOrigin;
@@ -639,6 +706,132 @@ const FilterCandidateList = ({
               )}
             </Responsive>
           </div>
+          <div>
+            <Responsive
+              element={FoldBox}
+              title="GCN Sorting"
+              mobileProps={{ folded: true }}
+            >
+              <div className={classes.formRow}>
+                {/* gcn event filtering based on localization */}
+                <InputLabel id="gcn-event-filtering-label">
+                  GCN Event
+                </InputLabel>
+                <Controller
+                  render={({ field: { value } }) => (
+                    <Select
+                      inputProps={{ MenuProps: { disableScrollLock: true } }}
+                      labelId="gcnEventSelectLabel"
+                      value={value || ""}
+                      onChange={(event) => {
+                        reset({
+                          ...getValues(),
+                          gcneventid:
+                            event.target.value === -1 ? "" : event.target.value,
+                          localizationid:
+                            event.target.value === -1
+                              ? ""
+                              : gcnEventsLookUp[event.target.value]
+                                  ?.localizations[0]?.id || "",
+                        });
+                        setSelectedGcnEventId(event.target.value);
+                      }}
+                      className={classes.select}
+                    >
+                      {gcnEventsSelect?.map((gcnEvent) => (
+                        <MenuItem
+                          value={gcnEvent.id}
+                          key={gcnEvent.id}
+                          className={classes.selectItem}
+                        >
+                          {`${gcnEvent.dateobs}`}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  )}
+                  name="gcneventid"
+                  control={control}
+                  defaultValue=""
+                />
+                <Controller
+                  render={({ field: { onChange, value } }) => (
+                    <Select
+                      inputProps={{ MenuProps: { disableScrollLock: true } }}
+                      labelId="localizationSelectLabel"
+                      value={value || ""}
+                      onChange={(event) => {
+                        onChange(event.target.value);
+                      }}
+                      className={classes.select}
+                      disabled={!selectedGcnEventId}
+                    >
+                      {gcnEventsLookUp[selectedGcnEventId]?.localizations?.map(
+                        (localization) => (
+                          <MenuItem
+                            value={localization.id}
+                            key={localization.id}
+                            className={classes.selectItem}
+                          >
+                            {`${localization.localization_name}`}
+                          </MenuItem>
+                        )
+                      )}
+                    </Select>
+                  )}
+                  name="localizationid"
+                  control={control}
+                  defaultValue=""
+                />
+                <Controller
+                  render={({ field: { onChange, value } }) => (
+                    <TextField
+                      id="cumprob"
+                      label="Cumulative Probability"
+                      type="number"
+                      value={value}
+                      inputProps={{ step: 0.01, min: 0, max: 1 }}
+                      onChange={(event) => onChange(event.target.value)}
+                      defaultValue={0.95}
+                    />
+                  )}
+                  name="localizationCumprob"
+                  control={control}
+                />
+              </div>
+              {selectedGcnEventId && (
+                <div className={classes.formRow}>
+                  <Controller
+                    render={({ field: { onChange, value } }) => (
+                      <TextField
+                        type="text"
+                        value={value}
+                        onChange={(event) => onChange(event.target.value)}
+                        label="First Detection After (UTC)"
+                        defaultValue=""
+                      />
+                    )}
+                    name="firstDetectionAfter"
+                    control={control}
+                  />
+                  &nbsp;
+                  <Controller
+                    render={({ field: { onChange, value } }) => (
+                      <TextField
+                        type="text"
+                        value={value}
+                        onChange={(event) => onChange(event.target.value)}
+                        label="Last Detection Before (UTC)"
+                        defaultValue=""
+                      />
+                    )}
+                    name="lastDetectionBefore"
+                    control={control}
+                  />
+                </div>
+              )}
+            </Responsive>
+          </div>
+
           <div>
             <Responsive
               element={FoldBox}
