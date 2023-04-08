@@ -1393,7 +1393,10 @@ def add_tiles_and_properties_and_contour(localization_id, user_id, parent_sessio
 
         tiles = [
             LocalizationTile(
-                localization_id=localization_id, healpix=uniq, probdensity=probdensity
+                localization_id=localization_id,
+                healpix=uniq,
+                probdensity=probdensity,
+                dateobs=localization.dateobs,
             )
             for uniq, probdensity in zip(localization.uniq, localization.probdensity)
         ]

@@ -466,6 +466,19 @@ def generate_plan(
                 request.localization.flat,
             )
         )
+        # get the partition name for the localization tiles using the dateobs
+        # that way, we explicitely use the partition that contains the localization tiles we are interested in
+        # that should help not reach that "critical point" mentioned by @mcoughlin where the queries almost dont work anymore
+        # locally this takes anywhere between 0.08 and 0.5 seconds, but in production right now it takes 45 minutes...
+        # that is why we are considering to use a partitioned table for localization tiles
+        partition_key = requests[0].gcnevent.dateobs
+        # now get the dateobs in the format YYYY_MM
+        localizationtile_partition_name = (
+            f'{partition_key.year}_{partition_key.month:02d}'
+        )
+        localizationtilescls = LocalizationTile.partitions[
+            localizationtile_partition_name
+        ]
 
         params['is3D'] = request.localization.is_3d
 
@@ -475,15 +488,18 @@ def generate_plan(
         map_struct = gwemopt.utils.read_skymap(
             params, is3D=params["do3D"], map_struct=params['map_struct']
         )
+        start = time.time()
 
         cum_prob = (
-            sa.func.sum(LocalizationTile.probdensity * LocalizationTile.healpix.area)
-            .over(order_by=LocalizationTile.probdensity.desc())
+            sa.func.sum(
+                localizationtilescls.probdensity * localizationtilescls.healpix.area
+            )
+            .over(order_by=localizationtilescls.probdensity.desc())
             .label('cum_prob')
         )
         localizationtile_subquery = (
-            sa.select(LocalizationTile.probdensity, cum_prob).filter(
-                LocalizationTile.localization_id == request.localization.id
+            sa.select(localizationtilescls.probdensity, cum_prob).filter(
+                localizationtilescls.localization_id == request.localization.id
             )
         ).subquery()
 
@@ -498,13 +514,15 @@ def generate_plan(
         ).scalar_subquery()
 
         if params["tilesType"] == "galaxy":
-            galaxies_query = sa.select(Galaxy, LocalizationTile.probdensity).where(
-                LocalizationTile.localization_id == request.localization.id,
-                LocalizationTile.healpix.contains(Galaxy.healpix),
-                LocalizationTile.probdensity >= min_probdensity,
+            galaxies_query = sa.select(Galaxy, localizationtilescls.probdensity).where(
+                localizationtilescls.localization_id == request.localization.id,
+                localizationtilescls.healpix.contains(Galaxy.healpix),
+                localizationtilescls.probdensity >= min_probdensity,
                 Galaxy.catalog_name == params["galaxy_catalog"],
             )
+            log("galaxies query is done")
             galaxies, probs = zip(*session.execute(galaxies_query).all())
+            log("galaxies converted to list with zip")
 
             catalog_struct = {}
             catalog_struct["ra"] = np.array([g.ra for g in galaxies])
@@ -545,18 +563,20 @@ def generate_plan(
             catalog_struct["Smass"] = values * probs
 
         elif params["tilesType"] == "moc":
-
             field_ids = {}
             for request in requests:
                 field_tiles_query = sa.select(InstrumentField.field_id).where(
-                    LocalizationTile.localization_id == request.localization.id,
-                    LocalizationTile.probdensity >= min_probdensity,
+                    localizationtilescls.localization_id == request.localization.id,
+                    localizationtilescls.probdensity >= min_probdensity,
                     InstrumentFieldTile.instrument_id == request.instrument.id,
                     InstrumentFieldTile.instrument_field_id == InstrumentField.id,
-                    InstrumentFieldTile.healpix.overlaps(LocalizationTile.healpix),
+                    InstrumentFieldTile.healpix.overlaps(localizationtilescls.healpix),
                 )
                 field_tiles = session.scalars(field_tiles_query).unique().all()
                 field_ids[request.instrument.name] = field_tiles
+
+        end = time.time()
+        log(f"Queries took {end - start} seconds")
 
         log(f"Retrieving fields for ID(s): {','.join(observation_plan_id_strings)}")
 

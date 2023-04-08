@@ -5,26 +5,87 @@ __all__ = [
     'LocalizationTile',
 ]
 
-import sqlalchemy as sa
-from sqlalchemy.orm import relationship, deferred
-from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.ext.hybrid import hybrid_property
+import datetime
 
-from astropy.table import Table
+import arrow
 import dustmaps.sfd
-from dustmaps.config import config
-import numpy as np
-import ligo.skymap.postprocess
-import ligo.skymap.bayestar as ligo_bayestar
-import healpy
 import healpix_alchemy
+import healpy
+import ligo.skymap.bayestar as ligo_bayestar
+import ligo.skymap.postprocess
+import numpy as np
+import sqlalchemy as sa
+from astropy.table import Table
+from dateutil.relativedelta import relativedelta
+from dustmaps.config import config
+from sqlalchemy import event
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.ext.declarative import DeclarativeMeta
+from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.orm import deferred, relationship
+from sqlalchemy.sql.ddl import DDL
 
-from baselayer.app.models import Base, AccessibleIfUserMatches
 from baselayer.app.env import load_env
-
+from baselayer.app.models import AccessibleIfUserMatches, Base
 
 _, cfg = load_env()
 config['data_dir'] = cfg['misc.dustmap_folder']
+
+
+class PartitionByMeta(DeclarativeMeta):
+    def __new__(cls, clsname, bases, attrs, *, partition_by, partition_type):
+        @classmethod
+        def get_partition_name(cls_, suffix):
+            return f'{cls_.__tablename__}_{suffix}'
+
+        @classmethod
+        def create_partition(
+            cls_, suffix, partition_stmt, subpartition_by=None, subpartition_type=None
+        ):
+            if suffix not in cls_.partitions:
+
+                partition = PartitionByMeta(
+                    f'{clsname}{suffix}',
+                    bases,
+                    {'__tablename__': cls_.get_partition_name(suffix)},
+                    partition_type=subpartition_type,
+                    partition_by=subpartition_by,
+                )
+
+                partition.__table__.add_is_dependent_on(cls_.__table__)
+                event.listen(
+                    partition.__table__,
+                    'after_create',
+                    DDL(
+                        f"""
+                        ALTER TABLE {cls_.__tablename__}
+                        ATTACH PARTITION {partition.__tablename__}
+                        {partition_stmt};
+                        """
+                    ),
+                )
+
+                cls_.partitions[suffix] = partition
+
+            return cls_.partitions[suffix]
+
+        if partition_by is not None:
+            attrs.update(
+                {
+                    '__table_args__': attrs.get('__table_args__', ())
+                    + (
+                        dict(
+                            postgresql_partition_by=f'{partition_type.upper()}({partition_by})'
+                        ),
+                    ),
+                    'partitions': {},
+                    'partitioned_by': partition_by,
+                    'get_partition_name': get_partition_name,
+                    'create_partition': create_partition,
+                }
+            )
+
+        return super().__new__(cls, clsname, bases, attrs)
 
 
 class Localization(Base):
@@ -220,7 +281,7 @@ class Localization(Base):
         return center_info
 
 
-class LocalizationTile(Base):
+class LocalizationTileMixin:
     """This is a single tile within a skymap (as in the Localization table).
     Each tile has an associated healpix id and probability density."""
 
@@ -238,17 +299,49 @@ class LocalizationTile(Base):
         doc="Probability density for the tile",
     )
 
+    dateobs = sa.Column(
+        sa.DateTime,
+        nullable=False,
+        primary_key=True,
+        doc="Date of observation for the Localization to which this tile belongs",
+    )
+
     healpix = sa.Column(healpix_alchemy.Tile, primary_key=True, index=True)
 
 
-LocalizationTile.__table_args__ = (
-    sa.Index(
-        'localizationtile_id_healpix_index',
-        LocalizationTile.id,
-        LocalizationTile.healpix,
-        unique=True,
-    ),
-)
+class LocalizationTile(
+    LocalizationTileMixin,
+    Base,
+    metaclass=PartitionByMeta,
+    partition_by='dateobs',
+    partition_type='RANGE',
+):
+    __tablename__ = 'localizationtiles'
+    __table_args__ = (
+        sa.Index(
+            'localizationtile_id_healpix_dateobs_index',
+            'id',
+            'healpix',
+            'dateobs',
+            unique=True,
+        ),
+    )
+
+
+LocalizationTile.create_partition("def", partition_stmt="DEFAULT")
+
+# create partitions from 2017-01-01 to 2026-01-01, this could be speficied in the config
+# TODO: but we need alembic to not keep track if every partition, just the original partitioned table
+for year in range(2017, 2026):
+    for month in range(1, 13):
+        date = datetime.date(year, month, 1)
+        LocalizationTile.create_partition(
+            date.strftime("%Y_%m"),
+            partition_stmt="FOR VALUES FROM ('{}') TO ('{}')".format(
+                date.strftime("%Y-%m-%d"),
+                (date + relativedelta(months=1)).strftime("%Y-%m-%d"),
+            ),
+        )
 
 
 class LocalizationProperty(Base):
@@ -307,3 +400,23 @@ class LocalizationTag(Base):
     )
 
     text = sa.Column(sa.Unicode, nullable=False, index=True)
+
+
+# this doesnt work yet. It looks like the event is triggers, the code runs but the tables arent created/committed
+# using postgresql code outside of skyportal, it did work however.
+@event.listens_for(Localization, 'before_insert')
+def localizationtile_before_insert(mapper, connection, target):
+    partition_key = arrow.get(target.dateobs).datetime
+    partition_name = f'localizationtiles_{partition_key.year}_{partition_key.month}'
+    if partition_name not in LocalizationTile.partitions:
+        print(f"creating partition {partition_name}")
+        if partition_key.month == 12:
+            LocalizationTile.create_partition(
+                f"{partition_key.year}_{partition_key.month}",
+                partition_stmt=f"""FOR VALUES FROM ('{partition_key.year}-{partition_key.month}-01') TO ('{partition_key.year+1}-01-01')""",
+            )
+        else:
+            LocalizationTile.create_partition(
+                f"{partition_key.year}_{partition_key.month}",
+                partition_stmt=f"""FOR VALUES FROM ('{partition_key.year}-{partition_key.month}-01') TO ('{partition_key.year}-{partition_key.month+1}-01')""",
+            )
