@@ -209,11 +209,10 @@ def post_gcnevent_from_xml(
         session.commit()
 
     if post_skymap:
-        if True:
-            # try:
+        try:
             post_skymap_from_notice(dateobs, notice_id, user_id, session, asynchronous)
-        # except Exception:
-        #    pass
+        except Exception:
+            pass
 
     return dateobs, event_id, notice_id
 
