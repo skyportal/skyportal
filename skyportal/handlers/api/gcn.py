@@ -14,7 +14,7 @@ import ligo.skymap.io
 import ligo.skymap.postprocess
 import lxml
 import xmlschema
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urlsplit
 import tempfile
 from tornado.ioloop import IOLoop
 import arrow
@@ -209,10 +209,11 @@ def post_gcnevent_from_xml(
         session.commit()
 
     if post_skymap:
-        try:
+        if True:
+            # try:
             post_skymap_from_notice(dateobs, notice_id, user_id, session, asynchronous)
-        except Exception:
-            pass
+        # except Exception:
+        #    pass
 
     return dateobs, event_id, notice_id
 
@@ -231,9 +232,9 @@ def post_skymap_from_notice(dateobs, notice_id, user_id, session, asynchronous=T
     root = lxml.etree.fromstring(gcn_notice.content)
     notice_type = gcn.get_notice_type(root)
 
-    skymap = None
+    skymap, url = None, None
     try:
-        skymap = get_skymap(root, notice_type)
+        skymap, url = get_skymap(root, notice_type)
     except Exception as e:
         raise ValueError(f"Failed to get skymap from gcn notice {gcn_notice.id}: {e}")
 
@@ -255,6 +256,15 @@ def post_skymap_from_notice(dateobs, notice_id, user_id, session, asynchronous=T
         session.add(localization)
         session.commit()
         localization_id = localization.id
+
+        if url is not None:
+            r = requests.get(url, allow_redirects=True)
+            data_to_disk = r.content
+            urlpath = urlsplit(url).path
+            localization_name = os.path.basename(urlpath)
+            if data_to_disk is not None:
+                localization.save_data(localization_name, data_to_disk)
+                session.commit()
 
         log(f"Generating tiles/properties/contours for localization {localization.id}")
         if asynchronous:
@@ -2732,13 +2742,17 @@ class LocalizationDownloadHandler(BaseHandler):
 
                 output_format = 'fits'
                 with tempfile.NamedTemporaryFile(suffix='.fits') as fitsfile:
-                    ligo.skymap.io.write_sky_map(
-                        fitsfile.name, localization.table, moc=True
-                    )
-
-                    with open(fitsfile.name, mode='rb') as g:
-                        content = g.read()
-                    local_temp_files.append(fitsfile.name)
+                    localization_path = localization.get_localization_path()
+                    if localization_path is None:
+                        ligo.skymap.io.write_sky_map(
+                            fitsfile.name, localization.table, moc=True
+                        )
+                        with open(fitsfile.name, mode='rb') as g:
+                            content = g.read()
+                        local_temp_files.append(fitsfile.name)
+                    else:
+                        with open(localization_path, mode='rb') as g:
+                            content = g.read()
 
                 data = io.BytesIO(content)
                 filename = f"{localization.localization_name}.{output_format}"
