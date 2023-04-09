@@ -9,6 +9,7 @@ import sqlalchemy as sa
 from sqlalchemy.orm import relationship, deferred
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy import event
 
 from astropy.table import Table
 import dustmaps.sfd
@@ -21,11 +22,14 @@ import healpix_alchemy
 
 from baselayer.app.models import Base, AccessibleIfUserMatches
 from baselayer.app.env import load_env
+from baselayer.log import make_log
 
 from .files import save_file_data, delete_file_data
 
 _, cfg = load_env()
 config['data_dir'] = cfg['misc.dustmap_folder']
+
+log = make_log('models/localizations')
 
 
 class Localization(Base):
@@ -343,3 +347,9 @@ class LocalizationTag(Base):
     )
 
     text = sa.Column(sa.Unicode, nullable=False, index=True)
+
+
+@event.listens_for(Localization, 'after_delete')
+def delete_localization_data_from_disk(mapper, connection, target):
+    log(f'Deleting localization data for localization id={target.id}')
+    target.delete_data()
