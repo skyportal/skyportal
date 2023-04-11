@@ -298,6 +298,8 @@ const SourceDesktop = ({ source }) => {
     </Tooltip>
   );
 
+  console.log("source", source);
+
   return (
     <Grid container spacing={2} className={classes.source}>
       <Grid item xs={rightPaneVisible ? 7 : 12}>
@@ -350,7 +352,8 @@ const SourceDesktop = ({ source }) => {
               </div>
             ) : null}
             <UpdateSourceSummary source={source} />
-            {source.comments?.length > 1 ? (
+            {source.comments?.length > 0 ||
+            source.classifications?.length > 0 ? (
               <StartBotSummary obj_id={source.id} />
             ) : null}
             {source.summary_history?.length > 0 ? (
