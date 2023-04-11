@@ -699,7 +699,6 @@ const SourceTable = ({
   const [queryInProgress, setQueryInProgress] = useState(false);
 
   const gcnEvent = useSelector((state) => state.gcnEvent);
-  const localization = useSelector((state) => state.localization);
 
   const sourcesingcn = useSelector((state) => state.sourcesingcn.sourcesingcn);
 
@@ -709,7 +708,7 @@ const SourceTable = ({
       if (includeGcnStatus) {
         dispatch(
           sourcesingcnActions.fetchSourcesInGcn(gcnEvent.dateobs, {
-            localizationName: localization.localization_name,
+            localizationName: sourceInGcnFilter?.localizationName,
             sourcesIdList: sources.map((s) => s.id),
           })
         );
@@ -1277,7 +1276,7 @@ const SourceTable = ({
         {statusIcon}
         <ConfirmSourceInGCN
           dateobs={gcnEvent.dateobs}
-          localization_name={localization.localization_name}
+          localization_name={sourceInGcnFilter.localizationName}
           localization_cumprob={sourceInGcnFilter.localizationCumprob}
           source_id={source.id}
           start_date={sourceInGcnFilter.startDate}
@@ -1957,6 +1956,7 @@ SourceTable.propTypes = {
   sourceInGcnFilter: PropTypes.shape({
     startDate: PropTypes.string,
     endDate: PropTypes.string,
+    localizationName: PropTypes.string,
     localizationCumprob: PropTypes.number,
   }),
 };

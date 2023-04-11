@@ -354,6 +354,7 @@ const GcnSelectionForm = ({
   const [sourceFilteringState, setSourceFilteringState] = useState({
     startDate: null,
     endDate: null,
+    localizationName: null,
     localizationCumprob: null,
   });
 
