@@ -140,7 +140,12 @@ const GcnEventAllocationTriggers = ({
       triggers.find(
         (trigger) => trigger.allocation_id === parseInt(allocation_id, 10)
       ) || null;
-
+    if (instruments_triggered[allocationLookUp[allocation_id]] === undefined) {
+      instruments_triggered[allocationLookUp[allocation_id]] = {
+        triggered: "not_set",
+        allocation_triggered: [],
+      };
+    }
     if (
       t?.triggered === true &&
       instruments_triggered[allocationLookUp[allocation_id]]?.triggered ===

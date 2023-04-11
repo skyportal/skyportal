@@ -154,6 +154,30 @@ def get_tags(root):
         yield from instruments
 
 
+def get_notice_aliases(root, notice_type):
+    aliases = []
+    try:
+        # we try to find aliases in the notice itself, which the user can update on the frontend by fetching data from TACH
+        if notice_type in [
+            gcn.NoticeType.FERMI_GBM_FIN_POS,
+            gcn.NoticeType.FERMI_GBM_FLT_POS,
+            gcn.NoticeType.FERMI_GBM_GND_POS,
+        ]:
+            url = root.find("./What/Param[@name='LightCurve_URL']").attrib['value']
+            alias = url.split('/triggers/')[1].split('/')[1].split('/')[0]
+            aliases.append(f"FERMI#{alias}")
+
+        # we try the LVC convention
+        graceid = root.find("./What/Param[@name='GraceID']")
+        if graceid is not None:
+            aliases.append(f"LVC#{graceid.attrib['value']}")
+    except Exception as e:
+        print(f"Could not find aliases in notice: {str(e)}")
+        pass
+
+    return aliases
+
+
 def get_skymap_url(root, notice_type, timeout=10):
     url = None
     available = False
