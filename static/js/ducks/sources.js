@@ -45,6 +45,7 @@ const addFilterParamDefaults = (filterParams) => {
   filterParams.includePhotometryExists = true;
   filterParams.includePeriodExists = true;
   filterParams.includeSpectrumExists = true;
+  filterParams.includeCommentExists = true;
   filterParams.includeColorMagnitude = true;
   filterParams.includeThumbnails = true;
   filterParams.includeDetectionStats = true;

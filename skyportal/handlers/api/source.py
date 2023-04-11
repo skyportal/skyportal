@@ -118,6 +118,7 @@ async def get_source(
     include_photometry=False,
     include_photometry_exists=False,
     include_spectrum_exists=False,
+    include_comment_exists=False,
     include_period_exists=False,
     include_detection_stats=False,
     include_labellers=False,
@@ -350,6 +351,13 @@ async def get_source(
             ).first()
             is not None
         )
+    if include_comment_exists:
+        source_info["comment_exists"] = (
+            session.scalars(
+                Comment.select(user).where(Comment.obj_id == obj_id)
+            ).first()
+            is not None
+        )
     source_query = Source.select(user).where(Source.obj_id == source_info["id"])
     source_query = apply_active_or_requested_filtering(
         source_query, include_requested, requested_only
@@ -412,6 +420,7 @@ async def get_sources(
     include_comments=False,
     include_photometry_exists=False,
     include_spectrum_exists=False,
+    include_comment_exists=False,
     include_period_exists=False,
     include_detection_stats=False,
     include_labellers=False,
@@ -1381,6 +1390,13 @@ async def get_sources(
                 count_stmt = sa.select(func.count()).select_from(stmt.distinct())
                 total_spectrum = session.execute(count_stmt).scalar()
                 obj_list[-1]["spectrum_exists"] = total_spectrum > 0
+            if include_spectrum_exists:
+                stmt = Comment.select(session.user_or_token).where(
+                    Comment.obj_id == obj.id
+                )
+                count_stmt = sa.select(func.count()).select_from(stmt.distinct())
+                total_comment = session.execute(count_stmt).scalar()
+                obj_list[-1]["comment_exists"] = total_comment > 0
             if include_period_exists:
                 annotations = (
                     session.scalars(
@@ -1762,6 +1778,13 @@ class SourceHandler(BaseHandler):
               description: |
                 Boolean indicating whether to return if a source has a spectra. Defaults to false.
             - in: query
+              name: includeCommentExists
+              nullable: true
+              schema:
+                type: boolean
+              description: |
+                Boolean indicating whether to return if a source has a comment. Defaults to false.
+            - in: query
               name: includePeriodExists
               nullable: true
               schema:
@@ -2045,6 +2068,13 @@ class SourceHandler(BaseHandler):
               type: boolean
             description: |
               Boolean indicating whether to return list of users who have labelled this source. Defaults to false.
+          - in: query
+            name: includeCommentExists
+            nullable: true
+            schema:
+              type: boolean
+            description: |
+              Boolean indicating whether to return if a source has a comment. Defaults to false.
           - in: query
             name: removeNested
             nullable: true
@@ -2359,6 +2389,7 @@ class SourceHandler(BaseHandler):
         include_spectrum_exists = self.get_query_argument(
             "includeSpectrumExists", False
         )
+        include_comment_exists = self.get_query_argument("includeCommentExists", False)
         include_period_exists = self.get_query_argument("includePeriodExists", False)
         include_labellers = self.get_query_argument("includeLabellers", False)
         remove_nested = self.get_query_argument("removeNested", False)
@@ -2525,6 +2556,7 @@ class SourceHandler(BaseHandler):
                         include_photometry=include_photometry,
                         include_photometry_exists=include_photometry_exists,
                         include_spectrum_exists=include_spectrum_exists,
+                        include_comment_exists=include_comment_exists,
                         include_period_exists=include_period_exists,
                         include_detection_stats=include_detection_stats,
                         include_labellers=include_labellers,
@@ -2555,6 +2587,7 @@ class SourceHandler(BaseHandler):
                     include_comments=include_comments,
                     include_photometry_exists=include_photometry_exists,
                     include_spectrum_exists=include_spectrum_exists,
+                    include_comment_exists=include_comment_exists,
                     include_period_exists=include_period_exists,
                     include_detection_stats=include_detection_stats,
                     include_labellers=include_labellers,

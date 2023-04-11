@@ -45,10 +45,14 @@ import Button from "./Button";
 import { ra_to_hours, dec_to_dms, mjd_to_utc } from "../units";
 import ThumbnailList from "./ThumbnailList";
 import ShowClassification from "./ShowClassification";
+import ShowSummaries from "./ShowSummaries";
+import ShowSummaryHistory from "./ShowSummaryHistory";
 import SourceTableFilterForm from "./SourceTableFilterForm";
+import StartBotSummary from "./StartBotSummary";
 import VegaPhotometry from "./VegaPhotometry";
 import FavoritesButton from "./FavoritesButton";
 import MultipleClassificationsForm from "./MultipleClassificationsForm";
+import UpdateSourceSummary from "./UpdateSourceSummary";
 import * as sourceActions from "../ducks/source";
 import * as sourcesActions from "../ducks/sources";
 import * as sourcesingcnActions from "../ducks/confirmedsourcesingcn";
@@ -958,6 +962,26 @@ const SourceTable = ({
                 groupId={groupID}
                 currentClassifications={source.classifications}
               />
+            </Grid>
+            <Grid item xs={12}>
+              <ShowSummaries summaries={source.summary_history} />
+              {source.summary_history?.length < 1 ||
+              !source.summary_history ||
+              source.summary_history[0].summary === null ? ( // eslint-disable-line
+                <div>
+                  <b>Summarize: &nbsp;</b>
+                </div>
+              ) : null}
+              <UpdateSourceSummary source={source} />
+              {source.comment_exists || source.classifications?.length > 0 ? (
+                <StartBotSummary obj_id={source.id} />
+              ) : null}
+              {source.summary_history?.length > 0 ? (
+                <ShowSummaryHistory
+                  summaries={source.summary_history}
+                  obj_id={source.id}
+                />
+              ) : null}
             </Grid>
             {favoritesRemoveButton ? (
               <div>
