@@ -47,7 +47,7 @@ from ligo.skymap import plot  # noqa: F401 F811
 import afterglowpy
 import sncosmo
 
-from baselayer.app.access import auth_or_token
+from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.log import make_log
@@ -354,7 +354,7 @@ def post_observation_plans(plans, user_id, session, asynchronous=True):
     for observation_plan_request in observation_plan_requests:
         flow.push(
             '*',
-            "skyportal/REFRESH_GCN_EVENT",
+            "skyportal/REFRESH_GCNEVENT_OBSERVATION_PLAN_REQUESTS",
             payload={"gcnEvent_dateobs": observation_plan_request.gcnevent.dateobs},
         )
 
@@ -435,7 +435,7 @@ def post_observation_plan(plan, user_id, session, asynchronous=True):
 
     flow.push(
         '*',
-        "skyportal/REFRESH_GCN_EVENT",
+        "skyportal/REFRESH_GCNEVENT_OBSERVATION_PLAN_REQUESTS",
         payload={"gcnEvent_dateobs": dateobs},
     )
 
@@ -449,7 +449,7 @@ def post_observation_plan(plan, user_id, session, asynchronous=True):
 
     flow.push(
         '*',
-        "skyportal/REFRESH_GCN_EVENT",
+        "skyportal/REFRESH_GCNEVENT_OBSERVATION_PLAN_REQUESTS",
         payload={"gcnEvent_dateobs": observation_plan_request.gcnevent.dateobs},
     )
 
@@ -457,7 +457,7 @@ def post_observation_plan(plan, user_id, session, asynchronous=True):
 
 
 class ObservationPlanRequestHandler(BaseHandler):
-    @auth_or_token
+    @permissions(['Manage observation plans'])
     def post(self):
         """
         ---
@@ -608,7 +608,7 @@ class ObservationPlanRequestHandler(BaseHandler):
             )
             return self.success(data=observation_plan_requests)
 
-    @auth_or_token
+    @permissions(['Manage observation plans'])
     def delete(self, observation_plan_request_id):
         """
         ---
@@ -652,7 +652,7 @@ class ObservationPlanRequestHandler(BaseHandler):
             session.commit()
 
             self.push_all(
-                action="skyportal/REFRESH_GCN_EVENT",
+                action="skyportal/REFRESH_GCNEVENT_OBSERVATION_PLAN_REQUESTS",
                 payload={"gcnEvent_dateobs": dateobs},
             )
 
@@ -660,7 +660,7 @@ class ObservationPlanRequestHandler(BaseHandler):
 
 
 class ObservationPlanManualRequestHandler(BaseHandler):
-    @auth_or_token
+    @permissions(['Manage observation plans'])
     def post(self):
         """
         ---
@@ -777,7 +777,7 @@ class ObservationPlanManualRequestHandler(BaseHandler):
 
 
 class ObservationPlanSubmitHandler(BaseHandler):
-    @auth_or_token
+    @permissions(['Manage observation plans'])
     def post(self, observation_plan_request_id):
         """
         ---
@@ -844,7 +844,7 @@ class ObservationPlanSubmitHandler(BaseHandler):
                 pass  # this is not a critical error, we can continue
 
             self.push_all(
-                action="skyportal/REFRESH_GCN_EVENT",
+                action="skyportal/REFRESH_GCNEVENT_OBSERVATION_PLAN_REQUESTS",
                 payload={"gcnEvent_dateobs": observation_plan_request.gcnevent.dateobs},
             )
 
@@ -852,7 +852,7 @@ class ObservationPlanSubmitHandler(BaseHandler):
 
             return self.success(data=observation_plan_request)
 
-    @auth_or_token
+    @permissions(['Manage observation plans'])
     def delete(self, observation_plan_request_id):
         """
         ---
@@ -899,7 +899,7 @@ class ObservationPlanSubmitHandler(BaseHandler):
             finally:
                 session.commit()
             self.push_all(
-                action="skyportal/REFRESH_GCN_EVENT",
+                action="skyportal/REFRESH_GCNEVENT_OBSERVATION_PLAN_REQUESTST",
                 payload={"gcnEvent_dateobs": observation_plan_request.gcnevent.dateobs},
             )
 
@@ -1228,7 +1228,7 @@ class ObservationPlanMovieHandler(BaseHandler):
 
 
 class ObservationPlanTreasureMapHandler(BaseHandler):
-    @auth_or_token
+    @permissions(['Manage observation plans'])
     def post(self, observation_plan_request_id):
         """
         ---
@@ -1327,7 +1327,7 @@ class ObservationPlanTreasureMapHandler(BaseHandler):
             self.push_notification('TreasureMap upload succeeded')
             return self.success()
 
-    @auth_or_token
+    @permissions(['Manage observation plans'])
     def delete(self, observation_plan_request_id):
         """
         ---
@@ -1526,7 +1526,7 @@ class ObservationPlanGeoJSONHandler(BaseHandler):
 
 
 class ObservationPlanFieldsHandler(BaseHandler):
-    @auth_or_token
+    @permissions(['Manage observation plans'])
     def delete(self, observation_plan_request_id):
         """
         ---
@@ -1597,7 +1597,7 @@ class ObservationPlanFieldsHandler(BaseHandler):
                 session.commit()
 
             self.push_all(
-                action="skyportal/REFRESH_GCN_EVENT",
+                action="skyportal/REFRESH_GCNEVENT_OBSERVATION_PLAN_REQUESTS",
                 payload={"gcnEvent_dateobs": dateobs},
             )
 
@@ -1946,7 +1946,7 @@ class ObservationPlanAirmassChartHandler(BaseHandler):
 
 
 class ObservationPlanCreateObservingRunHandler(BaseHandler):
-    @auth_or_token
+    @permissions(['Manage observation plans'])
     def post(self, observation_plan_request_id):
         """
         ---
@@ -2760,7 +2760,7 @@ class ObservationPlanSimSurveyPlotHandler(BaseHandler):
 
 
 class DefaultObservationPlanRequestHandler(BaseHandler):
-    @auth_or_token
+    @permissions(['Manage observation plans'])
     def post(self):
         """
         ---
@@ -2940,7 +2940,7 @@ class DefaultObservationPlanRequestHandler(BaseHandler):
 
             return self.success(data=default_observation_plan_data)
 
-    @auth_or_token
+    @permissions(['Manage observation plans'])
     def delete(self, default_observation_plan_id):
         """
         ---

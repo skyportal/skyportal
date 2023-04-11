@@ -57,9 +57,6 @@ const useStyles = makeStyles((theme) => ({
     "& > .MuiPaper-root": {
       width: "100%",
       height: "100%",
-      [theme.breakpoints.up("md")]: {
-        width: "50%",
-      },
     },
   },
   sidePanelContent: {
@@ -524,196 +521,199 @@ const GcnEventPage = ({ route }) => {
             </IconButton>
           </DialogTitle>
           <div className={styles.sidePanelContent}>
-            {/* event properties */}
-            <div className={styles.columnItem}>
-              <Accordion defaultExpanded>
-                <AccordionSummary
-                  expandIcon={<ExpandMoreIcon />}
-                  aria-controls="gcnEvent-content"
-                  id="info-header"
-                >
-                  <Typography className={styles.accordionHeading}>
-                    Event Properties
-                  </Typography>
-                </AccordionSummary>
-                <AccordionDetails>
-                  <GcnProperties properties={gcnEvent.properties} />
-                </AccordionDetails>
-              </Accordion>
-            </div>
-            {/* localization properties */}
-            <div className={styles.columnItem}>
-              <Accordion defaultExpanded>
-                <AccordionSummary
-                  expandIcon={<ExpandMoreIcon />}
-                  aria-controls="gcnEvent-content"
-                  id="info-header"
-                >
-                  <Typography className={styles.accordionHeading}>
-                    Localization Properties
-                  </Typography>
-                </AccordionSummary>
-                <AccordionDetails>
-                  <GcnLocalizationsTable
-                    localizations={gcnEvent.localizations}
-                  />
-                </AccordionDetails>
-              </Accordion>
-            </div>
-            <div className={styles.columnItem}>
-              <Accordion defaultExpanded>
-                <AccordionSummary
-                  expandIcon={<ExpandMoreIcon />}
-                  aria-controls="gcnEvent-content"
-                  id="lightcurve-header"
-                >
-                  <Typography className={styles.accordionHeading}>
-                    Light curve
-                  </Typography>
-                </AccordionSummary>
-                <AccordionDetails>
-                  <div className={styles.gcnEventContainer}>
-                    {route?.dateobs === gcnEvent?.dateobs && route?.dateobs ? (
-                      <>
-                        {gcnEvent?.lightcurve && (
-                          <div>
-                            <img src={gcnEvent.lightcurve} alt="loading..." />
-                          </div>
-                        )}
-                      </>
-                    ) : (
-                      <p> Fetching event... </p>
-                    )}
-                  </div>
-                </AccordionDetails>
-              </Accordion>
-            </div>
-            <div className={styles.columnItem}>
-              <Accordion defaultExpanded>
-                <AccordionSummary
-                  expandIcon={<ExpandMoreIcon />}
-                  aria-controls="gcnEvent-content"
-                  id="gcnnotices-header"
-                >
-                  <Typography className={styles.accordionHeading}>
-                    GCN Notices
-                  </Typography>
-                </AccordionSummary>
-                <AccordionDetails>
-                  <div className={styles.gcnEventContainer}>
-                    {gcnEvent.gcn_notices?.map((gcn_notice) => (
-                      <li
-                        key={gcn_notice.ivorn}
-                        className={styles.noticeListElement}
-                      >
-                        <div className={styles.noticeListElementHeader}>
-                          <Chip
-                            size="small"
-                            label={gcn_notice.ivorn}
-                            key={gcn_notice.ivorn}
-                            className={styles.noticeListElementIVORN}
-                          />
-                          <DownloadXMLButton gcn_notice={gcn_notice} />
-                        </div>
-                        {gcn_notice?.has_localization &&
-                          gcn_notice?.localization_ingested === false && (
-                            <Button
-                              secondary
-                              onClick={() => {
-                                dispatch(
-                                  showNotification(
-                                    `Starting ingestion attempt for localization from notice ${gcn_notice.id}. Please wait...`,
-                                    "warning"
-                                  )
-                                );
-                                dispatch(
-                                  postLocalizationFromNotice({
-                                    dateobs: gcn_notice.dateobs,
-                                    noticeID: gcn_notice.id,
-                                  })
-                                ).then((response) => {
-                                  if (response.status === "success") {
-                                    dispatch(
-                                      showNotification(
-                                        `Localization successfully ingested from notice ${gcn_notice.id}. Please wait for the contour to be generated. Default observation plans will be created shortly.`
-                                      )
-                                    );
-                                  } else {
-                                    dispatch(
-                                      showNotification(
-                                        `Error ingesting localization from notice ${gcn_notice.id}. It might not be available yet.`,
-                                        "error"
-                                      )
-                                    );
-                                  }
-                                });
-                              }}
-                              data-testid="ingest-localization-from-notice"
-                            >
-                              Ingest Localization
-                            </Button>
+            <Grid container spacing={2}>
+              {/* event properties */}
+              <Grid item xs={12}>
+                <Accordion defaultExpanded>
+                  <AccordionSummary
+                    expandIcon={<ExpandMoreIcon />}
+                    aria-controls="gcnEvent-content"
+                    id="info-header"
+                  >
+                    <Typography className={styles.accordionHeading}>
+                      Event Properties
+                    </Typography>
+                  </AccordionSummary>
+                  <AccordionDetails>
+                    <GcnProperties properties={gcnEvent.properties} />
+                  </AccordionDetails>
+                </Accordion>
+              </Grid>
+              {/* localization properties */}
+              <Grid item xs={12}>
+                <Accordion defaultExpanded>
+                  <AccordionSummary
+                    expandIcon={<ExpandMoreIcon />}
+                    aria-controls="gcnEvent-content"
+                    id="info-header"
+                  >
+                    <Typography className={styles.accordionHeading}>
+                      Localization Properties
+                    </Typography>
+                  </AccordionSummary>
+                  <AccordionDetails>
+                    <GcnLocalizationsTable
+                      localizations={gcnEvent.localizations}
+                    />
+                  </AccordionDetails>
+                </Accordion>
+              </Grid>
+              <Grid item sm={12} lg={6}>
+                <Accordion defaultExpanded>
+                  <AccordionSummary
+                    expandIcon={<ExpandMoreIcon />}
+                    aria-controls="gcnEvent-content"
+                    id="lightcurve-header"
+                  >
+                    <Typography className={styles.accordionHeading}>
+                      Light curve
+                    </Typography>
+                  </AccordionSummary>
+                  <AccordionDetails>
+                    <div className={styles.gcnEventContainer}>
+                      {route?.dateobs === gcnEvent?.dateobs &&
+                      route?.dateobs ? (
+                        <>
+                          {gcnEvent?.lightcurve && (
+                            <div>
+                              <img src={gcnEvent.lightcurve} alt="loading..." />
+                            </div>
                           )}
-                        <div className={styles.noticeListDivider} />
-                      </li>
-                    ))}
-                  </div>
-                </AccordionDetails>
-              </Accordion>
-            </div>
-            <div className={styles.columnItem}>
-              <Accordion defaultExpanded>
-                <AccordionSummary
-                  expandIcon={<ExpandMoreIcon />}
-                  aria-controls="gcnEvent-content"
-                  id="gcnnotices-header"
-                >
-                  <Typography className={styles.accordionHeading}>
-                    GCN Aliases
-                  </Typography>
-                </AccordionSummary>
-                <AccordionDetails>
-                  <div className={styles.gcnEventContainer}>
-                    <GcnAliases gcnEvent={gcnEvent} />
-                  </div>
-                  {permission && (
-                    <Button
-                      secondary
-                      onClick={() => handleUpdateAliasesCirculars()}
-                      data-testid="update-aliases"
-                    >
-                      Update
-                    </Button>
-                  )}
-                </AccordionDetails>
-              </Accordion>
-            </div>
-            <div className={styles.columnItem}>
-              <Accordion defaultExpanded>
-                <AccordionSummary
-                  expandIcon={<ExpandMoreIcon />}
-                  aria-controls="gcnEvent-content"
-                  id="gcncirculars-header"
-                >
-                  <Typography className={styles.accordionHeading}>
-                    GCN Circulars
-                  </Typography>
-                </AccordionSummary>
-                <AccordionDetails>
-                  <div className={styles.gcnEventContainer}>
-                    <GcnCirculars gcnEvent={gcnEvent} />
-                  </div>
-                  {permission && (
-                    <Button
-                      secondary
-                      onClick={() => handleUpdateAliasesCirculars()}
-                      data-testid="update-circulars"
-                    >
-                      Update
-                    </Button>
-                  )}
-                </AccordionDetails>
-              </Accordion>
-            </div>
+                        </>
+                      ) : (
+                        <p> Fetching event... </p>
+                      )}
+                    </div>
+                  </AccordionDetails>
+                </Accordion>
+              </Grid>
+              <Grid item sm={12} lg={6}>
+                <Accordion defaultExpanded>
+                  <AccordionSummary
+                    expandIcon={<ExpandMoreIcon />}
+                    aria-controls="gcnEvent-content"
+                    id="gcnnotices-header"
+                  >
+                    <Typography className={styles.accordionHeading}>
+                      GCN Notices
+                    </Typography>
+                  </AccordionSummary>
+                  <AccordionDetails>
+                    <div className={styles.gcnEventContainer}>
+                      {gcnEvent.gcn_notices?.map((gcn_notice) => (
+                        <li
+                          key={gcn_notice.ivorn}
+                          className={styles.noticeListElement}
+                        >
+                          <div className={styles.noticeListElementHeader}>
+                            <Chip
+                              size="small"
+                              label={gcn_notice.ivorn}
+                              key={gcn_notice.ivorn}
+                              className={styles.noticeListElementIVORN}
+                            />
+                            <DownloadXMLButton gcn_notice={gcn_notice} />
+                          </div>
+                          {gcn_notice?.has_localization &&
+                            gcn_notice?.localization_ingested === false && (
+                              <Button
+                                secondary
+                                onClick={() => {
+                                  dispatch(
+                                    showNotification(
+                                      `Starting ingestion attempt for localization from notice ${gcn_notice.id}. Please wait...`,
+                                      "warning"
+                                    )
+                                  );
+                                  dispatch(
+                                    postLocalizationFromNotice({
+                                      dateobs: gcn_notice.dateobs,
+                                      noticeID: gcn_notice.id,
+                                    })
+                                  ).then((response) => {
+                                    if (response.status === "success") {
+                                      dispatch(
+                                        showNotification(
+                                          `Localization successfully ingested from notice ${gcn_notice.id}. Please wait for the contour to be generated. Default observation plans will be created shortly.`
+                                        )
+                                      );
+                                    } else {
+                                      dispatch(
+                                        showNotification(
+                                          `Error ingesting localization from notice ${gcn_notice.id}. It might not be available yet.`,
+                                          "error"
+                                        )
+                                      );
+                                    }
+                                  });
+                                }}
+                                data-testid="ingest-localization-from-notice"
+                              >
+                                Ingest Localization
+                              </Button>
+                            )}
+                          <div className={styles.noticeListDivider} />
+                        </li>
+                      ))}
+                    </div>
+                  </AccordionDetails>
+                </Accordion>
+              </Grid>
+              <Grid item sm={12} lg={6}>
+                <Accordion defaultExpanded>
+                  <AccordionSummary
+                    expandIcon={<ExpandMoreIcon />}
+                    aria-controls="gcnEvent-content"
+                    id="gcnnotices-header"
+                  >
+                    <Typography className={styles.accordionHeading}>
+                      GCN Aliases
+                    </Typography>
+                  </AccordionSummary>
+                  <AccordionDetails>
+                    <div className={styles.gcnEventContainer}>
+                      <GcnAliases gcnEvent={gcnEvent} />
+                    </div>
+                    {permission && (
+                      <Button
+                        secondary
+                        onClick={() => handleUpdateAliasesCirculars()}
+                        data-testid="update-aliases"
+                      >
+                        Update
+                      </Button>
+                    )}
+                  </AccordionDetails>
+                </Accordion>
+              </Grid>
+              <Grid item sm={12} lg={6}>
+                <Accordion defaultExpanded>
+                  <AccordionSummary
+                    expandIcon={<ExpandMoreIcon />}
+                    aria-controls="gcnEvent-content"
+                    id="gcncirculars-header"
+                  >
+                    <Typography className={styles.accordionHeading}>
+                      GCN Circulars
+                    </Typography>
+                  </AccordionSummary>
+                  <AccordionDetails>
+                    <div className={styles.gcnEventContainer}>
+                      <GcnCirculars gcnEvent={gcnEvent} />
+                    </div>
+                    {permission && (
+                      <Button
+                        secondary
+                        onClick={() => handleUpdateAliasesCirculars()}
+                        data-testid="update-circulars"
+                      >
+                        Update
+                      </Button>
+                    )}
+                  </AccordionDetails>
+                </Accordion>
+              </Grid>
+            </Grid>
           </div>
         </Drawer>
       </React.Fragment>

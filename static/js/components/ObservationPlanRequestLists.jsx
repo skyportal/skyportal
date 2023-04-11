@@ -274,8 +274,7 @@ const ObservationPlanRequestLists = ({ dateobs }) => {
 
   const gcnEvent = useSelector((state) => state.gcnEvent);
 
-  const [observationPlanRequestList, setObservationPlanRequestList] =
-    useState(null);
+  const observationPlanRequestList = gcnEvent?.observation_plans || [];
 
   const [
     observationPlanRequestFetchedForLocalization,
@@ -293,14 +292,7 @@ const ObservationPlanRequestLists = ({ dateobs }) => {
     ) {
       const fetchObservationPlanRequestList = async () => {
         setObservationPlanRequestFetchedForLocalization(selectedLocalizationId);
-        dispatch(
-          GET(
-            `/api/gcn_event/${gcnEvent.id}/observation_plan_requests`,
-            "skyportal/FETCH_GCNEVENT_OBSERVATION_PLAN_REQUESTS"
-          )
-        ).then((response) => {
-          setObservationPlanRequestList(response.data);
-        });
+        dispatch(Actions.fetchObservationPlanRequests(gcnEvent.id));
       };
       fetchObservationPlanRequestList();
     }

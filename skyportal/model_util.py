@@ -18,6 +18,7 @@ all_acl_ids = [
     'Manage telescopes',
     'Manage Analysis Services',
     'Manage Recurring APIs',
+    'Manage observation plans',
     'Manage GCNs',
     'Upload data',
     'Run Analyses',

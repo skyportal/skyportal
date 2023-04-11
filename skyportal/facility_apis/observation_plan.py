@@ -30,6 +30,8 @@ env, cfg = load_env()
 
 default_filters = cfg['app.observation_plan.default_filters']
 
+use_skyportal_fields = cfg['app.observation_plan.use_skyportal_fields']
+
 
 def combine_healpix_tuples(input_tiles):
     """
@@ -547,16 +549,17 @@ def generate_plan(
         elif params["tilesType"] == "moc":
 
             field_ids = {}
-            for request in requests:
-                field_tiles_query = sa.select(InstrumentField.field_id).where(
-                    LocalizationTile.localization_id == request.localization.id,
-                    LocalizationTile.probdensity >= min_probdensity,
-                    InstrumentFieldTile.instrument_id == request.instrument.id,
-                    InstrumentFieldTile.instrument_field_id == InstrumentField.id,
-                    InstrumentFieldTile.healpix.overlaps(LocalizationTile.healpix),
-                )
-                field_tiles = session.scalars(field_tiles_query).unique().all()
-                field_ids[request.instrument.name] = field_tiles
+            if use_skyportal_fields is True:
+                for request in requests:
+                    field_tiles_query = sa.select(InstrumentField.field_id).where(
+                        LocalizationTile.localization_id == request.localization.id,
+                        LocalizationTile.probdensity >= min_probdensity,
+                        InstrumentFieldTile.instrument_id == request.instrument.id,
+                        InstrumentFieldTile.instrument_field_id == InstrumentField.id,
+                        InstrumentFieldTile.healpix.overlaps(LocalizationTile.healpix),
+                    )
+                    field_tiles = session.scalars(field_tiles_query).unique().all()
+                    field_ids[request.instrument.name] = field_tiles
 
         log(f"Retrieving fields for ID(s): {','.join(observation_plan_id_strings)}")
 
@@ -564,7 +567,7 @@ def generate_plan(
             moc_structs = gwemopt.skyportal.create_moc_from_skyportal(
                 params,
                 map_struct=map_struct,
-                field_ids=field_ids,
+                field_ids=field_ids if use_skyportal_fields is True else None,
             )
             tile_structs = gwemopt.tiles.moc(params, map_struct, moc_structs)
         elif params["tilesType"] == "galaxy":
@@ -670,7 +673,7 @@ def generate_plan(
         flow = Flow()
         flow.push(
             '*',
-            "skyportal/REFRESH_GCN_EVENT",
+            "skyportal/REFRESH_GCNEVENT_OBSERVATION_PLAN_REQUESTS",
             payload={"gcnEvent_dateobs": request.gcnevent.dateobs},
         )
 
@@ -837,7 +840,7 @@ class MMAAPI(FollowUpAPI):
                 flow = Flow()
                 flow.push(
                     '*',
-                    "skyportal/REFRESH_GCN_EVENT",
+                    "skyportal/REFRESH_GCNEVENT_OBSERVATION_PLAN_REQUESTS",
                     payload={"gcnEvent_dateobs": request.gcnevent.dateobs},
                 )
 
@@ -964,7 +967,7 @@ class MMAAPI(FollowUpAPI):
                 flow = Flow()
                 flow.push(
                     '*',
-                    "skyportal/REFRESH_GCN_EVENT",
+                    "skyportal/REFRESH_GCNEVENT_OBSERVATION_PLAN_REQUESTS",
                     payload={"gcnEvent_dateobs": request.gcnevent.dateobs},
                 )
 

@@ -80,6 +80,7 @@ from ...utils.gcn import (
     get_skymap_properties,
     get_skymap_metadata,
     get_tags,
+    get_notice_aliases,
     get_trigger,
     get_skymap,
     get_contour,
@@ -137,6 +138,9 @@ def post_gcnevent_from_xml(
     dateobs = get_dateobs(root)
     trigger_id = get_trigger(root)
     notice_type = gcn.get_notice_type(root)
+    aliases = get_notice_aliases(
+        root, notice_type
+    )  # we try to get the aliases from the notice if possible
 
     if trigger_id is not None:
         event = session.scalars(
@@ -148,7 +152,9 @@ def post_gcnevent_from_xml(
         ).first()
 
     if event is None:
-        event = GcnEvent(dateobs=dateobs, sent_by_id=user_id, trigger_id=trigger_id)
+        event = GcnEvent(
+            dateobs=dateobs, sent_by_id=user_id, trigger_id=trigger_id, aliases=aliases
+        )
         session.add(event)
         session.commit()
         dateobs = event.dateobs
@@ -165,7 +171,6 @@ def post_gcnevent_from_xml(
 
     event_id = event.id
 
-    notice_id = None
     gcn_notice = GcnNotice(
         content=payload,
         ivorn=root.attrib['ivorn'],
@@ -1122,6 +1127,17 @@ class GcnEventHandler(BaseHandler):
                         reverse=True,
                     ),
                     "gcn_notices": [notice.to_dict() for notice in event.gcn_notices],
+                    # sort the properties by created_at date descending
+                    "properties": sorted(
+                        (
+                            {
+                                **s.to_dict(),
+                            }
+                            for s in event.properties
+                        ),
+                        key=lambda x: x["created_at"],
+                        reverse=True,
+                    ),
                 }
 
                 return self.success(data=data)
@@ -1947,6 +1963,8 @@ def add_gcn_summary(
                 coroutine = get_sources(
                     user_id=user.id,
                     session=session,
+                    group_ids=[group.id],
+                    user_accessible_group_ids=[g.id for g in user.accessible_groups],
                     first_detected_date=start_date,
                     last_detected_date=end_date,
                     localization_dateobs=dateobs,
@@ -1976,8 +1994,8 @@ def add_gcn_summary(
                 for source in sources:
                     ids.append(source['id'] if 'id' in source else None)
                     aliases.append(source['alias'] if 'alias' in source else None)
-                    ras.append(source['ra'] if 'ra' in source else None)
-                    decs.append(source['dec'] if 'dec' in source else None)
+                    ras.append(np.round(source['ra'], 4) if 'ra' in source else None)
+                    decs.append(np.round(source['dec'], 4) if 'dec' in source else None)
                     redshift = source['redshift'] if 'redshift' in source else None
                     if 'redshift_error' in source and redshift is not None:
                         if source['redshift_error'] is not None:
@@ -1992,8 +2010,15 @@ def add_gcn_summary(
                         "redshift": redshifts,
                     }
                 )
+                df = df.fillna("--")
                 sources_text.append(
-                    tabulate(df, headers='keys', tablefmt='psql', showindex=False)
+                    tabulate(
+                        df,
+                        headers='keys',
+                        tablefmt='psql',
+                        showindex=False,
+                        floatfmt=".4f",
+                    )
                     + "\n"
                 )
                 # now, create a photometry table per source
@@ -2059,6 +2084,7 @@ def add_gcn_summary(
                                 column='obj_id',
                                 value=[p["obj_id"] for p in photometry],
                             )
+                        df_phot = df_phot.fillna("--")
                         sources_text.append(
                             tabulate(
                                 df_phot,
@@ -2123,8 +2149,15 @@ def add_gcn_summary(
                         "redshift": redshifts,
                     }
                 )
+                df = df.fillna("--")
                 galaxies_text.append(
-                    tabulate(df, headers='keys', tablefmt='psql', showindex=False)
+                    tabulate(
+                        df,
+                        headers='keys',
+                        tablefmt='psql',
+                        showindex=False,
+                        floatfmt=".4f",
+                    )
                     + "\n"
                 )
             contents.extend(galaxies_text)
@@ -2220,6 +2253,7 @@ def add_gcn_summary(
                                     for obs in observations
                                 ],
                             )
+                        df_obs = df_obs.fillna("--")
                         observations_text.append(
                             tabulate(
                                 df_obs,
@@ -2271,6 +2305,7 @@ def add_gcn_summary(
         except Exception:
             pass
         log(f"Unable to create GCN summary: {e}")
+        raise e
     finally:
         session.close()
         Session.remove()
