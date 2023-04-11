@@ -468,7 +468,10 @@ def test_gcn_summary_galaxies(
     datafile = f'{os.path.dirname(__file__)}/../../../data/CLU_mini.hdf5'
     data = {
         'catalog_name': catalog_name,
-        'catalog_data': Table.read(datafile).to_pandas().to_dict(orient='list'),
+        'catalog_data': Table.read(datafile)
+        .to_pandas()
+        .replace({np.nan: None})
+        .to_dict(orient='list'),
     }
 
     status, data = api('POST', 'galaxy_catalog', data=data, token=super_admin_token)
