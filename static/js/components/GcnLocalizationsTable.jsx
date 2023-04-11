@@ -89,6 +89,43 @@ const GcnLocalizationsTable = ({ localizations }) => {
   if (!localizations || localizations.length === 0) {
     return <p>No localizations for this event...</p>;
   }
+  let propertyNames = [];
+  if (localizations.length > 0) {
+    propertyNames = (localizations || [])
+      .map((loc) => Object.keys(loc?.properties[0].data))
+      .flat();
+  }
+
+  const uniquePropertyNames = [...new Set(propertyNames)];
+
+  const propertiesWithUniqueKeys = localizations.map((loc) => {
+    const newProperty = {
+      ...loc,
+    };
+    uniquePropertyNames.forEach((name) => {
+      if (Object.keys(loc.properties[0].data).includes(name)) {
+        // if it is a numerical value, we want to round it to 4 decimals
+        // but if the number is something like 0.000000001, we want to show it as 0.1e-8
+        if (typeof loc.properties[0].data[name] === "number") {
+          if (
+            loc.properties[0].data[name] > 0.0001 ||
+            loc.properties[0].data[name] < -0.0001
+          ) {
+            newProperty[name] = loc.properties[0].data[name].toFixed(4);
+          } else if (loc.properties[0].data[name] === 0) {
+            newProperty[name] = 0;
+          } else {
+            newProperty[name] = loc.properties[0].data[name].toExponential(4);
+          }
+        } else {
+          newProperty[name] = loc.properties[0].data[name];
+        }
+      } else {
+        newProperty[name] = null;
+      }
+    });
+    return newProperty;
+  });
 
   const getDataTableColumns = () => {
     const columns = [{ name: "created_at", label: "Created at" }];
@@ -187,24 +224,11 @@ const GcnLocalizationsTable = ({ localizations }) => {
       },
     });
 
-    const renderProperties = (dataIndex) => {
-      const localization = localizations[dataIndex];
-      const properties = localization?.properties;
-
-      return (
-        <div>
-          {properties.length > 0
-            ? JSON.stringify(localization.properties[0].data)
-            : ""}
-        </div>
-      );
-    };
-    columns.push({
-      name: "Properties",
-      label: "Properties",
-      options: {
-        customBodyRenderLite: renderProperties,
-      },
+    uniquePropertyNames.forEach((name) => {
+      columns.push({
+        name,
+        label: name,
+      });
     });
 
     return columns;
@@ -227,7 +251,7 @@ const GcnLocalizationsTable = ({ localizations }) => {
       <StyledEngineProvider injectFirst>
         <ThemeProvider theme={getMuiTheme(theme)}>
           <MUIDataTable
-            data={localizations}
+            data={propertiesWithUniqueKeys}
             options={options}
             columns={getDataTableColumns()}
           />
