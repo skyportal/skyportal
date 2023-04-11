@@ -58,8 +58,7 @@ if (
 summary_config = copy.deepcopy(cfg['analysis_services.openai_analysis_service.summary'])
 if summary_config.get("api_key"):
     # there may be a global API key set in the config file
-    openai_api_key = summary_config.get("api_key")
-    summary_config.pop("api_key")
+    openai_api_key = summary_config.pop("api_key")
 elif os.path.exists(".secret"):
     # try to get this key from the dev environment, useful for debugging
     openai_api_key = yaml.safe_load(open(".secret")).get("OPENAI_API_KEY")
