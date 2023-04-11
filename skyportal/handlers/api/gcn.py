@@ -1994,8 +1994,8 @@ def add_gcn_summary(
                 for source in sources:
                     ids.append(source['id'] if 'id' in source else None)
                     aliases.append(source['alias'] if 'alias' in source else None)
-                    ras.append(source['ra'] if 'ra' in source else None)
-                    decs.append(source['dec'] if 'dec' in source else None)
+                    ras.append(np.round(source['ra'], 4) if 'ra' in source else None)
+                    decs.append(np.round(source['dec'], 4) if 'dec' in source else None)
                     redshift = source['redshift'] if 'redshift' in source else None
                     if 'redshift_error' in source and redshift is not None:
                         if source['redshift_error'] is not None:
@@ -2012,7 +2012,13 @@ def add_gcn_summary(
                 )
                 df = df.fillna("--")
                 sources_text.append(
-                    tabulate(df, headers='keys', tablefmt='psql', showindex=False)
+                    tabulate(
+                        df,
+                        headers='keys',
+                        tablefmt='psql',
+                        showindex=False,
+                        floatfmt=".4f",
+                    )
                     + "\n"
                 )
                 # now, create a photometry table per source
@@ -2145,7 +2151,13 @@ def add_gcn_summary(
                 )
                 df = df.fillna("--")
                 galaxies_text.append(
-                    tabulate(df, headers='keys', tablefmt='psql', showindex=False)
+                    tabulate(
+                        df,
+                        headers='keys',
+                        tablefmt='psql',
+                        showindex=False,
+                        floatfmt=".4f",
+                    )
                     + "\n"
                 )
             contents.extend(galaxies_text)
