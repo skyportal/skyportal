@@ -86,4 +86,4 @@ shapely==1.8.1
 stdpipe==0.1
 openai[embeddings]==0.27.2
 pinecone-client==2.2.1
-simplejson>=3.17.2,<=3.18.4
+simplejson==3.19.1

@@ -9,6 +9,7 @@ import validator from "@rjsf/validator-ajv8";
 import CircularProgress from "@mui/material/CircularProgress";
 import makeStyles from "@mui/styles/makeStyles";
 
+import { showNotification } from "baselayer/components/Notifications";
 import GcnNoticeTypesSelect from "./GcnNoticeTypesSelect";
 import GcnTagsSelect from "./GcnTagsSelect";
 import LocalizationTagsSelect from "./LocalizationTagsSelect";
@@ -172,9 +173,15 @@ const NewDefaultObservationPlan = () => {
       default_plan_name,
     };
 
-    await dispatch(
+    dispatch(
       defaultObservationPlansActions.submitDefaultObservationPlan(json)
-    );
+    ).then((response) => {
+      if (response.status === "success") {
+        dispatch(
+          showNotification("Successfully created default observation plan")
+        );
+      }
+    });
   };
 
   const { formSchema, uiSchema } =

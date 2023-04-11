@@ -2790,6 +2790,22 @@ class DefaultObservationPlanRequestHandler(BaseHandler):
         data = self.get_json()
 
         with self.Session() as session:
+
+            if "default_plan_name" not in data:
+                return self.error('Missing default_plan_name')
+            else:
+                stmt = DefaultObservationPlanRequest.select(
+                    session.user_or_token
+                ).where(
+                    DefaultObservationPlanRequest.default_plan_name
+                    == data['default_plan_name']
+                )
+                existing_default_plan = session.scalars(stmt).first()
+                if existing_default_plan is not None:
+                    return self.error(
+                        f"A default plan called {data['default_plan_name']} already exists. That name must be unique."
+                    )
+
             target_group_ids = data.pop('target_group_ids', [])
             stmt = Group.select(self.current_user).where(Group.id.in_(target_group_ids))
             target_groups = session.scalars(stmt).all()
@@ -2829,7 +2845,7 @@ class DefaultObservationPlanRequestHandler(BaseHandler):
             if "queue_name" in payload:
                 return self.error('Cannot have queue_name in the payload')
             else:
-                payload['queue_name'] = "ToO_{str(datetime.utcnow()).replace(' ','T')}"
+                payload['queue_name'] = f"ToO_{str(datetime.utcnow()).replace(' ','T')}"
 
             # validate the payload
             try:
