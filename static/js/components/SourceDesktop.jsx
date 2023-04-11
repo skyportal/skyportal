@@ -298,8 +298,6 @@ const SourceDesktop = ({ source }) => {
     </Tooltip>
   );
 
-  console.log("source", source);
-
   return (
     <Grid container spacing={2} className={classes.source}>
       <Grid item xs={rightPaneVisible ? 7 : 12}>
