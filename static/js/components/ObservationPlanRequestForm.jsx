@@ -366,7 +366,15 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
       if (!allocationListApiObsplan || allocationListApiObsplan?.length === 0) {
         dispatch(allocationActions.fetchAllocationsApiObsplan()).then(
           (response) => {
+            if (response.status !== "success") {
+              showNotification(
+                "Error fetching allocations, please try refreshing the page",
+                "error"
+              );
+              return;
+            }
             const { data } = response;
+            data.sort((a, b) => a.instrument_id - b.instrument_id);
             setSelectedAllocationId(data[0]?.id);
             setSelectedGroupIds([data[0]?.group_id]);
             setSelectedLocalizationId(gcnEvent.localizations[0]?.id);
@@ -376,8 +384,12 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
         allocationListApiObsplan?.length > 0 &&
         !selectedAllocationId
       ) {
-        setSelectedAllocationId(allocationListApiObsplan[0]?.id);
-        setSelectedGroupIds([allocationListApiObsplan[0]?.group_id]);
+        const sortedAllocationListApiObsplan = [...allocationListApiObsplan];
+        sortedAllocationListApiObsplan.sort(
+          (a, b) => a.instrument_id - b.instrument_id
+        );
+        setSelectedAllocationId(sortedAllocationListApiObsplan[0]?.id);
+        setSelectedGroupIds([sortedAllocationListApiObsplan[0]?.group_id]);
         setSelectedLocalizationId(gcnEvent.localizations[0]?.id);
       }
     };

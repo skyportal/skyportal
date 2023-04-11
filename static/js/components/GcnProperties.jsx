@@ -1,10 +1,5 @@
 import React from "react";
 import PropTypes from "prop-types";
-import Accordion from "@mui/material/Accordion";
-import AccordionSummary from "@mui/material/AccordionSummary";
-import AccordionDetails from "@mui/material/AccordionDetails";
-import Typography from "@mui/material/Typography";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import {
   createTheme,
   ThemeProvider,
@@ -137,26 +132,15 @@ const GcnProperties = ({ properties }) => {
 
   return (
     <div className={classes.container}>
-      <Accordion className={classes.accordion} key="properties_table_div">
-        <AccordionSummary
-          expandIcon={<ExpandMoreIcon />}
-          aria-controls="gcn-properties"
-          data-testid="gcn-properties-header"
-        >
-          <Typography variant="subtitle1">Property Lists</Typography>
-        </AccordionSummary>
-        <AccordionDetails data-testid="gcn-properties-Table">
-          <StyledEngineProvider injectFirst>
-            <ThemeProvider theme={getMuiTheme(theme)}>
-              <MUIDataTable
-                data={propertiesWithUniqueKeys}
-                options={options}
-                columns={getDataTableColumns()}
-              />
-            </ThemeProvider>
-          </StyledEngineProvider>
-        </AccordionDetails>
-      </Accordion>
+      <StyledEngineProvider injectFirst>
+        <ThemeProvider theme={getMuiTheme(theme)}>
+          <MUIDataTable
+            data={propertiesWithUniqueKeys}
+            options={options}
+            columns={getDataTableColumns()}
+          />
+        </ThemeProvider>
+      </StyledEngineProvider>
     </div>
   );
 };

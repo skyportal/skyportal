@@ -336,6 +336,7 @@ const GcnSelectionForm = ({
   );
 
   const gcnEvent = useSelector((state) => state.gcnEvent);
+  const groups = useSelector((state) => state.groups.userAccessible);
   const [selectedFields, setSelectedFields] = useState([]);
 
   const [selectedInstrumentId, setSelectedInstrumentId] = useState(null);
@@ -353,6 +354,7 @@ const GcnSelectionForm = ({
   const [sourceFilteringState, setSourceFilteringState] = useState({
     startDate: null,
     endDate: null,
+    localizationName: null,
     localizationCumprob: null,
   });
 
@@ -397,7 +399,24 @@ const GcnSelectionForm = ({
 
   useEffect(() => {
     const setDefaults = async () => {
-      setSelectedInstrumentId(instrumentList[0]?.id);
+      // reorder the instrument list by instrument id, and also make sure that the instrument called ZTF is first
+      const orderedInstrumentList = [...instrumentList];
+      orderedInstrumentList.sort((i1, i2) => {
+        if (i1.name === "ZTF") {
+          return -1;
+        }
+        if (i2.name === "ZTF") {
+          return 1;
+        }
+        if (i1.id > i2.id) {
+          return 1;
+        }
+        if (i2.id > i1.id) {
+          return -1;
+        }
+        return 0;
+      });
+      setSelectedInstrumentId(orderedInstrumentList[0]?.id);
       setSelectedLocalizationId(gcnEvent.localizations[0]?.id);
       setSelectedLocalizationName(gcnEvent.localizations[0]?.localization_name);
     };
@@ -620,7 +639,19 @@ const GcnSelectionForm = ({
           enum: ["sources", "galaxies", "observations"],
         },
         uniqueItems: true,
+        default: ["sources"],
         title: "Query list",
+      },
+      group_ids: {
+        type: "array",
+        items: {
+          type: "number",
+          enum: groups.map((group) => group.id),
+          enumNames: groups.map((group) => group.name),
+        },
+        uniqueItems: true,
+        default: [groups[0]?.id],
+        title: "Groups",
       },
     },
     required: ["startDate", "endDate", "localizationCumprob", "queryList"],
@@ -641,7 +672,8 @@ const GcnSelectionForm = ({
         localizationRejectSources: 12,
       },
       {
-        queryList: 12,
+        queryList: 6,
+        group_ids: 6,
       },
     ],
   };
