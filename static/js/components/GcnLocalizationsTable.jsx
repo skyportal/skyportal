@@ -137,7 +137,9 @@ const GcnLocalizationsTable = ({ localizations }) => {
           <Button
             secondary
             href={`/api/localization/${localization.dateobs}/name/${localization.localization_name}/download`}
-            download={`localization-${localization.id}.fits`}
+            download={`${localization.dateobs.replaceAll(":", "-")}_${
+              localization.localization_name
+            }.fits`}
             size="small"
             type="submit"
             data-testid={`localization_${localization.id}`}
