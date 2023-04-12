@@ -118,7 +118,7 @@ const MenuProps = {
   },
 };
 
-function isDailyShift(shiftName) {
+function isRepeatedShift(shiftName) {
   const regex = /\d+\/\d+/;
   return regex.test(shiftName)
     ? [
@@ -128,17 +128,24 @@ function isDailyShift(shiftName) {
     : null;
 }
 
-function dailyShiftStartEnd(shift) {
+function repeatedShiftStartEnd(shift) {
   const startDate = new Date(shift.start_date);
   const endDate = new Date(shift.end_date);
-  const day = isDailyShift(shift.name);
+  const day = isRepeatedShift(shift.name);
   if (day) {
+    // if there is more than 24 hours between start and end date, its a weekly shift
+    if (endDate.getTime() - startDate.getTime() > 86400000) {
+      return [
+        `Weekly repeated shift`,
+        `Each shift from ${startDate.toLocaleTimeString()} to ${endDate.toLocaleTimeString()} (UTC)`,
+      ];
+    }
     startDate.setDate(startDate.getDate() - day[0]);
     endDate.setDate(endDate.getDate() - day[0] + day[1]);
     // return a string with start and end date, and a string with start and end time
     return [
-      `Daily shifts from ${startDate.toLocaleDateString()} to ${endDate.toLocaleDateString()}`,
-      `Each shift from ${startDate.toLocaleTimeString()} to ${endDate.toLocaleTimeString()}`,
+      `Daily repeated shifts from ${startDate.toLocaleDateString()} to ${endDate.toLocaleDateString()}`,
+      `Each shift from ${startDate.toLocaleTimeString()} to ${endDate.toLocaleTimeString()} (UTC)`,
     ];
   }
   return null;
@@ -702,8 +709,9 @@ export function CurrentShiftMenu({ currentShift }) {
   }
 
   let [shiftDateStartEnd, shiftTimeStartEnd] = [null, null];
-  if (currentShift.name != null && dailyShiftStartEnd(currentShift)) {
-    [shiftDateStartEnd, shiftTimeStartEnd] = dailyShiftStartEnd(currentShift);
+  if (currentShift.name != null && repeatedShiftStartEnd(currentShift)) {
+    [shiftDateStartEnd, shiftTimeStartEnd] =
+      repeatedShiftStartEnd(currentShift);
   }
 
   let currentUserIsAdminOfShift = false;
