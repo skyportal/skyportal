@@ -43,6 +43,7 @@ import VegaPhotometry from "./VegaPhotometry";
 import Spinner from "./Spinner";
 import AddClassificationsScanningPage from "./AddClassificationsScanningPage";
 import Button from "./Button";
+import DisplayPhotStats from "./DisplayPhotStats";
 
 import CandidatePlugins from "./CandidatePlugins";
 
@@ -645,6 +646,9 @@ const CandidateInfo = ({
                 <span>{getCandidateSelectedAnnotationValue(candidateObj)}</span>
               </div>
             )}
+          {candidateObj.photstats && (
+            <DisplayPhotStats photstats={candidateObj.photstats[0]} />
+          )}
         </div>
       )}
     </div>
