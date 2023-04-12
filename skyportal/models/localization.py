@@ -254,7 +254,7 @@ class Localization(Base):
         Delete the localizations's data from disk.
         """
 
-        delete_file_data(self._attachment_path)
+        delete_file_data(self._localization_path)
 
         # reset the filename
         self._localization_path = None
