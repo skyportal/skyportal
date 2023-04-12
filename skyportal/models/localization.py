@@ -254,10 +254,15 @@ class Localization(Base):
         Delete the localizations's data from disk.
         """
 
-        delete_file_data(self._localization_path)
+        try:
+            delete_file_data(self._localization_path)
 
-        # reset the filename
-        self._localization_path = None
+            # reset the filename
+            self._localization_path = None
+        except Exception:
+            log(
+                f"Failed to delete localization ID {self.id} file {self._localization_path}"
+            )
 
 
 class LocalizationTile(Base):

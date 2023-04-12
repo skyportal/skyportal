@@ -261,15 +261,6 @@ def post_skymap_from_notice(dateobs, notice_id, user_id, session, asynchronous=T
         session.commit()
         localization_id = localization.id
 
-        if url is not None:
-            r = requests.get(url, allow_redirects=True)
-            data_to_disk = r.content
-            urlpath = urlsplit(url).path
-            localization_name = os.path.basename(urlpath)
-            if data_to_disk is not None:
-                localization.save_data(localization_name, data_to_disk)
-                session.commit()
-
         log(f"Generating tiles/properties/contours for localization {localization.id}")
         if asynchronous:
             try:
@@ -343,6 +334,20 @@ def post_skymap_from_notice(dateobs, notice_id, user_id, session, asynchronous=T
                         post_source(source, user_id, session)
         except Exception:
             pass
+
+        if url is not None:
+            try:
+                r = requests.get(url, allow_redirects=True)
+                data_to_disk = r.content
+                urlpath = urlsplit(url).path
+                localization_name = os.path.basename(urlpath)
+                if data_to_disk is not None:
+                    localization.save_data(localization_name, data_to_disk)
+                    session.commit()
+            except Exception as e:
+                log(
+                    f"Localization {localization_id} URL {url} failed to download: {str(e)}."
+                )
 
     else:
         localization_id = localization.id
