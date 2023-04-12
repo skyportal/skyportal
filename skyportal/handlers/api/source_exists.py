@@ -5,6 +5,7 @@ from baselayer.app.access import auth_or_token
 from ..base import BaseHandler
 from ...models import (
     Obj,
+    Source,
 )
 
 
@@ -60,7 +61,7 @@ class SourceExistsHandler(BaseHandler):
                 ).first()
                 if s is not None:
                     return self.success("A source of that name already exists.")
-            obj_query = Obj.select(session.user_or_token)
+            obj_query = Source.select(session.user_or_token)
             if any([ra, dec, radius]):
                 if not all([ra, dec, radius]):
                     return self.error(
