@@ -183,11 +183,17 @@ async def get_source(
     ).all()
     point = ca.Point(ra=s.ra, dec=s.dec)
     # Check for duplicates (within 4 arcsecs)
+    duplicate_objs = (
+        Obj.select(user)
+        .where(Obj.within(point, 4 / 3600))
+        .where(Obj.id != s.id)
+        .subquery()
+    )
     duplicates = session.scalars(
-        Obj.select(user).where(Obj.within(point, 4 / 3600)).where(Obj.id != s.id)
+        Source.select(user).join(duplicate_objs, Source.obj_id == duplicate_objs.c.id)
     ).all()
     if len(duplicates) > 0:
-        source_info["duplicates"] = [dup.id for dup in duplicates]
+        source_info["duplicates"] = list({dup.obj_id for dup in duplicates})
     else:
         source_info["duplicates"] = None
 
