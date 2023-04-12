@@ -361,6 +361,7 @@ export function fetchSource(id, actionType = FETCH_LOADED_SOURCE) {
     includePhotometryExists: true,
     includeSpectrumExists: true,
     includeLabellers: true,
+    includeDetectionStats: true,
   };
   const queryString = new URLSearchParams(urlParams).toString();
   return API.GET(`/api/sources/${id}?${queryString}`, actionType);

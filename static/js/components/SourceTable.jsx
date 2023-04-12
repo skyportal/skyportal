@@ -41,6 +41,7 @@ import Typography from "@mui/material/Typography";
 import { isMobileOnly } from "react-device-detect";
 import { showNotification } from "baselayer/components/Notifications";
 import Button from "./Button";
+import DisplayPhotStats from "./DisplayPhotStats";
 
 import { ra_to_hours, dec_to_dms, mjd_to_utc } from "../units";
 import ThumbnailList from "./ThumbnailList";
@@ -302,6 +303,7 @@ let defaultDisplayedColumns = [
   "Dec (deg)",
   "Redshift",
   "Classification",
+  "Photometry Statistics",
   "Groups",
   "Date Saved",
   "Finder",
@@ -1093,6 +1095,27 @@ const SourceTable = ({
     );
   };
 
+  const renderPhotStats = (dataIndex) => {
+    const source = sources[dataIndex];
+
+    return (
+      <Suspense
+        fallback={
+          <div>
+            <CircularProgress color="secondary" />
+          </div>
+        }
+      >
+        <div>
+          <DisplayPhotStats
+            photstats={source.photstats[0]}
+            display_header={false}
+          />
+        </div>
+      </Suspense>
+    );
+  };
+
   const renderLabelling = (dataIndex) => {
     const source = sources[dataIndex];
 
@@ -1546,6 +1569,17 @@ const SourceTable = ({
         sortThirdClickReset: true,
         display: displayedColumns.includes("Classification"),
         customBodyRenderLite: renderClassification,
+      },
+    },
+    {
+      name: "photstats",
+      label: "Photometry Statistics",
+      options: {
+        filter: false,
+        sort: true,
+        sortThirdClickReset: true,
+        display: displayedColumns.includes("Photometry Statistics"),
+        customBodyRenderLite: renderPhotStats,
       },
     },
     {

@@ -45,6 +45,7 @@ import FollowupRequestLists from "./FollowupRequestLists";
 import SharePage from "./SharePage";
 import AssignmentForm from "./AssignmentForm";
 import AssignmentList from "./AssignmentList";
+import DisplayPhotStats from "./DisplayPhotStats";
 import EditSourceGroups from "./EditSourceGroups";
 import ShowSummaryHistory from "./ShowSummaryHistory";
 import SourceNotification from "./SourceNotification";
@@ -461,6 +462,9 @@ const SourceMobile = WidthProvider(
                       </div>
                     </div>
                   )}
+                  <div className={classes.infoLine}>
+                    <DisplayPhotStats photstats={source.photstats[0]} />
+                  </div>
                   <div
                     className={`${classes.infoLine} ${classes.findingChart}`}
                   >
@@ -949,6 +953,7 @@ SourceMobile.propTypes = {
     alias: PropTypes.arrayOf(PropTypes.string),
     photometry_exists: PropTypes.bool,
     spectrum_exists: PropTypes.bool,
+    photstats: PropTypes.shape(Object),
   }).isRequired,
 };
 
