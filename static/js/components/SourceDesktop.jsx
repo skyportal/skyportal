@@ -350,7 +350,8 @@ const SourceDesktop = ({ source }) => {
               </div>
             ) : null}
             <UpdateSourceSummary source={source} />
-            {source.comments?.length > 1 ? (
+            {source.comments?.length > 0 ||
+            source.classifications?.length > 0 ? (
               <StartBotSummary obj_id={source.id} />
             ) : null}
             {source.summary_history?.length > 0 ? (
