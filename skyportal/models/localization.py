@@ -24,7 +24,7 @@ from baselayer.app.models import Base, AccessibleIfUserMatches
 from baselayer.app.env import load_env
 from baselayer.log import make_log
 
-from .files import save_file_data, delete_file_data
+from ..utils.files import save_file_data, delete_file_data
 
 _, cfg = load_env()
 config['data_dir'] = cfg['misc.dustmap_folder']

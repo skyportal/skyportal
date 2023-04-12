@@ -21,7 +21,7 @@ from baselayer.app.models import (
 )
 
 from .group import accessible_by_groups_members
-from .files import save_file_data, delete_file_data
+from ..utils.files import save_file_data, delete_file_data
 
 _, cfg = load_env()
 
