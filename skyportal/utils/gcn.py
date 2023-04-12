@@ -287,15 +287,18 @@ def get_skymap(root, notice_type, url_timeout=10):
     status, skymap_metadata = get_skymap_metadata(root, notice_type, url_timeout)
 
     if status == "available":
-        return from_url(skymap_metadata["url"])
+        return from_url(skymap_metadata["url"]), skymap_metadata["url"]
     elif status == "cone":
-        return from_cone(
-            ra=skymap_metadata["ra"],
-            dec=skymap_metadata["dec"],
-            error=skymap_metadata["error"],
+        return (
+            from_cone(
+                ra=skymap_metadata["ra"],
+                dec=skymap_metadata["dec"],
+                error=skymap_metadata["error"],
+            ),
+            None,
         )
     else:
-        return None
+        return None, None
 
 
 def get_properties(root):

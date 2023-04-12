@@ -9,6 +9,7 @@ import sqlalchemy as sa
 from sqlalchemy.orm import relationship, deferred
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy import event
 
 from astropy.table import Table
 import dustmaps.sfd
@@ -21,10 +22,14 @@ import healpix_alchemy
 
 from baselayer.app.models import Base, AccessibleIfUserMatches
 from baselayer.app.env import load_env
+from baselayer.log import make_log
 
+from ..utils.files import save_file_data, delete_file_data
 
 _, cfg = load_env()
 config['data_dir'] = cfg['misc.dustmap_folder']
+
+log = make_log('models/localizations')
 
 
 class Localization(Base):
@@ -98,6 +103,12 @@ class Localization(Base):
     )
 
     contour = deferred(sa.Column(JSONB, doc='GeoJSON contours'))
+
+    _localization_path = sa.Column(
+        sa.String,
+        nullable=True,
+        doc='file path where the data of the localization is saved.',
+    )
 
     observationplan_requests = relationship(
         'ObservationPlanRequest',
@@ -219,6 +230,40 @@ class Localization(Base):
 
         return center_info
 
+    def get_localization_path(self):
+        """
+        Get the path to the localization's data.
+        """
+        return self._localization_path
+
+    def save_data(self, filename, file_data):
+        """
+        Save the localization's data to disk.
+        """
+
+        # there's a default value but it is best to provide a full path in the config
+        root_folder = cfg.get('localizations_folder', 'localizations_data')
+
+        full_path = save_file_data(root_folder, str(self.id), filename, file_data)
+
+        # persist the filename
+        self._localization_path = full_path
+
+    def delete_data(self):
+        """
+        Delete the localizations's data from disk.
+        """
+
+        try:
+            delete_file_data(self._localization_path)
+
+            # reset the filename
+            self._localization_path = None
+        except Exception:
+            log(
+                f"Failed to delete localization ID {self.id} file {self._localization_path}"
+            )
+
 
 class LocalizationTile(Base):
     """This is a single tile within a skymap (as in the Localization table).
@@ -307,3 +352,9 @@ class LocalizationTag(Base):
     )
 
     text = sa.Column(sa.Unicode, nullable=False, index=True)
+
+
+@event.listens_for(Localization, 'after_delete')
+def delete_localization_data_from_disk(mapper, connection, target):
+    log(f'Deleting localization data for localization id={target.id}')
+    target.delete_data()

@@ -6,14 +6,11 @@ __all__ = [
     'CommentOnShift',
 ]
 
-import os
 import sqlalchemy as sa
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import relationship
 from sqlalchemy import event
 from sqlalchemy.orm import deferred
-from pathlib import Path
-import re
 
 from baselayer.app.env import load_env
 from baselayer.log import make_log
@@ -24,11 +21,7 @@ from baselayer.app.models import (
 )
 
 from .group import accessible_by_groups_members
-
-RE_SLASHES = re.compile(r'^[\w_\-\+\/\\]*$')
-RE_NO_SLASHES = re.compile(r'^[\w_\-\+]*$')
-
-MAX_FILEPATH_LENGTH = 255
+from ..utils.files import save_file_data, delete_file_data
 
 _, cfg = load_env()
 
@@ -136,16 +129,6 @@ class CommentMixin:
         """
         return self._attachment_path
 
-    @staticmethod
-    def check_path_string(string, allow_slashes=False):
-        if allow_slashes:
-            reg = RE_SLASHES
-        else:
-            reg = RE_NO_SLASHES
-
-        if not reg.match(string):
-            raise ValueError(f'Illegal characters in string "{string}". ')
-
     def save_data(self, filename, file_data):
         """
         Save the attachment's data to disk.
@@ -154,25 +137,7 @@ class CommentMixin:
         # there's a default value but it is best to provide a full path in the config
         root_folder = cfg.get('comments_folder', 'comments_data')
 
-        # the filename can have alphanumeric, underscores, + or -
-        self.check_path_string(str(self.id))
-
-        # make sure to replace windows style slashes
-        subfolder = str(self.id).replace("\\", "/")
-
-        path = os.path.join(root_folder, subfolder)
-        if not os.path.exists(path):
-            os.makedirs(path)
-
-        full_path = os.path.join(path, filename)
-
-        if len(full_path) > MAX_FILEPATH_LENGTH:
-            raise ValueError(
-                f'Full path to file {full_path} is longer than {MAX_FILEPATH_LENGTH} characters.'
-            )
-
-        with open(full_path, 'wb') as f:
-            f.write(file_data)
+        full_path = save_file_data(root_folder, str(self.id), filename, file_data)
 
         # persist the filename
         self._attachment_path = full_path
@@ -181,20 +146,8 @@ class CommentMixin:
         """
         Delete the attachment's data from disk.
         """
-        if self._attachment_path:
-            if os.path.exists(self._attachment_path):
-                # remove the file and other files in the same directory
-                os.remove(self._attachment_path)
-            parent_dir = Path(self._attachment_path).parent
-            try:
-                if parent_dir.is_dir():
-                    for file_name in os.listdir(parent_dir):
-                        file = str(parent_dir) + '/' + file_name
-                        if os.path.isfile(file):
-                            os.remove(file)
-                    parent_dir.rmdir()
-            except OSError:
-                pass
+
+        delete_file_data(self._attachment_path)
 
         # reset the filename
         self._attachment_path = None
