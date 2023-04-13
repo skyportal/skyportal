@@ -57,7 +57,8 @@ const useStyles = makeStyles(() => ({
 const GcnPropertiesSelect = (props) => {
   const classes = useStyles();
   const dispatch = useDispatch();
-  const { selectedGcnProperties, setSelectedGcnProperties } = props;
+  const { selectedGcnProperties, setSelectedGcnProperties, conversions } =
+    props;
 
   let gcnProperties = [];
   gcnProperties = gcnProperties.concat(
@@ -84,6 +85,19 @@ const GcnPropertiesSelect = (props) => {
 
   const handleSubmitProperties = async () => {
     const filterData = getValues();
+    if (
+      filterData.property === "" ||
+      filterData.propertyComparator === "" ||
+      filterData.propertyComparatorValue === ""
+    ) {
+      return;
+    }
+    if (Object.keys(conversions).includes(filterData.property)) {
+      // we have a unit conversion to do
+      filterData.propertyComparatorValue = conversions[
+        filterData.property
+      ].FrontendToBackend(filterData.propertyComparatorValue);
+    }
     const propertiesFilter = `${filterData.property}: ${filterData.propertyComparatorValue}: ${filterData.propertyComparator}`;
     const selectedGcnPropertiesCopy = [...selectedGcnProperties];
     selectedGcnPropertiesCopy.push(propertiesFilter);
@@ -122,7 +136,11 @@ const GcnPropertiesSelect = (props) => {
                         key={gcnProperty}
                         className={classes.selectItem}
                       >
-                        {`${gcnProperty}`}
+                        {`${gcnProperty}${
+                          Object.keys(conversions).includes(gcnProperty)
+                            ? ` (${conversions[gcnProperty].frontendUnit})`
+                            : ""
+                        }`}
                       </MenuItem>
                     ))}
                   </Select>
@@ -221,6 +239,7 @@ const GcnPropertiesSelect = (props) => {
 GcnPropertiesSelect.propTypes = {
   selectedGcnProperties: PropTypes.arrayOf(PropTypes.string).isRequired,
   setSelectedGcnProperties: PropTypes.func.isRequired,
+  conversions: PropTypes.oneOfType([PropTypes.object]).isRequired,
 };
 
 export default GcnPropertiesSelect;

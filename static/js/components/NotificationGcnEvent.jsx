@@ -17,6 +17,15 @@ import LocalizationTagsSelect from "./LocalizationTagsSelect";
 import LocalizationPropertiesSelect from "./LocalizationPropertiesSelect";
 import * as profileActions from "../ducks/profile";
 
+const conversions = {
+  FAR: {
+    backendUnit: "Hz",
+    frontendUnit: "Per year",
+    BackendToFrontend: (val) => parseFloat(val) * (365.25 * 24 * 60 * 60),
+    FrontendToBackend: (val) => parseFloat(val) / (365.25 * 24 * 60 * 60),
+  },
+};
+
 const useStyles = makeStyles((theme) => ({
   pref: {
     display: "flex",
@@ -352,6 +361,7 @@ const NotificationGcnEvent = () => {
                     <GcnPropertiesSelect
                       selectedGcnProperties={selectedGcnProperties}
                       setSelectedGcnProperties={setSelectedGcnProperties}
+                      conversions={conversions}
                     />
                   </div>
                 </div>
