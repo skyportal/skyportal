@@ -81,11 +81,11 @@ class SourceExistsHandler(BaseHandler):
                 objs = session.scalars(obj_query).unique().all()
                 if len(objs) == 1:
                     return self.success(
-                        f"A source at that location already exists: {objs[0].id}."
+                        f"A source at that location already exists: {objs[0].obj_id}."
                     )
                 elif len(objs) > 1:
                     return self.success(
-                        f"Sources at that location already exist: {','.join([obj.id for obj in objs])}."
+                        f"Sources at that location already exist: {','.join([obj.obj_id for obj in objs])}."
                     )
 
             return self.success("A source of that name does not exist.")
