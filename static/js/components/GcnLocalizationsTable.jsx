@@ -112,10 +112,13 @@ const GcnLocalizationsTable = ({ localizations }) => {
     if (loc?.properties?.length > 0) {
       uniquePropertyNames.forEach((name) => {
         if (Object.keys(loc.properties[0].data).includes(name)) {
-          // if it is a numerical value, we want to round it to 4 decimals
-          // but if the number is something like 0.000000001, we want to show it as 0.1e-8
           if (typeof loc.properties[0].data[name] === "number") {
             if (
+              loc.properties[0].data[name] > 10000 ||
+              loc.properties[0].data[name] < -10000
+            ) {
+              newProperty[name] = loc.properties[0].data[name].toExponential(4);
+            } else if (
               loc.properties[0].data[name] > 0.0001 ||
               loc.properties[0].data[name] < -0.0001
             ) {
