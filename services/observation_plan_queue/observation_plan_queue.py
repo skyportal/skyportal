@@ -34,7 +34,7 @@ queue = []
 def service(queue):
     while True:
         if len(queue) == 0:
-            time.sleep(5)
+            time.sleep(1)
             continue
         plans, survey_efficiencies, combine_plans, user_id = queue.pop(0)
 
@@ -177,15 +177,14 @@ def api(queue):
 
 if __name__ == "__main__":
     try:
-        port = cfg["ports"]["observation_plan_queue"]
         t = Thread(target=service, args=(queue,))
         t2 = Thread(target=api, args=(queue,))
         t.start()
         t2.start()
 
         while True:
-            log(f"Current queue length: {len(queue)}")
-            time.sleep(60)
+            log(f"Current obsplan queue length: {len(queue)}")
+            time.sleep(120)
     except Exception as e:
         log(f"Error starting observation plan queue: {str(e)}")
         raise e
