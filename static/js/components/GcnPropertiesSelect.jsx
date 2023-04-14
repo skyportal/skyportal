@@ -57,23 +57,18 @@ const useStyles = makeStyles(() => ({
 const GcnPropertiesSelect = (props) => {
   const classes = useStyles();
   const dispatch = useDispatch();
-  const { selectedGcnProperties, setSelectedGcnProperties, conversions } =
-    props;
+  const {
+    selectedGcnProperties,
+    setSelectedGcnProperties,
+    conversions,
+    comparators,
+  } = props;
 
   let gcnProperties = [];
   gcnProperties = gcnProperties.concat(
     useSelector((state) => state.gcnProperties)
   );
   gcnProperties.sort();
-
-  const comparators = {
-    lt: "<",
-    le: "<=",
-    eq: "=",
-    ne: "!=",
-    ge: ">",
-    gt: ">=",
-  };
 
   useEffect(() => {
     dispatch(gcnPropertiesActions.fetchGcnProperties());
@@ -240,6 +235,7 @@ GcnPropertiesSelect.propTypes = {
   selectedGcnProperties: PropTypes.arrayOf(PropTypes.string).isRequired,
   setSelectedGcnProperties: PropTypes.func.isRequired,
   conversions: PropTypes.oneOfType([PropTypes.object]).isRequired,
+  comparators: PropTypes.oneOfType([PropTypes.object]).isRequired,
 };
 
 export default GcnPropertiesSelect;
