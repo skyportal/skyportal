@@ -108,12 +108,11 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-const ITEM_HEIGHT = 48;
-const ITEM_PADDING_TOP = 8;
 const MenuProps = {
   PaperProps: {
     style: {
-      maxHeight: ITEM_HEIGHT * 4.5 + ITEM_PADDING_TOP,
+      maxHeight: "25vh",
+      overflow: "scroll",
     },
   },
 };
@@ -718,7 +717,7 @@ export function CurrentShiftMenu({ currentShift }) {
   if (currentShift.name != null) {
     if (
       currentShift.shift_users.filter(
-        (user) => user.id === currentUser.id && user.admin
+        (user) => user.user_id === currentUser.id && user.admin
       ).length > 0
     ) {
       currentUserIsAdminOfShift = true;
