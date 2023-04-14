@@ -36,25 +36,37 @@ def service(queue):
         if len(queue) == 0:
             time.sleep(1)
             continue
-        plans, survey_efficiencies, combine_plans, user_id = queue.pop(0)
+        plans, survey_efficiencies, combine_plans, default_plan, user_id = queue.pop(0)
 
         with DBSession() as session:
             try:
                 plan_ids = []
                 if len(plans) == 1:
                     plan_id = post_observation_plan(
-                        plans[0], user_id, session, asynchronous=False
+                        plans[0],
+                        user_id,
+                        session,
+                        default_plan=default_plan,
+                        asynchronous=False,
                     )
                     plan_ids.append(plan_id)
                 else:
                     if combine_plans:
                         plan_ids = post_observation_plans(
-                            plans, user_id, session, asynchronous=False
+                            plans,
+                            user_id,
+                            session,
+                            default_plan=default_plan,
+                            asynchronous=False,
                         )
                     else:
                         for plan in plans:
                             plan_id = post_observation_plan(
-                                plan, user_id, session, asynchronous=False
+                                plan,
+                                user_id,
+                                session,
+                                default_plan=default_plan,
+                                asynchronous=False,
                             )
                             plan_ids.append(plan_id)
             except Exception as e:
@@ -94,6 +106,7 @@ def api(queue):
             plan = data.get('plan', None)
             survey_efficiencies = data.get('survey_efficiencies', [])
             combine_plans = data.get('combine_plans', False)
+            default_plan = data.get('default_plan', False)
 
             if user_id is None:
                 self.set_status(400)
@@ -145,7 +158,9 @@ def api(queue):
                     )
 
             try:
-                queue.append([plans, survey_efficiencies, combine_plans, user_id])
+                queue.append(
+                    [plans, survey_efficiencies, combine_plans, default_plan, user_id]
+                )
 
                 self.set_status(200)
                 return self.write(

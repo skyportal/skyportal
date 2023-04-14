@@ -1592,6 +1592,7 @@ def add_observation_plans(localization_id, user_id, parent_session=None):
                     'plan': plan,
                     'survey_efficiencies': gcn_observation_plan['survey_efficiencies'],
                     'user_id': user_id,
+                    'default_plan': True,
                 }
 
                 observation_plans_microservice_url = (
