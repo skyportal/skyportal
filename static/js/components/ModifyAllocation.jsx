@@ -294,6 +294,7 @@ const ModifyAllocation = () => {
               setSelectedGroup(data);
               onChange(data);
             }}
+            style={{ marginTop: "0.1rem" }}
             value={selectedGroup}
             options={groups}
             getOptionLabel={(thisGroup) => thisGroup.name}
