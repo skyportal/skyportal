@@ -106,13 +106,11 @@ const NewShift = () => {
           newFormData.start_date = startDate
             .add(i, "day")
             .format("YYYY-MM-DDTHH:mm:ssZ")
-            .replace("+00:00", "")
-            .replace(".000Z", "");
+            .replace(/[-+]\d\d:\d\d$/, "");
           newFormData.end_date = endDate
             .subtract(days - i, "day")
             .format("YYYY-MM-DDTHH:mm:ssZ")
-            .replace("+00:00", "")
-            .replace(".000Z", "");
+            .replace(/[-+]\d\d:\d\d$/, "");
           dispatch(submitShift(newFormData)).then((response) => {
             if (response.status === "success") {
               dispatch(showNotification("Shift saved"));
@@ -133,19 +131,17 @@ const NewShift = () => {
           newFormData.start_date = startDate
             .add(i * 7, "day")
             .format("YYYY-MM-DDTHH:mm:ssZ")
-            .replace("+00:00", "")
-            .replace(".000Z", "");
+            .replace(/[-+]\d\d:\d\d$/, "");
+          console.log(newFormData.start_date);
           if (i === weeks - 1) {
             newFormData.end_date = endDate
               .format("YYYY-MM-DDTHH:mm:ssZ")
-              .replace("+00:00", "")
-              .replace(".000Z", "");
+              .replace(/[-+]\d\d:\d\d$/, "");
           } else {
             newFormData.end_date = startDate
               .add((i + 1) * 7, "day")
               .format("YYYY-MM-DDTHH:mm:ssZ")
-              .replace("+00:00", "")
-              .replace(".000Z", "");
+              .replace(/[-+]\d\d:\d\d$/, "");
           }
           dispatch(submitShift(newFormData)).then((response) => {
             if (response.status === "success") {

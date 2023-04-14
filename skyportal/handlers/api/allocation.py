@@ -282,15 +282,14 @@ class AllocationHandler(BaseHandler):
             data = self.get_json()
             data['id'] = allocation_id
 
-            allocation_admin_ids = data.pop('allocation_admin_ids', None)
-            if allocation_admin_ids is not None:
-                allocation_admins = session.scalars(
-                    User.select(self.current_user).where(
-                        User.id.in_(allocation_admin_ids)
-                    )
-                ).all()
-            else:
-                allocation_admins = []
+            allocation_admin_ids = data.pop('allocation_admin_ids', [])
+
+            # verify that it is a list
+            if not isinstance(allocation_admin_ids, list):
+                return self.error('allocation_admin_ids must be a list of user IDs')
+            # verify that all elements are integers
+            if not all(isinstance(x, int) for x in allocation_admin_ids):
+                return self.error('allocation_admin_ids must be a list of user IDs')
 
             schema = Allocation.__schema__()
             try:
@@ -303,15 +302,21 @@ class AllocationHandler(BaseHandler):
             for k in data:
                 setattr(allocation, k, data[k])
 
-            for user in allocation_admins:
-                session.merge(user)
+            users = session.scalars(
+                User.select(self.current_user).where(User.id.in_(allocation_admin_ids))
+            ).all()
+            users_ids = [user.id for user in users]
 
-            session.add_all(
-                [
-                    AllocationUser(allocation=allocation, user=user)
-                    for user in allocation_admins
-                ]
-            )
+            # first we want to remove any allocation users that are no longer
+            # in the list
+            for au in allocation.allocation_users:
+                if au.user_id not in users_ids:
+                    session.delete(au)
+
+            # now we want to add any users that are not already in the list
+            for user in users:
+                if user.id not in [au.user_id for au in allocation.allocation_users]:
+                    session.add(AllocationUser(allocation=allocation, user=user))
 
             session.commit()
             self.push_all(action='skyportal/REFRESH_ALLOCATIONS')
