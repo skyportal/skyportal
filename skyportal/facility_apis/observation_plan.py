@@ -309,6 +309,8 @@ def generate_plan(
     observation_plan_ids,
     request_ids,
     user_id,
+    stats_method='python',
+    stats_logging=True,
 ):
     """Use gwemopt to construct multiple observing plans."""
 
@@ -547,19 +549,119 @@ def generate_plan(
             catalog_struct["Smass"] = values * probs
 
         elif params["tilesType"] == "moc":
-
             field_ids = {}
-            if use_skyportal_fields is True:
+            if use_skyportal_fields:
                 for request in requests:
-                    field_tiles_query = sa.select(InstrumentField.field_id).where(
-                        LocalizationTile.localization_id == request.localization.id,
-                        LocalizationTile.probdensity >= min_probdensity,
-                        InstrumentFieldTile.instrument_id == request.instrument.id,
-                        InstrumentFieldTile.instrument_field_id == InstrumentField.id,
-                        InstrumentFieldTile.healpix.overlaps(LocalizationTile.healpix),
-                    )
-                    field_tiles = session.scalars(field_tiles_query).unique().all()
-                    field_ids[request.instrument.name] = field_tiles
+                    if stats_method == 'python':
+                        print('using python method')
+
+                        t0 = time.time()
+                        localization_tiles = session.scalars(
+                            sa.select(LocalizationTile)
+                            .where(
+                                LocalizationTile.localization_id
+                                == request.localization.id,
+                                LocalizationTile.probdensity >= min_probdensity,
+                            )
+                            .order_by(LocalizationTile.probdensity.desc())
+                            .distinct()
+                        ).all()
+                        if stats_logging:
+                            log(
+                                "STATS: "
+                                f"{len(localization_tiles)} localization tiles in localization "
+                                f"{request.localization.id} retrieved in {time.time() - t0:.2f}s. "
+                            )
+
+                        t0 = time.time()
+                        local_low = min(t.healpix.lower for t in localization_tiles)
+                        local_high = max(t.healpix.upper for t in localization_tiles)
+
+                        instrument_field_tiles = session.scalars(
+                            sa.select(InstrumentFieldTile)
+                            .where(
+                                InstrumentField.instrument_id == request.instrument.id,
+                                InstrumentFieldTile.instrument_field_id
+                                == InstrumentField.id,
+                                InstrumentFieldTile.healpix.lower <= local_high,
+                                InstrumentFieldTile.healpix.upper >= local_low,
+                            )
+                            .distinct()
+                        ).all()
+
+                        field_lower_bounds = np.array(
+                            [f.healpix.lower for f in instrument_field_tiles]
+                        )
+                        field_upper_bounds = np.array(
+                            [f.healpix.upper for f in instrument_field_tiles]
+                        )
+
+                        if stats_logging:
+                            log(
+                                f"STATS: {len(instrument_field_tiles)} instrument "
+                                f"field tiles retrieved in {time.time() - t0:.2f}s. "
+                            )
+
+                        # get the instrument field tiles as python objects
+                        t0 = time.time()
+                        chosen_field_ids = []
+
+                        # loop over localization tiles
+                        for i, t in enumerate(localization_tiles):
+                            # find which field ids overlap with the localization tile:
+                            # has True values where tile t has any overlap with one of the fields
+                            overlap_array = np.logical_and(
+                                t.healpix.lower <= field_upper_bounds,
+                                t.healpix.upper >= field_lower_bounds,
+                            )
+                            # print(f'sum(overlap_array) = {np.sum(overlap_array)} | len(overlap_array) = {len(overlap_array)}')
+
+                            # only add fields if there's any overlap
+                            if np.any(overlap_array):
+                                chosen_field_indices = np.where(overlap_array)[0]
+                                chosen_field_ids += [
+                                    instrument_field_tiles[idx].instrument_field_id
+                                    for idx in chosen_field_indices
+                                ]
+
+                        chosen_field_ids = list(set(chosen_field_ids))
+                        chosen_field_ids.sort()
+                        field_ids[request.instrument.name] = chosen_field_ids
+
+                        if stats_logging:
+                            log(
+                                f'Found the following fields for '
+                                f'localization {request.localization.id}: {chosen_field_ids} '
+                                f'({len(chosen_field_ids)} fields) '
+                                f'in {time.time() - t0:.2f}s.'
+                            )
+
+                        # elif stats_method == 'db':
+                        print('loading fields using the DB method.')
+
+                        t0 = time.time()
+
+                        field_tiles_query = sa.select(InstrumentField.field_id).where(
+                            LocalizationTile.localization_id == request.localization.id,
+                            LocalizationTile.probdensity >= min_probdensity,
+                            InstrumentFieldTile.instrument_id == request.instrument.id,
+                            InstrumentFieldTile.instrument_field_id
+                            == InstrumentField.id,
+                            InstrumentFieldTile.healpix.overlaps(
+                                LocalizationTile.healpix
+                            ),
+                        )
+                        field_tiles = session.scalars(field_tiles_query).unique().all()
+                        # field_ids[request.instrument.name] = field_tiles
+                        field_tiles.sort()
+                        print(
+                            f'Found the following field ids: {field_tiles} ({len(field_tiles)} total)'
+                        )
+                        if stats_logging:
+                            log(f'Field IDs retrieved in {time.time() - t0:.2f}s. ')
+
+                    else:
+                        raise ValueError(f"Invalid stats_method: {stats_method}")
 
         log(f"Retrieving fields for ID(s): {','.join(observation_plan_id_strings)}")
 
