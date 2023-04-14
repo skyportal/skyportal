@@ -91,9 +91,16 @@ const GcnLocalizationsTable = ({ localizations }) => {
   }
   let propertyNames = [];
   if (localizations.length > 0) {
-    propertyNames = (localizations || [])
-      .map((loc) => Object.keys(loc?.properties[0].data))
-      .flat();
+    (localizations || []).forEach((loc) => {
+      if (loc?.properties?.length > 0) {
+        if (loc.properties[0].data) {
+          // append the keys of the properties object to the propertyNames array
+          propertyNames = propertyNames.concat(
+            Object.keys(loc.properties[0].data)
+          );
+        }
+      }
+    });
   }
 
   const uniquePropertyNames = [...new Set(propertyNames)];
@@ -102,28 +109,37 @@ const GcnLocalizationsTable = ({ localizations }) => {
     const newProperty = {
       ...loc,
     };
-    uniquePropertyNames.forEach((name) => {
-      if (Object.keys(loc.properties[0].data).includes(name)) {
-        // if it is a numerical value, we want to round it to 4 decimals
-        // but if the number is something like 0.000000001, we want to show it as 0.1e-8
-        if (typeof loc.properties[0].data[name] === "number") {
-          if (
-            loc.properties[0].data[name] > 0.0001 ||
-            loc.properties[0].data[name] < -0.0001
-          ) {
-            newProperty[name] = loc.properties[0].data[name].toFixed(4);
-          } else if (loc.properties[0].data[name] === 0) {
-            newProperty[name] = 0;
+    if (loc?.properties?.length > 0) {
+      uniquePropertyNames.forEach((name) => {
+        if (Object.keys(loc.properties[0].data).includes(name)) {
+          if (typeof loc.properties[0].data[name] === "number") {
+            if (
+              loc.properties[0].data[name] > 10000 ||
+              loc.properties[0].data[name] < -10000
+            ) {
+              newProperty[name] = loc.properties[0].data[name].toExponential(4);
+            } else if (
+              loc.properties[0].data[name] > 0.0001 ||
+              loc.properties[0].data[name] < -0.0001
+            ) {
+              newProperty[name] = loc.properties[0].data[name].toFixed(4);
+            } else if (loc.properties[0].data[name] === 0) {
+              newProperty[name] = 0;
+            } else {
+              newProperty[name] = loc.properties[0].data[name].toExponential(4);
+            }
           } else {
-            newProperty[name] = loc.properties[0].data[name].toExponential(4);
+            newProperty[name] = loc.properties[0].data[name];
           }
         } else {
-          newProperty[name] = loc.properties[0].data[name];
+          newProperty[name] = null;
         }
-      } else {
+      });
+    } else {
+      uniquePropertyNames.forEach((name) => {
         newProperty[name] = null;
-      }
-    });
+      });
+    }
     return newProperty;
   });
 
