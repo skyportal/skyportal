@@ -22,11 +22,17 @@ from baselayer.log import make_log
 from baselayer.app.flow import Flow
 from baselayer.app.env import load_env
 
+from ..utils.cache import Cache, array_to_bytes
 from . import FollowUpAPI
 
 log = make_log('api/observation_plan')
 
 env, cfg = load_env()
+cache_dir = "cache/localization_instrument_queries"
+cache = Cache(
+    cache_dir=cache_dir,
+    max_age=cfg["misc.minutes_to_keep_localization_instrument_query_cache"] * 60,
+)
 
 default_filters = cfg['app.observation_plan.default_filters']
 
@@ -551,14 +557,25 @@ def generate_plan(
             field_ids = {}
             if use_skyportal_fields is True:
                 for request in requests:
-                    field_tiles_query = sa.select(InstrumentField.field_id).where(
-                        LocalizationTile.localization_id == request.localization.id,
-                        LocalizationTile.probdensity >= min_probdensity,
-                        InstrumentFieldTile.instrument_id == request.instrument.id,
-                        InstrumentFieldTile.instrument_field_id == InstrumentField.id,
-                        InstrumentFieldTile.healpix.overlaps(LocalizationTile.healpix),
+                    query_id = (
+                        f"{str(request.localization.id)}_{str(request.instrument.id)}"
                     )
-                    field_tiles = session.scalars(field_tiles_query).unique().all()
+                    cache_filename = cache[query_id]
+                    if cache_filename is not None:
+                        field_tiles = np.load(cache_filename)
+                    else:
+                        field_tiles_query = sa.select(InstrumentField.field_id).where(
+                            LocalizationTile.localization_id == request.localization.id,
+                            LocalizationTile.probdensity >= min_probdensity,
+                            InstrumentFieldTile.instrument_id == request.instrument.id,
+                            InstrumentFieldTile.instrument_field_id
+                            == InstrumentField.id,
+                            InstrumentFieldTile.healpix.overlaps(
+                                LocalizationTile.healpix
+                            ),
+                        )
+                        field_tiles = session.scalars(field_tiles_query).unique().all()
+                        cache[query_id] = array_to_bytes(field_tiles)
                     field_ids[request.instrument.name] = field_tiles
 
         log(f"Retrieving fields for ID(s): {','.join(observation_plan_id_strings)}")
