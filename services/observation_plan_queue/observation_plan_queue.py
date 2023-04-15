@@ -1,6 +1,7 @@
 import asyncio
 import json
 import time
+from copy import deepcopy
 from threading import Thread
 
 import requests
@@ -36,11 +37,12 @@ def service(queue):
         if len(queue) == 0:
             time.sleep(1)
             continue
-        plans, survey_efficiencies, combine_plans, user_id = queue.pop(0)
+
+        plans, survey_efficiencies, combine_plans, user_id = queue[0]
+        plan_ids = []
 
         with DBSession() as session:
             try:
-                plan_ids = []
                 if len(plans) == 1:
                     plan_id = post_observation_plan(
                         plans[0], user_id, session, asynchronous=False
@@ -59,7 +61,6 @@ def service(queue):
                             plan_ids.append(plan_id)
             except Exception as e:
                 log(f"Observation plan failed: {str(e)}")
-                continue
 
             for plan_id in plan_ids:
                 for survey_efficiency in survey_efficiencies:
@@ -73,7 +74,8 @@ def service(queue):
                         )
                     except Exception as e:
                         log(f"Survey efficiency analysis failed: {str(e)}")
-                        continue
+
+        queue.pop(0)
 
 
 def api(queue):
@@ -143,6 +145,23 @@ def api(queue):
                             "message": "Invalid survey_efficiencies, not all elements are dicts",
                         }
                     )
+
+            queue_copy = deepcopy(queue)
+            # check that no plan in the queue has the same queue_name as any plan in the request
+            for plan in plans:
+                for plans_in_queue in queue_copy:
+                    if any(
+                        plan.get("payload", {}).get("queue_name", None)
+                        == plan_in_queue.get("payload", {}).get("queue_name", None)
+                        for plan_in_queue in plans_in_queue[0]
+                    ):
+                        self.set_status(400)
+                        return self.write(
+                            {
+                                "status": "error",
+                                "message": f"An observation plan called {plan['queue_name']} is already being processed.",
+                            }
+                        )
 
             try:
                 queue.append([plans, survey_efficiencies, combine_plans, user_id])
