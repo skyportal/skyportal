@@ -2,26 +2,25 @@
 
 import base64
 import os
-import numpy as np
-import requests
-import scipy
-import healpy as hp
-import gcn
 import tempfile
+import urllib
 from urllib.parse import urlparse
 
 import astropy.units as u
+import gcn
+import healpy as hp
+import ligo.skymap.bayestar as ligo_bayestar
+import ligo.skymap.distance
+import ligo.skymap.io
+import ligo.skymap.moc
+import ligo.skymap.postprocess
+import numpy as np
+import requests
+import scipy
+from astropy.coordinates import ICRS, Angle, Latitude, Longitude, SkyCoord
 from astropy.table import Table
 from astropy.time import Time
-from astropy.coordinates import SkyCoord
-
-from astropy.coordinates import ICRS, Angle, Longitude, Latitude
 from astropy_healpix import HEALPix, nside_to_level, pixel_resolution_to_nside
-import ligo.skymap.io
-import ligo.skymap.postprocess
-import ligo.skymap.moc
-import ligo.skymap.distance
-import ligo.skymap.bayestar as ligo_bayestar
 from mocpy import MOC
 
 
@@ -452,6 +451,9 @@ def from_bytes(arr):
     with tempfile.NamedTemporaryFile(suffix=".fits.gz", mode="wb") as f:
         arrSplit = arr.split('base64,')
         filename = arrSplit[0].split("name=")[-1].replace(";", "")
+        # the localization name might contain things like '%2B' for '+', or '%3A' for ':'
+        # make sure that these are converted to the correct characters
+        filename = urllib.parse.unquote(filename)
         f.write(base64.b64decode(arrSplit[-1]))
         f.flush()
 
