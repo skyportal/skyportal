@@ -17,6 +17,7 @@ from astropy.time import Time
 import numpy as np
 import pandas as pd
 from io import StringIO
+import time
 
 from ..base import BaseHandler
 from ...models import (
@@ -307,6 +308,21 @@ class InstrumentHandler(BaseHandler):
                 Time to use for airmass calculation in
                 ISO 8601 format (`YYYY-MM-DDTHH:MM:SS.sss`).
                 Defaults to localizationDateobs if not supplied.
+            - in: query
+              name: statsMethod
+              schema:
+                type: string
+              description: |
+                Method to load instrument fields with.
+                Must be python or db.
+            - in: query
+              name: statsLogging
+              nullable: true
+              schema:
+                type: boolean
+              description: |
+                Boolean indicating whether to include instrument field queries in logs. Defaults to
+                false.
           responses:
             200:
               content:
@@ -325,6 +341,9 @@ class InstrumentHandler(BaseHandler):
         includeGeoJSON = self.get_query_argument("includeGeoJSON", False)
         includeGeoJSONSummary = self.get_query_argument("includeGeoJSONSummary", False)
         includeRegion = self.get_query_argument("includeRegion", False)
+
+        stats_method = self.get_query_argument("statsMethod", "python")
+        stats_logging = self.get_query_argument("statsLogging", True)
 
         airmass_time = self.get_query_argument('airmassTime', None)
         if airmass_time is None:
@@ -403,34 +422,113 @@ class InstrumentHandler(BaseHandler):
                         )
                     ).scalar_subquery()
 
-                    if includeGeoJSON or includeGeoJSONSummary:
-                        if includeGeoJSON:
-                            undefer_column = InstrumentField.contour
-                        elif includeGeoJSONSummary:
-                            undefer_column = InstrumentField.contour_summary
-                        tiles = (
-                            session.scalars(
-                                sa.select(InstrumentField)
-                                .filter(
-                                    LocalizationTile.localization_id == localization.id,
-                                    LocalizationTile.probdensity >= min_probdensity,
-                                    InstrumentFieldTile.instrument_id == instrument.id,
-                                    InstrumentFieldTile.instrument_field_id
-                                    == InstrumentField.id,
-                                    InstrumentFieldTile.healpix.overlaps(
-                                        LocalizationTile.healpix
-                                    ),
-                                )
-                                .options(undefer(undefer_column))
+                    if stats_method == "python":
+
+                        t0 = time.time()
+                        localization_tiles = session.scalars(
+                            sa.select(LocalizationTile)
+                            .where(
+                                LocalizationTile.localization_id == localization.id,
+                                LocalizationTile.probdensity >= min_probdensity,
                             )
-                            .unique()
-                            .all()
+                            .order_by(LocalizationTile.probdensity.desc())
+                            .distinct()
+                        ).all()
+                        if stats_logging:
+                            log(
+                                "STATS: "
+                                f"{len(localization_tiles)} localization tiles in localization "
+                                f"{localization.id} retrieved in {time.time() - t0:.2f}s. "
+                            )
+
+                        t0 = time.time()
+                        local_low = min(t.healpix.lower for t in localization_tiles)
+                        local_high = max(t.healpix.upper for t in localization_tiles)
+
+                        instrument_field_tiles = session.scalars(
+                            sa.select(InstrumentFieldTile)
+                            .where(
+                                InstrumentField.instrument_id == instrument.id,
+                                InstrumentFieldTile.instrument_field_id
+                                == InstrumentField.id,
+                                InstrumentFieldTile.healpix.lower <= local_high,
+                                InstrumentFieldTile.healpix.upper >= local_low,
+                            )
+                            .distinct()
+                        ).all()
+
+                        field_lower_bounds = np.array(
+                            [f.healpix.lower for f in instrument_field_tiles]
                         )
-                    else:
-                        tiles = (
-                            (
+                        field_upper_bounds = np.array(
+                            [f.healpix.upper for f in instrument_field_tiles]
+                        )
+
+                        if stats_logging:
+                            log(
+                                f"STATS: {len(instrument_field_tiles)} instrument "
+                                f"field tiles retrieved in {time.time() - t0:.2f}s. "
+                            )
+                        # get the instrument field tiles as python objects
+                        t0 = time.time()
+                        chosen_field_ids = []
+
+                        # loop over localization tiles
+                        for i, t in enumerate(localization_tiles):
+                            # find which field ids overlap with the localization tile:
+                            # has True values where tile t has any overlap with one of the fields
+                            overlap_array = np.logical_and(
+                                t.healpix.lower <= field_upper_bounds,
+                                t.healpix.upper >= field_lower_bounds,
+                            )
+
+                            # only add fields if there's any overlap
+                            if np.any(overlap_array):
+                                chosen_field_indices = np.where(overlap_array)[0]
+                                chosen_field_ids += [
+                                    instrument_field_tiles[idx].field.field_id
+                                    for idx in chosen_field_indices
+                                ]
+                        chosen_field_ids = sorted(list(set(chosen_field_ids)))
+
+                        if includeGeoJSON or includeGeoJSONSummary:
+                            if includeGeoJSON:
+                                undefer_column = InstrumentField.contour
+                            elif includeGeoJSONSummary:
+                                undefer_column = InstrumentField.contour_summary
+                            tiles = (
                                 session.scalars(
-                                    sa.select(InstrumentField).filter(
+                                    sa.select(InstrumentField)
+                                    .where(
+                                        InstrumentField.field_id.in_(chosen_field_ids),
+                                        InstrumentField.instrument_id == instrument.id,
+                                    )
+                                    .options(undefer(undefer_column))
+                                )
+                                .unique()
+                                .all()
+                            )
+                        else:
+                            tiles = (
+                                session.scalars(
+                                    sa.select(InstrumentField).where(
+                                        InstrumentField.field_id.in_(chosen_field_ids),
+                                        InstrumentField.instrument_id == instrument.id,
+                                    )
+                                )
+                                .unique()
+                                .all()
+                            )
+                    elif stats_method == 'db':
+                        if includeGeoJSON or includeGeoJSONSummary:
+                            if includeGeoJSON:
+                                undefer_column = InstrumentField.contour
+                            elif includeGeoJSONSummary:
+                                undefer_column = InstrumentField.contour_summary
+                            tiles = (
+                                session.scalars(
+                                    sa.select(InstrumentField)
+                                    .filter(
                                         LocalizationTile.localization_id
                                         == localization.id,
                                         LocalizationTile.probdensity >= min_probdensity,
@@ -442,11 +540,33 @@ class InstrumentHandler(BaseHandler):
                                             LocalizationTile.healpix
                                         ),
                                     )
+                                    .options(undefer(undefer_column))
                                 )
+                                .unique()
+                                .all()
                             )
-                            .unique()
-                            .all()
-                        )
+                        else:
+                            tiles = (
+                                (
+                                    session.scalars(
+                                        sa.select(InstrumentField).filter(
+                                            LocalizationTile.localization_id
+                                            == localization.id,
+                                            LocalizationTile.probdensity
+                                            >= min_probdensity,
+                                            InstrumentFieldTile.instrument_id
+                                            == instrument.id,
+                                            InstrumentFieldTile.instrument_field_id
+                                            == InstrumentField.id,
+                                            InstrumentFieldTile.healpix.overlaps(
+                                                LocalizationTile.healpix
+                                            ),
+                                        )
+                                    )
+                                )
+                                .unique()
+                                .all()
+                            )
                     data['fields'] = [
                         {**tile.to_dict(), 'airmass': tile.airmass(time=airmass_time)}
                         for tile in tiles

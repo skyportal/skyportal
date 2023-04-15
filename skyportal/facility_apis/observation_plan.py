@@ -553,8 +553,6 @@ def generate_plan(
             if use_skyportal_fields:
                 for request in requests:
                     if stats_method == 'python':
-                        print('using python method')
-
                         t0 = time.time()
                         localization_tiles = session.scalars(
                             sa.select(LocalizationTile)
@@ -614,13 +612,12 @@ def generate_plan(
                                 t.healpix.lower <= field_upper_bounds,
                                 t.healpix.upper >= field_lower_bounds,
                             )
-                            # print(f'sum(overlap_array) = {np.sum(overlap_array)} | len(overlap_array) = {len(overlap_array)}')
 
                             # only add fields if there's any overlap
                             if np.any(overlap_array):
                                 chosen_field_indices = np.where(overlap_array)[0]
                                 chosen_field_ids += [
-                                    instrument_field_tiles[idx].instrument_field_id
+                                    instrument_field_tiles[idx].field.field_id
                                     for idx in chosen_field_indices
                                 ]
 
@@ -636,9 +633,7 @@ def generate_plan(
                                 f'in {time.time() - t0:.2f}s.'
                             )
 
-                        # elif stats_method == 'db':
-                        print('loading fields using the DB method.')
-
+                    elif stats_method == 'db':
                         t0 = time.time()
 
                         field_tiles_query = sa.select(InstrumentField.field_id).where(
@@ -652,12 +647,12 @@ def generate_plan(
                             ),
                         )
                         field_tiles = session.scalars(field_tiles_query).unique().all()
-                        # field_ids[request.instrument.name] = field_tiles
                         field_tiles.sort()
-                        print(
-                            f'Found the following field ids: {field_tiles} ({len(field_tiles)} total)'
-                        )
+                        field_ids[request.instrument.name] = field_tiles
                         if stats_logging:
+                            log(
+                                f'Found the following field ids: {field_tiles} ({len(field_tiles)} total)'
+                            )
                             log(f'Field IDs retrieved in {time.time() - t0:.2f}s. ')
 
                     else:
