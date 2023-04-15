@@ -261,7 +261,9 @@ def post_survey_efficiency_analysis(
     return survey_efficiency_analysis.id
 
 
-def post_observation_plans(plans, user_id, session, asynchronous=True):
+def post_observation_plans(
+    plans, user_id, session, default_plan=False, asynchronous=True
+):
     """Post combined ObservationPlans to database.
 
     Parameters
@@ -272,6 +274,8 @@ def post_observation_plans(plans, user_id, session, asynchronous=True):
         SkyPortal ID of User posting the GcnEvent
     session : sqlalchemy.Session
         Database session for this transaction
+    default_plan : bool
+        Observation plan is created automatically. Defaults to False.
     asynchronous : bool
         Create asynchronous request. Defaults to True.
     """
@@ -292,6 +296,7 @@ def post_observation_plans(plans, user_id, session, asynchronous=True):
         data["last_modified_by_id"] = user.id
         data['allocation_id'] = int(data['allocation_id'])
         data['localization_id'] = int(data['localization_id'])
+        data['default_plan'] = default_plan
 
         allocation = session.scalars(
             Allocation.select(user).where(Allocation.id == data['allocation_id'])
@@ -359,7 +364,9 @@ def post_observation_plans(plans, user_id, session, asynchronous=True):
         )
 
 
-def post_observation_plan(plan, user_id, session, asynchronous=True):
+def post_observation_plan(
+    plan, user_id, session, default_plan=False, asynchronous=True
+):
     """Post ObservationPlan to database.
 
     Parameters
@@ -370,6 +377,8 @@ def post_observation_plan(plan, user_id, session, asynchronous=True):
         SkyPortal ID of User posting the GcnEvent
     session : sqlalchemy.Session
         Database session for this transaction
+    default_plan : bool
+        Observation plan is created automatically. Defaults to False.
     asynchronous : bool
         Create asynchronous request. Defaults to True.
     """
@@ -387,6 +396,7 @@ def post_observation_plan(plan, user_id, session, asynchronous=True):
     data["last_modified_by_id"] = user.id
     data['allocation_id'] = int(data['allocation_id'])
     data['localization_id'] = int(data['localization_id'])
+    data['default_plan'] = default_plan
 
     allocation = session.scalars(
         Allocation.select(user).where(Allocation.id == data['allocation_id'])
@@ -512,6 +522,7 @@ class ObservationPlanRequestHandler(BaseHandler):
             'plans': observation_plans,
             'user_id': self.associated_user_object.id,
             'combine_plans': combine_plans,
+            'default_plan': False,
         }
 
         resp = requests.post(
