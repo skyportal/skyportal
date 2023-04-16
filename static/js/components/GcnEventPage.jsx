@@ -44,7 +44,6 @@ import GcnProperties from "./GcnProperties";
 import GcnTags from "./GcnTags";
 import Reminders from "./Reminders";
 
-import * as localizationActions from "../ducks/localization";
 import { postLocalizationFromNotice } from "../ducks/localization";
 import withRouter from "./withRouter";
 
@@ -193,14 +192,10 @@ const GcnEventPage = ({ route }) => {
   const dispatch = useDispatch();
   const [selectedLocalizationName, setSelectedLocalizationName] =
     useState(null);
-  const [fetchingCachedLocalization, setFetchingCachedLocalization] =
-    useState(false);
   const currentUser = useSelector((state) => state.profile);
   const permission =
     currentUser.permissions?.includes("System admin") ||
     currentUser.permissions?.includes("Manage GCNs");
-
-  const cachedLocalization = useSelector((state) => state.localization.cached);
 
   const [leftPanelVisible, setLeftPanelVisible] = useState(false);
   const [rightPanelVisible, setRightPanelVisible] = useState(false);
@@ -228,31 +223,6 @@ const GcnEventPage = ({ route }) => {
       fetchGcnEvent(route?.dateobs);
     }
   }, [route, dispatch]);
-
-  // if there is no cached localization, then we need to fetch it
-  useEffect(() => {
-    if (!gcnEvent || fetchingCachedLocalization) {
-      return;
-    }
-    if (
-      !cachedLocalization ||
-      cachedLocalization?.dateobs !== gcnEvent?.dateobs
-    ) {
-      if (
-        fetchingCachedLocalization === false &&
-        gcnEvent?.localizations?.length > 0
-      ) {
-        dispatch(
-          localizationActions.fetchLocalization(
-            gcnEvent?.dateobs,
-            gcnEvent.localizations[0]?.localization_name
-          )
-        ).then(() => {
-          setFetchingCachedLocalization(false);
-        });
-      }
-    }
-  }, [gcnEvent, dispatch]);
 
   const isBig = useMediaQuery(theme.breakpoints.up("sm"));
   const isSmall = useMediaQuery(theme.breakpoints.down("sm"));

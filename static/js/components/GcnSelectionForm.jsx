@@ -38,6 +38,8 @@ import GcnSummary from "./GcnSummary";
 import LocalizationPlot from "./LocalizationPlot";
 import SourceTable from "./SourceTable";
 
+import * as localizationActions from "../ducks/localization";
+
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
 
@@ -321,6 +323,8 @@ const GcnSelectionForm = ({
   const classes = useStyles();
   const dispatch = useDispatch();
 
+  const projectionOptions = ["orthographic", "mollweide"];
+
   const displayOptions = [
     "localization",
     "sources",
@@ -329,7 +333,12 @@ const GcnSelectionForm = ({
     "observations",
   ];
   const displayOptionsDefault = Object.fromEntries(
-    displayOptions.map((x) => [x, false])
+    displayOptions.map((x) => {
+      if (x === "localization") {
+        return [x, true];
+      }
+      return [x, false];
+    })
   );
   const displayOptionsAvailable = Object.fromEntries(
     displayOptions.map((x) => [x, true])
@@ -337,6 +346,7 @@ const GcnSelectionForm = ({
 
   const gcnEvent = useSelector((state) => state.gcnEvent);
   const groups = useSelector((state) => state.groups.userAccessible);
+  const { analysisLoc } = useSelector((state) => state.localization);
   const [selectedFields, setSelectedFields] = useState([]);
 
   const [selectedInstrumentId, setSelectedInstrumentId] = useState(null);
@@ -350,6 +360,9 @@ const GcnSelectionForm = ({
   const [skymapInstrument, setSkymapInstrument] = useState(null);
 
   const [tabIndex, setTabIndex] = useState(1);
+  const [selectedProjection, setSelectedProjection] = useState(
+    projectionOptions[0]
+  );
 
   const [sourceFilteringState, setSourceFilteringState] = useState({
     startDate: null,
@@ -536,6 +549,20 @@ const GcnSelectionForm = ({
     selectedInstrumentId,
   ]);
 
+  useEffect(() => {
+    if (selectedLocalizationName && gcnEvent?.dateobs) {
+      dispatch(
+        localizationActions.fetchLocalization(
+          gcnEvent?.dateobs,
+          gcnEvent?.localizations.find(
+            (loc) => loc.id === selectedLocalizationId
+          )?.localization_name,
+          "analysis"
+        )
+      );
+    }
+  }, [dispatch, selectedLocalizationName]);
+
   const handleSelectedInstrumentChange = (e) => {
     setSelectedInstrumentId(e.target.value);
   };
@@ -691,7 +718,7 @@ const GcnSelectionForm = ({
           ) && (
             <div style={{ marginTop: "0.5rem" }}>
               <LocalizationPlot
-                loc={locLookUp[selectedLocalizationId]}
+                localization={analysisLoc}
                 sources={gcnEventSources}
                 galaxies={gcnEventGalaxies}
                 instrument={skymapInstrument}
@@ -699,8 +726,27 @@ const GcnSelectionForm = ({
                 options={checkedDisplayState}
                 selectedFields={selectedFields}
                 setSelectedFields={setSelectedFields}
-                type="analysis"
+                projection={selectedProjection}
               />
+              <InputLabel
+                style={{ marginTop: "0.5rem", marginBottom: "0.25rem" }}
+                id="projection"
+              >
+                Projection
+              </InputLabel>
+              <Select
+                labelId="projection"
+                id="projection"
+                value={selectedProjection}
+                onChange={(e) => setSelectedProjection(e.target.value)}
+                style={{ width: "100%" }}
+              >
+                {projectionOptions.map((option) => (
+                  <MenuItem value={option} key={option}>
+                    {option}
+                  </MenuItem>
+                ))}
+              </Select>
               <InputLabel
                 style={{ marginTop: "0.5rem", marginBottom: "0.25rem" }}
                 id="showOnPlot"
@@ -711,7 +757,10 @@ const GcnSelectionForm = ({
                 {displayOptions.map((option, index) => (
                   <FormControlLabel
                     control={
-                      <Checkbox onChange={() => handleOnChange(index)} />
+                      <Checkbox
+                        onChange={() => handleOnChange(index)}
+                        checked={checkedDisplayState[displayOptions[index]]}
+                      />
                     }
                     label={option}
                     key={option}
@@ -759,7 +808,7 @@ const GcnSelectionForm = ({
                     className={classes.localizationPlotSmall}
                   >
                     <LocalizationPlot
-                      loc={locLookUp[selectedLocalizationId]}
+                      localization={analysisLoc}
                       sources={gcnEventSources}
                       galaxies={gcnEventGalaxies}
                       instrument={skymapInstrument}
@@ -767,10 +816,29 @@ const GcnSelectionForm = ({
                       options={checkedDisplayState}
                       selectedFields={selectedFields}
                       setSelectedFields={setSelectedFields}
-                      type="analysis"
+                      projection={selectedProjection}
                     />
                   </Grid>
                   <Grid item xs={9} sm={4} md={12}>
+                    <InputLabel
+                      style={{ marginTop: "0.5rem", marginBottom: "0.25rem" }}
+                      id="projection"
+                    >
+                      Projection
+                    </InputLabel>
+                    <Select
+                      labelId="projection"
+                      id="projection"
+                      value={selectedProjection}
+                      onChange={(e) => setSelectedProjection(e.target.value)}
+                      style={{ width: "100%" }}
+                    >
+                      {projectionOptions.map((option) => (
+                        <MenuItem value={option} key={option}>
+                          {option}
+                        </MenuItem>
+                      ))}
+                    </Select>
                     <InputLabel
                       style={{ marginTop: "0.5rem", marginBottom: "0.25rem" }}
                       id="showOnPlot"
@@ -781,7 +849,12 @@ const GcnSelectionForm = ({
                       {displayOptions.map((option, index) => (
                         <FormControlLabel
                           control={
-                            <Checkbox onChange={() => handleOnChange(index)} />
+                            <Checkbox
+                              onChange={() => handleOnChange(index)}
+                              checked={
+                                checkedDisplayState[displayOptions[index]]
+                              }
+                            />
                           }
                           label={option}
                           key={option}
