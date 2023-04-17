@@ -14,7 +14,7 @@ import ligo.skymap.io
 import ligo.skymap.postprocess
 import lxml
 import xmlschema
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urlsplit
 import tempfile
 from tornado.ioloop import IOLoop
 import arrow
@@ -236,9 +236,9 @@ def post_skymap_from_notice(dateobs, notice_id, user_id, session, asynchronous=T
     root = lxml.etree.fromstring(gcn_notice.content)
     notice_type = gcn.get_notice_type(root)
 
-    skymap = None
+    skymap, url = None, None
     try:
-        skymap = get_skymap(root, notice_type)
+        skymap, url = get_skymap(root, notice_type)
     except Exception as e:
         raise ValueError(f"Failed to get skymap from gcn notice {gcn_notice.id}: {e}")
 
@@ -271,11 +271,13 @@ def post_skymap_from_notice(dateobs, notice_id, user_id, session, asynchronous=T
             IOLoop.current().run_in_executor(
                 None,
                 lambda: add_tiles_properties_contour_and_obsplan(
-                    localization_id, user_id
+                    localization_id, user_id, url=url
                 ),
             )
         else:
-            add_tiles_properties_contour_and_obsplan(localization_id, user_id, session)
+            add_tiles_properties_contour_and_obsplan(
+                localization_id, user_id, session, url=url
+            )
 
         gcn_notice.localization_ingested = True
         session.add(gcn_notice)
@@ -1376,7 +1378,9 @@ class GcnEventHandler(BaseHandler):
             return self.success()
 
 
-def add_tiles_and_properties_and_contour(localization_id, user_id, parent_session=None):
+def add_tiles_and_properties_and_contour(
+    localization_id, user_id, parent_session=None, url=None
+):
     if parent_session is None:
         if Session.registry.has():
             session = Session()
@@ -1422,6 +1426,20 @@ def add_tiles_and_properties_and_contour(localization_id, user_id, parent_sessio
         localization = get_contour(localization)
         session.add(localization)
         session.commit()
+
+        if url is not None:
+            try:
+                r = requests.get(url, allow_redirects=True, timeout=15)
+                data_to_disk = r.content
+                urlpath = urlsplit(url).path
+                localization_name = os.path.basename(urlpath)
+                if data_to_disk is not None:
+                    localization.save_data(localization_name, data_to_disk)
+                    session.commit()
+            except Exception as e:
+                log(
+                    f"Localization {localization_id} URL {url} failed to download: {str(e)}."
+                )
 
         return log(
             f"Generated tiles / properties / contour for localization {localization_id}"
@@ -1574,6 +1592,7 @@ def add_observation_plans(localization_id, user_id, parent_session=None):
                     'plan': plan,
                     'survey_efficiencies': gcn_observation_plan['survey_efficiencies'],
                     'user_id': user_id,
+                    'default_plan': True,
                 }
 
                 observation_plans_microservice_url = (
@@ -1604,7 +1623,7 @@ def add_observation_plans(localization_id, user_id, parent_session=None):
 
 
 def add_tiles_properties_contour_and_obsplan(
-    localization_id, user_id, parent_session=None
+    localization_id, user_id, parent_session=None, url=None
 ):
 
     if parent_session is None:
@@ -1616,7 +1635,7 @@ def add_tiles_properties_contour_and_obsplan(
         session = parent_session
 
     try:
-        add_tiles_and_properties_and_contour(localization_id, user_id, session)
+        add_tiles_and_properties_and_contour(localization_id, user_id, session, url=url)
         add_observation_plans(localization_id, user_id, session)
     except Exception as e:
         log(
@@ -2767,13 +2786,17 @@ class LocalizationDownloadHandler(BaseHandler):
 
                 output_format = 'fits'
                 with tempfile.NamedTemporaryFile(suffix='.fits') as fitsfile:
-                    ligo.skymap.io.write_sky_map(
-                        fitsfile.name, localization.table, moc=True
-                    )
-
-                    with open(fitsfile.name, mode='rb') as g:
-                        content = g.read()
-                    local_temp_files.append(fitsfile.name)
+                    localization_path = localization.get_localization_path()
+                    if localization_path is None:
+                        ligo.skymap.io.write_sky_map(
+                            fitsfile.name, localization.table, moc=True
+                        )
+                        with open(fitsfile.name, mode='rb') as g:
+                            content = g.read()
+                        local_temp_files.append(fitsfile.name)
+                    else:
+                        with open(localization_path, mode='rb') as g:
+                            content = g.read()
 
                 data = io.BytesIO(content)
                 filename = f"{localization.localization_name}.{output_format}"

@@ -86,10 +86,13 @@ const GcnProperties = ({ properties }) => {
     const newProperty = { created_at: property.created_at };
     uniquePropertyNames.forEach((name) => {
       if (Object.keys(property.data).includes(name)) {
-        // if it is a numerical value, we want to round it to 4 decimals
-        // but if the number is something like 0.000000001, we want to show it as 0.1e-8
         if (typeof property.data[name] === "number") {
-          if (property.data[name] > 0.0001 || property.data[name] < -0.0001) {
+          if (property.data[name] > 10000 || property.data[name] < -10000) {
+            newProperty[name] = property.data[name].toExponential(4);
+          } else if (
+            property.data[name] > 0.0001 ||
+            property.data[name] < -0.0001
+          ) {
             newProperty[name] = property.data[name].toFixed(4);
           } else if (property.data[name] === 0) {
             newProperty[name] = 0;

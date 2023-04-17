@@ -1,38 +1,31 @@
-import arrow
-from datetime import datetime
-import gcn
-
-import tornado.ioloop
-import tornado.web
 import asyncio
-from tornado.ioloop import IOLoop
-import tornado.escape
 import json
 import operator  # noqa: F401
+import time
+from datetime import datetime
+from threading import Thread
+
+import arrow
+import gcn
 import requests
 import sqlalchemy as sa
+import tornado.escape
+import tornado.ioloop
+import tornado.web
 from twilio.rest import Client as TwilioClient
 from twilio.twiml.voice_response import Say, VoiceResponse
 
-from baselayer.app.models import init_db
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
+from baselayer.app.models import init_db
 from baselayer.log import make_log
-
 from skyportal.app_utils import get_app_base_url
 from skyportal.email_utils import send_email
-from skyportal.utils.notifications import (
-    gcn_slack_notification,
-    gcn_email_notification,
-    source_slack_notification,
-    source_email_notification,
-)
-from skyportal.utils.gcn import get_skymap_properties
 from skyportal.models import (
-    DBSession,
     Allocation,
     Classification,
     Comment,
+    DBSession,
     EventObservationPlan,
     FacilityTransaction,
     FollowupRequest,
@@ -49,6 +42,13 @@ from skyportal.models import (
     Spectrum,
     User,
     UserNotification,
+)
+from skyportal.utils.gcn import get_skymap_properties
+from skyportal.utils.notifications import (
+    gcn_email_notification,
+    gcn_slack_notification,
+    source_email_notification,
+    source_slack_notification,
 )
 
 env, cfg = load_env()
@@ -427,441 +427,511 @@ def push_frontend_notification(target):
     ws_flow.push(user_id, "skyportal/FETCH_NOTIFICATIONS")
 
 
-class NotificationQueue(asyncio.Queue):
-    async def service(self):
-        while True:
-
-            notification_id = await queue.get()
-            if notification_id is None:
-                continue
-
-            with DBSession() as session:
-                notification = session.scalars(
-                    sa.select(UserNotification).where(
-                        UserNotification.id == notification_id
-                    )
-                ).first()
-                if notification is None:
-                    log(f'Could not find UserNotification with ID {notification_id}')
-                    continue
-
-                push_frontend_notification(notification)
-                send_phone_notification(notification)
-                send_sms_notification(notification)
-                send_whatsapp_notification(notification)
-                send_email_notification(session, notification)
-                send_slack_notification(session, notification)
+def users_on_shift(session):
+    users = session.scalars(
+        sa.select(ShiftUser).where(
+            ShiftUser.shift_id == Shift.id,
+            Shift.start_date <= datetime.datetime.now(),
+            Shift.end_date >= datetime.datetime.now(),
+        )
+    ).all()
+    return [user.user_id for user in users]
 
 
-queue = NotificationQueue()
+queue = []
 
 
-class QueueHandler(tornado.web.RequestHandler):
-    def get(self):
-        self.set_header("Content-Type", "application/json")
-        self.write({"status": "success", "data": {"queue_length": queue.qsize()}})
-
-    async def post(self):
-
-        try:
-            data = tornado.escape.json_decode(self.request.body)
-        except json.JSONDecodeError:
-            self.set_status(400)
-            return self.write({"status": "error", "message": "Malformed JSON data"})
-
-        target_class_name = data['target_class_name']
-        target_id = data['target_id']
-
-        is_facility_transaction = target_class_name == "FacilityTransaction"
-        is_gcnevent = target_class_name == "Localization"
-        is_classification = target_class_name == "Classification"
-        is_spectra = target_class_name == "Spectrum"
-        is_comment = target_class_name == "Comment"
-        is_group_admission_request = target_class_name == "GroupAdmissionRequest"
-        is_analysis_service = target_class_name == "ObjAnalysis"
-        is_observation_plan = target_class_name == "EventObservationPlan"
-        is_followup_request = target_class_name == "FollowupRequest"
+def service(queue):
+    while True:
+        if len(queue) == 0:
+            time.sleep(1)
+            continue
+        notification_id = queue.pop(0)
+        if notification_id is None:
+            continue
 
         with DBSession() as session:
+            notification = session.scalars(
+                sa.select(UserNotification).where(
+                    UserNotification.id == notification_id
+                )
+            ).first()
+            if notification is None:
+                log(f'Could not find UserNotification with ID {notification_id}')
+                continue
+
+            push_frontend_notification(notification)
+            send_phone_notification(notification)
+            send_sms_notification(notification)
+            send_whatsapp_notification(notification)
+            send_email_notification(session, notification)
+            send_slack_notification(session, notification)
+
+
+def api(queue):
+    class QueueHandler(tornado.web.RequestHandler):
+        def get(self):
+            self.set_header("Content-Type", "application/json")
+            self.write({"status": "success", "data": {"queue_length": len(queue)}})
+
+        async def post(self):
+
             try:
-                if is_gcnevent:
-                    users = session.scalars(
-                        sa.select(User).where(
-                            User.preferences["notifications"]["gcn_events"]["active"]
-                            .astext.cast(sa.Boolean)
-                            .is_(True)
-                        )
-                    ).all()
+                data = tornado.escape.json_decode(self.request.body)
+            except json.JSONDecodeError:
+                self.set_status(400)
+                return self.write({"status": "error", "message": "Malformed JSON data"})
 
-                    target_class = Localization
-                    target_data = (
-                        session.scalars(
-                            sa.select(Localization).where(Localization.id == target_id)
-                        )
-                        .first()
-                        .to_dict()
-                    )
+            target_class_name = data['target_class_name']
+            target_id = data['target_id']
 
-                elif is_facility_transaction or is_followup_request:
-                    users = session.scalars(
-                        sa.select(User).where(
-                            User.preferences["notifications"]["facility_transactions"][
-                                "active"
-                            ]
-                            .astext.cast(sa.Boolean)
-                            .is_(True)
-                        )
-                    ).all()
-                    if is_facility_transaction:
-                        target_class = FacilityTransaction
-                        target_data = (
-                            session.scalars(
-                                sa.select(FacilityTransaction).where(
-                                    FacilityTransaction.id == target_id
-                                )
-                            )
-                            .first()
-                            .to_dict()
-                        )
-                    elif is_followup_request:
-                        target_class = FollowupRequest
-                        target_data = (
-                            session.scalars(
-                                sa.select(FollowupRequest).where(
-                                    FollowupRequest.id == target_id
-                                )
-                            )
-                            .first()
-                            .to_dict()
-                        )
-                elif is_analysis_service:
-                    users = session.scalars(
-                        sa.select(User).where(
-                            User.preferences["notifications"]["analysis_services"][
-                                "active"
-                            ]
-                            .astext.cast(sa.Boolean)
-                            .is_(True)
-                        )
-                    ).all()
-                    target_class = ObjAnalysis
-                    target_data = (
-                        session.scalars(
-                            sa.select(ObjAnalysis).where(ObjAnalysis.id == target_id)
-                        )
-                        .first()
-                        .to_dict()
-                    )
-                elif is_observation_plan:
-                    users = session.scalars(
-                        sa.select(User).where(
-                            User.preferences["notifications"]["facility_transactions"][
-                                "active"
-                            ]
-                            .astext.cast(sa.Boolean)
-                            .is_(True)
-                        )
-                    ).all()
-                    target_class = EventObservationPlan
-                    target_data = (
-                        session.scalars(
-                            sa.select(EventObservationPlan).where(
-                                EventObservationPlan.id == target_id
-                            )
-                        )
-                        .first()
-                        .to_dict()
-                    )
-                elif is_group_admission_request:
-                    target_class = GroupAdmissionRequest
-                    target_data = (
-                        session.scalars(
-                            sa.select(GroupAdmissionRequest).where(
-                                GroupAdmissionRequest.id == target_id
-                            )
-                        )
-                        .first()
-                        .to_dict()
-                    )
+            is_facility_transaction = target_class_name == "FacilityTransaction"
+            is_gcnevent = target_class_name == "Localization"
+            is_classification = target_class_name == "Classification"
+            is_spectra = target_class_name == "Spectrum"
+            is_comment = target_class_name == "Comment"
+            is_group_admission_request = target_class_name == "GroupAdmissionRequest"
+            is_analysis_service = target_class_name == "ObjAnalysis"
+            is_observation_plan = target_class_name == "EventObservationPlan"
+            is_followup_request = target_class_name == "FollowupRequest"
 
-                    users = []
-                    group_admins_gu = session.scalars(
-                        sa.select(GroupUser).where(
-                            GroupUser.group_id == target_data["group_id"],
-                            GroupUser.admin.is_(True),
-                        )
-                    ).all()
-                    for gu in group_admins_gu:
-                        group_admin = session.scalars(
-                            sa.select(User).where(User.id == gu.user_id)
-                        ).first()
-
-                        if group_admin is not None:
-                            users.append(group_admin)
-                else:
-
-                    if is_classification:
+            with DBSession() as session:
+                try:
+                    if is_gcnevent:
                         users = session.scalars(
                             sa.select(User).where(
-                                sa.or_(
-                                    User.preferences["notifications"]["sources"][
-                                        "active"
-                                    ]
-                                    .astext.cast(sa.Boolean)
-                                    .is_(True),
+                                User.preferences["notifications"]["gcn_events"][
+                                    "active"
+                                ]
+                                .astext.cast(sa.Boolean)
+                                .is_(True)
+                            )
+                        ).all()
+
+                        target_class = Localization
+                        target_data = (
+                            session.scalars(
+                                sa.select(Localization).where(
+                                    Localization.id == target_id
+                                )
+                            )
+                            .first()
+                            .to_dict()
+                        )
+
+                    elif is_facility_transaction or is_followup_request:
+                        users = session.scalars(
+                            sa.select(User).where(
+                                User.preferences["notifications"][
+                                    "facility_transactions"
+                                ]["active"]
+                                .astext.cast(sa.Boolean)
+                                .is_(True)
+                            )
+                        ).all()
+                        if is_facility_transaction:
+                            target_class = FacilityTransaction
+                            target_data = (
+                                session.scalars(
+                                    sa.select(FacilityTransaction).where(
+                                        FacilityTransaction.id == target_id
+                                    )
+                                )
+                                .first()
+                                .to_dict()
+                            )
+                        elif is_followup_request:
+                            target_class = FollowupRequest
+                            target_data = (
+                                session.scalars(
+                                    sa.select(FollowupRequest).where(
+                                        FollowupRequest.id == target_id
+                                    )
+                                )
+                                .first()
+                                .to_dict()
+                            )
+                    elif is_analysis_service:
+                        users = session.scalars(
+                            sa.select(User).where(
+                                User.preferences["notifications"]["analysis_services"][
+                                    "active"
+                                ]
+                                .astext.cast(sa.Boolean)
+                                .is_(True)
+                            )
+                        ).all()
+                        target_class = ObjAnalysis
+                        target_data = (
+                            session.scalars(
+                                sa.select(ObjAnalysis).where(
+                                    ObjAnalysis.id == target_id
+                                )
+                            )
+                            .first()
+                            .to_dict()
+                        )
+                    elif is_observation_plan:
+                        users = session.scalars(
+                            sa.select(User).where(
+                                User.preferences["notifications"][
+                                    "facility_transactions"
+                                ]["active"]
+                                .astext.cast(sa.Boolean)
+                                .is_(True)
+                            )
+                        ).all()
+                        target_class = EventObservationPlan
+                        target_data = (
+                            session.scalars(
+                                sa.select(EventObservationPlan).where(
+                                    EventObservationPlan.id == target_id
+                                )
+                            )
+                            .first()
+                            .to_dict()
+                        )
+                    elif is_group_admission_request:
+                        target_class = GroupAdmissionRequest
+                        target_data = (
+                            session.scalars(
+                                sa.select(GroupAdmissionRequest).where(
+                                    GroupAdmissionRequest.id == target_id
+                                )
+                            )
+                            .first()
+                            .to_dict()
+                        )
+
+                        users = []
+                        group_admins_gu = session.scalars(
+                            sa.select(GroupUser).where(
+                                GroupUser.group_id == target_data["group_id"],
+                                GroupUser.admin.is_(True),
+                            )
+                        ).all()
+                        for gu in group_admins_gu:
+                            group_admin = session.scalars(
+                                sa.select(User).where(User.id == gu.user_id)
+                            ).first()
+
+                            if group_admin is not None:
+                                users.append(group_admin)
+                    else:
+
+                        if is_classification:
+                            users = session.scalars(
+                                sa.select(User).where(
+                                    sa.or_(
+                                        User.preferences["notifications"]["sources"][
+                                            "active"
+                                        ]
+                                        .astext.cast(sa.Boolean)
+                                        .is_(True),
+                                        User.preferences["notifications"][
+                                            "favorite_sources"
+                                        ]["active"]
+                                        .astext.cast(sa.Boolean)
+                                        .is_(True),
+                                    )
+                                )
+                            ).all()
+                            target_class = Classification
+                            target_data = (
+                                session.scalars(
+                                    sa.select(Classification).where(
+                                        Classification.id == target_id
+                                    )
+                                )
+                                .first()
+                                .to_dict()
+                            )
+                        elif is_spectra:
+                            users = session.scalars(
+                                sa.select(User).where(
                                     User.preferences["notifications"][
                                         "favorite_sources"
                                     ]["active"]
                                     .astext.cast(sa.Boolean)
-                                    .is_(True),
+                                    .is_(True)
                                 )
-                            )
-                        ).all()
-                        target_class = Classification
-                        target_data = (
-                            session.scalars(
-                                sa.select(Classification).where(
-                                    Classification.id == target_id
+                            ).all()
+                            target_class = Spectrum
+                            target_data = (
+                                session.scalars(
+                                    sa.select(Spectrum).where(Spectrum.id == target_id)
                                 )
+                                .first()
+                                .to_dict()
                             )
-                            .first()
-                            .to_dict()
-                        )
-                    elif is_spectra:
-                        users = session.scalars(
-                            sa.select(User).where(
-                                User.preferences["notifications"]["favorite_sources"][
-                                    "active"
-                                ]
-                                .astext.cast(sa.Boolean)
-                                .is_(True)
+                        elif is_comment:
+                            users = session.scalars(
+                                sa.select(User).where(
+                                    User.preferences["notifications"][
+                                        "favorite_sources"
+                                    ]["active"]
+                                    .astext.cast(sa.Boolean)
+                                    .is_(True)
+                                )
+                            ).all()
+                            target_class = Comment
+                            target_data = (
+                                session.scalars(
+                                    sa.select(Comment).where(Comment.id == target_id)
+                                )
+                                .first()
+                                .to_dict()
                             )
-                        ).all()
-                        target_class = Spectrum
-                        target_data = (
-                            session.scalars(
-                                sa.select(Spectrum).where(Spectrum.id == target_id)
-                            )
-                            .first()
-                            .to_dict()
-                        )
-                    elif is_comment:
-                        users = session.scalars(
-                            sa.select(User).where(
-                                User.preferences["notifications"]["favorite_sources"][
-                                    "active"
-                                ]
-                                .astext.cast(sa.Boolean)
-                                .is_(True)
-                            )
-                        ).all()
-                        target_class = Comment
-                        target_data = (
-                            session.scalars(
-                                sa.select(Comment).where(Comment.id == target_id)
-                            )
-                            .first()
-                            .to_dict()
-                        )
-                    else:
-                        users = []
+                        else:
+                            users = []
 
-                for user in users:
-                    # Only notify users who have read access to the new record in question
-                    if user.preferences is not None:
-                        pref = user.preferences.get('notifications', None)
-                    else:
-                        pref = None
+                    for user in users:
+                        # Only notify users who have read access to the new record in question
+                        if user.preferences is not None:
+                            pref = user.preferences.get('notifications', None)
+                        else:
+                            pref = None
 
-                    if (
-                        session.scalars(
-                            target_class.select(user, mode='read').where(
-                                target_class.id == target_id
-                            )
-                        ).first()
-                        is not None
-                    ):
-                        if is_gcnevent and (pref is not None):
-                            event = session.scalars(
-                                sa.select(GcnEvent).where(
-                                    GcnEvent.dateobs == target_data["dateobs"]
+                        if (
+                            session.scalars(
+                                target_class.select(user, mode='read').where(
+                                    target_class.id == target_id
                                 )
                             ).first()
-
-                            notices = event.gcn_notices
-                            filtered_notices = [
-                                notice
-                                for notice in notices
-                                if notice.id == target_data["notice_id"]
-                            ]
-
-                            if len(filtered_notices) > 0:
-                                # the notice is the one with "localization_ingested" equal to the "id" of target_id
-                                notice = filtered_notices[0]
-                            else:
-                                # we trigger the notification on localization, but we notify only if it comes from a notice
-                                continue
-
-                            gcn_prefs = pref["gcn_events"].get("properties", {})
-                            if len(gcn_prefs.keys()) == 0:
-                                continue
-                            for gcn_pref in gcn_prefs.values():
-                                if len(gcn_pref.get("gcn_notice_types", [])) > 0:
-                                    if (
-                                        not gcn.NoticeType(notice.notice_type).name
-                                        in gcn_pref['gcn_notice_types']
-                                    ):
-                                        continue
-
-                                if len(gcn_pref.get("gcn_tags", [])) > 0:
-                                    intersection = list(
-                                        set(event.tags) & set(gcn_pref["gcn_tags"])
-                                    )
-                                    if len(intersection) == 0:
-                                        continue
-
-                                if len(gcn_pref.get("gcn_properties", [])) > 0:
-                                    properties_bool = []
-                                    for properties in event.properties:
-                                        properties_dict = properties.data
-                                        properties_pass = True
-                                        for prop_filt in gcn_pref["gcn_properties"]:
-                                            prop_split = prop_filt.split(":")
-                                            if not len(prop_split) == 3:
-                                                raise ValueError(
-                                                    "Invalid propertiesFilter value -- property filter must have 3 values"
-                                                )
-                                            name = prop_split[0].strip()
-                                            if name in properties_dict:
-                                                value = prop_split[1].strip()
-                                                try:
-                                                    value = float(value)
-                                                except ValueError as e:
-                                                    raise ValueError(
-                                                        f"Invalid propertiesFilter value: {e}"
-                                                    )
-                                                op = prop_split[2].strip()
-                                                if op not in op_options:
-                                                    raise ValueError(
-                                                        f"Invalid operator: {op}"
-                                                    )
-                                                comp_function = getattr(operator, op)
-                                                if not comp_function(
-                                                    properties_dict[name], value
-                                                ):
-                                                    properties_pass = False
-                                                    break
-                                        properties_bool.append(properties_pass)
-                                    if not any(properties_bool):
-                                        continue
-
-                                localization = session.scalars(
-                                    sa.select(Localization).where(
-                                        Localization.dateobs == target_data["dateobs"]
+                            is not None
+                        ):
+                            if is_gcnevent and (pref is not None):
+                                event = session.scalars(
+                                    sa.select(GcnEvent).where(
+                                        GcnEvent.dateobs == target_data["dateobs"]
                                     )
                                 ).first()
-                                (
-                                    localization_properties_dict,
-                                    localization_tags_list,
-                                ) = get_skymap_properties(localization)
 
-                                if len(gcn_pref.get("localization_tags", [])) > 0:
-                                    intersection = list(
-                                        set(localization_tags_list)
-                                        & set(gcn_pref["localization_tags"])
-                                    )
-                                    if len(intersection) == 0:
-                                        continue
+                                notices = event.gcn_notices
+                                filtered_notices = [
+                                    notice
+                                    for notice in notices
+                                    if notice.id == target_data["notice_id"]
+                                ]
 
-                                for prop_filt in gcn_pref.get(
-                                    "localization_properties", []
-                                ):
-                                    prop_split = prop_filt.split(":")
-                                    if not len(prop_split) == 3:
-                                        raise ValueError(
-                                            "Invalid propertiesFilter value -- property filter must have 3 values"
-                                        )
-                                    name = prop_split[0].strip()
-                                    if name in localization_properties_dict:
-                                        value = prop_split[1].strip()
-                                        try:
-                                            value = float(value)
-                                        except ValueError as e:
-                                            raise ValueError(
-                                                f"Invalid propertiesFilter value: {e}"
-                                            )
-                                        op = prop_split[2].strip()
-                                        if op not in op_options:
-                                            raise ValueError(f"Invalid operator: {op}")
-                                        comp_function = getattr(operator, op)
-                                        if not comp_function(
-                                            localization_properties_dict[name], value
+                                if len(filtered_notices) > 0:
+                                    # the notice is the one with "localization_ingested" equal to the "id" of target_id
+                                    notice = filtered_notices[0]
+                                else:
+                                    # we trigger the notification on localization, but we notify only if it comes from a notice
+                                    continue
+
+                                gcn_prefs = pref["gcn_events"].get("properties", {})
+                                if len(gcn_prefs.keys()) == 0:
+                                    continue
+                                for gcn_pref in gcn_prefs.values():
+                                    if len(gcn_pref.get("gcn_notice_types", [])) > 0:
+                                        if (
+                                            not gcn.NoticeType(notice.notice_type).name
+                                            in gcn_pref['gcn_notice_types']
                                         ):
                                             continue
 
-                                if len(notices) > 1:
-                                    text = (
-                                        f"New Notice for GCN Event *{target_data['dateobs']}*, "
-                                        f"with Notice Type *{gcn.NoticeType(notice.notice_type).name}*"
-                                    )
-                                else:
-                                    text = (
-                                        f"New GCN Event *{target_data['dateobs']}*, "
-                                        f"with Notice Type *{gcn.NoticeType(notice.notice_type).name}*"
-                                    )
+                                    if len(gcn_pref.get("gcn_tags", [])) > 0:
+                                        intersection = list(
+                                            set(event.tags) & set(gcn_pref["gcn_tags"])
+                                        )
+                                        if len(intersection) == 0:
+                                            continue
 
-                                notification = UserNotification(
-                                    user=user,
-                                    text=text,
-                                    notification_type="gcn_events",
-                                    url=f"/gcn_events/{str(target_data['dateobs']).replace(' ','T')}",
-                                )
-                                session.add(notification)
-                                session.commit()
-                                await queue.put(notification.id)
+                                    if len(gcn_pref.get("gcn_properties", [])) > 0:
+                                        properties_bool = []
+                                        for properties in event.properties:
+                                            properties_dict = properties.data
+                                            properties_pass = True
+                                            for prop_filt in gcn_pref["gcn_properties"]:
+                                                prop_split = prop_filt.split(":")
+                                                if not len(prop_split) == 3:
+                                                    raise ValueError(
+                                                        "Invalid propertiesFilter value -- property filter must have 3 values"
+                                                    )
+                                                name = prop_split[0].strip()
+                                                if name in properties_dict:
+                                                    value = prop_split[1].strip()
+                                                    try:
+                                                        value = float(value)
+                                                    except ValueError as e:
+                                                        raise ValueError(
+                                                            f"Invalid propertiesFilter value: {e}"
+                                                        )
+                                                    op = prop_split[2].strip()
+                                                    if op not in op_options:
+                                                        raise ValueError(
+                                                            f"Invalid operator: {op}"
+                                                        )
+                                                    comp_function = getattr(
+                                                        operator, op
+                                                    )
+                                                    if not comp_function(
+                                                        properties_dict[name], value
+                                                    ):
+                                                        properties_pass = False
+                                                        break
+                                            properties_bool.append(properties_pass)
+                                        if not any(properties_bool):
+                                            continue
 
-                        elif is_facility_transaction:
-                            if "observation_plan_request" in target_data.keys():
-                                allocation_id = target_data["observation_plan_request"][
-                                    "allocation_id"
-                                ]
-                                allocation = session.scalars(
-                                    sa.select(Allocation).where(
-                                        Allocation.id == allocation_id
-                                    )
-                                ).first()
-                                notification_user_ids = [
-                                    allocation_user.user.id
-                                    for allocation_user in allocation.allocation_users
-                                ]
-                                notification_user_ids.append(
-                                    target_data["observation_plan_request"][
-                                        "requester_id"
-                                    ]
-                                )
-                                instrument = allocation.instrument
-                                localization_id = target_data[
-                                    "observation_plan_request"
-                                ]["localization_id"]
-                                localization = session.scalars(
-                                    sa.select(Localization).where(
-                                        Localization.id == localization_id
-                                    )
-                                ).first()
-                                if user.id in notification_user_ids:
+                                    localization = session.scalars(
+                                        sa.select(Localization).where(
+                                            Localization.dateobs
+                                            == target_data["dateobs"]
+                                        )
+                                    ).first()
+                                    (
+                                        localization_properties_dict,
+                                        localization_tags_list,
+                                    ) = get_skymap_properties(localization)
+
+                                    if len(gcn_pref.get("localization_tags", [])) > 0:
+                                        intersection = list(
+                                            set(localization_tags_list)
+                                            & set(gcn_pref["localization_tags"])
+                                        )
+                                        if len(intersection) == 0:
+                                            continue
+
+                                    for prop_filt in gcn_pref.get(
+                                        "localization_properties", []
+                                    ):
+                                        prop_split = prop_filt.split(":")
+                                        if not len(prop_split) == 3:
+                                            raise ValueError(
+                                                "Invalid propertiesFilter value -- property filter must have 3 values"
+                                            )
+                                        name = prop_split[0].strip()
+                                        if name in localization_properties_dict:
+                                            value = prop_split[1].strip()
+                                            try:
+                                                value = float(value)
+                                            except ValueError as e:
+                                                raise ValueError(
+                                                    f"Invalid propertiesFilter value: {e}"
+                                                )
+                                            op = prop_split[2].strip()
+                                            if op not in op_options:
+                                                raise ValueError(
+                                                    f"Invalid operator: {op}"
+                                                )
+                                            comp_function = getattr(operator, op)
+                                            if not comp_function(
+                                                localization_properties_dict[name],
+                                                value,
+                                            ):
+                                                continue
+
+                                    if len(notices) > 1:
+                                        text = (
+                                            f"New Notice for GCN Event *{target_data['dateobs']}*, "
+                                            f"with Notice Type *{gcn.NoticeType(notice.notice_type).name}*"
+                                        )
+                                    else:
+                                        text = (
+                                            f"New GCN Event *{target_data['dateobs']}*, "
+                                            f"with Notice Type *{gcn.NoticeType(notice.notice_type).name}*"
+                                        )
+
                                     notification = UserNotification(
                                         user=user,
-                                        text=f"New Observation Plan submission for GcnEvent *{localization.dateobs}* for *{instrument.name}* by user *{target_data['observation_plan_request']['requester']['username']}*",
-                                        notification_type="facility_transactions",
-                                        url=f"/gcn_events/{str(localization.dateobs).replace(' ','T')}",
+                                        text=text,
+                                        notification_type="gcn_events",
+                                        url=f"/gcn_events/{str(target_data['dateobs']).replace(' ','T')}",
                                     )
                                     session.add(notification)
                                     session.commit()
-                                    await queue.put(notification.id)
-                            elif "followup_request" in target_data.keys():
-                                allocation_id = target_data["followup_request"][
-                                    "allocation_id"
-                                ]
+                                    queue.append(notification.id)
+
+                            elif is_facility_transaction:
+                                if "observation_plan_request" in target_data.keys():
+                                    allocation_id = target_data[
+                                        "observation_plan_request"
+                                    ]["allocation_id"]
+                                    allocation = session.scalars(
+                                        sa.select(Allocation).where(
+                                            Allocation.id == allocation_id
+                                        )
+                                    ).first()
+                                    notification_user_ids = [
+                                        allocation_user.user.id
+                                        for allocation_user in allocation.allocation_users
+                                    ]
+                                    notification_user_ids.append(
+                                        target_data["observation_plan_request"][
+                                            "requester_id"
+                                        ]
+                                    )
+                                    instrument = allocation.instrument
+                                    localization_id = target_data[
+                                        "observation_plan_request"
+                                    ]["localization_id"]
+                                    localization = session.scalars(
+                                        sa.select(Localization).where(
+                                            Localization.id == localization_id
+                                        )
+                                    ).first()
+                                    if user.id in notification_user_ids:
+                                        notification = UserNotification(
+                                            user=user,
+                                            text=f"New Observation Plan submission for GcnEvent *{localization.dateobs}* for *{instrument.name}* by user *{target_data['observation_plan_request']['requester']['username']}*",
+                                            notification_type="facility_transactions",
+                                            url=f"/gcn_events/{str(localization.dateobs).replace(' ','T')}",
+                                        )
+                                        session.add(notification)
+                                        session.commit()
+                                        queue.append(notification.id)
+                                elif "followup_request" in target_data.keys():
+                                    allocation_id = target_data["followup_request"][
+                                        "allocation_id"
+                                    ]
+                                    allocation = session.scalars(
+                                        sa.select(Allocation).where(
+                                            Allocation.id == allocation_id
+                                        )
+                                    ).first()
+                                    notification_user_ids = [
+                                        allocation_user.user.id
+                                        for allocation_user in allocation.allocation_users
+                                    ]
+                                    notification_user_ids.append(
+                                        target_data["followup_request"]["requester_id"]
+                                    )
+                                    shift_user_ids = users_on_shift(session)
+                                    for shift_user_id in shift_user_ids:
+                                        user = session.scalar(
+                                            sa.select(User).where(
+                                                User.id == shift_user_id
+                                            )
+                                        )
+                                        check_access = session.scalar(
+                                            Allocation.select(user).where(
+                                                Allocation.id == allocation_id
+                                            )
+                                        )
+                                        if check_access is not None:
+                                            notification_user_ids.append(shift_user_id)
+                                    notification_user_ids = list(
+                                        set(notification_user_ids)
+                                    )
+
+                                    instrument = allocation.instrument
+                                    if user.id in notification_user_ids:
+                                        notification = UserNotification(
+                                            user=user,
+                                            text=f"New Follow-up submission for object *{target_data['followup_request']['obj_id']}* by *{instrument.name}* by user *{target_data['followup_request']['requester']['username']}*",
+                                            notification_type="facility_transactions",
+                                            url=f"/source/{target_data['followup_request']['obj_id']}",
+                                        )
+                                        session.add(notification)
+                                        session.commit()
+                                        queue.append(notification.id)
+                            elif is_followup_request:
+                                if target_data['status'] == "submitted":
+                                    continue
+                                allocation_id = target_data["allocation_id"]
                                 allocation = session.scalars(
                                     sa.select(Allocation).where(
                                         Allocation.id == allocation_id
@@ -870,9 +940,15 @@ class QueueHandler(tornado.web.RequestHandler):
                                 notification_user_ids = [
                                     allocation_user.user.id
                                     for allocation_user in allocation.allocation_users
+                                ] + [
+                                    watcher['user_id']
+                                    for watcher in target_data['watchers']
                                 ]
                                 notification_user_ids.append(
-                                    target_data["followup_request"]["requester_id"]
+                                    target_data["requester_id"]
+                                )
+                                notification_user_ids.append(
+                                    target_data["last_modified_by_id"]
                                 )
                                 shift_user_ids = users_on_shift(session)
                                 for shift_user_id in shift_user_ids:
@@ -892,239 +968,204 @@ class QueueHandler(tornado.web.RequestHandler):
                                 if user.id in notification_user_ids:
                                     notification = UserNotification(
                                         user=user,
-                                        text=f"New Follow-up submission for object *{target_data['followup_request']['obj_id']}* by *{instrument.name}* by user *{target_data['followup_request']['requester']['username']}*",
+                                        text=f"Follow-up submission for object *{target_data['obj_id']}* by *{instrument.name}* updated by user *{target_data['last_modified_by']['username']}*",
                                         notification_type="facility_transactions",
-                                        url=f"/source/{target_data['followup_request']['obj_id']}",
-                                    )
-                                    session.add(notification)
-                                    session.commit()
-                                    await queue.put(notification.id)
-                        elif is_followup_request:
-                            if target_data['status'] == "submitted":
-                                continue
-                            allocation_id = target_data["allocation_id"]
-                            allocation = session.scalars(
-                                sa.select(Allocation).where(
-                                    Allocation.id == allocation_id
-                                )
-                            ).first()
-                            notification_user_ids = [
-                                allocation_user.user.id
-                                for allocation_user in allocation.allocation_users
-                            ] + [
-                                watcher['user_id']
-                                for watcher in target_data['watchers']
-                            ]
-                            notification_user_ids.append(target_data["requester_id"])
-                            notification_user_ids.append(
-                                target_data["last_modified_by_id"]
-                            )
-                            shift_user_ids = users_on_shift(session)
-                            for shift_user_id in shift_user_ids:
-                                user = session.scalar(
-                                    sa.select(User).where(User.id == shift_user_id)
-                                )
-                                check_access = session.scalar(
-                                    Allocation.select(user).where(
-                                        Allocation.id == allocation_id
-                                    )
-                                )
-                                if check_access is not None:
-                                    notification_user_ids.append(shift_user_id)
-                            notification_user_ids = list(set(notification_user_ids))
-
-                            instrument = allocation.instrument
-                            if user.id in notification_user_ids:
-                                notification = UserNotification(
-                                    user=user,
-                                    text=f"Follow-up submission for object *{target_data['obj_id']}* by *{instrument.name}* updated by user *{target_data['last_modified_by']['username']}*",
-                                    notification_type="facility_transactions",
-                                    url=f"/source/{target_data['obj_id']}",
-                                )
-                                session.add(notification)
-                                session.commit()
-                                await queue.put(notification.id)
-                        elif is_analysis_service:
-                            if target_data["status"] == "completed":
-                                notification = UserNotification(
-                                    user=user,
-                                    text=f"New completed analysis service for object *{target_data['obj_id']}* with name *{target_data['analysis_service']['name']}*",
-                                    notification_type="analysis_services",
-                                    url=f"/source/{target_data['obj_id']}",
-                                )
-                                session.add(notification)
-                                session.commit()
-                                await queue.put(notification.id)
-                        elif is_observation_plan:
-                            observation_plan_request_id = target_data[
-                                "observation_plan_request_id"
-                            ]
-                            observation_plan_request = session.scalars(
-                                sa.select(ObservationPlanRequest).where(
-                                    ObservationPlanRequest.id
-                                    == observation_plan_request_id
-                                )
-                            ).first()
-                            allocation = session.scalars(
-                                sa.select(Allocation).where(
-                                    Allocation.id
-                                    == observation_plan_request.allocation_id
-                                )
-                            ).first()
-                            notification_user_ids = [
-                                allocation_user.user.id
-                                for allocation_user in allocation.allocation_users
-                            ]
-                            notification_user_ids.append(
-                                observation_plan_request.requester_id
-                            )
-                            instrument = allocation.instrument
-                            localization_id = observation_plan_request.localization_id
-                            localization = session.scalars(
-                                sa.select(Localization).where(
-                                    Localization.id == localization_id
-                                )
-                            ).first()
-                            if user.id in notification_user_ids:
-                                notification = UserNotification(
-                                    user=user,
-                                    text=f"New Observation Plan submission for GcnEvent *{localization.dateobs}* for *{instrument.name}* by user *{observation_plan_request.requester.username}*",
-                                    notification_type="observation_plans",
-                                    url=f"/gcn_events/{str(localization.dateobs).replace(' ','T')}",
-                                )
-                                session.add(notification)
-                                session.commit()
-                                await queue.put(notification.id)
-                        elif is_group_admission_request:
-                            user_from_request = session.scalars(
-                                sa.select(User).where(User.id == target_data["user_id"])
-                            ).first()
-                            group_from_request = session.scalars(
-                                sa.select(Group).where(
-                                    Group.id == target_data["group_id"]
-                                )
-                            ).first()
-                            notification = UserNotification(
-                                user=user,
-                                text=f"New Group Admission Request from *@{user_from_request.username}* for Group *{group_from_request.name}*",
-                                notification_type="group_admission_request",
-                                url=f"/group/{group_from_request.id}",
-                            )
-                            session.add(notification)
-                            session.commit()
-                            await queue.put(notification.id)
-                        else:
-                            favorite_sources = session.scalars(
-                                sa.select(Listing)
-                                .where(Listing.list_name == 'favorites')
-                                .where(Listing.obj_id == target_data['obj_id'])
-                                .where(Listing.user_id == user.id)
-                            ).all()
-                            if pref is None:
-                                continue
-
-                            if is_classification:
-                                if (
-                                    len(favorite_sources) > 0
-                                    and "favorite_sources" in pref.keys()
-                                    and any(
-                                        target_data["obj_id"] == source.obj_id
-                                        for source in favorite_sources
-                                    )
-                                ):
-                                    notification = UserNotification(
-                                        user=user,
-                                        text=f"New classification on favorite source *{target_data['obj_id']}*",
-                                        notification_type="favorite_sources_new_classification",
                                         url=f"/source/{target_data['obj_id']}",
                                     )
                                     session.add(notification)
                                     session.commit()
-                                    await queue.put(notification.id)
-                                elif (pref is not None) and "sources" in pref.keys():
-                                    if "classifications" in pref['sources'].keys():
-                                        if (
-                                            target_data['classification']
-                                            in pref['sources']['classifications']
+                                    queue.append(notification.id)
+                            elif is_analysis_service:
+                                if target_data["status"] == "completed":
+                                    notification = UserNotification(
+                                        user=user,
+                                        text=f"New completed analysis service for object *{target_data['obj_id']}* with name *{target_data['analysis_service']['name']}*",
+                                        notification_type="analysis_services",
+                                        url=f"/source/{target_data['obj_id']}",
+                                    )
+                                    session.add(notification)
+                                    session.commit()
+                                    queue.append(notification.id)
+                            elif is_observation_plan:
+                                observation_plan_request_id = target_data[
+                                    "observation_plan_request_id"
+                                ]
+                                observation_plan_request = session.scalars(
+                                    sa.select(ObservationPlanRequest).where(
+                                        ObservationPlanRequest.id
+                                        == observation_plan_request_id
+                                    )
+                                ).first()
+                                allocation = session.scalars(
+                                    sa.select(Allocation).where(
+                                        Allocation.id
+                                        == observation_plan_request.allocation_id
+                                    )
+                                ).first()
+                                notification_user_ids = [
+                                    allocation_user.user.id
+                                    for allocation_user in allocation.allocation_users
+                                ]
+                                notification_user_ids.append(
+                                    observation_plan_request.requester_id
+                                )
+                                instrument = allocation.instrument
+                                localization_id = (
+                                    observation_plan_request.localization_id
+                                )
+                                localization = session.scalars(
+                                    sa.select(Localization).where(
+                                        Localization.id == localization_id
+                                    )
+                                ).first()
+                                if user.id in notification_user_ids:
+                                    notification = UserNotification(
+                                        user=user,
+                                        text=f"New Observation Plan submission for GcnEvent *{localization.dateobs}* for *{instrument.name}* by user *{observation_plan_request.requester.username}*",
+                                        notification_type="observation_plans",
+                                        url=f"/gcn_events/{str(localization.dateobs).replace(' ','T')}",
+                                    )
+                                    session.add(notification)
+                                    session.commit()
+                                    queue.append(notification.id)
+                            elif is_group_admission_request:
+                                user_from_request = session.scalars(
+                                    sa.select(User).where(
+                                        User.id == target_data["user_id"]
+                                    )
+                                ).first()
+                                group_from_request = session.scalars(
+                                    sa.select(Group).where(
+                                        Group.id == target_data["group_id"]
+                                    )
+                                ).first()
+                                notification = UserNotification(
+                                    user=user,
+                                    text=f"New Group Admission Request from *@{user_from_request.username}* for Group *{group_from_request.name}*",
+                                    notification_type="group_admission_request",
+                                    url=f"/group/{group_from_request.id}",
+                                )
+                                session.add(notification)
+                                session.commit()
+                                queue.append(notification.id)
+                            else:
+                                favorite_sources = session.scalars(
+                                    sa.select(Listing)
+                                    .where(Listing.list_name == 'favorites')
+                                    .where(Listing.obj_id == target_data['obj_id'])
+                                    .where(Listing.user_id == user.id)
+                                ).all()
+                                if pref is None:
+                                    continue
+
+                                if is_classification:
+                                    if (
+                                        len(favorite_sources) > 0
+                                        and "favorite_sources" in pref.keys()
+                                        and any(
+                                            target_data["obj_id"] == source.obj_id
+                                            for source in favorite_sources
+                                        )
+                                    ):
+                                        notification = UserNotification(
+                                            user=user,
+                                            text=f"New classification on favorite source *{target_data['obj_id']}*",
+                                            notification_type="favorite_sources_new_classification",
+                                            url=f"/source/{target_data['obj_id']}",
+                                        )
+                                        session.add(notification)
+                                        session.commit()
+                                        queue.append(notification.id)
+                                    elif (
+                                        pref is not None
+                                    ) and "sources" in pref.keys():
+                                        if "classifications" in pref['sources'].keys():
+                                            if (
+                                                target_data['classification']
+                                                in pref['sources']['classifications']
+                                            ):
+                                                notification = UserNotification(
+                                                    user=user,
+                                                    text=f"New classification *{target_data['classification']}* for source *{target_data['obj_id']}*",
+                                                    notification_type="sources",
+                                                    url=f"/source/{target_data['obj_id']}",
+                                                )
+                                                session.add(notification)
+                                                session.commit()
+                                                queue.append(notification.id)
+                                elif is_spectra:
+                                    if (
+                                        len(favorite_sources) > 0
+                                        and "favorite_sources" in pref.keys()
+                                    ):
+                                        if any(
+                                            target_data['obj_id'] == source.obj_id
+                                            for source in favorite_sources
                                         ):
                                             notification = UserNotification(
                                                 user=user,
-                                                text=f"New classification *{target_data['classification']}* for source *{target_data['obj_id']}*",
-                                                notification_type="sources",
+                                                text=f"New spectrum on favorite source *{target_data['obj_id']}*",
+                                                notification_type="favorite_sources_new_spectra",
                                                 url=f"/source/{target_data['obj_id']}",
                                             )
                                             session.add(notification)
                                             session.commit()
-                                            await queue.put(notification.id)
-                            elif is_spectra:
-                                if (
-                                    len(favorite_sources) > 0
-                                    and "favorite_sources" in pref.keys()
-                                ):
-                                    if any(
-                                        target_data['obj_id'] == source.obj_id
-                                        for source in favorite_sources
+                                            queue.append(notification.id)
+                                elif is_comment:
+                                    if (
+                                        len(favorite_sources) > 0
+                                        and "favorite_sources" in pref.keys()
                                     ):
-                                        notification = UserNotification(
-                                            user=user,
-                                            text=f"New spectrum on favorite source *{target_data['obj_id']}*",
-                                            notification_type="favorite_sources_new_spectra",
-                                            url=f"/source/{target_data['obj_id']}",
-                                        )
-                                        session.add(notification)
-                                        session.commit()
-                                        await queue.put(notification.id)
-                            elif is_comment:
-                                if (
-                                    len(favorite_sources) > 0
-                                    and "favorite_sources" in pref.keys()
-                                ):
-                                    if any(
-                                        target_data['obj_id'] == source.obj_id
-                                        for source in favorite_sources
-                                    ):
-                                        notification = UserNotification(
-                                            user=user,
-                                            text=f"New comment on favorite source *{target_data['obj_id']}*",
-                                            notification_type="favorite_sources_new_comment",
-                                            url=f"/source/{target_data['obj_id']}",
-                                        )
-                                        session.add(notification)
-                                        session.commit()
-                                        await queue.put(notification.id)
+                                        if any(
+                                            target_data['obj_id'] == source.obj_id
+                                            for source in favorite_sources
+                                        ):
+                                            notification = UserNotification(
+                                                user=user,
+                                                text=f"New comment on favorite source *{target_data['obj_id']}*",
+                                                notification_type="favorite_sources_new_comment",
+                                                url=f"/source/{target_data['obj_id']}",
+                                            )
+                                            session.add(notification)
+                                            session.commit()
+                                            queue.append(notification.id)
 
-                self.set_status(200)
-                return self.write(
-                    {
-                        "status": "success",
-                        "message": "Notification accepted into queue",
-                        "data": {"queue_length": queue.qsize()},
-                    }
-                )
-            except Exception as e:
-                log(f"Error processing notification: {str(e)}")
-                DBSession().rollback()
-                self.set_status(400)
-                return self.write(
-                    {"status": "error", "message": "Error processing notification"}
-                )
+                    self.set_status(200)
+                    return self.write(
+                        {
+                            "status": "success",
+                            "message": "Notification accepted into queue",
+                            "data": {"queue_length": len(queue)},
+                        }
+                    )
+                except Exception as e:
+                    log(f"Error processing notification: {str(e)}")
+                    DBSession().rollback()
+                    self.set_status(400)
+                    return self.write(
+                        {"status": "error", "message": "Error processing notification"}
+                    )
 
-
-def users_on_shift(session):
-    users = session.scalars(
-        sa.select(ShiftUser).where(
-            ShiftUser.shift_id == Shift.id,
-            Shift.start_date <= datetime.datetime.now(),
-            Shift.end_date >= datetime.datetime.now(),
-        )
-    ).all()
-    return [user.user_id for user in users]
+    app = tornado.web.Application([(r"/", QueueHandler)])
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+    app.listen(cfg["ports.notification_queue"])
+    loop.run_forever()
 
 
 if __name__ == "__main__":
-    app = tornado.web.Application([(r"/", QueueHandler)])
-    app.listen(cfg["ports.notification_queue"])
+    try:
+        t = Thread(target=service, args=(queue,))
+        t2 = Thread(target=api, args=(queue,))
+        t.start()
+        t2.start()
 
-    loop = IOLoop.current()
-    loop.add_callback(queue.service)
-    loop.start()
+        while True:
+            log(f"Current notification queue length: {len(queue)}")
+            time.sleep(120)
+    except Exception as e:
+        log(f"Error starting observation plan queue: {str(e)}")
+        raise e

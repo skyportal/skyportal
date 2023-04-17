@@ -39,6 +39,9 @@ const useStyles = makeStyles(() => ({
   container: {
     margin: "1rem 0",
   },
+  localization: {
+    minWidth: "250px",
+  },
 }));
 
 // Tweak responsive styling
@@ -85,7 +88,7 @@ const getMuiTheme = (theme) =>
     },
   });
 
-const ObservationPlanGlobe = ({ observationplanRequest, loc }) => {
+const ObservationPlanGlobe = ({ observationplanRequest }) => {
   const dispatch = useDispatch();
 
   const displayOptions = [
@@ -135,18 +138,18 @@ const ObservationPlanGlobe = ({ observationplanRequest, loc }) => {
       ) : (
         <div>
           <LocalizationPlot
-            loc={loc}
             observations={obsList}
             options={displayOptionsDefault}
-            height={300}
-            width={300}
+            height={550}
+            width={550}
             type="obsplan"
+            projection="mollweide"
           />
           <Button
             secondary
             onClick={() => handleDeleteObservationPlanFields(obsList)}
           >
-            Delete selected fields from observation plan
+            Delete selected fields
           </Button>
         </div>
       )}
@@ -155,11 +158,6 @@ const ObservationPlanGlobe = ({ observationplanRequest, loc }) => {
 };
 
 ObservationPlanGlobe.propTypes = {
-  loc: PropTypes.shape({
-    id: PropTypes.number,
-    dateobs: PropTypes.string,
-    localization_name: PropTypes.string,
-  }).isRequired,
   observationplanRequest: PropTypes.shape({
     id: PropTypes.number,
     requester: PropTypes.shape({
@@ -698,9 +696,8 @@ const ObservationPlanRequestLists = ({ dateobs }) => {
         requestsGroupedByInstId[instrument_id][dataIndex];
 
       return (
-        <div>
+        <div className={classes.localization}>
           <ObservationPlanGlobe
-            loc={locLookUp[selectedLocalizationId]}
             observationplanRequest={observationplanRequest}
           />
         </div>

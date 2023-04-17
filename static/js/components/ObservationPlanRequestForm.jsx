@@ -33,8 +33,12 @@ import LocalizationPlot from "./LocalizationPlot";
 
 import "react-datepicker/dist/react-datepicker-cssmodules.css";
 
+import * as localizationActions from "../ducks/localization";
+
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
+
+const projectionOptions = ["orthographic", "mollweide"];
 
 const useStyles = makeStyles(() => ({
   chips: {
@@ -180,9 +184,8 @@ const ObservationPlanGlobe = ({
   skymapInstrument,
   selectedFields,
   setSelectedFields,
+  selectedProjection,
 }) => {
-  const [rotation, setRotation] = useState([0, 0]);
-
   const displayOptions = [
     "localization",
     "sources",
@@ -199,14 +202,12 @@ const ObservationPlanGlobe = ({
     <CircularProgress />
   ) : (
     <LocalizationPlot
-      loc={loc}
+      localization={loc}
       instrument={skymapInstrument}
       options={displayOptionsDefault}
-      rotation={rotation}
-      setRotation={setRotation}
       selectedFields={selectedFields}
       setSelectedFields={setSelectedFields}
-      type="obsplan"
+      projection={selectedProjection}
     />
   );
 };
@@ -246,10 +247,12 @@ ObservationPlanGlobe.propTypes = {
   }),
   selectedFields: PropTypes.arrayOf(PropTypes.number).isRequired,
   setSelectedFields: PropTypes.func.isRequired,
+  selectedProjection: PropTypes.string,
 };
 
 ObservationPlanGlobe.defaultProps = {
   skymapInstrument: null,
+  selectedProjection: "orthographic",
 };
 
 const MyObjectFieldTemplate = (props) => {
@@ -286,6 +289,8 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
   );
   const observationPlanNames = useSelector((state) => state.observationPlans);
   const { useAMPM } = useSelector((state) => state.profile.preferences);
+
+  const { obsplanLoc } = useSelector((state) => state.localization);
 
   const allGroups = useSelector((state) => state.groups.all);
   const [selectedAllocationId, setSelectedAllocationId] = useState(null);
@@ -336,14 +341,16 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
     instLookUp[instrumentObj.id] = instrumentObj;
   });
 
-  const loc = gcnEvent?.localizations[0];
+  const [selectedProjection, setSelectedProjection] = useState(
+    projectionOptions[0]
+  );
 
   useEffect(() => {
     const fetchSkymapInstrument = async () => {
       dispatch(
         instrumentActions.fetchInstrumentSkymap(
           instLookUp[allocationLookUp[selectedAllocationId]?.instrument_id]?.id,
-          loc,
+          obsplanLoc,
           airmassTime.toJSON()
         )
       ).then((response) => setSkymapInstrument(response.data));
@@ -351,11 +358,32 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
     if (
       instLookUp[allocationLookUp[selectedAllocationId]?.instrument_id]?.id &&
       gcnEvent &&
-      airmassTime
+      airmassTime &&
+      obsplanLoc
     ) {
       fetchSkymapInstrument();
     }
-  }, [dispatch, setSkymapInstrument, loc, selectedAllocationId, airmassTime]);
+  }, [
+    dispatch,
+    setSkymapInstrument,
+    obsplanLoc,
+    selectedAllocationId,
+    airmassTime,
+  ]);
+
+  useEffect(() => {
+    if (gcnEvent?.localizations?.length > 0 && selectedLocalizationId) {
+      dispatch(
+        localizationActions.fetchLocalization(
+          gcnEvent?.dateobs,
+          gcnEvent?.localizations.find(
+            (loc) => loc.id === selectedLocalizationId
+          )?.localization_name,
+          "obsplan"
+        )
+      );
+    }
+  }, [selectedLocalizationId]);
 
   useEffect(() => {
     const getAllocations = async () => {
@@ -516,10 +544,11 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
         <Grid container spacing={4} alignItems="center">
           <Grid item xs={12} sm={7} md={12}>
             <ObservationPlanGlobe
-              loc={gcnEvent.localizations[0]}
+              loc={obsplanLoc}
               skymapInstrument={skymapInstrument}
               selectedFields={selectedFields}
               setSelectedFields={setSelectedFields}
+              selectedProjection={selectedProjection}
             />
           </Grid>
           <Grid item xs={12} sm={5} md={12}>
@@ -530,6 +559,25 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
                 marginTop: "0.5rem",
               }}
             >
+              <InputLabel
+                style={{ marginTop: "0.5rem", marginBottom: "0.25rem" }}
+                id="projection"
+              >
+                Projection
+              </InputLabel>
+              <Select
+                labelId="projection"
+                id="projection"
+                value={selectedProjection}
+                onChange={(e) => setSelectedProjection(e.target.value)}
+                style={{ width: "100%" }}
+              >
+                {projectionOptions.map((option) => (
+                  <MenuItem value={option} key={option}>
+                    {option}
+                  </MenuItem>
+                ))}
+              </Select>
               <InputLabel id="airmassTimeSelectLabel">Airmass Time</InputLabel>
               <Grid container spacing={1} alignItems="center">
                 <Grid item>

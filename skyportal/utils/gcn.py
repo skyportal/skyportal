@@ -2,26 +2,25 @@
 
 import base64
 import os
-import numpy as np
-import requests
-import scipy
-import healpy as hp
-import gcn
 import tempfile
+import urllib
 from urllib.parse import urlparse
 
 import astropy.units as u
+import gcn
+import healpy as hp
+import ligo.skymap.bayestar as ligo_bayestar
+import ligo.skymap.distance
+import ligo.skymap.io
+import ligo.skymap.moc
+import ligo.skymap.postprocess
+import numpy as np
+import requests
+import scipy
+from astropy.coordinates import ICRS, Angle, Latitude, Longitude, SkyCoord
 from astropy.table import Table
 from astropy.time import Time
-from astropy.coordinates import SkyCoord
-
-from astropy.coordinates import ICRS, Angle, Longitude, Latitude
 from astropy_healpix import HEALPix, nside_to_level, pixel_resolution_to_nside
-import ligo.skymap.io
-import ligo.skymap.postprocess
-import ligo.skymap.moc
-import ligo.skymap.distance
-import ligo.skymap.bayestar as ligo_bayestar
 from mocpy import MOC
 
 
@@ -210,7 +209,7 @@ def get_skymap_url(root, notice_type, timeout=10):
         # we have a URL, but is it available? We don't want to download the file here,
         # so we'll just check the HTTP status code.
         try:
-            response = requests.head(url, timeout=timeout)
+            response = requests.head(url, timeout=timeout, allow_redirects=True)
             if response.status_code == 200:
                 available = True
         except requests.exceptions.RequestException:
@@ -287,15 +286,18 @@ def get_skymap(root, notice_type, url_timeout=10):
     status, skymap_metadata = get_skymap_metadata(root, notice_type, url_timeout)
 
     if status == "available":
-        return from_url(skymap_metadata["url"])
+        return from_url(skymap_metadata["url"]), skymap_metadata["url"]
     elif status == "cone":
-        return from_cone(
-            ra=skymap_metadata["ra"],
-            dec=skymap_metadata["dec"],
-            error=skymap_metadata["error"],
+        return (
+            from_cone(
+                ra=skymap_metadata["ra"],
+                dec=skymap_metadata["dec"],
+                error=skymap_metadata["error"],
+            ),
+            None,
         )
     else:
-        return None
+        return None, None
 
 
 def get_properties(root):
@@ -449,6 +451,9 @@ def from_bytes(arr):
     with tempfile.NamedTemporaryFile(suffix=".fits.gz", mode="wb") as f:
         arrSplit = arr.split('base64,')
         filename = arrSplit[0].split("name=")[-1].replace(";", "")
+        # the localization name might contain things like '%2B' for '+', or '%3A' for ':'
+        # make sure that these are converted to the correct characters
+        filename = urllib.parse.unquote(filename)
         f.write(base64.b64decode(arrSplit[-1]))
         f.flush()
 
