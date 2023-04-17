@@ -100,6 +100,24 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
+const conversions = {
+  FAR: {
+    backendUnit: "Hz",
+    frontendUnit: "Per year",
+    BackendToFrontend: (val) => parseFloat(val) * (365.25 * 24 * 60 * 60),
+    FrontendToBackend: (val) => parseFloat(val) / (365.25 * 24 * 60 * 60),
+  },
+};
+
+const comparators = {
+  lt: "<",
+  le: "<=",
+  eq: "=",
+  ne: "!=",
+  ge: ">",
+  gt: ">=",
+};
+
 const GcnEventsFilterForm = ({ handleFilterSubmit }) => {
   const classes = useStyles();
   const dispatch = useDispatch();
@@ -228,6 +246,8 @@ const GcnEventsFilterForm = ({ handleFilterSubmit }) => {
           <GcnPropertiesSelect
             selectedGcnProperties={selectedGcnProperties}
             setSelectedGcnProperties={setSelectedGcnProperties}
+            conversions={conversions}
+            comparators={comparators}
           />
         </div>
         <div className={classes.formItemRightColumn}>
