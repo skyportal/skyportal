@@ -226,6 +226,68 @@ class ShiftHandler(BaseHandler):
             except Exception as e:
                 return self.error(f"Failed to get shift(s): {e}")
 
+    @permissions(['Manage shifts'])
+    def patch(self, shift_id):
+        """
+        ---
+        description: Update a shift
+        tags:
+          - shifts
+        parameters:
+          - in: path
+            name: shift_id
+            required: true
+            schema:
+              type: integer
+        requestBody:
+          content:
+            application/json:
+              schema: ShiftNoID
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+
+        with self.Session() as session:
+            shift = session.scalars(
+                Shift.select(session.user_or_token, mode="update").where(
+                    Shift.id == shift_id
+                )
+            ).first()
+            if shift is None:
+                return self.error(
+                    "Only the admin of a shift or an admin of the shift's group can edit it."
+                )
+
+            data = self.get_json()
+            data['id'] = int(shift_id)
+
+            schema = Shift.__schema__()
+            try:
+                schema.load(data, partial=True)
+            except ValidationError as e:
+                return self.error(
+                    'Invalid/missing parameters: ' f'{e.normalized_messages()}'
+                )
+
+            if 'name' in data:
+                shift.name = data['name']
+            if 'description' in data:
+                shift.description = data['description']
+            if 'required_users_number' in data:
+                shift.required_users_number = int(data['required_users_number'])
+
+            session.commit()
+
+            self.push_all(action="skyportal/REFRESH_SHIFTS")
+            return self.success()
+
     @permissions(["Manage shifts"])
     def delete(self, shift_id):
         """
@@ -252,7 +314,9 @@ class ShiftHandler(BaseHandler):
         shift_id = int(shift_id)
         with self.Session() as session:
             shift = session.scalars(
-                Shift.select(session.user_or_token).where(Shift.id == shift_id)
+                Shift.select(session.user_or_token, mode="delete").where(
+                    Shift.id == shift_id
+                )
             ).first()
             if shift is None:
                 return self.error(

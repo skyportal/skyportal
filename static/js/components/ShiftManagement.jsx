@@ -14,6 +14,7 @@ import Tooltip from "@mui/material/Tooltip";
 import PropTypes from "prop-types";
 
 import { showNotification } from "baselayer/components/Notifications";
+import UpdateShift from "./UpdateShift";
 import Button from "./Button";
 import * as shiftActions from "../ducks/shift";
 import {
@@ -731,6 +732,9 @@ export function CurrentShiftMenu({ currentShift }) {
       <div id="current_shift" className={classes.root}>
         <div className={classes.shift_content}>
           <div>
+            <div>
+              <UpdateShift shift={currentShift} />
+            </div>
             {currentShift.description ? (
               <h2 id="current_shift_title" className={classes.shiftinfo}>
                 {currentShift.name}: {currentShift.description}

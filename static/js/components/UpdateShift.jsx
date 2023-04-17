@@ -11,8 +11,7 @@ import TextField from "@mui/material/TextField";
 
 import { showNotification } from "baselayer/components/Notifications";
 import Button from "./Button";
-import FormValidationError from "./FormValidationError";
-import * as sourceActions from "../ducks/source";
+import * as shiftActions from "../ducks/shift";
 
 const useStyles = makeStyles(() => ({
   saveButton: {
@@ -25,12 +24,13 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-const UpdateSourceCoordinates = ({ source }) => {
+const UpdateShift = ({ shift }) => {
   const classes = useStyles();
   const dispatch = useDispatch();
   const [state, setState] = useState({
-    ra: source.ra,
-    dec: source.dec,
+    name: shift.name,
+    description: shift.description,
+    required_users_number: shift.required_users_number,
   });
 
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -40,17 +40,18 @@ const UpdateSourceCoordinates = ({ source }) => {
   useEffect(() => {
     setInvalid(
       // eslint-disable-next-line no-restricted-globals
-      !source.ra || isNaN(source.ra) || !source.dec || isNaN(source.dec)
+      !shift.name || !shift.description || !shift.required_users_number
     );
     setState({
-      ra: source.ra,
-      dec: source.dec,
+      name: shift.name,
+      description: shift.description,
+      required_users_number: shift.required_users_number,
     });
-  }, [source, setInvalid]);
+  }, [shift, setInvalid]);
 
   const handleChange = (e) => {
     const newState = {};
-    newState[e.target.name] = parseFloat(e.target.value);
+    newState[e.target.name] = e.target.value;
     setState({
       ...state,
       ...newState,
@@ -60,16 +61,17 @@ const UpdateSourceCoordinates = ({ source }) => {
   const handleSubmit = async (subState) => {
     setIsSubmitting(true);
     const newState = {};
-    newState.ra = subState.ra;
-    newState.dec = subState.dec;
+    newState.name = subState.name;
+    newState.description = subState.description;
+    newState.required_users_number = subState.required_users_number;
     const result = await dispatch(
-      sourceActions.updateSource(source.id, {
+      shiftActions.updateShift(shift.id, {
         ...newState,
       })
     );
     setIsSubmitting(false);
     if (result.status === "success") {
-      dispatch(showNotification("Source location successfully updated."));
+      dispatch(showNotification("Shift successfully updated."));
       setDialogOpen(false);
     }
   };
@@ -77,7 +79,7 @@ const UpdateSourceCoordinates = ({ source }) => {
   return (
     <>
       <EditIcon
-        data-testid="updateCoordinatesIconButton"
+        data-testid="updateShiftIconButton"
         fontSize="small"
         className={classes.editIcon}
         onClick={() => {
@@ -91,31 +93,39 @@ const UpdateSourceCoordinates = ({ source }) => {
         }}
         style={{ position: "fixed" }}
       >
-        <DialogTitle>Update Coordinates</DialogTitle>
+        <DialogTitle>Update Shift Info</DialogTitle>
         <DialogContent>
           <div>
-            {invalid && (
-              <FormValidationError message="Please enter a valid float" />
-            )}
             <TextField
-              data-testid="updateCoordinatesRATextfield"
+              data-testid="updateShiftNameTextfield"
               size="small"
-              label="ra"
-              value={state.ra}
-              name="ra"
+              label="name"
+              value={state.name}
+              name="name"
               onChange={handleChange}
-              type="number"
               variant="outlined"
             />
           </div>
           <p />
           <div>
             <TextField
-              data-testid="updateCoordinatesDecTextfield"
+              data-testid="updateShiftDescriptionTextfield"
               size="small"
-              label="dec"
-              value={state.dec}
-              name="dec"
+              label="description"
+              value={state.description}
+              name="description"
+              onChange={handleChange}
+              variant="outlined"
+            />
+          </div>
+          <p />
+          <div>
+            <TextField
+              data-testid="updateShiftRequiredTextfield"
+              size="small"
+              label="required_users_number"
+              value={state.required_users_number}
+              name="required_users_number"
               onChange={handleChange}
               type="number"
               variant="outlined"
@@ -129,7 +139,7 @@ const UpdateSourceCoordinates = ({ source }) => {
               }}
               endIcon={<SaveIcon />}
               size="large"
-              data-testid="updateCoordinatesSubmitButton"
+              data-testid="updateShiftSubmitButton"
               disabled={isSubmitting || invalid}
             >
               Save
@@ -141,12 +151,13 @@ const UpdateSourceCoordinates = ({ source }) => {
   );
 };
 
-UpdateSourceCoordinates.propTypes = {
-  source: PropTypes.shape({
+UpdateShift.propTypes = {
+  shift: PropTypes.shape({
     id: PropTypes.string,
-    ra: PropTypes.number,
-    dec: PropTypes.number,
+    name: PropTypes.string,
+    required_users_number: PropTypes.number,
+    description: PropTypes.string,
   }).isRequired,
 };
 
-export default UpdateSourceCoordinates;
+export default UpdateShift;
