@@ -722,7 +722,6 @@ const FilterCandidateList = ({
               {gcnEvents?.events ? (
                 <>
                   <div className={classes.gcnFormRow}>
-                    {/* gcn event filtering based on localization */}
                     <Controller
                       render={({ field: { value } }) => (
                         <Autocomplete
