@@ -22,6 +22,7 @@ import astropy
 import humanize
 import requests
 import sqlalchemy as sa
+from sqlalchemy import String
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm import sessionmaker, scoped_session
 from sqlalchemy.sql.expression import cast
@@ -965,6 +966,13 @@ class GcnEventHandler(BaseHandler):
                 schema: Error
         """
 
+        partialdateobs = self.get_query_argument("partialdateobs", None)
+
+        if dateobs is not None and partialdateobs is not None:
+            return self.error(
+                "Cannot specify both dateobs and partialdateobs query parameters"
+            )
+
         page_number = self.get_query_argument("pageNumber", 1)
         try:
             page_number = int(page_number)
@@ -1156,6 +1164,11 @@ class GcnEventHandler(BaseHandler):
                 ],
             )
 
+            if partialdateobs is not None and partialdateobs != "":
+                partialdateobs = partialdateobs.replace("T", " ")
+                query = query.where(
+                    cast(GcnEvent.dateobs, String).like(f"{partialdateobs}%")
+                )
             if start_date:
                 start_date = arrow.get(start_date.strip()).datetime
                 query = query.where(GcnEvent.dateobs >= start_date)

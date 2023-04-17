@@ -15,6 +15,7 @@ import InputLabel from "@mui/material/InputLabel";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
 import TextField from "@mui/material/TextField";
+import Autocomplete from "@mui/material/Autocomplete";
 import Tooltip from "@mui/material/Tooltip";
 import { Typography } from "@mui/material";
 import makeStyles from "@mui/styles/makeStyles";
@@ -67,6 +68,12 @@ const useStyles = makeStyles(() => ({
   },
   formRow: {
     margin: "1rem 0",
+  },
+  gcnFormRow: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr 1fr",
+    gridGap: "0.5rem",
+    marginTop: "1rem",
   },
   redshiftField: {
     display: "inline-block",
@@ -205,22 +212,10 @@ const FilterCandidateList = ({
     gcnEventsLookUp[gcnEvent.id] = gcnEvent;
   });
 
-  const gcnEventsSelect = gcnEvents
-    ? [
-        {
-          id: -1,
-          dateobs: "Clear Selection",
-        },
-        ...gcnEvents.events,
-      ]
-    : [];
-
   const [selectedGcnEventId, setSelectedGcnEventId] = useState(null);
 
   useEffect(() => {
-    if (gcnEvents?.length > 0 || !gcnEvents) {
-      dispatch(gcnEventsActions.fetchGcnEvents());
-    }
+    dispatch(gcnEventsActions.fetchGcnEvents());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -238,9 +233,9 @@ const FilterCandidateList = ({
   useEffect(() => {
     // set the default values for the firstDetectionAfter and lastDetectionBefore
 
-    let defaultFirstDetectionAfter = "";
-    let defaultLastDetectionBefore = "";
-    if (!(selectedGcnEventId === -1 || !selectedGcnEventId)) {
+    let defaultFirstDetectionAfter = " ";
+    let defaultLastDetectionBefore = " ";
+    if (selectedGcnEventId && selectedGcnEventId !== "") {
       defaultFirstDetectionAfter = dayjs
         .utc(gcnEventsLookUp[selectedGcnEventId]?.dateobs)
         .format("YYYY-MM-DD HH:mm:ss");
@@ -254,7 +249,7 @@ const FilterCandidateList = ({
       firstDetectionAfter: defaultFirstDetectionAfter,
       lastDetectionBefore: defaultLastDetectionBefore,
     };
-    if (selectedGcnEventId === -1 || !selectedGcnEventId) {
+    if (!selectedGcnEventId) {
       delete newFormData.firstDetectionAfter;
       delete newFormData.lastDetectionBefore;
       delete newFormData.numberDetections;
@@ -380,7 +375,9 @@ const FilterCandidateList = ({
       ]?.localizations?.filter(
         (l) => l.id === formData.localizationid
       )[0]?.localization_name;
-      data.localizationCumprob = formData.localizationCumprob || 0.95;
+      if (formData.localizationCumprob) {
+        data.localizationCumprob = formData.localizationCumprob;
+      }
       if (formData.firstDetectionAfter) {
         data.firstDetectionAfter = formData.firstDetectionAfter;
       }
@@ -721,145 +718,155 @@ const FilterCandidateList = ({
             </Responsive>
           </div>
           <div>
-            <Responsive
-              element={FoldBox}
-              title="GCN Filtering"
-              mobileProps={{ folded: true }}
-            >
-              <div className={classes.formRow}>
-                {/* gcn event filtering based on localization */}
-                <InputLabel id="gcn-event-filtering-label">
-                  GCN Event
-                </InputLabel>
-                <Controller
-                  render={({ field: { value } }) => (
-                    <Select
-                      inputProps={{ MenuProps: { disableScrollLock: true } }}
-                      labelId="gcnEventSelectLabel"
-                      value={value || ""}
-                      onChange={(event) => {
-                        reset({
-                          ...getValues(),
-                          gcneventid:
-                            event.target.value === -1 ? "" : event.target.value,
-                          localizationid:
-                            event.target.value === -1
-                              ? ""
-                              : gcnEventsLookUp[event.target.value]
-                                  ?.localizations[0]?.id || "",
-                        });
-                        setSelectedGcnEventId(event.target.value);
-                      }}
-                      className={classes.select}
-                    >
-                      {gcnEventsSelect?.map((gcnEvent) => (
-                        <MenuItem
-                          value={gcnEvent.id}
-                          key={gcnEvent.id}
-                          className={classes.selectItem}
-                        >
-                          {`${gcnEvent.dateobs}`}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  )}
-                  name="gcneventid"
-                  control={control}
-                  defaultValue=""
-                />
-                &nbsp;
-                <Controller
-                  render={({ field: { onChange, value } }) => (
-                    <Select
-                      inputProps={{ MenuProps: { disableScrollLock: true } }}
-                      labelId="localizationSelectLabel"
-                      value={value || ""}
-                      onChange={(event) => {
-                        onChange(event.target.value);
-                      }}
-                      className={classes.select}
-                      disabled={!selectedGcnEventId}
-                    >
-                      {gcnEventsLookUp[selectedGcnEventId]?.localizations?.map(
-                        (localization) => (
-                          <MenuItem
-                            value={localization.id}
-                            key={localization.id}
-                            className={classes.selectItem}
-                          >
-                            {`${localization.localization_name}`}
-                          </MenuItem>
-                        )
+            <Responsive element={FoldBox} title="GCN Filtering" folded>
+              {gcnEvents?.events ? (
+                <>
+                  <div className={classes.gcnFormRow}>
+                    {/* gcn event filtering based on localization */}
+                    <Controller
+                      render={({ field: { value } }) => (
+                        <Autocomplete
+                          id="gcn-event-filtering"
+                          options={gcnEvents?.events}
+                          value={
+                            gcnEvents?.events.find(
+                              (option) => option.id === value
+                            ) || null
+                          }
+                          getOptionLabel={(option) => option?.dateobs || ""}
+                          className={classes.select}
+                          // eslint-disable-next-line no-shadow
+                          onInputChange={(event, value) => {
+                            dispatch(
+                              gcnEventsActions.fetchGcnEvents({
+                                partialdateobs: value,
+                              })
+                            );
+                          }}
+                          onChange={(event, newValue) => {
+                            if (newValue !== null) {
+                              reset({
+                                ...getValues(),
+                                gcneventid:
+                                  newValue.id === -1 ? "" : newValue.id,
+                                localizationid:
+                                  newValue.id === -1
+                                    ? ""
+                                    : gcnEventsLookUp[newValue.id]
+                                        ?.localizations[0]?.id || "",
+                              });
+                              setSelectedGcnEventId(newValue.id);
+                            } else {
+                              reset({
+                                ...getValues(),
+                                gcneventid: "",
+                                localizationid: "",
+                              });
+                              setSelectedGcnEventId("");
+                            }
+                          }}
+                          renderInput={(params) => (
+                            <TextField {...params} label="GCN Event" />
+                          )}
+                        />
                       )}
-                    </Select>
-                  )}
-                  name="localizationid"
-                  control={control}
-                  defaultValue=""
-                />
-                &nbsp;
-                <Controller
-                  render={({ field: { onChange, value } }) => (
-                    <TextField
-                      id="cumprob"
-                      label="Cumulative Probability"
-                      type="number"
-                      value={value}
-                      inputProps={{ step: 0.01, min: 0, max: 1 }}
-                      onChange={(event) => onChange(event.target.value)}
-                      defaultValue={0.95}
+                      name="gcneventid"
+                      control={control}
+                      defaultValue=""
                     />
-                  )}
-                  name="localizationCumprob"
-                  control={control}
-                />
-              </div>
-              {selectedGcnEventId && (
-                <div className={classes.formRow}>
-                  <Controller
-                    render={({ field: { onChange, value } }) => (
-                      <TextField
-                        type="text"
-                        value={value}
-                        onChange={(event) => onChange(event.target.value)}
-                        label="First Detection After (UTC)"
-                        defaultValue=""
-                      />
-                    )}
-                    name="firstDetectionAfter"
-                    control={control}
-                  />
-                  &nbsp;
-                  <Controller
-                    render={({ field: { onChange, value } }) => (
-                      <TextField
-                        type="text"
-                        value={value}
-                        onChange={(event) => onChange(event.target.value)}
-                        label="Last Detection Before (UTC)"
-                        defaultValue=""
-                      />
-                    )}
-                    name="lastDetectionBefore"
-                    control={control}
-                  />
-                  &nbsp;
-                  <Controller
-                    render={({ field: { onChange, value } }) => (
-                      <TextField
-                        id="minNbDect"
-                        label="Minimum Number of Detections"
-                        type="number"
-                        value={value}
-                        inputProps={{ step: 1, min: 0 }}
-                        onChange={(event) => onChange(event.target.value)}
-                        defaultValue={1}
-                      />
-                    )}
-                    name="numberDetections"
-                    control={control}
-                  />
-                </div>
+                    <Controller
+                      render={({ field: { onChange, value } }) => (
+                        <Select
+                          inputProps={{
+                            MenuProps: { disableScrollLock: true },
+                          }}
+                          labelId="localizationSelectLabel"
+                          value={value || ""}
+                          onChange={(event) => {
+                            onChange(event.target.value);
+                          }}
+                          className={classes.select}
+                          disabled={!selectedGcnEventId}
+                        >
+                          {gcnEventsLookUp[
+                            selectedGcnEventId
+                          ]?.localizations?.map((localization) => (
+                            <MenuItem
+                              value={localization.id}
+                              key={localization.id}
+                              className={classes.selectItem}
+                            >
+                              {`${localization.localization_name}`}
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      )}
+                      name="localizationid"
+                      control={control}
+                      defaultValue=""
+                    />
+                    <Controller
+                      render={({ field: { onChange, value } }) => (
+                        <TextField
+                          id="cumprob"
+                          label="Cumulative Probability"
+                          type="number"
+                          value={value}
+                          inputProps={{ step: 0.01, min: 0, max: 1 }}
+                          onChange={(event) => onChange(event.target.value)}
+                          defaultValue={0.95}
+                        />
+                      )}
+                      name="localizationCumprob"
+                      control={control}
+                    />
+                  </div>
+                  <div className={classes.gcnFormRow}>
+                    <Controller
+                      render={({ field: { onChange, value } }) => (
+                        <TextField
+                          type="text"
+                          value={value}
+                          onChange={(event) => onChange(event.target.value)}
+                          label="First Detection After (UTC)"
+                          defaultValue=" "
+                        />
+                      )}
+                      name="firstDetectionAfter"
+                      control={control}
+                    />
+                    <Controller
+                      render={({ field: { onChange, value } }) => (
+                        <TextField
+                          type="text"
+                          value={value}
+                          onChange={(event) => onChange(event.target.value)}
+                          label="Last Detection Before (UTC)"
+                          defaultValue=" "
+                        />
+                      )}
+                      name="lastDetectionBefore"
+                      control={control}
+                    />
+                    <Controller
+                      render={({ field: { onChange, value } }) => (
+                        <TextField
+                          id="minNbDect"
+                          label="Minimum Number of Detections"
+                          type="number"
+                          value={value}
+                          inputProps={{ step: 1, min: 0 }}
+                          onChange={(event) => onChange(event.target.value)}
+                          defaultValue={1}
+                        />
+                      )}
+                      name="numberDetections"
+                      control={control}
+                    />
+                  </div>
+                </>
+              ) : (
+                <p> Loading events</p>
               )}
             </Responsive>
           </div>

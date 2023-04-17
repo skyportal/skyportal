@@ -209,6 +209,16 @@ const GcnEvents = () => {
     setFilterFormSubmitted(true);
   };
 
+  const handleSearchChange = async (searchText) => {
+    const params = {
+      ...fetchParams,
+      pageNumber: 1,
+      partialdateobs: searchText,
+    };
+    setFetchParams(params);
+    await dispatch(gcnEventsActions.fetchGcnEvents(params));
+  };
+
   const handleTableChange = (action, tableState) => {
     if (action === "changePage" || action === "changeRowsPerPage") {
       handlePageChange(
@@ -370,7 +380,8 @@ const GcnEvents = () => {
     pagination: true,
     count: totalMatches,
     onTableChange: handleTableChange,
-    search: false, // Disable search for now (not implemented yet)
+    search: true, // Disable search for now (not implemented yet)
+    onSearchChange: handleSearchChange,
     download: false, // Disable download button for now (not implemented yet)
     filter: true,
     customFilterDialogFooter: customFilterDisplay,
