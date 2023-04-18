@@ -2,6 +2,7 @@ import uuid
 import datetime
 import json
 from io import StringIO
+import os
 import traceback
 
 from astropy.time import Time
@@ -1519,7 +1520,7 @@ class PhotometryOriginHandler(BaseHandler):
 
             query_id = "origins"
             cache_filename = cache[query_id]
-            if cache_filename is not None:
+            if cache_filename is not None and os.path.isfile(cache_filename):
                 origins = list(np.load(cache_filename))
             else:
                 origins = (
