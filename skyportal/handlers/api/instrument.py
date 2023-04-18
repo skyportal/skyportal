@@ -920,6 +920,8 @@ def add_tiles(
                         InstrumentField.instrument_id == instrument_id,
                     )
                 ).scalar_one()
+                if max_field_id is None:
+                    max_field_id = 0
 
                 field = InstrumentField(
                     instrument_id=instrument_id,

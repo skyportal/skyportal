@@ -397,6 +397,20 @@ def generate_plan(
             'doAvoidGalacticPlane': request.payload.get("galactic_plane", False),
             # galactic latitude to exclude
             'galactic_limit': request.payload.get("galactic_latitude", 10),
+            # threshold number of fields?
+            'doMaxTiles': request.payload.get("max_tiles", False),
+            # Maximum number of fields to consider
+            'max_nb_tiles': [request.payload.get("max_nb_tiles", 100)]
+            * len(request.payload["filters"].split(",")),
+            # balance observations by filter
+            'doBalanceExposure': request.payload.get("balance_exposure", False),
+            # slice observations by right ascension
+            'doRASlice': request.payload.get("ra_slice", False),
+            # right ascension block
+            'raslice': [
+                request.payload.get("ra_slice_min", 0),
+                request.payload.get("ra_slice_max", 360),
+            ],
         }
 
         config = {}
@@ -601,13 +615,14 @@ def generate_plan(
                 }
                 field_data = pd.DataFrame.from_dict(data)
                 idx = np.array(idx).astype(int)
-                field_ids[idx] = add_tiles(
+                field_id = add_tiles(
                     request.instrument.id,
                     request.instrument.name,
                     regions,
                     field_data,
                     session=session,
                 )
+                field_ids[idx] = field_id
         log(
             f"Writing planned observations to database for ID(s): {','.join(observation_plan_id_strings)}"
         )
@@ -1122,6 +1137,39 @@ class MMAAPI(FollowUpAPI):
                     "default": 10.0,
                     "minimum": 0,
                     "maximum": 90,
+                },
+                "max_tiles": {
+                    "title": "Threshold on number of fields?",
+                    "type": "boolean",
+                },
+                "max_nb_tiles": {
+                    "title": "Maximum number of fields",
+                    "type": "number",
+                    "default": 100.0,
+                    "minimum": 0,
+                    "maximum": 1000,
+                },
+                "balance_exposures": {
+                    "title": "Balance exposures across fields",
+                    "type": "boolean",
+                },
+                "ra_slice": {
+                    "title": "RA Slicing",
+                    "type": "boolean",
+                },
+                "ra_slice_min": {
+                    "title": "Minimum RA",
+                    "type": "number",
+                    "default": 0.0,
+                    "minimum": 0,
+                    "maximum": 360,
+                },
+                "ra_slice_max": {
+                    "title": "Maximum RA",
+                    "type": "number",
+                    "default": 360.0,
+                    "minimum": 0.0,
+                    "maximum": 360,
                 },
                 "queue_name": {
                     "type": "string",
