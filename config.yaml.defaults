@@ -476,6 +476,7 @@ services:
 
 misc:
   days_to_keep_unsaved_candidates: 7
+  minutes_to_keep_origin_query_cache: 1440
   minutes_to_keep_candidate_query_cache: 60
   public_group_name: "Sitewide Group"
   # Use a named cosmology from `astropy.cosmology.parameters.available` cosmologies

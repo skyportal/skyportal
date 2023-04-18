@@ -44,9 +44,14 @@ from ...models.schema import (
     PhotometryRangeQuery,
 )
 from ...enum_types import ALLOWED_MAGSYSTEMS
+from ...utils.cache import Cache, array_to_bytes
 
 _, cfg = load_env()
-
+cache_dir = "cache/origin_queries"
+cache = Cache(
+    cache_dir=cache_dir,
+    max_age=cfg["misc.minutes_to_keep_origin_query_cache"] * 60,
+)
 
 log = make_log('api/photometry')
 
@@ -1511,9 +1516,19 @@ class PhotometryOriginHandler(BaseHandler):
         """
 
         with self.Session() as session:
-            origins = (
-                session.scalars(sa.select(Photometry.origin).distinct()).unique().all()
-            )
+
+            query_id = "origins"
+            cache_filename = cache[query_id]
+            if cache_filename is not None:
+                origins = list(np.load(cache_filename))
+            else:
+                origins = (
+                    session.scalars(sa.select(Photometry.origin).distinct())
+                    .unique()
+                    .all()
+                )
+                cache[query_id] = array_to_bytes(origins)
+
             return self.success(data=origins)
 
 
