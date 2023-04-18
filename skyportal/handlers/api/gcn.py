@@ -1190,9 +1190,12 @@ class GcnEventHandler(BaseHandler):
                     .where(GcnTag.text.in_(gcn_tag_remove))
                     .subquery()
                 )
-                query = query.join(
-                    gcn_tag_subquery, GcnEvent.dateobs != gcn_tag_subquery.c.dateobs
-                )
+                gcn_dateobs_query = GcnEvent.select(
+                    session.user_or_token, columns=[GcnEvent.dateobs]
+                ).where(GcnEvent.dateobs == gcn_tag_subquery.c.dateobs)
+                gcn_dateobs_subquery = gcn_dateobs_query.subquery()
+
+                query = query.where(GcnEvent.dateobs.notin_(gcn_dateobs_subquery))
             if localization_tag_keep:
                 tag_subquery = (
                     LocalizationTag.select(session.user_or_token)
