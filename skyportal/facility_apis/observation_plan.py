@@ -5,6 +5,7 @@ import humanize
 import json
 import pandas as pd
 from regions import Regions
+import requests
 from datetime import datetime, timedelta
 import numpy as np
 import os
@@ -22,15 +23,22 @@ from baselayer.log import make_log
 from baselayer.app.flow import Flow
 from baselayer.app.env import load_env
 
+from ..email_utils import send_email
 from . import FollowUpAPI
 
 log = make_log('api/observation_plan')
 
 env, cfg = load_env()
 
+SLACK_URL = f"{cfg['slack.expected_url_preamble']}/services"
+
 default_filters = cfg['app.observation_plan.default_filters']
 
 use_skyportal_fields = cfg['app.observation_plan.use_skyportal_fields']
+
+email = False
+if cfg["email_service"] == "sendgrid" or cfg["email_service"] == "smtp":
+    email = True
 
 
 def combine_healpix_tuples(input_tiles):
@@ -1202,6 +1210,51 @@ class MMAAPI(FollowUpAPI):
                     observation_plan_request=request,
                     initiator_id=request.last_modified_by_id,
                 )
+        elif 'type' in altdata and altdata['type'] == 'slack':
+            slack_microservice_url = (
+                f'http://127.0.0.1:{cfg["slack.microservice_port"]}'
+            )
+
+            data = json.dumps(
+                {
+                    "url": f"{SLACK_URL}/{altdata['slack_workspace']}/{altdata['slack_channel']}/{altdata['slack_token']}",
+                    "text": str(payload),
+                }
+            )
+
+            r = requests.post(
+                slack_microservice_url,
+                data=data,
+                headers={'Content-Type': 'application/json'},
+            )
+            r.raise_for_status()
+
+            request.status = 'submitted'
+
+            transaction = FacilityTransaction(
+                request=http.serialize_requests_request(r.request),
+                response=http.serialize_requests_response(r),
+                observation_plan_request=request,
+                initiator_id=request.last_modified_by_id,
+            )
+
+        elif 'type' in altdata and altdata['type'] == 'email':
+            subject = f"{cfg['app.title']} - New observation plans"
+
+            send_email(
+                recipients=[altdata['email']],
+                subject=subject,
+                body=str(payload),
+            )
+
+            request.status = 'submitted'
+
+            transaction = FacilityTransaction(
+                request=None,
+                response=None,
+                observation_plan_request=request,
+                initiator_id=request.last_modified_by_id,
+            )
 
         else:
             headers = {"Authorization": f"token {altdata['access_token']}"}
