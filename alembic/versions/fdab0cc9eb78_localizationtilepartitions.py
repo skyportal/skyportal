@@ -27,12 +27,7 @@ def upgrade():
             server_default=sa.text("'2023-01-01'::date"),
         ),
     )
-    # op.create_index(
-    #     'localizationtile_id_healpix_dateobs_index',
-    #     'localizationtiles',
-    #     ['id', 'healpix', 'dateobs'],
-    #     unique=False,
-    # )
+
     # add the dateobs to the primary key
     op.execute('ALTER TABLE localizationtiles DROP CONSTRAINT localizationtiles_pkey')
     # rename localizationtiles to localizationtiles_def
@@ -40,16 +35,16 @@ def upgrade():
 
     # rename also the indexes
     op.execute(
-        'ALTER INDEX ix_localizationtiles_created_at RENAME TO localizationtiles_def_created_at_idx'
+        'ALTER INDEX ix_localizationtiles_created_at RENAME TO ix_localizationtiles_def_created_at'
     )
     op.execute(
-        'ALTER INDEX ix_localizationtiles_probdensity RENAME TO localizationtiles_def_probdensity_idx'
+        'ALTER INDEX ix_localizationtiles_probdensity RENAME TO ix_localizationtiles_def_probdensity'
     )
     op.execute(
-        'ALTER INDEX ix_localizationtiles_healpix RENAME TO localizationtiles_def_healpix_idx'
+        'ALTER INDEX ix_localizationtiles_healpix RENAME TO ix_localizationtiles_def_healpix'
     )
     op.execute(
-        'ALTER INDEX ix_localizationtiles_localization_id RENAME TO localizationtiles_def_localization_id_idx'
+        'ALTER INDEX ix_localizationtiles_localization_id RENAME TO ix_localizationtiles_def_localization_id'
     )
     # drop it now
     op.execute('DROP INDEX localizationtile_id_healpix_index')
@@ -99,28 +94,28 @@ def upgrade():
 
     # add index on created_at
     op.create_index(
-        'localizationtiles_created_at_idx',
+        'ix_localizationtiles_created_at',
         'localizationtiles',
         ['created_at'],
         unique=False,
     )
     # add index on probdensity
     op.create_index(
-        'localizationtiles_probdensity_idx',
+        'ix_localizationtiles_probdensity',
         'localizationtiles',
         ['probdensity'],
         unique=False,
     )
     # add index on localization_id
     op.create_index(
-        'localizationtiles_localization_id_idx',
+        'ix_localizationtiles_localization_id',
         'localizationtiles',
         ['localization_id'],
         unique=False,
     )
     # add index on healpix
     op.create_index(
-        'localizationtiles_healpix_idx',
+        'ix_localizationtiles_healpix',
         'localizationtiles',
         ['healpix'],
         unique=False,
