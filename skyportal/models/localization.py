@@ -46,14 +46,21 @@ class PartitionByMeta(DeclarativeMeta):
 
         @classmethod
         def create_partition(
-            cls_, suffix, partition_stmt, subpartition_by=None, subpartition_type=None
+            cls_,
+            suffix,
+            partition_stmt,
+            subpartition_by=None,
+            subpartition_type=None,
+            table_args=None,
         ):
             if suffix not in cls_.partitions:
-
                 partition = PartitionByMeta(
                     f'{clsname}{suffix}',
                     bases,
-                    {'__tablename__': cls_.get_partition_name(suffix)},
+                    {
+                        '__tablename__': cls_.get_partition_name(suffix),
+                        '__table_args__': table_args or cls_.__table_args__,
+                    },
                     partition_type=subpartition_type,
                     partition_by=subpartition_by,
                 )
@@ -76,6 +83,8 @@ class PartitionByMeta(DeclarativeMeta):
             return cls_.partitions[suffix]
 
         if partition_by is not None:
+            log(f'Creating partitioned table {clsname} by {partition_by}...')
+            log(attrs)
             attrs.update(
                 {
                     '__table_args__': attrs.get('__table_args__', ())
@@ -401,18 +410,81 @@ class LocalizationTile(
 
 
 # create default partition that will contain all data out of range (older than 2023-04-01, and newer than 2025-04-01)
-LocalizationTile.create_partition("def", partition_stmt="DEFAULT")
+LocalizationTile.create_partition(
+    "def",
+    partition_stmt="DEFAULT",
+    table_args=(
+        sa.Index(
+            'localizationtile_def_id_healpix_dateobs_index',
+            'id',
+            'healpix',
+            'dateobs',
+            unique=True,
+        ),
+        sa.Index(
+            'localizationtiles_def_localization_id_idx',
+            'localization_id',
+            unique=False,
+        ),
+        sa.Index(
+            'localizationtiles_def_probdensity_idx',
+            'probdensity',
+            unique=False,
+        ),
+        sa.Index(
+            'localizationtiles_def_healpix_idx',
+            'healpix',
+            unique=False,
+        ),
+        sa.Index(
+            'localizationtiles_def_created_at_idx',
+            'created_at',
+            unique=False,
+        ),
+    ),
+)
 
 # create partitions from 2023-04-01 to 2025-04-01
 for year in range(2023, 2026):
     for month in range(1 if year != 2023 else 4, 13 if year != 2025 else 5):
         date = datetime.date(year, month, 1)
+        table_args = (
+            sa.Index(
+                f'localizationtile_{date.strftime("%Y_%m")}_id_healpix_dateobs_index',
+                'id',
+                'healpix',
+                'dateobs',
+                unique=True,
+            ),
+            sa.Index(
+                f'localizationtiles_{date.strftime("%Y_%m")}_localization_id_idx',
+                'localization_id',
+                unique=False,
+            ),
+            sa.Index(
+                f'localizationtiles_{date.strftime("%Y_%m")}_probdensity_idx',
+                'probdensity',
+                unique=False,
+            ),
+            sa.Index(
+                f'localizationtiles_{date.strftime("%Y_%m")}_healpix_idx',
+                'healpix',
+                unique=False,
+            ),
+            sa.Index(
+                f'localizationtiles_{date.strftime("%Y_%m")}_created_at_idx',
+                'created_at',
+                unique=False,
+            ),
+        )
+
         LocalizationTile.create_partition(
             date.strftime("%Y_%m"),
             partition_stmt="FOR VALUES FROM ('{}') TO ('{}')".format(
                 date.strftime("%Y-%m-%d"),
                 (date + relativedelta(months=1)).strftime("%Y-%m-%d"),
             ),
+            table_args=table_args,
         )
 
 
