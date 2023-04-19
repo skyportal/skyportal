@@ -17,7 +17,7 @@ import sqlalchemy as sa
 from astropy.table import Table
 from dateutil.relativedelta import relativedelta
 from dustmaps.config import config
-from sqlalchemy import event
+from sqlalchemy import event, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.declarative import DeclarativeMeta
 from sqlalchemy.ext.hybrid import hybrid_property
@@ -34,6 +34,8 @@ _, cfg = load_env()
 config['data_dir'] = cfg['misc.dustmap_folder']
 
 log = make_log('models/localizations')
+
+utcnow = func.timezone("UTC", func.current_timestamp())
 
 
 class PartitionByMeta(DeclarativeMeta):
@@ -329,17 +331,22 @@ class LocalizationTileMixin:
     """This is a single tile within a skymap (as in the Localization table).
     Each tile has an associated healpix id and probability density."""
 
+    created_at = sa.Column(
+        sa.DateTime,
+        nullable=False,
+        default=utcnow,
+        doc="UTC time of insertion of object's row into the database.",
+    )
+
     localization_id = sa.Column(
         sa.ForeignKey('localizations.id', ondelete="CASCADE"),
         primary_key=True,
-        index=True,
         doc='localization ID',
     )
 
     probdensity = sa.Column(
         sa.Float,
         nullable=False,
-        index=True,
         doc="Probability density for the tile",
     )
 
@@ -351,7 +358,7 @@ class LocalizationTileMixin:
         doc="Date of observation for the Localization to which this tile belongs",
     )
 
-    healpix = sa.Column(healpix_alchemy.Tile, primary_key=True, index=True)
+    healpix = sa.Column(healpix_alchemy.Tile, primary_key=True)
 
 
 class LocalizationTile(
@@ -369,6 +376,26 @@ class LocalizationTile(
             'healpix',
             'dateobs',
             unique=True,
+        ),
+        sa.Index(
+            'localizationtiles_localization_id_idx',
+            'localization_id',
+            unique=False,
+        ),
+        sa.Index(
+            'localizationtiles_probdensity_idx',
+            'probdensity',
+            unique=False,
+        ),
+        sa.Index(
+            'localizationtiles_healpix_idx',
+            'healpix',
+            unique=False,
+        ),
+        sa.Index(
+            'localizationtiles_created_at_idx',
+            'created_at',
+            unique=False,
         ),
     )
 
