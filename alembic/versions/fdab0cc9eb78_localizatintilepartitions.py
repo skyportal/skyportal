@@ -51,8 +51,13 @@ def upgrade():
     op.execute(
         'ALTER INDEX ix_localizationtiles_localization_id RENAME TO ix_localizationtiles_def_localization_id'
     )
-    op.execute(
-        'localizationtile_id_healpix_index RENAME TO localizationtile_def_id_healpix_index'
+    # drop it now
+    op.execute('DROP INDEX localizationtile_id_healpix_index')
+    op.create_index(
+        'localizationtile_def_id_healpix_dateobs_index',
+        'localizationtiles_def',
+        ['id', 'healpix', 'dateobs'],
+        unique=False,
     )
     # edit the foreign key constraint
     op.execute(
@@ -84,7 +89,7 @@ def upgrade():
     # add the healpix column to the partition table
     op.add_column(
         'localizationtiles',
-        sa.Column('healpix', healpix_alchemy.types.Tile(), nullable=False, index=True),
+        sa.Column('healpix', healpix_alchemy.types.Tile(), nullable=False),
     )
 
     # add foreign key constraint on localization_id
@@ -123,9 +128,9 @@ def upgrade():
     )
     # add an index on both id and healpix
     op.create_index(
-        'localizationtile_id_healpix_index',
+        'localizationtile_id_healpix_dateobs_index',
         'localizationtiles',
-        ['id', 'healpix'],
+        ['id', 'healpix', 'dateobs'],
         unique=True,
     )
 

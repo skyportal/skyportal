@@ -345,7 +345,8 @@ class LocalizationTileMixin:
 
     dateobs = sa.Column(
         sa.DateTime,
-        nullable=True,
+        nullable=False,
+        server_default=sa.text("'2023-01-01'::date"),
         primary_key=True,
         doc="Date of observation for the Localization to which this tile belongs",
     )
