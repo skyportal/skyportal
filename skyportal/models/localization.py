@@ -7,7 +7,6 @@ __all__ = [
 
 import datetime
 
-import arrow
 import dustmaps.sfd
 import healpix_alchemy
 import healpy
@@ -328,12 +327,12 @@ class LocalizationTile(
     )
 
 
+# create default partition that will contain all data out of range (older than 2023-04-01, and newer than 2025-04-01)
 LocalizationTile.create_partition("def", partition_stmt="DEFAULT")
 
-# create partitions from 2017-01-01 to 2026-01-01, this could be speficied in the config
-# TODO: but we need alembic to not keep track if every partition, just the original partitioned table
-for year in range(2017, 2026):
-    for month in range(1, 13):
+# create partitions from 2023-04-01 to 2025-04-01
+for year in range(2023, 2025):
+    for month in range(1 if year != 2023 else 4, 13 if year != 2015 else 5):
         date = datetime.date(year, month, 1)
         LocalizationTile.create_partition(
             date.strftime("%Y_%m"),
@@ -400,23 +399,3 @@ class LocalizationTag(Base):
     )
 
     text = sa.Column(sa.Unicode, nullable=False, index=True)
-
-
-# this doesnt work yet. It looks like the event is triggers, the code runs but the tables arent created/committed
-# using postgresql code outside of skyportal, it did work however.
-@event.listens_for(Localization, 'before_insert')
-def localizationtile_before_insert(mapper, connection, target):
-    partition_key = arrow.get(target.dateobs).datetime
-    partition_name = f'localizationtiles_{partition_key.year}_{partition_key.month}'
-    if partition_name not in LocalizationTile.partitions:
-        print(f"creating partition {partition_name}")
-        if partition_key.month == 12:
-            LocalizationTile.create_partition(
-                f"{partition_key.year}_{partition_key.month}",
-                partition_stmt=f"""FOR VALUES FROM ('{partition_key.year}-{partition_key.month}-01') TO ('{partition_key.year+1}-01-01')""",
-            )
-        else:
-            LocalizationTile.create_partition(
-                f"{partition_key.year}_{partition_key.month}",
-                partition_stmt=f"""FOR VALUES FROM ('{partition_key.year}-{partition_key.month}-01') TO ('{partition_key.year}-{partition_key.month+1}-01')""",
-            )
