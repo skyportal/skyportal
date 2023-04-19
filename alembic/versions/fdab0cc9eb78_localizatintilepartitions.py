@@ -35,11 +35,35 @@ def upgrade():
     # )
     # add the dateobs to the primary key
     op.execute('ALTER TABLE localizationtiles DROP CONSTRAINT localizationtiles_pkey')
-    op.execute(
-        'ALTER TABLE localizationtiles ADD PRIMARY KEY (id, localization_id, healpix, dateobs)'
-    )
     # rename localizationtiles to localizationtiles_def
     op.execute('ALTER TABLE localizationtiles RENAME TO localizationtiles_def')
+
+    # rename also the indexes
+    op.execute(
+        'ALTER INDEX ix_localizationtiles_created_at RENAME TO ix_localizationtiles_def_created_at'
+    )
+    op.execute(
+        'ALTER INDEX ix_localizationtiles_probdensity RENAME TO ix_localizationtiles_def_probdensity'
+    )
+    op.execute(
+        'ALTER INDEX ix_localizationtiles_healpix RENAME TO ix_localizationtiles_def_healpix'
+    )
+    op.execute(
+        'ALTER INDEX ix_localizationtiles_localization_id RENAME TO ix_localizationtiles_def_localization_id'
+    )
+    op.execute(
+        'localizationtile_id_healpix_index RENAME TO localizationtile_def_id_healpix_index'
+    )
+    # edit the foreign key constraint
+    op.execute(
+        'ALTER TABLE localizationtiles_def DROP CONSTRAINT localizationtiles_localization_id_fkey'
+    )
+    op.execute(
+        'ALTER TABLE localizationtiles_def ADD CONSTRAINT localizationtiles_def_localization_id_fkey FOREIGN KEY (localization_id) REFERENCES localizations (id) ON DELETE CASCADE'
+    )
+    op.execute(
+        'ALTER TABLE localizationtiles_def ADD PRIMARY KEY (id, localization_id, healpix, dateobs)'
+    )
 
     # create localizationtiles partition table
     # op.execute(
@@ -57,18 +81,54 @@ def upgrade():
             '''
     )
 
-    # op.execute('ALTER SEQUENCE localizationtiles_id_seq OWNED BY localizationtiles.id')
+    # add the healpix column to the partition table
+    op.add_column(
+        'localizationtiles',
+        sa.Column('healpix', healpix_alchemy.types.Tile(), nullable=False, index=True),
+    )
 
     # add foreign key constraint on localization_id
     op.execute(
         'ALTER TABLE localizationtiles ADD CONSTRAINT localizationtiles_localization_id_fkey FOREIGN KEY (localization_id) REFERENCES localizations (id) ON DELETE CASCADE'
     )
 
-    # add the healpix column to the partition table
-    op.add_column(
+    # add index on created_at
+    op.create_index(
+        'ix_localizationtiles_created_at',
         'localizationtiles',
-        sa.Column('healpix', healpix_alchemy.types.Tile(), nullable=False),
+        ['created_at'],
+        unique=False,
     )
+    # add index on probdensity
+    op.create_index(
+        'ix_localizationtiles_probdensity',
+        'localizationtiles',
+        ['probdensity'],
+        unique=False,
+    )
+    # add index on localization_id
+    op.create_index(
+        'ix_localizationtiles_localization_id',
+        'localizationtiles',
+        ['localization_id'],
+        unique=False,
+    )
+    # add index on healpix
+    op.create_index(
+        'ix_localizationtiles_healpix',
+        'localizationtiles',
+        ['healpix'],
+        unique=False,
+        postgresql_using='spgist',
+    )
+    # add an index on both id and healpix
+    op.create_index(
+        'localizationtile_id_healpix_index',
+        'localizationtiles',
+        ['id', 'healpix'],
+        unique=True,
+    )
+
     # primary key on id, localization_id, healpix
     op.execute(
         'ALTER TABLE localizationtiles ADD PRIMARY KEY (id, localization_id, healpix, dateobs)'
