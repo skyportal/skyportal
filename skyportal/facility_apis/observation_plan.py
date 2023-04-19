@@ -37,7 +37,7 @@ default_filters = cfg['app.observation_plan.default_filters']
 use_skyportal_fields = cfg['app.observation_plan.use_skyportal_fields']
 
 email = False
-if cfg["email_service"] == "sendgrid" or cfg["email_service"] == "smtp":
+if cfg.get("email_service") == "sendgrid" or cfg.get("email_service") == "smtp":
     email = True
 
 
