@@ -17,6 +17,24 @@ import LocalizationTagsSelect from "./LocalizationTagsSelect";
 import LocalizationPropertiesSelect from "./LocalizationPropertiesSelect";
 import * as profileActions from "../ducks/profile";
 
+const conversions = {
+  FAR: {
+    backendUnit: "Hz",
+    frontendUnit: "Per year",
+    BackendToFrontend: (val) => parseFloat(val) * (365.25 * 24 * 60 * 60),
+    FrontendToBackend: (val) => parseFloat(val) / (365.25 * 24 * 60 * 60),
+  },
+};
+
+const comparators = {
+  lt: "<",
+  le: "<=",
+  eq: "=",
+  ne: "!=",
+  ge: ">",
+  gt: ">=",
+};
+
 const useStyles = makeStyles((theme) => ({
   pref: {
     display: "flex",
@@ -266,11 +284,37 @@ const NotificationGcnEvent = () => {
                   <div className={classes.formSubGroupDivider} />
                   <p>
                     Properties:{" "}
-                    {(
-                      profile.notifications.gcn_events?.properties[
-                        selectedNotification
-                      ]?.gcn_properties || []
-                    ).join(", ")}
+                    <ul>
+                      {(
+                        profile.notifications.gcn_events?.properties[
+                          selectedNotification
+                        ]?.gcn_properties || []
+                      ).map((prop) => (
+                        <li
+                          key={prop}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            flexDirection: "row",
+                            gap: "0.5rem",
+                          }}
+                        >
+                          <p>{prop.split(":")[0].trim()}</p>
+                          <p>{comparators[prop.split(":")[2].trim()]}</p>
+                          <p>
+                            {conversions[prop.split(":")[0].trim()]
+                              ? conversions[
+                                  prop.split(":")[0].trim()
+                                ].BackendToFrontend(prop.split(":")[1].trim())
+                              : prop.split(":")[1].trim()}
+                          </p>
+                          <p>
+                            {conversions[prop.split(":")[0].trim()]
+                              ?.frontendUnit || ""}{" "}
+                          </p>
+                        </li>
+                      ))}
+                    </ul>
                   </p>
                   <div className={classes.formSubGroupDivider} />
                   <p>
@@ -284,11 +328,37 @@ const NotificationGcnEvent = () => {
                   <div className={classes.formSubGroupDivider} />
                   <p>
                     Localization Properties:{" "}
-                    {(
-                      profile.notifications.gcn_events?.properties[
-                        selectedNotification
-                      ]?.localization_properties || []
-                    ).join(", ")}
+                    <ul>
+                      {(
+                        profile.notifications.gcn_events?.properties[
+                          selectedNotification
+                        ]?.localization_properties || []
+                      ).map((prop) => (
+                        <li
+                          key={prop}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            flexDirection: "row",
+                            gap: "0.5rem",
+                          }}
+                        >
+                          <p>{prop.split(":")[0].trim()}</p>
+                          <p>{comparators[prop.split(":")[2].trim()]}</p>
+                          <p>
+                            {conversions[prop.split(":")[0].trim()]
+                              ? conversions[
+                                  prop.split(":")[0].trim()
+                                ].BackendToFrontend(prop.split(":")[1].trim())
+                              : prop.split(":")[1].trim()}
+                          </p>
+                          <p>
+                            {conversions[prop.split(":")[0].trim()]
+                              ?.frontendUnit || ""}{" "}
+                          </p>
+                        </li>
+                      ))}
+                    </ul>
                   </p>
                 </div>
               )}
@@ -352,6 +422,8 @@ const NotificationGcnEvent = () => {
                     <GcnPropertiesSelect
                       selectedGcnProperties={selectedGcnProperties}
                       setSelectedGcnProperties={setSelectedGcnProperties}
+                      conversions={conversions}
+                      comparators={comparators}
                     />
                   </div>
                 </div>

@@ -12,7 +12,7 @@ _, cfg = load_env()
 
 
 def send_email(recipients, subject, body):
-    if cfg["email_service"] == "sendgrid":
+    if cfg.get("email_service") == "sendgrid":
         sendgrid_client = SendGridAPIClient(cfg["twilio.sendgrid_api_key"])
         message = Mail(
             from_email=cfg["twilio.from_email"],
@@ -21,7 +21,7 @@ def send_email(recipients, subject, body):
             html_content=body,
         )
         sendgrid_client.send(message)
-    elif cfg["email_service"] == "smtp":
+    elif cfg.get("email_service") == "smtp":
         smtp_server = smtplib.SMTP(cfg["smtp.host"], cfg["smtp.port"])
         smtp_server.starttls()
         smtp_server.login(cfg["smtp.from_email"], cfg["smtp.password"])

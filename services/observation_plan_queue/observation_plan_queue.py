@@ -1,6 +1,7 @@
 import asyncio
 import json
 import time
+from copy import deepcopy
 from threading import Thread
 
 import requests
@@ -34,32 +35,44 @@ queue = []
 def service(queue):
     while True:
         if len(queue) == 0:
-            time.sleep(5)
+            time.sleep(1)
             continue
-        plans, survey_efficiencies, combine_plans, user_id = queue.pop(0)
+
+        plans, survey_efficiencies, combine_plans, default_plan, user_id = queue[0]
+        plan_ids = []
 
         with DBSession() as session:
             try:
-                plan_ids = []
                 if len(plans) == 1:
                     plan_id = post_observation_plan(
-                        plans[0], user_id, session, asynchronous=False
+                        plans[0],
+                        user_id,
+                        session,
+                        default_plan=default_plan,
+                        asynchronous=False,
                     )
                     plan_ids.append(plan_id)
                 else:
                     if combine_plans:
                         plan_ids = post_observation_plans(
-                            plans, user_id, session, asynchronous=False
+                            plans,
+                            user_id,
+                            session,
+                            default_plan=default_plan,
+                            asynchronous=False,
                         )
                     else:
                         for plan in plans:
                             plan_id = post_observation_plan(
-                                plan, user_id, session, asynchronous=False
+                                plan,
+                                user_id,
+                                session,
+                                default_plan=default_plan,
+                                asynchronous=False,
                             )
                             plan_ids.append(plan_id)
             except Exception as e:
                 log(f"Observation plan failed: {str(e)}")
-                continue
 
             for plan_id in plan_ids:
                 for survey_efficiency in survey_efficiencies:
@@ -73,7 +86,8 @@ def service(queue):
                         )
                     except Exception as e:
                         log(f"Survey efficiency analysis failed: {str(e)}")
-                        continue
+
+        queue.pop(0)
 
 
 def api(queue):
@@ -94,6 +108,7 @@ def api(queue):
             plan = data.get('plan', None)
             survey_efficiencies = data.get('survey_efficiencies', [])
             combine_plans = data.get('combine_plans', False)
+            default_plan = data.get('default_plan', False)
 
             if user_id is None:
                 self.set_status(400)
@@ -144,8 +159,27 @@ def api(queue):
                         }
                     )
 
+            queue_copy = deepcopy(queue)
+            # check that no plan in the queue has the same queue_name as any plan in the request
+            for plan in plans:
+                for plans_in_queue in queue_copy:
+                    if any(
+                        plan.get("payload", {}).get("queue_name", None)
+                        == plan_in_queue.get("payload", {}).get("queue_name", None)
+                        for plan_in_queue in plans_in_queue[0]
+                    ):
+                        self.set_status(400)
+                        return self.write(
+                            {
+                                "status": "error",
+                                "message": f"An observation plan called {plan['queue_name']} is already being processed.",
+                            }
+                        )
+
             try:
-                queue.append([plans, survey_efficiencies, combine_plans, user_id])
+                queue.append(
+                    [plans, survey_efficiencies, combine_plans, default_plan, user_id]
+                )
 
                 self.set_status(200)
                 return self.write(
@@ -177,15 +211,14 @@ def api(queue):
 
 if __name__ == "__main__":
     try:
-        port = cfg["ports"]["observation_plan_queue"]
         t = Thread(target=service, args=(queue,))
         t2 = Thread(target=api, args=(queue,))
         t.start()
         t2.start()
 
         while True:
-            log(f"Current queue length: {len(queue)}")
-            time.sleep(60)
+            log(f"Current obsplan queue length: {len(queue)}")
+            time.sleep(120)
     except Exception as e:
         log(f"Error starting observation plan queue: {str(e)}")
         raise e

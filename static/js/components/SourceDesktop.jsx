@@ -36,6 +36,7 @@ import SharePage from "./SharePage";
 import AssignmentForm from "./AssignmentForm";
 import AssignmentList from "./AssignmentList";
 import SourceNotification from "./SourceNotification";
+import DisplayPhotStats from "./DisplayPhotStats";
 import EditSourceGroups from "./EditSourceGroups";
 import UpdateSourceCoordinates from "./UpdateSourceCoordinates";
 import UpdateSourceRedshift from "./UpdateSourceRedshift";
@@ -350,7 +351,8 @@ const SourceDesktop = ({ source }) => {
               </div>
             ) : null}
             <UpdateSourceSummary source={source} />
-            {source.comments?.length > 1 ? (
+            {source.comments?.length > 0 ||
+            source.classifications?.length > 0 ? (
               <StartBotSummary obj_id={source.id} />
             ) : null}
             {source.summary_history?.length > 0 ? (
@@ -462,6 +464,9 @@ const SourceDesktop = ({ source }) => {
                 </div>
               )}
             </div>
+          </div>
+          <div className={classes.infoLine}>
+            <DisplayPhotStats photstats={source.photstats[0]} />
           </div>
           <div className={`${classes.infoLine} ${classes.findingChart}`}>
             <b>Finding Chart:&nbsp;</b>
@@ -970,6 +975,7 @@ SourceDesktop.propTypes = {
     alias: PropTypes.arrayOf(PropTypes.string),
     photometry_exists: PropTypes.bool,
     spectrum_exists: PropTypes.bool,
+    photstats: PropTypes.shape(Object),
   }).isRequired,
 };
 

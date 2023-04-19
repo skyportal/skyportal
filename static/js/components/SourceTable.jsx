@@ -41,14 +41,19 @@ import Typography from "@mui/material/Typography";
 import { isMobileOnly } from "react-device-detect";
 import { showNotification } from "baselayer/components/Notifications";
 import Button from "./Button";
+import DisplayPhotStats from "./DisplayPhotStats";
 
 import { ra_to_hours, dec_to_dms, mjd_to_utc } from "../units";
 import ThumbnailList from "./ThumbnailList";
 import ShowClassification from "./ShowClassification";
+import ShowSummaries from "./ShowSummaries";
+import ShowSummaryHistory from "./ShowSummaryHistory";
 import SourceTableFilterForm from "./SourceTableFilterForm";
+import StartBotSummary from "./StartBotSummary";
 import VegaPhotometry from "./VegaPhotometry";
 import FavoritesButton from "./FavoritesButton";
 import MultipleClassificationsForm from "./MultipleClassificationsForm";
+import UpdateSourceSummary from "./UpdateSourceSummary";
 import * as sourceActions from "../ducks/source";
 import * as sourcesActions from "../ducks/sources";
 import * as sourcesingcnActions from "../ducks/confirmedsourcesingcn";
@@ -298,6 +303,7 @@ let defaultDisplayedColumns = [
   "Dec (deg)",
   "Redshift",
   "Classification",
+  "Photometry Statistics",
   "Groups",
   "Date Saved",
   "Finder",
@@ -699,7 +705,6 @@ const SourceTable = ({
   const [queryInProgress, setQueryInProgress] = useState(false);
 
   const gcnEvent = useSelector((state) => state.gcnEvent);
-  const localization = useSelector((state) => state.localization);
 
   const sourcesingcn = useSelector((state) => state.sourcesingcn.sourcesingcn);
 
@@ -709,7 +714,7 @@ const SourceTable = ({
       if (includeGcnStatus) {
         dispatch(
           sourcesingcnActions.fetchSourcesInGcn(gcnEvent.dateobs, {
-            localizationName: localization.localization_name,
+            localizationName: sourceInGcnFilter?.localizationName,
             sourcesIdList: sources.map((s) => s.id),
           })
         );
@@ -959,6 +964,26 @@ const SourceTable = ({
                 currentClassifications={source.classifications}
               />
             </Grid>
+            <Grid item xs={12}>
+              <ShowSummaries summaries={source.summary_history} />
+              {source.summary_history?.length < 1 ||
+              !source.summary_history ||
+              source.summary_history[0].summary === null ? ( // eslint-disable-line
+                <div>
+                  <b>Summarize: &nbsp;</b>
+                </div>
+              ) : null}
+              <UpdateSourceSummary source={source} />
+              {source.comment_exists || source.classifications?.length > 0 ? (
+                <StartBotSummary obj_id={source.id} />
+              ) : null}
+              {source.summary_history?.length > 0 ? (
+                <ShowSummaryHistory
+                  summaries={source.summary_history}
+                  obj_id={source.id}
+                />
+              ) : null}
+            </Grid>
             {favoritesRemoveButton ? (
               <div>
                 {" "}
@@ -1065,6 +1090,27 @@ const SourceTable = ({
       >
         <div>
           <RenderShowClassification source={source} />
+        </div>
+      </Suspense>
+    );
+  };
+
+  const renderPhotStats = (dataIndex) => {
+    const source = sources[dataIndex];
+
+    return (
+      <Suspense
+        fallback={
+          <div>
+            <CircularProgress color="secondary" />
+          </div>
+        }
+      >
+        <div>
+          <DisplayPhotStats
+            photstats={source.photstats[0]}
+            display_header={false}
+          />
         </div>
       </Suspense>
     );
@@ -1277,7 +1323,7 @@ const SourceTable = ({
         {statusIcon}
         <ConfirmSourceInGCN
           dateobs={gcnEvent.dateobs}
-          localization_name={localization.localization_name}
+          localization_name={sourceInGcnFilter.localizationName}
           localization_cumprob={sourceInGcnFilter.localizationCumprob}
           source_id={source.id}
           start_date={sourceInGcnFilter.startDate}
@@ -1523,6 +1569,17 @@ const SourceTable = ({
         sortThirdClickReset: true,
         display: displayedColumns.includes("Classification"),
         customBodyRenderLite: renderClassification,
+      },
+    },
+    {
+      name: "photstats",
+      label: "Photometry Statistics",
+      options: {
+        filter: false,
+        sort: true,
+        sortThirdClickReset: true,
+        display: displayedColumns.includes("Photometry Statistics"),
+        customBodyRenderLite: renderPhotStats,
       },
     },
     {
@@ -1957,6 +2014,7 @@ SourceTable.propTypes = {
   sourceInGcnFilter: PropTypes.shape({
     startDate: PropTypes.string,
     endDate: PropTypes.string,
+    localizationName: PropTypes.string,
     localizationCumprob: PropTypes.number,
   }),
 };

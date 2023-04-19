@@ -20,6 +20,7 @@ app:
 
   observation_plan:
     default_filters: ['ztfg', 'ztfr', 'ztfi']
+    use_skyportal_fields: True
 
   heasarc_endpoint: https://heasarc.gsfc.nasa.gov
 
@@ -660,7 +661,7 @@ gcn:
         schedule_strategy: tiling
         galaxy_catalog: CLU_mini
         exposure_time: 300
-        filters: g,r,g
+        filters: ztfg,ztfr,ztfg
         maximum_airmass: 2
         integrated_probability: 90
         minimum_time_difference: 30
@@ -712,6 +713,7 @@ analysis_services:
 
 
 comments_folder: persistentdata/comments
+localizations_folder: persistentdata/localizations
 photometric_series_folder: persistentdata/phot_series
 
 colors:

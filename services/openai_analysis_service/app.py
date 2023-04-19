@@ -1,3 +1,4 @@
+import copy
 import io
 import os
 import functools
@@ -54,11 +55,10 @@ if (
         log(f"index {summarize_embedding_index} created in pinecone")
     USE_PINECONE = True
 
-summary_config = cfg['analysis_services.openai_analysis_service.summary']
+summary_config = copy.deepcopy(cfg['analysis_services.openai_analysis_service.summary'])
 if summary_config.get("api_key"):
     # there may be a global API key set in the config file
-    openai_api_key = summary_config.get("api_key")
-    summary_config.pop("api_key")
+    openai_api_key = summary_config.pop("api_key")
 elif os.path.exists(".secret"):
     # try to get this key from the dev environment, useful for debugging
     openai_api_key = yaml.safe_load(open(".secret")).get("OPENAI_API_KEY")
@@ -109,7 +109,7 @@ def create_summary_string(source_id, prompt, comments, classifications, redshift
     """
     Create a summary string from the comments, classifications, and redshift.
     """
-    if len(comments) == 0:
+    if len(comments) == 0 and len(classifications) == 0:
         return None
 
     summary_string = f"{prompt}\n'''"
@@ -216,7 +216,7 @@ def run_openai_summarization(data_dict):
         rez.update(
             {
                 "status": "failure",
-                "message": "No comments to summarize",
+                "message": "No comments or classifications to summarize",
             }
         )
         return rez

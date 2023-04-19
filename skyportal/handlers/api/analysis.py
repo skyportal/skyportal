@@ -1,9 +1,12 @@
+import copy
 import io
 import json
 from urllib.parse import urlparse, urljoin
 import datetime
 import functools
+import yaml
 
+import os
 import numpy as np
 import pandas as pd
 import requests
@@ -53,6 +56,17 @@ log = make_log('app/analysis')
 _, cfg = load_env()
 
 DEFAULT_ANALYSES_DAILY_LIMIT = 100
+
+# check for API key
+summary_config = copy.deepcopy(cfg['analysis_services.openai_analysis_service.summary'])
+if summary_config.get("api_key"):
+    # there may be a global API key set in the config file
+    openai_api_key = summary_config.pop("api_key")
+elif os.path.exists(".secret"):
+    # try to get this key from the dev environment, useful for debugging
+    openai_api_key = yaml.safe_load(open(".secret")).get("OPENAI_API_KEY")
+else:
+    openai_api_key = None
 
 
 def valid_url(trial_url):
@@ -1076,6 +1090,9 @@ class AnalysisHandler(BaseHandler):
                     user_pref_openai.pop("apikey", None)
                     user_pref_openai.pop("active", None)
                     analysis_parameters["summary_parameters"] = user_pref_openai
+                elif openai_api_key is not None:
+                    analysis_parameters["openai_api_key"] = openai_api_key
+                    analysis_parameters["summary_parameters"] = summary_config
 
             group_ids = data.pop('group_ids', None)
             if not group_ids:

@@ -478,24 +478,24 @@ const GcnSummary = ({ dateobs }) => {
                     <FormControlLabel
                       control={
                         <Checkbox
-                          label="No Text"
+                          label="Table(s) Only"
                           checked={noText}
                           onChange={(e) => setNoText(e.target.checked)}
                         />
                       }
-                      label="No Text"
+                      label="Table(s) Only"
                     />
                     <FormControlLabel
                       control={
                         <Checkbox
-                          label="Photometry in Window"
+                          label="Photometry in Window (only between start and end dates)"
                           checked={photometryInWindow}
                           onChange={(e) =>
                             setPhotometryInWindow(e.target.checked)
                           }
                         />
                       }
-                      label="Photometry in Window"
+                      label="Photometry in Window (only between start and end dates)"
                     />
                   </div>
                   <div className={classes.buttons}>

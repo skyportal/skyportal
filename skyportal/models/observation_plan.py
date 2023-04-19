@@ -185,6 +185,12 @@ class ObservationPlanRequest(Base):
     )
     allocation = relationship('Allocation', back_populates='observation_plans')
 
+    default_plan = sa.Column(
+        sa.Boolean,
+        default=False,
+        doc="Boolean indicating whether the plan is a default plan.",
+    )
+
     observation_plans = relationship(
         'EventObservationPlan',
         passive_deletes=True,

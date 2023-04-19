@@ -99,6 +99,19 @@ const GcnTags = ({ gcnEvent, show_title = false }) => {
       gcnTags.push(tag);
     });
   }
+  // we want to look through the gcnEvent?.aliases. If one starts by LVC#, we grab what is after the #
+  // and use it later as a link for the LVC tag
+  let graceid =
+    gcnEvent?.aliases?.find((alias) => alias.startsWith("LVC#")) || null;
+  if (graceid) {
+    [, graceid] = graceid.split("#");
+  }
+  // same for Fermi
+  let fermiid =
+    gcnEvent?.aliases?.find((alias) => alias.startsWith("FERMI#")) || null;
+  if (fermiid) {
+    [, fermiid] = fermiid.split("#");
+  }
   const gcnTagsUnique = [...new Set(gcnTags)];
 
   const localizationTags = [];
@@ -141,7 +154,48 @@ const GcnTags = ({ gcnEvent, show_title = false }) => {
               </>
             }
           >
-            <Chip className={styles[tag]} size="small" label={tag} key={tag} />
+            {/* eslint-disable-next-line no-nested-ternary */}
+            {graceid && tag === "LVC" ? (
+              <Chip
+                className={styles[tag]}
+                size="small"
+                label={tag}
+                key={tag}
+                component="a"
+                clickable
+                target="_blank"
+                href={
+                  graceid
+                    ? `https://gracedb.ligo.org/superevents/${graceid}/view/`
+                    : null
+                }
+              />
+            ) : fermiid && tag === "Fermi" ? (
+              <Chip
+                className={styles[tag]}
+                size="small"
+                label={tag}
+                key={tag}
+                component="a"
+                clickable
+                target="_blank"
+                href={
+                  fermiid
+                    ? `http://heasarc.gsfc.nasa.gov/FTP/fermi/data/gbm/triggers/${gcnEvent?.dateobs.slice(
+                        0,
+                        4
+                      )}/${fermiid}/quicklook/`
+                    : null
+                }
+              />
+            ) : (
+              <Chip
+                className={styles[tag]}
+                size="small"
+                label={tag}
+                key={tag}
+              />
+            )}
           </Tooltip>
         ))}
         {localizationTagsUnique.map((tag) => (
@@ -169,6 +223,7 @@ GcnTags.propTypes = {
   gcnEvent: PropTypes.shape({
     dateobs: PropTypes.string,
     tags: PropTypes.arrayOf(PropTypes.string).isRequired,
+    aliases: PropTypes.arrayOf(PropTypes.string).isRequired,
     localizations: PropTypes.arrayOf(
       PropTypes.shape({
         id: PropTypes.number,

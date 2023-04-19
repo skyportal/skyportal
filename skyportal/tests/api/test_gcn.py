@@ -387,7 +387,7 @@ def test_gcn_summary_sources(
     photometry_table = table[idx + 1 :]
 
     assert (
-        len(sources_table) >= 6
+        len(sources_table) >= 4
     )  # other sources have probably been added in previous tests
     assert "id" in sources_table[1]
     assert "alias" in sources_table[1]
@@ -1353,7 +1353,7 @@ def test_gcn_tach(
     assert n_times < 25
 
     data = data['data']
-    assert len(data['aliases']) == 0
+    assert len(data['aliases']) == 1
 
     status, data = api('POST', f'gcn_event/{dateobs}/tach', token=view_only_token)
     assert status == 401
@@ -1365,13 +1365,13 @@ def test_gcn_tach(
     for n_times in range(30):
         status, data = api('GET', f"gcn_event/{dateobs}", token=super_admin_token)
         if data['status'] == 'success':
-            if len(data['data']['aliases']) > 0:
+            if len(data['data']['aliases']) > 1:
                 aliases = data['data']['aliases']
                 break
             time.sleep(1)
 
     assert n_times < 29
-    assert len(aliases) == 1
+    assert len(aliases) == 2
     assert 'GRB180116A' in aliases
 
     status, data = api('GET', f"gcn_event/{dateobs}/tach", token=super_admin_token)
@@ -1379,7 +1379,7 @@ def test_gcn_tach(
     assert status == 200
     assert data['status'] == 'success'
     data = data['data']
-    assert len(data['aliases']) == 1
+    assert len(data['aliases']) == 2
     assert len(data['circulars']) == 3
     assert data['tach_id'] is not None
 

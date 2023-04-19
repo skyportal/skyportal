@@ -18,7 +18,6 @@ export const POST_LOCALIZATION_FROM_NOTICE =
   "skyportal/POST_LOCALIZATION_FROM_NOTICE";
 
 const typeEnum = {
-  cached: FETCH_LOCALIZATION,
   analysis: FETCH_LOCALIZATION_ANALYSIS,
   obsplan: FETCH_LOCALIZATION_OBSPLAN,
 };
@@ -26,7 +25,7 @@ const typeEnum = {
 export const fetchLocalization = (
   dateobs,
   localization_name,
-  type = "cached"
+  type = "analysis"
 ) =>
   API.GET(
     `/api/localization/${dateobs}/name/${localization_name}`,
@@ -40,35 +39,18 @@ export function postLocalizationFromNotice({ dateobs, noticeID }) {
   );
 }
 
-const reducer = (
-  state = { cached: null, analysis: null, obsplan: null },
-  action
-) => {
+const reducer = (state = { analysisLoc: null, obsplanLoc: null }, action) => {
   switch (action.type) {
-    case FETCH_LOCALIZATION_OK: {
-      return {
-        ...state,
-        cached: action.data,
-        analysis:
-          state.analysis === null || action.data?.id !== state.analysis?.id
-            ? action.data
-            : state.analysis,
-        obsplan:
-          state.obsplan === null || action.data?.id !== state.obsplan?.id
-            ? action.data
-            : state.obsplan,
-      };
-    }
     case FETCH_LOCALIZATION_ANALYSIS_OK: {
       return {
         ...state,
-        analysis: action.data,
+        analysisLoc: action.data,
       };
     }
     case FETCH_LOCALIZATION_OBSPLAN_OK: {
       return {
         ...state,
-        obsplan: action.data,
+        obsplanLoc: action.data,
       };
     }
     default:

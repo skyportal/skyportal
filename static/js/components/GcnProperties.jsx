@@ -1,10 +1,5 @@
 import React from "react";
 import PropTypes from "prop-types";
-import Accordion from "@mui/material/Accordion";
-import AccordionSummary from "@mui/material/AccordionSummary";
-import AccordionDetails from "@mui/material/AccordionDetails";
-import Typography from "@mui/material/Typography";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import {
   createTheme,
   ThemeProvider,
@@ -91,10 +86,13 @@ const GcnProperties = ({ properties }) => {
     const newProperty = { created_at: property.created_at };
     uniquePropertyNames.forEach((name) => {
       if (Object.keys(property.data).includes(name)) {
-        // if it is a numerical value, we want to round it to 4 decimals
-        // but if the number is something like 0.000000001, we want to show it as 0.1e-8
         if (typeof property.data[name] === "number") {
-          if (property.data[name] > 0.0001 || property.data[name] < -0.0001) {
+          if (property.data[name] > 10000 || property.data[name] < -10000) {
+            newProperty[name] = property.data[name].toExponential(4);
+          } else if (
+            property.data[name] > 0.0001 ||
+            property.data[name] < -0.0001
+          ) {
             newProperty[name] = property.data[name].toFixed(4);
           } else if (property.data[name] === 0) {
             newProperty[name] = 0;
@@ -137,26 +135,15 @@ const GcnProperties = ({ properties }) => {
 
   return (
     <div className={classes.container}>
-      <Accordion className={classes.accordion} key="properties_table_div">
-        <AccordionSummary
-          expandIcon={<ExpandMoreIcon />}
-          aria-controls="gcn-properties"
-          data-testid="gcn-properties-header"
-        >
-          <Typography variant="subtitle1">Property Lists</Typography>
-        </AccordionSummary>
-        <AccordionDetails data-testid="gcn-properties-Table">
-          <StyledEngineProvider injectFirst>
-            <ThemeProvider theme={getMuiTheme(theme)}>
-              <MUIDataTable
-                data={propertiesWithUniqueKeys}
-                options={options}
-                columns={getDataTableColumns()}
-              />
-            </ThemeProvider>
-          </StyledEngineProvider>
-        </AccordionDetails>
-      </Accordion>
+      <StyledEngineProvider injectFirst>
+        <ThemeProvider theme={getMuiTheme(theme)}>
+          <MUIDataTable
+            data={propertiesWithUniqueKeys}
+            options={options}
+            columns={getDataTableColumns()}
+          />
+        </ThemeProvider>
+      </StyledEngineProvider>
     </div>
   );
 };

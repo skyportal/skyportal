@@ -5,6 +5,7 @@ import humanize
 import json
 import pandas as pd
 from regions import Regions
+import requests
 from datetime import datetime, timedelta
 import numpy as np
 import os
@@ -22,13 +23,22 @@ from baselayer.log import make_log
 from baselayer.app.flow import Flow
 from baselayer.app.env import load_env
 
+from ..email_utils import send_email
 from . import FollowUpAPI
 
 log = make_log('api/observation_plan')
 
 env, cfg = load_env()
 
+SLACK_URL = f"{cfg['slack.expected_url_preamble']}/services"
+
 default_filters = cfg['app.observation_plan.default_filters']
+
+use_skyportal_fields = cfg['app.observation_plan.use_skyportal_fields']
+
+email = False
+if cfg.get("email_service") == "sendgrid" or cfg.get("email_service") == "smtp":
+    email = True
 
 
 def combine_healpix_tuples(input_tiles):
@@ -395,6 +405,20 @@ def generate_plan(
             'doAvoidGalacticPlane': request.payload.get("galactic_plane", False),
             # galactic latitude to exclude
             'galactic_limit': request.payload.get("galactic_latitude", 10),
+            # threshold number of fields?
+            'doMaxTiles': request.payload.get("max_tiles", False),
+            # Maximum number of fields to consider
+            'max_nb_tiles': [request.payload.get("max_nb_tiles", 100)]
+            * len(request.payload["filters"].split(",")),
+            # balance observations by filter
+            'doBalanceExposure': request.payload.get("balance_exposure", False),
+            # slice observations by right ascension
+            'doRASlice': request.payload.get("ra_slice", False),
+            # right ascension block
+            'raslice': [
+                request.payload.get("ra_slice_min", 0),
+                request.payload.get("ra_slice_max", 360),
+            ],
         }
 
         config = {}
@@ -476,9 +500,23 @@ def generate_plan(
         localizationtile_partition_name = (
             f'{partition_key.year}_{partition_key.month:02d}'
         )
-        localizationtilescls = LocalizationTile.partitions[
-            localizationtile_partition_name
-        ]
+        localizationtilescls = LocalizationTile.partitions.get(
+            localizationtile_partition_name, None
+        )
+        if localizationtilescls is None:
+            localizationtilescls = LocalizationTile
+        else:
+            # check that there is actually a localizationTile with the given localization_id in the partition
+            # if not, use the default partition
+            if not (
+                DBSession()
+                .query(localizationtilescls)
+                .filter(localizationtilescls.localization_id == request.localization.id)
+                .first()
+            ):
+                localizationtilescls = LocalizationTile
+
+        print(f'Using partition {localizationtilescls} for localization tiles')
 
         params['is3D'] = request.localization.is_3d
 
@@ -564,16 +602,19 @@ def generate_plan(
 
         elif params["tilesType"] == "moc":
             field_ids = {}
-            for request in requests:
-                field_tiles_query = sa.select(InstrumentField.field_id).where(
-                    localizationtilescls.localization_id == request.localization.id,
-                    localizationtilescls.probdensity >= min_probdensity,
-                    InstrumentFieldTile.instrument_id == request.instrument.id,
-                    InstrumentFieldTile.instrument_field_id == InstrumentField.id,
-                    InstrumentFieldTile.healpix.overlaps(localizationtilescls.healpix),
-                )
-                field_tiles = session.scalars(field_tiles_query).unique().all()
-                field_ids[request.instrument.name] = field_tiles
+            if use_skyportal_fields is True:
+                for request in requests:
+                    field_tiles_query = sa.select(InstrumentField.field_id).where(
+                        localizationtilescls.localization_id == request.localization.id,
+                        localizationtilescls.probdensity >= min_probdensity,
+                        InstrumentFieldTile.instrument_id == request.instrument.id,
+                        InstrumentFieldTile.instrument_field_id == InstrumentField.id,
+                        InstrumentFieldTile.healpix.overlaps(
+                            localizationtilescls.healpix
+                        ),
+                    )
+                    field_tiles = session.scalars(field_tiles_query).unique().all()
+                    field_ids[request.instrument.name] = field_tiles
 
         end = time.time()
         log(f"Queries took {end - start} seconds")
@@ -584,7 +625,7 @@ def generate_plan(
             moc_structs = gwemopt.skyportal.create_moc_from_skyportal(
                 params,
                 map_struct=map_struct,
-                field_ids=field_ids,
+                field_ids=field_ids if use_skyportal_fields is True else None,
             )
             tile_structs = gwemopt.tiles.moc(params, map_struct, moc_structs)
         elif params["tilesType"] == "galaxy":
@@ -618,13 +659,14 @@ def generate_plan(
                 }
                 field_data = pd.DataFrame.from_dict(data)
                 idx = np.array(idx).astype(int)
-                field_ids[idx] = add_tiles(
+                field_id = add_tiles(
                     request.instrument.id,
                     request.instrument.name,
                     regions,
                     field_data,
                     session=session,
                 )
+                field_ids[idx] = field_id
         log(
             f"Writing planned observations to database for ID(s): {','.join(observation_plan_id_strings)}"
         )
@@ -690,7 +732,7 @@ def generate_plan(
         flow = Flow()
         flow.push(
             '*',
-            "skyportal/REFRESH_GCN_EVENT",
+            "skyportal/REFRESH_GCNEVENT_OBSERVATION_PLAN_REQUESTS",
             payload={"gcnEvent_dateobs": request.gcnevent.dateobs},
         )
 
@@ -857,7 +899,7 @@ class MMAAPI(FollowUpAPI):
                 flow = Flow()
                 flow.push(
                     '*',
-                    "skyportal/REFRESH_GCN_EVENT",
+                    "skyportal/REFRESH_GCNEVENT_OBSERVATION_PLAN_REQUESTS",
                     payload={"gcnEvent_dateobs": request.gcnevent.dateobs},
                 )
 
@@ -984,7 +1026,7 @@ class MMAAPI(FollowUpAPI):
                 flow = Flow()
                 flow.push(
                     '*',
-                    "skyportal/REFRESH_GCN_EVENT",
+                    "skyportal/REFRESH_GCNEVENT_OBSERVATION_PLAN_REQUESTS",
                     payload={"gcnEvent_dateobs": request.gcnevent.dateobs},
                 )
 
@@ -1140,6 +1182,39 @@ class MMAAPI(FollowUpAPI):
                     "minimum": 0,
                     "maximum": 90,
                 },
+                "max_tiles": {
+                    "title": "Threshold on number of fields?",
+                    "type": "boolean",
+                },
+                "max_nb_tiles": {
+                    "title": "Maximum number of fields",
+                    "type": "number",
+                    "default": 100.0,
+                    "minimum": 0,
+                    "maximum": 1000,
+                },
+                "balance_exposures": {
+                    "title": "Balance exposures across fields",
+                    "type": "boolean",
+                },
+                "ra_slice": {
+                    "title": "RA Slicing",
+                    "type": "boolean",
+                },
+                "ra_slice_min": {
+                    "title": "Minimum RA",
+                    "type": "number",
+                    "default": 0.0,
+                    "minimum": 0,
+                    "maximum": 360,
+                },
+                "ra_slice_max": {
+                    "title": "Maximum RA",
+                    "type": "number",
+                    "default": 360.0,
+                    "minimum": 0.0,
+                    "maximum": 360,
+                },
                 "queue_name": {
                     "type": "string",
                     "default": f"ToO_{str(datetime.utcnow()).replace(' ', 'T')}",
@@ -1219,6 +1294,51 @@ class MMAAPI(FollowUpAPI):
                     observation_plan_request=request,
                     initiator_id=request.last_modified_by_id,
                 )
+        elif 'type' in altdata and altdata['type'] == 'slack':
+            slack_microservice_url = (
+                f'http://127.0.0.1:{cfg["slack.microservice_port"]}'
+            )
+
+            data = json.dumps(
+                {
+                    "url": f"{SLACK_URL}/{altdata['slack_workspace']}/{altdata['slack_channel']}/{altdata['slack_token']}",
+                    "text": str(payload),
+                }
+            )
+
+            r = requests.post(
+                slack_microservice_url,
+                data=data,
+                headers={'Content-Type': 'application/json'},
+            )
+            r.raise_for_status()
+
+            request.status = 'submitted'
+
+            transaction = FacilityTransaction(
+                request=http.serialize_requests_request(r.request),
+                response=http.serialize_requests_response(r),
+                observation_plan_request=request,
+                initiator_id=request.last_modified_by_id,
+            )
+
+        elif 'type' in altdata and altdata['type'] == 'email':
+            subject = f"{cfg['app.title']} - New observation plans"
+
+            send_email(
+                recipients=[altdata['email']],
+                subject=subject,
+                body=str(payload),
+            )
+
+            request.status = 'submitted'
+
+            transaction = FacilityTransaction(
+                request=None,
+                response=None,
+                observation_plan_request=request,
+                initiator_id=request.last_modified_by_id,
+            )
 
         else:
             headers = {"Authorization": f"token {altdata['access_token']}"}

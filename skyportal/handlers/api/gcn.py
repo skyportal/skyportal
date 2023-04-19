@@ -14,7 +14,7 @@ import ligo.skymap.io
 import ligo.skymap.postprocess
 import lxml
 import xmlschema
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urlsplit
 import tempfile
 from tornado.ioloop import IOLoop
 import arrow
@@ -22,6 +22,7 @@ import astropy
 import humanize
 import requests
 import sqlalchemy as sa
+from sqlalchemy import String
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm import sessionmaker, scoped_session
 from sqlalchemy.sql.expression import cast
@@ -80,6 +81,7 @@ from ...utils.gcn import (
     get_skymap_properties,
     get_skymap_metadata,
     get_tags,
+    get_notice_aliases,
     get_trigger,
     get_skymap,
     get_contour,
@@ -137,6 +139,9 @@ def post_gcnevent_from_xml(
     dateobs = get_dateobs(root)
     trigger_id = get_trigger(root)
     notice_type = gcn.get_notice_type(root)
+    aliases = get_notice_aliases(
+        root, notice_type
+    )  # we try to get the aliases from the notice if possible
 
     if trigger_id is not None:
         event = session.scalars(
@@ -148,7 +153,9 @@ def post_gcnevent_from_xml(
         ).first()
 
     if event is None:
-        event = GcnEvent(dateobs=dateobs, sent_by_id=user_id, trigger_id=trigger_id)
+        event = GcnEvent(
+            dateobs=dateobs, sent_by_id=user_id, trigger_id=trigger_id, aliases=aliases
+        )
         session.add(event)
         session.commit()
         dateobs = event.dateobs
@@ -165,7 +172,6 @@ def post_gcnevent_from_xml(
 
     event_id = event.id
 
-    notice_id = None
     gcn_notice = GcnNotice(
         content=payload,
         ivorn=root.attrib['ivorn'],
@@ -231,9 +237,9 @@ def post_skymap_from_notice(dateobs, notice_id, user_id, session, asynchronous=T
     root = lxml.etree.fromstring(gcn_notice.content)
     notice_type = gcn.get_notice_type(root)
 
-    skymap = None
+    skymap, url = None, None
     try:
-        skymap = get_skymap(root, notice_type)
+        skymap, url = get_skymap(root, notice_type)
     except Exception as e:
         raise ValueError(f"Failed to get skymap from gcn notice {gcn_notice.id}: {e}")
 
@@ -266,11 +272,13 @@ def post_skymap_from_notice(dateobs, notice_id, user_id, session, asynchronous=T
             IOLoop.current().run_in_executor(
                 None,
                 lambda: add_tiles_properties_contour_and_obsplan(
-                    localization_id, user_id
+                    localization_id, user_id, url=url
                 ),
             )
         else:
-            add_tiles_properties_contour_and_obsplan(localization_id, user_id, session)
+            add_tiles_properties_contour_and_obsplan(
+                localization_id, user_id, session, url=url
+            )
 
         gcn_notice.localization_ingested = True
         session.add(gcn_notice)
@@ -958,6 +966,13 @@ class GcnEventHandler(BaseHandler):
                 schema: Error
         """
 
+        partialdateobs = self.get_query_argument("partialdateobs", None)
+
+        if dateobs is not None and partialdateobs is not None:
+            return self.error(
+                "Cannot specify both dateobs and partialdateobs query parameters"
+            )
+
         page_number = self.get_query_argument("pageNumber", 1)
         try:
             page_number = int(page_number)
@@ -1122,6 +1137,17 @@ class GcnEventHandler(BaseHandler):
                         reverse=True,
                     ),
                     "gcn_notices": [notice.to_dict() for notice in event.gcn_notices],
+                    # sort the properties by created_at date descending
+                    "properties": sorted(
+                        (
+                            {
+                                **s.to_dict(),
+                            }
+                            for s in event.properties
+                        ),
+                        key=lambda x: x["created_at"],
+                        reverse=True,
+                    ),
                 }
 
                 return self.success(data=data)
@@ -1138,6 +1164,11 @@ class GcnEventHandler(BaseHandler):
                 ],
             )
 
+            if partialdateobs is not None and partialdateobs != "":
+                partialdateobs = partialdateobs.replace("T", " ")
+                query = query.where(
+                    cast(GcnEvent.dateobs, String).like(f"{partialdateobs}%")
+                )
             if start_date:
                 start_date = arrow.get(start_date.strip()).datetime
                 query = query.where(GcnEvent.dateobs >= start_date)
@@ -1159,9 +1190,12 @@ class GcnEventHandler(BaseHandler):
                     .where(GcnTag.text.in_(gcn_tag_remove))
                     .subquery()
                 )
-                query = query.join(
-                    gcn_tag_subquery, GcnEvent.dateobs != gcn_tag_subquery.c.dateobs
-                )
+                gcn_dateobs_query = GcnEvent.select(
+                    session.user_or_token, columns=[GcnEvent.dateobs]
+                ).where(GcnEvent.dateobs == gcn_tag_subquery.c.dateobs)
+                gcn_dateobs_subquery = gcn_dateobs_query.subquery()
+
+                query = query.where(GcnEvent.dateobs.notin_(gcn_dateobs_subquery))
             if localization_tag_keep:
                 tag_subquery = (
                     LocalizationTag.select(session.user_or_token)
@@ -1360,7 +1394,9 @@ class GcnEventHandler(BaseHandler):
             return self.success()
 
 
-def add_tiles_and_properties_and_contour(localization_id, user_id, parent_session=None):
+def add_tiles_and_properties_and_contour(
+    localization_id, user_id, parent_session=None, url=None
+):
     if parent_session is None:
         if Session.registry.has():
             session = Session()
@@ -1409,6 +1445,20 @@ def add_tiles_and_properties_and_contour(localization_id, user_id, parent_sessio
         localization = get_contour(localization)
         session.add(localization)
         session.commit()
+
+        if url is not None:
+            try:
+                r = requests.get(url, allow_redirects=True, timeout=15)
+                data_to_disk = r.content
+                urlpath = urlsplit(url).path
+                localization_name = os.path.basename(urlpath)
+                if data_to_disk is not None:
+                    localization.save_data(localization_name, data_to_disk)
+                    session.commit()
+            except Exception as e:
+                log(
+                    f"Localization {localization_id} URL {url} failed to download: {str(e)}."
+                )
 
         return log(
             f"Generated tiles / properties / contour for localization {localization_id}"
@@ -1561,6 +1611,7 @@ def add_observation_plans(localization_id, user_id, parent_session=None):
                     'plan': plan,
                     'survey_efficiencies': gcn_observation_plan['survey_efficiencies'],
                     'user_id': user_id,
+                    'default_plan': True,
                 }
 
                 observation_plans_microservice_url = (
@@ -1591,7 +1642,7 @@ def add_observation_plans(localization_id, user_id, parent_session=None):
 
 
 def add_tiles_properties_contour_and_obsplan(
-    localization_id, user_id, parent_session=None
+    localization_id, user_id, parent_session=None, url=None
 ):
 
     if parent_session is None:
@@ -1603,7 +1654,7 @@ def add_tiles_properties_contour_and_obsplan(
         session = parent_session
 
     try:
-        add_tiles_and_properties_and_contour(localization_id, user_id, session)
+        add_tiles_and_properties_and_contour(localization_id, user_id, session, url=url)
         add_observation_plans(localization_id, user_id, session)
     except Exception as e:
         log(
@@ -1950,6 +2001,8 @@ def add_gcn_summary(
                 coroutine = get_sources(
                     user_id=user.id,
                     session=session,
+                    group_ids=[group.id],
+                    user_accessible_group_ids=[g.id for g in user.accessible_groups],
                     first_detected_date=start_date,
                     last_detected_date=end_date,
                     localization_dateobs=dateobs,
@@ -1979,8 +2032,8 @@ def add_gcn_summary(
                 for source in sources:
                     ids.append(source['id'] if 'id' in source else None)
                     aliases.append(source['alias'] if 'alias' in source else None)
-                    ras.append(source['ra'] if 'ra' in source else None)
-                    decs.append(source['dec'] if 'dec' in source else None)
+                    ras.append(np.round(source['ra'], 4) if 'ra' in source else None)
+                    decs.append(np.round(source['dec'], 4) if 'dec' in source else None)
                     redshift = source['redshift'] if 'redshift' in source else None
                     if 'redshift_error' in source and redshift is not None:
                         if source['redshift_error'] is not None:
@@ -1995,8 +2048,15 @@ def add_gcn_summary(
                         "redshift": redshifts,
                     }
                 )
+                df = df.fillna("--")
                 sources_text.append(
-                    tabulate(df, headers='keys', tablefmt='psql', showindex=False)
+                    tabulate(
+                        df,
+                        headers='keys',
+                        tablefmt='psql',
+                        showindex=False,
+                        floatfmt=".4f",
+                    )
                     + "\n"
                 )
                 # now, create a photometry table per source
@@ -2062,6 +2122,7 @@ def add_gcn_summary(
                                 column='obj_id',
                                 value=[p["obj_id"] for p in photometry],
                             )
+                        df_phot = df_phot.fillna("--")
                         sources_text.append(
                             tabulate(
                                 df_phot,
@@ -2126,8 +2187,15 @@ def add_gcn_summary(
                         "redshift": redshifts,
                     }
                 )
+                df = df.fillna("--")
                 galaxies_text.append(
-                    tabulate(df, headers='keys', tablefmt='psql', showindex=False)
+                    tabulate(
+                        df,
+                        headers='keys',
+                        tablefmt='psql',
+                        showindex=False,
+                        floatfmt=".4f",
+                    )
                     + "\n"
                 )
             contents.extend(galaxies_text)
@@ -2223,6 +2291,7 @@ def add_gcn_summary(
                                     for obs in observations
                                 ],
                             )
+                        df_obs = df_obs.fillna("--")
                         observations_text.append(
                             tabulate(
                                 df_obs,
@@ -2274,6 +2343,7 @@ def add_gcn_summary(
         except Exception:
             pass
         log(f"Unable to create GCN summary: {e}")
+        raise e
     finally:
         session.close()
         Session.remove()
@@ -2735,13 +2805,17 @@ class LocalizationDownloadHandler(BaseHandler):
 
                 output_format = 'fits'
                 with tempfile.NamedTemporaryFile(suffix='.fits') as fitsfile:
-                    ligo.skymap.io.write_sky_map(
-                        fitsfile.name, localization.table, moc=True
-                    )
-
-                    with open(fitsfile.name, mode='rb') as g:
-                        content = g.read()
-                    local_temp_files.append(fitsfile.name)
+                    localization_path = localization.get_localization_path()
+                    if localization_path is None:
+                        ligo.skymap.io.write_sky_map(
+                            fitsfile.name, localization.table, moc=True
+                        )
+                        with open(fitsfile.name, mode='rb') as g:
+                            content = g.read()
+                        local_temp_files.append(fitsfile.name)
+                    else:
+                        with open(localization_path, mode='rb') as g:
+                            content = g.read()
 
                 data = io.BytesIO(content)
                 filename = f"{localization.localization_name}.{output_format}"
