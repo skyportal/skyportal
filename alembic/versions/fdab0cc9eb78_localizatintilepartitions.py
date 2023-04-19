@@ -43,8 +43,11 @@ def upgrade():
 
     # create localizationtiles partition table
     op.execute(
+        'CREATE SEQUENCE localizationtiles_id_seq START WITH 1 INCREMENT BY 1 NO MINVALUE NO MAXVALUE CACHE 1'
+    )
+    op.execute(
         '''CREATE TABLE localizationtiles (
-            id INTEGER NOT NULL,
+            id INTEGER NOT NULL DEFAULT nextval('localizationtiles_id_seq'::regclass),
             created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL,
             modified TIMESTAMP WITHOUT TIME ZONE NOT NULL,
             localization_id INTEGER NOT NULL,
@@ -53,6 +56,9 @@ def upgrade():
             ) PARTITION BY RANGE (dateobs)
             '''
     )
+
+    op.execute('ALTER SEQUENCE localizationtiles_id_seq OWNED BY localizationtiles.id')
+
     # add foreign key constraint on localization_id
     op.execute(
         'ALTER TABLE localizationtiles ADD CONSTRAINT localizationtiles_localization_id_fkey FOREIGN KEY (localization_id) REFERENCES localizations (id) ON DELETE CASCADE'
