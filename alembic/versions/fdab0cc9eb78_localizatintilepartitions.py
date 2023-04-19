@@ -42,9 +42,9 @@ def upgrade():
     op.execute('ALTER TABLE localizationtiles RENAME TO localizationtiles_def')
 
     # create localizationtiles partition table
-    op.execute(
-        'CREATE SEQUENCE localizationtiles_id_seq START WITH 1 INCREMENT BY 1 NO MINVALUE NO MAXVALUE CACHE 1'
-    )
+    # op.execute(
+    #     'CREATE SEQUENCE localizationtiles_id_seq START WITH 1 INCREMENT BY 1 NO MINVALUE NO MAXVALUE CACHE 1'
+    # )
     op.execute(
         '''CREATE TABLE localizationtiles (
             id INTEGER NOT NULL DEFAULT nextval('localizationtiles_id_seq'::regclass),
@@ -57,7 +57,7 @@ def upgrade():
             '''
     )
 
-    op.execute('ALTER SEQUENCE localizationtiles_id_seq OWNED BY localizationtiles.id')
+    # op.execute('ALTER SEQUENCE localizationtiles_id_seq OWNED BY localizationtiles.id')
 
     # add foreign key constraint on localization_id
     op.execute(
