@@ -345,7 +345,7 @@ class LocalizationTileMixin:
 
     dateobs = sa.Column(
         sa.DateTime,
-        nullable=False,
+        nullable=True,
         primary_key=True,
         doc="Date of observation for the Localization to which this tile belongs",
     )
@@ -376,8 +376,8 @@ class LocalizationTile(
 LocalizationTile.create_partition("def", partition_stmt="DEFAULT")
 
 # create partitions from 2023-04-01 to 2025-04-01
-for year in range(2023, 2025):
-    for month in range(1 if year != 2023 else 4, 13 if year != 2015 else 5):
+for year in range(2023, 2026):
+    for month in range(1 if year != 2023 else 4, 13 if year != 2025 else 5):
         date = datetime.date(year, month, 1)
         LocalizationTile.create_partition(
             date.strftime("%Y_%m"),
