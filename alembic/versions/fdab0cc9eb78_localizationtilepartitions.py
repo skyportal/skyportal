@@ -592,6 +592,21 @@ def downgrade():
         'ALTER INDEX localizationtiles_def_id_dateobs_healpix_idx RENAME TO ix_localizationtiles_id_dateobs_healpix'
     )
 
+    # rename the foreign key
+    op.execute(
+        'ALTER INDEX localizationtiles_def_localization_id_fkey RENAME TO localizationtiles_localization_id_fkey'
+    )
+
+    # drop the old constraint
+    op.drop_constraint(
+        'localizationtiles_def_localization_id_fkey', 'localizationtiles'
+    )
+
+    # we rename the sequence
+    op.execute(
+        'ALTER SEQUENCE localizationtiles_id_seq RENAME TO localizationtiles_def_id_seq'
+    )
+
     # do the same for the primary key
     op.execute(
         'ALTER INDEX localizationtiles_def_pkey RENAME TO localizationtiles_pkey'
@@ -610,7 +625,7 @@ def downgrade():
 
     # we recreate the index localizationtiles_id_healpix_idx
     op.create_index(
-        'ix_localizationtiles_id_healpix',
+        'localizationtile_id_healpix_index',
         'localizationtiles',
         ['id', 'healpix'],
         unique=True,
@@ -621,4 +636,17 @@ def downgrade():
         'localizationtiles_pkey',
         'localizationtiles',
         ['id', 'localization_id', 'healpix'],
+    )
+
+    # rename the sequence
+    op.execute(
+        'ALTER SEQUENCE localizationtiles_def_id_seq RENAME TO localizationtiles_id_seq'
+    )
+
+    # change the default value of the id column
+    op.alter_column(
+        'localizationtiles',
+        'id',
+        existing_type=sa.INTEGER(),
+        server_default=sa.text('nextval(\'localizationtiles_id_seq\'::regclass)'),
     )
