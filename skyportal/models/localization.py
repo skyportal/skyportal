@@ -331,6 +331,7 @@ class LocalizationTile(
             'localizationtiles_healpix_idx',
             'healpix',
             unique=False,
+            postgresql_using="spgist",
         ),
         sa.Index(
             'localizationtiles_created_at_idx',
@@ -399,6 +400,7 @@ LocalizationTile.create_partition(
             'localizationtiles_def_healpix_idx',
             'healpix',
             unique=False,
+            postgresql_using="spgist",
         ),
         sa.Index(
             'localizationtiles_def_created_at_idx',
@@ -434,6 +436,7 @@ for year in range(2023, 2026):
                 f'localizationtiles_{date.strftime("%Y_%m")}_healpix_idx',
                 'healpix',
                 unique=False,
+                postgresql_using="spgist",
             ),
             sa.Index(
                 f'localizationtiles_{date.strftime("%Y_%m")}_created_at_idx',

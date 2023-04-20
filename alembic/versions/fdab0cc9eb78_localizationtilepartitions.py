@@ -130,11 +130,11 @@ def upgrade():
     op.create_index(
         'localizationtiles_id_healpix_dateobs_idx',
         'localizationtiles',
-        ['id', 'healpix', 'dateobs'],
+        ['id', 'localization_id', 'healpix', 'dateobs'],
         unique=True,
     )
 
-    # primary key on id, localization_id, healpix
+    # primary key on id, localization_id, healpix, dateobs
     op.execute(
         'ALTER TABLE localizationtiles ADD PRIMARY KEY (id, localization_id, healpix, dateobs)'
     )
