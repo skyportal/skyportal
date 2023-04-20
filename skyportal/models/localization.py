@@ -19,7 +19,6 @@ from dateutil.relativedelta import relativedelta
 from dustmaps.config import config
 from sqlalchemy import event, func
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.ext.declarative import DeclarativeMeta
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import deferred, relationship
 from sqlalchemy.sql.ddl import DDL
@@ -36,71 +35,6 @@ config['data_dir'] = cfg['misc.dustmap_folder']
 log = make_log('models/localizations')
 
 utcnow = func.timezone("UTC", func.current_timestamp())
-
-
-class PartitionByMeta(DeclarativeMeta):
-    def __new__(cls, clsname, bases, attrs, *, partition_by, partition_type):
-        @classmethod
-        def get_partition_name(cls_, suffix):
-            return f'{cls_.__tablename__}_{suffix}'
-
-        @classmethod
-        def create_partition(
-            cls_,
-            suffix,
-            partition_stmt,
-            subpartition_by=None,
-            subpartition_type=None,
-            table_args=None,
-        ):
-            if suffix not in cls_.partitions:
-                partition = PartitionByMeta(
-                    f'{clsname}{suffix}',
-                    bases,
-                    {
-                        '__tablename__': cls_.get_partition_name(suffix),
-                        '__table_args__': table_args or cls_.__table_args__,
-                    },
-                    partition_type=subpartition_type,
-                    partition_by=subpartition_by,
-                )
-
-                partition.__table__.add_is_dependent_on(cls_.__table__)
-                event.listen(
-                    partition.__table__,
-                    'after_create',
-                    DDL(
-                        f"""
-                        ALTER TABLE {cls_.__tablename__}
-                        ATTACH PARTITION {partition.__tablename__}
-                        {partition_stmt};
-                        """
-                    ),
-                )
-
-                cls_.partitions[suffix] = partition
-
-            return cls_.partitions[suffix]
-
-        if partition_by is not None:
-            log(f'Creating partitioned table {clsname} by {partition_by}...')
-            log(attrs)
-            attrs.update(
-                {
-                    '__table_args__': attrs.get('__table_args__', ())
-                    + (
-                        dict(
-                            postgresql_partition_by=f'{partition_type.upper()}({partition_by})'
-                        ),
-                    ),
-                    'partitions': {},
-                    'partitioned_by': partition_by,
-                    'get_partition_name': get_partition_name,
-                    'create_partition': create_partition,
-                }
-            )
-
-        return super().__new__(cls, clsname, bases, attrs)
 
 
 class Localization(Base):
@@ -348,7 +282,7 @@ class LocalizationTileMixin:
     )
 
     localization_id = sa.Column(
-        sa.ForeignKey('localizations.id', ondelete="CASCADE"),
+        sa.BigInteger,
         primary_key=True,
         doc='localization ID',
     )
@@ -371,11 +305,8 @@ class LocalizationTileMixin:
 
 
 class LocalizationTile(
-    LocalizationTileMixin,
     Base,
-    metaclass=PartitionByMeta,
-    partition_by='dateobs',
-    partition_type='RANGE',
+    LocalizationTileMixin,
 ):
     __tablename__ = 'localizationtiles'
     __table_args__ = (
@@ -406,10 +337,41 @@ class LocalizationTile(
             'created_at',
             unique=False,
         ),
+        sa.ForeignKeyConstraint(
+            ['localization_id'],
+            ['localizations.id'],
+            name='localizationtiles_localization_id_fkey',
+        ),
+        {"postgresql_partition_by": "RANGE (dateobs)"},
     )
 
+    partitions = {}
 
-# create default partition that will contain all data out of range (older than 2023-04-01, and newer than 2025-04-01)
+    @classmethod
+    def create_partition(cls, name, partition_stmt, table_args=()):
+        """Create a partition for the LocalizationTile table."""
+
+        class Partition(Base, LocalizationTileMixin):
+            __name__ = f'{cls.__name__}_{name}'
+            __tablename__ = f'{cls.__tablename__}_{name}'
+            __table_args__ = table_args
+
+        event.listen(
+            Partition.__table__,
+            'after_create',
+            DDL(
+                f"""
+                    ALTER TABLE {cls.__tablename__}
+                    ATTACH PARTITION {Partition.__tablename__}
+                    {partition_stmt};
+                    """
+            ),
+        )
+
+        cls.partitions[name] = Partition
+
+
+# create default partition that will contain all data out of range
 LocalizationTile.create_partition(
     "def",
     partition_stmt="DEFAULT",
@@ -440,6 +402,11 @@ LocalizationTile.create_partition(
             'localizationtiles_def_created_at_idx',
             'created_at',
             unique=False,
+        ),
+        sa.ForeignKeyConstraint(
+            ['localization_id'],
+            ['localizations.id'],
+            name='localizationtiles_def_localization_id_fkey',
         ),
     ),
 )
@@ -475,6 +442,11 @@ for year in range(2023, 2026):
                 f'localizationtiles_{date.strftime("%Y_%m")}_created_at_idx',
                 'created_at',
                 unique=False,
+            ),
+            sa.ForeignKeyConstraint(
+                ['localization_id'],
+                ['localizations.id'],
+                name=f'localizationtiles_{date.strftime("%Y_%m")}_localization_id_fkey',
             ),
         )
 

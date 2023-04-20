@@ -69,6 +69,10 @@ def upgrade():
         'ALTER SEQUENCE localizationtiles_id_seq RENAME TO localizationtiles_def_id_seq'
     )
 
+    # create localizationtiles partition table
+    op.execute(
+        'CREATE SEQUENCE localizationtiles_id_seq START WITH 1 INCREMENT BY 1 NO MINVALUE NO MAXVALUE CACHE 1'
+    )
     op.execute(
         '''CREATE TABLE localizationtiles (
             id INTEGER NOT NULL DEFAULT nextval('localizationtiles_id_seq'::regclass),
@@ -79,11 +83,6 @@ def upgrade():
             dateobs DATE NOT NULL DEFAULT '2023-01-01'::DATE
             ) PARTITION BY RANGE (dateobs)
             '''
-    )
-
-    # create localizationtiles partition table
-    op.execute(
-        'CREATE SEQUENCE localizationtiles_id_seq START WITH 1 INCREMENT BY 1 NO MINVALUE NO MAXVALUE CACHE 1'
     )
     op.execute('ALTER SEQUENCE localizationtiles_id_seq OWNED BY localizationtiles.id')
 
