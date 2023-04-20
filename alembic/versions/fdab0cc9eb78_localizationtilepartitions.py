@@ -64,11 +64,15 @@ def upgrade():
     op.execute(
         'ALTER TABLE localizationtiles_def ADD PRIMARY KEY (id, localization_id, healpix, dateobs)'
     )
+    # edit the sequence
+    op.execute(
+        'ALTER SEQUENCE localizationtiles_id_seq RENAME TO localizationtiles_def_id_seq'
+    )
 
     # create localizationtiles partition table
-    # op.execute(
-    #     'CREATE SEQUENCE localizationtiles_id_seq START WITH 1 INCREMENT BY 1 NO MINVALUE NO MAXVALUE CACHE 1'
-    # )
+    op.execute(
+        'CREATE SEQUENCE localizationtiles_id_seq START WITH 1 INCREMENT BY 1 NO MINVALUE NO MAXVALUE CACHE 1'
+    )
     op.execute(
         '''CREATE TABLE localizationtiles (
             id INTEGER NOT NULL DEFAULT nextval('localizationtiles_id_seq'::regclass),
