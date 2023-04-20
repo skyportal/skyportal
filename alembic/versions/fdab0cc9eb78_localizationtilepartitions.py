@@ -80,7 +80,7 @@ def upgrade():
             modified TIMESTAMP WITHOUT TIME ZONE NOT NULL,
             localization_id INTEGER NOT NULL,
             probdensity FLOAT NOT NULL,
-            dateobs DATE NOT NULL DEFAULT '2023-01-01'::DATE
+            dateobs TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT '2023-01-01'::DATE
             ) PARTITION BY RANGE (dateobs)
             '''
     )
