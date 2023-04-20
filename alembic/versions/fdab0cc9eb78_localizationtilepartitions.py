@@ -22,7 +22,7 @@ def upgrade():
         'localizationtiles',
         sa.Column(
             'dateobs',
-            sa.Date(),
+            sa.DateTime(),
             nullable=False,
             server_default=sa.text("'2023-01-01'::date"),
         ),
