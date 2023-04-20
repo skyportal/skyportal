@@ -3,16 +3,16 @@ import PropTypes from "prop-types";
 import { useSelector, useDispatch } from "react-redux";
 import SelectWithChips from "./SelectWithChips";
 
-import * as photometryActions from "../ducks/photometry";
+// import * as photometryActions from "../ducks/photometry";
 
 const OriginSelect = ({ onOriginSelectChange, initValue, parent }) => {
   const dispatch = useDispatch();
 
   useEffect(() => {
-    const fetchOrigins = async () => {
-      await dispatch(photometryActions.fetchAllOrigins());
-    };
-    fetchOrigins();
+    // const fetchOrigins = async () => {
+    //   await dispatch(photometryActions.fetchAllOrigins());
+    // };
+    // fetchOrigins(); //TODO: uncomment this line when the API is fixed. For now this times out.
   }, [dispatch]);
 
   const originsList = ["Clear selections"].concat(
