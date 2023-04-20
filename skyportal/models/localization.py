@@ -282,7 +282,7 @@ class LocalizationTileMixin:
     )
 
     localization_id = sa.Column(
-        sa.BigInteger,
+        sa.ForeignKey('localizations.id', ondelete='CASCADE'),
         primary_key=True,
         doc='localization ID',
     )
@@ -336,11 +336,6 @@ class LocalizationTile(
             'localizationtiles_created_at_idx',
             'created_at',
             unique=False,
-        ),
-        sa.ForeignKeyConstraint(
-            ['localization_id'],
-            ['localizations.id'],
-            name='localizationtiles_localization_id_fkey',
         ),
         {"postgresql_partition_by": "RANGE (dateobs)"},
     )
@@ -403,11 +398,6 @@ LocalizationTile.create_partition(
             'created_at',
             unique=False,
         ),
-        sa.ForeignKeyConstraint(
-            ['localization_id'],
-            ['localizations.id'],
-            name='localizationtiles_def_localization_id_fkey',
-        ),
     ),
 )
 
@@ -442,11 +432,6 @@ for year in range(2023, 2026):
                 f'localizationtiles_{date.strftime("%Y_%m")}_created_at_idx',
                 'created_at',
                 unique=False,
-            ),
-            sa.ForeignKeyConstraint(
-                ['localization_id'],
-                ['localizations.id'],
-                name=f'localizationtiles_{date.strftime("%Y_%m")}_localization_id_fkey',
             ),
         )
 
