@@ -295,3 +295,155 @@ def upgrade():
     op.execute(
         "ALTER TABLE localizationtiles_2025_04 RENAME CONSTRAINT localizationtiles_localization_id_fkey TO localizationtiles_2025_04_localization_id_fkey"
     )
+
+    op.execute(
+        'CREATE SEQUENCE localizationtiles_2023_04_id_seq START WITH 1 INCREMENT BY 1 NO MINVALUE NO MAXVALUE CACHE 1'
+    )
+    op.execute(
+        'CREATE SEQUENCE localizationtiles_2023_05_id_seq START WITH 1 INCREMENT BY 1 NO MINVALUE NO MAXVALUE CACHE 1'
+    )
+    op.execute(
+        'CREATE SEQUENCE localizationtiles_2023_06_id_seq START WITH 1 INCREMENT BY 1 NO MINVALUE NO MAXVALUE CACHE 1'
+    )
+    op.execute(
+        'CREATE SEQUENCE localizationtiles_2023_07_id_seq START WITH 1 INCREMENT BY 1 NO MINVALUE NO MAXVALUE CACHE 1'
+    )
+    op.execute(
+        'CREATE SEQUENCE localizationtiles_2023_08_id_seq START WITH 1 INCREMENT BY 1 NO MINVALUE NO MAXVALUE CACHE 1'
+    )
+    op.execute(
+        'CREATE SEQUENCE localizationtiles_2023_09_id_seq START WITH 1 INCREMENT BY 1 NO MINVALUE NO MAXVALUE CACHE 1'
+    )
+    op.execute(
+        'CREATE SEQUENCE localizationtiles_2023_10_id_seq START WITH 1 INCREMENT BY 1 NO MINVALUE NO MAXVALUE CACHE 1'
+    )
+    op.execute(
+        'CREATE SEQUENCE localizationtiles_2023_11_id_seq START WITH 1 INCREMENT BY 1 NO MINVALUE NO MAXVALUE CACHE 1'
+    )
+    op.execute(
+        'CREATE SEQUENCE localizationtiles_2023_12_id_seq START WITH 1 INCREMENT BY 1 NO MINVALUE NO MAXVALUE CACHE 1'
+    )
+    op.execute(
+        'CREATE SEQUENCE localizationtiles_2024_01_id_seq START WITH 1 INCREMENT BY 1 NO MINVALUE NO MAXVALUE CACHE 1'
+    )
+    op.execute(
+        'CREATE SEQUENCE localizationtiles_2024_02_id_seq START WITH 1 INCREMENT BY 1 NO MINVALUE NO MAXVALUE CACHE 1'
+    )
+    op.execute(
+        'CREATE SEQUENCE localizationtiles_2024_03_id_seq START WITH 1 INCREMENT BY 1 NO MINVALUE NO MAXVALUE CACHE 1'
+    )
+    op.execute(
+        'CREATE SEQUENCE localizationtiles_2024_04_id_seq START WITH 1 INCREMENT BY 1 NO MINVALUE NO MAXVALUE CACHE 1'
+    )
+    op.execute(
+        'CREATE SEQUENCE localizationtiles_2024_05_id_seq START WITH 1 INCREMENT BY 1 NO MINVALUE NO MAXVALUE CACHE 1'
+    )
+    op.execute(
+        'CREATE SEQUENCE localizationtiles_2024_06_id_seq START WITH 1 INCREMENT BY 1 NO MINVALUE NO MAXVALUE CACHE 1'
+    )
+    op.execute(
+        'CREATE SEQUENCE localizationtiles_2024_07_id_seq START WITH 1 INCREMENT BY 1 NO MINVALUE NO MAXVALUE CACHE 1'
+    )
+    op.execute(
+        'CREATE SEQUENCE localizationtiles_2024_08_id_seq START WITH 1 INCREMENT BY 1 NO MINVALUE NO MAXVALUE CACHE 1'
+    )
+    op.execute(
+        'CREATE SEQUENCE localizationtiles_2024_09_id_seq START WITH 1 INCREMENT BY 1 NO MINVALUE NO MAXVALUE CACHE 1'
+    )
+    op.execute(
+        'CREATE SEQUENCE localizationtiles_2024_10_id_seq START WITH 1 INCREMENT BY 1 NO MINVALUE NO MAXVALUE CACHE 1'
+    )
+    op.execute(
+        'CREATE SEQUENCE localizationtiles_2024_11_id_seq START WITH 1 INCREMENT BY 1 NO MINVALUE NO MAXVALUE CACHE 1'
+    )
+    op.execute(
+        'CREATE SEQUENCE localizationtiles_2024_12_id_seq START WITH 1 INCREMENT BY 1 NO MINVALUE NO MAXVALUE CACHE 1'
+    )
+    op.execute(
+        'CREATE SEQUENCE localizationtiles_2025_01_id_seq START WITH 1 INCREMENT BY 1 NO MINVALUE NO MAXVALUE CACHE 1'
+    )
+    op.execute(
+        'CREATE SEQUENCE localizationtiles_2025_02_id_seq START WITH 1 INCREMENT BY 1 NO MINVALUE NO MAXVALUE CACHE 1'
+    )
+    op.execute(
+        'CREATE SEQUENCE localizationtiles_2025_03_id_seq START WITH 1 INCREMENT BY 1 NO MINVALUE NO MAXVALUE CACHE 1'
+    )
+    op.execute(
+        'CREATE SEQUENCE localizationtiles_2025_04_id_seq START WITH 1 INCREMENT BY 1 NO MINVALUE NO MAXVALUE CACHE 1'
+    )
+
+    op.execute(
+        'ALTER SEQUENCE localizationtiles_2023_04_id_seq OWNED BY localizationtiles_2023_04.id'
+    )
+    op.execute(
+        'ALTER SEQUENCE localizationtiles_2023_05_id_seq OWNED BY localizationtiles_2023_05.id'
+    )
+    op.execute(
+        'ALTER SEQUENCE localizationtiles_2023_06_id_seq OWNED BY localizationtiles_2023_06.id'
+    )
+    op.execute(
+        'ALTER SEQUENCE localizationtiles_2023_07_id_seq OWNED BY localizationtiles_2023_07.id'
+    )
+    op.execute(
+        'ALTER SEQUENCE localizationtiles_2023_08_id_seq OWNED BY localizationtiles_2023_08.id'
+    )
+    op.execute(
+        'ALTER SEQUENCE localizationtiles_2023_09_id_seq OWNED BY localizationtiles_2023_09.id'
+    )
+    op.execute(
+        'ALTER SEQUENCE localizationtiles_2023_10_id_seq OWNED BY localizationtiles_2023_10.id'
+    )
+    op.execute(
+        'ALTER SEQUENCE localizationtiles_2023_11_id_seq OWNED BY localizationtiles_2023_11.id'
+    )
+    op.execute(
+        'ALTER SEQUENCE localizationtiles_2023_12_id_seq OWNED BY localizationtiles_2023_12.id'
+    )
+    op.execute(
+        'ALTER SEQUENCE localizationtiles_2024_01_id_seq OWNED BY localizationtiles_2024_01.id'
+    )
+    op.execute(
+        'ALTER SEQUENCE localizationtiles_2024_02_id_seq OWNED BY localizationtiles_2024_02.id'
+    )
+    op.execute(
+        'ALTER SEQUENCE localizationtiles_2024_03_id_seq OWNED BY localizationtiles_2024_03.id'
+    )
+    op.execute(
+        'ALTER SEQUENCE localizationtiles_2024_04_id_seq OWNED BY localizationtiles_2024_04.id'
+    )
+    op.execute(
+        'ALTER SEQUENCE localizationtiles_2024_05_id_seq OWNED BY localizationtiles_2024_05.id'
+    )
+    op.execute(
+        'ALTER SEQUENCE localizationtiles_2024_06_id_seq OWNED BY localizationtiles_2024_06.id'
+    )
+    op.execute(
+        'ALTER SEQUENCE localizationtiles_2024_07_id_seq OWNED BY localizationtiles_2024_07.id'
+    )
+    op.execute(
+        'ALTER SEQUENCE localizationtiles_2024_08_id_seq OWNED BY localizationtiles_2024_08.id'
+    )
+    op.execute(
+        'ALTER SEQUENCE localizationtiles_2024_09_id_seq OWNED BY localizationtiles_2024_09.id'
+    )
+    op.execute(
+        'ALTER SEQUENCE localizationtiles_2024_10_id_seq OWNED BY localizationtiles_2024_10.id'
+    )
+    op.execute(
+        'ALTER SEQUENCE localizationtiles_2024_11_id_seq OWNED BY localizationtiles_2024_11.id'
+    )
+    op.execute(
+        'ALTER SEQUENCE localizationtiles_2024_12_id_seq OWNED BY localizationtiles_2024_12.id'
+    )
+    op.execute(
+        'ALTER SEQUENCE localizationtiles_2025_01_id_seq OWNED BY localizationtiles_2025_01.id'
+    )
+    op.execute(
+        'ALTER SEQUENCE localizationtiles_2025_02_id_seq OWNED BY localizationtiles_2025_02.id'
+    )
+    op.execute(
+        'ALTER SEQUENCE localizationtiles_2025_03_id_seq OWNED BY localizationtiles_2025_03.id'
+    )
+    op.execute(
+        'ALTER SEQUENCE localizationtiles_2025_04_id_seq OWNED BY localizationtiles_2025_04.id'
+    )
