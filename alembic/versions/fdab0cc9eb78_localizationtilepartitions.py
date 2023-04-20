@@ -49,7 +49,7 @@ def upgrade():
     # drop it now
     op.execute('DROP INDEX localizationtile_id_healpix_index')
     op.create_index(
-        'localizationtile_def_id_healpix_dateobs_index',
+        'localizationtiles_def_id_healpix_dateobs_idx',
         'localizationtiles_def',
         ['id', 'healpix', 'dateobs'],
         unique=False,
@@ -123,7 +123,7 @@ def upgrade():
     )
     # add an index on both id and healpix
     op.create_index(
-        'localizationtile_id_healpix_dateobs_index',
+        'localizationtiles_id_healpix_dateobs_idx',
         'localizationtiles',
         ['id', 'healpix', 'dateobs'],
         unique=True,

@@ -380,7 +380,7 @@ class LocalizationTile(
     __tablename__ = 'localizationtiles'
     __table_args__ = (
         sa.Index(
-            'localizationtile_id_healpix_dateobs_index',
+            'localizationtiles_id_healpix_dateobs_idx',
             'id',
             'healpix',
             'dateobs',
@@ -415,7 +415,7 @@ LocalizationTile.create_partition(
     partition_stmt="DEFAULT",
     table_args=(
         sa.Index(
-            'localizationtile_def_id_healpix_dateobs_index',
+            'localizationtiles_def_id_healpix_dateobs_idx',
             'id',
             'healpix',
             'dateobs',
@@ -450,7 +450,7 @@ for year in range(2023, 2026):
         date = datetime.date(year, month, 1)
         table_args = (
             sa.Index(
-                f'localizationtile_{date.strftime("%Y_%m")}_id_healpix_dateobs_index',
+                f'localizationtiles_{date.strftime("%Y_%m")}_id_healpix_dateobs_idx',
                 'id',
                 'healpix',
                 'dateobs',
