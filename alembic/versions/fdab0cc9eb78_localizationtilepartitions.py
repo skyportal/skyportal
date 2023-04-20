@@ -59,11 +59,11 @@ def upgrade():
         'ALTER TABLE localizationtiles_def DROP CONSTRAINT localizationtiles_localization_id_fkey'
     )
     op.execute(
-        'ALTER TABLE localizationtiles_def ADD CONSTRAINT localizationtiles_def_localization_id_fkey FOREIGN KEY (localization_id) REFERENCES localizations (id) ON DELETE CASCADE'
+        'ALTER TABLE localizationtiles_def ADD CONSTRAINT localizationtiles_localization_id_fkey FOREIGN KEY (localization_id) REFERENCES localizations (id) ON DELETE CASCADE'
     )
-    op.execute(
-        'ALTER TABLE localizationtiles_def ADD PRIMARY KEY (id, localization_id, healpix, dateobs)'
-    )
+    # op.execute(
+    #     'ALTER TABLE localizationtiles_def ADD PRIMARY KEY (id, localization_id, healpix, dateobs)'
+    # )
     # edit the sequence
     op.execute(
         'ALTER SEQUENCE localizationtiles_id_seq RENAME TO localizationtiles_def_id_seq'
@@ -217,4 +217,81 @@ def upgrade():
     )
     op.execute(
         "CREATE TABLE localizationtiles_2025_04 PARTITION OF localizationtiles FOR VALUES FROM ('2025-04-01') TO ('2025-05-01')"
+    )
+
+    # for each of the newlty created partitions, rename the foreign key constraint to localizationtiles_localization_id_fkey
+    op.execute(
+        "ALTER TABLE localizationtiles_2023_04 RENAME CONSTRAINT localizationtiles_2023_04_localization_id_fkey TO localizationtiles_localization_id_fkey"
+    )
+    op.execute(
+        "ALTER TABLE localizationtiles_2023_05 RENAME CONSTRAINT localizationtiles_2023_05_localization_id_fkey TO localizationtiles_localization_id_fkey"
+    )
+    op.execute(
+        "ALTER TABLE localizationtiles_2023_06 RENAME CONSTRAINT localizationtiles_2023_06_localization_id_fkey TO localizationtiles_localization_id_fkey"
+    )
+    op.execute(
+        "ALTER TABLE localizationtiles_2023_07 RENAME CONSTRAINT localizationtiles_2023_07_localization_id_fkey TO localizationtiles_localization_id_fkey"
+    )
+    op.execute(
+        "ALTER TABLE localizationtiles_2023_08 RENAME CONSTRAINT localizationtiles_2023_08_localization_id_fkey TO localizationtiles_localization_id_fkey"
+    )
+    op.execute(
+        "ALTER TABLE localizationtiles_2023_09 RENAME CONSTRAINT localizationtiles_2023_09_localization_id_fkey TO localizationtiles_localization_id_fkey"
+    )
+    op.execute(
+        "ALTER TABLE localizationtiles_2023_10 RENAME CONSTRAINT localizationtiles_2023_10_localization_id_fkey TO localizationtiles_localization_id_fkey"
+    )
+    op.execute(
+        "ALTER TABLE localizationtiles_2023_11 RENAME CONSTRAINT localizationtiles_2023_11_localization_id_fkey TO localizationtiles_localization_id_fkey"
+    )
+    op.execute(
+        "ALTER TABLE localizationtiles_2023_12 RENAME CONSTRAINT localizationtiles_2023_12_localization_id_fkey TO localizationtiles_localization_id_fkey"
+    )
+    op.execute(
+        "ALTER TABLE localizationtiles_2024_01 RENAME CONSTRAINT localizationtiles_2024_01_localization_id_fkey TO localizationtiles_localization_id_fkey"
+    )
+    op.execute(
+        "ALTER TABLE localizationtiles_2024_02 RENAME CONSTRAINT localizationtiles_2024_02_localization_id_fkey TO localizationtiles_localization_id_fkey"
+    )
+    op.execute(
+        "ALTER TABLE localizationtiles_2024_03 RENAME CONSTRAINT localizationtiles_2024_03_localization_id_fkey TO localizationtiles_localization_id_fkey"
+    )
+    op.execute(
+        "ALTER TABLE localizationtiles_2024_04 RENAME CONSTRAINT localizationtiles_2024_04_localization_id_fkey TO localizationtiles_localization_id_fkey"
+    )
+    op.execute(
+        "ALTER TABLE localizationtiles_2024_05 RENAME CONSTRAINT localizationtiles_2024_05_localization_id_fkey TO localizationtiles_localization_id_fkey"
+    )
+    op.execute(
+        "ALTER TABLE localizationtiles_2024_06 RENAME CONSTRAINT localizationtiles_2024_06_localization_id_fkey TO localizationtiles_localization_id_fkey"
+    )
+    op.execute(
+        "ALTER TABLE localizationtiles_2024_07 RENAME CONSTRAINT localizationtiles_2024_07_localization_id_fkey TO localizationtiles_localization_id_fkey"
+    )
+    op.execute(
+        "ALTER TABLE localizationtiles_2024_08 RENAME CONSTRAINT localizationtiles_2024_08_localization_id_fkey TO localizationtiles_localization_id_fkey"
+    )
+    op.execute(
+        "ALTER TABLE localizationtiles_2024_09 RENAME CONSTRAINT localizationtiles_2024_09_localization_id_fkey TO localizationtiles_localization_id_fkey"
+    )
+    op.execute(
+        "ALTER TABLE localizationtiles_2024_10 RENAME CONSTRAINT localizationtiles_2024_10_localization_id_fkey TO localizationtiles_localization_id_fkey"
+    )
+    op.execute(
+        "ALTER TABLE localizationtiles_2024_11 RENAME CONSTRAINT localizationtiles_2024_11_localization_id_fkey TO localizationtiles_localization_id_fkey"
+    )
+    op.execute(
+        "ALTER TABLE localizationtiles_2024_12 RENAME CONSTRAINT localizationtiles_2024_12_localization_id_fkey TO localizationtiles_localization_id_fkey"
+    )
+    op.execute(
+        "ALTER TABLE localizationtiles_2025_01 RENAME CONSTRAINT localizationtiles_2025_01_localization_id_fkey TO localizationtiles_localization_id_fkey"
+    )
+    op.execute(
+        "ALTER TABLE localizationtiles_2025_02 RENAME CONSTRAINT localizationtiles_2025_02_localization_id_fkey TO localizationtiles_localization_id_fkey"
+    )
+    op.execute(
+        "ALTER TABLE localizationtiles_2025_03 RENAME CONSTRAINT localizationtiles_2025_03_localization_id_fkey TO localizationtiles_localization_id_fkey"
+    )
+    op.execute(
+        "ALTER TABLE localizationtiles_2025_04 RENAME CONSTRAINT localizationtiles_2025_04_localization_id_fkey TO localizationtiles_localization_id_fkey"
     )
