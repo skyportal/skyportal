@@ -453,106 +453,80 @@ def downgrade():
 
     # then we want to ingest the data of all the partitions into the default table
     op.execute(
-        'INSERT INTO localizationtiles_def SELECT * FROM localizationtiles_2023_04'
+        'INSERT INTO localizationtiles_def(localization_id, probdensity, healpix, created_at, modified, dateobs) SELECT localization_id, probdensity, healpix, created_at, modified, dateobs FROM localizationtiles_2023_04'
     )
     op.execute(
-        'INSERT INTO localizationtiles_def SELECT * FROM localizationtiles_2023_05'
+        'INSERT INTO localizationtiles_def(localization_id, probdensity, healpix, created_at, modified, dateobs) SELECT localization_id, probdensity, healpix, created_at, modified, dateobs FROM localizationtiles_2023_05'
     )
     op.execute(
-        'INSERT INTO localizationtiles_def SELECT * FROM localizationtiles_2023_06'
+        'INSERT INTO localizationtiles_def(localization_id, probdensity, healpix, created_at, modified, dateobs) SELECT localization_id, probdensity, healpix, created_at, modified, dateobs FROM localizationtiles_2023_06'
     )
     op.execute(
-        'INSERT INTO localizationtiles_def SELECT * FROM localizationtiles_2023_07'
+        'INSERT INTO localizationtiles_def(localization_id, probdensity, healpix, created_at, modified, dateobs) SELECT localization_id, probdensity, healpix, created_at, modified, dateobs FROM localizationtiles_2023_07'
     )
     op.execute(
-        'INSERT INTO localizationtiles_def SELECT * FROM localizationtiles_2023_08'
+        'INSERT INTO localizationtiles_def(localization_id, probdensity, healpix, created_at, modified, dateobs) SELECT localization_id, probdensity, healpix, created_at, modified, dateobs FROM localizationtiles_2023_08'
     )
     op.execute(
-        'INSERT INTO localizationtiles_def SELECT * FROM localizationtiles_2023_09'
+        'INSERT INTO localizationtiles_def(localization_id, probdensity, healpix, created_at, modified, dateobs) SELECT localization_id, probdensity, healpix, created_at, modified, dateobs FROM localizationtiles_2023_09'
     )
     op.execute(
-        'INSERT INTO localizationtiles_def SELECT * FROM localizationtiles_2023_10'
+        'INSERT INTO localizationtiles_def(localization_id, probdensity, healpix, created_at, modified, dateobs) SELECT localization_id, probdensity, healpix, created_at, modified, dateobs FROM localizationtiles_2023_10'
     )
     op.execute(
-        'INSERT INTO localizationtiles_def SELECT * FROM localizationtiles_2023_11'
+        'INSERT INTO localizationtiles_def(localization_id, probdensity, healpix, created_at, modified, dateobs) SELECT localization_id, probdensity, healpix, created_at, modified, dateobs FROM localizationtiles_2023_11'
     )
     op.execute(
-        'INSERT INTO localizationtiles_def SELECT * FROM localizationtiles_2023_12'
+        'INSERT INTO localizationtiles_def(localization_id, probdensity, healpix, created_at, modified, dateobs) SELECT localization_id, probdensity, healpix, created_at, modified, dateobs FROM localizationtiles_2023_12'
     )
     op.execute(
-        'INSERT INTO localizationtiles_def SELECT * FROM localizationtiles_2024_01'
+        'INSERT INTO localizationtiles_def(localization_id, probdensity, healpix, created_at, modified, dateobs) SELECT localization_id, probdensity, healpix, created_at, modified, dateobs FROM localizationtiles_2024_01'
     )
     op.execute(
-        'INSERT INTO localizationtiles_def SELECT * FROM localizationtiles_2024_02'
+        'INSERT INTO localizationtiles_def(localization_id, probdensity, healpix, created_at, modified, dateobs) SELECT localization_id, probdensity, healpix, created_at, modified, dateobs FROM localizationtiles_2024_02'
     )
     op.execute(
-        'INSERT INTO localizationtiles_def SELECT * FROM localizationtiles_2024_03'
+        'INSERT INTO localizationtiles_def(localization_id, probdensity, healpix, created_at, modified, dateobs) SELECT localization_id, probdensity, healpix, created_at, modified, dateobs FROM localizationtiles_2024_03'
     )
     op.execute(
-        'INSERT INTO localizationtiles_def SELECT * FROM localizationtiles_2024_04'
+        'INSERT INTO localizationtiles_def(localization_id, probdensity, healpix, created_at, modified, dateobs) SELECT localization_id, probdensity, healpix, created_at, modified, dateobs FROM localizationtiles_2024_04'
     )
     op.execute(
-        'INSERT INTO localizationtiles_def SELECT * FROM localizationtiles_2024_05'
+        'INSERT INTO localizationtiles_def(localization_id, probdensity, healpix, created_at, modified, dateobs) SELECT localization_id, probdensity, healpix, created_at, modified, dateobs FROM localizationtiles_2024_05'
     )
     op.execute(
-        'INSERT INTO localizationtiles_def SELECT * FROM localizationtiles_2024_06'
+        'INSERT INTO localizationtiles_def(localization_id, probdensity, healpix, created_at, modified, dateobs) SELECT localization_id, probdensity, healpix, created_at, modified, dateobs FROM localizationtiles_2024_06'
     )
     op.execute(
-        'INSERT INTO localizationtiles_def SELECT * FROM localizationtiles_2024_07'
+        'INSERT INTO localizationtiles_def(localization_id, probdensity, healpix, created_at, modified, dateobs) SELECT localization_id, probdensity, healpix, created_at, modified, dateobs FROM localizationtiles_2024_07'
     )
     op.execute(
-        'INSERT INTO localizationtiles_def SELECT * FROM localizationtiles_2024_08'
+        'INSERT INTO localizationtiles_def(localization_id, probdensity, healpix, created_at, modified, dateobs) SELECT localization_id, probdensity, healpix, created_at, modified, dateobs FROM localizationtiles_2024_08'
     )
     op.execute(
-        'INSERT INTO localizationtiles_def SELECT * FROM localizationtiles_2024_09'
+        'INSERT INTO localizationtiles_def(localization_id, probdensity, healpix, created_at, modified, dateobs) SELECT localization_id, probdensity, healpix, created_at, modified, dateobs FROM localizationtiles_2024_09'
     )
     op.execute(
-        'INSERT INTO localizationtiles_def SELECT * FROM localizationtiles_2024_10'
+        'INSERT INTO localizationtiles_def(localization_id, probdensity, healpix, created_at, modified, dateobs) SELECT localization_id, probdensity, healpix, created_at, modified, dateobs FROM localizationtiles_2024_10'
     )
     op.execute(
-        'INSERT INTO localizationtiles_def SELECT * FROM localizationtiles_2024_11'
+        'INSERT INTO localizationtiles_def(localization_id, probdensity, healpix, created_at, modified, dateobs) SELECT localization_id, probdensity, healpix, created_at, modified, dateobs FROM localizationtiles_2024_11'
     )
     op.execute(
-        'INSERT INTO localizationtiles_def SELECT * FROM localizationtiles_2024_12'
+        'INSERT INTO localizationtiles_def(localization_id, probdensity, healpix, created_at, modified, dateobs) SELECT localization_id, probdensity, healpix, created_at, modified, dateobs FROM localizationtiles_2024_12'
     )
     op.execute(
-        'INSERT INTO localizationtiles_def SELECT * FROM localizationtiles_2025_01'
+        'INSERT INTO localizationtiles_def(localization_id, probdensity, healpix, created_at, modified, dateobs) SELECT localization_id, probdensity, healpix, created_at, modified, dateobs FROM localizationtiles_2025_01'
     )
     op.execute(
-        'INSERT INTO localizationtiles_def SELECT * FROM localizationtiles_2025_02'
+        'INSERT INTO localizationtiles_def(localization_id, probdensity, healpix, created_at, modified, dateobs) SELECT localization_id, probdensity, healpix, created_at, modified, dateobs FROM localizationtiles_2025_02'
     )
     op.execute(
-        'INSERT INTO localizationtiles_def SELECT * FROM localizationtiles_2025_03'
+        'INSERT INTO localizationtiles_def(localization_id, probdensity, healpix, created_at, modified, dateobs) SELECT localization_id, probdensity, healpix, created_at, modified, dateobs FROM localizationtiles_2025_03'
     )
     op.execute(
-        'INSERT INTO localizationtiles_def SELECT * FROM localizationtiles_2025_04'
+        'INSERT INTO localizationtiles_def(localization_id, probdensity, healpix, created_at, modified, dateobs) SELECT localization_id, probdensity, healpix, created_at, modified, dateobs FROM localizationtiles_2025_04'
     )
-
-    op.execute('DROP SEQUENCE localizationtiles_2023_04_id_seq')
-    op.execute('DROP SEQUENCE localizationtiles_2023_05_id_seq')
-    op.execute('DROP SEQUENCE localizationtiles_2023_06_id_seq')
-    op.execute('DROP SEQUENCE localizationtiles_2023_07_id_seq')
-    op.execute('DROP SEQUENCE localizationtiles_2023_08_id_seq')
-    op.execute('DROP SEQUENCE localizationtiles_2023_09_id_seq')
-    op.execute('DROP SEQUENCE localizationtiles_2023_10_id_seq')
-    op.execute('DROP SEQUENCE localizationtiles_2023_11_id_seq')
-    op.execute('DROP SEQUENCE localizationtiles_2023_12_id_seq')
-    op.execute('DROP SEQUENCE localizationtiles_2024_01_id_seq')
-    op.execute('DROP SEQUENCE localizationtiles_2024_02_id_seq')
-    op.execute('DROP SEQUENCE localizationtiles_2024_03_id_seq')
-    op.execute('DROP SEQUENCE localizationtiles_2024_04_id_seq')
-    op.execute('DROP SEQUENCE localizationtiles_2024_05_id_seq')
-    op.execute('DROP SEQUENCE localizationtiles_2024_06_id_seq')
-    op.execute('DROP SEQUENCE localizationtiles_2024_07_id_seq')
-    op.execute('DROP SEQUENCE localizationtiles_2024_08_id_seq')
-    op.execute('DROP SEQUENCE localizationtiles_2024_09_id_seq')
-    op.execute('DROP SEQUENCE localizationtiles_2024_10_id_seq')
-    op.execute('DROP SEQUENCE localizationtiles_2024_11_id_seq')
-    op.execute('DROP SEQUENCE localizationtiles_2024_12_id_seq')
-    op.execute('DROP SEQUENCE localizationtiles_2025_01_id_seq')
-    op.execute('DROP SEQUENCE localizationtiles_2025_02_id_seq')
-    op.execute('DROP SEQUENCE localizationtiles_2025_03_id_seq')
-    op.execute('DROP SEQUENCE localizationtiles_2025_04_id_seq')
 
     # then we want to drop the partitions
     op.execute('DROP TABLE localizationtiles_2023_04')
