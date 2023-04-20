@@ -52,7 +52,7 @@ def upgrade():
         'localizationtiles_def_id_healpix_dateobs_idx',
         'localizationtiles_def',
         ['id', 'healpix', 'dateobs'],
-        unique=False,
+        unique=True,
     )
     # edit the foreign key constraint
     op.execute(
