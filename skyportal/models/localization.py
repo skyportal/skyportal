@@ -274,13 +274,6 @@ class LocalizationTileMixin:
     """This is a single tile within a skymap (as in the Localization table).
     Each tile has an associated healpix id and probability density."""
 
-    created_at = sa.Column(
-        sa.DateTime,
-        nullable=False,
-        default=utcnow,
-        doc="UTC time of insertion of object's row into the database.",
-    )
-
     localization_id = sa.Column(
         sa.ForeignKey('localizations.id', ondelete='CASCADE'),
         primary_key=True,
@@ -308,6 +301,13 @@ class LocalizationTile(
     Base,
     LocalizationTileMixin,
 ):
+    created_at = sa.Column(
+        sa.DateTime,
+        nullable=False,
+        default=utcnow,
+        doc="UTC time of insertion of object's row into the database.",
+    )
+
     __tablename__ = 'localizationtiles'
     __table_args__ = (
         sa.Index(
@@ -347,6 +347,13 @@ class LocalizationTile(
         """Create a partition for the LocalizationTile table."""
 
         class Partition(Base, LocalizationTileMixin):
+
+            created_at = sa.Column(
+                sa.DateTime,
+                nullable=False,
+                default=utcnow,
+                doc="UTC time of insertion of object's row into the database.",
+            )
             __name__ = f'{cls.__name__}_{name}'
             __tablename__ = f'{cls.__tablename__}_{name}'
             __table_args__ = table_args
