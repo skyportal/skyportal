@@ -592,19 +592,9 @@ def downgrade():
         'ALTER INDEX localizationtiles_def_id_dateobs_healpix_idx RENAME TO ix_localizationtiles_id_dateobs_healpix'
     )
 
-    # rename the foreign key
+    # rename the old constraint foreign key
     op.execute(
-        'ALTER INDEX localizationtiles_def_localization_id_fkey RENAME TO localizationtiles_localization_id_fkey'
-    )
-
-    # drop the old constraint
-    op.drop_constraint(
-        'localizationtiles_def_localization_id_fkey', 'localizationtiles'
-    )
-
-    # we rename the sequence
-    op.execute(
-        'ALTER SEQUENCE localizationtiles_id_seq RENAME TO localizationtiles_def_id_seq'
+        'ALTER TABLE localizationtiles RENAME CONSTRAINT localizationtiles_def_localization_id_fkey TO localizationtiles_localization_id_fkey'
     )
 
     # do the same for the primary key
