@@ -381,16 +381,44 @@ class InstrumentHandler(BaseHandler):
                             return self.error("GCN event not found", status=404)
                         localization = event.localizations[-1]
 
+                    # now get the dateobs in the format YYYY_MM
+                    partition_key = arrow.get(localization.dateobs).datetime
+                    localizationtile_partition_name = (
+                        f'{partition_key.year}_{partition_key.month:02d}'
+                    )
+                    localizationtilescls = LocalizationTile.partitions.get(
+                        localizationtile_partition_name, None
+                    )
+                    if localizationtilescls is None:
+                        localizationtilescls = LocalizationTile.partitions.get(
+                            'def', LocalizationTile
+                        )
+                    else:
+                        # check that there is actually a localizationTile with the given localization_id in the partition
+                        # if not, use the default partition
+                        if not (
+                            session.scalars(
+                                localizationtilescls.select(self.current_user).where(
+                                    localizationtilescls.localization_id
+                                    == localization.id
+                                )
+                            ).first()
+                        ):
+                            localizationtilescls = LocalizationTile.partitions.get(
+                                'def', LocalizationTile
+                            )
+
                     cum_prob = (
                         sa.func.sum(
-                            LocalizationTile.probdensity * LocalizationTile.healpix.area
+                            localizationtilescls.probdensity
+                            * localizationtilescls.healpix.area
                         )
-                        .over(order_by=LocalizationTile.probdensity.desc())
+                        .over(order_by=localizationtilescls.probdensity.desc())
                         .label('cum_prob')
                     )
                     localizationtile_subquery = (
-                        sa.select(LocalizationTile.probdensity, cum_prob).filter(
-                            LocalizationTile.localization_id == localization.id
+                        sa.select(localizationtilescls.probdensity, cum_prob).filter(
+                            localizationtilescls.localization_id == localization.id
                         )
                     ).subquery()
 
@@ -412,13 +440,14 @@ class InstrumentHandler(BaseHandler):
                             session.scalars(
                                 sa.select(InstrumentField)
                                 .filter(
-                                    LocalizationTile.localization_id == localization.id,
-                                    LocalizationTile.probdensity >= min_probdensity,
+                                    localizationtilescls.localization_id
+                                    == localization.id,
+                                    localizationtilescls.probdensity >= min_probdensity,
                                     InstrumentFieldTile.instrument_id == instrument.id,
                                     InstrumentFieldTile.instrument_field_id
                                     == InstrumentField.id,
                                     InstrumentFieldTile.healpix.overlaps(
-                                        LocalizationTile.healpix
+                                        localizationtilescls.healpix
                                     ),
                                 )
                                 .options(undefer(undefer_column))
@@ -431,15 +460,16 @@ class InstrumentHandler(BaseHandler):
                             (
                                 session.scalars(
                                     sa.select(InstrumentField).filter(
-                                        LocalizationTile.localization_id
+                                        localizationtilescls.localization_id
                                         == localization.id,
-                                        LocalizationTile.probdensity >= min_probdensity,
+                                        localizationtilescls.probdensity
+                                        >= min_probdensity,
                                         InstrumentFieldTile.instrument_id
                                         == instrument.id,
                                         InstrumentFieldTile.instrument_field_id
                                         == InstrumentField.id,
                                         InstrumentFieldTile.healpix.overlaps(
-                                            LocalizationTile.healpix
+                                            localizationtilescls.healpix
                                         ),
                                     )
                                 )
