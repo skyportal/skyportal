@@ -447,3 +447,204 @@ def upgrade():
     op.execute(
         'ALTER SEQUENCE localizationtiles_2025_04_id_seq OWNED BY localizationtiles_2025_04.id'
     )
+
+
+def downgrade():
+
+    # then we want to ingest the data of all the partitions into the default table
+    op.execute(
+        'INSERT INTO localizationtiles_def SELECT * FROM localizationtiles_2023_04'
+    )
+    op.execute(
+        'INSERT INTO localizationtiles_def SELECT * FROM localizationtiles_2023_05'
+    )
+    op.execute(
+        'INSERT INTO localizationtiles_def SELECT * FROM localizationtiles_2023_06'
+    )
+    op.execute(
+        'INSERT INTO localizationtiles_def SELECT * FROM localizationtiles_2023_07'
+    )
+    op.execute(
+        'INSERT INTO localizationtiles_def SELECT * FROM localizationtiles_2023_08'
+    )
+    op.execute(
+        'INSERT INTO localizationtiles_def SELECT * FROM localizationtiles_2023_09'
+    )
+    op.execute(
+        'INSERT INTO localizationtiles_def SELECT * FROM localizationtiles_2023_10'
+    )
+    op.execute(
+        'INSERT INTO localizationtiles_def SELECT * FROM localizationtiles_2023_11'
+    )
+    op.execute(
+        'INSERT INTO localizationtiles_def SELECT * FROM localizationtiles_2023_12'
+    )
+    op.execute(
+        'INSERT INTO localizationtiles_def SELECT * FROM localizationtiles_2024_01'
+    )
+    op.execute(
+        'INSERT INTO localizationtiles_def SELECT * FROM localizationtiles_2024_02'
+    )
+    op.execute(
+        'INSERT INTO localizationtiles_def SELECT * FROM localizationtiles_2024_03'
+    )
+    op.execute(
+        'INSERT INTO localizationtiles_def SELECT * FROM localizationtiles_2024_04'
+    )
+    op.execute(
+        'INSERT INTO localizationtiles_def SELECT * FROM localizationtiles_2024_05'
+    )
+    op.execute(
+        'INSERT INTO localizationtiles_def SELECT * FROM localizationtiles_2024_06'
+    )
+    op.execute(
+        'INSERT INTO localizationtiles_def SELECT * FROM localizationtiles_2024_07'
+    )
+    op.execute(
+        'INSERT INTO localizationtiles_def SELECT * FROM localizationtiles_2024_08'
+    )
+    op.execute(
+        'INSERT INTO localizationtiles_def SELECT * FROM localizationtiles_2024_09'
+    )
+    op.execute(
+        'INSERT INTO localizationtiles_def SELECT * FROM localizationtiles_2024_10'
+    )
+    op.execute(
+        'INSERT INTO localizationtiles_def SELECT * FROM localizationtiles_2024_11'
+    )
+    op.execute(
+        'INSERT INTO localizationtiles_def SELECT * FROM localizationtiles_2024_12'
+    )
+    op.execute(
+        'INSERT INTO localizationtiles_def SELECT * FROM localizationtiles_2025_01'
+    )
+    op.execute(
+        'INSERT INTO localizationtiles_def SELECT * FROM localizationtiles_2025_02'
+    )
+    op.execute(
+        'INSERT INTO localizationtiles_def SELECT * FROM localizationtiles_2025_03'
+    )
+    op.execute(
+        'INSERT INTO localizationtiles_def SELECT * FROM localizationtiles_2025_04'
+    )
+
+    op.execute('DROP SEQUENCE localizationtiles_2023_04_id_seq')
+    op.execute('DROP SEQUENCE localizationtiles_2023_05_id_seq')
+    op.execute('DROP SEQUENCE localizationtiles_2023_06_id_seq')
+    op.execute('DROP SEQUENCE localizationtiles_2023_07_id_seq')
+    op.execute('DROP SEQUENCE localizationtiles_2023_08_id_seq')
+    op.execute('DROP SEQUENCE localizationtiles_2023_09_id_seq')
+    op.execute('DROP SEQUENCE localizationtiles_2023_10_id_seq')
+    op.execute('DROP SEQUENCE localizationtiles_2023_11_id_seq')
+    op.execute('DROP SEQUENCE localizationtiles_2023_12_id_seq')
+    op.execute('DROP SEQUENCE localizationtiles_2024_01_id_seq')
+    op.execute('DROP SEQUENCE localizationtiles_2024_02_id_seq')
+    op.execute('DROP SEQUENCE localizationtiles_2024_03_id_seq')
+    op.execute('DROP SEQUENCE localizationtiles_2024_04_id_seq')
+    op.execute('DROP SEQUENCE localizationtiles_2024_05_id_seq')
+    op.execute('DROP SEQUENCE localizationtiles_2024_06_id_seq')
+    op.execute('DROP SEQUENCE localizationtiles_2024_07_id_seq')
+    op.execute('DROP SEQUENCE localizationtiles_2024_08_id_seq')
+    op.execute('DROP SEQUENCE localizationtiles_2024_09_id_seq')
+    op.execute('DROP SEQUENCE localizationtiles_2024_10_id_seq')
+    op.execute('DROP SEQUENCE localizationtiles_2024_11_id_seq')
+    op.execute('DROP SEQUENCE localizationtiles_2024_12_id_seq')
+    op.execute('DROP SEQUENCE localizationtiles_2025_01_id_seq')
+    op.execute('DROP SEQUENCE localizationtiles_2025_02_id_seq')
+    op.execute('DROP SEQUENCE localizationtiles_2025_03_id_seq')
+    op.execute('DROP SEQUENCE localizationtiles_2025_04_id_seq')
+
+    # then we want to drop the partitions
+    op.execute('DROP TABLE localizationtiles_2023_04')
+    op.execute('DROP TABLE localizationtiles_2023_05')
+    op.execute('DROP TABLE localizationtiles_2023_06')
+    op.execute('DROP TABLE localizationtiles_2023_07')
+    op.execute('DROP TABLE localizationtiles_2023_08')
+    op.execute('DROP TABLE localizationtiles_2023_09')
+    op.execute('DROP TABLE localizationtiles_2023_10')
+    op.execute('DROP TABLE localizationtiles_2023_11')
+    op.execute('DROP TABLE localizationtiles_2023_12')
+    op.execute('DROP TABLE localizationtiles_2024_01')
+    op.execute('DROP TABLE localizationtiles_2024_02')
+    op.execute('DROP TABLE localizationtiles_2024_03')
+    op.execute('DROP TABLE localizationtiles_2024_04')
+    op.execute('DROP TABLE localizationtiles_2024_05')
+    op.execute('DROP TABLE localizationtiles_2024_06')
+    op.execute('DROP TABLE localizationtiles_2024_07')
+    op.execute('DROP TABLE localizationtiles_2024_08')
+    op.execute('DROP TABLE localizationtiles_2024_09')
+    op.execute('DROP TABLE localizationtiles_2024_10')
+    op.execute('DROP TABLE localizationtiles_2024_11')
+    op.execute('DROP TABLE localizationtiles_2024_12')
+    op.execute('DROP TABLE localizationtiles_2025_01')
+    op.execute('DROP TABLE localizationtiles_2025_02')
+    op.execute('DROP TABLE localizationtiles_2025_03')
+    op.execute('DROP TABLE localizationtiles_2025_04')
+
+    # then we detach the partition from the parent table
+    op.execute('ALTER TABLE localizationtiles DETACH PARTITION localizationtiles_def')
+
+    # we remove the index on the partitioned table
+    op.drop_index('localizationtiles_created_at_idx', table_name='localizationtiles')
+    op.drop_index('localizationtiles_probdensity_idx', table_name='localizationtiles')
+    op.drop_index(
+        'localizationtiles_localization_id_idx', table_name='localizationtiles'
+    )
+    op.drop_index('localizationtiles_healpix_idx', table_name='localizationtiles')
+    op.drop_index(
+        'localizationtiles_id_dateobs_healpix_idx', table_name='localizationtiles'
+    )
+
+    # then we drop the partitioned table
+    op.execute('DROP TABLE localizationtiles')
+
+    # then we rename the default table to the original name
+    op.execute('ALTER TABLE localizationtiles_def RENAME TO localizationtiles')
+
+    # we rename the index on the default table to the original name
+    op.execute(
+        'ALTER INDEX localizationtiles_def_created_at_idx RENAME TO ix_localizationtiles_created_at'
+    )
+    op.execute(
+        'ALTER INDEX localizationtiles_def_probdensity_idx RENAME TO ix_localizationtiles_probdensity'
+    )
+    op.execute(
+        'ALTER INDEX localizationtiles_def_localization_id_idx RENAME TO ix_localizationtiles_localization_id'
+    )
+    op.execute(
+        'ALTER INDEX localizationtiles_def_healpix_idx RENAME TO ix_localizationtiles_healpix'
+    )
+    op.execute(
+        'ALTER INDEX localizationtiles_def_id_dateobs_healpix_idx RENAME TO ix_localizationtiles_id_dateobs_healpix'
+    )
+
+    # do the same for the primary key
+    op.execute(
+        'ALTER INDEX localizationtiles_def_pkey RENAME TO localizationtiles_pkey'
+    )
+
+    # we drop the index localizationtiles_id_dateobs_healpix_idx
+    op.drop_index(
+        'ix_localizationtiles_id_dateobs_healpix', table_name='localizationtiles'
+    )
+
+    # we drop the primary key
+    op.drop_constraint('localizationtiles_pkey', 'localizationtiles', type_='primary')
+
+    # we drop the dateobs column
+    op.drop_column('localizationtiles', 'dateobs')
+
+    # we recreate the index localizationtiles_id_healpix_idx
+    op.create_index(
+        'ix_localizationtiles_id_healpix',
+        'localizationtiles',
+        ['id', 'healpix'],
+        unique=True,
+    )
+
+    # we recreate the primary key
+    op.create_primary_key(
+        'localizationtiles_pkey',
+        'localizationtiles',
+        ['id', 'localization_id', 'healpix'],
+    )
