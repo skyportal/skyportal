@@ -416,7 +416,7 @@ for year in range(2023, 2026):
         date = datetime.date(year, month, 1)
         table_args = (
             sa.Index(
-                f'localizationtiles_{date.strftime("%Y_%m")}_id_healpix_dateobs_idx',
+                f'localizationtiles_{date.strftime("%Y_%m")}_id_dateobs_healpix_idx',
                 'id',
                 'healpix',
                 'dateobs',

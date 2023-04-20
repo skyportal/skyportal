@@ -49,9 +49,9 @@ def upgrade():
     # drop it now
     op.execute('DROP INDEX localizationtile_id_healpix_index')
     op.create_index(
-        'localizationtiles_def_id_healpix_dateobs_idx',
+        'localizationtiles_def_id_dateobs_healpix_idx',
         'localizationtiles_def',
-        ['id', 'healpix', 'dateobs'],
+        ['id', 'dateobs', 'healpix'],
         unique=True,
     )
     # edit the foreign key constraint
@@ -61,9 +61,9 @@ def upgrade():
     op.execute(
         'ALTER TABLE localizationtiles_def ADD CONSTRAINT localizationtiles_def_localization_id_fkey FOREIGN KEY (localization_id) REFERENCES localizations (id) ON DELETE CASCADE'
     )
-    # op.execute(
-    #     'ALTER TABLE localizationtiles_def ADD PRIMARY KEY (id, localization_id, healpix, dateobs)'
-    # )
+    op.execute(
+        'ALTER TABLE localizationtiles_def ADD PRIMARY KEY (id, localization_id, dateobs, healpix)'
+    )
     # edit the sequence
     op.execute(
         'ALTER SEQUENCE localizationtiles_id_seq RENAME TO localizationtiles_def_id_seq'
@@ -126,17 +126,17 @@ def upgrade():
         unique=False,
         postgresql_using='spgist',
     )
-    # add an index on both id and healpix
+    # add an index on id, dateobs and healpix
     op.create_index(
-        'localizationtiles_id_healpix_dateobs_idx',
+        'localizationtiles_id_dateobs_healpix_idx',
         'localizationtiles',
-        ['id', 'localization_id', 'healpix', 'dateobs'],
+        ['id', 'dateobs', 'healpix'],
         unique=True,
     )
 
-    # primary key on id, localization_id, healpix, dateobs
+    # primary key on id, localization_id, dateobs, healpix
     op.execute(
-        'ALTER TABLE localizationtiles ADD PRIMARY KEY (id, localization_id, healpix, dateobs)'
+        'ALTER TABLE localizationtiles ADD PRIMARY KEY (id, localization_id, dateobs, healpix)'
     )
 
     # attach the default partition (default range, when outside of all other ranges)
