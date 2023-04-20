@@ -356,6 +356,7 @@ class LocalizationTile(
                 doc="UTC time of insertion of object's row into the database.",
             )
             __name__ = f'{cls.__name__}_{name}'
+            __qualname__ = f'{cls.__qualname__}_{name}'
             __tablename__ = f'{cls.__tablename__}_{name}'
             __table_args__ = table_args
 

@@ -390,7 +390,9 @@ class InstrumentHandler(BaseHandler):
                         localizationtile_partition_name, None
                     )
                     if localizationtilescls is None:
-                        localizationtilescls = LocalizationTile
+                        localizationtilescls = LocalizationTile.partitions.get(
+                            'def', LocalizationTile
+                        )
                     else:
                         # check that there is actually a localizationTile with the given localization_id in the partition
                         # if not, use the default partition
@@ -402,7 +404,9 @@ class InstrumentHandler(BaseHandler):
                                 )
                             ).first()
                         ):
-                            localizationtilescls = LocalizationTile
+                            localizationtilescls = LocalizationTile.partitions.get(
+                                'def', LocalizationTile
+                            )
 
                     cum_prob = (
                         sa.func.sum(

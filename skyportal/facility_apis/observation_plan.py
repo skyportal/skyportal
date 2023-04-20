@@ -125,6 +125,30 @@ def generate_observation_plan_statistics(
         request = session.query(ObservationPlanRequest).get(request_id)
         event = session.query(GcnEvent).get(request.gcnevent_id)
 
+        partition_key = event.dateobs
+        # now get the dateobs in the format YYYY_MM
+        localizationtile_partition_name = (
+            f'{partition_key.year}_{partition_key.month:02d}'
+        )
+        localizationtilescls = LocalizationTile.partitions.get(
+            localizationtile_partition_name, None
+        )
+        if localizationtilescls is None:
+            localizationtilescls = LocalizationTile
+        else:
+            # check that there is actually a localizationTile with the given localization_id in the partition
+            # if not, use the default partition
+            if not (
+                session.scalars(
+                    sa.select(localizationtilescls.localization_id).where(
+                        localizationtilescls.localization_id == request.localization_id
+                    )
+                ).first()
+            ):
+                localizationtilescls = LocalizationTile.partitions.get(
+                    'def', LocalizationTile
+                )
+
         statistics = {}
 
         # Calculate start_observation: time of the first planned observation
@@ -504,19 +528,22 @@ def generate_plan(
             localizationtile_partition_name, None
         )
         if localizationtilescls is None:
-            localizationtilescls = LocalizationTile
+            localizationtilescls = LocalizationTile.partitions.get(
+                'def', LocalizationTile
+            )
         else:
             # check that there is actually a localizationTile with the given localization_id in the partition
             # if not, use the default partition
             if not (
-                DBSession()
-                .query(localizationtilescls)
-                .filter(localizationtilescls.localization_id == request.localization.id)
-                .first()
+                session.scalars(
+                    sa.select(localizationtilescls.localization_id).where(
+                        localizationtilescls.localization_id == request.localization.id
+                    )
+                ).first()
             ):
-                localizationtilescls = LocalizationTile
-
-        print(f'Using partition {localizationtilescls} for localization tiles')
+                localizationtilescls = LocalizationTile.partitions.get(
+                    'def', LocalizationTile
+                )
 
         params['is3D'] = request.localization.is_3d
 
