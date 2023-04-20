@@ -143,9 +143,30 @@ class InstrumentHandler(BaseHandler):
                     )
 
                 if type(field_data) is str:
-                    field_data = pd.read_table(StringIO(field_data), sep=",").to_dict(
-                        orient='list'
-                    )
+                    delimiters = [",", " "]
+                    loaded = False
+                    for delimiter in delimiters:
+                        try:
+                            field_data_table = pd.read_table(
+                                StringIO(field_data), sep=delimiter
+                            )
+                            if {'ID', 'RA', 'Dec'}.issubset(
+                                field_data_table.columns.tolist()
+                            ):
+                                loaded = True
+                            else:
+                                field_data_table = pd.read_table(
+                                    StringIO(field_data),
+                                    sep=delimiter,
+                                    names=["ID", "RA", "Dec"],
+                                )
+                                loaded = True
+                        except TypeError:
+                            pass
+
+                    if not loaded:
+                        return self.error('Could not parse the field data table')
+                    field_data = field_data_table.to_dict(orient='list')
 
                 if not {'ID', 'RA', 'Dec'}.issubset(field_data):
                     return self.error("ID, RA, and Dec required in field_data.")
@@ -601,9 +622,30 @@ class InstrumentHandler(BaseHandler):
                     )
 
                 if type(field_data) is str:
-                    field_data = pd.read_table(StringIO(field_data), sep=",").to_dict(
-                        orient='list'
-                    )
+                    delimiters = [",", " "]
+                    loaded = False
+                    for delimiter in delimiters:
+                        try:
+                            field_data_table = pd.read_table(
+                                StringIO(field_data), sep=delimiter
+                            )
+                            if {'ID', 'RA', 'Dec'}.issubset(
+                                field_data_table.columns.tolist()
+                            ):
+                                loaded = True
+                            else:
+                                field_data_table = pd.read_table(
+                                    StringIO(field_data),
+                                    sep=delimiter,
+                                    names=["ID", "RA", "Dec"],
+                                )
+                                loaded = True
+                        except TypeError:
+                            pass
+
+                    if not loaded:
+                        return self.error('Could not parse the field data table')
+                    field_data = field_data_table.to_dict(orient='list')
 
                 if not {'ID', 'RA', 'Dec'}.issubset(field_data):
                     return self.error("ID, RA, and Dec required in field_data.")
