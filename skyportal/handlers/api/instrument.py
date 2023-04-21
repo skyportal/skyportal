@@ -143,9 +143,9 @@ class InstrumentHandler(BaseHandler):
                     )
 
                 if type(field_data) is str:
-                    field_data = pd.read_table(StringIO(field_data), sep=",").to_dict(
-                        orient='list'
-                    )
+                    field_data = load_field_data(field_data)
+                    if field_data is None:
+                        return self.error('Could not parse the field data table')
 
                 if not {'ID', 'RA', 'Dec'}.issubset(field_data):
                     return self.error("ID, RA, and Dec required in field_data.")
@@ -631,9 +631,9 @@ class InstrumentHandler(BaseHandler):
                     )
 
                 if type(field_data) is str:
-                    field_data = pd.read_table(StringIO(field_data), sep=",").to_dict(
-                        orient='list'
-                    )
+                    field_data = load_field_data(field_data)
+                    if field_data is None:
+                        return self.error('Could not parse the field data table')
 
                 if not {'ID', 'RA', 'Dec'}.issubset(field_data):
                     return self.error("ID, RA, and Dec required in field_data.")
@@ -789,6 +789,31 @@ InstrumentHandler.post.__doc__ = f"""
               application/json:
                 schema: Error
         """
+
+
+def load_field_data(field_data):
+
+    delimiters = [",", " "]
+    loaded = False
+    for delimiter in delimiters:
+        try:
+            field_data_table = pd.read_table(StringIO(field_data), sep=delimiter)
+            if {'ID', 'RA', 'Dec'}.issubset(field_data_table.columns.tolist()):
+                loaded = True
+            else:
+                field_data_table = pd.read_table(
+                    StringIO(field_data),
+                    sep=delimiter,
+                    names=["ID", "RA", "Dec"],
+                )
+                loaded = True
+        except TypeError:
+            pass
+
+    if not loaded:
+        return None
+    else:
+        return field_data_table.to_dict(orient='list')
 
 
 def add_tiles(
