@@ -35,19 +35,14 @@ const UpdateShift = ({ shift }) => {
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [invalid, setInvalid] = useState(true);
 
   useEffect(() => {
-    setInvalid(
-      // eslint-disable-next-line no-restricted-globals
-      !shift.name || !shift.description || !shift.required_users_number
-    );
     setState({
       name: shift.name,
       description: shift.description,
       required_users_number: shift.required_users_number,
     });
-  }, [shift, setInvalid]);
+  }, [shift]);
 
   const handleChange = (e) => {
     const newState = {};
@@ -140,7 +135,7 @@ const UpdateShift = ({ shift }) => {
               endIcon={<SaveIcon />}
               size="large"
               data-testid="updateShiftSubmitButton"
-              disabled={isSubmitting || invalid}
+              disabled={isSubmitting}
             >
               Save
             </Button>
