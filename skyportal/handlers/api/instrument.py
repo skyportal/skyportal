@@ -489,9 +489,10 @@ class InstrumentHandler(BaseHandler):
                                 .unique()
                                 .all()
                             )
-                            cache[query_id] = array_to_bytes(
-                                [tile.field_id for tile in tiles]
-                            )
+                            if len(tiles) > 0:
+                                cache[query_id] = array_to_bytes(
+                                    [tile.field_id for tile in tiles]
+                                )
                     else:
                         cache_filename = cache[query_id]
                         if cache_filename is not None:
@@ -527,9 +528,10 @@ class InstrumentHandler(BaseHandler):
                                 .unique()
                                 .all()
                             )
-                            cache[query_id] = array_to_bytes(
-                                [tile.field_id for tile in tiles]
-                            )
+                            if len(tiles) > 0:
+                                cache[query_id] = array_to_bytes(
+                                    [tile.field_id for tile in tiles]
+                                )
 
                     data['fields'] = [
                         {**tile.to_dict(), 'airmass': tile.airmass(time=airmass_time)}

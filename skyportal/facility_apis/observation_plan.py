@@ -656,7 +656,8 @@ def generate_plan(
                             ),
                         )
                         field_tiles = session.scalars(field_tiles_query).unique().all()
-                        cache[query_id] = array_to_bytes(field_tiles)
+                        if len(field_tiles) > 0:
+                            cache[query_id] = array_to_bytes(field_tiles)
                     field_ids[request.instrument.name] = field_tiles
 
         end = time.time()

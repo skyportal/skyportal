@@ -742,18 +742,20 @@ class GcnEventObservationPlanRequestsHandler(BaseHandler):
             # go through some pain to get probability and area included
             # as these are properties
             request_data = []
-            for ii, req in enumerate(event.observationplan_requests):
-                dat = req.to_dict()
-                plan_data = []
-                for plan in dat["observation_plans"]:
-                    plan_dict = plan.to_dict()
-                    plan_dict['statistics'] = [
-                        statistics.to_dict() for statistics in plan_dict['statistics']
-                    ]
-                    plan_data.append(plan_dict)
+            if event is not None:
+                for ii, req in enumerate(event.observationplan_requests):
+                    dat = req.to_dict()
+                    plan_data = []
+                    for plan in dat["observation_plans"]:
+                        plan_dict = plan.to_dict()
+                        plan_dict['statistics'] = [
+                            statistics.to_dict()
+                            for statistics in plan_dict['statistics']
+                        ]
+                        plan_data.append(plan_dict)
 
-                dat["observation_plans"] = plan_data
-                request_data.append(dat)
+                    dat["observation_plans"] = plan_data
+                    request_data.append(dat)
 
             return self.success(data=request_data)
 
