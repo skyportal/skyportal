@@ -56,9 +56,44 @@ const UpdateShift = ({ shift }) => {
   const handleSubmit = async (subState) => {
     setIsSubmitting(true);
     const newState = {};
+    if (!subState.name) {
+      dispatch(showNotification("Please enter a name for the shift.", "error"));
+      setIsSubmitting(false);
+      return;
+    }
     newState.name = subState.name;
-    newState.description = subState.description;
-    newState.required_users_number = subState.required_users_number;
+    newState.description = subState.description || "";
+    if (subState.required_users_number === "") {
+      newState.required_users_number = null;
+    } // next we verify that its a number
+    else if (
+      Number.isNaN(subState.required_users_number) ||
+      subState.required_users_number < 0
+    ) {
+      dispatch(
+        showNotification(
+          "Please enter a positive number for required users.",
+          "error"
+        )
+      );
+      setIsSubmitting(false);
+      return;
+    } else if (
+      parseInt(subState.required_users_number, 10) <
+        shift.required_users_number &&
+      shift?.shift_users?.length > subState.required_users_number
+    ) {
+      dispatch(
+        showNotification(
+          "Cannot reduce required users number below current number of users signed up for shift. Please remove users first or don't specify a required user number",
+          "error"
+        )
+      );
+      setIsSubmitting(false);
+      return;
+    } else {
+      newState.required_users_number = subState.required_users_number;
+    }
     const result = await dispatch(
       shiftActions.updateShift(shift.id, {
         ...newState,
@@ -152,6 +187,11 @@ UpdateShift.propTypes = {
     name: PropTypes.string,
     required_users_number: PropTypes.number,
     description: PropTypes.string,
+    shift_users: PropTypes.arrayOf(
+      PropTypes.shape({
+        id: PropTypes.string,
+      })
+    ),
   }).isRequired,
 };
 

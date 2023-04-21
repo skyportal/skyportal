@@ -732,9 +732,11 @@ export function CurrentShiftMenu({ currentShift }) {
       <div id="current_shift" className={classes.root}>
         <div className={classes.shift_content}>
           <div>
-            <div>
+            {(currentUserIsAdminOfShift ||
+              currentUserIsAdminOfGroup ||
+              currentUser?.permissions.includes("System admin")) && (
               <UpdateShift shift={currentShift} />
-            </div>
+            )}
             {currentShift.description ? (
               <h2 id="current_shift_title" className={classes.shiftinfo}>
                 {currentShift.name}: {currentShift.description}

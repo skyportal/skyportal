@@ -255,38 +255,58 @@ class ShiftHandler(BaseHandler):
         """
 
         with self.Session() as session:
-            shift = session.scalars(
-                Shift.select(session.user_or_token, mode="update").where(
-                    Shift.id == shift_id
-                )
-            ).first()
-            if shift is None:
-                return self.error(
-                    "Only the admin of a shift or an admin of the shift's group can edit it."
-                )
-
-            data = self.get_json()
-            data['id'] = int(shift_id)
-
-            schema = Shift.__schema__()
             try:
-                schema.load(data, partial=True)
-            except ValidationError as e:
-                return self.error(
-                    'Invalid/missing parameters: ' f'{e.normalized_messages()}'
+                shift = session.scalars(
+                    Shift.select(session.user_or_token, mode="update").where(
+                        Shift.id == shift_id
+                    )
+                ).first()
+                if shift is None:
+                    return self.error(
+                        "Only the admin of a shift or an admin of the shift's group can edit it."
+                    )
+
+                data = self.get_json()
+                data['id'] = int(shift_id)
+
+                schema = Shift.__schema__()
+                try:
+                    schema.load(data, partial=True)
+                except ValidationError as e:
+                    return self.error(
+                        'Invalid/missing parameters: ' f'{e.normalized_messages()}'
+                    )
+
+                if 'name' in data:
+                    if data['name'] in [None, '']:
+                        return self.error('name must be a non-empty string')
+                    shift.name = data['name']
+                if 'description' in data:
+                    shift.description = data['description']
+                if 'required_users_number' in data:
+                    if data['required_users_number'] in [None, '']:
+                        shift.required_users_number = None
+                    elif int(data['required_users_number']) < 1:
+                        return self.error(
+                            'required_users_number must be at least 1, or None'
+                        )
+                    elif int(data['required_users_number']) < len(shift.shift_users):
+                        return self.error(
+                            'required_users_number must be at least the number of users already signed up for the shift, or None'
+                        )
+                    else:
+                        shift.required_users_number = int(data['required_users_number'])
+
+                session.commit()
+
+                self.push_all(
+                    action="skyportal/REFRESH_SHIFT",
+                    payload={"shift_id": shift.id},
                 )
 
-            if 'name' in data:
-                shift.name = data['name']
-            if 'description' in data:
-                shift.description = data['description']
-            if 'required_users_number' in data:
-                shift.required_users_number = int(data['required_users_number'])
-
-            session.commit()
-
-            self.push_all(action="skyportal/REFRESH_SHIFTS")
-            return self.success()
+                return self.success()
+            except Exception as e:
+                return self.error(f'Could not update shift: {e}')
 
     @permissions(["Manage shifts"])
     def delete(self, shift_id):
