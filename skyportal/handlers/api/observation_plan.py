@@ -620,7 +620,7 @@ class ObservationPlanRequestHandler(BaseHandler):
               schema:
                 type: integer
               description: |
-                Number of followup requests to return per paginated request. Defaults to 100. Can be no larger than {MAX_FOLLOWUP_REQUESTS}.
+                Number of observation plan requests to return per paginated request. Defaults to 100. Can be no larger than {MAX_FOLLOWUP_REQUESTS}.
             - in: query
               name: pageNumber
               nullable: true
