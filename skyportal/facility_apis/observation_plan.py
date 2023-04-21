@@ -5,6 +5,7 @@ import humanize
 import json
 import pandas as pd
 from regions import Regions
+import requests
 from datetime import datetime, timedelta
 import numpy as np
 import os
@@ -23,6 +24,7 @@ from baselayer.app.flow import Flow
 from baselayer.app.env import load_env
 
 from ..utils.cache import Cache, array_to_bytes
+from ..email_utils import send_email
 from . import FollowUpAPI
 
 log = make_log('api/observation_plan')
@@ -31,12 +33,20 @@ env, cfg = load_env()
 cache_dir = "cache/localization_instrument_queries"
 cache = Cache(
     cache_dir=cache_dir,
-    max_age=cfg["misc.minutes_to_keep_localization_instrument_query_cache"] * 60,
+    max_items=cfg.get("misc.max_items_in_localization_instrument_query_cache", 100),
+    max_age=cfg.get("misc.minutes_to_keep_localization_instrument_query_cache", 24 * 60)
+    * 60,
 )
+
+SLACK_URL = f"{cfg['slack.expected_url_preamble']}/services"
 
 default_filters = cfg['app.observation_plan.default_filters']
 
 use_skyportal_fields = cfg['app.observation_plan.use_skyportal_fields']
+
+email = False
+if cfg.get("email_service") == "sendgrid" or cfg.get("email_service") == "smtp":
+    email = True
 
 
 def combine_healpix_tuples(input_tiles):
@@ -122,6 +132,30 @@ def generate_observation_plan_statistics(
         plan = session.query(EventObservationPlan).get(observation_plan_id)
         request = session.query(ObservationPlanRequest).get(request_id)
         event = session.query(GcnEvent).get(request.gcnevent_id)
+
+        partition_key = event.dateobs
+        # now get the dateobs in the format YYYY_MM
+        localizationtile_partition_name = (
+            f'{partition_key.year}_{partition_key.month:02d}'
+        )
+        localizationtilescls = LocalizationTile.partitions.get(
+            localizationtile_partition_name, None
+        )
+        if localizationtilescls is None:
+            localizationtilescls = LocalizationTile
+        else:
+            # check that there is actually a localizationTile with the given localization_id in the partition
+            # if not, use the default partition
+            if not (
+                session.scalars(
+                    sa.select(localizationtilescls.localization_id).where(
+                        localizationtilescls.localization_id == request.localization_id
+                    )
+                ).first()
+            ):
+                localizationtilescls = LocalizationTile.partitions.get(
+                    'def', LocalizationTile
+                )
 
         statistics = {}
 
@@ -403,6 +437,20 @@ def generate_plan(
             'doAvoidGalacticPlane': request.payload.get("galactic_plane", False),
             # galactic latitude to exclude
             'galactic_limit': request.payload.get("galactic_latitude", 10),
+            # threshold number of fields?
+            'doMaxTiles': request.payload.get("max_tiles", False),
+            # Maximum number of fields to consider
+            'max_nb_tiles': [request.payload.get("max_nb_tiles", 100)]
+            * len(request.payload["filters"].split(",")),
+            # balance observations by filter
+            'doBalanceExposure': request.payload.get("balance_exposure", False),
+            # slice observations by right ascension
+            'doRASlice': request.payload.get("ra_slice", False),
+            # right ascension block
+            'raslice': [
+                request.payload.get("ra_slice_min", 0),
+                request.payload.get("ra_slice_max", 360),
+            ],
         }
 
         config = {}
@@ -474,6 +522,36 @@ def generate_plan(
                 request.localization.flat,
             )
         )
+        # get the partition name for the localization tiles using the dateobs
+        # that way, we explicitely use the partition that contains the localization tiles we are interested in
+        # that should help not reach that "critical point" mentioned by @mcoughlin where the queries almost dont work anymore
+        # locally this takes anywhere between 0.08 and 0.5 seconds, but in production right now it takes 45 minutes...
+        # that is why we are considering to use a partitioned table for localization tiles
+        partition_key = requests[0].gcnevent.dateobs
+        # now get the dateobs in the format YYYY_MM
+        localizationtile_partition_name = (
+            f'{partition_key.year}_{partition_key.month:02d}'
+        )
+        localizationtilescls = LocalizationTile.partitions.get(
+            localizationtile_partition_name, None
+        )
+        if localizationtilescls is None:
+            localizationtilescls = LocalizationTile.partitions.get(
+                'def', LocalizationTile
+            )
+        else:
+            # check that there is actually a localizationTile with the given localization_id in the partition
+            # if not, use the default partition
+            if not (
+                session.scalars(
+                    sa.select(localizationtilescls.localization_id).where(
+                        localizationtilescls.localization_id == request.localization.id
+                    )
+                ).first()
+            ):
+                localizationtilescls = LocalizationTile.partitions.get(
+                    'def', LocalizationTile
+                )
 
         params['is3D'] = request.localization.is_3d
 
@@ -483,15 +561,18 @@ def generate_plan(
         map_struct = gwemopt.utils.read_skymap(
             params, is3D=params["do3D"], map_struct=params['map_struct']
         )
+        start = time.time()
 
         cum_prob = (
-            sa.func.sum(LocalizationTile.probdensity * LocalizationTile.healpix.area)
-            .over(order_by=LocalizationTile.probdensity.desc())
+            sa.func.sum(
+                localizationtilescls.probdensity * localizationtilescls.healpix.area
+            )
+            .over(order_by=localizationtilescls.probdensity.desc())
             .label('cum_prob')
         )
         localizationtile_subquery = (
-            sa.select(LocalizationTile.probdensity, cum_prob).filter(
-                LocalizationTile.localization_id == request.localization.id
+            sa.select(localizationtilescls.probdensity, cum_prob).filter(
+                localizationtilescls.localization_id == request.localization.id
             )
         ).subquery()
 
@@ -506,13 +587,15 @@ def generate_plan(
         ).scalar_subquery()
 
         if params["tilesType"] == "galaxy":
-            galaxies_query = sa.select(Galaxy, LocalizationTile.probdensity).where(
-                LocalizationTile.localization_id == request.localization.id,
-                LocalizationTile.healpix.contains(Galaxy.healpix),
-                LocalizationTile.probdensity >= min_probdensity,
+            galaxies_query = sa.select(Galaxy, localizationtilescls.probdensity).where(
+                localizationtilescls.localization_id == request.localization.id,
+                localizationtilescls.healpix.contains(Galaxy.healpix),
+                localizationtilescls.probdensity >= min_probdensity,
                 Galaxy.catalog_name == params["galaxy_catalog"],
             )
+            log("galaxies query is done")
             galaxies, probs = zip(*session.execute(galaxies_query).all())
+            log("galaxies converted to list with zip")
 
             catalog_struct = {}
             catalog_struct["ra"] = np.array([g.ra for g in galaxies])
@@ -553,30 +636,31 @@ def generate_plan(
             catalog_struct["Smass"] = values * probs
 
         elif params["tilesType"] == "moc":
-
             field_ids = {}
             if use_skyportal_fields is True:
                 for request in requests:
-                    query_id = (
-                        f"{str(request.localization.id)}_{str(request.instrument.id)}"
-                    )
+                    query_id = f"{str(request.localization.id)}_{str(request.instrument.id)}_{str(int(request.payload['integrated_probability'])/100.0)}"
                     cache_filename = cache[query_id]
                     if cache_filename is not None:
-                        field_tiles = np.load(cache_filename)
+                        field_tiles = np.load(cache_filename).tolist()
                     else:
                         field_tiles_query = sa.select(InstrumentField.field_id).where(
-                            LocalizationTile.localization_id == request.localization.id,
-                            LocalizationTile.probdensity >= min_probdensity,
+                            localizationtilescls.localization_id
+                            == request.localization.id,
+                            localizationtilescls.probdensity >= min_probdensity,
                             InstrumentFieldTile.instrument_id == request.instrument.id,
                             InstrumentFieldTile.instrument_field_id
                             == InstrumentField.id,
                             InstrumentFieldTile.healpix.overlaps(
-                                LocalizationTile.healpix
+                                localizationtilescls.healpix
                             ),
                         )
                         field_tiles = session.scalars(field_tiles_query).unique().all()
                         cache[query_id] = array_to_bytes(field_tiles)
                     field_ids[request.instrument.name] = field_tiles
+
+        end = time.time()
+        log(f"Queries took {end - start} seconds")
 
         log(f"Retrieving fields for ID(s): {','.join(observation_plan_id_strings)}")
 
@@ -618,13 +702,14 @@ def generate_plan(
                 }
                 field_data = pd.DataFrame.from_dict(data)
                 idx = np.array(idx).astype(int)
-                field_ids[idx] = add_tiles(
+                field_id = add_tiles(
                     request.instrument.id,
                     request.instrument.name,
                     regions,
                     field_data,
                     session=session,
                 )
+                field_ids[idx] = field_id
         log(
             f"Writing planned observations to database for ID(s): {','.join(observation_plan_id_strings)}"
         )
@@ -1140,6 +1225,39 @@ class MMAAPI(FollowUpAPI):
                     "minimum": 0,
                     "maximum": 90,
                 },
+                "max_tiles": {
+                    "title": "Threshold on number of fields?",
+                    "type": "boolean",
+                },
+                "max_nb_tiles": {
+                    "title": "Maximum number of fields",
+                    "type": "number",
+                    "default": 100.0,
+                    "minimum": 0,
+                    "maximum": 1000,
+                },
+                "balance_exposures": {
+                    "title": "Balance exposures across fields",
+                    "type": "boolean",
+                },
+                "ra_slice": {
+                    "title": "RA Slicing",
+                    "type": "boolean",
+                },
+                "ra_slice_min": {
+                    "title": "Minimum RA",
+                    "type": "number",
+                    "default": 0.0,
+                    "minimum": 0,
+                    "maximum": 360,
+                },
+                "ra_slice_max": {
+                    "title": "Maximum RA",
+                    "type": "number",
+                    "default": 360.0,
+                    "minimum": 0.0,
+                    "maximum": 360,
+                },
                 "queue_name": {
                     "type": "string",
                     "default": f"ToO_{str(datetime.utcnow()).replace(' ', 'T')}",
@@ -1219,6 +1337,51 @@ class MMAAPI(FollowUpAPI):
                     observation_plan_request=request,
                     initiator_id=request.last_modified_by_id,
                 )
+        elif 'type' in altdata and altdata['type'] == 'slack':
+            slack_microservice_url = (
+                f'http://127.0.0.1:{cfg["slack.microservice_port"]}'
+            )
+
+            data = json.dumps(
+                {
+                    "url": f"{SLACK_URL}/{altdata['slack_workspace']}/{altdata['slack_channel']}/{altdata['slack_token']}",
+                    "text": str(payload),
+                }
+            )
+
+            r = requests.post(
+                slack_microservice_url,
+                data=data,
+                headers={'Content-Type': 'application/json'},
+            )
+            r.raise_for_status()
+
+            request.status = 'submitted'
+
+            transaction = FacilityTransaction(
+                request=http.serialize_requests_request(r.request),
+                response=http.serialize_requests_response(r),
+                observation_plan_request=request,
+                initiator_id=request.last_modified_by_id,
+            )
+
+        elif 'type' in altdata and altdata['type'] == 'email':
+            subject = f"{cfg['app.title']} - New observation plans"
+
+            send_email(
+                recipients=[altdata['email']],
+                subject=subject,
+                body=str(payload),
+            )
+
+            request.status = 'submitted'
+
+            transaction = FacilityTransaction(
+                request=None,
+                response=None,
+                observation_plan_request=request,
+                initiator_id=request.last_modified_by_id,
+            )
 
         else:
             headers = {"Authorization": f"token {altdata['access_token']}"}
