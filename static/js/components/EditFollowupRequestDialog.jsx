@@ -38,8 +38,6 @@ const EditFollowupRequestDialog = ({
       obj_id: followupRequest.obj_id,
       payload: formData,
     };
-    console.log("json", json);
-    console.log("followupRequest", followupRequest);
     dispatch(Actions.editFollowupRequest(json, followupRequest.id));
     handleClose();
   };
