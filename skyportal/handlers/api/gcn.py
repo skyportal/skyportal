@@ -1536,7 +1536,11 @@ def add_observation_plans(localization_id, user_id, parent_session=None):
                 'filters': plan.filters,
                 'payload': plan.payload,
                 'survey_efficiencies': [
-                    survey_efficiency.to_dict()
+                    {
+                        **survey_efficiency.to_dict(),
+                        'modified': Time(survey_efficiency['modified']).isot,
+                        'created_at': Time(survey_efficiency['created_at']).isot,
+                    }
                     for survey_efficiency in plan.default_survey_efficiencies
                 ],
             }
