@@ -546,7 +546,7 @@ class ObservationPlanRequestHandler(BaseHandler):
 
     @auth_or_token
     def get(self, observation_plan_request_id=None):
-        """
+        f"""
         ---
         single:
           description: Get an observation plan.
@@ -620,7 +620,7 @@ class ObservationPlanRequestHandler(BaseHandler):
               schema:
                 type: integer
               description: |
-                Number of observation plan requests to return per paginated request. Defaults to 100. Can be no larger than {MAX_FOLLOWUP_REQUESTS}.
+                Number of observation plan requests to return per paginated request. Defaults to 100. Can be no larger than {MAX_OBSERVATION_PLAN_REQUESTS}.
             - in: query
               name: pageNumber
               nullable: true
@@ -753,9 +753,7 @@ class ObservationPlanRequestHandler(BaseHandler):
             )
 
             info = {}
-            info["observation_plan_requests"] = [
-                req.to_dict() for req in observation_plan_requests
-            ]
+            info["requests"] = [req.to_dict() for req in observation_plan_requests]
             info["totalMatches"] = int(total_matches)
             return self.success(data=info)
 

@@ -882,7 +882,7 @@ def test_gcn_summary_observations(
 
             data = [
                 d
-                for d in data['data']['observation_plan_requests']
+                for d in data['data']['requests']
                 if d['gcnevent_id'] == gcnevent_id
                 and d['allocation_id'] == allocation_id
             ]
