@@ -188,7 +188,11 @@ def test_observation_plan_tiling(super_admin_token, public_group):
             status, data = api(
                 'GET',
                 'observation_plan',
-                params={"includePlannedObservations": "true"},
+                params={
+                    "includePlannedObservations": "true",
+                    "dateobs": dateobs,
+                    "instrumentID": instrument_id,
+                },
                 token=super_admin_token,
             )
             assert status == 200
@@ -197,7 +201,7 @@ def test_observation_plan_tiling(super_admin_token, public_group):
             # get those which have been created on the right event
             data = [
                 d
-                for d in data['data']
+                for d in data['data']['observation_plan_requests']
                 if d['gcnevent_id'] == gcnevent_id
                 and d['allocation_id'] == allocation_id
             ]
@@ -486,7 +490,7 @@ def test_observation_plan_galaxy(super_admin_token, view_only_token, public_grou
             # get those which have been created on the right event
             data = [
                 d
-                for d in data['data']
+                for d in data['data']['observation_plan_requests']
                 if d['gcnevent_id'] == gcnevent_id
                 and d['allocation_id'] == allocation_id
             ]
