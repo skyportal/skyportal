@@ -49,8 +49,16 @@ def search_sources(
         filter=filter,
     )
     for res in results["matches"]:
-        res.pop("values", [])
-        sources.append(res)
+        try:
+            source = {
+                "id": res["id"],
+                "score": res["score"],
+                "metadata": res["metadata"],
+            }
+            sources.append(source)
+        except Exception as e:
+            log(f"Error: {e}")
+            continue
     return sources
 
 
@@ -100,58 +108,69 @@ class SummaryQueryHandler(BaseHandler):
         ---
         description: Get a list of sources with summaries matching the query
         tags:
-        - summary
+          - summary
         parameters:
         - in: query
-            name: query
-            schema:
-            type: string
-            required: true
-            description: |
-                The query string. E.g. "What sources are associated with
-                an NGC galaxy?"
+          name: q
+          schema:
+              type: string
+          required: true
+          description: |
+              The query string. E.g. "What sources are associated with
+              an NGC galaxy?"
         - in: query
-            name: k
-            schema:
-            type: int
-            minimum: 1
-            maximum: 100
-            description: |
-                Max number of sources to return. Default 5.
+          name: k
+          schema:
+              type: int
+          minimum: 1
+          maximum: 100
+          description: |
+              Max number of sources to return. Default 5.
         - in: query
-            name: z_min
-            schema:
-            type: float
-            nullable: true
-            description: |
-                Minimum redshift to consider of queries sources. If None or missing,
-                then no lower limit is applied.
+          name: z_min
+          schema:
+              type: float
+          nullable: true
+          description: |
+              Minimum redshift to consider of queries sources. If None or missing,
+              then no lower limit is applied.
         - in: query
-            name: z_max
-            schema:
-            type: float
-            nullable: true
-            description: |
-                Maximum redshift to consider of queries sources. If None or missing,
-                then no upper limit is applied.
+          name: z_max
+          schema:
+              type: float
+          nullable: true
+          description: |
+              Maximum redshift to consider of queries sources. If None or missing,
+              then no upper limit is applied.
         - in: query
-            name: classificationTypes
-            nullable: true
-            schema:
-            type: array
-            items:
-                type: string
-            description: |
-                List of classification types to consider. If [] or missing,
-                then all classification types are considered.
+          name: classificationTypes
+          nullable: true
+          schema:
+              type: array
+              items:
+                  type: string
+          description: |
+              List of classification types to consider. If [] or missing,
+              then all classification types are considered.
         responses:
-            200:
+          200:
             content:
-                application/json:
-                schema: ArrayOfSources
-            400:
+              application/json:
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          type: object
+                          properties:
+                            sources:
+                              type: array
+                              items:
+                                $ref: '#/components/schemas/Obj'
+          400:
             content:
-                application/json:
+              application/json:
                 schema: Error
         """
 
@@ -187,9 +206,9 @@ class SummaryQueryHandler(BaseHandler):
             return self.error('No OpenAI API key found.', status=400)
 
         data = self.get_json()
-        query = data.get('query')
+        query = data.get('q')
         if query in [None, '']:
-            return self.error('Missing required parameter "query"')
+            return self.error('Missing required query string "q"')
         k = data.get('k', 5)
         if k < 1 or k > 100:
             return self.error('k must be 1<=k<=100')
@@ -224,15 +243,22 @@ class SummaryQueryHandler(BaseHandler):
         else:
             filt = {}
 
-        embeddings = OpenAIEmbeddings(
-            model=summarize_embedding_model,
-            embedding_ctx_length=summarize_embedding_index_size,
-            openai_api_key=user_openai_key,
-        )
-        docsearch = Pinecone.from_existing_index(
-            summarize_embedding_index_name, embeddings, text_key="summary"
-        )
-        results = docsearch.search_sources(query, filter=filt)
+        try:
+            embeddings = OpenAIEmbeddings(
+                model=summarize_embedding_model,
+                embedding_ctx_length=summarize_embedding_index_size,
+                openai_api_key=user_openai_key,
+            )
+            docsearch = Pinecone.from_existing_index(
+                summarize_embedding_index_name, embeddings, text_key="summary"
+            )
+        except Exception as e:
+            return self.error(f'Could not load embeddings or pinecone index: {e}')
 
         # get the top k sources
-        return self.success(data={'results': results})
+        try:
+            results = docsearch.search_sources(query, k=k, filter=filt)
+        except Exception as e:
+            return self.error(f'Could not search sources: {e}')
+
+        return self.success(data={'query_results': results})

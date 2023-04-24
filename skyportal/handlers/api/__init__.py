@@ -124,6 +124,7 @@ from .phot_stat import PhotStatHandler, PhotStatUpdateHandler
 from .color_mag import ObjColorMagHandler
 from .photometry_request import PhotometryRequestHandler
 from .public_group import PublicGroupHandler
+from .query import SummaryQueryHandler
 from .roles import RoleHandler, UserRoleHandler
 from .obj import ObjHandler
 from .recurring_api import RecurringAPIHandler
