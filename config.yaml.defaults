@@ -654,6 +654,8 @@ gcn:
     - ICECUBE_ASTROTRACK_GOLD
     - ICECUBE_ASTROTRACK_BRONZE
     - MAXI_UNKNOWN
+  reject_tags: # reject notices with these tags (optional)
+    - MDC
 
   observation_plans:
     - allocation-proposal_id: ZTF-001
