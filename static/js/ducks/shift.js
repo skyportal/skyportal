@@ -10,6 +10,8 @@ const REFRESH_SHIFT = "skyportal/REFRESH_SHIFT";
 
 const SUBMIT_SHIFT = "skyportal/SUBMIT_SHIFT";
 
+const UPDATE_SHIFT = "skyportal/UPDATE_SHIFT";
+
 const DELETE_SHIFT = "skyportal/DELETE_SHIFT";
 
 const ADD_COMMENT_ON_SHIFT = "skyportal/ADD_COMMENT_ON_SHIFT";
@@ -38,6 +40,9 @@ export const submitShift = (run) => API.POST(`/api/shifts`, SUBMIT_SHIFT, run);
 export function deleteShift(shiftID) {
   return API.DELETE(`/api/shifts/${shiftID}`, DELETE_SHIFT);
 }
+
+export const updateShift = (id, payload) =>
+  API.PATCH(`/api/shifts/${id}`, UPDATE_SHIFT, payload);
 
 export function addCommentOnShift(formData) {
   function fileReaderPromise(file) {

@@ -56,19 +56,21 @@ const EditFollowupRequestDialog = ({
 
   // we do the same for formSchema.dependencies, where each key is a value that has dependencies, under a key called "oneOf"
   // in the oneOf.properties, if any key isnt in formSchema.properties, we set the their default value to the value in the existing request's payload
-  Object.keys(formSchema.dependencies).forEach((key) => {
-    formSchema.dependencies[key].oneOf.forEach((oneOf) => {
-      Object.keys(oneOf.properties).forEach((oneOfKey) => {
-        if (
-          !formSchema.properties[oneOfKey] &&
-          followupRequest.payload[oneOfKey]
-        ) {
-          oneOf.properties[oneOfKey].default =
-            followupRequest.payload[oneOfKey];
-        }
+  if (formSchema?.dependencies) {
+    Object.keys(formSchema.dependencies).forEach((key) => {
+      formSchema.dependencies[key].oneOf.forEach((oneOf) => {
+        Object.keys(oneOf.properties).forEach((oneOfKey) => {
+          if (
+            !formSchema.properties[oneOfKey] &&
+            followupRequest.payload[oneOfKey]
+          ) {
+            oneOf.properties[oneOfKey].default =
+              followupRequest.payload[oneOfKey];
+          }
+        });
       });
     });
-  });
+  }
 
   const validate = (formData, errors) => {
     if (

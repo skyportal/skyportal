@@ -29,9 +29,22 @@ from ...models import (
     LocalizationTile,
     Telescope,
 )
+
+from baselayer.app.env import load_env
+
 from ...enum_types import ALLOWED_BANDPASSES
+from ...utils.cache import Cache, array_to_bytes
 
 log = make_log('api/instrument')
+env, cfg = load_env()
+
+cache_dir = "cache/localization_instrument_queries"
+cache = Cache(
+    cache_dir=cache_dir,
+    max_items=cfg.get("misc.max_items_in_localization_instrument_query_cache", 100),
+    max_age=cfg.get("misc.minutes_to_keep_localization_instrument_query_cache", 24 * 60)
+    * 60,
+)
 
 Session = scoped_session(sessionmaker())
 
@@ -143,9 +156,9 @@ class InstrumentHandler(BaseHandler):
                     )
 
                 if type(field_data) is str:
-                    field_data = pd.read_table(StringIO(field_data), sep=",").to_dict(
-                        orient='list'
-                    )
+                    field_data = load_field_data(field_data)
+                    if field_data is None:
+                        return self.error('Could not parse the field data table')
 
                 if not {'ID', 'RA', 'Dec'}.issubset(field_data):
                     return self.error("ID, RA, and Dec required in field_data.")
@@ -431,35 +444,34 @@ class InstrumentHandler(BaseHandler):
                         )
                     ).scalar_subquery()
 
+                    query_id = f"{str(localization.id)}_{str(instrument.id)}_{str(localization_cumprob)}"
+
                     if includeGeoJSON or includeGeoJSONSummary:
                         if includeGeoJSON:
                             undefer_column = InstrumentField.contour
                         elif includeGeoJSONSummary:
                             undefer_column = InstrumentField.contour_summary
-                        tiles = (
-                            session.scalars(
-                                sa.select(InstrumentField)
-                                .filter(
-                                    localizationtilescls.localization_id
-                                    == localization.id,
-                                    localizationtilescls.probdensity >= min_probdensity,
-                                    InstrumentFieldTile.instrument_id == instrument.id,
-                                    InstrumentFieldTile.instrument_field_id
-                                    == InstrumentField.id,
-                                    InstrumentFieldTile.healpix.overlaps(
-                                        localizationtilescls.healpix
-                                    ),
-                                )
-                                .options(undefer(undefer_column))
-                            )
-                            .unique()
-                            .all()
-                        )
-                    else:
-                        tiles = (
-                            (
+
+                        cache_filename = cache[query_id]
+                        if cache_filename is not None:
+                            field_ids = np.load(cache_filename).tolist()
+                            tiles = (
                                 session.scalars(
-                                    sa.select(InstrumentField).filter(
+                                    sa.select(InstrumentField)
+                                    .filter(
+                                        InstrumentField.field_id.in_(field_ids),
+                                        InstrumentField.instrument_id == instrument.id,
+                                    )
+                                    .options(undefer(undefer_column))
+                                )
+                                .unique()
+                                .all()
+                            )
+                        else:
+                            tiles = (
+                                session.scalars(
+                                    sa.select(InstrumentField)
+                                    .filter(
                                         localizationtilescls.localization_id
                                         == localization.id,
                                         localizationtilescls.probdensity
@@ -472,11 +484,55 @@ class InstrumentHandler(BaseHandler):
                                             localizationtilescls.healpix
                                         ),
                                     )
+                                    .options(undefer(undefer_column))
                                 )
+                                .unique()
+                                .all()
                             )
-                            .unique()
-                            .all()
-                        )
+                            if len(tiles) > 0:
+                                cache[query_id] = array_to_bytes(
+                                    [tile.field_id for tile in tiles]
+                                )
+                    else:
+                        cache_filename = cache[query_id]
+                        if cache_filename is not None:
+                            field_ids = np.load(cache_filename).tolist()
+                            tiles = (
+                                session.scalars(
+                                    sa.select(InstrumentField).filter(
+                                        InstrumentField.field_id.in_(field_ids)
+                                    )
+                                )
+                                .unique()
+                                .all()
+                            )
+                        else:
+                            tiles = (
+                                (
+                                    session.scalars(
+                                        sa.select(InstrumentField).filter(
+                                            localizationtilescls.localization_id
+                                            == localization.id,
+                                            localizationtilescls.probdensity
+                                            >= min_probdensity,
+                                            InstrumentFieldTile.instrument_id
+                                            == instrument.id,
+                                            InstrumentFieldTile.instrument_field_id
+                                            == InstrumentField.id,
+                                            InstrumentFieldTile.healpix.overlaps(
+                                                localizationtilescls.healpix
+                                            ),
+                                        )
+                                    )
+                                )
+                                .unique()
+                                .all()
+                            )
+                            if len(tiles) > 0:
+                                cache[query_id] = array_to_bytes(
+                                    [tile.field_id for tile in tiles]
+                                )
+
                     data['fields'] = [
                         {**tile.to_dict(), 'airmass': tile.airmass(time=airmass_time)}
                         for tile in tiles
@@ -631,9 +687,9 @@ class InstrumentHandler(BaseHandler):
                     )
 
                 if type(field_data) is str:
-                    field_data = pd.read_table(StringIO(field_data), sep=",").to_dict(
-                        orient='list'
-                    )
+                    field_data = load_field_data(field_data)
+                    if field_data is None:
+                        return self.error('Could not parse the field data table')
 
                 if not {'ID', 'RA', 'Dec'}.issubset(field_data):
                     return self.error("ID, RA, and Dec required in field_data.")
@@ -789,6 +845,31 @@ InstrumentHandler.post.__doc__ = f"""
               application/json:
                 schema: Error
         """
+
+
+def load_field_data(field_data):
+
+    delimiters = [",", " "]
+    loaded = False
+    for delimiter in delimiters:
+        try:
+            field_data_table = pd.read_table(StringIO(field_data), sep=delimiter)
+            if {'ID', 'RA', 'Dec'}.issubset(field_data_table.columns.tolist()):
+                loaded = True
+            else:
+                field_data_table = pd.read_table(
+                    StringIO(field_data),
+                    sep=delimiter,
+                    names=["ID", "RA", "Dec"],
+                )
+                loaded = True
+        except TypeError:
+            pass
+
+    if not loaded:
+        return None
+    else:
+        return field_data_table.to_dict(orient='list')
 
 
 def add_tiles(

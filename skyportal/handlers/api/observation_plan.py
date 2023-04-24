@@ -1,3 +1,4 @@
+import arrow
 from datetime import datetime, timedelta
 import functools
 import io
@@ -24,6 +25,7 @@ import jsonschema
 import requests
 from marshmallow.exceptions import ValidationError
 import sqlalchemy as sa
+from sqlalchemy import func
 from sqlalchemy.orm import joinedload, undefer
 from sqlalchemy.orm import sessionmaker, scoped_session
 import urllib
@@ -94,6 +96,8 @@ log = make_log('api/observation_plan')
 observation_plans_microservice_url = (
     f'http://127.0.0.1:{cfg["ports.observation_plan_queue"]}'
 )
+
+MAX_OBSERVATION_PLAN_REQUESTS = 1000
 
 
 def post_survey_efficiency_analysis(
@@ -542,7 +546,7 @@ class ObservationPlanRequestHandler(BaseHandler):
 
     @auth_or_token
     def get(self, observation_plan_request_id=None):
-        """
+        f"""
         ---
         single:
           description: Get an observation plan.
@@ -576,6 +580,54 @@ class ObservationPlanRequestHandler(BaseHandler):
             - observation_plan_requests
           parameters:
             - in: query
+              name: dateobs
+              nullable: true
+              schema:
+                type: string
+              description: GcnEvent dateobs to filter on
+            - in: query
+              name: instrumentID
+              nullable: true
+              schema:
+                type: integer
+              description: Instrument ID to filter on
+            - in: query
+              name: startDate
+              nullable: true
+              schema:
+                type: string
+              description: |
+                Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
+                created_at >= startDate
+            - in: query
+              name: endDate
+              nullable: true
+              schema:
+                type: string
+              description: |
+                Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
+                created_at <= endDate
+            - in: query
+              name: status
+              nullable: true
+              schema:
+                type: string
+              description: |
+                String to match status of request against
+            - in: query
+              name: numPerPage
+              nullable: true
+              schema:
+                type: integer
+              description: |
+                Number of observation plan requests to return per paginated request. Defaults to 100. Can be no larger than {MAX_OBSERVATION_PLAN_REQUESTS}.
+            - in: query
+              name: pageNumber
+              nullable: true
+              schema:
+                type: integer
+              description: Page number for paginated query results. Defaults to 1
+            - in: query
               name: includePlannedObservations
               nullable: true
               schema:
@@ -593,9 +645,32 @@ class ObservationPlanRequestHandler(BaseHandler):
                   schema: Error
         """
 
+        start_date = self.get_query_argument('startDate', None)
+        end_date = self.get_query_argument('endDate', None)
+        dateobs = self.get_query_argument('dateobs', None)
+        instrumentID = self.get_query_argument('instrumentID', None)
+        status = self.get_query_argument('status', None)
+        page_number = self.get_query_argument("pageNumber", 1)
+        n_per_page = self.get_query_argument("numPerPage", 100)
+
         include_planned_observations = self.get_query_argument(
             "includePlannedObservations", False
         )
+
+        try:
+            page_number = int(page_number)
+        except ValueError:
+            return self.error("Invalid page number value.")
+        try:
+            n_per_page = int(n_per_page)
+        except (ValueError, TypeError) as e:
+            return self.error(f"Invalid numPerPage value: {str(e)}")
+
+        if n_per_page > MAX_OBSERVATION_PLAN_REQUESTS:
+            return self.error(
+                f'numPerPage should be no larger than {MAX_OBSERVATION_PLAN_REQUESTS}.'
+            )
+
         if include_planned_observations:
             options = [
                 joinedload(ObservationPlanRequest.observation_plans)
@@ -625,16 +700,62 @@ class ObservationPlanRequestHandler(BaseHandler):
                     )
                 return self.success(data=observation_plan_request)
 
-            observation_plan_requests = (
-                session.scalars(
-                    ObservationPlanRequest.select(
-                        session.user_or_token, options=options
-                    )
-                )
-                .unique()
-                .all()
+            observation_plan_requests = ObservationPlanRequest.select(
+                session.user_or_token, options=options
             )
-            return self.success(data=observation_plan_requests)
+
+            if start_date:
+                start_date = str(arrow.get(start_date.strip()).datetime)
+                observation_plan_requests = observation_plan_requests.where(
+                    ObservationPlanRequest.created_at >= start_date
+                )
+            if end_date:
+                end_date = str(arrow.get(end_date.strip()).datetime)
+                observation_plan_requests = observation_plan_requests.where(
+                    ObservationPlanRequest.created_at <= end_date
+                )
+            if dateobs:
+                gcn_event_query = GcnEvent.select(self.current_user).where(
+                    GcnEvent.dateobs == dateobs
+                )
+                gcn_event_subquery = gcn_event_query.subquery()
+                observation_plan_requests = observation_plan_requests.join(
+                    gcn_event_subquery,
+                    ObservationPlanRequest.gcnevent_id == gcn_event_subquery.c.id,
+                )
+            if instrumentID:
+                # allocation query required as only way to reach
+                # instrument_id is through allocation (as requests
+                # are associated to allocations, not instruments)
+                allocation_query = Allocation.select(self.current_user).where(
+                    Allocation.instrument_id == instrumentID
+                )
+                allocation_subquery = allocation_query.subquery()
+                observation_plan_requests = observation_plan_requests.join(
+                    allocation_subquery,
+                    ObservationPlanRequest.allocation_id == allocation_subquery.c.id,
+                )
+            if status:
+                observation_plan_requests = observation_plan_requests.where(
+                    ObservationPlanRequest.status.contains(status.strip())
+                )
+
+            count_stmt = sa.select(func.count()).select_from(observation_plan_requests)
+            total_matches = session.execute(count_stmt).scalar()
+            if n_per_page is not None:
+                observation_plan_requests = (
+                    observation_plan_requests.distinct()
+                    .limit(n_per_page)
+                    .offset((page_number - 1) * n_per_page)
+                )
+            observation_plan_requests = (
+                session.scalars(observation_plan_requests).unique().all()
+            )
+
+            info = {}
+            info["requests"] = [req.to_dict() for req in observation_plan_requests]
+            info["totalMatches"] = int(total_matches)
+            return self.success(data=info)
 
     @permissions(['Manage observation plans'])
     def delete(self, observation_plan_request_id):

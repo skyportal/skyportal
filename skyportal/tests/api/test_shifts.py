@@ -59,6 +59,31 @@ def test_shift(public_group, super_admin_token, view_only_token, super_admin_use
         ]
     )
 
+    name2 = str(uuid.uuid4())
+    request_data = {
+        'name': name2,
+        'description': 'the Day Shift',
+        'required_users_number': 3,
+    }
+
+    status, data = api(
+        'PATCH', f'shifts/{shift_id}', data=request_data, token=super_admin_token
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    status, data = api(
+        'GET', f'shifts/{shift_id}', data=request_data, token=super_admin_token
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    assert request_data['name'] == data['data']['name']
+    assert request_data['description'] == data['data']['description']
+    assert (
+        request_data['required_users_number'] == data['data']['required_users_number']
+    )
+
 
 def test_shift_summary(
     public_group,
