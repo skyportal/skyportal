@@ -11,7 +11,11 @@ from gcn_kafka import Consumer
 from baselayer.app.env import load_env
 from baselayer.app.models import init_db
 from baselayer.log import make_log
-from skyportal.handlers.api.gcn import post_gcnevent_from_xml, post_skymap_from_notice
+from skyportal.handlers.api.gcn import (
+    post_gcnevent_from_xml,
+    post_skymap_from_notice,
+    get_tags,
+)
 from skyportal.models import DBSession
 from skyportal.utils.gcn import get_skymap_metadata
 
@@ -22,8 +26,11 @@ init_db(**cfg['database'])
 client_id = cfg['gcn.client_id']
 client_secret = cfg['gcn.client_secret']
 notice_types = [
-    f'gcn.classic.voevent.{notice_type}' for notice_type in cfg["gcn.notice_types"]
+    f'gcn.classic.voevent.{notice_type}'
+    for notice_type in cfg.get("gcn.notice_types", [])
 ]
+
+reject_tags = cfg.get('gcn.reject_tags', [])
 
 log = make_log('gcnserver')
 
@@ -124,6 +131,14 @@ def poll_events():
                 consumer.commit(message)
                 if payload.find(b'Broker: Unknown topic or partition') != -1:
                     continue
+                root = get_root_from_payload(payload)
+                tags = get_tags(root)
+                tags_intersection = list(set(tags).intersection(set(reject_tags)))
+                if len(tags_intersection) > 0:
+                    log(
+                        f'Rejecting gcn_event from {message.topic()} due to tag(s): {tags_intersection}'
+                    )
+                    continue
                 with DBSession() as session:
                     # event ingestion
                     log(f'Ingesting gcn_event from {message.topic()}')
@@ -140,7 +155,6 @@ def poll_events():
                         continue
 
                     # skymap ingestion if available or cone
-                    root = get_root_from_payload(payload)
                     notice_type = gcn.get_notice_type(root)
                     status, metadata = get_skymap_metadata(root, notice_type, 15)
                     if status in ['available', 'cone']:
