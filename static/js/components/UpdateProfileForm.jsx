@@ -20,6 +20,7 @@ import { showNotification } from "baselayer/components/Notifications";
 import Button from "./Button";
 
 import * as ProfileActions from "../ducks/profile";
+import * as userNotificationsActions from "../ducks/userNotifications";
 
 import UIPreferences from "./UIPreferences";
 import NotificationPreferences from "./NotificationPreferences";
@@ -40,6 +41,8 @@ const UpdateProfileForm = () => {
   const classes = useStyles();
   const profile = useSelector((state) => state.profile);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmittingEmailTest, setIsSubmittingEmailTest] = useState(false);
+  const [isSubmittingSMSTest, setIsSubmittingSMSTest] = useState(false);
 
   const dispatch = useDispatch();
   const {
@@ -86,6 +89,20 @@ const UpdateProfileForm = () => {
       dispatch(showNotification("Profile data saved"));
     }
     setIsSubmitting(false);
+  };
+
+  const handleEmailTest = async () => {
+    setIsSubmittingEmailTest(true);
+    const data = { notification_type: "email" };
+    await dispatch(userNotificationsActions.testNotifications(data));
+    setIsSubmittingEmailTest(false);
+  };
+
+  const handleSMSTest = async () => {
+    setIsSubmittingSMSTest(true);
+    const data = { notification_type: "SMS" };
+    await dispatch(userNotificationsActions.testNotifications(data));
+    setIsSubmittingSMSTest(false);
   };
 
   return (
@@ -246,6 +263,24 @@ const UpdateProfileForm = () => {
               disabled={isSubmitting}
             >
               Update Profile
+            </Button>
+            <Button
+              secondary
+              type="submit"
+              id="testEmailButton"
+              onClick={handleEmailTest}
+              disabled={isSubmittingEmailTest}
+            >
+              Test Email
+            </Button>
+            <Button
+              secondary
+              type="submit"
+              id="testSMSButton"
+              onClick={handleSMSTest}
+              disabled={isSubmittingSMSTest}
+            >
+              Test SMS
             </Button>
           </form>
         </CardContent>
