@@ -1440,7 +1440,7 @@ class ObservationPlanTreasureMapHandler(BaseHandler):
                 return self.error('Missing allocation information.')
 
             observation_plan = observation_plan_request.observation_plans[0]
-            num_observations = observation_plan.num_observations
+            num_observations = len(observation_plan.planned_observations)
             if num_observations == 0:
                 return self.error('Need at least one observation to produce a GCN')
 
