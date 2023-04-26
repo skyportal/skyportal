@@ -235,7 +235,7 @@ class ObjTNSHandler(BaseHandler):
                 return self.error('Missing TNS information.')
 
             tns_headers = {
-                'User-Agent': f'tns_marker{"tns_id":{tnsrobot.bot_id},"type":"bot", "name":"{tnsrobot.bot_name}"}'
+                'User-Agent': f'tns_marker{{"tns_id":{tnsrobot.bot_id},"type":"bot", "name":"{tnsrobot.bot_name}"}}'
             }
 
             time_first = mag_first = magerr_first = filt_first = instrument_first = None
@@ -456,7 +456,7 @@ class SpectrumTNSHandler(BaseHandler):
                 spec_dict["external_observer"] = external_observer.external_observer
 
             tns_headers = {
-                'User-Agent': f'tns_marker{"tns_id":{tnsrobot.bot_id},"type":"bot", "name":"{tnsrobot.bot_name}"}'
+                'User-Agent': f'tns_marker{{"tns_id":{tnsrobot.bot_id},"type":"bot", "name":"{tnsrobot.bot_name}"}}'
             }
 
             tns_prefix, tns_name = get_IAUname(
