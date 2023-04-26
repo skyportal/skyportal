@@ -81,6 +81,9 @@ class NotificationTestHandler(BaseHandler):
         if notification_type == "email" and not email:
             return self.error("email not enabled in application")
 
+        if notification_type == "SMS" and client is None:
+            return self.error("SMS not enabled in application")
+
         with self.Session() as session:
             user = session.scalar(sa.select(User).where(User.id == user_id))
 

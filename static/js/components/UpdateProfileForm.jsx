@@ -226,13 +226,25 @@ const UpdateProfileForm = () => {
                 <InputLabel htmlFor="email_id">
                   Preferred Contact Email
                 </InputLabel>
-                <TextField
-                  {...register("email", { pattern: /^\S+@\S+$/i })}
-                  name="email"
-                  type="email"
-                  fullWidth
-                  id="email_id"
-                />
+                <div style={{ display: "flex", width: "100%" }}>
+                  <TextField
+                    {...register("email", { pattern: /^\S+@\S+$/i })}
+                    name="email"
+                    type="email"
+                    fullWidth
+                    id="email_id"
+                  />
+                  <Button
+                    secondary
+                    style={{ marginLeft: "0.5rem" }}
+                    type="submit"
+                    id="testEmailButton"
+                    onClick={handleEmailTest}
+                    disabled={isSubmittingEmailTest}
+                  >
+                    Test
+                  </Button>
+                </div>
               </Grid>
             </Grid>
             <br />
@@ -247,12 +259,24 @@ const UpdateProfileForm = () => {
                 <InputLabel htmlFor="phone_id">
                   Contact Phone (Include Country Code)
                 </InputLabel>
-                <TextField
-                  {...register("phone", { maxLength: 16 })}
-                  name="phone"
-                  type="tel"
-                  id="phone_id"
-                />
+                <div style={{ display: "flex", width: "100%" }}>
+                  <TextField
+                    {...register("phone", { maxLength: 16 })}
+                    name="phone"
+                    type="tel"
+                    id="phone_id"
+                  />
+                  <Button
+                    secondary
+                    style={{ marginLeft: "0.5rem" }}
+                    type="submit"
+                    id="testSMSButton"
+                    onClick={handleSMSTest}
+                    disabled={isSubmittingSMSTest}
+                  >
+                    Test
+                  </Button>
+                </div>
               </Grid>
             </Grid>
             <br />
@@ -263,24 +287,6 @@ const UpdateProfileForm = () => {
               disabled={isSubmitting}
             >
               Update Profile
-            </Button>
-            <Button
-              secondary
-              type="submit"
-              id="testEmailButton"
-              onClick={handleEmailTest}
-              disabled={isSubmittingEmailTest}
-            >
-              Test Email
-            </Button>
-            <Button
-              secondary
-              type="submit"
-              id="testSMSButton"
-              onClick={handleSMSTest}
-              disabled={isSubmittingSMSTest}
-            >
-              Test SMS
             </Button>
           </form>
         </CardContent>
