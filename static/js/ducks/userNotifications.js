@@ -12,6 +12,11 @@ const UPDATE_ALL_NOTIFICATIONS = "skyportal/UPDATE_ALL_NOTIFICATIONS";
 const DELETE_NOTIFICATION = "skyportal/DELETE_NOTIFICATION";
 const DELETE_ALL_NOTIFICATIONS = "skyportal/DELETE_ALL_NOTIFICATIONS";
 
+const TEST_NOTIFICATIONS = "skyportal/TEST_NOTIFICATIONS";
+
+export const testNotifications = (data) =>
+  API.POST("/api/internal/notifications_test", TEST_NOTIFICATIONS, data);
+
 export const fetchNotifications = () =>
   API.GET("/api/internal/notifications", FETCH_NOTIFICATIONS);
 
