@@ -315,7 +315,7 @@ class ObjTNSHandler(BaseHandler):
                 "reporter": reporters,
                 "discovery_datetime": astropy.time.Time(
                     time_first, format='mjd'
-                ).datetime,
+                ).datetime.strftime('%Y-%m-%d %H:%M:%S.%f'),
                 "at_type": 1,  # allow other options?
                 "proprietary_period_groups": [tnsrobot.source_group_id],
                 "proprietary_period": proprietary_period,
