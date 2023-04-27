@@ -434,7 +434,7 @@ class GENERICAPI(FollowUpAPI):
                     "maximum": 3,
                 },
                 "minimum_lunar_distance": {
-                    "title": "Maximum Lunar Distance [deg] (0-180)",
+                    "title": "Minimum Lunar Distance [deg] (0-180)",
                     "type": "number",
                     "default": 30.0,
                     "minimum": 0,
