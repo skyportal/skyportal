@@ -273,7 +273,8 @@ def run_openai_summarization(data_dict):
         )
         pinecone_index = pinecone.Index(summarize_embedding_index)
         metadata = {}
-        metadata["redshift"] = z if z is not None else -1
+        if z is not None:
+            metadata["redshift"] = z
 
         if len(classifications) > 0:
             metadata["class"] = list(set(classifications["classification"]))
