@@ -90,7 +90,11 @@ if (
     if summarize_embedding_index_name in pinecone.list_indexes():
         USE_PINECONE = True
 else:
-    log("No valid pinecone configuration found. Please check the config file.")
+    if cfg['database.database'] == 'skyportal_test':
+        USE_PINECONE = True
+        log("Setting USE_PINECONE=True as it seems like we are in a test environment")
+    else:
+        log("No valid pinecone configuration found. Please check the config file.")
 
 summary_config = copy.deepcopy(cfg['analysis_services.openai_analysis_service.summary'])
 if summary_config.get("api_key"):
@@ -99,6 +103,8 @@ if summary_config.get("api_key"):
 elif os.path.exists(".secret"):
     # try to get this key from the dev environment, useful for debugging
     openai_api_key = yaml.safe_load(open(".secret")).get("OPENAI_API_KEY")
+elif cfg['database.database'] == 'skyportal_test':
+    openai_api_key = "TEST_KEY"
 else:
     openai_api_key = None
 
@@ -193,11 +199,9 @@ class SummaryQueryHandler(BaseHandler):
                         'No global OpenAI key found and cannot find user.', status=400
                     )
 
-                if (
-                    user.preferences.get("summary", {})
-                    .get("OpenAI", {})
-                    .get('active', False)
-                ):
+                if user.preferences is not None and user.preferences.get(
+                    "summary", {}
+                ).get("OpenAI", {}).get('active', False):
                     user_pref_openai = user.preferences["summary"]["OpenAI"].get(
                         "apikey"
                     )
