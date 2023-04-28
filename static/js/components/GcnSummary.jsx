@@ -251,6 +251,12 @@ const GcnSummary = ({ dateobs }) => {
     }
   }, [dispatch, selectedGroup]);
 
+  useEffect(() => {
+    if (gcnEvent?.localizations?.length > 0) {
+      setLocalizationName(gcnEvent?.localizations[0]?.localization_name);
+    }
+  }, [gcnEvent]);
+
   const handleClose = () => {
     setOpen(false);
   };
