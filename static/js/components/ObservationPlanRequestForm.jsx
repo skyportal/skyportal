@@ -476,6 +476,7 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
 
   const handleSelectedAllocationChange = (e) => {
     setSelectedAllocationId(e.target.value);
+    setSelectedGroupIds([allocationLookUp[e.target.value]?.group_id]);
   };
 
   const handleSelectedLocalizationChange = (e) => {
