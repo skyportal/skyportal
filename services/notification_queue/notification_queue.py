@@ -940,10 +940,10 @@ def api(queue):
                                 notification_user_ids = [
                                     allocation_user.user.id
                                     for allocation_user in allocation.allocation_users
-                                ] + [
-                                    watcher['user_id']
-                                    for watcher in target_data['watchers']
                                 ]
+                                if 'watchers' in target_data:
+                                    for watcher in target_data['watchers']:
+                                        notification_user_ids.append(watcher['user_id'])
                                 notification_user_ids.append(
                                     target_data["requester_id"]
                                 )
