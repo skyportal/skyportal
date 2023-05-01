@@ -185,34 +185,7 @@ class TelescopeHandler(BaseHandler):
                 if telescope is None:
                     continue
                 temp = telescope.to_dict()
-                morning = False
-                evening = False
-                is_night_astronomical = False
-                if (
-                    telescope.fixed_location
-                    and telescope.lon is not None
-                    and telescope.lat is not None
-                    and telescope.elevation is not None
-                    and telescope.observer is not None
-                ):
-                    try:
-                        morning = telescope.next_twilight_morning_astronomical()
-                        evening = telescope.next_twilight_evening_astronomical()
-                        if morning is not None and evening is not None:
-                            is_night_astronomical = bool(morning.jd < evening.jd)
-                            morning = morning.iso
-                            evening = evening.iso
-                        else:
-                            morning = False
-                            evening = False
-                            is_night_astronomical = False
-                    except Exception:
-                        morning = False
-                        evening = False
-                        is_night_astronomical = False
-                temp['is_night_astronomical'] = is_night_astronomical
-                temp['next_twilight_morning_astronomical'] = morning
-                temp['next_twilight_evening_astronomical'] = evening
+                temp = {**temp, **telescope.current_time}
 
                 allocations = []
                 for instrument in telescope.instruments:

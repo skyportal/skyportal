@@ -75,33 +75,7 @@ def prioritize_queue(queue, session):
                     allocation = session.query(Allocation).get(allocation_id)
                     telescope = allocation.instrument.telescope
 
-                    if (
-                        telescope.fixed_location
-                        and telescope.lon is not None
-                        and telescope.lat is not None
-                        and telescope.elevation is not None
-                        and telescope.observer is not None
-                    ):
-                        try:
-                            morning = telescope.next_twilight_morning_astronomical()
-                            evening = telescope.next_twilight_evening_astronomical()
-                            if morning is not None and evening is not None:
-                                morning = morning.iso
-                                evening = evening.iso
-                            else:
-                                morning = False
-                                evening = False
-                        except Exception:
-                            morning = False
-                            evening = False
-                    else:
-                        morning = False
-                        evening = False
-
-                    telescopeAllocationLookup[allocation_id] = {
-                        "morning": morning,
-                        "evening": evening,
-                    }
+                    telescopeAllocationLookup[allocation_id] = telescope.current_time
 
         # now we loop over the plans. For plans with multiple plans we pick the allocation with the earliest start date and morning time
         # at the same time, we pick the plan to prioritize
