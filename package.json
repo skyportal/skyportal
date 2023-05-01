@@ -99,7 +99,7 @@
     "timezone": "1.0.23",
     "underscore.template": "0.1.7",
     "use-count-up": "3.0.1",
-    "vega": "5.24.0",
+    "vega": "5.25.0",
     "vega-embed": "6.21.3",
     "vega-lite": "5.6.1"
   },
