@@ -179,13 +179,6 @@ const GcnSummary = ({ dateobs }) => {
 
   let sortedInstrumentList = [...instrumentList];
   sortedInstrumentList.sort((i1, i2) => {
-    // if the instrument is ZTF, put it first
-    if (i1.name === "ZTF") {
-      return -1;
-    }
-    if (i2.name === "ZTF") {
-      return 1;
-    }
     if (i1.name > i2.name) {
       return 1;
     }

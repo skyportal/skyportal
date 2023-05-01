@@ -43,7 +43,7 @@ cache = Cache(
     cache_dir=cache_dir,
     max_items=cfg.get("misc.max_items_in_localization_instrument_query_cache", 100),
     max_age=cfg.get("misc.minutes_to_keep_localization_instrument_query_cache", 24 * 60)
-    * 60,
+    * 60,  # defaults to 1 day
 )
 
 Session = scoped_session(sessionmaker())
