@@ -119,7 +119,7 @@
     "@types/eslint": "8.4.10",
     "@types/node": "18.14.2",
     "babel-loader": "8.2.2",
-    "eslint": "8.18.0",
+    "eslint": "8.39.0",
     "eslint-config-airbnb": "18.2.1",
     "eslint-config-prettier": "8.5.0",
     "eslint-import-resolver-webpack": "0.13.2",
