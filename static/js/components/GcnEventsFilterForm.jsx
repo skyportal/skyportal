@@ -98,6 +98,12 @@ const useStyles = makeStyles((theme) => ({
   selectItem: {
     whiteSpace: "break-spaces",
   },
+  divider: {
+    margin: "0.5rem 0rem 0.5rem 0rem",
+    minWidth: "100%",
+    backgroundColor: "rgba(0, 0, 0, 0.24)",
+    height: "2px",
+  },
 }));
 
 const conversions = {
@@ -193,7 +199,7 @@ const GcnEventsFilterForm = ({ handleFilterSubmit }) => {
         className={classes.root}
         onSubmit={handleSubmit(handleFilterPreSubmit)}
       >
-        <div className={classes.formItem}>
+        <div className={classes.formItemRightColumn}>
           <Typography variant="subtitle2" className={classes.title}>
             Time Detected (UTC)
           </Typography>
@@ -228,7 +234,8 @@ const GcnEventsFilterForm = ({ handleFilterSubmit }) => {
             control={control}
           />
         </div>
-        <div className={classes.formItem}>
+        <div className={classes.divider} />
+        <div className={classes.formItemRightColumn}>
           <Typography variant="subtitle2" className={classes.title}>
             GCN Tags to Keep
           </Typography>
@@ -250,6 +257,7 @@ const GcnEventsFilterForm = ({ handleFilterSubmit }) => {
             comparators={comparators}
           />
         </div>
+        <div className={classes.divider} />
         <div className={classes.formItemRightColumn}>
           <Typography variant="subtitle2" className={classes.title}>
             Localization Tags to Keep
@@ -272,6 +280,7 @@ const GcnEventsFilterForm = ({ handleFilterSubmit }) => {
             }
           />
         </div>
+        <div className={classes.divider} />
         <div className={classes.formButtons}>
           <ButtonGroup
             variant="contained"
