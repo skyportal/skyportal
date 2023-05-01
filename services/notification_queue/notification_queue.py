@@ -451,21 +451,24 @@ def service(queue):
             continue
 
         with DBSession() as session:
-            notification = session.scalars(
-                sa.select(UserNotification).where(
-                    UserNotification.id == notification_id
-                )
-            ).first()
-            if notification is None:
-                log(f'Could not find UserNotification with ID {notification_id}')
-                continue
+            try:
+                notification = session.scalars(
+                    sa.select(UserNotification).where(
+                        UserNotification.id == notification_id
+                    )
+                ).first()
+                if notification is None:
+                    log(f'Could not find UserNotification with ID {notification_id}')
+                    continue
 
-            push_frontend_notification(notification)
-            send_phone_notification(notification)
-            send_sms_notification(notification)
-            send_whatsapp_notification(notification)
-            send_email_notification(session, notification)
-            send_slack_notification(session, notification)
+                push_frontend_notification(notification)
+                send_phone_notification(notification)
+                send_sms_notification(notification)
+                send_whatsapp_notification(notification)
+                send_email_notification(session, notification)
+                send_slack_notification(session, notification)
+            except Exception as e:
+                log(f"Error processing notification ID {notification_id}: {str(e)}")
 
 
 def api(queue):
