@@ -34,146 +34,157 @@ queue = []
 
 
 def prioritize_queue(queue, session):
-    # pick the plan which plan is scheduled to start before morning, and which morning is the earliest
-    # this is not using the evening time yet, but it could.
-    if len(queue) == 1:  # if there is only one plan in the queue, no need to prioritize
-        return 0
+    try:
+        if (
+            len(queue) == 1
+        ):  # if there is only one plan in the queue, no need to prioritize
+            return 0
 
-    telescopeAllocationLookup = {}
-    allocationByPlanLookup = {}
+        telescopeAllocationLookup = {}
+        allocationByPlanLookup = {}
 
-    # we create 2 lookups to avoid repeating some operations like getting the morning and evening for a telescope
-    for ii, (
-        plans,
-        survey_efficiencies,
-        combine_plans,
-        default_plan,
-        user_id,
-    ) in enumerate(queue):
-        for plan in plans:
-            allocation_id = plan.get("allocation_id", None)
-            if ii not in allocationByPlanLookup.keys():
-                allocationByPlanLookup[ii] = [
-                    {
-                        "allocation_id": allocation_id,
-                        "start_date": plan.get("payload", {}).get("start_date", None),
-                    }
-                ]
-            else:
-                allocationByPlanLookup[ii].append(
-                    {
-                        "allocation_id": allocation_id,
-                        "start_date": plan.get("payload", {}).get("start_date", None),
-                    }
-                )
-            if allocation_id not in telescopeAllocationLookup:
-                allocation = session.query(Allocation).get(allocation_id)
-                telescope = allocation.instrument.telescope
+        # we create 2 lookups to avoid repeating some operations like getting the morning and evening for a telescope
+        for ii, (
+            plans,
+            survey_efficiencies,
+            combine_plans,
+            default_plan,
+            user_id,
+        ) in enumerate(queue):
+            for plan in plans:
+                allocation_id = plan.get("allocation_id", None)
+                if ii not in allocationByPlanLookup.keys():
+                    allocationByPlanLookup[ii] = [
+                        {
+                            "allocation_id": allocation_id,
+                            "start_date": plan.get("payload", {}).get(
+                                "start_date", None
+                            ),
+                        }
+                    ]
+                else:
+                    allocationByPlanLookup[ii].append(
+                        {
+                            "allocation_id": allocation_id,
+                            "start_date": plan.get("payload", {}).get(
+                                "start_date", None
+                            ),
+                        }
+                    )
+                if allocation_id not in telescopeAllocationLookup:
+                    allocation = session.query(Allocation).get(allocation_id)
+                    telescope = allocation.instrument.telescope
 
-                if (
-                    telescope.fixed_location
-                    and telescope.lon is not None
-                    and telescope.lat is not None
-                    and telescope.elevation is not None
-                    and telescope.observer is not None
-                ):
-                    try:
-                        morning = telescope.next_twilight_morning_astronomical()
-                        evening = telescope.next_twilight_evening_astronomical()
-                        if morning is not None and evening is not None:
-                            morning = morning.iso
-                            evening = evening.iso
-                        else:
+                    if (
+                        telescope.fixed_location
+                        and telescope.lon is not None
+                        and telescope.lat is not None
+                        and telescope.elevation is not None
+                        and telescope.observer is not None
+                    ):
+                        try:
+                            morning = telescope.next_twilight_morning_astronomical()
+                            evening = telescope.next_twilight_evening_astronomical()
+                            if morning is not None and evening is not None:
+                                morning = morning.iso
+                                evening = evening.iso
+                            else:
+                                morning = False
+                                evening = False
+                        except Exception:
                             morning = False
                             evening = False
-                    except Exception:
+                    else:
                         morning = False
                         evening = False
-                else:
-                    morning = False
-                    evening = False
 
-                telescopeAllocationLookup[allocation_id] = {
-                    "morning": morning,
-                    "evening": evening,
+                    telescopeAllocationLookup[allocation_id] = {
+                        "morning": morning,
+                        "evening": evening,
+                    }
+
+        # now we loop over the plans. For plans with multiple plans we pick the allocation with the earliest start date and morning time
+        # at the same time, we pick the plan to prioritize
+        plan_with_priority = None
+        for plan_id, allocationsAndStartDate in allocationByPlanLookup.items():
+            if plan_with_priority is None:
+                plan_with_priority = {
+                    "plan_id": plan_id,
+                    "morning": telescopeAllocationLookup[
+                        allocationsAndStartDate[0]["allocation_id"]
+                    ]["morning"],
+                    "start_date": allocationsAndStartDate[0]["start_date"],
                 }
+            earliest = None
+            for allocationAndStartDate in allocationsAndStartDate:
+                # find the plan
+                if earliest is None:
+                    earliest = allocationAndStartDate
+                    continue
+                if (
+                    telescopeAllocationLookup[allocationAndStartDate["allocation_id"]][
+                        "morning"
+                    ]
+                    is False
+                ):
+                    continue
+                start_date = allocationAndStartDate["start_date"]
+                if start_date is None:
+                    continue
+                start_date = arrow.get(start_date).datetime
+                if (
+                    start_date
+                    > telescopeAllocationLookup[
+                        allocationAndStartDate["allocation_id"]
+                    ]["morning"]
+                ):
+                    continue
+                if (
+                    telescopeAllocationLookup[earliest["allocation_id"]]["morning"]
+                    is False
+                ):
+                    earliest = allocationAndStartDate
+                    continue
+                if (
+                    telescopeAllocationLookup[allocationAndStartDate["allocation_id"]][
+                        "morning"
+                    ]
+                    < telescopeAllocationLookup[earliest["allocation_id"]]["morning"]
+                ):
+                    earliest = allocation
+                    continue
+            allocationByPlanLookup[plan_id] = [earliest]
 
-    # now we loop over the plans. For plans with multiple plans we pick the allocation with the earliest start date and morning time
-    # at the same time, we pick the plan to prioritize
-    plan_with_priority = None
-    for plan_id, allocationsAndStartDate in allocationByPlanLookup.items():
-        if plan_with_priority is None:
-            plan_with_priority = {
-                "plan_id": plan_id,
-                "morning": telescopeAllocationLookup[
-                    allocationsAndStartDate[0]["allocation_id"]
-                ]["morning"],
-                "start_date": allocationsAndStartDate[0]["start_date"],
-            }
-        earliest = None
-        for allocationAndStartDate in allocationsAndStartDate:
-            # find the plan
-            if earliest is None:
-                earliest = allocationAndStartDate
+            # check if that plan is more urgent than the current plan_with_priority
+            if telescopeAllocationLookup[earliest["allocation_id"]]["morning"] is None:
+                continue
+            if plan_with_priority["morning"] is None:
+                plan_with_priority = {
+                    "plan_id": plan_id,
+                    "morning": telescopeAllocationLookup[earliest["allocation_id"]][
+                        "morning"
+                    ],
+                    "start_date": earliest["start_date"],
+                }
                 continue
             if (
-                telescopeAllocationLookup[allocationAndStartDate["allocation_id"]][
-                    "morning"
-                ]
-                is False
+                telescopeAllocationLookup[earliest["allocation_id"]]["morning"]
+                <= plan_with_priority["morning"]
+                and earliest["start_date"] < plan_with_priority["start_date"]
             ):
+                plan_with_priority = {
+                    "plan_id": plan_id,
+                    "morning": telescopeAllocationLookup[earliest["allocation_id"]][
+                        "morning"
+                    ],
+                    "start_date": earliest["start_date"],
+                }
                 continue
-            start_date = allocationAndStartDate["start_date"]
-            if start_date is None:
-                continue
-            start_date = arrow.get(start_date).datetime
-            if (
-                start_date
-                > telescopeAllocationLookup[allocationAndStartDate["allocation_id"]][
-                    "morning"
-                ]
-            ):
-                continue
-            if telescopeAllocationLookup[earliest["allocation_id"]]["morning"] is False:
-                earliest = allocationAndStartDate
-                continue
-            if (
-                telescopeAllocationLookup[allocationAndStartDate["allocation_id"]][
-                    "morning"
-                ]
-                < telescopeAllocationLookup[earliest["allocation_id"]]["morning"]
-            ):
-                earliest = allocation
-                continue
-        allocationByPlanLookup[plan_id] = [earliest]
 
-        # check if that plan is more urgent than the current plan_with_priority
-        if telescopeAllocationLookup[earliest["allocation_id"]]["morning"] is None:
-            continue
-        if plan_with_priority["morning"] is None:
-            plan_with_priority = {
-                "plan_id": plan_id,
-                "morning": telescopeAllocationLookup[earliest["allocation_id"]][
-                    "morning"
-                ],
-                "start_date": earliest["start_date"],
-            }
-            continue
-        if (
-            telescopeAllocationLookup[earliest["allocation_id"]]["morning"]
-            <= plan_with_priority["morning"]
-            and earliest["start_date"] < plan_with_priority["start_date"]
-        ):
-            plan_with_priority = {
-                "plan_id": plan_id,
-                "morning": telescopeAllocationLookup[earliest["allocation_id"]][
-                    "morning"
-                ],
-                "start_date": earliest["start_date"],
-            }
-            continue
-
-    return plan_with_priority["plan_id"]
+        return plan_with_priority["plan_id"]
+    except Exception as e:
+        log(f"Error occured prioritizing the observation plan queue: {e}")
+        return 0
 
 
 def service(queue):
