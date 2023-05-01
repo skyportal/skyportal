@@ -942,7 +942,7 @@ def api(queue):
                                     for allocation_user in allocation.allocation_users
                                 ] + [
                                     watcher['user_id']
-                                    for watcher in target_data['watchers']
+                                    for watcher in target_data.get('watchers', [])
                                 ]
                                 notification_user_ids.append(
                                     target_data["requester_id"]

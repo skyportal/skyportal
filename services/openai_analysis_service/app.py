@@ -278,6 +278,10 @@ def run_openai_summarization(data_dict):
 
         if len(classifications) > 0:
             metadata["class"] = list(set(classifications["classification"]))
+        else:
+            metadata["class"] = []
+
+        metadata["summary"] = openai_summary
 
         pinecone_index.upsert([(source_id, e["data"][0]["embedding"], metadata)])
         result["embedding"] = e["data"][0]["embedding"]

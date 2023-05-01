@@ -26,7 +26,6 @@ def validate_request_to_sedmv2(request):
     for param in [
         "observation_choice",
         "exposure_time",
-        "exposure_counts",
         "maximum_airmass",
         "minimum_lunar_distance",
         "priority",
@@ -48,9 +47,6 @@ def validate_request_to_sedmv2(request):
 
     if request.payload["exposure_time"] < 0:
         raise ValueError('exposure_time must be positive.')
-
-    if request.payload["exposure_counts"] < 1:
-        raise ValueError('exposure_counts must be at least 1.')
 
     if request.payload["maximum_airmass"] < 1:
         raise ValueError('maximum_airmass must be at least 1.')
@@ -285,11 +281,6 @@ class SEDMV2API(FollowUpAPI):
                 "type": "number",
                 "default": 300.0,
             },
-            "exposure_counts": {
-                "title": "Exposure Counts",
-                "type": "number",
-                "default": 1,
-            },
             "maximum_airmass": {
                 "title": "Maximum Airmass (1-3)",
                 "type": "number",
@@ -298,7 +289,7 @@ class SEDMV2API(FollowUpAPI):
                 "maximum": 3,
             },
             "minimum_lunar_distance": {
-                "title": "Maximum Lunar Distance [deg] (0-180)",
+                "title": "Minimum Lunar Distance [deg] (0-180)",
                 "type": "number",
                 "default": 30.0,
                 "minimum": 0,
@@ -347,7 +338,6 @@ class SEDMV2API(FollowUpAPI):
             "start_date",
             "end_date",
             "exposure_time",
-            "exposure_counts",
             "maximum_airmass",
             "minimum_lunar_distance",
             "too",
