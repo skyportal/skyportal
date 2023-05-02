@@ -2889,7 +2889,7 @@ def test_photometry_stream_patch_access(
 
 
 def test_token_user_delete_object_photometry(
-    upload_data_token, view_only_token, ztf_camera, public_group
+    super_admin_token, upload_data_token, view_only_token, ztf_camera, public_group
 ):
 
     obj_id = str(uuid.uuid4())
@@ -2938,7 +2938,7 @@ def test_token_user_delete_object_photometry(
     status, data = api(
         'DELETE',
         f'sources/{obj_id}/photometry',
-        token=upload_data_token,
+        token=super_admin_token,
     )
     assert status == 200
     assert data['status'] == 'success'

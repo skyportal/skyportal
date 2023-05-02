@@ -1381,7 +1381,7 @@ class ObjPhotometryHandler(BaseHandler):
 
             return self.success(data=data)
 
-    @permissions(["Upload data"])
+    @permissions(["Delete bulk photometry"])
     def delete(self, obj_id):
         """
         ---
@@ -1434,7 +1434,7 @@ class ObjPhotometryHandler(BaseHandler):
 
 
 class BulkDeletePhotometryHandler(BaseHandler):
-    @permissions(["Upload data"])
+    @permissions(["Delete bulk photometry"])
     def delete(self, upload_id):
         """
         ---
