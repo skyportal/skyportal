@@ -26,6 +26,7 @@ class ExecutedObservation(Base):
 
     instrument_field_id = sa.Column(
         sa.ForeignKey("instrumentfields.id", ondelete="CASCADE"),
+        primary_key=True,
         doc='Field ID',
         index=True,
     )
