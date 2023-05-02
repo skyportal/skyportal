@@ -1911,15 +1911,16 @@ def add_gcn_summary(
     start_date,
     end_date,
     localization_name,
-    localization_cumprob,
-    number_of_detections,
-    show_sources,
-    show_galaxies,
-    show_observations,
-    no_text,
-    photometry_in_window,
+    localization_cumprob=0.90,
+    number_of_detections=1,
+    show_sources=True,
+    show_galaxies=False,
+    show_observations=False,
+    no_text=False,
+    photometry_in_window=True,
+    stats_method='python',
+    instrument_ids=None,
 ):
-
     if Session.registry.has():
         session = Session()
     else:
@@ -2212,7 +2213,10 @@ def add_gcn_summary(
             start_date = arrow.get(start_date).datetime
             end_date = arrow.get(end_date).datetime
 
-            stmt = Instrument.select(user).options(joinedload(Instrument.telescope))
+            if instrument_ids is not None:
+                stmt = Instrument.select(user).where(Instrument.id.in_(instrument_ids))
+            else:
+                stmt = Instrument.select(user).options(joinedload(Instrument.telescope))
             instruments = session.scalars(stmt).all()
             if instruments is not None:
                 for instrument in instruments:
@@ -2226,6 +2230,7 @@ def add_gcn_summary(
                         localization_name=localization_name,
                         localization_cumprob=localization_cumprob,
                         return_statistics=True,
+                        stats_method=stats_method,
                     )
 
                     observations = data["observations"]
@@ -2443,6 +2448,17 @@ class GcnSummaryHandler(BaseHandler):
               schema:
                 type: bool
               description: Limit photometry to that within startDate and endDate.
+            - in: body
+              name: statsMethod
+              schema:
+                type: string
+              description: Method to use for calculating statistics. Defaults to python. Options are python and db.
+            - in: body
+              name: instrumentIds
+              schema:
+                type: string
+              description: List of instrument ids to include in the summary. Defaults to all instruments if not specified.
+
           responses:
             200:
               content:
@@ -2477,6 +2493,8 @@ class GcnSummaryHandler(BaseHandler):
         show_observations = data.get("showObservations", False)
         no_text = data.get("noText", False)
         photometry_in_window = data.get("photometryInWindow", False)
+        stats_method = data.get("statsMethod", "python")
+        instrument_ids = data.get("instrumentIds", None)
 
         class Validator(Schema):
             start_date = UTCTZnaiveDateTime(required=False, missing=None)
@@ -2502,6 +2520,21 @@ class GcnSummaryHandler(BaseHandler):
 
         if group_id is None:
             return self.error("Group ID is required")
+
+        if stats_method not in ["db", "python"]:
+            return self.error(
+                "statsMethod for observations querying must be 'db' or 'python'"
+            )
+
+        if instrument_ids is not None:
+            try:
+                instrument_ids = [
+                    int(instrument_id) for instrument_id in instrument_ids
+                ]
+                if len(instrument_ids) == 0:
+                    instrument_ids = None
+            except ValueError:
+                return self.error("Instrument IDs must be a list of integers")
 
         try:
             number_of_detections = int(number_of_detections)
@@ -2589,6 +2622,8 @@ class GcnSummaryHandler(BaseHandler):
                         show_observations=show_observations,
                         no_text=no_text,
                         photometry_in_window=photometry_in_window,
+                        stats_method=stats_method,
+                        instrument_ids=instrument_ids,
                     ),
                 )
                 return self.success({"id": summary_id})

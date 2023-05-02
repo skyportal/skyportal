@@ -345,6 +345,8 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
     projectionOptions[0]
   );
 
+  const [selectedFormData, setSelectedFormData] = useState({});
+
   useEffect(() => {
     const fetchSkymapInstrument = async () => {
       dispatch(
@@ -476,6 +478,7 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
 
   const handleSelectedAllocationChange = (e) => {
     setSelectedAllocationId(e.target.value);
+    setSelectedGroupIds([allocationLookUp[e.target.value]?.group_id]);
   };
 
   const handleSelectedLocalizationChange = (e) => {
@@ -710,6 +713,8 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
                     ]?.formSchema
                   : {}
               }
+              formData={selectedFormData}
+              onChange={({ formData }) => setSelectedFormData(formData)}
               validator={validator}
               uiSchema={
                 instrumentObsplanFormParams

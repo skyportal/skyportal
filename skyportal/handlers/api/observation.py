@@ -48,6 +48,7 @@ from ...utils.simsurvey import (
 from .instrument import add_tiles
 from .observation_plan import observation_simsurvey, observation_simsurvey_plot
 from ...facility_apis.observation_plan import combine_healpix_tuples
+from ...utils.cache import Cache
 
 
 env, cfg = load_env()
@@ -56,6 +57,14 @@ TREASUREMAP_URL = cfg['app.treasuremap_endpoint']
 log = make_log('api/observation')
 
 Session = scoped_session(sessionmaker())
+
+cache_dir = "cache/localization_instrument_queries"
+cache = Cache(
+    cache_dir=cache_dir,
+    max_items=cfg.get("misc.max_items_in_localization_instrument_query_cache", 100),
+    max_age=cfg.get("misc.minutes_to_keep_localization_instrument_query_cache", 24 * 60)
+    * 60,  # defaults to 1 day
+)
 
 MAX_OBSERVATIONS = 1000
 
@@ -399,19 +408,32 @@ def get_observations(
                 LocalizationTile.localization_id == localization.id
             )
         ).subquery()
-
         min_probdensity = (
             sa.select(
                 sa.func.min(localizationtile_subquery.columns.probdensity)
             ).filter(localizationtile_subquery.columns.cum_prob <= localization_cumprob)
         ).scalar_subquery()
 
-        field_tiles_query = sa.select(InstrumentField.id).where(
-            LocalizationTile.localization_id == localization.id,
-            LocalizationTile.probdensity >= min_probdensity,
-            InstrumentFieldTile.instrument_field_id == InstrumentField.id,
-            InstrumentFieldTile.healpix.overlaps(LocalizationTile.healpix),
-        )
+        if telescope_name is not None and instrument_name is not None:
+            query_id = f"{str(localization.id)}_{str(instrument.id)}_{str(localization_cumprob)}"
+        else:
+            query_id = f"{str(localization.id)}_{str(localization_cumprob)}"
+        cache_filename = cache[query_id]
+        if cache_filename is not None:
+            field_ids = np.load(cache_filename).tolist()
+            field_tiles_query = (
+                sa.select(InstrumentField.id)
+                .where(InstrumentField.field_id.in_(field_ids))
+                .distinct()
+            )
+        else:
+
+            field_tiles_query = sa.select(InstrumentField.id).where(
+                LocalizationTile.localization_id == localization.id,
+                LocalizationTile.probdensity >= min_probdensity,
+                InstrumentFieldTile.instrument_field_id == InstrumentField.id,
+                InstrumentFieldTile.healpix.overlaps(LocalizationTile.healpix),
+            )
 
         if telescope_name is not None and instrument_name is not None:
             field_tiles_query = field_tiles_query.where(
@@ -717,7 +739,6 @@ def get_observations(
                 "probability": intprob,
                 "area": intarea * (180.0 / np.pi) ** 2,  # sq. degrees
             }
-
     return data
 
 

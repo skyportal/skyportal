@@ -32,6 +32,7 @@ import {
 
 import { fetchGroup } from "../ducks/group";
 import { fetchGroups } from "../ducks/groups";
+import { fetchInstruments } from "../ducks/instruments";
 import {
   fetchGcnEventSummary,
   postGcnEventSummary,
@@ -139,6 +140,7 @@ const GcnSummary = ({ dateobs }) => {
   const classes = useStyles();
   const groups = useSelector((state) => state.groups.userAccessible);
   const users = useSelector((state) => state.group?.users);
+  const { instrumentList } = useSelector((state) => state.instruments);
   const dispatch = useDispatch();
   const [open, setOpen] = useState(false);
   const [selectedUsers, setSelectedUsers] = useState([]);
@@ -159,6 +161,7 @@ const GcnSummary = ({ dateobs }) => {
   const [noText, setNoText] = useState(false);
   const [photometryInWindow, setPhotometryInWindow] = useState(false);
   const [selectedGcnSummaryId, setSelectedGcnSummaryId] = useState(null);
+  const [selectedInstruments, setSelectedInstruments] = useState([]);
 
   const [loading, setLoading] = useState(false);
 
@@ -173,6 +176,29 @@ const GcnSummary = ({ dateobs }) => {
     id: user.id,
     label: `${user.first_name} ${user.last_name}`,
   }));
+
+  let sortedInstrumentList = [...instrumentList];
+  sortedInstrumentList.sort((i1, i2) => {
+    if (i1.name > i2.name) {
+      return 1;
+    }
+    if (i2.name > i1.name) {
+      return -1;
+    }
+    return 0;
+  });
+
+  // to each sortedInstrument, add a label field with the instrument name
+  sortedInstrumentList = sortedInstrumentList.map((instrument) => ({
+    ...instrument,
+    label: instrument.name,
+  }));
+
+  useEffect(() => {
+    if (instrumentList?.length === 0) {
+      dispatch(fetchInstruments());
+    }
+  }, []);
 
   useEffect(() => {
     const fetchSummary = (summaryID) => {
@@ -218,6 +244,12 @@ const GcnSummary = ({ dateobs }) => {
     }
   }, [dispatch, selectedGroup]);
 
+  useEffect(() => {
+    if (gcnEvent?.localizations?.length > 0) {
+      setLocalizationName(gcnEvent?.localizations[0]?.localization_name);
+    }
+  }, [gcnEvent]);
+
   const handleClose = () => {
     setOpen(false);
   };
@@ -243,6 +275,25 @@ const GcnSummary = ({ dateobs }) => {
 
   const onGroupSelectChange = (event) => {
     setSelectedGroup(event.target.value);
+  };
+
+  const onInstrumentSelectChange = (event) => {
+    let new_selected_instruments = [];
+    event.target.value.forEach((instrument) => {
+      if (
+        !new_selected_instruments.some(
+          (selected_instrument) => selected_instrument.id === instrument.id
+        )
+      ) {
+        new_selected_instruments.push(instrument);
+      } else {
+        // remove the user from the list
+        new_selected_instruments = new_selected_instruments.filter(
+          (selected_instrument) => selected_instrument.id !== instrument.id
+        );
+      }
+    });
+    setSelectedInstruments(new_selected_instruments);
   };
 
   const validateSubmit = () => {
@@ -305,9 +356,13 @@ const GcnSummary = ({ dateobs }) => {
         showObservations,
         noText,
         photometryInWindow,
+        instrumentIds: selectedInstruments.map((instrument) => instrument.id),
       };
       if (nb !== "") {
         params.number = nb;
+      }
+      if (params.instrumentIds?.length === 0) {
+        delete params.instrumentIds;
       }
       dispatch(postGcnEventSummary({ dateobs, params })).then((response) => {
         if (response.status === "success") {
@@ -396,6 +451,13 @@ const GcnSummary = ({ dateobs }) => {
                     initValue={selectedUsers}
                     onChange={onUserSelectChange}
                     options={users_list}
+                  />
+                  <SelectLabelWithChips
+                    label="Instruments (Optional)"
+                    id="instruments-select"
+                    initValue={selectedInstruments}
+                    onChange={onInstrumentSelectChange}
+                    options={sortedInstrumentList}
                   />
                   <TextField
                     id="startDate"

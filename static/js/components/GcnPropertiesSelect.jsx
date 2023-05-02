@@ -210,7 +210,7 @@ const GcnPropertiesSelect = (props) => {
             aria-label="contained primary button group"
           >
             <Button primary onClick={handleSubmit(handleSubmitProperties)}>
-              Submit
+              Add
             </Button>
             <Button primary onClick={handleClickReset}>
               Reset
