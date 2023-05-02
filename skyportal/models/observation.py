@@ -15,6 +15,7 @@ class ExecutedObservation(Base):
         sa.ForeignKey('instruments.id', ondelete="CASCADE"),
         nullable=False,
         doc='Instrument ID',
+        index=True,
     )
 
     instrument = relationship(
@@ -27,6 +28,7 @@ class ExecutedObservation(Base):
         sa.ForeignKey("instrumentfields.id", ondelete="CASCADE"),
         primary_key=True,
         doc='Field ID',
+        index=True,
     )
 
     observation_id = sa.Column(
