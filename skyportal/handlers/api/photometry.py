@@ -1381,6 +1381,57 @@ class ObjPhotometryHandler(BaseHandler):
 
             return self.success(data=data)
 
+    @permissions(["Upload data"])
+    def delete(self, obj_id):
+        """
+        ---
+        description: Delete object photometry
+        tags:
+          - photometry
+        parameters:
+          - in: path
+            name: obj_id
+            required: true
+            schema:
+              type: string
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+
+        with self.Session() as session:
+            photometry_to_delete = session.scalars(
+                Photometry.select(session.user_or_token, mode="delete").where(
+                    Photometry.obj_id == obj_id
+                )
+            ).all()
+
+            n = len(photometry_to_delete)
+            if n == 0:
+                return self.error('Invalid object id.')
+
+            for phot in photometry_to_delete:
+                session.delete(phot)
+
+            stat = session.scalars(
+                PhotStat.select(session.user_or_token, mode="update").where(
+                    PhotStat.obj_id == obj_id
+                )
+            ).first()
+            all_phot = session.scalars(
+                sa.select(Photometry).where(Photometry.obj_id == obj_id)
+            ).all()
+            stat.full_update(all_phot)
+
+            session.commit()
+            return self.success(f"Deleted {n} photometry point(s) of {obj_id}.")
+
 
 class BulkDeletePhotometryHandler(BaseHandler):
     @permissions(["Upload data"])
@@ -1434,7 +1485,7 @@ class BulkDeletePhotometryHandler(BaseHandler):
                 stat.full_update(all_phot)
 
             session.commit()
-            return self.success(f"Deleted {n} photometry points.")
+            return self.success(f"Deleted {n} photometry point(s).")
 
 
 class PhotometryRangeHandler(BaseHandler):
