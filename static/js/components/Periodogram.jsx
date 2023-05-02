@@ -10,11 +10,11 @@ import InputLabel from "@mui/material/InputLabel";
 import CircularProgress from "@mui/material/CircularProgress";
 import FormControl from "@mui/material/FormControl";
 import Slider from "@mui/material/Slider";
-import Input from "@mui/material/Input";
 import Grid from "@mui/material/Grid";
 import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
 import Typography from "@mui/material/Typography";
+import TextField from "@mui/material/TextField";
 import Dygraph from "dygraphs";
 import { showNotification } from "baselayer/components/Notifications";
 
@@ -90,6 +90,7 @@ function GLS(t_data_uf, y_data_uf, kwa) {
   const kwargs = kwa || {};
   const ofac = kwargs.ofac || 20;
   const twopi = 2.0 * Math.PI;
+  const nmax = kwargs.nmax || 3e5;
   let C;
   let D;
   let S;
@@ -165,13 +166,14 @@ function GLS(t_data_uf, y_data_uf, kwa) {
     quantileSeq(diffs, 0.75, false),
     0.05 * ofac
   );
+
   let fbeg = parseFloat(kwargs.fbeg || (df * ofac) / 2);
   let fend = parseFloat(kwargs.fend || (0.5 * ofac) / delta_t);
   let nf = Math.floor((fend - fbeg) / df) + 1; // size of frequency grid
 
   // ensure that we're only doing as many as 300,000 calculations (~<5 seconds)
   // bump down the frequency binning (df) and shrink the start and ending limits
-  while (nf > 3e5) {
+  while (nf > nmax) {
     df *= 1.05;
     fbeg *= 1.25;
     fend /= 1.05;
@@ -227,7 +229,7 @@ function GLS(t_data_uf, y_data_uf, kwa) {
 
 const Periodogram = () => {
   const classes = useStyles();
-  const { handleSubmit, control } = useForm();
+  const { handleSubmit, control, register } = useForm();
   const { id } = useParams();
   const dispatch = useDispatch();
   const photometry = useSelector((state) => state.photometry[id]);
@@ -247,6 +249,9 @@ const Periodogram = () => {
     instrument: null,
     filter: null,
     ofac: "20",
+    nmax: 300000,
+    fmin: null,
+    fmax: null,
   });
 
   const dataplotRef = useRef();
@@ -398,8 +403,9 @@ const Periodogram = () => {
         const gls = GLS(ftimes, fmag, {
           e_y: fmagerr,
           ofac: parseInt(params.ofac, 20),
-          fbeg: null,
-          fend: null,
+          fbeg: parseFloat(params.fmin),
+          fend: parseFloat(params.fmax),
+          nmax: parseFloat(params.nmax),
           ls: null,
         });
 
@@ -463,8 +469,6 @@ const Periodogram = () => {
     setPlotted(false);
     setRun(false);
   };
-
-  const rules = { required: true, min: 1, max: 25, type: "number", step: 1 };
 
   function copyPeriod() {
     try {
@@ -636,20 +640,81 @@ const Periodogram = () => {
                           </Grid>
                           <Grid item xs={12}>
                             <FormControl>
-                              <InputLabel
-                                className={classes.items}
-                                id="OFACSelect"
-                              >
-                                ofac
-                              </InputLabel>
                               <Controller
-                                render={() => (
-                                  <Input type="number" rules={rules} />
+                                render={({ field: { onChange, value } }) => (
+                                  <TextField
+                                    size="small"
+                                    label="Oversampling Factor"
+                                    name="ofac"
+                                    type="number"
+                                    inputRef={register("ofac")}
+                                    className={classes.items}
+                                    onChange={onChange}
+                                    value={value}
+                                  />
                                 )}
                                 name="ofac"
                                 control={control}
-                                defaultValue={params.ofac || "20"}
-                                className={classes.items}
+                              />
+                            </FormControl>
+                          </Grid>
+                          <Grid item xs={12}>
+                            <FormControl>
+                              <Controller
+                                render={({ field: { onChange, value } }) => (
+                                  <TextField
+                                    size="small"
+                                    label="Maximum number of frequencies"
+                                    name="nmax"
+                                    type="number"
+                                    inputRef={register("nmax")}
+                                    className={classes.items}
+                                    onChange={onChange}
+                                    value={value}
+                                  />
+                                )}
+                                name="nmax"
+                                control={control}
+                              />
+                            </FormControl>
+                          </Grid>
+                          <Grid item xs={12}>
+                            <FormControl>
+                              <Controller
+                                render={({ field: { onChange, value } }) => (
+                                  <TextField
+                                    size="small"
+                                    label="Minimum Frequency [1/day]"
+                                    name="fmin"
+                                    type="number"
+                                    inputRef={register("fmin")}
+                                    className={classes.items}
+                                    onChange={onChange}
+                                    value={value}
+                                  />
+                                )}
+                                name="fmin"
+                                control={control}
+                              />
+                            </FormControl>
+                          </Grid>
+                          <Grid item xs={12}>
+                            <FormControl>
+                              <Controller
+                                render={({ field: { onChange, value } }) => (
+                                  <TextField
+                                    size="small"
+                                    label="Maximum Frequency [1/day]"
+                                    name="fmax"
+                                    type="number"
+                                    inputRef={register("fmax")}
+                                    className={classes.items}
+                                    onChange={onChange}
+                                    value={value}
+                                  />
+                                )}
+                                name="fmax"
+                                control={control}
                               />
                             </FormControl>
                           </Grid>
@@ -657,7 +722,7 @@ const Periodogram = () => {
                             <Button
                               primary
                               type="submit"
-                              name="finderButton"
+                              name="periodogramButton"
                               className={classes.button}
                             >
                               Recalculate
