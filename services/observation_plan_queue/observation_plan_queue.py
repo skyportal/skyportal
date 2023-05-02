@@ -4,6 +4,7 @@ import time
 from copy import deepcopy
 from threading import Thread
 
+import arrow
 import requests
 import tornado.escape
 import tornado.ioloop
@@ -17,7 +18,7 @@ from skyportal.handlers.api.observation_plan import (
     post_observation_plans,
     post_survey_efficiency_analysis,
 )
-from skyportal.models import DBSession
+from skyportal.models import DBSession, Allocation
 
 env, cfg = load_env()
 log = make_log('observation_plan_queue')
@@ -32,16 +33,148 @@ request_session.trust_env = (
 queue = []
 
 
+def prioritize_queue(queue, session):
+    try:
+        if (
+            len(queue) == 1
+        ):  # if there is only one plan in the queue, no need to prioritize
+            return 0
+
+        telescopeAllocationLookup = {}
+        allocationByPlanLookup = {}
+
+        # we create 2 lookups to avoid repeating some operations like getting the morning and evening for a telescope
+        for ii, (
+            plans,
+            survey_efficiencies,
+            combine_plans,
+            default_plan,
+            user_id,
+        ) in enumerate(queue):
+            for plan in plans:
+                allocation_id = plan.get("allocation_id", None)
+                if ii not in allocationByPlanLookup.keys():
+                    allocationByPlanLookup[ii] = [
+                        {
+                            "allocation_id": allocation_id,
+                            "start_date": plan.get("payload", {}).get(
+                                "start_date", None
+                            ),
+                        }
+                    ]
+                else:
+                    allocationByPlanLookup[ii].append(
+                        {
+                            "allocation_id": allocation_id,
+                            "start_date": plan.get("payload", {}).get(
+                                "start_date", None
+                            ),
+                        }
+                    )
+                if allocation_id not in telescopeAllocationLookup:
+                    allocation = session.query(Allocation).get(allocation_id)
+                    telescope = allocation.instrument.telescope
+
+                    telescopeAllocationLookup[allocation_id] = telescope.current_time
+
+        # now we loop over the plans. For plans with multiple plans we pick the allocation with the earliest start date and morning time
+        # at the same time, we pick the plan to prioritize
+        plan_with_priority = None
+        for plan_id, allocationsAndStartDate in allocationByPlanLookup.items():
+            if plan_with_priority is None:
+                plan_with_priority = {
+                    "plan_id": plan_id,
+                    "morning": telescopeAllocationLookup[
+                        allocationsAndStartDate[0]["allocation_id"]
+                    ]["morning"],
+                    "start_date": allocationsAndStartDate[0]["start_date"],
+                }
+            earliest = None
+            for allocationAndStartDate in allocationsAndStartDate:
+                # find the plan
+                if earliest is None:
+                    earliest = allocationAndStartDate
+                    continue
+                if (
+                    telescopeAllocationLookup[allocationAndStartDate["allocation_id"]][
+                        "morning"
+                    ]
+                    is False
+                ):
+                    continue
+                start_date = allocationAndStartDate["start_date"]
+                if start_date is None:
+                    continue
+                start_date = arrow.get(start_date).datetime
+                if (
+                    start_date
+                    > telescopeAllocationLookup[
+                        allocationAndStartDate["allocation_id"]
+                    ]["morning"]
+                ):
+                    continue
+                if (
+                    telescopeAllocationLookup[earliest["allocation_id"]]["morning"]
+                    is False
+                ):
+                    earliest = allocationAndStartDate
+                    continue
+                if (
+                    telescopeAllocationLookup[allocationAndStartDate["allocation_id"]][
+                        "morning"
+                    ]
+                    < telescopeAllocationLookup[earliest["allocation_id"]]["morning"]
+                ):
+                    earliest = allocation
+                    continue
+            allocationByPlanLookup[plan_id] = [earliest]
+
+            # check if that plan is more urgent than the current plan_with_priority
+            if telescopeAllocationLookup[earliest["allocation_id"]]["morning"] is None:
+                continue
+            if plan_with_priority["morning"] is None:
+                plan_with_priority = {
+                    "plan_id": plan_id,
+                    "morning": telescopeAllocationLookup[earliest["allocation_id"]][
+                        "morning"
+                    ],
+                    "start_date": earliest["start_date"],
+                }
+                continue
+            if (
+                telescopeAllocationLookup[earliest["allocation_id"]]["morning"]
+                <= plan_with_priority["morning"]
+                and earliest["start_date"] < plan_with_priority["start_date"]
+            ):
+                plan_with_priority = {
+                    "plan_id": plan_id,
+                    "morning": telescopeAllocationLookup[earliest["allocation_id"]][
+                        "morning"
+                    ],
+                    "start_date": earliest["start_date"],
+                }
+                continue
+
+        return plan_with_priority["plan_id"]
+    except Exception as e:
+        log(f"Error occured prioritizing the observation plan queue: {e}")
+        return 0
+
+
 def service(queue):
     while True:
         if len(queue) == 0:
-            time.sleep(1)
+            time.sleep(2)
             continue
 
-        plans, survey_efficiencies, combine_plans, default_plan, user_id = queue[0]
-        plan_ids = []
-
         with DBSession() as session:
+            queue_copy = deepcopy(queue)
+            index = prioritize_queue(queue_copy, session)
+
+            plans, survey_efficiencies, combine_plans, default_plan, user_id = queue[
+                index
+            ]
+            plan_ids = []
             try:
                 if len(plans) == 1:
                     plan_id = post_observation_plan(
@@ -87,7 +220,7 @@ def service(queue):
                     except Exception as e:
                         log(f"Survey efficiency analysis failed: {str(e)}")
 
-        queue.pop(0)
+            queue.pop(index)
 
 
 def api(queue):
@@ -176,10 +309,35 @@ def api(queue):
                             }
                         )
 
-            try:
-                queue.append(
-                    [plans, survey_efficiencies, combine_plans, default_plan, user_id]
-                )
+                    # if there is a plan that has the same values for all the keys in the payload, then it is a duplicate
+                    if any(
+                        plan.get("payload", {}) == plan_in_queue.get("payload", {})
+                        for plan_in_queue in plans_in_queue[0]
+                    ):
+                        self.set_status(400)
+                        return self.write(
+                            {
+                                "status": "error",
+                                "message": "An observation plan with the same parameters is already being processed.",
+                            }
+                        )
+
+            # if there is more than one plan and combine plan is false, then we add the plans to the queue one by one
+            if len(plans) > 1 and combine_plans is False:
+                for plan in plans:
+                    try:
+                        queue.append(
+                            [[plan], survey_efficiencies, False, default_plan, user_id]
+                        )
+                    except Exception as e:
+                        log(f"Error submitting observation plan: {str(e)}")
+                        self.set_status(400)
+                        return self.write(
+                            {
+                                "status": "error",
+                                "message": "Error processing observation plan",
+                            }
+                        )
 
                 self.set_status(200)
                 return self.write(
@@ -189,15 +347,35 @@ def api(queue):
                         "data": {"queue_length": len(queue)},
                     }
                 )
-            except Exception as e:
-                log(f"Error submitting observation plan(s): {str(e)}")
-                self.set_status(400)
-                return self.write(
-                    {
-                        "status": "error",
-                        "message": "Error processing observation plan(s)",
-                    }
-                )
+            else:
+                try:
+                    queue.append(
+                        [
+                            plans,
+                            survey_efficiencies,
+                            combine_plans,
+                            default_plan,
+                            user_id,
+                        ]
+                    )
+
+                    self.set_status(200)
+                    return self.write(
+                        {
+                            "status": "success",
+                            "message": "Observation plan(s) accepted into queue",
+                            "data": {"queue_length": len(queue)},
+                        }
+                    )
+                except Exception as e:
+                    log(f"Error submitting observation plan(s): {str(e)}")
+                    self.set_status(400)
+                    return self.write(
+                        {
+                            "status": "error",
+                            "message": "Error processing observation plan(s)",
+                        }
+                    )
 
     app = tornado.web.Application([(r"/", QueueHandler)])
     try:
