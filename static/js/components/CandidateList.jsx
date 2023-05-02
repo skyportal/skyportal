@@ -727,8 +727,10 @@ const CandidateList = () => {
 
   useEffect(() => {
     // Grab the available annotation fields for filtering
-    dispatch(candidatesActions.fetchAnnotationsInfo());
-  }, [dispatch]);
+    if (!availableAnnotationsInfo) {
+      dispatch(candidatesActions.fetchAnnotationsInfo());
+    }
+  }, [dispatch, availableAnnotationsInfo]);
 
   useEffect(() => {
     if (defaultScanningProfile?.sortingOrder) {

@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { useSelector, useDispatch } from "react-redux";
+import React, { useState } from "react";
+import { useSelector } from "react-redux";
 import PropTypes from "prop-types";
 
 import IconButton from "@mui/material/IconButton";
@@ -18,7 +18,6 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import Button from "./Button";
 
-import * as candidatesActions from "../ducks/candidates";
 import { allowedClasses } from "./ClassificationForm";
 import ScanningProfilesList from "./ScanningProfilesList";
 import CandidatesPreferencesForm from "./CandidatesPreferencesForm";
@@ -48,14 +47,6 @@ const CandidatesPreferences = ({
     (state) => state.candidates.annotationsInfo
   );
   const classes = useStyles();
-  const dispatch = useDispatch();
-
-  useEffect(() => {
-    // Grab the available annotation fields for filtering
-    if (!availableAnnotationsInfo) {
-      dispatch(candidatesActions.fetchAnnotationsInfo());
-    }
-  }, [dispatch, availableAnnotationsInfo]);
 
   const userAccessibleGroups = useSelector(
     (state) => state.groups.userAccessible
