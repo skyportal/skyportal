@@ -23,6 +23,19 @@ def array_to_bytes(array):
     return b.getvalue()
 
 
+def dict_to_bytes(dictionary):
+    """Convert dict to bytes (for use w/ caching infrastructure).
+
+    Parameters
+    ----------
+    dictionary : dict
+        Dictionary to be converted to bytes
+    """
+    b = io.BytesIO()
+    np.save(b, dictionary, allow_pickle=True)
+    return b.getvalue()
+
+
 class Cache:
     def __init__(self, cache_dir, max_items=None, max_age=None):
         """

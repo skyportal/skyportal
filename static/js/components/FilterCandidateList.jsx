@@ -136,12 +136,6 @@ const FilterCandidateList = ({
     (state) => state.candidates.annotationsInfo
   );
   const dispatch = useDispatch();
-  useEffect(() => {
-    // Grab the available annotation fields for filtering
-    if (!availableAnnotationsInfo) {
-      dispatch(candidatesActions.fetchAnnotationsInfo());
-    }
-  }, [dispatch, availableAnnotationsInfo]);
 
   const { scanningProfiles, useAMPM } = useSelector(
     (state) => state.profile.preferences
