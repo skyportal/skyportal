@@ -155,6 +155,8 @@ app:
       component: ShiftNoId
     - path: "/shifts/:id"
       component: ShiftWithId
+    - path: "/summary_search"
+      component: SummarySearch
     - path: "/taxonomies"
       component: TaxonomyPage
 
@@ -197,6 +199,10 @@ app:
         - name: Shifts
           icon: SubwayRounded
           url: /shifts
+
+        - name: Summary Search
+          icon: Troubleshoot
+          url: /summary_search
 
         - name: About
           icon: Info

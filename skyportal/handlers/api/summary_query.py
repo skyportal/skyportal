@@ -111,7 +111,7 @@ else:
 
 class SummaryQueryHandler(BaseHandler):
     @auth_or_token
-    def get(self):
+    def post(self):
         """
         ---
         description: Get a list of sources with summaries matching the query
