@@ -109,13 +109,17 @@ def add_user_notifications(mapper, connection, target):
 
         IOLoop.current().run_in_executor(
             None,
-            lambda: post_notification(notifications_microservice_url, request_body),
+            lambda: post_notification(
+                notifications_microservice_url, request_body, timeout=30
+            ),
         )
 
 
-def post_notification(notifications_microservice_url, request_body):
+def post_notification(notifications_microservice_url, request_body, timeout=2):
 
-    resp = requests.post(notifications_microservice_url, json=request_body, timeout=2)
+    resp = requests.post(
+        notifications_microservice_url, json=request_body, timeout=timeout
+    )
     if resp.status_code != 200:
         log(
             f'Notification request failed for {request_body["target_class_name"]} with ID {request_body["target_id"]}: {resp.content}'
