@@ -9,6 +9,8 @@ import Box from "@mui/material/Box";
 import { Link } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import emoji from "emoji-dictionary";
+import LoadingButton from "@mui/lab/LoadingButton";
+import { showNotification } from "baselayer/components/Notifications";
 
 import Typography from "@mui/material/Typography";
 import CircularProgress from "@mui/material/CircularProgress";
@@ -31,6 +33,15 @@ const useStyles = makeStyles((theme) => ({
     margin: theme.spacing(0.5),
     fontSize: "1.2rem",
     fontWeight: "bold",
+  },
+  button: {
+    width: "100%",
+  },
+  buttons: {
+    display: "flex",
+    flexDirection: "row",
+    width: "100%",
+    gap: theme.spacing(2),
   },
   source: {},
   commentListContainer: {
@@ -66,15 +77,17 @@ const SummarySearch = () => {
   });
   classifications = Array.from(new Set(classifications)).sort();
 
-  const handleSubmit = ({ fd }) => {
+  const handleSubmit = () => {
     setRunningQuery(true);
     setQueryResult(null);
-    dispatch(summaryActions.fetchSummaryQuery(fd)).then((response) => {
+    dispatch(summaryActions.fetchSummaryQuery(formData)).then((response) => {
       if (response.status === "success") {
         setQueryResult(response.data);
+      } else {
+        dispatch(showNotification("Error querying summaries", "error"));
       }
+      setRunningQuery(false);
     });
-    setRunningQuery(false);
   };
 
   const emojiSupport = (textComment) =>
@@ -89,38 +102,59 @@ const SummarySearch = () => {
         type: "string",
         title: "Query",
       },
-      k: {
-        type: "integer",
-        title: "(Optional) Number of sources to return",
-        default: 5,
-        minimum: 1,
-        maximum: 25,
-        multipleOf: 1,
-      },
-      classificationTypes: {
-        type: ["array", "null"],
-        title: "(Optional) Return sources only with these classifications",
-        items: {
-          type: "string",
-          enum: classifications,
-        },
-        uniqueItems: true,
-      },
-      z_min: {
-        type: ["number", "null"],
-        title: "(Optional) Min redshift (can be null)",
-      },
-      z_max: {
-        type: ["number", "null"],
-        title: "(Optional) Max redshift (can be null)",
+      toggleA: {
+        type: "boolean",
+        title: "Show/Hide Options",
       },
     },
-    required: ["q", "k"],
+    dependencies: {
+      toggleA: {
+        oneOf: [
+          {
+            properties: {
+              toggleA: { enum: [true] },
+              k: {
+                type: "integer",
+                title: "(Optional) Number of sources to return",
+                default: 5,
+                minimum: 1,
+                maximum: 25,
+                multipleOf: 1,
+              },
+              classificationTypes: {
+                type: ["array", "null"],
+                title:
+                  "(Optional) Return sources only with these classifications",
+                items: {
+                  type: "string",
+                  enum: classifications,
+                },
+                uniqueItems: true,
+              },
+              z_min: {
+                type: ["number", "null"],
+                title: "(Optional) Min redshift (can be null)",
+              },
+              z_max: {
+                type: ["number", "null"],
+                title: "(Optional) Max redshift (can be null)",
+              },
+            },
+            required: [],
+          },
+          {
+            properties: {
+              toggleA: { enum: [false] },
+            },
+          },
+        ],
+      },
+    },
+    required: ["q"],
   };
 
   const uiSchema = {
     q: {
-      "ui:widget": "textarea",
       "ui:autofocus": true,
       "ui:placeholder": "What sources are associated with NGC galaxies?",
       "ui:help": "Natural language query of the sources summaries.",
@@ -184,13 +218,21 @@ const SummarySearch = () => {
             data-testid="searchform"
             onSubmit={handleSubmit}
             formData={formData}
-            onChange={({ fd }) => setFormData(fd)}
+            onChange={(e) => setFormData(e.formData)}
             customValidate={validate}
           >
-            <div>
-              <Button primary disabled={runningQuery} type="submit">
+            <div className={classes.buttons}>
+              <LoadingButton
+                loading={runningQuery}
+                disabled={runningQuery}
+                loadingPosition="end"
+                variant="contained"
+                className={classes.button}
+                type="submit"
+                primary
+              >
                 Submit
-              </Button>
+              </LoadingButton>
               <Button
                 secondary
                 disabled={runningQuery}
@@ -204,7 +246,19 @@ const SummarySearch = () => {
         </Paper>
       </Grid>
       <Grid item sx={12}>
-        {runningQuery ? <CircularProgress /> : null}
+        {runningQuery && (
+          <div
+            style={{
+              display: "flex",
+              width: "100%",
+              height: "100%",
+              justifyContent: "center",
+              alignItems: "center",
+            }}
+          >
+            <CircularProgress />
+          </div>
+        )}
         {!runningQuery && queryResult ? (
           <Table>
             <TableHead>
