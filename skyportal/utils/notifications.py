@@ -90,10 +90,7 @@ def gcn_notification_content(target, session):
     }
 
 
-def gcn_slack_notification(target, session=None, data=None):
-
-    if data is None:
-        data = gcn_notification_content(session, target, app_url)
+def gcn_slack_notification(target, data=None):
 
     # Now, we will create json that describes the message we want to send to slack (and how to display it)
     # We will use the slack blocks API, which is a bit more complicated than the simple message API, but allows for more flexibility
@@ -131,10 +128,7 @@ def gcn_slack_notification(target, session=None, data=None):
     return blocks
 
 
-def gcn_email_notification(target, session=None, data=None):
-
-    if data is None:
-        data = gcn_notification_content(session, target, app_url)
+def gcn_email_notification(target, data=None):
 
     # Now, we will create an HTML email that describes the message we want to send by email
 
@@ -202,7 +196,7 @@ def source_notification_content(classification):
     return data
 
 
-def source_slack_notification(target, session=None, data=None):
+def source_slack_notification(target, data=None):
 
     # Now, we will create json that describes the message we want to send to slack (and how to display it)
     # We will use the slack blocks API, which is a bit more complicated than the simple message API, but allows for more flexibility
@@ -259,7 +253,7 @@ def source_slack_notification(target, session=None, data=None):
     ]
 
 
-def source_email_notification(target, session=None, data=None):
+def source_email_notification(target, data=None):
     # Now, we will create an HTML email that describes the message we want to send by email
 
     header_text = f"<h3>New {data['classification_name']}: <a href='{app_url}{target['url']}'>{data['source_name']}</a></h3>"
