@@ -483,7 +483,6 @@ services:
 misc:
   days_to_keep_unsaved_candidates: 7
   minutes_to_keep_candidate_query_cache: 60
-  minutes_to_keep_annotations_info_query_cache: 360
   minutes_to_keep_localization_instrument_query_cache: 1440
   max_items_in_localization_instrument_query_cache: 100
   public_group_name: "Sitewide Group"
@@ -706,7 +705,7 @@ analysis_services:
       # Get a global key at:
       #   https://platform.openai.com/account/api-keys
       api_key:
-      temperature: 0.2
+      temperature: 0.3
       max_tokens: 350
       top_p: 1.0
       frequency_penalty: 0.0
@@ -743,3 +742,17 @@ colors:
       "GRB": "#f89406",
       "AMON": "#3a87ad",
     }
+
+  summary_sources:
+  - score: 0.9
+    fw: bold
+    col: green
+  - score: 0.8
+    fw: bold
+    col: black
+  - score: 0.7
+    fw: normal
+    col: black
+  - score: 0.0
+    fw: normal
+    col: grey
