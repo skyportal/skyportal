@@ -60,6 +60,9 @@ const useStyles = makeStyles((theme) => ({
 
 const SummarySearch = () => {
   const classes = useStyles();
+  const summary_sources_classes = useSelector(
+    (state) => state.config.summary_sourcesClasses
+  );
   const dispatch = useDispatch();
   const [queryResult, setQueryResult] = useState(null);
   const [runningQuery, setRunningQuery] = useState(false);
@@ -119,7 +122,6 @@ const SummarySearch = () => {
                 default: 5,
                 minimum: 1,
                 maximum: 25,
-                multipleOf: 1,
               },
               classificationTypes: {
                 type: ["array", "null"],
@@ -274,16 +276,17 @@ const SummarySearch = () => {
               {queryResult.query_results?.map((source) => {
                 let fw = "normal";
                 let col = "grey";
-                if (source.score > 0.9) {
-                  fw = "bold";
-                  col = "green";
-                } else if (source.score > 0.8) {
-                  fw = "bold";
-                  col = "black";
-                } else if (source.score > 0.7) {
-                  fw = "normal";
-                  col = "black";
-                }
+                // set the font weight and color based on the score
+                // using the summary_sources_classes list
+                summary_sources_classes.every((tc) => {
+                  if (source.score >= tc.score) {
+                    fw = tc.fw;
+                    col = tc.col;
+                    return false;
+                  }
+                  return true;
+                });
+
                 return (
                   <TableRow key={`query_${source.id}`}>
                     <TableCell>
