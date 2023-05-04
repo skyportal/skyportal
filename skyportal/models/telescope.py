@@ -312,6 +312,6 @@ class Telescope(Base):
 
         return {
             "is_night_astronomical": is_night_astronomical,
-            "next_twilight_morning_astronomical": morning,
-            "next_twilight_evening_astronomical": evening,
+            "morning": morning,
+            "evening": evening,
         }

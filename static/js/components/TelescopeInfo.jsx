@@ -289,15 +289,15 @@ const TelescopeInfo = ({ search, searchedTelescopeList }) => {
         {telescope.fixed_location && (
           <div className={classes.telescope_time} key={`${telescope.id}_time`}>
             <i>
-              {telescope.next_twilight_morning_astronomical &&
-                `Next Sunrise (Astronomical): ${telescope.next_twilight_morning_astronomical.slice(
+              {telescope.morning &&
+                `Next Sunrise (Astronomical): ${telescope.morning.slice(
                   0,
                   -4
                 )} UTC`}
             </i>
             <i>
-              {telescope.next_twilight_evening_astronomical &&
-                `Next Sunset (Astronomical): ${telescope.next_twilight_evening_astronomical.slice(
+              {telescope.evening &&
+                `Next Sunset (Astronomical): ${telescope.evening.slice(
                   0,
                   -4
                 )} UTC`}
