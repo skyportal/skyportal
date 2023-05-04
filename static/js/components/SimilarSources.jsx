@@ -47,22 +47,25 @@ const SimilarSources = ({ source, min_score = 0.9, k = 3 }) => {
           >
             <b>Similar Sources: &nbsp;</b>
           </Tooltip>
-          {simSourceList.map((item) => (
-            <span key={item.id}>
-              <Tooltip
-                title={`s=${item.score.toFixed(
-                  3
-                )} z=${item.metadata?.redshift.toFixed(3)} ${
-                  item.metadata?.class
-                }`}
-              >
-                <Link to={`/source/${item.id}`} role="link" key={item.id}>
-                  {item.id}
-                </Link>
-              </Tooltip>
-              &nbsp;&nbsp;
-            </span>
-          ))}
+          {simSourceList.map((item) => {
+            let theTitle = `s=${item.score?.toFixed(3)}`;
+            if (item.metadata?.redshift) {
+              theTitle += ` z=${item.metadata?.redshift?.toFixed(3)}`;
+            }
+            if (item.metadata?.class) {
+              theTitle += ` ${item.metadata?.class}`;
+            }
+            return (
+              <span key={item.id}>
+                <Tooltip title={theTitle}>
+                  <Link to={`/source/${item.id}`} role="link" key={item.id}>
+                    {item.id}
+                  </Link>
+                </Tooltip>
+                &nbsp;&nbsp;
+              </span>
+            );
+          })}
         </div>
       )}
     </>
