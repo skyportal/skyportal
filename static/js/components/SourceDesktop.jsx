@@ -38,6 +38,7 @@ import AssignmentList from "./AssignmentList";
 import SourceNotification from "./SourceNotification";
 import DisplayPhotStats from "./DisplayPhotStats";
 import EditSourceGroups from "./EditSourceGroups";
+import SimilarSources from "./SimilarSources";
 import UpdateSourceCoordinates from "./UpdateSourceCoordinates";
 import UpdateSourceRedshift from "./UpdateSourceRedshift";
 import UpdateSourceSummary from "./UpdateSourceSummary";
@@ -328,6 +329,7 @@ const SourceDesktop = ({ source }) => {
             <div key="aliases"> {source.alias.join(", ")} </div>
           </div>
         ) : null}
+
         {associatedGCNs?.length > 0 ? (
           <div className={classes.infoLine}>
             <b>Associated to: &nbsp;</b>
@@ -431,6 +433,13 @@ const SourceDesktop = ({ source }) => {
               </div>
             </div>
           )}
+          {source.summary_history?.length > 0 ? (
+            <div className={classes.infoLine}>
+              <div className={classes.sourceInfo}>
+                <SimilarSources source={source} min_score={0.9} k={3} />
+              </div>
+            </div>
+          ) : null}
           <div>
             <SourcePlugins source={source} />
           </div>

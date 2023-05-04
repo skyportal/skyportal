@@ -7,7 +7,7 @@ def test_bad_queries(view_only_token):
     query_data = {}
     status, data = api('POST', 'summary_query', data=query_data, token=view_only_token)
     assert status == 400
-    assert data["message"].find("Missing required query string") != -1
+    assert data["message"].find("Missing one of the required") != -1
 
     # bad z range
     query_data = {
@@ -24,3 +24,12 @@ def test_bad_queries(view_only_token):
     status, data = api('POST', 'summary_query', data=query_data, token=view_only_token)
     assert status == 400
     assert data["message"].find("k must be 1<=k<=100") != -1
+
+    # send both a query and objID
+    query_data = {
+        'q': 'Test query. This is my test query on the sources?',
+        'obj_id': 'ZTF20abm',
+    }
+    status, data = api('POST', 'summary_query', data=query_data, token=view_only_token)
+    assert status == 400
+    assert data["message"].find("Cannot specify both") != -1

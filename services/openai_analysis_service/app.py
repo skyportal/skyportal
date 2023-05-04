@@ -253,6 +253,7 @@ def run_openai_summarization(data_dict):
     openai_summary = response["choices"][0]["message"]["content"]
 
     # remove dislaimers & newlines
+    openai_summary = openai_summary.replace("Based on the given information, it", "It")
     sentences = openai_summary.split(". ")
     temp_summary = []
     for s in sentences:
