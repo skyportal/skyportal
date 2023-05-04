@@ -122,10 +122,17 @@ class SummaryQueryHandler(BaseHandler):
           name: q
           schema:
               type: string
-          required: true
           description: |
               The query string. E.g. "What sources are associated with
               an NGC galaxy?"
+        - in: query
+          name: objID
+          schema:
+              type: string
+          description: |
+              The objID of the source which has a summary to be used as the query.
+              That is, return the list of sources most similar to the summary of
+                this source. Ignored if q is provided.
         - in: query
           name: k
           schema:
@@ -213,8 +220,13 @@ class SummaryQueryHandler(BaseHandler):
 
         data = self.get_json()
         query = data.get('q')
-        if query in [None, '']:
-            return self.error('Missing required query string "q"')
+        objID = data.get('objID')
+        if query in [None, ''] and objID in [None, '']:
+            return self.error('Missing one of the required: "q" or "objID"')
+        if query is not None and objID is not None:
+            return self.error('Cannot specify both "q" and "objID"')
+
+        search_by_string = query not in [None, '']
         k = data.get('k', 5)
         if k < 1 or k > 100:
             return self.error('k must be 1<=k<=100')
@@ -249,22 +261,39 @@ class SummaryQueryHandler(BaseHandler):
         else:
             filt = {}
 
-        try:
-            embeddings = OpenAIEmbeddings(
-                model=summarize_embedding_model,
-                embedding_ctx_length=summarize_embedding_index_size,
-                openai_api_key=user_openai_key,
-            )
-            docsearch = Pinecone.from_existing_index(
-                summarize_embedding_index_name, embeddings, text_key="summary"
-            )
-        except Exception as e:
-            return self.error(f'Could not load embeddings or pinecone index: {e}')
+        if search_by_string:
+            try:
+                embeddings = OpenAIEmbeddings(
+                    model=summarize_embedding_model,
+                    embedding_ctx_length=summarize_embedding_index_size,
+                    openai_api_key=user_openai_key,
+                )
+                docsearch = Pinecone.from_existing_index(
+                    summarize_embedding_index_name, embeddings, text_key="summary"
+                )
+            except Exception as e:
+                return self.error(f'Could not load embeddings or pinecone index: {e}')
 
-        # get the top k sources
-        try:
-            results = docsearch.search_sources(query, k=k, filter=filt)
-        except Exception as e:
-            return self.error(f'Could not search sources: {e}')
+            # get the top k sources
+            try:
+                results = docsearch.search_sources(query, k=k, filter=filt)
+            except Exception as e:
+                return self.error(f'Could not search sources: {e}')
+        else:
+            # search by objID. Will return an empty list if objID not in
+            # vector database.
+            try:
+                index = pinecone.Index(summarize_embedding_index_name)
+                query_response = index.query(
+                    top_k=k,
+                    index=summarize_embedding_index_name,
+                    include_values=False,
+                    include_metadata=True,
+                    id=objID,
+                    filter=filt,
+                )
+                results = query_response.get("matches", [])
+            except Exception as e:
+                return self.error(f'Could not query index: {e}')
 
         return self.success(data={'query_results': results})
