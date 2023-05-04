@@ -155,6 +155,8 @@ app:
       component: ShiftNoId
     - path: "/shifts/:id"
       component: ShiftWithId
+    - path: "/summary_search"
+      component: SummarySearch
     - path: "/taxonomies"
       component: TaxonomyPage
 
@@ -197,6 +199,10 @@ app:
         - name: Shifts
           icon: SubwayRounded
           url: /shifts
+
+        - name: Summary Search
+          icon: Troubleshoot
+          url: /summary_search
 
         - name: About
           icon: Info
@@ -700,7 +706,7 @@ analysis_services:
       # Get a global key at:
       #   https://platform.openai.com/account/api-keys
       api_key:
-      temperature: 0.2
+      temperature: 0.3
       max_tokens: 350
       top_p: 1.0
       frequency_penalty: 0.0
@@ -737,3 +743,17 @@ colors:
       "GRB": "#f89406",
       "AMON": "#3a87ad",
     }
+
+  summary_sources:
+  - score: 0.9
+    fw: bold
+    col: green
+  - score: 0.8
+    fw: bold
+    col: black
+  - score: 0.7
+    fw: normal
+    col: black
+  - score: 0.0
+    fw: normal
+    col: grey

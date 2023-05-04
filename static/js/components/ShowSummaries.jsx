@@ -52,7 +52,7 @@ const ShowSummaries = ({ summaries = [] }) => {
           <div className={styles.compactWrap}>
             <ReactMarkdown
               escapeHtml={false}
-              renderers={{ text: emojiSupport }}
+              components={{ text: emojiSupport }}
             >
               {renderCommentText()}
             </ReactMarkdown>
