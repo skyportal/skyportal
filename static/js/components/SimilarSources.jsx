@@ -36,7 +36,7 @@ const SimilarSources = ({ source, min_score = 0.9, k = 3 }) => {
       }
       // Don't show an error if the query fails, just don't show any similar sources
     });
-  }, [source]);
+  }, [dispatch, source, k, min_score]);
 
   return (
     <>
