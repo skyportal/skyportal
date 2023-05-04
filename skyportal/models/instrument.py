@@ -381,6 +381,32 @@ class Instrument(Base):
         count_stmt = sa.select(func.count()).select_from(stmt.distinct())
         return DBSession().execute(count_stmt).scalar()
 
+    @property
+    def region_summary(self):
+        region_summary = ""
+        if not self.has_region:
+            return region_summary
+
+        if "box" in self.region:
+            regionSplit = (
+                self.region.split("box")[-1].replace("box(", "").replace(")", "")
+            )
+            boxSplit = regionSplit.split(",")
+            width = float(boxSplit[2])
+            height = float(boxSplit[3])
+            region_summary = f"Rectangle [width, height]: {width, height}"
+        elif "circle" in self.region:
+            regionSplit = (
+                self.region.split("circle")[-1].replace("circle(", "").replace(")", "")
+            )
+            circleSplit = regionSplit.split(",")
+            radius = float(circleSplit[2])
+            region_summary = f"Circle [radius]: {radius}"
+        elif "polygon" in self.region:
+            region_summary = f"Polygon [num. fields]: {self.region.count('polygon')}"
+
+        return region_summary
+
     has_fields = sa.Column(
         sa.Boolean,
         nullable=False,

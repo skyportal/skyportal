@@ -168,7 +168,7 @@ const InstrumentTable = ({
   const renderRegion = (dataIndex) => {
     const instrument = instruments[dataIndex];
 
-    return <div>{instrument ? instrument.has_region.toString() : ""}</div>;
+    return <div>{instrument ? instrument.region_summary : ""}</div>;
   };
 
   const renderFields = (dataIndex) => {

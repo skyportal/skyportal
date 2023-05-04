@@ -550,11 +550,13 @@ class InstrumentHandler(BaseHandler):
             if inst_name is not None:
                 stmt = stmt.filter(Instrument.name == inst_name)
             instruments = session.scalars(stmt).all()
+
             data = [
                 {
                     **instrument.to_dict(),
                     'telescope': instrument.telescope.to_dict(),
                     'number_of_fields': instrument.number_of_fields,
+                    'region_summary': instrument.region_summary,
                 }
                 for instrument in instruments
             ]
