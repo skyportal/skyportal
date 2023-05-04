@@ -27,6 +27,7 @@ all_acl_ids = [
     'Delete taxonomy',
     'Delete instrument',
     'Delete telescope',
+    'Delete bulk photometry',
     'Classify',
 ] + [c.get_acl_id() for c in LISTENER_CLASSES]
 

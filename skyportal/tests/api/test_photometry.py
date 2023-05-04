@@ -2886,3 +2886,68 @@ def test_photometry_stream_patch_access(
     )
     assert status == 200
     assert data['status'] == 'success'
+
+
+def test_token_user_delete_object_photometry(
+    super_admin_token, upload_data_token, view_only_token, ztf_camera, public_group
+):
+
+    obj_id = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "sources",
+        data={
+            "id": obj_id,
+            "ra": 234.22,
+            "dec": -22.33,
+            "redshift": 3,
+            "group_ids": [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+
+    status, data = api(
+        'POST',
+        'photometry',
+        data={
+            'obj_id': obj_id,
+            'mjd': 58000.0,
+            'instrument_id': ztf_camera.id,
+            'mag': None,
+            'magerr': None,
+            'limiting_mag': 22.3,
+            'magsys': 'ab',
+            'filter': 'ztfg',
+            'group_ids': [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    status, data = api(
+        'GET',
+        f'sources/{obj_id}/photometry',
+        token=view_only_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+    assert len(data['data']) > 0
+
+    status, data = api(
+        'DELETE',
+        f'sources/{obj_id}/photometry',
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    status, data = api(
+        'GET',
+        f'sources/{obj_id}/photometry',
+        token=view_only_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+    assert len(data['data']) == 0
