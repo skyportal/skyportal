@@ -5,6 +5,7 @@ from baselayer.app.access import auth_or_token
 from ..base import BaseHandler
 from ...models import (
     Obj,
+    Source,
 )
 
 
@@ -60,7 +61,7 @@ class SourceExistsHandler(BaseHandler):
                 ).first()
                 if s is not None:
                     return self.success("A source of that name already exists.")
-            obj_query = Obj.select(session.user_or_token)
+            source_query = Source.select(session.user_or_token)
             if any([ra, dec, radius]):
                 if not all([ra, dec, radius]):
                     return self.error(
@@ -76,15 +77,27 @@ class SourceExistsHandler(BaseHandler):
                         "Invalid values for ra, dec or radius - could not convert to float"
                     )
                 other = ca.Point(ra=ra, dec=dec)
-                obj_query = obj_query.where(Obj.within(other, radius))
-                objs = session.scalars(obj_query).unique().all()
-                if len(objs) == 1:
-                    return self.success(
-                        f"A source at that location already exists: {objs[0].id}."
+                obj_query = Obj.select(session.user_or_token).where(
+                    Obj.within(other, radius)
+                )
+                obj_subquery = obj_query.subquery()
+                sources = (
+                    session.scalars(
+                        source_query.join(
+                            obj_subquery, Source.obj_id == obj_subquery.c.id
+                        ).distinct()
                     )
-                elif len(objs) > 1:
+                    .unique()
+                    .all()
+                )
+                source_names = list({source.obj_id for source in sources})
+                if len(source_names) == 1:
                     return self.success(
-                        f"Sources at that location already exist: {','.join([obj.id for obj in objs])}."
+                        f"A source at that location already exists: {source_names[0]}."
+                    )
+                elif len(source_names) > 1:
+                    return self.success(
+                        f"Sources at that location already exist: {','.join(source_names)}."
                     )
 
             return self.success("A source of that name does not exist.")

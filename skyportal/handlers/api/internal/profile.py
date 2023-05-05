@@ -222,6 +222,15 @@ class ProfileHandler(BaseHandler):
                     ]
                 if "photometryButtons" in preferences:
                     user_prefs["photometryButtons"] = preferences["photometryButtons"]
+                gcn_event_properties = (
+                    preferences.get('notifications', {})
+                    .get('gcn_events', {})
+                    .get('properties', None)
+                )
+                if gcn_event_properties is not None:
+                    user_prefs["notifications"]["gcn_events"][
+                        "properties"
+                    ] = gcn_event_properties
                 user_prefs = recursive_update(user_prefs, preferences)
             user.preferences = user_prefs
 

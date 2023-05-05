@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
-import PropTypes from "prop-types";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
@@ -9,11 +8,13 @@ import Button from "./Button";
 import CatalogQueryForm from "./CatalogQueryForm";
 import CatalogQueryLists from "./CatalogQueryLists";
 
-import { GET } from "../API";
+import { fetchGcnEventCatalogQueries } from "../ducks/gcnEvent";
 
-const AddCatalogQueryPage = ({ gcnevent }) => {
+const AddCatalogQueryPage = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const dispatch = useDispatch();
+
+  const gcnEvent = useSelector((state) => state.gcnEvent);
 
   const openDialog = () => {
     setDialogOpen(true);
@@ -23,19 +24,13 @@ const AddCatalogQueryPage = ({ gcnevent }) => {
     setDialogOpen(false);
   };
 
-  const [catalogQueryList, setCatalogQueryList] = useState(null);
   useEffect(() => {
-    const fetchCatalogQueryList = async () => {
-      const response = await dispatch(
-        GET(
-          `/api/gcn_event/${gcnevent.id}/catalog_query`,
-          "skyportal/FETCH_GCNEVENT_CATALOG_QUERIES"
-        )
-      );
-      setCatalogQueryList(response.data);
-    };
-    fetchCatalogQueryList();
-  }, [dispatch, setCatalogQueryList, gcnevent]);
+    if (gcnEvent?.id && !gcnEvent?.survey_efficiency) {
+      dispatch(fetchGcnEventCatalogQueries({ gcnID: gcnEvent?.id }));
+    }
+  }, [dispatch, gcnEvent]);
+
+  const catalogQueryList = gcnEvent?.catalog_queries || [];
 
   return (
     <>
@@ -43,7 +38,7 @@ const AddCatalogQueryPage = ({ gcnevent }) => {
         secondary
         size="small"
         onClick={openDialog}
-        data-testid={`addCatalogQueryButton_${gcnevent.id}`}
+        data-testid={`addCatalogQueryButton_${gcnEvent.id}`}
       >
         Catalog Query
       </Button>
@@ -55,7 +50,7 @@ const AddCatalogQueryPage = ({ gcnevent }) => {
         <DialogTitle>Catalog Query</DialogTitle>
         <DialogContent>
           <div>
-            <CatalogQueryForm gcnevent={gcnevent} />
+            <CatalogQueryForm gcnevent={gcnEvent} />
             {catalogQueryList?.length > 0 && (
               <CatalogQueryLists catalog_queries={catalogQueryList} />
             )}
@@ -64,19 +59,6 @@ const AddCatalogQueryPage = ({ gcnevent }) => {
       </Dialog>
     </>
   );
-};
-
-AddCatalogQueryPage.propTypes = {
-  gcnevent: PropTypes.shape({
-    dateobs: PropTypes.string,
-    localizations: PropTypes.arrayOf(
-      PropTypes.shape({
-        id: PropTypes.number,
-        localization_name: PropTypes.string,
-      })
-    ),
-    id: PropTypes.number,
-  }).isRequired,
 };
 
 export default AddCatalogQueryPage;

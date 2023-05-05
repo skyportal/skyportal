@@ -39,6 +39,9 @@ const useStyles = makeStyles(() => ({
   container: {
     margin: "1rem 0",
   },
+  localization: {
+    minWidth: "250px",
+  },
 }));
 
 // Tweak responsive styling
@@ -85,7 +88,7 @@ const getMuiTheme = (theme) =>
     },
   });
 
-const ObservationPlanGlobe = ({ observationplanRequest, loc }) => {
+const ObservationPlanGlobe = ({ observationplanRequest }) => {
   const dispatch = useDispatch();
 
   const displayOptions = [
@@ -135,17 +138,18 @@ const ObservationPlanGlobe = ({ observationplanRequest, loc }) => {
       ) : (
         <div>
           <LocalizationPlot
-            loc={loc}
             observations={obsList}
             options={displayOptionsDefault}
-            height={300}
-            width={300}
+            height={550}
+            width={550}
+            type="obsplan"
+            projection="mollweide"
           />
           <Button
             secondary
             onClick={() => handleDeleteObservationPlanFields(obsList)}
           >
-            Delete selected fields from observation plan
+            Delete selected fields
           </Button>
         </div>
       )}
@@ -154,11 +158,6 @@ const ObservationPlanGlobe = ({ observationplanRequest, loc }) => {
 };
 
 ObservationPlanGlobe.propTypes = {
-  loc: PropTypes.shape({
-    id: PropTypes.number,
-    dateobs: PropTypes.string,
-    localization_name: PropTypes.string,
-  }).isRequired,
   observationplanRequest: PropTypes.shape({
     id: PropTypes.number,
     requester: PropTypes.shape({
@@ -266,27 +265,42 @@ ObservationPlanSummaryStatistics.propTypes = {
   }).isRequired,
 };
 
-const ObservationPlanRequestLists = ({ gcnEvent }) => {
+const ObservationPlanRequestLists = ({ dateobs }) => {
   const classes = useStyles();
   const dispatch = useDispatch();
   const theme = useTheme();
 
-  const [observationPlanRequestList, setObservationPlanRequestList] =
-    useState(null);
-  useEffect(() => {
-    const fetchObservationPlanRequestList = async () => {
-      const response = await dispatch(
-        GET(
-          `/api/gcn_event/${gcnEvent.id}/observation_plan_requests`,
-          "skyportal/FETCH_GCNEVENT_OBSERVATION_PLAN_REQUESTS"
-        )
-      );
-      setObservationPlanRequestList(response.data);
-    };
-    fetchObservationPlanRequestList();
-  }, [dispatch, setObservationPlanRequestList, gcnEvent]);
+  const gcnEvent = useSelector((state) => state.gcnEvent);
+
+  const observationPlanRequestList = gcnEvent?.observation_plans || [];
+
+  const [
+    observationPlanRequestFetchedForLocalization,
+    setObservationPlanRequestFetchedForLocalization,
+  ] = useState(null);
 
   const [selectedLocalizationId, setSelectedLocalizationId] = useState(null);
+
+  useEffect(() => {
+    if (!gcnEvent) {
+      return;
+    }
+    if (
+      selectedLocalizationId !== observationPlanRequestFetchedForLocalization
+    ) {
+      const fetchObservationPlanRequestList = async () => {
+        setObservationPlanRequestFetchedForLocalization(selectedLocalizationId);
+        dispatch(Actions.fetchObservationPlanRequests(gcnEvent.id));
+      };
+      fetchObservationPlanRequestList();
+    }
+  }, [
+    dispatch,
+    selectedLocalizationId,
+    gcnEvent,
+    observationPlanRequestFetchedForLocalization,
+    dateobs,
+  ]);
 
   const [isDeleting, setIsDeleting] = useState(null);
   const handleDelete = async (id) => {
@@ -323,7 +337,7 @@ const ObservationPlanRequestLists = ({ gcnEvent }) => {
     setIsRemoving(null);
   };
 
-  const { instrumentList, instrumentFormParams } = useSelector(
+  const { instrumentList, instrumentObsplanFormParams } = useSelector(
     (state) => state.instruments
   );
 
@@ -342,7 +356,7 @@ const ObservationPlanRequestLists = ({ gcnEvent }) => {
   if (
     !instrumentList ||
     instrumentList.length === 0 ||
-    Object.keys(instrumentFormParams).length === 0
+    Object.keys(instrumentObsplanFormParams).length === 0
   ) {
     return <CircularProgress />;
   }
@@ -380,11 +394,11 @@ const ObservationPlanRequestLists = ({ gcnEvent }) => {
 
   const getDataTableColumns = (keys, instrument_id) => {
     const implementsDelete =
-      instrumentFormParams[instrument_id]?.methodsImplemented.delete;
+      instrumentObsplanFormParams[instrument_id]?.methodsImplemented.delete;
     const implementsSend =
-      instrumentFormParams[instrument_id]?.methodsImplemented.send;
+      instrumentObsplanFormParams[instrument_id]?.methodsImplemented.send;
     const implementsRemove =
-      instrumentFormParams[instrument_id]?.methodsImplemented.remove;
+      instrumentObsplanFormParams[instrument_id]?.methodsImplemented.remove;
     const queuable = implementsSend || implementsRemove;
 
     const columns = [
@@ -395,11 +409,11 @@ const ObservationPlanRequestLists = ({ gcnEvent }) => {
       const renderKey = (value) =>
         Array.isArray(value) ? value.join(",") : value;
 
-      if (instrumentFormParams[instrument_id]) {
+      if (instrumentObsplanFormParams[instrument_id]) {
         const field = Object.keys(
-          instrumentFormParams[instrument_id].aliasLookup
+          instrumentObsplanFormParams[instrument_id].aliasLookup
         ).includes(key)
-          ? instrumentFormParams[instrument_id].aliasLookup[key]
+          ? instrumentObsplanFormParams[instrument_id].aliasLookup[key]
           : key;
         columns.push({
           name: `payload.${key}`,
@@ -682,9 +696,8 @@ const ObservationPlanRequestLists = ({ gcnEvent }) => {
         requestsGroupedByInstId[instrument_id][dataIndex];
 
       return (
-        <div>
+        <div className={classes.localization}>
           <ObservationPlanGlobe
-            loc={locLookUp[selectedLocalizationId]}
             observationplanRequest={observationplanRequest}
           />
         </div>
@@ -791,34 +804,7 @@ const ObservationPlanRequestLists = ({ gcnEvent }) => {
 };
 
 ObservationPlanRequestLists.propTypes = {
-  gcnEvent: PropTypes.shape({
-    dateobs: PropTypes.string,
-    localizations: PropTypes.arrayOf(
-      PropTypes.shape({
-        id: PropTypes.number,
-        localization_name: PropTypes.string,
-      })
-    ),
-    id: PropTypes.number,
-    observationplan_requests: PropTypes.arrayOf(
-      PropTypes.shape({
-        requester: PropTypes.shape({
-          id: PropTypes.number,
-          username: PropTypes.string,
-        }),
-        instrument: PropTypes.shape({
-          id: PropTypes.number,
-          name: PropTypes.string,
-        }),
-        status: PropTypes.string,
-        allocation: PropTypes.shape({
-          group: PropTypes.shape({
-            name: PropTypes.string,
-          }),
-        }),
-      })
-    ),
-  }).isRequired,
+  dateobs: PropTypes.string.isRequired,
 };
 
 export default ObservationPlanRequestLists;

@@ -1,15 +1,15 @@
 import React, { useEffect, useRef } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import { useSelector } from "react-redux";
 import PropTypes from "prop-types";
 import CircularProgress from "@mui/material/CircularProgress";
 
 import makeStyles from "@mui/styles/makeStyles";
+
+import { geoMollweide } from "d3-geo-projection";
 import * as d3 from "d3";
 import d3GeoZoom from "d3-geo-zoom";
 // eslint-disable-next-line
 import GeoPropTypes from "geojson-prop-types";
-
-import * as localizationActions from "../ducks/localization";
 
 const useStyles = makeStyles(() => ({
   fieldStyle: {
@@ -18,7 +18,7 @@ const useStyles = makeStyles(() => ({
   },
 }));
 const LocalizationPlot = ({
-  loc,
+  localization,
   sources,
   galaxies,
   instrument,
@@ -30,57 +30,61 @@ const LocalizationPlot = ({
   setRotation,
   selectedFields,
   setSelectedFields,
+  type,
+  projection = "orthographic",
 }) => {
-  const cachedLocalization = useSelector((state) => state.localization);
-  const dispatch = useDispatch();
+  const { analysisLoc } = useSelector((state) => state.localization);
+  const { obsplanLoc } = useSelector((state) => state.localization);
 
-  useEffect(() => {
-    if (loc) {
-      dispatch(
-        localizationActions.fetchLocalization(
-          loc.dateobs,
-          loc.localization_name
-        )
-      );
+  if (!localization) {
+    if (type === "obsplan") {
+      localization = obsplanLoc;
+    } else if (type === "analysis") {
+      localization = analysisLoc;
     }
-  }, [loc, dispatch]);
+  }
 
-  if (!loc) {
+  if (
+    !localization?.id ||
+    !localization?.dateobs ||
+    !localization?.localization_name ||
+    !localization?.contour
+  ) {
     return <CircularProgress />;
   }
 
-  const localization =
-    loc.id === cachedLocalization?.id ? cachedLocalization : null;
-
-  if (!localization) {
-    return <CircularProgress />;
+  if (!rotation && localization?.contour?.features[0].geometry.coordinates) {
+    const center = localization?.contour?.features[0].geometry.coordinates || [
+      0, 0,
+    ];
+    rotation = [360 - center[0], -center[1], 0];
   }
 
   return (
-    <>
-      <GeoJSONGlobePlot
-        skymap={localization?.contour}
-        sources={sources?.geojson}
-        galaxies={galaxies?.geojson}
-        instrument={instrument}
-        observations={observations?.geojson}
-        options={options}
-        height={height}
-        width={width}
-        rotation={rotation}
-        setRotation={setRotation}
-        selectedFields={selectedFields}
-        setSelectedFields={setSelectedFields}
-      />
-    </>
+    <GeoJSONGlobePlot
+      skymap={localization?.contour}
+      sources={sources?.geojson}
+      galaxies={galaxies?.geojson}
+      instrument={instrument}
+      observations={observations?.geojson}
+      options={options}
+      height={height}
+      width={width}
+      rotation={rotation}
+      setRotation={setRotation}
+      selectedFields={selectedFields}
+      setSelectedFields={setSelectedFields}
+      projectionType={projection}
+    />
   );
 };
 
 LocalizationPlot.propTypes = {
-  loc: PropTypes.shape({
+  localization: PropTypes.shape({
     id: PropTypes.number,
     dateobs: PropTypes.string,
     localization_name: PropTypes.string,
+    contour: GeoPropTypes.FeatureCollection,
   }),
   sources: PropTypes.shape({
     geojson: GeoPropTypes.FeatureCollection,
@@ -197,10 +201,12 @@ LocalizationPlot.propTypes = {
   setRotation: PropTypes.func,
   selectedFields: PropTypes.arrayOf(PropTypes.number),
   setSelectedFields: PropTypes.func,
+  type: PropTypes.string,
+  projection: PropTypes.string,
 };
 
 LocalizationPlot.defaultProps = {
-  loc: null,
+  localization: null,
   sources: null,
   galaxies: null,
   instrument: null,
@@ -218,6 +224,8 @@ LocalizationPlot.defaultProps = {
   setRotation: () => {},
   selectedFields: [],
   setSelectedFields: () => {},
+  type: null,
+  projection: "orthographic",
 };
 
 const useD3 = (renderer, height, width, data) => {
@@ -246,12 +254,24 @@ const GeoJSONGlobePlot = ({
   selectedFields,
   setSelectedFields,
   airmass_threshold = 2.5,
+  projectionType = "orthographic",
 }) => {
+  const projectionTypeVisibilities = {
+    orthographic: 1.57,
+    mollweide: 3.14,
+  };
   const classes = useStyles();
   function renderMap(svg, svgheight, svgwidth, data) {
     const center = [svgwidth / 2, svgheight / 2];
-    const projection = d3.geoOrthographic().translate(center).scale(300);
-    if (rotation) {
+    let projection = null;
+    if (projectionType === "orthographic") {
+      projection = d3.geoOrthographic().translate(center).scale(300);
+    } else if (projectionType === "mollweide") {
+      projection = geoMollweide().translate(center).scale(100);
+    } else {
+      throw new Error("Invalid projection type");
+    }
+    if (rotation && projectionType === "orthographic") {
       projection.rotate(rotation);
     }
     const geoGenerator = d3.geoPath().projection(projection);
@@ -273,7 +293,7 @@ const GeoJSONGlobePlot = ({
       );
 
       // In front of globe?
-      return gdistance < 1.57;
+      return gdistance < projectionTypeVisibilities[projectionType];
     };
 
     const filtersToColor = (filters) => {
@@ -293,6 +313,11 @@ const GeoJSONGlobePlot = ({
     };
 
     function refresh() {
+      if (projectionType === "mollweide") {
+        // we dont allow the user to move the globe in mollweide projection
+        const currentRotation = projection.rotate();
+        projection.rotate([currentRotation[0], currentRotation[1], 0]);
+      }
       svg.selectAll("*").remove();
 
       svg
@@ -312,13 +337,48 @@ const GeoJSONGlobePlot = ({
         .style("stroke-width", "0.5px")
         .attr("d", geoGenerator);
 
+      // draw markers on the grid lines at the equator to indicate the angles
+      const angles = [-90, 0, 90, 180];
+      const angleMarkers = angles.map((ra) => ({
+        type: "Feature",
+        geometry: {
+          type: "Point",
+          coordinates: [ra, 0],
+        },
+        properties: {
+          name: `${ra}°`,
+        },
+      }));
+      svg
+        .selectAll("angleMarker")
+        .data(angleMarkers)
+        .enter()
+        .append("circle")
+        .attr("fill", "darkgray")
+        .attr("cx", (d) => projection(d.geometry.coordinates)[0])
+        .attr("cy", (d) => projection(d.geometry.coordinates)[1])
+        .attr("r", 4)
+        .style("visibility", (d) =>
+          visibleOnSphere(d) ? "visible" : "hidden"
+        );
+
+      svg
+        .selectAll(".label")
+        .data(angleMarkers)
+        .enter()
+        .append("text")
+        .attr("transform", translate)
+        .style("visibility", (d) => (visibleOnSphere(d) ? "visible" : "hidden"))
+        .text((d) => d.properties.name);
+
       if (data.skymap?.features && data.options.localization) {
         const x = (d) => projection(d.geometry.coordinates)[0];
         const y = (d) => projection(d.geometry.coordinates)[1];
 
+        // Draw the center (0th most probable region)
         svg
           .selectAll("circle_skymap")
-          .data(data.skymap.features)
+          .data([data.skymap.features[0]])
           .enter()
           .append("circle")
           .attr("fill", (d) => (visibleOnSphere(d) ? "blue" : "none"))
@@ -328,7 +388,7 @@ const GeoJSONGlobePlot = ({
 
         svg
           .selectAll(".label")
-          .data(data.skymap.features)
+          .data([data.skymap.features[0]])
           .enter()
           .append("text")
           .attr("transform", translate)
@@ -340,6 +400,7 @@ const GeoJSONGlobePlot = ({
           .style("font-weight", "normal")
           .text("Center");
 
+        // Draw the contour (90th most probable region)
         svg
           .selectAll("path")
           .data(data.skymap.features)
@@ -500,7 +561,13 @@ const GeoJSONGlobePlot = ({
 
   const svgRef = useD3(renderMap, height, width, data);
 
-  return <svg height={height} width={width} ref={svgRef} />;
+  return (
+    <svg
+      preserveAspectRatio="xMidYMid meet"
+      viewBox={`0 0 ${height} ${width}`}
+      ref={svgRef}
+    />
+  );
 };
 
 GeoJSONGlobePlot.propTypes = {
@@ -556,6 +623,7 @@ GeoJSONGlobePlot.propTypes = {
   selectedFields: PropTypes.arrayOf(PropTypes.number),
   setSelectedFields: PropTypes.func,
   airmass_threshold: PropTypes.number,
+  projectionType: PropTypes.string,
 };
 
 GeoJSONGlobePlot.defaultProps = {
@@ -578,6 +646,7 @@ GeoJSONGlobePlot.defaultProps = {
   selectedFields: [],
   setSelectedFields: () => {},
   airmass_threshold: 2.5,
+  projectionType: "orthographic",
 };
 
 export default LocalizationPlot;

@@ -2,25 +2,25 @@
 
 import base64
 import os
-import numpy as np
-import scipy
-import healpy as hp
-import gcn
 import tempfile
+import urllib
 from urllib.parse import urlparse
 
 import astropy.units as u
+import gcn
+import healpy as hp
+import ligo.skymap.bayestar as ligo_bayestar
+import ligo.skymap.distance
+import ligo.skymap.io
+import ligo.skymap.moc
+import ligo.skymap.postprocess
+import numpy as np
+import requests
+import scipy
+from astropy.coordinates import ICRS, Angle, Latitude, Longitude, SkyCoord
 from astropy.table import Table
 from astropy.time import Time
-from astropy.coordinates import SkyCoord
-
-from astropy.coordinates import ICRS, Angle, Longitude, Latitude
 from astropy_healpix import HEALPix, nside_to_level, pixel_resolution_to_nside
-import ligo.skymap.io
-import ligo.skymap.postprocess
-import ligo.skymap.moc
-import ligo.skymap.distance
-import ligo.skymap.bayestar as ligo_bayestar
 from mocpy import MOC
 
 
@@ -153,50 +153,94 @@ def get_tags(root):
         yield from instruments
 
 
-def get_skymap(root, gcn_notice):
-    mission = urlparse(root.attrib['ivorn']).path.lstrip('/')
+def get_notice_aliases(root, notice_type):
+    aliases = []
+    try:
+        # we try to find aliases in the notice itself, which the user can update on the frontend by fetching data from TACH
+        if notice_type in [
+            gcn.NoticeType.FERMI_GBM_FIN_POS,
+            gcn.NoticeType.FERMI_GBM_FLT_POS,
+            gcn.NoticeType.FERMI_GBM_GND_POS,
+        ]:
+            url = root.find("./What/Param[@name='LightCurve_URL']").attrib['value']
+            alias = url.split('/triggers/')[1].split('/')[1].split('/')[0]
+            aliases.append(f"FERMI#{alias}")
 
+        # we try the LVC convention
+        graceid = root.find("./What/Param[@name='GraceID']")
+        if graceid is not None:
+            aliases.append(f"LVC#{graceid.attrib['value']}")
+    except Exception as e:
+        print(f"Could not find aliases in notice: {str(e)}")
+        pass
+
+    return aliases
+
+
+def get_skymap_url(root, notice_type, timeout=10):
+    url = None
+    available = False
+
+    if notice_type == gcn.NoticeType.LVC_PRELIMINARY:
+        # we set a longer timeout here, as by experience the LVC Preliminary skymaps can be a little slow to appear
+        if timeout < 15:
+            timeout = 15
     # Try Fermi GBM convention
-    if gcn_notice.notice_type == gcn.NoticeType.FERMI_GBM_FIN_POS:
+    if notice_type == gcn.NoticeType.FERMI_GBM_FIN_POS:
         url = root.find("./What/Param[@name='LocationMap_URL']").attrib['value']
         url = url.replace('http://', 'https://')
         url = url.replace('_locplot_', '_healpix_')
         url = url.replace('.png', '.fit')
-        return from_url(url)
 
     # Try Fermi GBM **subthreshold** convention. Stupid, stupid, stupid!!
-    if gcn_notice.notice_type == gcn.NoticeType.FERMI_GBM_SUBTHRESH:
+    if notice_type == gcn.NoticeType.FERMI_GBM_SUBTHRESH:
         url = root.find("./What/Param[@name='HealPix_URL']").attrib['value']
-        return from_url(url)
 
     # Try LVC convention
     skymap = root.find("./What/Group[@type='GW_SKYMAP']")
-    if skymap is not None:
+    if skymap is not None and url is None:
         children = skymap.getchildren()
         for child in children:
             if child.attrib['name'] == 'skymap_fits':
                 url = child.attrib['value']
                 break
 
-        return from_url(url)
+    if url is not None:
+        # we have a URL, but is it available? We don't want to download the file here,
+        # so we'll just check the HTTP status code.
+        try:
+            response = requests.head(url, timeout=timeout, allow_redirects=True)
+            if response.status_code == 200:
+                available = True
+        except requests.exceptions.RequestException:
+            pass
 
+    return url, available
+
+
+def is_retraction(root):
     retraction = root.find("./What/Param[@name='Retraction']")
     if retraction is not None:
         retraction = int(retraction.attrib['value'])
         if retraction == 1:
-            return None
+            return True
+    return False
 
+
+def get_skymap_cone(root):
+    ra, dec, error = None, None, None
+    mission = urlparse(root.attrib['ivorn']).path.lstrip('/')
     # Try error cone
     loc = root.find('./WhereWhen/ObsDataLocation/ObservationLocation')
     if loc is None:
-        return None
+        return ra, dec, error
 
     ra = loc.find('./AstroCoords/Position2D/Value2/C1')
     dec = loc.find('./AstroCoords/Position2D/Value2/C2')
     error = loc.find('./AstroCoords/Position2D/Error2Radius')
 
     if None in (ra, dec, error):
-        return None
+        return ra, dec, error
 
     ra, dec, error = float(ra.text), float(dec.text), float(error.text)
 
@@ -205,7 +249,55 @@ def get_skymap(root, gcn_notice):
     if mission == 'AMON':
         error /= scipy.stats.chi(df=2).ppf(0.95)
 
-    return from_cone(ra, dec, error)
+    return ra, dec, error
+
+
+def get_skymap_metadata(root, notice_type, url_timeout=10):
+    """Get the skymap for a GCN notice."""
+    skymap_url, available = get_skymap_url(root, notice_type, timeout=url_timeout)
+    if skymap_url is not None and available:
+        return "available", {"url": skymap_url, "name": skymap_url.split("/")[-1]}
+    elif skymap_url is not None and not available:
+        return "unavailable", {"url": skymap_url, "name": skymap_url.split("/")[-1]}
+
+    if is_retraction(root):
+        return "retraction", None
+
+    ra, dec, error = get_skymap_cone(root)
+    if None not in (ra, dec, error):
+        return "cone", {
+            "ra": ra,
+            "dec": dec,
+            "error": error,
+            "name": f"{ra:.5f}_{dec:.5f}_{error:.5f}",
+        }
+
+    return "missing", None
+
+
+def has_skymap(root, notice_type, url_timeout=10):
+    """Does this GCN notice have a skymap?"""
+    status, _ = get_skymap_metadata(root, notice_type, url_timeout)
+    return status in ("available", "cone", "unavailable")
+
+
+def get_skymap(root, notice_type, url_timeout=10):
+    """Get the skymap for a GCN notice."""
+    status, skymap_metadata = get_skymap_metadata(root, notice_type, url_timeout)
+
+    if status == "available":
+        return from_url(skymap_metadata["url"]), skymap_metadata["url"]
+    elif status == "cone":
+        return (
+            from_cone(
+                ra=skymap_metadata["ra"],
+                dec=skymap_metadata["dec"],
+                error=skymap_metadata["error"],
+            ),
+            None,
+        )
+    else:
+        return None, None
 
 
 def get_properties(root):
@@ -359,6 +451,9 @@ def from_bytes(arr):
     with tempfile.NamedTemporaryFile(suffix=".fits.gz", mode="wb") as f:
         arrSplit = arr.split('base64,')
         filename = arrSplit[0].split("name=")[-1].replace(";", "")
+        # the localization name might contain things like '%2B' for '+', or '%3A' for ':'
+        # make sure that these are converted to the correct characters
+        filename = urllib.parse.unquote(filename)
         f.write(base64.b64decode(arrSplit[-1]))
         f.flush()
 

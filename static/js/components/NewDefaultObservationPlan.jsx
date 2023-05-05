@@ -9,13 +9,14 @@ import validator from "@rjsf/validator-ajv8";
 import CircularProgress from "@mui/material/CircularProgress";
 import makeStyles from "@mui/styles/makeStyles";
 
+import { showNotification } from "baselayer/components/Notifications";
 import GcnNoticeTypesSelect from "./GcnNoticeTypesSelect";
 import GcnTagsSelect from "./GcnTagsSelect";
 import LocalizationTagsSelect from "./LocalizationTagsSelect";
 
 import * as defaultObservationPlansActions from "../ducks/default_observation_plans";
 import * as allocationActions from "../ducks/allocations";
-import * as instrumentActions from "../ducks/instruments";
+import * as instrumentsActions from "../ducks/instruments";
 import GroupShareSelect from "./GroupShareSelect";
 
 import "react-datepicker/dist/react-datepicker-cssmodules.css";
@@ -59,8 +60,12 @@ const NewDefaultObservationPlan = () => {
   const allGroups = useSelector((state) => state.groups.all);
   const [selectedAllocationId, setSelectedAllocationId] = useState(null);
   const [selectedGroupIds, setSelectedGroupIds] = useState([]);
+  const [
+    instrumentObsplanFormParamsFetched,
+    setInstrumentObsplanFormParamsFetched,
+  ] = useState(false);
 
-  const { instrumentList, instrumentFormParams } = useSelector(
+  const { instrumentList, instrumentObsplanFormParams } = useSelector(
     (state) => state.instruments
   );
 
@@ -81,11 +86,18 @@ const NewDefaultObservationPlan = () => {
 
     getAllocations();
 
-    dispatch(
-      instrumentActions.fetchInstrumentForms({
-        apiType: "api_classname_obsplan",
-      })
-    );
+    if (
+      Object.keys(instrumentObsplanFormParams).length === 0 &&
+      !instrumentObsplanFormParamsFetched
+    ) {
+      dispatch(instrumentsActions.fetchInstrumentObsplanForms()).then(
+        (response) => {
+          if (response.status === "success") {
+            setInstrumentObsplanFormParamsFetched(true);
+          }
+        }
+      );
+    }
 
     // Don't want to reset everytime the component rerenders and
     // the defaultStartDate is updated, so ignore ESLint here
@@ -99,7 +111,7 @@ const NewDefaultObservationPlan = () => {
   if (
     allocationListApiObsplan.length === 0 ||
     !selectedAllocationId ||
-    Object.keys(instrumentFormParams).length === 0
+    Object.keys(instrumentObsplanFormParams).length === 0
   ) {
     return <h3>No allocations with an observation plan API...</h3>;
   }
@@ -161,13 +173,21 @@ const NewDefaultObservationPlan = () => {
       default_plan_name,
     };
 
-    await dispatch(
+    dispatch(
       defaultObservationPlansActions.submitDefaultObservationPlan(json)
-    );
+    ).then((response) => {
+      if (response.status === "success") {
+        dispatch(
+          showNotification("Successfully created default observation plan")
+        );
+      }
+    });
   };
 
   const { formSchema, uiSchema } =
-    instrumentFormParams[allocationLookUp[selectedAllocationId].instrument_id];
+    instrumentObsplanFormParams[
+      allocationLookUp[selectedAllocationId].instrument_id
+    ];
   formSchema.properties.default_plan_name = {
     default: "DEFAULT-PLAN-NAME",
     type: "string",

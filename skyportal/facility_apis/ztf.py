@@ -762,7 +762,7 @@ class ZTFMMAAPI(MMAAPI):
 
         url = urllib.parse.urljoin(ZTF_URL, 'api/triggers/ztf')
         s = Session()
-        ztfreq = Request('GET', url, headers=headers)
+        ztfreq = Request('GET', url, headers=headers, json={})
         prepped = ztfreq.prepare()
         r = s.send(prepped)
 
@@ -842,10 +842,6 @@ class ZTFMMAAPI(MMAAPI):
         s = Session()
         s.auth = (altdata['depot_username'], altdata['depot_password'])
 
-        fetch_depot_observations(
-            allocation.instrument.id, s, altdata['depot'], jd_start, jd_end
-        )
-
         fetch_obs = functools.partial(
             fetch_depot_observations,
             allocation.instrument.id,
@@ -856,6 +852,84 @@ class ZTFMMAAPI(MMAAPI):
         )
 
         IOLoop.current().run_in_executor(None, fetch_obs)
+
+    @staticmethod
+    def send_skymap(allocation, payload):
+
+        """Submit skymap queue to ZTF.
+
+        Parameters
+        ----------
+        allocation : skyportal.models.Allocation
+            The allocation with queue information.
+        payload : object
+            Skymap queue information to submit to instrument
+        """
+
+        altdata = allocation.altdata
+        if not altdata:
+            raise ValueError('Missing allocation information.')
+
+        headers = {"Authorization": f"Bearer {altdata['access_token']}"}
+
+        url = urllib.parse.urljoin(ZTF_URL, 'api/triggers/ztfmma')
+
+        s = Session()
+        ztfreq = Request('PUT', url, json=payload, headers=headers)
+        prepped = ztfreq.prepare()
+        r = s.send(prepped)
+
+        if r.status_code != 200:
+            raise ValueError(f'rejected from skymap queue: {r.content}')
+
+    @staticmethod
+    def queued_skymap(allocation):
+        """Get all the skymap-based triggers name."""
+
+        altdata = allocation.altdata
+        if not altdata:
+            raise ValueError('Missing allocation information.')
+
+        headers = {"Authorization": f"Bearer {altdata['access_token']}"}
+
+        url = urllib.parse.urljoin(ZTF_URL, 'api/triggers/ztfmma')
+
+        s = Session()
+        ztfreq = Request('GET', url, headers=headers, json={})
+        prepped = ztfreq.prepare()
+        r = s.send(prepped)
+
+        if r.status_code == 200:
+            return [d['trigger_name'] for d in r.json()['data']]
+        else:
+            raise ValueError(f'Error querying for queued skymaps: {r.text}')
+
+    @staticmethod
+    def remove_skymap(allocation, trigger_name, username=None):
+        """Delete a skymap trigger by trigger_name."""
+        altdata = allocation.altdata
+        if not altdata:
+            raise ValueError('Missing allocation information.')
+
+        if trigger_name is None:
+            raise ValueError('Missing trigger name.')
+
+        if username is None:
+            raise ValueError('Missing user information.')
+
+        headers = {"Authorization": f"Bearer {altdata['access_token']}"}
+
+        url = urllib.parse.urljoin(ZTF_URL, 'api/triggers/ztfmma')
+
+        payload = {'trigger_name': trigger_name, 'user': username}
+
+        s = Session()
+        ztfreq = Request('DELETE', url, json=payload, headers=headers)
+        prepped = ztfreq.prepare()
+        r = s.send(prepped)
+
+        if r.status_code != 200:
+            raise ValueError(f'Error deleting skymap: {r.text}')
 
     def custom_json_schema(instrument, user):
         form_json_schema = MMAAPI.custom_json_schema(instrument, user)
@@ -870,8 +944,9 @@ class ZTFMMAAPI(MMAAPI):
             "subprogram_name": {
                 "type": "string",
                 "enum": ["GW", "GRB", "Neutrino", "SolarSystem", "Other"],
-                "default": "GRB",
+                "default": "GW",
             },
+            "filters": {"type": "string", "default": "ztfg,ztfr,ztfg"},
         }
         form_json_schema["required"] = form_json_schema["required"] + [
             "subprogram_name",

@@ -130,10 +130,12 @@ const AssignmentList = ({ assignments }) => {
     observingRunDict[run.id] = run;
   });
 
-  assignments.sort(
-    (a, b) =>
-      dayjs(observingRunDict[a.run_id].calendar_date).unix() -
-      dayjs(observingRunDict[b.run_id].calendar_date).unix()
+  assignments.sort((a, b) =>
+    observingRunDict[a.run_id]?.calendar_date &&
+    observingRunDict[b.run_id]?.calendar_date
+      ? dayjs(observingRunDict[a.run_id].calendar_date).unix() -
+        dayjs(observingRunDict[b.run_id].calendar_date).unix()
+      : 0
   );
 
   const renderRunId = (value) => <a href={`/run/${value}`}>{value}</a>;

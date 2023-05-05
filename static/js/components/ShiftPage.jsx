@@ -13,7 +13,7 @@ import { CurrentShiftMenu, CommentOnShift } from "./ShiftManagement";
 import ShiftSummary from "./ShiftSummary";
 import Reminders from "./Reminders";
 
-import { getShiftsSummary } from "../ducks/shift";
+import { getShiftsSummary, fetchShift } from "../ducks/shift";
 import * as shiftsActions from "../ducks/shifts";
 
 const useStyles = makeStyles((theme) => ({
@@ -31,29 +31,25 @@ const useStyles = makeStyles((theme) => ({
 const ShiftPage = ({ route }) => {
   const classes = useStyles();
   const dispatch = useDispatch();
-  const currentUser = useSelector((state) => state.profile);
   const shiftList = useSelector((state) => state.shifts.shiftList);
   const currentShift = useSelector((state) => state.shift.currentShift);
   const [show, setShow] = useState(true);
-  const [loaded, setLoaded] = useState(false);
+  const [loadedFromRoute, setLoadedFromRoute] = useState(false);
 
   useEffect(() => {
-    if (!loaded) {
-      dispatch(shiftsActions.fetchShifts()).then((data) => {
-        if (data.status === "success" && data.data.length === 0) {
-          dispatch(showNotification("No shifts found", "warning"));
-        } else if (data.status !== "success") {
-          dispatch(showNotification("Error fetching shifts", "error"));
-        }
-      });
-    }
-    if (route && loaded) {
+    dispatch(shiftsActions.fetchShifts());
+  }, []);
+
+  useEffect(() => {
+    if (
+      route &&
+      shiftList?.length > 0 &&
+      !currentShift?.id &&
+      !loadedFromRoute
+    ) {
       const shift = shiftList.find((s) => s.id === parseInt(route.id, 10));
       if (shift) {
-        dispatch({
-          type: "skyportal/CURRENT_SHIFT",
-          data: shift,
-        });
+        dispatch(fetchShift(shift?.id));
         dispatch(
           getShiftsSummary({
             shiftID: parseInt(route.id, 10),
@@ -61,62 +57,31 @@ const ShiftPage = ({ route }) => {
         );
         setShow(false);
       } else {
-        dispatch(showNotification("Shift not found", "error"));
+        dispatch(showNotification("Shift not found", "warning"));
+      }
+      setLoadedFromRoute(true);
+    }
+    if (currentShift?.id && shiftList?.length > 0) {
+      // if the current shift is not in the shift list, then we need to set the currentShift back to null
+      const shift = shiftList.find((s) => s.id === currentShift?.id);
+      if (!shift) {
+        dispatch(
+          showNotification(
+            "The shift currently selected has been deleted",
+            "warning"
+          )
+        );
+        dispatch({ type: "skyportal/FETCH_SHIFT_OK", data: {} });
       }
     }
-  }, [loaded]);
+  }, [route, shiftList]);
 
   useEffect(() => {
-    if (!loaded && shiftList?.length > 0) {
-      setLoaded(true);
+    if (currentShift?.id) {
+      setShow(false);
     }
-    if (currentShift) {
-      const updatedShift = shiftList.find((s) => s.id === currentShift.id);
-      // check if the shift shift_users length is different from the current shift
-      if (
-        updatedShift &&
-        updatedShift.shift_users.length !== currentShift.shift_users.length
-      ) {
-        dispatch({ type: "skyportal/CURRENT_SHIFT", data: updatedShift });
-        setShow(false);
-      } else if (updatedShift) {
-        if (
-          Object.keys(updatedShift).length > 0 &&
-          Object.keys(currentShift).length > 0
-        ) {
-          if (
-            updatedShift?.comments?.length !== currentShift?.comments?.length
-          ) {
-            dispatch({ type: "skyportal/CURRENT_SHIFT", data: updatedShift });
-          } else {
-            let usersHaveChanged = false;
-            // check if the users have the same ids, or if they need a replacement when they didnt need one before, and vice versa
-            for (let i = 0; i < updatedShift.shift_users.length; i += 1) {
-              const old_shift_user = currentShift.shift_users[i];
-              const new_shift_user = updatedShift.shift_users[i];
-              if (
-                new_shift_user.id !== old_shift_user.id ||
-                new_shift_user.needs_replacement !==
-                  old_shift_user.needs_replacement ||
-                new_shift_user.modified !== old_shift_user.modified
-              ) {
-                usersHaveChanged = true;
-                break;
-              }
-            }
-            if (usersHaveChanged) {
-              dispatch({ type: "skyportal/CURRENT_SHIFT", data: updatedShift });
-              setShow(false);
-            }
-          }
-        }
-      }
-    }
-  }, [shiftList, dispatch]);
+  }, [currentShift]);
 
-  const permission =
-    currentUser.permissions?.includes("System admin") ||
-    currentUser.permissions?.includes("Manage shifts");
   return (
     <Grid container spacing={3}>
       <Grid item md={8} sm={12}>
@@ -134,20 +99,18 @@ const ShiftPage = ({ route }) => {
       </Grid>
 
       <Grid item md={4} sm={12}>
-        {permission && (
-          <Paper>
-            <div className={classes.paperContent}>
-              <Button
-                primary
-                name="add_shift_button"
-                onClick={() => setShow((prev) => !prev)}
-              >
-                Add New Shift
-              </Button>
-              {show ? <NewShift /> : null}
-            </div>
-          </Paper>
-        )}
+        <Paper>
+          <div className={classes.paperContent}>
+            <Button
+              primary
+              name="add_shift_button"
+              onClick={() => setShow((prev) => !prev)}
+            >
+              Add New Shift
+            </Button>
+            {show ? <NewShift /> : null}
+          </div>
+        </Paper>
         <Paper elevation={1}>
           {shiftList && !show && currentShift?.id ? (
             <CurrentShiftMenu currentShift={currentShift} />

@@ -11,6 +11,11 @@ const FETCH_INSTRUMENTS_OK = "skyportal/FETCH_INSTRUMENTS_OK";
 const FETCH_INSTRUMENT_FORMS = "skyportal/FETCH_INSTRUMENT_FORMS";
 const FETCH_INSTRUMENT_FORMS_OK = "skyportal/FETCH_INSTRUMENT_FORMS_OK";
 
+const FETCH_INSTRUMENT_OBSPLAN_FORMS =
+  "skyportal/FETCH_INSTRUMENT_OBSPLAN_FORMS";
+const FETCH_INSTRUMENT_OBSPLAN_FORMS_OK =
+  "skyportal/FETCH_INSTRUMENT_OBSPLAN_FORMS_OK";
+
 const FETCH_GCNEVENT_INSTRUMENTS = "skyportal/FETCH_GCNEVENT_INSTRUMENTS";
 const FETCH_GCNEVENT_INSTRUMENTS_OK = "skyportal/FETCH_GCNEVENT_INSTRUMENTS_OK";
 
@@ -24,8 +29,15 @@ export function fetchGcnEventInstruments(dateobs, filterParams = {}) {
 export const fetchInstruments = (filterParams = {}) =>
   API.GET("/api/instrument", FETCH_INSTRUMENTS, filterParams);
 
-export const fetchInstrumentForms = (params = {}) =>
-  API.GET("/api/internal/instrument_forms", FETCH_INSTRUMENT_FORMS, params);
+export const fetchInstrumentForms = () =>
+  API.GET("/api/internal/instrument_forms", FETCH_INSTRUMENT_FORMS, {
+    apiType: "api_classname",
+  });
+
+export const fetchInstrumentObsplanForms = () =>
+  API.GET("/api/internal/instrument_forms", FETCH_INSTRUMENT_OBSPLAN_FORMS, {
+    apiType: "api_classname_obsplan",
+  });
 
 // Websocket message handler
 messageHandler.add((actionType, payload, dispatch) => {
@@ -38,6 +50,7 @@ const reducer = (
   state = {
     instrumentList: [],
     instrumentFormParams: {},
+    instrumentObsplanFormParams: {},
     gcnEventInstruments: [],
   },
   action
@@ -55,6 +68,13 @@ const reducer = (
       return {
         ...state,
         instrumentFormParams,
+      };
+    }
+    case FETCH_INSTRUMENT_OBSPLAN_FORMS_OK: {
+      const instrumentObsplanFormParams = action.data;
+      return {
+        ...state,
+        instrumentObsplanFormParams,
       };
     }
     case FETCH_GCNEVENT_INSTRUMENTS_OK: {

@@ -9,7 +9,6 @@ import utc from "dayjs/plugin/utc";
 
 import * as observationActions from "../ducks/observations";
 import * as allocationActions from "../ducks/allocations";
-import * as instrumentActions from "../ducks/instruments";
 
 dayjs.extend(utc);
 
@@ -39,12 +38,6 @@ const NewAPIObservation = () => {
     };
 
     getAllocations();
-
-    dispatch(
-      instrumentActions.fetchInstrumentForms({
-        apiType: "api_classname_obsplan",
-      })
-    );
 
     // Don't want to reset everytime the component rerenders and
     // the defaultStartDate is updated, so ignore ESLint here

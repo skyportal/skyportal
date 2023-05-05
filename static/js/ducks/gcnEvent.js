@@ -64,6 +64,25 @@ const FETCH_GCN_TRIGGERED_OK = "skyportal/FETCH_GCN_TRIGGERED_OK";
 const DELETE_GCN_TRIGGERED = "skyportal/DELETE_GCN_TRIGGERED";
 const REFRESH_GCN_TRIGGERED = "skyportal/REFRESH_GCN_TRIGGERED";
 
+const FETCH_GCNEVENT_SURVEY_EFFICIENCY =
+  "skyportal/FETCH_GCNEVENT_SURVEY_EFFICIENCY";
+const FETCH_GCNEVENT_SURVEY_EFFICIENCY_OK =
+  "skyportal/FETCH_GCNEVENT_SURVEY_EFFICIENCY_OK";
+
+const FETCH_GCNEVENT_CATALOG_QUERIES =
+  "skyportal/FETCH_GCNEVENT_CATALOG_QUERIES";
+const FETCH_GCNEVENT_CATALOG_QUERIES_OK =
+  "skyportal/FETCH_GCNEVENT_CATALOG_QUERIES_OK";
+
+const FETCH_GCNEVENT_OBSERVATION_PLAN_REQUESTS =
+  "skyportal/FETCH_GCNEVENT_OBSERVATION_PLAN_REQUESTS";
+
+const FETCH_GCNEVENT_OBSERVATION_PLAN_REQUESTS_OK =
+  "skyportal/FETCH_GCNEVENT_OBSERVATION_PLAN_REQUESTS_OK";
+
+const REFRESH_GCNEVENT_OBSERVATION_PLAN_REQUESTS =
+  "skyportal/REFRESH_GCNEVENT_OBSERVATION_PLAN_REQUESTS";
+
 export const fetchGcnEvent = (dateobs) =>
   API.GET(`/api/gcn_event/${dateobs}`, FETCH_GCNEVENT);
 
@@ -133,6 +152,13 @@ export function deleteCommentOnGcnEvent(gcnEventID, commentID) {
   return API.DELETE(
     `/api/gcn_event/${gcnEventID}/comments/${commentID}`,
     DELETE_COMMENT_ON_GCNEVENT
+  );
+}
+
+export function fetchObservationPlanRequests(gcnEventID) {
+  return API.GET(
+    `/api/gcn_event/${gcnEventID}/observation_plan_requests`,
+    FETCH_GCNEVENT_OBSERVATION_PLAN_REQUESTS
   );
 }
 
@@ -273,6 +299,20 @@ export function deleteGcnTrigger({ dateobs, allocationID }) {
   );
 }
 
+export function fetchGcnEventSurveyEfficiency({ gcnID }) {
+  return API.GET(
+    `/api/gcn_event/${gcnID}/survey_efficiency`,
+    FETCH_GCNEVENT_SURVEY_EFFICIENCY
+  );
+}
+
+export function fetchGcnEventCatalogQueries({ gcnID }) {
+  return API.GET(
+    `/api/gcn_event/${gcnID}/catalog_query`,
+    FETCH_GCNEVENT_CATALOG_QUERIES
+  );
+}
+
 // Websocket message handler
 messageHandler.add((actionType, payload, dispatch, getState) => {
   const { gcnEvent } = getState();
@@ -300,11 +340,23 @@ messageHandler.add((actionType, payload, dispatch, getState) => {
       dispatch(fetchGcnTrigger({ dateobs: gcnEvent.dateobs }));
     }
   }
+  if (actionType === REFRESH_GCNEVENT_OBSERVATION_PLAN_REQUESTS) {
+    const loaded_gcnevent_key = gcnEvent?.dateobs;
+    if (loaded_gcnevent_key === payload.gcnEvent_dateobs) {
+      dispatch(fetchObservationPlanRequests(gcnEvent?.id));
+    }
+  }
 });
 
 const reducer = (state = null, action) => {
   switch (action.type) {
     case FETCH_GCNEVENT_OK: {
+      if (action.data?.dateobs === state?.dateobs) {
+        return {
+          ...state,
+          ...action.data,
+        };
+      }
       return action.data;
     }
     case GET_COMMENT_ON_GCNEVENT_ATTACHMENT_OK: {
@@ -341,6 +393,24 @@ const reducer = (state = null, action) => {
       return {
         ...state,
         gcn_triggers: action.data,
+      };
+    }
+    case FETCH_GCNEVENT_SURVEY_EFFICIENCY_OK: {
+      return {
+        ...state,
+        survey_efficiency: action.data,
+      };
+    }
+    case FETCH_GCNEVENT_CATALOG_QUERIES_OK: {
+      return {
+        ...state,
+        catalog_queries: action.data,
+      };
+    }
+    case FETCH_GCNEVENT_OBSERVATION_PLAN_REQUESTS_OK: {
+      return {
+        ...state,
+        observation_plans: action.data,
       };
     }
     default:

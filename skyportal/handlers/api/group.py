@@ -19,11 +19,12 @@ from ...models import (
 _, cfg = load_env()
 
 
-def has_admin_access_for_group(user, group_id):
-    groupuser = (
-        GroupUser.query.filter(GroupUser.group_id == group_id)
-        .filter(GroupUser.user_id == user.id)
-        .first()
+def has_admin_access_for_group(user, group_id, session):
+
+    groupuser = session.scalar(
+        GroupUser.select(user).where(
+            GroupUser.group_id == group_id, GroupUser.user_id == user.id
+        )
     )
     return len(
         {"System admin", "Manage groups", "Manage_users"}.intersection(
@@ -74,7 +75,7 @@ class GroupHandler(BaseHandler):
                                   users:
                                     type: array
                                     items:
-                                      - $ref: '#/components/schemas/User'
+                                      $ref: '#/components/schemas/User'
                                     description: List of group users
             400:
               content:

@@ -228,7 +228,7 @@ def post_aliases(dateobs, tach_id, user_id):
             if not gcn_event.aliases:  # empty list or None
                 gcn_event.aliases = new_gcn_aliases
             else:
-                gcn_aliases = gcn_event.aliases
+                gcn_aliases = [alias for alias in gcn_event.aliases]
                 for new_gcn_alias in new_gcn_aliases:
                     if new_gcn_alias not in gcn_aliases:
                         gcn_aliases.append(new_gcn_alias)

@@ -9,8 +9,7 @@ import { showNotification } from "baselayer/components/Notifications";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
-import { submitShift } from "../ducks/shift";
-import { fetchShifts } from "../ducks/shifts";
+import { submitShift, fetchShift } from "../ducks/shift";
 
 dayjs.extend(utc);
 
@@ -53,89 +52,110 @@ const NewShift = () => {
   }
 
   const handleSubmit = async ({ formData }) => {
-    const { localTime } = formData;
+    const { localTime, divide } = formData;
     delete formData.localTime;
+    delete formData.divide;
 
-    if (!formData.repeatsDaily) {
-      if (localTime === "local") {
-        formData.start_date = dayjs(
-          formData.start_date_local.concat("", timezoneString)
-        )
-          .utc()
-          .format("YYYY-MM-DDTHH:mm:ss")
-          .replace("+00:00", "")
-          .replace(".000Z", "");
-        formData.end_date = dayjs(
-          formData.end_date_local.concat("", timezoneString)
-        )
-          .utc()
-          .format("YYYY-MM-DDTHH:mm:ss")
-          .replace("+00:00", "")
-          .replace(".000Z", "");
-      } else if (localTime === "UTC") {
-        formData.start_date = formData.start_date_utc;
-        formData.end_date = formData.end_date_utc;
-      }
-      delete formData.start_date_local;
-      delete formData.end_date_local;
-      delete formData.start_date_utc;
-      delete formData.end_date_utc;
-      delete formData.repeatsDaily;
-      const result = await dispatch(submitShift(formData));
-      if (result.status === "success") {
-        dispatch(showNotification("Shift saved"));
-        dispatch(fetchShifts());
-      }
-    } else {
-      delete formData.repeatsDaily;
+    if (localTime === "local") {
+      formData.start_date = dayjs(
+        formData.start_date_local.concat("", timezoneString)
+      )
+        .utc()
+        .format("YYYY-MM-DDTHH:mm:ss")
+        .replace("+00:00", "")
+        .replace(".000Z", "");
+      formData.end_date = dayjs(
+        formData.end_date_local.concat("", timezoneString)
+      )
+        .utc()
+        .format("YYYY-MM-DDTHH:mm:ss")
+        .replace("+00:00", "")
+        .replace(".000Z", "");
+    } else if (localTime === "UTC") {
+      formData.start_date = formData.start_date_utc;
+      formData.end_date = formData.end_date_utc;
+    }
 
-      if (localTime === "local") {
-        formData.start_date = dayjs(
-          formData.start_date_local.concat("", timezoneString)
-        )
-          .utc()
-          .format("YYYY-MM-DDTHH:mm:ss")
-          .replace("+00:00", "")
-          .replace(".000Z", "");
-        formData.end_date = dayjs(
-          formData.end_date_local.concat("", timezoneString)
-        )
-          .utc()
-          .format("YYYY-MM-DDTHH:mm:ss")
-          .replace("+00:00", "")
-          .replace(".000Z", "");
-      } else if (localTime === "UTC") {
-        formData.start_date = formData.start_date_utc;
-        formData.end_date = formData.end_date_utc;
-      }
+    delete formData.start_date_local;
+    delete formData.end_date_local;
+    delete formData.start_date_utc;
+    delete formData.end_date_utc;
 
-      delete formData.start_date_local;
-      delete formData.end_date_local;
-      delete formData.start_date_utc;
-      delete formData.end_date_utc;
+    const startDate = dayjs(formData.start_date);
+    const endDate = dayjs(formData.end_date);
 
-      const startDate = dayjs(formData.start_date).utc();
-      const endDate = dayjs(formData.end_date).utc();
-      const days = endDate.diff(startDate, "days");
-      for (let i = 0; i <= days; i += 1) {
-        const newFormData = { ...formData };
-        newFormData.name = `${newFormData.name} ${i}/${days}`;
-        newFormData.start_date = startDate
-          .add(i, "day")
-          .format("YYYY-MM-DDTHH:mm:ssZ")
-          .replace("+00:00", "")
-          .replace(".000Z", "");
-        newFormData.end_date = endDate
-          .subtract(days - i, "day")
-          .format("YYYY-MM-DDTHH:mm:ssZ")
-          .replace("+00:00", "")
-          .replace(".000Z", "");
-        const result = dispatch(submitShift(newFormData));
-        if (result.status === "success") {
-          dispatch(showNotification("Shift saved"));
-          dispatch(fetchShifts());
+    let days = 0;
+    let weeks = 0;
+    switch (divide) {
+      case "Don't divide, just create one shift":
+        dispatch(submitShift(formData)).then((response) => {
+          if (response.status === "success") {
+            dispatch(showNotification("Shift saved"));
+            const new_shift_id = response?.data?.id;
+            if (new_shift_id) {
+              dispatch(fetchShift(new_shift_id));
+            }
+          }
+        });
+        break;
+      case "Divide per Day":
+        days = endDate.diff(startDate, "days");
+        for (let i = 0; i <= days; i += 1) {
+          const newFormData = { ...formData };
+          newFormData.name = `${newFormData.name} ${i + 1}/${days + 1}`;
+          newFormData.start_date = startDate
+            .add(i, "day")
+            .format("YYYY-MM-DDTHH:mm:ssZ")
+            .replace(/[-+]\d\d:\d\d$/, "");
+          newFormData.end_date = endDate
+            .subtract(days - i, "day")
+            .format("YYYY-MM-DDTHH:mm:ssZ")
+            .replace(/[-+]\d\d:\d\d$/, "");
+          dispatch(submitShift(newFormData)).then((response) => {
+            if (response.status === "success") {
+              dispatch(showNotification("Shift saved"));
+              const new_shift_id = response?.data?.id;
+              if (new_shift_id) {
+                dispatch(fetchShift(new_shift_id));
+              }
+            }
+          });
         }
-      }
+        break;
+      case "Divide per Week":
+        days = endDate.diff(startDate, "days");
+        weeks = Math.ceil(days / 7);
+        for (let i = 0; i < weeks; i += 1) {
+          const newFormData = { ...formData };
+          newFormData.name = `${newFormData.name} ${i + 1}/${weeks}`;
+          newFormData.start_date = startDate
+            .add(i * 7, "day")
+            .format("YYYY-MM-DDTHH:mm:ssZ")
+            .replace(/[-+]\d\d:\d\d$/, "");
+          console.log(newFormData.start_date);
+          if (i === weeks - 1) {
+            newFormData.end_date = endDate
+              .format("YYYY-MM-DDTHH:mm:ssZ")
+              .replace(/[-+]\d\d:\d\d$/, "");
+          } else {
+            newFormData.end_date = startDate
+              .add((i + 1) * 7, "day")
+              .format("YYYY-MM-DDTHH:mm:ssZ")
+              .replace(/[-+]\d\d:\d\d$/, "");
+          }
+          dispatch(submitShift(newFormData)).then((response) => {
+            if (response.status === "success") {
+              dispatch(showNotification("Shift saved"));
+              const new_shift_id = response?.data?.id;
+              if (new_shift_id) {
+                dispatch(fetchShift(new_shift_id));
+              }
+            }
+          });
+        }
+        break;
+      default:
+        break;
     }
   };
 
@@ -172,7 +192,7 @@ const NewShift = () => {
   }
 
   const uiSchema = {
-    repeatsDaily: {
+    divide: {
       "ui:widget": "radio",
       "ui:labels": ["Yes", "No"],
     },
@@ -202,11 +222,16 @@ const NewShift = () => {
         type: "string",
         title: "Shift's description",
       },
-      repeatsDaily: {
-        type: "boolean",
-        title: "Do you want to create daily shifts over the selected period ?",
-        description:
-          "If checked, shifts will be created for each day between start and end date, each of them starting at the start time and ending at the end time.",
+      divide: {
+        type: "string",
+        title:
+          "Do you want to divide the selected period in multiple shifts, daily or weekly?",
+        enum: [
+          "Divide per Week",
+          "Divide per Day",
+          "Don't divide, just create one shift",
+        ],
+        default: "Don't divide, just create one shift",
       },
       localTime: {
         type: "string",

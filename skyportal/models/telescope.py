@@ -285,3 +285,33 @@ class Telescope(Base):
             'twilight_morning_nautical_unix_ms': twilight_morning_nautical.unix * 1000,
             'twilight_evening_nautical_unix_ms': twilight_evening_nautical.unix * 1000,
         }
+
+    @property
+    def current_time(self):
+        morning = False
+        evening = False
+        is_night_astronomical = False
+        if (
+            self.fixed_location
+            and self.lon is not None
+            and self.lat is not None
+            and self.elevation is not None
+            and self.observer is not None
+        ):
+            try:
+                morning = self.next_twilight_morning_astronomical()
+                evening = self.next_twilight_evening_astronomical()
+                if morning is not None and evening is not None:
+                    is_night_astronomical = bool(morning.jd < evening.jd)
+                    morning = morning.iso
+                    evening = evening.iso
+            except Exception:
+                is_night_astronomical = False
+                morning = False
+                evening = False
+
+        return {
+            "is_night_astronomical": is_night_astronomical,
+            "morning": morning,
+            "evening": evening,
+        }

@@ -47,13 +47,18 @@ const ModifyAllocation = () => {
   const group = useSelector((state) => state.group);
   const [selectedGroupIds, setSelectedGroupIds] = useState([]);
   const [selectedGroup, setSelectedGroup] = useState(null);
+  const [selectedUsers, setSelectedUsers] = useState([]);
+  const [defaultStartDate, setDefaultStartDate] = useState(
+    dayjs().utc().format("YYYY-MM-DDTHH:mm:ssZ")
+  );
+  const [defaultEndDate, setDefaultEndDate] = useState(
+    dayjs().add(365, "day").utc().format("YYYY-MM-DDTHH:mm:ssZ")
+  );
   const dispatch = useDispatch();
   const classes = useStyles();
 
   const {
     control,
-    getValues,
-
     formState: { errors },
   } = useForm();
 
@@ -82,6 +87,45 @@ const ModifyAllocation = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dispatch, setSelectedAllocationId]);
 
+  useEffect(() => {
+    const selectedAllocation = allocationList.find(
+      (allocation) => allocation?.id === selectedAllocationId
+    );
+    if (selectedAllocation) {
+      const currentGroup =
+        groups.find((g) => g.id === selectedAllocation.group_id) || null;
+
+      setSelectedGroup(currentGroup);
+      setSelectedGroupIds(selectedAllocation.default_share_group_ids || []);
+
+      setDefaultStartDate(
+        dayjs(`${selectedAllocation.start_date}Z`)
+          .utc()
+          .format("YYYY-MM-DDTHH:mm:ssZ")
+      );
+      setDefaultEndDate(
+        dayjs(`${selectedAllocation.end_date}Z`)
+          .utc()
+          .format("YYYY-MM-DDTHH:mm:ssZ")
+      );
+    }
+  }, [selectedAllocationId, allocationList]);
+
+  useEffect(() => {
+    if (group?.users && selectedAllocationId) {
+      const selectedAllocation = allocationList.find(
+        (allocation) => allocation?.id === selectedAllocationId
+      );
+      setSelectedUsers(
+        group.users.filter((user) =>
+          selectedAllocation.allocation_users.some(
+            (allocationUser) => allocationUser.id === user.id
+          )
+        )
+      );
+    }
+  }, [group]);
+
   if (
     allocationList.length === 0 ||
     instrumentList.length === 0 ||
@@ -98,15 +142,9 @@ const ModifyAllocation = () => {
     return <h3>No allocations available...</h3>;
   }
 
-  const validateGroup = () => {
-    const formState = getValues();
-    return formState.group.length === 1;
-  };
+  const validateGroup = () => selectedGroup !== null;
 
-  const validateUsers = () => {
-    const formState = getValues();
-    return formState.users.length >= 0;
-  };
+  const validateUsers = () => selectedUsers.length > 0;
 
   const groupLookUp = {};
   // eslint-disable-next-line no-unused-expressions
@@ -133,17 +171,11 @@ const ModifyAllocation = () => {
   });
 
   const nowDate = dayjs().utc().format("YYYY-MM-DDTHH:mm:ssZ");
-  const defaultStartDate = dayjs().utc().format("YYYY-MM-DDTHH:mm:ssZ");
-  const defaultEndDate = dayjs()
-    .add(365, "day")
-    .utc()
-    .format("YYYY-MM-DDTHH:mm:ssZ");
 
   const handleSubmit = async ({ formData }) => {
-    const formState = getValues();
-    formData.group_id = formState.group.id;
+    formData.group_id = selectedGroup.id;
     formData.allocation_admin_ids = [];
-    formState.users.forEach((user) => {
+    selectedUsers.forEach((user) => {
       formData.allocation_admin_ids.push(user.id);
     });
     formData.start_date = formData.start_date
@@ -201,6 +233,7 @@ const ModifyAllocation = () => {
       pi: {
         type: "string",
         title: "PI",
+        default: allocationLookUp[selectedAllocationId]?.pi,
       },
       start_date: {
         type: "string",
@@ -217,6 +250,7 @@ const ModifyAllocation = () => {
       hours_allocated: {
         type: "number",
         title: "Hours allocated",
+        default: allocationLookUp[selectedAllocationId]?.hours_allocated,
       },
       _altdata: {
         type: "string",
@@ -253,14 +287,15 @@ const ModifyAllocation = () => {
       </Select>
       <Controller
         name="group"
-        render={({ field: { onChange, value } }) => (
+        render={({ field: { onChange } }) => (
           <Autocomplete
             id="addGroup"
             onChange={(e, data) => {
               setSelectedGroup(data);
               onChange(data);
             }}
-            value={value}
+            style={{ marginTop: "0.1rem" }}
+            value={selectedGroup}
             options={groups}
             getOptionLabel={(thisGroup) => thisGroup.name}
             filterSelectedOptions
@@ -280,6 +315,7 @@ const ModifyAllocation = () => {
           />
         )}
         control={control}
+        defaultValue={selectedGroup}
         rules={{ validate: validateGroup }}
       />
       <div>
@@ -287,14 +323,15 @@ const ModifyAllocation = () => {
           <>
             <Controller
               name="users"
-              render={({ field: { onChange, value } }) => (
+              render={({ field: { onChange } }) => (
                 <Autocomplete
                   multiple
                   id="addUsersFromGroupSelect"
                   onChange={(e, data) => {
+                    setSelectedUsers(data);
                     onChange(data);
                   }}
-                  value={value}
+                  value={selectedUsers}
                   options={group?.users}
                   getOptionLabel={(user) => userLabel(user)}
                   filterSelectedOptions

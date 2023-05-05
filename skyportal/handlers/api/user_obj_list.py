@@ -34,24 +34,31 @@ class UserObjListHandler(BaseHandler):
         ---
         description: Retrieve sources from a user's lists
         parameters:
-        - in: path
-          name: user_id
-          required: false
-          type: string
-        - in: query
-          name: listName
-          required: false
-          type: string
-          description: |
-            name of the list to retrieve objects from.
-            If not given will return all objects
-            saved by the user to all lists.
+          - in: path
+            name: user_id
+            required: false
+            schema:
+              type: string
+          - in: query
+            name: listName
+            required: false
+            schema:
+              type: string
+            description: |
+              name of the list to retrieve objects from.
+              If not given will return all objects
+              saved by the user to all lists.
         tags:
-        - listings
+          - listings
         responses:
           200:
             content:
-              schema: ArrayOfListings
+              application/json:
+                schema: ArrayOfListings
+          400:
+            content:
+              application/json:
+                schema: Error
         """
 
         if user_id is None:

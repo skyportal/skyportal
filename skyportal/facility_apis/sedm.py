@@ -146,10 +146,43 @@ def convert_request_to_sedm(request, method_value='new'):
         'username': request.requester.username,
         'ra': request.obj.ra,
         'dec': request.obj.dec,
-        'exptime': request.payload['exposure_time'],
-        'maxairmass': request.payload['maximum_airmass'],
-        'max_fwhm': request.payload['maximum_fwhm'],
+        'exptime': request.payload.get('exposure_time', -1),
+        'maxairmass': request.payload.get('maximum_airmass', 2.8),
+        'max_fwhm': request.payload.get('maximum_fwhm', 10),
     }
+
+    return payload
+
+
+def prepare_payload_sedm(payload, existing_payload=None):
+    """Format a payload for SEDM.
+
+    Parameters
+    ----------
+    payload: dict
+        The payload to format.
+
+    Returns
+    -------
+    formatted_payload: dict
+        The formatted payload.
+    """
+
+    payload["exposure_time"] = payload.get(
+        "exposure_time",
+        -1 if existing_payload is None else existing_payload["exposure_time"],
+    )
+    payload["maximum_airmass"] = payload.get(
+        "maximum_airmass",
+        2.8 if existing_payload is None else existing_payload["maximum_airmass"],
+    )
+    payload["maximum_fwhm"] = payload.get(
+        "maximum_fwhm",
+        10 if existing_payload is None else existing_payload["maximum_fwhm"],
+    )
+
+    if "advanced" in payload:
+        del payload["advanced"]
 
     return payload
 
@@ -282,6 +315,10 @@ class SEDMAPI(FollowUpAPI):
             payload={"obj_key": request.obj.internal_key},
         )
 
+    @staticmethod
+    def prepare_payload(payload, existing_payload=None):
+        return prepare_payload_sedm(payload, existing_payload)
+
     _observation_types = [
         '3-shot (gri)',
         '4-shot (ugri)',
@@ -321,25 +358,6 @@ class SEDMAPI(FollowUpAPI):
                 "title": "Mode",
                 "default": "IFU",
             },
-            "exposure_time": {
-                "title": "Exposure Time (Photometry) [s]",
-                "type": "number",
-                "default": 0,
-            },
-            "maximum_airmass": {
-                "title": "Maximum Airmass (1-3)",
-                "type": "number",
-                "default": 2.8,
-                "minimum": 1,
-                "maximum": 3,
-            },
-            "maximum_fwhm": {
-                "title": "Maximum FWHM (1-10)",
-                "type": "number",
-                "default": 10,
-                "minimum": 1,
-                "maximum": 10,
-            },
             "priority": {
                 "type": "number",
                 "default": 1.0,
@@ -359,8 +377,50 @@ class SEDMAPI(FollowUpAPI):
                 "title": "End Date (UT)",
                 "default": (datetime.utcnow().date() + timedelta(days=7)).isoformat(),
             },
+            "advanced": {
+                "type": "boolean",
+                "title": "Show Advanced Options",
+                "default": False,
+            },
         },
-        "dependencies": {"observation_type": {"oneOf": _dependencies}},
+        "dependencies": {
+            "observation_type": {"oneOf": _dependencies},
+            "advanced": {
+                "oneOf": [
+                    {
+                        "properties": {
+                            "advanced": {"enum": [True]},
+                            "exposure_time": {
+                                "title": "Exposure Time (Photometry) [s]",
+                                "type": "number",
+                                "default": -1,
+                                "minimum": -1,
+                                "maximum": 3600,
+                            },
+                            "maximum_airmass": {
+                                "title": "Maximum Airmass (1-3)",
+                                "type": "number",
+                                "default": 2.8,
+                                "minimum": 1,
+                                "maximum": 3,
+                            },
+                            "maximum_fwhm": {
+                                "title": "Maximum FWHM (1-10)",
+                                "type": "number",
+                                "default": 10,
+                                "minimum": 1,
+                                "maximum": 10,
+                            },
+                        },
+                        "required": [
+                            "exposure_time",
+                            "maximum_airmass",
+                            "maximum_fwhm",
+                        ],
+                    },
+                ]
+            },
+        },
         "required": ["observation_type", 'priority', "start_date", "end_date"],
     }
 

@@ -5,26 +5,36 @@ __all__ = [
     'LocalizationTile',
 ]
 
+import datetime
+
+import dustmaps.sfd
+import healpix_alchemy
+import healpy
+import ligo.skymap.bayestar as ligo_bayestar
+import ligo.skymap.postprocess
+import numpy as np
 import sqlalchemy as sa
-from sqlalchemy.orm import relationship, deferred
+from astropy.table import Table
+from dateutil.relativedelta import relativedelta
+from dustmaps.config import config
+from sqlalchemy import event, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.orm import deferred, relationship
+from sqlalchemy.sql.ddl import DDL
 
-from astropy.table import Table
-import dustmaps.sfd
-from dustmaps.config import config
-import numpy as np
-import ligo.skymap.postprocess
-import ligo.skymap.bayestar as ligo_bayestar
-import healpy
-import healpix_alchemy
-
-from baselayer.app.models import Base, AccessibleIfUserMatches
 from baselayer.app.env import load_env
+from baselayer.app.models import AccessibleIfUserMatches, Base
+from baselayer.log import make_log
 
+from ..utils.files import save_file_data, delete_file_data
 
 _, cfg = load_env()
 config['data_dir'] = cfg['misc.dustmap_folder']
+
+log = make_log('models/localizations')
+
+utcnow = func.timezone("UTC", func.current_timestamp())
 
 
 class Localization(Base):
@@ -99,6 +109,12 @@ class Localization(Base):
 
     contour = deferred(sa.Column(JSONB, doc='GeoJSON contours'))
 
+    _localization_path = sa.Column(
+        sa.String,
+        nullable=True,
+        doc='file path where the data of the localization is saved.',
+    )
+
     observationplan_requests = relationship(
         'ObservationPlanRequest',
         back_populates='localization',
@@ -129,6 +145,12 @@ class Localization(Base):
         passive_deletes=True,
         order_by="LocalizationTag.created_at",
         doc="Tags associated with this Localization.",
+    )
+
+    notice_id = sa.Column(
+        sa.ForeignKey('gcnnotices.id', ondelete='CASCADE'),
+        nullable=True,
+        doc="The ID of the Notice that this Localization is associated with, if any.",
     )
 
     @hybrid_property
@@ -213,36 +235,225 @@ class Localization(Base):
 
         return center_info
 
+    def get_localization_path(self):
+        """
+        Get the path to the localization's data.
+        """
+        return self._localization_path
 
-class LocalizationTile(Base):
+    def save_data(self, filename, file_data):
+        """
+        Save the localization's data to disk.
+        """
+
+        # there's a default value but it is best to provide a full path in the config
+        root_folder = cfg.get('localizations_folder', 'localizations_data')
+
+        full_path = save_file_data(root_folder, str(self.id), filename, file_data)
+
+        # persist the filename
+        self._localization_path = full_path
+
+    def delete_data(self):
+        """
+        Delete the localizations's data from disk.
+        """
+
+        try:
+            delete_file_data(self._localization_path)
+
+            # reset the filename
+            self._localization_path = None
+        except Exception:
+            log(
+                f"Failed to delete localization ID {self.id} file {self._localization_path}"
+            )
+
+
+class LocalizationTileMixin:
     """This is a single tile within a skymap (as in the Localization table).
     Each tile has an associated healpix id and probability density."""
 
     localization_id = sa.Column(
-        sa.ForeignKey('localizations.id', ondelete="CASCADE"),
+        sa.ForeignKey('localizations.id', ondelete='CASCADE'),
         primary_key=True,
-        index=True,
         doc='localization ID',
     )
 
     probdensity = sa.Column(
         sa.Float,
         nullable=False,
-        index=True,
         doc="Probability density for the tile",
     )
 
-    healpix = sa.Column(healpix_alchemy.Tile, primary_key=True, index=True)
+    dateobs = sa.Column(
+        sa.DateTime,
+        nullable=False,
+        server_default=sa.text("'2023-01-01'::date"),
+        primary_key=True,
+        doc="Date of observation for the Localization to which this tile belongs",
+    )
+
+    healpix = sa.Column(healpix_alchemy.Tile, primary_key=True)
 
 
-LocalizationTile.__table_args__ = (
-    sa.Index(
-        'localizationtile_id_healpix_index',
-        LocalizationTile.id,
-        LocalizationTile.healpix,
-        unique=True,
+class LocalizationTile(
+    Base,
+    LocalizationTileMixin,
+):
+    created_at = sa.Column(
+        sa.DateTime,
+        nullable=False,
+        default=utcnow,
+        doc="UTC time of insertion of object's row into the database.",
+    )
+
+    __tablename__ = 'localizationtiles'
+    __table_args__ = (
+        sa.Index(
+            'localizationtiles_id_dateobs_healpix_idx',
+            'id',
+            'dateobs',
+            'healpix',
+            unique=True,
+        ),
+        sa.Index(
+            'localizationtiles_localization_id_idx',
+            'localization_id',
+            unique=False,
+        ),
+        sa.Index(
+            'localizationtiles_probdensity_idx',
+            'probdensity',
+            unique=False,
+        ),
+        sa.Index(
+            'localizationtiles_healpix_idx',
+            'healpix',
+            unique=False,
+            postgresql_using="spgist",
+        ),
+        sa.Index(
+            'localizationtiles_created_at_idx',
+            'created_at',
+            unique=False,
+        ),
+        {"postgresql_partition_by": "RANGE (dateobs)"},
+    )
+
+    partitions = {}
+
+    @classmethod
+    def create_partition(cls, name, partition_stmt, table_args=()):
+        """Create a partition for the LocalizationTile table."""
+
+        class Partition(Base, LocalizationTileMixin):
+
+            created_at = sa.Column(
+                sa.DateTime,
+                nullable=False,
+                default=utcnow,
+                doc="UTC time of insertion of object's row into the database.",
+            )
+            __name__ = f'{cls.__name__}_{name}'
+            __qualname__ = f'{cls.__qualname__}_{name}'
+            __tablename__ = f'{cls.__tablename__}_{name}'
+            __table_args__ = table_args
+
+        event.listen(
+            Partition.__table__,
+            'after_create',
+            DDL(
+                f"""
+                    ALTER TABLE {cls.__tablename__}
+                    ATTACH PARTITION {Partition.__tablename__}
+                    {partition_stmt};
+                    """
+            ),
+        )
+
+        cls.partitions[name] = Partition
+
+
+# create default partition that will contain all data out of range
+LocalizationTile.create_partition(
+    "def",
+    partition_stmt="DEFAULT",
+    table_args=(
+        sa.Index(
+            'localizationtiles_def_id_dateobs_healpix_idx',
+            'id',
+            'dateobs',
+            'healpix',
+            unique=True,
+        ),
+        sa.Index(
+            'localizationtiles_def_localization_id_idx',
+            'localization_id',
+            unique=False,
+        ),
+        sa.Index(
+            'localizationtiles_def_probdensity_idx',
+            'probdensity',
+            unique=False,
+        ),
+        sa.Index(
+            'localizationtiles_def_healpix_idx',
+            'healpix',
+            unique=False,
+            postgresql_using="spgist",
+        ),
+        sa.Index(
+            'localizationtiles_def_created_at_idx',
+            'created_at',
+            unique=False,
+        ),
     ),
 )
+
+# create partitions from 2023-04-01 to 2025-04-01
+for year in range(2023, 2026):
+    for month in range(1 if year != 2023 else 4, 13 if year != 2025 else 5):
+        date = datetime.date(year, month, 1)
+        table_args = (
+            sa.Index(
+                f'localizationtiles_{date.strftime("%Y_%m")}_id_dateobs_healpix_idx',
+                'id',
+                'dateobs',
+                'healpix',
+                unique=True,
+            ),
+            sa.Index(
+                f'localizationtiles_{date.strftime("%Y_%m")}_localization_id_idx',
+                'localization_id',
+                unique=False,
+            ),
+            sa.Index(
+                f'localizationtiles_{date.strftime("%Y_%m")}_probdensity_idx',
+                'probdensity',
+                unique=False,
+            ),
+            sa.Index(
+                f'localizationtiles_{date.strftime("%Y_%m")}_healpix_idx',
+                'healpix',
+                unique=False,
+                postgresql_using="spgist",
+            ),
+            sa.Index(
+                f'localizationtiles_{date.strftime("%Y_%m")}_created_at_idx',
+                'created_at',
+                unique=False,
+            ),
+        )
+
+        LocalizationTile.create_partition(
+            date.strftime("%Y_%m"),
+            partition_stmt="FOR VALUES FROM ('{}') TO ('{}')".format(
+                date.strftime("%Y-%m-%d"),
+                (date + relativedelta(months=1)).strftime("%Y-%m-%d"),
+            ),
+            table_args=table_args,
+        )
 
 
 class LocalizationProperty(Base):
@@ -301,3 +512,9 @@ class LocalizationTag(Base):
     )
 
     text = sa.Column(sa.Unicode, nullable=False, index=True)
+
+
+@event.listens_for(Localization, 'after_delete')
+def delete_localization_data_from_disk(mapper, connection, target):
+    log(f'Deleting localization data for localization id={target.id}')
+    target.delete_data()

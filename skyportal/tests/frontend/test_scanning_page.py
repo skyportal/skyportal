@@ -1,11 +1,13 @@
-import uuid
 import datetime
+import time
+import uuid
+
 import pytest
 from selenium.webdriver import ActionChains
+from tdtax import __version__, taxonomy
 
 from skyportal.tests import api
 
-from tdtax import taxonomy, __version__
 from .test_profile import test_add_classification_shortcut
 
 
@@ -277,6 +279,9 @@ def test_submit_annotations_sorting(
     )
     assert status == 200
 
+    # origins are cached, so we wait for the cache to invalidate (2 seconds in test config)
+    time.sleep(2)
+
     driver.get(f"/become_user/{view_only_user.id}")
     driver.get("/candidates")
     driver.click_xpath(
@@ -346,6 +351,9 @@ def test_submit_annotations_filtering(
         token=annotation_token,
     )
     assert status == 200
+
+    # origins are cached, so we wait for the cache to invalidate (2 seconds in test config)
+    time.sleep(2)
 
     driver.get(f"/become_user/{view_only_user.id}")
     driver.get("/candidates")
@@ -616,6 +624,9 @@ def test_add_scanning_profile(
         token=annotation_token,
     )
     assert status == 200
+
+    # origins are cached, so we wait for the cache to invalidate (2 seconds in test config)
+    time.sleep(2)
 
     driver.get(f"/become_user/{user.id}")
     driver.get("/candidates")

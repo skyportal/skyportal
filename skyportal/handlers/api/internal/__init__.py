@@ -22,6 +22,7 @@ from .annotations_info import AnnotationsInfoHandler
 from .ephemeris import EphemerisHandler
 from .standards import StandardsHandler
 from .notifications import NotificationHandler, BulkNotificationHandler
+from .notifications_test import NotificationTestHandler
 from .recent_gcn_events import RecentGcnEventsHandler
 
 

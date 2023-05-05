@@ -29,7 +29,7 @@ jobs:
       # (e.g., to get access to a newer data loader or dependencies).
       # Pick any commit known to have passed the migration tests on
       # CI, or which has deployed successfully.
-      MIGRATION_REFERENCE: 5c6a907c4bc5b33ad045c78733ebd3787f49d458
+      MIGRATION_REFERENCE: 53699ab25149fc6b1fb21f420de95fdd485ec933
 
     services:
       postgres:

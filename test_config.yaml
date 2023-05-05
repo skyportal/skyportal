@@ -14,6 +14,7 @@ server:
 misc:
   photometry_detection_threshold_nsigma: 3.0
   minutes_to_keep_candidate_query_cache: 0.033333 # 2 seconds
+  minutes_to_keep_annotations_info_query_cache: 0.033333 # 2 seconds
   allow_nonadmins_delete_objs: True
 
 twilio:

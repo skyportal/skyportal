@@ -20,6 +20,7 @@ import { showNotification } from "baselayer/components/Notifications";
 import Button from "./Button";
 
 import * as ProfileActions from "../ducks/profile";
+import * as userNotificationsActions from "../ducks/userNotifications";
 
 import UIPreferences from "./UIPreferences";
 import NotificationPreferences from "./NotificationPreferences";
@@ -40,6 +41,8 @@ const UpdateProfileForm = () => {
   const classes = useStyles();
   const profile = useSelector((state) => state.profile);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmittingEmailTest, setIsSubmittingEmailTest] = useState(false);
+  const [isSubmittingSMSTest, setIsSubmittingSMSTest] = useState(false);
 
   const dispatch = useDispatch();
   const {
@@ -86,6 +89,20 @@ const UpdateProfileForm = () => {
       dispatch(showNotification("Profile data saved"));
     }
     setIsSubmitting(false);
+  };
+
+  const handleEmailTest = async () => {
+    setIsSubmittingEmailTest(true);
+    const data = { notification_type: "email" };
+    await dispatch(userNotificationsActions.testNotifications(data));
+    setIsSubmittingEmailTest(false);
+  };
+
+  const handleSMSTest = async () => {
+    setIsSubmittingSMSTest(true);
+    const data = { notification_type: "SMS" };
+    await dispatch(userNotificationsActions.testNotifications(data));
+    setIsSubmittingSMSTest(false);
   };
 
   return (
@@ -209,13 +226,25 @@ const UpdateProfileForm = () => {
                 <InputLabel htmlFor="email_id">
                   Preferred Contact Email
                 </InputLabel>
-                <TextField
-                  {...register("email", { pattern: /^\S+@\S+$/i })}
-                  name="email"
-                  type="email"
-                  fullWidth
-                  id="email_id"
-                />
+                <div style={{ display: "flex", width: "100%" }}>
+                  <TextField
+                    {...register("email", { pattern: /^\S+@\S+$/i })}
+                    name="email"
+                    type="email"
+                    fullWidth
+                    id="email_id"
+                  />
+                  <Button
+                    secondary
+                    style={{ marginLeft: "0.5rem" }}
+                    type="submit"
+                    id="testEmailButton"
+                    onClick={handleEmailTest}
+                    disabled={isSubmittingEmailTest}
+                  >
+                    Test
+                  </Button>
+                </div>
               </Grid>
             </Grid>
             <br />
@@ -230,12 +259,24 @@ const UpdateProfileForm = () => {
                 <InputLabel htmlFor="phone_id">
                   Contact Phone (Include Country Code)
                 </InputLabel>
-                <TextField
-                  {...register("phone", { maxLength: 16 })}
-                  name="phone"
-                  type="tel"
-                  id="phone_id"
-                />
+                <div style={{ display: "flex", width: "100%" }}>
+                  <TextField
+                    {...register("phone", { maxLength: 16 })}
+                    name="phone"
+                    type="tel"
+                    id="phone_id"
+                  />
+                  <Button
+                    secondary
+                    style={{ marginLeft: "0.5rem" }}
+                    type="submit"
+                    id="testSMSButton"
+                    onClick={handleSMSTest}
+                    disabled={isSubmittingSMSTest}
+                  >
+                    Test
+                  </Button>
+                </div>
               </Grid>
             </Grid>
             <br />

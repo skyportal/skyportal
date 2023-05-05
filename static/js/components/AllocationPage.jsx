@@ -144,9 +144,20 @@ const AllocationPage = () => {
 
   const dispatch = useDispatch();
 
-  const permission =
+  const permissionAllocation =
     currentUser.permissions?.includes("System admin") ||
     currentUser.permissions?.includes("Manage allocations");
+  const permissionDefaultSurveyEfficiency =
+    currentUser.permissions?.includes("System admin") ||
+    currentUser.permissions?.includes("Manage allocations") ||
+    currentUser.permissions?.includes("Manage observation plans");
+  const permissionDefaultObservationPlan =
+    currentUser.permissions?.includes("System admin") ||
+    currentUser.permissions?.includes("Manage observation plans");
+  const anyPermission =
+    permissionAllocation ||
+    permissionDefaultSurveyEfficiency ||
+    permissionDefaultObservationPlan;
 
   const handleDefaultObservationPlanTablePagination = (
     pageNumber,
@@ -214,10 +225,10 @@ const AllocationPage = () => {
 
   return (
     <Grid container spacing={3}>
-      <Grid item md={8} sm={12}>
+      <Grid item md={anyPermission ? 8 : 12} sm={12}>
         <Paper elevation={1}>
           <div className={classes.paperContent}>
-            <AllocationList deletePermission={permission} />
+            <AllocationList deletePermission={permissionAllocation} />
           </div>
         </Paper>
         <Paper elevation={1}>
@@ -232,7 +243,7 @@ const AllocationPage = () => {
                 telescopes={telescopeList}
                 paginateCallback={handleDefaultObservationPlanTablePagination}
                 totalMatches={defaultObservationPlanList.totalMatches}
-                deletePermission={permission}
+                deletePermission={permissionDefaultObservationPlan}
                 pageNumber={defaultObservationPlanList.pageNumber}
                 numPerPage={defaultObservationPlanList.numPerPage}
                 sortingCallback={handleDefaultObservationPlanTableSorting}
@@ -250,7 +261,7 @@ const AllocationPage = () => {
                 default_survey_efficiencies={defaultSurveyEfficiencyList}
                 paginateCallback={handleDefaultSurveyEfficiencyTablePagination}
                 totalMatches={defaultSurveyEfficiencyList.totalMatches}
-                deletePermission={permission}
+                deletePermission={permissionDefaultSurveyEfficiency}
                 pageNumber={defaultSurveyEfficiencyList.pageNumber}
                 numPerPage={defaultSurveyEfficiencyList.numPerPage}
                 sortingCallback={handleDefaultSurveyEfficiencyTableSorting}
@@ -259,9 +270,9 @@ const AllocationPage = () => {
           </div>
         </Paper>
       </Grid>
-      {permission && (
-        <>
-          <Grid item md={4} sm={12}>
+      <Grid item md={4} sm={12}>
+        {permissionAllocation && (
+          <>
             <Paper>
               <div className={classes.paperContent}>
                 <Typography variant="h6">Add a New Allocation</Typography>
@@ -275,26 +286,31 @@ const AllocationPage = () => {
                 <ModifyAllocation />
               </div>
             </Paper>
-            <br />
-            <Paper>
-              <div className={classes.paperContent}>
-                <Typography variant="h6">
-                  Add a New Default Observation Plan
-                </Typography>
-                <NewDefaultObservationPlan />
-              </div>
-            </Paper>
-            <Paper>
-              <div className={classes.paperContent}>
-                <Typography variant="h6">
-                  Add a New Default Survey Efficiency
-                </Typography>
-                <NewDefaultSurveyEfficiency />
-              </div>
-            </Paper>
-          </Grid>
-        </>
-      )}
+          </>
+        )}
+        <br />
+        {permissionDefaultObservationPlan && (
+          <Paper>
+            <div className={classes.paperContent}>
+              <Typography variant="h6">
+                Add a New Default Observation Plan
+              </Typography>
+              <NewDefaultObservationPlan />
+            </div>
+          </Paper>
+        )}
+        <br />
+        {permissionDefaultSurveyEfficiency && (
+          <Paper>
+            <div className={classes.paperContent}>
+              <Typography variant="h6">
+                Add a New Default Survey Efficiency
+              </Typography>
+              <NewDefaultSurveyEfficiency />
+            </div>
+          </Paper>
+        )}
+      </Grid>
     </Grid>
   );
 };

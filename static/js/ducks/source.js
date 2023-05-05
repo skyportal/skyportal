@@ -361,12 +361,16 @@ export function fetchSource(id, actionType = FETCH_LOADED_SOURCE) {
     includePhotometryExists: true,
     includeSpectrumExists: true,
     includeLabellers: true,
+    includeDetectionStats: true,
   };
   const queryString = new URLSearchParams(urlParams).toString();
   return API.GET(`/api/sources/${id}?${queryString}`, actionType);
 }
 
 export function checkSource(id, params, actionType = CHECK_SOURCE) {
+  if ("nameOnly" in params && params.nameOnly === true) {
+    return API.GET(`/api/source_exists/${id}`, actionType);
+  }
   return API.GET(
     `/api/source_exists/${id}?ra=${params.ra}&dec=${params.dec}&radius=0.0003`,
     actionType

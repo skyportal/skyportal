@@ -30,7 +30,7 @@ const CompactCommentList = ({
   text = null,
   spectrum_id = null,
   hoverID = null,
-  shift_id = null,
+  shiftID = null,
 }) => {
   const spectra = useSelector((state) => state.spectra);
 
@@ -98,7 +98,7 @@ const CompactCommentList = ({
               gcnEventID={gcnEventID}
               earthquakeID={earthquakeID}
               spectrum_id={spectrum_id}
-              shift_id={shift_id}
+              shiftID={shiftID}
               hoverID={hoverID}
               id={id}
             />
@@ -121,7 +121,7 @@ CompactCommentList.propTypes = {
   text: PropTypes.string,
   spectrum_id: PropTypes.string,
   hoverID: PropTypes.number,
-  shift_id: PropTypes.number,
+  shiftID: PropTypes.number,
 };
 
 CompactCommentList.defaultProps = {
@@ -136,7 +136,7 @@ CompactCommentList.defaultProps = {
   text: null,
   spectrum_id: null,
   hoverID: null,
-  shift_id: null,
+  shiftID: null,
 };
 
 export default CompactCommentList;

@@ -115,8 +115,9 @@ const CatalogQueryForm = ({ gcnevent }) => {
       // Wait for the allocations to update before setting
       // the new default form fields, so that the instruments list can
       // update
-
-      await dispatch(allocationActions.fetchAllocationsApiObsplan());
+      if (!allocationListApiObsplan || allocationListApiObsplan?.length === 0) {
+        dispatch(allocationActions.fetchAllocationsApiObsplan());
+      }
       setSelectedLocalizationId(gcnevent.localizations[0]?.id);
     };
 
@@ -125,7 +126,7 @@ const CatalogQueryForm = ({ gcnevent }) => {
     // Don't want to reset everytime the component rerenders and
     // the defaultStartDate is updated, so ignore ESLint here
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dispatch, setSelectedLocalizationId, gcnevent]);
+  }, [dispatch, gcnevent]);
 
   if (
     !allGroups ||

@@ -53,6 +53,13 @@ const useStyles = makeStyles((theme) => ({
         ? theme.palette.secondary.main
         : theme.palette.primary.main,
   },
+  filterAlert: {
+    display: "flex",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-start",
+    marginTop: "1rem",
+  },
 }));
 
 // Tweak responsive styling
@@ -209,6 +216,26 @@ const GcnEvents = () => {
     setFilterFormSubmitted(true);
   };
 
+  const handleSearchChange = async (searchText) => {
+    const params = {
+      ...fetchParams,
+      pageNumber: 1,
+      partialdateobs: searchText,
+    };
+    setFetchParams(params);
+    await dispatch(gcnEventsActions.fetchGcnEvents(params));
+  };
+
+  // eslint-disable-next-line no-unused-vars
+  const handleFilterReset = async (props) => {
+    const params = {
+      pageNumber: 1,
+    };
+    setFetchParams(params);
+    await dispatch(gcnEventsActions.fetchGcnEvents(params));
+    setFilterFormSubmitted(false);
+  };
+
   const handleTableChange = (action, tableState) => {
     if (action === "changePage" || action === "changeRowsPerPage") {
       handlePageChange(
@@ -298,21 +325,23 @@ const GcnEvents = () => {
       <p>No aliases</p>
     );
 
-  const customFilterDisplay = () =>
-    filterFormSubmitted ? (
-      <div className={classes.filterAlert}>
-        <InfoIcon /> &nbsp; Filters submitted to server!
-      </div>
-    ) : (
+  const customFilterDisplay = () => (
+    <div>
+      {filterFormSubmitted && (
+        <div className={classes.filterAlert}>
+          <InfoIcon /> &nbsp; Filters submitted to server!
+        </div>
+      )}
       <GcnEventsFilterForm handleFilterSubmit={handleFilterSubmit} />
-    );
-
+    </div>
+  );
   const columns = [
     {
       name: "dateobs",
       label: "Date Observed",
       options: {
         customBodyRenderLite: renderDateObs,
+        filter: false,
       },
     },
     {
@@ -320,6 +349,7 @@ const GcnEvents = () => {
       label: "Aliases",
       options: {
         customBodyRenderLite: renderAliases,
+        filter: false,
       },
     },
     {
@@ -327,6 +357,7 @@ const GcnEvents = () => {
       label: "Event Tags",
       options: {
         customBodyRenderLite: renderGcnTags,
+        filter: false,
       },
     },
     {
@@ -334,6 +365,7 @@ const GcnEvents = () => {
       label: "Allocation Triggers",
       options: {
         customBodyRenderLite: renderAllocationTriggers,
+        filter: false,
       },
     },
     {
@@ -341,6 +373,7 @@ const GcnEvents = () => {
       label: "Localization Tags",
       options: {
         customBodyRenderLite: renderLocalizationTags,
+        filter: false,
       },
     },
     {
@@ -348,6 +381,7 @@ const GcnEvents = () => {
       label: "Localizations",
       options: {
         customBodyRenderLite: renderLocalizations,
+        filter: false,
       },
     },
     {
@@ -355,6 +389,7 @@ const GcnEvents = () => {
       label: "GCN Notices",
       options: {
         customBodyRenderLite: renderGcnNotices,
+        filter: false,
       },
     },
   ];
@@ -370,7 +405,9 @@ const GcnEvents = () => {
     pagination: true,
     count: totalMatches,
     onTableChange: handleTableChange,
-    search: false, // Disable search for now (not implemented yet)
+    search: true, // Disable search for now (not implemented yet)
+    onSearchChange: handleSearchChange,
+    onFilterChange: handleFilterReset,
     download: false, // Disable download button for now (not implemented yet)
     filter: true,
     customFilterDialogFooter: customFilterDisplay,

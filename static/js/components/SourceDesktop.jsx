@@ -36,7 +36,9 @@ import SharePage from "./SharePage";
 import AssignmentForm from "./AssignmentForm";
 import AssignmentList from "./AssignmentList";
 import SourceNotification from "./SourceNotification";
+import DisplayPhotStats from "./DisplayPhotStats";
 import EditSourceGroups from "./EditSourceGroups";
+import SimilarSources from "./SimilarSources";
 import UpdateSourceCoordinates from "./UpdateSourceCoordinates";
 import UpdateSourceRedshift from "./UpdateSourceRedshift";
 import UpdateSourceSummary from "./UpdateSourceSummary";
@@ -327,6 +329,7 @@ const SourceDesktop = ({ source }) => {
             <div key="aliases"> {source.alias.join(", ")} </div>
           </div>
         ) : null}
+
         {associatedGCNs?.length > 0 ? (
           <div className={classes.infoLine}>
             <b>Associated to: &nbsp;</b>
@@ -350,7 +353,8 @@ const SourceDesktop = ({ source }) => {
               </div>
             ) : null}
             <UpdateSourceSummary source={source} />
-            {source.comments?.length > 1 ? (
+            {source.comments?.length > 0 ||
+            source.classifications?.length > 0 ? (
               <StartBotSummary obj_id={source.id} />
             ) : null}
             {source.summary_history?.length > 0 ? (
@@ -429,6 +433,13 @@ const SourceDesktop = ({ source }) => {
               </div>
             </div>
           )}
+          {source.summary_history?.length > 0 ? (
+            <div className={classes.infoLine}>
+              <div className={classes.sourceInfo}>
+                <SimilarSources source={source} min_score={0.9} k={3} />
+              </div>
+            </div>
+          ) : null}
           <div>
             <SourcePlugins source={source} />
           </div>
@@ -462,6 +473,9 @@ const SourceDesktop = ({ source }) => {
                 </div>
               )}
             </div>
+          </div>
+          <div className={classes.infoLine}>
+            <DisplayPhotStats photstats={source.photstats[0]} />
           </div>
           <div className={`${classes.infoLine} ${classes.findingChart}`}>
             <b>Finding Chart:&nbsp;</b>
@@ -970,6 +984,7 @@ SourceDesktop.propTypes = {
     alias: PropTypes.arrayOf(PropTypes.string),
     photometry_exists: PropTypes.bool,
     spectrum_exists: PropTypes.bool,
+    photstats: PropTypes.shape(Object),
   }).isRequired,
 };
 

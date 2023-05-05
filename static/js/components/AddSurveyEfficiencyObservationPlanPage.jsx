@@ -18,6 +18,11 @@ const AddSurveyEfficiencyObservationPlanPage = ({
   const [dialogOpen, setDialogOpen] = useState(false);
   const dispatch = useDispatch();
 
+  const [
+    fetchingSurveyEfficiencyAnalysisList,
+    setFetchingSurveyEfficiencyAnalysisList,
+  ] = useState(false);
+
   const openDialog = () => {
     setDialogOpen(true);
   };
@@ -30,16 +35,24 @@ const AddSurveyEfficiencyObservationPlanPage = ({
     useState(null);
   useEffect(() => {
     const fetchSurveyEfficiencyAnalysisList = async () => {
-      const response = await dispatch(
+      setFetchingSurveyEfficiencyAnalysisList(true);
+      dispatch(
         GET(
           `/api/observation_plan/${observationplanRequest.id}/survey_efficiency`,
           "skyportal/FETCH_OBSERVATION_PLAN_SURVEY_EFFICIENCY"
         )
-      );
-      setSurveyEfficiencyAnalysisList(response.data);
+      ).then((response) => {
+        setSurveyEfficiencyAnalysisList(response.data);
+        setFetchingSurveyEfficiencyAnalysisList(false);
+      });
     };
-    fetchSurveyEfficiencyAnalysisList();
-  }, [dispatch, setSurveyEfficiencyAnalysisList, observationplanRequest]);
+    if (
+      !fetchingSurveyEfficiencyAnalysisList &&
+      !surveyEfficiencyAnalysisList
+    ) {
+      fetchSurveyEfficiencyAnalysisList();
+    }
+  }, [dispatch, surveyEfficiencyAnalysisList, observationplanRequest]);
 
   return (
     <>

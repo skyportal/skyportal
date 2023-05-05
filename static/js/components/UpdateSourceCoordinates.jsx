@@ -98,7 +98,7 @@ const UpdateSourceCoordinates = ({ source }) => {
               <FormValidationError message="Please enter a valid float" />
             )}
             <TextField
-              data-testid="updateCoordinatesTextfield"
+              data-testid="updateCoordinatesRATextfield"
               size="small"
               label="ra"
               value={state.ra}
@@ -111,7 +111,7 @@ const UpdateSourceCoordinates = ({ source }) => {
           <p />
           <div>
             <TextField
-              data-testid="updateCoordinatesErrorTextfield"
+              data-testid="updateCoordinatesDecTextfield"
               size="small"
               label="dec"
               value={state.dec}

@@ -23,15 +23,13 @@ const GcnTagsSelect = (props) => {
   return (
     <div>
       {gcnTags?.length > 0 && (
-        <div style={{ marginBottom: "1rem" }}>
-          <SelectWithChips
-            label="Gcn Tags"
-            id="selectGcns"
-            initValue={selectedGcnTags}
-            onChange={handleChange}
-            options={gcnTags}
-          />
-        </div>
+        <SelectWithChips
+          label="Gcn Tags"
+          id="selectGcns"
+          initValue={selectedGcnTags}
+          onChange={handleChange}
+          options={gcnTags}
+        />
       )}
     </div>
   );

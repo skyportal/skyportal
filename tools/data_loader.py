@@ -8,6 +8,7 @@ import time
 from os.path import join as pjoin
 
 import requests
+import numpy as np
 import pandas as pd
 import yaml
 from yaml import Loader
@@ -185,7 +186,7 @@ if __name__ == "__main__":
             if 'file' in obj:
                 filename = pjoin(src_path, obj['file'])
                 if filename.endswith('csv'):
-                    df = pd.read_csv(filename)
+                    df = pd.read_csv(filename).replace({np.nan: None})
                     obj.pop('file')
                     obj.update(df.to_dict(orient='list'))
                 elif filename.endswith('.png'):
@@ -211,8 +212,10 @@ if __name__ == "__main__":
                             raise e
                     return payload
                 elif filename.endswith('bz2'):
-                    payload = pd.read_csv(filename, compression='bz2').to_dict(
-                        orient='list'
+                    payload = (
+                        pd.read_csv(filename, compression='bz2')
+                        .replace({np.nan: None})
+                        .to_dict(orient='list')
                     )
                     return payload
                 else:

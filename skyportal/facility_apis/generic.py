@@ -1,14 +1,25 @@
+from astropy.coordinates import SkyCoord
+import astropy.units as u
 from datetime import datetime, timedelta
 import json
 import requests
+import textwrap
 
 from baselayer.app.flow import Flow
 from baselayer.app.env import load_env
 
 from . import FollowUpAPI
+from ..email_utils import send_email
+from ..app_utils import get_app_base_url
 from ..utils import http
 
 env, cfg = load_env()
+
+SLACK_URL = f"{cfg['slack.expected_url_preamble']}/services"
+
+email = False
+if cfg.get("email_service") == "sendgrid" or cfg.get("email_service") == "smtp":
+    email = True
 
 
 def validate_request(request, filters):
@@ -56,6 +67,67 @@ def validate_request(request, filters):
 
     if request.payload["priority"] < 1 or request.payload["priority"] > 5:
         raise ValueError('priority must be within 1-5.')
+
+
+def create_target_text(request, request_type='email'):
+    """Payload json for SLACK / email queue requests.
+
+    Parameters
+    ----------
+    request : skyportal.models.FollowupRequest
+        The request to add to the queue and the SkyPortal database.
+    request_type : str
+        Type of request. Must be either email or slack.
+
+    Returns
+    ----------
+    text : str
+        String which summarizes the request payload. Payload includes
+          name: object name
+          instrument_request: instrument name
+          ra: right ascension in decimal degrees
+          dec: declination in decimal degrees
+          filters: comma delimited list of filters
+          exposure_time: exposure time requested in seconds
+          exposure_counts: number of exposures requested
+          username: SkyPortal username of requester
+    """
+
+    # The target of the observation
+    target = {
+        'name': request.obj.id,
+        'instrument_request': request.allocation.instrument.name,
+        'ra': f"{request.obj.ra:.5f}",
+        'dec': f"{request.obj.dec:.5f}",
+        'filters': ",".join(request.payload["observation_choices"]),
+        'exposure_time': request.payload["exposure_time"],
+        'exposure_counts': request.payload["exposure_counts"],
+        'username': request.requester.username,
+    }
+
+    c = SkyCoord(ra=request.obj.ra * u.degree, dec=request.obj.dec * u.degree)
+
+    app_url = get_app_base_url()
+    skyportal_url = f"{app_url}/source/{request.obj.id}"
+
+    if request_type == 'email':
+        linebreak = "<br>"
+    elif request_type == 'slack':
+        linebreak = "\n"
+    else:
+        raise ValueError('request_type must be either email or slack')
+
+    text = (
+        f"Name: {target['name']}{linebreak}"
+        f"SkyPortal Link: {skyportal_url}{linebreak}"
+        f"RA / Dec: {c.ra.to_string(sep=':')} {c.dec.to_string(sep=':')} ({target['ra']} {target['dec']}){linebreak}"
+        f"Filters: {target['filters']}{linebreak}"
+        f"Exposure time: {target['exposure_time']}{linebreak}"
+        f"Exposure counts: {target['exposure_counts']}{linebreak}"
+        f"Username: {target['username']}"
+    )
+
+    return textwrap.dedent(text)
 
 
 class GENERICAPI(FollowUpAPI):
@@ -117,17 +189,69 @@ class GENERICAPI(FollowUpAPI):
                     request.status = 'submitted'
                 else:
                     request.status = f'rejected: {r.content}'
+
+                transaction = FacilityTransaction(
+                    request=http.serialize_requests_request(r.request),
+                    response=http.serialize_requests_response(r),
+                    followup_request=request,
+                    initiator_id=request.last_modified_by_id,
+                )
+
+            elif 'type' in altdata and altdata['type'] == 'slack':
+                slack_microservice_url = (
+                    f'http://127.0.0.1:{cfg["slack.microservice_port"]}'
+                )
+
+                text = create_target_text(request, request_type='slack')
+
+                data = json.dumps(
+                    {
+                        "url": f"{SLACK_URL}/{altdata['slack_workspace']}/{altdata['slack_channel']}/{altdata['slack_token']}",
+                        "text": text,
+                    }
+                )
+
+                r = requests.post(
+                    slack_microservice_url,
+                    data=data,
+                    headers={'Content-Type': 'application/json'},
+                )
+                r.raise_for_status()
+
+                request.status = 'submitted'
+
+                transaction = FacilityTransaction(
+                    request=http.serialize_requests_request(r.request),
+                    response=http.serialize_requests_response(r),
+                    followup_request=request,
+                    initiator_id=request.last_modified_by_id,
+                )
+
+            elif 'type' in altdata and altdata['type'] == 'email':
+                if email:
+                    subject = f"{cfg['app.title']} - New observation request"
+
+                    text = create_target_text(request, request_type='email')
+
+                    send_email(
+                        recipients=altdata['email'].split(","),
+                        subject=subject,
+                        body=text,
+                    )
+
+                    request.status = 'submitted'
+
+                transaction = FacilityTransaction(
+                    request=None,
+                    response=None,
+                    followup_request=request,
+                    initiator_id=request.last_modified_by_id,
+                )
+
             else:
                 request.status = (
                     'rejected: missing endpoint or API token in allocation altdata'
                 )
-
-            transaction = FacilityTransaction(
-                request=http.serialize_requests_request(r.request),
-                response=http.serialize_requests_response(r),
-                followup_request=request,
-                initiator_id=request.last_modified_by_id,
-            )
         else:
             request.status = 'submitted'
 
@@ -310,7 +434,7 @@ class GENERICAPI(FollowUpAPI):
                     "maximum": 3,
                 },
                 "minimum_lunar_distance": {
-                    "title": "Maximum Lunar Distance [deg] (0-180)",
+                    "title": "Minimum Lunar Distance [deg] (0-180)",
                     "type": "number",
                     "default": 30.0,
                     "minimum": 0,

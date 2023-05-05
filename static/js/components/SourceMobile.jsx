@@ -35,6 +35,7 @@ import CopyPhotometryDialog from "./CopyPhotometryDialog";
 import ClassificationList from "./ClassificationList";
 import ClassificationForm from "./ClassificationForm";
 import ShowClassification from "./ShowClassification";
+import ShowSummaries from "./ShowSummaries";
 import ThumbnailList from "./ThumbnailList";
 import SurveyLinkList from "./SurveyLinkList";
 import StarList from "./StarList";
@@ -44,10 +45,14 @@ import FollowupRequestLists from "./FollowupRequestLists";
 import SharePage from "./SharePage";
 import AssignmentForm from "./AssignmentForm";
 import AssignmentList from "./AssignmentList";
+import DisplayPhotStats from "./DisplayPhotStats";
 import EditSourceGroups from "./EditSourceGroups";
+import ShowSummaryHistory from "./ShowSummaryHistory";
 import SourceNotification from "./SourceNotification";
 import UpdateSourceCoordinates from "./UpdateSourceCoordinates";
 import UpdateSourceRedshift from "./UpdateSourceRedshift";
+import UpdateSourceSummary from "./UpdateSourceSummary";
+import StartBotSummary from "./StartBotSummary";
 import SourceRedshiftHistory from "./SourceRedshiftHistory";
 import AnnotationsTable from "./AnnotationsTable";
 import SourceSaveHistory from "./SourceSaveHistory";
@@ -328,6 +333,27 @@ const SourceMobile = WidthProvider(
               </div>
               <div>
                 <div className={classes.sourceInfo}>
+                  <div className={classes.redshiftInfo}>
+                    <ShowSummaries summaries={source.summary_history} />
+                    {source.summary_history?.length < 1 ||
+                    !source.summary_history ||
+                    source.summary_history[0].summary === null ? ( // eslint-disable-line
+                      <div>
+                        <b>Summarize: &nbsp;</b>
+                      </div>
+                    ) : null}
+                    <UpdateSourceSummary source={source} />
+                    {source.comments?.length > 0 ||
+                    source.classifications?.length > 0 ? (
+                      <StartBotSummary obj_id={source.id} />
+                    ) : null}
+                    {source.summary_history?.length > 0 ? (
+                      <ShowSummaryHistory
+                        summaries={source.summary_history}
+                        obj_id={source.id}
+                      />
+                    ) : null}
+                  </div>
                   <div className={classes.infoLine}>
                     <ShowClassification
                       classifications={source.classifications}
@@ -436,6 +462,9 @@ const SourceMobile = WidthProvider(
                       </div>
                     </div>
                   )}
+                  <div className={classes.infoLine}>
+                    <DisplayPhotStats photstats={source.photstats[0]} />
+                  </div>
                   <div
                     className={`${classes.infoLine} ${classes.findingChart}`}
                   >
@@ -924,6 +953,7 @@ SourceMobile.propTypes = {
     alias: PropTypes.arrayOf(PropTypes.string),
     photometry_exists: PropTypes.bool,
     spectrum_exists: PropTypes.bool,
+    photstats: PropTypes.shape(Object),
   }).isRequired,
 };
 

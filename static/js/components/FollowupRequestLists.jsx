@@ -82,6 +82,22 @@ const getMuiTheme = (theme) =>
     },
   });
 
+const displayedColumns = [
+  "requester",
+  "allocation",
+  "start_date",
+  "end_date",
+  "start date",
+  "end date",
+  "mode",
+  "filters",
+  "field_ids",
+  "priority",
+  "status",
+  "modify",
+  "watch",
+];
+
 const FollowupRequestLists = ({
   followupRequests,
   instrumentList,
@@ -109,6 +125,18 @@ const FollowupRequestLists = ({
     setIsGetting(id);
     await dispatch(Actions.getPhotometryRequest(id));
     setIsGetting(null);
+  };
+
+  const [isSubmitting, setIsSubmitting] = useState(null);
+  const handleSubmit = async (followupRequest) => {
+    setIsSubmitting(followupRequest.id);
+    const json = {
+      allocation_id: followupRequest.allocation.id,
+      obj_id: followupRequest.obj_id,
+      payload: followupRequest.payload,
+    };
+    await dispatch(Actions.editFollowupRequest(json, followupRequest.id));
+    setIsSubmitting(null);
   };
 
   if (
@@ -149,6 +177,8 @@ const FollowupRequestLists = ({
     if (!(instrument_id in instrumentFormParams)) {
       return columns;
     }
+    const implementSubmit =
+      instrumentFormParams[instrument_id].methodsImplemented.submit;
     const implementsDelete =
       instrumentFormParams[instrument_id].methodsImplemented.delete;
     const implementsEdit =
@@ -203,6 +233,7 @@ const FollowupRequestLists = ({
         label: field,
         options: {
           customBodyRender: renderKey,
+          display: displayedColumns.includes(field.toLowerCase()),
         },
       });
     });
@@ -214,6 +245,10 @@ const FollowupRequestLists = ({
 
         const isDone =
           followupRequest.status === "Photometry committed to database";
+
+        const isSubmitted = followupRequest.status === "submitted";
+
+        const isFailed = followupRequest.status === "failed to submit";
 
         return (
           <div className={classes.actionButtons}>
@@ -236,7 +271,7 @@ const FollowupRequestLists = ({
                 </Button>
               </div>
             )}
-            {!isDone && (
+            {!isDone && isSubmitted && (
               <div>
                 {implementsGet && isGetting === followupRequest.id ? (
                   <div>
@@ -254,6 +289,29 @@ const FollowupRequestLists = ({
                       data-testid={`getRequest_${followupRequest.id}`}
                     >
                       Retrieve
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
+            {isFailed && (
+              <div>
+                {implementSubmit && isSubmitting === followupRequest.id ? (
+                  <div>
+                    <CircularProgress />
+                  </div>
+                ) : (
+                  <div>
+                    <Button
+                      primary
+                      onClick={() => {
+                        handleSubmit(followupRequest);
+                      }}
+                      size="small"
+                      type="submit"
+                      data-testid={`submitRequest_${followupRequest.id}`}
+                    >
+                      Submit
                     </Button>
                   </div>
                 )}
@@ -332,6 +390,40 @@ const FollowupRequestLists = ({
     }
     if (b === "end_date" || b === "start_date") {
       return 1;
+    }
+
+    // if there is an observation_type, it comes before anything else except dates and priority
+    if (
+      a === "observation_type" &&
+      b !== "end_date" &&
+      b !== "start_date" &&
+      b !== "priority"
+    ) {
+      return -1;
+    }
+    if (
+      b === "observation_type" &&
+      a !== "end_date" &&
+      a !== "start_date" &&
+      a !== "priority"
+    ) {
+      return 1;
+    }
+
+    // priority comes before status
+    if (a === "priority" && b === "status") {
+      return -1;
+    }
+    if (b === "priority" && a === "status") {
+      return 1;
+    }
+
+    // priority and status go at the end, so anything else comes before them
+    if (a === "priority" || a === "status") {
+      return 1;
+    }
+    if (b === "priority" || b === "status") {
+      return -1;
     }
 
     // Regular string comparison

@@ -18,6 +18,7 @@ import sqlalchemy as sa
 
 from baselayer.app.models import init_db
 from baselayer.app.env import load_env
+from baselayer.log import make_log
 from skyportal.models import (
     DBSession,
     FollowupRequest,
@@ -25,6 +26,7 @@ from skyportal.models import (
 )
 
 env, cfg = load_env()
+log = make_log('facility_queue')
 
 init_db(**cfg['database'])
 
@@ -94,26 +96,33 @@ class FacilityQueue(asyncio.Queue):
                                 )
                                 req.status = 'complete'
                                 session.add(req)
-                                print(f"Request {req.id} completed")
+                                log(f"Job with ID {req.id} completed")
 
                             elif json_response['starttimestamp']:
-                                followup_request.status = f"Task is running (started at {json_response['starttimestamp']})"
+                                log(
+                                    f"Job with ID {req.id} is running (started at {json_response['starttimestamp']})"
+                                )
+                                followup_request.status = f"Job is running (started at {json_response['starttimestamp']})"
                                 req.last_query = datetime.utcnow()
                                 session.add(req)
                                 await self.put(req.id)
                             else:
+                                log(
+                                    f"Waiting for job with ID {req.id} to start (queued at {json_response['timestamp']})"
+                                )
                                 followup_request.status = f"Waiting for job to start (queued at {json_response['timestamp']})"
                                 req.last_query = datetime.utcnow()
                                 session.add(req)
                                 await self.put(req.id)
                         else:
+                            log(f"Job {req.id}: error: {response.content}")
                             followup_request.status = f'error: {response.content}'
 
                         session.add(followup_request)
                         session.commit()
 
                     else:
-                        raise ValueError(f'API for {instrument.name} unknown')
+                        log(f'Job {req.id}: API for {instrument.name} unknown')
 
                 # Pause between requests
                 time.sleep(10)

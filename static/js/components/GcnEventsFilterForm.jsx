@@ -98,7 +98,31 @@ const useStyles = makeStyles((theme) => ({
   selectItem: {
     whiteSpace: "break-spaces",
   },
+  divider: {
+    margin: "0.5rem 0rem 0.5rem 0rem",
+    minWidth: "100%",
+    backgroundColor: "rgba(0, 0, 0, 0.24)",
+    height: "2px",
+  },
 }));
+
+const conversions = {
+  FAR: {
+    backendUnit: "Hz",
+    frontendUnit: "Per year",
+    BackendToFrontend: (val) => parseFloat(val) * (365.25 * 24 * 60 * 60),
+    FrontendToBackend: (val) => parseFloat(val) / (365.25 * 24 * 60 * 60),
+  },
+};
+
+const comparators = {
+  lt: "<",
+  le: "<=",
+  eq: "=",
+  ne: "!=",
+  ge: ">",
+  gt: ">=",
+};
 
 const GcnEventsFilterForm = ({ handleFilterSubmit }) => {
   const classes = useStyles();
@@ -175,7 +199,7 @@ const GcnEventsFilterForm = ({ handleFilterSubmit }) => {
         className={classes.root}
         onSubmit={handleSubmit(handleFilterPreSubmit)}
       >
-        <div className={classes.formItem}>
+        <div className={classes.formItemRightColumn}>
           <Typography variant="subtitle2" className={classes.title}>
             Time Detected (UTC)
           </Typography>
@@ -210,7 +234,8 @@ const GcnEventsFilterForm = ({ handleFilterSubmit }) => {
             control={control}
           />
         </div>
-        <div className={classes.formItem}>
+        <div className={classes.divider} />
+        <div className={classes.formItemRightColumn}>
           <Typography variant="subtitle2" className={classes.title}>
             GCN Tags to Keep
           </Typography>
@@ -228,8 +253,11 @@ const GcnEventsFilterForm = ({ handleFilterSubmit }) => {
           <GcnPropertiesSelect
             selectedGcnProperties={selectedGcnProperties}
             setSelectedGcnProperties={setSelectedGcnProperties}
+            conversions={conversions}
+            comparators={comparators}
           />
         </div>
+        <div className={classes.divider} />
         <div className={classes.formItemRightColumn}>
           <Typography variant="subtitle2" className={classes.title}>
             Localization Tags to Keep
@@ -252,6 +280,7 @@ const GcnEventsFilterForm = ({ handleFilterSubmit }) => {
             }
           />
         </div>
+        <div className={classes.divider} />
         <div className={classes.formButtons}>
           <ButtonGroup
             variant="contained"

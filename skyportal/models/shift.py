@@ -2,6 +2,8 @@ __all__ = ['Shift', 'ShiftUser']
 
 import sqlalchemy as sa
 from sqlalchemy.orm import relationship
+from sqlalchemy import func, select
+from sqlalchemy.orm import column_property
 
 
 from baselayer.app.models import (
@@ -179,3 +181,13 @@ ShiftUser.update = CustomUserAccessControl(shiftuser_update_access_logic)
 ShiftUser.delete = CustomUserAccessControl(shiftuser_delete_access_logic)
 
 ShiftUser.create = ShiftUser.read
+
+# We add a column_property to Shift that is an array of the ids of the shift_users in the shift.
+# This is useful for the frontend, to track how many users out of the required number are in the shift,
+# and also tro track if the current user using the frontend is in the shift or not, while avoiding a joinedload with the ShiftUser table.
+# Compared to a property or a hybrid_property, a column_property will be loaded by default and doesnt need to be called explicitly, just like a normal column.
+Shift.shift_users_ids = column_property(
+    select(func.array_agg(ShiftUser.user_id))
+    .where(ShiftUser.shift_id == Shift.id)
+    .correlate_except(ShiftUser)
+)

@@ -15,6 +15,7 @@ import InputLabel from "@mui/material/InputLabel";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
 import TextField from "@mui/material/TextField";
+import Autocomplete from "@mui/material/Autocomplete";
 import Tooltip from "@mui/material/Tooltip";
 import { Typography } from "@mui/material";
 import makeStyles from "@mui/styles/makeStyles";
@@ -30,6 +31,8 @@ import FormValidationError from "./FormValidationError";
 import { allowedClasses } from "./ClassificationForm";
 import ClassificationSelect from "./ClassificationSelect";
 import Button from "./Button";
+
+import * as gcnEventsActions from "../ducks/gcnEvents";
 
 dayjs.extend(utc);
 
@@ -65,6 +68,12 @@ const useStyles = makeStyles(() => ({
   },
   formRow: {
     margin: "1rem 0",
+  },
+  gcnFormRow: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr 1fr",
+    gridGap: "0.5rem",
+    marginTop: "1rem",
   },
   redshiftField: {
     display: "inline-block",
@@ -127,12 +136,6 @@ const FilterCandidateList = ({
     (state) => state.candidates.annotationsInfo
   );
   const dispatch = useDispatch();
-  useEffect(() => {
-    // Grab the available annotation fields for filtering
-    if (!availableAnnotationsInfo) {
-      dispatch(candidatesActions.fetchAnnotationsInfo());
-    }
-  }, [dispatch, availableAnnotationsInfo]);
 
   const { scanningProfiles, useAMPM } = useSelector(
     (state) => state.profile.preferences
@@ -195,6 +198,21 @@ const FilterCandidateList = ({
     selectedScanningProfile?.sortingOrigin
   );
 
+  const gcnEvents = useSelector((state) => state.gcnEvents);
+
+  const gcnEventsLookUp = {};
+  // eslint-disable-next-line no-unused-expressions
+  gcnEvents?.events.forEach((gcnEvent) => {
+    gcnEventsLookUp[gcnEvent.id] = gcnEvent;
+  });
+
+  const [selectedGcnEventId, setSelectedGcnEventId] = useState(null);
+
+  useEffect(() => {
+    dispatch(gcnEventsActions.fetchGcnEvents());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const {
     handleSubmit,
     getValues,
@@ -205,6 +223,38 @@ const FilterCandidateList = ({
     startDate: defaultStartDate,
     endDate: defaultEndDate,
   });
+
+  useEffect(() => {
+    // set the default values for the firstDetectionAfter and lastDetectionBefore
+
+    let defaultFirstDetectionAfter = " ";
+    let defaultLastDetectionBefore = " ";
+    if (selectedGcnEventId && selectedGcnEventId !== "") {
+      defaultFirstDetectionAfter = dayjs
+        .utc(gcnEventsLookUp[selectedGcnEventId]?.dateobs)
+        .format("YYYY-MM-DD HH:mm:ss");
+      defaultLastDetectionBefore = dayjs
+        .utc(gcnEventsLookUp[selectedGcnEventId]?.dateobs)
+        .add(7, "day")
+        .format("YYYY-MM-DD HH:mm:ss");
+    }
+    const newFormData = {
+      ...getValues(),
+      firstDetectionAfter: defaultFirstDetectionAfter,
+      lastDetectionBefore: defaultLastDetectionBefore,
+    };
+    if (!selectedGcnEventId) {
+      delete newFormData.firstDetectionAfter;
+      delete newFormData.lastDetectionBefore;
+      delete newFormData.numberDetections;
+      delete newFormData.localizationCumprob;
+    } else {
+      newFormData.numberDetections = 1;
+      newFormData.localizationCumprob = 0.95;
+    }
+
+    reset(newFormData);
+  }, [selectedGcnEventId]);
 
   useEffect(() => {
     const selectedGroupIDs = Array(userAccessibleGroups.length).fill(false);
@@ -309,6 +359,28 @@ const FilterCandidateList = ({
     }
     if (formData.redshiftMaximum) {
       data.maxRedshift = formData.redshiftMaximum;
+    }
+    if (formData.gcneventid !== "" || formData.localizationid !== "") {
+      // data.gcneventid = formData.gcneventid;
+      // data.localizationid = formData.localizationid;
+      data.localizationDateobs = gcnEventsLookUp[formData.gcneventid]?.dateobs;
+      data.localizationName = gcnEventsLookUp[
+        formData.gcneventid
+      ]?.localizations?.filter(
+        (l) => l.id === formData.localizationid
+      )[0]?.localization_name;
+      if (formData.localizationCumprob) {
+        data.localizationCumprob = formData.localizationCumprob;
+      }
+      if (formData.firstDetectionAfter) {
+        data.firstDetectionAfter = formData.firstDetectionAfter;
+      }
+      if (formData.lastDetectionBefore) {
+        data.lastDetectionBefore = formData.lastDetectionBefore;
+      }
+      if (formData.numberDetections) {
+        data.numberDetections = formData.numberDetections;
+      }
     }
     if (formData.sortingOrigin) {
       data.sortByAnnotationOrigin = formData.sortingOrigin;
@@ -639,6 +711,159 @@ const FilterCandidateList = ({
               )}
             </Responsive>
           </div>
+          <div>
+            <Responsive element={FoldBox} title="GCN Filtering" folded>
+              {gcnEvents?.events ? (
+                <>
+                  <div className={classes.gcnFormRow}>
+                    <Controller
+                      render={({ field: { value } }) => (
+                        <Autocomplete
+                          id="gcn-event-filtering"
+                          options={gcnEvents?.events}
+                          value={
+                            gcnEvents?.events.find(
+                              (option) => option.id === value
+                            ) || null
+                          }
+                          getOptionLabel={(option) => option?.dateobs || ""}
+                          className={classes.select}
+                          // eslint-disable-next-line no-shadow
+                          onInputChange={(event, value) => {
+                            dispatch(
+                              gcnEventsActions.fetchGcnEvents({
+                                partialdateobs: value,
+                              })
+                            );
+                          }}
+                          onChange={(event, newValue) => {
+                            if (newValue !== null) {
+                              reset({
+                                ...getValues(),
+                                gcneventid:
+                                  newValue.id === -1 ? "" : newValue.id,
+                                localizationid:
+                                  newValue.id === -1
+                                    ? ""
+                                    : gcnEventsLookUp[newValue.id]
+                                        ?.localizations[0]?.id || "",
+                              });
+                              setSelectedGcnEventId(newValue.id);
+                            } else {
+                              reset({
+                                ...getValues(),
+                                gcneventid: "",
+                                localizationid: "",
+                              });
+                              setSelectedGcnEventId("");
+                            }
+                          }}
+                          renderInput={(params) => (
+                            <TextField {...params} label="GCN Event" />
+                          )}
+                        />
+                      )}
+                      name="gcneventid"
+                      control={control}
+                      defaultValue=""
+                    />
+                    <Controller
+                      render={({ field: { onChange, value } }) => (
+                        <Select
+                          inputProps={{
+                            MenuProps: { disableScrollLock: true },
+                          }}
+                          labelId="localizationSelectLabel"
+                          value={value || ""}
+                          onChange={(event) => {
+                            onChange(event.target.value);
+                          }}
+                          className={classes.select}
+                          disabled={!selectedGcnEventId}
+                        >
+                          {gcnEventsLookUp[
+                            selectedGcnEventId
+                          ]?.localizations?.map((localization) => (
+                            <MenuItem
+                              value={localization.id}
+                              key={localization.id}
+                              className={classes.selectItem}
+                            >
+                              {`${localization.localization_name}`}
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      )}
+                      name="localizationid"
+                      control={control}
+                      defaultValue=""
+                    />
+                    <Controller
+                      render={({ field: { onChange, value } }) => (
+                        <TextField
+                          id="cumprob"
+                          label="Cumulative Probability"
+                          type="number"
+                          value={value}
+                          inputProps={{ step: 0.01, min: 0, max: 1 }}
+                          onChange={(event) => onChange(event.target.value)}
+                          defaultValue={0.95}
+                        />
+                      )}
+                      name="localizationCumprob"
+                      control={control}
+                    />
+                  </div>
+                  <div className={classes.gcnFormRow}>
+                    <Controller
+                      render={({ field: { onChange, value } }) => (
+                        <TextField
+                          type="text"
+                          value={value}
+                          onChange={(event) => onChange(event.target.value)}
+                          label="First Detection After (UTC)"
+                          defaultValue=" "
+                        />
+                      )}
+                      name="firstDetectionAfter"
+                      control={control}
+                    />
+                    <Controller
+                      render={({ field: { onChange, value } }) => (
+                        <TextField
+                          type="text"
+                          value={value}
+                          onChange={(event) => onChange(event.target.value)}
+                          label="Last Detection Before (UTC)"
+                          defaultValue=" "
+                        />
+                      )}
+                      name="lastDetectionBefore"
+                      control={control}
+                    />
+                    <Controller
+                      render={({ field: { onChange, value } }) => (
+                        <TextField
+                          id="minNbDect"
+                          label="Minimum Number of Detections"
+                          type="number"
+                          value={value}
+                          inputProps={{ step: 1, min: 0 }}
+                          onChange={(event) => onChange(event.target.value)}
+                          defaultValue={1}
+                        />
+                      )}
+                      name="numberDetections"
+                      control={control}
+                    />
+                  </div>
+                </>
+              ) : (
+                <p> Loading events</p>
+              )}
+            </Responsive>
+          </div>
+
           <div>
             <Responsive
               element={FoldBox}

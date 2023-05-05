@@ -43,6 +43,7 @@ import VegaPhotometry from "./VegaPhotometry";
 import Spinner from "./Spinner";
 import AddClassificationsScanningPage from "./AddClassificationsScanningPage";
 import Button from "./Button";
+import DisplayPhotStats from "./DisplayPhotStats";
 
 import CandidatePlugins from "./CandidatePlugins";
 
@@ -645,6 +646,9 @@ const CandidateInfo = ({
                 <span>{getCandidateSelectedAnnotationValue(candidateObj)}</span>
               </div>
             )}
+          {candidateObj.photstats && (
+            <DisplayPhotStats photstats={candidateObj.photstats[0]} />
+          )}
         </div>
       )}
     </div>
@@ -723,8 +727,10 @@ const CandidateList = () => {
 
   useEffect(() => {
     // Grab the available annotation fields for filtering
-    dispatch(candidatesActions.fetchAnnotationsInfo());
-  }, [dispatch]);
+    if (!availableAnnotationsInfo) {
+      dispatch(candidatesActions.fetchAnnotationsInfo());
+    }
+  }, [dispatch, availableAnnotationsInfo]);
 
   useEffect(() => {
     if (defaultScanningProfile?.sortingOrder) {

@@ -28,7 +28,17 @@ def test_shift(public_group, super_admin_token, view_only_token, super_admin_use
     assert status == 200
     assert data['status'] == 'success'
 
-    status, data = api('GET', f'shifts/{public_group.id}', token=super_admin_token)
+    shift_id = data['data']['id']
+
+    status, data = api(
+        'GET', f'shifts/{shift_id}', data=request_data, token=super_admin_token
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    status, data = api(
+        'GET', f'shifts?group_id={public_group.id}', token=super_admin_token
+    )
     assert status == 200
     assert data['status'] == 'success'
 
@@ -44,10 +54,34 @@ def test_shift(public_group, super_admin_token, view_only_token, super_admin_use
 
     assert any(
         [
-            len([s for s in shift['shift_users'] if s['id'] == super_admin_user.id])
-            == 1
+            len([s for s in shift['shift_users_ids'] if s == super_admin_user.id]) == 1
             for shift in data['data']
         ]
+    )
+
+    name2 = str(uuid.uuid4())
+    request_data = {
+        'name': name2,
+        'description': 'the Day Shift',
+        'required_users_number': 3,
+    }
+
+    status, data = api(
+        'PATCH', f'shifts/{shift_id}', data=request_data, token=super_admin_token
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    status, data = api(
+        'GET', f'shifts/{shift_id}', data=request_data, token=super_admin_token
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    assert request_data['name'] == data['data']['name']
+    assert request_data['description'] == data['data']['description']
+    assert (
+        request_data['required_users_number'] == data['data']['required_users_number']
     )
 
 
@@ -76,6 +110,12 @@ def test_shift_summary(
 
     shift_id = data['data']['id']
 
+    status, data = api(
+        'GET', f'shifts/{shift_id}', data=request_data, token=super_admin_token
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
     shift_name_2 = str(uuid.uuid4())
     start_date = "2018-01-17T12:00:00"
     end_date = "2018-01-18T12:00:00"
@@ -94,7 +134,9 @@ def test_shift_summary(
 
     shift_id_2 = data['data']['id']
 
-    status, data = api('GET', f'shifts/{public_group.id}', token=super_admin_token)
+    status, data = api(
+        'GET', f'shifts?group_id={public_group.id}', token=super_admin_token
+    )
     assert status == 200
     assert data['status'] == 'success'
 

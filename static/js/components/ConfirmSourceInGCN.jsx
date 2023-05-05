@@ -12,6 +12,7 @@ import IconButton from "@mui/material/IconButton";
 import EditIcon from "@mui/icons-material/Edit";
 import Close from "@mui/icons-material/Close";
 import TextField from "@mui/material/TextField";
+import Autocomplete from "@mui/material/Autocomplete";
 import Typography from "@mui/material/Typography";
 import grey from "@mui/material/colors/grey";
 import dayjs from "dayjs";
@@ -23,6 +24,15 @@ import Button from "./Button";
 import * as SourceInGcnAction from "../ducks/confirmedsourcesingcn";
 
 dayjs.extend(utc);
+
+const defaultExplanations = [
+  "old source",
+  "AGN",
+  "slow",
+  "spec reject",
+  "moving",
+  "outside",
+];
 
 const useStyles = makeStyles((theme) => ({
   container: {
@@ -99,7 +109,7 @@ const ConfirmSourceInGCN = ({
   const { permissions } = useSelector((state) => state.profile);
   const [open, setOpen] = useState(false);
 
-  const { handleSubmit, control, getValues, register } = useForm();
+  const { handleSubmit, control, getValues } = useForm();
 
   const sourcesingcn = useSelector((state) => state.sourcesingcn.sourcesingcn);
 
@@ -248,18 +258,26 @@ const ConfirmSourceInGCN = ({
                     </Typography>
                     <Controller
                       render={({ field: { onChange, value } }) => (
-                        <TextField
-                          size="small"
-                          label="Explanation"
-                          name="explanation"
-                          inputRef={register("explanation")}
-                          className={classes.positionField}
-                          onChange={onChange}
+                        <Autocomplete
+                          id="explanation"
+                          options={defaultExplanations}
+                          onChange={(event, newValue) => {
+                            onChange(newValue);
+                          }}
                           value={value}
+                          renderInput={(params) => (
+                            <TextField
+                              {...params}
+                              label="Explanation"
+                              variant="outlined"
+                              fullWidth
+                            />
+                          )}
                         />
                       )}
                       name="explanation"
                       control={control}
+                      defaultValue=""
                     />
                     <div>
                       <Button onClick={handleConfirm}>CONFIRM</Button>

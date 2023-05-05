@@ -1147,7 +1147,7 @@ default_observation_plan:
 default_followup_request:
   - allocation_id: =SEDMv2_allocation
     default_followup_name: "SEDMv2-Default-Plan"
-    payload: {'priority': 1, 'exposure_time': 300, 'exposure_counts': 1, 'maximum_airmass': 2, 'observation_choices': ['g', 'r'], 'minimum_lunar_distance': 30, 'too': 'Y', 'observation_type': 'transient'}
+    payload: {'priority': 1, 'exposure_time': 300, 'maximum_airmass': 2, 'observation_choice': 'g', 'minimum_lunar_distance': 30, 'too': 'Y', 'observation_type': 'transient'}
     source_filter: {'classification': 'microlensing'}
 
 

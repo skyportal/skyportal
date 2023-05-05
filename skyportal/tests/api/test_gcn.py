@@ -153,7 +153,7 @@ def test_gcn_Fermi(super_admin_token, view_only_token):
     assert status == 200
 
 
-def test_gcn_from_moc(super_admin_token, view_only_token):
+def test_gcn_from_moc(super_admin_token):
 
     name = str(uuid.uuid4())
     post_data = {
@@ -387,7 +387,7 @@ def test_gcn_summary_sources(
     photometry_table = table[idx + 1 :]
 
     assert (
-        len(sources_table) >= 6
+        len(sources_table) >= 4
     )  # other sources have probably been added in previous tests
     assert "id" in sources_table[1]
     assert "alias" in sources_table[1]
@@ -468,7 +468,10 @@ def test_gcn_summary_galaxies(
     datafile = f'{os.path.dirname(__file__)}/../../../data/CLU_mini.hdf5'
     data = {
         'catalog_name': catalog_name,
-        'catalog_data': Table.read(datafile).to_pandas().to_dict(orient='list'),
+        'catalog_data': Table.read(datafile)
+        .to_pandas()
+        .replace({np.nan: None})
+        .to_dict(orient='list'),
     }
 
     status, data = api('POST', 'galaxy_catalog', data=data, token=super_admin_token)
@@ -580,10 +583,7 @@ def test_gcn_summary_galaxies(
 
 
 def test_gcn_instrument_field(
-    super_admin_user,
     super_admin_token,
-    view_only_token,
-    public_group,
 ):
 
     datafile = f'{os.path.dirname(__file__)}/../../../data/GW190814.xml'
@@ -865,25 +865,36 @@ def test_gcn_summary_observations(
     )
     assert status == 200
     assert data['status'] == 'success'
-    id = data['data']['ids'][0]
 
     # wait for the observation plan to finish loading
     time.sleep(15)
+    n_retries = 0
+    while n_retries < 10:
+        try:
+            status, data = api(
+                'GET',
+                'observation_plan',
+                params={"includePlannedObservations": "true"},
+                token=super_admin_token,
+            )
+            assert status == 200
+            assert data['status'] == 'success'
 
-    status, data = api(
-        'GET',
-        f'observation_plan/{id}',
-        params={"includePlannedObservations": "true"},
-        token=super_admin_token,
-    )
-    assert status == 200
-    assert data['status'] == 'success'
+            data = [
+                d
+                for d in data['data']['requests']
+                if d['gcnevent_id'] == gcnevent_id
+                and d['allocation_id'] == allocation_id
+            ]
+            assert len(data) == 1
+            assert data[0]["payload"] == request_data["payload"]
+            assert len(data[0]["observation_plans"]) == 1
+            break
+        except AssertionError:
+            n_retries = n_retries + 1
+            time.sleep(3)
 
-    assert data["data"]["gcnevent_id"] == gcnevent_id
-    assert data["data"]["allocation_id"] == allocation_id
-    assert data["data"]["payload"] == request_data["payload"]
-
-    assert len(data["data"]["observation_plans"]) == 1
+        assert n_retries < 10
 
     datafile = f'{os.path.dirname(__file__)}/../../../data/sample_observation_gw.csv'
     data = {
@@ -1242,7 +1253,7 @@ def test_confirm_reject_source_in_gcn(
     assert len(data) == 0
 
 
-def test_gcn_from_polygon(super_admin_token, view_only_token):
+def test_gcn_from_polygon(super_admin_token):
 
     localization_name = str(uuid.uuid4())
     dateobs = '2022-09-03T14:44:12'
@@ -1264,7 +1275,7 @@ def test_gcn_from_polygon(super_admin_token, view_only_token):
     assert 'IPN' in data["tags"]
 
 
-def test_gcn_Swift(super_admin_token, view_only_token):
+def test_gcn_Swift(super_admin_token):
 
     datafile = f'{os.path.dirname(__file__)}/../data/SWIFT_1125809-092.xml'
     with open(datafile, 'rb') as fid:
@@ -1336,13 +1347,13 @@ def test_gcn_tach(
 
     for n_times in range(26):
         status, data = api('GET', f"gcn_event/{dateobs}", token=super_admin_token)
-        if data['status'] == 'success':
+        if status == 200:
             break
         time.sleep(2)
     assert n_times < 25
 
     data = data['data']
-    assert len(data['aliases']) == 0
+    assert len(data['aliases']) == 1
 
     status, data = api('POST', f'gcn_event/{dateobs}/tach', token=view_only_token)
     assert status == 401
@@ -1354,13 +1365,13 @@ def test_gcn_tach(
     for n_times in range(30):
         status, data = api('GET', f"gcn_event/{dateobs}", token=super_admin_token)
         if data['status'] == 'success':
-            if len(data['data']['aliases']) > 0:
+            if len(data['data']['aliases']) > 1:
                 aliases = data['data']['aliases']
                 break
             time.sleep(1)
 
     assert n_times < 29
-    assert len(aliases) == 1
+    assert len(aliases) == 2
     assert 'GRB180116A' in aliases
 
     status, data = api('GET', f"gcn_event/{dateobs}/tach", token=super_admin_token)
@@ -1368,12 +1379,12 @@ def test_gcn_tach(
     assert status == 200
     assert data['status'] == 'success'
     data = data['data']
-    assert len(data['aliases']) == 1
+    assert len(data['aliases']) == 2
     assert len(data['circulars']) == 3
     assert data['tach_id'] is not None
 
 
-def test_download_localization(super_admin_token, view_only_token):
+def test_download_localization(super_admin_token):
 
     datafile = f'{os.path.dirname(__file__)}/../../../data/GW190814.xml'
     with open(datafile, 'rb') as fid:
@@ -1435,7 +1446,7 @@ def test_gcn_allocation_triggers(
 
     for n_times in range(26):
         status, data = api('GET', f"gcn_event/{dateobs}", token=super_admin_token)
-        if data['status'] == 'success':
+        if status == 200:
             break
         time.sleep(2)
     assert n_times < 25

@@ -2,8 +2,8 @@ import arrow
 from sqlalchemy.orm import joinedload
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
-from skyportal.models.comment import CommentOnShift
 from ..base import BaseHandler
+from .group import has_admin_access_for_group
 from ...models import (
     Group,
     Shift,
@@ -118,7 +118,7 @@ class ShiftHandler(BaseHandler):
             return self.success(data={"id": shift.id})
 
     @auth_or_token
-    def get(self, group_id=None):
+    def get(self, shift_id=None):
         """
         ---
         description: Retrieve shifts
@@ -126,8 +126,13 @@ class ShiftHandler(BaseHandler):
           - shifts
         parameters:
           - in: path
-            name: group_id
+            name: shift_id
             required: false
+            schema:
+              type: integer
+          - in: query
+            name: group_id
+            nullable: true
             schema:
               type: integer
         responses:
@@ -141,93 +146,167 @@ class ShiftHandler(BaseHandler):
                 schema: Error
         """
 
+        group_id = self.get_query_argument("group_id", None)
+
         with self.Session() as session:
-
-            if group_id is not None:
-                queried_shifts = (
-                    session.scalars(
+            try:
+                if shift_id is not None:
+                    shift = session.scalars(
                         Shift.select(
                             session.user_or_token,
                             options=[
                                 joinedload(Shift.group).joinedload(Group.group_users),
                                 joinedload(Shift.shift_users),
+                                joinedload(Shift.comments),
                             ],
+                        ).where(Shift.id == shift_id)
+                    ).first()
+                    if shift is None:
+                        return self.error(
+                            f"Could not load shift with ID {shift_id}.", status=404
                         )
-                        .where(Shift.group_id == group_id)
-                        .order_by(Shift.start_date.asc())
-                    )
-                    .unique()
-                    .all()
-                )
-            else:
-                queried_shifts = (
-                    session.scalars(
-                        Shift.select(
-                            session.user_or_token,
-                            options=[
-                                joinedload(Shift.group).joinedload(Group.group_users),
-                                joinedload(Shift.shift_users),
+                    data = {
+                        **shift.to_dict(),
+                        "comments": sorted(
+                            (
+                                {
+                                    **{
+                                        k: v
+                                        for k, v in c.to_dict().items()
+                                        if k != "attachment_bytes"
+                                    },
+                                    "author": {
+                                        **c.author.to_dict(),
+                                        "gravatar_url": c.author.gravatar_url,
+                                    },
+                                    "resourceType": "shift",
+                                }
+                                for c in shift.comments
+                            ),
+                            key=lambda x: x["created_at"],
+                            reverse=True,
+                        ),
+                        "shift_users": [
+                            {
+                                **u.to_dict(),
+                                "username": u.user.username,
+                                "first_name": u.user.first_name,
+                                "last_name": u.user.last_name,
+                            }
+                            for u in shift.shift_users
+                        ],
+                        "group": {
+                            "id": shift.group.id,
+                            "name": shift.group.name,
+                            "has_admin_access": has_admin_access_for_group(
+                                self.associated_user_object, shift.group.id, session
+                            ),
+                            "group_users": [
+                                {
+                                    "id": gu.user.id,
+                                    "username": gu.user.username,
+                                    "first_name": gu.user.first_name,
+                                    "last_name": gu.user.last_name,
+                                }
+                                for gu in shift.group.group_users
                             ],
-                        ).order_by(Shift.start_date.asc())
-                    )
-                    .unique()
-                    .all()
-                )
-            shifts = []
-            for shift in queried_shifts:
-                susers = []
-                for su in shift.shift_users:
-                    user = su.user.to_dict()
-                    user["admin"] = su.admin
-                    user["needs_replacement"] = su.needs_replacement
-                    del user["oauth_uid"]
-                    susers.append(user)
-                gusers = []
-                for gu in shift.group.group_users:
-                    user = gu.user.to_dict()
-                    user["admin"] = gu.admin
-                    del user["oauth_uid"]
-                    gusers.append(user)
+                        },
+                    }
+                    return self.success(data)
 
-                shift = shift.to_dict()
-                shift["shift_users"] = susers
-                shift["group"] = shift["group"].to_dict()
-                shift["group"]["group_users"] = gusers
-                comments = (
-                    session.scalars(
-                        CommentOnShift.select(
-                            self.current_user,
-                            options=[
-                                joinedload(CommentOnShift.author),
-                                joinedload(CommentOnShift.groups),
-                            ],
-                        ).where(CommentOnShift.shift_id == shift["id"])
+                else:
+                    query = Shift.select(
+                        session.user_or_token,
                     )
-                    .unique()
-                    .all()
-                )
-                shift["comments"] = sorted(
-                    (
-                        {
-                            **{
-                                k: v
-                                for k, v in c.to_dict().items()
-                                if k != "attachment_bytes"
-                            },
-                            "author": {
-                                **c.author.to_dict(),
-                                "gravatar_url": c.author.gravatar_url,
-                            },
-                            "resourceType": "shift",
-                        }
-                        for c in comments
-                    ),
-                    key=lambda x: x["created_at"],
-                    reverse=True,
-                )
-                shifts.append(shift)
+                    if group_id is not None:
+                        query = query.where(Shift.group_id == group_id)
 
-            return self.success(data=shifts)
+                    shifts = session.scalars(query).unique().all()
+                    return self.success(data=shifts)
+            except Exception as e:
+                return self.error(f"Failed to get shift(s): {e}")
+
+    @permissions(['Manage shifts'])
+    def patch(self, shift_id):
+        """
+        ---
+        description: Update a shift
+        tags:
+          - shifts
+        parameters:
+          - in: path
+            name: shift_id
+            required: true
+            schema:
+              type: integer
+        requestBody:
+          content:
+            application/json:
+              schema: ShiftNoID
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+
+        with self.Session() as session:
+            try:
+                shift = session.scalars(
+                    Shift.select(session.user_or_token, mode="update").where(
+                        Shift.id == shift_id
+                    )
+                ).first()
+                if shift is None:
+                    return self.error(
+                        "Only the admin of a shift or an admin of the shift's group can edit it."
+                    )
+
+                data = self.get_json()
+                data['id'] = int(shift_id)
+
+                schema = Shift.__schema__()
+                try:
+                    schema.load(data, partial=True)
+                except ValidationError as e:
+                    return self.error(
+                        'Invalid/missing parameters: ' f'{e.normalized_messages()}'
+                    )
+
+                if 'name' in data:
+                    if data['name'] in [None, '']:
+                        return self.error('name must be a non-empty string')
+                    shift.name = data['name']
+                if 'description' in data:
+                    shift.description = data['description']
+                if 'required_users_number' in data:
+                    if data['required_users_number'] in [None, '']:
+                        shift.required_users_number = None
+                    elif int(data['required_users_number']) < 1:
+                        return self.error(
+                            'required_users_number must be at least 1, or None'
+                        )
+                    elif int(data['required_users_number']) < len(shift.shift_users):
+                        return self.error(
+                            'required_users_number must be at least the number of users already signed up for the shift, or None'
+                        )
+                    else:
+                        shift.required_users_number = int(data['required_users_number'])
+
+                session.commit()
+
+                self.push_all(
+                    action="skyportal/REFRESH_SHIFT",
+                    payload={"shift_id": shift.id},
+                )
+
+                return self.success()
+            except Exception as e:
+                return self.error(f'Could not update shift: {e}')
 
     @permissions(["Manage shifts"])
     def delete(self, shift_id):
@@ -255,7 +334,9 @@ class ShiftHandler(BaseHandler):
         shift_id = int(shift_id)
         with self.Session() as session:
             shift = session.scalars(
-                Shift.select(session.user_or_token).where(Shift.id == shift_id)
+                Shift.select(session.user_or_token, mode="delete").where(
+                    Shift.id == shift_id
+                )
             ).first()
             if shift is None:
                 return self.error(
@@ -271,7 +352,7 @@ class ShiftHandler(BaseHandler):
 
 
 class ShiftUserHandler(BaseHandler):
-    @permissions(["Manage shifts"])
+    @auth_or_token
     def post(self, shift_id, *ignored_args):
         """
         ---
@@ -403,13 +484,14 @@ class ShiftUserHandler(BaseHandler):
             self.flow.push(user.id, "skyportal/FETCH_NOTIFICATIONS", {})
 
             self.push_all(
-                action='skyportal/REFRESH_SHIFTS', payload={'shift_id': shift_id}
+                action='skyportal/REFRESH_SHIFT',
+                payload={'shift_id': shift_id},
             )
             return self.success(
                 data={'shift_id': shift_id, 'user_id': user_id, 'admin': admin}
             )
 
-    @permissions(["Manage shifts"])
+    @auth_or_token
     def patch(self, shift_id, user_id):
         """
         ---
@@ -521,11 +603,11 @@ class ShiftUserHandler(BaseHandler):
 
             session.commit()
             self.push_all(
-                action='skyportal/REFRESH_SHIFTS', payload={'shift_id': shift_id}
+                action='skyportal/REFRESH_SHIFT',
+                payload={'shift_id': shift_id},
             )
             return self.success()
 
-    @permissions(["Manage shifts"])
     @auth_or_token
     def delete(self, shift_id, user_id):
         """
@@ -577,7 +659,8 @@ class ShiftUserHandler(BaseHandler):
             session.delete(su)
             session.commit()
             self.push_all(
-                action='skyportal/REFRESH_SHIFTS', payload={'shift_id': shift_id}
+                action='skyportal/REFRESH_SHIFT',
+                payload={'shift_id': shift_id},
             )
             return self.success()
 

@@ -184,7 +184,7 @@ const ShiftSummary = () => {
       <div className={classes.info} id={`gcn_info_${gcn.dateobs}`}>
         <p className={classes.info}>{`discovered during shift: ${shifts
           .map((shift) =>
-            gcn.shift_ids.includes(shift.id) ? shift.name : null
+            gcn?.shiftIDs?.includes(shift.id) ? shift.name : null
           )
           .join(", ")}`}</p>
       </div>

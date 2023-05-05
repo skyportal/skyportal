@@ -29,14 +29,15 @@ import {
   SelectLabelWithChips,
   SelectSingleLabelWithChips,
 } from "./SelectWithChips";
-import * as usersActions from "../ducks/users";
-import * as groupsActions from "../ducks/groups";
+
+import { fetchGroup } from "../ducks/group";
+import { fetchGroups } from "../ducks/groups";
+import { fetchInstruments } from "../ducks/instruments";
 import {
   fetchGcnEventSummary,
   postGcnEventSummary,
   deleteGcnEventSummary,
   patchGcnEventSummary,
-  fetchGcnEvent,
 } from "../ducks/gcnEvent";
 import Button from "./Button";
 import GcnSummaryTable from "./GcnSummaryTable";
@@ -138,10 +139,10 @@ const DialogTitle = withStyles(dialogTitleStyles)(
 const GcnSummary = ({ dateobs }) => {
   const classes = useStyles();
   const groups = useSelector((state) => state.groups.userAccessible);
-  const { users } = useSelector((state) => state.users);
+  const users = useSelector((state) => state.group?.users);
+  const { instrumentList } = useSelector((state) => state.instruments);
   const dispatch = useDispatch();
   const [open, setOpen] = useState(false);
-  const [dataFetched, setDataFetched] = useState(false);
   const [selectedUsers, setSelectedUsers] = useState([]);
   const [selectedGroup, setSelectedGroup] = useState(null);
   const gcnEvent = useSelector((state) => state.gcnEvent);
@@ -160,6 +161,7 @@ const GcnSummary = ({ dateobs }) => {
   const [noText, setNoText] = useState(false);
   const [photometryInWindow, setPhotometryInWindow] = useState(false);
   const [selectedGcnSummaryId, setSelectedGcnSummaryId] = useState(null);
+  const [selectedInstruments, setSelectedInstruments] = useState([]);
 
   const [loading, setLoading] = useState(false);
 
@@ -175,12 +177,28 @@ const GcnSummary = ({ dateobs }) => {
     label: `${user.first_name} ${user.last_name}`,
   }));
 
+  let sortedInstrumentList = [...instrumentList];
+  sortedInstrumentList.sort((i1, i2) => {
+    if (i1.name > i2.name) {
+      return 1;
+    }
+    if (i2.name > i1.name) {
+      return -1;
+    }
+    return 0;
+  });
+
+  // to each sortedInstrument, add a label field with the instrument name
+  sortedInstrumentList = sortedInstrumentList.map((instrument) => ({
+    ...instrument,
+    label: instrument.name,
+  }));
+
   useEffect(() => {
-    const fetchEvent = async (gcnEvent_dateobs) => {
-      await dispatch(fetchGcnEvent(gcnEvent_dateobs));
-    };
-    fetchEvent(dateobs);
-  }, [dateobs, dispatch]);
+    if (instrumentList?.length === 0) {
+      dispatch(fetchInstruments());
+    }
+  }, []);
 
   useEffect(() => {
     const fetchSummary = (summaryID) => {
@@ -206,13 +224,8 @@ const GcnSummary = ({ dateobs }) => {
   }, [gcnEvent, selectedGcnSummaryId]);
 
   useEffect(() => {
-    const fetchData = () => {
-      dispatch(usersActions.fetchUsers());
-      dispatch(groupsActions.fetchGroups());
-    };
-    if (!dataFetched) {
-      fetchData();
-      setDataFetched(true);
+    if (!groups && open) {
+      dispatch(fetchGroups());
     }
     const defaultStartDate = dayjs.utc(dateobs).format("YYYY-MM-DD HH:mm:ss");
     const defaultEndDate = dayjs
@@ -223,7 +236,19 @@ const GcnSummary = ({ dateobs }) => {
     setEndDate(defaultEndDate);
     setSubject(`Follow-up on GCN Event ${dateobs}`);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dateobs, dataFetched, dispatch]);
+  }, [dateobs, dispatch]);
+
+  useEffect(() => {
+    if (selectedGroup?.id) {
+      dispatch(fetchGroup(selectedGroup?.id));
+    }
+  }, [dispatch, selectedGroup]);
+
+  useEffect(() => {
+    if (gcnEvent?.localizations?.length > 0) {
+      setLocalizationName(gcnEvent?.localizations[0]?.localization_name);
+    }
+  }, [gcnEvent]);
 
   const handleClose = () => {
     setOpen(false);
@@ -250,6 +275,25 @@ const GcnSummary = ({ dateobs }) => {
 
   const onGroupSelectChange = (event) => {
     setSelectedGroup(event.target.value);
+  };
+
+  const onInstrumentSelectChange = (event) => {
+    let new_selected_instruments = [];
+    event.target.value.forEach((instrument) => {
+      if (
+        !new_selected_instruments.some(
+          (selected_instrument) => selected_instrument.id === instrument.id
+        )
+      ) {
+        new_selected_instruments.push(instrument);
+      } else {
+        // remove the user from the list
+        new_selected_instruments = new_selected_instruments.filter(
+          (selected_instrument) => selected_instrument.id !== instrument.id
+        );
+      }
+    });
+    setSelectedInstruments(new_selected_instruments);
   };
 
   const validateSubmit = () => {
@@ -312,9 +356,13 @@ const GcnSummary = ({ dateobs }) => {
         showObservations,
         noText,
         photometryInWindow,
+        instrumentIds: selectedInstruments.map((instrument) => instrument.id),
       };
       if (nb !== "") {
         params.number = nb;
+      }
+      if (params.instrumentIds?.length === 0) {
+        delete params.instrumentIds;
       }
       dispatch(postGcnEventSummary({ dateobs, params })).then((response) => {
         if (response.status === "success") {
@@ -360,7 +408,7 @@ const GcnSummary = ({ dateobs }) => {
       <Button secondary name="gcn_summary" onClick={() => setOpen(true)}>
         Summary
       </Button>
-      {open && dataFetched && (
+      {open && (
         <Dialog
           open={open}
           onClose={handleClose}
@@ -403,6 +451,13 @@ const GcnSummary = ({ dateobs }) => {
                     initValue={selectedUsers}
                     onChange={onUserSelectChange}
                     options={users_list}
+                  />
+                  <SelectLabelWithChips
+                    label="Instruments (Optional)"
+                    id="instruments-select"
+                    initValue={selectedInstruments}
+                    onChange={onInstrumentSelectChange}
+                    options={sortedInstrumentList}
                   />
                   <TextField
                     id="startDate"
@@ -485,24 +540,24 @@ const GcnSummary = ({ dateobs }) => {
                     <FormControlLabel
                       control={
                         <Checkbox
-                          label="No Text"
+                          label="Table(s) Only"
                           checked={noText}
                           onChange={(e) => setNoText(e.target.checked)}
                         />
                       }
-                      label="No Text"
+                      label="Table(s) Only"
                     />
                     <FormControlLabel
                       control={
                         <Checkbox
-                          label="Photometry in Window"
+                          label="Photometry in Window (only between start and end dates)"
                           checked={photometryInWindow}
                           onChange={(e) =>
                             setPhotometryInWindow(e.target.checked)
                           }
                         />
                       }
-                      label="Photometry in Window"
+                      label="Photometry in Window (only between start and end dates)"
                     />
                   </div>
                   <div className={classes.buttons}>

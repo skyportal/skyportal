@@ -98,6 +98,8 @@ class CommentHandler(BaseHandler):
             - comments
             - sources
             - spectra
+            - shifts
+            - earthquakes
           parameters:
             - in: path
               name: associated_resource_type
@@ -106,7 +108,7 @@ class CommentHandler(BaseHandler):
                 type: string
               description: |
                  What underlying data the comment is on:
-                 "sources" or "spectra" or "gcn_event".
+                 "sources" or "spectra" or "gcn_event" or "earthquake" or "shift".
             - in: path
               name: resource_id
               required: true
@@ -114,10 +116,10 @@ class CommentHandler(BaseHandler):
                 type: string
                 enum: [sources, spectra, gcn_event]
               description: |
-                 The ID of the source, spectrum, or gcn_event
+                 The ID of the source, spectrum, gcn_event, earthquake, or shift
                  that the comment is posted to.
                  This would be a string for a source ID
-                 or an integer for a spectrum or gcn_event
+                 or an integer for a spectrum, gcn_event, earthquake, or shift.
             - in: path
               name: comment_id
               required: true
@@ -139,7 +141,9 @@ class CommentHandler(BaseHandler):
             - comments
             - spectra
             - sources
-            - gcn_event
+            - gcn_events
+            - earthquakes
+            - shifts
           parameters:
             - in: path
               name: associated_resource_type
@@ -149,7 +153,7 @@ class CommentHandler(BaseHandler):
                 enum: [sources]
               description: |
                  What underlying data the comment is on, e.g., "sources"
-                 or "spectra" or "gcn_event".
+                 or "spectra" or "gcn_event" or "earthquake" or "shift".
             - in: path
               name: resource_id
               required: true
@@ -158,7 +162,7 @@ class CommentHandler(BaseHandler):
               description: |
                  The ID of the underlying data.
                  This would be a string for a source ID
-                 or an integer for other data types like spectrum or gcn_event.
+                 or an integer for other data types like spectrum, gcn_event, earthquake, or shift.
           responses:
             200:
               content:
@@ -341,21 +345,21 @@ class CommentHandler(BaseHandler):
             required: true
             schema:
               type: string
-              enum: [sources, spectrum, gcn_event]
+              enum: [sources, spectrum, gcn_event, earthquake, shift]
             description: |
                What underlying data the comment is on:
-               "source" or "spectrum" or "gcn_event".
+               "source" or "spectrum" or "gcn_event" or "earthquake" or "shift".
           - in: path
             name: resource_id
             required: true
             schema:
               type: string
-              enum: [sources, spectra, gcn_event]
+              enum: [sources, spectra, gcn_event, earthquake, shift]
             description: |
                The ID of the source or spectrum
                that the comment is posted to.
                This would be a string for a source ID
-               or an integer for a spectrum.
+               or an integer for a spectrum, gcn_event, earthquake, or shift.
         requestBody:
           content:
             application/json:
@@ -650,7 +654,7 @@ class CommentHandler(BaseHandler):
                 )
             elif isinstance(comment, CommentOnShift):
                 self.push_all(
-                    action='skyportal/REFRESH_SHIFTS',
+                    action='skyportal/REFRESH_SHIFT',
                     payload={'shift_id': comment.shift_id},
                 )
 
@@ -983,7 +987,9 @@ class CommentHandler(BaseHandler):
                 gcnevent_dateobs = c.gcn.dateobs
             elif isinstance(c, CommentOnEarthquake):
                 event_id = c.earthquake.event_id
-            elif not isinstance(c, CommentOnShift):
+            elif isinstance(c, CommentOnShift):
+                shift_id = c.shift_id
+            else:
                 obj_key = c.obj.internal_key
 
             if comment_resource_id_str != resource_id:
@@ -1017,7 +1023,8 @@ class CommentHandler(BaseHandler):
                 )
             elif isinstance(c, CommentOnShift):  # also update the shift
                 self.push_all(
-                    action='skyportal/REFRESH_SHIFTS',
+                    action='skyportal/REFRESH_SHIFT',
+                    payload={'shift_id': shift_id},
                 )
 
             return self.success()

@@ -26,15 +26,13 @@ const LocalizationTagsSelect = (props) => {
   return (
     <div>
       {localizationTags?.length > 0 && (
-        <div style={{ marginBottom: "1rem" }}>
-          <SelectWithChips
-            label="Localization Tags"
-            id="selectLocalizations"
-            initValue={selectedLocalizationTags}
-            onChange={handleChange}
-            options={localizationTags}
-          />
-        </div>
+        <SelectWithChips
+          label="Localization Tags"
+          id="selectLocalizations"
+          initValue={selectedLocalizationTags}
+          onChange={handleChange}
+          options={localizationTags}
+        />
       )}
     </div>
   );

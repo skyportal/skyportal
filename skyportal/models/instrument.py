@@ -7,7 +7,8 @@ import astroplan
 import healpix_alchemy
 import numpy as np
 import sqlalchemy as sa
-from sqlalchemy import cast
+from sqlalchemy import func
+from sqlalchemy import cast, event
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm import deferred
@@ -63,160 +64,6 @@ def manage_instrument_access_logic(cls, user_or_token):
     else:
         # return an empty query
         return DBSession().query(cls).filter(cls.id == -1)
-
-
-class Instrument(Base):
-    """An instrument attached to a telescope."""
-
-    read = public
-    create = update = delete = CustomUserAccessControl(manage_instrument_access_logic)
-
-    name = sa.Column(sa.String, unique=True, nullable=False, doc="Instrument name.")
-    type = sa.Column(
-        instrument_types,
-        nullable=False,
-        doc="Instrument type, one of Imager, Spectrograph, or Imaging Spectrograph.",
-    )
-
-    band = sa.Column(
-        sa.String,
-        doc="The spectral band covered by the instrument " "(e.g., Optical, IR).",
-    )
-    telescope_id = sa.Column(
-        sa.ForeignKey('telescopes.id', ondelete='CASCADE'),
-        nullable=False,
-        index=True,
-        doc="The ID of the Telescope that hosts the Instrument.",
-    )
-    telescope = relationship(
-        'Telescope',
-        back_populates='instruments',
-        doc="The Telescope that hosts the Instrument.",
-    )
-
-    photometry = relationship(
-        'Photometry',
-        back_populates='instrument',
-        passive_deletes=True,
-        doc="The Photometry produced by this instrument.",
-    )
-    photometric_series = relationship(
-        'PhotometricSeries',
-        back_populates='instrument',
-        passive_deletes=True,
-        doc="PhotometricSeries produced by this instrument.",
-    )
-    spectra = relationship(
-        'Spectrum',
-        back_populates='instrument',
-        passive_deletes=True,
-        doc="The Spectra produced by this instrument.",
-    )
-
-    # can be [] if an instrument is spec only
-    filters = sa.Column(
-        ArrayOfEnum(allowed_bandpasses),
-        nullable=False,
-        default=[],
-        doc='List of filters on the instrument (if any).',
-    )
-
-    sensitivity_data = sa.Column(
-        JSONB,
-        nullable=True,
-        doc="JSON describing the filters on the instrument and the filter's corresponding limiting magnitude and exposure time.",
-    )
-
-    allocations = relationship(
-        'Allocation',
-        back_populates="instrument",
-        cascade="save-update, merge, refresh-expire, expunge",
-        passive_deletes=True,
-    )
-    observing_runs = relationship(
-        'ObservingRun',
-        back_populates='instrument',
-        passive_deletes=True,
-        doc="List of ObservingRuns on the Instrument.",
-    )
-
-    api_classname = sa.Column(
-        api_classnames, nullable=True, doc="Name of the instrument's API class."
-    )
-
-    api_classname_obsplan = sa.Column(
-        api_classnames,
-        nullable=True,
-        doc="Name of the instrument's ObservationPlan API class.",
-    )
-
-    listener_classname = sa.Column(
-        listener_classnames,
-        nullable=True,
-        doc="Name of the instrument's listener class.",
-    )
-
-    observations = relationship(
-        'ExecutedObservation',
-        back_populates='instrument',
-        cascade='save-update, merge, refresh-expire, expunge',
-        passive_deletes=True,
-        doc="The ExecutedObservations by this instrument.",
-    )
-
-    queued_observations = relationship(
-        'QueuedObservation',
-        back_populates='instrument',
-        cascade='save-update, merge, refresh-expire, expunge',
-        passive_deletes=True,
-        doc="The QueuedObservations for this instrument.",
-    )
-
-    treasuremap_id = sa.Column(
-        sa.Integer,
-        nullable=True,
-        doc="treasuremap.space API ID for this instrument",
-    )
-
-    tns_id = sa.Column(
-        sa.Integer,
-        nullable=True,
-        doc="TNS API ID for this instrument",
-    )
-
-    region = deferred(
-        sa.Column(
-            sa.String, nullable=True, doc="Instrument astropy.regions representation."
-        )
-    )
-
-    @property
-    def does_spectroscopy(self):
-        """Return a boolean indicating whether the instrument is capable of
-        performing spectroscopy."""
-        return 'spec' in self.type
-
-    @property
-    def does_imaging(self):
-        """Return a boolean indicating whether the instrument is capable of
-        performing imaging."""
-        return 'imag' in self.type
-
-    @property
-    def api_class(self):
-        return getattr(facility_apis, self.api_classname)
-
-    @property
-    def api_class_obsplan(self):
-        return getattr(facility_apis, self.api_classname_obsplan)
-
-    @property
-    def listener_class(self):
-        return getattr(facility_apis, self.listener_classname)
-
-    fields = relationship("InstrumentField")
-    tiles = relationship("InstrumentFieldTile")
-    plans = relationship("EventObservationPlan")
 
 
 class InstrumentField(Base):
@@ -340,7 +187,6 @@ class InstrumentFieldTile(Base):
 
     instrument_id = sa.Column(
         sa.ForeignKey('instruments.id', ondelete="CASCADE"),
-        index=True,
         nullable=False,
         doc='Instrument ID',
     )
@@ -367,3 +213,240 @@ class InstrumentFieldTile(Base):
     )
 
     healpix = sa.Column(healpix_alchemy.Tile, primary_key=True, index=True)
+
+
+class Instrument(Base):
+    """An instrument attached to a telescope."""
+
+    read = public
+    create = update = delete = CustomUserAccessControl(manage_instrument_access_logic)
+
+    name = sa.Column(sa.String, unique=True, nullable=False, doc="Instrument name.")
+    type = sa.Column(
+        instrument_types,
+        nullable=False,
+        doc="Instrument type, one of Imager, Spectrograph, or Imaging Spectrograph.",
+    )
+
+    band = sa.Column(
+        sa.String,
+        doc="The spectral band covered by the instrument " "(e.g., Optical, IR).",
+    )
+    telescope_id = sa.Column(
+        sa.ForeignKey('telescopes.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+        doc="The ID of the Telescope that hosts the Instrument.",
+    )
+    telescope = relationship(
+        'Telescope',
+        back_populates='instruments',
+        doc="The Telescope that hosts the Instrument.",
+    )
+
+    photometry = relationship(
+        'Photometry',
+        back_populates='instrument',
+        passive_deletes=True,
+        doc="The Photometry produced by this instrument.",
+    )
+    photometric_series = relationship(
+        'PhotometricSeries',
+        back_populates='instrument',
+        passive_deletes=True,
+        doc="PhotometricSeries produced by this instrument.",
+    )
+    spectra = relationship(
+        'Spectrum',
+        back_populates='instrument',
+        passive_deletes=True,
+        doc="The Spectra produced by this instrument.",
+    )
+
+    spectra = relationship(
+        'Spectrum',
+        back_populates='instrument',
+        passive_deletes=True,
+        doc="The Spectra produced by this instrument.",
+    )
+
+    # can be [] if an instrument is spec only
+    filters = sa.Column(
+        ArrayOfEnum(allowed_bandpasses),
+        nullable=False,
+        default=[],
+        doc='List of filters on the instrument (if any).',
+    )
+
+    sensitivity_data = sa.Column(
+        JSONB,
+        nullable=True,
+        doc="JSON describing the filters on the instrument and the filter's corresponding limiting magnitude and exposure time.",
+    )
+
+    allocations = relationship(
+        'Allocation',
+        back_populates="instrument",
+        cascade="save-update, merge, refresh-expire, expunge",
+        passive_deletes=True,
+    )
+    observing_runs = relationship(
+        'ObservingRun',
+        back_populates='instrument',
+        passive_deletes=True,
+        doc="List of ObservingRuns on the Instrument.",
+    )
+
+    api_classname = sa.Column(
+        api_classnames, nullable=True, doc="Name of the instrument's API class."
+    )
+
+    api_classname_obsplan = sa.Column(
+        api_classnames,
+        nullable=True,
+        doc="Name of the instrument's ObservationPlan API class.",
+    )
+
+    listener_classname = sa.Column(
+        listener_classnames,
+        nullable=True,
+        doc="Name of the instrument's listener class.",
+    )
+
+    observations = relationship(
+        'ExecutedObservation',
+        back_populates='instrument',
+        cascade='save-update, merge, refresh-expire, expunge',
+        passive_deletes=True,
+        doc="The ExecutedObservations by this instrument.",
+    )
+
+    queued_observations = relationship(
+        'QueuedObservation',
+        back_populates='instrument',
+        cascade='save-update, merge, refresh-expire, expunge',
+        passive_deletes=True,
+        doc="The QueuedObservations for this instrument.",
+    )
+
+    treasuremap_id = sa.Column(
+        sa.Integer,
+        nullable=True,
+        doc="treasuremap.space API ID for this instrument",
+    )
+
+    tns_id = sa.Column(
+        sa.Integer,
+        nullable=True,
+        doc="TNS API ID for this instrument",
+    )
+
+    region = deferred(
+        sa.Column(
+            sa.String, nullable=True, doc="Instrument astropy.regions representation."
+        )
+    )
+
+    @property
+    def does_spectroscopy(self):
+        """Return a boolean indicating whether the instrument is capable of
+        performing spectroscopy."""
+        return 'spec' in self.type
+
+    @property
+    def does_imaging(self):
+        """Return a boolean indicating whether the instrument is capable of
+        performing imaging."""
+        return 'imag' in self.type
+
+    @property
+    def api_class(self):
+        return getattr(facility_apis, self.api_classname)
+
+    @property
+    def api_class_obsplan(self):
+        return getattr(facility_apis, self.api_classname_obsplan)
+
+    @property
+    def listener_class(self):
+        return getattr(facility_apis, self.listener_classname)
+
+    @property
+    def number_of_fields(self):
+        if not self.has_fields:
+            return 0
+        stmt = sa.select(InstrumentField).where(
+            InstrumentField.instrument_id == self.id
+        )
+        count_stmt = sa.select(func.count()).select_from(stmt.distinct())
+        return DBSession().execute(count_stmt).scalar()
+
+    @property
+    def region_summary(self):
+        region_summary = ""
+        if not self.has_region:
+            return region_summary
+
+        if "box" in self.region:
+            regionSplit = (
+                self.region.split("box")[-1].replace("box(", "").replace(")", "")
+            )
+            boxSplit = regionSplit.split(",")
+            width = float(boxSplit[2])
+            height = float(boxSplit[3])
+            region_summary = f"Rectangle [width, height]: {width, height}"
+        elif "circle" in self.region:
+            regionSplit = (
+                self.region.split("circle")[-1].replace("circle(", "").replace(")", "")
+            )
+            circleSplit = regionSplit.split(",")
+            radius = float(circleSplit[2])
+            region_summary = f"Circle [radius]: {radius}"
+        elif "polygon" in self.region:
+            region_summary = f"Polygon [num. fields]: {self.region.count('polygon')}"
+
+        return region_summary
+
+    has_fields = sa.Column(
+        sa.Boolean,
+        nullable=False,
+        server_default='false',
+        doc="Whether the instrument has fields or not.",
+    )
+
+    has_region = sa.Column(
+        sa.Boolean,
+        nullable=False,
+        server_default='false',
+        doc="Whether the instrument has a region or not.",
+    )
+
+    fields = relationship("InstrumentField")
+    tiles = relationship("InstrumentFieldTile")
+    plans = relationship("EventObservationPlan")
+
+
+@event.listens_for(Instrument.fields, 'dispose_collection')
+def _instrument_fields_dispose_collection(target, collection, collection_adapter):
+    target.has_fields = False
+
+
+@event.listens_for(Instrument.fields, 'init_collection')
+def _instrument_fields_init_collection(target, collection, collection_adapter):
+    if len(collection) > 0:
+        target.has_fields = True
+    else:
+        target.has_fields = False
+
+
+@event.listens_for(Instrument.region, 'set')
+def _instrument_region_append(target, value, oldvalue, initiator):
+    if value is not None and value != "":
+        target.has_region = True
+    else:
+        target.has_region = False
+
+
+@event.listens_for(Instrument.region, 'remove')
+def _instrument_region_remove(target, value, initiator):
+    target.has_region = False

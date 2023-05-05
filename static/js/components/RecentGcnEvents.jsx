@@ -6,11 +6,13 @@ import PropTypes from "prop-types";
 import Paper from "@mui/material/Paper";
 import Typography from "@mui/material/Typography";
 import DragHandleIcon from "@mui/icons-material/DragHandle";
+import HelpIcon from "@mui/icons-material/Help";
 import makeStyles from "@mui/styles/makeStyles";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
+import Tooltip from "@mui/material/Tooltip";
 import Button from "./Button";
 
 import * as profileActions from "../ducks/profile";
@@ -24,6 +26,9 @@ dayjs.extend(utc);
 
 const useStyles = makeStyles((theme) => ({
   header: {},
+  icon: {
+    height: "1rem",
+  },
   eventListContainer: {
     height: "calc(100% - 5rem)",
     overflowY: "auto",
@@ -133,6 +138,25 @@ const RecentGcnEvents = ({ classes }) => {
                       </div>
                     </Button>
                   </Link>
+                  <Tooltip
+                    interactive
+                    title={
+                      <>
+                        <b>This event has the following aliases:</b>
+                        <ul>
+                          {gcnEvent.aliases?.map((alias) => (
+                            <li key={alias}>{alias}</li>
+                          ))}
+                        </ul>
+                      </>
+                    }
+                  >
+                    <HelpIcon
+                      color="disabled"
+                      size="small"
+                      className={styles.icon}
+                    />
+                  </Tooltip>
                   <div>
                     <GcnTags gcnEvent={gcnEvent} />
                     <GcnEventAllocationTriggers gcnEvent={gcnEvent} />

@@ -47,7 +47,9 @@ const GcnAliases = ({ gcnEvent }) => {
             clickable
             onClick={() => {
               window.open(
-                `https://heasarc.gsfc.nasa.gov/wsgi-scripts/tach/gcn_v2/tach.wsgi/?event=${alias}`,
+                `https://heasarc.gsfc.nasa.gov/wsgi-scripts/tach/gcn_v2/tach.wsgi/?event=${
+                  alias.split("#")[1] || alias
+                }`,
                 "_blank"
               );
             }}

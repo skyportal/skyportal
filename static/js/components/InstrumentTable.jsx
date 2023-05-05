@@ -165,6 +165,18 @@ const InstrumentTable = ({
     return <div>{instrument ? instrument.type : ""}</div>;
   };
 
+  const renderRegion = (dataIndex) => {
+    const instrument = instruments[dataIndex];
+
+    return <div>{instrument ? instrument.region_summary : ""}</div>;
+  };
+
+  const renderFields = (dataIndex) => {
+    const instrument = instruments[dataIndex];
+
+    return <div>{instrument ? instrument.number_of_fields : ""}</div>;
+  };
+
   const renderDelete = (dataIndex) => {
     const instrument = instruments[dataIndex];
     return (
@@ -307,6 +319,26 @@ const InstrumentTable = ({
         sort: true,
         sortThirdClickReset: true,
         customBodyRenderLite: renderType,
+      },
+    },
+    {
+      name: "FOV Region?",
+      label: "FOV Region?",
+      options: {
+        filter: false,
+        sort: true,
+        sortThirdClickReset: true,
+        customBodyRenderLite: renderRegion,
+      },
+    },
+    {
+      name: "Fields",
+      label: "Fields",
+      options: {
+        filter: false,
+        sort: true,
+        sortThirdClickReset: true,
+        customBodyRenderLite: renderFields,
       },
     },
     {

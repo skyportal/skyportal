@@ -201,6 +201,7 @@ def test_delete_classification_shortcut(driver, user, public_group, taxonomy_tok
     driver.wait_for_xpath_to_disappear(f'//span[contains(text(), "{shortcut_name}")]')
 
 
+@pytest.mark.skip(reason="Filtering on the origin has been disabled temporarily")
 def test_set_automatically_visible_photometry(
     driver, user, upload_data_token, public_source, ztf_camera, public_group
 ):
@@ -258,6 +259,7 @@ def test_set_automatically_visible_photometry(
     assert data['data']['preferences']['automaticallyVisibleOrigins'] == ['Muphoten']
 
 
+@pytest.mark.skip(reason="Filtering on the origin has been disabled temporarily")
 def test_photometry_buttons_form(
     driver, user, upload_data_token, public_source, ztf_camera, public_group
 ):

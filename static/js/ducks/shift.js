@@ -4,19 +4,19 @@ import * as API from "../API";
 import store from "../store";
 
 const FETCH_SHIFT = "skyportal/FETCH_SHIFT";
+const FETCH_SHIFT_OK = "skyportal/FETCH_SHIFT_OK";
+
+const REFRESH_SHIFT = "skyportal/REFRESH_SHIFT";
 
 const SUBMIT_SHIFT = "skyportal/SUBMIT_SHIFT";
 
-const DELETE_SHIFT = "skyportal/DELETE_SHIFT";
+const UPDATE_SHIFT = "skyportal/UPDATE_SHIFT";
 
-const CURRENT_SHIFT = "skyportal/CURRENT_SHIFT";
+const DELETE_SHIFT = "skyportal/DELETE_SHIFT";
 
 const ADD_COMMENT_ON_SHIFT = "skyportal/ADD_COMMENT_ON_SHIFT";
 const DELETE_COMMENT_ON_SHIFT = "skyportal/DELETE_COMMENT_ON_SHIFT";
 const EDIT_COMMENT_ON_SHIFT = "skyportal/EDIT_COMMENT_ON_SHIFT";
-
-const REFRESH_CURRENT_SHIFT_COMMENTS =
-  "skyportal/REFRESH_CURRENT_SHIFT_COMMENTS";
 
 const GET_COMMENT_ON_SHIFT_ATTACHMENT =
   "skyportal/GET_COMMENT_ON_SHIFT_ATTACHMENT";
@@ -41,6 +41,9 @@ export function deleteShift(shiftID) {
   return API.DELETE(`/api/shifts/${shiftID}`, DELETE_SHIFT);
 }
 
+export const updateShift = (id, payload) =>
+  API.PATCH(`/api/shifts/${id}`, UPDATE_SHIFT, payload);
+
 export function addCommentOnShift(formData) {
   function fileReaderPromise(file) {
     return new Promise((resolve) => {
@@ -57,7 +60,7 @@ export function addCommentOnShift(formData) {
 
         dispatch(
           API.POST(
-            `/api/shift/${formData.shift_id}/comments`,
+            `/api/shift/${formData.shiftID}/comments`,
             ADD_COMMENT_ON_SHIFT,
             formData
           )
@@ -66,7 +69,7 @@ export function addCommentOnShift(formData) {
     };
   }
   return API.POST(
-    `/api/shift/${formData.shift_id}/comments`,
+    `/api/shift/${formData.shiftID}/comments`,
     ADD_COMMENT_ON_SHIFT,
     formData
   );
@@ -138,13 +141,9 @@ export function getShiftsSummary({ shiftID, startDate, endDate }) {
 // Websocket message handler
 messageHandler.add((actionType, payload, dispatch, getState) => {
   const { shift } = getState();
-  if (actionType === FETCH_SHIFT) {
-    dispatch(fetchShift(shift.id));
-  }
-  if (actionType === REFRESH_CURRENT_SHIFT_COMMENTS) {
-    const shift_id = shift?.currentShift.id;
-    if (shift_id === payload.shift_id) {
-      dispatch(fetchShift(shift.currentShift.id));
+  if (actionType === REFRESH_SHIFT) {
+    if (shift?.currentShift?.id === payload?.shift_id) {
+      dispatch(fetchShift(shift?.currentShift.id));
     }
   }
 });
@@ -154,11 +153,11 @@ const reducer = (
   action
 ) => {
   switch (action.type) {
-    case CURRENT_SHIFT: {
-      const currentShift = action.data;
+    case FETCH_SHIFT_OK: {
+      const shift = action.data;
       return {
         ...state,
-        currentShift,
+        currentShift: shift,
       };
     }
     case GET_COMMENT_ON_SHIFT_ATTACHMENT_OK: {

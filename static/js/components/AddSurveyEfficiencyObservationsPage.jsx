@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
-import PropTypes from "prop-types";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
@@ -9,11 +8,13 @@ import Button from "./Button";
 import SurveyEfficiencyForm from "./SurveyEfficiencyForm";
 import SurveyEfficiencyObservationsLists from "./SurveyEfficiencyObservationsLists";
 
-import { GET } from "../API";
+import { fetchGcnEventSurveyEfficiency } from "../ducks/gcnEvent";
 
-const AddSurveyEfficiencyObservationsPage = ({ gcnevent }) => {
+const AddSurveyEfficiencyObservationsPage = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const dispatch = useDispatch();
+
+  const gcnEvent = useSelector((state) => state.gcnEvent);
 
   const openDialog = () => {
     setDialogOpen(true);
@@ -23,20 +24,13 @@ const AddSurveyEfficiencyObservationsPage = ({ gcnevent }) => {
     setDialogOpen(false);
   };
 
-  const [surveyEfficiencyAnalysisList, setSurveyEfficiencyAnalysisList] =
-    useState(null);
   useEffect(() => {
-    const fetchSurveyEfficiencyAnalysisList = async () => {
-      const response = await dispatch(
-        GET(
-          `/api/gcn_event/${gcnevent.id}/survey_efficiency`,
-          "skyportal/FETCH_GCNEVENT_SURVEY_EFFICIENCY"
-        )
-      );
-      setSurveyEfficiencyAnalysisList(response.data);
-    };
-    fetchSurveyEfficiencyAnalysisList();
-  }, [dispatch, setSurveyEfficiencyAnalysisList, gcnevent]);
+    if (gcnEvent?.id && !gcnEvent?.survey_efficiency) {
+      dispatch(fetchGcnEventSurveyEfficiency({ gcnID: gcnEvent?.id }));
+    }
+  }, [dispatch, gcnEvent]);
+
+  const surveyEfficiencyAnalysisList = gcnEvent?.survey_efficiency || [];
 
   return (
     <>
@@ -44,7 +38,7 @@ const AddSurveyEfficiencyObservationsPage = ({ gcnevent }) => {
         secondary
         size="small"
         onClick={openDialog}
-        data-testid={`addSimSurveyButton_${gcnevent.id}`}
+        data-testid={`addSimSurveyButton_${gcnEvent.id}`}
       >
         SimSurvey Analysis
       </Button>
@@ -56,7 +50,7 @@ const AddSurveyEfficiencyObservationsPage = ({ gcnevent }) => {
         <DialogTitle>SimSurvey Analysis</DialogTitle>
         <DialogContent>
           <div>
-            <SurveyEfficiencyForm gcnevent={gcnevent} />
+            <SurveyEfficiencyForm gcnevent={gcnEvent} />
             {surveyEfficiencyAnalysisList?.length > 0 && (
               <SurveyEfficiencyObservationsLists
                 survey_efficiency_analyses={surveyEfficiencyAnalysisList}
@@ -67,19 +61,6 @@ const AddSurveyEfficiencyObservationsPage = ({ gcnevent }) => {
       </Dialog>
     </>
   );
-};
-
-AddSurveyEfficiencyObservationsPage.propTypes = {
-  gcnevent: PropTypes.shape({
-    dateobs: PropTypes.string,
-    localizations: PropTypes.arrayOf(
-      PropTypes.shape({
-        id: PropTypes.number,
-        localization_name: PropTypes.string,
-      })
-    ),
-    id: PropTypes.number,
-  }).isRequired,
 };
 
 export default AddSurveyEfficiencyObservationsPage;

@@ -20,6 +20,7 @@ app:
 
   observation_plan:
     default_filters: ['ztfg', 'ztfr', 'ztfi']
+    use_skyportal_fields: True
 
   heasarc_endpoint: https://heasarc.gsfc.nasa.gov
 
@@ -154,6 +155,8 @@ app:
       component: ShiftNoId
     - path: "/shifts/:id"
       component: ShiftWithId
+    - path: "/summary_search"
+      component: SummarySearch
     - path: "/taxonomies"
       component: TaxonomyPage
 
@@ -196,6 +199,10 @@ app:
         - name: Shifts
           icon: SubwayRounded
           url: /shifts
+
+        - name: Summary Search
+          icon: Troubleshoot
+          url: /summary_search
 
         - name: About
           icon: Info
@@ -476,6 +483,9 @@ services:
 misc:
   days_to_keep_unsaved_candidates: 7
   minutes_to_keep_candidate_query_cache: 60
+  minutes_to_keep_annotations_info_query_cache: 360
+  minutes_to_keep_localization_instrument_query_cache: 1440
+  max_items_in_localization_instrument_query_cache: 100
   public_group_name: "Sitewide Group"
   # Use a named cosmology from `astropy.cosmology.parameters.available` cosmologies
   # or supply the arguments for an `astropy.cosmology.FLRW` cosmological instance.
@@ -625,6 +635,8 @@ user:
 
 ports:
   facility_queue: 64510
+  notification_queue: 64610
+  observation_plan_queue: 64710
 
 gcn:
   server: gcn.nasa.gov
@@ -649,6 +661,8 @@ gcn:
     - ICECUBE_ASTROTRACK_GOLD
     - ICECUBE_ASTROTRACK_BRONZE
     - MAXI_UNKNOWN
+  reject_tags: # reject notices with these tags (optional)
+    - MDC
 
   observation_plans:
     - allocation-proposal_id: ZTF-001
@@ -658,7 +672,7 @@ gcn:
         schedule_strategy: tiling
         galaxy_catalog: CLU_mini
         exposure_time: 300
-        filters: g,r,g
+        filters: ztfg,ztfr,ztfg
         maximum_airmass: 2
         integrated_probability: 90
         minimum_time_difference: 30
@@ -692,7 +706,7 @@ analysis_services:
       # Get a global key at:
       #   https://platform.openai.com/account/api-keys
       api_key:
-      temperature: 0.2
+      temperature: 0.3
       max_tokens: 350
       top_p: 1.0
       frequency_penalty: 0.0
@@ -710,12 +724,37 @@ analysis_services:
 
 
 comments_folder: persistentdata/comments
+localizations_folder: persistentdata/localizations
 photometric_series_folder: persistentdata/phot_series
 photometric_series_autodelete: True
 
-classifications:
-  # A few examples that show up in the demo data. You can modify the config on deploy to fill out the colors and types you want.
-  {
-    "variable": "#3a87ad",
-    "Time-domain Source": "#ff0000",
-  }
+colors:
+  classifications:
+    # A few examples that show up in the demo data. You can modify the config on deploy to fill out the colors and types you want.
+    {
+      "variable": "#3a87ad",
+      "Time-domain Source": "#ff0000",
+    }
+
+  gcnTags:
+    {
+      "BNS": "#468847",
+      "NSBH": "#b94a48",
+      "BBH": "#333333",
+      "GRB": "#f89406",
+      "AMON": "#3a87ad",
+    }
+
+  summary_sources:
+  - score: 0.9
+    fw: bold
+    col: green
+  - score: 0.8
+    fw: bold
+    col: black
+  - score: 0.7
+    fw: normal
+    col: black
+  - score: 0.0
+    fw: normal
+    col: grey

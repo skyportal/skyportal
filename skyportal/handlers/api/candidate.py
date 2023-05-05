@@ -47,10 +47,15 @@ from ...models import (
     Classification,
     Listing,
     Comment,
+    Localization,
+    LocalizationTile,
+    PhotStat,
 )
+
 from ...utils.cache import Cache, array_to_bytes
 from ...utils.sizeof import sizeof, SIZE_WARNING_THRESHOLD
 
+MAX_NUM_DAYS_USING_LOCALIZATION = 31
 
 _, cfg = load_env()
 cache_dir = "cache/candidates_queries"
@@ -501,6 +506,32 @@ class CandidateHandler(BaseHandler):
               type: string
             description: |
               Only return sources that have at least this number of photometry annotations passing the photometry annotations filtering criteria. Defaults to 1.
+          - in: query
+            name: localizationDateobs
+            schema:
+              type: string
+            description: |
+                Event time in ISO 8601 format (`YYYY-MM-DDTHH:MM:SS.sss`).
+                Each localization is associated with a specific GCNEvent by
+                the date the event happened, and this date is used as a unique
+                identifier. It can be therefore found as Localization.dateobs,
+                queried from the /api/localization endpoint or dateobs in the
+                GcnEvent page table.
+          - in: query
+            name: localizationName
+            schema:
+              type: string
+            description: |
+                Name of localization / skymap to use.
+                Can be found in Localization.localization_name queried from
+                /api/localization endpoint or skymap name in GcnEvent page
+                table.
+          - in: query
+            name: localizationCumprob
+            schema:
+              type: number
+            description: |
+              Cumulative probability up to which to include sources
           responses:
             200:
               content:
@@ -724,6 +755,36 @@ class CandidateHandler(BaseHandler):
         photometry_annotations_filter_min_count = self.get_query_argument(
             'photometryAnnotationsFilterMinCount', 1
         )
+
+        first_detected_date = self.get_query_argument('firstDetectionAfter', None)
+        last_detected_date = self.get_query_argument('lastDetectionBefore', None)
+        number_of_detections = self.get_query_argument("numberDetections", None)
+        localization_dateobs = self.get_query_argument("localizationDateobs", None)
+        localization_name = self.get_query_argument("localizationName", None)
+        localization_cumprob = self.get_query_argument("localizationCumprob", 0.95)
+
+        if localization_dateobs is not None or localization_name is not None:
+            if first_detected_date is None or last_detected_date is None:
+                return self.error(
+                    'must specify startDate and endDate when filtering by localizationDateobs or localizationName'
+                )
+            try:
+                first_detected_date = arrow.get(first_detected_date).datetime
+                last_detected_date = arrow.get(last_detected_date).datetime
+            except Exception:
+                return self.error(
+                    'firstDetectionAfter and lastDetectionBefore must be valid UTC dates'
+                )
+            if first_detected_date > last_detected_date:
+                return self.error(
+                    "startDate must be before endDate when filtering by localizationDateobs or localizationName",
+                )
+            if (
+                last_detected_date - first_detected_date
+            ).days > MAX_NUM_DAYS_USING_LOCALIZATION:
+                return self.error(
+                    "startDate and endDate must be less than a month apart when filtering by localizationDateobs or localizationName",
+                )
 
         if autosave:
             from .source import post_source
@@ -1136,6 +1197,103 @@ class CandidateHandler(BaseHandler):
                 q = q.join(
                     obj_photometry_annotations_subquery,
                     Obj.id == obj_photometry_annotations_subquery.c.id,
+                )
+
+            if first_detected_date is not None:
+                photstat_subquery = (
+                    PhotStat.select(session.user_or_token)
+                    .where(PhotStat.first_detected_mjd >= Time(first_detected_date).mjd)
+                    .subquery()
+                )
+                q = q.join(
+                    photstat_subquery,
+                    Obj.id == photstat_subquery.c.obj_id,
+                )
+            if last_detected_date is not None:
+                photstat_subquery = (
+                    PhotStat.select(session.user_or_token)
+                    .where(PhotStat.last_detected_mjd <= Time(last_detected_date).mjd)
+                    .subquery()
+                )
+                q = q.join(
+                    photstat_subquery,
+                    Obj.id == photstat_subquery.c.obj_id,
+                )
+            if number_of_detections and isinstance(number_of_detections, int):
+                photstat_subquery = (
+                    PhotStat.select(session.user_or_token)
+                    .where(PhotStat.num_det_global >= number_of_detections)
+                    .subquery()
+                )
+                q = q.join(
+                    photstat_subquery,
+                    Obj.id == photstat_subquery.c.obj_id,
+                )
+            if localization_dateobs is not None:
+                if localization_name is None:
+                    localization = session.scalars(
+                        Localization.select(self.associated_user_object)
+                        .where(Localization.dateobs == localization_dateobs)
+                        .order_by(Localization.created_at.desc())
+                    ).first()
+                else:
+                    localization = session.scalars(
+                        Localization.select(self.associated_user_object)
+                        .where(Localization.dateobs == localization_dateobs)
+                        .where(Localization.localization_name == localization_name)
+                        .order_by(Localization.modified.desc())
+                    ).first()
+                if localization is None:
+                    if localization_name is not None:
+                        raise ValueError(
+                            f"Localization {localization_dateobs} with name {localization_name} not found",
+                        )
+                    else:
+                        raise ValueError(
+                            f"Localization {localization_dateobs} not found",
+                        )
+
+                cum_prob = (
+                    sa.func.sum(
+                        LocalizationTile.probdensity * LocalizationTile.healpix.area
+                    )
+                    .over(order_by=LocalizationTile.probdensity.desc())
+                    .label('cum_prob')
+                )
+
+                localizationtile_subquery = (
+                    sa.select(LocalizationTile.probdensity, cum_prob).filter(
+                        LocalizationTile.localization_id == localization.id
+                    )
+                ).subquery()
+
+                min_probdensity = (
+                    sa.select(
+                        sa.func.min(localizationtile_subquery.columns.probdensity)
+                    ).filter(
+                        localizationtile_subquery.columns.cum_prob
+                        <= localization_cumprob
+                    )
+                ).scalar_subquery()
+
+                tile_ids = session.scalars(
+                    sa.select(LocalizationTile.id).where(
+                        LocalizationTile.localization_id == localization.id,
+                        LocalizationTile.probdensity >= min_probdensity,
+                    )
+                ).all()
+
+                tiles_subquery = (
+                    sa.select(Obj.id)
+                    .filter(
+                        LocalizationTile.id.in_(tile_ids),
+                        LocalizationTile.healpix.contains(Obj.healpix),
+                    )
+                    .subquery()
+                )
+                q = q.join(
+                    tiles_subquery,
+                    Obj.id == tiles_subquery.c.id,
                 )
 
             try:

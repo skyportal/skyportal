@@ -237,8 +237,9 @@ const ClassificationRow = ({ classifications }) => {
           size="small"
           className={classes.chip}
           style={{
-            backgroundColor:
-              classifications_classes[classification.classification],
+            backgroundColor: classifications_classes
+              ? classifications_classes[classification.classification]
+              : "#999999",
           }}
         />
       </Tooltip>
