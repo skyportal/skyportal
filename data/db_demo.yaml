@@ -522,8 +522,7 @@ instrument:
     =id: TESS
     telescope_id: =TESS
     type: imager
-    filters: ['kepler']
-#    filters: ['tess::red']
+    filters: ['tess::red']
 allocation:
   - pi: Michael Coughlin
     proposal_id: SEDM-001
@@ -951,15 +950,13 @@ photometric_series:
     data:
       file: TESS_photometric_series1.h5
     group_ids: all
-    filter: kepler
-#    filter: tess::red
+    filter: tess::red
   - obj_id: TIC_114807149
     instrument_id: =TESS
     data:
       file: TESS_photometric_series2.h5
     group_ids: all
-    filter: kepler
-#    filter: tess::red
+    filter: tess::red
 
 
 followup_request:

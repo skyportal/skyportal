@@ -2130,15 +2130,6 @@ def test_get_series_paged(
     assert set(page1_ids).isdisjoint(page2_ids)
 
 
-def test_allowed_bandpasses():
-    # will remove this test once I add TESS to the bandpasses
-    from skyportal.enum_types import ALLOWED_BANDPASSES
-
-    # This test is a placeholder to remind me to add the TESS filter.
-    # it should be safe to remove this whole test once sncosmo is updated
-    assert 'tess::red' in ALLOWED_BANDPASSES
-
-
 def test_download_formats_single_series(upload_data_token, photometric_series):
     # regular download of a single series
     status, data = api(
