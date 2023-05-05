@@ -200,7 +200,10 @@ if __name__ == "__main__":
                 elif filename.endswith('h5') or filename.endswith('hdf5'):
                     try:
                         payload = (
-                            Table.read(filename).to_pandas().to_dict(orient='list')
+                            Table.read(filename)
+                            .to_pandas()
+                            .replace({np.nan: None})
+                            .to_dict(orient='list')
                         )
                     except Exception as e:
                         # sometimes we save HDF5 files using an HDFStore.
@@ -220,7 +223,8 @@ if __name__ == "__main__":
                     return payload
                 else:
                     raise NotImplementedError(
-                        f'{filename}: Only CSV, PNG, xml, reg, and hdf5 files currently supported for extending individual objects'
+                        f'{filename}: Only CSV, PNG, xml, reg, and hdf5 files '
+                        'currently supported for extending individual objects'
                     )
 
             for k, v in obj.items():
