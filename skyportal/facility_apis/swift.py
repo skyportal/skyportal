@@ -356,7 +356,7 @@ def download_observations(request_id, oq):
                         attachment_name=attachment_name,
                         author=req.requester,
                         groups=groups,
-                        bot=False,
+                        bot=True,
                     )
                     session.add(comment)
         req.status = 'Result posted as comment'
