@@ -303,6 +303,14 @@ telescope:
     nickname: Rubin
     skycam_link: null
     =id: Rubin
+  - diameter: 1.2
+    elevation: 2207.0
+    lat: -30.1716
+    lon: -70.8009
+    name: Auxiliary Telescope
+    nickname: AuxTel-1p2m
+    skycam_link: null
+    =id: AuxTel-1p2m
   - name: GROWTH-India Telescope
     nickname: GIT-0p7m
     lat: 32.77889
@@ -488,6 +496,16 @@ instrument:
     #   file: ../data/LSST_Fields.csv
     field_fov_type: circle
     field_fov_attributes: 1.75
+  - band: optical
+    name: AuxTel
+    telescope_id: =AuxTel-1p2m
+    type: imager
+    =id: AuxTel
+    api_classname_obsplan: MMAAPI
+    filters: ["lsstr", "lssti"]
+    field_fov_type: rectangle
+    field_fov_attributes: [0.12, 0.12]
+    sensitivity_data: {'lsstr': {'limiting_magnitude': 20.8, 'magsys': 'ab', 'exposure_time': 30, 'zeropoint': 26.3,}, 'lssti': {'limiting_magnitude': 20.8, 'magsys': 'ab', 'exposure_time': 30, 'zeropoint': 26.3,}}
   - band: optical
     name: GIT
     telescope_id: =GIT-0p7m
