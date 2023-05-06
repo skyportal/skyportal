@@ -19,7 +19,7 @@ env, cfg = load_env()
 
 init_db(**cfg['database'])
 
-log = make_log('recurring_apis')
+log = make_log('watchlist')
 
 REQUEST_TIMEOUT_SECONDS = cfg['health_monitor.request_timeout_seconds']
 MAX_RETRIES = 10
