@@ -8,3 +8,7 @@ alert_available = False
 
 def post_alert(*args, **kwargs):
     pass
+
+
+def get_alerts_by_position(*args, **kwargs):
+    pass
