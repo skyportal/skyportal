@@ -2520,6 +2520,7 @@ def observation_simsurvey(
         )
 
     except Exception as e:
+        session.rollback()
         return log(
             f"Unable to complete survey efficiency analysis {survey_efficiency_analysis.id}: {e}"
         )

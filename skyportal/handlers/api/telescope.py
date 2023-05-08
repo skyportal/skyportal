@@ -1,6 +1,8 @@
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 
+from astropy.time import Time
+
 from ..base import BaseHandler
 from ...models import Telescope
 
@@ -186,6 +188,12 @@ class TelescopeHandler(BaseHandler):
                     continue
                 temp = telescope.to_dict()
                 temp = {**temp, **telescope.current_time}
+                temp["morning"] = (
+                    temp["morning"].iso if isinstance(temp["morning"], Time) else False
+                )
+                temp["evening"] = (
+                    temp["evening"].iso if isinstance(temp["evening"], Time) else False
+                )
 
                 allocations = []
                 for instrument in telescope.instruments:

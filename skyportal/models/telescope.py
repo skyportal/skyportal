@@ -303,8 +303,6 @@ class Telescope(Base):
                 evening = self.next_twilight_evening_astronomical()
                 if morning is not None and evening is not None:
                     is_night_astronomical = bool(morning.jd < evening.jd)
-                    morning = morning.iso
-                    evening = evening.iso
             except Exception:
                 is_night_astronomical = False
                 morning = False
