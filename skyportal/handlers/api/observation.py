@@ -121,7 +121,6 @@ def add_queued_observations(instrument_id, obstable):
             f"Successfully added queued observations for instrument {instrument_id}"
         )
     except Exception as e:
-        session.rollback()
         return log(
             f"Unable to add queued observations for instrument {instrument_id}: {e}"
         )
@@ -224,7 +223,6 @@ def add_observations(instrument_id, obstable):
 
         return log(f"Successfully added observations for instrument {instrument_id}")
     except Exception as e:
-        session.rollback()
         return log(f"Unable to add observations for instrument {instrument_id}: {e}")
     finally:
         session.close()

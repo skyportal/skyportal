@@ -114,7 +114,6 @@ def add_catalog(catalog_id, catalog_data):
 
         log(f"Generated catalog with ID {catalog_id} in {duration} seconds")
     except Exception as e:
-        session.rollback()
         log(f"Unable to generate catalog: {e}")
     finally:
         session.close()

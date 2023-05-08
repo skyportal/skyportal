@@ -501,7 +501,6 @@ def add_galaxies(catalog_name, catalog_data):
         session.commit()
         return log("Generated galaxy table")
     except Exception as e:
-        session.rollback()
         return log(f"Unable to generate galaxy table: {e}")
     finally:
         session.close()
