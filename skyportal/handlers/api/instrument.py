@@ -621,6 +621,10 @@ class InstrumentHandler(BaseHandler):
             if field_region is not None:
                 regions = Regions.parse(field_region, format='ds9')
                 data['region'] = regions.serialize(format='ds9')
+            elif instrument.has_region:
+                regions = Regions.parse(instrument.region, format='ds9')
+            else:
+                regions = None
 
             if field_fov_type is not None:
                 if field_fov_attributes is None:
@@ -683,9 +687,13 @@ class InstrumentHandler(BaseHandler):
             session.commit()
 
             if field_data is not None:
-                if (field_region is None) and (field_fov_type is None):
+                if (
+                    (field_region is None)
+                    and (field_fov_type is None)
+                    and (regions is None)
+                ):
                     return self.error(
-                        'field_region or field_fov_type is required with field_data'
+                        'field_region or field_fov_type or existing region is required with field_data'
                     )
 
                 if type(field_data) is str:

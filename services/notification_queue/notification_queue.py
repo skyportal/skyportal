@@ -23,6 +23,7 @@ from skyportal.app_utils import get_app_base_url
 from skyportal.email_utils import send_email
 from skyportal.models import (
     Allocation,
+    AnalysisService,
     Classification,
     Comment,
     DBSession,
@@ -1011,9 +1012,18 @@ def api(queue):
                                         queue.append(target)
                                 elif is_analysis_service:
                                     if target_data["status"] == "completed":
+                                        analysis_service_id = target_data[
+                                            "analysis_service_id"
+                                        ]
+                                        analysis_service = session.scalars(
+                                            sa.select(AnalysisService).where(
+                                                AnalysisService.id
+                                                == analysis_service_id
+                                            )
+                                        ).first()
                                         notification = UserNotification(
                                             user=user,
-                                            text=f"New completed analysis service for object *{target_data['obj_id']}* with name *{target_data['analysis_service']['name']}*",
+                                            text=f"New completed analysis service for object *{target_data['obj_id']}* with name *{analysis_service.name}*",
                                             notification_type="analysis_services",
                                             url=f"/source/{target_data['obj_id']}",
                                         )

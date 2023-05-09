@@ -535,7 +535,7 @@ def download_observations(request_id, ar):
                 attachment_name=attachment_name,
                 author=req.requester,
                 groups=groups,
-                bot=False,
+                bot=True,
             )
             session.add(comment)
         req.status = f'{ar.json()["count"]} images posted as comment'
