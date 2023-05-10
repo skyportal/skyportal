@@ -110,7 +110,7 @@ def prioritize_queue(queue, session):
                     start_date
                     > telescopeAllocationLookup[
                         allocationAndStartDate["allocation_id"]
-                    ]["morning"]
+                    ]["morning"].datetime
                 ):
                     continue
                 if (
@@ -122,8 +122,10 @@ def prioritize_queue(queue, session):
                 if (
                     telescopeAllocationLookup[allocationAndStartDate["allocation_id"]][
                         "morning"
-                    ]
-                    < telescopeAllocationLookup[earliest["allocation_id"]]["morning"]
+                    ].datetime
+                    < telescopeAllocationLookup[earliest["allocation_id"]][
+                        "morning"
+                    ].datetime
                 ):
                     earliest = allocation
                     continue

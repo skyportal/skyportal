@@ -90,7 +90,6 @@ def add_linked_thumbnails_and_push_ws_msg(obj_id, user_id):
         flow.push('*', "skyportal/REFRESH_CANDIDATE", payload={"id": obj.internal_key})
     except Exception as e:
         log(f"Unable to add linked thumbnails to {obj_id}: {e}")
-        session.rollback()
     finally:
         session.close()
         Session.remove()
