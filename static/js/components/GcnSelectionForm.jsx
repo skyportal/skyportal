@@ -527,6 +527,8 @@ const GcnSelectionForm = ({
     locLookUp[loc.id] = loc;
   });
 
+  const [selectedFormData, setSelectedFormData] = useState({});
+
   useEffect(() => {
     const fetchSkymapInstrument = async () => {
       dispatch(
@@ -931,6 +933,8 @@ const GcnSelectionForm = ({
               >
                 <Form
                   schema={GcnSourceSelectionFormSchema}
+                  formData={selectedFormData}
+                  onChange={({ formData }) => setSelectedFormData(formData)}
                   uiSchema={uiSchema}
                   templates={{ ObjectFieldTemplate: MyObjectFieldTemplate }}
                   validator={validator}

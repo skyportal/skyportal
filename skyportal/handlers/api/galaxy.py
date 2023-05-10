@@ -1,25 +1,29 @@
+import datetime
 import os
-from tornado.ioloop import IOLoop
-from geojson import Point, Feature
-import sqlalchemy as sa
-from sqlalchemy import func
-from sqlalchemy.orm import sessionmaker, scoped_session
+import time
+from io import StringIO
+
 import astropy.units as u
-from astropy.io import ascii
+import arrow
 import healpix_alchemy as ha
 import numpy as np
 import pandas as pd
-from io import StringIO
-import time
-from baselayer.app.access import permissions, auth_or_token
+import sqlalchemy as sa
+from astropy.io import ascii
+from geojson import Feature, Point
+from sqlalchemy import func
+from sqlalchemy.orm import scoped_session, sessionmaker
+from tornado.ioloop import IOLoop
+
+from baselayer.app.env import load_env
+from baselayer.app.access import auth_or_token, permissions
 from baselayer.log import make_log
 
-from ..base import BaseHandler
 from ...models import DBSession, Galaxy, Localization, LocalizationTile
-import datetime
-
+from ..base import BaseHandler
 
 log = make_log('api/galaxy')
+env, cfg = load_env()
 
 Session = scoped_session(sessionmaker())
 
@@ -125,14 +129,42 @@ def get_galaxies(
             else:
                 raise (f"Localization {localization_dateobs} not found")
 
+        # now get the dateobs in the format YYYY_MM
+        partition_key = arrow.get(localization.dateobs).datetime
+        localizationtile_partition_name = (
+            f'{partition_key.year}_{partition_key.month:02d}'
+        )
+        localizationtilescls = LocalizationTile.partitions.get(
+            localizationtile_partition_name, None
+        )
+        if localizationtilescls is None:
+            localizationtilescls = LocalizationTile.partitions.get(
+                'def', LocalizationTile
+            )
+        else:
+            # check that there is actually a localizationTile with the given localization_id in the partition
+            # if not, use the default partition
+            if not (
+                session.scalars(
+                    localizationtilescls.select(session.user_or_token).where(
+                        localizationtilescls.localization_id == localization.id
+                    )
+                ).first()
+            ):
+                localizationtilescls = localizationtilescls.partitions.get(
+                    'def', localizationtilescls
+                )
+
         cum_prob = (
-            sa.func.sum(LocalizationTile.probdensity * LocalizationTile.healpix.area)
-            .over(order_by=LocalizationTile.probdensity.desc())
+            sa.func.sum(
+                localizationtilescls.probdensity * localizationtilescls.healpix.area
+            )
+            .over(order_by=localizationtilescls.probdensity.desc())
             .label('cum_prob')
         )
         localizationtile_subquery = (
-            sa.select(LocalizationTile.probdensity, cum_prob).filter(
-                LocalizationTile.localization_id == localization.id
+            sa.select(localizationtilescls.probdensity, cum_prob).filter(
+                localizationtilescls.localization_id == localization.id
             )
         ).subquery()
 
@@ -143,17 +175,17 @@ def get_galaxies(
         ).scalar_subquery()
 
         tile_ids = session.scalars(
-            sa.select(LocalizationTile.id).where(
-                LocalizationTile.localization_id == localization.id,
-                LocalizationTile.probdensity >= min_probdensity,
+            sa.select(localizationtilescls.id).where(
+                localizationtilescls.localization_id == localization.id,
+                localizationtilescls.probdensity >= min_probdensity,
             )
         ).all()
 
         tiles_subquery = (
             sa.select(Galaxy.id)
             .where(
-                LocalizationTile.id.in_(tile_ids),
-                LocalizationTile.healpix.contains(Galaxy.healpix),
+                localizationtilescls.id.in_(tile_ids),
+                localizationtilescls.healpix.contains(Galaxy.healpix),
             )
             .subquery()
         )
