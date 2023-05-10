@@ -964,6 +964,7 @@ def observation_schedule(
         End time for the observations
     standards : pandas.DataFrame
         Standard stars for inclusion in the observation plan.
+        Columns should include name, ra_float, and dec_float.
     output_format : str, optional
         "csv", "pdf" or "png" -- determines the format of the returned observation plan
     figsize : tuple, optional
@@ -1313,7 +1314,6 @@ class FollowupRequestSchedulerHandler(BaseHandler):
         - in: query
           name: includeStandards
           nullable: true
-          required: false
           schema:
             type: boolean
           description: |
@@ -1321,14 +1321,12 @@ class FollowupRequestSchedulerHandler(BaseHandler):
         - in: query
           name: standardsOnly
           nullable: true
-          required: false
           schema:
             type: boolean
           description: |
             Only request standards in schedule. Defaults to False.
         - in: query
           name: standardType
-          required: false
           schema:
             type: string
           description: |
@@ -1337,7 +1335,6 @@ class FollowupRequestSchedulerHandler(BaseHandler):
         - in: query
           name: magnitudeRange
           nullable: True
-          required: false
           schema:
             type: list
           description: |
@@ -1400,6 +1397,9 @@ class FollowupRequestSchedulerHandler(BaseHandler):
                 ):
                     return self.error('Invalid argument for `magnitude_range`')
 
+            if magnitude_range[0] < magnitude_range[1]:
+                return self.error('Elements out of order in `magnitude_range`')
+
             if not observation_start_date:
                 observation_start = Time.now()
             else:
@@ -1424,12 +1424,12 @@ class FollowupRequestSchedulerHandler(BaseHandler):
                 )
 
                 if start_date:
-                    start_date = str(arrow.get(start_date.strip()).datetime)
+                    start_date = arrow.get(start_date.strip()).datetime
                     followup_requests = followup_requests.where(
                         FollowupRequest.created_at >= start_date
                     )
                 if end_date:
-                    end_date = str(arrow.get(end_date.strip()).datetime)
+                    end_date = arrow.get(end_date.strip()).datetime
                     followup_requests = followup_requests.where(
                         FollowupRequest.created_at <= end_date
                     )
