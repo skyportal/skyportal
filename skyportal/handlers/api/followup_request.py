@@ -1,4 +1,5 @@
 import arrow
+import ast
 from datetime import datetime, timedelta
 import healpy as hp
 import jsonschema
@@ -15,6 +16,7 @@ import sqlalchemy as sa
 from sqlalchemy import func
 from sqlalchemy.orm import joinedload
 import time
+import uuid
 
 from astropy import units as u
 from astropy.coordinates import SkyCoord
@@ -59,6 +61,7 @@ from ...models import (
     cosmo,
 )
 from ...models.schema import AssignmentSchema, FollowupRequestPost
+from ...utils.offset import get_formatted_standards_list
 
 log = make_log('api/followup_request')
 
@@ -943,6 +946,7 @@ def observation_schedule(
     instrument,
     observation_start=Time.now(),
     observation_end=Time.now() + TimeDelta(12 * u.hour),
+    standards=pd.DataFrame(),
     output_format='csv',
     figsize=(10, 8),
 ):
@@ -954,10 +958,12 @@ def observation_schedule(
         The planned observations associated with the request
     instrument : skyportal.models.instrument.Instrument
         The instrument that the request is made based on
-    observation_start: astropy.time.Time
+    observation_start : astropy.time.Time
         Start time for the observations
-    observation_end: astropy.time.Time
+    observation_end : astropy.time.Time
         End time for the observations
+    standards : pandas.DataFrame
+        Standard stars for inclusion in the observation plan.
     output_format : str, optional
         "csv", "pdf" or "png" -- determines the format of the returned observation plan
     figsize : tuple, optional
@@ -1104,6 +1110,34 @@ def observation_schedule(
     log(
         f"Assembled {len(blocks)} observations in schedule for {instrument.name} in {time.time() - start_time} s"
     )
+
+    for index, standard in standards.iterrows():
+        obj = standard.name
+        coord = SkyCoord(ra=standard.ra_float * u.deg, dec=standard.dec_float * u.deg)
+        target = FixedTarget(coord=coord, name=standard.name)
+        priority = 1
+        exposure_time = 300 * u.s
+        exposure_counts = 1
+        too = False
+
+        configuration = {
+            'requester': 'calibration',
+            'group_id': 1,
+            'request_id': f'standard_{str(uuid.uuid4())}',
+            'filter': 'default',
+            'exposure_time': exposure_time,
+        }
+
+        b = ObservingBlock.from_exposures(
+            target,
+            priority,
+            exposure_time,
+            exposure_counts,
+            read_out,
+            configuration=configuration,
+        )
+        blocks.append(b)
+        toos.append(False)
 
     start_time = time.time()
 
@@ -1277,6 +1311,38 @@ class FollowupRequestSchedulerHandler(BaseHandler):
             Arrow-parseable date string (e.g. 2020-01-01). If provided, end time
             of observation window, otherwise 12 hours from now.
         - in: query
+          name: includeStandards
+          nullable: true
+          required: false
+          schema:
+            type: boolean
+          description: |
+            Include standards in schedule. Defaults to False.
+        - in: query
+          name: standardsOnly
+          nullable: true
+          required: false
+          schema:
+            type: boolean
+          description: |
+            Only request standards in schedule. Defaults to False.
+        - in: query
+          name: standardType
+          required: false
+          schema:
+            type: string
+          description: |
+            Origin of the standard stars, defined in config.yaml.
+            Defaults to ESO.
+        - in: query
+          name: magnitudeRange
+          nullable: True
+          required: false
+          schema:
+            type: list
+          description: |
+            lowest and highest magnitude to return, e.g. "(12,9)"
+        - in: query
           name: output_format
           nullable: true
           schema:
@@ -1320,40 +1386,20 @@ class FollowupRequestSchedulerHandler(BaseHandler):
                 'observationStartDate', None
             )
             observation_end_date = self.get_query_argument('observationEndDate', None)
+            standard_type = self.get_query_argument('standardType', 'ESO')
+            include_standards = self.get_query_argument('includeStandards', False)
+            standards_only = self.get_query_argument('standardsOnly', False)
+            magnitude_range_str = self.get_query_argument('magnitudeRange', None)
+            if magnitude_range_str is None:
+                magnitude_range = (np.inf, -np.inf)
+            else:
+                magnitude_range = ast.literal_eval(magnitude_range_str)
+                if not (
+                    isinstance(magnitude_range, (list, tuple))
+                    and len(magnitude_range) == 2
+                ):
+                    return self.error('Invalid argument for `magnitude_range`')
 
-            allocation_query = Allocation.select(self.current_user).where(
-                Allocation.instrument_id == instrument_id
-            )
-            allocation_subquery = allocation_query.subquery()
-
-            # get owned assignments
-            followup_requests = FollowupRequest.select(self.current_user).join(
-                allocation_subquery,
-                FollowupRequest.allocation_id == allocation_subquery.c.id,
-            )
-
-            if start_date:
-                start_date = str(arrow.get(start_date.strip()).datetime)
-                followup_requests = followup_requests.where(
-                    FollowupRequest.created_at >= start_date
-                )
-            if end_date:
-                end_date = str(arrow.get(end_date.strip()).datetime)
-                followup_requests = followup_requests.where(
-                    FollowupRequest.created_at <= end_date
-                )
-            if sourceID:
-                obj_query = Obj.select(self.current_user).where(
-                    Obj.id.contains(sourceID.strip())
-                )
-                obj_subquery = obj_query.subquery()
-                followup_requests = followup_requests.join(
-                    obj_subquery, FollowupRequest.obj_id == obj_subquery.c.id
-                )
-            if status:
-                followup_requests = followup_requests.where(
-                    FollowupRequest.status.contains(status.strip())
-                )
             if not observation_start_date:
                 observation_start = Time.now()
             else:
@@ -1365,17 +1411,64 @@ class FollowupRequestSchedulerHandler(BaseHandler):
             else:
                 observation_end = Time(arrow.get(observation_end_date.strip()).datetime)
 
-            followup_requests = followup_requests.options(
-                joinedload(FollowupRequest.allocation).joinedload(
-                    Allocation.instrument
-                ),
-                joinedload(FollowupRequest.allocation).joinedload(Allocation.group),
-                joinedload(FollowupRequest.obj),
-                joinedload(FollowupRequest.requester),
-            )
+            if not standards_only:
+                allocation_query = Allocation.select(self.current_user).where(
+                    Allocation.instrument_id == instrument_id
+                )
+                allocation_subquery = allocation_query.subquery()
 
-            followup_requests = session.scalars(followup_requests).unique().all()
-            if len(followup_requests) == 0:
+                # get owned assignments
+                followup_requests = FollowupRequest.select(self.current_user).join(
+                    allocation_subquery,
+                    FollowupRequest.allocation_id == allocation_subquery.c.id,
+                )
+
+                if start_date:
+                    start_date = str(arrow.get(start_date.strip()).datetime)
+                    followup_requests = followup_requests.where(
+                        FollowupRequest.created_at >= start_date
+                    )
+                if end_date:
+                    end_date = str(arrow.get(end_date.strip()).datetime)
+                    followup_requests = followup_requests.where(
+                        FollowupRequest.created_at <= end_date
+                    )
+                if sourceID:
+                    obj_query = Obj.select(self.current_user).where(
+                        Obj.id.contains(sourceID.strip())
+                    )
+                    obj_subquery = obj_query.subquery()
+                    followup_requests = followup_requests.join(
+                        obj_subquery, FollowupRequest.obj_id == obj_subquery.c.id
+                    )
+                if status:
+                    followup_requests = followup_requests.where(
+                        FollowupRequest.status.contains(status.strip())
+                    )
+
+                followup_requests = followup_requests.options(
+                    joinedload(FollowupRequest.allocation).joinedload(
+                        Allocation.instrument
+                    ),
+                    joinedload(FollowupRequest.allocation).joinedload(Allocation.group),
+                    joinedload(FollowupRequest.obj),
+                    joinedload(FollowupRequest.requester),
+                )
+
+                followup_requests = session.scalars(followup_requests).unique().all()
+            else:
+                followup_requests = []
+
+            if include_standards:
+                standards = get_formatted_standards_list(
+                    standard_type=standard_type,
+                    return_dataframe=True,
+                    magnitude_range=magnitude_range,
+                )
+            else:
+                standards = pd.DataFrame()
+
+            if (len(followup_requests) == 0) and (len(standards) == 0):
                 return self.error('Need at least one observation to schedule.')
 
             schedule = functools.partial(
@@ -1384,6 +1477,7 @@ class FollowupRequestSchedulerHandler(BaseHandler):
                 instrument,
                 observation_start=observation_start,
                 observation_end=observation_end,
+                standards=standards,
                 output_format=output_format,
                 figsize=(10, 8),
             )
