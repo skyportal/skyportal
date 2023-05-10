@@ -1398,7 +1398,7 @@ class FollowupRequestSchedulerHandler(BaseHandler):
                     return self.error('Invalid argument for `magnitude_range`')
 
             if magnitude_range[0] < magnitude_range[1]:
-                return self.error('Elements out of order in `magnitude_range`')
+                magnitude_range = magnitude_range[::-1]
 
             if not observation_start_date:
                 observation_start = Time.now()
