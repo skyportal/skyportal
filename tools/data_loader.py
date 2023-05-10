@@ -198,12 +198,21 @@ if __name__ == "__main__":
                 elif filename.endswith('reg'):
                     return Regions.read(filename).serialize(format='ds9')
                 elif filename.endswith('h5') or filename.endswith('hdf5'):
-                    payload = (
-                        Table.read(filename)
-                        .to_pandas()
-                        .replace({np.nan: None})
-                        .to_dict(orient='list')
-                    )
+                    try:
+                        payload = (
+                            Table.read(filename)
+                            .to_pandas()
+                            .replace({np.nan: None})
+                            .to_dict(orient='list')
+                        )
+                    except Exception as e:
+                        # sometimes we save HDF5 files using an HDFStore.
+                        # in this case we read it as a binary file and return it as "data"
+                        if 'values_block_0' in str(e):
+                            with open(filename, 'rb') as fid:
+                                payload = base64.b64encode(fid.read())
+                        else:
+                            raise e
                     return payload
                 elif filename.endswith('bz2'):
                     payload = (
@@ -214,7 +223,8 @@ if __name__ == "__main__":
                     return payload
                 else:
                     raise NotImplementedError(
-                        f'{filename}: Only CSV, PNG, xml, reg, and hdf5 files currently supported for extending individual objects'
+                        f'{filename}: Only CSV, PNG, xml, reg, and hdf5 files '
+                        'currently supported for extending individual objects'
                     )
 
             for k, v in obj.items():

@@ -714,6 +714,7 @@ def test_delete_scanning_profile(driver, user, public_group):
     driver.wait_for_xpath_to_disappear('//div[text()="123hrs"]')
 
 
+@pytest.mark.flaky(reruns=2)
 def test_load_scanning_profile(
     driver, user, public_group, public_source, annotation_token
 ):

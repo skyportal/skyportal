@@ -28,6 +28,7 @@ from ...models import (
     Group,
     Stream,
     Photometry,
+    PhotometricSeries,
     Instrument,
     Obj,
     PHOT_ZP,
@@ -1331,6 +1332,7 @@ class PhotometryHandler(BaseHandler):
 class ObjPhotometryHandler(BaseHandler):
     @auth_or_token
     def get(self, obj_id):
+        individual_or_series = self.get_query_argument("individualOrSeries", "both")
         phase_fold_data = self.get_query_argument("phaseFoldData", False)
         format = self.get_query_argument('format', 'mag')
         outsys = self.get_query_argument('magsys', 'ab')
@@ -1346,17 +1348,41 @@ class ObjPhotometryHandler(BaseHandler):
                     status=403,
                 )
 
-            photometry = (
-                session.scalars(
-                    Photometry.select(session.user_or_token)
-                    .where(Photometry.obj_id == obj_id)
-                    .distinct()
+            phot_data = []
+            series_data = []
+            if individual_or_series in ["individual", "both"]:
+                photometry = (
+                    session.scalars(
+                        Photometry.select(session.user_or_token)
+                        .where(Photometry.obj_id == obj_id)
+                        .distinct()
+                    )
+                    .unique()
+                    .all()
                 )
-                .unique()
-                .all()
-            )
 
-            data = [serialize(phot, outsys, format) for phot in photometry]
+                phot_data = [serialize(phot, outsys, format) for phot in photometry]
+
+            if individual_or_series in ["series", "both"]:
+
+                series = (
+                    session.scalars(
+                        PhotometricSeries.select(session.user_or_token).where(
+                            PhotometricSeries.obj_id == obj_id
+                        )
+                    )
+                    .unique()
+                    .all()
+                )
+                series_data = []
+                for s in series:
+                    series_data += s.get_data_with_extra_columns().to_dict(
+                        orient='records'
+                    )
+
+            data = phot_data + series_data
+
+            data.sort(key=lambda x: x['mjd'])
 
             if phase_fold_data:
                 period, modified = None, arrow.Arrow(1, 1, 1)
@@ -1646,6 +1672,15 @@ ObjPhotometryHandler.get.__doc__ = f"""
             schema:
               type: string
               enum: {list(ALLOWED_MAGSYSTEMS)}
+          - in: query
+            name: individualOrSeries
+            nullable: true
+            schema:
+              type: string
+              enum: [individual, series, both]
+            description: >-
+                Whether to return individual photometry points,
+                photometric series, or both (Default).
           - in: query
             name: phaseFoldData
             nullable: true

@@ -14,7 +14,10 @@ from sqlalchemy.exc import IntegrityError
 
 from skyportal.tests import api, assert_api, assert_api_fail
 from skyportal.models import DBSession, PhotometricSeries
-from skyportal.utils.hdf5_files import dump_dataframe_to_bytestream
+from skyportal.utils.hdf5_files import (
+    dump_dataframe_to_bytestream,
+    load_dataframe_from_bytestream,
+)
 
 
 def test_hdf5_file_vs_memory_hash():
@@ -1953,7 +1956,7 @@ def test_get_series_by_snr(
     assert ps_h.id in ids
     assert ps_o.id in ids
 
-    # should get non of the series:
+    # should get none of the series:
     status, data = api(
         'GET',
         'photometric_series',
@@ -2125,3 +2128,269 @@ def test_get_series_paged(
     assert 1 <= len(data['data']['series']) <= 2
     page2_ids = [ps['id'] for ps in data['data']['series']]
     assert set(page1_ids).isdisjoint(page2_ids)
+
+
+def test_download_formats_single_series(upload_data_token, photometric_series):
+    # regular download of a single series
+    status, data = api(
+        'GET',
+        f'photometric_series/{photometric_series.id}',
+        params={},
+        token=upload_data_token,
+    )
+    assert_api(status, data)
+
+    ps1 = data['data']
+    assert photometric_series.series_name == ps1['series_name']
+    assert photometric_series.num_exp == ps1['num_exp']
+    assert isinstance(ps1['data'], dict)
+    for key in ['mag', 'mjd']:
+        assert key in ps1['data']
+        assert isinstance(ps1['data'][key], list)
+        assert len(ps1['data'][key]) == ps1['num_exp']
+
+    # download of a single series using format='json'
+    status, data = api(
+        'GET',
+        f'photometric_series/{photometric_series.id}',
+        params={'dataFormat': 'json'},
+        token=upload_data_token,
+    )
+    assert_api(status, data)
+    ps2 = data['data']
+
+    # the output should be the same as the default
+    assert ps1 == ps2
+
+    # download a single series using the HDF5 format
+    status, data = api(
+        'GET',
+        f'photometric_series/{photometric_series.id}',
+        params={'dataFormat': 'hdf5'},
+        token=upload_data_token,
+    )
+    assert_api(status, data)
+
+    ps3 = data['data']
+    assert photometric_series.obj_id == ps3['obj_id']
+    assert photometric_series.num_exp == ps3['num_exp']
+
+    df, metadata = load_dataframe_from_bytestream(ps3['data'])
+
+    assert isinstance(df, pd.DataFrame)
+    assert isinstance(metadata, dict)
+
+    # check the dataframe is consistent
+    for key in ['mag', 'mjd']:
+        assert key in df.columns
+        assert df[key].to_list() == ps1['data'][key]
+
+    # check (a random subset of the) metadata keys are consistent:
+    for key in [
+        'series_name',
+        'obj_id',
+        'owner_id',
+        'filter',
+        'ra',
+        'dec',
+        'ref_flux',
+        'channel',
+    ]:
+        assert key in metadata
+        assert metadata[key] == ps1[key]
+
+        # download a single series using format='none'
+        status, data = api(
+            'GET',
+            f'photometric_series/{photometric_series.id}',
+            params={'dataFormat': 'none'},
+            token=upload_data_token,
+        )
+        assert_api(status, data)
+
+        ps4 = data['data']
+        assert photometric_series.origin == ps4['origin']
+        assert photometric_series.num_exp == ps4['num_exp']
+        assert ps4['data'] is None
+
+        # download a single series using wrong format='foobar'
+        status, data = api(
+            'GET',
+            f'photometric_series/{photometric_series.id}',
+            params={'dataFormat': 'foobar'},
+            token=upload_data_token,
+        )
+        assert_api_fail(status, data, 400, 'Invalid dataFormat: "foobar"')
+
+
+def test_download_formats_multiple_series(
+    upload_data_token, photometric_series, photometric_series2
+):
+    refs = [photometric_series, photometric_series2]
+
+    # regular download of two series
+    status, data = api(
+        'GET',
+        'photometric_series',
+        params={},
+        token=upload_data_token,
+    )
+    assert_api(status, data)
+    assert data['data']['totalMatches'] >= 2
+    series = data['data']['series']
+    assert len(series) >= 2
+
+    for ref_ps in refs:
+        for key in [
+            'id',
+            'filename',
+            'ra',
+            'dec',
+            'filter',
+            'origin',
+            'num_exp',
+            'series_name',
+            'best_snr',
+        ]:
+            assert any([getattr(ref_ps, key) == ps[key] for ps in series])
+
+    # by default, downloading multiple series does not return any data
+    for ps in series:
+        assert ps['data'] is None
+
+    # download multiple series and specifying format='none' explicitly
+    status, data = api(
+        'GET',
+        'photometric_series',
+        params={'dataFormat': 'none'},
+        token=upload_data_token,
+    )
+    assert_api(status, data)
+    assert data['data']['totalMatches'] >= 2
+    series = data['data']['series']
+    assert len(series) >= 2
+
+    for ref_ps in refs:
+        for key in [
+            'id',
+            'filename',
+            'ra',
+            'dec',
+            'filter',
+            'origin',
+            'num_exp',
+            'series_name',
+            'best_snr',
+        ]:
+            assert any([getattr(ref_ps, key) == ps[key] for ps in series])
+
+    # downloading multiple series with format='none' does not return any data
+    for ps in series:
+        assert ps['data'] is None
+
+    # download multiple series using format='json'
+    status, data = api(
+        'GET',
+        'photometric_series',
+        params={'dataFormat': 'json'},
+        token=upload_data_token,
+    )
+    assert_api(status, data)
+    assert data['data']['totalMatches'] >= 2
+    series = data['data']['series']
+    assert len(series) >= 2
+
+    # first match each returned series dict to the reference series
+    pairs = []
+    for ref_ps in refs:
+        for ps in series:
+            if ref_ps.id == ps['id']:
+                pairs.append((ref_ps, ps))
+
+    # check they are the same
+    for ref_ps, ps in pairs:
+        for key in [
+            'id',
+            'filename',
+            'ra',
+            'dec',
+            'filter',
+            'origin',
+            'num_exp',
+            'series_name',
+            'best_snr',
+        ]:
+            assert getattr(ref_ps, key) == ps[key]
+
+        # this time we should get the data as a dict of lists
+        assert isinstance(ps['data'], dict)
+        for key in ['mag', 'mjd']:
+            assert key in ps['data']
+            assert isinstance(ps['data'][key], list)
+            assert len(ps['data'][key]) == ps['num_exp']
+            assert ps['data'][key] == ref_ps.data[key].to_list()
+
+    # download multiple series using the HDF5 format
+    status, data = api(
+        'GET',
+        'photometric_series',
+        params={'dataFormat': 'hdf5'},
+        token=upload_data_token,
+    )
+    assert_api(status, data)
+    assert data['data']['totalMatches'] >= 2
+    series = data['data']['series']
+    assert len(series) >= 2
+
+    # first match each returned series dict to the reference series
+    pairs = []
+    for ref_ps in refs:
+        for ps in series:
+            if ref_ps.id == ps['id']:
+                pairs.append((ref_ps, ps))
+
+    for ref_ps, ps in pairs:
+        for key in [
+            'id',
+            'filename',
+            'ra',
+            'dec',
+            'filter',
+            'origin',
+            'num_exp',
+            'series_name',
+            'best_snr',
+        ]:
+            assert getattr(ref_ps, key) == ps[key]
+
+        # this time the data should be a bytestream convertible to dataframe
+        df, metadata = load_dataframe_from_bytestream(ps['data'])
+
+        assert isinstance(df, pd.DataFrame)
+        assert isinstance(metadata, dict)
+
+        # check the dataframe is consistent
+        ref_ps.data.equals(df)
+
+        # check (a random subset of the) metadata keys are consistent:
+        for key in [
+            'series_name',
+            'obj_id',
+            'owner_id',
+            'filter',
+            'ra',
+            'dec',
+            'ref_flux',
+            'channel',
+        ]:
+            assert key in metadata
+            assert metadata[key] == getattr(ref_ps, key)
+
+    # download multiple series using wrong format='foobar'
+    status, data = api(
+        'GET',
+        'photometric_series',
+        params={'dataFormat': 'foobar'},
+        token=upload_data_token,
+    )
+    assert_api_fail(status, data, 400, 'Invalid dataFormat: "foobar"')

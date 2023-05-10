@@ -811,7 +811,6 @@ const SourceTable = ({
     const plotWidth = isMobileOnly ? 200 : 400;
     const specPlotHeight = isMobileOnly ? 150 : 200;
     const legendOrient = isMobileOnly ? "bottom" : "right";
-
     return (
       <TableRow data-testid={`groupSourceExpand_${source.id}`}>
         <TableCell

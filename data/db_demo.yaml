@@ -327,6 +327,12 @@ telescope:
     robotic: true
     diameter: 1.0
     =id: WINTER-1m
+  - name: TESS Telescope
+    nickname: TESS
+    diameter: 0.15
+    =id: TESS
+    skycam_link: null
+    fixed_location: false
 
 instrument:
   - name: ZTF
@@ -529,7 +535,12 @@ instrument:
     field_fov_attributes: [1.2,1]
     # field_data:
     #   file: ../data/WINTER_Fields.csv.bz2
-
+  - band: Optical
+    name: TESS
+    =id: TESS
+    telescope_id: =TESS
+    type: imager
+    filters: ['tess']
 allocation:
   - pi: Michael Coughlin
     proposal_id: SEDM-001
@@ -788,6 +799,10 @@ sources:
       - =public_group_id
       - =program_A
       - =program_B
+  - id: TIC_114807149
+    ra: 359.98824711158005
+    dec: -22.080685381789877
+    origin: TESS
 
 sources/ZTF21aaqjmps/comments:
   - obj_id: ZTF21aaqjmps
@@ -818,7 +833,6 @@ sources/ZTF18aabcvnq/annotations:
       numeric_field: 0.213471118
       some_boolean: false
       class: "varstar"
-
 
 sources/ZTFe028h94k/annotations:
   - obj_id: ZTFe028h94k
@@ -947,6 +961,21 @@ photometry:
     file: badsource.csv
     group_ids:
       - =program_A
+
+photometric_series:
+  - obj_id: TIC_114807149
+    instrument_id: =TESS
+    data:
+      file: TESS_photometric_series1.h5
+    group_ids: all
+    filter: tess
+  - obj_id: TIC_114807149
+    instrument_id: =TESS
+    data:
+      file: TESS_photometric_series2.h5
+    group_ids: all
+    filter: tess
+
 
 followup_request:
   - obj_id: ZTFrlh6cyjh

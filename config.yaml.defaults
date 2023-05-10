@@ -726,6 +726,7 @@ analysis_services:
 comments_folder: persistentdata/comments
 localizations_folder: persistentdata/localizations
 photometric_series_folder: persistentdata/phot_series
+photometric_series_autodelete: True
 
 colors:
   classifications:
