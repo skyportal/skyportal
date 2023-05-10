@@ -650,7 +650,9 @@ def get_formatted_standards_list(
     standard_type='ESO',
     dec_filter_range=(-90, 90),
     ra_filter_range=(0, 360),
+    magnitude_range=(np.inf, -np.inf),
     show_first_line=False,
+    return_dataframe=False,
 ):
     """Returns a list of standard stars in the preferred starlist format.
 
@@ -672,9 +674,13 @@ def get_formatted_standards_list(
         the first element is larger than the first, then assume the filter
         request wraps around 0. Ie. if ra_filter_range = (150, 20) then
         include all sources with ra > 150 or ra < 20.
+    magnitude_range : tuple, optional
+        Restrict magnitude range of standards.
     show_first_line: bool, optional
         Return the first formatting line  if the starlist type adds
         a preamble
+    return_dataframe: bool, optional
+        Return star list as a dataframe
     """
     starlist = []
     result = {"starlist_info": starlist, "success": False}
@@ -728,22 +734,34 @@ def get_formatted_standards_list(
             | (df["ra_float"] <= ra_filter_range[1])
         ]
 
+    if standard_type == "ESO":
+        mag = []
+        for _, row in df.iterrows():
+            commentSplit = row["comment"].split(" ")
+            mag.append(float(commentSplit[1].replace("V=", "")))
+        df["mag"] = mag
+
+        df = df[(df["mag"] <= magnitude_range[0]) & (df["mag"] >= magnitude_range[1])]
+
     if len(df) == 0:
         log("Warning: No standards stars match the filter criteria.")
         return result
 
-    for index, row in df.iterrows():
-        starlist.append(
-            {
-                "str": (
-                    f"{row['name'].replace(' ',''):{space}<{maxname_size}} "
-                    + f"{row.skycoord}"
-                    + f" {row.epoch} "
-                    + f" {commentstr} {row.comment}"
-                )
-            }
-        )
-    return {"starlist_info": starlist, "success": True}
+    if return_dataframe:
+        return df
+    else:
+        for index, row in df.iterrows():
+            starlist.append(
+                {
+                    "str": (
+                        f"{row['name'].replace(' ',''):{space}<{maxname_size}} "
+                        + f"{row.skycoord}"
+                        + f" {row.epoch} "
+                        + f" {commentstr} {row.comment}"
+                    )
+                }
+            )
+        return {"starlist_info": starlist, "success": True}
 
 
 @warningfilter(action="ignore", category=DeprecationWarning)
