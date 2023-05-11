@@ -609,8 +609,8 @@ const SourceDesktop = ({ source }) => {
                   <Link to={`/upload_photometry/${source.id}`} role="link">
                     <Button secondary>Upload additional photometry</Button>
                   </Link>
-                  <Link to={`/manage_data/${source.id}`} role="link">
-                    <Button secondary>Manage data</Button>
+                  <Link to={`/share_data/${source.id}`} role="link">
+                    <Button secondary>Share data</Button>
                   </Link>
                   <Button
                     secondary
