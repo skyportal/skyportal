@@ -87,14 +87,16 @@ const UpdateSourceSummary = ({ source }) => {
   return (
     <>
       <Tooltip title="Update Summary">
-        <EditIcon
-          data-testid="updateSummaryIconButton"
-          fontSize="small"
-          className={classes.editIcon}
-          onClick={() => {
-            setDialogOpen(true);
-          }}
-        />
+        <span>
+          <EditIcon
+            data-testid="updateSummaryIconButton"
+            fontSize="small"
+            className={classes.editIcon}
+            onClick={() => {
+              setDialogOpen(true);
+            }}
+          />
+        </span>
       </Tooltip>
       <Dialog
         open={dialogOpen}
@@ -141,18 +143,20 @@ const UpdateSourceSummary = ({ source }) => {
           </div>
           <div className={classes.saveButton}>
             <Tooltip title="Clear source summary (set to null)">
-              <Button
-                primary
-                onClick={() => {
-                  handleSubmit({ summary: null });
-                }}
-                endIcon={<ClearIcon />}
-                size="large"
-                data-testid="nullifySummaryButton"
-                disabled={isSubmitting || source.summary === null}
-              >
-                Clear
-              </Button>
+              <span>
+                <Button
+                  primary
+                  onClick={() => {
+                    handleSubmit({ summary: null });
+                  }}
+                  endIcon={<ClearIcon />}
+                  size="large"
+                  data-testid="nullifySummaryButton"
+                  disabled={isSubmitting || source.summary === null}
+                >
+                  Clear
+                </Button>
+              </span>
             </Tooltip>
           </div>
         </DialogContent>

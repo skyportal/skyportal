@@ -93,7 +93,11 @@ const FavoritesButton = ({ sourceID, textMode }) => {
 
 FavoritesButton.propTypes = {
   sourceID: PropTypes.string.isRequired,
-  textMode: PropTypes.bool.isRequired,
+  textMode: PropTypes.bool,
+};
+
+FavoritesButton.defaultProps = {
+  textMode: false,
 };
 
 export default FavoritesButton;

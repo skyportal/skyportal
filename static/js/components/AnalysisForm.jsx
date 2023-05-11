@@ -67,6 +67,7 @@ const AnalysisForm = ({ obj_id }) => {
     useState(null);
   const [selectedGroupIds, setSelectedGroupIds] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isFetching, setIsFetching] = useState(false);
 
   const groupLookUp = {};
   // eslint-disable-next-line no-unused-expressions
@@ -82,15 +83,26 @@ const AnalysisForm = ({ obj_id }) => {
 
   useEffect(() => {
     const getAnalysisServices = async () => {
+      setIsFetching(true);
       const result = await dispatch(
         analysisServicesActions.fetchAnalysisServices()
       );
-
+      setIsFetching(false);
       const { data } = result;
       setSelectedAnalysisServiceId(data[0]?.id);
     };
-
-    getAnalysisServices();
+    if (
+      (!analysisServiceList || analysisServiceList.length === 0) &&
+      !isFetching
+    ) {
+      getAnalysisServices();
+    } else if (
+      analysisServiceList &&
+      analysisServiceList.length > 0 &&
+      !selectedAnalysisServiceId
+    ) {
+      setSelectedAnalysisServiceId(analysisServiceList[0].id);
+    }
   }, [dispatch, setSelectedAnalysisServiceId]);
 
   if (

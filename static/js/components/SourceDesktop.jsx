@@ -984,7 +984,7 @@ SourceDesktop.propTypes = {
     alias: PropTypes.arrayOf(PropTypes.string),
     photometry_exists: PropTypes.bool,
     spectrum_exists: PropTypes.bool,
-    photstats: PropTypes.shape(Object),
+    photstats: PropTypes.arrayOf(PropTypes.shape(Object)),
   }).isRequired,
 };
 

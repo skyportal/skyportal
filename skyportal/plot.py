@@ -1,68 +1,64 @@
+import collections
 import copy
 import itertools
-import math
 import json
-import collections
+import math
+import os
 
+import bokeh.embed as bokeh_embed
 import numpy as np
 import pandas as pd
-from sqlalchemy.orm import joinedload
-
-from bokeh.layouts import row, column
+from astropy.time import Time
+from bokeh.events import DocumentEvent
+from bokeh.layouts import column, row
 from bokeh.models import (
-    CustomJS,
-    HoverTool,
-    Range1d,
-    Slider,
     Button,
-    LinearAxis,
-    RadioGroup,
     CategoricalColorMapper,
+    CustomJS,
+    Dropdown,
+    HoverTool,
     Legend,
     LegendItem,
-    Dropdown,
+    LinearAxis,
+    RadioGroup,
+    Range1d,
+    Slider,
     Spinner,
     TabPanel,
     Tabs,
 )
 from bokeh.models.widgets import (
-    CheckboxGroup,
     CheckboxButtonGroup,
-    TextInput,
-    NumericInput,
+    CheckboxGroup,
     Div,
+    NumericInput,
+    TextInput,
 )
-from bokeh.plotting import figure, ColumnDataSource
-
-import bokeh.embed as bokeh_embed
+from bokeh.plotting import ColumnDataSource, figure
 from bokeh.transform import factor_mark
-
-from astropy.time import Time
-
 from matplotlib import cm
 from matplotlib.colors import rgb2hex
+from sqlalchemy.orm import joinedload
 
-import os
 from baselayer.app.env import load_env
+from skyportal.handlers.api.photometry import serialize
 from skyportal.models import (
-    Obj,
-    ObjAnalysis,
+    PHOT_ZP,
     Annotation,
     AnnotationOnSpectrum,
-    Photometry,
-    PhotometricSeries,
     Instrument,
-    PHOT_ZP,
+    Obj,
+    ObjAnalysis,
+    PhotometricSeries,
+    Photometry,
     Spectrum,
     User,
 )
 
-from .enum_types import ALLOWED_SPECTRUM_TYPES
-
 # use the full registry from the enum_types import of sykportal
 # which may have custom bandpasses
+from .enum_types import ALLOWED_SPECTRUM_TYPES
 from .enum_types import sncosmo as snc
-from skyportal.handlers.api.photometry import serialize
 
 _, cfg = load_env()
 # The minimum signal-to-noise ratio to consider a photometry point as detected
@@ -343,6 +339,12 @@ phot_markers = [
     "triangle_pin",
     "square_pin",
 ]
+
+
+class ActiveEvent(DocumentEvent):
+    '''Bokeh event class for active event selection, which is missing from Bokeh>=3.1.1'''
+
+    event_name = 'active'
 
 
 def get_effective_wavelength(bandpass_name):
@@ -1525,7 +1527,7 @@ def make_period_controls(
         ),
     )
     phase_selection.js_on_event(
-        'active',
+        ActiveEvent,
         CustomJS(
             args={
                 'textinput': period_textinput,
