@@ -63,7 +63,7 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-const StartBotSummary = ({ obj_id }) => {
+const StartBotSummary = ({ obj_id, fetchAnalysisServices }) => {
   const classes = useStyles();
   const dispatch = useDispatch();
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -108,8 +108,19 @@ const StartBotSummary = ({ obj_id }) => {
       const { data } = result;
       setSelectedAnalysisServiceId(data[0]?.id);
     };
-
-    getAnalysisServices();
+    if (
+      fetchAnalysisServices &&
+      (!analysisServiceList || analysisServiceList?.length === 0)
+    ) {
+      getAnalysisServices();
+    } else if (
+      analysisServiceList &&
+      analysisServiceList?.length > 0 &&
+      obj_id &&
+      !selectedAnalysisServiceId
+    ) {
+      setSelectedAnalysisServiceId(analysisServiceList[0]?.id);
+    }
   }, [dispatch, setSelectedAnalysisServiceId]);
 
   if (
@@ -250,6 +261,11 @@ const StartBotSummary = ({ obj_id }) => {
 
 StartBotSummary.propTypes = {
   obj_id: PropTypes.string.isRequired,
+  fetchAnalysisServices: PropTypes.bool,
+};
+
+StartBotSummary.defaultProps = {
+  fetchAnalysisServices: false,
 };
 
 export default StartBotSummary;

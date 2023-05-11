@@ -61,9 +61,11 @@ const TNSATForm = ({ obj_id }) => {
       setSelectedTNSRobotId(data[0]?.id);
     };
 
-    getTNSRobots();
-
-    dispatch(tnsrobotsActions.fetchTNSRobots());
+    if (tnsrobotList?.length === 0 && !tnsrobotList) {
+      getTNSRobots();
+    } else if (tnsrobotList?.length > 0 && !selectedTNSRobotId) {
+      setSelectedTNSRobotId(tnsrobotList[0]?.id);
+    }
 
     // Don't want to reset everytime the component rerenders and
     // the defaultStartDate is updated, so ignore ESLint here
