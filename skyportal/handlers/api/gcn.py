@@ -74,6 +74,7 @@ from ...models import (
     Group,
     UserNotification,
     Source,
+    SourcesConfirmedInGCN,
 )
 from ...utils.gcn import (
     get_dateobs,
@@ -2026,10 +2027,19 @@ def add_gcn_summary(
                 if len(sources_data['sources']) < MAX_SOURCES_PER_PAGE:
                     break
             if len(sources) > 0:
-                sources_text.append(
-                    f"\nFound {len(sources)} {'sources' if len(sources) > 1 else 'source'} in the event's localization, given the specified date range:\n"
-                ) if not no_text else None
-                ids, aliases, ras, decs, redshifts = (
+                # QUERY the source in gcn table to get the status and explanation of each source if it exists
+                # we'll split the sources in 2 tables, one for the sources with the confirmed status, no status, and the other for the rejected sources
+                obj_ids = [source['id'] for source in sources]
+                sources_with_status = session.scalars(
+                    SourcesConfirmedInGCN.select(user).where(
+                        SourcesConfirmedInGCN.obj_id.in_(obj_ids),
+                        SourcesConfirmedInGCN.dateobs == dateobs,
+                    )
+                ).all()
+
+                ids, aliases, ras, decs, redshifts, status, explanation = (
+                    [],
+                    [],
                     [],
                     [],
                     [],
@@ -2046,6 +2056,21 @@ def add_gcn_summary(
                         if source['redshift_error'] is not None:
                             redshift = f"{redshift}±{source['redshift_error']}"
                     redshifts.append(redshift)
+                    source_in_gcn = next(
+                        (
+                            source_in_gcn
+                            for source_in_gcn in sources_with_status
+                            if source_in_gcn.obj_id == source['id']
+                        ),
+                        None,
+                    )
+                    if source_in_gcn is not None:
+                        status.append(source_in_gcn.confirmed)
+                        explanation.append(source_in_gcn.explanation)
+                    else:
+                        status.append(None)
+                        explanation.append(None)
+
                 df = pd.DataFrame(
                     {
                         "id": ids,
@@ -2053,19 +2078,72 @@ def add_gcn_summary(
                         "ra": ras,
                         "dec": decs,
                         "redshift": redshifts,
+                        "status": status,
+                        "comment": explanation,
                     }
                 )
-                df = df.fillna("--")
-                sources_text.append(
-                    tabulate(
-                        df,
-                        headers='keys',
-                        tablefmt='psql',
-                        showindex=False,
-                        floatfmt=".4f",
+
+                # split in 2 tables
+                df_confirmed_or_unknown = df[
+                    (
+                        df['id'].isin(
+                            [
+                                source.obj_id
+                                for source in sources_with_status
+                                if source.confirmed in [True, None]
+                            ]
+                        )
                     )
-                    + "\n"
+                ]
+                df_rejected = df[
+                    (
+                        df['id'].isin(
+                            [
+                                source.obj_id
+                                for source in sources_with_status
+                                if source.confirmed is False
+                            ]
+                        )
+                    )
+                ]
+                # remove the status columns for both tables
+                df_confirmed_or_unknown = df_confirmed_or_unknown.drop(
+                    columns=['status']
                 )
+                df_rejected = df_rejected.drop(columns=['status'])
+                df = df.fillna("--")
+
+                sources_text.append(
+                    f"\nFound {len(sources)} {'sources' if len(sources) > 1 else 'source'} in the event's localization, {df_rejected.shape[0]} of which {'have' if df_rejected.shape[0]>1 else 'has'} been rejected after characterization:\n"
+                ) if not no_text else None
+
+                if df_confirmed_or_unknown.shape[0] > 0:
+                    if not no_text:
+                        sources_text.append("Sources:")
+                    sources_text.append(
+                        tabulate(
+                            df_confirmed_or_unknown,
+                            headers='keys',
+                            tablefmt='psql',
+                            showindex=False,
+                            floatfmt=".4f",
+                        )
+                        + "\n"
+                    )
+                if df_rejected.shape[0] > 0:
+                    if not no_text:
+                        sources_text.append("Rejected sources:")
+                    sources_text.append(
+                        tabulate(
+                            df_rejected,
+                            headers='keys',
+                            tablefmt='psql',
+                            showindex=False,
+                            floatfmt=".4f",
+                        )
+                        + "\n"
+                    )
+
                 # now, create a photometry table per source
                 for source in sources:
                     stmt = Photometry.select(user).where(
