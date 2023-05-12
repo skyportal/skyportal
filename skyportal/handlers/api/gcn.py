@@ -2080,17 +2080,6 @@ def add_gcn_summary(
                     }
                 )
 
-                df_confirmed_or_unknown = df[
-                    (
-                        df['id'].isin(
-                            [
-                                source.obj_id
-                                for source in sources_with_status
-                                if source.confirmed in [True, None]
-                            ]
-                        )
-                    )
-                ]
                 df_rejected = df[
                     (
                         df['id'].isin(
@@ -2102,6 +2091,10 @@ def add_gcn_summary(
                         )
                     )
                 ]
+
+                df_confirmed_or_unknown = df[(~df['id'].isin(df_rejected['id']))]
+
+                print(df_confirmed_or_unknown)
 
                 df_confirmed_or_unknown = df_confirmed_or_unknown.drop(
                     columns=['status']
