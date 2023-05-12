@@ -35,8 +35,8 @@ def test_comments(driver, user, public_source):
 
     comment_text = str(uuid.uuid4())
 
-    # now test the Manage Data page
-    driver.get(f"/manage_data/{public_source.id}")
+    # now test the Share data page
+    driver.get(f"/share_data/{public_source.id}")
 
     # little triangle you push to expand the table
     driver.click_xpath("//*[@id='expandable-button']")
@@ -83,8 +83,8 @@ def test_annotations(
 
     assert status == 200
 
-    # ----> now test the Manage Data page <----
-    driver.get(f"/manage_data/{public_source.id}")
+    # ----> now test the Share data page <----
+    driver.get(f"/share_data/{public_source.id}")
 
     # need to filter out only the new spectrum we've added
     # open the filter menu

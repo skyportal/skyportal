@@ -53,9 +53,9 @@ def test_upload_spectroscopy(
 
     driver.wait_for_xpath('//*[contains(.,"successful")]')
 
-    # Go to "Manage Data" page to look for the spectrum, since we can't easily
+    # Go to "Share data" page to look for the spectrum, since we can't easily
     #  look into the Bokeh <canvas> tag on the Source page.
-    driver.get(f"/manage_data/{public_source.id}")
+    driver.get(f"/share_data/{public_source.id}")
 
     driver.wait_for_xpath(f'//*[contains(.,"{sedm.name}")]', 20)
     driver.wait_for_xpath(f'//*[contains(.,"{ALLOWED_SPECTRUM_TYPES[-1]}")]', 20)
