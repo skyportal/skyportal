@@ -101,8 +101,8 @@ app:
       component: RunSummary
     - path: "/source/:obj_id/analysis/:analysis_id"
       component: SourceAnalysisPage
-    - path: "/manage_data/:id"
-      component: ManageDataForm
+    - path: "/share_data/:id"
+      component: ShareDataForm
     - path: "/filter/:fid"
       component: Filter
     - path: "/runs"

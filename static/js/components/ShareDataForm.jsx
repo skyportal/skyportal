@@ -221,7 +221,7 @@ SpectrumRow.propTypes = {
   ).isRequired,
 };
 
-const ManageDataForm = ({ route }) => {
+const ShareDataForm = ({ route }) => {
   const classes = useStyles();
   const theme = useTheme();
   const darkTheme = theme.palette.mode === "dark";
@@ -728,10 +728,10 @@ const ManageDataForm = ({ route }) => {
     </>
   );
 };
-ManageDataForm.propTypes = {
+ShareDataForm.propTypes = {
   route: PropTypes.shape({
     id: PropTypes.string,
   }).isRequired,
 };
 
-export default withRouter(ManageDataForm);
+export default withRouter(ShareDataForm);
