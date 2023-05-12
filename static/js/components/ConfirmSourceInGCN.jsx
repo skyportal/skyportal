@@ -12,7 +12,7 @@ import IconButton from "@mui/material/IconButton";
 import EditIcon from "@mui/icons-material/Edit";
 import Close from "@mui/icons-material/Close";
 import TextField from "@mui/material/TextField";
-import Autocomplete from "@mui/material/Autocomplete";
+import Autocomplete, { createFilterOptions } from "@mui/material/Autocomplete";
 import Typography from "@mui/material/Typography";
 import grey from "@mui/material/colors/grey";
 import dayjs from "dayjs";
@@ -24,6 +24,8 @@ import Button from "./Button";
 import * as SourceInGcnAction from "../ducks/confirmedsourcesingcn";
 
 dayjs.extend(utc);
+
+const filter = createFilterOptions();
 
 const defaultExplanations = [
   "old source",
@@ -109,7 +111,7 @@ const ConfirmSourceInGCN = ({
   const { permissions } = useSelector((state) => state.profile);
   const [open, setOpen] = useState(false);
 
-  const { handleSubmit, control, getValues } = useForm();
+  const { control, getValues } = useForm();
 
   const sourcesingcn = useSelector((state) => state.sourcesingcn.sourcesingcn);
 
@@ -118,6 +120,7 @@ const ConfirmSourceInGCN = ({
   };
 
   let currentState = "unknown";
+  let currentExplanation = "";
   if (
     sourcesingcn?.length > 0 &&
     sourcesingcn.filter((s) => s.obj_id === source_id).length !== 0
@@ -126,10 +129,16 @@ const ConfirmSourceInGCN = ({
       sourcesingcn.filter((s) => s.obj_id === source_id)[0]?.confirmed === true
     ) {
       currentState = "confirmed";
+      currentExplanation =
+        sourcesingcn.filter((s) => s.obj_id === source_id)[0]?.explanation ||
+        "";
     } else if (
       sourcesingcn.filter((s) => s.obj_id === source_id)[0].confirmed === false
     ) {
       currentState = "rejected";
+      currentExplanation =
+        sourcesingcn.filter((s) => s.obj_id === source_id)[0]?.explanation ||
+        "";
     }
   }
 
@@ -173,8 +182,25 @@ const ConfirmSourceInGCN = ({
           handleClose();
         }
       });
+    } else if (
+      currentState === "confirmed" &&
+      currentExplanation === data.explanation
+    ) {
+      dispatch(
+        showNotification("Source already confirmed with this explanation")
+      );
     } else {
-      dispatch(showNotification("Source already confirmed", "error"));
+      dispatch(
+        SourceInGcnAction.patchSourceInGcn(dateobs, source_id, {
+          confirmed: true,
+          explanation: data.explanation,
+        })
+      ).then((response) => {
+        if (response.status === "success") {
+          handleUpdate();
+          handleClose();
+        }
+      });
     }
   };
 
@@ -209,8 +235,25 @@ const ConfirmSourceInGCN = ({
           handleClose();
         }
       });
+    } else if (
+      currentState === "rejected" &&
+      currentExplanation === data.explanation
+    ) {
+      dispatch(
+        showNotification("Source already rejected with this explanation")
+      );
     } else {
-      dispatch(showNotification("Source already rejected", "error"));
+      dispatch(
+        SourceInGcnAction.patchSourceInGcn(dateobs, source_id, {
+          confirmed: false,
+          explanation: data.explanation,
+        })
+      ).then((response) => {
+        if (response.status === "success") {
+          handleUpdate();
+          handleClose();
+        }
+      });
     }
   };
 
@@ -252,7 +295,7 @@ const ConfirmSourceInGCN = ({
             <DialogContent dividers>
               <div className={classes.dialogContent}>
                 <div>
-                  <form onSubmit={handleSubmit}>
+                  <form onSubmit={(e) => e.preventDefault()}>
                     <Typography variant="subtitle2" className={classes.title}>
                       Classification Explanation
                     </Typography>
@@ -260,10 +303,18 @@ const ConfirmSourceInGCN = ({
                       render={({ field: { onChange, value } }) => (
                         <Autocomplete
                           id="explanation"
-                          options={defaultExplanations}
-                          onChange={(event, newValue) => {
-                            onChange(newValue);
+                          freeSolo
+                          disableClearable
+                          filterOptions={(options, params) => {
+                            const filtered = filter(options, params);
+
+                            if (params.inputValue !== "") {
+                              filtered.push(params.inputValue);
+                            }
+
+                            return filtered;
                           }}
+                          options={defaultExplanations}
                           value={value}
                           renderInput={(params) => (
                             <TextField
@@ -271,13 +322,14 @@ const ConfirmSourceInGCN = ({
                               label="Explanation"
                               variant="outlined"
                               fullWidth
+                              onChange={(e) => onChange(e.target.value)}
                             />
                           )}
                         />
                       )}
                       name="explanation"
                       control={control}
-                      defaultValue=""
+                      defaultValue={currentExplanation}
                     />
                     <div>
                       <Button onClick={handleConfirm}>CONFIRM</Button>

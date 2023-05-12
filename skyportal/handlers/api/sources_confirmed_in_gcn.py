@@ -344,20 +344,31 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
                 )
                 source_in_gcn = session.scalars(stmt).first()
                 if source_in_gcn:
-                    return self.error(
-                        "Source is already confirmed/rejected in this localization"
+                    # if the status and explanation are the same, do nothing
+                    if (
+                        source_in_gcn.confirmed == confirmed
+                        and source_in_gcn.explanation == explanation
+                    ):
+                        return self.error(
+                            "Source is already confirmed/rejected in this localization with the same explanation"
+                        )
+                    # otherwise, update the status and explanation
+                    else:
+                        source_in_gcn.confirmed = confirmed
+                        source_in_gcn.explanation = explanation
+                        session.commit()
+                        source_in_gcn_id = source_in_gcn.id
+                else:
+                    source_in_gcn = SourcesConfirmedInGCN(
+                        obj_id=source_id,
+                        dateobs=dateobs,
+                        confirmed=confirmed,
                     )
-
-                source_in_gcn = SourcesConfirmedInGCN(
-                    obj_id=source_id,
-                    dateobs=dateobs,
-                    confirmed=confirmed,
-                )
-                if explanation is not None:
-                    source_in_gcn.explanation = explanation
-                session.add(source_in_gcn)
-                session.commit()
-                source_in_gcn_id = source_in_gcn.id
+                    if explanation is not None:
+                        source_in_gcn.explanation = explanation
+                    session.add(source_in_gcn)
+                    session.commit()
+                    source_in_gcn_id = source_in_gcn.id
             except Exception as e:
                 session.rollback()
                 return self.error(str(e))

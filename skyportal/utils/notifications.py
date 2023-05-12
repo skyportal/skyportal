@@ -76,6 +76,21 @@ def gcn_notification_content(target, session):
     if error is not None:
         error = float(error.text)
 
+    aliases = gcn_event.aliases
+    links = {}
+    # look if there are aliases with LVC prefix, or Fermi prefix
+    for alias in aliases:
+        if alias.startswith('LVC'):
+            name = alias.split('#')[1]
+            links['LVC'] = f"https://gracedb.ligo.org/superevents/{name}/view/"
+        if alias.startswith('Fermi'):
+            # get the current year
+            name = alias.split('#')[1]
+            year = datetime.datetime.now().year
+            links[
+                'Fermi'
+            ] = f"https://heasarc.gsfc.nasa.gov/FTP/fermi/data/gbm/triggers/{year}/{name}/quicklook/"
+
     return {
         'dateobs': dateobs_txt,
         'source_name': source_name,
@@ -86,7 +101,9 @@ def gcn_notification_content(target, session):
         'dec': dec,
         'error': error,
         'tags': tags,
+        'links': links,
         'app_url': app_url,
+        'localization_name': target.localization_name,
     }
 
 
@@ -109,11 +126,17 @@ def gcn_slack_notification(target, data=None):
         # for the error, keep only the first 2 digits after the decimal point
         localization_text = f"*Localization*:\n *-* Localization Type: Point\n *-* Coordinates: ra={data['ra']}, dec={data['dec']}, error radius={data['error']} deg"
         if data['error'] < SOURCE_RADIUS_THRESHOLD:
-            localization_text += f"\n *-* Source Link: <{app_url}/source/{data['source_name']}|*{data['source_name']}*>"
+            localization_text += f"\n *-* Source Page Link: <{app_url}/source/{data['source_name']}|*{data['source_name']}*>"
 
     else:
         # the event has an associated skymap
-        localization_text = f"*Localization*:\n *-* Localization Type: Skymap\n *-* Link: <{app_url}{target['url']}|*{data['dateobs']}*>"
+        localization_text = f"*Localization*:\n *-* Localization Type: Skymap\n *-* Name: {data['localization_name']}"
+
+    external_links_text = None
+    if len(data['links']):
+        external_links_text = "*External Links*:"
+        for key, value in data['links'].items():
+            external_links_text += f"\n *-* <{value}|*{key}*>"
 
     blocks = [
         {"type": "section", "text": {"type": "mrkdwn", "text": header_text}},
@@ -125,6 +148,11 @@ def gcn_slack_notification(target, data=None):
         {"type": "section", "text": {"type": "mrkdwn", "text": localization_text}},
     ]
 
+    if external_links_text is not None:
+        blocks.append({"type": "divider"})
+        blocks.append(
+            {"type": "section", "text": {"type": "mrkdwn", "text": external_links_text}}
+        )
     return blocks
 
 
@@ -148,9 +176,16 @@ def gcn_email_notification(target, data=None):
             localization_text += f"<li>Associated source Link: <a href='{app_url}/source/{data['source_name']}'>{data['source_name']}</a></li>"
     else:
         # the event has an associated skymap
-        localization_text = f"<h4>Localization:</h4><ul><li>Localization Type: Skymap</li><li>Link: <a href='{app_url}{target['url']}'>{data['dateobs']}</a><li>"
+        localization_text = f"<h4>Localization:</h4><ul><li>Localization Type: Skymap</li><li>Name: {data['localization_name']}</li>"
 
     localization_text = f"<div>{localization_text}</ul></div>"
+
+    external_links_text = None
+    if len(data['links']):
+        external_links_text = "<h4>External Links:</h4><ul>"
+        for key, value in data['links'].items():
+            external_links_text += f"<li><a href='{value}'>{key}</a></li>"
+        external_links_text += "</ul>"
 
     return subject, (
         "<!DOCTYPE html><html><head><style>body {font-family: Arial, Helvetica, sans-serif;}</style></head>"
@@ -160,6 +195,9 @@ def gcn_email_notification(target, data=None):
         + notice_type_text
         + localization_text
         + "</body></html>"
+        + external_links_text
+        if external_links_text is not None
+        else ""
     )
 
 
