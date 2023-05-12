@@ -380,6 +380,10 @@ const ObservationPlanRequestLists = ({ dateobs }) => {
     locLookUp[loc.id] = loc;
   });
 
+  observationPlanRequestList.sort(
+    (a, b) => new Date(b.created_at) - new Date(a.created_at)
+  );
+
   const requestsGroupedByInstId = observationPlanRequestList.reduce((r, a) => {
     r[a.allocation.instrument.id] = [
       ...(r[a.allocation.instrument.id] || []),

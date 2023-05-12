@@ -523,7 +523,7 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
       errors.start_date.addError("Start Date must come before End Date");
     }
 
-    if (observationPlanNames.includes(formData.queue_name)) {
+    if ((observationPlanNames || []).includes(formData.queue_name)) {
       errors.queue_name.addError("Need a unique plan name");
     }
 
