@@ -1962,7 +1962,6 @@ def add_gcn_summary(
             header_text.append(from_str)
 
             if len(user_ids) > 0:
-                # query user objects for all user_ids
                 users = []
                 for mentioned_user_id in user_ids:
                     mentioned_user = User.query.get(mentioned_user_id)
@@ -2027,8 +2026,6 @@ def add_gcn_summary(
                 if len(sources_data['sources']) < MAX_SOURCES_PER_PAGE:
                     break
             if len(sources) > 0:
-                # QUERY the source in gcn table to get the status and explanation of each source if it exists
-                # we'll split the sources in 2 tables, one for the sources with the confirmed status, no status, and the other for the rejected sources
                 obj_ids = [source['id'] for source in sources]
                 sources_with_status = session.scalars(
                     SourcesConfirmedInGCN.select(user).where(
@@ -2083,7 +2080,6 @@ def add_gcn_summary(
                     }
                 )
 
-                # split in 2 tables
                 df_confirmed_or_unknown = df[
                     (
                         df['id'].isin(
@@ -2106,7 +2102,7 @@ def add_gcn_summary(
                         )
                     )
                 ]
-                # remove the status columns for both tables
+
                 df_confirmed_or_unknown = df_confirmed_or_unknown.drop(
                     columns=['status']
                 )
@@ -2144,7 +2140,6 @@ def add_gcn_summary(
                         + "\n"
                     )
 
-                # now, create a photometry table per source
                 for source in sources:
                     stmt = Photometry.select(user).where(
                         Photometry.obj_id == source['id']
