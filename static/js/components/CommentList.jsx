@@ -4,6 +4,8 @@ import { useSelector, useDispatch } from "react-redux";
 import PropTypes from "prop-types";
 
 import makeStyles from "@mui/styles/makeStyles";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import Checkbox from "@mui/material/Checkbox";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
@@ -206,6 +208,7 @@ const CommentList = ({
     (state) => state.profile.preferences?.compactComments
   );
   const { currentShift } = useSelector((state) => state.shift);
+  const [includeBots, setIncludeBots] = useState(false);
 
   if (!objID && obj) {
     objID = obj.id;
@@ -306,6 +309,10 @@ const CommentList = ({
 
   comments = comments || [];
 
+  if (!includeBots) {
+    comments = comments?.filter((comment) => comment.bot === false);
+  }
+
   // Color styling
   const userColorTheme = useSelector(
     (state) => state.profile.preferences.theme
@@ -380,6 +387,20 @@ const CommentList = ({
             </span>
           )
         )}
+      </div>
+      <div>
+        <FormControlLabel
+          label="Include Bots?"
+          control={
+            <Checkbox
+              color="primary"
+              title="Include Bots?"
+              type="checkbox"
+              onChange={(event) => setIncludeBots(event.target.checked)}
+              checked={includeBots}
+            />
+          }
+        />
       </div>
       {permissions.indexOf("Comment") >= 0 &&
         objID &&

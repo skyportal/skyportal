@@ -151,6 +151,13 @@ class ClassificationHandler(BaseHandler):
               required: true
               schema:
                 type: integer
+            - in: query
+              name: includeTaxonomy
+              nullable: true
+              schema:
+                type: boolean
+              description: |
+                Return associated taxonomy.
           responses:
             200:
               content:
@@ -181,6 +188,13 @@ class ClassificationHandler(BaseHandler):
             description: |
               Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
               created_at <= endDate
+          - in: query
+            name: includeTaxonomy
+            nullable: true
+            schema:
+              type: boolean
+            description: |
+              Return associated taxonomy.
           - in: query
             name: numPerPage
             nullable: true
@@ -228,6 +242,7 @@ class ClassificationHandler(BaseHandler):
         )
         start_date = self.get_query_argument('startDate', None)
         end_date = self.get_query_argument('endDate', None)
+        include_taxonomy = self.get_query_argument('includeTaxonomy', None)
 
         with self.Session() as session:
             if classification_id is not None:
@@ -240,8 +255,10 @@ class ClassificationHandler(BaseHandler):
                     return self.error(
                         f'Cannot find classification with ID: {classification_id}.'
                     )
-
-                return self.success(data=classification)
+                data_out = classification.to_dict()
+                if include_taxonomy:
+                    data_out['taxonomy'] = classification.taxonomy.to_dict()
+                return self.success(data=data_out)
 
             # get owned
             classifications = Classification.select(session.user_or_token)
@@ -264,8 +281,15 @@ class ClassificationHandler(BaseHandler):
             )
             classifications = session.scalars(classifications).unique().all()
 
+            data_out = []
+            for classification in classifications:
+                req = classification.to_dict()
+                if include_taxonomy:
+                    req['taxonomy'] = req.taxonomy.to_dict()
+                data_out.append(req)
+
             info = {}
-            info["classifications"] = [req.to_dict() for req in classifications]
+            info["classifications"] = data_out
             info["totalMatches"] = int(total_matches)
             return self.success(data=info)
 

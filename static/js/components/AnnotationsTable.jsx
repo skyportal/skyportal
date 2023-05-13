@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useDispatch } from "react-redux";
 import PropTypes from "prop-types";
 import CircularProgress from "@mui/material/CircularProgress";
+import Typography from "@mui/material/Typography";
 
 import {
   createTheme,
@@ -9,8 +10,15 @@ import {
   StyledEngineProvider,
   useTheme,
 } from "@mui/material/styles";
-import makeStyles from "@mui/styles/makeStyles";
+import { withStyles, makeStyles } from "@mui/styles";
 import MUIDataTable from "mui-datatables";
+import IconButton from "@mui/material/IconButton";
+import ExpandIcon from "@mui/icons-material/Expand";
+import Dialog from "@mui/material/Dialog";
+import DialogContent from "@mui/material/DialogContent";
+import MuiDialogTitle from "@mui/material/DialogTitle";
+import Close from "@mui/icons-material/Close";
+import grey from "@mui/material/colors/grey";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
@@ -75,6 +83,40 @@ const getMuiTheme = (theme) =>
     },
   });
 
+const dialogTitleStyles = (theme) => ({
+  root: {
+    margin: 0,
+    padding: theme.spacing(2),
+  },
+  title: {
+    marginRight: theme.spacing(2),
+    fontSize: "1.5rem",
+  },
+  closeButton: {
+    position: "absolute",
+    right: theme.spacing(1),
+    top: theme.spacing(1),
+    color: grey[500],
+  },
+});
+
+const DialogTitle = withStyles(dialogTitleStyles)(
+  ({ children, classes, onClose }) => (
+    <MuiDialogTitle className={classes.root}>
+      <Typography className={classes.title}>{children}</Typography>
+      {onClose ? (
+        <IconButton
+          aria-label="close"
+          className={classes.closeButton}
+          onClick={onClose}
+        >
+          <Close />
+        </IconButton>
+      ) : null}
+    </MuiDialogTitle>
+  )
+);
+
 // Table for displaying annotations
 const AnnotationsTable = ({ annotations, spectrumAnnotations = [] }) => {
   const classes = useStyles();
@@ -90,6 +132,7 @@ const AnnotationsTable = ({ annotations, spectrumAnnotations = [] }) => {
     return "";
   };
 
+  const [openAnnotations, setOpenAnnotations] = useState(false);
   const [isRemoving, setIsRemoving] = useState(null);
   const handleDelete = async (id, spectrum_id, annotation_id, type) => {
     setIsRemoving(annotation_id);
@@ -101,6 +144,10 @@ const AnnotationsTable = ({ annotations, spectrumAnnotations = [] }) => {
       );
     }
     setIsRemoving(null);
+  };
+
+  const handleClose = () => {
+    setOpenAnnotations(false);
   };
 
   // Curate data
@@ -224,15 +271,51 @@ const AnnotationsTable = ({ annotations, spectrumAnnotations = [] }) => {
     jumpToPage: false,
     pagination: true,
     tableBodyMaxHeight: "20rem",
+    customToolbar: () => (
+      <>
+        <IconButton
+          name="expand_annotations"
+          onClick={() => {
+            setOpenAnnotations(true);
+          }}
+        >
+          <ExpandIcon />
+        </IconButton>
+      </>
+    ),
   };
 
   return (
-    <div className={classes.container}>
-      <StyledEngineProvider injectFirst>
-        <ThemeProvider theme={getMuiTheme(theme)}>
-          <MUIDataTable columns={columns} data={tableData} options={options} />
-        </ThemeProvider>
-      </StyledEngineProvider>
+    <div>
+      <div className={classes.container}>
+        <StyledEngineProvider injectFirst>
+          <ThemeProvider theme={getMuiTheme(theme)}>
+            <MUIDataTable
+              columns={columns}
+              data={tableData}
+              options={options}
+            />
+          </ThemeProvider>
+        </StyledEngineProvider>
+      </div>
+      <div>
+        {openAnnotations && (
+          <Dialog
+            open={openAnnotations}
+            onClose={handleClose}
+            style={{ position: "fixed" }}
+            maxWidth="md"
+          >
+            <DialogTitle onClose={handleClose}>Annotations Table</DialogTitle>
+            <DialogContent dividers>
+              <AnnotationsTable
+                annotations={annotations}
+                spectrumAnnotations={spectrumAnnotations}
+              />
+            </DialogContent>
+          </Dialog>
+        )}
+      </div>
     </div>
   );
 };

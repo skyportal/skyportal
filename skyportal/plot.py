@@ -974,7 +974,7 @@ def mark_detections(plot, detection_dates, ymin, ymax):
     first_r = plot.line(
         x=np.full(5000, first),
         y=y,
-        line_alpha=0.5,
+        line_alpha=0.1,
         line_color=first_color,
         line_width=2,
     )
@@ -987,7 +987,7 @@ def mark_detections(plot, detection_dates, ymin, ymax):
     last_r = plot.line(
         x=np.full(5000, last),
         y=y,
-        line_alpha=0.5,
+        line_alpha=0.1,
         line_color=last_color,
         line_width=2,
     )
