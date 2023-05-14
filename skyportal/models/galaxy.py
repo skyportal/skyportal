@@ -1,6 +1,7 @@
 __all__ = ['Galaxy']
 
 import sqlalchemy as sa
+from sqlalchemy.orm import relationship
 import conesearch_alchemy as ca
 import healpix_alchemy
 
@@ -35,3 +36,11 @@ class Galaxy(Base, ca.Point):
     b2a = sa.Column(sa.Float, nullable=True, doc="semi-minor to semi-major axis ratio")
     pa = sa.Column(sa.Float, nullable=True, doc="position angle in degrees")
     btc = sa.Column(sa.Float, nullable=True, doc="total B-band magnitude [mag]")
+
+    objects = relationship(
+        "Obj",
+        back_populates="host",
+        cascade="save-update, merge, refresh-expire, expunge",
+        passive_deletes=True,
+        doc='Objects that are associated with this Galaxy.',
+    )

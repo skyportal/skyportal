@@ -47,14 +47,30 @@ class SourcesConfirmedInGCN(Base):
 
     confirmed = sa.Column(
         sa.Boolean,
-        nullable=False,
-        default=False,
         doc="If True, the source is confirmed in the GCN. If False, the source is rejected in the GCN."
-        "If there is no row, the source is not yet confirmed or rejected in the GCN.",
+        "If undefined, the source is not yet confirmed or rejected in the GCN.",
+    )
+
+    # the person who uploaded the confirmation
+    confirmer = relationship(
+        'User',
+        back_populates='sources_in_gcn',
+        doc="The User who created this SourcesConfirmedInGCN.",
+        foreign_keys="SourcesConfirmedInGCN.confirmer_id",
+    )
+    confirmer_id = sa.Column(
+        sa.ForeignKey('users.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+        doc="The ID of the User who created this SourcesConfirmedInGCN.",
     )
 
     explanation = sa.Column(
         sa.String,
-        nullable=True,
         doc="Explanation on the nature of confirmation or rejection.",
+    )
+
+    notes = sa.Column(
+        sa.String,
+        doc="Extra information about the source.",
     )

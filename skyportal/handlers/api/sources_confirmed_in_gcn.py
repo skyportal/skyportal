@@ -17,8 +17,10 @@ class Validator(Schema):
     confirmed = fields.Boolean(
         truthy=['true', 'True', 'confirmed', True],
         falsy=['false', 'False', 'rejected', False],
+        required=False,
     )
     explanation = fields.String(required=False)
+    notes = fields.String(required=False)
     localization_name = fields.String()
     localization_cumprob = fields.Float()
     sources_id_list = fields.String()
@@ -283,6 +285,7 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
         source_id = data.get('source_id')
         confirmed = data.get('confirmed')
         explanation = data.get('explanation')
+        notes = data.get('explanation')
         start_date = data.get('start_date')
         end_date = data.get('end_date')
 
@@ -293,7 +296,6 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
             'dateobs': dateobs,
             'start_date': start_date,
             'end_date': end_date,
-            'confirmed': confirmed,
             'localization_name': localization_name,
             'localization_cumprob': localization_cumprob,
         }
@@ -306,7 +308,6 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
         dateobs = validated['dateobs']
         start_date = validated['start_date']
         end_date = validated['end_date']
-        confirmed = validated['confirmed']
         localization_name = validated['localization_name']
         localization_cumprob = validated['localization_cumprob']
 
@@ -348,14 +349,19 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
                     if (
                         source_in_gcn.confirmed == confirmed
                         and source_in_gcn.explanation == explanation
+                        and source_in_gcn.notes == notes
                     ):
                         return self.error(
-                            "Source is already confirmed/rejected in this localization with the same explanation"
+                            "Source is already confirmed/rejected in this localization with the same explanation and notes"
                         )
                     # otherwise, update the status and explanation
                     else:
                         source_in_gcn.confirmed = confirmed
-                        source_in_gcn.explanation = explanation
+                        source_in_gcn.confirmer_id = self.associated_user_object.id
+                        if explanation is not None:
+                            source_in_gcn.explanation = explanation
+                        if notes is not None:
+                            source_in_gcn.notes = notes
                         session.commit()
                         source_in_gcn_id = source_in_gcn.id
                 else:
@@ -363,9 +369,12 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
                         obj_id=source_id,
                         dateobs=dateobs,
                         confirmed=confirmed,
+                        confirmer_id=self.associated_user_object.id,
                     )
                     if explanation is not None:
                         source_in_gcn.explanation = explanation
+                    if notes is not None:
+                        source_in_gcn.notes = notes
                     session.add(source_in_gcn)
                     session.commit()
                     source_in_gcn_id = source_in_gcn.id
@@ -428,13 +437,13 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
         data = self.get_json()
         confirmed = data.get('confirmed')
         explanation = data.get('explanation')
+        notes = data.get('notes')
 
         validator_instance = Validator()
         params_to_be_validated = {
             'method': 'PATCH',
             'source_id': source_id,
             'dateobs': dateobs,
-            'confirmed': confirmed,
         }
         if explanation is not None:
             params_to_be_validated["explanation"] = explanation
@@ -445,7 +454,6 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
 
         source_id = validated['source_id'].strip()
         dateobs = validated['dateobs']
-        confirmed = validated['confirmed']
 
         with self.Session() as session:
             try:
@@ -466,8 +474,11 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
                         "Source is not confirmed/rejected in this GCN event"
                     )
                 source_in_gcn.confirmed = confirmed
+                source_in_gcn.confirmer_id = self.associated_user_object.id
                 if explanation is not None:
                     source_in_gcn.explanation = explanation
+                if notes is not None:
+                    source_in_gcn.notes = notes
                 session.commit()
                 source_in_gcn_id = source_in_gcn.id
             except Exception as e:
