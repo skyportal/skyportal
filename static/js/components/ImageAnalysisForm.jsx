@@ -145,6 +145,11 @@ const ImageAnalysisForm = ({ obj_id }) => {
         default: "ps1",
         enum: catalogs,
       },
+      catalog_limiting_magnitude: {
+        type: "number",
+        title: "Limiting magnitude cutoff for catalog",
+        default: 21,
+      },
       template: {
         type: "string",
         title: "Template",

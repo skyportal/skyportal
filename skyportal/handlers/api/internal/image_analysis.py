@@ -141,6 +141,7 @@ def reduce_image(
     matching_radius,
     catalog_name_refinement,
     catalog_name_crossmatch,
+    catalog_limiting_magnitude,
     template_name,
     method,
     s_n_detection,
@@ -177,6 +178,8 @@ def reduce_image(
         Name of the catalog used for astrometric refinement
     catalog_name_crossmatch: str
         Name of the catalog used for cross-matching
+    catalog_limiting_magnitude : float
+        Limiting magnitude cutoff for catalog cross-match
     template_name: str
         Name of the template used for photometric calibration
     method: str
@@ -220,9 +223,14 @@ def reduce_image(
 
             wcs = WCS(header)
 
+            # Fill value for image
+            v, c = np.unique(image, return_counts=True)
+            fill = v[c == np.max(c)][0]
+            mask = image == fill
+
             # Masking saturated stars and cosmic rays
             # The mask is a binary frame with the same size as the image where True means that this pixel should not be used for the analysis
-            mask = image > 0.9 * np.max(image)
+            # mask = image > 0.9 * np.max(image)
             mask |= image > saturation
 
             # TODO: we want to use 'dilate' to expand the mask before applying it to the image, to get the edges that are not saturated
@@ -248,6 +256,7 @@ def reduce_image(
                 minarea=5,
                 _workdir=workdir_sextractor_obj,
             )
+            log(f'{len(obj)} objects retrieved')
 
             if obj is None:
                 raise ValueError(
@@ -256,6 +265,7 @@ def reduce_image(
 
             # First rough estimation of average FWHM of detected objects, taking into account only unflagged ones
             fwhm = np.median(obj['fwhm'][obj['flags'] == 0])
+            log(f'FWHM: {fwhm}')
 
             # We will pass this FWHM to measurement function so that aperture and background radii will be relative to it.
             # We will also reject all objects with measured S/N < 5
@@ -272,12 +282,16 @@ def reduce_image(
                 bg_size=256,
                 verbose=True,
             )
-            log(f'{len(obj)} properly measured')
+            log(f'{len(obj)} objects properly measured')
 
             # ## Astrometric calibration
             # Getting the center position, size and pixel scale for the image
             center_ra, center_dec, center_sr = astrometry.get_frame_center(
                 header=header, width=image.shape[1], height=image.shape[0]
+            )
+            pixscale = astrometry.get_pixscale(wcs=wcs)
+            log(
+                f'Field center is at {center_ra:.3f} {center_dec:.3f}, radius {center_sr:.2f} deg, scale {3600*pixscale:.2f} arcsec/pix'
             )
 
             # ## Reference catalogue
@@ -287,7 +301,7 @@ def reduce_image(
                 center_dec,
                 center_sr,
                 catalog_name_refinement,
-                filters={'rmag': '<21'},
+                filters={'rmag': f'<{catalog_limiting_magnitude}'},
             )
 
             # ## Astrometric refinement
@@ -346,7 +360,7 @@ def reduce_image(
                 image,
                 mask=mask,
                 fwhm=fwhm,
-                aper=aper,
+                aper=1,
                 bkgann=bkgann,
                 sn=None,
                 verbose=True,
@@ -533,6 +547,14 @@ class ImageAnalysisHandler(BaseHandler):
                     message=f'Invalid crossmatch_catalog, must be once of: {", ".join(catalogs_enum)}'
                 )
 
+            catalog_limiting_magnitude = data.get('catalog_limiting_magnitude', 21)
+            if catalog_limiting_magnitude is None:
+                return self.error(message='Missing catalog_limiting_magnitude')
+            try:
+                catalog_limiting_magnitude = float(catalog_limiting_magnitude)
+            except ValueError:
+                return self.error(message='Invalid catalog_limiting_magnitude')
+
             template_name = data.get('template', 'PanSTARRS/DR1/r')
             if template_name is None:
                 return self.error(message='Missing template')
@@ -636,6 +658,7 @@ class ImageAnalysisHandler(BaseHandler):
                         matching_radius,
                         catalog_name_refinement,
                         catalog_name_crossmatch,
+                        catalog_limiting_magnitude,
                         template_name,
                         method,
                         s_n_detection,
