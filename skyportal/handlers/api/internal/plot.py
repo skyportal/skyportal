@@ -61,6 +61,7 @@ class PlotSpectroscopyHandler(BaseHandler):
             try:
                 json = await plot.spectroscopy_plot(
                     obj_id=obj_id,
+                    user_id=self.current_user.id,
                     session=session,
                     spec_id=spec_id,
                     width=int(width),

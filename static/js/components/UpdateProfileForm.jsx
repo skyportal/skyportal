@@ -29,6 +29,7 @@ import OpenAIPreferences from "./OpenAIPreferences";
 import ObservabilityPreferences from "./ObservabilityPreferences";
 import FollowupRequestPreferences from "./FollowupRequestPreferences";
 import PhotometryPlottingPreferences from "./PhotometryPlottingPreferences";
+import SpectroscopyPlottingPreferences from "./SpectroscopyPlottingPreferences";
 import ClassificationsShortcutForm from "./ClassificationsShortcutForm";
 
 const useStyles = makeStyles(() => ({
@@ -313,6 +314,9 @@ const UpdateProfileForm = () => {
         </CardContent>
         <CardContent>
           <PhotometryPlottingPreferences />
+        </CardContent>
+        <CardContent>
+          <SpectroscopyPlottingPreferences />
         </CardContent>
       </Card>
       <Dialog

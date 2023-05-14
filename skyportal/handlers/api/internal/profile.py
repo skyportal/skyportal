@@ -222,6 +222,10 @@ class ProfileHandler(BaseHandler):
                     ]
                 if "photometryButtons" in preferences:
                     user_prefs["photometryButtons"] = preferences["photometryButtons"]
+                if "spectroscopyButtons" in preferences:
+                    user_prefs["spectroscopyButtons"] = preferences[
+                        "spectroscopyButtons"
+                    ]
                 gcn_event_properties = (
                     preferences.get('notifications', {})
                     .get('gcn_events', {})
