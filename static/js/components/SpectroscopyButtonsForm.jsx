@@ -1,12 +1,14 @@
-import React from "react";
+import React, { useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { makeStyles } from "@mui/styles";
 import { useForm } from "react-hook-form";
 import { TextField } from "@mui/material";
 import Button from "./Button";
 import UserPreferencesHeader from "./UserPreferencesHeader";
-import * as profileActions from "../ducks/profile";
+import SpectroscopyColorSelect from "./SpectroscopyColorSelect";
 import DeletableChips from "./DeletableChips";
+
+import * as profileActions from "../ducks/profile";
 
 const useStyles = makeStyles(() => ({
   submitButton: {
@@ -30,14 +32,21 @@ const SpectroscopyButtonsForm = () => {
     handleSubmit,
     register,
     reset,
-
+    control,
     formState: { errors },
   } = useForm();
+  const [selectedColor, setSelectedColor] = useState([]);
+
+  const onColorSelectChange = (event) => {
+    setSelectedColor(
+      event.target.value.includes("Clear selections") ? [] : event.target.value
+    );
+  };
 
   const onSubmit = (formValues) => {
     const currSpectroscopyButtons = spectroscopyButtons || {};
     currSpectroscopyButtons[formValues.spectroscopyButtonName] = {
-      color: formValues.spectroscopyButtonColor,
+      color: selectedColor,
       wavelengths: formValues.spectroscopyButtonWavelengths
         .split(",")
         .map(Number),
@@ -77,13 +86,10 @@ const SpectroscopyButtonsForm = () => {
               name="spectroscopyButtonWavelengths"
               id="spectroscopyButtonWavelengthInput"
             />
-            <TextField
-              label="Color"
-              {...register("spectroscopyButtonColor", {
-                required: true,
-              })}
-              name="spectroscopyButtonColor"
-              id="spectroscopyButtonColorInput"
+            <SpectroscopyColorSelect
+              initValue={selectedColor}
+              onColorSelectChange={onColorSelectChange}
+              control={control}
             />
             <TextField
               label="Name"

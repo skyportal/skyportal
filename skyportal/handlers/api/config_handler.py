@@ -1,3 +1,4 @@
+from bokeh import palettes
 import copy
 
 from baselayer.app.env import load_env
@@ -87,5 +88,8 @@ class ConfigHandler(BaseHandler):
                 "classificationsClasses": cfg["colors.classifications"],
                 "summary_sourcesClasses": cfg["colors.summary_sources"],
                 "gcnTagsClasses": cfg["colors.gcnTags"],
+                "colorPalette": getattr(
+                    palettes, cfg.get("misc.bokeh_color_palette", "Turbo256")
+                ),
             }
         )

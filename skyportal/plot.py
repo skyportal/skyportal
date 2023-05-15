@@ -2614,7 +2614,11 @@ def make_spectrum_layout(
 
     if user.preferences and "spectroscopyButtons" in user.preferences:
         for name, info in user.preferences["spectroscopyButtons"].items():
-            SPEC_LINES[name] = (info['wavelengths'], info['color'])
+            if isinstance(info['color'], list):
+                line_color = info['color'][0]
+            else:
+                line_color = info['color']
+            SPEC_LINES[name] = (info['wavelengths'], line_color)
 
     for i, (name, (wavelengths, color)) in enumerate(SPEC_LINES.items()):
 
