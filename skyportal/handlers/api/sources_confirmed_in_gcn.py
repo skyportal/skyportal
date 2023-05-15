@@ -285,7 +285,7 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
         source_id = data.get('source_id')
         confirmed = data.get('confirmed')
         explanation = data.get('explanation')
-        notes = data.get('explanation')
+        notes = data.get('notes')
         start_date = data.get('start_date')
         end_date = data.get('end_date')
 

@@ -259,32 +259,28 @@ const ConfirmSourceInGCN = ({
 
   const handleUndefined = () => {
     const data = getValues();
-    if (currentState === "confirmed" || currentState === "rejected") {
-      if (data.explanation === "") {
-        dispatch(SourceInGcnAction.deleteSourceInGcn(dateobs, source_id)).then(
-          (response) => {
-            if (response.status === "success") {
-              handleUpdate();
-              handleClose();
-            }
-          }
-        );
-      } else {
-        dispatch(
-          SourceInGcnAction.patchSourceInGcn(dateobs, source_id, {
-            confirmed: null,
-            explanation: data.explanation,
-            notes: data.notes,
-          })
-        ).then((response) => {
+    if (data.explanation === "" && data.notes === "") {
+      dispatch(SourceInGcnAction.deleteSourceInGcn(dateobs, source_id)).then(
+        (response) => {
           if (response.status === "success") {
             handleUpdate();
             handleClose();
           }
-        });
-      }
+        }
+      );
     } else {
-      dispatch(showNotification("Source already undefined", "error"));
+      dispatch(
+        SourceInGcnAction.patchSourceInGcn(dateobs, source_id, {
+          confirmed: null,
+          explanation: data.explanation,
+          notes: data.notes,
+        })
+      ).then((response) => {
+        if (response.status === "success") {
+          handleUpdate();
+          handleClose();
+        }
+      });
     }
   };
 
@@ -323,6 +319,7 @@ const ConfirmSourceInGCN = ({
                           inputRef={register("explanation")}
                           onChange={onChange}
                           value={value}
+                          defaultValue={currentExplanation}
                         />
                       )}
                       name="explanation"
@@ -340,6 +337,7 @@ const ConfirmSourceInGCN = ({
                             inputRef={register("notes")}
                             onChange={onChange}
                             value={value}
+                            defaultValue={currentNotes}
                           />
                         )}
                         name="notes"
