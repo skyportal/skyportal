@@ -987,9 +987,9 @@ def mark_detections(plot, detection_dates, ymin, ymax):
     last_r = plot.line(
         x=np.full(5000, last),
         y=y,
-        line_alpha=0.1,
+        line_alpha=0.175,
         line_color=last_color,
-        line_width=2,
+        line_width=3,
     )
     plot.add_tools(
         HoverTool(
