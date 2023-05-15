@@ -970,6 +970,14 @@ def api(queue):
                                     notification_user_ids.append(
                                         target_data["last_modified_by_id"]
                                     )
+
+                                    last_modified_by = session.scalars(
+                                        sa.select(User).where(
+                                            User.id
+                                            == target_data["last_modified_by_id"]
+                                        )
+                                    ).first()
+
                                     shift_user_ids = users_on_shift(session)
                                     for shift_user_id in shift_user_ids:
                                         user = session.scalar(
@@ -992,7 +1000,7 @@ def api(queue):
                                     if user.id in notification_user_ids:
                                         notification = UserNotification(
                                             user=user,
-                                            text=f"Follow-up submission for object *{target_data['obj_id']}* by *{instrument.name}* updated by user *{target_data['last_modified_by']['username']}*",
+                                            text=f"Follow-up submission for object *{target_data['obj_id']}* by *{instrument.name}* updated by user *{last_modified_by.username}*",
                                             notification_type="facility_transactions",
                                             url=f"/source/{target_data['obj_id']}",
                                         )
