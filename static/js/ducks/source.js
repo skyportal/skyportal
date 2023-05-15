@@ -499,6 +499,8 @@ const reducer = (
       const source = action.data;
       return {
         ...state,
+        host: null,
+        host_offset: null,
         ...source,
         loadError: "",
       };
