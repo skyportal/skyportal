@@ -5,9 +5,9 @@ import os
 import arrow
 from astropy.io import fits
 from astropy.wcs import WCS
-from astropy.table import vstack
 from astropy.coordinates import SkyCoord
 from astropy.coordinates import search_around_sky
+from astropy.table import Table
 from astropy.time import Time
 import astropy.units as u
 
@@ -20,21 +20,21 @@ from stdpipe import (
     templates,
     plots,
     pipeline,
-    psf,
     utils,
 )
 
 import base64
+import io
+import matplotlib.pyplot as plt
 import numpy as np
 import sqlalchemy as sa
 import tempfile
-from tqdm.auto import tqdm
 from tornado.ioloop import IOLoop
 import shutil
 
 from ..photometry import add_external_photometry
 from ...base import BaseHandler
-from ....models import Instrument, User, DBSession
+from ....models import Comment, Instrument, Obj, User, DBSession
 
 _, cfg = load_env()
 
@@ -132,6 +132,7 @@ def spherical_distance(ra1, dec1, ra2, dec2):
 
 def reduce_image(
     image,
+    file_name,
     header,
     obj_id,
     instrument_id,
@@ -140,11 +141,16 @@ def reduce_image(
     matching_radius,
     catalog_name_refinement,
     catalog_name_crossmatch,
+    catalog_limiting_magnitude,
     template_name,
     method,
     s_n_detection,
     s_n_blind_match,
     detect_cosmics=False,
+    aper=3.0,
+    bkgann=[5, 7],
+    r0=0.5,
+    saturation=50000,
 ):
     """
     Reduce an image: Perform astrometric and photometric calibration,
@@ -154,6 +160,8 @@ def reduce_image(
     ----------
     image: numpy.ndarray
         Image data
+    file_name : str
+        Name of the file being reduced
     header: astropy.io.fits.Header
         Image header
     obj_id: str
@@ -163,13 +171,15 @@ def reduce_image(
     user_id: int
         User ID
     gain: float
-        Gain of the telescope
+        Gain of the image, e/ADU.
     matching_radius: float
         Matching radius in arcseconds
     catalog_name_refinement: str
         Name of the catalog used for astrometric refinement
     catalog_name_crossmatch: str
         Name of the catalog used for cross-matching
+    catalog_limiting_magnitude : float
+        Limiting magnitude cutoff for catalog cross-match
     template_name: str
         Name of the template used for photometric calibration
     method: str
@@ -180,7 +190,14 @@ def reduce_image(
         Number used to simulate N stars
     detect_cosmics: bool
         Run LACosmic on the image
-
+    aper : float
+        Circular aperture radius in pixels, to be used for flux measurement.
+    bkgann : List[float]
+        Background annulus (tuple with inner and outer radii) to be used for local background estimation. Inside the annulus, simple arithmetic mean of unmasked pixels is used for computing the background, and thus it is subject to some bias in crowded stellar fields. If not set, global background model is used instead.
+    r0 : float
+        Smoothing kernel size (sigma) to be used for improving object detection.
+    saturation : float
+        Counts above which saturation is assumed
     Returns
     -------
     None
@@ -197,15 +214,24 @@ def reduce_image(
                 sa.select(Instrument).where(Instrument.id == instrument_id)
             ).first()
             user = session.scalars(sa.select(User).where(User.id == user_id)).first()
+            obj = session.scalars(sa.select(Obj).where(Obj.id == obj_id)).first()
+            ra_obj = obj.ra
+            dec_obj = obj.dec
 
             time = utils.get_obs_time(header, verbose=False)
             filt = header.get('FILTER')
 
             wcs = WCS(header)
 
+            # Fill value for image
+            v, c = np.unique(image, return_counts=True)
+            fill = v[c == np.max(c)][0]
+            mask = image == fill
+
             # Masking saturated stars and cosmic rays
             # The mask is a binary frame with the same size as the image where True means that this pixel should not be used for the analysis
-            mask = image > 0.9 * np.max(image)
+            # mask = image > 0.9 * np.max(image)
+            mask |= image > saturation
 
             # TODO: we want to use 'dilate' to expand the mask before applying it to the image, to get the edges that are not saturated
 
@@ -220,8 +246,17 @@ def reduce_image(
 
             # Astropy Table, ordered by the object brightness
             obj = photometry.get_objects_sextractor(
-                image, gain=gain, aper=3.0, edge=10, _workdir=workdir_sextractor_obj
+                image,
+                mask=mask,
+                gain=gain,
+                aper=aper,
+                r0=r0,
+                extra={'BACK_SIZE': 256},
+                extra_params=['NUMBER'],
+                minarea=5,
+                _workdir=workdir_sextractor_obj,
             )
+            log(f'{len(obj)} objects retrieved')
 
             if obj is None:
                 raise ValueError(
@@ -230,27 +265,34 @@ def reduce_image(
 
             # First rough estimation of average FWHM of detected objects, taking into account only unflagged ones
             fwhm = np.median(obj['fwhm'][obj['flags'] == 0])
+            log(f'FWHM: {fwhm}')
 
             # We will pass this FWHM to measurement function so that aperture and background radii will be relative to it.
             # We will also reject all objects with measured S/N < 5
-            obj = photometry.measure_objects(
+            obj, _, _ = photometry.measure_objects(
                 obj,
                 image,
                 mask=mask,
                 fwhm=fwhm,
                 gain=gain,
-                aper=1.0,
-                bkgann=[5, 7],
+                aper=1,
+                bkgann=bkgann,
                 sn=s_n_detection,
+                get_bg=True,
+                bg_size=256,
                 verbose=True,
             )
+            log(f'{len(obj)} objects properly measured')
 
             # ## Astrometric calibration
             # Getting the center position, size and pixel scale for the image
             center_ra, center_dec, center_sr = astrometry.get_frame_center(
                 header=header, width=image.shape[1], height=image.shape[0]
             )
-            pixscale = astrometry.get_pixscale(header=header)
+            pixscale = astrometry.get_pixscale(wcs=wcs)
+            log(
+                f'Field center is at {center_ra:.3f} {center_dec:.3f}, radius {center_sr:.2f} deg, scale {3600*pixscale:.2f} arcsec/pix'
+            )
 
             # ## Reference catalogue
             # Catalog name may be any Vizier identifier (ps1, gaiadr2, gaiaedr3, usnob1, gsc, skymapper, apass, sdss, atlas, vsx).
@@ -259,15 +301,7 @@ def reduce_image(
                 center_dec,
                 center_sr,
                 catalog_name_refinement,
-                filters={'rmag': '<21'},
-            )
-
-            cat_crossmatch = catalogs.get_cat_vizier(
-                center_ra,
-                center_dec,
-                center_sr,
-                catalog_name_crossmatch,
-                filters={'rmag': '<21'},
+                filters={'rmag': f'<{catalog_limiting_magnitude}'},
             )
 
             # ## Astrometric refinement
@@ -291,6 +325,7 @@ def reduce_image(
                     remove_history=True,
                 )
                 header.update(wcs.to_header(relax=True))
+            pixscale = astrometry.get_pixscale(wcs=wcs)
 
             # ## Photometric calibration
 
@@ -301,133 +336,112 @@ def reduce_image(
             m = pipeline.calibrate_photometry(
                 obj,
                 cat_refinement,
+                pixscale=pixscale,
                 sr=matching_radius,
                 cat_col_mag='rmag',
                 cat_col_mag1='gmag',
                 cat_col_mag2='rmag',
                 max_intrinsic_rms=0.02,
                 order=2,
+                robust=True,
+                scale_noise=True,
+                accept_flags=0x02,
                 verbose=True,
             )
 
-            # ## Simple catalogue-based transient detection
-            # Some transients may already be detected by comparing the detected objects with catalogue BUT limited approach
-
-            # Filtering of transient candidates
-            candidates = pipeline.filter_transient_candidates(
-                obj, cat=cat_crossmatch, sr=matching_radius, verbose=True
+            # Target
+            target_obj = Table({'ra': [ra_obj], 'dec': [dec_obj]})
+            target_obj['x'], target_obj['y'] = wcs.all_world2pix(
+                target_obj['ra'], target_obj['dec'], 0
             )
 
-            # Creating cutouts for these candidates and vizualizing them
-            filtered = []
-
-            for i, cand in enumerate(candidates):
-                dist = spherical_distance(
-                    candidates[i]['ra'], candidates[i]['dec'], obj['ra'], obj['dec']
-                )
-
-                if (
-                    dist < matching_radius * 2
-                ).all():  # TODO: verify the x2. the previous value was 4 / 3600, whereas it was 2 / 3600 everywhere else. Which is why I assumed it should be multiplied by 2.
-                    filtered.append(candidates[i])
-
-            for i, cand in enumerate(filtered):
-                # Create the cutout from image based on the candidate
-                cutout = cutouts.get_cutout(image, cand, 20, mask=mask, header=header)
-                # We may directly download the template image for this cutout from HiPS server - same scale and orientation
-                cutout['template'] = templates.get_hips_image(
-                    template_name, header=cutout['header']
-                )[0]
-                # We do not have difference image, so it will only display original one, template and mask
-                plots.plot_cutout(cutout, qq=[0.5, 99.9], stretch='linear')
-
-            # compute upper limit
-            ra0, dec0, sr0 = astrometry.get_frame_center(
-                wcs=wcs, width=image.shape[1], height=image.shape[0]
-            )
-            pixscale = astrometry.get_pixscale(wcs=wcs)
-
-            # Function to get the zero point as a function of position on the image
-            zero_fn = m['zero_fn']
-            obj['mag_calib'] = obj['mag'] + zero_fn(obj['x'], obj['y'])
-
-            # We may roughly estimate the effective gain of the image from background mean and rms as gain = mean/rms**2
-            bg, rms = photometry.get_background(image, mask=mask, get_rms=True)
-
-            psf_model, psf_snapshots = psf.run_psfex(
+            target_obj = photometry.measure_objects(
+                target_obj,
                 image,
                 mask=mask,
-                checkimages=['SNAPSHOTS'],
-                order=0,
+                fwhm=fwhm,
+                aper=1,
+                bkgann=bkgann,
+                sn=None,
                 verbose=True,
-                _workdir=workdir_psfex,
+                gain=gain,
             )
 
-            sims = []
-            for _ in tqdm(range(100)):
-                image1 = image.copy()
+            obj['mag_calib'] = obj['mag'] + m['zero_fn'](obj['x'], obj['y'], obj['mag'])
+            target_obj['mag_calib'] = target_obj['mag'] + m['zero_fn'](
+                target_obj['x'], target_obj['y'], target_obj['mag']
+            )
+            target_obj['mag_calib_err'] = np.hypot(
+                target_obj['magerr'],
+                m['zero_fn'](
+                    target_obj['x'], target_obj['y'], target_obj['mag'], get_err=True
+                ),
+            )
+            target_obj['mag_limit'] = -2.5 * np.log10(5 * target_obj['fluxerr']) + m[
+                'zero_fn'
+            ](target_obj['x'], target_obj['y'], target_obj['mag'])
 
-                # Simulate s_n_blind_match random stars
-                sim = pipeline.place_random_stars(
-                    image1,
-                    psf_model,
-                    nstars=s_n_blind_match,
-                    minflux=10,
-                    maxflux=1e6,
-                    wcs=wcs,
-                    gain=gain,
-                    saturation=50000,
-                )
+            fig = plt.figure(figsize=(10, 30))
+            gs = fig.add_gridspec(5, 3)
+            axs = [
+                fig.add_subplot(gs[0, 0]),
+                fig.add_subplot(gs[0, 1]),
+                fig.add_subplot(gs[0, 2]),
+            ]
+            # Create the cutout from image based on the candidate
+            cutout = cutouts.get_cutout(image, target_obj, 20, mask=mask, header=header)
+            # We may directly download the template image for this cutout from HiPS server - same scale and orientation
+            cutout['template'] = templates.get_hips_image(
+                template_name, header=cutout['header']
+            )[0]
+            # We do not have difference image, so it will only display original one, template and mask
+            plots.plot_cutout(
+                cutout,
+                planes=['image', 'template', 'mask'],
+                qq=[0.5, 99.9],
+                stretch='linear',
+                fig=fig,
+                axs=axs,
+            )
 
-                sim['mag_calib'] = sim['mag'] + zero_fn(sim['x'], sim['y'])
-                sim['detected'] = False
-                sim['mag_measured'] = np.nan
-                sim['magerr_measured'] = np.nan
-                sim['flags_measured'] = np.nan
+            ax = fig.add_subplot(gs[1, :])
+            plots.plot_photometric_match(m, mode='mag', ax=ax)
+            ax.set_ylim(-1, 1)
+            ax = fig.add_subplot(gs[2, :])
+            plots.plot_photometric_match(m, mode='color', ax=ax)
+            ax.set_ylim(-1, 1)
+            ax.set_xlim(-0.5, 1.5)
+            ax = fig.add_subplot(gs[3:, :])
+            plots.plot_photometric_match(m, mode='zero', ax=ax)
 
-                mask1 = image1 >= 50000
+            buf = io.BytesIO()
+            output_format = 'pdf'
+            fig.savefig(buf, format=output_format)
+            plt.close()
+            buf.seek(0)
 
-                obj1 = photometry.get_objects_sextractor(
-                    image1,
-                    mask=mask | mask1,
-                    r0=1,
-                    aper=5.0,
-                    wcs=wcs,
-                    gain=gain,
-                    minarea=3,
-                    sn=s_n_detection,
-                    _workdir=workdir_sextractor_obj1,
-                )
+            attachment_bytes = base64.b64encode(buf.read())
 
-                obj1['mag_calib'] = obj1['mag'] + zero_fn(obj1['x'], obj1['y'])
-
-                # Positional match within FWHM/2 radius
-                oidx, sidx, dist = spherical_match(
-                    obj1['ra'],
-                    obj1['dec'],
-                    sim['ra'],
-                    sim['dec'],
-                    pixscale * np.median(obj1['fwhm']) / 2,
-                )
-                # Mark matched stars
-                sim['detected'][sidx] = True
-                # Also store measured magnitude, its error and flags
-                sim['mag_measured'][sidx] = obj1['mag_calib'][oidx]
-                sim['magerr_measured'][sidx] = obj1['magerr'][oidx]
-                sim['flags_measured'][sidx] = obj1['flags'][oidx]
-
-                sims.append(sim)
-
-            sims = vstack(sims)
+            comment = Comment(
+                text='Photometry Reduction',
+                obj_id=obj_id,
+                attachment_bytes=attachment_bytes,
+                attachment_name=f"{file_name}.{output_format}",
+                author=user,
+                groups=user.accessible_groups,
+                bot=True,
+            )
+            session.add(comment)
+            session.commit()
 
             data = {
-                'ra': [ra0],
-                'dec': [dec0],
+                'ra': [ra_obj],
+                'dec': [dec_obj],
                 'magsys': ['ab'],
                 'mjd': [time.mjd],
-                'mag': [sims['mag_calib'][0]],
-                'magerr': [sims['magerr_measured'][0]],
-                'limiting_mag': [sims['mag_calib'][0]],
+                'mag': [target_obj['mag_calib'][0]],
+                'magerr': [target_obj['mag_calib_err'][0]],
+                'limiting_mag': [target_obj['mag_limit'][0]],
                 'filter': [filt],
             }
 
@@ -438,17 +452,12 @@ def reduce_image(
                 **data,
             }
 
-            for i in range(len(data['mag'])):
-                # if mag is not None or nan but magerr is, set magerr to 0
-                if not (data['mag'][i] is None or np.isnan(data['mag'][i])):
-                    if data['magerr'][i] is None or np.isnan(data['magerr'][i]):
-                        data['magerr'][i] = 0.0
+            add_external_photometry(data_out, user)
 
             shutil.rmtree(workdir_sextractor_obj)
             shutil.rmtree(workdir_psfex)
             shutil.rmtree(workdir_sextractor_obj1)
 
-            add_external_photometry(data_out, user)
     except Exception as e:
         try:
             if workdir_sextractor_obj is not None:
@@ -460,7 +469,6 @@ def reduce_image(
         except Exception as e2:
             log(e2)
         log(e)
-        pass
 
 
 class ImageAnalysisHandler(BaseHandler):
@@ -513,7 +521,7 @@ class ImageAnalysisHandler(BaseHandler):
                     message=f'Found no instrument with id {instrument_id}'
                 )
 
-            matching_radius = data.get('matching_radius')
+            matching_radius = data.get('matching_radius', 2)
             if matching_radius is None:
                 return self.error(message='Missing matching_radius')
             try:
@@ -523,15 +531,7 @@ class ImageAnalysisHandler(BaseHandler):
 
             matching_radius = matching_radius / 3600.0  # arcsec -> deg
 
-            gain = data.get('gain')
-            if gain is None:
-                return self.error(message='Missing gain')
-            try:
-                gain = float(gain)
-            except ValueError:
-                return self.error(message='Invalid gain')
-
-            catalog_name_refinement = data.get('astrometric_refinement_cat')
+            catalog_name_refinement = data.get('astrometric_refinement_cat', 'ps1')
             if catalog_name_refinement is None:
                 return self.error(message='Missing astrometric_refinement_cat')
             if catalog_name_refinement not in catalogs_enum:
@@ -539,7 +539,7 @@ class ImageAnalysisHandler(BaseHandler):
                     message=f'Invalid astrometric_refinement_cat, must be once of: {", ".join(catalogs_enum)}'
                 )
 
-            catalog_name_crossmatch = data.get('crossmatch_catalog')
+            catalog_name_crossmatch = data.get('crossmatch_catalog', 'ps1')
             if catalog_name_crossmatch is None:
                 return self.error(message='Missing crossmatch_catalog')
             if catalog_name_crossmatch not in catalogs_enum:
@@ -547,7 +547,15 @@ class ImageAnalysisHandler(BaseHandler):
                     message=f'Invalid crossmatch_catalog, must be once of: {", ".join(catalogs_enum)}'
                 )
 
-            template_name = data.get('template')
+            catalog_limiting_magnitude = data.get('catalog_limiting_magnitude', 21)
+            if catalog_limiting_magnitude is None:
+                return self.error(message='Missing catalog_limiting_magnitude')
+            try:
+                catalog_limiting_magnitude = float(catalog_limiting_magnitude)
+            except ValueError:
+                return self.error(message='Invalid catalog_limiting_magnitude')
+
+            template_name = data.get('template', 'PanSTARRS/DR1/r')
             if template_name is None:
                 return self.error(message='Missing template')
             if template_name not in templates_enum:
@@ -555,7 +563,7 @@ class ImageAnalysisHandler(BaseHandler):
                     message=f'Invalid template, must be once of: {", ".join(templates_enum)}'
                 )
 
-            method = data.get('astrometric_refinement_meth')
+            method = data.get('astrometric_refinement_meth', 'astropy')
             if method is None:
                 return self.error(message='Missing method')
             if method not in methods_enum:
@@ -570,10 +578,6 @@ class ImageAnalysisHandler(BaseHandler):
             filt = data.get("filter")
             if filt is None:
                 return self.error(message='Missing filter')
-
-            obstime = data.get("obstime")
-            if obstime is None:
-                return self.error(message='Missing obstime')
 
             s_n_detection = data.get("s_n_detection", 5)
             if s_n_detection is None:
@@ -590,11 +594,6 @@ class ImageAnalysisHandler(BaseHandler):
                 return self.error(
                     message='Invalid s_n_blind_match, must be a positive integer'
                 )
-
-            try:
-                obstime = Time(arrow.get(obstime.strip()).datetime)
-            except Exception as e:
-                return self.error(message=f'Invalid obstime: {e}')
 
             file_data = file_data.split('base64,')
             file_name = file_data[0].split('name=')[1].split(';')[0]
@@ -621,11 +620,36 @@ class ImageAnalysisHandler(BaseHandler):
                 header = hdul[hdul_index].header
                 image_data = hdul[hdul_index].data.astype(np.double)
                 header['FILTER'] = filt
+
+                obstime = data.get("obstime")
+                if obstime is None:
+                    obstime = header.get('DATE-OBS')
+                    if obstime is None:
+                        return self.error(message='Missing obstime')
+
+                try:
+                    obstime = Time(arrow.get(obstime.strip()).datetime)
+                except Exception as e:
+                    return self.error(message=f'Invalid obstime: {e}')
+
                 header['DATE-OBS'] = obstime.isot
+
+                gain = data.get('gain')
+                if gain is None:
+                    gain = header.get('GAIN')
+                    if gain is None:
+                        return self.error(message='Missing gain')
+
+                try:
+                    gain = float(gain)
+                except ValueError:
+                    return self.error(message='Invalid gain')
+
                 IOLoop.current().run_in_executor(
                     None,
                     lambda: reduce_image(
                         image_data,
+                        file_name,
                         header,
                         obj_id,
                         instrument.id,
@@ -634,6 +658,7 @@ class ImageAnalysisHandler(BaseHandler):
                         matching_radius,
                         catalog_name_refinement,
                         catalog_name_crossmatch,
+                        catalog_limiting_magnitude,
                         template_name,
                         method,
                         s_n_detection,
