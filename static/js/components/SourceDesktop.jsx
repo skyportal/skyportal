@@ -260,7 +260,6 @@ const SourceDesktop = ({ source }) => {
       });
     });
   }
-  const specIDs = spectra ? spectra.map((s) => s.id).join(",") : "";
 
   const associatedGCNs = useSelector((state) => state.source.associatedGCNs);
 
@@ -669,7 +668,7 @@ const SourceDesktop = ({ source }) => {
                           source.id
                         }?width=${
                           plotWidth !== 0 ? plotWidth : 800
-                        }&height=600&cacheID=${specIDs}`}
+                        }&height=600`}
                       />
                     </Suspense>
                   )}

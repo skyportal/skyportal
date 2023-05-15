@@ -296,7 +296,6 @@ const SourceMobile = WidthProvider(
         });
       });
     }
-    const specIDs = spectra ? spectra.map((s) => s.id).join(",") : "";
 
     useEffect(() => {
       dispatch(spectraActions.fetchSourceSpectra(source.id));
@@ -712,7 +711,7 @@ const SourceMobile = WidthProvider(
                         }
                       >
                         <Plot
-                          url={`/api/internal/plot/spectroscopy/${source.id}?width=${plotWidth}&device=${device}&cacheID=${specIDs}`}
+                          url={`/api/internal/plot/spectroscopy/${source.id}?width=${plotWidth}&device=${device}`}
                         />
                       </Suspense>
                     )}
