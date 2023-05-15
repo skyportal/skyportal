@@ -26,7 +26,7 @@ def test_upload_spectroscopy(
 
     mjd_element = driver.wait_for_xpath('//*[@id="root_mjd"]')
     driver.scroll_to_element_and_click(mjd_element)
-    mjd_element.send_keys('51232.')
+    mjd_element.send_keys('51232.0')
 
     instrument_id_element_xpath = '//*[@id="root_instrument_id"]'
     driver.click_xpath(instrument_id_element_xpath, scroll_parent=True)
@@ -51,7 +51,7 @@ def test_upload_spectroscopy(
     submit_button_xpath = '//button[contains(.,"Upload Spectrum")]'
     driver.click_xpath(submit_button_xpath, scroll_parent=True, timeout=30)
 
-    driver.wait_for_xpath('//*[contains(.,"successful")]')
+    driver.wait_for_xpath('//*[contains(.,"successful")]', timeout=10)
 
     # Go to "Share data" page to look for the spectrum, since we can't easily
     #  look into the Bokeh <canvas> tag on the Source page.

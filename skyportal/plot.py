@@ -2117,6 +2117,7 @@ def smoothing_function(values, window_size):
 
 async def spectroscopy_plot(
     obj_id,
+    user_id,
     session,
     spec_id=None,
     width=800,
@@ -2131,6 +2132,8 @@ async def spectroscopy_plot(
     ----------
     obj_id : str
         ID of Obj to be plotted.
+    user_id : User object ID
+        Current user ID.
     session: sqlalchemy.Session
         Database session for this transaction
     spec_id : str or None
@@ -2170,6 +2173,10 @@ async def spectroscopy_plot(
     ).first()
     if obj is None:
         raise ValueError(f'Cannot find object with ID "{obj_id}"')
+    user = session.scalars(
+        User.select(session.user_or_token).where(User.id == user_id)
+    ).first()
+
     spectra = (
         session.scalars(
             Spectrum.select(session.user_or_token).where(Spectrum.obj_id == obj_id)
@@ -2210,6 +2217,7 @@ async def spectroscopy_plot(
         layouts.append(
             make_spectrum_layout(
                 obj,
+                user,
                 spectra_by_type[spec_type],
                 session,
                 device,
@@ -2238,7 +2246,7 @@ async def spectroscopy_plot(
 
 
 def make_spectrum_layout(
-    obj, spectra, session, device, width, smoothing, smooth_number
+    obj, user, spectra, session, device, width, smoothing, smooth_number
 ):
     """
     Helper function that takes the object, spectra and user info,
@@ -2251,6 +2259,8 @@ def make_spectrum_layout(
     ----------
     obj : dict
         The underlying object that is associated with all these spectra.
+    user : User object
+        Current user.
     spectra : dict
         The different spectra to be plotted. This can be a subset of
         e.g., all the spectra of one type.
@@ -2601,6 +2611,14 @@ def make_spectrum_layout(
         line_alpha=0.3,
         source=ColumnDataSource(el_data),
     )
+
+    if user.preferences and "spectroscopyButtons" in user.preferences:
+        for name, info in user.preferences["spectroscopyButtons"].items():
+            if isinstance(info['color'], list):
+                line_color = info['color'][0]
+            else:
+                line_color = info['color']
+            SPEC_LINES[name] = (info['wavelengths'], line_color)
 
     for i, (name, (wavelengths, color)) in enumerate(SPEC_LINES.items()):
 

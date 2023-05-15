@@ -1930,7 +1930,6 @@ def test_spectrum_plot_only_some_spectra(
     status, data = api(
         'GET', f'internal/plot/spectroscopy/{public_source.id}', token=upload_data_token
     )
-
     assert status == 200
 
     # now ask for the same plot but with only one spectrum

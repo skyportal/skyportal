@@ -508,6 +508,8 @@ misc:
 
   allow_nonadmins_delete_objs: False
 
+  bokeh_color_palette: Turbo256
+
 weather:
   # time in seconds to wait before fetching weather for a given telescope
   refresh_time: 3600.0
