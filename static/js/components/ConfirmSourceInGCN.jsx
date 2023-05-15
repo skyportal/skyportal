@@ -12,7 +12,6 @@ import IconButton from "@mui/material/IconButton";
 import EditIcon from "@mui/icons-material/Edit";
 import Close from "@mui/icons-material/Close";
 import TextField from "@mui/material/TextField";
-import Autocomplete, { createFilterOptions } from "@mui/material/Autocomplete";
 import Typography from "@mui/material/Typography";
 import grey from "@mui/material/colors/grey";
 import dayjs from "dayjs";
@@ -24,17 +23,6 @@ import Button from "./Button";
 import * as SourceInGcnAction from "../ducks/confirmedsourcesingcn";
 
 dayjs.extend(utc);
-
-const filter = createFilterOptions();
-
-const defaultExplanations = [
-  "old source",
-  "AGN",
-  "slow",
-  "spec reject",
-  "moving",
-  "outside",
-];
 
 const useStyles = makeStyles((theme) => ({
   container: {
@@ -111,7 +99,7 @@ const ConfirmSourceInGCN = ({
   const { permissions } = useSelector((state) => state.profile);
   const [open, setOpen] = useState(false);
 
-  const { control, getValues } = useForm();
+  const { control, getValues, register } = useForm();
 
   const sourcesingcn = useSelector((state) => state.sourcesingcn.sourcesingcn);
 
@@ -121,6 +109,7 @@ const ConfirmSourceInGCN = ({
 
   let currentState = "unknown";
   let currentExplanation = "";
+  let currentNotes = "";
   if (
     sourcesingcn?.length > 0 &&
     sourcesingcn.filter((s) => s.obj_id === source_id).length !== 0
@@ -132,6 +121,8 @@ const ConfirmSourceInGCN = ({
       currentExplanation =
         sourcesingcn.filter((s) => s.obj_id === source_id)[0]?.explanation ||
         "";
+      currentNotes =
+        sourcesingcn.filter((s) => s.obj_id === source_id)[0]?.notes || "";
     } else if (
       sourcesingcn.filter((s) => s.obj_id === source_id)[0].confirmed === false
     ) {
@@ -139,6 +130,8 @@ const ConfirmSourceInGCN = ({
       currentExplanation =
         sourcesingcn.filter((s) => s.obj_id === source_id)[0]?.explanation ||
         "";
+      currentNotes =
+        sourcesingcn.filter((s) => s.obj_id === source_id)[0]?.notes || "";
     }
   }
 
@@ -163,6 +156,7 @@ const ConfirmSourceInGCN = ({
           localization_cumprob,
           confirmed: true,
           explanation: data.explanation,
+          notes: data.notes,
         })
       ).then((response) => {
         if (response.status === "success") {
@@ -175,6 +169,7 @@ const ConfirmSourceInGCN = ({
         SourceInGcnAction.patchSourceInGcn(dateobs, source_id, {
           confirmed: true,
           explanation: data.explanation,
+          notes: data.notes,
         })
       ).then((response) => {
         if (response.status === "success") {
@@ -184,7 +179,8 @@ const ConfirmSourceInGCN = ({
       });
     } else if (
       currentState === "confirmed" &&
-      currentExplanation === data.explanation
+      currentExplanation === data.explanation &&
+      currentNotes === data.notes
     ) {
       dispatch(
         showNotification("Source already confirmed with this explanation")
@@ -194,6 +190,7 @@ const ConfirmSourceInGCN = ({
         SourceInGcnAction.patchSourceInGcn(dateobs, source_id, {
           confirmed: true,
           explanation: data.explanation,
+          notes: data.notes,
         })
       ).then((response) => {
         if (response.status === "success") {
@@ -216,6 +213,7 @@ const ConfirmSourceInGCN = ({
           localization_cumprob,
           confirmed: false,
           explanation: data.explanation,
+          notes: data.notes,
         })
       ).then((response) => {
         if (response.status === "success") {
@@ -228,6 +226,7 @@ const ConfirmSourceInGCN = ({
         SourceInGcnAction.patchSourceInGcn(dateobs, source_id, {
           confirmed: false,
           explanation: data.explanation,
+          notes: data.notes,
         })
       ).then((response) => {
         if (response.status === "success") {
@@ -247,6 +246,7 @@ const ConfirmSourceInGCN = ({
         SourceInGcnAction.patchSourceInGcn(dateobs, source_id, {
           confirmed: false,
           explanation: data.explanation,
+          notes: data.notes,
         })
       ).then((response) => {
         if (response.status === "success") {
@@ -258,7 +258,8 @@ const ConfirmSourceInGCN = ({
   };
 
   const handleUndefined = () => {
-    if (currentState === "confirmed" || currentState === "rejected") {
+    const data = getValues();
+    if (data.explanation === "" && data.notes === "") {
       dispatch(SourceInGcnAction.deleteSourceInGcn(dateobs, source_id)).then(
         (response) => {
           if (response.status === "success") {
@@ -268,7 +269,18 @@ const ConfirmSourceInGCN = ({
         }
       );
     } else {
-      dispatch(showNotification("Source already undefined", "error"));
+      dispatch(
+        SourceInGcnAction.patchSourceInGcn(dateobs, source_id, {
+          confirmed: null,
+          explanation: data.explanation,
+          notes: data.notes,
+        })
+      ).then((response) => {
+        if (response.status === "success") {
+          handleUpdate();
+          handleClose();
+        }
+      });
     }
   };
 
@@ -301,36 +313,37 @@ const ConfirmSourceInGCN = ({
                     </Typography>
                     <Controller
                       render={({ field: { onChange, value } }) => (
-                        <Autocomplete
-                          id="explanation"
-                          freeSolo
-                          disableClearable
-                          filterOptions={(options, params) => {
-                            const filtered = filter(options, params);
-
-                            if (params.inputValue !== "") {
-                              filtered.push(params.inputValue);
-                            }
-
-                            return filtered;
-                          }}
-                          options={defaultExplanations}
+                        <TextField
+                          label="Explanation"
+                          name="explanation"
+                          inputRef={register("explanation")}
+                          onChange={onChange}
                           value={value}
-                          renderInput={(params) => (
-                            <TextField
-                              {...params}
-                              label="Explanation"
-                              variant="outlined"
-                              fullWidth
-                              onChange={(e) => onChange(e.target.value)}
-                            />
-                          )}
+                          defaultValue={currentExplanation}
                         />
                       )}
                       name="explanation"
                       control={control}
-                      defaultValue={currentExplanation}
                     />
+                    <Typography variant="subtitle2" className={classes.title}>
+                      GCN Notes
+                    </Typography>
+                    <div>
+                      <Controller
+                        render={({ field: { onChange, value } }) => (
+                          <TextField
+                            label="Notes"
+                            name="notes"
+                            inputRef={register("notes")}
+                            onChange={onChange}
+                            value={value}
+                            defaultValue={currentNotes}
+                          />
+                        )}
+                        name="notes"
+                        control={control}
+                      />
+                    </div>
                     <div>
                       <Button onClick={handleConfirm}>CONFIRM</Button>
                       <Button onClick={handleReject}>REJECT</Button>

@@ -60,6 +60,7 @@ from ...models import (
     Token,
     Photometry,
     PhotometricSeries,
+    Galaxy,
     Group,
     FollowupRequest,
     ClassicalAssignment,
@@ -224,6 +225,15 @@ async def get_source(
     ).all()
     point = ca.Point(ra=s.ra, dec=s.dec)
     # Check for duplicates (within 4 arcsecs)
+    galaxies = session.scalars(
+        Galaxy.select(user).where(Galaxy.within(point, 10 / 3600))
+    ).all()
+    if len(galaxies) > 0:
+        source_info["galaxies"] = list({galaxy.name for galaxy in galaxies})
+    else:
+        source_info["galaxies"] = None
+
+    # Check for nearby galaxies (within 10 arcsecs)
     duplicate_objs = (
         Obj.select(user)
         .where(Obj.within(point, 4 / 3600))
@@ -237,6 +247,10 @@ async def get_source(
         source_info["duplicates"] = list({dup.obj_id for dup in duplicates})
     else:
         source_info["duplicates"] = None
+
+    if s.host_id:
+        source_info["host"] = s.host.to_dict()
+        source_info["host_offset"] = s.host_offset.deg * 3600.0
 
     if is_token_request:
         # Logic determining whether to register front-end request as view lives in front-end
@@ -469,6 +483,7 @@ async def get_sources(
     include_period_exists=False,
     include_detection_stats=False,
     include_labellers=False,
+    include_hosts=False,
     is_token_request=False,
     include_requested=False,
     requested_only=False,
@@ -1421,6 +1436,11 @@ async def get_sources(
 
                 obj_list[-1]["labellers"] = [user.to_dict() for user in users]
 
+            if include_hosts:
+                if obj.host_id:
+                    obj_list[-1]["host"] = obj.host.to_dict()
+                    obj_list[-1]["host_offset"] = obj.host_offset.deg * 3600.0
+
             if include_photometry_exists:
                 obj_list[-1]["photometry_exists"] = check_if_obj_has_photometry(
                     obj.id, user, session
@@ -2111,6 +2131,14 @@ class SourceHandler(BaseHandler):
             description: |
               Boolean indicating whether to return list of users who have labelled this source. Defaults to false.
           - in: query
+            name: includeHosts
+            nullable: true
+            schema:
+              type: boolean
+            description: |
+              Boolean indicating whether to return source host galaxies. Defaults to false.
+
+          - in: query
             name: includeCommentExists
             nullable: true
             schema:
@@ -2434,6 +2462,7 @@ class SourceHandler(BaseHandler):
         include_comment_exists = self.get_query_argument("includeCommentExists", False)
         include_period_exists = self.get_query_argument("includePeriodExists", False)
         include_labellers = self.get_query_argument("includeLabellers", False)
+        include_hosts = self.get_query_argument("includeHosts", False)
         remove_nested = self.get_query_argument("removeNested", False)
         include_detection_stats = self.get_query_argument(
             "includeDetectionStats", False
@@ -2633,6 +2662,7 @@ class SourceHandler(BaseHandler):
                     include_period_exists=include_period_exists,
                     include_detection_stats=include_detection_stats,
                     include_labellers=include_labellers,
+                    include_hosts=include_hosts,
                     is_token_request=is_token_request,
                     include_requested=include_requested,
                     requested_only=requested_only,

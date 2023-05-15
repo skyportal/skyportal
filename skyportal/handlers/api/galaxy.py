@@ -19,7 +19,7 @@ from baselayer.app.env import load_env
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.log import make_log
 
-from ...models import DBSession, Galaxy, Localization, LocalizationTile
+from ...models import DBSession, Galaxy, Localization, LocalizationTile, Obj
 from ..base import BaseHandler
 
 log = make_log('api/galaxy')
@@ -952,3 +952,111 @@ class GalaxyGladeHandler(BaseHandler):
             return self.success()
         except Exception as e:
             return self.error(str(e))
+
+
+class ObjHostHandler(BaseHandler):
+    @permissions(["Upload data"])
+    def post(self, obj_id):
+        """
+        ---
+        description: Set an object's host galaxy
+        tags:
+          - objs
+          - galaxys
+        parameters:
+          - in: path
+            name: obj_id
+            required: true
+            schema:
+              type: string
+        requestBody:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  galaxyName:
+                    type: string
+                    description: |
+                      Name of the galaxy to associate with the object
+                required:
+                  - galaxyName
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+
+        data = self.get_json()
+
+        name = data.get("galaxyName")
+        if name is None:
+            return self.error("galaxyName required to set object host")
+
+        with self.Session() as session:
+            obj = session.scalars(
+                Obj.select(session.user_or_token, mode='update').where(Obj.id == obj_id)
+            ).first()
+            if obj is None:
+                return self.error(f"Cannot find object with ID {obj_id}.")
+
+            galaxy = session.scalars(
+                Galaxy.select(session.user_or_token).where(Galaxy.name == name)
+            ).first()
+            if galaxy is None:
+                return self.error(f"Cannot find Galaxy with name {name}")
+
+            obj.host_id = galaxy.id
+            session.commit()
+
+            self.push_all(
+                "skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}
+            )
+
+            return self.success()
+
+    @permissions(["Upload data"])
+    def delete(self, obj_id):
+        """
+        ---
+        description: Delete an object's host galaxy
+        tags:
+          - objs
+          - galaxys
+        parameters:
+          - in: path
+            name: obj_id
+            required: true
+            schema:
+              type: string
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+
+        with self.Session() as session:
+            obj = session.scalars(
+                Obj.select(session.user_or_token, mode='update').where(Obj.id == obj_id)
+            ).first()
+            if obj is None:
+                return self.error(f"Cannot find object with ID {obj_id}.")
+
+            obj.host_id = None
+            session.commit()
+
+            self.push_all(
+                "skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}
+            )
+
+            return self.success()

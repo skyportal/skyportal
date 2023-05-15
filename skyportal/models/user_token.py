@@ -388,6 +388,13 @@ User.observing_runs = relationship(
     doc="Observing Runs this User has created.",
     foreign_keys="ObservingRun.owner_id",
 )
+User.sources_in_gcn = relationship(
+    'SourcesConfirmedInGCN',
+    cascade='save-update, merge, refresh-expire, expunge',
+    passive_deletes=True,
+    doc="SourcesConfirmedInGCN this User has created.",
+    foreign_keys="SourcesConfirmedInGCN.confirmer_id",
+)
 User.source_notifications = relationship(
     'SourceNotification',
     back_populates='sent_by',

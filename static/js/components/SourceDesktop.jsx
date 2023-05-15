@@ -17,6 +17,7 @@ import Typography from "@mui/material/Typography";
 import { log10, abs, ceil } from "mathjs";
 import CircularProgress from "@mui/material/CircularProgress";
 import AddIcon from "@mui/icons-material/Add";
+import RemoveIcon from "@mui/icons-material/Remove";
 import HelpOutlineOutlinedIcon from "@mui/icons-material/HelpOutlineOutlined";
 import Button from "./Button";
 
@@ -216,6 +217,12 @@ export const useSourceStyles = makeStyles((theme) => ({
     paddingBottom: "0.5em",
     alignItems: "center",
   },
+  sourceGalaxy: {
+    height: "2.1875rem",
+    paddingTop: "0.5em",
+    paddingBottom: "0.5em",
+    alignItems: "center",
+  },
 }));
 
 const SourceDesktop = ({ source }) => {
@@ -237,6 +244,14 @@ const SourceDesktop = ({ source }) => {
   };
   const closeDialog = () => {
     setDialogOpen(false);
+  };
+
+  const setHost = (galaxyName) => {
+    dispatch(sourceActions.addHost(source.id, { galaxyName }));
+  };
+
+  const removeHost = () => {
+    dispatch(sourceActions.removeHost(source.id));
   };
 
   const photometry = useSelector((state) => state.photometry[source.id]);
@@ -428,6 +443,43 @@ const SourceDesktop = ({ source }) => {
                       dialogOpen={dialogOpen}
                       closeDialog={closeDialog}
                     />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {source.host && (
+            <div className={classes.infoLine}>
+              <div className={classes.sourceInfo}>
+                <b>
+                  Host galaxy: {source.host.name} Offset:{" "}
+                  {source.host_offset.toFixed(3)} [arcsec]
+                </b>
+                &nbsp;
+                <Button
+                  size="small"
+                  type="button"
+                  name="removeHostGalaxyButton"
+                  onClick={() => removeHost()}
+                  className={classes.sourceGalaxy}
+                >
+                  <RemoveIcon />
+                </Button>
+              </div>
+            </div>
+          )}
+          {source.galaxies && (
+            <div className={classes.infoLine}>
+              <div className={classes.sourceInfo}>
+                <b>
+                  <font color="#457b9d">Possible host galaxies:</font>
+                </b>
+                &nbsp;
+                {source.galaxies.map((galaxyName) => (
+                  <div key={galaxyName}>
+                    <Button size="small" onClick={() => setHost(galaxyName)}>
+                      {galaxyName}
+                    </Button>
                   </div>
                 ))}
               </div>
@@ -955,6 +1007,47 @@ SourceDesktop.propTypes = {
       PropTypes.shape({
         origin: PropTypes.string.isRequired,
         data: PropTypes.object.isRequired, // eslint-disable-line react/forbid-prop-types
+      })
+    ),
+    host: PropTypes.shape({
+      catalog_name: PropTypes.string,
+      name: PropTypes.string,
+      alt_name: PropTypes.string,
+      ra: PropTypes.number,
+      dec: PropTypes.number,
+      distmpc: PropTypes.number,
+      distmpc_unc: PropTypes.number,
+      redshift: PropTypes.number,
+      redshift_error: PropTypes.number,
+      sfr_fuv: PropTypes.number,
+      mstar: PropTypes.number,
+      magb: PropTypes.number,
+      magk: PropTypes.number,
+      a: PropTypes.number,
+      b2a: PropTypes.number,
+      pa: PropTypes.number,
+      btc: PropTypes.number,
+    }),
+    host_offset: PropTypes.number,
+    galaxies: PropTypes.arrayOf(
+      PropTypes.shape({
+        catalog_name: PropTypes.string,
+        name: PropTypes.string,
+        alt_name: PropTypes.string,
+        ra: PropTypes.number,
+        dec: PropTypes.number,
+        distmpc: PropTypes.number,
+        distmpc_unc: PropTypes.number,
+        redshift: PropTypes.number,
+        redshift_error: PropTypes.number,
+        sfr_fuv: PropTypes.number,
+        mstar: PropTypes.number,
+        magb: PropTypes.number,
+        magk: PropTypes.number,
+        a: PropTypes.number,
+        b2a: PropTypes.number,
+        pa: PropTypes.number,
+        btc: PropTypes.number,
       })
     ),
     classifications: PropTypes.arrayOf(
