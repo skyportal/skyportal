@@ -26,7 +26,7 @@ def test_upload_spectroscopy(
 
     mjd_element = driver.wait_for_xpath('//*[@id="root_mjd"]')
     driver.scroll_to_element_and_click(mjd_element)
-    mjd_element.send_keys('51232.')
+    mjd_element.send_keys('51232.0')
 
     instrument_id_element_xpath = '//*[@id="root_instrument_id"]'
     driver.click_xpath(instrument_id_element_xpath, scroll_parent=True)
