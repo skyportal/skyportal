@@ -1121,6 +1121,7 @@ class GcnEventHandler(BaseHandler):
                                     **c.author.to_dict(),
                                     "gravatar_url": c.author.gravatar_url,
                                 },
+                                "resourceType": "gcn_event",
                             }
                             for c in event.comments
                         ),

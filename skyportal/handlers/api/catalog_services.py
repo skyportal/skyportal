@@ -476,17 +476,18 @@ def fetch_swift_transients(instrument_id, user_id):
                     for filename in filenames:
                         attachment_name = filename.split("/")[-1]
                         with open(filename, 'rb') as f:
-                            attachment_bytes = base64.b64encode(f.read())
+                            data_to_disk = base64.b64encode(f.read())
                         comment = Comment(
                             text='Swift Detection Spectrum',
                             obj_id=obj_id,
-                            attachment_bytes=attachment_bytes,
                             attachment_name=attachment_name,
                             author=user,
                             groups=groups,
-                            bot=False,
+                            bot=True,
                         )
                         session.add(comment)
+                        if data_to_disk is not None:
+                            comment.save_data(attachment_name, data_to_disk)
 
             session.commit()
         return obj_ids
