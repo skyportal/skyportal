@@ -242,7 +242,7 @@ class ClassificationHandler(BaseHandler):
         )
         start_date = self.get_query_argument('startDate', None)
         end_date = self.get_query_argument('endDate', None)
-        include_taxonomy = self.get_query_argument('includeTaxonomy', None)
+        include_taxonomy = self.get_query_argument('includeTaxonomy', False)
 
         with self.Session() as session:
             if classification_id is not None:

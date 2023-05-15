@@ -272,16 +272,14 @@ const AnnotationsTable = ({ annotations, spectrumAnnotations = [] }) => {
     pagination: true,
     tableBodyMaxHeight: "20rem",
     customToolbar: () => (
-      <>
-        <IconButton
-          name="expand_annotations"
-          onClick={() => {
-            setOpenAnnotations(true);
-          }}
-        >
-          <ExpandIcon />
-        </IconButton>
-      </>
+      <IconButton
+        name="expand_annotations"
+        onClick={() => {
+          setOpenAnnotations(true);
+        }}
+      >
+        <ExpandIcon />
+      </IconButton>
     ),
   };
 
