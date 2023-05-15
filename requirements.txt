@@ -26,7 +26,7 @@ marshmallow-enum==1.5.1
 Pillow>=8.4.0
 pyproj==3.5.0
 pytest==7.1.0
-sncosmo==2.10.0
+git+https://github.com/sncosmo/sncosmo.git@master#egg=sncosmo
 tdtax==0.1.4
 healpix-alchemy==1.0.2
 mocpy==0.12.3
