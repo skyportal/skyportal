@@ -277,7 +277,7 @@ def commit_photometry(url, altdata, df_request, request_id, instrument_id, user_
         df['mag'] = df['zpdiff'] - 2.5 * np.log10(df['forcediffimflux'])
         df['magerr'] = 1.0857 * df['forcediffimfluxunc'] / df['forcediffimflux']
 
-        snr = df['forcediffimflux'] / df['forcediffimfluxunc'] < 5
+        snr = df['forcediffimflux'] / df['forcediffimfluxunc'] < 3
         df.loc[snr, 'mag'] = None
         df.loc[snr, 'magerr'] = None
 
