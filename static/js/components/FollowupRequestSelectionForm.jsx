@@ -9,6 +9,8 @@ import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
 import CircularProgress from "@mui/material/CircularProgress";
 import makeStyles from "@mui/styles/makeStyles";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import Checkbox from "@mui/material/Checkbox";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
@@ -57,6 +59,7 @@ const FollowupRequestSelectionForm = ({ fetchParams, setFetchParams }) => {
   const [isSubmittingFilter, setIsSubmittingFilter] = useState(false);
   const [selectedInstrumentId, setSelectedInstrumentId] = useState(null);
   const [selectedFormat, setSelectedFormat] = useState("csv");
+  const [includeStandards, setIncludeStandards] = useState(false);
 
   useEffect(() => {
     const getInstruments = async () => {
@@ -138,7 +141,7 @@ const FollowupRequestSelectionForm = ({ fetchParams, setFetchParams }) => {
       const queryString = new URLSearchParams(filteredQueryParams).toString();
       url += `?${queryString}`;
     }
-    url += `&output_format=${format}`;
+    url += `&output_format=${format}&includeStandards=${includeStandards}`;
     return url;
   }
 
@@ -251,6 +254,18 @@ const FollowupRequestSelectionForm = ({ fetchParams, setFetchParams }) => {
             CSV
           </MenuItem>
         </Select>
+        <FormControlLabel
+          label="Include Standards?"
+          control={
+            <Checkbox
+              color="primary"
+              title="Include Standards?"
+              type="checkbox"
+              onChange={(event) => setIncludeStandards(event.target.checked)}
+              checked={includeStandards}
+            />
+          }
+        />
         <Button
           primary
           href={`${scheduleUrl}`}

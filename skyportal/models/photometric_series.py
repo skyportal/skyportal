@@ -32,6 +32,8 @@ from ..enum_types import allowed_bandpasses, time_stamp_alignment_types
 from .group import accessible_by_groups_members, accessible_by_streams_members
 
 from .photometry import PHOT_ZP
+from ..utils.hdf5_files import dump_dataframe_to_bytestream
+
 
 _, cfg = load_env()
 
@@ -57,8 +59,11 @@ INFERABLE_ATTRIBUTES = ['ra', 'dec', 'exp_time', 'filter']
 OPTIONAL_ATTRIBUTES = [
     'channel',
     'origin',
+    'limiting_mag',
     'magref',
-    'magref_unc',
+    'e_magref',
+    'ref_flux',
+    'ref_fluxerr',
     'ra_unc',
     'dec_unc',
     'followup_request_id',
@@ -78,7 +83,9 @@ DATA_TYPES = {
     'channel': str,
     'time_stamp_alignment': str,
     'magref': float,
-    'magref_unc': float,
+    'e_magref': float,
+    'ref_flux': float,
+    'ref_fluxerr': float,
     'ra': float,
     'dec': float,
     'ra_unc': float,
@@ -162,6 +169,10 @@ def infer_metadata(data):
     for key in ['filter', 'FILTER', 'Filter', 'filtercode']:
         if key in data and len(data[key].unique()) == 1:
             metadata['filter'] = data[key][0]
+            break
+    for key in ['lim_mag', 'limmag', 'limiting_mag', 'limiting_magnitude']:
+        if key in data:
+            metadata['limiting_mag'] = data[key].median()
             break
 
     return metadata
@@ -354,12 +365,33 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         except Exception:
             pass  # silently fail to load
 
-    def to_dict(self):
+    def to_dict(self, data_format='json'):
         """
         Convert the object into a dictionary.
+
+        Parameters
+        ----------
+        data_format : str
+            The format of the data to return.
+            Can be "json" or "hdf5' or 'none'.
         """
+        # use the baselayer base model's method
         d = super().to_dict()
-        d['data'] = self.data.to_dict(orient='list')
+
+        if data_format.lower() == 'json':
+            output_data = self.data.to_dict(orient='list')
+        elif data_format.lower() == 'hdf5':
+            output_data = dump_dataframe_to_bytestream(
+                self.data, self.get_metadata(), encode=True
+            )
+        elif data_format.lower() == 'none':
+            output_data = None
+        else:
+            raise ValueError(
+                f'Invalid dataFormat: "{data_format}". Use "json", "hdf5", or "none".'
+            )
+
+        d['data'] = output_data
         return d
 
     @staticmethod
@@ -406,7 +438,9 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
             in every position where the flux is not positive.
         """
 
-        good_points = np.logical_and(np.invert(np.isnan(fluxes)), fluxes > 0, fluxerr)
+        good_points = np.logical_and(
+            np.invert(np.isnan(fluxes)), fluxes > 0, fluxerr > 0
+        )
         magerr = (2.5 / np.log(10)) * (fluxerr / fluxes)
         magerr[np.invert(good_points)] = np.nan
         # should we turn this into a list and convert the NaNs into Nones?
@@ -507,13 +541,13 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         and the robust RMS using sigma-clipping.
         """
         # calculate the mean mag, rms and robust median/rms
-        self.mean_mag = np.nanmean(self.mags)
-        self.rms_mag = np.nanstd(self.mags)
+        self.mean_mag = float(np.nanmean(self.mags))
+        self.rms_mag = float(np.nanstd(self.mags))
         (self.robust_mag, self.robust_rms) = self.sigma_clipping(self.mags)
 
-        self.median_snr = np.nanmedian(self.snr)
-        self.best_snr = np.nanmax(self.snr)
-        self.worst_snr = np.nanmin(self.snr)
+        self.median_snr = float(np.nanmedian(self.snr))
+        self.best_snr = float(np.nanmax(self.snr))
+        self.worst_snr = float(np.nanmin(self.snr))
 
         # get the min/max/media for each column of data
         self.medians = {}
@@ -521,22 +555,22 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         self.maxima = {}
         self.stds = {}
         for key in self._data:
-            self.medians[key] = np.nanmedian(self.mjds)
-            self.minima[key] = np.nanmin(self.mjds)
-            self.maxima[key] = np.nanmax(self.mjds)
-            self.stds[key] = np.nanstd(self.mjds)
+            self.medians[key] = float(np.nanmedian(self.mjds))
+            self.minima[key] = float(np.nanmin(self.mjds))
+            self.maxima[key] = float(np.nanmax(self.mjds))
+            self.stds[key] = float(np.nanstd(self.mjds))
 
         # This assumes the data is sorted by mjd!
-        self.mjd_first = self.mjds[0]
-        self.mag_first = self.mags[0]
-        self.mjd_last = self.mjds[-1]
-        self.mag_last = self.mags[-1]
+        self.mjd_first = float(self.mjds[0])
+        self.mag_first = float(self.mags[0])
+        self.mjd_last = float(self.mjds[-1])
+        self.mag_last = float(self.mags[-1])
         self.mjd_mid = (self.mjd_first + self.mjd_last) / 2
 
         detection_indices = np.where(self.snr > PHOT_DETECTION_THRESHOLD)[0]
         if len(detection_indices) > 0:
-            self.mjd_last_detected = self.mjds[detection_indices[-1]]
-            self.mag_last_detected = self.mags[detection_indices[-1]]
+            self.mjd_last_detected = float(self.mjds[detection_indices[-1]])
+            self.mag_last_detected = float(self.mags[detection_indices[-1]])
             self.is_detected = True
         else:
             self.mjd_last_detected = None
@@ -545,7 +579,7 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         self.num_exp = len(self.mjds)
 
         # time between exposures, in seconds
-        dt = np.nanmedian(np.diff(self.mjds)) * 24 * 3600
+        dt = float(np.nanmedian(np.diff(self.mjds)) * 24 * 3600)
         self.frame_rate = 1 / dt
 
     @staticmethod
@@ -602,10 +636,10 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
                 break
 
             num_values_prev = num_values
-            mean_value = np.nanmedian(values)
+            mean_value = np.nanmean(values)
             scatter = np.nanstd(values)
 
-        return mean_value, scatter
+        return float(mean_value), float(scatter)
 
     def get_metadata(self):
         """
@@ -622,6 +656,65 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
                 output[key] = getattr(self, key)
 
         return output
+
+    def get_data_with_extra_columns(self):
+        """
+        Return a copy of the underlying dataframe,
+        but add a few columns that could be needed
+        for e.g., plotting.
+
+        The columns are only added if they do not already
+        exist in the dataframe, and the values would
+        simply be copied from the global value.
+        E.g., if there isn't an exp_time column,
+        it will be added with the value of the global
+        self.exp_time.
+
+        Columns that can be added include:
+        id, ra, dec, ra_unc, dec_unc, exp_time,
+        filter, limiting_mag, snr, obj_id,
+        instrument_id, instrument_name,
+        created_at, origin.
+
+        If magref/ref_flux is given for this series,
+        will also add the relevant columns:
+        magtot, magtot_err, tot_flux, tot_flux_err.
+        If any of these columns exsit, they are
+        left unchanged.
+        """
+        df = self.data.copy()
+        df['id'] = self.id
+        df['origin'] = self.origin
+        df['obj_id'] = self.obj_id
+        if 'ra' not in df:
+            df['ra'] = self.ra
+        if 'dec' not in df:
+            df['dec'] = self.dec
+        if 'ra_unc' not in df:
+            df['ra_unc'] = self.ra_unc
+        if 'dec_unc' not in df:
+            df['dec_unc'] = self.dec_unc
+        if 'filter' not in df:
+            df['filter'] = self.filter
+        if 'snr' not in df:
+            df['snr'] = self.snr
+
+        df['instrument_id'] = self.instrument_id
+        df['instrument'] = self.instrument.name
+        df['telescope'] = self.instrument.telescope.nickname
+        df['created_at'] = self.created_at
+
+        if self.ref_flux is not None:
+            if 'magtot' not in df:
+                df['magtot'] = self.magtot
+            if 'e_magtot' not in df:
+                df['e_magtot'] = self.e_magtot
+            if 'tot_flux' not in df:
+                df['tot_flux'] = self.tot_flux
+            if 'tot_fluxerr' not in df:
+                df['tot_fluxerr'] = self.tot_fluxerr
+
+        return df
 
     def load_data(self):
         """
@@ -670,6 +763,7 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
                     track_times=False,
                 )
                 store.get_storer('phot_series').attrs.metadata = self.get_metadata()
+
                 self._data_bytes = store._handle.get_file_image()
 
         return self._data_bytes
@@ -951,17 +1045,27 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         sa.Float, nullable=True, doc="Uncertainty of dec position [arcsec]"
     )
 
-    magref = sa.Column(
+    limiting_mag = sa.Column(
+        sa.Float,
+        nullable=False,
+        default=np.nan,
+        index=True,
+        doc='Limiting magnitude of the photometric series. '
+        'If each point in the series has a limiting magnitude, '
+        'this will be the median value of those limiting magnitudes. ',
+    )
+
+    ref_flux = sa.Column(
         sa.Float,
         nullable=True,
         index=True,
-        doc="Reference magnitude. E.g., "
-        "magnitude of source before transient started, "
-        "or the mean magnitude of a variable source.",
+        doc="Reference flux. E.g., "
+        "of the source before transient started, "
+        "or the mean flux of a variable source.",
     )
 
-    magref_unc = sa.Column(
-        sa.Float, nullable=True, doc="Uncertainty on the reference mag."
+    ref_fluxerr = sa.Column(
+        sa.Float, nullable=True, doc="Uncertainty on the reference flux."
     )
 
     altdata = sa.Column(JSONB, default={}, doc="Arbitrary metadata in JSON format.")
@@ -1165,6 +1269,130 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
                 self.load_data()
             self.calc_flux_mag()  # do this once, cache all the hidden variables
         return np.array(self._magerr)
+
+    @hybrid_property
+    def magref(self):
+        """
+        Reference magnitude, e.g.,
+        the mean magnitude of a variable source,
+        or the magnitude of a source before a transient started.
+        This value is based on the ref_flux property.
+        """
+        if self.ref_flux is not None and self.ref_flux > 0:
+            return -2.5 * np.log10(self.ref_flux) + PHOT_ZP
+        else:
+            return None
+
+    @magref.setter
+    def magref(self, magref):
+        if magref is not None:
+            self.ref_flux = 10 ** (-0.4 * (magref - PHOT_ZP))
+        else:
+            self.ref_flux = None
+
+    @magref.expression
+    def magref(cls):
+        return sa.case(
+            (
+                sa.and_(
+                    cls.ref_flux != None,  # noqa: E711
+                    cls.ref_flux != 'NaN',
+                    cls.ref_flux > 0,
+                ),
+                -2.5 * sa.func.log(cls.ref_flux) + PHOT_ZP,
+            ),
+            else_=None,
+        )
+
+    @hybrid_property
+    def e_magref(self):
+        """The error on the reference magnitude."""
+        if (
+            self.ref_flux is not None
+            and self.ref_flux > 0
+            and self.ref_fluxerr is not None
+            and self.ref_fluxerr > 0
+        ):
+            return (2.5 / np.log(10)) * (self.ref_fluxerr / self.ref_flux)
+        else:
+            return None
+
+    @e_magref.setter
+    def e_magref(self, e_magref):
+        if e_magref is not None:
+            self.ref_fluxerr = e_magref * self.ref_flux / (2.5 / np.log(10))
+        else:
+            self.ref_fluxerr = None
+
+    @e_magref.expression
+    def e_magref(cls):
+        """The error on the magnitude of the photometry point."""
+        return sa.case(
+            (
+                sa.and_(
+                    cls.ref_flux != None,  # noqa: E711
+                    cls.ref_flux != 'NaN',
+                    cls.ref_flux > 0,
+                    cls.ref_fluxerr > 0,
+                ),  # noqa: E711
+                (2.5 / sa.func.ln(10)) * (cls.ref_fluxerr / cls.ref_flux),
+            ),
+            else_=None,
+        )
+
+    @property
+    def magtot(self):
+        """
+        Total magnitude, e.g.,
+        the combined magnitudes of a variable source,
+        as opposed to the regular magnitudes which may come
+        from subtraction images, etc.
+        """
+        if self.ref_flux is not None and self.ref_flux > 0:
+            flux = self.fluxes
+            bad_idx = np.isnan(flux) | (flux <= 0)
+            flux[bad_idx] = 1
+            mag = -2.5 * np.log10(self.ref_flux + flux) + PHOT_ZP
+            mag[bad_idx] = np.nan
+            return mag
+        else:
+            return None
+
+    @property
+    def e_magtot(self):
+        """The error on the total magnitude."""
+        if self.ref_flux is not None and self.ref_flux > 0 and self.ref_fluxerr > 0:
+            flux = self.fluxes
+            err = self.fluxerr
+            bad_idx = np.isnan(flux) | np.isnan(err) | (flux <= 0) | (err <= 0)
+            magerr = np.sqrt(err**2 + self.ref_fluxerr**2)
+            magerr /= self.ref_flux + flux
+            magerr *= 2.5 / np.log(10)
+            magerr[bad_idx] = np.nan
+
+            return magerr
+        else:
+            return None
+
+    @property
+    def tot_fluxes(self):
+        """Total fluxes, e.g., the combined fluxes of a variable source."""
+        if self.ref_flux is not None and self.ref_flux > 0:
+            return self.ref_flux + self.fluxes
+        else:
+            return None
+
+    @property
+    def tot_fluxerr(self):
+        """The errors on the total fluxes."""
+        if self.ref_fluxerr is not None and self.ref_fluxerr > 0:
+            err = self.fluxerr
+            bad_idx = np.isnan(err) | (err <= 0)
+            tot_err = np.sqrt(self.ref_fluxerr**2 + err**2)
+            tot_err[bad_idx] = np.nan
+            return tot_err
+        else:
+            return None
 
     @property
     def jd_first(self):

@@ -1,67 +1,64 @@
+import collections
 import copy
 import itertools
-import math
 import json
-import collections
+import math
+import os
 
+import bokeh.embed as bokeh_embed
 import numpy as np
 import pandas as pd
-from sqlalchemy.orm import joinedload
-
-from bokeh.layouts import row, column
+from astropy.time import Time
+from bokeh.events import DocumentEvent
+from bokeh.layouts import column, row
 from bokeh.models import (
-    CustomJS,
-    HoverTool,
-    Range1d,
-    Slider,
     Button,
-    LinearAxis,
-    RadioGroup,
     CategoricalColorMapper,
+    CustomJS,
+    Dropdown,
+    HoverTool,
     Legend,
     LegendItem,
-    Dropdown,
+    LinearAxis,
+    RadioGroup,
+    Range1d,
+    Slider,
     Spinner,
     TabPanel,
     Tabs,
 )
 from bokeh.models.widgets import (
-    CheckboxGroup,
     CheckboxButtonGroup,
-    TextInput,
-    NumericInput,
+    CheckboxGroup,
     Div,
+    NumericInput,
+    TextInput,
 )
-from bokeh.plotting import figure, ColumnDataSource
-
-import bokeh.embed as bokeh_embed
+from bokeh.plotting import ColumnDataSource, figure
 from bokeh.transform import factor_mark
-
-from astropy.time import Time
-
 from matplotlib import cm
 from matplotlib.colors import rgb2hex
+from sqlalchemy.orm import joinedload
 
-import os
 from baselayer.app.env import load_env
+from skyportal.handlers.api.photometry import serialize
 from skyportal.models import (
-    Obj,
-    ObjAnalysis,
+    PHOT_ZP,
     Annotation,
     AnnotationOnSpectrum,
-    Photometry,
     Instrument,
-    PHOT_ZP,
+    Obj,
+    ObjAnalysis,
+    PhotometricSeries,
+    Photometry,
     Spectrum,
     User,
 )
 
-from .enum_types import ALLOWED_SPECTRUM_TYPES
-
 # use the full registry from the enum_types import of sykportal
 # which may have custom bandpasses
+from .enum_types import ALLOWED_SPECTRUM_TYPES
 from .enum_types import sncosmo as snc
-from skyportal.handlers.api.photometry import serialize
 
 _, cfg = load_env()
 # The minimum signal-to-noise ratio to consider a photometry point as detected
@@ -342,6 +339,12 @@ phot_markers = [
     "triangle_pin",
     "square_pin",
 ]
+
+
+class ActiveEvent(DocumentEvent):
+    '''Bokeh event class for active event selection, which is missing from Bokeh>=3.1.1'''
+
+    event_name = 'active'
 
 
 def get_effective_wavelength(bandpass_name):
@@ -971,9 +974,9 @@ def mark_detections(plot, detection_dates, ymin, ymax):
     first_r = plot.line(
         x=np.full(5000, first),
         y=y,
-        line_alpha=0.5,
+        line_alpha=0.175,
         line_color=first_color,
-        line_width=2,
+        line_width=3,
     )
     plot.add_tools(
         HoverTool(
@@ -984,9 +987,9 @@ def mark_detections(plot, detection_dates, ymin, ymax):
     last_r = plot.line(
         x=np.full(5000, last),
         y=y,
-        line_alpha=0.5,
+        line_alpha=0.175,
         line_color=last_color,
-        line_width=2,
+        line_width=3,
     )
     plot.add_tools(
         HoverTool(
@@ -1281,7 +1284,7 @@ def make_legend_items_and_detection_lines(
 
 
 def transformed_model_dict(model_dict):
-    """In order to programmatically toggle visibilty, the model_dict keys are altered to contain the filter, instrument, and origin of
+    """In order to programmatically toggle visibility, the model_dict keys are altered to contain the filter, instrument, and origin of
     the photometry point. However, many widgets need the original model dict with keys such as obs0 and bin0 in order to work correctly.
     This function changes the keys of the model dict to work with that format.
 
@@ -1524,7 +1527,7 @@ def make_period_controls(
         ),
     )
     phase_selection.js_on_event(
-        'active',
+        ActiveEvent,
         CustomJS(
             args={
                 'textinput': period_textinput,
@@ -1721,7 +1724,8 @@ def make_photometry_panel(
     # or "detected" (and thus can be represented by a magnitude) if its snr
     # is above PHOT_DETECTION_THRESHOLD
     obsind = data['hasflux'] & (
-        data['flux'].fillna(0.0) / data['fluxerr'] >= PHOT_DETECTION_THRESHOLD
+        data['flux'].fillna(0.0) / data['fluxerr'].fillna(np.inf)
+        >= PHOT_DETECTION_THRESHOLD
     )
     data.loc[~obsind, 'mag'] = None
     data.loc[obsind, 'mag'] = -2.5 * np.log10(data[obsind]['flux']) + PHOT_ZP
@@ -1749,24 +1753,25 @@ def make_photometry_panel(
 
     xmin = data['mjd'].min() - 2
     xmax = data['mjd'].max() + 2
-    ymax = (
-        np.nanmax(
-            (
-                np.nanmax(data.loc[obsind, 'mag']) if any(obsind) else np.nan,
-                np.nanmax(data.loc[~obsind, 'lim_mag']) if any(~obsind) else np.nan,
-            )
-        )
-        + 0.1
-    )
-    ymin = (
-        np.nanmin(
-            (
-                np.nanmin(data.loc[obsind, 'mag']) if any(obsind) else np.nan,
-                np.nanmin(data.loc[~obsind, 'lim_mag']) if any(~obsind) else np.nan,
-            )
-        )
-        - 0.1
-    )
+
+    mags = data.loc[obsind, 'mag']
+    if not all(np.isnan(mags)):
+        max_mags = np.nanmax(mags)
+        min_mags = np.nanmin(mags)
+    else:
+        max_mags = np.nan
+        min_mags = np.nan
+
+    lims = data.loc[~obsind, 'lim_mag']
+    if not all(np.isnan(lims)):
+        max_lims = np.nanmax(lims)
+        min_lims = np.nanmin(lims)
+    else:
+        max_lims = np.nan
+        min_lims = np.nan
+
+    ymax = np.nanmax([max_mags, max_lims]) + 0.1
+    ymin = np.nanmin([min_mags, min_lims]) - 0.1
 
     (
         frame_width,
@@ -1953,7 +1958,6 @@ async def photometry_plot(obj_id, user_id, session, width=600, device="browser")
     dict
         Returns Bokeh JSON embedding for the desired plot.
     """
-
     data = session.scalars(
         Photometry.select(session.user_or_token)
         .options(joinedload(Photometry.instrument).joinedload(Instrument.telescope))
@@ -1970,6 +1974,25 @@ async def photometry_plot(obj_id, user_id, session, width=600, device="browser")
         query_result.append(result)
 
     data = pd.DataFrame.from_dict(query_result)
+
+    # get the photometric series, too
+    series = session.scalars(
+        PhotometricSeries.select(session.user_or_token)
+        .options(
+            joinedload(PhotometricSeries.instrument).joinedload(Instrument.telescope),
+        )
+        .where(PhotometricSeries.obj_id == obj_id)
+    ).all()
+    series_df = []
+
+    for ps in series:
+        df = ps.get_data_with_extra_columns()
+        series_df.append(df)
+
+    if len(series_df) > 0:
+        series_data = pd.concat(series_df)
+        data = pd.concat([data, series_data])
+
     if data.empty:
         return None, None, None
 
@@ -1977,11 +2000,7 @@ async def photometry_plot(obj_id, user_id, session, width=600, device="browser")
         User.select(session.user_or_token).where(User.id == user_id)
     ).first()
 
-    if (
-        user.preferences
-        and 'useRefMag' in user.preferences
-        and user.preferences['useRefMag']
-    ):
+    if user.preferences and user.preferences.get('useRefMag', False):
         if 'magtot' in data:
             data['mag'] = data['magtot']
         if 'e_magtot' in data:
@@ -2098,6 +2117,7 @@ def smoothing_function(values, window_size):
 
 async def spectroscopy_plot(
     obj_id,
+    user_id,
     session,
     spec_id=None,
     width=800,
@@ -2112,6 +2132,8 @@ async def spectroscopy_plot(
     ----------
     obj_id : str
         ID of Obj to be plotted.
+    user_id : User object ID
+        Current user ID.
     session: sqlalchemy.Session
         Database session for this transaction
     spec_id : str or None
@@ -2151,6 +2173,10 @@ async def spectroscopy_plot(
     ).first()
     if obj is None:
         raise ValueError(f'Cannot find object with ID "{obj_id}"')
+    user = session.scalars(
+        User.select(session.user_or_token).where(User.id == user_id)
+    ).first()
+
     spectra = (
         session.scalars(
             Spectrum.select(session.user_or_token).where(Spectrum.obj_id == obj_id)
@@ -2191,6 +2217,7 @@ async def spectroscopy_plot(
         layouts.append(
             make_spectrum_layout(
                 obj,
+                user,
                 spectra_by_type[spec_type],
                 session,
                 device,
@@ -2219,7 +2246,7 @@ async def spectroscopy_plot(
 
 
 def make_spectrum_layout(
-    obj, spectra, session, device, width, smoothing, smooth_number
+    obj, user, spectra, session, device, width, smoothing, smooth_number
 ):
     """
     Helper function that takes the object, spectra and user info,
@@ -2232,6 +2259,8 @@ def make_spectrum_layout(
     ----------
     obj : dict
         The underlying object that is associated with all these spectra.
+    user : User object
+        Current user.
     spectra : dict
         The different spectra to be plotted. This can be a subset of
         e.g., all the spectra of one type.
@@ -2582,6 +2611,14 @@ def make_spectrum_layout(
         line_alpha=0.3,
         source=ColumnDataSource(el_data),
     )
+
+    if user.preferences and "spectroscopyButtons" in user.preferences:
+        for name, info in user.preferences["spectroscopyButtons"].items():
+            if isinstance(info['color'], list):
+                line_color = info['color'][0]
+            else:
+                line_color = info['color']
+            SPEC_LINES[name] = (info['wavelengths'], line_color)
 
     for i, (name, (wavelengths, color)) in enumerate(SPEC_LINES.items()):
 

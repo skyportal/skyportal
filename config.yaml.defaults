@@ -101,8 +101,8 @@ app:
       component: RunSummary
     - path: "/source/:obj_id/analysis/:analysis_id"
       component: SourceAnalysisPage
-    - path: "/manage_data/:id"
-      component: ManageDataForm
+    - path: "/share_data/:id"
+      component: ShareDataForm
     - path: "/filter/:fid"
       component: Filter
     - path: "/runs"
@@ -508,6 +508,8 @@ misc:
 
   allow_nonadmins_delete_objs: False
 
+  bokeh_color_palette: Turbo256
+
 weather:
   # time in seconds to wait before fetching weather for a given telescope
   refresh_time: 3600.0
@@ -726,6 +728,7 @@ analysis_services:
 comments_folder: persistentdata/comments
 localizations_folder: persistentdata/localizations
 photometric_series_folder: persistentdata/phot_series
+photometric_series_autodelete: True
 
 colors:
   classifications:

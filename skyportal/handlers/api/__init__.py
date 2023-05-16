@@ -46,7 +46,12 @@ from .followup_request import (
     AssignmentHandler,
 )
 from .facility_listener import FacilityMessageHandler
-from .galaxy import GalaxyCatalogHandler, GalaxyASCIIFileHandler, GalaxyGladeHandler
+from .galaxy import (
+    GalaxyCatalogHandler,
+    GalaxyASCIIFileHandler,
+    GalaxyGladeHandler,
+    ObjHostHandler,
+)
 from .gcn import (
     GcnEventHandler,
     GcnEventObservationPlanRequestsHandler,

@@ -64,6 +64,9 @@ RUN bash -c "\
     mkdir -p /skyportal/persistentdata/dustmap && \
     chown -R skyportal.skyportal /skyportal/persistentdata/dustmap && \
     \
+    mkdir -p /skyportal/persistentdata/phot_series && \
+    chown -R skyportal.skyportal /skyportal/persistentdata/phot_series && \
+    \
     mkdir -p /skyportal/persistentdata/sncosmo && \
     chown -R skyportal.skyportal /skyportal/persistentdata/sncosmo"
 

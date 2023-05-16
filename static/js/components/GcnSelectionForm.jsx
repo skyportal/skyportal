@@ -149,6 +149,7 @@ const GcnEventSourcesPage = ({
   const handleSourcesTableSorting = (sortData, filterData) => {
     dispatch(
       sourcesActions.fetchGcnEventSources(dateobs, {
+        ...sourceFilteringState,
         ...filterData,
         localizationName,
         pageNumber: 1,
@@ -167,6 +168,7 @@ const GcnEventSourcesPage = ({
   ) => {
     setSourcesRowsPerPage(numPerPage);
     const data = {
+      ...sourceFilteringState,
       ...filterData,
       localizationName,
       pageNumber,
@@ -368,6 +370,7 @@ const GcnSelectionForm = ({
     startDate: null,
     endDate: null,
     localizationName: null,
+    group_ids: [],
     localizationCumprob: null,
   });
 
@@ -526,6 +529,8 @@ const GcnSelectionForm = ({
   gcnEvent?.localizations?.forEach((loc) => {
     locLookUp[loc.id] = loc;
   });
+
+  const [selectedFormData, setSelectedFormData] = useState({});
 
   useEffect(() => {
     const fetchSkymapInstrument = async () => {
@@ -931,6 +936,8 @@ const GcnSelectionForm = ({
               >
                 <Form
                   schema={GcnSourceSelectionFormSchema}
+                  formData={selectedFormData}
+                  onChange={({ formData }) => setSelectedFormData(formData)}
                   uiSchema={uiSchema}
                   templates={{ ObjectFieldTemplate: MyObjectFieldTemplate }}
                   validator={validator}

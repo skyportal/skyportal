@@ -145,13 +145,13 @@ const ClassificationRow = ({ classifications }) => {
           <div>
             <div>
               {classifications.map((cls) => (
-                <>
+                <span key={cls.id}>
                   P=
                   {clsProb} ({cls.taxname})
                   <br />
                   <i>{cls.author_name}</i>
                   <br />
-                </>
+                </span>
               ))}
             </div>
             <div>

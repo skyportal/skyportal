@@ -106,6 +106,18 @@ const SUBMIT_IMAGE_ANALYSIS = "skyportal/SUBMIT_IMAGE_ANALYSIS";
 
 const COPY_SOURCE_PHOTOMETRY = "skyportal/COPY_SOURCE_PHOTOMETRY";
 
+const ADD_HOST = "skyportal/ADD_HOST";
+
+const REMOVE_HOST = "skyportal/REMOVE_HOST";
+
+export function addHost(id, formData) {
+  return API.POST(`/api/sources/${id}/host`, ADD_HOST, formData);
+}
+
+export function removeHost(id) {
+  return API.DELETE(`/api/sources/${id}/host`, REMOVE_HOST);
+}
+
 export const shareData = (data) => API.POST("/api/sharing", SHARE_DATA, data);
 
 export const uploadPhotometry = (data) =>
@@ -487,6 +499,8 @@ const reducer = (
       const source = action.data;
       return {
         ...state,
+        host: null,
+        host_offset: null,
         ...source,
         loadError: "",
       };

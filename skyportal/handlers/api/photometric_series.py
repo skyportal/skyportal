@@ -85,7 +85,7 @@ body_schema_docstring = """
             type: string
             description: |
               Name or number of the object inside the photometric series. This can
-              be a global object ID from the specific survey (e.g., a TESS TIC IC),
+              be a global object ID from the specific survey (e.g., a TESS TIC ID),
               or a casual index of the object in the series (e.g., star number 3).
               This does not have to correspond to the object ID in SkyPortal.
               It must be a unique identifier inside the series to be able to upload
@@ -165,6 +165,18 @@ body_schema_docstring = """
               Series with different channels can have the same or different filters.
               This field is entirely optional.
             required: false
+          limiting_mag:
+            type: number
+            description: |
+              The limiting magnitude of the photometric series.
+              Can specify the value for the entire series,
+              or add an "limiting_mag" column to the data file.
+              If not specified, the median limit from the data
+              will be used as the representative limiting mag for this series.
+              If specified, will override the median value,
+              but will not affect the individual measured limits.
+              If no limit is given and no such column exists in the data file,
+              the photometric series will be posted with None as the limit.
           magref:
             type: number
             description: |
@@ -176,7 +188,7 @@ body_schema_docstring = """
               or the mean magnitude of a variable.
               For absolute photometry this is left as None.
             required: false
-          magref_unc:
+          e_magref:
             type: number
             description: uncertainty on the magref.
             required: false
@@ -470,6 +482,11 @@ class PhotometricSeriesHandler(BaseHandler):
             # now load any additional metadata from the json_data:
             metadata.update(json_data)
 
+            # remove any metadata items that are None (equivalent to not given):
+            for k, v in metadata.items():
+                if v is None:
+                    metadata.pop(k)
+
         except Exception:
             return self.error(
                 f'Problem parsing data/metadata: {traceback.format_exc()}'
@@ -528,6 +545,9 @@ class PhotometricSeriesHandler(BaseHandler):
 
         try:
             ps = PhotometricSeries(data, **metadata)
+            # allow the config to change the default behavior:
+            ps.autodelete = cfg.get('photometric_series_autodelete', True)
+
         except Exception:
             return self.error(
                 f'Could not create PhotometricSeries object: {traceback.format_exc()}'
@@ -792,6 +812,19 @@ class PhotometricSeriesHandler(BaseHandler):
               required: true
               schema:
                 type: integer
+            - in: query
+              name: dataFormat
+              required: false
+              default: 'json'
+              schema:
+                type: string
+                enum: [json, hdf5, none]
+              description: |
+                Format of the data to return. If `none`, the data will not be returned.
+                If `hdf5`, the data will be returned as a bytestream in HDF5 format.
+                (to see how to unpack this data format, look at `photometric_series.md`)
+                If `json`, the data will be returned as a JSON object, where each key
+                is a list of values for that column.
           responses:
             200:
               content:
@@ -803,6 +836,23 @@ class PhotometricSeriesHandler(BaseHandler):
             - photometry
             - photometric series
           parameters:
+            - in: query
+              name: dataFormat
+              required: false
+              default: 'none'
+              schema:
+                type: string
+                enum: [json, hdf5, none]
+              description: |
+                Format of the data to return. If `none`, the data will not be returned.
+                If `hdf5`, the data will be returned as a bytestream in HDF5 format.
+                (to see how to unpack this data format, look at `photometric_series.md`)
+                If `json`, the data will be returned as a JSON object, where each key
+                is a list of values for that column.
+                Note that when querying multiple series, the actual data is not returned
+                by default. To specifically request the data, use `dataFormat=json`
+                or `dataFormat=hdf5`. Keep in mind this could be a large amount of data
+                if the query arguments do not filter down the number of returned series.
             - in: query
               name: ra
               nullable: true
@@ -1045,13 +1095,34 @@ class PhotometricSeriesHandler(BaseHandler):
               nullable: true
               schema:
                 type: number
-              description: get only series with mean_mag brighter than this.
+              description: get only series with mean_mag brighter or equal to this value.
             - in: query
               name: magFainterThan
               nullable: true
               schema:
                 type: number
-              description: get only series with mean_mag fainter than this.
+              description: get only series with mean_mag fainter or equal to this value.
+            - in: query
+              name: limitingMagBrighterThan
+              nullable: true
+              schema:
+                type: number
+              description: |
+                Retrieve only series with limiting mags brighter or equal to this value.
+            - in: query
+              name: limitingMagFainterThan
+              nullable: true
+              schema:
+                type: number
+              description: |
+                Retrieve only series with limiting mags fainter or equal to this value.
+            - in: query
+              name: limitingMagIsNone
+              nullable: true
+              schema:
+                  type: boolean
+              description: |
+                  Retrieve only series that do not have limiting mag.
             - in: query
               name: magrefBrighterThan
               nullable: true
@@ -1059,7 +1130,7 @@ class PhotometricSeriesHandler(BaseHandler):
                 type: number
               description: |
                 Get only series that have a magref,
-                and that the magref is brighter than this.
+                and that the magref is brighter or equal to this value.
             - in: query
               name: magrefFainterThan
               nullable: true
@@ -1067,7 +1138,7 @@ class PhotometricSeriesHandler(BaseHandler):
                 type: number
               description: |
                 Get only series that have a magref,
-                and that the magref is fainter than this.
+                and that the magref is fainter or equal to this value.
             - in: query
               name: maxRMS
               nullable: true
@@ -1211,9 +1282,25 @@ class PhotometricSeriesHandler(BaseHandler):
                 ).first()
                 if ps is None:
                     return self.error('Invalid photometric series ID.')
-                return self.success(data=ps.to_dict())
+                data_format = self.get_query_argument('dataFormat', 'json')
+
+                try:
+                    output_dict = ps.to_dict(data_format=data_format)
+                except Exception:
+                    return self.error(
+                        f'Cannot convert photometric series to dictionary: {traceback.format_exc()}'
+                    )
+
+                return self.success(data=output_dict)
 
         # get all photometric series
+        data_format = self.get_query_argument('dataFormat', 'none')
+
+        # verify the format is valid before going through the whole query
+        if data_format.lower() not in ['none', 'json', 'hdf5']:
+            return self.error(
+                f'Invalid dataFormat: "{data_format}". Must be one of "none", "json", "hdf5".'
+            )
         ra = self.get_query_argument('ra', None)
         dec = self.get_query_argument('dec', None)
         radius = self.get_query_argument('radius', None)
@@ -1245,6 +1332,9 @@ class PhotometricSeriesHandler(BaseHandler):
         owner_id = self.get_query_argument('ownerID', None)
         mag_brighter = self.get_query_argument('magBrighterThan', None)
         mag_fainter = self.get_query_argument('magFainterThan', None)
+        lim_mag_brighter = self.get_query_argument('limitingMagBrighterThan', None)
+        lim_mag_fainter = self.get_query_argument('limitingMagFainterThan', None)
+        lim_mag_none = self.get_query_argument('limitingMagIsNaN', False)
         magref_brighter = self.get_query_argument('magrefBrighterThan', None)
         magref_fainter = self.get_query_argument('magrefFainterThan', None)
         max_rms = self.get_query_argument('maxRMS', None)
@@ -1520,6 +1610,29 @@ class PhotometricSeriesHandler(BaseHandler):
             else:
                 stmt = stmt.where(PhotometricSeries.mean_mag <= mag_brighter)
 
+        if lim_mag_fainter is not None:
+            try:
+                lim_mag_fainter = float(lim_mag_fainter)
+            except ValueError:
+                return self.error(
+                    f'Invalid value for limMagFainterThan {lim_mag_fainter}. '
+                    'Could not convert to float. '
+                )
+            stmt = stmt.where(PhotometricSeries.limiting_mag >= lim_mag_fainter)
+
+        if lim_mag_brighter is not None:
+            try:
+                lim_mag_brighter = float(lim_mag_brighter)
+            except ValueError:
+                return self.error(
+                    f'Invalid value for limMagBrighterThan {lim_mag_brighter}. '
+                    'Could not convert to float. '
+                )
+            stmt = stmt.where(PhotometricSeries.limiting_mag <= lim_mag_brighter)
+
+        if lim_mag_none:
+            stmt = stmt.where(PhotometricSeries.limiting_mag.is_(None))
+
         if magref_fainter is not None:
             try:
                 magref_fainter = float(magref_fainter)
@@ -1680,12 +1793,17 @@ class PhotometricSeriesHandler(BaseHandler):
             stmt = stmt.limit(num_per_page)
             series = session.scalars(stmt).unique().all()
 
-            results = {
-                'series': [s.to_dict() for s in series],
-                'totalMatches': total_matches,
-                'numPerPage': num_per_page,
-                'pageNumber': page_number,
-            }
+            try:
+                results = {
+                    'series': [s.to_dict(data_format) for s in series],
+                    'totalMatches': total_matches,
+                    'numPerPage': num_per_page,
+                    'pageNumber': page_number,
+                }
+            except Exception:
+                return self.error(
+                    f'Could not convert series to dict {traceback.format_exc()}'
+                )
             return self.success(data=results)
 
     @permissions(['Upload data'])

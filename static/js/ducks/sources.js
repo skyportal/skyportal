@@ -50,6 +50,7 @@ const addFilterParamDefaults = (filterParams) => {
   filterParams.includeThumbnails = true;
   filterParams.includeDetectionStats = true;
   filterParams.includeLabellers = true;
+  filterParams.includeHosts = true;
 };
 
 export function fetchSources(filterParams = {}) {

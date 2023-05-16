@@ -2,7 +2,6 @@ import asyncio
 import json
 import operator  # noqa: F401
 import time
-from datetime import datetime
 from threading import Thread
 
 import arrow
@@ -436,8 +435,6 @@ def users_on_shift(session):
     users = session.scalars(
         sa.select(ShiftUser).where(
             ShiftUser.shift_id == Shift.id,
-            Shift.start_date <= datetime.datetime.now(),
-            Shift.end_date >= datetime.datetime.now(),
         )
     ).all()
     return [user.user_id for user in users]

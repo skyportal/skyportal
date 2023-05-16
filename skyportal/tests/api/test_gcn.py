@@ -377,13 +377,11 @@ def test_gcn_summary_sources(
     assert f"on behalf of the {public_group.name}, report:" in data[5]
 
     # sources
-    assert (
-        "Found" in data[6]
-        and "in the event's localization, given the specified date range:" in data[6]
-    )
+    assert "Found" in data[6] and "in the event's localization" in data[6]
     table = data[7:]
     idx = ["Photometry for source" in line for line in table].index(True)
-    sources_table = table[: idx - 1]
+
+    sources_table = table[1 : idx - 1]
     photometry_table = table[idx + 1 :]
 
     assert (

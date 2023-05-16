@@ -28,6 +28,7 @@ import {
 } from "react-device-detect";
 import { WidthProvider } from "react-grid-layout";
 import { log10, abs, ceil } from "mathjs";
+import RemoveIcon from "@mui/icons-material/Remove";
 import Button from "./Button";
 
 import CommentListMobile from "./CommentListMobile";
@@ -64,6 +65,7 @@ import TNSATForm from "./TNSATForm";
 import SourcePlugins from "./SourcePlugins";
 
 import * as spectraActions from "../ducks/spectra";
+import * as sourceActions from "../ducks/source";
 
 const VegaHR = React.lazy(() => import("./VegaHR"));
 
@@ -255,6 +257,7 @@ const SourceMobile = WidthProvider(
     const plotWidth = matches ? 800 : 300;
 
     const classes = useSourceStyles();
+    const dispatch = useDispatch();
 
     const [showStarList, setShowStarList] = useState(false);
     const [showPhotometry, setShowPhotometry] = useState(false);
@@ -279,7 +282,14 @@ const SourceMobile = WidthProvider(
       setDialogOpen(false);
     };
 
-    const dispatch = useDispatch();
+    const setHost = (galaxyName) => {
+      dispatch(sourceActions.addHost(source.id, { galaxyName }));
+    };
+
+    const removeHost = () => {
+      dispatch(sourceActions.removeHost(source.id));
+    };
+
     const { observingRunList } = useSelector((state) => state.observingRuns);
     const { taxonomyList } = useSelector((state) => state.taxonomies);
     const groups = (useSelector((state) => state.groups.all) || []).filter(
@@ -296,7 +306,6 @@ const SourceMobile = WidthProvider(
         });
       });
     }
-    const specIDs = spectra ? spectra.map((s) => s.id).join(",") : "";
 
     useEffect(() => {
       dispatch(spectraActions.fetchSourceSpectra(source.id));
@@ -394,6 +403,46 @@ const SourceMobile = WidthProvider(
                   <div>
                     <SourcePlugins source={source} />
                   </div>
+                  {source.host && (
+                    <div className={classes.infoLine}>
+                      <div className={classes.sourceInfo}>
+                        <b>
+                          Host galaxy: {source.host.name} Offset:{" "}
+                          {source.host_offset.toFixed(3)} [arcsec]
+                        </b>
+                        &nbsp;
+                        <Button
+                          size="small"
+                          type="button"
+                          name="removeHostGalaxyButton"
+                          onClick={() => removeHost()}
+                          className={classes.sourceGalaxy}
+                        >
+                          <RemoveIcon />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                  {source.galaxies && (
+                    <div className={classes.infoLine}>
+                      <div className={classes.sourceInfo}>
+                        <b>
+                          <font color="#457b9d">Possible host galaxies:</font>
+                        </b>
+                        &nbsp;
+                        {source.galaxies.map((galaxyName) => (
+                          <div key={galaxyName}>
+                            <Button
+                              size="small"
+                              onClick={() => setHost(galaxyName)}
+                            >
+                              {galaxyName}
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   <div className={classes.infoLine}>
                     <div className={classes.redshiftInfo}>
                       <b>Redshift: &nbsp;</b>
@@ -634,8 +683,8 @@ const SourceMobile = WidthProvider(
                         <Button secondary>Upload additional photometry</Button>
                       </Link>
                     )}
-                    <Link to={`/manage_data/${source.id}`} role="link">
-                      <Button secondary>Manage data</Button>
+                    <Link to={`/share_data/${source.id}`} role="link">
+                      <Button secondary>Share data</Button>
                     </Link>
                     <Button
                       secondary
@@ -712,7 +761,7 @@ const SourceMobile = WidthProvider(
                         }
                       >
                         <Plot
-                          url={`/api/internal/plot/spectroscopy/${source.id}?width=${plotWidth}&device=${device}&cacheID=${specIDs}`}
+                          url={`/api/internal/plot/spectroscopy/${source.id}?width=${plotWidth}&device=${device}`}
                         />
                       </Suspense>
                     )}
@@ -725,8 +774,8 @@ const SourceMobile = WidthProvider(
                         </Button>
                       </Link>
                     )}
-                    <Link to={`/manage_data/${source.id}`} role="link">
-                      <Button secondary>Manage data</Button>
+                    <Link to={`/share_data/${source.id}`} role="link">
+                      <Button secondary>Share data</Button>
                     </Link>
                   </div>
                 </Grid>
@@ -953,7 +1002,7 @@ SourceMobile.propTypes = {
     alias: PropTypes.arrayOf(PropTypes.string),
     photometry_exists: PropTypes.bool,
     spectrum_exists: PropTypes.bool,
-    photstats: PropTypes.shape(Object),
+    photstats: PropTypes.arrayOf(PropTypes.shape(Object)),
   }).isRequired,
 };
 

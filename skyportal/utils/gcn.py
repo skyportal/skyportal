@@ -143,7 +143,7 @@ def get_tags(root):
     if search is not None:
         yield search.attrib['value']
 
-    # Get Instruments, if present.
+    # Get instruments if present.
     try:
         value = root.find(".//Param[@name='Instruments']").attrib['value']
     except AttributeError:
@@ -151,6 +151,14 @@ def get_tags(root):
     else:
         instruments = value.split(",")
         yield from instruments
+
+    # Get pipeline if present.
+    try:
+        value = root.find(".//Param[@name='Pipeline']").attrib['value']
+    except AttributeError:
+        pass
+    else:
+        yield value
 
 
 def get_notice_aliases(root, notice_type):
@@ -608,10 +616,13 @@ def get_skymap_properties(localization):
         mu = sky_map['DISTMU']
         sigma = sky_map['DISTSIGMA']
 
-        distmean, _ = ligo.skymap.distance.parameters_to_marginal_moments(dP, mu, sigma)
+        distmean, distsigma = ligo.skymap.distance.parameters_to_marginal_moments(
+            dP, mu, sigma
+        )
         if not np.isnan(distmean):
             properties_dict["distance"] = distmean
             if distmean <= 150:
                 tags_list.append("< 150 Mpc")
+            properties_dict["distance_error"] = distsigma
 
     return properties_dict, tags_list

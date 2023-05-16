@@ -34,7 +34,7 @@ class PlotPhotometryHandler(BaseHandler):
             try:
                 json = await plot.photometry_plot(
                     obj_id=obj_id,
-                    user_id=self.current_user.id,
+                    user_id=self.associated_user_object.id,
                     session=session,
                     width=int(width),
                     device=device,
@@ -61,6 +61,7 @@ class PlotSpectroscopyHandler(BaseHandler):
             try:
                 json = await plot.spectroscopy_plot(
                     obj_id=obj_id,
+                    user_id=self.associated_user_object.id,
                     session=session,
                     spec_id=spec_id,
                     width=int(width),

@@ -689,6 +689,9 @@ const SourceTable = ({
   if (includeGcnStatus) {
     defaultDisplayedColumns.push("GCN Status");
     defaultDisplayedColumns.push("GCN Status Explanation");
+    defaultDisplayedColumns.push("GCN Notes");
+    defaultDisplayedColumns.push("Host");
+    defaultDisplayedColumns.push("Host Offset (arcsec)");
   }
 
   const [displayedColumns, setDisplayedColumns] = useState(
@@ -811,7 +814,6 @@ const SourceTable = ({
     const plotWidth = isMobileOnly ? 200 : 400;
     const specPlotHeight = isMobileOnly ? 150 : 200;
     const legendOrient = isMobileOnly ? "bottom" : "right";
-
     return (
       <TableRow data-testid={`groupSourceExpand_${source.id}`}>
         <TableCell
@@ -975,7 +977,7 @@ const SourceTable = ({
               ) : null}
               <UpdateSourceSummary source={source} />
               {source.comment_exists || source.classifications?.length > 0 ? (
-                <StartBotSummary obj_id={source.id} />
+                <StartBotSummary obj_id={source.id} fetchAnalysisServices />
               ) : null}
               {source.summary_history?.length > 0 ? (
                 <ShowSummaryHistory
@@ -1075,6 +1077,20 @@ const SourceTable = ({
   const renderGalLat = (dataIndex) => {
     const source = sources[dataIndex];
     return <div key={`${source.id}_gal_lat`}>{source.gal_lat.toFixed(6)}</div>;
+  };
+
+  const renderHost = (dataIndex) => {
+    const source = sources[dataIndex];
+    return <div key={`${source.id}_host`}>{source.host?.name}</div>;
+  };
+
+  const renderHostOffset = (dataIndex) => {
+    const source = sources[dataIndex];
+    return (
+      <div key={`${source.id}_host_offset`}>
+        {source.host_offset?.toFixed(3)}
+      </div>
+    );
   };
 
   const renderClassification = (dataIndex) => {
@@ -1358,6 +1374,29 @@ const SourceTable = ({
     );
   };
 
+  const renderGcnNotes = (dataIndex) => {
+    const source = sources[dataIndex];
+    let notes = null;
+    if (sourcesingcn.filter((s) => s.obj_id === source.id).length === 0) {
+      notes = "";
+    } else {
+      notes = sourcesingcn.filter((s) => s.obj_id === source.id)[0].notes;
+    }
+    return (
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+        name={`${source.id}_gcn_status_notes`}
+      >
+        {notes}
+      </div>
+    );
+  };
+
   const handleSearchChange = (searchText) => {
     const data = { sourceID: searchText };
     paginateCallback(1, rowsPerPage, {}, data);
@@ -1572,6 +1611,28 @@ const SourceTable = ({
       },
     },
     {
+      name: "host",
+      label: "Host",
+      options: {
+        filter: false,
+        sort: true,
+        sortThirdClickReset: true,
+        display: displayedColumns.includes("Host"),
+        customBodyRenderLite: renderHost,
+      },
+    },
+    {
+      name: "host_offset",
+      label: "Host Offset (arcsec)",
+      options: {
+        filter: false,
+        sort: true,
+        sortThirdClickReset: true,
+        display: displayedColumns.includes("Host Offset (arcsec)"),
+        customBodyRenderLite: renderHostOffset,
+      },
+    },
+    {
       name: "photstats",
       label: "Photometry Statistics",
       options: {
@@ -1691,6 +1752,15 @@ const SourceTable = ({
         sort: false,
         customBodyRenderLite: renderGcnStatusExplanation,
         display: displayedColumns.includes("GCN Status Explanation"),
+      },
+    });
+    columns.splice(3, 0, {
+      name: "GCN Notes",
+      options: {
+        filter: false,
+        sort: false,
+        customBodyRenderLite: renderGcnNotes,
+        display: displayedColumns.includes("GCN Notes"),
       },
     });
   }
@@ -1948,6 +2018,26 @@ SourceTable.propTypes = {
       gal_lon: PropTypes.number,
       gal_lat: PropTypes.number,
       origin: PropTypes.string,
+      host: PropTypes.shape({
+        catalog_name: PropTypes.string,
+        name: PropTypes.string,
+        alt_name: PropTypes.string,
+        ra: PropTypes.number,
+        dec: PropTypes.number,
+        distmpc: PropTypes.number,
+        distmpc_unc: PropTypes.number,
+        redshift: PropTypes.number,
+        redshift_error: PropTypes.number,
+        sfr_fuv: PropTypes.number,
+        mstar: PropTypes.number,
+        magb: PropTypes.number,
+        magk: PropTypes.number,
+        a: PropTypes.number,
+        b2a: PropTypes.number,
+        pa: PropTypes.number,
+        btc: PropTypes.number,
+      }),
+      host_offset: PropTypes.number,
       alias: PropTypes.arrayOf(PropTypes.string),
       redshift: PropTypes.number,
       annotations: PropTypes.arrayOf(

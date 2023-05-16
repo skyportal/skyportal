@@ -776,9 +776,7 @@ def test_gcn_summary_sources(
         assert f"on behalf of the {public_group.name}, report:" in data[5]
 
         assert any(
-            "Found" in line
-            and "in the event's localization, given the specified date range:" in line
-            for line in data
+            "Found" in line and "in the event's localization" in line for line in data
         )
         assert any(
             "id" in line

@@ -59,6 +59,8 @@ from ...models import (
     Thumbnail,
     Token,
     Photometry,
+    PhotometricSeries,
+    Galaxy,
     Group,
     FollowupRequest,
     ClassicalAssignment,
@@ -108,6 +110,47 @@ MAX_LOCALIZATION_SOURCES = 50000
 Session = scoped_session(sessionmaker())
 
 
+def check_if_obj_has_photometry(obj_id, user, session):
+    """
+    Check if an object has photometry that is
+    accessible to the current user.
+    This includes regular (individual point)
+    photometry and also photometric series.
+
+    Parameters
+    ----------
+    obj_id: str
+        The ID of the object to check.
+    user: baselayer.app.models.User
+        The user to check.
+    session: sqlalchemy.orm.session.Session
+        The session to use to query the database.
+
+    Returns
+    -------
+    bool
+        True if the object has photometry that is accessible to the current user.
+    """
+    # Use columns=[] to avoid loading entire photometry objects
+    # In the case of photometric series, that could include disk I/O
+    phot = session.scalars(
+        Photometry.select(user, columns=[Photometry.id]).where(
+            Photometry.obj_id == obj_id
+        )
+    ).first()
+    # only load the photometric series if there are no regular photometry points
+    if phot is None:
+        phot_series = session.scalars(
+            PhotometricSeries.select(user, columns=[PhotometricSeries.id]).where(
+                PhotometricSeries.obj_id == obj_id
+            )
+        ).first()
+    else:
+        phot_series = None
+
+    return phot is not None or phot_series is not None
+
+
 async def get_source(
     obj_id,
     user_id,
@@ -136,7 +179,6 @@ async def get_source(
         Database session for this transaction
     See Source Handler for optional arguments
     """
-
     user = session.scalar(sa.select(User).where(User.id == user_id))
 
     options = []
@@ -183,6 +225,15 @@ async def get_source(
     ).all()
     point = ca.Point(ra=s.ra, dec=s.dec)
     # Check for duplicates (within 4 arcsecs)
+    galaxies = session.scalars(
+        Galaxy.select(user).where(Galaxy.within(point, 10 / 3600))
+    ).all()
+    if len(galaxies) > 0:
+        source_info["galaxies"] = list({galaxy.name for galaxy in galaxies})
+    else:
+        source_info["galaxies"] = None
+
+    # Check for nearby galaxies (within 10 arcsecs)
     duplicate_objs = (
         Obj.select(user)
         .where(Obj.within(point, 4 / 3600))
@@ -196,6 +247,10 @@ async def get_source(
         source_info["duplicates"] = list({dup.obj_id for dup in duplicates})
     else:
         source_info["duplicates"] = None
+
+    if s.host_id:
+        source_info["host"] = s.host.to_dict()
+        source_info["host_offset"] = s.host_offset.deg * 3600.0
 
     if is_token_request:
         # Logic determining whether to register front-end request as view lives in front-end
@@ -344,12 +399,10 @@ async def get_source(
             serialize(phot, 'ab', 'flux') for phot in photometry
         ]
     if include_photometry_exists:
-        source_info["photometry_exists"] = (
-            session.scalars(
-                Photometry.select(user).where(Photometry.obj_id == obj_id)
-            ).first()
-            is not None
+        source_info["photometry_exists"] = check_if_obj_has_photometry(
+            obj_id, user, session
         )
+
     if include_spectrum_exists:
         source_info["spectrum_exists"] = (
             session.scalars(
@@ -430,6 +483,7 @@ async def get_sources(
     include_period_exists=False,
     include_detection_stats=False,
     include_labellers=False,
+    include_hosts=False,
     is_token_request=False,
     include_requested=False,
     requested_only=False,
@@ -1382,13 +1436,15 @@ async def get_sources(
 
                 obj_list[-1]["labellers"] = [user.to_dict() for user in users]
 
+            if include_hosts:
+                if obj.host_id:
+                    obj_list[-1]["host"] = obj.host.to_dict()
+                    obj_list[-1]["host_offset"] = obj.host_offset.deg * 3600.0
+
             if include_photometry_exists:
-                stmt = Photometry.select(session.user_or_token).where(
-                    Photometry.obj_id == obj.id
+                obj_list[-1]["photometry_exists"] = check_if_obj_has_photometry(
+                    obj.id, user, session
                 )
-                count_stmt = sa.select(func.count()).select_from(stmt.distinct())
-                total_phot = session.execute(count_stmt).scalar()
-                obj_list[-1]["photometry_exists"] = total_phot > 0
             if include_spectrum_exists:
                 stmt = Spectrum.select(session.user_or_token).where(
                     Spectrum.obj_id == obj.id
@@ -2075,6 +2131,14 @@ class SourceHandler(BaseHandler):
             description: |
               Boolean indicating whether to return list of users who have labelled this source. Defaults to false.
           - in: query
+            name: includeHosts
+            nullable: true
+            schema:
+              type: boolean
+            description: |
+              Boolean indicating whether to return source host galaxies. Defaults to false.
+
+          - in: query
             name: includeCommentExists
             nullable: true
             schema:
@@ -2398,6 +2462,7 @@ class SourceHandler(BaseHandler):
         include_comment_exists = self.get_query_argument("includeCommentExists", False)
         include_period_exists = self.get_query_argument("includePeriodExists", False)
         include_labellers = self.get_query_argument("includeLabellers", False)
+        include_hosts = self.get_query_argument("includeHosts", False)
         remove_nested = self.get_query_argument("removeNested", False)
         include_detection_stats = self.get_query_argument(
             "includeDetectionStats", False
@@ -2597,6 +2662,7 @@ class SourceHandler(BaseHandler):
                     include_period_exists=include_period_exists,
                     include_detection_stats=include_detection_stats,
                     include_labellers=include_labellers,
+                    include_hosts=include_hosts,
                     is_token_request=is_token_request,
                     include_requested=include_requested,
                     requested_only=requested_only,

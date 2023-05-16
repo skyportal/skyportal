@@ -12,7 +12,6 @@ import IconButton from "@mui/material/IconButton";
 import EditIcon from "@mui/icons-material/Edit";
 import Close from "@mui/icons-material/Close";
 import TextField from "@mui/material/TextField";
-import Autocomplete from "@mui/material/Autocomplete";
 import Typography from "@mui/material/Typography";
 import grey from "@mui/material/colors/grey";
 import dayjs from "dayjs";
@@ -24,15 +23,6 @@ import Button from "./Button";
 import * as SourceInGcnAction from "../ducks/confirmedsourcesingcn";
 
 dayjs.extend(utc);
-
-const defaultExplanations = [
-  "old source",
-  "AGN",
-  "slow",
-  "spec reject",
-  "moving",
-  "outside",
-];
 
 const useStyles = makeStyles((theme) => ({
   container: {
@@ -109,7 +99,7 @@ const ConfirmSourceInGCN = ({
   const { permissions } = useSelector((state) => state.profile);
   const [open, setOpen] = useState(false);
 
-  const { handleSubmit, control, getValues } = useForm();
+  const { control, getValues, register } = useForm();
 
   const sourcesingcn = useSelector((state) => state.sourcesingcn.sourcesingcn);
 
@@ -118,6 +108,8 @@ const ConfirmSourceInGCN = ({
   };
 
   let currentState = "unknown";
+  let currentExplanation = "";
+  let currentNotes = "";
   if (
     sourcesingcn?.length > 0 &&
     sourcesingcn.filter((s) => s.obj_id === source_id).length !== 0
@@ -126,10 +118,20 @@ const ConfirmSourceInGCN = ({
       sourcesingcn.filter((s) => s.obj_id === source_id)[0]?.confirmed === true
     ) {
       currentState = "confirmed";
+      currentExplanation =
+        sourcesingcn.filter((s) => s.obj_id === source_id)[0]?.explanation ||
+        "";
+      currentNotes =
+        sourcesingcn.filter((s) => s.obj_id === source_id)[0]?.notes || "";
     } else if (
       sourcesingcn.filter((s) => s.obj_id === source_id)[0].confirmed === false
     ) {
       currentState = "rejected";
+      currentExplanation =
+        sourcesingcn.filter((s) => s.obj_id === source_id)[0]?.explanation ||
+        "";
+      currentNotes =
+        sourcesingcn.filter((s) => s.obj_id === source_id)[0]?.notes || "";
     }
   }
 
@@ -154,6 +156,7 @@ const ConfirmSourceInGCN = ({
           localization_cumprob,
           confirmed: true,
           explanation: data.explanation,
+          notes: data.notes,
         })
       ).then((response) => {
         if (response.status === "success") {
@@ -166,6 +169,7 @@ const ConfirmSourceInGCN = ({
         SourceInGcnAction.patchSourceInGcn(dateobs, source_id, {
           confirmed: true,
           explanation: data.explanation,
+          notes: data.notes,
         })
       ).then((response) => {
         if (response.status === "success") {
@@ -173,8 +177,27 @@ const ConfirmSourceInGCN = ({
           handleClose();
         }
       });
+    } else if (
+      currentState === "confirmed" &&
+      currentExplanation === data.explanation &&
+      currentNotes === data.notes
+    ) {
+      dispatch(
+        showNotification("Source already confirmed with this explanation")
+      );
     } else {
-      dispatch(showNotification("Source already confirmed", "error"));
+      dispatch(
+        SourceInGcnAction.patchSourceInGcn(dateobs, source_id, {
+          confirmed: true,
+          explanation: data.explanation,
+          notes: data.notes,
+        })
+      ).then((response) => {
+        if (response.status === "success") {
+          handleUpdate();
+          handleClose();
+        }
+      });
     }
   };
 
@@ -190,6 +213,7 @@ const ConfirmSourceInGCN = ({
           localization_cumprob,
           confirmed: false,
           explanation: data.explanation,
+          notes: data.notes,
         })
       ).then((response) => {
         if (response.status === "success") {
@@ -202,6 +226,7 @@ const ConfirmSourceInGCN = ({
         SourceInGcnAction.patchSourceInGcn(dateobs, source_id, {
           confirmed: false,
           explanation: data.explanation,
+          notes: data.notes,
         })
       ).then((response) => {
         if (response.status === "success") {
@@ -209,13 +234,32 @@ const ConfirmSourceInGCN = ({
           handleClose();
         }
       });
+    } else if (
+      currentState === "rejected" &&
+      currentExplanation === data.explanation
+    ) {
+      dispatch(
+        showNotification("Source already rejected with this explanation")
+      );
     } else {
-      dispatch(showNotification("Source already rejected", "error"));
+      dispatch(
+        SourceInGcnAction.patchSourceInGcn(dateobs, source_id, {
+          confirmed: false,
+          explanation: data.explanation,
+          notes: data.notes,
+        })
+      ).then((response) => {
+        if (response.status === "success") {
+          handleUpdate();
+          handleClose();
+        }
+      });
     }
   };
 
   const handleUndefined = () => {
-    if (currentState === "confirmed" || currentState === "rejected") {
+    const data = getValues();
+    if (data.explanation === "" && data.notes === "") {
       dispatch(SourceInGcnAction.deleteSourceInGcn(dateobs, source_id)).then(
         (response) => {
           if (response.status === "success") {
@@ -225,7 +269,18 @@ const ConfirmSourceInGCN = ({
         }
       );
     } else {
-      dispatch(showNotification("Source already undefined", "error"));
+      dispatch(
+        SourceInGcnAction.patchSourceInGcn(dateobs, source_id, {
+          confirmed: null,
+          explanation: data.explanation,
+          notes: data.notes,
+        })
+      ).then((response) => {
+        if (response.status === "success") {
+          handleUpdate();
+          handleClose();
+        }
+      });
     }
   };
 
@@ -252,33 +307,43 @@ const ConfirmSourceInGCN = ({
             <DialogContent dividers>
               <div className={classes.dialogContent}>
                 <div>
-                  <form onSubmit={handleSubmit}>
+                  <form onSubmit={(e) => e.preventDefault()}>
                     <Typography variant="subtitle2" className={classes.title}>
                       Classification Explanation
                     </Typography>
                     <Controller
                       render={({ field: { onChange, value } }) => (
-                        <Autocomplete
-                          id="explanation"
-                          options={defaultExplanations}
-                          onChange={(event, newValue) => {
-                            onChange(newValue);
-                          }}
+                        <TextField
+                          label="Explanation"
+                          name="explanation"
+                          inputRef={register("explanation")}
+                          onChange={onChange}
                           value={value}
-                          renderInput={(params) => (
-                            <TextField
-                              {...params}
-                              label="Explanation"
-                              variant="outlined"
-                              fullWidth
-                            />
-                          )}
+                          defaultValue={currentExplanation}
                         />
                       )}
                       name="explanation"
                       control={control}
-                      defaultValue=""
                     />
+                    <Typography variant="subtitle2" className={classes.title}>
+                      GCN Notes
+                    </Typography>
+                    <div>
+                      <Controller
+                        render={({ field: { onChange, value } }) => (
+                          <TextField
+                            label="Notes"
+                            name="notes"
+                            inputRef={register("notes")}
+                            onChange={onChange}
+                            value={value}
+                            defaultValue={currentNotes}
+                          />
+                        )}
+                        name="notes"
+                        control={control}
+                      />
+                    </div>
                     <div>
                       <Button onClick={handleConfirm}>CONFIRM</Button>
                       <Button onClick={handleReject}>REJECT</Button>

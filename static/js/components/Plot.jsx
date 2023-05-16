@@ -22,14 +22,17 @@ const Plot = (props) => {
 
   const plotData = useSelector((state) => state.plots.plotData[url]);
   const [error, setError] = useState(false);
+  const [fetching, setFetching] = useState(false);
 
   useEffect(() => {
     const fetchPlotData = async () => {
-      if (plotData === undefined) {
+      if (plotData === undefined && !fetching) {
+        setFetching(true);
         const res = await dispatch(Actions.fetchPlotData(url));
         if (res.status === "error") {
           setError(true);
         }
+        setFetching(false);
       } else {
         const { bokehJSON } = plotData;
         window.Bokeh = Bokeh;

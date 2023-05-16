@@ -216,6 +216,17 @@ class Obj(Base, conesearch_alchemy.Point):
         nullable=True,
         doc="Record of who set which redshift values and when.",
     )
+    host = relationship(
+        'Galaxy',
+        back_populates='objects',
+        doc="The Galaxy associated with this source.",
+        foreign_keys="Obj.host_id",
+    )
+    host_id = sa.Column(
+        sa.ForeignKey('galaxys.id', ondelete='CASCADE'),
+        nullable=True,
+        doc="The ID of the Galaxy to which this Obj is associated.",
+    )
     summary = sa.Column(sa.String, nullable=True, doc="Summary of the obj.")
     summary_history = sa.Column(
         JSONB,
@@ -585,6 +596,18 @@ class Obj(Base, conesearch_alchemy.Point):
                 # see eq (20) of https://ned.ipac.caltech.edu/level5/Hogg/Hogg7.html
                 return dl / (1 + self.redshift) ** 2
             return dl
+        return None
+
+    @property
+    def host_offset(self):
+        host = self.host
+        if host:
+            obj_coord = ap_coord.SkyCoord(self.ra, self.dec, unit='deg')
+            host_coord = ap_coord.SkyCoord(host.ra, host.dec, unit='deg')
+            sep = obj_coord.separation(host_coord)
+
+            print(sep)
+            return sep
         return None
 
     def airmass(self, telescope, time, below_horizon=np.inf):

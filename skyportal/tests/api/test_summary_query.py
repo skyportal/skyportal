@@ -28,7 +28,7 @@ def test_bad_queries(view_only_token):
     # send both a query and objID
     query_data = {
         'q': 'Test query. This is my test query on the sources?',
-        'obj_id': 'ZTF20abm',
+        'objID': 'ZTF20abm',
     }
     status, data = api('POST', 'summary_query', data=query_data, token=view_only_token)
     assert status == 400

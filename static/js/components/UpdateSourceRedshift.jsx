@@ -146,18 +146,20 @@ const UpdateSourceRedshift = ({ source }) => {
           </div>
           <div className={classes.saveButton}>
             <Tooltip title="Clear source redshift value (set to null)">
-              <Button
-                primary
-                onClick={() => {
-                  handleSubmit({ redshift: null, redshift_error: null });
-                }}
-                endIcon={<ClearIcon />}
-                size="large"
-                data-testid="nullifyRedshiftButton"
-                disabled={isSubmitting || source.redshift === null}
-              >
-                Clear
-              </Button>
+              <span>
+                <Button
+                  primary
+                  onClick={() => {
+                    handleSubmit({ redshift: null, redshift_error: null });
+                  }}
+                  endIcon={<ClearIcon />}
+                  size="large"
+                  data-testid="nullifyRedshiftButton"
+                  disabled={isSubmitting || source.redshift === null}
+                >
+                  Clear
+                </Button>
+              </span>
             </Tooltip>
           </div>
         </DialogContent>
