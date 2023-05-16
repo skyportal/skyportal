@@ -161,7 +161,7 @@ class GcnGraceDBHandler(BaseHandler):
 
                 if gracedb_id is None:
                     return self.error(
-                        f'Event {dateobs} does not have GraceDB ID, cannot retrieve aliases'
+                        f'Event {dateobs} does not have GraceDB ID, cannot retrieve data.'
                     )
                 gcn_event_id = gcn_event.id
 
