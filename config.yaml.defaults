@@ -69,6 +69,8 @@ app:
 
   tns_endpoint: https://sandbox.wis-tns.org
 
+  gracedb_endpoint: https://gracedb.ligo.org/api/
+
   # See https://stackoverflow.com/a/35604855 for syntax
   # These are Javascript component routes
   routes:
