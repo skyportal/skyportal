@@ -91,9 +91,14 @@ const GalaxyTable = ({
     return galaxy.redshift_error ? galaxy.redshift_error.toFixed(6) : "";
   };
 
-  const renderSFR = (dataIndex) => {
+  const renderSFRFUV = (dataIndex) => {
     const galaxy = galaxies[dataIndex];
     return galaxy.sfr_fuv ? galaxy.sfr_fuv.toFixed(6) : "";
+  };
+
+  const renderSFRW4 = (dataIndex) => {
+    const galaxy = galaxies[dataIndex];
+    return galaxy.sfr_w4 ? galaxy.sfr_w4.toFixed(6) : "";
   };
 
   const renderMagB = (dataIndex) => {
@@ -104,6 +109,16 @@ const GalaxyTable = ({
   const renderMagK = (dataIndex) => {
     const galaxy = galaxies[dataIndex];
     return galaxy.magk ? galaxy.magk.toFixed(2) : "";
+  };
+
+  const renderMagFUV = (dataIndex) => {
+    const galaxy = galaxies[dataIndex];
+    return galaxy.mag_fuv ? galaxy.mag_fuv.toFixed(2) : "";
+  };
+
+  const renderMagNUV = (dataIndex) => {
+    const galaxy = galaxies[dataIndex];
+    return galaxy.mag_nuv ? galaxy.mag_nuv.toFixed(2) : "";
   };
 
   const columns = [
@@ -182,7 +197,17 @@ const GalaxyTable = ({
         filter: false,
         sort: true,
         sortThirdClickReset: true,
-        customBodyRenderLite: renderSFR,
+        customBodyRenderLite: renderSFRFUV,
+      },
+    },
+    {
+      name: "sfr_w4",
+      label: "SFR based on W4 [Msol/yr]",
+      options: {
+        filter: false,
+        sort: true,
+        sortThirdClickReset: true,
+        customBodyRenderLite: renderSFRW4,
       },
     },
     {
@@ -213,6 +238,26 @@ const GalaxyTable = ({
         sort: true,
         sortThirdClickReset: true,
         customBodyRenderLite: renderMagK,
+      },
+    },
+    {
+      name: "mag_fuv",
+      label: "FUV band magnitude [mag]",
+      options: {
+        filter: false,
+        sort: true,
+        sortThirdClickReset: true,
+        customBodyRenderLite: renderMagFUV,
+      },
+    },
+    {
+      name: "mag_nuv",
+      label: "NUV band magnitude [mag]",
+      options: {
+        filter: false,
+        sort: true,
+        sortThirdClickReset: true,
+        customBodyRenderLite: renderMagNUV,
       },
     },
   ];
@@ -266,9 +311,12 @@ GalaxyTable.propTypes = {
       redshift: PropTypes.number,
       redshift_error: PropTypes.number,
       sfr_fuv: PropTypes.number,
+      sfr_w4: PropTypes.number,
       mstar: PropTypes.number,
       magb: PropTypes.number,
       magk: PropTypes.number,
+      mag_fuv: PropTypes.number,
+      mag_nuv: PropTypes.number,
       a: PropTypes.number,
       b2a: PropTypes.number,
       pa: PropTypes.number,
