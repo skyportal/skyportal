@@ -57,8 +57,8 @@ def validate_request_to_sedmv2(request):
     ):
         raise ValueError('minimum lunar distance must be within 0-180.')
 
-    if request.payload["priority"] < 1 or request.payload["priority"] > 5:
-        raise ValueError('priority must be within 1-5.')
+    if request.payload["priority"] < 0 or request.payload["priority"] > 5:
+        raise ValueError('priority must be within 0-5.')
 
     if request.payload["too"] not in ["Y", "N"]:
         raise ValueError('too must be Y or N')
@@ -298,7 +298,7 @@ class SEDMV2API(FollowUpAPI):
             "priority": {
                 "type": "number",
                 "default": 1.0,
-                "minimum": 1.0,
+                "minimum": 0.0,
                 "maximum": 5.0,
                 "title": "Priority",
             },
