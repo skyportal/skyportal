@@ -253,6 +253,20 @@ const GcnEventPage = ({ route }) => {
     });
   };
 
+  const handleRetrieveGraceDB = () => {
+    dispatch(gcnEventActions.postGcnGraceDB(gcnEvent.dateobs)).then(
+      (response) => {
+        if (response.status === "success") {
+          dispatch(
+            showNotification("GraceDB retrieval started. Please wait...")
+          );
+        } else {
+          dispatch(showNotification("Error retrieving GraceDB", "error"));
+        }
+      }
+    );
+  };
+
   return (
     <div ref={ref}>
       <Grid container spacing={2} className={styles.source}>
@@ -678,6 +692,30 @@ const GcnEventPage = ({ route }) => {
                         data-testid="update-circulars"
                       >
                         Update
+                      </Button>
+                    )}
+                  </AccordionDetails>
+                </Accordion>
+              </Grid>
+              <Grid item sm={12} lg={6}>
+                <Accordion defaultExpanded>
+                  <AccordionSummary
+                    expandIcon={<ExpandMoreIcon />}
+                    aria-controls="gcnEvent-content"
+                    id="gracedb-header"
+                  >
+                    <Typography className={styles.accordionHeading}>
+                      GraceDB
+                    </Typography>
+                  </AccordionSummary>
+                  <AccordionDetails>
+                    {permission && (
+                      <Button
+                        secondary
+                        onClick={() => handleRetrieveGraceDB()}
+                        data-testid="retrieve-gracedb"
+                      >
+                        Retrieve
                       </Button>
                     )}
                   </AccordionDetails>

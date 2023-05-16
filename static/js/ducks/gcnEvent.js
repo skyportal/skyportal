@@ -58,6 +58,8 @@ const POST_GCN_TACH = "skyportal/POST_GCN_TACH";
 const FETCH_GCN_TACH = "skyportal/FETCH_GCN_TACH";
 const FETCH_GCN_TACH_OK = "skyportal/FETCH_GCN_TACH_OK";
 
+const POST_GCN_GRACEDB = "skyportal/POST_GCN_GRACEDB";
+
 const PUT_GCN_TRIGGERED = "skyportal/PUT_GCN_TRIGGERED";
 const FETCH_GCN_TRIGGERED = "skyportal/FETCH_GCN_TRIGGERED";
 const FETCH_GCN_TRIGGERED_OK = "skyportal/FETCH_GCN_TRIGGERED_OK";
@@ -272,6 +274,10 @@ export function postGcnTach(dateobs) {
 
 export function fetchGcnTach(dateobs) {
   return API.GET(`/api/gcn_event/${dateobs}/tach`, FETCH_GCN_TACH);
+}
+
+export function postGcnGraceDB(dateobs) {
+  return API.POST(`/api/gcn_event/${dateobs}/gracedb`, POST_GCN_GRACEDB);
 }
 
 export function putGcnTrigger({ dateobs, allocationID, triggered }) {

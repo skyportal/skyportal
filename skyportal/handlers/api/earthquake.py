@@ -387,6 +387,7 @@ class EarthquakeHandler(BaseHandler):
                                     **c.author.to_dict(),
                                     "gravatar_url": c.author.gravatar_url,
                                 },
+                                "resourceType": "earthquake",
                             }
                             for c in event.comments
                         ),

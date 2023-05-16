@@ -70,6 +70,7 @@ from .gcn import (
     LocalizationTagsHandler,
 )
 from .gcn_tach import GcnTachHandler
+from .gcn_gracedb import GcnGraceDBHandler
 from .group import (
     GroupHandler,
     GroupUserHandler,
