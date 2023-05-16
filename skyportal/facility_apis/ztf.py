@@ -579,30 +579,6 @@ class ZTFAPI(FollowUpAPI):
     form_json_schema = {
         "type": "object",
         "properties": {
-            "start_date": {
-                "type": "string",
-                "default": str(datetime.utcnow()).replace("T", ""),
-                "title": "Start Date (UT)",
-            },
-            "end_date": {
-                "type": "string",
-                "title": "End Date (UT)",
-                "default": str(datetime.utcnow() + timedelta(days=1)).replace("T", ""),
-            },
-            "program_id": {
-                "type": "string",
-                "enum": ["Partnership", "Caltech"],
-                "default": "Partnership",
-            },
-            "subprogram_name": {
-                "type": "string",
-                "enum": ["GW", "GRB", "Neutrino", "SolarSystem", "Other"],
-                "default": "GRB",
-            },
-            "exposure_time": {"type": "string", "default": "300"},
-            "filters": {"type": "string", "default": "g,r,i"},
-            "field_ids": {"type": "string", "default": "699,700"},
-            "queue_name": {"type": "string", "default": datetime.utcnow()},
             "request_type": {
                 "type": "string",
                 "enum": ["triggered", "forced_photometry"],
@@ -610,14 +586,76 @@ class ZTFAPI(FollowUpAPI):
                 "title": "Request Type",
             },
         },
+        "dependencies": {
+            "request_type": {
+                "oneOf": [
+                    {
+                        "properties": {
+                            "request_type": {
+                                "enum": ["triggered"],
+                            },
+                            "start_date": {
+                                "type": "string",
+                                "default": str(datetime.utcnow()).replace("T", ""),
+                                "title": "Start Date (UT)",
+                            },
+                            "end_date": {
+                                "type": "string",
+                                "title": "End Date (UT)",
+                                "default": str(
+                                    datetime.utcnow() + timedelta(days=1)
+                                ).replace("T", ""),
+                            },
+                            "program_id": {
+                                "type": "string",
+                                "enum": ["Partnership", "Caltech"],
+                                "default": "Partnership",
+                            },
+                            "subprogram_name": {
+                                "type": "string",
+                                "enum": [
+                                    "GW",
+                                    "GRB",
+                                    "Neutrino",
+                                    "SolarSystem",
+                                    "Other",
+                                ],
+                                "default": "GRB",
+                            },
+                            "exposure_time": {"type": "string", "default": "300"},
+                            "filters": {"type": "string", "default": "g,r,i"},
+                            "field_ids": {"type": "string", "default": "699,700"},
+                            "queue_name": {
+                                "type": "string",
+                                "default": datetime.utcnow(),
+                            },
+                        }
+                    },
+                    {
+                        "properties": {
+                            "request_type": {
+                                "enum": ["forced_photometry"],
+                            },
+                            "start_date": {
+                                "type": "string",
+                                "default": str(
+                                    datetime.utcnow() - timedelta(days=365)
+                                ).replace("T", ""),
+                                "title": "Start Date (UT)",
+                            },
+                            "end_date": {
+                                "type": "string",
+                                "title": "End Date (UT)",
+                                "default": str(datetime.utcnow()).replace("T", ""),
+                            },
+                        }
+                    },
+                ],
+            },
+        },
         "required": [
             "start_date",
             "end_date",
-            "program_id",
-            "filters",
-            "field_ids",
-            "queue_name",
-            "subprogram_name",
             "request_type",
         ],
     }
