@@ -480,6 +480,7 @@ RenderShowClassification.propTypes = {
     origin: PropTypes.string,
     alias: PropTypes.arrayOf(PropTypes.string),
     redshift: PropTypes.number,
+    mpc_name: PropTypes.string,
     annotations: PropTypes.arrayOf(
       PropTypes.shape({
         origin: PropTypes.string.isRequired,
@@ -598,6 +599,7 @@ RenderShowLabelling.propTypes = {
     gal_lat: PropTypes.number,
     origin: PropTypes.string,
     alias: PropTypes.arrayOf(PropTypes.string),
+    mpc_name: PropTypes.string,
     redshift: PropTypes.number,
     annotations: PropTypes.arrayOf(
       PropTypes.shape({
@@ -1293,6 +1295,11 @@ const SourceTable = ({
     );
   };
 
+  const renderMPCName = (dataIndex) => {
+    const source = sources[dataIndex];
+    return <div>{source.mpc_name ? source.mpc_name : ""}</div>;
+  };
+
   const getSavedBy = (source) => {
     // Get the user who saved the source to the specified group
     if (groupID !== undefined) {
@@ -1733,6 +1740,15 @@ const SourceTable = ({
         display: displayedColumns.includes("TNS Name"),
       },
     },
+    {
+      name: "MPC Name",
+      options: {
+        filter: false,
+        sort: false,
+        customBodyRenderLite: renderMPCName,
+        display: displayedColumns.includes("MPC Name"),
+      },
+    },
   ];
 
   if (includeGcnStatus) {
@@ -2039,6 +2055,7 @@ SourceTable.propTypes = {
       }),
       host_offset: PropTypes.number,
       alias: PropTypes.arrayOf(PropTypes.string),
+      mpc_name: PropTypes.string,
       redshift: PropTypes.number,
       annotations: PropTypes.arrayOf(
         PropTypes.shape({
