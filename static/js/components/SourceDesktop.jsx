@@ -41,6 +41,7 @@ import DisplayPhotStats from "./DisplayPhotStats";
 import EditSourceGroups from "./EditSourceGroups";
 import SimilarSources from "./SimilarSources";
 import UpdateSourceCoordinates from "./UpdateSourceCoordinates";
+import UpdateSourceMPC from "./UpdateSourceMPC";
 import UpdateSourceRedshift from "./UpdateSourceRedshift";
 import UpdateSourceSummary from "./UpdateSourceSummary";
 import StartBotSummary from "./StartBotSummary";
@@ -343,7 +344,11 @@ const SourceDesktop = ({ source }) => {
             <div key="aliases"> {source.alias.join(", ")} </div>
           </div>
         ) : null}
-
+        <div className={classes.infoLine}>
+          <b>MPC Name: &nbsp;</b>
+          <UpdateSourceMPC source={source} />
+          <div key="mpc_name"> {source.mpc_name} </div>
+        </div>
         {associatedGCNs?.length > 0 ? (
           <div className={classes.infoLine}>
             <b>Associated to: &nbsp;</b>
@@ -1001,6 +1006,7 @@ SourceDesktop.propTypes = {
     gal_lat: PropTypes.number,
     dm: PropTypes.number,
     ebv: PropTypes.number,
+    mpc_name: PropTypes.string,
     luminosity_distance: PropTypes.number,
     annotations: PropTypes.arrayOf(
       PropTypes.shape({

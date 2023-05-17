@@ -266,6 +266,10 @@ class Obj(Base, conesearch_alchemy.Point):
         default=False,
         doc="Boolean indicating whether the object is a moving object.",
     )
+    mpc_name = sa.Column(
+        sa.String,
+        doc="Minor planet center name(s).",
+    )
 
     score = sa.Column(sa.Float, nullable=True, doc="Machine learning score.")
 

@@ -51,6 +51,7 @@ import EditSourceGroups from "./EditSourceGroups";
 import ShowSummaryHistory from "./ShowSummaryHistory";
 import SourceNotification from "./SourceNotification";
 import UpdateSourceCoordinates from "./UpdateSourceCoordinates";
+import UpdateSourceMPC from "./UpdateSourceMPC";
 import UpdateSourceRedshift from "./UpdateSourceRedshift";
 import UpdateSourceSummary from "./UpdateSourceSummary";
 import StartBotSummary from "./StartBotSummary";
@@ -338,6 +339,17 @@ const SourceMobile = WidthProvider(
                   {source.alias ? (
                     <div key="aliases"> ({source.alias.join(", ")}) </div>
                   ) : null}
+                </div>
+                <div className={classes.alignRight}>
+                  <>
+                    <div className={classes.infoLine}>
+                      <b>MPC Name: &nbsp;</b>
+                      <div key="mpc_name"> {source.mpc_name} </div>
+                    </div>
+                    <div>
+                      <UpdateSourceMPC source={source} />
+                    </div>
+                  </>
                 </div>
               </div>
               <div>
