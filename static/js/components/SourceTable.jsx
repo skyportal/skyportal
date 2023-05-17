@@ -27,6 +27,7 @@ import CheckIcon from "@mui/icons-material/Check";
 import ClearIcon from "@mui/icons-material/Clear";
 import InfoIcon from "@mui/icons-material/Info";
 import QuestionMarkIcon from "@mui/icons-material/QuestionMark";
+import PriorityHigh from "@mui/icons-material/PriorityHigh";
 import CircularProgress from "@mui/material/CircularProgress";
 import Divider from "@mui/material/Divider";
 import ListItem from "@mui/material/ListItem";
@@ -1315,7 +1316,7 @@ const SourceTable = ({
     const source = sources[dataIndex];
     let statusIcon = null;
     if (sourcesingcn.filter((s) => s.obj_id === source.id).length === 0) {
-      statusIcon = <QuestionMarkIcon size="small" color="primary" />;
+      statusIcon = <PriorityHigh size="small" color="primary" />;
     } else if (
       sourcesingcn.filter((s) => s.obj_id === source.id)[0].confirmed === true
     ) {
@@ -1324,6 +1325,8 @@ const SourceTable = ({
       sourcesingcn.filter((s) => s.obj_id === source.id)[0].confirmed === false
     ) {
       statusIcon = <ClearIcon size="small" color="secondary" />;
+    } else {
+      statusIcon = <QuestionMarkIcon size="small" color="primary" />;
     }
 
     return (

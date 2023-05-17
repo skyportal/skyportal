@@ -17,7 +17,6 @@ import grey from "@mui/material/colors/grey";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
-import { showNotification } from "baselayer/components/Notifications";
 import Button from "./Button";
 
 import * as SourceInGcnAction from "../ducks/confirmedsourcesingcn";
@@ -107,7 +106,7 @@ const ConfirmSourceInGCN = ({
     setOpen(false);
   };
 
-  let currentState = "unknown";
+  let currentState = "not_vetted";
   let currentExplanation = "";
   let currentNotes = "";
   if (
@@ -132,6 +131,12 @@ const ConfirmSourceInGCN = ({
         "";
       currentNotes =
         sourcesingcn.filter((s) => s.obj_id === source_id)[0]?.notes || "";
+    } else {
+      currentState = "ambiguous";
+      currentExplanation = sourcesingcn.filter((s) => s.obj_id === source_id)[0]
+        ?.explanation;
+      currentNotes = sourcesingcn.filter((s) => s.obj_id === source_id)[0]
+        ?.notes;
     }
   }
 
@@ -144,9 +149,9 @@ const ConfirmSourceInGCN = ({
     );
   };
 
-  const handleConfirm = () => {
+  const handleHighlight = () => {
     const data = getValues();
-    if (currentState === "unknown") {
+    if (currentState === "not_vetted") {
       dispatch(
         SourceInGcnAction.submitSourceInGcn(dateobs, {
           source_id,
@@ -164,27 +169,6 @@ const ConfirmSourceInGCN = ({
           handleClose();
         }
       });
-    } else if (currentState === "rejected") {
-      dispatch(
-        SourceInGcnAction.patchSourceInGcn(dateobs, source_id, {
-          confirmed: true,
-          explanation: data.explanation,
-          notes: data.notes,
-        })
-      ).then((response) => {
-        if (response.status === "success") {
-          handleUpdate();
-          handleClose();
-        }
-      });
-    } else if (
-      currentState === "confirmed" &&
-      currentExplanation === data.explanation &&
-      currentNotes === data.notes
-    ) {
-      dispatch(
-        showNotification("Source already confirmed with this explanation")
-      );
     } else {
       dispatch(
         SourceInGcnAction.patchSourceInGcn(dateobs, source_id, {
@@ -203,7 +187,7 @@ const ConfirmSourceInGCN = ({
 
   const handleReject = () => {
     const data = getValues();
-    if (currentState === "unknown") {
+    if (currentState === "not_vetted") {
       dispatch(
         SourceInGcnAction.submitSourceInGcn(dateobs, {
           source_id,
@@ -221,26 +205,6 @@ const ConfirmSourceInGCN = ({
           handleClose();
         }
       });
-    } else if (currentState === "confirmed") {
-      dispatch(
-        SourceInGcnAction.patchSourceInGcn(dateobs, source_id, {
-          confirmed: false,
-          explanation: data.explanation,
-          notes: data.notes,
-        })
-      ).then((response) => {
-        if (response.status === "success") {
-          handleUpdate();
-          handleClose();
-        }
-      });
-    } else if (
-      currentState === "rejected" &&
-      currentExplanation === data.explanation
-    ) {
-      dispatch(
-        showNotification("Source already rejected with this explanation")
-      );
     } else {
       dispatch(
         SourceInGcnAction.patchSourceInGcn(dateobs, source_id, {
@@ -257,17 +221,26 @@ const ConfirmSourceInGCN = ({
     }
   };
 
-  const handleUndefined = () => {
+  const handleAmbiguous = () => {
     const data = getValues();
-    if (data.explanation === "" && data.notes === "") {
-      dispatch(SourceInGcnAction.deleteSourceInGcn(dateobs, source_id)).then(
-        (response) => {
-          if (response.status === "success") {
-            handleUpdate();
-            handleClose();
-          }
+    if (currentState === "not_vetted") {
+      dispatch(
+        SourceInGcnAction.submitSourceInGcn(dateobs, {
+          source_id,
+          start_date,
+          end_date,
+          localization_name,
+          localization_cumprob,
+          confirmed: null,
+          explanation: data.explanation,
+          notes: data.notes,
+        })
+      ).then((response) => {
+        if (response.status === "success") {
+          handleUpdate();
+          handleClose();
         }
-      );
+      });
     } else {
       dispatch(
         SourceInGcnAction.patchSourceInGcn(dateobs, source_id, {
@@ -282,6 +255,17 @@ const ConfirmSourceInGCN = ({
         }
       });
     }
+  };
+
+  const handleNotVetted = () => {
+    dispatch(SourceInGcnAction.deleteSourceInGcn(dateobs, source_id)).then(
+      (response) => {
+        if (response.status === "success") {
+          handleUpdate();
+          handleClose();
+        }
+      }
+    );
   };
 
   return permissions.includes("Manage GCNs") ? (
@@ -345,9 +329,10 @@ const ConfirmSourceInGCN = ({
                       />
                     </div>
                     <div>
-                      <Button onClick={handleConfirm}>HIGHLIGHT</Button>
+                      <Button onClick={handleHighlight}>HIGHLIGHT</Button>
                       <Button onClick={handleReject}>REJECT</Button>
-                      <Button onClick={handleUndefined}>UNDEFINED</Button>
+                      <Button onClick={handleAmbiguous}>AMBIGUOUS</Button>
+                      <Button onClick={handleNotVetted}>NOT VETTED</Button>
                     </div>
                   </form>
                 </div>
