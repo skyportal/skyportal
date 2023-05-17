@@ -19,6 +19,7 @@ from ...models import (
     SpectrumReducer,
     SpectrumObserver,
     TNSRobot,
+    Instrument,
 )
 
 
@@ -30,6 +31,15 @@ upload_url = urllib.parse.urljoin(TNS_URL, 'api/file-upload')
 report_url = urllib.parse.urljoin(TNS_URL, 'api/bulk-report')
 reply_url = urllib.parse.urljoin(TNS_URL, 'api/bulk-report-reply')
 search_url = urllib.parse.urljoin(TNS_URL, 'api/get/search')
+
+TNS_INSTRUMENT_IDS = {
+    'ZTF': 196,
+}
+TNS_FILTER_IDS = {
+    'ztfg': 110,
+    'ztfr': 111,
+    'ztfi': 112,
+}
 
 
 class TNSRobotHandler(BaseHandler):
@@ -204,25 +214,35 @@ class ObjTNSHandler(BaseHandler):
 
         with self.Session() as session:
 
-            obj = session.scalars(
-                Obj.select(session.user_or_token).where(Obj.id == obj_id)
-            ).first()
-            if obj is None:
-                return self.error(f'No object available with ID {obj_id}')
-
-            photometry = session.scalars(
-                Photometry.select(session.user_or_token).where(
-                    Photometry.obj_id == obj_id
-                )
-            ).all()
-            photometry = [serialize(phot, 'ab', 'mag') for phot in photometry]
-
             data = self.get_json()
             tnsrobotID = data.get('tnsrobotID')
             reporters = data.get('reporters', '')
 
             if tnsrobotID is None:
                 return self.error('tnsrobotID is required')
+
+            obj = session.scalars(
+                Obj.select(session.user_or_token).where(Obj.id == obj_id)
+            ).first()
+            if obj is None:
+                return self.error(f'No object available with ID {obj_id}')
+
+            # for now we limit it to ZTF photometry, as we do not have a defined way to find the TNS id of other instruments and filters
+            ztf = session.scalars(
+                Instrument.select(session.user_or_token).where(Instrument.name == 'ZTF')
+            ).first()
+            if ztf is None:
+                return self.error(
+                    'No ZTF instrument available. Submitting to TNS is only available for ZTF data (for now).'
+                )
+
+            photometry = session.scalars(
+                Photometry.select(session.user_or_token).where(
+                    Photometry.obj_id == obj_id,
+                    Photometry.instrument_id == ztf.id,  # only ZTF
+                )
+            ).all()
+            photometry = [serialize(phot, 'ab', 'mag') for phot in photometry]
 
             tnsrobot = session.scalars(
                 TNSRobot.select(session.user_or_token).where(TNSRobot.id == tnsrobotID)
@@ -252,21 +272,23 @@ class ObjTNSHandler(BaseHandler):
                     ):
                         time_last_nondetection = phot['mjd']
                         limmag_last_nondetection = phot['limiting_mag']
-                        filt_last_nondetection = phot['filter']
-                        instrument_last_nondetection = phot['instrument_name']
+                        filt_last_nondetection = TNS_FILTER_IDS[phot['filter']]
+                        instrument_last_nondetection = TNS_INSTRUMENT_IDS[
+                            phot['instrument_name']
+                        ]
                 else:
                     if time_first is None or phot['mjd'] < time_first:
                         time_first = phot['mjd']
                         mag_first = phot['mag']
                         magerr_first = phot['magerr']
-                        filt_first = phot['filter']
-                        instrument_first = phot['instrument_name']
+                        filt_first = TNS_FILTER_IDS[phot['filter']]
+                        instrument_first = TNS_INSTRUMENT_IDS[phot['instrument_name']]
                     if time_last is None or phot['mjd'] > time_last:
                         time_last = phot['mjd']
                         mag_last = phot['mag']
                         magerr_last = phot['magerr']
-                        filt_last = phot['filter']
-                        instrument_last = phot['instrument_name']
+                        filt_last = TNS_FILTER_IDS[phot['filter']]
+                        instrument_last = TNS_INSTRUMENT_IDS[phot['instrument_name']]
             if time_last_nondetection is None:
                 return self.error('Need last non-detection for TNS report')
 
