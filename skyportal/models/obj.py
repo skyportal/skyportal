@@ -268,7 +268,7 @@ class Obj(Base, conesearch_alchemy.Point):
     )
     mpc_name = sa.Column(
         sa.String,
-        doc="Minor planet center name(s).",
+        doc="Minor planet center name.",
     )
 
     score = sa.Column(sa.Float, nullable=True, doc="Machine learning score.")

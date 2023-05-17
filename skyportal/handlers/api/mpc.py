@@ -98,7 +98,7 @@ class ObjMPCHandler(BaseHandler):
         except Exception:
             return self.error('Cannot read in limiting magnitude.')
 
-        search_radius = data.get('search_radius', 60.0)
+        search_radius = data.get('search_radius', 1)
         try:
             search_radius = float(search_radius)
         except Exception:
@@ -125,11 +125,32 @@ class ObjMPCHandler(BaseHandler):
                 unit='hourangle', sep=' ', precision=2, pad=True
             ).split(" ")
             dec = Angle(obj.dec, unit='degree')
-            dec_dms = dec.to_string(unit=u.deg, sep=' ', precision=1, pad=True).split(
+            dec_dms = dec.to_string(unit=u.deg, sep=' ', precision=2, pad=True).split(
                 " "
             )
 
-            url = f"{mpcheck_url}?year={year}&month={month}&day={day}&which=pos&ra={ra_hms[0]}+{ra_hms[1]}+{ra_hms[2]}&decl={dec_dms[0]}+{dec_dms[1]}+{dec_dms[2]}&TextArea=&radius={search_radius}&limit={limiting_magnitude}&oc={obscode}&sort=d&mot=h&tmot=s&pdes=u&needed=f&ps=n&type=p"
+            params = {
+                'year': year,
+                'month': month,
+                'day': day,
+                'which': 'pos',
+                'ra': f'{ra_hms[0]}+{ra_hms[1]}+{ra_hms[2]}',
+                'decl': f'{dec_dms[0]}+{dec_dms[1]}+{dec_dms[2]}',
+                'TextArea': '',
+                'radius': search_radius,
+                'limit': limiting_magnitude,
+                'oc': obscode,
+                'sort': 'd',
+                'mot': 'h',
+                'tmot': 's',
+                'pdes': 'u',
+                'needed': 'f',
+                'ps': 'n',
+                'type': 'p',
+            }
+
+            url = f"{mpcheck_url}?{urllib.parse.urlencode(params)}"
+            url = url.replace("%2B", "+")
 
             try:
                 loop = asyncio.get_event_loop()
