@@ -199,11 +199,11 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
 
                 if len(sources_id_list) == 0:
                     stmt = SourcesConfirmedInGCN.select(session.user_or_token).where(
-                        Localization.dateobs == dateobs
+                        SourcesConfirmedInGCN.dateobs == dateobs
                     )
                 else:
                     stmt = SourcesConfirmedInGCN.select(session.user_or_token).where(
-                        Localization.dateobs == dateobs,
+                        SourcesConfirmedInGCN.dateobs == dateobs,
                         SourcesConfirmedInGCN.obj_id.in_(sources_id_list),
                     )
                 sources_in_gcn = session.scalars(stmt).all()

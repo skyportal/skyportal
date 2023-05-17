@@ -550,7 +550,7 @@ def annotate_gcn_events(plot, gcn_events, lower, upper):
 
     # plot the annotation using data for hover
     if len(g_mjd) > 0:
-        gcn_event_r = plot.text(
+        plot.text(
             x='g_mjd',
             y='g_y',
             text='g_text',
@@ -566,17 +566,32 @@ def annotate_gcn_events(plot, gcn_events, lower, upper):
                 )
             ),
         )
-        plot.add_tools(
-            HoverTool(
-                tooltips=[
-                    ("GCN Event", ""),
-                    ("mjd", "@g_mjd{0.000000}"),
-                    ("date", "@g_date"),
-                    ("aliases", "@g_aliases"),
-                ],
-                renderers=[gcn_event_r],
+
+        y = np.linspace(lower, upper, 5000)
+        lines = [
+            plot.line(
+                x=np.full(5000, g_mjd[i]),
+                y=y,
+                line_alpha=0.2,
+                line_color='black',
+                line_width=3,
+                line_dash='dashed',
             )
-        )
+            for i in range(len(g_mjd))
+        ]
+
+        for i in range(len(lines)):
+            plot.add_tools(
+                HoverTool(
+                    tooltips=[
+                        ("GCN Event", ""),
+                        ("mjd", str(g_mjd[i])),
+                        ("date", str(g_date[i])),
+                        ("aliases", str(g_aliases[i])),
+                    ],
+                    renderers=[lines[i]],
+                )
+            )
 
 
 def add_plot_legend(plot, legend_items, width, legend_orientation, legend_loc):
@@ -2131,7 +2146,7 @@ async def photometry_plot(obj_id, user_id, session, width=600, device="browser")
         SourcesConfirmedInGCN.select(session.user_or_token)
         .where(
             SourcesConfirmedInGCN.obj_id == obj_id,
-            SourcesConfirmedInGCN.confirmed.is_(True),
+            SourcesConfirmedInGCN.confirmed.is_not(False),
         )
         .subquery()
     )
