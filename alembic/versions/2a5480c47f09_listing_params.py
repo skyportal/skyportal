@@ -1,7 +1,7 @@
 """listing_params
 
 Revision ID: 2a5480c47f09
-Revises: 5afbab3b73c4
+Revises: 1f45fc716f66
 Create Date: 2023-05-17 08:45:38.681059
 
 """
@@ -11,7 +11,7 @@ from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision = '2a5480c47f09'
-down_revision = '5afbab3b73c4'
+down_revision = '1f45fc716f66'
 branch_labels = None
 depends_on = None
 
