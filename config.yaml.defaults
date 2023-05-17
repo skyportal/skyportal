@@ -46,6 +46,8 @@ app:
 
   fink_endpoint: https://fink-portal.org
 
+  mpc_endpoint: https://minorplanetcenter.net
+
   swift:
     protocol: https
     host: www.swift.psu.edu
