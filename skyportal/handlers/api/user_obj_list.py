@@ -188,7 +188,7 @@ class UserObjListHandler(BaseHandler):
                     )
                 if (
                     params["arcsec"] <= 0
-                    or params["cadence"] <= 1
+                    or params["cadence"] < 1
                     or params["arcsec"] > 3600
                 ):
                     return self.error(

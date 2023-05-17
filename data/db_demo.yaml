@@ -856,6 +856,17 @@ sources/ZTFrlh6cyjh/annotations:
     group_ids:
       - =program_B
 
+listing:
+  - obj_id: ZTF21aaqjmps
+    list_name: "favorite"
+
+  - obj_id: ZTF21aaqjmps
+    list_name: "watchlist"
+    params:
+      arcsec: 1000
+      cadence: 1
+      after_night: False
+
 taxonomy:
   file: taxonomy_demo.yaml
 

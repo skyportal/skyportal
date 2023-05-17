@@ -1142,7 +1142,11 @@ def api(queue):
                                 else:
                                     favorite_sources = session.scalars(
                                         sa.select(Listing)
-                                        .where(Listing.list_name == 'favorites')
+                                        .where(
+                                            Listing.list_name.in_(
+                                                ["favorites", "watchlist"]
+                                            )
+                                        )
                                         .where(Listing.obj_id == target_data['obj_id'])
                                         .where(Listing.user_id == user.id)
                                     ).all()
@@ -1265,7 +1269,7 @@ def api(queue):
                                             ):
                                                 notification = UserNotification(
                                                     user=user,
-                                                    text=f"New activity on favorite source *{target_data['obj_id']}*",
+                                                    text=f"New activity around favorite source *{target_data['obj_id']}* (within {target_data['params'].get('arcsec', 5.0)} arcsec)",
                                                     notification_type="favorite_sources_new_activity",
                                                     url=f"/source/{target_data['obj_id']}",
                                                 )

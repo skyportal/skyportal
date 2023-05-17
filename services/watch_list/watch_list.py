@@ -101,7 +101,6 @@ def check_watch_list(time_info):
         shortest_interval = (
             min(cadences if len(cadences) > 0 else [1]) * 60.0
         )  # in seconds, defaults to 60 seconds if no cadences are found
-
         for listing_id in listing_ids:
             try:
                 listing = session.query(Listing).where(Listing.id == listing_id).first()
@@ -142,9 +141,6 @@ def check_watch_list(time_info):
 
                 if params["after_night"] and time_info['is_night_astronomical']:
                     # if the user requests for update after night has ended and its still night, skip
-                    continue
-                if not params["after_night"] and not time_info['is_night_astronomical']:
-                    # if the user requests for update during the night and its not night, skip
                     continue
                 if (
                     Time(
@@ -220,6 +216,7 @@ def check_watch_list(time_info):
                     "last_got_candidates_at": Time(max(jds), format='jd').isot,
                 }
 
+                all_photometry_ids = []
                 for object_id in object_ids:
                     photometry_ids, _ = post_alert(
                         object_id,
@@ -229,24 +226,27 @@ def check_watch_list(time_info):
                         program_id_selector=program_id_selector,
                     )
                     if len(photometry_ids) > 0:
-                        request_body = {
-                            'target_class_name': "Listing",
-                            'target_id': listing_id,
-                        }
+                        all_photometry_ids.extend(photometry_ids)
 
-                        notifications_microservice_url = (
-                            f'http://127.0.0.1:{cfg["ports.notification_queue"]}'
-                        )
+                if len(all_photometry_ids) > 0:
+                    request_body = {
+                        'target_class_name': "Listing",
+                        'target_id': listing_id,
+                    }
 
-                        resp = requests.post(
-                            notifications_microservice_url,
-                            json=request_body,
-                            timeout=30,
+                    notifications_microservice_url = (
+                        f'http://127.0.0.1:{cfg["ports.notification_queue"]}'
+                    )
+
+                    resp = requests.post(
+                        notifications_microservice_url,
+                        json=request_body,
+                        timeout=30,
+                    )
+                    if resp.status_code != 200:
+                        log(
+                            f'Notification request failed for {request_body["target_class_name"]} with ID {request_body["target_id"]}: {resp.content}'
                         )
-                        if resp.status_code != 200:
-                            log(
-                                f'Notification request failed for {request_body["target_class_name"]} with ID {request_body["target_id"]}: {resp.content}'
-                            )
             except Exception as e:
                 log(e)
                 DBSession.rollback()
