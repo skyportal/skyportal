@@ -302,7 +302,7 @@ const ConfirmSourceInGCN = ({
             maxWidth="md"
           >
             <DialogTitle onClose={handleClose}>
-              Confirm/Reject Source {source_id} in GCN {dateobs}
+              Highlight/Reject Source {source_id} in GCN {dateobs}
             </DialogTitle>
             <DialogContent dividers>
               <div className={classes.dialogContent}>
@@ -345,7 +345,7 @@ const ConfirmSourceInGCN = ({
                       />
                     </div>
                     <div>
-                      <Button onClick={handleConfirm}>CONFIRM</Button>
+                      <Button onClick={handleConfirm}>HIGHLIGHT</Button>
                       <Button onClick={handleReject}>REJECT</Button>
                       <Button onClick={handleUndefined}>UNDEFINED</Button>
                     </div>

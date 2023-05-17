@@ -1864,89 +1864,115 @@ const SourceTable = ({
       downloadCallback().then((data) => {
         // if there is no data, cancel download
         if (data?.length > 0) {
+          const head = [
+            {
+              name: "id",
+              download: true,
+            },
+            {
+              name: "ra [deg]",
+              download: true,
+            },
+            {
+              name: "dec [deg]",
+              download: true,
+            },
+            {
+              name: "redshift",
+              download: true,
+            },
+            {
+              name: "classification",
+              download: true,
+            },
+            {
+              name: "probability",
+              download: true,
+            },
+            {
+              name: "annotation origin",
+              download: true,
+            },
+            {
+              name: "annotation origin key-value pair count",
+              download: true,
+            },
+            {
+              name: "annotation key",
+              download: true,
+            },
+            {
+              name: "annotation value",
+              download: true,
+            },
+            {
+              name: "groups",
+              download: true,
+            },
+            {
+              name: "Date saved",
+              download: true,
+            },
+            {
+              name: "Alias",
+              download: true,
+            },
+            {
+              name: "Origin",
+              download: true,
+            },
+            {
+              name: "TNS Name",
+              download: true,
+            },
+          ];
+          if (includeGcnStatus) {
+            head.push({
+              name: "GCN Status",
+              download: true,
+            });
+            head.push({
+              name: "GCN Status Explanation",
+              download: true,
+            });
+            head.push({
+              name: "GCN Notes",
+              download: true,
+            });
+          }
+
+          const formatDataFunc = (x) => {
+            const formattedData = [
+              x.id,
+              x.ra,
+              x.dec,
+              x.redshift,
+              renderDownloadClassification(x),
+              renderDownloadProbability(x),
+              renderDownloadAnnotationOrigin(x),
+              renderDownloadAnnotationOriginKeyValuePairCount(x),
+              renderDownloadAnnotationKey(x),
+              renderDownloadAnnotationValue(x),
+              renderDownloadGroups(x),
+              renderDownloadDateSaved(x),
+              renderDownloadAlias(x),
+              x.origin,
+              renderDownloadTNSName(x),
+            ];
+            if (includeGcnStatus) {
+              formattedData.push(x.gcn ? x.gcn.status : "");
+              formattedData.push(x.gcn ? x.gcn.explanation : "");
+              formattedData.push(x.gcn ? x.gcn.notes : "");
+            }
+            return formattedData;
+          };
+
           const result =
-            buildHead([
-              {
-                name: "id",
-                download: true,
-              },
-              {
-                name: "ra [deg]",
-                download: true,
-              },
-              {
-                name: "dec [deg]",
-                download: true,
-              },
-              {
-                name: "redshift",
-                download: true,
-              },
-              {
-                name: "classification",
-                download: true,
-              },
-              {
-                name: "probability",
-                download: true,
-              },
-              {
-                name: "annotation origin",
-                download: true,
-              },
-              {
-                name: "annotation origin key-value pair count",
-                download: true,
-              },
-              {
-                name: "annotation key",
-                download: true,
-              },
-              {
-                name: "annotation value",
-                download: true,
-              },
-              {
-                name: "groups",
-                download: true,
-              },
-              {
-                name: "Date saved",
-                download: true,
-              },
-              {
-                name: "Alias",
-                download: true,
-              },
-              {
-                name: "Origin",
-                download: true,
-              },
-              {
-                name: "TNS Name",
-                download: true,
-              },
-            ]) +
+            buildHead(head) +
             buildBody(
               data.map((x) => ({
                 ...x,
-                data: [
-                  x.id,
-                  x.ra,
-                  x.dec,
-                  x.redshift,
-                  renderDownloadClassification(x),
-                  renderDownloadProbability(x),
-                  renderDownloadAnnotationOrigin(x),
-                  renderDownloadAnnotationOriginKeyValuePairCount(x),
-                  renderDownloadAnnotationKey(x),
-                  renderDownloadAnnotationValue(x),
-                  renderDownloadGroups(x),
-                  renderDownloadDateSaved(x),
-                  renderDownloadAlias(x),
-                  x.origin,
-                  renderDownloadTNSName(x),
-                ],
+                data: formatDataFunc(x),
               }))
             );
           const blob = new Blob([result], {
