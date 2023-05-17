@@ -108,6 +108,15 @@ class UserObjListHandler(BaseHandler):
                         List name must be a non-empty string starting with an
                         alphanumeric character or underscore.
                         (it must match the regex: /^\\w+/)
+                  params:
+                    type: object
+                    required: false
+                    description: |
+                        Optional parameters for "watchlist" type listings, when searching for new candidates around a given object.
+                        For example, if you want to search for new candidates around a given object, you can specify the search radius
+                        and the number of candidates to return.
+                        The parameters are passed to the microservice that is responsible for processing the listing.
+                        The microservice will return a list of candidates that match the given parameters, and ingest them.
 
         responses:
           200:
@@ -157,6 +166,39 @@ class UserObjListHandler(BaseHandler):
                 "Input `list_name` must begin with alphanumeric/underscore"
             )
 
+        if list_name == "watchlist" and "params" not in data:
+            return self.error("Input `params` must be provided for `watchlist`")
+
+        params = data.get('params', None)
+
+        if params is not None:
+            if not isinstance(params, dict):
+                return self.error("Input `params` must be a dictionary")
+            if list_name == "watchlist":
+                # verify that the params are "arcsec", "cadence", and "end_of_night"
+                if "arcsec" not in params or "cadence" not in params:
+                    return self.error(
+                        "Input `params` must contain `arcsec` and `cadence`"
+                    )
+                if not isinstance(params["arcsec"], (int, float)) or not isinstance(
+                    params["cadence"], (int, float)
+                ):
+                    return self.error(
+                        "Inputs `params.arcsec` and `params.cadence` must be numbers"
+                    )
+                if (
+                    params["arcsec"] <= 0
+                    or params["cadence"] <= 1
+                    or params["arcsec"] > 3600
+                ):
+                    return self.error(
+                        "Inputs `params.arcsec` must be higher than 0 and less than 3600, and `params.cadence` must be 1 and above"
+                    )
+                if "end_of_night" in params and not isinstance(
+                    params["end_of_night"], bool
+                ):
+                    return self.error("Input `params.end_of_night` must be a boolean")
+
         with self.Session() as session:
             stmt = Listing.select(self.current_user).where(
                 Listing.user_id == user_id,
@@ -171,7 +213,9 @@ class UserObjListHandler(BaseHandler):
                     f'obj_id={obj_id} and list_name={list_name}'
                 )
 
-            listing = Listing(user_id=user_id, obj_id=obj_id, list_name=list_name)
+            listing = Listing(
+                user_id=user_id, obj_id=obj_id, list_name=list_name, params=params
+            )
 
             session.add(listing)
 
