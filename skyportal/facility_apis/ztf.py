@@ -985,6 +985,14 @@ class ZTFMMAAPI(MMAAPI):
                 "default": "GW",
             },
             "filters": {"type": "string", "default": "ztfg,ztfr,ztfg"},
+            "use_primary": {
+                "title": "Use primary grid only?",
+                "type": "boolean",
+            },
+            "use_secondary": {
+                "title": "Use secondary grid only?",
+                "type": "boolean",
+            },
         }
         form_json_schema["required"] = form_json_schema["required"] + [
             "subprogram_name",

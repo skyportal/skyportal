@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 
 import PropTypes from "prop-types";
@@ -208,7 +208,14 @@ const CommentList = ({
     (state) => state.profile.preferences?.compactComments
   );
   const { currentShift } = useSelector((state) => state.shift);
+
+  const { showBotComments } = useSelector((state) => state.profile.preferences);
+
   const [includeBots, setIncludeBots] = useState(false);
+
+  useEffect(() => {
+    setIncludeBots(showBotComments);
+  }, [showBotComments]);
 
   if (!objID && obj) {
     objID = obj.id;

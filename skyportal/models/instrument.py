@@ -284,6 +284,12 @@ class Instrument(Base):
         doc="JSON describing the filters on the instrument and the filter's corresponding limiting magnitude and exposure time.",
     )
 
+    configuration_data = sa.Column(
+        JSONB,
+        nullable=True,
+        doc="JSON describing instrument configuration properties such as instrument overhead, filter change time, readout, etc.",
+    )
+
     allocations = relationship(
         'Allocation',
         back_populates="instrument",

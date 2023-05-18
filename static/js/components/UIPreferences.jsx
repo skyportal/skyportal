@@ -15,6 +15,7 @@ const UIPreferences = () => {
   const compactComments = preferences?.compactComments || false;
   const useAMPM = preferences?.useAMPM || false;
   const useRefMag = preferences?.useRefMag || false;
+  const showBotComments = preferences?.showBotComments || false;
   const dispatch = useDispatch();
 
   const themeToggled = (event) => {
@@ -49,6 +50,13 @@ const UIPreferences = () => {
   const useRefMagToggled = (event) => {
     const prefs = {
       useRefMag: event.target.checked,
+    };
+    dispatch(profileActions.updateUserPreferences(prefs));
+  };
+
+  const showBotCommentsToggled = (event) => {
+    const prefs = {
+      showBotComments: event.target.checked,
     };
     dispatch(profileActions.updateUserPreferences(prefs));
   };
@@ -93,6 +101,14 @@ const UIPreferences = () => {
     />
   );
 
+  const showBotCommentsSwitch = (
+    <Switch
+      value="Show Bot Comments by default"
+      checked={showBotComments}
+      onChange={showBotCommentsToggled}
+    />
+  );
+
   /* To get hold of the current theme:
 
   const themeCtx = useTheme();
@@ -117,6 +133,10 @@ const UIPreferences = () => {
         <FormControlLabel
           control={useRefMagSwitch}
           label="Use Reference Magnitude"
+        />
+        <FormControlLabel
+          control={showBotCommentsSwitch}
+          label="Bot Comments"
         />
       </FormGroup>
     </div>
