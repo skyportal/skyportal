@@ -93,7 +93,7 @@ const FieldSelect = ({
 
   const fields = [];
   skymapInstrument?.fields?.forEach((field) => {
-    fields.push(Number(field.id));
+    fields.push(Number(field.field_id));
   });
   fields.sort((a, b) => a - b);
 
