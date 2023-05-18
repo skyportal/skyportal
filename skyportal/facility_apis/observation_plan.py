@@ -453,6 +453,7 @@ def generate_plan(
             ],
             # use only primary grid
             'doUsePrimary': request.payload.get("use_primary", False),
+            'doUseSecondary': request.payload.get("use_secondary", False),
         }
 
         config = {}
