@@ -6,6 +6,8 @@ import { useMediaQuery } from "@mui/material";
 import Box from "@mui/material/Box";
 import Checkbox from "@mui/material/Checkbox";
 import CircularProgress from "@mui/material/CircularProgress";
+import Dialog from "@mui/material/Dialog";
+import DialogContent from "@mui/material/DialogContent";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import FormGroup from "@mui/material/FormGroup";
 import Grid from "@mui/material/Grid";
@@ -23,12 +25,14 @@ import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import utc from "dayjs/plugin/utc";
 
+import { showNotification } from "baselayer/components/Notifications";
 import Button from "./Button";
 
 import * as galaxiesActions from "../ducks/galaxies";
 import * as instrumentActions from "../ducks/instrument";
 import * as observationsActions from "../ducks/observations";
 import * as sourcesActions from "../ducks/sources";
+import * as sourcesingcnActions from "../ducks/confirmedsourcesingcn";
 
 import AddCatalogQueryPage from "./AddCatalogQueryPage";
 import AddSurveyEfficiencyObservationsPage from "./AddSurveyEfficiencyObservationsPage";
@@ -37,6 +41,7 @@ import GalaxyTable from "./GalaxyTable";
 import GcnSummary from "./GcnSummary";
 import LocalizationPlot from "./LocalizationPlot";
 import SourceTable from "./SourceTable";
+import ProgressIndicator from "./ProgressIndicators";
 
 import * as localizationActions from "../ducks/localization";
 
@@ -144,20 +149,29 @@ const GcnEventSourcesPage = ({
 }) => {
   const classes = useStyles();
   const dispatch = useDispatch();
+  const sourcesState = useSelector((state) => state.sources.gcnEventSources);
   const [sourcesRowsPerPage, setSourcesRowsPerPage] = useState(100);
+  const [filtering, setFiltering] = useState({
+    ...sourceFilteringState,
+    localizationName,
+    pageNumber: 1,
+    numPerPage: sourcesRowsPerPage,
+  });
+  const [downloadProgressCurrent, setDownloadProgressCurrent] = useState(0);
+  const [downloadProgressTotal, setDownloadProgressTotal] = useState(0);
 
   const handleSourcesTableSorting = (sortData, filterData) => {
-    dispatch(
-      sourcesActions.fetchGcnEventSources(dateobs, {
-        ...sourceFilteringState,
-        ...filterData,
-        localizationName,
-        pageNumber: 1,
-        numPerPage: sourcesRowsPerPage,
-        sortBy: sortData.name,
-        sortOrder: sortData.direction,
-      })
-    );
+    const data = {
+      ...sourceFilteringState,
+      ...filterData,
+      localizationName,
+      pageNumber: 1,
+      numPerPage: sourcesRowsPerPage,
+      sortBy: sortData.name,
+      sortOrder: sortData.direction,
+    };
+    dispatch(sourcesActions.fetchGcnEventSources(dateobs, data));
+    setFiltering(data);
   };
 
   const handleSourcesTablePagination = (
@@ -179,23 +193,95 @@ const GcnEventSourcesPage = ({
       data.sortOrder = sortData.direction;
     }
     dispatch(sourcesActions.fetchGcnEventSources(dateobs, data));
+    setFiltering(data);
   };
 
-  // eslint-disable-next-line
-  if (!sources || sources?.sources?.length === 0) {
-    return (
-      <div className={classes.noSources}>
-        <Typography variant="h5">Event sources</Typography>
-        <br />
-        <Typography variant="h5" align="center">
-          No sources within localization.
-        </Typography>
-      </div>
+  const handleSourcesDownload = async () => {
+    const sourceAll = [];
+    if (sourcesState.totalMatches === 0) {
+      dispatch(showNotification("No sources to download", "warning"));
+    } else {
+      setDownloadProgressTotal(sourcesState.totalMatches);
+      for (
+        let i = 1;
+        i <= Math.ceil(sourcesState.totalMatches / sourcesState.numPerPage);
+        i += 1
+      ) {
+        const data = {
+          ...filtering,
+          pageNumber: i,
+          numPerPage: sourcesState.numPerPage,
+        };
+        /* eslint-disable no-await-in-loop */
+        const result = await dispatch(sourcesActions.fetchSources(data));
+        if (result && result.data && result?.status === "success") {
+          sourceAll.push(...result.data.sources);
+          setDownloadProgressCurrent(sourceAll.length);
+          setDownloadProgressTotal(sourcesState.totalMatches);
+        } else if (result && result?.status !== "success") {
+          // break the loop and set progress to 0 and show error message
+          setDownloadProgressCurrent(0);
+          setDownloadProgressTotal(0);
+          if (sourceAll?.length === 0) {
+            dispatch(
+              showNotification(
+                "Failed to fetch some sources. Download cancelled.",
+                "error"
+              )
+            );
+          } else {
+            dispatch(
+              showNotification(
+                "Failed to fetch some sources, please try again. Sources fetched so far will be downloaded.",
+                "error"
+              )
+            );
+          }
+          break;
+        }
+      }
+    }
+    setDownloadProgressCurrent(0);
+    setDownloadProgressTotal(0);
+    if (sourceAll?.length === sourcesState.totalMatches?.length) {
+      dispatch(showNotification("Sources downloaded successfully"));
+    }
+
+    // for all of the sources, fetch the sourcesconfirmedingcn status
+    const response = await dispatch(
+      sourcesingcnActions.fetchSourcesInGcn(dateobs, {
+        localizationName,
+        sourcesIdList: sourceAll.map((source) => source.id),
+      })
     );
-  }
+    if (response?.status === "success") {
+      sourceAll.forEach((source) => {
+        const match = response.data.find((item) => item.obj_id === source.id);
+        if (match) {
+          source.gcn = {
+            status: match.confirmed ? "Highlighted" : "Rejected",
+            explanation: match.explanation,
+            notes: match.notes,
+          };
+        } else {
+          source.gcn = {
+            status: "Undefined",
+            explanation: "",
+            notes: "",
+          };
+        }
+      });
+    }
+    return sourceAll;
+  };
 
   return (
     <div className={classes.sourceList}>
+      {sources?.sources?.length === 0 && (
+        <Typography variant="h5" align="center">
+          No sources found within localization with these filters.
+        </Typography>
+      )}
       <SourceTable
         sources={sources.sources}
         title="Event Sources"
@@ -206,9 +292,44 @@ const GcnEventSourcesPage = ({
         sortingCallback={handleSourcesTableSorting}
         favoritesRemoveButton
         hideTitle
+        downloadCallback={handleSourcesDownload}
         includeGcnStatus
         sourceInGcnFilter={sourceFilteringState}
       />
+      <Dialog
+        open={downloadProgressTotal > 0}
+        style={{ position: "fixed" }}
+        maxWidth="md"
+      >
+        <DialogContent
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "center",
+            alignItems: "center",
+          }}
+        >
+          <Typography variant="h6" display="inline">
+            Downloading {downloadProgressTotal} sources
+          </Typography>
+          <div
+            style={{
+              height: "5rem",
+              width: "5rem",
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "center",
+              alignItems: "center",
+            }}
+          >
+            <ProgressIndicator
+              current={downloadProgressCurrent}
+              total={downloadProgressTotal}
+              percentage={false}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
@@ -585,6 +706,8 @@ const GcnSelectionForm = ({
     formData.endDate = formData.endDate
       .replace("+00:00", "")
       .replace(".000Z", "");
+    formData.numPerPage = 100;
+    formData.pageNumber = 1;
 
     if (Object.keys(locLookUp).includes(selectedLocalizationId?.toString())) {
       formData.localizationName =
@@ -1011,23 +1134,19 @@ const GcnSelectionForm = ({
             <div>
               {gcnEventSources?.sources ? (
                 <div>
-                  {gcnEventSources?.sources.length === 0 ? (
-                    <Typography variant="h5">None</Typography>
-                  ) : (
-                    <div>
-                      {selectedLocalizationName && (
-                        <GcnEventSourcesPage
-                          dateobs={dateobs}
-                          sources={gcnEventSources}
-                          localizationName={selectedLocalizationName}
-                          sourceFilteringState={sourceFilteringState}
-                        />
-                      )}
-                    </div>
+                  {selectedLocalizationName && (
+                    <GcnEventSourcesPage
+                      dateobs={dateobs}
+                      sources={gcnEventSources}
+                      localizationName={selectedLocalizationName}
+                      sourceFilteringState={sourceFilteringState}
+                    />
                   )}
                 </div>
               ) : (
-                <Typography variant="h5">Fetching sources...</Typography>
+                <Typography variant="h5">
+                  Need to fetch sources from the query form
+                </Typography>
               )}
             </div>
           )}
