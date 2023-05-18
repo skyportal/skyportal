@@ -46,11 +46,13 @@ from skyportal.models import (
     PHOT_ZP,
     Annotation,
     AnnotationOnSpectrum,
+    GcnEvent,
     Instrument,
     Obj,
     ObjAnalysis,
     PhotometricSeries,
     Photometry,
+    SourcesConfirmedInGCN,
     Spectrum,
     User,
 )
@@ -518,6 +520,78 @@ def annotate_analyses(plot, analyses, lower, upper):
                 renderers=[analysis_r],
             )
         )
+
+
+def annotate_gcn_events(plot, gcn_events, lower, upper):
+    """Annotate photometry plot with GCN event markers.
+
+    Parameters
+    ----------
+    plot : bokeh figure object
+        Figure to be annotated.
+    gcn_events : DBSession object
+        Results of query for GCN events with object as confirmed.
+    lower, upper : float
+        Plot limits allowing calculation of annotation symbol y value.
+
+    Returns
+    -------
+    None
+    """
+    # get y position of annotation
+    text_g = upper - (upper - lower) * 0.05
+    g_y = [text_g] * len(gcn_events)
+    g_text = ['G'] * len(gcn_events)
+
+    # get data from GCN events
+    g_mjd = [Time(g.dateobs, format='datetime').mjd for g in gcn_events]
+    g_date = [g.dateobs.isoformat() for g in gcn_events]
+    g_aliases = [",".join(g.aliases) for g in gcn_events]
+
+    # plot the annotation using data for hover
+    if len(g_mjd) > 0:
+        plot.text(
+            x='g_mjd',
+            y='g_y',
+            text='g_text',
+            text_alpha=0.3,
+            text_align='center',
+            source=ColumnDataSource(
+                data=dict(
+                    g_mjd=g_mjd,
+                    g_y=g_y,
+                    g_date=g_date,
+                    g_text=g_text,
+                    g_aliases=g_aliases,
+                )
+            ),
+        )
+
+        y = np.linspace(lower, upper, 5000)
+        lines = [
+            plot.line(
+                x=np.full(5000, g_mjd[i]),
+                y=y,
+                line_alpha=0.2,
+                line_color='black',
+                line_width=3,
+                line_dash='dashed',
+            )
+            for i in range(len(g_mjd))
+        ]
+
+        for i in range(len(lines)):
+            plot.add_tools(
+                HoverTool(
+                    tooltips=[
+                        ("GCN Event", ""),
+                        ("mjd", str(g_mjd[i])),
+                        ("date", str(g_date[i])),
+                        ("aliases", str(g_aliases[i])),
+                    ],
+                    renderers=[lines[i]],
+                )
+            )
 
 
 def add_plot_legend(plot, legend_items, width, legend_orientation, legend_loc):
@@ -1676,7 +1750,16 @@ def add_widgets(
 
 
 def make_photometry_panel(
-    panel_name, device, width, user, data, obj_id, spectra, analyses, session
+    panel_name,
+    device,
+    width,
+    user,
+    data,
+    obj_id,
+    spectra,
+    analyses,
+    gcn_events,
+    session,
 ):
     """Makes a panel for the photometry plot.
 
@@ -1699,6 +1782,8 @@ def make_photometry_panel(
         The source/object's spectra
     analyses : list of ObjAnalysis objects
         The source/object's analyses
+    gcn_events : list of GcnEvent objects
+        Events for which the source/object is confirmed.
     session: sqlalchemy.Session
         Database session for this transaction
 
@@ -1913,6 +1998,7 @@ def make_photometry_panel(
     if panel_name == 'mag' or panel_name == 'flux':
         annotate_spec(plot, spectra, y_range[0], y_range[1])
         annotate_analyses(plot, analyses, y_range[0], y_range[1])
+        annotate_gcn_events(plot, gcn_events, y_range[0], y_range[1])
 
     layout = column(
         plot,
@@ -2056,12 +2142,39 @@ async def photometry_plot(obj_id, user_id, session, width=600, device="browser")
         .all()
     )
 
+    source_subquery = (
+        SourcesConfirmedInGCN.select(session.user_or_token)
+        .where(
+            SourcesConfirmedInGCN.obj_id == obj_id,
+            SourcesConfirmedInGCN.confirmed.is_not(False),
+        )
+        .subquery()
+    )
+    gcn_events = (
+        session.scalars(
+            GcnEvent.select(session.user_or_token).join(
+                source_subquery, GcnEvent.dateobs == source_subquery.c.dateobs
+            )
+        )
+        .unique()
+        .all()
+    )
+
     panel_names = ['mag', 'flux', 'period']
     panels = []
 
     for panel_name in panel_names:
         panel = make_photometry_panel(
-            panel_name, device, width, user, data, obj_id, spectra, analyses, session
+            panel_name,
+            device,
+            width,
+            user,
+            data,
+            obj_id,
+            spectra,
+            analyses,
+            gcn_events,
+            session,
         )
         panels.append(panel)
     tabs = Tabs(
