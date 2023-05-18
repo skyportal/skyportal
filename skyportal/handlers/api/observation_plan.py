@@ -701,7 +701,6 @@ class ObservationPlanRequestHandler(BaseHandler):
                     )
 
                 data_out = observation_plan_request.to_dict()
-                print(include_planned_observations)
                 if include_planned_observations:
                     observation_plans = []
                     for observation_plan in observation_plan_request.observation_plans:
