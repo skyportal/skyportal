@@ -826,9 +826,11 @@ def add_external_photometry(json, user):
             log(
                 f'Request from {username} with {len(df.index)} rows complete with upload_id {upload_id}'
             )
+            return ids, upload_id
         except Exception as e:
             session.rollback()
             log(f"Unable to post photometry: {e}")
+            return None, None
 
 
 class PhotometryHandler(BaseHandler):
