@@ -60,7 +60,6 @@ const TNSATForm = ({ obj_id }) => {
       const { data } = result;
       setSelectedTNSRobotId(data[0]?.id);
     };
-
     if (tnsrobotList?.length === 0 && !tnsrobotList) {
       getTNSRobots();
     } else if (tnsrobotList?.length > 0 && !selectedTNSRobotId) {
@@ -70,7 +69,7 @@ const TNSATForm = ({ obj_id }) => {
     // Don't want to reset everytime the component rerenders and
     // the defaultStartDate is updated, so ignore ESLint here
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dispatch, setSelectedTNSRobotId]);
+  }, [dispatch, setSelectedTNSRobotId, tnsrobotList]);
 
   // need to check both of these conditions as selectedTNSRobotId is
   // initialized to be null and useEffect is not called on the first
