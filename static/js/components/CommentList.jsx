@@ -208,7 +208,10 @@ const CommentList = ({
     (state) => state.profile.preferences?.compactComments
   );
   const { currentShift } = useSelector((state) => state.shift);
-  const [includeBots, setIncludeBots] = useState(false);
+
+  const { showBotComments } = useSelector((state) => state.profile.preferences);
+
+  const [includeBots, setIncludeBots] = useState(showBotComments || false);
 
   if (!objID && obj) {
     objID = obj.id;

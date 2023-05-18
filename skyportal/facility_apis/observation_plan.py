@@ -451,6 +451,8 @@ def generate_plan(
                 request.payload.get("ra_slice_min", 0),
                 request.payload.get("ra_slice_max", 360),
             ],
+            # use only primary grid
+            'doUsePrimary': request.payload.get("use_primary", False),
         }
 
         config = {}
@@ -463,6 +465,29 @@ def generate_plan(
                 ]
             else:
                 fields = request.instrument.fields
+
+            # setup defaults for observation plans
+
+            # time in seconds to change the filter
+            filt_change_time = 0.0
+            # extra overhead in seconds
+            overhead_per_exposure = 0.0
+            # slew rate for the telescope [deg/s]
+            slew_rate = 2.6
+            # camera readout time
+            readout = 0.0
+
+            configuration_data = request.instrument.configuration_data
+            if configuration_data:
+                filt_change_time = configuration_data.get(
+                    'filt_change_time', float(filt_change_time)
+                )
+                overhead_per_exposure = configuration_data.get(
+                    'overhead_per_exposure', float(overhead_per_exposure)
+                )
+                slew_rate = configuration_data.get('slew_rate', float(slew_rate))
+                readout = configuration_data.get('readout', float(readout))
+
             config[request.instrument.name] = {
                 # field list from skyportal
                 'tesselation': fields,
@@ -477,13 +502,13 @@ def generate_plan(
                 # telescope horizon
                 'horizon': -12.0,
                 # time in seconds to change the filter
-                'filt_change_time': 0.0,
+                'filt_change_time': filt_change_time,
                 # extra overhead in seconds
-                'overhead_per_exposure': 0.0,
+                'overhead_per_exposure': overhead_per_exposure,
                 # slew rate for the telescope [deg/s]
-                'slew_rate': 2.6,
+                'slew_rate': slew_rate,
                 # camera readout time
-                'readout': 0.0,
+                'readout': readout,
                 # telescope field of view
                 'FOV': 0.0,
                 # exposure time for the given limiting magnitude
@@ -1237,7 +1262,7 @@ class MMAAPI(FollowUpAPI):
                     "minimum": 0,
                     "maximum": 1000,
                 },
-                "balance_exposures": {
+                "balance_exposure": {
                     "title": "Balance exposures across fields",
                     "type": "boolean",
                 },

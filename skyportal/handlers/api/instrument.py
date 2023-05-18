@@ -79,6 +79,13 @@ class InstrumentHandler(BaseHandler):
                         'Sensitivity_data filters must be a subset of the instrument filters'
                     )
 
+            configuration_data = data.get("configuration_data", None)
+            if isinstance(configuration_data, str):
+                configuration_data = ast.literal_eval(
+                    configuration_data.replace("\'", "\"")
+                )
+                data['configuration_data'] = configuration_data
+
             field_data = data.pop("field_data", None)
             field_region = data.pop("field_region", None)
 
@@ -607,6 +614,13 @@ class InstrumentHandler(BaseHandler):
                 )
                 data['sensitivity_data'] = sensitivity_data
 
+            configuration_data = data.get("configuration_data", None)
+            if isinstance(configuration_data, str):
+                configuration_data = ast.literal_eval(
+                    configuration_data.replace("\'", "\"")
+                )
+                data['configuration_data'] = configuration_data
+
             field_data = data.pop("field_data", None)
             field_region = data.pop("field_region", None)
 
@@ -666,7 +680,7 @@ class InstrumentHandler(BaseHandler):
                 )
 
             for k in data:
-                if k != 'sensitivity_data':
+                if k not in ['sensitivity_data', 'configuration_data']:
                     setattr(instrument, k, data[k])
 
             if sensitivity_data:
@@ -675,6 +689,9 @@ class InstrumentHandler(BaseHandler):
                         'Filter names must be present in both sensitivity_data property and filters property'
                     )
                 instrument.sensitivity_data = sensitivity_data
+
+            if configuration_data:
+                instrument.configuration_data = configuration_data
 
             # temporary, to migrate old instruments
             if instrument.region is not None or field_region is not None:
@@ -810,6 +827,30 @@ InstrumentHandler.post.__doc__ = f"""
                         List of filters and associated limiting magnitude and exposure time.
                         Sensitivity_data filters must be a subset of the instrument filters.
                         Limiting magnitude assumed to be AB magnitude.
+                    configuration_data:
+                      type: object
+                      properties:
+                        filter_name:
+                          type: object
+                          properties:
+                            filt_change_time:
+                              type: float
+                              description: |
+                                Time in seconds to change filters
+                            readout:
+                              type: float
+                              description: |
+                                Time in seconds to readout camera
+                            overhead_per_exposure:
+                              type: float
+                              description: |
+                                Non-readout overheads, e.g. instrument settling times, in seconds.
+                            slew_rate:
+                              type: float
+                              description: |
+                                Slew rate for the telescope in deg/s.
+                      description: |
+                        Instrument configuration properties such as instrument overhead, filter change time, readout, etc.
                     field_data:
                       type: dict
                       items:

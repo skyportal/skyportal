@@ -207,7 +207,12 @@ const NewInstrument = () => {
       sensitivity_data: {
         type: "string",
         title:
-          "Sensitivity data (i.e. {'ztfg': {'limiting_magnitude': 20.3, 'magsys': 'ab', 'exposure_time': 30, 'zeropoint': 26.3,}}",
+          "Sensitivity data i.e. {'ztfg': {'limiting_magnitude': 20.3, 'magsys': 'ab', 'exposure_time': 30, 'zeropoint': 26.3,}}",
+      },
+      configuration_data: {
+        type: "string",
+        title:
+          "Configuration data i.e. {'overhead_per_exposure': 2.0, 'readout': 8.0, 'slew_rate': 2.6, 'filt_change_time': 60.0}",
       },
     },
     required: ["name", "type", "band", "telescope_id"],
